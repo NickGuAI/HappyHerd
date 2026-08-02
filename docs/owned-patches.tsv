@@ -23,3 +23,4 @@ A6	code-ready	build(release): ship branded immutable image	scripts/test-release-
 A6	code-ready	ops(release): add manifest-driven rollback	scripts/test-release-rollback.sh
 A6	code-ready	docs(release): record immutable image manifest	docs/releases/2026-08-02-initial.json
 A5	code-ready	fix(crypto): make blob nonce wire contract explicit	server/packages/happy-app/sources/encryption/blob.ts
+A6	code-ready	docs(release): promote crypto-safe immutable image	docs/releases/2026-08-02-initial.json
