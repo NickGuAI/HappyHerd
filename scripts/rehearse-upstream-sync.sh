@@ -45,7 +45,7 @@ verify_owned_identity() {
 }
 
 # Phase 1: exercise the public remote exactly as it exists at run time.
-git clone --no-local --branch main "$origin_url" "$work_dir/live-rehearsal" >/dev/null
+git clone --quiet --no-local --branch main "$origin_url" "$work_dir/live-rehearsal"
 git -C "$work_dir/live-rehearsal" config user.name "HappyHerd Sync Rehearsal"
 git -C "$work_dir/live-rehearsal" config user.email "happyherd-sync@invalid.local"
 git -C "$work_dir/live-rehearsal" remote add upstream "$upstream_url"
@@ -68,8 +68,10 @@ verify_owned_identity "$live_range_diff"
 
 # Phase 2: reconstruct the distribution at the previous real upstream commit,
 # apply the exact owned series, then integrate the current real upstream commit.
-git clone --no-local --branch main "$origin_url" "$work_dir/real-delta-rehearsal" >/dev/null
+git clone --quiet --shared --branch main \
+  "$work_dir/live-rehearsal" "$work_dir/real-delta-rehearsal"
 candidate="$work_dir/real-delta-rehearsal"
+git -C "$candidate" remote set-url origin "$origin_url"
 git -C "$candidate" config user.name "HappyHerd Sync Rehearsal"
 git -C "$candidate" config user.email "happyherd-sync@invalid.local"
 git -C "$candidate" remote add upstream "$upstream_url"
