@@ -20,3 +20,4 @@ A5	code-ready	fix(ci): preserve inspectable A5 evidence	.github/workflows/contra
 A5	code-ready	fix(sync): report full rehearsal provenance	scripts/rehearse-upstream-sync.sh
 A5	accepted	docs(sync): record A5 acceptance evidence	docs/acceptance/a5-2026-08-02.json
 A6	code-ready	build(release): ship branded immutable image	scripts/test-release-image-contract.sh
+A6	code-ready	ops(release): add manifest-driven rollback	scripts/test-release-rollback.sh
