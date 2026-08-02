@@ -12,7 +12,7 @@ fail() {
 
 [[ -z "$(git -C "$repo_root" status --porcelain --untracked-files=normal)" ]] ||
   fail "worktree must be clean"
-[[ "$(pnpm --version)" == "$expected_pnpm" ]] ||
+[[ "$(cd "$server_root" && pnpm --version)" == "$expected_pnpm" ]] ||
   fail "pnpm $expected_pnpm is required"
 
 export APP_ENV=development
