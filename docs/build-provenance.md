@@ -41,3 +41,9 @@ The package path selector for the server deliberately includes
 `--fail-if-no-match`. The upstream package is named `happy-server-self-host`,
 so name-based `--filter happy-server` commands silently skipped the server
 build and could not be used as provenance evidence.
+
+The root postinstall also patches Expo's Hermes exporter to derive its temporary
+input path from the bundle content. Upstream otherwise embeds a random path in
+the iOS bytecode, making identical clean-clone exports byte-different. The patch
+fails loudly if Expo changes the target layout so an upgrade cannot silently
+drop this reproducibility contract.
