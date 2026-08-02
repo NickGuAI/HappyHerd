@@ -10,3 +10,4 @@ A5	code-ready	fix(sync): honor upstream pnpm pin in contract suite	scripts/contr
 A5	code-ready	fix(sync): exercise non-no-op upstream integration	scripts/test-upstream-sync-provenance.sh
 A5	code-ready	ci: enforce HappyHerd contract suite	.github/workflows/contract-suite.yml
 A5	code-ready	fix(sync): make rehearsal merges noninteractive	scripts/rehearse-upstream-sync.sh
+A5	code-ready	fix(sync): make upstream merge provenance deterministic	scripts/rehearse-upstream-sync.sh

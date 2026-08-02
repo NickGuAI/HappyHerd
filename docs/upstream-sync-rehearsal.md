@@ -26,7 +26,9 @@ The first accepted run observed live upstream SHA
 `971d608923f175d3d63af7c204e8c036206b3e99`. The script does not pin that SHA:
 if the public remote advances, the disposable rehearsal integrates and tests
 the new commit rather than silently accepting or rejecting it. Acceptance
-evidence always records the observed live SHA.
+evidence always records the observed live SHA. The subtree merge message names
+that full SHA exactly, making the second-parent provenance independently
+verifiable after the rehearsal.
 
 A5 is accepted only after both scripts pass and an independent reviewer checks
 the resulting patch series and evidence. The dated run output and review are

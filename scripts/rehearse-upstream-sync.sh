@@ -54,7 +54,8 @@ git -C "$work_dir/live-rehearsal" fetch upstream main --tags >/dev/null
 live_upstream="$(git -C "$work_dir/live-rehearsal" rev-parse upstream/main)"
 earlier_upstream="$(git -C "$work_dir/live-rehearsal" rev-parse "${live_upstream}^1")"
 live_before="$(git -C "$work_dir/live-rehearsal" rev-parse HEAD)"
-git -C "$work_dir/live-rehearsal" subtree pull --prefix=server upstream main
+git -C "$work_dir/live-rehearsal" subtree pull --prefix=server upstream main \
+  -m "Merge commit '$live_upstream'"
 live_after="$(git -C "$work_dir/live-rehearsal" rev-parse HEAD)"
 
 echo
@@ -96,7 +97,8 @@ done < <(
 )
 
 clone_before="$(git -C "$candidate" rev-parse HEAD)"
-git -C "$candidate" subtree pull --prefix=server upstream main
+git -C "$candidate" subtree pull --prefix=server upstream main \
+  -m "Merge commit '$live_upstream'"
 clone_after="$(git -C "$candidate" rev-parse HEAD)"
 [[ "$clone_before" != "$clone_after" ]] || fail "real upstream interval produced a no-op"
 
