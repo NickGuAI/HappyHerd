@@ -21,3 +21,4 @@ A5	code-ready	fix(sync): report full rehearsal provenance	scripts/rehearse-upstr
 A5	accepted	docs(sync): record A5 acceptance evidence	docs/acceptance/a5-2026-08-02.json
 A6	code-ready	build(release): ship branded immutable image	scripts/test-release-image-contract.sh
 A6	code-ready	ops(release): add manifest-driven rollback	scripts/test-release-rollback.sh
+A6	code-ready	docs(release): record immutable image manifest	docs/releases/2026-08-02-initial.json
