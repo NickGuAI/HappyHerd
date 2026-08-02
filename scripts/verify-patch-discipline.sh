@@ -5,9 +5,9 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
 manifest="docs/owned-patches.tsv"
-baseline_tag="happyherd-owned-baseline-2026-08-02"
-baseline_sha="7b1acd8554f4de8c56b085f3f564a6f92865985b"
-upstream_tag="happy-upstream-base-2026-08-02"
+production_baseline_tag="happyherd-owned-baseline-2026-08-02"
+production_baseline_sha="7b1acd8554f4de8c56b085f3f564a6f92865985b"
+production_upstream_ref="happy-upstream-base-2026-08-02"
 conventional_subject_re='^(feat|fix|build|ops|docs|test|chore|refactor|perf|ci|revert)(\([[:alnum:]_.-]+\))?!?: .+'
 
 fail() {
@@ -17,6 +17,16 @@ fail() {
 
 [[ -f "$manifest" ]] || fail "missing $manifest"
 
+if [[ "${HAPPYHERD_ALLOW_REHEARSAL_SYNC:-0}" == "1" ]]; then
+  baseline_tag="${HAPPYHERD_REHEARSAL_BASELINE_TAG:?missing rehearsal baseline tag}"
+  baseline_sha="${HAPPYHERD_REHEARSAL_BASELINE_SHA:?missing rehearsal baseline SHA}"
+  upstream_ref="${HAPPYHERD_REHEARSAL_UPSTREAM_REF:?missing rehearsal upstream ref}"
+else
+  baseline_tag="$production_baseline_tag"
+  baseline_sha="$production_baseline_sha"
+  upstream_ref="$production_upstream_ref"
+fi
+
 actual_baseline="$(git rev-parse "${baseline_tag}^{commit}" 2>/dev/null)" ||
   fail "missing owned baseline tag $baseline_tag"
 [[ "$actual_baseline" == "$baseline_sha" ]] ||
@@ -25,7 +35,7 @@ actual_baseline="$(git rev-parse "${baseline_tag}^{commit}" 2>/dev/null)" ||
 git merge-base --is-ancestor "$baseline_sha" HEAD ||
   fail "owned baseline is not an ancestor of HEAD"
 
-upstream_tree="$(git rev-parse "${upstream_tag}^{tree}")"
+upstream_tree="$(git rev-parse "${upstream_ref}^{tree}")"
 owned_server_tree="$(git rev-parse "${baseline_tag}:server")"
 [[ "$upstream_tree" == "$owned_server_tree" ]] ||
   fail "owned baseline server tree differs from the recorded upstream tree"
@@ -63,11 +73,20 @@ for record in "${series[@]}"; do
   sha="${record%%$'\t'*}"
   subject="${record#*$'\t'}"
   gate="${manifest_gate[$subject]:-}"
+  parent_record="$(git rev-list --parents -n 1 "$sha")"
+  parent_count="$(( $(wc -w <<< "$parent_record") - 1 ))"
 
-  [[ -n "$gate" ]] || fail "unmanifested patch ${sha:0:12}: $subject"
-  [[ -z "${resolved_subjects[$subject]:-}" ]] ||
-    fail "manifest subject resolves to multiple commits: $subject"
-  resolved_subjects[$subject]="$sha"
+  if [[ -z "$gate" ]]; then
+    if [[ "${HAPPYHERD_ALLOW_REHEARSAL_SYNC:-0}" != "1" || "$sha" != "$(git rev-parse HEAD)" || "$parent_count" -ne 2 ]]; then
+      fail "unmanifested patch ${sha:0:12}: $subject"
+    fi
+
+    gate="UPSTREAM_SYNC"
+  else
+    [[ -z "${resolved_subjects[$subject]:-}" ]] ||
+      fail "manifest subject resolves to multiple commits: $subject"
+    resolved_subjects[$subject]="$sha"
+  fi
 
   case "$subject" in
     fixup\!*|squash\!*|WIP*|wip*) fail "temporary commit subject: $subject" ;;
@@ -77,9 +96,20 @@ for record in "${series[@]}"; do
     fail "non-conventional owned patch subject: $subject"
   fi
 
-  parent_count="$(( $(git rev-list --parents -n 1 "$sha" | wc -w) - 1 ))"
-  if [[ "$parent_count" -gt 1 && "$gate" != "UPSTREAM_SYNC" ]]; then
-    fail "owned patch is a merge outside UPSTREAM_SYNC: ${sha:0:12} $subject"
+  if [[ "$parent_count" -gt 1 ]]; then
+    [[ "$gate" == "UPSTREAM_SYNC" ]] ||
+      fail "owned patch is a merge outside UPSTREAM_SYNC: ${sha:0:12} $subject"
+    [[ "$parent_count" -eq 2 ]] ||
+      fail "UPSTREAM_SYNC must have exactly two parents: ${sha:0:12}"
+
+    read -r _ first_parent second_parent <<< "$parent_record"
+    git merge-base --is-ancestor "${upstream_ref}^{commit}" "$second_parent" ||
+      fail "UPSTREAM_SYNC second parent does not descend from upstream"
+    outside_server="$(git diff --name-only "$first_parent" "$sha" | awk '!/^server\//')"
+    [[ -z "$outside_server" ]] ||
+      fail "UPSTREAM_SYNC changed paths outside server/: $outside_server"
+    [[ "$subject" == "Merge commit '$second_parent'" ]] ||
+      fail "UPSTREAM_SYNC subject does not identify its second parent"
   fi
 
   if [[ "$parent_count" -eq 1 ]] && git diff-tree --quiet "${sha}^" "$sha"; then
