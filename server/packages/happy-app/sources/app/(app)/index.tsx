@@ -1,11 +1,11 @@
 import { RoundButton } from "@/components/RoundButton";
 import { useAuth } from "@/auth/AuthContext";
-import { Text, View, Image, Platform } from "react-native";
+import { Text, View, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as React from 'react';
 import { encodeBase64 } from "@/encryption/base64";
 import { authGetToken } from "@/auth/authGetToken";
-import { router, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { getRandomBytesAsync } from "expo-crypto";
 import { useIsLandscape } from "@/utils/responsive";
@@ -14,6 +14,7 @@ import { trackAccountCreated, trackAccountRestored } from '@/track';
 import { HomeHeaderNotAuth } from "@/components/HomeHeader";
 import { MainView } from "@/components/MainView";
 import { t } from '@/text';
+import { accountAccessRoutes } from '@/auth/accountKeyLifecycle';
 
 export default function Home() {
     const auth = useAuth();
@@ -41,7 +42,7 @@ function NotAuthenticated() {
             const secret = await getRandomBytesAsync(32);
             const token = await authGetToken(secret);
             if (token && secret) {
-                await auth.login(token, encodeBase64(secret, 'base64url'));
+                await auth.login(token, encodeBase64(secret, 'base64url'), 'new-account');
                 trackAccountCreated();
             }
         } catch (error) {
@@ -62,47 +63,34 @@ function NotAuthenticated() {
             <Text style={styles.subtitle}>
                 {t('welcome.subtitle')}
             </Text>
-            {Platform.OS !== 'android' && Platform.OS !== 'ios' ? (
-                <>
-                    <View style={styles.buttonContainer}>
-                        <RoundButton
-                            title={t('welcome.loginWithMobileApp')}
-                            onPress={() => {
-                                trackAccountRestored();
-                                router.push('/restore');
-                            }}
-                        />
-                    </View>
-                    <View style={styles.buttonContainerSecondary}>
-                        <RoundButton
-                            size="normal"
-                            title={t('welcome.createAccount')}
-                            action={createAccount}
-                            display="inverted"
-                        />
-                    </View>
-                </>
-            ) : (
-                <>
-                    <View style={styles.buttonContainer}>
-                        <RoundButton
-                            title={t('welcome.createAccount')}
-                            action={createAccount}
-                        />
-                    </View>
-                    <View style={styles.buttonContainerSecondary}>
-                        <RoundButton
-                            size="normal"
-                            title={t('welcome.linkOrRestoreAccount')}
-                            onPress={() => {
-                                trackAccountRestored();
-                                router.push('/restore');
-                            }}
-                            display="inverted"
-                        />
-                    </View>
-                </>
-            )}
+            <View style={styles.buttonContainer}>
+                <RoundButton
+                    title={t('welcome.createAccount')}
+                    action={createAccount}
+                />
+            </View>
+            <View style={styles.buttonContainerSecondary}>
+                <RoundButton
+                    size="normal"
+                    title={t('navigation.restoreWithSecretKey')}
+                    onPress={() => {
+                        trackAccountRestored();
+                        router.push(accountAccessRoutes.accountKey);
+                    }}
+                    display="inverted"
+                />
+            </View>
+            <View style={styles.buttonContainerTertiary}>
+                <RoundButton
+                    size="normal"
+                    title={t('welcome.loginWithMobileApp')}
+                    onPress={() => {
+                        trackAccountRestored();
+                        router.push(accountAccessRoutes.linkedDevice);
+                    }}
+                    display="inverted"
+                />
+            </View>
         </View>
     );
 
@@ -123,46 +111,34 @@ function NotAuthenticated() {
                     <Text style={styles.landscapeSubtitle}>
                         {t('welcome.subtitle')}
                     </Text>
-                    {Platform.OS !== 'android' && Platform.OS !== 'ios'
-                        ? (<>
-                            <View style={styles.landscapeButtonContainer}>
-                                <RoundButton
-                                    title={t('welcome.loginWithMobileApp')}
-                                    onPress={() => {
-                                        trackAccountRestored();
-                                        router.push('/restore');
-                                    }}
-                                />
-                            </View>
-                            <View style={styles.landscapeButtonContainerSecondary}>
-                                <RoundButton
-                                    size="normal"
-                                    title={t('welcome.createAccount')}
-                                    action={createAccount}
-                                    display="inverted"
-                                />
-                            </View>
-                        </>)
-                        : (<>
-                            <View style={styles.landscapeButtonContainer}>
-                                <RoundButton
-                                    title={t('welcome.createAccount')}
-                                    action={createAccount}
-                                />
-                            </View>
-                            <View style={styles.landscapeButtonContainerSecondary}>
-                                <RoundButton
-                                    size="normal"
-                                    title={t('welcome.linkOrRestoreAccount')}
-                                    onPress={() => {
-                                        trackAccountRestored();
-                                        router.push('/restore');
-                                    }}
-                                    display="inverted"
-                                />
-                            </View>
-                        </>)
-                    }
+                    <View style={styles.landscapeButtonContainer}>
+                        <RoundButton
+                            title={t('welcome.createAccount')}
+                            action={createAccount}
+                        />
+                    </View>
+                    <View style={styles.landscapeButtonContainerSecondary}>
+                        <RoundButton
+                            size="normal"
+                            title={t('navigation.restoreWithSecretKey')}
+                            onPress={() => {
+                                trackAccountRestored();
+                                router.push(accountAccessRoutes.accountKey);
+                            }}
+                            display="inverted"
+                        />
+                    </View>
+                    <View style={styles.landscapeButtonContainerTertiary}>
+                        <RoundButton
+                            size="normal"
+                            title={t('welcome.loginWithMobileApp')}
+                            onPress={() => {
+                                trackAccountRestored();
+                                router.push(accountAccessRoutes.linkedDevice);
+                            }}
+                            display="inverted"
+                        />
+                    </View>
                 </View>
             </View>
         </View>
@@ -209,6 +185,13 @@ const styles = StyleSheet.create((theme) => ({
         marginBottom: 16,
     },
     buttonContainerSecondary: {
+        maxWidth: 280,
+        width: '100%',
+    },
+    buttonContainerTertiary: {
+        maxWidth: 280,
+        width: '100%',
+        marginTop: 8,
     },
     // Landscape styles
     landscapeContainer: {
@@ -260,5 +243,9 @@ const styles = StyleSheet.create((theme) => ({
     },
     landscapeButtonContainerSecondary: {
         width: 280,
+    },
+    landscapeButtonContainerTertiary: {
+        width: 280,
+        marginTop: 8,
     },
 }));

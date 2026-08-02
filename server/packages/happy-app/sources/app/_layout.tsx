@@ -7,7 +7,7 @@ import * as Notifications from 'expo-notifications';
 import { FontAwesome } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { AuthCredentials, TokenStorage } from '@/auth/tokenStorage';
-import { AuthProvider } from '@/auth/AuthContext';
+import { AuthProvider, useAuth } from '@/auth/AuthContext';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { initialWindowMetrics, SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -35,6 +35,7 @@ import { applyVoiceUpsellOverride } from '@/realtime/voiceExperiment';
 import { useTauriZoom } from '@/hooks/useTauriZoom';
 import { useTauriDrag } from '@/hooks/useTauriDrag';
 import { BrowserNavigationShortcuts } from '@/hooks/useBrowserNavigationShortcuts';
+import { AccountKeyBackupGate } from '@/components/AccountKeyBackupGate';
 
 // Configure notification handler — suppress push display when app is in foreground
 Notifications.setNotificationHandler({
@@ -203,6 +204,14 @@ function getDevWebQueryCredentials(): AuthCredentials | null {
     return { token, secret };
 }
 
+function AccountKeyAccessGate({ children }: { children: React.ReactNode }) {
+    const auth = useAuth();
+    if (auth.isAuthenticated && auth.accountKeyBackupRequired) {
+        return <AccountKeyBackupGate />;
+    }
+    return children;
+}
+
 export default function RootLayout() {
     useTauriZoom();
     useTauriDrag();
@@ -230,7 +239,10 @@ export default function RootLayout() {
     //
     // Init sequence
     //
-    const [initState, setInitState] = React.useState<{ credentials: AuthCredentials | null } | null>(null);
+    const [initState, setInitState] = React.useState<{
+        credentials: AuthCredentials | null;
+        accountKeyBackupRequired: boolean;
+    } | null>(null);
     React.useEffect(() => {
         (async () => {
             try {
@@ -238,6 +250,7 @@ export default function RootLayout() {
                 await sodium.ready;
 
                 let credentials = await TokenStorage.getCredentials();
+                let accountKeyBackupRequired = await TokenStorage.getAccountKeyBackupRequired();
                 const devCredentials = getDevWebQueryCredentials() ?? getDevEnvironmentCredentials();
 
                 if (devCredentials) {
@@ -248,6 +261,8 @@ export default function RootLayout() {
                         const saved = await TokenStorage.setCredentials(devCredentials);
                         if (saved) {
                             credentials = devCredentials;
+                            await TokenStorage.setAccountKeyBackupRequired(false);
+                            accountKeyBackupRequired = false;
                         }
                     }
 
@@ -260,7 +275,7 @@ export default function RootLayout() {
                     await syncRestore(credentials);
                 }
 
-                setInitState({ credentials });
+                setInitState({ credentials, accountKeyBackupRequired });
             } catch (error) {
                 console.error('Error initializing:', error);
             }
@@ -394,18 +409,23 @@ export default function RootLayout() {
                         ? { flex: 1 }
                         : { flex: 1, backgroundColor: theme.colors.groupped.background }}
                 >
-                    <AuthProvider initialCredentials={initState.credentials}>
+                    <AuthProvider
+                        initialCredentials={initState.credentials}
+                        initialAccountKeyBackupRequired={initState.accountKeyBackupRequired}
+                    >
                         <ThemeProvider value={navigationTheme}>
                             <StatusBarProvider />
                             <ModalProvider>
                                 <BrowserNavigationShortcuts />
-                                <CommandPaletteProvider>
-                                    <RealtimeProvider>
-                                        <HorizontalSafeAreaWrapper>
-                                            <SidebarNavigator />
-                                        </HorizontalSafeAreaWrapper>
-                                    </RealtimeProvider>
-                                </CommandPaletteProvider>
+                                <AccountKeyAccessGate>
+                                    <CommandPaletteProvider>
+                                        <RealtimeProvider>
+                                            <HorizontalSafeAreaWrapper>
+                                                <SidebarNavigator />
+                                            </HorizontalSafeAreaWrapper>
+                                        </RealtimeProvider>
+                                    </CommandPaletteProvider>
+                                </AccountKeyAccessGate>
                             </ModalProvider>
                         </ThemeProvider>
                     </AuthProvider>

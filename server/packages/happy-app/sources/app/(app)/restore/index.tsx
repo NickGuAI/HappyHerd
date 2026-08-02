@@ -103,7 +103,7 @@ export default function Restore() {
                 if (credentials && !isCancelledRef.current) {
                     // Convert secret bytes to base64url string for login
                     const secretString = encodeBase64(credentials.secret, 'base64url');
-                    await auth.login(credentials.token, secretString);
+                    await auth.login(credentials.token, secretString, 'linked-device');
                     if (!isCancelledRef.current) {
                         router.back();
                     }

@@ -6,35 +6,72 @@ import { clearPersistence, loadRegisteredPushToken } from '@/sync/persistence';
 import { unregisterPushToken } from '@/sync/apiPush';
 import { Platform } from 'react-native';
 import { trackLogout } from '@/track';
+import { requiresAccountKeyBackup, type AccountLoginMethod } from '@/auth/accountKeyLifecycle';
 
 interface AuthContextType {
     isAuthenticated: boolean;
     credentials: AuthCredentials | null;
-    login: (token: string, secret: string) => Promise<void>;
+    accountKeyBackupRequired: boolean;
+    login: (token: string, secret: string, method: AccountLoginMethod) => Promise<void>;
+    confirmAccountKeyBackup: () => Promise<void>;
     logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children, initialCredentials }: { children: ReactNode; initialCredentials: AuthCredentials | null }) {
+export function AuthProvider({
+    children,
+    initialCredentials,
+    initialAccountKeyBackupRequired,
+}: {
+    children: ReactNode;
+    initialCredentials: AuthCredentials | null;
+    initialAccountKeyBackupRequired: boolean;
+}) {
     const [isAuthenticated, setIsAuthenticated] = useState(!!initialCredentials);
     const [credentials, setCredentials] = useState<AuthCredentials | null>(initialCredentials);
+    const [accountKeyBackupRequired, setAccountKeyBackupRequired] = useState(
+        !!initialCredentials && initialAccountKeyBackupRequired
+    );
 
     // Update global auth state when local state changes
     useEffect(() => {
-        setCurrentAuth(credentials ? { isAuthenticated, credentials, login, logout } : null);
-    }, [isAuthenticated, credentials]);
+        setCurrentAuth(credentials ? {
+            isAuthenticated,
+            credentials,
+            accountKeyBackupRequired,
+            login,
+            confirmAccountKeyBackup,
+            logout,
+        } : null);
+    }, [isAuthenticated, credentials, accountKeyBackupRequired]);
 
-    const login = async (token: string, secret: string) => {
+    const login = async (token: string, secret: string, method: AccountLoginMethod) => {
         const newCredentials: AuthCredentials = { token, secret };
-        const success = await TokenStorage.setCredentials(newCredentials);
-        if (success) {
-            await syncCreate(newCredentials);
-            setCredentials(newCredentials);
-            setIsAuthenticated(true);
-        } else {
+        const backupRequired = requiresAccountKeyBackup(method);
+        const backupStateSaved = await TokenStorage.setAccountKeyBackupRequired(backupRequired);
+        if (!backupStateSaved) {
+            throw new Error('Failed to save account key backup state');
+        }
+
+        const credentialsSaved = await TokenStorage.setCredentials(newCredentials);
+        if (!credentialsSaved) {
+            await TokenStorage.setAccountKeyBackupRequired(false);
             throw new Error('Failed to save credentials');
         }
+
+        await syncCreate(newCredentials);
+        setCredentials(newCredentials);
+        setAccountKeyBackupRequired(backupRequired);
+        setIsAuthenticated(true);
+    };
+
+    const confirmAccountKeyBackup = async () => {
+        const success = await TokenStorage.setAccountKeyBackupRequired(false);
+        if (!success) {
+            throw new Error('Failed to confirm account key backup');
+        }
+        setAccountKeyBackupRequired(false);
     };
 
     const logout = async () => {
@@ -52,6 +89,7 @@ export function AuthProvider({ children, initialCredentials }: { children: React
         
         // Update React state to ensure UI consistency
         setCredentials(null);
+        setAccountKeyBackupRequired(false);
         setIsAuthenticated(false);
         
         if (Platform.OS === 'web') {
@@ -71,7 +109,9 @@ export function AuthProvider({ children, initialCredentials }: { children: React
             value={{
                 isAuthenticated,
                 credentials,
+                accountKeyBackupRequired,
                 login,
+                confirmAccountKeyBackup,
                 logout,
             }}
         >

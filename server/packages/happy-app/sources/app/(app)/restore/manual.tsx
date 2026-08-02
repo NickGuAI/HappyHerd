@@ -104,7 +104,7 @@ export default function Restore() {
             }
 
             // Login with new credentials
-            await auth.login(token, normalizedKey);
+            await auth.login(token, normalizedKey, 'account-key');
 
             // Dismiss
             router.back();
