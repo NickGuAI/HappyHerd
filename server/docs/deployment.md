@@ -67,11 +67,12 @@ The deployment config expects:
 
 ## Local dev helpers
 The server package includes scripts for local infrastructure:
-- `pnpm --filter happy-server db` (Postgres in Docker)
-- `pnpm --filter happy-server redis`
-- `pnpm --filter happy-server s3` + `s3:init`
+- `pnpm --filter ./packages/happy-server --fail-if-no-match db` (Postgres in Docker)
+- `pnpm --filter ./packages/happy-server --fail-if-no-match redis`
+- `pnpm --filter ./packages/happy-server --fail-if-no-match s3` + `s3:init`
 
-Use `.env`/`.env.dev` to load local settings when running `pnpm --filter happy-server dev`.
+Use `.env`/`.env.dev` to load local settings when running
+`pnpm --filter ./packages/happy-server --fail-if-no-match dev`.
 
 ## Implementation references
 - Entrypoint: `packages/happy-server/sources/main.ts`

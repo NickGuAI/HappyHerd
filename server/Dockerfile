@@ -2,7 +2,10 @@
 # Uses PGlite (embedded Postgres), local filesystem storage, no Redis
 
 # Stage 1: install dependencies
+FROM oven/bun:1.3.11 AS bun-runtime
 FROM node:20 AS deps
+
+COPY --from=bun-runtime /usr/local/bin/bun /usr/local/bin/bun
 
 RUN apt-get update && apt-get install -y python3 make g++ build-essential && rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
@@ -36,7 +39,7 @@ COPY packages/happy-wire ./packages/happy-wire
 COPY packages/happy-server ./packages/happy-server
 
 RUN pnpm --filter @slopus/happy-wire build
-RUN pnpm --filter happy-server build
+RUN pnpm --filter ./packages/happy-server --fail-if-no-match build
 
 # Stage 3: runtime
 FROM node:20-slim AS runner

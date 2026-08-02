@@ -2,10 +2,10 @@
 .env.*
 !.env.example
 .runtime/
+.artifacts/
 .happyherd/
 data/
 logs/
 *.log
 *.pid
 *.local
-
