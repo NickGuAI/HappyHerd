@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "gate": "A6",
+  "status": "accepted",
+  "testedHappyHerdSha": "1a16818a05003442128ac67a1cf03bf87f6e428d",
+  "recordedAt": "2026-08-02T22:12:37Z",
+  "release": {
+    "manifestPath": "docs/releases/2026-08-02-initial.json",
+    "manifestSha256": "b77e9fc305969f662450598ff78433a002494e8cf629be4cc3d595041d3b2328",
+    "current": {
+      "image": "ghcr.io/nickguai/happyherd@sha256:15237be0bbeaafda8a5eed25022f1125e7f35975e3f549f91a032de1cec64573",
+      "immutableTag": "ghcr.io/nickguai/happyherd:sha-084b09892ce91312eabd7549ea6859b9eb6fc5c7",
+      "sourceSha": "084b09892ce91312eabd7549ea6859b9eb6fc5c7",
+      "smokeEvidencePath": "docs/acceptance/a6-2026-08-02-image-smoke-084b0989.json",
+      "smokeEvidenceSha256": "a8b74020e37631594ed1815318ebdbb8207da8a975fbc8f919b43e6cfc486797"
+    },
+    "previous": {
+      "image": "ghcr.io/nickguai/happyherd@sha256:080d36ea91361e5977585872ad8b87a8dab779669cc19974b8d4e3bf0f0797a3",
+      "immutableTag": "ghcr.io/nickguai/happyherd:sha-e46b1dc95aa568129ef15a4db99a9dac691d22a8",
+      "sourceSha": "e46b1dc95aa568129ef15a4db99a9dac691d22a8",
+      "smokeEvidencePath": "docs/acceptance/a6-2026-08-02-image-smoke-e46b1dc9.json",
+      "smokeEvidenceSha256": "5157ce33aa01ab24dc98d9e85c3b507f60f6005e4cd49287835dda120b8c4406"
+    }
+  },
+  "contracts": {
+    "result": "passed",
+    "testFiles": 174,
+    "tests": 1931
+  },
+  "ci": {
+    "runId": 30769153519,
+    "headSha": "1a16818a05003442128ac67a1cf03bf87f6e428d",
+    "conclusion": "success",
+    "url": "https://github.com/NickGuAI/HappyHerd/actions/runs/30769153519",
+    "jobs": [
+      {
+        "id": 91553131424,
+        "name": "Contract suite",
+        "conclusion": "success"
+      },
+      {
+        "id": 91553601821,
+        "name": "Real upstream rehearsal",
+        "conclusion": "success"
+      }
+    ],
+    "artifacts": [
+      {
+        "kind": "contracts",
+        "id": 8839986442,
+        "name": "contract-suite-30769153519",
+        "archiveDigest": "sha256:434f246f66e1f14131151e4d13c9365cadf778ffdfadfafa1bdd05a45e818f72",
+        "archiveSizeBytes": 5250
+      },
+      {
+        "kind": "upstream-rehearsal",
+        "id": 8840059343,
+        "name": "upstream-rehearsal-30769153519",
+        "archiveDigest": "sha256:161757fe7798725c525794082c47a10ed806f1b9c351de368b2e3ff4c61fdee5",
+        "archiveSizeBytes": 11712
+      }
+    ]
+  },
+  "runtime": {
+    "service": "happyherd.service",
+    "systemd": {
+      "active": true,
+      "enabled": true
+    },
+    "hostPort": 20015,
+    "releasePath": "/opt/happyherd/releases/1a16818a05003442128ac67a1cf03bf87f6e428d",
+    "image": "ghcr.io/nickguai/happyherd@sha256:15237be0bbeaafda8a5eed25022f1125e7f35975e3f549f91a032de1cec64573",
+    "sourceSha": "084b09892ce91312eabd7549ea6859b9eb6fc5c7",
+    "health": {
+      "status": "ok",
+      "service": "happy-server",
+      "verifiedAt": "2026-08-02T22:06:07.009Z"
+    },
+    "isolation": {
+      "result": "passed",
+      "config": "/etc/happyherd/runtime.env",
+      "data": "/var/lib/happyherd/data",
+      "cliHome": "/var/lib/happyherd/cli",
+      "logs": "/var/log/happyherd/server.log",
+      "secret": "/etc/happyherd/master-secret"
+    }
+  },
+  "rollbackRehearsal": {
+    "result": "passed",
+    "command": "scripts/rollback-release.sh docs/releases/2026-08-02-initial.json /etc/happyherd/runtime.env",
+    "startedAt": "2026-08-02T22:02:05Z",
+    "rollback": {
+      "completedAt": "2026-08-02T22:02:11Z",
+      "image": "ghcr.io/nickguai/happyherd@sha256:080d36ea91361e5977585872ad8b87a8dab779669cc19974b8d4e3bf0f0797a3",
+      "sourceSha": "e46b1dc95aa568129ef15a4db99a9dac691d22a8",
+      "healthVerifiedAt": "2026-08-02T22:02:11.378Z"
+    },
+    "restore": {
+      "activatedAt": "2026-08-02T22:02:11Z",
+      "completedAt": "2026-08-02T22:02:16Z",
+      "image": "ghcr.io/nickguai/happyherd@sha256:15237be0bbeaafda8a5eed25022f1125e7f35975e3f549f91a032de1cec64573",
+      "sourceSha": "084b09892ce91312eabd7549ea6859b9eb6fc5c7",
+      "healthVerifiedAt": "2026-08-02T22:02:16.878Z"
+    }
+  },
+  "scopeBoundary": {
+    "publicIngress": "pending-iam",
+    "note": "A6 accepts immutable host release and rollback mechanics. Public HTTPS and browser G0 acceptance remain separate deployment gates."
+  }
+}
