@@ -136,7 +136,7 @@ function validateArtifactLogs(document) {
     assert(identityMatches === document.rehearsal.identityMatches,
         'rehearsal identity-match count does not match committed log content');
 
-    const expectedSentinel = `upstream-rehearsal: ok (real interval ${document.upstream.from.slice(0, 12)}..${document.upstream.to.slice(0, 12)}; post-sync ${document.rehearsal.postSyncSha.slice(0, 12)})`;
+    const expectedSentinel = `upstream-rehearsal: ok (real interval ${document.upstream.from}..${document.upstream.to}; post-sync ${document.rehearsal.postSyncSha})`;
     assert(rehearsalLog.includes(expectedSentinel), 'rehearsal log does not match the recorded upstream interval');
 }
 

@@ -136,4 +136,4 @@ HAPPYHERD_REHEARSAL_EXPECTED_UPSTREAM_SHA="$live_upstream" \
   "$candidate/scripts/contract-suite.sh"
 
 echo
-echo "upstream-rehearsal: ok (real interval ${earlier_upstream:0:12}..${live_upstream:0:12}; post-sync ${clone_after:0:12})"
+echo "upstream-rehearsal: ok (real interval ${earlier_upstream}..${live_upstream}; post-sync ${clone_after})"
