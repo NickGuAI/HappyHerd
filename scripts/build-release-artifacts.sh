@@ -93,7 +93,7 @@ done
 stable_archive web happyherd-web.tar.gz
 stable_archive ios happyherd-ios-update.tar.gz
 stable_archive server happyherd-server.tar.gz
-stable_archive daemon happyherd-daemon-${platform}.tar.gz
+stable_archive daemon "happyherd-daemon-${platform}.tar.gz"
 
 (
     cd "$OUT_DIR"
@@ -101,9 +101,11 @@ stable_archive daemon happyherd-daemon-${platform}.tar.gz
 )
 
 export ROOT OUT_DIR HEAD_SHA UPSTREAM_SHA SOURCE_DATE_EPOCH COMMIT_TIMESTAMP PUBLIC_URL
-export NODE_VERSION="$(node --version)"
+NODE_VERSION="$(node --version)"
+export NODE_VERSION
 export PNPM_VERSION
-export BUN_VERSION="$(bun --version)"
+BUN_VERSION="$(bun --version)"
+export BUN_VERSION
 node <<'NODE'
 const fs = require('node:fs');
 const path = require('node:path');

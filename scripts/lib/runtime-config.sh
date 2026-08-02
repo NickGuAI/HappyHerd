@@ -43,7 +43,7 @@ happyherd_load_runtime_config() {
             return 1
         }
         printf -v "$key" '%s' "$value"
-        export "$key"
+        export "${key?}"
     done < "$env_file"
 
     for key in "${HAPPYHERD_RUNTIME_KEYS[@]}"; do

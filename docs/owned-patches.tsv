@@ -5,3 +5,4 @@ A2	accepted	build: make release artifacts reproducible	docs/build-provenance.md
 A2	accepted	fix(build): stabilize Expo Hermes bytecode	server/patches/deterministic-expo-hermes-temp.cjs
 A3	accepted	ops: isolate HappyHerd runtime state	docs/runtime-isolation.md
 A4	accepted	docs: codify owned patch discipline	docs/patch-discipline.md
+A5	code-ready	test(sync): add upstream rehearsal and contract suite	scripts/contract-suite.sh
