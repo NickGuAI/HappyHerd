@@ -8,6 +8,7 @@ baseline="happyherd-owned-baseline-2026-08-02"
 distribution_shell="ee05253ca0b964d8aad071b2f424dff0752a836c"
 upstream_url="https://github.com/slopus/happy.git"
 origin_url="$(git -C "$repo_root" remote get-url origin)"
+clone_source="${HAPPYHERD_CLONE_SOURCE:-$origin_url}"
 head_before="$(git -C "$repo_root" rev-parse HEAD)"
 origin_head="$(git -C "$repo_root" ls-remote origin refs/heads/main | awk '{print $1}')"
 work_dir="$(mktemp -d "${TMPDIR:-/tmp}/happyherd-sync-rehearsal.XXXXXX")"
@@ -27,6 +28,13 @@ fail() {
 [[ "$origin_head" == "$head_before" ]] ||
   fail "HEAD is not the pushed origin/main commit"
 
+if [[ -n "${HAPPYHERD_CLONE_SOURCE:-}" ]]; then
+  [[ "$(git -C "$clone_source" rev-parse HEAD)" == "$head_before" ]] ||
+    fail "clone source is not the verified pushed commit"
+  [[ -z "$(git -C "$clone_source" status --porcelain --untracked-files=normal)" ]] ||
+    fail "clone source worktree is not clean"
+fi
+
 declare -A manifest_subjects=()
 while IFS=$'\t' read -r gate _ subject _; do
   [[ -z "$gate" || "$gate" == \#* ]] && continue
@@ -45,7 +53,8 @@ verify_owned_identity() {
 }
 
 # Phase 1: exercise the public remote exactly as it exists at run time.
-git clone --quiet --no-local --branch main "$origin_url" "$work_dir/live-rehearsal"
+git clone --quiet --no-local --branch main "$clone_source" "$work_dir/live-rehearsal"
+git -C "$work_dir/live-rehearsal" remote set-url origin "$origin_url"
 git -C "$work_dir/live-rehearsal" config user.name "HappyHerd Sync Rehearsal"
 git -C "$work_dir/live-rehearsal" config user.email "happyherd-sync@invalid.local"
 git -C "$work_dir/live-rehearsal" remote add upstream "$upstream_url"

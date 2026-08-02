@@ -14,3 +14,4 @@ A5	code-ready	fix(sync): make upstream merge provenance deterministic	scripts/re
 A5	code-ready	fix(sync): follow declared shell sources in contracts	scripts/contract-suite.sh
 A5	code-ready	perf(sync): reuse verified rehearsal clone	scripts/rehearse-upstream-sync.sh
 A5	code-ready	test(sync): require structured A5 acceptance evidence	scripts/verify-a5-evidence.mjs
+A5	code-ready	fix(ci): fail closed during upstream rehearsal	.github/workflows/contract-suite.yml
