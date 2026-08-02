@@ -233,9 +233,10 @@ export const SettingsView = React.memo(function SettingsView({
                         // Logo view: Original logo + version
                         <>
                             <Image
-                                source={theme.dark ? require('@/assets/images/logotype-light.png') : require('@/assets/images/logotype-dark.png')}
+                                source={require('@/assets/images/logo-black.png')}
                                 contentFit="contain"
-                                style={{ width: 300, height: 90, marginBottom: 12 }}
+                                style={{ width: 120, height: 120, marginBottom: 12 }}
+                                tintColor={theme.colors.text}
                             />
                         </>
                     )}

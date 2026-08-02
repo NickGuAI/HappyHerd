@@ -53,9 +53,9 @@ function NotAuthenticated() {
     const portraitLayout = (
         <View style={styles.portraitContainer}>
             <Image
-                source={theme.dark ? require('@/assets/images/logotype-light.png') : require('@/assets/images/logotype-dark.png')}
+                source={require('@/assets/images/logo-black.png')}
                 resizeMode="contain"
-                style={styles.logo}
+                style={[styles.logo, { tintColor: theme.colors.text }]}
             />
             <Text style={styles.title}>
                 {t('welcome.title')}
@@ -99,9 +99,9 @@ function NotAuthenticated() {
             <View style={styles.landscapeInner}>
                 <View style={styles.landscapeLogoSection}>
                     <Image
-                        source={theme.dark ? require('@/assets/images/logotype-light.png') : require('@/assets/images/logotype-dark.png')}
+                        source={require('@/assets/images/logo-black.png')}
                         resizeMode="contain"
-                        style={styles.logo}
+                        style={[styles.logo, { tintColor: theme.colors.text }]}
                     />
                 </View>
                 <View style={styles.landscapeContentSection}>
@@ -160,8 +160,8 @@ const styles = StyleSheet.create((theme) => ({
         justifyContent: 'center',
     },
     logo: {
-        width: 300,
-        height: 90,
+        width: 120,
+        height: 120,
     },
     title: {
         marginTop: 16,
