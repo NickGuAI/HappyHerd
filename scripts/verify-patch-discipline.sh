@@ -8,6 +8,8 @@ manifest="docs/owned-patches.tsv"
 production_baseline_tag="happyherd-owned-baseline-2026-08-02"
 production_baseline_sha="7b1acd8554f4de8c56b085f3f564a6f92865985b"
 production_upstream_ref="happy-upstream-base-2026-08-02"
+production_trusted_upstream_ref="refs/remotes/upstream/main"
+production_trusted_upstream_url="https://github.com/slopus/happy.git"
 conventional_subject_re='^(feat|fix|build|ops|docs|test|chore|refactor|perf|ci|revert)(\([[:alnum:]_.-]+\))?!?: .+'
 
 fail() {
@@ -21,10 +23,16 @@ if [[ "${HAPPYHERD_ALLOW_REHEARSAL_SYNC:-0}" == "1" ]]; then
   baseline_tag="${HAPPYHERD_REHEARSAL_BASELINE_TAG:?missing rehearsal baseline tag}"
   baseline_sha="${HAPPYHERD_REHEARSAL_BASELINE_SHA:?missing rehearsal baseline SHA}"
   upstream_ref="${HAPPYHERD_REHEARSAL_UPSTREAM_REF:?missing rehearsal upstream ref}"
+  trusted_upstream_ref="${HAPPYHERD_REHEARSAL_TRUSTED_UPSTREAM_REF:-$production_trusted_upstream_ref}"
+  trusted_upstream_url="${HAPPYHERD_REHEARSAL_TRUSTED_UPSTREAM_URL:-$production_trusted_upstream_url}"
+  expected_upstream_sha="${HAPPYHERD_REHEARSAL_EXPECTED_UPSTREAM_SHA:-}"
 else
   baseline_tag="$production_baseline_tag"
   baseline_sha="$production_baseline_sha"
   upstream_ref="$production_upstream_ref"
+  trusted_upstream_ref="$production_trusted_upstream_ref"
+  trusted_upstream_url="$production_trusted_upstream_url"
+  expected_upstream_sha=""
 fi
 
 actual_baseline="$(git rev-parse "${baseline_tag}^{commit}" 2>/dev/null)" ||
@@ -118,6 +126,18 @@ for record in "${series[@]}"; do
     read -r _ first_parent second_parent <<< "$parent_record"
     git merge-base --is-ancestor "${upstream_ref}^{commit}" "$second_parent" ||
       fail "UPSTREAM_SYNC second parent does not descend from upstream"
+    actual_upstream_url="$(git remote get-url upstream 2>/dev/null)" ||
+      fail "UPSTREAM_SYNC requires the trusted upstream remote"
+    [[ "$actual_upstream_url" == "$trusted_upstream_url" ]] ||
+      fail "UPSTREAM_SYNC remote is not the trusted public upstream: $actual_upstream_url"
+    git rev-parse --verify "${trusted_upstream_ref}^{commit}" >/dev/null 2>&1 ||
+      fail "UPSTREAM_SYNC trusted upstream ref is missing: $trusted_upstream_ref"
+    git merge-base --is-ancestor "$second_parent" "${trusted_upstream_ref}^{commit}" ||
+      fail "UPSTREAM_SYNC second parent is not reachable from trusted upstream"
+    if [[ -n "$expected_upstream_sha" ]]; then
+      [[ "$second_parent" == "$expected_upstream_sha" ]] ||
+        fail "UPSTREAM_SYNC second parent does not match observed upstream target"
+    fi
     outside_server="$(git diff --name-only "$first_parent" "$sha" | awk '!/^server\//')"
     [[ -z "$outside_server" ]] ||
       fail "UPSTREAM_SYNC changed paths outside server/: $outside_server"

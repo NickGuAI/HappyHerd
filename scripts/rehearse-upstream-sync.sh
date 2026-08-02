@@ -132,6 +132,7 @@ HAPPYHERD_ALLOW_REHEARSAL_SYNC=1 \
 HAPPYHERD_REHEARSAL_BASELINE_TAG=happyherd-rehearsal-owned-baseline \
 HAPPYHERD_REHEARSAL_BASELINE_SHA="$rehearsal_baseline" \
 HAPPYHERD_REHEARSAL_UPSTREAM_REF="$earlier_upstream" \
+HAPPYHERD_REHEARSAL_EXPECTED_UPSTREAM_SHA="$live_upstream" \
   "$candidate/scripts/contract-suite.sh"
 
 echo

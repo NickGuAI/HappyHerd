@@ -40,7 +40,7 @@ run_case() {
   local variant="$2"
   local expected="$3"
   local case_dir="$work_dir/$name"
-  local upstream_base second_parent subject output rc
+  local upstream_base second_parent observed_target subject output rc
 
   git clone --quiet "$fixture" "$case_dir"
   git -C "$case_dir" config user.name "HappyHerd Provenance Test"
@@ -58,6 +58,12 @@ run_case() {
   git -C "$case_dir" add app.txt
   git -C "$case_dir" commit --quiet -m "test: advance fixture upstream"
   second_parent="$(git -C "$case_dir" rev-parse HEAD)"
+  observed_target="$second_parent"
+  if [[ "$variant" == "local-descendant" ]]; then
+    observed_target="$upstream_base"
+  fi
+  git -C "$case_dir" remote add upstream "$fixture"
+  git -C "$case_dir" update-ref refs/remotes/upstream/main "$observed_target"
   git -C "$case_dir" switch main >/dev/null 2>&1
   git -C "$case_dir" merge --no-ff --no-commit --allow-unrelated-histories \
     -s ours "$second_parent" >/dev/null 2>&1
@@ -84,6 +90,9 @@ run_case() {
     HAPPYHERD_REHEARSAL_BASELINE_TAG=fixture-owned-baseline \
     HAPPYHERD_REHEARSAL_BASELINE_SHA="$fixture_baseline" \
     HAPPYHERD_REHEARSAL_UPSTREAM_REF="$upstream_base" \
+    HAPPYHERD_REHEARSAL_TRUSTED_UPSTREAM_REF=refs/remotes/upstream/main \
+    HAPPYHERD_REHEARSAL_TRUSTED_UPSTREAM_URL="$fixture" \
+    HAPPYHERD_REHEARSAL_EXPECTED_UPSTREAM_SHA="$observed_target" \
       "$case_dir/scripts/verify-patch-discipline.sh" 2>&1
   )" || rc=$?
 
@@ -100,7 +109,8 @@ run_case() {
 
 run_case valid valid pass
 run_case unrelated unrelated "second parent does not descend from upstream"
+run_case local-descendant local-descendant "second parent is not reachable from trusted upstream"
 run_case outside-prefix outside-prefix "changed paths outside server/"
 run_case wrong-subject wrong-subject "subject does not identify its second parent"
 
-echo "upstream-sync-provenance: ok (1 valid and 3 rejected fixtures)"
+echo "upstream-sync-provenance: ok (1 valid and 4 rejected fixtures)"
