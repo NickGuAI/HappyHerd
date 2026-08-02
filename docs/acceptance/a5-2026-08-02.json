@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "gate": "A5",
+  "status": "accepted",
+  "testedHappyHerdSha": "24f85087e688b341fe8c80fb9343689cf7c0f0d1",
+  "recordedAt": "2026-08-02T20:56:21Z",
+  "upstream": {
+    "from": "80cc6ac6e3b7e3e44e56bd62428e2e696183995e",
+    "to": "971d608923f175d3d63af7c204e8c036206b3e99"
+  },
+  "rehearsal": {
+    "result": "passed",
+    "postSyncSha": "1adc187431ac19800520a9241f67143a56998761",
+    "ownedPatches": 19,
+    "identityMatches": 19
+  },
+  "contracts": {
+    "result": "passed",
+    "testFiles": 174,
+    "tests": 1931
+  },
+  "ci": {
+    "runId": 30766192762,
+    "headSha": "24f85087e688b341fe8c80fb9343689cf7c0f0d1",
+    "conclusion": "success",
+    "url": "https://github.com/NickGuAI/HappyHerd/actions/runs/30766192762",
+    "artifacts": [
+      {
+        "kind": "contracts",
+        "id": 8839063197,
+        "name": "contract-suite-30766192762",
+        "archiveDigest": "sha256:126a355ec041badbcd6b94829359dc8752cb3d39169df21580a94582e117fbce",
+        "archiveSizeBytes": 5175,
+        "logPath": "docs/acceptance/a5-2026-08-02.contracts.log",
+        "logSha256": "98c164ebca652cb756cdd4e9191f46217488b9156aa95ce50033a4f9125669ef"
+      },
+      {
+        "kind": "upstream-rehearsal",
+        "id": 8839129170,
+        "name": "upstream-rehearsal-30766192762",
+        "archiveDigest": "sha256:585dd8f05433cc9a5e3278007dd648142e546e481ebddb4d4100708fd5d895db",
+        "archiveSizeBytes": 11316,
+        "logPath": "docs/acceptance/a5-2026-08-02.upstream-rehearsal.log",
+        "logSha256": "fb8da20563eae68f024f6f5ada7fffa3ce570b4a0fa17829ed0c8a28f519ae31"
+      }
+    ]
+  },
+  "review": {
+    "reviewer": "Franklin (/root/a5_independent_review)",
+    "verdict": "accepted",
+    "reviewedHeadSha": "24f85087e688b341fe8c80fb9343689cf7c0f0d1",
+    "findingsResolved": [
+      "A5-REVIEW-1-NON_NOOP",
+      "A5-REVIEW-2-POST_SYNC_CONTRACTS",
+      "A5-REVIEW-3-IMMUTABLE_EVIDENCE",
+      "A5-REVIEW-4-UPSTREAM_PROVENANCE"
+    ]
+  }
+}

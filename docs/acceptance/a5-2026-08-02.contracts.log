@@ -1,0 +1,412 @@
+lineage: ok (happy-upstream-base-2026-08-02 -> 971d608923f1)
+patch-discipline: ok (19 owned patches; baseline 7b1acd8554f4; tree 6d164e9b8cbd)
+HappyHerd runtime isolation verified: happyherd.gehirn.ai:20015
+Runtime isolation contract tests passed.
+upstream-sync-provenance: ok (1 valid and 4 rejected fixtures)
+a5-evidence: self-test ok (1 valid and 7 rejected documents)
+
+> happy-app@1.0.0 typecheck /home/runner/work/HappyHerd/HappyHerd/server/packages/happy-app
+> tsc --noEmit
+
+
+> happy-app@1.0.0 test /home/runner/work/HappyHerd/HappyHerd/server/packages/happy-app
+> vitest --run
+
+
+ RUN  v3.2.4 /home/runner/work/HappyHerd/HappyHerd/server/packages/happy-app
+
+ ✓ sources/sync/reducer/reducer.spec.ts (59 tests) 41ms
+stderr | sources/sync/typesRaw.spec.ts > Zod Transform - WOLOG Content Normalization > Session protocol normalization > rejects file events without required size
+Unrecognized message type: session (id: db-file-missing-size)
+
+stderr | sources/sync/typesRaw.spec.ts > Zod Transform - WOLOG Content Normalization > Session protocol normalization > returns null for non-cuid subagent identifiers
+Unrecognized message type: session (id: db-subagent-invalid)
+
+stderr | sources/sync/typesRaw.spec.ts > Zod Transform - WOLOG Content Normalization > Session protocol normalization > returns null for malformed session payloads
+Unrecognized message type: session (id: db-8)
+
+stderr | sources/sync/typesRaw.spec.ts > Zod Transform - WOLOG Content Normalization > Session protocol normalization > returns null for turn-end session events without status
+Unrecognized message type: session (id: db-10)
+
+stderr | sources/sync/typesRaw.spec.ts > Zod Transform - WOLOG Content Normalization > Session protocol normalization > returns null for service events from user role
+Unrecognized message type: session (id: db-11)
+
+ ✓ sources/sync/typesRaw.spec.ts (63 tests) 50ms
+ ✓ sources/sync/attachmentDiagnostics.test.ts (36 tests) 21ms
+ ✓ sources/utils/debounce.test.ts (38 tests) 30ms
+ ✓ sources/auth/secretKeyBackup.spec.ts (57 tests) 20ms
+ ✓ sources/sync/reducer/reducerTracer.spec.ts (12 tests) 9ms
+ ✓ sources/sync/reducer/activityUpdateAccumulator.test.ts (13 tests) 16ms
+ ✓ sources/sync/settings.spec.ts (34 tests) 30ms
+ ✓ sources/components/autocomplete/findActiveWord.test.ts (41 tests) 11ms
+ ✓ sources/sync/apiAttachments.test.ts (13 tests) 38ms
+ ✓ sources/hooks/useGroupedMessages.test.ts (11 tests) 12ms
+ ✓ sources/utils/pathUtils.spec.ts (34 tests) 9ms
+ ✓ sources/utils/deviceCalculations.test.ts (25 tests) 8ms
+ ✓ sources/utils/toSnakeCase.test.ts (24 tests) 10ms
+stdout | sources/sync/reducer/phase0-skipping.spec.ts > Phase 0 permission skipping issue > should handle permissions when AgentState and matching tools arrive together
+Result messages: 3
+Permission mappings: {
+  toolIdToMessageId: [
+    [ 'tool1', '65brqaahjj8' ],
+    [ 'tool2', 'j3q92ryrs2' ],
+    [ 'tool3', 'pmulkr3qk5q' ]
+  ]
+}
+
+ ✓ sources/sync/reducer/phase0-skipping.spec.ts (2 tests) 8ms
+ ✓ sources/components/modelModeOptions.test.ts (15 tests) 10ms
+ ✓ sources/sync/agentCommunications.spec.ts (23 tests) 10ms
+ ✓ sources/components/autocomplete/applySuggestion.test.ts (16 tests) 7ms
+ ✓ sources/keyboard/shortcuts.test.ts (27 tests) 9ms
+ ✓ sources/sync/storageTypes.spec.ts (11 tests) 20ms
+ ✓ sources/components/parseLocalCommandMessage.spec.ts (22 tests) 8ms
+ ✓ sources/components/agentGoalStatus.spec.ts (10 tests) 5ms
+ ✓ sources/utils/toolDisplay.test.ts (8 tests) 6ms
+ ✓ sources/hooks/useStartSessionFromDraft.test.ts (3 tests) 8ms
+ ✓ sources/components/AgentGoalBar.spec.ts (5 tests) 39ms
+ ✓ sources/utils/sessionStatusBar.test.ts (12 tests) 8ms
+ ✓ sources/utils/sessionFileLinks.test.ts (8 tests) 7ms
+ ✓ sources/sync/ops.codexFork.test.ts (3 tests) 35ms
+ ✓ sources/utils/toolErrorParser.test.ts (15 tests) 8ms
+ ✓ sources/sync/projectGroups.spec.ts (6 tests) 6ms
+ ✓ sources/sync/rig.test.ts (8 tests) 15ms
+ ✓ sources/encryption/blob.test.ts (9 tests) 2789ms
+   ✓ blob encryption > should encrypt and decrypt a large blob (1MB)  2783ms
+ ✓ sources/utils/toolComparison.test.ts (9 tests) 5ms
+ ✓ sources/sync/messageMeta.test.ts (7 tests) 7ms
+ ✓ sources/utils/resumeCommand.test.ts (8 tests) 5ms
+ ✓ sources/components/markdown/parseMarkdownBlock.test.ts (5 tests) 7ms
+ ✓ sources/sync/apiGithub.spec.ts (4 tests) 8ms
+ ✓ sources/hooks/useNewSessionDraft.test.ts (4 tests) 35ms
+ ✓ sources/navigation/browserNavigation.test.ts (6 tests) 5ms
+ ✓ sources/sync/attachmentSupport.test.ts (7 tests) 5ms
+ ✓ sources/encryption/aes.web.test.ts (6 tests) 11ms
+ ✓ sources/utils/sessionDisplayOrder.test.ts (2 tests) 11ms
+ ✓ sources/-session/agentGoalActionHandler.spec.ts (6 tests) 7ms
+ ✓ sources/sync/apiTypes.spec.ts (4 tests) 7ms
+ ✓ sources/utils/versionUtils.test.ts (8 tests) 6ms
+ ✓ sources/encryption/text.test.ts (9 tests) 6ms
+ ✓ sources/utils/codexUnifiedDiff.spec.ts (4 tests) 4ms
+ ✓ sources/sync/ops.rig.test.ts (3 tests) 11ms
+ ✓ sources/components/markdown/parseMarkdown.test.ts (3 tests) 6ms
+ ✓ sources/utils/userMessageBubbleColor.test.ts (4 tests) 4ms
+ ✓ sources/hooks/useImagePicker.test.ts (1 test) 7ms
+ ✓ sources/utils/newSessionSidebarLayout.test.ts (5 tests) 5ms
+ ✓ sources/utils/notificationRouting.test.ts (7 tests) 4ms
+ ✓ sources/utils/sessionFork.test.ts (3 tests) 4ms
+ ✓ sources/components/agentInputPrimaryAction.test.ts (5 tests) 4ms
+ ✓ sources/sync/controlHandoff.test.ts (4 tests) 3ms
+ ✓ sources/sync/suggestionCommands.spec.ts (2 tests) 4ms
+ ✓ sources/sync/modeHacks.test.ts (4 tests) 4ms
+ ✓ sources/sync/git-parsers/gitPath.test.ts (4 tests) 4ms
+ ✓ sources/auth/accountKeyLifecycle.spec.ts (3 tests) 4ms
+ ✓ sources/utils/newSessionPickerItems.test.ts (2 tests) 4ms
+ ✓ sources/utils/toolCommand.test.ts (4 tests) 3ms
+ ✓ sources/components/markdown/linkUtils.test.ts (2 tests) 3ms
+ ✓ sources/sync/sessionIdentity.test.ts (1 test) 3ms
+ ✓ sources/utils/duplicateSheetLayout.test.ts (2 tests) 4ms
+ ✓ sources/sync/typesMessageMeta.test.ts (1 test) 5ms
+ ✓ sources/components/tools/knownTools.spec.ts (1 test) 3ms
+ ✓ sources/hooks/useTauriZoom.test.ts (1 test) 3ms
+
+ Test Files  68 passed (68)
+      Tests  814 passed (814)
+   Start at  20:43:36
+   Duration  18.39s (transform 1.32s, setup 0ms, collect 3.05s, tests 3.52s, environment 12ms, prepare 4.41s)
+
+
+> @slopus/happy-wire@0.1.0 test /home/runner/work/HappyHerd/HappyHerd/server/packages/happy-wire
+> $npm_execpath run build && vitest run
+
+
+> @slopus/happy-wire@0.1.0 build /home/runner/work/HappyHerd/HappyHerd/server/packages/happy-wire
+> shx rm -rf dist && tsc --noEmit && pkgroll
+
+
+ RUN  v3.2.4 /home/runner/work/HappyHerd/HappyHerd/server/packages/happy-wire
+
+ ✓ src/messages.test.ts (9 tests) 11ms
+ ✓ src/sessionProtocol.test.ts (10 tests) 19ms
+ ✓ src/rigMetadata.test.ts (2 tests) 15ms
+ ✓ src/controlMessages.test.ts (4 tests) 3ms
+
+ Test Files  4 passed (4)
+      Tests  25 passed (25)
+   Start at  20:44:04
+   Duration  1.19s (transform 126ms, setup 0ms, collect 412ms, tests 48ms, environment 1ms, prepare 273ms)
+
+
+> happy-agent@0.1.0 test /home/runner/work/HappyHerd/HappyHerd/server/packages/happy-agent
+> $npm_execpath run build && vitest run
+
+
+> happy-agent@0.1.0 build /home/runner/work/HappyHerd/HappyHerd/server/packages/happy-agent
+> node -e "require('node:fs').rmSync('dist', { recursive: true, force: true })" && tsc --noEmit && pkgroll
+
+Warning (package.json#bin["happy-agent"]): Ignoring file outside of dist directories
+Generated an empty chunk: "index".
+Generated an empty chunk: "index".
+
+ RUN  v3.2.4 /home/runner/work/HappyHerd/HappyHerd/server/packages/happy-agent
+
+ ✓ src/session.test.ts (31 tests) 684ms
+Not authenticated. Run `happy-agent auth login` first.
+Not authenticated. Run `happy-agent auth login` first.
+error: required option '--tag <tag>' not specified
+Not authenticated. Run `happy-agent auth login` first.
+Not authenticated. Run `happy-agent auth login` first.
+Not authenticated. Run `happy-agent auth login` first.
+Not authenticated. Run `happy-agent auth login` first.
+Not authenticated. Run `happy-agent auth login` first.
+Not authenticated. Run `happy-agent auth login` first.
+Not authenticated. Run `happy-agent auth login` first.
+Not authenticated. Run `happy-agent auth login` first.
+Not authenticated. Run `happy-agent auth login` first.
+Not authenticated. Run `happy-agent auth login` first.
+Not authenticated. Run `happy-agent auth login` first.
+Not authenticated. Run `happy-agent auth login` first.
+ ✓ src/cli-smoke.test.ts (44 tests) 7773ms
+   ✓ Smoke: Error handling > no credentials > all authenticated commands fail with auth error message  1718ms
+ ✓ src/api.test.ts (22 tests) 120ms
+ ✓ src/encryption.test.ts (43 tests) 152ms
+ ✓ src/auth.test.ts (12 tests) 7075ms
+   ✓ auth > authLogin > completes the auth flow on first poll response  1034ms
+   ✓ auth > authLogin > polls multiple times before success  3012ms
+   ✓ auth > authLogin > throws when polling fails  1003ms
+   ✓ auth > authLogin > throws when decryption fails (wrong key)  1006ms
+   ✓ auth > authLogin > sends publicKey as base64 in request body  1006ms
+ ✓ src/output.test.ts (32 tests) 11ms
+Not authenticated. Run `happy-agent auth login` first.
+Not authenticated. Run `happy-agent auth login` first.
+Not authenticated. Run `happy-agent auth login` first.
+error: required option '--tag <tag>' not specified
+Not authenticated. Run `happy-agent auth login` first.
+Not authenticated. Run `happy-agent auth login` first.
+Not authenticated. Run `happy-agent auth login` first.
+Not authenticated. Run `happy-agent auth login` first.
+Not authenticated. Run `happy-agent auth login` first.
+Not authenticated. Run `happy-agent auth login` first.
+Not authenticated. Run `happy-agent auth login` first.
+ ✓ src/index.test.ts (24 tests) 5687ms
+ ✓ src/credentials.test.ts (12 tests) 57ms
+ ✓ src/config.test.ts (7 tests) 5ms
+
+ Test Files  9 passed (9)
+      Tests  227 passed (227)
+   Start at  20:44:15
+   Duration  24.09s (transform 489ms, setup 0ms, collect 913ms, tests 21.56s, environment 2ms, prepare 593ms)
+
+
+> happy@1.2.0 test /home/runner/work/HappyHerd/HappyHerd/server/packages/happy-cli
+> pnpm run build && vitest run --project unit
+
+
+> happy@1.2.0 build /home/runner/work/HappyHerd/HappyHerd/server/packages/happy-cli
+> shx rm -rf dist && tsc --noEmit && pkgroll
+
+Warning (package.json#bin.happy): Ignoring file outside of dist directories
+Warning (package.json#bin["happy-mcp"]): Ignoring file outside of dist directories
+Generated an empty chunk: "index".
+Generated an empty chunk: "codex/happyMcpStdioBridge".
+Generated an empty chunk: "index".
+Generated an empty chunk: "codex/happyMcpStdioBridge".
+
+ RUN  v3.2.4 /home/runner/work/HappyHerd/HappyHerd/server/packages/happy-cli
+
+Build stderr (could be debugger output): Warning (package.json#bin.happy): Ignoring file outside of dist directories
+Warning (package.json#bin["happy-mcp"]): Ignoring file outside of dist directories
+Generated an empty chunk: "index".
+Generated an empty chunk: "codex/happyMcpStdioBridge".
+Generated an empty chunk: "index".
+Generated an empty chunk: "codex/happyMcpStdioBridge".
+
+Build stdout: 
+> happy@1.2.0 build /home/runner/work/HappyHerd/HappyHerd/server/packages/happy-cli
+> shx rm -rf dist && tsc --noEmit && pkgroll
+
+
+Build stderr (could be debugger output): Warning (package.json#bin.happy): Ignoring file outside of dist directories
+Warning (package.json#bin["happy-mcp"]): Ignoring file outside of dist directories
+Generated an empty chunk: "index".
+Generated an empty chunk: "codex/happyMcpStdioBridge".
+Generated an empty chunk: "index".
+Generated an empty chunk: "codex/happyMcpStdioBridge".
+
+Build stdout: 
+> happy@1.2.0 build /home/runner/work/HappyHerd/HappyHerd/server/packages/happy-cli
+> shx rm -rf dist && tsc --noEmit && pkgroll
+
+
+ ✓  unit  src/codex/codexAppServerClient.test.ts (20 tests) 367ms
+ ✓  unit  src/api/apiSession.test.ts (27 tests) 111ms
+ ✓  unit  src/codex/__tests__/sessionProtocolMapper.test.ts (26 tests) 37ms
+ ✓  unit  src/claude/runClaude.test.ts (14 tests) 750ms
+ ✓  unit  src/claude/utils/sessionProtocolMapper.test.ts (18 tests) 28ms
+ ✓  unit  src/utils/MessageQueue2.test.ts (21 tests) 92ms
+ ✓  unit  src/utils/serverConnectionErrors.test.ts (28 tests) 1098ms
+ ✓  unit  src/agent/acp/runAcp.test.ts (9 tests) 676ms
+ ✓  unit  scripts/claude_version_utils.test.ts (50 tests) 274ms
+ ✓  unit  src/claude/utils/sdkToLogConverter.test.ts (22 tests) 13ms
+ ✓  unit  src/utils/tmux.test.ts (51 tests) 17ms
+ ✓  unit  src/claude/utils/sessionScanner.test.ts (8 tests) 5015ms
+   ✓ sessionScanner > should process initial session and resumed session correctly  1173ms
+   ✓ sessionScanner > does not re-emit duplicate goal status transcript events  306ms
+   ✓ sessionScanner > pre-marks existing goal status events from the initial session id  309ms
+   ✓ sessionScanner > drops a phantom session whose transcript never appears and keeps serving real ones  2708ms
+ ✓  unit  src/agent/acp/AcpSessionManager.test.ts (27 tests) 30ms
+ ✓  unit  src/claude/claudeLocal.test.ts (10 tests) 21ms
+ ✓  unit  src/api/api.test.ts (9 tests) 13ms
+ ✓  unit  src/agy/AgyBackend.test.ts (9 tests) 43ms
+ ✓  unit  src/resume/handleResumeCommand.test.ts (10 tests) 14ms
+ ✓  unit  src/claude/utils/claudeFindLastSession.test.ts (14 tests) 42ms
+ ✓  unit  src/claude/claudeLocalLauncher.test.ts (3 tests) 112ms
+ ✓  unit  src/claude/utils/claudeSessionFork.test.ts (9 tests) 46ms
+ ✓  unit  src/claude/utils/claudeCheckSession.test.ts (17 tests) 26ms
+ ✓  unit  src/claude/utils/path.test.ts (19 tests) 8ms
+ ✓  unit  src/claude/utils/usageLimits.test.ts (15 tests) 8ms
+ ✓  unit  src/utils/expandEnvVars.test.ts (17 tests) 7ms
+ ✓  unit  src/claude/utils/permissionHandler.test.ts (6 tests) 11ms
+ ✓  unit  src/claude/claudeGoalStatus.test.ts (12 tests) 10ms
+ ✓  unit  src/codex/codexGoalStatus.test.ts (12 tests) 9ms
+ ✓  unit  src/sandbox/config.test.ts (7 tests) 6ms
+ ✓  unit  src/codex/utils/threadImageBackfill.test.ts (4 tests) 19ms
+ ✓  unit  src/codex/utils/imageInput.test.ts (9 tests) 15ms
+ ✓  unit  src/api/apiMachine.codexFork.test.ts (4 tests) 196ms
+ ✓  unit  src/agent/acp/sessionConfigMetadata.test.ts (4 tests) 5ms
+stdout | src/commands/sandbox.test.ts > handleSandboxCommand > routes configure subcommand
+
+Sandbox configuration summary:
+{
+  "enabled": true,
+  "workspaceRoot": "~/Developer",
+  "sessionIsolation": "workspace",
+  "customWritePaths": [],
+  "denyReadPaths": [
+    "~/.ssh",
+    "~/.aws",
+    "~/.gnupg"
+  ],
+  "extraWritePaths": [
+    "/tmp"
+  ],
+  "denyWritePaths": [
+    ".env"
+  ],
+  "networkMode": "allowed",
+  "allowedDomains": [],
+  "deniedDomains": [],
+  "allowLocalBinding": true
+}
+
+stdout | src/commands/sandbox.test.ts > handleSandboxCommand > routes configure subcommand
+Sandbox configuration cancelled.
+
+ ✓  unit  src/commands/sandbox.test.ts (8 tests) 11ms
+ ✓  unit  src/utils/deterministicJson.test.ts (16 tests) 16ms
+ ✓  unit  src/utils/PushableAsyncIterable.test.ts (8 tests) 38ms
+ ✓  unit  src/api/apiMachine.test.ts (2 tests) 14ms
+ ✓  unit  src/sessionProtocol/types.test.ts (9 tests) 13ms
+ ✓  unit  src/utils/createSessionMetadata.test.ts (10 tests) 8ms
+ ✓  unit  src/persistence.test.ts (9 tests) 13ms
+ ✓  unit  src/claude/utils/permissionMode.test.ts (21 tests) 8ms
+ ✓  unit  src/codex/codexThreadFork.test.ts (4 tests) 8ms
+ ✓  unit  src/utils/terminalStdinCleanup.test.ts (5 tests) 7ms
+ ✓  unit  src/codex/__tests__/permissionHandler.test.ts (6 tests) 8ms
+ ✓  unit  src/commands/codexCommand.test.ts (5 tests) 6ms
+ ✓  unit  scripts/__tests__/ripgrep_launcher.test.ts (6 tests) 6ms
+ ✓  unit  src/codex/codexPrompt.test.ts (8 tests) 6ms
+ ✓  unit  src/sandbox/manager.test.ts (4 tests) 6ms
+ ✓  unit  src/daemon/sessionEnvironment.test.ts (4 tests) 7ms
+ ✓  unit  src/claude/claudeRemote.test.ts (2 tests) 10ms
+ ✓  unit  src/claude/utils/claudeSettings.test.ts (7 tests) 11ms
+ ✓  unit  src/openclaw/openclawAuth.test.ts (4 tests) 52ms
+ ✓  unit  src/codex/utils/attachmentEvents.test.ts (4 tests) 6ms
+ ✓  unit  src/codex/__tests__/executionPolicy.test.ts (8 tests) 5ms
+ ✓  unit  src/parsers/specialCommands.test.ts (12 tests) 5ms
+ ✓  unit  src/daemon/ensureDaemonRunning.test.ts (2 tests) 108ms
+ ✓  unit  src/claude/types.test.ts (4 tests) 10ms
+ ✓  unit  src/claude/utils/launchFailureMessage.test.ts (9 tests) 4ms
+ ✓  unit  src/modules/watcher/startFileWatcher.test.ts (4 tests) 7973ms
+   ✓ startFileWatcher > gives up exactly once when the file never appears  2508ms
+   ✓ startFileWatcher > recovers when the file appears within the grace window  2606ms
+   ✓ startFileWatcher > does not give up when the file exists from the start  704ms
+   ✓ startFileWatcher > stops on dispose without giving up  2154ms
+ ✓  unit  src/claude/utils/proxyBypass.test.ts (9 tests) 4ms
+ ✓  unit  src/codex/resumeExistingThread.test.ts (2 tests) 9ms
+ ✓  unit  src/resume/localResumeStore.test.ts (2 tests) 6ms
+ ✓  unit  src/codex/codexSkills.test.ts (2 tests) 28ms
+ ✓  unit  src/agy/cliArgs.test.ts (7 tests) 7ms
+ ✓  unit  src/modules/difftastic/index.test.ts (5 tests) 43ms
+ ✓  unit  src/api/pushNotifications.test.ts (7 tests) 4ms
+ ✓  unit  src/api/encryption.test.ts (4 tests) 298ms
+ ✓  unit  src/codex/codexClearCommand.test.ts (3 tests) 6ms
+ ✓  unit  src/utils/__tests__/runtimeIntegration.test.ts (4 tests) 9ms
+ ✓  unit  src/ui/ink/RemoteModeDisplay.test.ts (5 tests) 3ms
+ ✓  unit  src/agent/acp/acpAgentConfig.test.ts (8 tests) 6ms
+ ✓  unit  src/utils/__tests__/runtime.test.ts (6 tests) 5ms
+ ✓  unit  src/claude/sdk/happyEntrypoint.test.ts (4 tests) 4ms
+ ✓  unit  src/utils/hmac_sha512.test.ts (1 test) 5ms
+ ✓  unit  src/claude/utils/questionNotification.test.ts (3 tests) 4ms
+ ✓  unit  src/modules/common/pathSecurity.test.ts (4 tests) 4ms
+ ✓  unit  src/codex/utils/serialAsyncHandler.test.ts (2 tests) 10ms
+ ✓  unit  src/codex/__tests__/emitReadyIfIdle.test.ts (4 tests) 5ms
+ ✓  unit  src/modules/ripgrep/index.test.ts (5 tests) 142ms
+ ✓  unit  src/codex/cliArgs.test.ts (4 tests) 5ms
+ ✓  unit  src/resume/resolveHappySession.test.ts (4 tests) 4ms
+ ✓  unit  src/agy/constants.test.ts (2 tests) 6ms
+ ✓  unit  src/utils/sandboxFlags.test.ts (2 tests) 3ms
+stdout | src/ui/qrcode.test.ts > QR Code Utility > should render a small QR code without throwing
+================================================================================
+📱 To authenticate, scan this QR code with your mobile device:
+================================================================================
+          ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+          █ ▄▄▄▄▄ █▀▄█▀▄█ ▄▄▄▄▄ █
+          █ █   █ █▀▄█▀██ █   █ █
+          █ █▄▄▄█ █▀▀ ▄ █ █▄▄▄█ █
+          █▄▄▄▄▄▄▄█▄█ ▀ █▄▄▄▄▄▄▄█
+          █ ▄▄▄ ▀▄ ▄▄▀█  ▀ ▀▄▀▄▀█
+          █▀ ▀█▄ ▄▄▄▀▀▄█ ▄▄▀  ▄██
+          █▄█▄█▄▄▄▄ ▀▄▄▀ ▄▀ ▀██ █
+          █ ▄▄▄▄▄ █▄  █ ▀█ ▀▀▀▄██
+          █ █   █ █  █ ▄▀▄▄ ▀▀▄▄█
+          █ █▄▄▄█ █ ▄▀ ▄ █▄█▀ ███
+          █▄▄▄▄▄▄▄█▄▄▄█▄▄▄▄▄▄█▄██
+          
+================================================================================
+
+ ✓  unit  src/ui/qrcode.test.ts (1 test) 29ms
+
+ Test Files  83 passed (83)
+      Tests  792 passed (792)
+   Start at  20:44:59
+   Duration  77.86s (transform 1.72s, setup 0ms, collect 7.07s, tests 18.12s, environment 14ms, prepare 5.37s)
+
+
+> happy-server-self-host@1.1.11 typecheck /home/runner/work/HappyHerd/HappyHerd/server/packages/happy-server
+> tsc --noEmit
+
+
+> happy-server-self-host@1.1.11 test /home/runner/work/HappyHerd/HappyHerd/server/packages/happy-server
+> vitest run
+
+
+ RUN  v3.2.4 /home/runner/work/HappyHerd/HappyHerd/server/packages/happy-server
+
+ ✓ sources/app/api/routes/v3SessionRoutes.test.ts (10 tests) 128ms
+ ✓ sources/app/api/routes/attachmentRoutes.spec.ts (20 tests) 222ms
+ ✓ sources/app/api/routes/machinesRoutes.spec.ts (3 tests) 83ms
+ ✓ sources/utils/lru.spec.ts (17 tests) 9ms
+ ✓ sources/app/social/friendNotification.spec.ts (7 tests) 4ms
+ ✓ sources/app/presence/sessionCache.spec.ts (1 test) 18ms
+ ✓ sources/utils/separateName.spec.ts (11 tests) 6ms
+ ✓ sources/app/monitoring/metrics2.test.ts (1 test) 4ms
+ ✓ sources/standalone.spec.ts (2 tests) 4ms
+ ✓ sources/storage/processImage.spec.ts (1 test) 79ms
+
+ Test Files  10 passed (10)
+      Tests  73 passed (73)
+   Start at  20:46:27
+   Duration  3.74s (transform 433ms, setup 0ms, collect 1.38s, tests 555ms, environment 2ms, prepare 695ms)
+
+contract-suite: ok

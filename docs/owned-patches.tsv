@@ -18,3 +18,4 @@ A5	code-ready	fix(ci): fail closed during upstream rehearsal	.github/workflows/c
 A5	code-ready	fix(sync): bind A5 evidence to public upstream	scripts/verify-a5-evidence.mjs
 A5	code-ready	fix(ci): preserve inspectable A5 evidence	.github/workflows/contract-suite.yml
 A5	code-ready	fix(sync): report full rehearsal provenance	scripts/rehearse-upstream-sync.sh
+A5	accepted	docs(sync): record A5 acceptance evidence	docs/acceptance/a5-2026-08-02.json

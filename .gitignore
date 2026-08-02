@@ -7,5 +7,6 @@
 data/
 logs/
 *.log
+!docs/acceptance/*.log
 *.pid
 *.local
