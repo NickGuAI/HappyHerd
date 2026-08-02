@@ -58,7 +58,9 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p "$RUNNER_TEMP/happyherd-logs"
-          scripts/contract-suite.sh 2>&1 | tee "$RUNNER_TEMP/happyherd-logs/contracts.log"
+          scripts/contract-suite.sh 2>&1 \
+            | perl -pe 's/\e\[[0-?]*[ -\/]*[@-~]//g' \
+            | tee "$RUNNER_TEMP/happyherd-logs/contracts.log"
 
       - name: Preserve contract evidence
         if: always()
@@ -105,7 +107,9 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p "$RUNNER_TEMP/happyherd-logs"
-          scripts/rehearse-upstream-sync.sh 2>&1 | tee "$RUNNER_TEMP/happyherd-logs/upstream-rehearsal.log"
+          scripts/rehearse-upstream-sync.sh 2>&1 \
+            | perl -pe 's/\e\[[0-?]*[ -\/]*[@-~]//g' \
+            | tee "$RUNNER_TEMP/happyherd-logs/upstream-rehearsal.log"
 
       - name: Preserve rehearsal evidence
         if: always()

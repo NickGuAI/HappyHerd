@@ -16,3 +16,4 @@ A5	code-ready	perf(sync): reuse verified rehearsal clone	scripts/rehearse-upstre
 A5	code-ready	test(sync): require structured A5 acceptance evidence	scripts/verify-a5-evidence.mjs
 A5	code-ready	fix(ci): fail closed during upstream rehearsal	.github/workflows/contract-suite.yml
 A5	code-ready	fix(sync): bind A5 evidence to public upstream	scripts/verify-a5-evidence.mjs
+A5	code-ready	fix(ci): preserve inspectable A5 evidence	.github/workflows/contract-suite.yml
