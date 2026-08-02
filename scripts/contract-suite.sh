@@ -24,6 +24,7 @@ export EXPO_NO_TELEMETRY=1
 "$repo_root/scripts/validate-runtime-isolation.sh" \
   "$repo_root/deploy/runtime.env.example" template
 "$repo_root/scripts/test-runtime-isolation.sh"
+"$repo_root/scripts/test-release-image-contract.sh"
 "$repo_root/scripts/test-upstream-sync-provenance.sh"
 node "$repo_root/scripts/verify-a5-evidence.mjs" --self-test
 
