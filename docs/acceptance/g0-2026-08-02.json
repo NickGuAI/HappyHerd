@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "gate": "G0",
+  "status": "accepted",
+  "recordedAt": "2026-08-02T22:47:34Z",
+  "publicEndpoint": "https://happyherd.gehirn.ai",
+  "runtime": {
+    "image": "ghcr.io/nickguai/happyherd@sha256:15237be0bbeaafda8a5eed25022f1125e7f35975e3f549f91a032de1cec64573",
+    "sourceSha": "084b09892ce91312eabd7549ea6859b9eb6fc5c7",
+    "hostPort": 20015,
+    "targetGroup": "happyherd-tg",
+    "targetState": "healthy",
+    "listenerRulePriority": 5,
+    "healthStatus": 200
+  },
+  "browser": {
+    "name": "Google Chrome",
+    "version": "144.0.7559.132",
+    "mode": "headless",
+    "freshProfile": true,
+    "publicTls": true
+  },
+  "accountLifecycle": {
+    "accountCreated": true,
+    "accountKeyVisibleAtCreation": true,
+    "accountKeyCopiedAtCreation": true,
+    "backupConfirmationRequiredAfterCopy": true,
+    "applicationEnteredAfterBackupConfirmation": true,
+    "accountKeyVisibleInAuthenticatedSettings": true,
+    "accountKeyCopiedInAuthenticatedSettings": true,
+    "logoutClearedBrowserAuthenticationStorage": true,
+    "restoredWithSameAccountKey": true,
+    "restoredAccountKeyExactMatch": true,
+    "publicIdBeforeLogout": "cmscdzdch0000ry01y2re7cp2",
+    "publicIdAfterRestore": "cmscdzdch0000ry01y2re7cp2",
+    "sameAccountAfterRestore": true,
+    "herdApiKeySurfacePresent": false
+  },
+  "secretHandling": {
+    "accountKeyRecordedInEvidence": false,
+    "accountKeyPrintedToLogs": false,
+    "redactedScreenshotInspected": true,
+    "redactedScreenshotRetained": false
+  }
+}

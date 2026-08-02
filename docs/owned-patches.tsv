@@ -1,5 +1,6 @@
 # gate	state	subject	evidence
 G0	code-ready	feat(auth): make account keys primary and recoverable	server/packages/happy-app/sources/auth/accountKeyLifecycle.spec.ts
+G0	accepted	docs(auth): record G0 public acceptance	docs/acceptance/g0-2026-08-02.json
 BRANDING	accepted	feat(brand): apply Hervald mark to Happy surfaces	branding/hervald-logo-mark-black.png
 A2	accepted	build: make release artifacts reproducible	docs/build-provenance.md
 A2	accepted	fix(build): stabilize Expo Hermes bytecode	server/patches/deterministic-expo-hermes-temp.cjs
