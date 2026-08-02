@@ -26,7 +26,7 @@ export EXPO_NO_TELEMETRY=1
 "$repo_root/scripts/test-runtime-isolation.sh"
 "$repo_root/scripts/test-upstream-sync-provenance.sh"
 
-shellcheck "$repo_root"/scripts/*.sh "$repo_root"/scripts/lib/*.sh
+shellcheck -x "$repo_root"/scripts/*.sh "$repo_root"/scripts/lib/*.sh
 
 cd "$server_root"
 pnpm --filter happy-app --fail-if-no-match typecheck
