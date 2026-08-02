@@ -8,3 +8,4 @@ A4	accepted	docs: codify owned patch discipline	docs/patch-discipline.md
 A5	code-ready	test(sync): add upstream rehearsal and contract suite	scripts/contract-suite.sh
 A5	code-ready	fix(sync): honor upstream pnpm pin in contract suite	scripts/contract-suite.sh
 A5	code-ready	fix(sync): exercise non-no-op upstream integration	scripts/test-upstream-sync-provenance.sh
+A5	code-ready	ci: enforce HappyHerd contract suite	.github/workflows/contract-suite.yml
