@@ -12,7 +12,19 @@ vi.mock('expo-crypto', () => ({
 // Mock the libsodium.lib import to use the Node.js libsodium-wrappers
 vi.mock('@/encryption/libsodium.lib', () => {
     const s = require('libsodium-wrappers');
-    return { default: s };
+    // Model runtimes where wrapper metadata is not available when the
+    // synchronous blob helper runs. The 24-byte nonce is a wire-format
+    // invariant, not something encryptBlob should discover at runtime.
+    return {
+        default: new Proxy(s, {
+            get(target, property, receiver) {
+                if (property === 'crypto_secretbox_NONCEBYTES') {
+                    return undefined;
+                }
+                return Reflect.get(target, property, receiver);
+            },
+        }),
+    };
 });
 
 import { encryptBlob, decryptBlob } from './blob';

@@ -9,12 +9,18 @@
 import sodium from '@/encryption/libsodium.lib';
 import { getRandomBytes } from 'expo-crypto';
 
+// XSalsa20-Poly1305 fixes the secretbox nonce at 24 bytes. Keep that wire
+// contract independent from libsodium's asynchronously initialized metadata:
+// encryptBlob is synchronous, and some runtimes do not expose the metadata
+// constant until after the wrapper has finished loading.
+const SECRETBOX_NONCE_BYTES = 24;
+
 /**
  * Encrypt a binary blob with a 32-byte secret key.
  * Returns: nonce (24) + ciphertext (data.length + 16 auth tag)
  */
 export function encryptBlob(data: Uint8Array, key: Uint8Array): Uint8Array {
-    const nonce = getRandomBytes(sodium.crypto_secretbox_NONCEBYTES);
+    const nonce = getRandomBytes(SECRETBOX_NONCE_BYTES);
     // Defensive copies: the native libsodium TurboModule on iOS reads
     // arguments via getArrayBuffer().length(runtime), which returns the
     // *underlying ArrayBuffer's* byteLength rather than the view length.
@@ -39,11 +45,11 @@ export function encryptBlob(data: Uint8Array, key: Uint8Array): Uint8Array {
  * Returns null if decryption fails (wrong key, corrupted, truncated).
  */
 export function decryptBlob(bundle: Uint8Array, key: Uint8Array): Uint8Array | null {
-    if (bundle.length < sodium.crypto_secretbox_NONCEBYTES + 16) {
+    if (bundle.length < SECRETBOX_NONCE_BYTES + 16) {
         return null;
     }
-    const nonce = bundle.slice(0, sodium.crypto_secretbox_NONCEBYTES);
-    const ciphertext = bundle.slice(sodium.crypto_secretbox_NONCEBYTES);
+    const nonce = bundle.slice(0, SECRETBOX_NONCE_BYTES);
+    const ciphertext = bundle.slice(SECRETBOX_NONCE_BYTES);
     // Same defensive standalone copy as in encryptBlob — the native iOS
     // libsodium TurboModule validates the key by reading the underlying
     // ArrayBuffer length, and rejects the operation if it sees anything
