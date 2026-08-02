@@ -50,6 +50,7 @@ if [[ "${HAPPYHERD_ALLOW_DIRTY:-0}" != "1" ]] &&
 fi
 
 declare -A manifest_gate=()
+a5_accepted_count=0
 
 while IFS=$'\t' read -r gate state subject evidence; do
   [[ -z "$gate" || "$gate" == \#* ]] && continue
@@ -60,8 +61,20 @@ while IFS=$'\t' read -r gate state subject evidence; do
   [[ -z "${manifest_gate[$subject]:-}" ]] ||
     fail "duplicate manifest subject '$subject'"
   [[ -e "$evidence" ]] || fail "missing evidence path '$evidence' for '$subject'"
+  if [[ "$gate" == "A5" && "$state" == "accepted" ]]; then
+    [[ "$evidence" == docs/acceptance/a5-*.json ]] ||
+      fail "accepted A5 row must reference a dated structured evidence file"
+    evidence_args=("$evidence")
+    if [[ "${HAPPYHERD_ALLOW_REHEARSAL_SYNC:-0}" == "1" ]]; then
+      evidence_args+=(--rehearsal)
+    fi
+    node "$repo_root/scripts/verify-a5-evidence.mjs" "${evidence_args[@]}"
+    a5_accepted_count=$((a5_accepted_count + 1))
+  fi
   manifest_gate[$subject]="$gate"
 done < "$manifest"
+
+[[ "$a5_accepted_count" -le 1 ]] || fail "A5 has multiple acceptance records"
 
 mapfile -t series < <(
   git log --first-parent --reverse --format=$'%H\t%s' "${baseline_tag}..HEAD"

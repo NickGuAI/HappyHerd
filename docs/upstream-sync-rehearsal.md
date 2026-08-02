@@ -31,6 +31,10 @@ that full SHA exactly, making the second-parent provenance independently
 verifiable after the rehearsal.
 
 A5 is accepted only after both scripts pass and an independent reviewer checks
-the resulting patch series and evidence. The dated run output and review are
-recorded in this document after execution; adding the scripts alone is not A5
-acceptance.
+the resulting patch series and evidence. Acceptance adds one dated JSON record
+under `docs/acceptance/`; `scripts/verify-a5-evidence.mjs` requires the tested
+commit, real non-no-op upstream interval, identity-match count, complete test
+totals, successful GitHub Actions run and artifacts, and an accepted independent
+review resolving all four original findings. The patch-discipline verifier
+permits at most one such accepted row and validates it mechanically. Until that
+record exists, every A5 manifest row remains `code-ready`.
