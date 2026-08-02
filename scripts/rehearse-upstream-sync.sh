@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+export GIT_MERGE_AUTOEDIT=no
+
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 baseline="happyherd-owned-baseline-2026-08-02"
 distribution_shell="ee05253ca0b964d8aad071b2f424dff0752a836c"
