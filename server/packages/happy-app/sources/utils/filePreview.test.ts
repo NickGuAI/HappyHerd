@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     classifyFilePreview,
+    documentPreviewWebSandbox,
     imageDataUri,
     imageMimeType,
     imagePreviewLayout,
@@ -30,6 +31,11 @@ describe('file preview classification', () => {
         expect(classifyFilePreview('report.html')).toBe('html');
         expect(classifyFilePreview('archive.zip')).toBe('unsupported');
         expect(pdfDataUri('AAAA')).toBe('data:application/pdf;base64,AAAA');
+    });
+
+    it('sandboxes HTML without blocking Chrome built-in PDF viewer', () => {
+        expect(documentPreviewWebSandbox('html')).toBe('');
+        expect(documentPreviewWebSandbox('pdf')).toBeUndefined();
     });
 
     it('wraps HTML in a scriptless, navigation-constrained document', () => {

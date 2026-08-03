@@ -60,6 +60,16 @@ export function pdfDataUri(base64: string): string {
     return `data:application/pdf;base64,${base64}`;
 }
 
+/**
+ * HTML previews need an opaque, scriptless iframe. Chrome's built-in PDF
+ * viewer is an extension-backed document viewer, however, and an empty iframe
+ * sandbox prevents that viewer from loading. Keep the exception constrained
+ * to PDFs so HTML never inherits the relaxed embed policy.
+ */
+export function documentPreviewWebSandbox(kind: 'html' | 'pdf'): '' | undefined {
+    return kind === 'html' ? '' : undefined;
+}
+
 const HTML_PREVIEW_CSP = [
     "default-src 'none'",
     "script-src 'none'",
