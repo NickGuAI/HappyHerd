@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "gate": "B6-B7",
+  "result": "accepted",
+  "verifiedAt": "2026-08-03T22:52:28Z",
+  "sourceSha": "33372ae3fa1e4dc59afacae81aa44aa0359067c0",
+  "release": {
+    "image": "ghcr.io/nickguai/happyherd@sha256:8bd931fbcb9ce30e959635f411b87ef3ce87555715a46b43dffbd004f685c74d",
+    "daemonArtifact": ".artifacts/33372ae3fa1e/happyherd-daemon-x64-linux.tar.gz",
+    "daemonArtifactSha256": "9017277c0085b904271698272ae470977c07dc549d7dcf233911c92aeed243d4",
+    "imageSmokeEvidence": "docs/acceptance/b6-b7-2026-08-03-image-smoke-33372ae3.json",
+    "imageSmokeEvidenceSha256": "15296b59f3da433b6b47d9c6604f4704a8f96eebfe2b4dcd2baa513241f59c99"
+  },
+  "delivery": {
+    "pullRequests": [
+      "https://github.com/NickGuAI/HappyHerd/pull/27",
+      "https://github.com/NickGuAI/HappyHerd/pull/29",
+      "https://github.com/NickGuAI/HappyHerd/pull/31",
+      "https://github.com/NickGuAI/HappyHerd/pull/33"
+    ],
+    "issues": [
+      "https://github.com/NickGuAI/HappyHerd/issues/26",
+      "https://github.com/NickGuAI/HappyHerd/issues/28",
+      "https://github.com/NickGuAI/HappyHerd/issues/30",
+      "https://github.com/NickGuAI/HappyHerd/issues/32"
+    ]
+  },
+  "contracts": {
+    "contractSuite": "passed",
+    "appTests": 841,
+    "wireTests": 29,
+    "agentTests": 227,
+    "cliTests": 827,
+    "serverTests": 86,
+    "githubChecks": [
+      "Clean install",
+      "Contract suite",
+      "Lint",
+      "Production build",
+      "Typecheck",
+      "Unit tests"
+    ]
+  },
+  "deployments": [
+    {
+      "name": "local EC2",
+      "url": "https://happyherd.gehirn.ai",
+      "port": 20015,
+      "serverRestartedAt": "2026-08-03T22:49:17Z",
+      "daemonRestartedAt": "2026-08-03T22:49:22Z",
+      "health": "ok",
+      "providerPreflight": {
+        "claude": "passed",
+        "codex": "passed"
+      },
+      "commander": {
+        "id": "d66a5217-ace6-4f00-b2ac-bbd64a9a7e7e",
+        "name": "Athena",
+        "store": "~/.herd/commanders/<id>",
+        "workspace": "/home/ec2-user/App",
+        "agentContext": "~/.herd/commanders/<id>/agentcontext"
+      },
+      "automation": {
+        "definitionId": "ed570bdd-805e-49d1-84e1-253307df265e",
+        "restartRecovery": "passed",
+        "crud": "passed",
+        "finalRunId": "edec61f9-62fb-476c-a3e4-033b9389659c",
+        "finalSessionId": "cmsdtqcez0001kw01l4uthm1i",
+        "finalRunStatus": "started",
+        "provenanceWritten": true,
+        "testDefinitionDeleted": true,
+        "testSessionStopped": true
+      }
+    },
+    {
+      "name": "Bao Lab EC2",
+      "url": "https://baolab.gehirn.ai",
+      "port": 20001,
+      "serverRestartedAt": "2026-08-03T22:51:29Z",
+      "daemonRestartedAt": "2026-08-03T22:51:37Z",
+      "health": "ok",
+      "providerPreflight": {
+        "claude": "passed",
+        "codex": "passed"
+      },
+      "commander": {
+        "id": "556ece65-2c9d-4b5e-9e24-6e3eee826ef2",
+        "name": "Gaia",
+        "store": "~/.herd/commander/<id>",
+        "workspace": "/home/ec2-user",
+        "agentContext": "~/.herd/commander/<id>"
+      },
+      "automation": {
+        "definitionId": "acfe3911-42f6-4396-9ba3-fe19fc484093",
+        "restartRecovery": "passed",
+        "crud": "passed",
+        "finalRunId": "e615ba9d-8f43-4ce4-9a99-ac2e2b704ebc",
+        "finalSessionId": "cmsdtqhxp0001o9015fzokykz",
+        "finalRunStatus": "started",
+        "provenanceWritten": true,
+        "testDefinitionDeleted": true,
+        "testSessionStopped": true
+      }
+    }
+  ],
+  "security": {
+    "credentialsInEvidence": false,
+    "restoreKeysInEvidence": false,
+    "daemonUser": "ec2-user",
+    "interactiveShellSourced": false
+  }
+}
