@@ -17,6 +17,19 @@ canonical_path() {
     realpath -m -- "$1"
 }
 
+resolve_account_home() {
+    local account_id="$1"
+    local passwd_entry account_home
+
+    command -v getent >/dev/null 2>&1 || die 'required command not found: getent'
+    passwd_entry="$(getent passwd "$account_id")" || \
+        die "could not resolve operating-system account: $account_id"
+    account_home="$(cut -d: -f6 <<< "$passwd_entry")"
+    [[ "$account_home" == /* ]] || \
+        die "operating-system account has no absolute home: $account_id"
+    canonical_path "$account_home"
+}
+
 paths_overlap() {
     local left="$1"
     local right="$2"
@@ -24,6 +37,7 @@ paths_overlap() {
 }
 
 happyherd_load_runtime_config "$ENV_FILE"
+effective_account_home="$(resolve_account_home "$(id -u)")"
 
 [[ "$HAPPYHERD_DOMAIN" =~ ^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]] || \
     die "invalid domain: $HAPPYHERD_DOMAIN"
@@ -56,10 +70,14 @@ for name in "${!paths[@]}"; do
 done
 
 forbidden_roots=(
-    "$HOME/.herd"
-    "$HOME/.happy"
-    "$HOME/.happy-server-data"
-    "$HOME/.qmherd"
+    "$effective_account_home/.herd"
+    "$effective_account_home/.happy"
+    "$effective_account_home/.happy-server-data"
+    "$effective_account_home/.qmherd"
+    "/home/ec2-user/.herd"
+    "/home/ec2-user/.happy"
+    "/home/ec2-user/.happy-server-data"
+    "/home/ec2-user/.qmherd"
     "/data/.herd"
 )
 
