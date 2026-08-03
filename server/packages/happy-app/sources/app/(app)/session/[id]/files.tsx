@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { View, ActivityIndicator, Platform, TextInput } from 'react-native';
+import { View, ActivityIndicator, Platform, Pressable, TextInput } from 'react-native';
 import { t } from '@/text';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Octicons } from '@expo/vector-icons';
@@ -17,6 +17,11 @@ import { FileIcon } from '@/components/FileIcon';
 import { Shaker, ShakeInstance } from '@/components/Shaker';
 import { usePrefetchFileContents } from '@/hooks/usePrefetchFileContents';
 import { MobileGlassSurface } from '@/components/MobileGlass';
+import {
+    addWorkspaceContextFile,
+    getWorkspaceContextFiles,
+    subscribeWorkspaceContext,
+} from '@/sync/workspaceContext';
 
 export default React.memo(function FilesScreen() {
     const router = useRouter();
@@ -31,6 +36,34 @@ export default React.memo(function FilesScreen() {
     const [isSearching, setIsSearching] = React.useState(false);
     const gitStatus = useSessionGitStatus(sessionId!);
     const { theme } = useUnistyles();
+    const selectedContextFiles = React.useSyncExternalStore(
+        subscribeWorkspaceContext,
+        () => getWorkspaceContextFiles(sessionId!),
+        () => getWorkspaceContextFiles(sessionId!),
+    );
+
+    const renderAttachButton = React.useCallback((filePath: string) => {
+        const selected = selectedContextFiles.includes(filePath);
+        return (
+            <Pressable
+                onPress={(event) => {
+                    event.stopPropagation?.();
+                    if (!selected) addWorkspaceContextFile(sessionId!, filePath);
+                }}
+                disabled={selected}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={selected ? `${filePath} attached` : `Attach ${filePath} to next message`}
+                style={{ padding: 8, opacity: selected ? 0.7 : 1 }}
+            >
+                <Octicons
+                    name={selected ? 'check' : 'paperclip'}
+                    size={18}
+                    color={selected ? theme.colors.success : theme.colors.textLink}
+                />
+            </Pressable>
+        );
+    }, [selectedContextFiles, sessionId, theme.colors.success, theme.colors.textLink]);
 
     // Refs for shaking deleted file items
     const shakerRefs = React.useRef(new Map<string, ShakeInstance>());
@@ -155,7 +188,12 @@ export default React.memo(function FilesScreen() {
                 title={file.fileName}
                 subtitle={renderFileSubtitle(file)}
                 icon={renderFileIcon(file)}
-                rightElement={renderStatusIcon(file)}
+                rightElement={(
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        {renderStatusIcon(file)}
+                        {!isDeleted && renderAttachButton(file.fullPath)}
+                    </View>
+                )}
                 onPress={() => handleFilePress(file)}
                 showDivider={!isLast}
             />
@@ -372,6 +410,7 @@ export default React.memo(function FilesScreen() {
                                     subtitle={file.filePath || t('files.projectRoot')}
                                     icon={renderFileIconForSearch(file)}
                                     onPress={() => handleFilePress(file)}
+                                    rightElement={file.fileType === 'file' ? renderAttachButton(file.fullPath) : undefined}
                                     showDivider={index < searchResults.length - 1}
                                 />
                             ))}
