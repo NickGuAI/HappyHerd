@@ -3,10 +3,24 @@ import {
     MAX_TRANSCRIPTION_AUDIO_BYTES,
     decodeTranscriptionAudio,
     normalizeAudioMimeType,
+    resolveVoiceTranscriptionApiKey,
     transcribeVoiceInput,
 } from './transcription';
 
 describe('HappyHerd voice transcription', () => {
+    it('prefers a direct key and otherwise reads a file-backed key', () => {
+        expect(resolveVoiceTranscriptionApiKey({ OPENAI_API_KEY: ' direct-key ', OPENAI_API_KEY_FILE: '/ignored' }, (() => {
+            throw new Error('should not read');
+        }) as any)).toBe('direct-key');
+        expect(resolveVoiceTranscriptionApiKey({ OPENAI_API_KEY_FILE: '/run/secrets/key' }, ((path: string) => {
+            expect(path).toBe('/run/secrets/key');
+            return ' file-key\n';
+        }) as any)).toBe('file-key');
+        expect(resolveVoiceTranscriptionApiKey({ OPENAI_API_KEY_FILE: '/missing' }, (() => {
+            throw new Error('missing');
+        }) as any)).toBeNull();
+    });
+
     it('validates MIME type and payload bounds', () => {
         expect(normalizeAudioMimeType('audio/webm;codecs=opus')).toBe('audio/webm');
         expect(() => normalizeAudioMimeType('application/pdf')).toThrow('Unsupported audio type');

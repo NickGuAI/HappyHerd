@@ -70,6 +70,15 @@ const body = JSON.parse(process.argv[1]);
 if (body.status !== "ok" || body.service !== "happy-server") process.exit(1);
 ' "$health_body" || die "health response was not healthy: $health_body"
 
+api_health_body="$(curl --fail --silent --show-error --max-time 5 "$base_url/api/health")"
+node -e '
+const canonical = JSON.parse(process.argv[1]);
+const compatible = JSON.parse(process.argv[2]);
+for (const body of [canonical, compatible]) {
+  if (body.status !== "ok" || body.service !== "happy-server") process.exit(1);
+}
+' "$health_body" "$api_health_body" || die "legacy API health response was not healthy: $api_health_body"
+
 root_file="$TMP_ROOT/root.html"
 curl --fail --silent --show-error --max-time 5 "$base_url/" > "$root_file"
 grep -Eq '<div[^>]+id="root"|<div[^>]+id=root' "$root_file" || \
@@ -86,7 +95,7 @@ expected_brand_sha="$(sha256sum "$ROOT/branding/hervald-logo-mark-black.png" | a
 if [[ -n "$EVIDENCE_FILE" ]]; then
     mkdir -p "$(dirname "$EVIDENCE_FILE")"
     IMAGE_REF="$IMAGE_REF" SOURCE_SHA="$source_sha" BRAND_SHA="$brand_sha" \
-        HEALTH_BODY="$health_body" ROOT_SHA="$(sha256sum "$root_file" | awk '{print $1}')" \
+        HEALTH_BODY="$health_body" API_HEALTH_BODY="$api_health_body" ROOT_SHA="$(sha256sum "$root_file" | awk '{print $1}')" \
         node <<'NODE' > "$EVIDENCE_FILE"
 const evidence = {
     schemaVersion: 1,
@@ -94,6 +103,7 @@ const evidence = {
     sourceSha: process.env.SOURCE_SHA,
     brandAssetSha256: process.env.BRAND_SHA,
     health: JSON.parse(process.env.HEALTH_BODY),
+    apiHealth: JSON.parse(process.env.API_HEALTH_BODY),
     rootHtmlSha256: process.env.ROOT_SHA,
     result: 'healthy',
 };

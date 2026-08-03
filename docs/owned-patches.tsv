@@ -7,6 +7,7 @@ B2	code-ready	feat(workspace): browse and favorite host folders	server/packages/
 B3	code-ready	feat(context): attach workspace files to messages	server/packages/happy-app/sources/sync/workspaceContext.test.ts
 B4	code-ready	feat(files): preview text and common images	server/packages/happy-app/sources/utils/filePreview.test.ts
 B5	code-ready	feat(voice): add editable composer dictation	server/packages/happy-server/sources/app/voice/transcription.spec.ts
+DEPLOY	code-ready	ops(runtime): support portable self-hosted profiles	scripts/test-runtime-isolation.sh
 B2	code-ready	test(settings): cover favorite machine path defaults	server/packages/happy-app/sources/sync/settings.spec.ts
 B0	code-ready	chore(quality): satisfy changed-source lint	scripts/lint-source.mjs
 PHASE_B	code-ready	docs: register Phase B owned patches	docs/owned-patches.tsv

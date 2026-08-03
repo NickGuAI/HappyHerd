@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 const OPENAI_TRANSCRIPTION_URL = 'https://api.openai.com/v1/audio/transcriptions';
 export const MAX_TRANSCRIPTION_AUDIO_BYTES = 15 * 1024 * 1024;
 export const DEFAULT_TRANSCRIPTION_MODEL = 'gpt-4o-transcribe';
@@ -18,6 +20,21 @@ export class VoiceTranscriptionError extends Error {
     constructor(message: string, readonly statusCode = 500) {
         super(message);
         this.name = 'VoiceTranscriptionError';
+    }
+}
+
+export function resolveVoiceTranscriptionApiKey(
+    env: NodeJS.ProcessEnv = process.env,
+    readFile: typeof readFileSync = readFileSync,
+): string | null {
+    const directKey = env.OPENAI_API_KEY?.trim();
+    if (directKey) return directKey;
+    const keyFile = env.OPENAI_API_KEY_FILE?.trim();
+    if (!keyFile) return null;
+    try {
+        return readFile(keyFile, 'utf8').trim() || null;
+    } catch {
+        return null;
     }
 }
 

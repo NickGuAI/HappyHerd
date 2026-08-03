@@ -12,10 +12,17 @@ HAPPYHERD_RUNTIME_KEYS=(
     HAPPYHERD_IMAGE
 )
 
+HAPPYHERD_OPTIONAL_RUNTIME_KEYS=(
+    HAPPYHERD_OPENAI_API_KEY_FILE
+)
+
 happyherd_is_runtime_key() {
     local candidate="$1"
     local key
     for key in "${HAPPYHERD_RUNTIME_KEYS[@]}"; do
+        [[ "$candidate" == "$key" ]] && return 0
+    done
+    for key in "${HAPPYHERD_OPTIONAL_RUNTIME_KEYS[@]}"; do
         [[ "$candidate" == "$key" ]] && return 0
     done
     return 1
@@ -29,6 +36,10 @@ happyherd_load_runtime_config() {
     }
 
     local raw key value
+    for key in "${HAPPYHERD_RUNTIME_KEYS[@]}" "${HAPPYHERD_OPTIONAL_RUNTIME_KEYS[@]}"; do
+        unset "$key"
+    done
+
     while IFS= read -r raw || [[ -n "$raw" ]]; do
         raw="${raw%$'\r'}"
         [[ -z "$raw" || "$raw" =~ ^[[:space:]]*# ]] && continue
