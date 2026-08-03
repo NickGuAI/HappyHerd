@@ -29,6 +29,34 @@ interface FileViewPanelProps {
     onDirtyChange?: (dirty: boolean) => void;
 }
 
+export type FileContentReadResult = {
+    success: boolean;
+    content?: string;
+    error?: string;
+};
+
+export type FileContentWriteResult = {
+    success: boolean;
+    hash?: string;
+    error?: string;
+};
+
+export interface FileContentPanelProps {
+    /** Changes whenever the backing transport/resource changes. */
+    resourceKey: string;
+    filePath: string;
+    readFile: (filePath: string) => Promise<FileContentReadResult>;
+    writeFile?: (
+        filePath: string,
+        content: string,
+        expectedHash?: string | null,
+    ) => Promise<FileContentWriteResult>;
+    canWrite: boolean;
+    markdownSessionId?: string;
+    onHeaderRightSlotChange: (slot: React.ReactNode) => void;
+    onDirtyChange?: (dirty: boolean) => void;
+}
+
 type FileState =
     | { kind: 'loading' }
     | { kind: 'error'; message: string }
@@ -100,8 +128,11 @@ function encodeStringToBase64(str: string): string {
 }
 
 /** Read file and decode to string, returns null on failure */
-async function readFileContent(sessionId: string, filePath: string): Promise<string | null> {
-    const res = await sessionReadFile(sessionId, filePath);
+async function readFileContent(
+    readFile: FileContentPanelProps['readFile'],
+    filePath: string,
+): Promise<string | null> {
+    const res = await readFile(filePath);
     if (!res.success || typeof res.content !== 'string') return null;
     try {
         return decodeUtf8Bytes(decodeBase64ToBytes(res.content));
@@ -118,15 +149,17 @@ async function computeSHA256(content: string): Promise<string> {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-export const FileViewPanel = React.memo(function FileViewPanel({
-    sessionId,
+export const FileContentPanel = React.memo(function FileContentPanel({
+    resourceKey,
     filePath,
+    readFile,
+    writeFile,
+    canWrite,
+    markdownSessionId,
     onHeaderRightSlotChange,
     onDirtyChange,
-}: FileViewPanelProps) {
+}: FileContentPanelProps) {
     const { theme } = useUnistyles();
-    const session = useSession(sessionId);
-    const canWrite = rigCanWriteFiles(session?.metadata);
     const [fileState, setFileState] = React.useState<FileState>({ kind: 'loading' });
     const [editContent, setEditContent] = React.useState('');
     const [isSaving, setIsSaving] = React.useState(false);
@@ -164,7 +197,7 @@ export const FileViewPanel = React.memo(function FileViewPanel({
 
         (async () => {
             try {
-                const fileResponse = await sessionReadFile(sessionId, filePath);
+                const fileResponse = await readFile(filePath);
 
                 if (cancelled) return;
 
@@ -213,7 +246,7 @@ export const FileViewPanel = React.memo(function FileViewPanel({
         })();
 
         return () => { cancelled = true; };
-    }, [sessionId, filePath, previewKind]);
+    }, [resourceKey, filePath, previewKind, readFile]);
 
     React.useEffect(() => {
         setDisplayMode(hasSourcePreview ? 'preview' : 'edit');
@@ -225,7 +258,7 @@ export const FileViewPanel = React.memo(function FileViewPanel({
         const originalHash = fileState.originalHash;
 
         const interval = setInterval(async () => {
-            const content = await readFileContent(sessionId, filePath);
+            const content = await readFileContent(readFile, filePath);
             if (content === null) return;
             const currentHash = await computeSHA256(content);
             if (currentHash !== originalHash) {
@@ -234,7 +267,7 @@ export const FileViewPanel = React.memo(function FileViewPanel({
         }, 5000);
 
         return () => clearInterval(interval);
-    }, [sessionId, filePath, fileState]);
+    }, [resourceKey, filePath, fileState, readFile]);
 
     const handleReload = React.useCallback(() => {
         if (externalChange === null) return;
@@ -257,13 +290,12 @@ export const FileViewPanel = React.memo(function FileViewPanel({
     }, []);
 
     const handleSave = React.useCallback(async () => {
-        if (!canWrite || fileState.kind !== 'loaded' || !hasChanges) return;
+        if (!canWrite || !writeFile || fileState.kind !== 'loaded' || !hasChanges) return;
         setIsSaving(true);
 
         try {
             const base64 = encodeStringToBase64(editContent);
-            const response = await sessionWriteFile(
-                sessionId,
+            const response = await writeFile(
                 filePath,
                 base64,
                 fileState.originalHash,
@@ -272,7 +304,7 @@ export const FileViewPanel = React.memo(function FileViewPanel({
             if (!response.success) {
                 if (response.error?.includes('hash') || response.error?.includes('mismatch')) {
                     // Fetch the current server content for diff
-                    const serverContent = await readFileContent(sessionId, filePath);
+                    const serverContent = await readFileContent(readFile, filePath);
                     if (serverContent) {
                         setExternalChange(serverContent);
                         setShowConflictDiff(true);
@@ -297,19 +329,19 @@ export const FileViewPanel = React.memo(function FileViewPanel({
         } finally {
             setIsSaving(false);
         }
-    }, [sessionId, filePath, editContent, fileState, hasChanges, canWrite]);
+    }, [filePath, editContent, fileState, hasChanges, canWrite, readFile, writeFile]);
 
     const handleForceSave = React.useCallback(async () => {
-        if (!canWrite || fileState.kind !== 'loaded') return;
+        if (!canWrite || !writeFile || fileState.kind !== 'loaded') return;
         setIsSaving(true);
 
         try {
             // Re-read to get current hash, then write
-            const serverContent = await readFileContent(sessionId, filePath);
+            const serverContent = await readFileContent(readFile, filePath);
             const currentHash = serverContent !== null ? await computeSHA256(serverContent) : undefined;
 
             const base64 = encodeStringToBase64(editContent);
-            const response = await sessionWriteFile(sessionId, filePath, base64, currentHash);
+            const response = await writeFile(filePath, base64, currentHash);
 
             if (!response.success) {
                 Modal.alert(t('common.error'), response.error || t('files.failedToSave'));
@@ -327,7 +359,7 @@ export const FileViewPanel = React.memo(function FileViewPanel({
         } finally {
             setIsSaving(false);
         }
-    }, [sessionId, filePath, editContent, fileState, canWrite]);
+    }, [filePath, editContent, fileState, canWrite, readFile, writeFile]);
 
     // Publish right-slot controls (edit/preview toggle, save button) into the chat header.
     const isLoaded = fileState.kind === 'loaded';
@@ -449,7 +481,7 @@ export const FileViewPanel = React.memo(function FileViewPanel({
                 >
                     {Platform.OS === 'web' && <EditorPreviewStyles />}
                     <View {...(Platform.OS === 'web' ? { className: 'editor-preview-wrap' } as any : {})}>
-                        <MarkdownView markdown={editContent} sessionId={sessionId} />
+                        <MarkdownView markdown={editContent} sessionId={markdownSessionId} />
                     </View>
                 </ScrollView>
             ) : isHtml && displayMode === 'preview' ? (
@@ -471,6 +503,43 @@ export const FileViewPanel = React.memo(function FileViewPanel({
                 </View>
             )}
         </View>
+    );
+});
+
+/**
+ * Compatibility wrapper for the desktop session All Files overlay. Its public
+ * props and rendered component remain unchanged while the renderer itself can
+ * also be driven by machine-scoped Workspace RPCs.
+ */
+export const FileViewPanel = React.memo(function FileViewPanel({
+    sessionId,
+    filePath,
+    onHeaderRightSlotChange,
+    onDirtyChange,
+}: FileViewPanelProps) {
+    const session = useSession(sessionId);
+    const readFile = React.useCallback(
+        (path: string) => sessionReadFile(sessionId, path),
+        [sessionId],
+    );
+    const writeFile = React.useCallback(
+        (path: string, content: string, expectedHash?: string | null) => (
+            sessionWriteFile(sessionId, path, content, expectedHash)
+        ),
+        [sessionId],
+    );
+
+    return (
+        <FileContentPanel
+            resourceKey={`session:${sessionId}`}
+            filePath={filePath}
+            readFile={readFile}
+            writeFile={writeFile}
+            canWrite={rigCanWriteFiles(session?.metadata)}
+            markdownSessionId={sessionId}
+            onHeaderRightSlotChange={onHeaderRightSlotChange}
+            onDirtyChange={onDirtyChange}
+        />
     );
 });
 

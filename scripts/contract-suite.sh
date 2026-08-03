@@ -30,6 +30,7 @@ node "$repo_root/scripts/verify-product-identity.mjs"
 "$repo_root/scripts/test-release-image-contract.sh"
 "$repo_root/scripts/test-release-rollback.sh"
 "$repo_root/scripts/test-upstream-sync-provenance.sh"
+"$repo_root/scripts/test-owned-merge-provenance.sh"
 node "$repo_root/scripts/verify-a5-evidence.mjs" --self-test
 
 shellcheck -x "$repo_root"/scripts/*.sh "$repo_root"/scripts/lib/*.sh

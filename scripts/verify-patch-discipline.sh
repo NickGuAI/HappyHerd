@@ -90,40 +90,79 @@ mapfile -t series < <(
 [[ "${#series[@]}" -gt 0 ]] || fail "owned patch series is empty"
 
 declare -A resolved_subjects=()
-for record in "${series[@]}"; do
-  sha="${record%%$'\t'*}"
-  subject="${record#*$'\t'}"
-  gate="${manifest_gate[$subject]:-}"
-  parent_record="$(git rev-list --parents -n 1 "$sha")"
-  parent_count="$(( $(wc -w <<< "$parent_record") - 1 ))"
+owned_patch_count=0
 
-  if [[ -z "$gate" ]]; then
-    if [[ "${HAPPYHERD_ALLOW_REHEARSAL_SYNC:-0}" != "1" || "$sha" != "$(git rev-parse HEAD)" || "$parent_count" -ne 2 ]]; then
-      fail "unmanifested patch ${sha:0:12}: $subject"
-    fi
+resolve_owned_commit() {
+  local sha="$1"
+  local subject="$2"
+  local gate="${manifest_gate[$subject]:-}"
+  local parent_record parent_count
 
-    gate="UPSTREAM_SYNC"
-  else
-    [[ -z "${resolved_subjects[$subject]:-}" ]] ||
-      fail "manifest subject resolves to multiple commits: $subject"
-    resolved_subjects[$subject]="$sha"
-  fi
+  [[ -n "$gate" ]] || fail "unmanifested patch ${sha:0:12}: $subject"
+  [[ -z "${resolved_subjects[$subject]:-}" ]] ||
+    fail "manifest subject resolves to multiple commits: $subject"
 
   case "$subject" in
     fixup\!*|squash\!*|WIP*|wip*) fail "temporary commit subject: $subject" ;;
   esac
-
-  if [[ "$gate" != "UPSTREAM_SYNC" && ! "$subject" =~ $conventional_subject_re ]]; then
+  [[ "$subject" =~ $conventional_subject_re ]] ||
     fail "non-conventional owned patch subject: $subject"
+
+  parent_record="$(git rev-list --parents -n 1 "$sha")"
+  parent_count="$(( $(wc -w <<< "$parent_record") - 1 ))"
+  [[ "$parent_count" -eq 1 ]] ||
+    fail "owned PR branch contains a merge-valued patch: ${sha:0:12} $subject"
+  git diff-tree --quiet "${sha}^" "$sha" &&
+    fail "empty owned patch: ${sha:0:12} $subject"
+
+  resolved_subjects[$subject]="$sha"
+  owned_patch_count=$((owned_patch_count + 1))
+}
+
+for record in "${series[@]}"; do
+  sha="${record%%$'\t'*}"
+  subject="${record#*$'\t'}"
+  parent_record="$(git rev-list --parents -n 1 "$sha")"
+  parent_count="$(( $(wc -w <<< "$parent_record") - 1 ))"
+
+  if [[ "$parent_count" -eq 1 ]]; then
+    resolve_owned_commit "$sha" "$subject"
+    continue
   fi
 
-  if [[ "$parent_count" -gt 1 ]]; then
-    [[ "$gate" == "UPSTREAM_SYNC" ]] ||
-      fail "owned patch is a merge outside UPSTREAM_SYNC: ${sha:0:12} $subject"
-    [[ "$parent_count" -eq 2 ]] ||
-      fail "UPSTREAM_SYNC must have exactly two parents: ${sha:0:12}"
+  [[ "$parent_count" -eq 2 ]] ||
+    fail "merge commit must have exactly two parents: ${sha:0:12}"
+  read -r _ first_parent second_parent <<< "$parent_record"
 
-    read -r _ first_parent second_parent <<< "$parent_record"
+  # GitHub PR merges are structural only: every commit unique to the PR branch
+  # must already be a manifest-backed, conventional, single-parent patch, and
+  # the merge tree must equal Git's clean synthetic merge tree. This allows the
+  # public repository to use protected-branch PR merges without creating an
+  # unaudited patch or forcing history rewrites after merge.
+  if [[ "$subject" =~ ^Merge\ pull\ request\ \#[0-9]+\ from\ NickGuAI/[^[:space:]]+$ ]]; then
+    [[ -z "${manifest_gate[$subject]:-}" ]] ||
+      fail "structural owned PR merge must not be a manifest patch: $subject"
+    expected_tree="$(git merge-tree --write-tree "$first_parent" "$second_parent" 2>/dev/null)" ||
+      fail "owned PR merge is not a clean synthetic merge: ${sha:0:12}"
+    [[ "$expected_tree" == "$(git rev-parse "${sha}^{tree}")" ]] ||
+      fail "owned PR merge tree contains changes outside its branch patches: ${sha:0:12}"
+    mapfile -t branch_commits < <(git rev-list --reverse --topo-order "$first_parent..$second_parent")
+    [[ "${#branch_commits[@]}" -gt 0 ]] ||
+      fail "owned PR merge has no branch patches: ${sha:0:12}"
+    for branch_sha in "${branch_commits[@]}"; do
+      resolve_owned_commit "$branch_sha" "$(git show -s --format=%s "$branch_sha")"
+    done
+    continue
+  fi
+
+  if [[ "${HAPPYHERD_ALLOW_REHEARSAL_SYNC:-0}" == "1" && "$sha" == "$(git rev-parse HEAD)" ]]; then
+    gate="UPSTREAM_SYNC"
+  else
+    fail "unmanifested merge ${sha:0:12}: $subject"
+  fi
+
+  if [[ "$gate" == "UPSTREAM_SYNC" ]]; then
+
     git merge-base --is-ancestor "${upstream_ref}^{commit}" "$second_parent" ||
       fail "UPSTREAM_SYNC second parent does not descend from upstream"
     actual_upstream_url="$(git remote get-url upstream 2>/dev/null)" ||
@@ -144,15 +183,11 @@ for record in "${series[@]}"; do
     [[ "$subject" == "Merge commit '$second_parent'" ]] ||
       fail "UPSTREAM_SYNC subject does not identify its second parent"
   fi
-
-  if [[ "$parent_count" -eq 1 ]] && git diff-tree --quiet "${sha}^" "$sha"; then
-    fail "empty owned patch: ${sha:0:12} $subject"
-  fi
 done
 
 for subject in "${!manifest_gate[@]}"; do
   [[ -n "${resolved_subjects[$subject]:-}" ]] ||
-    fail "manifest subject does not resolve to a first-parent commit: $subject"
+    fail "manifest subject does not resolve to an owned commit: $subject"
 done
 
-echo "patch-discipline: ok (${#series[@]} owned patches; baseline ${baseline_sha:0:12}; tree ${upstream_tree:0:12})"
+echo "patch-discipline: ok ($owned_patch_count owned patches; baseline ${baseline_sha:0:12}; tree ${upstream_tree:0:12})"

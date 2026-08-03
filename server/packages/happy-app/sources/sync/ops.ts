@@ -525,6 +525,66 @@ export async function machineGetDirectoryTree(
 }
 
 /**
+ * Read a file through the machine daemon rather than an agent session. This is
+ * the transport used by the independent Machine Workspace, so browsing and
+ * previewing do not require a running session.
+ */
+export async function machineReadFile(machineId: string, path: string): Promise<SessionReadFileResponse> {
+    try {
+        return await apiSocket.machineRPC<SessionReadFileResponse, SessionReadFileRequest>(
+            machineId,
+            'readFile',
+            { path },
+        );
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to read machine file',
+        };
+    }
+}
+
+/** Write a file through the machine daemon with optimistic hash protection. */
+export async function machineWriteFile(
+    machineId: string,
+    path: string,
+    content: string,
+    expectedHash?: string | null,
+): Promise<SessionWriteFileResponse> {
+    try {
+        return await apiSocket.machineRPC<SessionWriteFileResponse, SessionWriteFileRequest>(
+            machineId,
+            'writeFile',
+            { path, content, expectedHash },
+        );
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to write machine file',
+        };
+    }
+}
+
+/** List one machine directory without tying the request to an agent session. */
+export async function machineListDirectory(
+    machineId: string,
+    path: string,
+): Promise<SessionListDirectoryResponse> {
+    try {
+        return await apiSocket.machineRPC<SessionListDirectoryResponse, SessionListDirectoryRequest>(
+            machineId,
+            'listDirectory',
+            { path },
+        );
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to list machine directory',
+        };
+    }
+}
+
+/**
  * Execute a bash command on a specific machine
  */
 export async function machineBash(
