@@ -62,6 +62,7 @@ write_config \
     "$TMP_ROOT/secret" \
     "$TMP_ROOT/openai-secret"
 "$ROOT/scripts/validate-runtime-isolation.sh" "$TMP_ROOT/safe.env" template >/dev/null
+env -u HOME "$ROOT/scripts/validate-runtime-isolation.sh" "$TMP_ROOT/safe.env" template >/dev/null
 mkdir -p "$TMP_ROOT/data" "$TMP_ROOT/logs" "$TMP_ROOT/cli"
 printf 'test-only-secret-material-0123456789\n' > "$TMP_ROOT/secret"
 printf 'test-only-openai-material-0123456789\n' > "$TMP_ROOT/openai-secret"
@@ -86,6 +87,12 @@ expect_rejected "$TMP_ROOT/herd.env"
 
 write_config "$TMP_ROOT/happy.env" "happyherd.gehirn.ai" "https://happyherd.gehirn.ai" "20015" "$TMP_ROOT/data" "$TMP_ROOT/logs" "$HOME/.happy" "$TMP_ROOT/secret"
 expect_rejected "$TMP_ROOT/happy.env"
+
+write_config "$TMP_ROOT/baolab-herd.env" "baolab.gehirn.ai" "https://baolab.gehirn.ai" "20001" "/home/ec2-user/.herd/happyherd" "$TMP_ROOT/logs" "$TMP_ROOT/cli" "$TMP_ROOT/secret"
+env -u HOME "$ROOT/scripts/validate-runtime-isolation.sh" "$TMP_ROOT/baolab-herd.env" template >/dev/null 2>&1 && {
+    printf 'error: Bao Lab legacy Herd state was accepted without HOME\n' >&2
+    exit 1
+}
 
 write_config "$TMP_ROOT/qmherd.env" "happyherd.gehirn.ai" "https://happyherd.gehirn.ai" "20015" "$TMP_ROOT/qmherd-data" "$TMP_ROOT/logs" "$TMP_ROOT/cli" "$TMP_ROOT/secret"
 expect_rejected "$TMP_ROOT/qmherd.env"
