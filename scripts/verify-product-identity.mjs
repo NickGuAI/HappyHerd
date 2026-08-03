@@ -36,4 +36,3 @@ for (const stale of ["detail=\"slopus/happy\"", "openExternalUrl('https://github
 }
 
 console.log('product-identity: ok');
-

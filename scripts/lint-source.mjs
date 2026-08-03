@@ -64,4 +64,3 @@ if (failures.length > 0) {
 }
 
 console.log(`lint: ok (${changed.size} changed paths inspected)`);
-
