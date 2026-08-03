@@ -10,6 +10,22 @@ export type WorkspaceAttachmentParams = {
     path: string;
 };
 
+export const DESKTOP_WORKSPACE_BROWSER_WIDTH = 360;
+
+/**
+ * React Native Web expands `flex: 0` to a zero flex-basis, which can collapse
+ * an otherwise fixed-width pane. Keep every flex axis explicit so the file
+ * browser remains visible beside the preview on desktop.
+ */
+export const desktopWorkspaceBrowserLayout = {
+    width: DESKTOP_WORKSPACE_BROWSER_WIDTH,
+    minWidth: DESKTOP_WORKSPACE_BROWSER_WIDTH,
+    maxWidth: DESKTOP_WORKSPACE_BROWSER_WIDTH,
+    flexBasis: DESKTOP_WORKSPACE_BROWSER_WIDTH,
+    flexGrow: 0,
+    flexShrink: 0,
+} as const;
+
 export function buildWorkspaceAttachmentParams(
     sessionId: string,
     metadata: Pick<Metadata, 'machineId' | 'path' | 'homeDir'> | null | undefined,
