@@ -10,6 +10,7 @@ B5	code-ready	feat(voice): add editable composer dictation	server/packages/happy
 B2	code-ready	test(settings): cover favorite machine path defaults	server/packages/happy-app/sources/sync/settings.spec.ts
 B0	code-ready	chore(quality): satisfy changed-source lint	scripts/lint-source.mjs
 PHASE_B	code-ready	docs: register Phase B owned patches	docs/owned-patches.tsv
+B0	code-ready	fix(ci): verify owned patch head on pull requests	.github/workflows/contract-suite.yml
 BRANDING	accepted	feat(brand): apply Hervald mark to Happy surfaces	branding/hervald-logo-mark-black.png
 A2	accepted	build: make release artifacts reproducible	docs/build-provenance.md
 A2	accepted	fix(build): stabilize Expo Hermes bytecode	server/patches/deterministic-expo-hermes-temp.cjs
