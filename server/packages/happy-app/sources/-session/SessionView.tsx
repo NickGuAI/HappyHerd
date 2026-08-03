@@ -78,6 +78,14 @@ import {
     rigCanUseShell,
 } from '@/sync/rig';
 import { RigActivityBar } from '@/components/RigActivityBar';
+import {
+    addWorkspaceContextFile,
+    buildWorkspaceContextMessage,
+    clearWorkspaceContextFiles,
+    getWorkspaceContextFiles,
+    removeWorkspaceContextFile,
+    subscribeWorkspaceContext,
+} from '@/sync/workspaceContext';
 
 export const SessionView = React.memo((props: { id: string }) => {
     const sessionId = props.id;
@@ -296,6 +304,11 @@ export const SessionView = React.memo((props: { id: string }) => {
     const handleAllFilesFilePress = React.useCallback((filePath: string) => {
         pushOverlay({ kind: 'file', path: filePath });
     }, [pushOverlay]);
+    const handleAllFilesFileAttach = React.useCallback((filePath: string) => {
+        if (!addWorkspaceContextFile(sessionId, filePath)) {
+            Modal.alert('Workspace context', 'You can attach up to 8 files to one message.');
+        }
+    }, [sessionId]);
 
     // When sidebar capability is lost (screen too narrow, disabled), close views.
     // Don't close on zen mode toggle — keep the view visible.
@@ -535,6 +548,7 @@ export const SessionView = React.memo((props: { id: string }) => {
                         onSelectPanel={selectSidebarPanel}
                         onClosePanel={closeSidebarPanel}
                         onAllFilesFilePress={handleAllFilesFilePress}
+                        onAllFilesFileAttach={handleAllFilesFileAttach}
                         sideChats={sideChats}
                         activeSideChatId={activeSideChatId}
                         onSelectSideChat={setActiveSideChatId}
@@ -759,7 +773,6 @@ export function SessionViewLoaded({
     const gitStatus = useSessionGitStatus(sessionId);
     const alwaysShowContextSize = useSetting('alwaysShowContextSize');
     const sessionStatusBarDisplay = useSetting('sessionStatusBarDisplay');
-    const experiments = useSetting('experiments');
     const expResumeSession = useSetting('expResumeSession');
     const { canResume, resumeSession, resumingSession } = useSessionQuickActions(session);
     const isDisconnected = !sessionStatus.isConnected;
@@ -780,6 +793,11 @@ export function SessionViewLoaded({
     // clear it without subscribing to it (which would re-render the whole
     // SessionViewLoaded tree on every keystroke).
     const composerHandleRef = React.useRef<ChatComposerHandle | null>(null);
+    const selectedContextFiles = React.useSyncExternalStore(
+        subscribeWorkspaceContext,
+        () => getWorkspaceContextFiles(sessionId),
+        () => getWorkspaceContextFiles(sessionId),
+    );
 
     // Handle dismissing CLI version warning
     const handleDismissCliWarning = React.useCallback(() => {
@@ -825,15 +843,29 @@ export function SessionViewLoaded({
 
     // handleSend reads the live message via the composer ref, so it doesn't
     // need to re-create on every keystroke.
-    const handleSend = React.useCallback(() => {
+    const handleSend = React.useCallback(async () => {
         const liveMessage = composerHandleRef.current?.getMessage() ?? '';
-        if (liveMessage.trim() || (expImageUpload && selectedImages.length > 0)) {
+        if (!liveMessage.trim() && !(expImageUpload && selectedImages.length > 0) && selectedContextFiles.length === 0) {
+            return;
+        }
+        try {
+            const contextMessage = await buildWorkspaceContextMessage(sessionId, liveMessage, selectedContextFiles);
             const attachments = expImageUpload ? selectedImages : undefined;
+            await sync.sendMessage(sessionId, contextMessage.promptText, {
+                source: 'chat',
+                attachments,
+                ...(selectedContextFiles.length > 0 ? { displayText: contextMessage.displayText } : {}),
+            });
             composerHandleRef.current?.clearMessage();
             if (expImageUpload) clearImages();
-            sync.sendMessage(sessionId, liveMessage, { source: 'chat', attachments });
+            clearWorkspaceContextFiles(sessionId);
+        } catch (error) {
+            Modal.alert(
+                'Could not attach workspace context',
+                error instanceof Error ? error.message : 'The selected files could not be read.',
+            );
         }
-    }, [sessionId, expImageUpload, selectedImages, clearImages]);
+    }, [sessionId, expImageUpload, selectedImages, selectedContextFiles, clearImages]);
 
     const handleAbort = React.useCallback(() => {
         // Mode picks live in synced metadata — clear them there, otherwise the
@@ -1035,11 +1067,13 @@ export function SessionViewLoaded({
             showAbortButton={rigCanAbort(session.metadata) && (Platform.OS === 'web'
                 ? sessionStatus.state === 'thinking' || sessionStatus.state === 'waiting'
                 : sessionStatus.state === 'thinking')}
-            onFileViewerPress={experiments && !isTablet && rigCanBrowseFiles(session.metadata) && rigCanReadFiles(session.metadata) ? handleFileViewerPress : undefined}
+            onFileViewerPress={rigCanBrowseFiles(session.metadata) && rigCanReadFiles(session.metadata) ? handleFileViewerPress : undefined}
             selectedImages={expImageUpload && canUseAttachments ? selectedImages : undefined}
             onPickImages={expImageUpload && canUseAttachments ? pickImages : undefined}
             onRemoveImage={expImageUpload && canUseAttachments ? removeImage : undefined}
             onAddImages={expImageUpload && canUseAttachments ? addImages : undefined}
+            selectedContextFiles={selectedContextFiles}
+            onRemoveContextFile={(filePath) => removeWorkspaceContextFile(sessionId, filePath)}
             autocompletePrefixes={AGENT_INPUT_AUTOCOMPLETE_PREFIXES}
             autocompleteSuggestions={handleAutocompleteSuggestions}
             usageData={usageData}

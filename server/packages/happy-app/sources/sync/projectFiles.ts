@@ -29,13 +29,21 @@ export async function getProjectFiles(sessionId: string): Promise<ProjectFilesLi
 
     const cwd = session.metadata.path;
 
-    const res = await sessionBash(sessionId, {
+    let res = await sessionBash(sessionId, {
         command: 'git -c core.quotepath=false ls-files --cached --others --exclude-standard',
         cwd,
         timeout: 15000,
     });
 
-    if (!res.success || !res.stdout) {
+    if (!res.success || !res.stdout.trim()) {
+        res = await sessionBash(sessionId, {
+            command: "find . -type f -not -path './.git/*' -not -path './node_modules/*' -not -path './dist/*' -not -path './build/*' -print",
+            cwd,
+            timeout: 15000,
+        });
+    }
+
+    if (!res.success) {
         return null;
     }
 

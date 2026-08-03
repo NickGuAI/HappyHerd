@@ -72,6 +72,7 @@ interface FilesSidebarProps {
     onSelectPanel: (panel: SidebarMode) => void;
     onClosePanel: (panel: SidebarMode) => void;
     onAllFilesFilePress?: (filePath: string) => void;
+    onAllFilesFileAttach?: (filePath: string) => void;
     // Side chats (rendered inside the 'sideChat' panel). Creation is unified
     // into this sidebar's panel picker, so there is no separate add button.
     sideChats: Session[];
@@ -211,6 +212,7 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
     onSelectPanel,
     onClosePanel,
     onAllFilesFilePress,
+    onAllFilesFileAttach,
     sideChats,
     activeSideChatId,
     onSelectSideChat,
@@ -491,6 +493,7 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
                     sessionId={sessionId}
                     selectedPath={selectedPath ?? null}
                     onFilePress={onAllFilesFilePress}
+                    onFileAttach={onAllFilesFileAttach}
                 />
             )}
 
@@ -594,10 +597,12 @@ const AllFilesTab = React.memo(function AllFilesTab({
     sessionId,
     selectedPath,
     onFilePress,
+    onFileAttach,
 }: {
     sessionId: string;
     selectedPath: string | null;
     onFilePress?: (filePath: string) => void;
+    onFileAttach?: (filePath: string) => void;
 }) {
     const { theme } = useUnistyles();
     const [searchQuery, setSearchQuery] = React.useState('');
@@ -686,6 +691,7 @@ const AllFilesTab = React.memo(function AllFilesTab({
                                 collapsed={collapsed}
                                 onToggleDir={toggleDir}
                                 onFilePress={handleFilePress}
+                                onFileAttach={onFileAttach}
                             />
                         ))}
                     </View>
@@ -697,7 +703,7 @@ const AllFilesTab = React.memo(function AllFilesTab({
 
 /** Tree row for project files (no status badges, clickable) */
 const ProjectTreeNodeRow = React.memo(function ProjectTreeNodeRow({
-    node, depth, selectedPath, collapsed, onToggleDir, onFilePress,
+    node, depth, selectedPath, collapsed, onToggleDir, onFilePress, onFileAttach,
 }: {
     node: AnyTreeNode<ProjectFile>;
     depth: number;
@@ -705,6 +711,7 @@ const ProjectTreeNodeRow = React.memo(function ProjectTreeNodeRow({
     collapsed: Set<string>;
     onToggleDir: (path: string) => void;
     onFilePress: (file: ProjectFile) => void;
+    onFileAttach?: (filePath: string) => void;
 }) {
     const { theme } = useUnistyles();
     const leftPad = 8 + depth * INDENT_PX;
@@ -732,6 +739,7 @@ const ProjectTreeNodeRow = React.memo(function ProjectTreeNodeRow({
                             collapsed={collapsed}
                             onToggleDir={onToggleDir}
                             onFilePress={onFilePress}
+                            onFileAttach={onFileAttach}
                         />
                     ))
                     : null}
@@ -754,6 +762,20 @@ const ProjectTreeNodeRow = React.memo(function ProjectTreeNodeRow({
             <Text style={styles.fileName} numberOfLines={1}>
                 {node.name}
             </Text>
+            {onFileAttach && (
+                <Pressable
+                    onPress={(event) => {
+                        event.stopPropagation?.();
+                        onFileAttach(node.path);
+                    }}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Attach ${node.path} to next message`}
+                    style={styles.attachFileButton}
+                >
+                    <Octicons name="paperclip" size={14} color={theme.colors.textLink} />
+                </Pressable>
+            )}
         </Pressable>
     );
 });
@@ -1122,6 +1144,13 @@ const styles = StyleSheet.create((theme) => ({
         fontSize: 13,
         color: theme.colors.text,
         ...Typography.default(),
+    },
+    attachFileButton: {
+        width: 28,
+        height: 28,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 6,
     },
     fileNameDeleted: {
         textDecorationLine: 'line-through',
