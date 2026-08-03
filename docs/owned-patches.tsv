@@ -49,3 +49,4 @@ B4	code-ready	fix(workspace): preserve desktop browser pane	server/packages/happ
 B5.1	code-ready	fix(workspace): size decoded image previews	server/packages/happy-app/sources/utils/filePreview.test.ts
 B4	code-ready	fix(workspace): preserve root directory errors	server/packages/happy-cli/src/modules/common/registerCommonHandlers.machineTree.test.ts
 B3-B5.1	accepted	docs(release): record machine workspace acceptance	docs/acceptance/b3-b5.1-2026-08-03.json
+B5.1	code-ready	fix(web): allow Chrome PDF viewer to load	server/packages/happy-app/sources/components/FileDocumentPreview.web.test.ts
