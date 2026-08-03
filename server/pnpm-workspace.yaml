@@ -6,3 +6,5 @@ packages:
   - "packages/happy-wire"
   - "packages/happy-app-logs"
   - "packages/codium"
+
+injectWorkspacePackages: true
