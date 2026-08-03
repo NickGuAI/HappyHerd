@@ -48,8 +48,12 @@ export function agentContextRoot(): string {
   return path.resolve(process.env.HAPPYHERD_AGENTCONTEXT_ROOT?.trim() || path.join(homeDir(), '.herd'));
 }
 
-function commandersRoot(): string {
-  return path.join(agentContextRoot(), 'commanders');
+function commanderRoots(): string[] {
+  const root = agentContextRoot();
+  return [
+    path.join(root, 'commanders'),
+    path.join(root, 'commander'),
+  ];
 }
 
 function canonicalAgentsPath(): string {
@@ -100,28 +104,39 @@ export function parseCommanderIdentity(markdown: string): {
   role?: string;
 } {
   const match = markdown.match(/^---\s*\n([\s\S]*?)\n---(?:\s*\n|$)/);
-  if (!match) return {};
-
   const result: { name?: string; commanderId?: string; workspace?: string; role?: string } = {};
-  let inIdentityScope = false;
-  for (const line of match[1].split(/\r?\n/)) {
-    if (/^identity_and_scope:\s*$/.test(line)) {
-      inIdentityScope = true;
-      continue;
+  if (match) {
+    let inIdentityScope = false;
+    for (const line of match[1].split(/\r?\n/)) {
+      if (/^identity_and_scope:\s*$/.test(line)) {
+        inIdentityScope = true;
+        continue;
+      }
+      if (inIdentityScope && /^\S/.test(line) && !line.startsWith('#')) {
+        break;
+      }
+      if (!inIdentityScope) continue;
+      const field = line.match(/^\s{2,}(name|commander_id|workspace|role):\s*(.*?)\s*$/);
+      if (!field) continue;
+      const value = parseScalar(field[2]);
+      if (!value) continue;
+      if (field[1] === 'name') result.name = value;
+      if (field[1] === 'commander_id') result.commanderId = value;
+      if (field[1] === 'workspace') result.workspace = value;
+      if (field[1] === 'role') result.role = value;
     }
-    if (inIdentityScope && /^\S/.test(line) && !line.startsWith('#')) {
-      break;
-    }
-    if (!inIdentityScope) continue;
-    const field = line.match(/^\s{2,}(name|commander_id|workspace|role):\s*(.*?)\s*$/);
-    if (!field) continue;
-    const value = parseScalar(field[2]);
-    if (!value) continue;
-    if (field[1] === 'name') result.name = value;
-    if (field[1] === 'commander_id') result.commanderId = value;
-    if (field[1] === 'workspace') result.workspace = value;
-    if (field[1] === 'role') result.role = value;
   }
+
+  // Established Herd Commander files predate the frontmatter contract. Only
+  // inspect their bounded header so prose later in the file cannot silently
+  // redefine identity or workspace routing.
+  const legacyHeader = markdown.split(/\r?\n/).slice(0, 40).join('\n');
+  const legacyIdentity = legacyHeader.match(/^You are\s+([^,\n.]+?)(?:,\s*(.+?))?\.\s*$/m);
+  const legacyWorkspace = legacyHeader.match(/^Workspace:\s*`([^`\n]+)`\s*$/m)
+    ?? legacyHeader.match(/^Workspace:\s*(\/\S+)\s*$/m);
+  if (!result.name && legacyIdentity?.[1]?.trim()) result.name = legacyIdentity[1].trim();
+  if (!result.role && legacyIdentity?.[2]?.trim()) result.role = legacyIdentity[2].trim();
+  if (!result.workspace && legacyWorkspace?.[1]?.trim()) result.workspace = legacyWorkspace[1].trim();
   return result;
 }
 
@@ -135,11 +150,10 @@ async function resolveInside(root: string, candidate: string): Promise<string> {
   return realCandidate;
 }
 
-async function readCommander(directoryName: string): Promise<HappyHerdCommanderSummary | null> {
+async function readCommander(root: string, directoryName: string): Promise<HappyHerdCommanderSummary | null> {
   if (!directoryName || directoryName === '.' || directoryName === '..' || directoryName.includes(path.sep)) {
     return null;
   }
-  const root = commandersRoot();
   const commanderDir = await resolveInside(root, path.join(root, directoryName));
   const commanderPath = await resolveInside(root, path.join(commanderDir, 'COMMANDER.md'));
   const markdown = await readFile(commanderPath, 'utf8');
@@ -152,35 +166,58 @@ async function readCommander(directoryName: string): Promise<HappyHerdCommanderS
   if (!workspace || !path.isAbsolute(workspace)) {
     throw new Error(`Commander "${id}" must declare an absolute workspace path`);
   }
+  let agentContextPath = commanderDir;
+  const nestedAgentContext = path.join(commanderDir, 'agentcontext');
+  try {
+    const resolved = await resolveInside(root, nestedAgentContext);
+    if ((await lstat(resolved)).isDirectory()) agentContextPath = resolved;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
   return {
     id,
     name: identity.name || id,
     ...(identity.role ? { role: identity.role } : {}),
     workspace,
     commanderPath,
-    agentContextPath: path.join(commanderDir, 'agentcontext'),
+    agentContextPath,
   };
 }
 
-export async function listCommanders(): Promise<HappyHerdCommanderListResponse> {
-  const root = commandersRoot();
-  let entries: string[] = [];
-  try {
-    entries = (await readdir(root, { withFileTypes: true }))
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-  }
-
-  const commanders: HappyHerdCommanderSummary[] = [];
-  for (const entry of entries.sort()) {
+async function readCommanderById(commanderId: string): Promise<HappyHerdCommanderSummary | null> {
+  for (const root of commanderRoots()) {
     try {
-      const commander = await readCommander(entry);
-      if (commander) commanders.push(commander);
-    } catch {
-      // A malformed Commander is isolated from the rest of the picker. The
-      // selected-id path still returns the actionable validation error.
+      return await readCommander(root, commanderId);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+  }
+  return null;
+}
+
+export async function listCommanders(): Promise<HappyHerdCommanderListResponse> {
+  const commanders: HappyHerdCommanderSummary[] = [];
+  const seenDirectoryNames = new Set<string>();
+  for (const root of commanderRoots()) {
+    let entries: string[] = [];
+    try {
+      entries = (await readdir(root, { withFileTypes: true }))
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name)
+        .sort();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+    for (const entry of entries) {
+      if (seenDirectoryNames.has(entry)) continue;
+      seenDirectoryNames.add(entry);
+      try {
+        const commander = await readCommander(root, entry);
+        if (commander) commanders.push(commander);
+      } catch {
+        // A malformed Commander is isolated from the rest of the picker. The
+        // selected-id path still returns the actionable validation error.
+      }
     }
   }
   commanders.sort((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id));
@@ -267,7 +304,7 @@ export async function prepareCommanderContext(commanderId?: string | null): Prom
   let commander: HappyHerdCommanderSummary | null = null;
   let commanderContent = '';
   if (commanderId) {
-    commander = await readCommander(commanderId);
+    commander = await readCommanderById(commanderId);
     if (!commander) throw new Error(`Commander "${commanderId}" was not found`);
     commanderContent = await readFile(commander.commanderPath, 'utf8');
   }
