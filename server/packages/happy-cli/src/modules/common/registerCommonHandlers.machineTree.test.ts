@@ -32,4 +32,19 @@ describe('machine directory tree', () => {
             type: 'directory',
         });
     });
+
+    it('preserves the root filesystem error for a missing absolute path', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'happyherd-machine-tree-missing-'));
+        cleanup.push(root);
+        const missingPath = join(root, 'does-not-exist');
+
+        const handlers = new Map<string, (params: any) => Promise<any>>();
+        registerCommonHandlers({
+            registerHandler: (name: string, handler: (params: any) => Promise<any>) => handlers.set(name, handler),
+        } as any, null);
+
+        const response = await handlers.get('getDirectoryTree')?.({ path: missingPath, maxDepth: 1 });
+        expect(response?.success).toBe(false);
+        expect(response?.error).toMatch(/ENOENT|no such file/i);
+    });
 });

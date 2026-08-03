@@ -422,7 +422,12 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
         }
 
         // Helper function to build tree recursively
-        async function buildTree(path: string, name: string, currentDepth: number): Promise<TreeNode | null> {
+        async function buildTree(
+            path: string,
+            name: string,
+            currentDepth: number,
+            ignoreError: boolean,
+        ): Promise<TreeNode | null> {
             try {
                 const stats = await stat(path);
 
@@ -453,7 +458,7 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
                             }
 
                             const childPath = join(path, entry.name);
-                            const childNode = await buildTree(childPath, entry.name, currentDepth + 1);
+                            const childNode = await buildTree(childPath, entry.name, currentDepth + 1, true);
                             if (childNode) {
                                 children.push(childNode);
                             }
@@ -472,8 +477,14 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
 
                 return node;
             } catch (error) {
-                // Log error but continue traversal
+                // Child failures stay non-fatal so one unreadable entry does not
+                // hide an otherwise browseable directory. The requested root is
+                // different: preserve its native errno so the client can render
+                // permission-denied and missing-path states accurately.
                 logger.debug(`Failed to process ${path}:`, error instanceof Error ? error.message : String(error));
+                if (!ignoreError) {
+                    throw error;
+                }
                 return null;
             }
         }
@@ -487,7 +498,7 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
             // Get the base name for the root node
             const rootPath = validation.resolvedPath!;
             const baseName = rootPath === '/' ? '/' : rootPath.split('/').pop() || rootPath;
-            const tree = await buildTree(rootPath, baseName, 0);
+            const tree = await buildTree(rootPath, baseName, 0, false);
 
             if (!tree) {
                 return { success: false, error: 'Failed to access the specified path' };
