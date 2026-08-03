@@ -5,6 +5,7 @@
  */
 import * as React from 'react';
 import { View, ScrollView, ActivityIndicator, Pressable, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
@@ -17,6 +18,7 @@ import { t } from '@/text';
 import { layout } from '@/components/layout';
 import { useSession } from '@/sync/storage';
 import { rigCanWriteFiles } from '@/sync/rig';
+import { classifyFilePreview, imageDataUri } from '@/utils/filePreview';
 
 interface FileViewPanelProps {
     sessionId: string;
@@ -28,7 +30,8 @@ interface FileViewPanelProps {
 type FileState =
     | { kind: 'loading' }
     | { kind: 'error'; message: string }
-    | { kind: 'binary' }
+    | { kind: 'image'; uri: string }
+    | { kind: 'unsupported'; message: string }
     | { kind: 'loaded'; content: string; originalHash: string | null };
 
 function getFileLanguage(path: string): string | null {
@@ -68,21 +71,6 @@ function getFileLanguage(path: string): string | null {
         svelte: 'markup',
     };
     return ext ? (map[ext] ?? null) : null;
-}
-
-function isBinaryExtension(path: string): boolean {
-    const ext = path.split('.').pop()?.toLowerCase();
-    const binaryExts = [
-        'png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'ico',
-        'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm',
-        'mp3', 'wav', 'flac', 'aac', 'ogg',
-        'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
-        'zip', 'tar', 'gz', 'rar', '7z',
-        'exe', 'dmg', 'deb', 'rpm',
-        'woff', 'woff2', 'ttf', 'otf',
-        'db', 'sqlite', 'sqlite3',
-    ];
-    return ext ? binaryExts.includes(ext) : false;
 }
 
 function decodeBase64ToBytes(base64: string): Uint8Array {
@@ -157,8 +145,9 @@ export const FileViewPanel = React.memo(function FileViewPanel({
         setExternalChange(null);
         setShowConflictDiff(false);
 
-        if (isBinaryExtension(filePath)) {
-            setFileState({ kind: 'binary' });
+        const previewKind = classifyFilePreview(filePath);
+        if (previewKind === 'unsupported') {
+            setFileState({ kind: 'unsupported', message: t('files.cannotDisplayBinary') });
             return;
         }
 
@@ -173,13 +162,18 @@ export const FileViewPanel = React.memo(function FileViewPanel({
                     return;
                 }
 
+                if (previewKind === 'image') {
+                    setFileState({ kind: 'image', uri: imageDataUri(filePath, fileResponse.content) });
+                    return;
+                }
+
                 let rawBytes: Uint8Array;
                 let decodedContent: string;
                 try {
                     rawBytes = decodeBase64ToBytes(fileResponse.content);
                     decodedContent = decodeUtf8Bytes(rawBytes);
                 } catch {
-                    setFileState({ kind: 'binary' });
+                    setFileState({ kind: 'unsupported', message: t('files.cannotDisplayBinary') });
                     return;
                 }
 
@@ -189,7 +183,7 @@ export const FileViewPanel = React.memo(function FileViewPanel({
                     return code < 32 && code !== 9 && code !== 10 && code !== 13;
                 }).length;
                 if (hasNullBytes || (nonPrintableCount / decodedContent.length > 0.1)) {
-                    setFileState({ kind: 'binary' });
+                    setFileState({ kind: 'unsupported', message: t('files.cannotDisplayBinary') });
                     return;
                 }
 
@@ -402,11 +396,25 @@ export const FileViewPanel = React.memo(function FileViewPanel({
                         {fileState.message}
                     </Text>
                 </View>
-            ) : fileState.kind === 'binary' ? (
+            ) : fileState.kind === 'image' ? (
+                <ScrollView
+                    style={{ flex: 1 }}
+                    contentContainerStyle={styles.imagePreviewContent}
+                    maximumZoomScale={4}
+                    minimumZoomScale={1}
+                >
+                    <Image
+                        source={{ uri: fileState.uri }}
+                        style={styles.imagePreview}
+                        contentFit="contain"
+                        accessibilityLabel={`Preview of ${fileName}`}
+                    />
+                </ScrollView>
+            ) : fileState.kind === 'unsupported' ? (
                 <View style={styles.centered}>
                     <Ionicons name="document-outline" size={32} color={theme.colors.textSecondary} />
                     <Text style={{ color: theme.colors.textSecondary, marginTop: 8, ...Typography.default() }}>
-                        {t('files.binaryFile')}
+                        {fileState.message}
                     </Text>
                 </View>
             ) : isMarkdown && displayMode === 'preview' ? (
@@ -597,6 +605,18 @@ const EditorView = React.memo(function EditorView({
 const styles = StyleSheet.create((theme) => ({
     outer: {
         flex: 1,
+    },
+    imagePreviewContent: {
+        flexGrow: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+    },
+    imagePreview: {
+        width: '100%',
+        height: '100%',
+        minHeight: 240,
+        maxWidth: layout.maxWidth,
     },
     actionButton: {
         flexDirection: 'row',
