@@ -44,3 +44,4 @@ B5	code-ready	feat(voice): add per-account transcription keys	server/packages/ha
 B5.1	code-ready	feat(workspace): render and edit session files	server/packages/happy-app/sources/utils/filePreview.test.ts
 PHASE_B	code-ready	docs: register B5 and B5.1 owned patches	docs/owned-patches.tsv
 B3-B5.1	code-ready	feat(machine-workspace): browse, edit, and attach host files	server/packages/happy-app/sources/utils/machineWorkspace.test.ts
+A4	code-ready	fix(ci): accept manifest-backed owned PR merges	scripts/test-owned-merge-provenance.sh

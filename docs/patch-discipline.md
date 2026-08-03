@@ -19,10 +19,12 @@ The verifier requires all of the following:
    `7b1acd8554f4de8c56b085f3f564a6f92865985b`;
 2. the owned baseline's `server/` tree remains byte-identical to the recorded
    upstream base tree;
-3. every first-parent commit after that baseline has one unique, conventional
-   subject in `docs/owned-patches.tsv`;
-4. ordinary owned patches are not merge commits; an upstream merge is allowed
-   only when its manifest gate is explicitly `UPSTREAM_SYNC`;
+3. every owned commit after that baseline has one unique, conventional subject
+   in `docs/owned-patches.tsv`, including commits brought in by a GitHub PR;
+4. ordinary owned patches are not merge commits; a GitHub PR merge is accepted
+   only as a structural merge whose branch commits are all manifest-backed and
+   whose tree exactly matches Git's clean synthetic merge, while an upstream
+   merge is allowed only through the separately verified `UPSTREAM_SYNC` path;
 5. no `fixup!`, `squash!`, `WIP`, or empty patch is present; and
 6. the worktree is clean when acceptance evidence is recorded.
 
@@ -47,9 +49,8 @@ reverse commit order.
 | A3 | Runtime configuration, isolation validator, runner, and service unit | Revert `ops: isolate HappyHerd runtime state` |
 | A4 | This manifest, verifier, and audit contract | Revert `docs: codify owned patch discipline` |
 
-Use `git log --first-parent --format='%H %s'
-happyherd-owned-baseline-2026-08-02..HEAD` to obtain the full hashes before a
-revert. Reviewers should use `git show <hash>` for a single patch and
+Use `scripts/list-owned-patches.sh` to obtain the full manifest-resolved hashes
+before a revert. Reviewers should use `git show <hash>` for a single patch and
 `git range-diff happyherd-owned-baseline-2026-08-02..HEAD` when comparing a
 rebased or upstream-synced series.
 

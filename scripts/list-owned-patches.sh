@@ -12,7 +12,7 @@ while IFS=$'\t' read -r gate state subject _; do
   [[ -z "$gate" || "$gate" == \#* ]] && continue
 
   mapfile -t matches < <(
-    git log --first-parent --format=$'%H\t%s' "${baseline}..HEAD" |
+    git log --format=$'%H\t%s' "${baseline}..HEAD" |
       awk -F '\t' -v wanted="$subject" '$2 == wanted { print $1 }'
   )
 

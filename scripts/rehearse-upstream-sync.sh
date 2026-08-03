@@ -103,7 +103,7 @@ while IFS=$'\t' read -r sha subject; do
     fail "cannot replay merge-valued owned patch in rehearsal: $subject"
   git -C "$candidate" cherry-pick "$sha" >/dev/null
 done < <(
-  git -C "$repo_root" log --first-parent --reverse --format=$'%H\t%s' \
+  git -C "$repo_root" log --reverse --topo-order --format=$'%H\t%s' \
     "${baseline}..${head_before}"
 )
 
