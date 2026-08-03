@@ -1,5 +1,17 @@
 export type FilePreviewKind = 'image' | 'pdf' | 'html' | 'text' | 'unsupported';
 
+/**
+ * Keep this as a plain style object. Expo Image does not resolve the
+ * react-native-unistyles proxy on web, which otherwise leaves the decoded
+ * image at 0×0 even though its surrounding preview pane has space.
+ */
+export const imagePreviewLayout = {
+    width: '100%',
+    height: '100%',
+    minHeight: 240,
+    flex: 1,
+} as const;
+
 const IMAGE_MIME_TYPES: Record<string, string> = {
     png: 'image/png',
     jpg: 'image/jpeg',

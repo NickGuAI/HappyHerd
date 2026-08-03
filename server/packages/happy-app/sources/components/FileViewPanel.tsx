@@ -18,7 +18,13 @@ import { t } from '@/text';
 import { layout } from '@/components/layout';
 import { useSession } from '@/sync/storage';
 import { rigCanWriteFiles } from '@/sync/rig';
-import { classifyFilePreview, imageDataUri, pdfDataUri, safeHtmlPreviewDocument } from '@/utils/filePreview';
+import {
+    classifyFilePreview,
+    imageDataUri,
+    imagePreviewLayout,
+    pdfDataUri,
+    safeHtmlPreviewDocument,
+} from '@/utils/filePreview';
 import { FileDocumentPreview } from '@/components/FileDocumentPreview';
 
 interface FileViewPanelProps {
@@ -458,7 +464,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                 >
                     <Image
                         source={{ uri: fileState.uri }}
-                        style={styles.imagePreview}
+                        style={[imagePreviewLayout, { maxWidth: layout.maxWidth }]}
                         contentFit="contain"
                         accessibilityLabel={`Preview of ${fileName}`}
                     />
@@ -713,12 +719,6 @@ const styles = StyleSheet.create((theme) => ({
         alignItems: 'center',
         justifyContent: 'center',
         padding: 16,
-    },
-    imagePreview: {
-        width: '100%',
-        height: '100%',
-        minHeight: 240,
-        maxWidth: layout.maxWidth,
     },
     documentPreview: {
         flex: 1,

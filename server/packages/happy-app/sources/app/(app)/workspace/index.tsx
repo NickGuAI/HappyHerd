@@ -38,6 +38,7 @@ import { hostRoot, parentHostPath } from '@/utils/hostPath';
 import { isMachineOnline } from '@/utils/machineUtils';
 import {
     classifyWorkspaceDirectoryError,
+    desktopWorkspaceBrowserLayout,
     pickWorkspaceDirectory,
     pickWorkspaceMachine,
     rememberWorkspacePath,
@@ -705,7 +706,11 @@ const styles = StyleSheet.create((theme) => ({
     workspace: { flex: 1, width: '100%', alignSelf: 'center', backgroundColor: theme.colors.surface },
     split: { flex: 1, flexDirection: 'row' },
     browserPane: { flex: 1, minWidth: 0 },
-    browserPaneDesktop: { width: 360, flex: 0, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: theme.colors.divider },
+    browserPaneDesktop: {
+        ...desktopWorkspaceBrowserLayout,
+        borderRightWidth: StyleSheet.hairlineWidth,
+        borderRightColor: theme.colors.divider,
+    },
     browserContent: { padding: 16, gap: 14, paddingBottom: 32 },
     viewerPane: { flex: 1, minWidth: 0, backgroundColor: theme.colors.surface },
     sectionLabel: { fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.7, ...Typography.default('semiBold') },

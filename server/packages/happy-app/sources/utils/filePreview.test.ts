@@ -1,11 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { classifyFilePreview, imageDataUri, imageMimeType, pdfDataUri, safeHtmlPreviewDocument } from './filePreview';
+import {
+    classifyFilePreview,
+    imageDataUri,
+    imageMimeType,
+    imagePreviewLayout,
+    pdfDataUri,
+    safeHtmlPreviewDocument,
+} from './filePreview';
 
 describe('file preview classification', () => {
     it('recognizes common images with correct MIME types', () => {
         expect(classifyFilePreview('art/photo.JPEG')).toBe('image');
         expect(imageMimeType('diagram.svg')).toBe('image/svg+xml');
         expect(imageDataUri('icon.png', 'AAAA')).toBe('data:image/png;base64,AAAA');
+    });
+
+    it('gives decoded images a non-zero responsive preview surface', () => {
+        expect(imagePreviewLayout).toEqual({
+            width: '100%',
+            height: '100%',
+            minHeight: 240,
+            flex: 1,
+        });
     });
 
     it('classifies editable documents and unsupported binaries explicitly', () => {

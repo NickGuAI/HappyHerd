@@ -4,6 +4,8 @@ import type { Machine } from '@/sync/storageTypes';
 import {
     buildWorkspaceAttachmentParams,
     classifyWorkspaceDirectoryError,
+    DESKTOP_WORKSPACE_BROWSER_WIDTH,
+    desktopWorkspaceBrowserLayout,
     pickWorkspaceDirectory,
     pickWorkspaceMachine,
     rememberWorkspacePath,
@@ -32,6 +34,18 @@ function machine(id: string, active: boolean, homeDir = `/home/${id}`): Machine 
 }
 
 describe('Machine Workspace state', () => {
+    it('keeps the desktop browser pane at a non-collapsible fixed width', () => {
+        expect(desktopWorkspaceBrowserLayout).toMatchObject({
+            width: DESKTOP_WORKSPACE_BROWSER_WIDTH,
+            minWidth: DESKTOP_WORKSPACE_BROWSER_WIDTH,
+            maxWidth: DESKTOP_WORKSPACE_BROWSER_WIDTH,
+            flexBasis: DESKTOP_WORKSPACE_BROWSER_WIDTH,
+            flexGrow: 0,
+            flexShrink: 0,
+        });
+        expect(desktopWorkspaceBrowserLayout).not.toHaveProperty('flex');
+    });
+
     it('binds attachment mode to the current session machine and path', () => {
         expect(buildWorkspaceAttachmentParams('session-1', {
             machineId: 'machine-1',
