@@ -120,7 +120,7 @@ export class ApiMachineClient {
     private socket!: Socket<ServerToDaemonEvents, DaemonToServerEvents>;
     private keepAliveInterval: NodeJS.Timeout | null = null;
     private lastKnownCLIAvailability: CLIAvailability | null = null;
-    private lastKnownResumeSupport: ResumeSupport | null = null;
+    private lastKnownResumeSupport: Pick<ResumeSupport, 'rpcAvailable' | 'happyAgentAuthenticated'> | null = null;
     private lastKnownCapabilitiesFingerprint: string | null = null;
     private capabilitiesRefreshInFlight: Promise<void> | null = null;
     private lastCapabilitiesRefreshAt = 0;
