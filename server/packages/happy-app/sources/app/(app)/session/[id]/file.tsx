@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { View, ScrollView, ActivityIndicator, Platform, Pressable } from 'react-native';
+import { Image } from 'expo-image';
 import { useLocalSearchParams } from 'expo-router';
 import { Text } from '@/components/StyledText';
 import { SimpleSyntaxHighlighter } from '@/components/SimpleSyntaxHighlighter';
@@ -13,11 +14,13 @@ import { t } from '@/text';
 import { FileIcon } from '@/components/FileIcon';
 import { resolveSessionFilePath } from '@/utils/sessionFileLinks';
 import { MobileGlassSurface } from '@/components/MobileGlass';
+import { classifyFilePreview, imageDataUri } from '@/utils/filePreview';
 
 interface FileContent {
     content: string;
     encoding: 'utf8' | 'base64';
     isBinary: boolean;
+    imageUri?: string;
 }
 
 function decodeBase64ToBytes(base64: string): Uint8Array {
@@ -176,22 +179,6 @@ export default React.memo(function FileScreen() {
         }
     }, []);
 
-    // Check if file is likely binary based on extension
-    const isBinaryFile = React.useCallback((path: string): boolean => {
-        const ext = path.split('.').pop()?.toLowerCase();
-        const binaryExtensions = [
-            'png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'ico',
-            'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm',
-            'mp3', 'wav', 'flac', 'aac', 'ogg',
-            'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
-            'zip', 'tar', 'gz', 'rar', '7z',
-            'exe', 'dmg', 'deb', 'rpm',
-            'woff', 'woff2', 'ttf', 'otf',
-            'db', 'sqlite', 'sqlite3'
-        ];
-        return ext ? binaryExtensions.includes(ext) : false;
-    }, []);
-
     // Load file content (fetches in background even if cache exists)
     React.useEffect(() => {
         let isCancelled = false;
@@ -204,11 +191,29 @@ export default React.memo(function FileScreen() {
                 }
                 setError(null);
 
-                if (isBinaryFile(filePath)) {
+                const previewKind = classifyFilePreview(filePath);
+                if (previewKind === 'unsupported') {
                     if (!isCancelled) {
                         setFileContent({ content: '', encoding: 'base64', isBinary: true });
                         storage.getState().applyFileCache(sessionId!, filePath, '', null, true);
                         setIsLoading(false);
+                    }
+                    return;
+                }
+
+                if (previewKind === 'image') {
+                    const response = await sessionReadFile(sessionId, filePath);
+                    if (!isCancelled) {
+                        if (response.success && response.content) {
+                            setFileContent({
+                                content: '',
+                                encoding: 'base64',
+                                isBinary: false,
+                                imageUri: imageDataUri(filePath, response.content),
+                            });
+                        } else {
+                            setError(response.error || t('files.failedToRead'));
+                        }
                     }
                     return;
                 }
@@ -279,7 +284,7 @@ export default React.memo(function FileScreen() {
         return () => {
             isCancelled = true;
         };
-    }, [filePath, gitDiffPath, isBinaryFile, sessionId, sessionPath]);
+    }, [filePath, gitDiffPath, sessionId, sessionPath]);
 
     // Show error modal if there's an error
     React.useEffect(() => {
@@ -398,6 +403,25 @@ export default React.memo(function FileScreen() {
                 }}>
                     {fileName}
                 </Text>
+            </View>
+        );
+    }
+
+    if (fileContent?.imageUri) {
+        return (
+            <View style={styles.container}>
+                <MobileGlassSurface enabled={Platform.OS !== 'web'} intensity={62} style={styles.fileHeader}>
+                    <FileIcon fileName={fileName} size={20} />
+                    <Text style={styles.filePath} numberOfLines={2}>{filePath}</Text>
+                </MobileGlassSurface>
+                <View style={styles.imageWrap}>
+                    <Image
+                        source={{ uri: fileContent.imageUri }}
+                        style={styles.imagePreview}
+                        contentFit="contain"
+                        accessibilityLabel={`Preview of ${fileName}`}
+                    />
+                </View>
             </View>
         );
     }
@@ -529,5 +553,31 @@ const styles = StyleSheet.create((theme) => ({
         // contentContainerStyle so it lines up with the chat / changes views.
         flex: 1,
         backgroundColor: Platform.select({ web: theme.colors.surface, default: 'transparent' }),
-    }
+    },
+    fileHeader: {
+        padding: 16,
+        borderBottomWidth: Platform.select({ web: 1, default: 0.5 }),
+        borderBottomColor: Platform.select({ web: theme.colors.divider, default: theme.colors.glass.border }),
+        backgroundColor: Platform.select({ web: theme.colors.surfaceHigh, android: theme.colors.glass.backgroundStrong, default: 'transparent' }),
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    filePath: {
+        fontSize: 14,
+        color: theme.colors.textSecondary,
+        marginLeft: 8,
+        flex: 1,
+        ...Typography.mono(),
+    },
+    imageWrap: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+    },
+    imagePreview: {
+        width: '100%',
+        height: '100%',
+        maxWidth: layout.maxWidth,
+    },
 }));
