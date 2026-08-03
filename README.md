@@ -4,8 +4,10 @@ HappyHerd is Gehirn's maintained distribution of
 [Happy](https://github.com/slopus/happy). It keeps Happy's complete upstream
 history under `server/` and adds only the product contracts that Gehirn owns.
 
-During the G0/A1-A6 delivery, the product name and interface remain Happy. The
-only visual change in this scope is the Hervald logo mark.
+HappyHerd keeps Happy's upstream architecture and legal attribution while its
+public product title, support links, CI, and Gehirn-owned feature contracts live
+in this repository. The visual identity currently uses the Hervald logo mark;
+the broader Sumi-e redesign remains outside the B0-B5 delivery.
 
 ## Repository layout
 
@@ -16,4 +18,3 @@ only visual change in this scope is the Hervald logo mark.
 
 The canonical roadmap is
 `/home/ec2-user/PKMS/insights/tasks/active/2026-08-02-happy-product-gaps/index.html`.
-

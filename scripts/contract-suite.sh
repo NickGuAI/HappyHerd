@@ -21,6 +21,8 @@ export EXPO_NO_TELEMETRY=1
 
 "$repo_root/scripts/verify-lineage.sh"
 "$repo_root/scripts/verify-patch-discipline.sh"
+node "$repo_root/scripts/lint-source.mjs"
+node "$repo_root/scripts/verify-product-identity.mjs"
 "$repo_root/scripts/validate-runtime-isolation.sh" \
   "$repo_root/deploy/runtime.env.example" template
 "$repo_root/scripts/test-runtime-isolation.sh"
