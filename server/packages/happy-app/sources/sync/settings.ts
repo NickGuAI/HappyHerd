@@ -52,6 +52,10 @@ export const SettingsSchema = z.object({
         machineId: z.string(),
         path: z.string()
     })).describe('Last 10 machine-path combinations, ordered by most recent first'),
+    favoriteMachinePaths: z.array(z.object({
+        machineId: z.string(),
+        path: z.string(),
+    })).describe('User-pinned workspace paths grouped by machine'),
     lastUsedAgent: z.string().nullable().describe('Last selected agent type for new sessions'),
     lastUsedPermissionMode: z.string().nullable().describe('Last selected permission mode for new sessions'),
     lastUsedModelMode: z.string().nullable().describe('Last selected model mode for new sessions'),
@@ -127,6 +131,7 @@ export const settingsDefaults: Settings = {
     voiceBypassToken: false,
     preferredLanguage: null,
     recentMachinePaths: [],
+    favoriteMachinePaths: [],
     lastUsedAgent: null,
     lastUsedPermissionMode: null,
     lastUsedModelMode: null,

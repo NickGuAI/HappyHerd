@@ -432,11 +432,14 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
                     const entries = await readdir(path, { withFileTypes: true });
                     const children: TreeNode[] = [];
 
-                    // Process entries in parallel, filtering out symlinks
+                    // Session RPCs remain workspace-scoped and skip symlinks so
+                    // a link cannot escape that workspace. Machine RPCs are
+                    // deliberately unrestricted: follow links at the requested
+                    // depth so every path visible to the daemon OS user remains
+                    // browseable. maxDepth bounds link cycles.
                     await Promise.all(
                         entries.map(async (entry) => {
-                            // Skip symbolic links completely
-                            if (entry.isSymbolicLink()) {
+                            if (entry.isSymbolicLink() && workingDirectory !== null) {
                                 logger.debug(`Skipping symlink: ${join(path, entry.name)}`);
                                 return;
                             }

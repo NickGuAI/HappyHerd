@@ -33,7 +33,7 @@ import { KeyboardAvoidingView, KeyboardStickyView } from 'react-native-keyboard-
 import Constants from 'expo-constants';
 import { useHeaderHeight } from '@/utils/responsive';
 import { t } from '@/text';
-import { useAllMachines, useLocalSetting, useSessions, useSetting, storage } from '@/sync/storage';
+import { useAllMachines, useLocalSetting, useSessions, useSetting, useSettingMutable, storage } from '@/sync/storage';
 import type { NewSessionAgentType } from '@/sync/persistence';
 import { sync } from '@/sync/sync';
 import { isMachineOnline } from '@/utils/machineUtils';
@@ -63,6 +63,7 @@ import { resolveAgentDefaultConfig } from '@/sync/agentDefaults';
 import { MobileGlassSurface } from '@/components/MobileGlass';
 import { BubblePressable } from '@/components/BubblePressable';
 import { Header } from '@/components/navigation/Header';
+import { MachinePathBrowser, type FavoriteMachinePath } from '@/components/MachinePathBrowser';
 import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
 import {
     AnimatedClickAwayBackdrop,
@@ -478,6 +479,11 @@ function PathPickerContent({
     items,
     value,
     homeDir,
+    machineId,
+    platform,
+    machineOnline,
+    favorites,
+    onToggleFavorite,
     onChangeValue,
     onDone,
     embedded = false,
@@ -486,6 +492,11 @@ function PathPickerContent({
     items: PickerItem[];
     value: string | null;
     homeDir?: string;
+    machineId: string | null;
+    platform?: string;
+    machineOnline: boolean;
+    favorites: FavoriteMachinePath[];
+    onToggleFavorite: (path: string) => void;
     onChangeValue: (value: string) => void;
     onDone?: () => void;
     embedded?: boolean;
@@ -576,6 +587,18 @@ function PathPickerContent({
                     )}
                 </View>
             )}
+
+            <MachinePathBrowser
+                machineId={machineId}
+                homeDir={homeDir}
+                platform={platform}
+                online={machineOnline}
+                selectedPath={currentValue || null}
+                favorites={favorites}
+                onSelectPath={onChangeValue}
+                onToggleFavorite={onToggleFavorite}
+                onDone={onDone}
+            />
 
             <View
                 style={[
@@ -725,6 +748,7 @@ function NewSessionScreen() {
     const agentInputEnterToSend = useSetting('agentInputEnterToSend');
     const agentDefaultOverrides = useSetting('agentDefaultOverrides');
     const fileDiffsSidebarEnabled = useSetting('fileDiffsSidebar');
+    const [favoriteMachinePaths, setFavoriteMachinePaths] = useSettingMutable('favoriteMachinePaths');
     const zenMode = useLocalSetting('zenMode');
     const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
@@ -800,6 +824,21 @@ function NewSessionScreen() {
         [allMachines, selectedMachineId],
     );
     const selectedHomeDir = selectedMachine?.metadata?.homeDir;
+    const selectedMachineFavorites = React.useMemo(
+        () => favoriteMachinePaths.filter((favorite) => favorite.machineId === selectedMachineId),
+        [favoriteMachinePaths, selectedMachineId],
+    );
+    const toggleFavoritePath = React.useCallback((path: string) => {
+        if (!selectedMachineId) return;
+        const exists = favoriteMachinePaths.some((favorite) => (
+            favorite.machineId === selectedMachineId && favorite.path === path
+        ));
+        setFavoriteMachinePaths(exists
+            ? favoriteMachinePaths.filter((favorite) => !(
+                favorite.machineId === selectedMachineId && favorite.path === path
+            ))
+            : [...favoriteMachinePaths, { machineId: selectedMachineId, path }]);
+    }, [favoriteMachinePaths, selectedMachineId, setFavoriteMachinePaths]);
 
     // Build machine picker items: online first, then offline
     const machineItems = React.useMemo<PickerItem[]>(() => {
@@ -1403,6 +1442,11 @@ function NewSessionScreen() {
                 items={pathItems}
                 value={selectedPath}
                 homeDir={selectedHomeDir}
+                machineId={selectedMachineId}
+                platform={selectedMachine?.metadata?.platform}
+                machineOnline={!!selectedMachine && isMachineOnline(selectedMachine)}
+                favorites={selectedMachineFavorites}
+                onToggleFavorite={toggleFavoritePath}
                 onChangeValue={setSelectedPath}
                 onDone={() => setActivePicker(null)}
                 embedded={sidebarLayout.showSidebar}
@@ -1431,10 +1475,14 @@ function NewSessionScreen() {
         pathItems,
         pickerData,
         selectedHomeDir,
+        selectedMachine,
+        selectedMachineFavorites,
+        selectedMachineId,
         selectedPath,
         setSelectedPath,
         sidebarLayout.showSidebar,
         theme.colors.header.background,
+        toggleFavoritePath,
     ]);
 
     const nativePickerContent = activePicker === 'settings' ? (
@@ -1462,6 +1510,11 @@ function NewSessionScreen() {
             items={pathItems}
             value={selectedPath}
             homeDir={selectedHomeDir}
+            machineId={selectedMachineId}
+            platform={selectedMachine?.metadata?.platform}
+            machineOnline={!!selectedMachine && isMachineOnline(selectedMachine)}
+            favorites={selectedMachineFavorites}
+            onToggleFavorite={toggleFavoritePath}
             onChangeValue={setSelectedPath}
             onDone={() => setActivePicker(null)}
             embedded
@@ -2087,6 +2140,11 @@ function NewSessionScreen() {
                             items={pathItems}
                             value={selectedPath}
                             homeDir={selectedHomeDir}
+                            machineId={selectedMachineId}
+                            platform={selectedMachine?.metadata?.platform}
+                            machineOnline={!!selectedMachine && isMachineOnline(selectedMachine)}
+                            favorites={selectedMachineFavorites}
+                            onToggleFavorite={toggleFavoritePath}
                             onChangeValue={setSelectedPath}
                             onDone={() => setActivePicker(null)}
                         />

@@ -119,6 +119,21 @@ interface SessionGetDirectoryTreeRequest {
     maxDepth: number;
 }
 
+export interface DirectoryTreeNode {
+    name: string;
+    path: string;
+    type: 'file' | 'directory';
+    size?: number;
+    modified?: number;
+    children?: DirectoryTreeNode[];
+}
+
+export interface DirectoryTreeResponse {
+    success: boolean;
+    tree?: DirectoryTreeNode;
+    error?: string;
+}
+
 interface TreeNode {
     name: string;
     path: string;
@@ -483,6 +498,30 @@ export async function machineStopDaemon(machineId: string): Promise<{ message: s
         {}
     );
     return result;
+}
+
+/**
+ * Browse the filesystem exposed by a machine daemon. Machine RPC handlers are
+ * intentionally registered without a workspace root, so the daemon OS user's
+ * own filesystem permissions are the only boundary.
+ */
+export async function machineGetDirectoryTree(
+    machineId: string,
+    path: string,
+    maxDepth = 1,
+): Promise<DirectoryTreeResponse> {
+    try {
+        return await apiSocket.machineRPC<DirectoryTreeResponse, { path: string; maxDepth: number }>(
+            machineId,
+            'getDirectoryTree',
+            { path, maxDepth },
+        );
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to browse machine directory',
+        };
+    }
 }
 
 /**
