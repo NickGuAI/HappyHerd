@@ -34,8 +34,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
-          cache-dependency-path: server/pnpm-lock.yaml
 
       - name: Install Bun
         uses: oven-sh/setup-bun@v2
@@ -69,7 +67,7 @@ jobs:
           name: contract-suite-${{ github.run_id }}
           path: ${{ runner.temp }}/happyherd-logs/contracts.log
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 7
 
   upstream-rehearsal:
     name: Real upstream rehearsal
@@ -118,4 +116,4 @@ jobs:
           name: upstream-rehearsal-${{ github.run_id }}
           path: ${{ runner.temp }}/happyherd-logs/upstream-rehearsal.log
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 7

@@ -29,6 +29,7 @@ import { useProfile } from '@/sync/storage';
 import { getDisplayName, getAvatarUrl, getBio } from '@/sync/profile';
 import { Avatar } from '@/components/Avatar';
 import { t } from '@/text';
+import { PRODUCT } from '@/constants/product';
 
 type BuildConfig = {
     buildCommitSha?: unknown;
@@ -116,11 +117,11 @@ export const SettingsView = React.memo(function SettingsView({
     const { connectTerminal, connectWithUrl, isLoading } = useConnectTerminal();
 
     const handleGitHub = async () => {
-        await openExternalUrl('https://github.com/slopus/happy');
+        await openExternalUrl(PRODUCT.repositoryUrl);
     };
 
     const handleReportIssue = async () => {
-        await openExternalUrl('https://github.com/slopus/happy/issues');
+        await openExternalUrl(PRODUCT.issueUrl);
     };
 
     const handleSubscribe = async () => {
@@ -453,7 +454,7 @@ export const SettingsView = React.memo(function SettingsView({
                 <Item
                     title={t('settings.github')}
                     icon={<Ionicons name="logo-github" size={29} color={theme.colors.text} />}
-                    detail="slopus/happy"
+                    detail={PRODUCT.repositoryDisplay}
                     onPress={handleGitHub}
                 />
                 <Item

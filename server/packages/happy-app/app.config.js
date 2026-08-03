@@ -1,10 +1,11 @@
 const { execFileSync } = require('node:child_process');
+const productMetadata = require('./product-metadata.json');
 
 const variant = process.env.APP_ENV || 'development';
 const name = {
-    development: "Happy (dev)",
-    preview: "Happy (preview)",
-    production: "Happy"
+    development: productMetadata.developmentDisplayName,
+    preview: productMetadata.previewDisplayName,
+    production: productMetadata.displayName,
 }[variant];
 const bundleId = {
     development: "com.slopus.happy.dev",
@@ -224,6 +225,7 @@ export default {
                 projectId: "4558dd3d-cd5a-47cd-bad9-e591a241cc06"
             },
             app: {
+                product: productMetadata,
                 postHogKey: process.env.EXPO_PUBLIC_POSTHOG_API_KEY,
                 revenueCatAppleKey: process.env.EXPO_PUBLIC_REVENUE_CAT_APPLE,
                 revenueCatGoogleKey: process.env.EXPO_PUBLIC_REVENUE_CAT_GOOGLE,
