@@ -1,6 +1,15 @@
 # gate	state	subject	evidence
 G0	code-ready	feat(auth): make account keys primary and recoverable	server/packages/happy-app/sources/auth/accountKeyLifecycle.spec.ts
 G0	accepted	docs(auth): record G0 public acceptance	docs/acceptance/g0-2026-08-02.json
+B0	code-ready	feat(identity): establish HappyHerd product and CI contract	server/packages/happy-app/product-metadata.json
+B1	code-ready	feat(capabilities): advertise machine provider options	server/packages/happy-cli/src/capabilities/agentCapabilities.test.ts
+B2	code-ready	feat(workspace): browse and favorite host folders	server/packages/happy-app/sources/components/MachinePathBrowser.test.ts
+B3	code-ready	feat(context): attach workspace files to messages	server/packages/happy-app/sources/sync/workspaceContext.test.ts
+B4	code-ready	feat(files): preview text and common images	server/packages/happy-app/sources/utils/filePreview.test.ts
+B5	code-ready	feat(voice): add editable composer dictation	server/packages/happy-server/sources/app/voice/transcription.spec.ts
+B2	code-ready	test(settings): cover favorite machine path defaults	server/packages/happy-app/sources/sync/settings.spec.ts
+B0	code-ready	chore(quality): satisfy changed-source lint	scripts/lint-source.mjs
+PHASE_B	code-ready	docs: register Phase B owned patches	docs/owned-patches.tsv
 BRANDING	accepted	feat(brand): apply Hervald mark to Happy surfaces	branding/hervald-logo-mark-black.png
 A2	accepted	build: make release artifacts reproducible	docs/build-provenance.md
 A2	accepted	fix(build): stabilize Expo Hermes bytecode	server/patches/deterministic-expo-hermes-temp.cjs
