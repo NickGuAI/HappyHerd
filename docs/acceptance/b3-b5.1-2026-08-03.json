@@ -1,7 +1,8 @@
 {
   "schemaVersion": 1,
   "gate": "B3-B5.1",
-  "status": "accepted",
+  "status": "superseded",
+  "supersededBy": "docs/acceptance/chrome-pdf-preview-2026-08-03.json",
   "recordedAt": "2026-08-03T17:58:44Z",
   "source": {
     "sha": "21605ce1e2d88409f8539fdc61c5f1da9977b4ba",
@@ -82,7 +83,7 @@
         "browser and viewer remained side-by-side after selecting a file",
         "Markdown source, preview, edit, optimistic-hash save, and conflict contract passed",
         "PNG rendered visibly rather than as a zero-size decoded image",
-        "PDF rendered in a sandboxed data iframe",
+        "PDF iframe attachment was observed; this record did not verify Chrome's viewer and is superseded for PDF-render acceptance",
         "HTML rendered from srcdoc with an empty sandbox and injected restrictive CSP",
         "permission-denied and missing-path states rendered distinct native errno details",
         "session-side All Files header, search control, layout, and overlay remained present and unchanged"

@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "gate": "B5.1 Chrome PDF production",
+  "status": "accepted",
+  "recordedAt": "2026-08-03T20:11:37Z",
+  "source": {
+    "fixSha": "66c38511cccc48fb0f2f4d3b4b41612538245c7d",
+    "sha": "259b56575f4746b617ced001d911ab5121e92ed4",
+    "issue": {
+      "number": 22,
+      "url": "https://github.com/NickGuAI/HappyHerd/issues/22"
+    },
+    "pullRequest": {
+      "number": 23,
+      "url": "https://github.com/NickGuAI/HappyHerd/pull/23",
+      "mergeSha": "259b56575f4746b617ced001d911ab5121e92ed4"
+    }
+  },
+  "ci": {
+    "contract": {
+      "run": 30846488654,
+      "job": 91795931805,
+      "result": "passed"
+    },
+    "realUpstreamRehearsal": {
+      "run": 30846488654,
+      "job": 91796745928,
+      "result": "skipped-as-designed"
+    },
+    "quality": {
+      "run": 30846488889,
+      "jobs": [
+        {
+          "name": "Clean install",
+          "job": 91795932449,
+          "result": "passed"
+        },
+        {
+          "name": "Lint",
+          "job": 91795932452,
+          "result": "passed"
+        },
+        {
+          "name": "Typecheck",
+          "job": 91795932464,
+          "result": "passed"
+        },
+        {
+          "name": "Unit tests",
+          "job": 91795932539,
+          "result": "passed"
+        },
+        {
+          "name": "Production build",
+          "job": 91795932441,
+          "result": "passed"
+        }
+      ]
+    },
+    "localContractSuite": {
+      "result": "passed",
+      "testCount": 1977
+    }
+  },
+  "release": {
+    "manifestPath": "docs/releases/2026-08-03-chrome-pdf-preview.json",
+    "image": "ghcr.io/nickguai/happyherd@sha256:8e2fc34049009be1d484a3cee953ef498dbf99fec9e92de41ac755934f831560",
+    "smokeEvidencePath": "docs/acceptance/chrome-pdf-preview-2026-08-03-image-smoke-259b5657.json",
+    "smokeEvidenceSha256": "f65390cf46e6f5efcb00db1226b14182996108cbe06239fa73d508741063e621"
+  },
+  "deployments": [
+    {
+      "url": "https://happyherd.gehirn.ai",
+      "hostPort": 20015,
+      "health": "ok",
+      "containerHealth": "healthy",
+      "image": "ghcr.io/nickguai/happyherd@sha256:8e2fc34049009be1d484a3cee953ef498dbf99fec9e92de41ac755934f831560",
+      "revision": "259b56575f4746b617ced001d911ab5121e92ed4"
+    },
+    {
+      "url": "https://baolab.gehirn.ai",
+      "hostPort": 20001,
+      "health": "ok",
+      "containerHealth": "healthy",
+      "image": "ghcr.io/nickguai/happyherd@sha256:8e2fc34049009be1d484a3cee953ef498dbf99fec9e92de41ac755934f831560",
+      "revision": "259b56575f4746b617ced001d911ab5121e92ed4"
+    }
+  ],
+  "browserAcceptance": {
+    "browser": "Google Chrome 144",
+    "baolab": {
+      "url": "https://baolab.gehirn.ai/session/cmsd9fhsr0lq6mm01qrghbm2n/files",
+      "fixture": "Herd-BaoLab-Onboarding-2026-07-05.pdf",
+      "checks": [
+        "PDF preview iframe used a data:application/pdf URL",
+        "PDF preview iframe had no sandbox attribute",
+        "Chrome exposed the data-PDF iframe target",
+        "Chrome exposed its built-in extension PDF viewer as a webview target",
+        "the extension viewer document reached readyState complete and contained a pdf-viewer element"
+      ]
+    },
+    "happyherd": {
+      "url": "https://happyherd.gehirn.ai",
+      "fixture": "/home/ec2-user/happyherd-acceptance/chrome-pdf-viewer-acceptance.pdf",
+      "checks": [
+        "PDF preview iframe used a data:application/pdf URL",
+        "PDF preview iframe had no sandbox attribute",
+        "Chrome exposed its built-in extension PDF viewer as a webview target",
+        "the extension viewer document reached readyState complete and contained a pdf-viewer element",
+        "the controlled HTML preview retained an iframe[srcdoc] with sandbox=empty"
+      ]
+    }
+  },
+  "supersedes": {
+    "path": "docs/acceptance/b3-b5.1-2026-08-03.json",
+    "reason": "The earlier PDF check proved iframe attachment only; it did not prove that Chrome's extension-backed viewer loaded or rendered the document."
+  }
+}
