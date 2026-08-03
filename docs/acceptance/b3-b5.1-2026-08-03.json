@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "gate": "B3-B5.1",
+  "status": "accepted",
+  "recordedAt": "2026-08-03T17:58:44Z",
+  "source": {
+    "sha": "21605ce1e2d88409f8539fdc61c5f1da9977b4ba",
+    "pullRequests": [
+      {
+        "number": 14,
+        "url": "https://github.com/NickGuAI/HappyHerd/pull/14",
+        "mergeSha": "47a828d1946300d9e0ea8321e05239928e9be090"
+      },
+      {
+        "number": 16,
+        "url": "https://github.com/NickGuAI/HappyHerd/pull/16",
+        "mergeSha": "66be0ec13ea4fe350a2abdd0739605df7bf52b97"
+      },
+      {
+        "number": 19,
+        "url": "https://github.com/NickGuAI/HappyHerd/pull/19",
+        "mergeSha": "21605ce1e2d88409f8539fdc61c5f1da9977b4ba"
+      }
+    ]
+  },
+  "release": {
+    "manifestPath": "docs/releases/2026-08-03-machine-workspace.json",
+    "image": "ghcr.io/nickguai/happyherd@sha256:3cdf55aec8d13a7e25d78f450c1485cb158610642b41c2a40efef693c10db46f",
+    "smokeEvidencePath": "docs/acceptance/b3-b5.1-2026-08-03-image-smoke-21605ce1.json",
+    "smokeEvidenceSha256": "4f487b840d019e76781818666dca3ba52699f5af3509db073481f59022f9970f",
+    "daemonArtifact": {
+      "filename": "happyherd-daemon-x64-linux.tar.gz",
+      "sha256": "fd44e979f71a1d5accb7307e01071516cdd0aad81b4d859366eb68e8ddaba32a"
+    }
+  },
+  "ci": [
+    {
+      "pullRequest": 14,
+      "qualityRun": 30834676063,
+      "contractRun": 30834679629,
+      "result": "passed"
+    },
+    {
+      "pullRequest": 16,
+      "qualityRun": 30836655179,
+      "contractRun": 30836655203,
+      "result": "passed"
+    },
+    {
+      "pullRequest": 19,
+      "qualityRun": 30837909506,
+      "contractRun": 30837909551,
+      "result": "passed"
+    }
+  ],
+  "deployments": [
+    {
+      "url": "https://happyherd.gehirn.ai",
+      "hostPort": 20015,
+      "health": "ok",
+      "image": "ghcr.io/nickguai/happyherd@sha256:3cdf55aec8d13a7e25d78f450c1485cb158610642b41c2a40efef693c10db46f"
+    },
+    {
+      "url": "https://baolab.gehirn.ai",
+      "hostPort": 20001,
+      "health": "ok",
+      "image": "ghcr.io/nickguai/happyherd@sha256:3cdf55aec8d13a7e25d78f450c1485cb158610642b41c2a40efef693c10db46f",
+      "daemonReleasePath": "/opt/happyherd/releases/21605ce1e2d88409f8539fdc61c5f1da9977b4ba"
+    }
+  ],
+  "browserAcceptance": {
+    "url": "https://baolab.gehirn.ai",
+    "desktop": {
+      "viewport": "1440x1000",
+      "browserPaneWidthPx": 360,
+      "image": {
+        "naturalSize": "1024x1024",
+        "renderedRect": "688x854"
+      },
+      "checks": [
+        "machine selector, absolute path, Home, Root, Parent, Refresh, Favorites, recent paths, and search rendered",
+        "browser and viewer remained side-by-side after selecting a file",
+        "Markdown source, preview, edit, optimistic-hash save, and conflict contract passed",
+        "PNG rendered visibly rather than as a zero-size decoded image",
+        "PDF rendered in a sandboxed data iframe",
+        "HTML rendered from srcdoc with an empty sandbox and injected restrictive CSP",
+        "permission-denied and missing-path states rendered distinct native errno details",
+        "session-side All Files header, search control, layout, and overlay remained present and unchanged"
+      ]
+    },
+    "mobile": {
+      "viewport": "390x844",
+      "imageRenderedRect": "358x698",
+      "checks": [
+        "file browser rendered as a drill-down flow",
+        "Back to files returned from the viewer",
+        "PNG preview remained visible and useful"
+      ]
+    },
+    "attachments": {
+      "checks": [
+        "the session composer opened machine Workspace attachment mode with the session machine and path",
+        "one selected file displayed as 1 of 8 and returned to the same session as a visible absolute-path chip",
+        "cancel returned to the same session without mutating staged context",
+        "the acceptance chip was removed after verification"
+      ]
+    }
+  },
+  "visualCaptureSha256": {
+    "desktopWorkspace": "8490674c966291079e4ac5d96ad72f6e6cf5a45aaea96bfd2af4677e76e6c371",
+    "mobileWorkspace": "0ada73ba5a3c4dfe073ee354f70a56fa88c7d7d9fb82933a2c2de971c2421e80",
+    "desktopSessionAllFiles": "f0e2e9587db50e8ea1a4006a7e2427dc8e566292379650a5f0fb1c94b82430ad"
+  }
+}

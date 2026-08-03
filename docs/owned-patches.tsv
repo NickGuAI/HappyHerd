@@ -48,3 +48,4 @@ A4	code-ready	fix(ci): accept manifest-backed owned PR merges	scripts/test-owned
 B4	code-ready	fix(workspace): preserve desktop browser pane	server/packages/happy-app/sources/utils/machineWorkspace.test.ts
 B5.1	code-ready	fix(workspace): size decoded image previews	server/packages/happy-app/sources/utils/filePreview.test.ts
 B4	code-ready	fix(workspace): preserve root directory errors	server/packages/happy-cli/src/modules/common/registerCommonHandlers.machineTree.test.ts
+B3-B5.1	accepted	docs(release): record machine workspace acceptance	docs/acceptance/b3-b5.1-2026-08-03.json
