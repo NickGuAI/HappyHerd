@@ -14,10 +14,19 @@ grep -Fq 'injectWorkspacePackages: true' "$WORKSPACE" || \
     fail 'workspace packages are not injected for a lockfile-backed deployment'
 grep -Fq -- '--filter happy --fail-if-no-match deploy' "$BUILDER" || \
     fail 'release builder does not create a pruned daemon deployment'
+grep -Fq -- 'fetch --prod --frozen-lockfile --ignore-scripts' "$BUILDER" || \
+    fail 'daemon production closure is not prefetched from its generated frozen lockfile'
 grep -Fq -- 'install --prod --frozen-lockfile --offline' "$BUILDER" || \
     fail 'daemon production dependencies are not installed from the frozen lockfile'
+awk '
+    /fetch --prod --frozen-lockfile --ignore-scripts/ { fetch_line = NR }
+    /install --prod --frozen-lockfile --offline/ { install_line = NR }
+    END { exit !(fetch_line && install_line && fetch_line < install_line) }
+' "$BUILDER" || fail 'daemon dependency closure is not prefetched before offline materialization'
 grep -Fq -- '--config.prefer-symlinked-executables=true' "$BUILDER" || \
     fail 'daemon executable shims are not configured to remain relocatable'
+[[ "$(grep -Fc -- '--config.prefer-symlinked-executables=true' "$BUILDER")" -ge 2 ]] || \
+    fail 'both daemon prefetch and offline materialization must request relocatable executable shims'
 grep -Fq 'node_modules/.modules.yaml' "$BUILDER" || \
     fail 'build-host pnpm metadata is not excluded from the daemon archive'
 # The contract intentionally matches a literal shell variable.

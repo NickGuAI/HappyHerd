@@ -124,10 +124,16 @@ NODE
 
 (
     cd "$STAGE/daemon"
+    # `pnpm deploy` writes the exact pruned production lockfile, which can
+    # reference tarballs that a warm workspace install never placed in the
+    # content store. Fetch that frozen closure explicitly, then materialize it
+    # offline so the archive cannot resolve or drift during installation.
+    pnpm --config.prefer-symlinked-executables=true \
+        fetch --prod --frozen-lockfile --ignore-scripts
     pnpm \
         --config.inject-workspace-packages=true \
         --config.prefer-symlinked-executables=true \
-        install --prod --frozen-lockfile --offline
+        install --prod --frozen-lockfile --offline --ignore-scripts
 )
 
 # pnpm metadata and generated shell shims can contain absolute build-host paths.

@@ -53,3 +53,4 @@ B5.1	code-ready	fix(web): allow Chrome PDF viewer to load	server/packages/happy-
 B5.1	accepted	docs(release): record Chrome PDF production acceptance	docs/acceptance/chrome-pdf-preview-2026-08-03.json
 B6	code-ready	feat(context): route Commander identity into sessions	server/packages/happy-cli/src/agentContext/commanderContext.test.ts
 B7	code-ready	feat(automation): add visible durable daemon schedules	server/packages/happy-cli/src/automations/service.test.ts
+DEPLOY	code-ready	fix(release): prefetch daemon dependency closure	scripts/test-release-daemon-contract.sh
