@@ -78,6 +78,7 @@ import {
     rigCanUseShell,
 } from '@/sync/rig';
 import { RigActivityBar } from '@/components/RigActivityBar';
+import { useVoiceDictation } from '@/hooks/useVoiceDictation';
 import {
     addWorkspaceContextFile,
     buildWorkspaceContextMessage,
@@ -574,6 +575,7 @@ const AGENT_INPUT_AUTOCOMPLETE_PREFIXES = ['@', '/'];
 type ChatComposerHandle = {
     getMessage: () => string;
     clearMessage: () => void;
+    appendMessage: (text: string) => void;
 };
 
 type ChatComposerProps = Omit<
@@ -619,6 +621,13 @@ const ChatComposer = React.memo(function ChatComposer(props: ChatComposerProps) 
             inputHandleRef.current?.setTextAndSelection('', { start: 0, end: 0 });
             setMessage('');
             clearDraft();
+        },
+        appendMessage: (text: string) => {
+            const current = inputHandleRef.current?.getText() ?? '';
+            const separator = current.length > 0 && !/\s$/.test(current) ? ' ' : '';
+            const next = `${current}${separator}${text}`;
+            inputHandleRef.current?.setTextAndSelection(next, { start: next.length, end: next.length });
+            setMessage(next);
         },
     }), [clearDraft]);
 
@@ -793,6 +802,10 @@ export function SessionViewLoaded({
     // clear it without subscribing to it (which would re-render the whole
     // SessionViewLoaded tree on every keystroke).
     const composerHandleRef = React.useRef<ChatComposerHandle | null>(null);
+    const handleDictationTranscript = React.useCallback((text: string) => {
+        composerHandleRef.current?.appendMessage(text);
+    }, []);
+    const voiceDictation = useVoiceDictation(handleDictationTranscript);
     const selectedContextFiles = React.useSyncExternalStore(
         subscribeWorkspaceContext,
         () => getWorkspaceContextFiles(sessionId),
@@ -1074,6 +1087,11 @@ export function SessionViewLoaded({
             onAddImages={expImageUpload && canUseAttachments ? addImages : undefined}
             selectedContextFiles={selectedContextFiles}
             onRemoveContextFile={(filePath) => removeWorkspaceContextFile(sessionId, filePath)}
+            dictationPhase={voiceDictation.phase}
+            dictationError={voiceDictation.error}
+            onDictationPress={(embedded || isDisconnected) ? undefined : voiceDictation.toggle}
+            onDictationCancel={voiceDictation.cancel}
+            onDictationRetry={voiceDictation.canRetry ? voiceDictation.retry : undefined}
             autocompletePrefixes={AGENT_INPUT_AUTOCOMPLETE_PREFIXES}
             autocompleteSuggestions={handleAutocompleteSuggestions}
             usageData={usageData}

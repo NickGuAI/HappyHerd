@@ -213,6 +213,7 @@ Environment variables:
   REDIS_URL         Redis URL (optional, not required for standalone)
   PORT              Server port (default: 3005)
   HANDY_MASTER_SECRET  Required: master secret for auth/encryption
+  OPENAI_API_KEY     Enables authenticated voice-to-text dictation (optional)
 `);
             process.exit(command === "--help" || command === "-h" ? 0 : 1);
     }
