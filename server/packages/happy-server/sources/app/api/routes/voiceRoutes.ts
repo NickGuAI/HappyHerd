@@ -3,7 +3,14 @@ import * as crypto from "crypto";
 import { VoiceConversationResponseSchema, VoiceUsageResponseSchema } from "@slopus/happy-wire";
 import { type Fastify } from "../types";
 import { log } from "@/utils/log";
-import { resolveVoiceTranscriptionApiKey, transcribeVoiceInput, VoiceTranscriptionError } from "@/app/voice/transcription";
+import { transcribeVoiceInput, VoiceTranscriptionError } from "@/app/voice/transcription";
+import {
+    getVoiceTranscriptionKeyStatus,
+    removeVoiceTranscriptionApiKey,
+    resolveVoiceTranscriptionApiKeyForUser,
+    setVoiceTranscriptionApiKey,
+    testVoiceTranscriptionApiKey,
+} from "@/app/voice/transcriptionCredentials";
 
 const VOICE_FREE_LIMIT_SECONDS = 1200;  // 20 minutes free tier per 30 days (~$0.76 cost)
 const VOICE_HARD_LIMIT_SECONDS = 18000; // 5 hours absolute cap per 30 days (even with subscription)
@@ -13,6 +20,10 @@ const VOICE_EXTRA_LIMIT_PUBLIC_IDS = new Set([
     "cmp66x5u018d9wz0unf56tp07",
 ]);
 const ELEVEN_LABS_API = "https://api.elevenlabs.io/v1/convai";
+const VoiceTranscriptionKeyStatusSchema = z.object({
+    configured: z.boolean(),
+    source: z.enum(['user', 'deployment']).nullable(),
+});
 
 function getVoiceHardLimitSeconds(userId: string): number {
     if (VOICE_EXTRA_LIMIT_PUBLIC_IDS.has(userId)) {
@@ -95,6 +106,76 @@ async function hasActiveSubscription(userId: string): Promise<boolean> {
 }
 
 export function voiceRoutes(app: Fastify) {
+    app.get('/v1/voice/transcription-key', {
+        preHandler: app.authenticate,
+        schema: {
+            response: { 200: VoiceTranscriptionKeyStatusSchema },
+        },
+    }, async (request, reply) => {
+        return reply.send(await getVoiceTranscriptionKeyStatus(request.userId));
+    });
+
+    app.put('/v1/voice/transcription-key', {
+        preHandler: app.authenticate,
+        schema: {
+            body: z.object({ apiKey: z.string().trim().min(8).max(512) }),
+            response: {
+                200: VoiceTranscriptionKeyStatusSchema,
+                400: z.object({ error: z.string() }),
+                502: z.object({ error: z.string() }),
+            },
+        },
+    }, async (request, reply) => {
+        try {
+            await testVoiceTranscriptionApiKey(request.body.apiKey);
+            await setVoiceTranscriptionApiKey(request.userId, request.body.apiKey);
+            return reply.send({ configured: true, source: 'user' });
+        } catch (error) {
+            const statusCode = error instanceof VoiceTranscriptionError ? error.statusCode : 500;
+            const safeMessage = error instanceof VoiceTranscriptionError
+                ? error.message
+                : 'Could not save the OpenAI API key';
+            return reply.code(statusCode === 400 ? 400 : 502).send({ error: safeMessage });
+        }
+    });
+
+    app.delete('/v1/voice/transcription-key', {
+        preHandler: app.authenticate,
+        schema: {
+            response: { 200: VoiceTranscriptionKeyStatusSchema },
+        },
+    }, async (request, reply) => {
+        await removeVoiceTranscriptionApiKey(request.userId);
+        return reply.send(await getVoiceTranscriptionKeyStatus(request.userId));
+    });
+
+    app.post('/v1/voice/transcription-key/test', {
+        preHandler: app.authenticate,
+        schema: {
+            response: {
+                200: z.object({ success: z.literal(true) }),
+                400: z.object({ error: z.string() }),
+                502: z.object({ error: z.string() }),
+                503: z.object({ error: z.string() }),
+            },
+        },
+    }, async (request, reply) => {
+        const apiKey = await resolveVoiceTranscriptionApiKeyForUser(request.userId);
+        if (!apiKey) {
+            return reply.code(503).send({ error: 'Voice transcription is not configured' });
+        }
+        try {
+            await testVoiceTranscriptionApiKey(apiKey);
+            return reply.send({ success: true });
+        } catch (error) {
+            const statusCode = error instanceof VoiceTranscriptionError ? error.statusCode : 502;
+            const safeMessage = error instanceof VoiceTranscriptionError
+                ? error.message
+                : 'Could not test the OpenAI API key';
+            return reply.code(statusCode === 400 ? 400 : 502).send({ error: safeMessage });
+        }
+    });
+
     app.post('/v1/voice/transcriptions', {
         preHandler: app.authenticate,
         schema: {
@@ -113,7 +194,7 @@ export function voiceRoutes(app: Fastify) {
             },
         },
     }, async (request, reply) => {
-        const apiKey = resolveVoiceTranscriptionApiKey();
+        const apiKey = await resolveVoiceTranscriptionApiKeyForUser(request.userId);
         if (!apiKey) {
             return reply.code(503).send({ error: 'Voice transcription is not configured' });
         }

@@ -11,7 +11,15 @@ import { UsageBar } from '@/components/usage/UsageBar';
 import { useSettingMutable, useEntitlement, useLocalSetting, useLocalSettingMutable, useSetting } from '@/sync/storage';
 import { useAuth } from '@/auth/AuthContext';
 import { findLanguageByCode, getLanguageDisplayName, LANGUAGES } from '@/constants/Languages';
-import { fetchVoiceUsage, type VoiceUsageResponse } from '@/sync/apiVoice';
+import {
+    configureVoiceTranscriptionKey,
+    fetchVoiceTranscriptionKeyStatus,
+    fetchVoiceUsage,
+    removeVoiceTranscriptionKey,
+    testVoiceTranscriptionKey,
+    type VoiceTranscriptionKeyStatus,
+    type VoiceUsageResponse,
+} from '@/sync/apiVoice';
 import { t } from '@/text';
 import { Modal } from '@/modal';
 import { sync } from '@/sync/sync';
@@ -39,6 +47,9 @@ export default React.memo(function VoiceSettingsScreen() {
 
     const [usage, setUsage] = React.useState<VoiceUsageResponse | null>(null);
     const [usageLoading, setUsageLoading] = React.useState(true);
+    const [transcriptionKeyStatus, setTranscriptionKeyStatus] = React.useState<VoiceTranscriptionKeyStatus | null>(null);
+    const [transcriptionKeyLoading, setTranscriptionKeyLoading] = React.useState(true);
+    const [transcriptionKeyAction, setTranscriptionKeyAction] = React.useState(false);
     const [voiceLocalCounters, setVoiceLocalCounters] = React.useState(() => getVoiceLocalCounters());
 
     React.useEffect(() => {
@@ -49,6 +60,14 @@ export default React.memo(function VoiceSettingsScreen() {
             .finally(() => setUsageLoading(false));
     }, [auth.credentials]);
 
+    React.useEffect(() => {
+        if (!auth.credentials) return;
+        fetchVoiceTranscriptionKeyStatus(auth.credentials)
+            .then(setTranscriptionKeyStatus)
+            .catch(() => setTranscriptionKeyStatus(null))
+            .finally(() => setTranscriptionKeyLoading(false));
+    }, [auth.credentials]);
+
     // Find current language or default to first option
     const currentLanguage = findLanguageByCode(voiceAssistantLanguage) || LANGUAGES[0];
 
@@ -56,6 +75,60 @@ export default React.memo(function VoiceSettingsScreen() {
         trackPaywallButtonClicked('voluntary_support');
         await sync.presentPaywall('voluntary_support');
     }, []);
+
+    const handleConfigureTranscriptionKey = React.useCallback(async () => {
+        if (!auth.credentials || transcriptionKeyAction) return;
+        const value = await Modal.prompt(
+            'OpenAI API key',
+            'Used only for voice dictation transcription. HappyHerd encrypts it for this account and never shows it again.',
+            {
+                placeholder: 'sk-…',
+                inputType: 'secure-text',
+            },
+        );
+        if (value === null || !value.trim()) return;
+        setTranscriptionKeyAction(true);
+        try {
+            const status = await configureVoiceTranscriptionKey(auth.credentials, value.trim());
+            setTranscriptionKeyStatus(status);
+            Modal.alert('OpenAI API key configured', 'The key was accepted and stored securely for voice dictation.');
+        } catch (error) {
+            Modal.alert('Could not configure OpenAI API key', error instanceof Error ? error.message : 'The key could not be saved.');
+        } finally {
+            setTranscriptionKeyAction(false);
+        }
+    }, [auth.credentials, transcriptionKeyAction]);
+
+    const handleTestTranscriptionKey = React.useCallback(async () => {
+        if (!auth.credentials || transcriptionKeyAction) return;
+        setTranscriptionKeyAction(true);
+        try {
+            await testVoiceTranscriptionKey(auth.credentials);
+            Modal.alert('OpenAI API key works', 'Voice dictation can reach OpenAI with the configured key.');
+        } catch (error) {
+            Modal.alert('OpenAI API key test failed', error instanceof Error ? error.message : 'The key could not be tested.');
+        } finally {
+            setTranscriptionKeyAction(false);
+        }
+    }, [auth.credentials, transcriptionKeyAction]);
+
+    const handleRemoveTranscriptionKey = React.useCallback(async () => {
+        if (!auth.credentials || transcriptionKeyAction) return;
+        const confirmed = await Modal.confirm(
+            'Remove OpenAI API key?',
+            'Voice dictation will use the deployment key if one exists; otherwise it will stop working.',
+            { confirmText: 'Remove', destructive: true },
+        );
+        if (!confirmed) return;
+        setTranscriptionKeyAction(true);
+        try {
+            setTranscriptionKeyStatus(await removeVoiceTranscriptionKey(auth.credentials));
+        } catch (error) {
+            Modal.alert('Could not remove OpenAI API key', error instanceof Error ? error.message : 'The key could not be removed.');
+        } finally {
+            setTranscriptionKeyAction(false);
+        }
+    }, [auth.credentials, transcriptionKeyAction]);
 
     const handleCustomAgentId = React.useCallback(async () => {
         const value = await Modal.prompt(
@@ -144,6 +217,42 @@ export default React.memo(function VoiceSettingsScreen() {
 
     return (
         <ItemList style={{ paddingTop: 0 }}>
+            <ItemGroup
+                title="Voice dictation transcription"
+                footer="The key is encrypted for your account. HappyHerd only displays masked status and never returns the stored key to the app."
+            >
+                <Item
+                    title="OpenAI API key"
+                    subtitle={transcriptionKeyStatus?.configured
+                        ? (transcriptionKeyStatus.source === 'user' ? '•••••••• · configured for this account' : '•••••••• · provided by this deployment')
+                        : 'Not configured'}
+                    icon={<Ionicons name="key-outline" size={29} color="#10A37F" />}
+                    detail={transcriptionKeyStatus?.configured ? 'Configured' : undefined}
+                    loading={transcriptionKeyLoading || transcriptionKeyAction}
+                    disabled={transcriptionKeyLoading || transcriptionKeyAction}
+                    onPress={handleConfigureTranscriptionKey}
+                />
+                {transcriptionKeyStatus?.configured && (
+                    <Item
+                        title="Test OpenAI API key"
+                        subtitle="Verify access without recording audio"
+                        icon={<Ionicons name="checkmark-circle-outline" size={29} color="#34C759" />}
+                        disabled={transcriptionKeyAction}
+                        onPress={handleTestTranscriptionKey}
+                    />
+                )}
+                {transcriptionKeyStatus?.source === 'user' && (
+                    <Item
+                        title="Remove OpenAI API key"
+                        subtitle="Delete the account-specific transcription key"
+                        icon={<Ionicons name="trash-outline" size={29} color="#FF3B30" />}
+                        destructive
+                        disabled={transcriptionKeyAction}
+                        onPress={handleRemoveTranscriptionKey}
+                    />
+                )}
+            </ItemGroup>
+
             {/* Voice Usage */}
             {usageLoading ? (
                 <View style={{ paddingVertical: 24, alignItems: 'center' }}>
