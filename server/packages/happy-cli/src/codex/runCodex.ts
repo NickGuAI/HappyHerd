@@ -55,6 +55,7 @@ import {
     type CodexGoalCommand,
 } from './codexGoalStatus';
 import { mergeContextPrompt, readContextPromptFromEnvironment } from '@/agentContext/commanderContext';
+import { readAutomationBootstrapFromEnvironment } from '@/automations/sessionBootstrap';
 
 /**
  * Extracts a human-readable error from a codex task_complete/turn_aborted event.
@@ -98,6 +99,7 @@ export async function runCodex(opts: {
     effort?: ReasoningEffort;
 }): Promise<void> {
     const happyHerdContextPrompt = await readContextPromptFromEnvironment();
+    const automationBootstrap = await readAutomationBootstrapFromEnvironment();
     // Early check: ensure Codex CLI is installed before proceeding
     try {
         execSync('codex --version', { encoding: 'utf8', stdio: 'pipe', windowsHide: true });
@@ -393,6 +395,20 @@ export async function runCodex(opts: {
         });
     });
     session.onUserMessage(handleUserMessage);
+    if (automationBootstrap) {
+        enqueueCodexUserText({
+            text: automationBootstrap.instruction,
+            mode: {
+                permissionMode: currentPermissionMode || 'default',
+                model: currentModel,
+                appendSystemPrompt: currentAppendSystemPrompt,
+                effort: currentEffort,
+            },
+            queue: messageQueue,
+            attachments: [],
+        });
+        logger.debug(`[AUTOMATIONS] Queued initial Codex instruction for ${automationBootstrap.automationId}`);
+    }
     let thinking = false;
     let currentTurnId: string | null = null;
     let codexStartedSubagents = new Set<string>();

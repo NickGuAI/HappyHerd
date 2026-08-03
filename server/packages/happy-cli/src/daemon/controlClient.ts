@@ -8,7 +8,7 @@ import { clearDaemonState, readDaemonState } from '@/persistence';
 import { Metadata } from '@/api/types';
 import { configuration } from '@/configuration';
 
-async function daemonPost(path: string, body?: any): Promise<{ error?: string } | any> {
+async function daemonPost(path: string, body?: any, timeoutOverride?: number): Promise<{ error?: string } | any> {
   const state = await readDaemonState();
   if (!state?.httpPort) {
     const errorMessage = 'No daemon running, no state file found';
@@ -29,7 +29,8 @@ async function daemonPost(path: string, body?: any): Promise<{ error?: string } 
   }
 
   try {
-    const timeout = process.env.HAPPY_DAEMON_HTTP_TIMEOUT ? parseInt(process.env.HAPPY_DAEMON_HTTP_TIMEOUT) : 10_000;
+    const timeout = timeoutOverride
+      ?? (process.env.HAPPY_DAEMON_HTTP_TIMEOUT ? parseInt(process.env.HAPPY_DAEMON_HTTP_TIMEOUT) : 10_000);
     const response = await fetch(`http://127.0.0.1:${state.httpPort}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -39,7 +40,17 @@ async function daemonPost(path: string, body?: any): Promise<{ error?: string } 
     });
     
     if (!response.ok) {
-      const errorMessage = `Request failed: ${path}, HTTP ${response.status}`;
+      let detail = '';
+      try {
+        const payload = await response.json() as { message?: unknown; error?: unknown };
+        const message = typeof payload.message === 'string'
+          ? payload.message
+          : (typeof payload.error === 'string' ? payload.error : '');
+        detail = message ? `: ${message}` : '';
+      } catch {
+        // A status code still gives the caller an actionable failure.
+      }
+      const errorMessage = `Request failed: ${path}, HTTP ${response.status}${detail}`;
       logger.debug(`[CONTROL CLIENT] ${errorMessage}`);
       return {
         error: errorMessage
@@ -102,6 +113,15 @@ export async function stopDaemonSession(sessionId: string): Promise<boolean> {
 
 export async function spawnDaemonSession(directory: string, sessionId?: string): Promise<any> {
   const result = await daemonPost('/spawn-session', { directory, sessionId });
+  return result;
+}
+
+export async function daemonAutomationAction(
+  action: 'list' | 'create' | 'update' | 'pause' | 'resume' | 'delete' | 'run-now' | 'history',
+  options: { id?: string; input?: unknown } = {},
+): Promise<any> {
+  const result = await daemonPost('/automations', { action, ...options }, action === 'run-now' ? 25_000 : undefined);
+  if (result?.error) throw new Error(result.error);
   return result;
 }
 

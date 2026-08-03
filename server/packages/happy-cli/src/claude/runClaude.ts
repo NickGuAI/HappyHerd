@@ -44,6 +44,10 @@ import {
     mergeContextPrompt,
     readContextPromptFromEnvironment,
 } from '@/agentContext/commanderContext';
+import {
+    automationMetadataFromEnvironment,
+    readAutomationBootstrapFromEnvironment,
+} from '@/automations/sessionBootstrap';
 
 /** JavaScript runtime to use for spawning Claude Code */
 export type JsRuntime = 'node' | 'bun'
@@ -80,6 +84,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     const workingDirectory = process.cwd();
     const sessionTag = randomUUID();
     const happyHerdContextPrompt = await readContextPromptFromEnvironment();
+    const automationBootstrap = await readAutomationBootstrapFromEnvironment();
 
     // Log environment info at startup
     logger.debugLargeJson('[START] Happy process started', getEnvironmentInfo());
@@ -153,6 +158,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         ...(forkedFromMessageId ? { forkedFromMessageId } : {}),
         ...(isSideChat ? { isSideChat: true } : {}),
         ...contextMetadataFromEnvironment(),
+        ...automationMetadataFromEnvironment(),
     };
 
     // Check for session reconnection env vars (set by daemon for resume-in-place)
@@ -831,6 +837,11 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         messageQueue.push(message.content.text, currentEnhancedMode(), attachmentsForThisMessage);
         logger.debugLargeJson('User message pushed to queue:', message)
     });
+
+    if (automationBootstrap) {
+        messageQueue.push(automationBootstrap.instruction, currentEnhancedMode(), []);
+        logger.debug(`[AUTOMATIONS] Queued initial Claude instruction for ${automationBootstrap.automationId}`);
+    }
 
     // Setup signal handlers for graceful shutdown
     //

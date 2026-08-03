@@ -127,6 +127,15 @@ export interface SpawnSessionOptions {
     effortLevel?: string;
     /** Existing HappyHerd Commander identity to bind to this session. */
     commanderId?: string;
+    /**
+     * Machine-local automation snapshot. Only the daemon automation service
+     * sets this field; the remote spawn RPC deliberately does not forward it.
+     */
+    automation?: {
+        id: string;
+        kind: 'scheduled' | 'heartbeat' | 'memory-maintenance';
+        instruction: string;
+    };
     environmentVariables?: Record<string, string>;
     token?: string;
     /**
@@ -158,7 +167,16 @@ export interface SpawnSessionOptions {
 export type SpawnSessionResult =
     | { type: 'success'; sessionId: string }
     | { type: 'requestToApproveDirectoryCreation'; directory: string }
-    | { type: 'error'; errorMessage: string };
+    | {
+        type: 'error';
+        errorMessage: string;
+        /**
+         * True only when the daemon can prove no provider process was
+         * started. Automation retries must remain off for ambiguous webhook
+         * timeouts, otherwise one schedule tick could create two sessions.
+         */
+        retrySafe?: boolean;
+    };
 
 /**
  * Register all RPC handlers with the session

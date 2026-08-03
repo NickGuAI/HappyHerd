@@ -33,6 +33,7 @@ import {
     listCodexRewindPoints,
 } from '@/codex/codexThreadFork';
 import { listCommanders } from '@/agentContext/commanderContext';
+import type { HappyHerdAutomationService } from '@/automations/service';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -98,6 +99,7 @@ type MachineRpcHandlers = {
     resumeSession?: (sessionId: string, options?: { model?: string; permissionMode?: string }) => Promise<SpawnSessionResult>;
     stopSession: (sessionId: string) => boolean;
     requestShutdown: () => void;
+    automations?: HappyHerdAutomationService;
 }
 
 function requireNonEmptyString(value: unknown, name: string): string {
@@ -160,7 +162,8 @@ export class ApiMachineClient {
         spawnSession,
         resumeSession,
         stopSession,
-        requestShutdown
+        requestShutdown,
+        automations,
     }: MachineRpcHandlers) {
         this.resumeSessionHandler = resumeSession ?? null;
 
@@ -199,6 +202,22 @@ export class ApiMachineClient {
         });
 
         this.rpcHandlerManager.registerHandler('happyherd-list-commanders', async () => listCommanders());
+        if (automations) {
+            this.rpcHandlerManager.registerHandler('happyherd-automations-list', async () => automations.list());
+            this.rpcHandlerManager.registerHandler('happyherd-automations-create', async (params: any) => automations.create(params));
+            this.rpcHandlerManager.registerHandler('happyherd-automations-update', async (params: any) => automations.update(
+                requireNonEmptyString(params?.id, 'id'),
+                params?.patch ?? {},
+            ));
+            this.rpcHandlerManager.registerHandler('happyherd-automations-pause', async (params: any) => automations.pause(requireNonEmptyString(params?.id, 'id')));
+            this.rpcHandlerManager.registerHandler('happyherd-automations-resume', async (params: any) => automations.resume(requireNonEmptyString(params?.id, 'id')));
+            this.rpcHandlerManager.registerHandler('happyherd-automations-delete', async (params: any) => {
+                await automations.delete(requireNonEmptyString(params?.id, 'id'));
+                return { deleted: true };
+            });
+            this.rpcHandlerManager.registerHandler('happyherd-automations-run-now', async (params: any) => automations.runNow(requireNonEmptyString(params?.id, 'id')));
+            this.rpcHandlerManager.registerHandler('happyherd-automations-history', async (params: any) => automations.history(requireNonEmptyString(params?.id, 'id')));
+        }
 
         this.syncResumeSessionRpcRegistration();
 

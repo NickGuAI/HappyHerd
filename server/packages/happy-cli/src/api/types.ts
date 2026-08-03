@@ -378,6 +378,9 @@ export type Metadata = {
   globalAgentsPath?: string
   globalAgentContextPath?: string
   contextHash?: string
+  /** Machine-local automation provenance for daemon-started sessions. */
+  automationId?: string
+  automationKind?: 'scheduled' | 'heartbeat' | 'memory-maintenance'
 };
 
 export type UsageLimitWindowStatus = 'allowed' | 'allowed_warning' | 'rejected'

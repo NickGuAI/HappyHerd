@@ -54,6 +54,36 @@ describe('codex fork ops', () => {
         );
     });
 
+    it('routes automation CRUD through encrypted machine RPC methods', async () => {
+        machineRPC.mockResolvedValueOnce({ automations: [], legacyCount: 0 });
+        const { machineListAutomations, machineCreateAutomation } = await import('./ops');
+
+        await machineListAutomations('machine-1');
+        expect(machineRPC).toHaveBeenNthCalledWith(1, 'machine-1', 'happyherd-automations-list', {});
+
+        const input = {
+            name: 'Daily',
+            kind: 'scheduled' as const,
+            instruction: 'Review.',
+            schedule: '0 8 * * *',
+            timezone: 'UTC',
+            workspace: '/tmp/project',
+            rail: 'codex' as const,
+            commanderId: null,
+            status: 'paused' as const,
+            maxRetries: 0,
+        };
+        machineRPC.mockResolvedValueOnce({ id: 'automation-1' });
+        await machineCreateAutomation('machine-1', input);
+        expect(machineRPC).toHaveBeenNthCalledWith(2, 'machine-1', 'happyherd-automations-create', input);
+    });
+
+    it('turns encrypted automation handler failures into client errors', async () => {
+        machineRPC.mockResolvedValue({ error: 'Invalid or unsafe cron expression' });
+        const { machineListAutomations } = await import('./ops');
+        await expect(machineListAutomations('machine-1')).rejects.toThrow('Invalid or unsafe cron expression');
+    });
+
     it('forks a full Codex thread and spawns a Codex session resumed to the new thread', async () => {
         machineRPC.mockImplementation(async (_machineId: string, method: string) => {
             if (method === 'codex-fork-thread') {

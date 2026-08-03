@@ -17,7 +17,15 @@ import {
     rigCanWriteFiles,
     rigHasRpcMethod,
 } from './rig';
-import type { HappyHerdCommanderListResponse } from '@slopus/happy-wire';
+import type {
+    HappyHerdAutomation,
+    HappyHerdAutomationCreateInput,
+    HappyHerdAutomationHistoryResponse,
+    HappyHerdAutomationListResponse,
+    HappyHerdAutomationRun,
+    HappyHerdAutomationUpdateInput,
+    HappyHerdCommanderListResponse,
+} from '@slopus/happy-wire';
 
 export type { SessionAgentModesPatch };
 
@@ -306,6 +314,56 @@ export async function machineListCommanders(machineId: string): Promise<HappyHer
         'happyherd-list-commanders',
         {},
     );
+}
+
+async function machineAutomationRPC<T>(machineId: string, method: string, params: unknown): Promise<T> {
+    const result = await apiSocket.machineRPC<T | { error: string }, unknown>(machineId, method, params);
+    if (result && typeof result === 'object' && 'error' in result && typeof result.error === 'string') {
+        throw new Error(result.error);
+    }
+    return result as T;
+}
+
+export async function machineListAutomations(machineId: string): Promise<HappyHerdAutomationListResponse> {
+    return machineAutomationRPC(machineId, 'happyherd-automations-list', {});
+}
+
+export async function machineCreateAutomation(
+    machineId: string,
+    input: HappyHerdAutomationCreateInput,
+): Promise<HappyHerdAutomation> {
+    return machineAutomationRPC(machineId, 'happyherd-automations-create', input);
+}
+
+export async function machineUpdateAutomation(
+    machineId: string,
+    id: string,
+    patch: HappyHerdAutomationUpdateInput,
+): Promise<HappyHerdAutomation> {
+    return machineAutomationRPC(machineId, 'happyherd-automations-update', { id, patch });
+}
+
+export async function machinePauseAutomation(machineId: string, id: string): Promise<HappyHerdAutomation> {
+    return machineAutomationRPC(machineId, 'happyherd-automations-pause', { id });
+}
+
+export async function machineResumeAutomation(machineId: string, id: string): Promise<HappyHerdAutomation> {
+    return machineAutomationRPC(machineId, 'happyherd-automations-resume', { id });
+}
+
+export async function machineDeleteAutomation(machineId: string, id: string): Promise<void> {
+    await machineAutomationRPC(machineId, 'happyherd-automations-delete', { id });
+}
+
+export async function machineRunAutomationNow(machineId: string, id: string): Promise<HappyHerdAutomationRun> {
+    return machineAutomationRPC(machineId, 'happyherd-automations-run-now', { id });
+}
+
+export async function machineAutomationHistory(
+    machineId: string,
+    id: string,
+): Promise<HappyHerdAutomationHistoryResponse> {
+    return machineAutomationRPC(machineId, 'happyherd-automations-history', { id });
 }
 
 /**

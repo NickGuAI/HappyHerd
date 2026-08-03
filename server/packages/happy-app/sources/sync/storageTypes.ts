@@ -176,6 +176,8 @@ export const MetadataSchema = z.object({
     globalAgentsPath: z.string().optional(),
     globalAgentContextPath: z.string().optional(),
     contextHash: z.string().optional(),
+    automationId: z.string().uuid().optional(),
+    automationKind: z.enum(['scheduled', 'heartbeat', 'memory-maintenance']).optional(),
     /**
      * Per-session permission / model / effort picks made in any client.
      * Synced through session metadata so every device shows the same
