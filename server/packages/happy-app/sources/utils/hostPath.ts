@@ -20,3 +20,12 @@ export function parentHostPath(path: string, platform: string | undefined): stri
     const index = normalized.lastIndexOf('/');
     return index <= 0 ? '/' : normalized.slice(0, index);
 }
+
+export function joinHostPath(base: string, name: string, platform: string | undefined): string {
+    if (platform === 'win32') {
+        const normalizedBase = base.replace(/\//g, '\\').replace(/\\+$/, '');
+        return `${normalizedBase}\\${name}`;
+    }
+    const normalizedBase = base.replace(/\/+$/, '') || '/';
+    return normalizedBase === '/' ? `/${name}` : `${normalizedBase}/${name}`;
+}

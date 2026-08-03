@@ -5,8 +5,17 @@ export const MAX_WORKSPACE_CONTEXT_TOTAL_BYTES = 512 * 1024;
 const EMPTY_FILES: readonly string[] = Object.freeze([]);
 type Listener = () => void;
 
+export type WorkspaceContextFileSource =
+    | { kind: 'session' }
+    | { kind: 'machine'; machineId: string };
+
 const selections = new Map<string, readonly string[]>();
+const selectionSources = new Map<string, WorkspaceContextFileSource>();
 const listeners = new Set<Listener>();
+
+function sourceKey(sessionId: string, filePath: string): string {
+    return `${sessionId}\u0000${filePath}`;
+}
 
 function emit() {
     listeners.forEach((listener) => listener());
@@ -21,28 +30,48 @@ export function subscribeWorkspaceContext(listener: Listener): () => void {
     return () => listeners.delete(listener);
 }
 
-export function addWorkspaceContextFile(sessionId: string, filePath: string): boolean {
+export function addWorkspaceContextFile(
+    sessionId: string,
+    filePath: string,
+    source: WorkspaceContextFileSource = { kind: 'session' },
+): boolean {
     const cleanPath = filePath.trim();
     if (!cleanPath) return false;
     const current = getWorkspaceContextFiles(sessionId);
-    if (current.includes(cleanPath)) return true;
+    if (current.includes(cleanPath)) {
+        // A Machine Workspace selection is more specific than the legacy
+        // session source, so let it upgrade an existing path in place.
+        if (source.kind === 'machine') selectionSources.set(sourceKey(sessionId, cleanPath), source);
+        return true;
+    }
     if (current.length >= MAX_WORKSPACE_CONTEXT_FILES) return false;
     selections.set(sessionId, [...current, cleanPath]);
+    selectionSources.set(sourceKey(sessionId, cleanPath), source);
     emit();
     return true;
+}
+
+export function getWorkspaceContextFileSource(
+    sessionId: string,
+    filePath: string,
+): WorkspaceContextFileSource {
+    return selectionSources.get(sourceKey(sessionId, filePath)) ?? { kind: 'session' };
 }
 
 export function removeWorkspaceContextFile(sessionId: string, filePath: string) {
     const current = getWorkspaceContextFiles(sessionId);
     const next = current.filter((path) => path !== filePath);
     if (next.length === current.length) return;
+    selectionSources.delete(sourceKey(sessionId, filePath));
     if (next.length === 0) selections.delete(sessionId);
     else selections.set(sessionId, next);
     emit();
 }
 
 export function clearWorkspaceContextFiles(sessionId: string) {
+    const current = getWorkspaceContextFiles(sessionId);
     if (!selections.delete(sessionId)) return;
+    current.forEach((filePath) => selectionSources.delete(sourceKey(sessionId, filePath)));
     emit();
 }
 
@@ -93,9 +122,12 @@ export async function buildWorkspaceContextMessage(
     const sections: string[] = [];
     // Keep the selection/validation contract platform-neutral and load the
     // socket-backed operation only when a message is actually sent.
-    const { sessionReadFile } = await import('./ops');
+    const { machineReadFile, sessionReadFile } = await import('./ops');
     for (const filePath of filePaths) {
-        const response = await sessionReadFile(sessionId, filePath);
+        const source = getWorkspaceContextFileSource(sessionId, filePath);
+        const response = source.kind === 'machine'
+            ? await machineReadFile(source.machineId, filePath)
+            : await sessionReadFile(sessionId, filePath);
         if (!response.success || response.content === undefined || response.content === null) {
             throw new Error(`Could not read ${filePath}: ${response.error ?? 'unknown error'}`);
         }

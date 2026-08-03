@@ -4,6 +4,7 @@ import {
     addWorkspaceContextFile,
     clearWorkspaceContextFiles,
     decodeWorkspaceContextText,
+    getWorkspaceContextFileSource,
     getWorkspaceContextFiles,
     removeWorkspaceContextFile,
 } from './workspaceContext';
@@ -20,6 +21,37 @@ describe('workspace context selection', () => {
         expect(getWorkspaceContextFiles('s1')).toEqual(['src/a.ts']);
         removeWorkspaceContextFile('s1', 'src/a.ts');
         expect(getWorkspaceContextFiles('s1')).toEqual([]);
+    });
+
+    it('tracks machine-scoped selections without changing legacy session selections', () => {
+        clearWorkspaceContextFiles('s2');
+        expect(addWorkspaceContextFile('s2', '/home/nick/report.md', {
+            kind: 'machine',
+            machineId: 'machine-1',
+        })).toBe(true);
+        expect(getWorkspaceContextFileSource('s2', '/home/nick/report.md')).toEqual({
+            kind: 'machine',
+            machineId: 'machine-1',
+        });
+
+        expect(addWorkspaceContextFile('s2', 'src/legacy.ts')).toBe(true);
+        expect(getWorkspaceContextFileSource('s2', 'src/legacy.ts')).toEqual({ kind: 'session' });
+        clearWorkspaceContextFiles('s2');
+    });
+
+    it('upgrades an existing legacy chip to the selected machine source', () => {
+        clearWorkspaceContextFiles('s3');
+        expect(addWorkspaceContextFile('s3', '/srv/report.md')).toBe(true);
+        expect(addWorkspaceContextFile('s3', '/srv/report.md', {
+            kind: 'machine',
+            machineId: 'machine-2',
+        })).toBe(true);
+        expect(getWorkspaceContextFiles('s3')).toEqual(['/srv/report.md']);
+        expect(getWorkspaceContextFileSource('s3', '/srv/report.md')).toEqual({
+            kind: 'machine',
+            machineId: 'machine-2',
+        });
+        clearWorkspaceContextFiles('s3');
     });
 
     it('rejects binary and oversized context before sending', () => {

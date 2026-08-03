@@ -21,6 +21,14 @@ describe('workspace file preview boundary', () => {
         return handlers;
     }
 
+    function machineHandlers() {
+        const handlers = new Map<string, (params: any) => Promise<any>>();
+        registerCommonHandlers({
+            registerHandler: (name: string, handler: (params: any) => Promise<any>) => handlers.set(name, handler),
+        } as any, null);
+        return handlers;
+    }
+
     it('reads an in-workspace file as base64', async () => {
         const root = await mkdtemp(join(tmpdir(), 'happyherd-file-preview-'));
         cleanup.push(root);
@@ -74,5 +82,29 @@ describe('workspace file preview boundary', () => {
         expect(response?.success).toBe(false);
         expect(response?.error).toContain('hash mismatch');
         expect(await readFile(file, 'utf8')).toBe('# Host changed');
+    });
+
+    it('reads and hash-safely writes absolute files through machine-scoped handlers', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'happyherd-machine-file-preview-'));
+        cleanup.push(root);
+        const file = join(root, 'machine-note.md');
+        const original = Buffer.from('# Machine before');
+        const updated = Buffer.from('# Machine after');
+        await writeFile(file, original);
+
+        const handlers = machineHandlers();
+        const readResponse = await handlers.get('readFile')?.({ path: file });
+        expect(readResponse).toEqual({ success: true, content: original.toString('base64') });
+
+        const writeResponse = await handlers.get('writeFile')?.({
+            path: file,
+            content: updated.toString('base64'),
+            expectedHash: createHash('sha256').update(original).digest('hex'),
+        });
+        expect(writeResponse).toEqual({
+            success: true,
+            hash: createHash('sha256').update(updated).digest('hex'),
+        });
+        expect(await readFile(file, 'utf8')).toBe('# Machine after');
     });
 });

@@ -5,7 +5,7 @@ import { Item } from '@/components/Item';
 import { ItemGroup } from '@/components/ItemGroup';
 import { ItemList } from '@/components/ItemList';
 import { Typography } from '@/constants/Typography';
-import { useSessions, useAllMachines, useMachine } from '@/sync/storage';
+import { useSessions, useAllMachines, useMachine, useSetting } from '@/sync/storage';
 import { Ionicons, Octicons } from '@expo/vector-icons';
 import type { Session } from '@/sync/storageTypes';
 import { machineStopDaemon, machineUpdateMetadata, machineDelete } from '@/sync/ops';
@@ -71,6 +71,7 @@ export default function MachineDetailScreen() {
     const router = useRouter();
     const sessions = useSessions();
     const machine = useMachine(machineId!);
+    const machineWorkspaceEnabled = useSetting('machineWorkspace');
     const navigateToSession = useNavigateToSession();
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isStoppingDaemon, setIsStoppingDaemon] = useState(false);
@@ -455,6 +456,23 @@ export default function MachineDetailScreen() {
                         </View>
                         </ItemGroup>
                     </>
+                )}
+
+                {machineWorkspaceEnabled && machine && (
+                    <ItemGroup title={t('workspace.title')}>
+                        <Item
+                            title={t('workspace.browseMachine')}
+                            subtitle={formatPathRelativeToHome(machine.metadata?.homeDir || '~', machine.metadata?.homeDir)}
+                            leftElement={<Ionicons name="folder-open-outline" size={20} color={theme.colors.textLink} />}
+                            onPress={() => router.push({
+                                pathname: '/workspace',
+                                params: {
+                                    machineId: machine.id,
+                                    path: machine.metadata?.homeDir || '~',
+                                },
+                            })}
+                        />
+                    </ItemGroup>
                 )}
 
                 {/* Daemon */}

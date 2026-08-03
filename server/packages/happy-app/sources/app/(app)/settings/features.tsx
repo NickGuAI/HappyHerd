@@ -16,6 +16,7 @@ export default function FeaturesSettingsScreen() {
     const [hideInactiveSessions, setHideInactiveSessions] = useSettingMutable('hideInactiveSessions');
     const [expResumeSession, setExpResumeSession] = useSettingMutable('expResumeSession');
     const [fileDiffsSidebar, setFileDiffsSidebar] = useSettingMutable('fileDiffsSidebar');
+    const [machineWorkspace, setMachineWorkspace] = useSettingMutable('machineWorkspace');
     const [groupToolCalls, setGroupToolCalls] = useSettingMutable('groupToolCalls');
     const [expImageUpload, setExpImageUpload] = useSettingMutable('expImageUpload');
     const [sortSessionsByActivity, setSortSessionsByActivity] = useSettingMutable('sortSessionsByActivity');
@@ -35,6 +36,18 @@ export default function FeaturesSettingsScreen() {
                         <Switch
                             value={fileDiffsSidebar}
                             onValueChange={setFileDiffsSidebar}
+                        />
+                    }
+                    showChevron={false}
+                />
+                <Item
+                    title={t('workspace.title')}
+                    subtitle={t('workspace.featureSubtitle')}
+                    icon={<Ionicons name="folder-open-outline" size={29} color="#34C759" />}
+                    rightElement={
+                        <Switch
+                            value={machineWorkspace}
+                            onValueChange={setMachineWorkspace}
                         />
                     }
                     showChevron={false}

@@ -87,6 +87,7 @@ import {
     removeWorkspaceContextFile,
     subscribeWorkspaceContext,
 } from '@/sync/workspaceContext';
+import { buildWorkspaceAttachmentParams } from '@/utils/machineWorkspace';
 
 export const SessionView = React.memo((props: { id: string }) => {
     const sessionId = props.id;
@@ -909,8 +910,13 @@ export function SessionViewLoaded({
     }, [sessionId, isRig]);
 
     const handleFileViewerPress = React.useCallback(() => {
-        router.push(`/session/${sessionId}/files`);
-    }, [router, sessionId]);
+        const params = buildWorkspaceAttachmentParams(sessionId, session?.metadata);
+        if (!params) return;
+        router.push({
+            pathname: '/workspace',
+            params,
+        });
+    }, [router, session?.metadata, sessionId]);
 
     const handleAutocompleteSuggestions = React.useCallback((query: string) => (
         getSuggestions(sessionId, query)

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import { useFriendRequests, useSocketStatus, useRealtimeStatus } from '@/sync/storage';
+import { useFriendRequests, useSocketStatus, useRealtimeStatus, useSetting } from '@/sync/storage';
 import { useVisibleSessionListViewData } from '@/hooks/useVisibleSessionListViewData';
 import { useIsTablet } from '@/utils/responsive';
 import { useRouter } from 'expo-router';
@@ -283,11 +283,21 @@ const HeaderRight = React.memo(({
     const router = useRouter();
     const { theme } = useUnistyles();
     const isCustomServer = isUsingCustomServer();
+    const machineWorkspaceEnabled = useSetting('machineWorkspace');
 
     if (activeTab === 'sessions') {
         if (Platform.OS !== 'web') {
             return (
                 <View style={styles.headerActions}>
+                    {machineWorkspaceEnabled && (
+                        <Pressable
+                            onPress={() => router.push('/workspace')}
+                            style={styles.headerActionButton}
+                            accessibilityLabel={t('workspace.title')}
+                        >
+                            <Ionicons name="folder-open-outline" size={21} color={theme.colors.header.tint} />
+                        </Pressable>
+                    )}
                     <Pressable
                         onPress={onSearchPress}
                         style={styles.headerActionButton}
@@ -308,13 +318,25 @@ const HeaderRight = React.memo(({
             );
         }
         return (
-            <Pressable
-                onPress={() => router.navigate('/new')}
-                hitSlop={15}
-                style={styles.headerButton}
-            >
-                <Ionicons name="add-outline" size={28} color={theme.colors.header.tint} />
-            </Pressable>
+            <View style={styles.headerActions}>
+                {machineWorkspaceEnabled && (
+                    <Pressable
+                        onPress={() => router.push('/workspace')}
+                        hitSlop={12}
+                        style={styles.headerButton}
+                        accessibilityLabel={t('workspace.title')}
+                    >
+                        <Ionicons name="folder-open-outline" size={22} color={theme.colors.header.tint} />
+                    </Pressable>
+                )}
+                <Pressable
+                    onPress={() => router.navigate('/new')}
+                    hitSlop={15}
+                    style={styles.headerButton}
+                >
+                    <Ionicons name="add-outline" size={28} color={theme.colors.header.tint} />
+                </Pressable>
+            </View>
         );
     }
 
