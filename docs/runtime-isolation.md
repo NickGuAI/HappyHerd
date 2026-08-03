@@ -54,6 +54,8 @@ archive under `/opt/happyherd/releases/<source-sha>/daemon`, point
 sudo install -m 0600 deploy/happyherd-daemon.env.example /etc/happyherd/daemon.env
 sudo install -m 0644 deploy/happyherd-daemon.service /etc/systemd/system/happyherd-daemon.service
 sudo install -d -o ec2-user -g ec2-user -m 0700 /home/ec2-user/.happyherd
+sudo -u ec2-user env PATH=/home/ec2-user/.local/bin:/usr/local/bin:/usr/bin:/bin claude --version
+sudo -u ec2-user env PATH=/home/ec2-user/.local/bin:/usr/local/bin:/usr/bin:/bin codex --version
 sudo systemctl daemon-reload
 sudo systemctl enable --now happyherd-daemon.service
 ```
@@ -61,7 +63,11 @@ sudo systemctl enable --now happyherd-daemon.service
 The daemon is a foreground `start-sync` process supervised by systemd as the
 unprivileged host user. Its account key remains in that user's isolated
 `HAPPY_HOME_DIR`; Claude and Codex continue to use the host's existing
-subscription-authenticated CLIs through the declared `PATH`.
+subscription-authenticated CLIs through the declared `PATH`. Install both
+provider CLIs under the stable user-owned `/home/ec2-user/.local/bin` before
+enabling the service. The unit runs both version commands as startup preflight
+checks, so a missing rail fails visibly instead of surfacing later as a session
+webhook timeout. Do not point this path at a version-specific NVM directory.
 
 ## Guardrail
 

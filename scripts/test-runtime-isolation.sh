@@ -126,6 +126,9 @@ unset HAPPYHERD_OPENAI_API_KEY_FILE
 
 grep -Fq 'User=ec2-user' "$ROOT/deploy/happyherd-daemon.service"
 grep -Fq 'daemon start-sync' "$ROOT/deploy/happyherd-daemon.service"
+grep -Fq 'ExecStartPre=/usr/bin/env claude --version' "$ROOT/deploy/happyherd-daemon.service"
+grep -Fq 'ExecStartPre=/usr/bin/env codex --version' "$ROOT/deploy/happyherd-daemon.service"
 grep -Fq 'HAPPY_HOME_DIR=/home/ec2-user/.happyherd' "$ROOT/deploy/happyherd-daemon.env.example"
+grep -Fq '/home/ec2-user/.local/bin' "$ROOT/deploy/happyherd-daemon.env.example"
 
 printf 'Runtime isolation contract tests passed.\n'
