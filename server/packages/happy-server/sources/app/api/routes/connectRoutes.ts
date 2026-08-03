@@ -9,6 +9,8 @@ import { githubDisconnect } from "@/app/github/githubDisconnect";
 import { Context } from "@/context";
 import { db } from "@/storage/db";
 
+const CONNECT_TOKEN_VENDORS = ['openai', 'anthropic', 'gemini'] as const;
+
 export function connectRoutes(app: Fastify) {
 
     // Add content type parser for webhook endpoints to preserve raw body
@@ -252,7 +254,7 @@ export function connectRoutes(app: Fastify) {
                 token: z.string()
             }),
             params: z.object({
-                vendor: z.enum(['openai', 'anthropic', 'gemini'])
+                vendor: z.enum(CONNECT_TOKEN_VENDORS)
             })
         }
     }, async (request, reply) => {
@@ -270,7 +272,7 @@ export function connectRoutes(app: Fastify) {
         preHandler: app.authenticate,
         schema: {
             params: z.object({
-                vendor: z.enum(['openai', 'anthropic', 'gemini'])
+                vendor: z.enum(CONNECT_TOKEN_VENDORS)
             }),
             response: {
                 200: z.object({
@@ -295,7 +297,7 @@ export function connectRoutes(app: Fastify) {
         preHandler: app.authenticate,
         schema: {
             params: z.object({
-                vendor: z.enum(['openai', 'anthropic', 'gemini'])
+                vendor: z.enum(CONNECT_TOKEN_VENDORS)
             }),
             response: {
                 200: z.object({
@@ -323,7 +325,9 @@ export function connectRoutes(app: Fastify) {
         }
     }, async (request, reply) => {
         const userId = request.userId;
-        const tokens = await db.serviceAccountToken.findMany({ where: { accountId: userId } });
+        const tokens = await db.serviceAccountToken.findMany({
+            where: { accountId: userId, vendor: { in: [...CONNECT_TOKEN_VENDORS] } },
+        });
         let decrypted = [];
         for (const token of tokens) {
             decrypted.push({ vendor: token.vendor, token: decryptString(['user', userId, 'vendors', token.vendor, 'token'], token.token) });

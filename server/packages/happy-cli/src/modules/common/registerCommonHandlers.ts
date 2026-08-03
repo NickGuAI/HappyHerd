@@ -10,6 +10,7 @@ import { RpcHandlerManager } from '../../api/rpc/RpcHandlerManager';
 import { validatePath, PathValidationResult } from './pathSecurity';
 
 const execAsync = promisify(exec);
+export const MAX_FILE_PREVIEW_BYTES = 20 * 1024 * 1024;
 
 interface BashRequest {
     command: string;
@@ -269,6 +270,13 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
         }
 
         try {
+            const fileInfo = await stat(validation.resolvedPath!);
+            if (!fileInfo.isFile()) {
+                return { success: false, error: 'Path is not a file' };
+            }
+            if (fileInfo.size > MAX_FILE_PREVIEW_BYTES) {
+                return { success: false, error: 'File is too large to preview (limit 20 MiB)' };
+            }
             const buffer = await readFile(validation.resolvedPath!);
             const content = buffer.toString('base64');
             return { success: true, content };
