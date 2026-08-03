@@ -39,3 +39,4 @@ A5	code-ready	fix(crypto): make blob nonce wire contract explicit	server/package
 A6	code-ready	docs(release): promote crypto-safe immutable image	docs/releases/2026-08-02-initial.json
 A6	accepted	docs(release): record A6 acceptance evidence	docs/acceptance/a6-2026-08-02.json
 A6	code-ready	fix(deploy): resolve home in clean service environments	scripts/test-runtime-isolation.sh
+A5	code-ready	test(crypto): initialize injected sodium mock before import	server/packages/happy-app/sources/encryption/blob.test.ts
