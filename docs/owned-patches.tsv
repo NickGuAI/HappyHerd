@@ -46,3 +46,4 @@ PHASE_B	code-ready	docs: register B5 and B5.1 owned patches	docs/owned-patches.t
 B3-B5.1	code-ready	feat(machine-workspace): browse, edit, and attach host files	server/packages/happy-app/sources/utils/machineWorkspace.test.ts
 A4	code-ready	fix(ci): accept manifest-backed owned PR merges	scripts/test-owned-merge-provenance.sh
 B4	code-ready	fix(workspace): preserve desktop browser pane	server/packages/happy-app/sources/utils/machineWorkspace.test.ts
+B5.1	code-ready	fix(workspace): size decoded image previews	server/packages/happy-app/sources/utils/filePreview.test.ts
