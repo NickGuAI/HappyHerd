@@ -407,6 +407,32 @@ export interface DecryptedMessage {
 // Machine states
 //
 
+export const AgentCapabilityOptionSchema = z.object({
+    code: z.string(),
+    value: z.string(),
+    description: z.string().nullable().optional(),
+});
+
+export const AgentModelCapabilitySchema = AgentCapabilityOptionSchema.extend({
+    effortLevels: z.array(AgentCapabilityOptionSchema).optional(),
+    isDefault: z.boolean().optional(),
+});
+
+export const AgentCapabilityCatalogSchema = z.object({
+    detectedAt: z.number(),
+    providerVersion: z.string().optional(),
+    sources: z.object({
+        models: z.string(),
+        effortLevels: z.string(),
+        permissionModes: z.string(),
+    }),
+    models: z.array(AgentModelCapabilitySchema),
+    effortLevels: z.array(AgentCapabilityOptionSchema),
+    permissionModes: z.array(AgentCapabilityOptionSchema),
+});
+
+export type AgentCapabilityCatalog = z.infer<typeof AgentCapabilityCatalogSchema>;
+
 export const MachineMetadataSchema = z.object({
     host: z.string(),
     platform: z.string(),
@@ -437,6 +463,7 @@ export const MachineMetadataSchema = z.object({
         happyAgentAuthenticated: z.boolean(),
         detectedAt: z.number(),
     }).optional(),
+    agentCapabilities: z.record(z.string(), AgentCapabilityCatalogSchema).optional(),
 });
 
 export type MachineMetadata = z.infer<typeof MachineMetadataSchema>;

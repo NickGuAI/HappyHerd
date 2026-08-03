@@ -9,6 +9,9 @@ import {
     getDefaultEffortKey,
     getDefaultModelKey,
     getDefaultPermissionModeKey,
+    getMachineAdvertisedEffortLevels,
+    getMachineAdvertisedModels,
+    getMachineAdvertisedPermissionModes,
     mapMetadataOptions,
     resolveCurrentOption,
 } from './modelModeOptions';
@@ -17,6 +20,38 @@ import { rigMetadataFixture } from '@/sync/__testdata__/rigMetadata';
 const translate = (key: string) => `tr:${key}`;
 
 describe('modelModeOptions', () => {
+    it('uses only the selected machine capability catalog', () => {
+        const machineMetadata = {
+            agentCapabilities: {
+                codex: {
+                    detectedAt: 1,
+                    sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'daemon' },
+                    models: [
+                        { code: 'default', value: 'default model' },
+                        {
+                            code: 'gpt-machine-only',
+                            value: 'GPT Machine Only',
+                            effortLevels: [{ code: 'ultra', value: 'ultra' }],
+                        },
+                    ],
+                    effortLevels: [{ code: 'medium', value: 'medium' }],
+                    permissionModes: [{ code: 'read-only', value: 'read only' }],
+                },
+            },
+        } as any;
+
+        expect(getMachineAdvertisedModels(machineMetadata, 'codex').map((model) => model.key)).toEqual([
+            'default',
+            'gpt-machine-only',
+        ]);
+        expect(getMachineAdvertisedPermissionModes(machineMetadata, 'codex').map((mode) => mode.key)).toEqual([
+            'read-only',
+        ]);
+        expect(getMachineAdvertisedEffortLevels(machineMetadata, 'codex', 'gpt-machine-only').map((mode) => mode.key)).toEqual([
+            'ultra',
+        ]);
+    });
+
     it('maps metadata option shape into mode options', () => {
         expect(mapMetadataOptions([
             { code: 'm1', value: 'Model One', description: 'Primary model' },

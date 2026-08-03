@@ -46,6 +46,9 @@ import type {
     InputItem,
     ReasoningEffort,
     McpServerElicitationRequestResponse,
+    ModelListParams,
+    ModelListResponse,
+    ModelListEntry,
 } from './codexAppServerTypes';
 import type { SandboxConfig } from '@/persistence';
 import { initializeSandbox, wrapForMcpTransport } from '@/sandbox/manager';
@@ -1234,6 +1237,29 @@ export class CodexAppServerClient {
         this.completedTurnIds.clear();
         this.rawFileChangesByItemId.clear();
         this.rawSubagentActivitySignaturesByItemId.clear();
+    }
+
+    /**
+     * Read the model catalog exposed by the installed Codex app-server.
+     * This is intentionally machine-side so Web/iOS never need a release when
+     * Codex adds, hides, or changes a model's supported effort levels.
+     */
+    async listModels(opts?: { includeHidden?: boolean }): Promise<ModelListEntry[]> {
+        const models: ModelListEntry[] = [];
+        let cursor: string | null = null;
+
+        do {
+            const params: ModelListParams = {
+                cursor,
+                limit: 100,
+                includeHidden: opts?.includeHidden ?? false,
+            };
+            const response = await this.request('model/list', params) as ModelListResponse;
+            models.push(...response.data);
+            cursor = response.nextCursor;
+        } while (cursor);
+
+        return models;
     }
 
     // ─── JSON-RPC transport ─────────────────────────────────────

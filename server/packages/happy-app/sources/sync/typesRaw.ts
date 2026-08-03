@@ -161,7 +161,7 @@ const rawToolResultContentSchema = z.object({
     permissions: z.object({
         date: z.number(),
         result: z.enum(['approved', 'denied']),
-        mode: z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan', 'read-only', 'safe-yolo', 'yolo']).optional(),
+        mode: z.enum(['default', 'acceptEdits', 'auto', 'dontAsk', 'bypassPermissions', 'plan', 'read-only', 'safe-yolo', 'yolo']).optional(),
         allowedTools: z.array(z.string()).optional(),
         decision: z.enum(['approved', 'approved_for_session', 'denied', 'abort']).optional(),
     }).optional(),
