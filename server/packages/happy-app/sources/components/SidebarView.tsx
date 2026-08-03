@@ -108,6 +108,17 @@ export const SidebarView = React.memo(() => {
                 </Pressable>
             )}
 
+            <Pressable
+                onPress={() => router.navigate('/automations')}
+                style={({ pressed }) => [
+                    styles.newSessionButton,
+                    pressed && styles.newSessionButtonPressed,
+                ]}
+            >
+                <Ionicons name="time-outline" size={16} color={stylesheet.newSessionText.color} />
+                <Text style={styles.newSessionText}>Automations</Text>
+            </Pressable>
+
             {realtimeStatus !== 'disconnected' && (
                 <VoiceAssistantStatusBar variant="sidebar" />
             )}

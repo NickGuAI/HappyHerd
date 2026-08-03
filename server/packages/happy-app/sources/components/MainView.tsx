@@ -299,6 +299,13 @@ const HeaderRight = React.memo(({
                         </Pressable>
                     )}
                     <Pressable
+                        onPress={() => router.push('/automations')}
+                        style={styles.headerActionButton}
+                        accessibilityLabel="Automations"
+                    >
+                        <Ionicons name="time-outline" size={21} color={theme.colors.header.tint} />
+                    </Pressable>
+                    <Pressable
                         onPress={onSearchPress}
                         style={styles.headerActionButton}
                     >
@@ -329,6 +336,14 @@ const HeaderRight = React.memo(({
                         <Ionicons name="folder-open-outline" size={22} color={theme.colors.header.tint} />
                     </Pressable>
                 )}
+                <Pressable
+                    onPress={() => router.push('/automations')}
+                    hitSlop={12}
+                    style={styles.headerButton}
+                    accessibilityLabel="Automations"
+                >
+                    <Ionicons name="time-outline" size={22} color={theme.colors.header.tint} />
+                </Pressable>
                 <Pressable
                     onPress={() => router.navigate('/new')}
                     hitSlop={15}

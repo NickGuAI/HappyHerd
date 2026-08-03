@@ -37,7 +37,7 @@ import { useAllMachines, useLocalSetting, useSessions, useSetting, useSettingMut
 import type { NewSessionAgentType } from '@/sync/persistence';
 import { sync } from '@/sync/sync';
 import { isMachineOnline } from '@/utils/machineUtils';
-import { machineSpawnNewSession, sessionSetAgentModes, type SessionAgentModesPatch } from '@/sync/ops';
+import { machineListCommanders, machineSpawnNewSession, sessionSetAgentModes, type SessionAgentModesPatch } from '@/sync/ops';
 import { createWorktree, listWorktrees } from '@/utils/worktree';
 import { resolveAbsolutePath } from '@/utils/pathUtils';
 import { formatPathRelativeToHome, formatLastSeen } from '@/utils/sessionUtils';
@@ -70,6 +70,7 @@ import {
     AnimatedPopup,
     LocalBlurHalo,
 } from '@/components/AnimatedOverlay';
+import type { HappyHerdCommanderSummary } from '@slopus/happy-wire';
 
 // Agent icon assets
 const agentIcons = {
@@ -90,17 +91,18 @@ const ALL_AGENTS: { key: AgentKey; label: string }[] = [
 
 type PickerItem = { key: string; label: string; subtitle?: string; dimmed?: boolean };
 
-type PickerType = 'machine' | 'path' | 'worktree' | 'agent' | 'model' | 'effort' | 'permission' | 'settings';
+type PickerType = 'machine' | 'path' | 'commander' | 'worktree' | 'agent' | 'model' | 'effort' | 'permission' | 'settings';
 
 const NATIVE_PICKER_TOP: Record<PickerType, number> = {
     machine: 48,
     path: 96,
-    agent: 144,
-    model: 144,
-    effort: 144,
-    permission: 192,
-    settings: 144,
-    worktree: 144,
+    commander: 144,
+    agent: 192,
+    model: 192,
+    effort: 192,
+    permission: 240,
+    settings: 192,
+    worktree: 192,
 };
 const NATIVE_PICKER_ESTIMATED_HEIGHT = 264;
 const NATIVE_COMPOSER_RESERVED_HEIGHT = 98;
@@ -765,6 +767,8 @@ function NewSessionScreen() {
         setMachineId: s.setMachineId,
         selectedPath: s.selectedPath,
         setPath: s.setPath,
+        selectedCommanderId: s.selectedCommanderId,
+        setCommanderId: s.setCommanderId,
         agentType: s.agentType,
         setAgentType: s.setAgentType,
         permissionMode: s.permissionMode,
@@ -784,6 +788,8 @@ function NewSessionScreen() {
     const setSelectedMachineId = draft.setMachineId;
     const selectedPath = draft.selectedPath;
     const setSelectedPath = draft.setPath;
+    const selectedCommanderId = draft.selectedCommanderId;
+    const setSelectedCommanderId = draft.setCommanderId;
     const [worktreeKey, setWorktreeKey] = React.useState<string>(
         draft.worktreeKey ?? (draft.sessionType === 'worktree' ? '__new__' : '__none__')
     );
@@ -828,6 +834,48 @@ function NewSessionScreen() {
         () => favoriteMachinePaths.filter((favorite) => favorite.machineId === selectedMachineId),
         [favoriteMachinePaths, selectedMachineId],
     );
+    const [commanders, setCommanders] = React.useState<HappyHerdCommanderSummary[]>([]);
+    const [commanderLoadError, setCommanderLoadError] = React.useState<string | null>(null);
+    const [commanderLoadedMachineId, setCommanderLoadedMachineId] = React.useState<string | null>(null);
+    React.useEffect(() => {
+        if (!selectedMachineId || !selectedMachine || !isMachineOnline(selectedMachine)) {
+            setCommanders([]);
+            setCommanderLoadError(null);
+            setCommanderLoadedMachineId(null);
+            return;
+        }
+        let cancelled = false;
+        setCommanderLoadError(null);
+        setCommanderLoadedMachineId(null);
+        machineListCommanders(selectedMachineId).then((result) => {
+            if (!cancelled) {
+                setCommanders(result.commanders);
+                setCommanderLoadedMachineId(selectedMachineId);
+            }
+        }).catch((error) => {
+            if (cancelled) return;
+            setCommanders([]);
+            setCommanderLoadedMachineId(selectedMachineId);
+            setCommanderLoadError(error instanceof Error ? error.message : 'Unable to load Commanders');
+        });
+        return () => { cancelled = true; };
+    }, [selectedMachine, selectedMachineId]);
+
+    React.useEffect(() => {
+        if (
+            selectedCommanderId
+            && commanderLoadedMachineId === selectedMachineId
+            && !commanders.some((commander) => commander.id === selectedCommanderId)
+        ) {
+            setSelectedCommanderId(null);
+        }
+    }, [commanderLoadedMachineId, commanders, selectedCommanderId, selectedMachineId, setSelectedCommanderId]);
+
+    const commanderItems = React.useMemo<PickerItem[]>(() => commanders.map((commander) => ({
+        key: commander.id,
+        label: commander.name,
+        subtitle: commander.role ? `${commander.role} · ${commander.workspace}` : commander.workspace,
+    })), [commanders]);
     const toggleFavoritePath = React.useCallback((path: string) => {
         if (!selectedMachineId) return;
         const exists = favoriteMachinePaths.some((favorite) => (
@@ -1117,6 +1165,8 @@ function NewSessionScreen() {
         : worktreeKey === '__new__'
             ? 'new worktree'
             : worktreeItems.find(wt => wt.key === worktreeKey)?.label || worktreeKey;
+    const selectedCommander = commanders.find((commander) => commander.id === selectedCommanderId) ?? null;
+    const commanderLabel = selectedCommander?.name ?? 'no commander';
 
     // Picker data derived from active picker type
     const pickerData = React.useMemo(() => {
@@ -1125,6 +1175,14 @@ function NewSessionScreen() {
                 return { title: 'Machine', items: machineItems, selectedKey: selectedMachineId, searchPlaceholder: 'search machines...' };
             case 'worktree':
                 return { title: 'Worktree', fixedItems: WORKTREE_FIXED_ITEMS, items: worktreeItems, selectedKey: worktreeKey, searchPlaceholder: 'search worktrees...' };
+            case 'commander':
+                return {
+                    title: 'Commander identity',
+                    fixedItems: [{ key: '__none__', label: 'no commander', subtitle: 'Use global AGENTS.md only' }],
+                    items: commanderItems,
+                    selectedKey: selectedCommanderId ?? '__none__',
+                    searchPlaceholder: 'search commanders...',
+                };
             case 'agent':
                 return { title: 'Agent', items: getAgentPickerItems(availableAgents), selectedKey: selectedAgent, searchPlaceholder: 'search agents...' };
             case 'model':
@@ -1139,6 +1197,7 @@ function NewSessionScreen() {
     }, [
         activePicker,
         availableAgents,
+        commanderItems,
         currentEffort?.key,
         currentModelKey,
         currentPermission?.key,
@@ -1147,6 +1206,7 @@ function NewSessionScreen() {
         modelModes,
         permissionModes,
         selectedAgent,
+        selectedCommanderId,
         selectedMachineId,
         worktreeKey,
         worktreeItems,
@@ -1187,6 +1247,15 @@ function NewSessionScreen() {
             case 'worktree':
                 setWorktreeKey(key);
                 break;
+            case 'commander': {
+                const commander = commanders.find((candidate) => candidate.id === key);
+                setSelectedCommanderId(key === '__none__' ? null : key);
+                if (commander) {
+                    setSelectedPath(commander.workspace);
+                    setWorktreeKey('__none__');
+                }
+                break;
+            }
             case 'agent':
                 if (availableAgents.some((candidate) => candidate.key === key)) {
                     setSelectedAgent(key as NewSessionAgentType);
@@ -1221,6 +1290,7 @@ function NewSessionScreen() {
     }, [
         activePicker,
         availableAgents,
+        commanders,
         draft.setEffortLevel,
         draft.setModelMode,
         draft.setPermissionMode,
@@ -1228,7 +1298,9 @@ function NewSessionScreen() {
         modelModes,
         permissionModes,
         setSelectedAgent,
+        setSelectedCommanderId,
         setSelectedMachineId,
+        setSelectedPath,
         setWorktreeKey,
     ]);
 
@@ -1304,6 +1376,7 @@ function NewSessionScreen() {
                 permissionMode: selectedAgent === 'codex' || currentPermission.key !== 'default' ? currentPermission.key : undefined,
                 modelMode: currentModelKey !== 'default' ? currentModelKey : undefined,
                 effortLevel: currentEffort?.key,
+                commanderId: selectedCommanderId ?? undefined,
             });
 
             switch (result.type) {
@@ -1373,7 +1446,7 @@ function NewSessionScreen() {
         } finally {
             setIsSpawning(false);
         }
-    }, [selectedMachineId, selectedMachine, selectedPath, selectedAgent, router, navigateToSession, currentPermission.key, currentModelKey, currentEffort?.key, effectiveAgentDefaults.permissionMode, effectiveAgentDefaults.modelMode, effectiveAgentDefaults.effortLevel, worktreeKey]);
+    }, [selectedMachineId, selectedMachine, selectedPath, selectedCommanderId, selectedAgent, router, navigateToSession, currentPermission.key, currentModelKey, currentEffort?.key, effectiveAgentDefaults.permissionMode, effectiveAgentDefaults.modelMode, effectiveAgentDefaults.effortLevel, worktreeKey]);
 
     const canSend = selectedMachineId && selectedMachine && isMachineOnline(selectedMachine) && !isSpawning;
     React.useEffect(() => {
@@ -1542,7 +1615,8 @@ function NewSessionScreen() {
             );
         }
         if (
-            activePicker === 'agent'
+            activePicker === 'commander'
+            || activePicker === 'agent'
             || activePicker === 'model'
             || activePicker === 'effort'
             || activePicker === 'permission'
@@ -1654,6 +1728,26 @@ function NewSessionScreen() {
                                 <Ionicons name="chevron-down" size={13} color={theme.colors.textSecondary} />
                             </BubblePressable>
                             {renderActivePickerPopover('path')}
+
+                            <BubblePressable
+                                style={(p) => [styles.configRow, p.pressed && styles.configRowPressed]}
+                                onPress={() => togglePicker('commander')}
+                            >
+                                <Ionicons name="person-circle-outline" size={15} color={theme.colors.textSecondary} />
+                                <Text style={[styles.configLabel, styles.configValueText]} numberOfLines={1}>
+                                    {commanderLabel}
+                                </Text>
+                                <Ionicons name="chevron-down" size={13} color={theme.colors.textSecondary} />
+                            </BubblePressable>
+                            {renderActivePickerPopover('commander')}
+                            {commanderLoadError && (
+                                <Text style={[
+                                    styles.offlineHelpText,
+                                    { color: theme.colors.status.disconnected, paddingHorizontal: 10 },
+                                ]}>
+                                    {commanderLoadError}
+                                </Text>
+                            )}
 
                             {!isNativeMobile && (
                                 <>
@@ -1769,6 +1863,18 @@ function NewSessionScreen() {
                                 <Ionicons name="desktop-outline" size={14} color={isOffline ? theme.colors.status.disconnected : theme.colors.textSecondary} />
                             </BubblePressable>
 
+                            <BubblePressable
+                                onPress={() => togglePicker('commander')}
+                                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                                style={(p) => [styles.collapsedIconButton, p.pressed && styles.configRowPressed]}
+                            >
+                                <Ionicons
+                                    name="person-circle-outline"
+                                    size={14}
+                                    color={selectedCommander ? theme.colors.text : theme.colors.textSecondary}
+                                />
+                            </BubblePressable>
+
                             {!isNativeMobile && (
                                 <>
                                     <BubblePressable
@@ -1810,6 +1916,7 @@ function NewSessionScreen() {
                             )}
                         </View>
                         {renderActivePickerPopover('machine')}
+                        {renderActivePickerPopover('commander')}
                         {!isNativeMobile && renderActivePickerPopover('agent')}
                         {!isNativeMobile && renderActivePickerPopover('permission')}
                         {renderActivePickerPopover('worktree')}

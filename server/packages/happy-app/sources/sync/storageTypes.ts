@@ -167,6 +167,17 @@ export const MetadataSchema = z.object({
      * inside the parent session's sidebar panel (see `useSideChatSession`).
      */
     isSideChat: z.boolean().optional(),
+    /** HappyHerd Commander/AgentContext provenance for this session. */
+    commanderId: z.string().optional(),
+    commanderName: z.string().optional(),
+    commanderPath: z.string().optional(),
+    commanderWorkspace: z.string().optional(),
+    commanderAgentContextPath: z.string().optional(),
+    globalAgentsPath: z.string().optional(),
+    globalAgentContextPath: z.string().optional(),
+    contextHash: z.string().optional(),
+    automationId: z.string().uuid().optional(),
+    automationKind: z.enum(['scheduled', 'heartbeat', 'memory-maintenance']).optional(),
     /**
      * Per-session permission / model / effort picks made in any client.
      * Synced through session metadata so every device shows the same

@@ -369,6 +369,18 @@ export type Metadata = {
    * inside the parent session's sidebar panel.
    */
   isSideChat?: boolean
+  /** HappyHerd Commander/AgentContext provenance for this session. */
+  commanderId?: string
+  commanderName?: string
+  commanderPath?: string
+  commanderWorkspace?: string
+  commanderAgentContextPath?: string
+  globalAgentsPath?: string
+  globalAgentContextPath?: string
+  contextHash?: string
+  /** Machine-local automation provenance for daemon-started sessions. */
+  automationId?: string
+  automationKind?: 'scheduled' | 'heartbeat' | 'memory-maintenance'
 };
 
 export type UsageLimitWindowStatus = 'allowed' | 'allowed_warning' | 'rejected'

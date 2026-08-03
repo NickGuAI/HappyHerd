@@ -34,6 +34,9 @@ import {
   sanitizeSessionEnvironment,
   wrapTmuxCommandWithSessionEnvironmentSanitizer,
 } from './sessionEnvironment';
+import { contextEnvironment, prepareCommanderContext } from '@/agentContext/commanderContext';
+import { HappyHerdAutomationService } from '@/automations/service';
+import { automationBootstrapEnvironment, prepareAutomationBootstrap } from '@/automations/sessionBootstrap';
 
 /** Shell-escape a string for safe interpolation into tmux commands. */
 function shellescape(s: string): string {
@@ -279,9 +282,20 @@ export async function startDaemon(): Promise<void> {
 
     // Spawn a new session (sessionId reserved for future --resume functionality)
     const spawnSession = async (options: SpawnSessionOptions): Promise<SpawnSessionResult> => {
-      logger.debugLargeJson('[DAEMON RUN] Spawning session', options);
+      logger.debugLargeJson('[DAEMON RUN] Spawning session', options.automation
+        ? {
+          ...options,
+          automation: {
+            id: options.automation.id,
+            kind: options.automation.kind,
+            instructionLength: options.automation.instruction.length,
+          },
+        }
+        : options);
 
-      const { directory, sessionId, machineId, approvedNewDirectoryCreation = true } = options;
+      const contextBundle = await prepareCommanderContext(options.commanderId);
+      const directory = contextBundle.commander?.workspace ?? options.directory;
+      const { sessionId, machineId, approvedNewDirectoryCreation = true } = options;
       let directoryCreated = false;
 
       try {
@@ -350,9 +364,19 @@ export async function startDaemon(): Promise<void> {
           }
         }
 
+        const automationBootstrap = options.automation
+          ? await prepareAutomationBootstrap({
+            schemaVersion: 1,
+            automationId: options.automation.id,
+            kind: options.automation.kind,
+            instruction: options.automation.instruction,
+          })
+          : null;
         let extraEnv: Record<string, string> = {
           ...authEnv,
+          ...contextEnvironment(contextBundle),
           ...sanitizeSessionEnvironment(options.environmentVariables ?? {}),
+          ...(automationBootstrap ? automationBootstrapEnvironment(automationBootstrap) : {}),
         };
         if (options.parentSessionId) {
           extraEnv.HAPPY_FORKED_FROM_SESSION_ID = options.parentSessionId;
@@ -625,7 +649,8 @@ export async function startDaemon(): Promise<void> {
         logger.debug('[DAEMON RUN] Failed to spawn process - no PID returned');
         return Promise.resolve({
           type: 'error',
-          errorMessage: 'Failed to spawn Happy process - no PID returned'
+          errorMessage: 'Failed to spawn Happy process - no PID returned',
+          retrySafe: true,
         });
       }
 
@@ -816,13 +841,17 @@ export async function startDaemon(): Promise<void> {
       pidToTrackedSession.delete(pid);
     };
 
+    const automations = new HappyHerdAutomationService(machineId, spawnSession);
+    await automations.start();
+
     // Start control server
     const { port: controlPort, stop: stopControlServer } = await startDaemonControlServer({
       getChildren: getCurrentChildren,
       stopSession,
       spawnSession,
       requestShutdown: () => requestShutdown('happy-cli'),
-      onHappySessionWebhook
+      onHappySessionWebhook,
+      automations,
     });
 
     // Write initial daemon state (no lock needed for state file)
@@ -879,7 +908,8 @@ export async function startDaemon(): Promise<void> {
       spawnSession,
       resumeSession,
       stopSession,
-      requestShutdown: () => requestShutdown('happy-app')
+      requestShutdown: () => requestShutdown('happy-app'),
+      automations,
     });
 
     // Connect to server
@@ -938,6 +968,7 @@ export async function startDaemon(): Promise<void> {
         // `happy daemon start` reads our still-present daemon.state.json, sees
         // isDaemonRunningCurrentlyInstalledHappyVersion() === true, and exits —
         // leaving nothing running once we also exit.
+        await automations.stop();
         apiMachine.shutdown();
         await stopControlServer();
         await cleanupDaemonState();
@@ -1007,6 +1038,7 @@ export async function startDaemon(): Promise<void> {
       // Give time for metadata update to send
       await new Promise(resolve => setTimeout(resolve, 100));
 
+      await automations.stop();
       apiMachine.shutdown();
       await stopControlServer();
       await cleanupDaemonState();

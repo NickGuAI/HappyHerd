@@ -16,6 +16,8 @@ import { configuration } from '@/configuration';
 import { projectPath } from '@/projectPath';
 import type { SandboxConfig } from '@/persistence';
 import packageJson from '../../package.json';
+import { contextMetadataFromEnvironment } from '@/agentContext/commanderContext';
+import { automationMetadataFromEnvironment } from '@/automations/sessionBootstrap';
 
 /**
  * Backend flavor identifier for session metadata.
@@ -117,6 +119,8 @@ export function createSessionMetadata(opts: CreateSessionMetadataOptions): Sessi
         ...(opts.parentSessionId ? { parentSessionId: opts.parentSessionId } : {}),
         ...(opts.forkedFromMessageId ? { forkedFromMessageId: opts.forkedFromMessageId } : {}),
         ...(opts.isSideChat ? { isSideChat: true } : {}),
+        ...contextMetadataFromEnvironment(),
+        ...automationMetadataFromEnvironment(),
     };
 
     return { state, metadata };

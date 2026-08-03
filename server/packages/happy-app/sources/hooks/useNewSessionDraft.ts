@@ -19,6 +19,7 @@ interface NewSessionDraftState {
     attachments: AttachmentPreview[];
     selectedMachineId: string | null;
     selectedPath: string | null;
+    selectedCommanderId: string | null;
     agentType: NewSessionAgentType;
     permissionMode: PermissionModeKey | null;
     modelMode: string | null;
@@ -30,6 +31,7 @@ interface NewSessionDraftState {
     setAttachments: (attachments: AttachmentPreview[]) => void;
     setMachineId: (id: string | null) => void;
     setPath: (path: string | null) => void;
+    setCommanderId: (id: string | null) => void;
     setAgentType: (agent: NewSessionAgentType) => void;
     setPermissionMode: (mode: PermissionModeKey) => void;
     setModelMode: (mode: string) => void;
@@ -43,6 +45,7 @@ function persist(state: NewSessionDraftState) {
         input: state.input,
         selectedMachineId: state.selectedMachineId,
         selectedPath: state.selectedPath,
+        selectedCommanderId: state.selectedCommanderId,
         agentType: state.agentType,
         permissionMode: state.permissionMode,
         modelMode: state.modelMode,
@@ -62,6 +65,7 @@ export const useNewSessionDraft = create<NewSessionDraftState>()((set, get) => (
     attachments: [],
     selectedMachineId: initial?.selectedMachineId ?? null,
     selectedPath: initial?.selectedPath ?? null,
+    selectedCommanderId: initial?.selectedCommanderId ?? null,
     agentType: initial?.agentType ?? 'claude',
     permissionMode: initial?.permissionMode ?? null,
     modelMode: initial?.modelMode ?? null,
@@ -71,8 +75,9 @@ export const useNewSessionDraft = create<NewSessionDraftState>()((set, get) => (
 
     setInput: (input) => { set({ input }); persist(get()); },
     setAttachments: (attachments) => { set({ attachments }); },
-    setMachineId: (id) => { set({ selectedMachineId: id, selectedPath: null, worktreeKey: null }); persist(get()); },
+    setMachineId: (id) => { set({ selectedMachineId: id, selectedPath: null, selectedCommanderId: null, worktreeKey: null }); persist(get()); },
     setPath: (path) => { set({ selectedPath: path, worktreeKey: null }); persist(get()); },
+    setCommanderId: (id) => { set({ selectedCommanderId: id, worktreeKey: null }); persist(get()); },
     setAgentType: (agent) => { set({ agentType: agent }); persist(get()); },
     setPermissionMode: (mode) => { set({ permissionMode: mode }); persist(get()); },
     setModelMode: (mode) => { set({ modelMode: mode }); persist(get()); },
