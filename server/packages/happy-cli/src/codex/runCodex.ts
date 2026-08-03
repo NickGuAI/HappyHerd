@@ -54,6 +54,7 @@ import {
     parseCodexGoalCommand,
     type CodexGoalCommand,
 } from './codexGoalStatus';
+import { mergeContextPrompt, readContextPromptFromEnvironment } from '@/agentContext/commanderContext';
 
 /**
  * Extracts a human-readable error from a codex task_complete/turn_aborted event.
@@ -96,6 +97,7 @@ export async function runCodex(opts: {
     model?: string;
     effort?: ReasoningEffort;
 }): Promise<void> {
+    const happyHerdContextPrompt = await readContextPromptFromEnvironment();
     // Early check: ensure Codex CLI is installed before proceeding
     try {
         execSync('codex --version', { encoding: 'utf8', stdio: 'pipe', windowsHide: true });
@@ -274,7 +276,7 @@ export async function runCodex(opts: {
     let currentPermissionModeExplicitlySet = false;
     let currentModel: string | undefined = opts.model ?? DEFAULT_CODEX_MODEL;
     let currentEffort: ReasoningEffort | undefined = opts.effort ?? DEFAULT_CODEX_EFFORT;
-    let currentAppendSystemPrompt: string | undefined = undefined;
+    let currentAppendSystemPrompt: string | undefined = happyHerdContextPrompt;
 
     const resetCurrentModeDefaults = () => {
         // Reset permission mode and prompts to what the session was launched
@@ -287,7 +289,7 @@ export async function runCodex(opts: {
         // silently desyncs the picker from what the next turn actually runs.
         currentPermissionMode = initialPermissionMode;
         currentPermissionModeExplicitlySet = false;
-        currentAppendSystemPrompt = undefined;
+        currentAppendSystemPrompt = happyHerdContextPrompt;
         logger.debug('[Codex] Reset current mode defaults after abort');
     };
 
@@ -363,9 +365,9 @@ export async function runCodex(opts: {
 
         let messageAppendSystemPrompt = currentAppendSystemPrompt;
         if (message.meta?.hasOwnProperty('appendSystemPrompt')) {
-            messageAppendSystemPrompt = message.meta.appendSystemPrompt || undefined;
+            messageAppendSystemPrompt = mergeContextPrompt(happyHerdContextPrompt, message.meta.appendSystemPrompt);
             currentAppendSystemPrompt = messageAppendSystemPrompt;
-            logger.debug(`[Codex] Append system prompt updated from user message: ${messageAppendSystemPrompt ? 'set' : 'reset to none'}`);
+            logger.debug(`[Codex] Append system prompt updated from user message: ${message.meta.appendSystemPrompt ? 'set with Commander context' : 'reset to Commander context'}`);
         } else {
             logger.debug(`[Codex] User message received with no append system prompt override, using current: ${currentAppendSystemPrompt ? 'set' : 'none'}`);
         }

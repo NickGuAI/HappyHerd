@@ -19,6 +19,7 @@ export interface NewSessionDraft {
     input: string;
     selectedMachineId: string | null;
     selectedPath: string | null;
+    selectedCommanderId: string | null;
     agentType: NewSessionAgentType;
     permissionMode: PermissionModeKey | null;
     modelMode: string | null;
@@ -146,6 +147,7 @@ export function loadNewSessionDraft(): NewSessionDraft | null {
         const input = typeof parsed.input === 'string' ? parsed.input : '';
         const selectedMachineId = typeof parsed.selectedMachineId === 'string' ? parsed.selectedMachineId : null;
         const selectedPath = typeof parsed.selectedPath === 'string' ? parsed.selectedPath : null;
+        const selectedCommanderId = typeof parsed.selectedCommanderId === 'string' ? parsed.selectedCommanderId : null;
         const agentType: NewSessionAgentType = parsed.agentType === 'codex' || parsed.agentType === 'gemini' || parsed.agentType === 'openclaw' || parsed.agentType === 'agy'
             ? parsed.agentType
             : 'claude';
@@ -162,6 +164,7 @@ export function loadNewSessionDraft(): NewSessionDraft | null {
             input,
             selectedMachineId,
             selectedPath,
+            selectedCommanderId,
             agentType,
             permissionMode,
             modelMode,

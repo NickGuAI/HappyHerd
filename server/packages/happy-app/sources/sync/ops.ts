@@ -17,6 +17,7 @@ import {
     rigCanWriteFiles,
     rigHasRpcMethod,
 } from './rig';
+import type { HappyHerdCommanderListResponse } from '@slopus/happy-wire';
 
 export type { SessionAgentModesPatch };
 
@@ -189,6 +190,7 @@ export interface SpawnSessionOptions {
     permissionMode?: string;
     modelMode?: string;
     effortLevel?: string;
+    commanderId?: string;
     /**
      * If set, the daemon spawns the agent with `--resume <id>` so the new
      * Happy session attaches to a pre-existing on-disk Claude conversation
@@ -265,7 +267,7 @@ export interface ResumeSessionOptions {
  */
 export async function machineSpawnNewSession(options: SpawnSessionOptions): Promise<SpawnSessionResult> {
 
-    const { machineId, directory, approvedNewDirectoryCreation = false, token, agent, permissionMode, modelMode, effortLevel, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat } = options;
+    const { machineId, directory, approvedNewDirectoryCreation = false, token, agent, permissionMode, modelMode, effortLevel, commanderId, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat } = options;
 
     try {
         const result = await apiSocket.machineRPC<SpawnSessionResult, {
@@ -277,6 +279,7 @@ export async function machineSpawnNewSession(options: SpawnSessionOptions): Prom
             permissionMode?: string,
             modelMode?: string,
             effortLevel?: string,
+            commanderId?: string,
             resumeClaudeSessionId?: string,
             resumeCodexThreadId?: string,
             parentSessionId?: string,
@@ -285,7 +288,7 @@ export async function machineSpawnNewSession(options: SpawnSessionOptions): Prom
         }>(
             machineId,
             'spawn-happy-session',
-            { type: 'spawn-in-directory', directory, approvedNewDirectoryCreation, token, agent, permissionMode, modelMode, effortLevel, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat }
+            { type: 'spawn-in-directory', directory, approvedNewDirectoryCreation, token, agent, permissionMode, modelMode, effortLevel, commanderId, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat }
         );
         return result;
     } catch (error) {
@@ -295,6 +298,14 @@ export async function machineSpawnNewSession(options: SpawnSessionOptions): Prom
             errorMessage: error instanceof Error ? error.message : 'Failed to spawn session'
         };
     }
+}
+
+export async function machineListCommanders(machineId: string): Promise<HappyHerdCommanderListResponse> {
+    return apiSocket.machineRPC<HappyHerdCommanderListResponse, Record<string, never>>(
+        machineId,
+        'happyherd-list-commanders',
+        {},
+    );
 }
 
 /**

@@ -101,6 +101,7 @@ export function useStartSessionFromDraft() {
                         : undefined,
                     modelMode: model.key !== 'default' ? model.key : undefined,
                     effortLevel: effort?.key,
+                    commanderId: draft.selectedCommanderId ?? undefined,
                 });
 
                 if (result.type === 'success') return result.sessionId;

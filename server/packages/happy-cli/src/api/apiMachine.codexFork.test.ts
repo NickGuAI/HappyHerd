@@ -91,6 +91,27 @@ describe('ApiMachineClient Codex fork RPCs', () => {
         }));
     });
 
+    it('forwards Commander identity through the spawn RPC', async () => {
+        const spawnSession = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'happy-commander' });
+        const { ApiMachineClient } = await import('./apiMachine');
+        const client = new ApiMachineClient('token', machineClient());
+        client.setRPCHandlers({
+            spawnSession,
+            stopSession: vi.fn(),
+            requestShutdown: vi.fn(),
+        });
+
+        await handlersFrom(client).get('machine-1:spawn-happy-session')?.({
+            directory: '/tmp/project',
+            agent: 'claude',
+            commanderId: 'athena',
+        });
+
+        expect(spawnSession).toHaveBeenCalledWith(expect.objectContaining({
+            commanderId: 'athena',
+        }));
+    });
+
     it('lists Codex rewind points from thread/read', async () => {
         codexClientMethods.readThread.mockResolvedValue({
             thread: {

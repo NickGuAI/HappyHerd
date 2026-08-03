@@ -125,6 +125,8 @@ export interface SpawnSessionOptions {
     permissionMode?: string;
     modelMode?: string;
     effortLevel?: string;
+    /** Existing HappyHerd Commander identity to bind to this session. */
+    commanderId?: string;
     environmentVariables?: Record<string, string>;
     token?: string;
     /**

@@ -39,6 +39,11 @@ import { getProjectPath } from './utils/path';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { RawJSONLinesSchema, type RawJSONLines } from './types';
+import {
+    contextMetadataFromEnvironment,
+    mergeContextPrompt,
+    readContextPromptFromEnvironment,
+} from '@/agentContext/commanderContext';
 
 /** JavaScript runtime to use for spawning Claude Code */
 export type JsRuntime = 'node' | 'bun'
@@ -74,6 +79,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     
     const workingDirectory = process.cwd();
     const sessionTag = randomUUID();
+    const happyHerdContextPrompt = await readContextPromptFromEnvironment();
 
     // Log environment info at startup
     logger.debugLargeJson('[START] Happy process started', getEnvironmentInfo());
@@ -146,6 +152,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         ...(forkedFromSessionId ? { parentSessionId: forkedFromSessionId } : {}),
         ...(forkedFromMessageId ? { forkedFromMessageId } : {}),
         ...(isSideChat ? { isSideChat: true } : {}),
+        ...contextMetadataFromEnvironment(),
     };
 
     // Check for session reconnection env vars (set by daemon for resume-in-place)
@@ -531,7 +538,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     let currentModel: string | undefined = options.model ?? DEFAULT_CLAUDE_MODEL; // Track current model state
     let currentFallbackModel: string | undefined = undefined; // Track current fallback model
     let currentCustomSystemPrompt: string | undefined = undefined; // Track current custom system prompt
-    let currentAppendSystemPrompt: string | undefined = undefined; // Track current append system prompt
+    let currentAppendSystemPrompt: string | undefined = happyHerdContextPrompt; // Commander context is an invariant
     let currentAllowedTools: string[] | undefined = undefined; // Track current allowed tools
     let currentDisallowedTools: string[] | undefined = undefined; // Track current disallowed tools
     let currentEffort: 'low' | 'medium' | 'high' | 'xhigh' | 'max' | undefined = options.effort ?? DEFAULT_CLAUDE_EFFORT; // Track current Claude effort (thinking depth)
@@ -543,7 +550,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         currentPermissionMode = initialPermissionMode;
         currentFallbackModel = undefined;
         currentCustomSystemPrompt = undefined;
-        currentAppendSystemPrompt = undefined;
+        currentAppendSystemPrompt = happyHerdContextPrompt;
         currentAllowedTools = undefined;
         currentDisallowedTools = undefined;
         logger.debug('[loop] Reset current mode defaults after abort');
@@ -712,9 +719,9 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         // Resolve append system prompt - use message.meta.appendSystemPrompt if provided, otherwise use current
         let messageAppendSystemPrompt = currentAppendSystemPrompt;
         if (message.meta?.hasOwnProperty('appendSystemPrompt')) {
-            messageAppendSystemPrompt = message.meta.appendSystemPrompt || undefined; // null becomes undefined
+            messageAppendSystemPrompt = mergeContextPrompt(happyHerdContextPrompt, message.meta.appendSystemPrompt);
             currentAppendSystemPrompt = messageAppendSystemPrompt;
-            logger.debug(`[loop] Append system prompt updated from user message: ${messageAppendSystemPrompt ? 'set' : 'reset to none'}`);
+            logger.debug(`[loop] Append system prompt updated from user message: ${message.meta.appendSystemPrompt ? 'set with Commander context' : 'reset to Commander context'}`);
         } else {
             logger.debug(`[loop] User message received with no append system prompt override, using current: ${currentAppendSystemPrompt ? 'set' : 'none'}`);
         }

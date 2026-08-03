@@ -36,6 +36,7 @@ describe('codex fork ops', () => {
             permissionMode: 'bypassPermissions',
             modelMode: 'opus',
             effortLevel: 'xhigh',
+            commanderId: 'athena',
         });
 
         expect(result).toEqual({ type: 'success', sessionId: 'happy-new' });
@@ -48,6 +49,7 @@ describe('codex fork ops', () => {
                 permissionMode: 'bypassPermissions',
                 modelMode: 'opus',
                 effortLevel: 'xhigh',
+                commanderId: 'athena',
             }),
         );
     });

@@ -34,6 +34,7 @@ import {
   sanitizeSessionEnvironment,
   wrapTmuxCommandWithSessionEnvironmentSanitizer,
 } from './sessionEnvironment';
+import { contextEnvironment, prepareCommanderContext } from '@/agentContext/commanderContext';
 
 /** Shell-escape a string for safe interpolation into tmux commands. */
 function shellescape(s: string): string {
@@ -281,7 +282,9 @@ export async function startDaemon(): Promise<void> {
     const spawnSession = async (options: SpawnSessionOptions): Promise<SpawnSessionResult> => {
       logger.debugLargeJson('[DAEMON RUN] Spawning session', options);
 
-      const { directory, sessionId, machineId, approvedNewDirectoryCreation = true } = options;
+      const contextBundle = await prepareCommanderContext(options.commanderId);
+      const directory = contextBundle.commander?.workspace ?? options.directory;
+      const { sessionId, machineId, approvedNewDirectoryCreation = true } = options;
       let directoryCreated = false;
 
       try {
@@ -352,6 +355,7 @@ export async function startDaemon(): Promise<void> {
 
         let extraEnv: Record<string, string> = {
           ...authEnv,
+          ...contextEnvironment(contextBundle),
           ...sanitizeSessionEnvironment(options.environmentVariables ?? {}),
         };
         if (options.parentSessionId) {

@@ -32,6 +32,7 @@ import {
     forkCodexThread,
     listCodexRewindPoints,
 } from '@/codex/codexThreadFork';
+import { listCommanders } from '@/agentContext/commanderContext';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -165,14 +166,23 @@ export class ApiMachineClient {
 
         // Register spawn session handler
         this.rpcHandlerManager.registerHandler('spawn-happy-session', async (params: any) => {
-            const { directory, sessionId, machineId, approvedNewDirectoryCreation, agent, permissionMode, modelMode, effortLevel, environmentVariables, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat } = params || {};
-            logger.debug(`[API MACHINE] Spawning session with params: ${JSON.stringify(params)}`);
+            const { directory, sessionId, machineId, approvedNewDirectoryCreation, agent, permissionMode, modelMode, effortLevel, commanderId, environmentVariables, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat } = params || {};
+            logger.debug('[API MACHINE] Spawning session', {
+                directory,
+                agent,
+                permissionMode,
+                modelMode,
+                effortLevel,
+                commanderId,
+                hasToken: Boolean(token),
+                environmentVariableKeys: environmentVariables ? Object.keys(environmentVariables) : [],
+            });
 
             if (!directory) {
                 throw new Error('Directory is required');
             }
 
-            const result = await spawnSession({ directory, sessionId, machineId, approvedNewDirectoryCreation, agent, permissionMode, modelMode, effortLevel, environmentVariables, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat });
+            const result = await spawnSession({ directory, sessionId, machineId, approvedNewDirectoryCreation, agent, permissionMode, modelMode, effortLevel, commanderId, environmentVariables, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat });
 
             switch (result.type) {
                 case 'success':
@@ -187,6 +197,8 @@ export class ApiMachineClient {
                     throw new Error(result.errorMessage);
             }
         });
+
+        this.rpcHandlerManager.registerHandler('happyherd-list-commanders', async () => listCommanders());
 
         this.syncResumeSessionRpcRegistration();
 
