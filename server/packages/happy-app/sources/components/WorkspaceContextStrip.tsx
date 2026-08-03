@@ -16,7 +16,7 @@ export const WorkspaceContextStrip = React.memo(function WorkspaceContextStrip({
     return (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.container}>
             {files.map((filePath) => (
-                <View key={filePath} style={[styles.chip, { borderColor: theme.colors.divider }]}> 
+                <View key={filePath} style={[styles.chip, { borderColor: theme.colors.divider }]}>
                     <Ionicons name="document-attach-outline" size={14} color={theme.colors.textLink} />
                     <Text style={[styles.label, { color: theme.colors.text }]} numberOfLines={1}>
                         {filePath}
