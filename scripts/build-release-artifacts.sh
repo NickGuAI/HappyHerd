@@ -41,7 +41,7 @@ stable_archive() {
         "$source_name" | gzip -n > "$OUT_DIR/$output_name"
 }
 
-for command_name in git node pnpm bun tar gzip sha256sum; do
+for command_name in git node pnpm bun tar gzip sha256sum find readlink; do
     require_command "$command_name"
 done
 
@@ -77,9 +77,88 @@ cp -a packages/happy-server/prisma/migrations "$STAGE/server/migrations"
 cp packages/happy-server/package.json "$STAGE/server/package.json"
 
 pnpm --filter happy --fail-if-no-match build
-cp -a packages/happy-cli/dist "$STAGE/daemon/dist"
-cp -a packages/happy-cli/bin "$STAGE/daemon/bin"
-cp packages/happy-cli/package.json "$STAGE/daemon/package.json"
+
+# pnpm 10.11 produces the correct pruned lockfile and package payload here, but
+# exits before installing when the source workspace uses overrides. Keep that
+# fail-closed behavior explicit: only the known configuration mismatch may be
+# repaired, and the final install remains frozen, offline, and lockfile-backed.
+daemon_deploy_log="$STAGE/daemon-deploy.log"
+set +e
+pnpm --frozen-lockfile --offline --filter happy --fail-if-no-match deploy \
+    --prod "$STAGE/daemon" >"$daemon_deploy_log" 2>&1
+daemon_deploy_status=$?
+set -e
+if [[ "$daemon_deploy_status" -ne 0 ]] && \
+    ! grep -Fq 'ERR_PNPM_LOCKFILE_CONFIG_MISMATCH' "$daemon_deploy_log"; then
+    cat "$daemon_deploy_log" >&2
+    die 'pnpm could not create the locked daemon deployment payload'
+fi
+[[ -f "$STAGE/daemon/package.json" ]] || die 'daemon deployment package is missing'
+[[ -f "$STAGE/daemon/pnpm-lock.yaml" ]] || die 'daemon deployment lockfile is missing'
+
+export DAEMON_STAGE="$STAGE/daemon"
+node <<'NODE'
+const fs = require('node:fs');
+const path = require('node:path');
+
+const daemonStage = process.env.DAEMON_STAGE;
+const serverRoot = process.cwd();
+const rootPackage = JSON.parse(fs.readFileSync(path.join(serverRoot, 'package.json'), 'utf8'));
+const daemonPackagePath = path.join(daemonStage, 'package.json');
+const daemonLockPath = path.join(daemonStage, 'pnpm-lock.yaml');
+const overrides = rootPackage.pnpm?.overrides;
+
+if (!overrides || Object.keys(overrides).length === 0) {
+    throw new Error('source workspace pnpm overrides are missing');
+}
+
+const daemonPackage = JSON.parse(fs.readFileSync(daemonPackagePath, 'utf8'));
+daemonPackage.pnpm = { ...daemonPackage.pnpm, overrides };
+fs.writeFileSync(daemonPackagePath, `${JSON.stringify(daemonPackage, null, 2)}\n`);
+
+const yaml = require(require.resolve('yaml', { paths: [serverRoot] }));
+const daemonLock = yaml.parse(fs.readFileSync(daemonLockPath, 'utf8'));
+daemonLock.overrides = overrides;
+fs.writeFileSync(daemonLockPath, yaml.stringify(daemonLock, { lineWidth: 0 }));
+NODE
+
+(
+    cd "$STAGE/daemon"
+    pnpm \
+        --config.inject-workspace-packages=true \
+        --config.prefer-symlinked-executables=true \
+        install --prod --frozen-lockfile --offline
+)
+
+# pnpm metadata and generated shell shims can contain absolute build-host paths.
+# Symlinked executables keep the archive relocatable; .modules.yaml is not used
+# at runtime and is deliberately excluded.
+rm -f "$STAGE/daemon/node_modules/.modules.yaml"
+
+while IFS= read -r -d '' shim; do
+    resolved="$(readlink -f "$shim")"
+    [[ -n "$resolved" && "$resolved" == "$STAGE/daemon/"* ]] || \
+        die "daemon executable shim escapes its archive: $shim"
+done < <(find "$STAGE/daemon/node_modules" -type l -path '*/.bin/*' -print0)
+
+if find "$STAGE/daemon/node_modules" -type f -path '*/.bin/*' -print -quit | grep -q .; then
+    die 'daemon dependency tree contains non-relocatable executable shims'
+fi
+
+daemon_smoke_root="$STAGE/daemon-smoke"
+mkdir -p "$daemon_smoke_root/home" "$daemon_smoke_root/state"
+daemon_smoke_output="$(
+    HOME="$daemon_smoke_root/home" \
+    HAPPY_HOME_DIR="$daemon_smoke_root/state" \
+    HAPPY_SERVER_URL="$PUBLIC_URL" \
+    HAPPY_WEBAPP_URL="$PUBLIC_URL" \
+    node "$STAGE/daemon/bin/happy.mjs" auth status 2>&1
+)"
+grep -Fq 'Authentication Status' <<<"$daemon_smoke_output" || \
+    die 'extracted daemon smoke did not load the CLI'
+grep -Fq 'Not authenticated' <<<"$daemon_smoke_output" || \
+    die 'extracted daemon smoke did not finish non-interactively'
+rm -rf "$daemon_smoke_root"
 
 platform="$(node -p "process.arch + '-' + process.platform")"
 for tool_name in difftastic ripgrep; do
@@ -87,6 +166,12 @@ for tool_name in difftastic ripgrep; do
     license="packages/happy-cli/tools/archives/${tool_name}-LICENSE"
     [[ -f "$archive" ]] || die "missing daemon tool archive: $archive"
     mkdir -p "$STAGE/daemon/tools/archives"
+    find "$STAGE/daemon/tools/archives" \
+        -maxdepth 1 \
+        -type f \
+        -name "${tool_name}-*.tar.gz" \
+        ! -name "${tool_name}-${platform}.tar.gz" \
+        -delete
     cp "$archive" "$license" "$STAGE/daemon/tools/archives/"
 done
 
