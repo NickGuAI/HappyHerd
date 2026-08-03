@@ -1,4 +1,4 @@
-export type FilePreviewKind = 'image' | 'text' | 'unsupported';
+export type FilePreviewKind = 'image' | 'pdf' | 'html' | 'text' | 'unsupported';
 
 const IMAGE_MIME_TYPES: Record<string, string> = {
     png: 'image/png',
@@ -14,7 +14,7 @@ const IMAGE_MIME_TYPES: Record<string, string> = {
 const UNSUPPORTED_BINARY_EXTENSIONS = new Set([
     'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm',
     'mp3', 'wav', 'flac', 'aac', 'ogg',
-    'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+    'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
     'zip', 'tar', 'gz', 'rar', '7z',
     'exe', 'dmg', 'deb', 'rpm',
     'woff', 'woff2', 'ttf', 'otf',
@@ -32,6 +32,8 @@ export function imageMimeType(filePath: string): string | null {
 export function classifyFilePreview(filePath: string): FilePreviewKind {
     const ext = extension(filePath);
     if (IMAGE_MIME_TYPES[ext]) return 'image';
+    if (ext === 'pdf') return 'pdf';
+    if (ext === 'html' || ext === 'htm') return 'html';
     if (UNSUPPORTED_BINARY_EXTENSIONS.has(ext)) return 'unsupported';
     return 'text';
 }
@@ -40,4 +42,37 @@ export function imageDataUri(filePath: string, base64: string): string {
     const mime = imageMimeType(filePath);
     if (!mime) throw new Error(`Unsupported image type: ${filePath}`);
     return `data:${mime};base64,${base64}`;
+}
+
+export function pdfDataUri(base64: string): string {
+    return `data:application/pdf;base64,${base64}`;
+}
+
+const HTML_PREVIEW_CSP = [
+    "default-src 'none'",
+    "script-src 'none'",
+    "object-src 'none'",
+    "frame-src 'none'",
+    "form-action 'none'",
+    "img-src data: blob:",
+    "media-src data: blob:",
+    "font-src data:",
+    "style-src 'unsafe-inline'",
+].join('; ');
+
+/**
+ * Wrap local HTML for an unprivileged preview. The iframe/WebView supplies a
+ * second sandbox boundary; this document-level policy blocks scripts, forms,
+ * nested frames, remote subresources, and popup/navigation targets.
+ */
+export function safeHtmlPreviewDocument(source: string): string {
+    const withoutNavigation = source
+        .replace(/<base\b[^>]*>/gi, '')
+        .replace(/<meta\b[^>]*http-equiv\s*=\s*["']?refresh["']?[^>]*>/gi, '')
+        .replace(/\s(?:href|action|formaction|target)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+    const guard = `<meta http-equiv="Content-Security-Policy" content="${HTML_PREVIEW_CSP}"><base target="_blank">`;
+    if (/<head(?:\s[^>]*)?>/i.test(withoutNavigation)) {
+        return withoutNavigation.replace(/<head(?:\s[^>]*)?>/i, (head) => `${head}${guard}`);
+    }
+    return `<!doctype html><html><head>${guard}</head><body>${withoutNavigation}</body></html>`;
 }

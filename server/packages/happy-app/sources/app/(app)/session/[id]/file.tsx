@@ -1,11 +1,14 @@
 import * as React from 'react';
-import { View, ScrollView, ActivityIndicator, Platform, Pressable } from 'react-native';
+import { View, ScrollView, ActivityIndicator, Platform, Pressable, TextInput } from 'react-native';
 import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { Text } from '@/components/StyledText';
 import { SimpleSyntaxHighlighter } from '@/components/SimpleSyntaxHighlighter';
+import { MarkdownView } from '@/components/markdown/MarkdownView';
 import { Typography } from '@/constants/Typography';
-import { sessionReadFile, sessionBash } from '@/sync/ops';
+import { sessionReadFile, sessionWriteFile, sessionBash } from '@/sync/ops';
 import { storage, useSessionFileCache } from '@/sync/storage';
 import { Modal } from '@/modal';
 import { useUnistyles, StyleSheet } from 'react-native-unistyles';
@@ -14,13 +17,23 @@ import { t } from '@/text';
 import { FileIcon } from '@/components/FileIcon';
 import { resolveSessionFilePath } from '@/utils/sessionFileLinks';
 import { MobileGlassSurface } from '@/components/MobileGlass';
-import { classifyFilePreview, imageDataUri } from '@/utils/filePreview';
+import {
+    classifyFilePreview,
+    imageDataUri,
+    pdfDataUri,
+    safeHtmlPreviewDocument,
+    type FilePreviewKind,
+} from '@/utils/filePreview';
+import { FileDocumentPreview } from '@/components/FileDocumentPreview';
+import { rigCanWriteFiles } from '@/sync/rig';
 
 interface FileContent {
     content: string;
     encoding: 'utf8' | 'base64';
     isBinary: boolean;
-    imageUri?: string;
+    previewKind: FilePreviewKind;
+    previewUri?: string;
+    originalHash?: string | null;
 }
 
 function decodeBase64ToBytes(base64: string): Uint8Array {
@@ -34,6 +47,29 @@ function decodeBase64ToBytes(base64: string): Uint8Array {
 
 function decodeUtf8Bytes(bytes: Uint8Array): string {
     return new TextDecoder().decode(bytes);
+}
+
+function encodeStringToBase64(value: string): string {
+    const bytes = new TextEncoder().encode(value);
+    let binary = '';
+    for (let index = 0; index < bytes.length; index += 1) {
+        binary += String.fromCharCode(bytes[index]);
+    }
+    return btoa(binary);
+}
+
+async function computeSHA256Bytes(bytes: Uint8Array): Promise<string> {
+    const copy = new Uint8Array(bytes.byteLength);
+    copy.set(bytes);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', copy.buffer);
+    return Array.from(new Uint8Array(hashBuffer)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function readTextFile(sessionId: string, filePath: string): Promise<{ content: string; hash: string } | null> {
+    const response = await sessionReadFile(sessionId, filePath);
+    if (!response.success || typeof response.content !== 'string') return null;
+    const bytes = decodeBase64ToBytes(response.content);
+    return { content: decodeUtf8Bytes(bytes), hash: await computeSHA256Bytes(bytes) };
 }
 
 // Diff display component
@@ -87,6 +123,7 @@ const DiffDisplay: React.FC<{ diffContent: string }> = ({ diffContent }) => {
 
 export default React.memo(function FileScreen() {
     const { theme } = useUnistyles();
+    const navigation = useNavigation();
     const { id: sessionId } = useLocalSearchParams<{ id: string }>();
     const searchParams = useLocalSearchParams();
     const encodedPath = searchParams.path as string;
@@ -95,6 +132,7 @@ export default React.memo(function FileScreen() {
     const requestedLine = lineParam ? Number.parseInt(lineParam, 10) : null;
     const requestedColumn = columnParam ? Number.parseInt(columnParam, 10) : null;
     const session = storage.getState().sessions[sessionId!];
+    const canWrite = rigCanWriteFiles(session?.metadata);
     const sessionPath = session?.metadata?.path ?? null;
     let rawPath = '';
 
@@ -114,13 +152,25 @@ export default React.memo(function FileScreen() {
 
     const [fileContent, setFileContent] = React.useState<FileContent | null>(() => {
         if (!cached) return null;
-        return { content: cached.content ?? '', encoding: 'utf8', isBinary: cached.isBinary };
+        return {
+            content: cached.content ?? '',
+            encoding: 'utf8',
+            isBinary: cached.isBinary,
+            previewKind: classifyFilePreview(filePath),
+            originalHash: null,
+        };
     });
     const [diffContent, setDiffContent] = React.useState<string | null>(() => cached?.diff ?? null);
     const [displayMode, setDisplayMode] = React.useState<'file' | 'diff'>('diff');
     const [isLoading, setIsLoading] = React.useState(!cached);
     const [error, setError] = React.useState<string | null>(null);
+    const [editContent, setEditContent] = React.useState(cached?.content ?? '');
+    const [sourceMode, setSourceMode] = React.useState<'source' | 'preview'>('source');
+    const [isEditing, setIsEditing] = React.useState(false);
+    const [isSaving, setIsSaving] = React.useState(false);
+    const [externalChange, setExternalChange] = React.useState<{ content: string; hash: string } | null>(null);
     const scrollViewRef = React.useRef<ScrollView | null>(null);
+    const allowDiscardRef = React.useRef(false);
 
     // Determine file language from extension
     const getFileLanguage = React.useCallback((path: string): string | null => {
@@ -194,7 +244,7 @@ export default React.memo(function FileScreen() {
                 const previewKind = classifyFilePreview(filePath);
                 if (previewKind === 'unsupported') {
                     if (!isCancelled) {
-                        setFileContent({ content: '', encoding: 'base64', isBinary: true });
+                        setFileContent({ content: '', encoding: 'base64', isBinary: true, previewKind });
                         storage.getState().applyFileCache(sessionId!, filePath, '', null, true);
                         setIsLoading(false);
                     }
@@ -204,13 +254,20 @@ export default React.memo(function FileScreen() {
                 if (previewKind === 'image') {
                     const response = await sessionReadFile(sessionId, filePath);
                     if (!isCancelled) {
-                        if (response.success && response.content) {
-                            setFileContent({
-                                content: '',
-                                encoding: 'base64',
-                                isBinary: false,
-                                imageUri: imageDataUri(filePath, response.content),
-                            });
+                        if (response.success && typeof response.content === 'string') {
+                            setFileContent({ content: '', encoding: 'base64', isBinary: false, previewKind, previewUri: imageDataUri(filePath, response.content) });
+                        } else {
+                            setError(response.error || t('files.failedToRead'));
+                        }
+                    }
+                    return;
+                }
+
+                if (previewKind === 'pdf') {
+                    const response = await sessionReadFile(sessionId, filePath);
+                    if (!isCancelled) {
+                        if (response.success && typeof response.content === 'string') {
+                            setFileContent({ content: '', encoding: 'base64', isBinary: false, previewKind, previewUri: pdfDataUri(response.content) });
                         } else {
                             setError(response.error || t('files.failedToRead'));
                         }
@@ -241,14 +298,14 @@ export default React.memo(function FileScreen() {
                 const response = await sessionReadFile(sessionId, filePath);
 
                 if (!isCancelled) {
-                    if (response.success && response.content) {
+                    if (response.success && typeof response.content === 'string') {
                         let rawBytes: Uint8Array;
                         let decodedContent: string;
                         try {
                             rawBytes = decodeBase64ToBytes(response.content);
                             decodedContent = decodeUtf8Bytes(rawBytes);
                         } catch (decodeError) {
-                            setFileContent({ content: '', encoding: 'base64', isBinary: true });
+                            setFileContent({ content: '', encoding: 'base64', isBinary: true, previewKind });
                             storage.getState().applyFileCache(sessionId!, filePath, '', fetchedDiff, true);
                             return;
                         }
@@ -261,7 +318,11 @@ export default React.memo(function FileScreen() {
                         const isBinary = hasNullBytes || (nonPrintableCount / decodedContent.length > 0.1);
 
                         const content = isBinary ? '' : decodedContent;
-                        setFileContent({ content, encoding: 'utf8', isBinary });
+                        const originalHash = await computeSHA256Bytes(rawBytes);
+                        setFileContent({ content, encoding: 'utf8', isBinary, previewKind, originalHash });
+                        setEditContent(content);
+                        setSourceMode(previewKind === 'html' || filePath.toLowerCase().endsWith('.md') ? 'preview' : 'source');
+                        setExternalChange(null);
                         storage.getState().applyFileCache(sessionId!, filePath, content, fetchedDiff, isBinary);
                     } else {
                         setError(response.error || 'Failed to read file');
@@ -285,6 +346,79 @@ export default React.memo(function FileScreen() {
             isCancelled = true;
         };
     }, [filePath, gitDiffPath, sessionId, sessionPath]);
+
+    const hasChanges = !!fileContent && !fileContent.isBinary && editContent !== fileContent.content;
+    const canEdit = canWrite && typeof fileContent?.originalHash === 'string';
+
+    React.useEffect(() => {
+        allowDiscardRef.current = false;
+    }, [filePath]);
+
+    React.useEffect(() => navigation.addListener('beforeRemove', (event) => {
+        if (!hasChanges || allowDiscardRef.current) return;
+        event.preventDefault();
+        void Modal.confirm(
+            'Discard unsaved changes?',
+            `Your edits to ${filePath.split('/').pop() || filePath} have not been saved.`,
+            { confirmText: 'Discard', destructive: true },
+        ).then((confirmed) => {
+            if (!confirmed) return;
+            allowDiscardRef.current = true;
+            navigation.dispatch(event.data.action);
+        });
+    }), [filePath, hasChanges, navigation]);
+
+    React.useEffect(() => {
+        if (!fileContent?.originalHash || fileContent.isBinary || !sessionId) return;
+        const originalHash = fileContent.originalHash;
+        const timer = setInterval(async () => {
+            try {
+                const latest = await readTextFile(sessionId, filePath);
+                if (latest && latest.hash !== originalHash) setExternalChange(latest);
+            } catch {
+                // Transient daemon/read failures are shown by the next explicit action.
+            }
+        }, 5000);
+        return () => clearInterval(timer);
+    }, [fileContent?.originalHash, fileContent?.isBinary, filePath, sessionId]);
+
+    const handleReloadExternal = React.useCallback(() => {
+        if (!externalChange || !fileContent) return;
+        setFileContent({ ...fileContent, content: externalChange.content, originalHash: externalChange.hash });
+        setEditContent(externalChange.content);
+        setExternalChange(null);
+        storage.getState().applyFileCache(sessionId!, filePath, externalChange.content, diffContent, false);
+    }, [diffContent, externalChange, fileContent, filePath, sessionId]);
+
+    const handleSave = React.useCallback(async () => {
+        if (!sessionId || !fileContent || !canEdit || !hasChanges) return;
+        setIsSaving(true);
+        try {
+            const response = await sessionWriteFile(
+                sessionId,
+                filePath,
+                encodeStringToBase64(editContent),
+                fileContent.originalHash,
+            );
+            if (!response.success) {
+                if (response.error?.toLowerCase().includes('hash')) {
+                    const latest = await readTextFile(sessionId, filePath).catch(() => null);
+                    if (latest) setExternalChange(latest);
+                    Modal.alert(t('files.fileConflict'), t('files.fileConflictDescription'));
+                } else {
+                    Modal.alert(t('common.error'), response.error || t('files.failedToSave'));
+                }
+                return;
+            }
+            const savedHash = response.hash ?? await computeSHA256Bytes(new TextEncoder().encode(editContent));
+            const next = { ...fileContent, content: editContent, originalHash: savedHash };
+            setFileContent(next);
+            setExternalChange(null);
+            storage.getState().applyFileCache(sessionId, filePath, editContent, diffContent, false);
+        } finally {
+            setIsSaving(false);
+        }
+    }, [canEdit, diffContent, editContent, fileContent, filePath, hasChanges, sessionId]);
 
     // Show error modal if there's an error
     React.useEffect(() => {
@@ -407,7 +541,7 @@ export default React.memo(function FileScreen() {
         );
     }
 
-    if (fileContent?.imageUri) {
+    if (fileContent?.previewKind === 'image' && fileContent.previewUri) {
         return (
             <View style={styles.container}>
                 <MobileGlassSurface enabled={Platform.OS !== 'web'} intensity={62} style={styles.fileHeader}>
@@ -416,7 +550,7 @@ export default React.memo(function FileScreen() {
                 </MobileGlassSurface>
                 <View style={styles.imageWrap}>
                     <Image
-                        source={{ uri: fileContent.imageUri }}
+                        source={{ uri: fileContent.previewUri }}
                         style={styles.imagePreview}
                         contentFit="contain"
                         accessibilityLabel={`Preview of ${fileName}`}
@@ -425,6 +559,22 @@ export default React.memo(function FileScreen() {
             </View>
         );
     }
+
+    if (fileContent?.previewKind === 'pdf' && fileContent.previewUri) {
+        return (
+            <View style={styles.container}>
+                <MobileGlassSurface enabled={Platform.OS !== 'web'} intensity={62} style={styles.fileHeader}>
+                    <FileIcon fileName={fileName} size={20} />
+                    <Text style={styles.filePath} numberOfLines={2}>{filePath}</Text>
+                </MobileGlassSurface>
+                <View style={styles.documentPreview}>
+                    <FileDocumentPreview kind="pdf" uri={fileContent.previewUri} title={`Preview of ${fileName}`} />
+                </View>
+            </View>
+        );
+    }
+
+    const hasSourcePreview = fileContent?.previewKind === 'html' || language === 'markdown';
 
     return (
         <View style={styles.container}>
@@ -450,7 +600,53 @@ export default React.memo(function FileScreen() {
                         ? `${filePath}:${requestedLine}${requestedColumn !== null && requestedColumn > 0 ? `:${requestedColumn}` : ''}`
                         : filePath}
                 </Text>
+                {hasChanges && (
+                    <Text style={[styles.unsavedLabel, { color: theme.colors.warning }]}>Unsaved</Text>
+                )}
+                {displayMode === 'file' && hasSourcePreview && (
+                    <Pressable
+                        onPress={() => setSourceMode(sourceMode === 'preview' ? 'source' : 'preview')}
+                        style={[styles.headerButton, { backgroundColor: theme.colors.input.background }]}
+                    >
+                        <Text style={[styles.headerButtonText, { color: theme.colors.text }]}>
+                            {sourceMode === 'preview' ? 'Source' : 'Preview'}
+                        </Text>
+                    </Pressable>
+                )}
+                {displayMode === 'file' && canEdit && sourceMode === 'source' && (
+                    <Pressable
+                        onPress={() => setIsEditing((value) => !value)}
+                        style={[styles.headerButton, { backgroundColor: theme.colors.input.background }]}
+                    >
+                        <Text style={[styles.headerButtonText, { color: theme.colors.text }]}>
+                            {isEditing ? 'Done' : 'Edit'}
+                        </Text>
+                    </Pressable>
+                )}
+                {displayMode === 'file' && canEdit && hasChanges && (
+                    <Pressable
+                        onPress={handleSave}
+                        disabled={isSaving}
+                        style={[styles.headerButton, { backgroundColor: theme.colors.textLink, opacity: isSaving ? 0.6 : 1 }]}
+                    >
+                        <Text style={[styles.headerButtonText, { color: 'white' }]}>{isSaving ? 'Saving…' : 'Save'}</Text>
+                    </Pressable>
+                )}
             </MobileGlassSurface>
+
+            {externalChange && (
+                <View style={[styles.warningBar, { borderBottomColor: theme.colors.divider, backgroundColor: `${theme.colors.warning}18` }]}>
+                    <Ionicons name="alert-circle-outline" size={18} color={theme.colors.warning} />
+                    <Text style={[styles.warningText, { color: theme.colors.text }]}>This file changed on the host.</Text>
+                    <View style={{ flex: 1 }} />
+                    <Pressable onPress={handleReloadExternal} style={styles.warningAction}>
+                        <Text style={{ color: theme.colors.textLink }}>Reload</Text>
+                    </Pressable>
+                    <Pressable onPress={() => setExternalChange(null)} style={styles.warningAction}>
+                        <Text style={{ color: theme.colors.textSecondary }}>Dismiss</Text>
+                    </Pressable>
+                </View>
+            )}
 
             {/* Toggle buttons for File/Diff view */}
             {diffContent && (
@@ -508,21 +704,57 @@ export default React.memo(function FileScreen() {
             )}
 
             {/* Content display */}
-            <ScrollView
-                ref={scrollViewRef}
-                style={{ flex: 1 }}
-                contentContainerStyle={{ padding: 16, maxWidth: layout.maxWidth, alignSelf: 'center', width: '100%' }}
-                showsVerticalScrollIndicator={true}
-            >
-                {displayMode === 'diff' && diffContent ? (
+            {displayMode === 'diff' && diffContent ? (
+                <ScrollView
+                    ref={scrollViewRef}
+                    style={{ flex: 1 }}
+                    contentContainerStyle={{ padding: 16, maxWidth: layout.maxWidth, alignSelf: 'center', width: '100%' }}
+                    showsVerticalScrollIndicator
+                >
                     <DiffDisplay diffContent={diffContent} />
-                ) : displayMode === 'file' && fileContent?.content ? (
+                </ScrollView>
+            ) : sourceMode === 'preview' && fileContent?.previewKind === 'html' ? (
+                <View style={styles.documentPreview}>
+                    <FileDocumentPreview
+                        kind="html"
+                        html={safeHtmlPreviewDocument(editContent)}
+                        title={`Preview of ${fileName}`}
+                    />
+                </View>
+            ) : sourceMode === 'preview' && language === 'markdown' ? (
+                <ScrollView
+                    style={{ flex: 1 }}
+                    contentContainerStyle={{ padding: 16, maxWidth: layout.maxWidth, alignSelf: 'center', width: '100%' }}
+                    showsVerticalScrollIndicator
+                >
+                    <MarkdownView markdown={editContent} sessionId={sessionId!} />
+                </ScrollView>
+            ) : isEditing && canEdit ? (
+                <TextInput
+                    value={editContent}
+                    onChangeText={setEditContent}
+                    multiline
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    spellCheck={false}
+                    textAlignVertical="top"
+                    style={[styles.mobileEditor, { color: theme.colors.text, backgroundColor: theme.colors.surface }]}
+                    accessibilityLabel={`Edit ${fileName}`}
+                />
+            ) : (
+                <ScrollView
+                    ref={scrollViewRef}
+                    style={{ flex: 1 }}
+                    contentContainerStyle={{ padding: 16, maxWidth: layout.maxWidth, alignSelf: 'center', width: '100%' }}
+                    showsVerticalScrollIndicator
+                >
+                    {editContent ? (
                     <SimpleSyntaxHighlighter
-                        code={fileContent.content}
+                        code={editContent}
                         language={language}
                         selectable={true}
                     />
-                ) : displayMode === 'file' && fileContent && !fileContent.content ? (
+                    ) : fileContent ? (
                     <Text style={{
                         fontSize: 16,
                         color: theme.colors.textSecondary,
@@ -531,17 +763,9 @@ export default React.memo(function FileScreen() {
                     }}>
                         {t('files.fileEmpty')}
                     </Text>
-                ) : !diffContent && !fileContent?.content ? (
-                    <Text style={{
-                        fontSize: 16,
-                        color: theme.colors.textSecondary,
-                        fontStyle: 'italic',
-                        ...Typography.default()
-                    }}>
-                        {t('files.noChanges')}
-                    </Text>
-                ) : null}
-            </ScrollView>
+                    ) : null}
+                </ScrollView>
+            )}
         </View>
     );
 });
@@ -579,5 +803,53 @@ const styles = StyleSheet.create((theme) => ({
         width: '100%',
         height: '100%',
         maxWidth: layout.maxWidth,
+    },
+    documentPreview: {
+        flex: 1,
+        width: '100%',
+        maxWidth: layout.maxWidth,
+        alignSelf: 'center',
+        backgroundColor: 'white',
+    },
+    headerButton: {
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 7,
+        marginLeft: 6,
+    },
+    headerButtonText: {
+        fontSize: 13,
+        ...Typography.default('semiBold'),
+    },
+    unsavedLabel: {
+        fontSize: 12,
+        marginHorizontal: 6,
+        ...Typography.default('semiBold'),
+    },
+    warningBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderBottomWidth: 1,
+    },
+    warningText: {
+        fontSize: 13,
+        ...Typography.default('semiBold'),
+    },
+    warningAction: {
+        paddingHorizontal: 6,
+        paddingVertical: 4,
+    },
+    mobileEditor: {
+        flex: 1,
+        width: '100%',
+        maxWidth: layout.maxWidth,
+        alignSelf: 'center',
+        padding: 16,
+        fontSize: 14,
+        lineHeight: 21,
+        ...Typography.mono(),
     },
 }));

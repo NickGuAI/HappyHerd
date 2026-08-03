@@ -289,8 +289,9 @@ export const SessionView = React.memo((props: { id: string }) => {
     const diffViewOpen = overlayCurrent.kind === 'diff';
     const fileViewPath = overlayCurrent.kind === 'file' ? overlayCurrent.path : null;
     const scrollToFile = overlayCurrent.kind === 'diff' ? overlayCurrent.file : null;
+    const [fileViewDirty, setFileViewDirty] = React.useState(false);
 
-    const pushOverlay = React.useCallback((entry: OverlayEntry) => {
+    const pushOverlayNow = React.useCallback((entry: OverlayEntry) => {
         setOverlayHistory((prev) => {
             const truncated = prev.stack.slice(0, prev.cursor + 1);
             truncated.push(entry);
@@ -298,13 +299,30 @@ export const SessionView = React.memo((props: { id: string }) => {
         });
     }, []);
 
+    const withFileDiscardConfirmation = React.useCallback((action: () => void) => {
+        if (!fileViewDirty) {
+            action();
+            return;
+        }
+        void Modal.confirm(
+            'Discard unsaved changes?',
+            `Your edits to ${fileViewPath?.split('/').pop() || 'this file'} have not been saved.`,
+            { confirmText: 'Discard', destructive: true },
+        ).then((confirmed) => {
+            if (!confirmed) return;
+            setFileViewDirty(false);
+            action();
+        });
+    }, [fileViewDirty, fileViewPath]);
+
     const handleSidebarFilePress = React.useCallback((file: GitFileStatus) => {
         if (file.status === 'deleted') return;
-        pushOverlay({ kind: 'diff', file: file.fullPath });
-    }, [pushOverlay]);
+        withFileDiscardConfirmation(() => pushOverlayNow({ kind: 'diff', file: file.fullPath }));
+    }, [pushOverlayNow, withFileDiscardConfirmation]);
     const handleAllFilesFilePress = React.useCallback((filePath: string) => {
-        pushOverlay({ kind: 'file', path: filePath });
-    }, [pushOverlay]);
+        if (filePath === fileViewPath) return;
+        withFileDiscardConfirmation(() => pushOverlayNow({ kind: 'file', path: filePath }));
+    }, [fileViewPath, pushOverlayNow, withFileDiscardConfirmation]);
     const handleAllFilesFileAttach = React.useCallback((filePath: string) => {
         if (!addWorkspaceContextFile(sessionId, filePath)) {
             Modal.alert('Workspace context', 'You can attach up to 8 files to one message.');
@@ -331,21 +349,21 @@ export const SessionView = React.memo((props: { id: string }) => {
             canForward: canOverlayForward,
             back: () => {
                 if (!canOverlayBack) return false;
-                setOverlayHistory((prev) => (
+                withFileDiscardConfirmation(() => setOverlayHistory((prev) => (
                     prev.cursor <= 0 ? prev : { ...prev, cursor: prev.cursor - 1 }
-                ));
+                )));
                 return true;
             },
             forward: () => {
                 if (!canOverlayForward) return false;
-                setOverlayHistory((prev) => (
+                withFileDiscardConfirmation(() => setOverlayHistory((prev) => (
                     prev.cursor >= prev.stack.length - 1 ? prev : { ...prev, cursor: prev.cursor + 1 }
-                ));
+                )));
                 return true;
             },
         });
         return () => useOverlayNav.getState().reset();
-    }, [canOverlayBack, canOverlayForward]);
+    }, [canOverlayBack, canOverlayForward, withFileDiscardConfirmation]);
 
     // Warm Pierre's lazy web chunks while the user is still reading chat.
     React.useEffect(() => {
@@ -533,6 +551,7 @@ export const SessionView = React.memo((props: { id: string }) => {
                             sessionId={sessionId}
                             filePath={fileViewPath}
                             onHeaderRightSlotChange={setHeaderRightSlot}
+                            onDirtyChange={setFileViewDirty}
                         />
                     </View>
                 )}
