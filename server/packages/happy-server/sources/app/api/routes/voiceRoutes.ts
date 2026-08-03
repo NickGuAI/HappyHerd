@@ -3,7 +3,7 @@ import * as crypto from "crypto";
 import { VoiceConversationResponseSchema, VoiceUsageResponseSchema } from "@slopus/happy-wire";
 import { type Fastify } from "../types";
 import { log } from "@/utils/log";
-import { transcribeVoiceInput, VoiceTranscriptionError } from "@/app/voice/transcription";
+import { resolveVoiceTranscriptionApiKey, transcribeVoiceInput, VoiceTranscriptionError } from "@/app/voice/transcription";
 
 const VOICE_FREE_LIMIT_SECONDS = 1200;  // 20 minutes free tier per 30 days (~$0.76 cost)
 const VOICE_HARD_LIMIT_SECONDS = 18000; // 5 hours absolute cap per 30 days (even with subscription)
@@ -113,7 +113,7 @@ export function voiceRoutes(app: Fastify) {
             },
         },
     }, async (request, reply) => {
-        const apiKey = process.env.OPENAI_API_KEY;
+        const apiKey = resolveVoiceTranscriptionApiKey();
         if (!apiKey) {
             return reply.code(503).send({ error: 'Voice transcription is not configured' });
         }

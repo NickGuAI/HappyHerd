@@ -25,10 +25,13 @@ paths_overlap() {
 
 happyherd_load_runtime_config "$ENV_FILE"
 
-[[ "$HAPPYHERD_DOMAIN" == "happyherd.gehirn.ai" ]] || die "unexpected domain: $HAPPYHERD_DOMAIN"
-[[ "$HAPPYHERD_PUBLIC_URL" == "https://happyherd.gehirn.ai" ]] || die "unexpected public URL: $HAPPYHERD_PUBLIC_URL"
-[[ "$HAPPYHERD_PORT" == "20015" ]] || die "HappyHerd must use reserved port 20015"
-[[ "$HAPPYHERD_CONTAINER_NAME" == "happyherd" ]] || die "unexpected container name"
+[[ "$HAPPYHERD_DOMAIN" =~ ^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]] || \
+    die "invalid domain: $HAPPYHERD_DOMAIN"
+[[ "$HAPPYHERD_PUBLIC_URL" == "https://${HAPPYHERD_DOMAIN}" ]] || \
+    die "public URL must be https://${HAPPYHERD_DOMAIN}"
+[[ "$HAPPYHERD_PORT" =~ ^[0-9]+$ ]] || die "port must be numeric"
+((10#$HAPPYHERD_PORT >= 1 && 10#$HAPPYHERD_PORT <= 65535)) || die "port must be between 1 and 65535"
+[[ "$HAPPYHERD_CONTAINER_NAME" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]] || die "invalid container name"
 
 if [[ "$MODE" == "runtime" ]]; then
     [[ "$HAPPYHERD_IMAGE" =~ @sha256:[0-9a-f]{64}$ ]] || die "runtime image must be pinned by digest"
@@ -42,6 +45,10 @@ declare -A paths=(
     [cli]="$(canonical_path "$HAPPYHERD_CLI_HOME")"
     [secret]="$(canonical_path "$HAPPYHERD_MASTER_SECRET_FILE")"
 )
+
+if [[ -n "${HAPPYHERD_OPENAI_API_KEY_FILE:-}" ]]; then
+    paths[openai-secret]="$(canonical_path "$HAPPYHERD_OPENAI_API_KEY_FILE")"
+fi
 
 for name in "${!paths[@]}"; do
     [[ "${paths[$name]}" == /* ]] || die "$name path must be absolute"
@@ -77,7 +84,16 @@ done
 for runtime_name in "${runtime_names[@]}"; do
     paths_overlap "${paths[secret]}" "${paths[$runtime_name]}" && \
         die "master secret overlaps $runtime_name state"
+    if [[ -n "${paths[openai-secret]:-}" ]]; then
+        paths_overlap "${paths[openai-secret]}" "${paths[$runtime_name]}" && \
+            die "OpenAI API key overlaps $runtime_name state"
+    fi
 done
+
+if [[ -n "${paths[openai-secret]:-}" ]]; then
+    paths_overlap "${paths[secret]}" "${paths[openai-secret]}" && \
+        die "master secret and OpenAI API key paths overlap"
+fi
 
 if [[ "$MODE" == "runtime" ]]; then
     for directory in "$HAPPYHERD_DATA_DIR" "$HAPPYHERD_LOG_DIR" "$HAPPYHERD_CLI_HOME"; do
@@ -89,6 +105,14 @@ if [[ "$MODE" == "runtime" ]]; then
         die "master secret permissions must be 600 or 400"
     [[ "$(wc -c < "$HAPPYHERD_MASTER_SECRET_FILE")" -ge 32 ]] || \
         die "master secret is too short"
+    if [[ -n "${HAPPYHERD_OPENAI_API_KEY_FILE:-}" ]]; then
+        [[ -f "$HAPPYHERD_OPENAI_API_KEY_FILE" ]] || die "OpenAI API key file missing"
+        provider_permissions="$(stat -c '%a' "$HAPPYHERD_OPENAI_API_KEY_FILE")"
+        [[ "$provider_permissions" == "600" || "$provider_permissions" == "400" ]] || \
+            die "OpenAI API key permissions must be 600 or 400"
+        [[ "$(wc -c < "$HAPPYHERD_OPENAI_API_KEY_FILE")" -ge 20 ]] || \
+            die "OpenAI API key file is too short"
+    fi
 fi
 
 printf 'HappyHerd runtime isolation verified: %s:%s\n' "$HAPPYHERD_DOMAIN" "$HAPPYHERD_PORT"
