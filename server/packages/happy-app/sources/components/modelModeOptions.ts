@@ -1,4 +1,4 @@
-import type { Metadata } from '@/sync/storageTypes';
+import type { AgentCapabilityCatalog, MachineMetadata, Metadata } from '@/sync/storageTypes';
 import { hackModes } from '@/sync/modeHacks';
 import { getCodeAgentDefaults } from '@/sync/agentDefaults';
 import {
@@ -28,6 +28,7 @@ export type ModelMode = ModeOption & {
     thinkingLevels?: string[];
     defaultThinkingLevel?: string | null;
     unavailable?: boolean;
+    effortLevels?: EffortLevel[];
 };
 
 export type EffortLevel = ModeOption;
@@ -62,6 +63,65 @@ export function mapMetadataOptions(options?: MetadataOption[] | null): ModeOptio
         key: option.code,
         name: option.value,
         description: option.description ?? null,
+    }));
+}
+
+function getMachineCatalog(
+    metadata: MachineMetadata | null | undefined,
+    flavor: AgentFlavor,
+): AgentCapabilityCatalog | null {
+    if (!flavor) return null;
+    return metadata?.agentCapabilities?.[flavor] ?? null;
+}
+
+export function getMachineAdvertisedModels(
+    metadata: MachineMetadata | null | undefined,
+    flavor: AgentFlavor,
+): ModelMode[] {
+    const catalog = getMachineCatalog(metadata, flavor);
+    if (!catalog) {
+        return [{ key: 'default', name: 'default model', description: null }];
+    }
+    return catalog.models.map((model) => ({
+        key: model.code,
+        name: model.value,
+        description: model.description ?? null,
+        effortLevels: model.effortLevels?.map((effort) => ({
+            key: effort.code,
+            name: effort.value,
+            description: effort.description ?? null,
+        })),
+    }));
+}
+
+export function getMachineAdvertisedPermissionModes(
+    metadata: MachineMetadata | null | undefined,
+    flavor: AgentFlavor,
+): PermissionMode[] {
+    const catalog = getMachineCatalog(metadata, flavor);
+    if (!catalog) {
+        return [{ key: 'default', name: 'default', description: null }];
+    }
+    return catalog.permissionModes.map((mode) => ({
+        key: mode.code,
+        name: mode.value,
+        description: mode.description ?? null,
+    }));
+}
+
+export function getMachineAdvertisedEffortLevels(
+    metadata: MachineMetadata | null | undefined,
+    flavor: AgentFlavor,
+    modelKey: string,
+): EffortLevel[] {
+    const catalog = getMachineCatalog(metadata, flavor);
+    if (!catalog) return [];
+    const modelEfforts = catalog.models.find((model) => model.code === modelKey)?.effortLevels;
+    const efforts = modelEfforts && modelEfforts.length > 0 ? modelEfforts : catalog.effortLevels;
+    return efforts.map((effort) => ({
+        key: effort.code,
+        name: effort.value,
+        description: effort.description ?? null,
     }));
 }
 

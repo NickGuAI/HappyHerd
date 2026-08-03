@@ -48,9 +48,9 @@ import type { MultiTextInputHandle } from '@/components/MultiTextInput';
 import { Modal } from '@/modal';
 import type { Machine, Session } from '@/sync/storageTypes';
 import {
-    getHardcodedPermissionModes,
-    getHardcodedModelModes,
-    getEffortLevelsForModel,
+    getMachineAdvertisedPermissionModes,
+    getMachineAdvertisedModels,
+    getMachineAdvertisedEffortLevels,
     getSupportsWorktree,
     type PermissionMode,
     type ModelMode,
@@ -911,20 +911,20 @@ function NewSessionScreen() {
 
     // Derive options from agent type
     const permissionModes = React.useMemo<PermissionMode[]>(
-        () => getHardcodedPermissionModes(selectedAgent, t),
-        [selectedAgent],
+        () => getMachineAdvertisedPermissionModes(selectedMachine?.metadata, selectedAgent),
+        [selectedAgent, selectedMachine?.metadata],
     );
     const modelModes = React.useMemo<ModelMode[]>(
-        () => getHardcodedModelModes(selectedAgent, t),
-        [selectedAgent],
+        () => getMachineAdvertisedModels(selectedMachine?.metadata, selectedAgent),
+        [selectedAgent, selectedMachine?.metadata],
     );
 
     const currentModel = modelModes[modelIndex] ?? modelModes[0];
     const currentModelKey = currentModel?.key ?? 'default';
 
     const effortLevels = React.useMemo<EffortLevel[]>(
-        () => getEffortLevelsForModel(selectedAgent, currentModelKey),
-        [selectedAgent, currentModelKey],
+        () => getMachineAdvertisedEffortLevels(selectedMachine?.metadata, selectedAgent, currentModelKey),
+        [selectedAgent, selectedMachine?.metadata, currentModelKey],
     );
     const effectiveAgentDefaults = React.useMemo(() => (
         resolveAgentDefaultConfig(agentDefaultOverrides, selectedAgent)

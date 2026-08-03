@@ -14,6 +14,31 @@ export type InitializeParams = {
 
 export type InitializeResponse = { userAgent: string };
 
+export type ModelListParams = {
+    cursor?: string | null;
+    limit?: number | null;
+    includeHidden?: boolean | null;
+};
+
+export type ModelListEntry = {
+    id: string;
+    model: string;
+    displayName: string;
+    description: string;
+    hidden: boolean;
+    supportedReasoningEfforts: Array<{
+        reasoningEffort: string;
+        description: string;
+    }>;
+    defaultReasoningEffort: string;
+    isDefault: boolean;
+};
+
+export type ModelListResponse = {
+    data: ModelListEntry[];
+    nextCursor: string | null;
+};
+
 // --- Thread lifecycle ---
 
 export type NewConversationParams = {

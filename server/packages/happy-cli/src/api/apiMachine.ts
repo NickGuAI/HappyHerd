@@ -12,6 +12,10 @@ import { encodeBase64, decodeBase64, encrypt, decrypt } from './encryption';
 import { backoff } from '@/utils/time';
 import { RpcHandlerManager } from './rpc/RpcHandlerManager';
 import { detectCLIAvailability, CLIAvailability } from '@/utils/detectCLI';
+import {
+    capabilityFingerprint,
+    detectAgentCapabilities,
+} from '@/capabilities/agentCapabilities';
 import { detectResumeSupport, type ResumeSupport } from '@/resume/localHappyAgentAuth';
 import { shouldReconnect } from '@/utils/lidState';
 import { getProjectPath } from '@/claude/utils/path';
@@ -117,6 +121,9 @@ export class ApiMachineClient {
     private keepAliveInterval: NodeJS.Timeout | null = null;
     private lastKnownCLIAvailability: CLIAvailability | null = null;
     private lastKnownResumeSupport: ResumeSupport | null = null;
+    private lastKnownCapabilitiesFingerprint: string | null = null;
+    private capabilitiesRefreshInFlight: Promise<void> | null = null;
+    private lastCapabilitiesRefreshAt = 0;
     private rpcHandlerManager: RpcHandlerManager;
     private resumeSessionHandler: ((sessionId: string, options?: { model?: string; permissionMode?: string }) => Promise<SpawnSessionResult>) | null = null;
     private reconnectInterval: NodeJS.Timeout | null = null;
@@ -132,6 +139,16 @@ export class ApiMachineClient {
             encryptionVariant: this.machine.encryptionVariant,
             logger: (msg, data) => logger.debug(msg, data)
         });
+        this.lastKnownCapabilitiesFingerprint = this.machine.metadata?.agentCapabilities
+            ? capabilityFingerprint(this.machine.metadata.agentCapabilities)
+            : null;
+        this.lastKnownCLIAvailability = this.machine.metadata?.cliAvailability
+            ? {
+                ...this.machine.metadata.cliAvailability,
+                agy: this.machine.metadata.cliAvailability.agy ?? false,
+            }
+            : null;
+        this.lastKnownResumeSupport = this.machine.metadata?.resumeSupport ?? null;
 
         // null = unrestricted: the daemon serves the whole machine, and its
         // process.cwd() is an accident of where it was started, not a workspace.
@@ -459,6 +476,7 @@ export class ApiMachineClient {
             this.rpcHandlerManager.onSocketConnect(this.socket);
             this.syncResumeSessionRpcRegistration();
             this.startKeepAlive();
+            void this.refreshAgentCapabilities(true);
         });
 
         this.socket.on('disconnect', (reason) => {
@@ -522,7 +540,12 @@ export class ApiMachineClient {
         const prev = this.lastKnownCLIAvailability;
         const newResumeSupport = detectResumeSupport();
         const prevResume = this.lastKnownResumeSupport;
-        const cliAvailabilityChanged = !prev || prev.claude !== newAvailability.claude || prev.codex !== newAvailability.codex || prev.gemini !== newAvailability.gemini || prev.openclaw !== newAvailability.openclaw;
+        const cliAvailabilityChanged = !prev
+            || prev.claude !== newAvailability.claude
+            || prev.codex !== newAvailability.codex
+            || prev.gemini !== newAvailability.gemini
+            || prev.openclaw !== newAvailability.openclaw
+            || prev.agy !== newAvailability.agy;
         const resumeSupportChanged = !prevResume
             || prevResume.rpcAvailable !== newResumeSupport.rpcAvailable
             || prevResume.happyAgentAuthenticated !== newResumeSupport.happyAgentAuthenticated;
@@ -538,6 +561,42 @@ export class ApiMachineClient {
                 logger.debug('[API MACHINE] Failed to update machine capabilities:', err);
             });
         }
+
+        if (cliAvailabilityChanged || Date.now() - this.lastCapabilitiesRefreshAt > 5 * 60_000) {
+            void this.refreshAgentCapabilities(cliAvailabilityChanged);
+        }
+    }
+
+    private refreshAgentCapabilities(force: boolean): Promise<void> {
+        if (this.capabilitiesRefreshInFlight) {
+            return this.capabilitiesRefreshInFlight;
+        }
+        if (!force && Date.now() - this.lastCapabilitiesRefreshAt <= 5 * 60_000) {
+            return Promise.resolve();
+        }
+
+        this.capabilitiesRefreshInFlight = (async () => {
+            const availability = detectCLIAvailability();
+            const capabilities = await detectAgentCapabilities(availability);
+            const fingerprint = capabilityFingerprint(capabilities);
+            this.lastCapabilitiesRefreshAt = Date.now();
+            if (fingerprint === this.lastKnownCapabilitiesFingerprint) {
+                return;
+            }
+
+            await this.updateMachineMetadata((metadata) => ({
+                ...(metadata || {} as MachineMetadata),
+                cliAvailability: availability,
+                agentCapabilities: capabilities,
+            }));
+            this.lastKnownCapabilitiesFingerprint = fingerprint;
+        })().catch((error) => {
+            logger.debug('[API MACHINE] Failed to refresh agent capability catalog:', error);
+        }).finally(() => {
+            this.capabilitiesRefreshInFlight = null;
+        });
+
+        return this.capabilitiesRefreshInFlight;
     }
 
     private startKeepAlive() {
