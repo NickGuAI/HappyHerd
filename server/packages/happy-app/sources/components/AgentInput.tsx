@@ -36,6 +36,7 @@ import { resolveAgentInputPrimaryAction } from './agentInputPrimaryAction';
 import { NativeSettingsMenu, type NativeSettingsMenuGroup } from './NativeSettingsMenu';
 import { ProviderIcon } from './ProviderIcon';
 import { isRigMetadata } from '@/sync/rig';
+import type { VoiceDictationPhase } from '@/hooks/useVoiceDictation';
 
 interface AgentInputProps {
     // `initialValue` seeds the uncontrolled textarea once; keystrokes never
@@ -111,6 +112,11 @@ interface AgentInputProps {
     /** Explicit workspace files that will be embedded in the next user message. */
     selectedContextFiles?: readonly string[];
     onRemoveContextFile?: (filePath: string) => void;
+    dictationPhase?: VoiceDictationPhase;
+    dictationError?: string | null;
+    onDictationPress?: () => void;
+    onDictationCancel?: () => void;
+    onDictationRetry?: () => void;
 }
 
 function permissionKindIcon(kind: string | null | undefined): React.ComponentProps<typeof Ionicons>['name'] {
@@ -1311,6 +1317,13 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
 
                         <GitStatusButton sessionId={props.sessionId} onPress={props.onFileViewerPress} />
 
+                        <VoiceDictationControls
+                            phase={props.dictationPhase ?? 'idle'}
+                            onToggle={props.onDictationPress}
+                            onCancel={props.onDictationCancel}
+                            onRetry={props.onDictationRetry}
+                        />
+
                         {props.onPickImages && (
                             <Pressable
                                 onPress={props.onPickImages}
@@ -1922,6 +1935,14 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             onRemove={props.onRemoveContextFile ?? (() => {})}
                         />
                     )}
+                    {props.dictationPhase === 'error' && props.dictationError && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingTop: 8 }}>
+                            <Ionicons name="alert-circle-outline" size={14} color={theme.colors.textDestructive} />
+                            <Text style={{ flex: 1, fontSize: 12, color: theme.colors.textDestructive, ...Typography.default() }}>
+                                {props.dictationError}
+                            </Text>
+                        </View>
+                    )}
                     {/* Input field */}
                     <View style={[
                         styles.inputContainer,
@@ -2057,6 +2078,14 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             <GitStatusButton sessionId={props.sessionId} onPress={props.onFileViewerPress} />
                         )}
 
+                        <VoiceDictationControls
+                            compact
+                            phase={props.dictationPhase ?? 'idle'}
+                            onToggle={props.onDictationPress}
+                            onCancel={props.onDictationCancel}
+                            onRetry={props.onDictationRetry}
+                        />
+
                         {props.onMicPress && (
                             <BubblePressable
                                 onPress={handleMicrophonePress}
@@ -2142,6 +2171,81 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         </View>
     );
 }));
+
+function VoiceDictationControls({
+    phase,
+    onToggle,
+    onCancel,
+    onRetry,
+    compact = false,
+}: {
+    phase: VoiceDictationPhase;
+    onToggle?: () => void;
+    onCancel?: () => void;
+    onRetry?: () => void;
+    compact?: boolean;
+}) {
+    const { theme } = useUnistyles();
+    if (!onToggle && phase === 'idle') return null;
+    const size = compact ? 23 : 17;
+    const icon = phase === 'recording'
+        ? 'stop-circle'
+        : phase === 'error'
+            ? 'mic-outline'
+            : 'mic-outline';
+    const label = phase === 'recording'
+        ? 'Finish voice input'
+        : phase === 'transcribing'
+            ? 'Transcribing voice input'
+            : 'Start voice input';
+    const buttonStyle = compact
+        ? stylesheet.mobileIconButton
+        : { height: 32, paddingHorizontal: 8, alignItems: 'center' as const, justifyContent: 'center' as const, borderRadius: 16 };
+    return (
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <BubblePressable
+                onPress={onToggle}
+                disabled={!onToggle || phase === 'transcribing'}
+                hitSlop={6}
+                style={buttonStyle}
+                accessibilityRole="button"
+                accessibilityLabel={label}
+            >
+                {phase === 'transcribing' ? (
+                    <ActivityIndicator size="small" color={theme.colors.textLink} />
+                ) : (
+                    <Ionicons
+                        name={icon}
+                        size={size}
+                        color={phase === 'recording' ? theme.colors.textDestructive : theme.colors.textLink}
+                    />
+                )}
+            </BubblePressable>
+            {phase === 'recording' && onCancel && (
+                <BubblePressable
+                    onPress={onCancel}
+                    hitSlop={6}
+                    style={buttonStyle}
+                    accessibilityRole="button"
+                    accessibilityLabel="Cancel voice input"
+                >
+                    <Ionicons name="close" size={compact ? 20 : 16} color={theme.colors.textSecondary} />
+                </BubblePressable>
+            )}
+            {phase === 'error' && onRetry && (
+                <BubblePressable
+                    onPress={onRetry}
+                    hitSlop={6}
+                    style={buttonStyle}
+                    accessibilityRole="button"
+                    accessibilityLabel="Retry voice transcription"
+                >
+                    <Ionicons name="refresh" size={compact ? 20 : 16} color={theme.colors.textLink} />
+                </BubblePressable>
+            )}
+        </View>
+    );
+}
 
 // Git Status Button Component
 function GitStatusButton({ sessionId, onPress }: { sessionId?: string, onPress?: () => void }) {

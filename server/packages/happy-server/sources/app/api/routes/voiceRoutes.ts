@@ -3,6 +3,7 @@ import * as crypto from "crypto";
 import { VoiceConversationResponseSchema, VoiceUsageResponseSchema } from "@slopus/happy-wire";
 import { type Fastify } from "../types";
 import { log } from "@/utils/log";
+import { transcribeVoiceInput, VoiceTranscriptionError } from "@/app/voice/transcription";
 
 const VOICE_FREE_LIMIT_SECONDS = 1200;  // 20 minutes free tier per 30 days (~$0.76 cost)
 const VOICE_HARD_LIMIT_SECONDS = 18000; // 5 hours absolute cap per 30 days (even with subscription)
@@ -94,6 +95,41 @@ async function hasActiveSubscription(userId: string): Promise<boolean> {
 }
 
 export function voiceRoutes(app: Fastify) {
+    app.post('/v1/voice/transcriptions', {
+        preHandler: app.authenticate,
+        schema: {
+            body: z.object({
+                audioBase64: z.string().min(1),
+                mimeType: z.string().min(1).max(128),
+                language: z.string().min(2).max(16).optional(),
+            }),
+            response: {
+                200: z.object({ text: z.string() }),
+                400: z.object({ error: z.string() }),
+                413: z.object({ error: z.string() }),
+                500: z.object({ error: z.string() }),
+                502: z.object({ error: z.string() }),
+                503: z.object({ error: z.string() }),
+            },
+        },
+    }, async (request, reply) => {
+        const apiKey = process.env.OPENAI_API_KEY;
+        if (!apiKey) {
+            return reply.code(503).send({ error: 'Voice transcription is not configured' });
+        }
+        try {
+            const text = await transcribeVoiceInput({ ...request.body, apiKey });
+            return reply.send({ text });
+        } catch (error) {
+            const statusCode = error instanceof VoiceTranscriptionError ? error.statusCode : 500;
+            log({ module: 'voice-transcription', level: 'error' }, error instanceof Error ? error.message : 'Transcription failed');
+            const safeMessage = statusCode < 500 && error instanceof Error
+                ? error.message
+                : 'Voice transcription failed';
+            return reply.code(statusCode as 400 | 413 | 500 | 502).send({ error: safeMessage });
+        }
+    });
+
     app.post('/v1/voice/conversations', {
         preHandler: app.authenticate,
         schema: {
