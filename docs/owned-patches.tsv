@@ -57,3 +57,4 @@ DEPLOY	code-ready	fix(release): prefetch daemon dependency closure	scripts/test-
 B6	code-ready	fix(context): support established Commander stores	server/packages/happy-cli/src/agentContext/commanderContext.test.ts
 DEPLOY	code-ready	fix(runtime): preflight subscription provider CLIs	scripts/test-runtime-isolation.sh
 B6-B7	accepted	docs(release): record B6/B7 production acceptance	docs/acceptance/b6-b7-2026-08-03.json
+B6-B7	code-ready	fix(context): use HappyHerd home as canonical root	server/packages/happy-cli/src/agentContext/commanderContext.root.test.ts

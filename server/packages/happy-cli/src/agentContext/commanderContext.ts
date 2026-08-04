@@ -45,7 +45,9 @@ function homeDir(): string {
 }
 
 export function agentContextRoot(): string {
-  return path.resolve(process.env.HAPPYHERD_AGENTCONTEXT_ROOT?.trim() || path.join(homeDir(), '.herd'));
+  return path.resolve(
+    process.env.HAPPYHERD_AGENTCONTEXT_ROOT?.trim() || configuration.happyHomeDir,
+  );
 }
 
 function commanderRoots(): string[] {

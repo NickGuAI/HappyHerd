@@ -74,7 +74,8 @@ Usage:
   happy automation update ID [the same optional flags]
   happy automation pause|resume|run-now|delete|history ID [--json]
 
-Definitions are stored below ~/.herd/agentcontext/automations/happyherd and
+Definitions are stored below the configured HAPPY_HOME_DIR at
+agentcontext/automations/happyherd and
 executed by this machine's HappyHerd daemon. Legacy Herd definitions are not claimed.
 `);
 }
