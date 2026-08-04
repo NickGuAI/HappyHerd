@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "releaseId": "2026-08-04-claude-model-slugs",
+  "repository": "ghcr.io/nickguai/happyherd",
+  "current": {
+    "image": "ghcr.io/nickguai/happyherd@sha256:84aabdb0702bf836dd61a0491f031b9c79f5615e50e4537a5390bf98795734c3",
+    "immutableTag": "ghcr.io/nickguai/happyherd:sha-cd41a5d1e2f0bad6481374470ec0a5d8c22eca0a",
+    "sourceSha": "cd41a5d1e2f0bad6481374470ec0a5d8c22eca0a",
+    "smoke": {
+      "evidenceSha256": "61cada445dd3b3d34ef16bdecac812ef066e20267d876f7f138601f922dc23d2",
+      "health": {
+        "service": "happy-server",
+        "status": "ok"
+      },
+      "result": "healthy",
+      "verifiedAt": "2026-08-04T03:32:06.126Z"
+    }
+  },
+  "previous": {
+    "image": "ghcr.io/nickguai/happyherd@sha256:a0cf13f9eaad87a1e65c9b43feab0e156d58c829a72478375c4bea4524162df3",
+    "immutableTag": "ghcr.io/nickguai/happyherd:sha-0324f00a70d18c1ed920544b4fe1c700f336627f",
+    "sourceSha": "0324f00a70d18c1ed920544b4fe1c700f336627f",
+    "smoke": {
+      "evidenceSha256": "8369e285d777057d1046030cb8133401ef247984247269fa982e159e7fc60f23",
+      "health": {
+        "service": "happy-server",
+        "status": "ok"
+      },
+      "result": "healthy",
+      "verifiedAt": "2026-08-04T01:09:38.547Z"
+    }
+  },
+  "health": {
+    "path": "/health",
+    "expected": {
+      "service": "happy-server",
+      "status": "ok"
+    }
+  },
+  "rollback": {
+    "command": "scripts/rollback-release.sh docs/releases/2026-08-04-claude-model-slugs.json /etc/happyherd/runtime.env"
+  }
+}

@@ -60,3 +60,4 @@ B6-B7	accepted	docs(release): record B6/B7 production acceptance	docs/acceptance
 B6-B7	code-ready	fix(context): use HappyHerd home as canonical root	server/packages/happy-cli/src/agentContext/commanderContext.root.test.ts
 B6-B7	accepted	docs(release): record AgentContext root cutover	docs/acceptance/runtime-root-2026-08-04.json
 MODEL_CATALOG	code-ready	fix(models): advertise canonical Claude slugs	server/packages/happy-wire/src/providerModels.test.ts
+MODEL_CATALOG	accepted	docs(release): record canonical Claude model acceptance	docs/acceptance/model-slugs-2026-08-04.json
