@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "image": "ghcr.io/nickguai/happyherd@sha256:84aabdb0702bf836dd61a0491f031b9c79f5615e50e4537a5390bf98795734c3",
+  "sourceSha": "cd41a5d1e2f0bad6481374470ec0a5d8c22eca0a",
+  "brandAssetSha256": "a3b431d384f5b7039cc85916ac2ccb7f102ab64eafa8a1e08295de5a1a02ba9d",
+  "health": {
+    "status": "ok",
+    "timestamp": "2026-08-04T03:32:06.126Z",
+    "service": "happy-server"
+  },
+  "apiHealth": {
+    "status": "ok",
+    "timestamp": "2026-08-04T03:32:06.163Z",
+    "service": "happy-server"
+  },
+  "rootHtmlSha256": "4ddc2bf11efd5004f63340827d71ab73c4329dfab2274571e096472abb88d0d2",
+  "result": "healthy"
+}
