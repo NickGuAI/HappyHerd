@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "gate": "B6-B7-runtime-root-cutover",
+  "result": "accepted",
+  "verifiedAt": "2026-08-04T01:38:06Z",
+  "sourceSha": "0324f00a70d18c1ed920544b4fe1c700f336627f",
+  "delivery": {
+    "issue": "https://github.com/NickGuAI/HappyHerd/issues/36",
+    "pullRequest": "https://github.com/NickGuAI/HappyHerd/pull/37"
+  },
+  "release": {
+    "image": "ghcr.io/nickguai/happyherd@sha256:a0cf13f9eaad87a1e65c9b43feab0e156d58c829a72478375c4bea4524162df3",
+    "daemonArtifact": ".artifacts/0324f00a70d1/happyherd-daemon-x64-linux.tar.gz",
+    "daemonArtifactSha256": "e6ccbfed3b6fec24dae022cb940c2085414c3727e3a3998aae53b8d8170e5762",
+    "manifest": "docs/releases/2026-08-04-agentcontext-root.json",
+    "imageSmokeEvidence": "docs/acceptance/runtime-root-2026-08-04-image-smoke-0324f00a.json",
+    "imageSmokeEvidenceSha256": "8369e285d777057d1046030cb8133401ef247984247269fa982e159e7fc60f23"
+  },
+  "contracts": {
+    "targetedRootTests": 2,
+    "happyCliTests": 829,
+    "repositoryContractTests": 2012,
+    "appTests": 841,
+    "wireTests": 29,
+    "agentTests": 227,
+    "serverTests": 86,
+    "githubChecks": [
+      "Clean install",
+      "Contract suite",
+      "Lint",
+      "Production build",
+      "Typecheck",
+      "Unit tests"
+    ]
+  },
+  "deployments": [
+    {
+      "name": "local EC2",
+      "url": "https://happyherd.gehirn.ai",
+      "port": 20015,
+      "releasePath": "/opt/happyherd/releases/0324f00a70d18c1ed920544b4fe1c700f336627f",
+      "serverRestartedAt": "2026-08-04T01:25:29Z",
+      "daemonRestartedAt": "2026-08-04T01:25:33Z",
+      "health": "ok",
+      "machineRegistered": true,
+      "providerPreflight": {
+        "claude": "passed",
+        "codex": "passed"
+      },
+      "agentContext": {
+        "root": "/home/ec2-user/.happyherd",
+        "commanderCount": 9,
+        "durableFileCount": 88,
+        "manifestSha256": "c4106bf027db4ae12016582bd89e12f395bf14504bf4cf5c3fc847b5af1a1267",
+        "excludedSessionDirectoryCount": 0,
+        "unresolvedCommanderLegacyRouteCount": 0,
+        "claudeMirror": "AGENTS.md"
+      },
+      "automation": {
+        "automationCount": 0,
+        "legacyCount": 0,
+        "schedulerHeartbeat": "active"
+      },
+      "localHerdStatePreserved": true,
+      "accessKeyMode": "0600"
+    },
+    {
+      "name": "Bao Lab EC2",
+      "url": "https://baolab.gehirn.ai",
+      "port": 20001,
+      "releasePath": "/opt/happyherd/releases/0324f00a70d18c1ed920544b4fe1c700f336627f",
+      "serverRestartedAt": "2026-08-04T01:27:44Z",
+      "daemonRestartedAt": "2026-08-04T01:35:12Z",
+      "health": "ok",
+      "machineRegistered": true,
+      "providerPreflight": {
+        "claude": "passed",
+        "codex": "passed"
+      },
+      "agentContext": {
+        "root": "/home/ec2-user/.happyherd",
+        "commanderCount": 0,
+        "automationCount": 0,
+        "legacyAutomationCount": 0,
+        "legacyReferenceCount": 0,
+        "legacyBundleReferenceCount": 0,
+        "claudeMirror": "AGENTS.md"
+      },
+      "cleanup": {
+        "systemwideLegacyPathHandleCount": 0,
+        "removedRoots": [
+          "/home/ec2-user/Herd",
+          "/home/ec2-user/.herd",
+          "/home/ec2-user/.happy"
+        ],
+        "allRemovedRootsAbsent": true,
+        "archivedStaleBundleCount": 3
+      },
+      "accessKeyMode": "0600"
+    }
+  ],
+  "archive": {
+    "uri": "s3://nickgu-monorepo/happyherd/legacy-archives/baolab/20260804T013209Z/baolab-retired-herd-roots.tar.gz",
+    "checksumUri": "s3://nickgu-monorepo/happyherd/legacy-archives/baolab/20260804T013209Z/baolab-retired-herd-roots.tar.gz.sha256",
+    "sha256": "d456f6eba016a14da207fc358188fa0c11d8ee03c3bd52886de19d6ce300696b",
+    "bytes": 452657570,
+    "entryCount": 58755,
+    "serverSideEncryption": "AES256",
+    "roundTripChecksumVerified": true,
+    "tarIntegrityVerified": true,
+    "restoreCommand": "aws s3 cp s3://nickgu-monorepo/happyherd/legacy-archives/baolab/20260804T013209Z/baolab-retired-herd-roots.tar.gz - | tar -xzf - -C /home/ec2-user",
+    "restoreRequiresServiceStopAndExplicitApproval": true,
+    "retention": "Retain until an explicit owner-approved deletion; no automatic expiry was added."
+  },
+  "security": {
+    "credentialsInEvidence": false,
+    "restoreKeysInEvidence": false,
+    "plaintextArchiveStoredLocally": false,
+    "daemonUser": "ec2-user",
+    "interactiveShellSourced": false
+  },
+  "rollback": {
+    "previousSourceSha": "33372ae3fa1e4dc59afacae81aa44aa0359067c0",
+    "previousImage": "ghcr.io/nickguai/happyherd@sha256:8bd931fbcb9ce30e959635f411b87ef3ce87555715a46b43dffbd004f685c74d",
+    "releaseCommand": "scripts/rollback-release.sh docs/releases/2026-08-04-agentcontext-root.json /etc/happyherd/runtime.env",
+    "legacyStateRestoreRequiredForPreviousRelease": true
+  }
+}
