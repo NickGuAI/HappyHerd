@@ -1,19 +1,24 @@
 import { describe, expect, it } from 'vitest';
 
-import { detectAgentCapabilities, parseClaudeHelp } from './agentCapabilities';
+import { buildClaudeCapabilityCatalog, detectAgentCapabilities, parseClaudeHelp } from './agentCapabilities';
 
 describe('agent capability discovery', () => {
-    it('parses Claude CLI model aliases, effort, and permission choices', () => {
-        const parsed = parseClaudeHelp(`
+    it('parses only structured Claude CLI choices and never help-text model prose', () => {
+        const help = `
   --effort <level> Effort level for the current session
                    (low, medium, high, xhigh, max)
-  --model <model> Model alias (e.g. 'fable', 'opus', or 'sonnet') or full name
+  --model <model> Model for the current session. Provide
+                   an alias for the latest model (e.g.
+                   'fable', 'opus', or 'sonnet') or a
+                   model's full name (e.g.
+                   'claude-fable-5').
   --permission-mode <mode> Permission mode (choices: "acceptEdits", "auto",
                    "bypassPermissions", "manual", "dontAsk", "plan")
   --plugin-dir <path> Plugin path
-        `);
+        `;
+        const parsed = parseClaudeHelp(help);
+        const catalog = buildClaudeCapabilityCatalog(help, 1, '2.1.220 (Claude Code)');
 
-        expect(parsed.models.map((model) => model.code)).toEqual(['fable', 'opus', 'sonnet']);
         expect(parsed.effortLevels.map((effort) => effort.code)).toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
         expect(parsed.permissionModes.map((mode) => mode.code)).toEqual([
             'acceptEdits',
@@ -23,6 +28,17 @@ describe('agent capability discovery', () => {
             'dontAsk',
             'plan',
         ]);
+        expect(catalog.sources.models).toBe('happyherd-release-catalog');
+        expect(catalog.models.map((model) => model.code)).toEqual([
+            'default',
+            'claude-fable-5',
+            'claude-opus-5',
+            'claude-opus-4-8',
+            'claude-opus-4-6',
+            'claude-sonnet-5',
+            'claude-haiku-4-5',
+        ]);
+        expect(catalog.models.map((model) => model.value)).not.toContain(expect.stringContaining('full name'));
     });
 
     it('accepts a new Codex model without a Web release', async () => {

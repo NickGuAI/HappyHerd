@@ -87,26 +87,27 @@ describe('modelModeOptions', () => {
         expect(models[1].name).toBe('gpt-5.6 sol');
     });
 
-    it('builds claude model fallbacks with fable 5', () => {
+    it('builds Claude fallbacks from exact model slugs', () => {
         const models = getClaudeModelModes();
         expect(models.map((model) => model.key)).toEqual([
             'default',
+            'claude-fable-5',
             'claude-opus-5',
-            'opus',
-            'fable',
-            'sonnet',
-            'haiku',
+            'claude-opus-4-8',
+            'claude-opus-4-6',
+            'claude-sonnet-5',
+            'claude-haiku-4-5',
         ]);
-        expect(models.find((model) => model.key === 'fable')).toEqual({
-            key: 'fable',
-            name: 'fable 5',
+        expect(models.find((model) => model.key === 'claude-opus-4-6')).toEqual({
+            key: 'claude-opus-4-6',
+            name: 'claude-opus-4-6',
             description: null,
         });
     });
 
     it('uses code defaults for agent defaults', () => {
         expect(getDefaultPermissionModeKey('claude')).toBe('bypassPermissions');
-        expect(getDefaultModelKey('claude')).toBe('opus');
+        expect(getDefaultModelKey('claude')).toBe('claude-opus-5');
         expect(getDefaultEffortKey('claude')).toBe('medium');
         expect(getDefaultPermissionModeKey('codex')).toBe('yolo');
         expect(getDefaultModelKey('codex')).toBe('gpt-5.5');

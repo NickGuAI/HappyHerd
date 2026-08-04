@@ -1,4 +1,5 @@
 import type { AgentCapabilityCatalog, MachineMetadata, Metadata } from '@/sync/storageTypes';
+import { HAPPYHERD_CLAUDE_MODEL_SLUGS } from '@slopus/happy-wire';
 import { hackModes } from '@/sync/modeHacks';
 import { getCodeAgentDefaults } from '@/sync/agentDefaults';
 import {
@@ -155,15 +156,12 @@ export function getGeminiPermissionModes(translate: Translate): PermissionMode[]
 
 export function getClaudeModelModes(): ModelMode[] {
     return [
-        { key: 'default', name: 'default model', description: null },
-        // Full model ID, not the `opus-5` short alias: the alias is not in the
-        // CLI's alias table yet (`claude --model opus-5` errors on 2.1.199),
-        // while the full ID passes straight through to the API.
-        { key: 'claude-opus-5', name: 'opus 5', description: null },
-        { key: 'opus', name: 'opus 4.8', description: null },
-        { key: 'fable', name: 'fable 5', description: null },
-        { key: 'sonnet', name: 'sonnet 4.6', description: null },
-        { key: 'haiku', name: 'haiku 4.5', description: null },
+        { key: 'default', name: 'provider default', description: null },
+        ...HAPPYHERD_CLAUDE_MODEL_SLUGS.map((slug) => ({
+            key: slug,
+            name: slug,
+            description: null,
+        })),
     ];
 }
 
