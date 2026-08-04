@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "releaseId": "2026-08-04-agentcontext-root",
+  "repository": "ghcr.io/nickguai/happyherd",
+  "current": {
+    "image": "ghcr.io/nickguai/happyherd@sha256:a0cf13f9eaad87a1e65c9b43feab0e156d58c829a72478375c4bea4524162df3",
+    "immutableTag": "ghcr.io/nickguai/happyherd:sha-0324f00a70d18c1ed920544b4fe1c700f336627f",
+    "sourceSha": "0324f00a70d18c1ed920544b4fe1c700f336627f",
+    "smoke": {
+      "evidenceSha256": "8369e285d777057d1046030cb8133401ef247984247269fa982e159e7fc60f23",
+      "health": {
+        "service": "happy-server",
+        "status": "ok"
+      },
+      "result": "healthy",
+      "verifiedAt": "2026-08-04T01:09:38.547Z"
+    }
+  },
+  "previous": {
+    "image": "ghcr.io/nickguai/happyherd@sha256:8bd931fbcb9ce30e959635f411b87ef3ce87555715a46b43dffbd004f685c74d",
+    "immutableTag": "ghcr.io/nickguai/happyherd:sha-33372ae3fa1e4dc59afacae81aa44aa0359067c0",
+    "sourceSha": "33372ae3fa1e4dc59afacae81aa44aa0359067c0",
+    "smoke": {
+      "evidenceSha256": "15296b59f3da433b6b47d9c6604f4704a8f96eebfe2b4dcd2baa513241f59c99",
+      "health": {
+        "service": "happy-server",
+        "status": "ok"
+      },
+      "result": "healthy",
+      "verifiedAt": "2026-08-03T22:47:21.609Z"
+    }
+  },
+  "health": {
+    "path": "/health",
+    "expected": {
+      "service": "happy-server",
+      "status": "ok"
+    }
+  },
+  "rollback": {
+    "command": "scripts/rollback-release.sh docs/releases/2026-08-04-agentcontext-root.json /etc/happyherd/runtime.env"
+  }
+}
