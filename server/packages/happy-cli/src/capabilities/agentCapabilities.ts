@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { HAPPYHERD_CLAUDE_MODEL_SLUGS } from '@slopus/happy-wire';
 
 import type { AgentCapabilityCatalog } from '@/api/types';
 import { CodexAppServerClient } from '@/codex/codexAppServerClient';
@@ -9,7 +10,6 @@ import { logger } from '@/ui/logger';
 type CapabilityOption = AgentCapabilityCatalog['models'][number];
 type CapabilityMap = Record<string, AgentCapabilityCatalog>;
 
-const CLAUDE_MODEL_DEFAULTS = ['fable', 'opus', 'sonnet', 'haiku'];
 const CODEX_MODEL_DEFAULTS = [
     'gpt-5.6-sol',
     'gpt-5.6-terra',
@@ -65,7 +65,6 @@ function readVersion(command: string): string | undefined {
 }
 
 export function parseClaudeHelp(help: string): {
-    models: CapabilityOption[];
     effortLevels: CapabilityOption[];
     permissionModes: CapabilityOption[];
 } {
@@ -79,38 +78,37 @@ export function parseClaudeHelp(help: string): {
         ? uniqueOptions(permissionMatch[1].split(',').map((entry) => entry.trim().replace(/^['"]|['"]$/g, '')))
         : [];
 
-    const modelBlock = help.match(/--model\s+<model>([\s\S]*?)(?=\n\s{2,}--?[a-zA-Z]|$)/)?.[1] ?? '';
-    const advertisedModels = [...modelBlock.matchAll(/'([^']+)'/g)].map((match) => match[1]);
-
     return {
-        models: uniqueOptions(advertisedModels),
         effortLevels,
         permissionModes,
     };
 }
 
-function baselineClaudeCatalog(detectedAt: number): AgentCapabilityCatalog {
-    const help = readCommand('claude', ['--help']) ?? '';
+export function buildClaudeCapabilityCatalog(
+    help: string,
+    detectedAt: number,
+    providerVersion?: string,
+): AgentCapabilityCatalog {
     const parsed = parseClaudeHelp(help);
     const efforts = parsed.effortLevels.length > 0
         ? parsed.effortLevels
         : uniqueOptions(['low', 'medium', 'high', 'xhigh', 'max']);
-    const models = parsed.models.length > 0
-        ? uniqueOptions([...parsed.models.map((entry) => entry.code), ...CLAUDE_MODEL_DEFAULTS])
-        : uniqueOptions(CLAUDE_MODEL_DEFAULTS);
     const permissions = parsed.permissionModes.length > 0
         ? parsed.permissionModes
         : uniqueOptions(['acceptEdits', 'auto', 'bypassPermissions', 'dontAsk', 'plan']);
 
     return {
         detectedAt,
-        providerVersion: readVersion('claude'),
+        providerVersion,
         sources: {
-            models: parsed.models.length > 0 ? 'cli-help+daemon-defaults' : 'daemon-defaults',
+            models: 'happyherd-release-catalog',
             effortLevels: parsed.effortLevels.length > 0 ? 'cli-help' : 'daemon-defaults',
             permissionModes: parsed.permissionModes.length > 0 ? 'cli-help' : 'daemon-defaults',
         },
-        models: [option('default', 'default model', null), ...models],
+        models: [
+            option('default', 'provider default', null),
+            ...uniqueOptions([...HAPPYHERD_CLAUDE_MODEL_SLUGS]),
+        ],
         effortLevels: efforts,
         // `manual` is a CLI-only value not accepted by the embedded Agent SDK.
         permissionModes: [
@@ -118,6 +116,14 @@ function baselineClaudeCatalog(detectedAt: number): AgentCapabilityCatalog {
             ...permissions.filter((entry) => entry.code !== 'manual' && entry.code !== 'default'),
         ],
     };
+}
+
+function baselineClaudeCatalog(detectedAt: number): AgentCapabilityCatalog {
+    return buildClaudeCapabilityCatalog(
+        readCommand('claude', ['--help']) ?? '',
+        detectedAt,
+        readVersion('claude'),
+    );
 }
 
 function baselineCodexCatalog(detectedAt: number): AgentCapabilityCatalog {

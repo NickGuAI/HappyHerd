@@ -1,4 +1,8 @@
 import * as z from 'zod';
+import {
+    HAPPYHERD_DEFAULT_CLAUDE_MODEL_SLUG,
+    normalizeHappyHerdClaudeModelSlug,
+} from '@slopus/happy-wire';
 
 export const agentKeys = ['claude', 'codex', 'gemini', 'openclaw', 'agy'] as const;
 export type AgentKey = typeof agentKeys[number];
@@ -30,7 +34,11 @@ export type AgentDefaultConfig = {
 const codeAgentDefaults: Record<AgentKey, AgentDefaultConfig> = {
     // The Claude UI key for YOLO is `bypassPermissions`; the CLI also accepts
     // `yolo` and maps it to the Claude SDK's bypass mode.
-    claude: { permissionMode: 'bypassPermissions', modelMode: 'opus', effortLevel: 'medium' },
+    claude: {
+        permissionMode: 'bypassPermissions',
+        modelMode: HAPPYHERD_DEFAULT_CLAUDE_MODEL_SLUG,
+        effortLevel: 'medium',
+    },
     codex: { permissionMode: 'yolo', modelMode: 'gpt-5.5', effortLevel: 'medium' },
     gemini: { permissionMode: 'default', modelMode: 'gemini-2.5-pro', effortLevel: null },
     openclaw: { permissionMode: 'default', modelMode: 'default', effortLevel: null },
@@ -61,9 +69,12 @@ export function resolveAgentDefaultConfig(
 ): AgentDefaultConfig {
     const codeDefaults = getCodeAgentDefaults(flavor);
     const userOverride = getAgentDefaultOverride(overrides, flavor);
+    const modelMode = userOverride.modelMode ?? codeDefaults.modelMode;
     return {
         permissionMode: userOverride.permissionMode ?? codeDefaults.permissionMode,
-        modelMode: userOverride.modelMode ?? codeDefaults.modelMode,
+        modelMode: normalizeAgentKey(flavor) === 'claude'
+            ? normalizeHappyHerdClaudeModelSlug(modelMode)
+            : modelMode,
         effortLevel: userOverride.effortLevel ?? codeDefaults.effortLevel,
     };
 }
