@@ -61,3 +61,8 @@ B6-B7	code-ready	fix(context): use HappyHerd home as canonical root	server/packa
 B6-B7	accepted	docs(release): record AgentContext root cutover	docs/acceptance/runtime-root-2026-08-04.json
 MODEL_CATALOG	code-ready	fix(models): advertise canonical Claude slugs	server/packages/happy-wire/src/providerModels.test.ts
 MODEL_CATALOG	accepted	docs(release): record canonical Claude model acceptance	docs/acceptance/model-slugs-2026-08-04.json
+SUBAGENT_SPIKE	code-ready	docs(spike): isolate subagent execution tree experiment	docs/experiments/subagent-execution-tree-spike.md
+SUBAGENT_SPIKE	code-ready	docs(release): pin subagent spike branch image	docs/releases/2026-08-05-subagent-spike.json
+SUBAGENT_SPIKE	code-ready	docs(release): align subagent spike artifacts	docs/releases/2026-08-05-subagent-spike.json
+SUBAGENT_SPIKE	code-ready	feat(subagents): preserve provider-owned child lifecycle	server/packages/happy-cli/src/codex/codexAppServerClient.test.ts
+SUBAGENT_SPIKE	code-ready	docs(spike): register experimental owned patches	docs/owned-patches.tsv
