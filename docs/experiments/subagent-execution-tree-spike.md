@@ -70,6 +70,10 @@ ownership.
 - A child `start` envelope becomes one synthetic generic `Subagent` tool owner;
   tagged child text/reasoning/tools attach through the existing sidechain
   tracer; `stop` becomes that tool's terminal result.
+- That generic `Subagent` tool is the canonical UI owner for its child ID.
+  Later provider management calls such as `wait` may repeat the ID for
+  correlation, but cannot steal the retained child stream and hide it inside
+  a compact provider-tool row.
 - `SubagentView` is the sole desktop/mobile renderer. It exposes retained
   output, nested tool activity, and provider outcome but has no retry action.
 - Codex no longer has a duration timeout. Raw root `turn/completed` is the sole
@@ -80,11 +84,22 @@ ownership.
 
 ## Local evidence
 
-- `happy-wire` protocol tests: 10 passing.
-- Claude/Codex mapper and app-server lifecycle tests: 65 passing.
-- App normalization/reducer tests: 123 passing.
-- Happy app typecheck and changed-source lint: passing.
-- Live branch deployment and desktop/mobile acceptance remain pending.
+- Focused reducer/tracer regression suites: 73 passing.
+- Happy app typecheck: passing.
+- Complete contract suite: passing, including 847 app tests plus wire,
+  provider, CLI, server, lineage, isolation, artifact, and release contracts.
+- Immutable image smoke: passing for implementation source
+  `9eb584e9f08d554eec267d93dcce1ee7ad565a1f` and image digest
+  `sha256:225d819560548e433fb024600363e73393c080a255db75b0dfd9f59e127e575a`.
+- Live authenticated acceptance:
+  `https://happyherd.gehirn.ai/session/cmsgmg0g80006qw01qegbcgli`.
+  Two concurrent Codex children rendered as independent generic panels without
+  opening `Worked`/`Used tools`; both completed, retained 4 and 5 events, showed
+  their independent `HappyHerd` and `monorepo` results, and the main agent then
+  combined them. Desktop and mobile collapsed/expanded views passed visual
+  review with no failed, interrupted, duplicate, or ghost panel.
+- The candidate is live-accepted on the experimental domain only. It remains
+  unmerged until Nick explicitly authorizes the branch decision.
 
 ## Canonical review document
 
