@@ -69,3 +69,4 @@ SUBAGENT_SPIKE	code-ready	docs(spike): register experimental owned patches	docs/
 DEPLOY	code-ready	fix(release): anchor artifact output to repository root	scripts/test-release-daemon-contract.sh
 SUBAGENT_SPIKE	code-ready	docs(release): deploy lean subagent lifecycle candidate	docs/releases/2026-08-05-subagent-spike.json
 SUBAGENT_SPIKE	code-ready	fix(subagents): render only real child panels	server/packages/happy-app/sources/hooks/useGroupedMessages.test.ts
+SUBAGENT_SPIKE	code-ready	docs(release): deploy corrected subagent panels	docs/releases/2026-08-05-subagent-spike.json
