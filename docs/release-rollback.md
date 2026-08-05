@@ -11,6 +11,18 @@ Validate a release manifest:
 node scripts/verify-release-manifest.mjs docs/releases/RELEASE.json
 ```
 
+Install a complete host release before activation. This verifies every built
+artifact, installs the daemon together with the server launch/rollback scripts,
+checks non-root daemon executability, and only then atomically switches
+`/opt/happyherd/current`:
+
+```bash
+sudo scripts/install-host-release.sh \
+  .artifacts/SHORT_SHA \
+  /opt/happyherd/releases \
+  /opt/happyherd/current
+```
+
 Activate its current image:
 
 ```bash
@@ -38,4 +50,5 @@ Run the contract test without touching the host service:
 
 ```bash
 scripts/test-release-rollback.sh
+scripts/test-install-host-release.sh
 ```

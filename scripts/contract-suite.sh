@@ -27,6 +27,7 @@ node "$repo_root/scripts/verify-product-identity.mjs"
   "$repo_root/deploy/runtime.env.example" template
 "$repo_root/scripts/test-runtime-isolation.sh"
 "$repo_root/scripts/test-release-daemon-contract.sh"
+"$repo_root/scripts/test-install-host-release.sh"
 "$repo_root/scripts/test-release-image-contract.sh"
 "$repo_root/scripts/test-release-rollback.sh"
 "$repo_root/scripts/test-upstream-sync-provenance.sh"
