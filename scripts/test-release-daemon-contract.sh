@@ -29,6 +29,10 @@ grep -Fq -- '--config.prefer-symlinked-executables=true' "$BUILDER" || \
     fail 'both daemon prefetch and offline materialization must request relocatable executable shims'
 grep -Fq 'node_modules/.modules.yaml' "$BUILDER" || \
     fail 'build-host pnpm metadata is not excluded from the daemon archive'
+# The contract intentionally matches literal shell variables.
+# shellcheck disable=SC2016
+grep -Fq 'OUT_DIR="$ROOT/$OUT_DIR"' "$BUILDER" || \
+    fail 'relative artifact output is not anchored before the builder changes directories'
 # The contract intentionally matches a literal shell variable.
 # shellcheck disable=SC2016
 grep -Fq 'node "$STAGE/daemon/bin/happy.mjs" auth status' "$BUILDER" || \
