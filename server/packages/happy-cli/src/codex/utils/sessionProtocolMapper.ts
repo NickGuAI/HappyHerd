@@ -363,7 +363,11 @@ function resolveCollabProviderIds(
         return stateThreadIds;
     }
 
-    return [call];
+    // A collab call id identifies the provider tool invocation, not the child
+    // thread. Codex may omit receiver ids from the begin event and supply them
+    // only on the matching end/activity event. Creating a child from `call`
+    // would leave a duplicate provisional sidechain beside the real child.
+    return [];
 }
 
 function resolveCollabTool(
@@ -431,10 +435,12 @@ function emitCollabAgentStateMessages(
         if (!statusMessage) {
             continue;
         }
-        const prefix = status ? `Codex subagent ${status}` : 'Codex subagent';
         envelopes.push(createEnvelope('agent', {
-            t: 'service',
-            text: `${prefix}: ${statusMessage}`,
+            // This is provider-returned child output, not harness telemetry.
+            // Retain it as ordinary sidechain text so the child panel exposes
+            // the result to both the user and the main agent transcript.
+            t: 'text',
+            text: statusMessage,
         }, { ...opts, subagent: sessionSubagent }));
 
         const terminal = collabTerminalOutcome(status);
@@ -1144,6 +1150,18 @@ export function mapCodexMcpMessageToSessionEnvelopes(message: Record<string, unk
                 );
             }
         } else {
+            // Codex can reveal child thread ids only when the spawn call ends.
+            // Start the real sidechain here if the begin event was identity-free.
+            for (const sessionSubagent of Object.values(sessionSubagents)) {
+                maybeEmitSubagentStart(
+                    sessionSubagent,
+                    turnOpts,
+                    startedSubagents,
+                    activeSubagents,
+                    subagentTitles,
+                    envelopes,
+                );
+            }
             emitCollabAgentStateMessages(envelopes, message, sessionSubagents, turnOpts, activeSubagents);
             envelopes.push(createEnvelope('agent', { t: 'tool-call-end', call }, turnOpts));
             if (tool === 'closeAgent') {
