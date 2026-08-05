@@ -3,17 +3,17 @@
   "releaseId": "2026-08-05-subagent-spike",
   "repository": "ghcr.io/nickguai/happyherd",
   "current": {
-    "image": "ghcr.io/nickguai/happyherd@sha256:7233ca527ee94645703c46d347f587fe16eb21317c82adf91b0cc6e092337a11",
-    "immutableTag": "ghcr.io/nickguai/happyherd:sha-5e29ccbd3b1a3d109a7cbc68ad0dc00a335c9604",
-    "sourceSha": "5e29ccbd3b1a3d109a7cbc68ad0dc00a335c9604",
+    "image": "ghcr.io/nickguai/happyherd@sha256:2b3569a0ea7fb49d76c704f1cbff03dbfff05582f73f773813a48b95706d7e93",
+    "immutableTag": "ghcr.io/nickguai/happyherd:sha-993a828cb593d8da1778a356aab7bed2818712cf",
+    "sourceSha": "993a828cb593d8da1778a356aab7bed2818712cf",
     "smoke": {
-      "evidenceSha256": "c68e9ef0ecce97e88a6b6c54f29501c763e9fda0ab12ad9a83561eee9eefede5",
+      "evidenceSha256": "c89f6d9e0d930a647ee2c8c58db247f398d43e9a7aff4deeeecfec29d4aa76c5",
       "health": {
         "service": "happy-server",
         "status": "ok"
       },
       "result": "healthy",
-      "verifiedAt": "2026-08-05T03:25:58.787Z"
+      "verifiedAt": "2026-08-05T03:33:18.517Z"
     }
   },
   "previous": {
