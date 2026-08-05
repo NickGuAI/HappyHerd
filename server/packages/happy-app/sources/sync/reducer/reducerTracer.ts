@@ -57,6 +57,7 @@
 // ============================================================================
 
 import { NormalizedMessage } from '../typesRaw';
+import { isCuid } from '@paralleldrive/cuid2';
 
 // Extended message type with sidechain ID for tracking message relationships
 export type TracedMessage = NormalizedMessage & {
@@ -182,7 +183,11 @@ export function traceMessages(state: TracerState, messages: NormalizedMessage[])
             continue;
         }
         
-        // Extract Task tools and index them by message ID for later sidechain matching
+        // Extract Task tools and index them by message ID for later sidechain matching.
+        // Orphans released by a newly-arrived parent must be emitted *after*
+        // that parent, otherwise the reducer sees child rows before the tool
+        // panel they belong to during replay.
+        const releasedToolCallOrphans: TracedMessage[] = [];
         if (message.role === 'agent') {
             for (const content of message.content) {
                 if (content.type === 'tool-call') {
@@ -193,7 +198,7 @@ export function traceMessages(state: TracerState, messages: NormalizedMessage[])
                         // If we already buffered children keyed by subagent/tool id, flush them now.
                         const subagentOrphans = processOrphans(state, parentId, message.id);
                         if (subagentOrphans.length > 0) {
-                            results.push(...subagentOrphans);
+                            releasedToolCallOrphans.push(...subagentOrphans);
                         }
                     }
                 }
@@ -217,8 +222,14 @@ export function traceMessages(state: TracerState, messages: NormalizedMessage[])
                 ...message
             };
             results.push(tracedMessage);
+            results.push(...releasedToolCallOrphans);
             continue;
         }
+
+        // Preserve the historical ordering for sidechain tool-call messages;
+        // generic subagent owners are non-sidechain and take the ordered path
+        // above.
+        results.push(...releasedToolCallOrphans);
         
         // Handle sidechain messages - these need to be linked to their originating Task
         const uuid = getMessageUuid(message);
@@ -282,7 +293,7 @@ export function traceMessages(state: TracerState, messages: NormalizedMessage[])
                 // For non-UUID parent references (e.g. subagent ids), treat as standalone
                 // when no parent mapping exists. CLI mapper is expected to resolve/sequence
                 // subagent ownership, so app should not permanently orphan these messages.
-                if (!isUuidLike(parentUuid)) {
+                if (!isUuidLike(parentUuid) && !isCuid(parentUuid)) {
                     state.processedIds.add(message.id);
                     const tracedMessage: TracedMessage = {
                         ...message

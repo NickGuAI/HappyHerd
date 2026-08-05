@@ -21,11 +21,10 @@
 
 ## Question being tested
 
-Can HappyHerd derive one provider-neutral execution tree from the ownership
-signals already emitted by the Claude and Codex mappers, and render that tree
-through one generic panel, without importing Herd's provider runtime or adding
-a second session, transport, resume, credential, approval, or persistence
-system?
+Can HappyHerd preserve provider-native child evidence and render one generic
+panel per child by reusing the existing encrypted log, ownership tracer, and
+tool reducer—while leaving creation, failure interpretation, and recovery with
+the provider-native main agent and adding no second lifecycle system?
 
 ## Adapter boundary
 
@@ -46,16 +45,46 @@ Continue only when all of the following are demonstrated on this branch:
    views.
 3. Child activity cannot leak into the main-agent stream or a sibling panel.
 4. A child failure or interruption shows its actual error inside that child's
-   panel, while the main thread remains usable.
+   panel, while the main thread remains usable and owns any recovery decision.
 5. The ACP negative control creates no false child panel.
 6. Desktop and mobile render the same execution tree through one generic UI
    component with no provider-specific React branch.
+7. Only explicit raw root `turn/completed` releases a Codex root waiter;
+   legacy lifecycle, child lifecycle, final-answer content, thread idle,
+   ambiguous events, and elapsed duration cannot release it.
+8. No panel, reducer, mapper, timer, scheduler, heartbeat, or harness-owned
+   retry path can call back into provider child control.
 
 ## Stop conditions
 
 Stop and redesign the experiment if it requires prompt/tool-name inference,
-provider lifecycle changes, a second reducer or replay store, a new database
-relationship, or changes to credential/approval/session-resume ownership.
+a second reducer or replay store, a new database relationship, child leases or
+heartbeats, automatic retry, or changes to credential/approval/session-resume
+ownership.
+
+## LEAN candidate implementation
+
+- Claude and Codex retain their native main/child control paths. Their mappers
+  only mirror explicit child identity, activity, terminal status, and sanitized
+  detail into `SessionEnvelope`.
+- A child `start` envelope becomes one synthetic generic `Subagent` tool owner;
+  tagged child text/reasoning/tools attach through the existing sidechain
+  tracer; `stop` becomes that tool's terminal result.
+- `SubagentView` is the sole desktop/mobile renderer. It exposes retained
+  output, nested tool activity, and provider outcome but has no retry action.
+- Codex no longer has a duration timeout. Raw root `turn/completed` is the sole
+  queue-release authority; explicit user Stop keeps the existing bounded
+  interrupt/reconnect infrastructure path.
+- No new service, database table, task model, scheduler, lease, heartbeat,
+  provider feedback call, or provider-specific React state machine exists.
+
+## Local evidence
+
+- `happy-wire` protocol tests: 10 passing.
+- Claude/Codex mapper and app-server lifecycle tests: 65 passing.
+- App normalization/reducer tests: 123 passing.
+- Happy app typecheck and changed-source lint: passing.
+- Live branch deployment and desktop/mobile acceptance remain pending.
 
 ## Canonical review document
 

@@ -30,6 +30,9 @@ const agentEventSchema = z.discriminatedUnion('type', [z.object({
     endsAt: z.number(),
 }), z.object({
     type: z.literal('ready'),
+}), z.object({
+    type: z.literal('turn-end'),
+    status: z.enum(['completed', 'failed', 'cancelled']),
 })]);
 export type AgentEvent = z.infer<typeof agentEventSchema>;
 
@@ -89,6 +92,8 @@ const sessionTurnEndEventSchema = z.object({
 
 const sessionStopEventSchema = z.object({
     t: z.literal('stop'),
+    status: z.enum(['completed', 'failed', 'cancelled', 'interrupted', 'unknown']).optional(),
+    detail: z.string().optional(),
 });
 
 const sessionEventSchema = z.discriminatedUnion('t', [
@@ -570,9 +575,59 @@ function normalizeSessionEnvelope(
         return null;
     }
 
-    if (envelope.ev.t === 'start' || envelope.ev.t === 'stop') {
-        // Lifecycle marker for subagent boundaries; currently not rendered as chat content.
-        return null;
+    if (envelope.ev.t === 'start') {
+        if (!envelope.subagent) {
+            return null;
+        }
+
+        const title = envelope.ev.title?.trim() || 'Sub-agent';
+        return {
+            id: messageId,
+            localId,
+            createdAt: messageCreatedAt,
+            role: 'agent',
+            isSidechain: false,
+            content: [{
+                type: 'tool-call',
+                id: envelope.subagent,
+                name: 'Subagent',
+                input: {
+                    sessionSubagent: envelope.subagent,
+                    title,
+                },
+                description: title,
+                uuid: contentUUID,
+                parentUUID: null,
+            }],
+            meta,
+        } satisfies NormalizedMessage;
+    }
+
+    if (envelope.ev.t === 'stop') {
+        if (!envelope.subagent) {
+            return null;
+        }
+
+        const status = envelope.ev.status ?? 'unknown';
+        return {
+            id: messageId,
+            localId,
+            createdAt: messageCreatedAt,
+            role: 'agent',
+            isSidechain: false,
+            content: [{
+                type: 'tool-result',
+                tool_use_id: envelope.subagent,
+                content: {
+                    status,
+                    ...(envelope.ev.detail ? { detail: envelope.ev.detail } : {}),
+                },
+                is_error: status === 'failed' || status === 'interrupted',
+                uuid: contentUUID,
+                parentUUID: null,
+            }],
+            meta,
+        } satisfies NormalizedMessage;
     }
 
     if (envelope.ev.t === 'turn-end') {
@@ -582,7 +637,7 @@ function normalizeSessionEnvelope(
             createdAt: messageCreatedAt,
             role: 'event',
             isSidechain: false,
-            content: { type: 'ready' },
+            content: { type: 'turn-end', status: envelope.ev.status },
             meta
         } satisfies NormalizedMessage;
     }

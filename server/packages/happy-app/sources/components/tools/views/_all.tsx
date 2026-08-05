@@ -18,6 +18,7 @@ import { AskUserQuestionView } from './AskUserQuestionView';
 import { GeminiEditView } from './GeminiEditView';
 import { GeminiExecuteView } from './GeminiExecuteView';
 import { FileView } from './FileView';
+import { SubagentView } from './SubagentView';
 
 export type ToolViewProps = {
     tool: ToolCall;
@@ -50,6 +51,7 @@ export const toolViewRegistry: Record<string, ToolViewComponent> = {
     execute: GeminiExecuteView,
     // File attachment events
     file: FileView,
+    Subagent: SubagentView,
 };
 
 export const toolFullViewRegistry: Record<string, ToolViewComponent> = {
@@ -59,6 +61,7 @@ export const toolFullViewRegistry: Record<string, ToolViewComponent> = {
     MultiEdit: MultiEditViewFull,
     Task: TaskView,
     Agent: TaskView,
+    Subagent: SubagentView,
 };
 
 // Helper function to get the appropriate view component for a tool
@@ -87,3 +90,4 @@ export { AskUserQuestionView } from './AskUserQuestionView';
 export { GeminiEditView } from './GeminiEditView';
 export { GeminiExecuteView } from './GeminiExecuteView';
 export { FileView } from './FileView';
+export { SubagentView } from './SubagentView';

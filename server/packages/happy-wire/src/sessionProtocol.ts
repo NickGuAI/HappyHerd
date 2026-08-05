@@ -90,6 +90,10 @@ export const sessionTurnEndEventSchema = z.object({
 
 export const sessionStopEventSchema = z.object({
   t: z.literal('stop'),
+  // Optional for replay compatibility with envelopes emitted before child
+  // outcomes were preserved. New producers should always set a status.
+  status: z.enum(['completed', 'failed', 'cancelled', 'interrupted', 'unknown']).optional(),
+  detail: z.string().optional(),
 });
 
 export const sessionEventSchema = z.discriminatedUnion('t', [

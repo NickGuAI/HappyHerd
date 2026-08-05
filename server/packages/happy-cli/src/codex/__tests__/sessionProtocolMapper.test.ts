@@ -255,7 +255,7 @@ describe('mapCodexMcpMessageToSessionEnvelopes', () => {
         expect(closeEnd.envelopes).toEqual(expect.arrayContaining([
             expect.objectContaining({
                 subagent: sessionSubagent,
-                ev: { t: 'stop' },
+                ev: expect.objectContaining({ t: 'stop', status: 'cancelled' }),
             }),
         ]));
     });
@@ -378,7 +378,11 @@ describe('mapCodexMcpMessageToSessionEnvelopes', () => {
             subagent: started.envelopes[0].subagent,
             ev: { t: 'service', text: 'Codex subagent interrupted' },
         });
-        expect(interrupted.envelopes[1].ev).toEqual({ t: 'stop' });
+        expect(interrupted.envelopes[1].ev).toEqual({
+            t: 'stop',
+            status: 'interrupted',
+            detail: 'Codex reported that the child was interrupted.',
+        });
         expect(interrupted.envelopes[1].subagent).toBe(started.envelopes[0].subagent);
     });
 

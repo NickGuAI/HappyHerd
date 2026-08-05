@@ -294,7 +294,40 @@ export class CodexAppServerClient {
         return typeof status === 'string' && status.length > 0 ? status : null;
     }
 
+    private extractThreadId(params: any): string | null {
+        const threadId = params?.threadId ?? params?.thread_id ?? params?.turn?.threadId ?? null;
+        return typeof threadId === 'string' && threadId.length > 0 ? threadId : null;
+    }
+
+    private isRootThreadNotification(params: any): boolean {
+        const threadId = this.extractThreadId(params);
+        if (threadId) {
+            return this._threadId !== null && threadId === this._threadId;
+        }
+
+        // Fail closed when a notification omits thread identity. A matching
+        // root turn id is enough; an ambiguous event must never release the
+        // main waiter merely because it lacked child provenance.
+        const turnId = this.extractTurnId(params);
+        const rootTurnId = this.pendingTurnCompletion?.turnId ?? this._turnId;
+        return Boolean(turnId && rootTurnId && turnId === rootTurnId);
+    }
+
+    private childThreadScope(params: any): Record<string, string> {
+        const threadId = this.extractThreadId(params);
+        if (!threadId || !this._threadId || threadId === this._threadId) {
+            return {};
+        }
+        return {
+            agent_thread_id: threadId,
+            agentThreadId: threadId,
+        };
+    }
+
     private shouldHandleRawNotification(method: string): boolean {
+        const isAuthoritativeLifecycle = method === 'turn/started'
+            || method === 'turn/completed'
+            || method === 'thread/status/changed';
         const isRawNotification = method === 'thread/started'
             || method === 'thread/goal/updated'
             || method === 'thread/goal/cleared'
@@ -306,6 +339,14 @@ export class CodexAppServerClient {
 
         if (!isRawNotification) {
             return false;
+        }
+
+        // Raw lifecycle carries authoritative provider thread/turn identity.
+        // Keep accepting it even if legacy codex/event notifications arrived
+        // first; legacy task_complete is presentation data, not root truth.
+        if (isAuthoritativeLifecycle) {
+            this.notificationProtocol = 'raw';
+            return true;
         }
 
         if (this.notificationProtocol === 'legacy') {
@@ -340,6 +381,7 @@ export class CodexAppServerClient {
         if (aborted) {
             this.eventHandler?.({
                 type: 'turn_aborted',
+                provider_terminal: true,
                 ...(turnId ? { turn_id: turnId } : {}),
                 ...(status ? { status } : {}),
                 ...(error !== undefined && error !== null ? { error } : {}),
@@ -349,6 +391,7 @@ export class CodexAppServerClient {
 
         this.eventHandler?.({
             type: 'task_complete',
+            provider_terminal: true,
             ...(turnId ? { turn_id: turnId } : {}),
             ...(status ? { status } : {}),
             ...(error !== undefined && error !== null ? { error } : {}),
@@ -361,6 +404,18 @@ export class CodexAppServerClient {
         }
 
         if (method === 'turn/started') {
+            if (!this.isRootThreadNotification(params)) {
+                const childThreadId = this.extractThreadId(params);
+                if (childThreadId) {
+                    this.eventHandler?.({
+                        type: 'subagent_activity',
+                        kind: 'started',
+                        agent_thread_id: childThreadId,
+                        agentThreadId: childThreadId,
+                    });
+                }
+                return true;
+            }
             const turnId = this.extractTurnId(params);
             if (turnId) {
                 this._turnId = turnId;
@@ -368,12 +423,28 @@ export class CodexAppServerClient {
             this.markPendingTurnStarted(turnId);
             this.eventHandler?.({
                 type: 'task_started',
+                provider_lifecycle: true,
                 ...(turnId ? { turn_id: turnId } : {}),
             });
             return true;
         }
 
         if (method === 'turn/completed') {
+            if (!this.isRootThreadNotification(params)) {
+                const childThreadId = this.extractThreadId(params);
+                if (childThreadId) {
+                    this.eventHandler?.({
+                        type: 'subagent_terminal',
+                        agent_thread_id: childThreadId,
+                        agentThreadId: childThreadId,
+                        status: this.extractTurnStatus(params) ?? 'unknown',
+                        ...(params?.turn?.error !== undefined && params?.turn?.error !== null
+                            ? { error: params.turn.error }
+                            : {}),
+                    });
+                }
+                return true;
+            }
             this.emitRawTurnCompletion(
                 this.extractTurnId(params),
                 this.extractTurnStatus(params),
@@ -384,10 +455,13 @@ export class CodexAppServerClient {
         }
 
         if (method === 'thread/status/changed') {
-            const statusType = params?.status?.type;
-            if (statusType === 'idle' && this.pendingTurnCompletion) {
-                this.emitRawTurnCompletion(this._turnId, 'completed', null, method);
+            if (!this.isRootThreadNotification(params)) {
+                return true;
             }
+            // Thread status is useful telemetry, but it is not terminal turn
+            // evidence. A root thread may look idle while provider-owned child
+            // work is still settling. Only root turn/completed releases the
+            // local waiter.
             return true;
         }
 
@@ -430,6 +504,50 @@ export class CodexAppServerClient {
             return method.startsWith('item/');
         }
 
+        if (method === 'item/completed' && item.type === 'reasoning') {
+            const text = [
+                ...(Array.isArray(item.summary) ? item.summary : []),
+                ...(Array.isArray(item.content) ? item.content : []),
+            ].filter((part): part is string => typeof part === 'string' && part.trim().length > 0).join('\n');
+            if (text.length > 0) {
+                this.eventHandler?.({
+                    type: 'agent_reasoning',
+                    text,
+                    item_id: item.id,
+                    ...this.childThreadScope(params),
+                });
+            }
+            return true;
+        }
+
+        if (item.type === 'mcpToolCall') {
+            const callId = typeof item.id === 'string'
+                ? formatScopedItemKey(this.extractThreadId(params) ?? this._threadId, item.id)
+                : '';
+            const payload = {
+                call_id: callId,
+                callId,
+                server: item.server,
+                tool: item.tool,
+                arguments: item.arguments,
+                status: item.status,
+                ...this.childThreadScope(params),
+            };
+            if (method === 'item/started') {
+                this.eventHandler?.({ type: 'mcp_tool_begin', ...payload });
+                return true;
+            }
+            if (method === 'item/completed') {
+                this.eventHandler?.({
+                    type: 'mcp_tool_end',
+                    ...payload,
+                    result: item.result,
+                    error: item.error,
+                });
+                return true;
+            }
+        }
+
         if (method === 'item/started' && item.type === 'commandExecution') {
             const itemId = typeof item.id === 'string' ? item.id : '';
             // Scoped the same way as the approval request for this item, so
@@ -442,6 +560,7 @@ export class CodexAppServerClient {
                 command: item.command,
                 cwd: item.cwd,
                 description: item.command,
+                ...this.childThreadScope(params),
             });
             return true;
         }
@@ -459,6 +578,7 @@ export class CodexAppServerClient {
                 status: item.status,
                 cwd: item.cwd,
                 command: item.command,
+                ...this.childThreadScope(params),
             });
             return true;
         }
@@ -479,6 +599,7 @@ export class CodexAppServerClient {
                     call_id: itemKey,
                     callId: itemKey,
                     changes: changes ?? {},
+                    ...this.childThreadScope(params),
                 });
                 return true;
             }
@@ -489,6 +610,7 @@ export class CodexAppServerClient {
                     call_id: itemKey,
                     callId: itemKey,
                     status: item.status,
+                    ...this.childThreadScope(params),
                 });
 
                 if (itemId && (item.status === 'completed' || item.status === 'failed' || item.status === 'declined')) {
@@ -576,17 +698,13 @@ export class CodexAppServerClient {
                     message: text,
                     item_id: item.id,
                     phase: item.phase,
+                    ...this.childThreadScope(params),
                 });
             }
 
-            if (item.phase === 'final_answer' && this.pendingTurnCompletion) {
-                this.emitRawTurnCompletion(
-                    this.extractTurnId(params),
-                    'completed',
-                    null,
-                    `${method}:final_answer`,
-                );
-            }
+            // A final-answer item is presentation content, not terminal turn
+            // evidence. Waiting for root turn/completed keeps late child
+            // results attached to the provider-owned root lifecycle.
             return true;
         }
 
@@ -1139,12 +1257,11 @@ export class CodexAppServerClient {
         }
     }
 
-    /** Default timeout for waiting on turn completion (ms). 10 minutes. */
-    private static readonly TURN_TIMEOUT_MS = 10 * 60 * 1000;
-
     /**
-     * Send a user turn and wait for it to complete (task_complete or turn_aborted).
-     * Returns { aborted: true } if the turn was aborted (user cancel, permission reject, etc.).
+     * Send a user turn and wait for authoritative provider terminal evidence.
+     * There is deliberately no duration timeout: releasing the local queue while
+     * Codex still owns the turn creates a false-idle split brain. Explicit user
+     * interruption remains available through abortTurnWithFallback().
      */
     async sendTurnAndWait(prompt: string, opts?: {
         model?: string;
@@ -1153,6 +1270,7 @@ export class CodexAppServerClient {
         sandbox?: SandboxMode;
         effort?: ReasoningEffort;
         extraInputItems?: InputItem[];
+        /** @deprecated Retained for call-site compatibility; no local turn timeout is applied. */
         turnTimeoutMs?: number;
     }): Promise<{ aborted: boolean }> {
         // Wait for any in-flight interruptTurn() to complete before starting a new
@@ -1166,33 +1284,21 @@ export class CodexAppServerClient {
             await new Promise(resolve => setTimeout(resolve, 0));
         }
 
-        const timeoutMs = opts?.turnTimeoutMs ?? CodexAppServerClient.TURN_TIMEOUT_MS;
-        let timer: ReturnType<typeof setTimeout> | null = null;
-
         const completion = new Promise<boolean>((resolve) => {
             this.pendingTurnCompletion = {
                 resolve,
                 turnId: null,
             };
-
-            timer = setTimeout(() => {
-                if (this.pendingTurnCompletion) {
-                    logger.warn(`[CodexAppServer] Turn timed out after ${timeoutMs}ms — treating as abort`);
-                    this.resolvePendingTurn(true);
-                }
-            }, timeoutMs);
         });
 
         try {
             await this.sendTurn(prompt, opts);
         } catch (err) {
-            if (timer) clearTimeout(timer);
             this.pendingTurnCompletion = null;
             throw err;
         }
 
         const aborted = await completion;
-        if (timer) clearTimeout(timer);
         return { aborted };
     }
 
@@ -1553,32 +1659,22 @@ export class CodexAppServerClient {
     private handleNotification(method: string, params: any): void {
         // codex/event notifications: either `codex/event` or `codex/event/<type>`
         if (method === 'codex/event' || method.startsWith('codex/event/')) {
-            this.notificationProtocol = 'legacy';
+            if (this.notificationProtocol === 'unknown') {
+                this.notificationProtocol = 'legacy';
+            }
             const msg = params?.msg;
             if (msg) {
-                // Extract turn_id from task_started events
-                if (msg.type === 'task_started' && msg.turn_id) {
-                    this._turnId = msg.turn_id;
-                }
-                if (msg.type === 'task_started') {
-                    this.markPendingTurnStarted(msg.turn_id ?? msg.turnId ?? null);
-                }
-                // Fire event handler first (so consumer processes the event)
-                this.eventHandler?.(msg);
-                // Then resolve turn completion promise
-                if (msg.type === 'task_complete' || msg.type === 'turn_aborted') {
-                    const turnId = msg.turn_id ?? msg.turnId ?? null;
-                    // Mark as completed so v2 turn/completed doesn't duplicate
-                    if (turnId) {
-                        this.completedTurnIds.add(turnId);
-                    }
-                    this.tryResolvePendingTurn(
-                        msg.type === 'turn_aborted',
-                        turnId,
-                        `codex/event/${msg.type}`,
-                    );
-                    this._turnId = null;
-                }
+                // Legacy task lifecycle is forwarded for compatibility and
+                // diagnostics, but never resolves the root waiter. Modern
+                // app-server can emit task_complete while provider-native
+                // children are still active; raw root turn/completed is the
+                // sole authority that releases the queue.
+                const isLegacyLifecycle = msg.type === 'task_started'
+                    || msg.type === 'task_complete'
+                    || msg.type === 'turn_aborted';
+                this.eventHandler?.(isLegacyLifecycle
+                    ? { ...msg, provider_lifecycle: false, provider_terminal: false }
+                    : msg);
             }
             return;
         }

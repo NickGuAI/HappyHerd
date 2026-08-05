@@ -308,12 +308,23 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
             continue;
         }
 
-        // Filter out ready events completely - they should not create any message
+        // Filter out legacy ready events completely - they should not create any message
         if (msg.role === 'event' && msg.content.type === 'ready') {
             // Mark as processed to prevent duplication but don't add to messages
             state.messageIds.set(msg.id, msg.id);
             hasReadyEvent = true;
             continue;
+        }
+
+        // A completed provider turn remains a lifecycle-only ready signal. Failed
+        // and cancelled turns stay structured and visible so the UI does not
+        // collapse every terminal outcome into a false-success state.
+        if (msg.role === 'event' && msg.content.type === 'turn-end') {
+            hasReadyEvent = true;
+            if (msg.content.status === 'completed') {
+                state.messageIds.set(msg.id, msg.id);
+                continue;
+            }
         }
 
         // Session protocol turn-start markers are lifecycle-only and should stay invisible.

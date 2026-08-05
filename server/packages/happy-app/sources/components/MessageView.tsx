@@ -213,6 +213,14 @@ function AgentEventBlock(props: {
       </View>
     );
   }
+  if (props.event.type === 'turn-end') {
+    const label = props.event.status === 'failed' ? 'Turn failed' : 'Turn cancelled';
+    return (
+      <View style={styles.agentEventContainer}>
+        <Text style={styles.agentEventText}>{label}</Text>
+      </View>
+    );
+  }
   return (
     <View style={styles.agentEventContainer}>
       <Text style={styles.agentEventText}>{t('message.unknownEvent')}</Text>
