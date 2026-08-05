@@ -192,11 +192,22 @@ export function traceMessages(state: TracerState, messages: NormalizedMessage[])
             for (const content of message.content) {
                 if (content.type === 'tool-call') {
                     for (const parentId of getToolCallParentIds(content)) {
-                        state.toolCallToMessageId.set(parentId, message.id);
+                        // The generic Subagent lifecycle card is the canonical
+                        // owner for a provider child. Provider management calls
+                        // (for example Codex spawn/wait) can repeat the same
+                        // sessionSubagent id later in the turn; they must not
+                        // steal the child's sidechain from that standalone card.
+                        // A canonical owner may still replace an earlier
+                        // provider mapping when events arrive out of order.
+                        const isCanonicalSubagentOwner = content.name === 'Subagent';
+                        if (isCanonicalSubagentOwner || !state.toolCallToMessageId.has(parentId)) {
+                            state.toolCallToMessageId.set(parentId, message.id);
+                        }
 
                         // Session protocol sidechain messages can arrive before their parent tool call.
                         // If we already buffered children keyed by subagent/tool id, flush them now.
-                        const subagentOrphans = processOrphans(state, parentId, message.id);
+                        const canonicalOwnerId = state.toolCallToMessageId.get(parentId) ?? message.id;
+                        const subagentOrphans = processOrphans(state, parentId, canonicalOwnerId);
                         if (subagentOrphans.length > 0) {
                             releasedToolCallOrphans.push(...subagentOrphans);
                         }

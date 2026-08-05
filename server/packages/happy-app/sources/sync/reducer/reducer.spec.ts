@@ -3277,6 +3277,94 @@ describe('reducer', () => {
             }
             expect(result.hasReadyEvent).not.toBe(true);
         });
+
+        it('keeps generic subagent ownership when later provider tools repeat the child id', () => {
+            const state = createReducer();
+            const subagent = createId();
+            const result = reducer(state, [
+                {
+                    id: 'generic-child-owner',
+                    localId: null,
+                    createdAt: 1000,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-call',
+                        id: subagent,
+                        name: 'Subagent',
+                        input: { sessionSubagent: subagent, title: 'README child' },
+                        description: 'README child',
+                        uuid: 'generic-child-owner-uuid',
+                        parentUUID: null,
+                    }],
+                },
+                {
+                    id: 'provider-wait-owner',
+                    localId: null,
+                    createdAt: 1010,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-call',
+                        id: 'provider-wait-call',
+                        name: 'CodexSubagent',
+                        input: { tool: 'wait', sessionSubagent: subagent },
+                        description: 'Wait for Codex subagent',
+                        uuid: 'provider-wait-owner-uuid',
+                        parentUUID: null,
+                    }],
+                },
+                {
+                    id: 'generic-child-result',
+                    localId: null,
+                    createdAt: 1020,
+                    role: 'agent',
+                    isSidechain: true,
+                    content: [{
+                        type: 'text',
+                        text: '# HappyHerd',
+                        uuid: 'generic-child-result-uuid',
+                        parentUUID: subagent,
+                    }],
+                },
+                {
+                    id: 'generic-child-stop',
+                    localId: null,
+                    createdAt: 1030,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: subagent,
+                        content: { status: 'completed' },
+                        is_error: false,
+                        uuid: 'generic-child-stop-uuid',
+                        parentUUID: null,
+                    }],
+                },
+            ]);
+
+            const genericPanel = result.messages.find(
+                (message) => message.kind === 'tool-call' && message.tool.name === 'Subagent',
+            );
+            const providerTool = result.messages.find(
+                (message) => message.kind === 'tool-call' && message.tool.name === 'CodexSubagent',
+            );
+
+            expect(genericPanel).toBeDefined();
+            expect(providerTool).toBeDefined();
+            if (genericPanel?.kind === 'tool-call') {
+                expect(genericPanel.children).toHaveLength(1);
+                expect(genericPanel.children[0]).toMatchObject({
+                    kind: 'agent-text',
+                    text: '# HappyHerd',
+                });
+                expect(genericPanel.tool.state).toBe('completed');
+            }
+            if (providerTool?.kind === 'tool-call') {
+                expect(providerTool.children).toHaveLength(0);
+            }
+        });
     });
 
     describe('TodoWrite latestTodos handling', () => {
