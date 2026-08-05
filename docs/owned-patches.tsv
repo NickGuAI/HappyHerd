@@ -71,3 +71,4 @@ SUBAGENT_SPIKE	code-ready	docs(release): deploy lean subagent lifecycle candidat
 SUBAGENT_SPIKE	code-ready	fix(subagents): render only real child panels	server/packages/happy-app/sources/hooks/useGroupedMessages.test.ts
 SUBAGENT_SPIKE	code-ready	docs(release): deploy corrected subagent panels	docs/releases/2026-08-05-subagent-spike.json
 SUBAGENT_SPIKE	code-ready	fix(subagents): keep generic child ownership	server/packages/happy-app/sources/sync/reducer/reducer.spec.ts
+SUBAGENT_SPIKE	code-ready	docs(release): deploy canonical child ownership	docs/releases/2026-08-05-subagent-spike.json
