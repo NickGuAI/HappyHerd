@@ -442,6 +442,57 @@ export function getEffortLevelsForModel(
     return [];
 }
 
+function shouldUseMachineCapabilityCatalog(
+    flavor: AgentFlavor,
+    sessionMetadata: Metadata | null | undefined,
+    machineMetadata: MachineMetadata | null | undefined,
+): boolean {
+    return !isRigMetadataV1(sessionMetadata) && getMachineCatalog(machineMetadata, flavor) !== null;
+}
+
+/**
+ * Active Happy CLI sessions use the same machine-advertised model catalog as
+ * New Session. Rig sessions keep their session-owned dynamic catalog, while
+ * older/offline Happy sessions retain the legacy session fallback.
+ */
+export function getSessionAvailableModels(
+    flavor: AgentFlavor,
+    sessionMetadata: Metadata | null | undefined,
+    machineMetadata: MachineMetadata | null | undefined,
+    translate: Translate,
+    selectedKey?: string | null,
+): ModelMode[] {
+    if (shouldUseMachineCapabilityCatalog(flavor, sessionMetadata, machineMetadata)) {
+        return getMachineAdvertisedModels(machineMetadata, flavor);
+    }
+    return getAvailableModels(flavor, sessionMetadata, translate, selectedKey);
+}
+
+export function getSessionAvailablePermissionModes(
+    flavor: AgentFlavor,
+    sessionMetadata: Metadata | null | undefined,
+    machineMetadata: MachineMetadata | null | undefined,
+    translate: Translate,
+    selectedKey?: string | null,
+): PermissionMode[] {
+    if (shouldUseMachineCapabilityCatalog(flavor, sessionMetadata, machineMetadata)) {
+        return getMachineAdvertisedPermissionModes(machineMetadata, flavor);
+    }
+    return getAvailablePermissionModes(flavor, sessionMetadata, translate, selectedKey);
+}
+
+export function getSessionEffortLevelsForModel(
+    flavor: AgentFlavor,
+    modelKey: string,
+    sessionMetadata: Metadata | null | undefined,
+    machineMetadata: MachineMetadata | null | undefined,
+): EffortLevel[] {
+    if (shouldUseMachineCapabilityCatalog(flavor, sessionMetadata, machineMetadata)) {
+        return getMachineAdvertisedEffortLevels(machineMetadata, flavor, modelKey);
+    }
+    return getEffortLevelsForModel(flavor, modelKey, sessionMetadata);
+}
+
 export function getRigCurrentModelOptionKey(metadata: Metadata | null | undefined): string | null {
     return getRigSelectedModelKey(metadata);
 }

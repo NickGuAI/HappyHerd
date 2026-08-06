@@ -55,6 +55,38 @@ const taskLikeTool = {
 };
 
 export const knownTools = {
+    'Subagent': {
+        title: (opts: { metadata: Metadata | null, tool: ToolCall }) => {
+            const title = opts.tool.input?.title;
+            return typeof title === 'string' && title.trim().length > 0
+                ? title.trim()
+                : 'Sub-agent';
+        },
+        extractStatus: (opts: { metadata: Metadata | null, tool: ToolCall }) => {
+            const status = opts.tool.result?.status;
+            if (typeof status === 'string' && status.length > 0) {
+                return status;
+            }
+            return opts.tool.state === 'running' ? 'running' : null;
+        },
+        icon: ICON_TASK,
+        isMutable: true,
+        hideDefaultError: true,
+        input: z.object({
+            sessionSubagent: z.string(),
+            title: z.string().optional(),
+        }).passthrough(),
+        result: z.object({
+            status: z.enum(['completed', 'failed', 'cancelled', 'interrupted', 'unknown']),
+            detail: z.string().optional(),
+        }).passthrough(),
+    },
+    // Provider collaboration calls remain in replay data, but the generic
+    // lifecycle owner above is the sole visible child panel.
+    'CodexSubagent': {
+        hidden: true,
+        icon: ICON_TASK,
+    },
     'Task': taskLikeTool,
     'Agent': taskLikeTool,
     'Bash': {

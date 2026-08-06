@@ -7,10 +7,10 @@ import { resolveVisibleAgentGoalStatus } from '@/components/agentGoalStatus';
 import type { MultiTextInputHandle } from '@/components/MultiTextInput';
 import { layout } from '@/components/layout';
 import {
-    getAvailableModels,
-    getAvailablePermissionModes,
-    getEffortLevelsForModel,
     getRigCurrentModelOptionKey,
+    getSessionAvailableModels,
+    getSessionAvailablePermissionModes,
+    getSessionEffortLevelsForModel,
     resolveCurrentOption,
     EffortLevel,
 } from '@/components/modelModeOptions';
@@ -29,7 +29,7 @@ import { voiceHooks } from '@/realtime/hooks/voiceHooks';
 import { getCurrentVoiceConversationId, getCurrentVoiceSessionDurationSeconds, startRealtimeSession, stopRealtimeSession } from '@/realtime/RealtimeSession';
 import { gitStatusSync } from '@/sync/gitStatusSync';
 import { sessionAbort, sessionGoalAction, sessionSetAgentModes, spawnSideChat, sessionKill, sessionArchive } from '@/sync/ops';
-import { storage, useIsDataReady, useLocalSetting, useRealtimeStatus, useSessionGitStatus, useSessionMessages, useSessionUsage, useSetting, useSideChatSessions } from '@/sync/storage';
+import { storage, useIsDataReady, useLocalSetting, useMachine, useRealtimeStatus, useSessionGitStatus, useSessionMessages, useSessionUsage, useSetting, useSideChatSessions } from '@/sync/storage';
 import { useSession } from '@/sync/storage';
 import { getSessionForkSource } from '@/utils/sessionFork';
 import { useHappyAction } from '@/hooks/useHappyAction';
@@ -747,17 +747,18 @@ export function SessionViewLoaded({
     // Check if CLI version is outdated and not already acknowledged
     const cliVersion = session.metadata?.version;
     const machineId = session.metadata?.machineId;
+    const sessionMachine = useMachine(machineId ?? '');
     const isCliOutdated = cliVersion && !isVersionSupported(cliVersion, MINIMUM_CLI_VERSION);
     const isAcknowledged = machineId && acknowledgedCliVersions[machineId] === cliVersion;
     const shouldShowCliWarning = isCliOutdated && !isAcknowledged;
     const flavor = session.metadata?.flavor;
     const isRig = isRigMetadata(session.metadata);
     const availableModels = React.useMemo(() => (
-        getAvailableModels(flavor, session.metadata, t, session.modelMode)
-    ), [flavor, session.metadata, session.modelMode]);
+        getSessionAvailableModels(flavor, session.metadata, sessionMachine?.metadata, t, session.modelMode)
+    ), [flavor, session.metadata, session.modelMode, sessionMachine?.metadata]);
     const availableModes = React.useMemo(() => (
-        getAvailablePermissionModes(flavor, session.metadata, t, session.permissionMode)
-    ), [flavor, session.metadata, session.permissionMode]);
+        getSessionAvailablePermissionModes(flavor, session.metadata, sessionMachine?.metadata, t, session.permissionMode)
+    ), [flavor, session.metadata, session.permissionMode, sessionMachine?.metadata]);
     const agentDefaultOverrides = useSetting('agentDefaultOverrides');
     const effectiveAgentDefaults = React.useMemo(() => (
         resolveAgentDefaultConfig(agentDefaultOverrides, flavor)
@@ -788,8 +789,8 @@ export function SessionViewLoaded({
     // Effort level state
     const modelKey = modelMode?.key ?? 'default';
     const availableEffortLevels = React.useMemo<EffortLevel[]>(() => (
-        getEffortLevelsForModel(flavor, modelKey, session.metadata)
-    ), [flavor, modelKey, session.metadata]);
+        getSessionEffortLevelsForModel(flavor, modelKey, session.metadata, sessionMachine?.metadata)
+    ), [flavor, modelKey, session.metadata, sessionMachine?.metadata]);
     const effortLevel = React.useMemo<EffortLevel | null>(() => (
         resolveCurrentOption(availableEffortLevels, [
             session.effortLevel,
@@ -850,7 +851,12 @@ export function SessionViewLoaded({
     }, [sessionId]);
 
     const updateModelMode = React.useCallback((mode: ModelMode) => {
-        const nextEffortLevels = getEffortLevelsForModel(flavor, mode.key, session.metadata);
+        const nextEffortLevels = getSessionEffortLevelsForModel(
+            flavor,
+            mode.key,
+            session.metadata,
+            sessionMachine?.metadata,
+        );
         const currentEffortSupported = session.effortLevel
             ? nextEffortLevels.some((level) => level.key === session.effortLevel)
             : true;
@@ -858,7 +864,7 @@ export function SessionViewLoaded({
             modelMode: mode.key,
             ...(!currentEffortSupported ? { effortLevel: mode.defaultThinkingLevel ?? null } : {}),
         });
-    }, [sessionId, flavor, session.metadata, session.effortLevel]);
+    }, [sessionId, flavor, session.metadata, session.effortLevel, sessionMachine?.metadata]);
 
     const updateEffortLevel = React.useCallback((level: EffortLevel) => {
         sessionSetAgentModes(sessionId, { effortLevel: level.key });

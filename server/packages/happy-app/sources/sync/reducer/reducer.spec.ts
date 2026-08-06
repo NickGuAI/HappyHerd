@@ -3,6 +3,7 @@ import { NormalizedMessage } from '../typesRaw';
 import { createReducer } from './reducer';
 import { reducer } from './reducer';
 import { AgentState } from '../storageTypes';
+import { createId } from '@paralleldrive/cuid2';
 
 describe('reducer', () => {
     // it('should process golden cases', () => {
@@ -3188,6 +3189,180 @@ describe('reducer', () => {
                     kind: 'agent-text',
                     text: 'found auth handler',
                 });
+            }
+        });
+
+        it('replays interleaved child events into one generic panel without swallowing main output', () => {
+            const state = createReducer();
+            const subagent = createId();
+            const result = reducer(state, [
+                // Replay may deliver a child event before its owner marker.
+                {
+                    id: 'generic-child-early',
+                    localId: null,
+                    createdAt: 1000,
+                    role: 'agent',
+                    isSidechain: true,
+                    content: [{
+                        type: 'text',
+                        text: 'child evidence',
+                        uuid: 'generic-child-early-uuid',
+                        parentUUID: subagent,
+                    }],
+                },
+                {
+                    id: 'generic-main-output',
+                    localId: null,
+                    createdAt: 1010,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'text',
+                        text: 'main agent continues',
+                        uuid: 'generic-main-uuid',
+                        parentUUID: null,
+                    }],
+                },
+                {
+                    id: 'generic-child-owner',
+                    localId: null,
+                    createdAt: 1020,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-call',
+                        id: subagent,
+                        name: 'Subagent',
+                        input: { sessionSubagent: subagent, title: 'Research child' },
+                        description: 'Research child',
+                        uuid: 'generic-child-owner-uuid',
+                        parentUUID: null,
+                    }],
+                },
+                {
+                    id: 'generic-child-stop',
+                    localId: null,
+                    createdAt: 1030,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: subagent,
+                        content: { status: 'failed', detail: 'Provider child failed' },
+                        is_error: true,
+                        uuid: 'generic-child-stop-uuid',
+                        parentUUID: null,
+                    }],
+                },
+            ]);
+
+            expect(result.messages).toHaveLength(2);
+            expect(result.messages[0]).toMatchObject({
+                kind: 'agent-text',
+                text: 'main agent continues',
+            });
+            expect(result.messages[1].kind).toBe('tool-call');
+            if (result.messages[1].kind === 'tool-call') {
+                expect(result.messages[1].tool.name).toBe('Subagent');
+                expect(result.messages[1].children).toHaveLength(1);
+                expect(result.messages[1].children[0]).toMatchObject({
+                    kind: 'agent-text',
+                    text: 'child evidence',
+                });
+                expect(result.messages[1].tool.state).toBe('error');
+                expect(result.messages[1].tool.result).toEqual({
+                    status: 'failed',
+                    detail: 'Provider child failed',
+                });
+            }
+            expect(result.hasReadyEvent).not.toBe(true);
+        });
+
+        it('keeps generic subagent ownership when later provider tools repeat the child id', () => {
+            const state = createReducer();
+            const subagent = createId();
+            const result = reducer(state, [
+                {
+                    id: 'generic-child-owner',
+                    localId: null,
+                    createdAt: 1000,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-call',
+                        id: subagent,
+                        name: 'Subagent',
+                        input: { sessionSubagent: subagent, title: 'README child' },
+                        description: 'README child',
+                        uuid: 'generic-child-owner-uuid',
+                        parentUUID: null,
+                    }],
+                },
+                {
+                    id: 'provider-wait-owner',
+                    localId: null,
+                    createdAt: 1010,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-call',
+                        id: 'provider-wait-call',
+                        name: 'CodexSubagent',
+                        input: { tool: 'wait', sessionSubagent: subagent },
+                        description: 'Wait for Codex subagent',
+                        uuid: 'provider-wait-owner-uuid',
+                        parentUUID: null,
+                    }],
+                },
+                {
+                    id: 'generic-child-result',
+                    localId: null,
+                    createdAt: 1020,
+                    role: 'agent',
+                    isSidechain: true,
+                    content: [{
+                        type: 'text',
+                        text: '# HappyHerd',
+                        uuid: 'generic-child-result-uuid',
+                        parentUUID: subagent,
+                    }],
+                },
+                {
+                    id: 'generic-child-stop',
+                    localId: null,
+                    createdAt: 1030,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: subagent,
+                        content: { status: 'completed' },
+                        is_error: false,
+                        uuid: 'generic-child-stop-uuid',
+                        parentUUID: null,
+                    }],
+                },
+            ]);
+
+            const genericPanel = result.messages.find(
+                (message) => message.kind === 'tool-call' && message.tool.name === 'Subagent',
+            );
+            const providerTool = result.messages.find(
+                (message) => message.kind === 'tool-call' && message.tool.name === 'CodexSubagent',
+            );
+
+            expect(genericPanel).toBeDefined();
+            expect(providerTool).toBeDefined();
+            if (genericPanel?.kind === 'tool-call') {
+                expect(genericPanel.children).toHaveLength(1);
+                expect(genericPanel.children[0]).toMatchObject({
+                    kind: 'agent-text',
+                    text: '# HappyHerd',
+                });
+                expect(genericPanel.tool.state).toBe('completed');
+            }
+            if (providerTool?.kind === 'tool-call') {
+                expect(providerTool.children).toHaveLength(0);
             }
         });
     });

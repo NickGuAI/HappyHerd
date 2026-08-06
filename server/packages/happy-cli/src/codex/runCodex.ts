@@ -3,6 +3,7 @@ import React from "react";
 import { ApiClient } from '@/api/api';
 import { CodexAppServerClient } from './codexAppServerClient';
 import type { ReasoningEffort } from './codexAppServerTypes';
+import { isReasoningEffort } from './reasoningEffort';
 import { CodexPermissionHandler } from './utils/permissionHandler';
 import { ReasoningProcessor } from './utils/reasoningProcessor';
 import { DiffProcessor } from './utils/diffProcessor';
@@ -80,6 +81,16 @@ function hasCodexSubagentReference(message: Record<string, unknown>): boolean {
         }
     }
     return false;
+}
+
+function isAuthoritativeCodexLifecycle(message: Record<string, unknown>): boolean {
+    if (message.type === 'task_started') {
+        return message.provider_lifecycle === true;
+    }
+    if (message.type === 'task_complete' || message.type === 'turn_aborted') {
+        return message.provider_terminal === true;
+    }
+    return true;
 }
 
 const DEFAULT_CODEX_MODEL = 'gpt-5.5';
@@ -311,10 +322,6 @@ export async function runCodex(opts: {
         'yolo',
     ];
 
-    const VALID_REMOTE_EFFORTS: readonly ReasoningEffort[] = [
-        'none', 'minimal', 'low', 'medium', 'high', 'xhigh',
-    ];
-
     const handleUserMessage = createSerialAsyncHandler<UserMessage>(async (message) => {
         const attachmentsForThisMessage = await session.drainAttachmentsForUserMessage();
 
@@ -344,9 +351,9 @@ export async function runCodex(opts: {
             logger.debug(`[Codex] User message received with no model override, using current: ${currentModel || 'default'}`);
         }
 
-        // Resolve effort — passed straight to sendTurnAndWait. Validate the
-        // incoming value against ReasoningEffort so a stale/garbage entry on
-        // the wire doesn't poison the per-turn options.
+        // Resolve effort — passed straight to sendTurnAndWait. Machine model
+        // catalogs are provider-owned and can add values without a CLI release,
+        // so validate the wire shape here and let Codex enforce compatibility.
         let messageEffort = currentEffort;
         if (message.meta?.hasOwnProperty('effort')) {
             const incoming = (message.meta as Record<string, unknown>).effort;
@@ -354,8 +361,8 @@ export async function runCodex(opts: {
                 messageEffort = undefined;
                 currentEffort = undefined;
                 logger.debug(`[Codex] Effort reset to default`);
-            } else if (typeof incoming === 'string' && (VALID_REMOTE_EFFORTS as readonly string[]).includes(incoming)) {
-                messageEffort = incoming as ReasoningEffort;
+            } else if (isReasoningEffort(incoming)) {
+                messageEffort = incoming;
                 currentEffort = messageEffort;
                 logger.debug(`[Codex] Effort updated from user message: ${messageEffort}`);
             } else {
@@ -744,6 +751,7 @@ export async function runCodex(opts: {
     client.setEventHandler((msg) => {
         logger.debug(`[Codex] Event: ${JSON.stringify(msg)}`);
         const isSubagentScopedEvent = hasCodexSubagentReference(msg as Record<string, unknown>);
+        const isAuthoritativeLifecycle = isAuthoritativeCodexLifecycle(msg as Record<string, unknown>);
 
         // Add messages to the ink UI buffer based on message type
         if (msg.type === 'agent_message') {
@@ -761,9 +769,9 @@ export async function runCodex(opts: {
                 `Result: ${truncatedOutput}${output.length > 200 ? '...' : ''}`,
                 'result'
             );
-        } else if (msg.type === 'task_started') {
+        } else if (msg.type === 'task_started' && isAuthoritativeLifecycle) {
             messageBuffer.addMessage('Starting task...', 'status');
-        } else if (msg.type === 'task_complete') {
+        } else if (msg.type === 'task_complete' && isAuthoritativeLifecycle) {
             // Ready is emitted from the main loop's idle check so pushes only fire once
             // after the queue is actually drained.
             const failure = describeCodexFailure(msg);
@@ -773,7 +781,7 @@ export async function runCodex(opts: {
             } else {
                 messageBuffer.addMessage('Task completed', 'status');
             }
-        } else if (msg.type === 'turn_aborted') {
+        } else if (msg.type === 'turn_aborted' && isAuthoritativeLifecycle) {
             const failure = describeCodexFailure(msg);
             if (failure) {
                 messageBuffer.addMessage(`Turn aborted: ${failure}`, 'status');
@@ -783,14 +791,14 @@ export async function runCodex(opts: {
             }
         }
 
-        if (msg.type === 'task_started') {
+        if (msg.type === 'task_started' && isAuthoritativeLifecycle) {
             if (!thinking) {
                 logger.debug('thinking started');
                 thinking = true;
                 session.keepAlive(thinking, 'remote');
             }
         }
-        if (msg.type === 'task_complete' || msg.type === 'turn_aborted') {
+        if ((msg.type === 'task_complete' || msg.type === 'turn_aborted') && isAuthoritativeLifecycle) {
             if (thinking) {
                 logger.debug('thinking completed');
                 thinking = false;
@@ -843,7 +851,12 @@ export async function runCodex(opts: {
             || msg.type === 'agent_reasoning'
             || msg.type === 'agent_reasoning_section_break';
         const isForwardableSubagentReasoning = isSubagentScopedEvent && msg.type === 'agent_reasoning';
-        if (msg.type !== 'turn_diff' && (!isReasoningEvent || isForwardableSubagentReasoning)) {
+        const isLifecycleEvent = msg.type === 'task_started'
+            || msg.type === 'task_complete'
+            || msg.type === 'turn_aborted';
+        if (msg.type !== 'turn_diff'
+            && (!isLifecycleEvent || isAuthoritativeLifecycle)
+            && (!isReasoningEvent || isForwardableSubagentReasoning)) {
             const mapped = mapCodexMcpMessageToSessionEnvelopes(msg, {
                 currentTurnId,
                 startedSubagents: codexStartedSubagents,

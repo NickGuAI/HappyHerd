@@ -10,6 +10,9 @@ SOURCE_DATE_EPOCH="$(git -C "$ROOT" show -s --format=%ct HEAD)"
 COMMIT_TIMESTAMP="$(git -C "$ROOT" show -s --format=%cI HEAD)"
 PUBLIC_URL="${HAPPYHERD_PUBLIC_URL:-https://happyherd.gehirn.ai}"
 OUT_DIR="${1:-$ROOT/.artifacts/$SHORT_SHA}"
+if [[ "$OUT_DIR" != /* ]]; then
+    OUT_DIR="$ROOT/$OUT_DIR"
+fi
 STAGE="$(mktemp -d "${TMPDIR:-/tmp}/happyherd-artifacts.XXXXXX")"
 
 cleanup() {

@@ -12,6 +12,9 @@ import {
     getMachineAdvertisedEffortLevels,
     getMachineAdvertisedModels,
     getMachineAdvertisedPermissionModes,
+    getSessionAvailableModels,
+    getSessionAvailablePermissionModes,
+    getSessionEffortLevelsForModel,
     mapMetadataOptions,
     resolveCurrentOption,
 } from './modelModeOptions';
@@ -50,6 +53,60 @@ describe('modelModeOptions', () => {
         expect(getMachineAdvertisedEffortLevels(machineMetadata, 'codex', 'gpt-machine-only').map((mode) => mode.key)).toEqual([
             'ultra',
         ]);
+    });
+
+    it('uses the New Session machine catalog for active session controls', () => {
+        const machineMetadata = {
+            agentCapabilities: {
+                codex: {
+                    detectedAt: 1,
+                    sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'daemon' },
+                    models: [
+                        { code: 'default', value: 'default model' },
+                        {
+                            code: 'gpt-machine-only',
+                            value: 'GPT Machine Only',
+                            effortLevels: [{ code: 'ultra', value: 'ultra' }],
+                        },
+                    ],
+                    effortLevels: [{ code: 'medium', value: 'medium' }],
+                    permissionModes: [{ code: 'read-only', value: 'read only' }],
+                },
+            },
+        } as any;
+        const sessionMetadata = {
+            flavor: 'codex',
+            models: [{ code: 'stale-model', value: 'Stale model' }],
+            operatingModes: [{ code: 'stale-mode', value: 'Stale mode' }],
+        } as any;
+
+        expect(getSessionAvailableModels(
+            'codex',
+            sessionMetadata,
+            machineMetadata,
+            translate,
+            'gpt-machine-only',
+        )).toEqual(getMachineAdvertisedModels(machineMetadata, 'codex'));
+        expect(getSessionAvailablePermissionModes(
+            'codex',
+            sessionMetadata,
+            machineMetadata,
+            translate,
+            'read-only',
+        )).toEqual(getMachineAdvertisedPermissionModes(machineMetadata, 'codex'));
+
+        const effortLevels = getSessionEffortLevelsForModel(
+            'codex',
+            'gpt-machine-only',
+            sessionMetadata,
+            machineMetadata,
+        );
+        expect(effortLevels).toEqual(getMachineAdvertisedEffortLevels(
+            machineMetadata,
+            'codex',
+            'gpt-machine-only',
+        ));
+        expect(resolveCurrentOption(effortLevels, ['ultra', 'medium'])?.key).toBe('ultra');
     });
 
     it('maps metadata option shape into mode options', () => {

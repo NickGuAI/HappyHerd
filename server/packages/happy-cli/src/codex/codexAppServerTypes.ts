@@ -291,7 +291,10 @@ export type ReviewDecision =
 
 export type ApprovalPolicy = "untrusted" | "on-failure" | "on-request" | "never";
 export type SandboxMode = "read-only" | "workspace-write" | "danger-full-access";
-export type ReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+// Codex advertises supported effort values per model through model/list. Keep
+// the transport type open so newly advertised values work without a CLI
+// release; the provider remains authoritative for model/effort compatibility.
+export type ReasoningEffort = string;
 export type ReasoningSummary = "auto" | "concise" | "detailed" | "none";
 export type TurnAbortReason = "interrupted" | "replaced" | "review_ended";
 

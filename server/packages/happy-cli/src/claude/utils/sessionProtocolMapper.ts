@@ -30,8 +30,10 @@ function isSubagentTool(name: string): boolean {
 }
 
 function shouldHideParentToolCall(name: string): boolean {
-    return name === 'Task';
+    return isSubagentTool(name);
 }
+
+type SubagentStopStatus = 'completed' | 'failed' | 'cancelled' | 'interrupted' | 'unknown';
 
 function pickProviderSubagent(message: RawJSONLines): string | undefined {
     const raw = message as { parent_tool_use_id?: unknown; parentToolUseId?: unknown };
@@ -363,13 +365,19 @@ function maybeEmitSubagentStop(
     turn: string,
     subagent: string,
     envelopes: SessionEnvelope[],
+    status: SubagentStopStatus,
+    detail?: string,
 ): void {
     const active = getActiveSubagents(state);
     if (!active.has(subagent)) {
         return;
     }
 
-    envelopes.push(createEnvelope('agent', { t: 'stop' }, { turn, subagent }));
+    envelopes.push(createEnvelope('agent', {
+        t: 'stop',
+        status,
+        ...(detail ? { detail } : {}),
+    }, { turn, subagent }));
     active.delete(subagent);
 }
 
@@ -380,9 +388,32 @@ function emitActiveSubagentStops(
 ): void {
     const active = getActiveSubagents(state);
     for (const subagent of active) {
-        envelopes.push(createEnvelope('agent', { t: 'stop' }, { turn, subagent }));
+        envelopes.push(createEnvelope('agent', {
+            t: 'stop',
+            status: 'interrupted',
+            detail: 'The root turn ended before a child terminal result was observed.',
+        }, { turn, subagent }));
     }
     active.clear();
+}
+
+function toolResultDetail(content: unknown): string | undefined {
+    if (typeof content === 'string' && content.trim().length > 0) {
+        return content.trim().slice(0, 1000);
+    }
+    if (Array.isArray(content)) {
+        const text = content
+            .map((item) => (
+                item && typeof item === 'object' && typeof (item as { text?: unknown }).text === 'string'
+                    ? (item as { text: string }).text
+                    : ''
+            ))
+            .filter(Boolean)
+            .join('\n')
+            .trim();
+        return text.length > 0 ? text.slice(0, 1000) : undefined;
+    }
+    return undefined;
 }
 
 function clearSubagentTracking(state: ClaudeSessionProtocolState): void {
@@ -672,16 +703,32 @@ function mapClaudeLogMessageToSessionEnvelopesInternal(
         for (const block of blocks) {
             if (block.type === 'tool_result' && typeof block.tool_use_id === 'string' && block.tool_use_id.length > 0) {
                 const sessionSubagentForToolResult = getSessionSubagentIdForProviderSubagent(state, block.tool_use_id);
+                const subagentStatus: SubagentStopStatus = block.is_error === true ? 'failed' : 'completed';
+                const subagentDetail = block.is_error === true ? toolResultDetail(block.content) : undefined;
                 if (!message.isSidechain) {
                     if (getHiddenParentToolCalls(state).has(block.tool_use_id)) {
                         if (sessionSubagentForToolResult) {
-                            maybeEmitSubagentStop(state, turnId, sessionSubagentForToolResult, envelopes);
+                            maybeEmitSubagentStop(
+                                state,
+                                turnId,
+                                sessionSubagentForToolResult,
+                                envelopes,
+                                subagentStatus,
+                                subagentDetail,
+                            );
                         }
                         getHiddenParentToolCalls(state).delete(block.tool_use_id);
                         continue;
                     }
                     if (sessionSubagentForToolResult) {
-                        maybeEmitSubagentStop(state, turnId, sessionSubagentForToolResult, envelopes);
+                        maybeEmitSubagentStop(
+                            state,
+                            turnId,
+                            sessionSubagentForToolResult,
+                            envelopes,
+                            subagentStatus,
+                            subagentDetail,
+                        );
                     }
                 }
                 envelopes.push(createEnvelope('agent', {

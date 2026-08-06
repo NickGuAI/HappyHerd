@@ -178,6 +178,56 @@ describe('useGroupedMessages', () => {
         ]);
     });
 
+    it('keeps each subagent panel outside collapsed main-agent work', () => {
+        const messages: Message[] = [
+            {
+                kind: 'agent-text',
+                id: 'agent-final',
+                localId: null,
+                createdAt: 8,
+                text: 'combined result',
+            },
+            namedToolMessage('subagent-package', 'Subagent', 7),
+            toolMessage('tool-latest', 6),
+            {
+                kind: 'agent-text',
+                id: 'agent-progress',
+                localId: null,
+                createdAt: 5,
+                text: 'waiting for children',
+            },
+            namedToolMessage('subagent-readme', 'Subagent', 4),
+            toolMessage('tool-earliest', 3),
+            {
+                kind: 'user-text',
+                id: 'user',
+                localId: null,
+                createdAt: 1,
+                text: 'run two children',
+            },
+        ];
+
+        const items = groupMessagesForDisplay(messages, true);
+
+        expect(items.map((item) => item.id)).toEqual([
+            'agent-final',
+            'subagent-package',
+            'subagent-readme',
+            'work-tool-earliest',
+            'user',
+        ]);
+        const childPanels = items.filter((item) => (
+            item.type === 'message'
+            && item.message.kind === 'tool-call'
+            && item.message.tool.name === 'Subagent'
+        ));
+        expect(childPanels).toHaveLength(2);
+        const work = items.find((item) => item.type === 'agent-work-group');
+        expect(work?.messages.some((message) => (
+            message.kind === 'tool-call' && message.tool.name === 'Subagent'
+        ))).toBe(false);
+    });
+
     it('does not mark completed agent work as running when a hidden tool is stale', () => {
         const messages: Message[] = [
             {
@@ -371,5 +421,39 @@ describe('useGroupedMessages', () => {
             throw new Error('Expected a tool group');
         }
         expect(items[0].messages.map((message) => message.id)).toEqual(['tool-only']);
+    });
+
+    it('keeps subagent panels outside nested tool groups', () => {
+        const messages: Message[] = [
+            namedToolMessage('subagent-latest', 'Subagent', 5),
+            toolMessage('tool-latest', 4),
+            toolMessage('tool-earliest', 3),
+            namedToolMessage('subagent-earliest', 'Subagent', 2),
+            {
+                kind: 'user-text',
+                id: 'user',
+                localId: null,
+                createdAt: 1,
+                text: 'run two children',
+            },
+        ];
+
+        const items = groupToolCallsForDisplay(messages, true, { groupSingleToolCalls: true });
+
+        expect(items.map((item) => item.id)).toEqual([
+            'subagent-latest',
+            'group-tool-earliest',
+            'subagent-earliest',
+            'user',
+        ]);
+        expect(items.filter((item) => (
+            item.type === 'message'
+            && item.message.kind === 'tool-call'
+            && item.message.tool.name === 'Subagent'
+        ))).toHaveLength(2);
+        const toolGroup = items.find((item) => item.type === 'tool-group');
+        expect(toolGroup?.messages.some((message) => (
+            message.kind === 'tool-call' && message.tool.name === 'Subagent'
+        ))).toBe(false);
     });
 });

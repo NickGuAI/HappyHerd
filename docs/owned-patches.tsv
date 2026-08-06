@@ -61,3 +61,19 @@ B6-B7	code-ready	fix(context): use HappyHerd home as canonical root	server/packa
 B6-B7	accepted	docs(release): record AgentContext root cutover	docs/acceptance/runtime-root-2026-08-04.json
 MODEL_CATALOG	code-ready	fix(models): advertise canonical Claude slugs	server/packages/happy-wire/src/providerModels.test.ts
 MODEL_CATALOG	accepted	docs(release): record canonical Claude model acceptance	docs/acceptance/model-slugs-2026-08-04.json
+SUBAGENT_SPIKE	code-ready	docs(spike): isolate subagent execution tree experiment	docs/experiments/subagent-execution-tree-spike.md
+SUBAGENT_SPIKE	code-ready	docs(release): pin subagent spike branch image	docs/releases/2026-08-05-subagent-spike.json
+SUBAGENT_SPIKE	code-ready	docs(release): align subagent spike artifacts	docs/releases/2026-08-05-subagent-spike.json
+SUBAGENT_SPIKE	code-ready	feat(subagents): preserve provider-owned child lifecycle	server/packages/happy-cli/src/codex/codexAppServerClient.test.ts
+SUBAGENT_SPIKE	code-ready	docs(spike): register experimental owned patches	docs/owned-patches.tsv
+DEPLOY	code-ready	fix(release): anchor artifact output to repository root	scripts/test-release-daemon-contract.sh
+SUBAGENT_SPIKE	code-ready	docs(release): deploy lean subagent lifecycle candidate	docs/releases/2026-08-05-subagent-spike.json
+SUBAGENT_SPIKE	code-ready	fix(subagents): render only real child panels	server/packages/happy-app/sources/hooks/useGroupedMessages.test.ts
+SUBAGENT_SPIKE	code-ready	docs(release): deploy corrected subagent panels	docs/releases/2026-08-05-subagent-spike.json
+SUBAGENT_SPIKE	code-ready	fix(subagents): keep generic child ownership	server/packages/happy-app/sources/sync/reducer/reducer.spec.ts
+SUBAGENT_SPIKE	code-ready	docs(release): deploy canonical child ownership	docs/releases/2026-08-05-subagent-spike.json
+SUBAGENT_SPIKE	accepted	docs(spike): record live subagent acceptance	docs/experiments/subagent-execution-tree-spike.md
+DEPLOY	code-ready	fix(release): install complete host releases	scripts/test-install-host-release.sh
+SESSION_CONTROLS	code-ready	fix(session): align chat effort with machine catalog	server/packages/happy-app/sources/components/modelModeOptions.test.ts
+SESSION_CONTROLS	code-ready	docs(patches): register active-session catalog fix	docs/owned-patches.tsv
+CI	code-ready	fix(ci): remove trailing release-test whitespace	scripts/test-install-host-release.sh

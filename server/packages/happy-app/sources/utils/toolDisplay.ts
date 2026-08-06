@@ -110,7 +110,12 @@ export function shouldUseCompactToolRow(
     tool: Pick<ToolCall, 'name' | 'permission'>,
     compactMode: boolean,
 ): boolean {
-    if (!compactMode || tool.name === 'file' || tool.name === 'AskUserQuestion') {
+    if (
+        !compactMode
+        || tool.name === 'file'
+        || tool.name === 'AskUserQuestion'
+        || tool.name === 'Subagent'
+    ) {
         return false;
     }
 
