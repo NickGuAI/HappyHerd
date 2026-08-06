@@ -3,6 +3,7 @@ import React from "react";
 import { ApiClient } from '@/api/api';
 import { CodexAppServerClient } from './codexAppServerClient';
 import type { ReasoningEffort } from './codexAppServerTypes';
+import { isReasoningEffort } from './reasoningEffort';
 import { CodexPermissionHandler } from './utils/permissionHandler';
 import { ReasoningProcessor } from './utils/reasoningProcessor';
 import { DiffProcessor } from './utils/diffProcessor';
@@ -321,10 +322,6 @@ export async function runCodex(opts: {
         'yolo',
     ];
 
-    const VALID_REMOTE_EFFORTS: readonly ReasoningEffort[] = [
-        'none', 'minimal', 'low', 'medium', 'high', 'xhigh',
-    ];
-
     const handleUserMessage = createSerialAsyncHandler<UserMessage>(async (message) => {
         const attachmentsForThisMessage = await session.drainAttachmentsForUserMessage();
 
@@ -354,9 +351,9 @@ export async function runCodex(opts: {
             logger.debug(`[Codex] User message received with no model override, using current: ${currentModel || 'default'}`);
         }
 
-        // Resolve effort — passed straight to sendTurnAndWait. Validate the
-        // incoming value against ReasoningEffort so a stale/garbage entry on
-        // the wire doesn't poison the per-turn options.
+        // Resolve effort — passed straight to sendTurnAndWait. Machine model
+        // catalogs are provider-owned and can add values without a CLI release,
+        // so validate the wire shape here and let Codex enforce compatibility.
         let messageEffort = currentEffort;
         if (message.meta?.hasOwnProperty('effort')) {
             const incoming = (message.meta as Record<string, unknown>).effort;
@@ -364,8 +361,8 @@ export async function runCodex(opts: {
                 messageEffort = undefined;
                 currentEffort = undefined;
                 logger.debug(`[Codex] Effort reset to default`);
-            } else if (typeof incoming === 'string' && (VALID_REMOTE_EFFORTS as readonly string[]).includes(incoming)) {
-                messageEffort = incoming as ReasoningEffort;
+            } else if (isReasoningEffort(incoming)) {
+                messageEffort = incoming;
                 currentEffort = messageEffort;
                 logger.debug(`[Codex] Effort updated from user message: ${messageEffort}`);
             } else {
