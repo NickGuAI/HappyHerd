@@ -74,3 +74,5 @@ SUBAGENT_SPIKE	code-ready	fix(subagents): keep generic child ownership	server/pa
 SUBAGENT_SPIKE	code-ready	docs(release): deploy canonical child ownership	docs/releases/2026-08-05-subagent-spike.json
 SUBAGENT_SPIKE	accepted	docs(spike): record live subagent acceptance	docs/experiments/subagent-execution-tree-spike.md
 DEPLOY	code-ready	fix(release): install complete host releases	scripts/test-install-host-release.sh
+SESSION_CONTROLS	code-ready	fix(session): align chat effort with machine catalog	server/packages/happy-app/sources/components/modelModeOptions.test.ts
+SESSION_CONTROLS	code-ready	docs(patches): register active-session catalog fix	docs/owned-patches.tsv
