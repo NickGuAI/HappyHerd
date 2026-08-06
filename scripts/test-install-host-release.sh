@@ -64,4 +64,3 @@ if "$INSTALLER" "$ARTIFACT_DIR" "$RELEASE_ROOT" "$CURRENT_LINK" >/dev/null 2>&1;
 fi
 
 printf 'Host release installation contract tests passed.\n'
-
