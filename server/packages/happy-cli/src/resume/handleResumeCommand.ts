@@ -5,6 +5,7 @@ import { encodeBase64 } from '@/api/encryption';
 import { hasLocalHappyAgentAuth } from '@/resume/localHappyAgentAuth';
 import { spawnHappyCLI } from '@/utils/spawnHappyCLI';
 import { buildSessionChildEnvironment, sanitizeSessionEnvironment } from '@/daemon/sessionEnvironment';
+import { contextEnvironment, prepareCommanderContext } from '@/agentContext/commanderContext';
 
 import { LocalResumeSessionError, resolveLocalReconnectableSession } from './localResumeStore';
 import { resolveHappySession, type ReconnectableHappySession, type ResumableHappySession } from './resolveHappySession';
@@ -105,14 +106,17 @@ export function formatResumeHelp(): string {
     ].join('\n');
 }
 
-function buildReconnectEnv(session: ReconnectableHappySession): NodeJS.ProcessEnv {
+async function buildReconnectEnv(session: ReconnectableHappySession): Promise<NodeJS.ProcessEnv> {
+    const contextBundle = await prepareCommanderContext(session.metadata.commanderId, session.metadata.path);
     return buildSessionChildEnvironment(process.env, {
+        ...contextEnvironment(contextBundle),
         HAPPY_RECONNECT_SESSION_ID: session.id,
         HAPPY_RECONNECT_ENCRYPTION_KEY: encodeBase64(session.encryptionKey),
         HAPPY_RECONNECT_ENCRYPTION_VARIANT: session.encryptionVariant,
         HAPPY_RECONNECT_SEQ: String(session.seq),
         HAPPY_RECONNECT_METADATA_VERSION: String(session.metadataVersion),
         HAPPY_RECONNECT_AGENT_STATE_VERSION: String(session.agentStateVersion),
+        ...(session.metadata.contextHash ? { HAPPY_RECONNECT_CONTEXT_HASH: session.metadata.contextHash } : {}),
     });
 }
 
@@ -167,7 +171,7 @@ export async function handleResumeCommand(args: string[]): Promise<void> {
             throw new Error(`Saved session path does not exist: ${launch.cwd}`);
         }
 
-        const exitCode = await spawnResumeChild(launch, buildReconnectEnv(reconnectableSession));
+        const exitCode = await spawnResumeChild(launch, await buildReconnectEnv(reconnectableSession));
         if (typeof exitCode === 'number' && exitCode !== 0) {
             process.exit(exitCode);
         }

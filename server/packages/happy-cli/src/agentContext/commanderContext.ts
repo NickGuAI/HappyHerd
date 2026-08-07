@@ -12,13 +12,14 @@ import {
   symlink,
   writeFile,
 } from 'node:fs/promises';
-import os from 'node:os';
+import { homedir } from 'node:os';
 import path from 'node:path';
 
 import type { HappyHerdCommanderListResponse, HappyHerdCommanderSummary } from '@slopus/happy-wire';
 import { configuration } from '@/configuration';
 
-const BUNDLE_VERSION = 1;
+const BUNDLE_VERSION = 2;
+const INSTRUCTION_RECEIPT_VERSION = 1;
 const MANAGED_COPY_HEADER = '<!-- Managed by HappyHerd from AGENTS.md. Do not edit this copy. -->\n';
 
 export interface CommanderContextBundle {
@@ -27,6 +28,7 @@ export interface CommanderContextBundle {
   bundlePath: string;
   globalAgentsPath: string | null;
   globalAgentContextPath: string;
+  projectGuidancePath: string | null;
 }
 
 export interface CommanderContextMetadata {
@@ -37,41 +39,32 @@ export interface CommanderContextMetadata {
   commanderAgentContextPath?: string;
   globalAgentsPath?: string;
   globalAgentContextPath?: string;
+  projectGuidancePath?: string;
   contextHash?: string;
-}
-
-function homeDir(): string {
-  return process.env.HAPPYHERD_HOME_DIR?.trim() || os.homedir();
+  instructionReceiptVersion?: number;
+  instructionProvider?: 'codex' | 'claude';
+  instructionLayer?: 'developer' | 'system-append';
+  instructionHash?: string;
 }
 
 export function agentContextRoot(): string {
-  return path.resolve(
-    process.env.HAPPYHERD_AGENTCONTEXT_ROOT?.trim() || configuration.happyHomeDir,
-  );
+  return path.resolve(process.env.HAPPY_HOME_DIR?.trim() || configuration.happyHomeDir);
 }
 
-function commanderRoots(): string[] {
-  const root = agentContextRoot();
-  return [
-    path.join(root, 'commanders'),
-    path.join(root, 'commander'),
-  ];
+function commanderRoot(): string {
+  return path.join(agentContextRoot(), 'commanders');
 }
 
 function canonicalAgentsPath(): string {
-  return path.resolve(process.env.HAPPYHERD_AGENTS_FILE?.trim() || path.join(homeDir(), 'AGENTS.md'));
+  return path.join(agentContextRoot(), 'AGENTS.md');
 }
 
 function claudeMirrorPath(): string {
-  return path.resolve(process.env.HAPPYHERD_CLAUDE_FILE?.trim() || path.join(homeDir(), 'CLAUDE.md'));
+  return path.join(agentContextRoot(), 'CLAUDE.md');
 }
 
 function bundleRoot(): string {
-  return path.join(
-    path.resolve(process.env.HAPPY_HOME_DIR?.trim() || configuration.happyHomeDir),
-    'agent-context',
-    'bundles',
-  );
+  return path.join(agentContextRoot(), 'agent-context', 'bundles');
 }
 
 async function isReadable(filePath: string): Promise<boolean> {
@@ -187,39 +180,33 @@ async function readCommander(root: string, directoryName: string): Promise<Happy
 }
 
 async function readCommanderById(commanderId: string): Promise<HappyHerdCommanderSummary | null> {
-  for (const root of commanderRoots()) {
-    try {
-      return await readCommander(root, commanderId);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    }
+  try {
+    return await readCommander(commanderRoot(), commanderId);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
   }
   return null;
 }
 
 export async function listCommanders(): Promise<HappyHerdCommanderListResponse> {
   const commanders: HappyHerdCommanderSummary[] = [];
-  const seenDirectoryNames = new Set<string>();
-  for (const root of commanderRoots()) {
-    let entries: string[] = [];
+  const root = commanderRoot();
+  let entries: string[] = [];
+  try {
+    entries = (await readdir(root, { withFileTypes: true }))
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
+  for (const entry of entries) {
     try {
-      entries = (await readdir(root, { withFileTypes: true }))
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => entry.name)
-        .sort();
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    }
-    for (const entry of entries) {
-      if (seenDirectoryNames.has(entry)) continue;
-      seenDirectoryNames.add(entry);
-      try {
-        const commander = await readCommander(root, entry);
-        if (commander) commanders.push(commander);
-      } catch {
-        // A malformed Commander is isolated from the rest of the picker. The
-        // selected-id path still returns the actionable validation error.
-      }
+      const commander = await readCommander(root, entry);
+      if (commander) commanders.push(commander);
+    } catch {
+      // A malformed Commander is isolated from the rest of the picker. The
+      // selected-id path still returns the actionable validation error.
     }
   }
   commanders.sort((left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id));
@@ -228,6 +215,30 @@ export async function listCommanders(): Promise<HappyHerdCommanderListResponse> 
     commanders,
     globalAgentsPath: await isReadable(agentsPath) ? agentsPath : null,
   };
+}
+
+async function findClosestProjectGuidance(
+  startPath: string | undefined,
+  excludedPaths: ReadonlySet<string>,
+): Promise<{ filePath: string; content: string } | null> {
+  if (!startPath) return null;
+  let current = path.resolve(startPath);
+  try {
+    if (!(await lstat(current)).isDirectory()) current = path.dirname(current);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
+
+  while (true) {
+    for (const fileName of ['AGENTS.md', 'CLAUDE.md']) {
+      const candidate = path.join(current, fileName);
+      if (excludedPaths.has(candidate) || !(await isReadable(candidate))) continue;
+      return { filePath: candidate, content: await readFile(candidate, 'utf8') };
+    }
+    const parent = path.dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
 }
 
 async function ensureClaudeMirror(agentsPath: string, content: string): Promise<void> {
@@ -267,6 +278,8 @@ function buildBundleText(options: {
   globalAgentContextPath: string;
   commander: HappyHerdCommanderSummary | null;
   commanderContent: string;
+  projectGuidancePath: string | null;
+  projectGuidanceContent: string;
 }): string {
   const lines = [
     '# HappyHerd session context',
@@ -275,6 +288,7 @@ function buildBundleText(options: {
     `Global AGENTS.md: ${options.globalAgentsPath ?? '(not present)'}`,
     `Global AgentContext: ${options.globalAgentContextPath}`,
     `Commander: ${options.commander ? `${options.commander.name} (${options.commander.id})` : '(none)'}`,
+    `Closest project guidance: ${options.projectGuidancePath ?? '(not present)'}`,
     '',
     'The global AGENTS.md and selected COMMANDER.md below are authoritative instructions.',
     'Use the referenced AgentContext directories for file routing and load additional context on demand.',
@@ -294,10 +308,21 @@ function buildBundleText(options: {
       `Commander AgentContext directory: ${options.commander.agentContextPath}`,
     );
   }
+  if (options.projectGuidancePath) {
+    lines.push(
+      '',
+      '## Closest project guidance',
+      '',
+      options.projectGuidanceContent,
+    );
+  }
   return lines.join('\n');
 }
 
-export async function prepareCommanderContext(commanderId?: string | null): Promise<CommanderContextBundle> {
+export async function prepareCommanderContext(
+  commanderId?: string | null,
+  workingDirectory?: string,
+): Promise<CommanderContextBundle> {
   const agentsPath = canonicalAgentsPath();
   const hasAgents = await isReadable(agentsPath);
   const globalContent = hasAgents ? await readFile(agentsPath, 'utf8') : '';
@@ -311,6 +336,15 @@ export async function prepareCommanderContext(commanderId?: string | null): Prom
     commanderContent = await readFile(commander.commanderPath, 'utf8');
   }
 
+  const projectGuidance = await findClosestProjectGuidance(
+    workingDirectory ?? commander?.workspace,
+    new Set([
+      agentsPath,
+      path.join(homedir(), 'AGENTS.md'),
+      path.join(homedir(), 'CLAUDE.md'),
+    ]),
+  );
+
   const globalAgentContextPath = path.join(agentContextRoot(), 'agentcontext');
   const bundleText = buildBundleText({
     globalContent,
@@ -318,6 +352,8 @@ export async function prepareCommanderContext(commanderId?: string | null): Prom
     globalAgentContextPath,
     commander,
     commanderContent,
+    projectGuidancePath: projectGuidance?.filePath ?? null,
+    projectGuidanceContent: projectGuidance?.content ?? '',
   });
   const contextHash = createHash('sha256').update(bundleText).digest('hex');
   const root = bundleRoot();
@@ -334,6 +370,7 @@ export async function prepareCommanderContext(commanderId?: string | null): Prom
     bundlePath,
     globalAgentsPath: hasAgents ? agentsPath : null,
     globalAgentContextPath,
+    projectGuidancePath: projectGuidance?.filePath ?? null,
   };
 }
 
@@ -343,6 +380,7 @@ export function contextEnvironment(bundle: CommanderContextBundle): Record<strin
     HAPPYHERD_CONTEXT_HASH: bundle.contextHash,
     HAPPYHERD_GLOBAL_AGENTCONTEXT_PATH: bundle.globalAgentContextPath,
     ...(bundle.globalAgentsPath ? { HAPPYHERD_GLOBAL_AGENTS_PATH: bundle.globalAgentsPath } : {}),
+    ...(bundle.projectGuidancePath ? { HAPPYHERD_PROJECT_GUIDANCE_PATH: bundle.projectGuidancePath } : {}),
     ...(bundle.commander ? {
       HAPPYHERD_COMMANDER_ID: bundle.commander.id,
       HAPPYHERD_COMMANDER_NAME: bundle.commander.name,
@@ -351,6 +389,34 @@ export function contextEnvironment(bundle: CommanderContextBundle): Record<strin
       HAPPYHERD_COMMANDER_AGENTCONTEXT_PATH: bundle.commander.agentContextPath,
     } : {}),
   };
+}
+
+export function instructionReceiptMetadata(options: {
+  provider: 'codex' | 'claude';
+  layer: 'developer' | 'system-append';
+  deliveredInstruction: string;
+}): Required<Pick<CommanderContextMetadata,
+  'instructionReceiptVersion' | 'instructionProvider' | 'instructionLayer' | 'instructionHash'
+>> {
+  return {
+    instructionReceiptVersion: INSTRUCTION_RECEIPT_VERSION,
+    instructionProvider: options.provider,
+    instructionLayer: options.layer,
+    instructionHash: createHash('sha256').update(options.deliveredInstruction).digest('hex'),
+  };
+}
+
+export function assertReconnectContextMatchesEnvironment(previousContextHash?: string): void {
+  const currentContextHash = process.env.HAPPYHERD_CONTEXT_HASH;
+  const reconnecting = Boolean(process.env.HAPPY_RECONNECT_SESSION_ID);
+  if (
+    (previousContextHash && previousContextHash !== currentContextHash)
+    || (reconnecting && currentContextHash && !previousContextHash)
+  ) {
+    throw new Error(
+      'HappyHerd AgentContext changed since this session started. Start a fresh session so the new instructions cannot be mixed with stale provider context.',
+    );
+  }
 }
 
 export async function readContextPromptFromEnvironment(): Promise<string | undefined> {
@@ -374,6 +440,7 @@ export function contextMetadataFromEnvironment(): CommanderContextMetadata {
     ...(process.env.HAPPYHERD_COMMANDER_AGENTCONTEXT_PATH ? { commanderAgentContextPath: process.env.HAPPYHERD_COMMANDER_AGENTCONTEXT_PATH } : {}),
     ...(process.env.HAPPYHERD_GLOBAL_AGENTS_PATH ? { globalAgentsPath: process.env.HAPPYHERD_GLOBAL_AGENTS_PATH } : {}),
     ...(process.env.HAPPYHERD_GLOBAL_AGENTCONTEXT_PATH ? { globalAgentContextPath: process.env.HAPPYHERD_GLOBAL_AGENTCONTEXT_PATH } : {}),
+    ...(process.env.HAPPYHERD_PROJECT_GUIDANCE_PATH ? { projectGuidancePath: process.env.HAPPYHERD_PROJECT_GUIDANCE_PATH } : {}),
     ...(process.env.HAPPYHERD_CONTEXT_HASH ? { contextHash: process.env.HAPPYHERD_CONTEXT_HASH } : {}),
   };
 }

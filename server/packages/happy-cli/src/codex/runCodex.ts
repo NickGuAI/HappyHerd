@@ -55,7 +55,11 @@ import {
     parseCodexGoalCommand,
     type CodexGoalCommand,
 } from './codexGoalStatus';
-import { mergeContextPrompt, readContextPromptFromEnvironment } from '@/agentContext/commanderContext';
+import {
+    assertReconnectContextMatchesEnvironment,
+    instructionReceiptMetadata,
+    readContextPromptFromEnvironment,
+} from '@/agentContext/commanderContext';
 import { readAutomationBootstrapFromEnvironment } from '@/automations/sessionBootstrap';
 
 /**
@@ -193,6 +197,15 @@ export async function runCodex(opts: {
     const reconnectSeq = process.env.HAPPY_RECONNECT_SEQ;
     const reconnectMetadataVersion = process.env.HAPPY_RECONNECT_METADATA_VERSION;
     const reconnectAgentStateVersion = process.env.HAPPY_RECONNECT_AGENT_STATE_VERSION;
+    assertReconnectContextMatchesEnvironment(process.env.HAPPY_RECONNECT_CONTEXT_HASH);
+
+    if (happyHerdContextPrompt) {
+        Object.assign(metadata, instructionReceiptMetadata({
+            provider: 'codex',
+            layer: 'developer',
+            deliveredInstruction: happyHerdContextPrompt,
+        }));
+    }
 
     let response: ApiSession | null;
     if (reconnectSessionId && reconnectKeyBase64 && reconnectVariant) {
@@ -289,7 +302,7 @@ export async function runCodex(opts: {
     let currentPermissionModeExplicitlySet = false;
     let currentModel: string | undefined = opts.model ?? DEFAULT_CODEX_MODEL;
     let currentEffort: ReasoningEffort | undefined = opts.effort ?? DEFAULT_CODEX_EFFORT;
-    let currentAppendSystemPrompt: string | undefined = happyHerdContextPrompt;
+    let currentAppendSystemPrompt: string | undefined;
 
     const resetCurrentModeDefaults = () => {
         // Reset permission mode and prompts to what the session was launched
@@ -302,7 +315,7 @@ export async function runCodex(opts: {
         // silently desyncs the picker from what the next turn actually runs.
         currentPermissionMode = initialPermissionMode;
         currentPermissionModeExplicitlySet = false;
-        currentAppendSystemPrompt = happyHerdContextPrompt;
+        currentAppendSystemPrompt = undefined;
         logger.debug('[Codex] Reset current mode defaults after abort');
     };
 
@@ -374,9 +387,9 @@ export async function runCodex(opts: {
 
         let messageAppendSystemPrompt = currentAppendSystemPrompt;
         if (message.meta?.hasOwnProperty('appendSystemPrompt')) {
-            messageAppendSystemPrompt = mergeContextPrompt(happyHerdContextPrompt, message.meta.appendSystemPrompt);
+            messageAppendSystemPrompt = message.meta.appendSystemPrompt?.trim() || undefined;
             currentAppendSystemPrompt = messageAppendSystemPrompt;
-            logger.debug(`[Codex] Append system prompt updated from user message: ${message.meta.appendSystemPrompt ? 'set with Commander context' : 'reset to Commander context'}`);
+            logger.debug(`[Codex] Per-message appended instruction updated: ${messageAppendSystemPrompt ? 'set' : 'reset'}`);
         } else {
             logger.debug(`[Codex] User message received with no append system prompt override, using current: ${currentAppendSystemPrompt ? 'set' : 'none'}`);
         }
@@ -908,6 +921,7 @@ export async function runCodex(opts: {
                 threadId: opts.resumeThreadId,
                 cwd: process.cwd(),
                 mcpServers,
+                developerInstructions: happyHerdContextPrompt,
                 // Side chats start empty — keep the resume notice out of the UI.
                 announce: !isSideChat,
             });
@@ -1030,6 +1044,7 @@ export async function runCodex(opts: {
                         approvalPolicy: executionPolicy.approvalPolicy,
                         sandbox: executionPolicy.sandbox,
                         mcpServers,
+                        developerInstructions: happyHerdContextPrompt,
                     });
                     activeThreadId = startedThread.threadId;
                     session.updateMetadata((currentMetadata) => ({

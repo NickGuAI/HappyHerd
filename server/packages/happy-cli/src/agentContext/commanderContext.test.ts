@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   contextEnvironment,
+  assertReconnectContextMatchesEnvironment,
+  instructionReceiptMetadata,
   listCommanders,
   mergeContextPrompt,
   parseCommanderIdentity,
@@ -16,13 +18,10 @@ const originalEnv = { ...process.env };
 
 beforeEach(async () => {
   root = await mkdtemp(path.join(os.tmpdir(), 'happyherd-context-'));
-  process.env.HAPPYHERD_HOME_DIR = root;
-  process.env.HAPPYHERD_AGENTCONTEXT_ROOT = path.join(root, '.herd');
-  process.env.HAPPYHERD_AGENTS_FILE = path.join(root, 'AGENTS.md');
-  process.env.HAPPYHERD_CLAUDE_FILE = path.join(root, 'CLAUDE.md');
-  process.env.HAPPY_HOME_DIR = path.join(root, '.happy');
-  await writeFile(path.join(root, 'AGENTS.md'), '# Global\nAlways verify.\n');
-  const commanderDir = path.join(root, '.herd', 'commanders', 'athena');
+  process.env.HAPPY_HOME_DIR = path.join(root, '.happyherd');
+  await mkdir(process.env.HAPPY_HOME_DIR, { recursive: true });
+  await writeFile(path.join(process.env.HAPPY_HOME_DIR, 'AGENTS.md'), '# Global\nAlways verify.\n');
+  const commanderDir = path.join(process.env.HAPPY_HOME_DIR, 'commanders', 'athena');
   await mkdir(path.join(commanderDir, 'agentcontext'), { recursive: true });
   await writeFile(path.join(commanderDir, 'COMMANDER.md'), [
     '---',
@@ -52,11 +51,11 @@ describe('Commander context', () => {
     const result = await listCommanders();
     expect(result.commanders).toHaveLength(1);
     expect(result.commanders[0]).toMatchObject({ id: 'athena', name: 'Athena' });
-    expect(result.globalAgentsPath).toBe(path.join(root, 'AGENTS.md'));
+    expect(result.globalAgentsPath).toBe(path.join(root, '.happyherd', 'AGENTS.md'));
   });
 
-  it('discovers established singular-store prose Commanders without relocating their files', async () => {
-    const legacyDir = path.join(root, '.herd', 'commander', 'gaia');
+  it('does not load the retired singular Commander store', async () => {
+    const legacyDir = path.join(root, '.happyherd', 'commander', 'gaia');
     await mkdir(path.join(legacyDir, '.memory'), { recursive: true });
     await writeFile(path.join(legacyDir, 'COMMANDER.md'), [
       'Global runtime defaults live elsewhere.',
@@ -69,61 +68,65 @@ describe('Commander context', () => {
     ].join('\n'));
 
     const result = await listCommanders();
-    const gaia = result.commanders.find((commander) => commander.id === 'gaia');
-    expect(gaia).toMatchObject({
-      id: 'gaia',
-      name: 'Gaia',
-      role: 'onboarding commander for Gehirn',
-      workspace: path.join(root, 'legacy-workspace'),
-      commanderPath: path.join(legacyDir, 'COMMANDER.md'),
-      agentContextPath: legacyDir,
-    });
-
-    const bundle = await prepareCommanderContext('gaia');
-    expect(await readFile(bundle.bundlePath, 'utf8')).toContain('Keep the existing .memory tree.');
-    expect(bundle.commander?.agentContextPath).toBe(legacyDir);
+    expect(result.commanders.some((commander) => commander.id === 'gaia')).toBe(false);
+    await expect(prepareCommanderContext('gaia')).rejects.toThrow('was not found');
   });
 
-  it('prefers a canonical plural-store Commander when both layouts contain the same id', async () => {
-    const duplicate = path.join(root, '.herd', 'commander', 'athena');
-    await mkdir(duplicate, { recursive: true });
-    await writeFile(path.join(duplicate, 'COMMANDER.md'), [
-      'You are Legacy Athena, obsolete duplicate.',
-      `Workspace: \`${root}/legacy-workspace\``,
-    ].join('\n'));
-
-    const result = await listCommanders();
-    const matches = result.commanders.filter((commander) => commander.id === 'athena');
-    expect(matches).toHaveLength(1);
-    expect(matches[0]).toMatchObject({
-      name: 'Athena',
-      commanderPath: path.join(root, '.herd', 'commanders', 'athena', 'COMMANDER.md'),
-    });
-  });
-
-  it('keeps path containment independent for the legacy root', async () => {
+  it('keeps Commander path containment inside the canonical plural root', async () => {
     const outside = path.join(root, 'outside');
     await mkdir(outside, { recursive: true });
     await writeFile(path.join(outside, 'COMMANDER.md'), [
       'You are Escape, invalid commander.',
       `Workspace: \`${root}/workspace\``,
     ].join('\n'));
-    const legacyRoot = path.join(root, '.herd', 'commander');
-    await mkdir(legacyRoot, { recursive: true });
-    await symlink(outside, path.join(legacyRoot, 'escape'));
+    const canonicalRoot = path.join(root, '.happyherd', 'commanders');
+    await mkdir(canonicalRoot, { recursive: true });
+    await symlink(outside, path.join(canonicalRoot, 'escape'));
 
     await expect(prepareCommanderContext('escape')).rejects.toThrow('escapes the configured AgentContext root');
   });
 
   it('creates an integrity-addressed bundle and a CLAUDE mirror', async () => {
-    const bundle = await prepareCommanderContext('athena');
+    const projectDir = path.join(root, 'workspace');
+    await mkdir(projectDir, { recursive: true });
+    await writeFile(path.join(projectDir, 'AGENTS.md'), '# Project\nUse project tests.\n');
+    const bundle = await prepareCommanderContext('athena', projectDir);
     const content = await readFile(bundle.bundlePath, 'utf8');
     expect(content).toContain('Always verify.');
     expect(content).toContain('Ship verified work.');
-    expect(await readFile(path.join(root, 'CLAUDE.md'), 'utf8')).toContain('Always verify.');
+    expect(content).toContain('Use project tests.');
+    expect(bundle.projectGuidancePath).toBe(path.join(projectDir, 'AGENTS.md'));
+    expect(await readFile(path.join(root, '.happyherd', 'CLAUDE.md'), 'utf8')).toContain('Always verify.');
     expect(contextEnvironment(bundle)).toMatchObject({
       HAPPYHERD_COMMANDER_ID: 'athena',
       HAPPYHERD_CONTEXT_HASH: bundle.contextHash,
+    });
+  });
+
+  it('uses the actual session directory and never reloads the retired home guide', async () => {
+    await writeFile(path.join(root, 'AGENTS.md'), '# Retired Herd root\n');
+    const projectDir = path.join(root, 'workspace', 'project');
+    await mkdir(projectDir, { recursive: true });
+    await writeFile(path.join(root, 'workspace', 'AGENTS.md'), '# Closest project\n');
+
+    const bundle = await prepareCommanderContext('athena', projectDir);
+    const content = await readFile(bundle.bundlePath, 'utf8');
+
+    expect(bundle.projectGuidancePath).toBe(path.join(root, 'workspace', 'AGENTS.md'));
+    expect(content).toContain('Closest project');
+    expect(content).not.toContain('Retired Herd root');
+  });
+
+  it('records a versioned digest of the instruction content delivered to a provider', () => {
+    expect(instructionReceiptMetadata({
+      provider: 'codex',
+      layer: 'developer',
+      deliveredInstruction: 'global + commander + project',
+    })).toMatchObject({
+      instructionReceiptVersion: 1,
+      instructionProvider: 'codex',
+      instructionLayer: 'developer',
+      instructionHash: expect.stringMatching(/^[a-f0-9]{64}$/),
     });
   });
 
@@ -131,5 +134,13 @@ describe('Commander context', () => {
     expect(mergeContextPrompt('base', null)).toBe('base');
     expect(mergeContextPrompt('base', 'extra')).toContain('base');
     expect(mergeContextPrompt('base', 'extra')).toContain('extra');
+  });
+
+  it('fails closed when a reconnect loses or changes its instruction receipt', () => {
+    process.env.HAPPY_RECONNECT_SESSION_ID = 'session-one';
+    process.env.HAPPYHERD_CONTEXT_HASH = 'current-hash';
+    expect(() => assertReconnectContextMatchesEnvironment()).toThrow(/changed since this session started/);
+    expect(() => assertReconnectContextMatchesEnvironment('old-hash')).toThrow(/changed since this session started/);
+    expect(() => assertReconnectContextMatchesEnvironment('current-hash')).not.toThrow();
   });
 });

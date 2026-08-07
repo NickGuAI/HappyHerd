@@ -233,6 +233,7 @@ export class CodexAppServerClient {
         approvalPolicy?: ApprovalPolicy;
         sandbox?: SandboxMode;
         mcpServers?: Record<string, unknown>;
+        developerInstructions?: string;
     } | null = null;
 
     // Turn completion tracking for the currently active sendTurnAndWait call.
@@ -727,13 +728,20 @@ export class CodexAppServerClient {
         }
 
         let command = 'codex';
-        let args = ['app-server', '--listen', 'stdio://'];
+        const appServerArgs = [
+            'app-server',
+            '--listen',
+            'stdio://',
+            '-c',
+            'project_doc_max_bytes=0',
+        ];
+        let args = [...appServerArgs];
         this.sandboxEnabled = false;
 
         if (this.sandboxConfig?.enabled && process.platform !== 'win32') {
             try {
                 this.sandboxCleanup = await initializeSandbox(this.sandboxConfig, process.cwd());
-                const wrapped = await wrapForMcpTransport('codex', ['app-server', '--listen', 'stdio://']);
+                const wrapped = await wrapForMcpTransport('codex', appServerArgs);
                 command = wrapped.command;
                 args = wrapped.args;
                 this.sandboxEnabled = true;
@@ -895,6 +903,7 @@ export class CodexAppServerClient {
         approvalPolicy?: ApprovalPolicy;
         sandbox?: SandboxMode;
         mcpServers?: Record<string, unknown>;
+        developerInstructions?: string;
     }): void {
         this.threadDefaults = {
             model: opts.model,
@@ -902,6 +911,7 @@ export class CodexAppServerClient {
             approvalPolicy: opts.approvalPolicy,
             sandbox: opts.sandbox,
             mcpServers: opts.mcpServers,
+            developerInstructions: opts.developerInstructions,
         };
     }
 
@@ -913,6 +923,7 @@ export class CodexAppServerClient {
         approvalPolicy?: ApprovalPolicy;
         sandbox?: SandboxMode;
         mcpServers?: Record<string, unknown>;
+        developerInstructions?: string;
     }): Promise<{ threadId: string; model: string }> {
         const params: NewConversationParams = {
             model: opts.model ?? null,
@@ -923,7 +934,7 @@ export class CodexAppServerClient {
             sandbox: opts.sandbox ?? null,
             config: this.buildThreadConfig(opts.mcpServers),
             baseInstructions: null,
-            developerInstructions: null,
+            developerInstructions: opts.developerInstructions ?? null,
             compactPrompt: null,
             includeApplyPatchTool: null,
             experimentalRawEvents: false,
@@ -946,6 +957,7 @@ export class CodexAppServerClient {
         approvalPolicy?: ApprovalPolicy;
         sandbox?: SandboxMode;
         mcpServers?: Record<string, unknown>;
+        developerInstructions?: string;
     }): Promise<{ threadId: string; model: string }> {
         const threadId = opts?.threadId ?? this._threadId;
         if (!threadId) {
@@ -962,7 +974,7 @@ export class CodexAppServerClient {
             sandbox: opts?.sandbox ?? defaults.sandbox ?? null,
             config: this.buildThreadConfig(opts?.mcpServers ?? defaults.mcpServers),
             baseInstructions: null,
-            developerInstructions: null,
+            developerInstructions: opts?.developerInstructions ?? defaults.developerInstructions ?? null,
             persistExtendedHistory: true,
         };
 
@@ -976,6 +988,7 @@ export class CodexAppServerClient {
             approvalPolicy: opts?.approvalPolicy ?? defaults.approvalPolicy,
             sandbox: opts?.sandbox ?? defaults.sandbox,
             mcpServers: opts?.mcpServers ?? defaults.mcpServers,
+            developerInstructions: opts?.developerInstructions ?? defaults.developerInstructions,
         });
         logger.debug('[CodexAppServer] Thread resumed:', this._threadId);
         return { threadId: result.thread.id, model: result.model };
@@ -988,6 +1001,7 @@ export class CodexAppServerClient {
         approvalPolicy?: ApprovalPolicy;
         sandbox?: SandboxMode;
         mcpServers?: Record<string, unknown>;
+        developerInstructions?: string;
     }): Promise<{ threadId: string; model: string; thread: Thread }> {
         const defaults = this.threadDefaults ?? {};
         const params: ForkConversationParams = {
@@ -999,7 +1013,7 @@ export class CodexAppServerClient {
             sandbox: opts.sandbox ?? defaults.sandbox ?? null,
             config: this.buildThreadConfig(opts.mcpServers ?? defaults.mcpServers),
             baseInstructions: null,
-            developerInstructions: null,
+            developerInstructions: opts.developerInstructions ?? defaults.developerInstructions ?? null,
             ephemeral: false,
             threadSource: null,
         };
@@ -1013,6 +1027,7 @@ export class CodexAppServerClient {
             approvalPolicy: opts.approvalPolicy ?? defaults.approvalPolicy,
             sandbox: opts.sandbox ?? defaults.sandbox,
             mcpServers: opts.mcpServers ?? defaults.mcpServers,
+            developerInstructions: opts.developerInstructions ?? defaults.developerInstructions,
         });
         logger.debug('[CodexAppServer] Thread forked:', opts.threadId, '->', this._threadId);
         return { threadId: result.thread.id, model: result.model, thread: result.thread };
