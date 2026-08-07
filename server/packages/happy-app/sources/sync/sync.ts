@@ -67,6 +67,10 @@ import { readFileBytes } from '@/utils/readFileBytes';
 import { Modal } from '@/modal';
 import { t } from '@/text';
 import { isRigMetadataV1, rigCanUseAttachments, usesControlledSessionUi } from './rig';
+import {
+    requestVisibleSessionReconciliation,
+    type VisibleSessionReconciliationTrigger,
+} from './visibleSessionReconciliation';
 
 type V3GetSessionMessagesResponse = {
     messages: ApiMessage[];
@@ -199,6 +203,7 @@ class Sync {
                 this.friendsSync.invalidate();
                 this.friendRequestsSync.invalidate();
                 this.feedSync.invalidate();
+                this.reconcileCurrentViewingSession({ source: 'app-state', state: nextAppState });
             } else {
                 log.log(`📱 App state changed to: ${nextAppState}`);
                 this.maybeStartBackgroundSendWatchdog();
@@ -211,7 +216,12 @@ class Sync {
         // the user is actually looking at this client.
         if (Platform.OS === 'web' && typeof document !== 'undefined') {
             const broadcast = () => {
-                apiSocket.sendAppState(getCurrentAppState());
+                const currentAppState = getCurrentAppState();
+                apiSocket.sendAppState(currentAppState);
+                this.reconcileCurrentViewingSession({
+                    source: 'web-lifecycle',
+                    state: currentAppState,
+                });
             };
             document.addEventListener('visibilitychange', broadcast);
             window.addEventListener('focus', broadcast);
@@ -287,6 +297,22 @@ class Sync {
             storage.getState().applyReady();
         });
     }
+
+    private reconcileCurrentViewingSession = (trigger: VisibleSessionReconciliationTrigger) => {
+        // Focus events can fire before authentication has restored encryption.
+        // The first SessionView mount will perform the initial fetch after init.
+        if (!this.encryption) {
+            return;
+        }
+
+        const sessionId = requestVisibleSessionReconciliation(trigger, {
+            getCurrentViewingSessionId: () => storage.getState().currentViewingSessionId,
+            invalidateMessages: (visibleSessionId) => this.getMessagesSync(visibleSessionId).invalidate(),
+        });
+        if (sessionId) {
+            log.log(`💬 Reconciling visible session ${sessionId} after ${trigger.source}`);
+        }
+    };
 
 
     onSessionVisible = (sessionId: string) => {
@@ -2160,9 +2186,10 @@ class Sync {
             this.friendsSync.invalidate();
             this.friendRequestsSync.invalidate();
             this.feedSync.invalidate();
-            // Messages are fetched lazily per-session via onSessionVisible (called by SessionView
-            // when realtimeStatus changes). Session metadata + agentState (including permission
-            // requests) are already refreshed by sessionsSync.invalidate() above.
+            this.reconcileCurrentViewingSession({ source: 'socket-reconnect' });
+            // Session metadata + agentState (including permission requests)
+            // are refreshed by sessionsSync.invalidate() above. The currently
+            // visible conversation uses its existing forward cursor sync.
             for (const sync of this.sendSync.values()) {
                 sync.invalidate();
             }

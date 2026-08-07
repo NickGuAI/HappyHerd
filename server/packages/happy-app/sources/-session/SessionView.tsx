@@ -1031,7 +1031,8 @@ export function SessionViewLoaded({
         isMicActive: realtimeStatus === 'connected' || realtimeStatus === 'connecting'
     }), [handleMicrophonePress, realtimeStatus]);
 
-    // Trigger session visibility and initialize git status sync
+    // Track route visibility only. App foregrounding and socket reconnects
+    // reconcile the current conversation inside Sync without remounting it.
     React.useLayoutEffect(() => {
 
         // Trigger session sync
@@ -1057,7 +1058,7 @@ export function SessionViewLoaded({
                 storage.getState().setCurrentViewingSession(null);
             }
         };
-    }, [sessionId, realtimeStatus, embedded]);
+    }, [sessionId, embedded]);
 
     let content = (
         <>
