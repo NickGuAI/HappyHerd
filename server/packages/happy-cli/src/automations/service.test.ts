@@ -9,10 +9,6 @@ let root: string;
 let service: HappyHerdAutomationService | null = null;
 const originalEnvironment: Record<string, string | undefined> = {};
 const TEST_ENV_KEYS = [
-  'HAPPYHERD_HOME_DIR',
-  'HAPPYHERD_AGENTCONTEXT_ROOT',
-  'HAPPYHERD_AGENTS_FILE',
-  'HAPPYHERD_CLAUDE_FILE',
   'HAPPY_HOME_DIR',
 ] as const;
 
@@ -30,12 +26,9 @@ afterAll(() => {
 
 beforeEach(async () => {
   root = await mkdtemp(path.join(os.tmpdir(), 'happyherd-service-'));
-  process.env.HAPPYHERD_HOME_DIR = root;
-  process.env.HAPPYHERD_AGENTCONTEXT_ROOT = path.join(root, '.herd');
-  process.env.HAPPYHERD_AGENTS_FILE = path.join(root, 'AGENTS.md');
-  process.env.HAPPYHERD_CLAUDE_FILE = path.join(root, 'CLAUDE.md');
-  process.env.HAPPY_HOME_DIR = path.join(root, '.happy');
-  await writeFile(path.join(root, 'AGENTS.md'), '# Test');
+  process.env.HAPPY_HOME_DIR = path.join(root, '.happyherd');
+  await mkdir(process.env.HAPPY_HOME_DIR, { recursive: true });
+  await writeFile(path.join(process.env.HAPPY_HOME_DIR, 'AGENTS.md'), '# Test');
   await mkdir(path.join(root, 'workspace'), { recursive: true });
 });
 
@@ -100,7 +93,7 @@ describe('HappyHerdAutomationService', () => {
     const created = await service.create({ ...input(), schedule: '* * * * *', status: 'active' });
     await service.stop();
     service = null;
-    const statePath = path.join(root, '.herd', 'agentcontext', 'automations', 'happyherd', 'scheduler-state.json');
+    const statePath = path.join(root, '.happyherd', 'agentcontext', 'automations', 'happyherd', 'scheduler-state.json');
     await writeFile(statePath, JSON.stringify({
       schemaVersion: 1,
       lastSeenAt: new Date(Date.now() - 120_000).toISOString(),
@@ -158,7 +151,7 @@ describe('HappyHerdAutomationService', () => {
   });
 
   it('enforces the selected Commander workspace', async () => {
-    const commanderRoot = path.join(root, '.herd', 'commanders', 'athena');
+    const commanderRoot = path.join(root, '.happyherd', 'commanders', 'athena');
     await mkdir(path.join(commanderRoot, 'agentcontext'), { recursive: true });
     await writeFile(path.join(commanderRoot, 'COMMANDER.md'), `---\nidentity_and_scope:\n  name: Athena\n  commander_id: athena\n  workspace: ${path.join(root, 'workspace')}\n---\n`);
     service = new HappyHerdAutomationService('machine-one', vi.fn());

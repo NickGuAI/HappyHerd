@@ -146,7 +146,9 @@ describe('CodexAppServerClient sandbox integration', () => {
         await client.connect();
 
         expect(mockInitializeSandbox).toHaveBeenCalledWith(sandboxConfig, process.cwd());
-        expect(mockWrapForMcpTransport).toHaveBeenCalledWith('codex', ['app-server', '--listen', 'stdio://']);
+        expect(mockWrapForMcpTransport).toHaveBeenCalledWith('codex', [
+            'app-server', '--listen', 'stdio://', '-c', 'project_doc_max_bytes=0',
+        ]);
         expect(mockSpawn).toHaveBeenCalledWith(
             'sh',
             ['-c', 'wrapped codex app-server'],
@@ -172,7 +174,7 @@ describe('CodexAppServerClient sandbox integration', () => {
         expect(mockWrapForMcpTransport).not.toHaveBeenCalled();
         expect(mockSpawn).toHaveBeenCalledWith(
             'codex',
-            ['app-server', '--listen', 'stdio://'],
+            ['app-server', '--listen', 'stdio://', '-c', 'project_doc_max_bytes=0'],
             expect.objectContaining({
                 env: expect.objectContaining({
                     RUST_LOG: expect.stringContaining('codex_core::rollout::list=off'),
@@ -352,6 +354,7 @@ describe('CodexAppServerClient sandbox integration', () => {
             cwd: '/tmp/project',
             approvalPolicy: 'on-request',
             sandbox: 'read-only',
+            developerInstructions: 'global + commander + project',
         });
 
         const pendingTurn = client.sendTurnAndWait('hang forever', { turnTimeoutMs: 5000 });
@@ -476,6 +479,7 @@ describe('CodexAppServerClient sandbox integration', () => {
             cwd: '/tmp/project',
             approvalPolicy: 'on-request',
             sandbox: 'read-only',
+            developerInstructions: 'global + commander + project',
         });
 
         const pendingTurn = client.sendTurnAndWait('hang on interrupt', { turnTimeoutMs: 5000 });
@@ -498,6 +502,12 @@ describe('CodexAppServerClient sandbox integration', () => {
             resumedThread: true,
         });
         expect(secondProcessRequests.some((msg) => msg.method === 'thread/resume')).toBe(true);
+        expect(firstProcessRequests.find((msg) => msg.method === 'thread/start')?.params).toEqual(
+            expect.objectContaining({ developerInstructions: 'global + commander + project' }),
+        );
+        expect(secondProcessRequests.find((msg) => msg.method === 'thread/resume')?.params).toEqual(
+            expect.objectContaining({ developerInstructions: 'global + commander + project' }),
+        );
 
         await client.disconnect();
     });

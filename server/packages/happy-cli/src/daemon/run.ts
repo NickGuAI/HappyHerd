@@ -273,8 +273,13 @@ export async function startDaemon(): Promise<void> {
         }
         : options);
 
-      const contextBundle = await prepareCommanderContext(options.commanderId);
-      const directory = contextBundle.commander?.workspace ?? options.directory;
+      const contextBundle = await prepareCommanderContext(options.commanderId, options.directory);
+      // Commander workspace is the picker's default, not authority to replace
+      // the directory the user actually selected for this session. Keeping the
+      // spawn cwd and the closest project guide on the same requested path
+      // prevents a valid Commander identity from loading guidance for one
+      // project while operating in another.
+      const directory = options.directory;
       const { sessionId, machineId, approvedNewDirectoryCreation = true } = options;
       let directoryCreated = false;
 
@@ -750,17 +755,20 @@ export async function startDaemon(): Promise<void> {
         }
 
         await fs.access(launch.cwd);
+        const resumedContextBundle = await prepareCommanderContext(metadata.commanderId, launch.cwd);
 
         return spawnTrackedHappyProcess({
           args: launch.args,
           cwd: launch.cwd,
           env: buildSessionChildEnvironment(ambientEnvironment, {
+            ...contextEnvironment(resumedContextBundle),
             HAPPY_RECONNECT_SESSION_ID: happySessionId,
             HAPPY_RECONNECT_ENCRYPTION_KEY: encodeBase64(tracked.encryption.encryptionKey),
             HAPPY_RECONNECT_ENCRYPTION_VARIANT: tracked.encryption.encryptionVariant,
             HAPPY_RECONNECT_SEQ: String(tracked.encryption.seq),
             HAPPY_RECONNECT_METADATA_VERSION: String(tracked.encryption.metadataVersion),
             HAPPY_RECONNECT_AGENT_STATE_VERSION: String(tracked.encryption.agentStateVersion),
+            ...(metadata.contextHash ? { HAPPY_RECONNECT_CONTEXT_HASH: metadata.contextHash } : {}),
           }),
         });
       } catch (error) {

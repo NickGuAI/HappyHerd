@@ -377,7 +377,12 @@ export type Metadata = {
   commanderAgentContextPath?: string
   globalAgentsPath?: string
   globalAgentContextPath?: string
+  projectGuidancePath?: string
   contextHash?: string
+  instructionReceiptVersion?: number
+  instructionProvider?: 'codex' | 'claude'
+  instructionLayer?: 'developer' | 'system-append'
+  instructionHash?: string
   /** Machine-local automation provenance for daemon-started sessions. */
   automationId?: string
   automationKind?: 'scheduled' | 'heartbeat' | 'memory-maintenance'

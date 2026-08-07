@@ -175,7 +175,12 @@ export const MetadataSchema = z.object({
     commanderAgentContextPath: z.string().optional(),
     globalAgentsPath: z.string().optional(),
     globalAgentContextPath: z.string().optional(),
+    projectGuidancePath: z.string().optional(),
     contextHash: z.string().optional(),
+    instructionReceiptVersion: z.number().int().positive().optional(),
+    instructionProvider: z.enum(['codex', 'claude']).optional(),
+    instructionLayer: z.enum(['developer', 'system-append']).optional(),
+    instructionHash: z.string().regex(/^[a-f0-9]{64}$/).optional(),
     automationId: z.string().uuid().optional(),
     automationKind: z.enum(['scheduled', 'heartbeat', 'memory-maintenance']).optional(),
     /**

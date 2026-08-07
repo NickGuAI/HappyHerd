@@ -8,15 +8,15 @@ import { HappyHerdAutomationStore } from './store';
 let root: string;
 let originalRoot: string | undefined;
 
-beforeAll(() => { originalRoot = process.env.HAPPYHERD_AGENTCONTEXT_ROOT; });
+beforeAll(() => { originalRoot = process.env.HAPPY_HOME_DIR; });
 afterAll(() => {
-  if (originalRoot === undefined) delete process.env.HAPPYHERD_AGENTCONTEXT_ROOT;
-  else process.env.HAPPYHERD_AGENTCONTEXT_ROOT = originalRoot;
+  if (originalRoot === undefined) delete process.env.HAPPY_HOME_DIR;
+  else process.env.HAPPY_HOME_DIR = originalRoot;
 });
 
 beforeEach(async () => {
   root = await mkdtemp(path.join(os.tmpdir(), 'happyherd-automation-'));
-  process.env.HAPPYHERD_AGENTCONTEXT_ROOT = path.join(root, '.herd');
+  process.env.HAPPY_HOME_DIR = path.join(root, '.happyherd');
 });
 
 function input() {
@@ -56,7 +56,7 @@ describe('HappyHerdAutomationStore', () => {
   });
 
   it('keeps legacy Herd automation artifacts outside its namespace', async () => {
-    const legacyRoot = path.join(root, '.herd', 'agentcontext', 'automations');
+    const legacyRoot = path.join(root, '.happyherd', 'agentcontext', 'automations');
     await mkdir(legacyRoot, { recursive: true });
     await writeFile(path.join(legacyRoot, 'legacy-herd.json'), '{}');
     const store = new HappyHerdAutomationStore();
