@@ -78,3 +78,5 @@ SESSION_CONTROLS	code-ready	fix(session): align chat effort with machine catalog
 SESSION_CONTROLS	code-ready	docs(patches): register active-session catalog fix	docs/owned-patches.tsv
 CI	code-ready	fix(ci): remove trailing release-test whitespace	scripts/test-install-host-release.sh
 R1	code-ready	fix(sync): reconcile visible sessions after resume (#46)	server/packages/happy-app/sources/sync/visibleSessionReconciliation.test.ts
+SUBAGENT_UI	code-ready	fix(subagents): collapse child content by default (#48)	server/packages/happy-app/sources/components/tools/views/SubagentView.spec.ts
+SUBAGENT_UI	code-ready	docs(patches): register collapsed subagent presentation	docs/owned-patches.tsv
