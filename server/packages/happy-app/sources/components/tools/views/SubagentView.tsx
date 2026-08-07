@@ -38,9 +38,6 @@ export const SubagentView = React.memo<ToolViewProps>(({ tool, messages, session
     const visibleMessages = messages.filter((message) => (
         message.kind === 'agent-text' || message.kind === 'tool-call'
     ));
-    const latestText = [...visibleMessages].reverse().find((message) => (
-        message.kind === 'agent-text' && !message.isThinking
-    ));
     const statusColor = state.status === 'completed'
         ? theme.colors.success
         : state.status === 'failed' || state.status === 'interrupted'
@@ -60,12 +57,6 @@ export const SubagentView = React.memo<ToolViewProps>(({ tool, messages, session
             {state.detail ? (
                 <View style={styles.errorBox}>
                     <Text style={styles.errorText}>{state.detail}</Text>
-                </View>
-            ) : null}
-
-            {!expanded && latestText?.kind === 'agent-text' ? (
-                <View style={styles.preview}>
-                    <MarkdownView markdown={latestText.text} sessionId={sessionId} />
                 </View>
             ) : null}
 
@@ -149,9 +140,6 @@ const styles = StyleSheet.create((theme) => ({
         color: theme.colors.textDestructive,
         fontSize: 13,
         lineHeight: 19,
-    },
-    preview: {
-        opacity: 0.92,
     },
     trace: {
         gap: 8,
