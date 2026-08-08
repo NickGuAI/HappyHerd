@@ -115,6 +115,21 @@ describe('resolveMessageModeMeta', () => {
         expect(settings.agentDefaultOverrides.codex.effortLevel).toBe('ultra');
     });
 
+    it('omits effort when the authoritative selected model advertises none', () => {
+        const meta = resolveMessageModeMeta({
+            permissionMode: null,
+            modelMode: 'no-reasoning',
+            effortLevel: null,
+            metadata: { flavor: 'codex' },
+        } as any, {
+            agentDefaultOverrides: {
+                codex: { effortLevel: 'xhigh' },
+            },
+        } as any, { availableEfforts: [] });
+
+        expect(meta).toEqual({ model: 'no-reasoning' });
+    });
+
     it('treats an explicit default model as a reset override', () => {
         const meta = resolveMessageModeMeta({
             permissionMode: null,

@@ -85,3 +85,4 @@ AGENTCONTEXT	code-ready	docs(patches): register canonical AgentContext authority
 R2	code-ready	fix(codex): persist effort and steer active turns	server/packages/happy-cli/src/codex/codexTurnRouting.test.ts
 R2	code-ready	fix(codex): apply saved effort on mobile launcher	server/packages/happy-app/sources/sync/agentDefaults.test.ts
 R2	code-ready	fix(codex): enforce model-supported message effort	server/packages/happy-app/sources/sync/messageMeta.test.ts
+R2	code-ready	fix(codex): honor models without effort controls	server/packages/happy-app/sources/components/modelModeOptions.test.ts

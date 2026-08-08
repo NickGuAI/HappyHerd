@@ -49,4 +49,11 @@ describe('agent defaults', () => {
         ])).toBe('xhigh');
         expect(resolveAgentDefaultConfig(overrides, 'codex').effortLevel).toBe('ultra');
     });
+
+    it('omits effort when the selected model authoritatively exposes no effort control', () => {
+        const overrides = setAgentDefaultOverride({}, 'codex', 'effortLevel', 'xhigh');
+
+        expect(resolveAgentDefaultEffortLevel(overrides, 'codex', [])).toBeNull();
+        expect(resolveAgentDefaultConfig(overrides, 'codex').effortLevel).toBe('xhigh');
+    });
 });

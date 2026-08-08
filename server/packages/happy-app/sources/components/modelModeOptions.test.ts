@@ -94,6 +94,43 @@ describe('modelModeOptions', () => {
         ]);
     });
 
+    it('honors an explicit empty effort list instead of borrowing another model\'s efforts', () => {
+        const machineMetadata = {
+            agentCapabilities: {
+                codex: {
+                    detectedAt: 1,
+                    sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'provider' },
+                    models: [
+                        {
+                            code: 'no-reasoning',
+                            value: 'No reasoning',
+                            effortLevels: [],
+                            isDefault: true,
+                        },
+                        {
+                            code: 'reasoning',
+                            value: 'Reasoning',
+                            effortLevels: [{ code: 'xhigh', value: 'xhigh' }],
+                        },
+                    ],
+                    effortLevels: [{ code: 'xhigh', value: 'xhigh' }],
+                    permissionModes: [],
+                },
+            },
+        } as any;
+
+        expect(getMachineAdvertisedEffortLevels(
+            machineMetadata,
+            'codex',
+            'no-reasoning',
+        )).toEqual([]);
+        expect(getMachineAdvertisedEffortLevels(
+            machineMetadata,
+            'codex',
+            'stale-model',
+        )).toEqual([]);
+    });
+
     it('uses the New Session machine catalog for active session controls', () => {
         const machineMetadata = {
             agentCapabilities: {

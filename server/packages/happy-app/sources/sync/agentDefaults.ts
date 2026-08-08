@@ -112,18 +112,19 @@ export function resolveSupportedAgentEffortLevel(
     flavor: string | null | undefined,
     availableEfforts: ReadonlyArray<{ key: string }>,
 ): string | null {
-    if (configured && (
-        availableEfforts.length === 0
-        || availableEfforts.some((effort) => effort.key === configured)
-    )) {
+    if (configured && availableEfforts.some((effort) => effort.key === configured)) {
         return configured;
     }
+
+    // The selected-model capability list is authoritative. Empty means the
+    // model exposes no effort control, not that validation should be skipped.
+    if (availableEfforts.length === 0) return null;
 
     if (normalizeAgentKey(flavor) === 'codex') {
         return availableEfforts.at(-1)?.key ?? null;
     }
 
-    return configured ?? null;
+    return null;
 }
 
 export function hasAgentDefaultOverride(

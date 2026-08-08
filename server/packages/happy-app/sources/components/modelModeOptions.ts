@@ -119,9 +119,14 @@ export function getMachineAdvertisedEffortLevels(
     if (!catalog) return [];
     const selectedModel = modelKey === 'default'
         ? catalog.models.find((model) => model.isDefault)
+            ?? catalog.models.find((model) => model.code === 'default')
         : catalog.models.find((model) => model.code === modelKey);
+    if (!selectedModel) return [];
     const modelEfforts = selectedModel?.effortLevels;
-    const efforts = modelEfforts && modelEfforts.length > 0 ? modelEfforts : catalog.effortLevels;
+    // `undefined` means the provider supplied only a catalog-wide fallback.
+    // An explicit empty list is authoritative: this model has no effort knob
+    // and must not inherit another model's values from the catalog union.
+    const efforts = modelEfforts !== undefined ? modelEfforts : catalog.effortLevels;
     return efforts.map((effort) => ({
         key: effort.code,
         name: effort.value,
