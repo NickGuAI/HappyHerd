@@ -23,8 +23,12 @@ import { Typography } from '@/constants/Typography';
 import { layout } from './layout';
 import { t } from '@/text';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
-import { useAllMachines, useSessions, useSetting } from '@/sync/storage';
-import { resolveAgentDefaultConfig, resolveAgentDefaultEffortLevel } from '@/sync/agentDefaults';
+import { useAllMachines, useSessions, useSetting, useSettingMutable } from '@/sync/storage';
+import {
+    resolveAgentDefaultConfig,
+    resolveAgentDefaultEffortLevel,
+    setAgentDefaultOverride,
+} from '@/sync/agentDefaults';
 import { formatLastSeen, formatPathRelativeToHome } from '@/utils/sessionUtils';
 import { isMachineOnline } from '@/utils/machineUtils';
 import { resolveAbsolutePath } from '@/utils/pathUtils';
@@ -495,7 +499,7 @@ export const HomeDock = React.memo(({
     const setPermissionMode = useNewSessionDraft((state) => state.setPermissionMode);
     const setModelMode = useNewSessionDraft((state) => state.setModelMode);
     const setEffortLevel = useNewSessionDraft((state) => state.setEffortLevel);
-    const defaultOverrides = useSetting('agentDefaultOverrides');
+    const [defaultOverrides, setDefaultOverrides] = useSettingMutable('agentDefaultOverrides');
     const machines = useAllMachines({ includeOffline: true });
     const sessions = useSessions();
     const selectedMachine = React.useMemo(
@@ -638,6 +642,17 @@ export const HomeDock = React.memo(({
         effortOptions,
     );
     const currentEffort = resolveOption(effortOptions, [effortLevel, effectiveEffortDefault]);
+    const selectEffort = React.useCallback((key: string) => {
+        setEffortLevel(key);
+        if (agentType === 'codex') {
+            setDefaultOverrides(setAgentDefaultOverride(
+                defaultOverrides,
+                'codex',
+                'effortLevel',
+                key,
+            ));
+        }
+    }, [agentType, defaultOverrides, setDefaultOverrides, setEffortLevel]);
     const currentAgent = availableAgents.find((agent) => agent.key === agentType) ?? availableAgents[0] ?? AGENTS[0];
     const canSubmit = !isSubmitting && (
         prompt.trim().length > 0 || (expImageUpload && selectedImages.length > 0)
@@ -897,7 +912,7 @@ export const HomeDock = React.memo(({
         if (setting === 'permission') {
             return { title: t('agentInput.permissionMode.title'), options: permissionOptions, selectedKey: currentPermission?.key, onSelect: setPermissionMode };
         }
-        return { title: t('agentInput.effort.title'), options: effortOptions, selectedKey: currentEffort?.key, onSelect: setEffortLevel };
+        return { title: t('agentInput.effort.title'), options: effortOptions, selectedKey: currentEffort?.key, onSelect: selectEffort };
     };
 
     const agentSettingsGroups: NativeSettingsMenuGroup[] = agentRows.map((row) => {
