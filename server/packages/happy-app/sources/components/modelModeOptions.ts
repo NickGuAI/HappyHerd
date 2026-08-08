@@ -117,7 +117,10 @@ export function getMachineAdvertisedEffortLevels(
 ): EffortLevel[] {
     const catalog = getMachineCatalog(metadata, flavor);
     if (!catalog) return [];
-    const modelEfforts = catalog.models.find((model) => model.code === modelKey)?.effortLevels;
+    const selectedModel = modelKey === 'default'
+        ? catalog.models.find((model) => model.isDefault)
+        : catalog.models.find((model) => model.code === modelKey);
+    const modelEfforts = selectedModel?.effortLevels;
     const efforts = modelEfforts && modelEfforts.length > 0 ? modelEfforts : catalog.effortLevels;
     return efforts.map((effort) => ({
         key: effort.code,
@@ -429,10 +432,8 @@ export function getEffortLevelsForModel(
             name: level,
         }));
     }
-    // Claude and Codex expose effort/thought levels regardless of which
-    // specific model is picked — the same low/medium/high/max scale applies
-    // to the whole flavor (mirrors how Codex already worked, which the user
-    // asked Claude to match).
+    // Legacy/offline sessions use flavor fallbacks. Connected sessions use
+    // the selected machine's model-specific provider catalog below.
     if (flavor === 'claude') {
         return getClaudeEffortLevels();
     }

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveAgentDefaultConfig } from './agentDefaults';
+import {
+    resolveAgentDefaultConfig,
+    resolveAgentDefaultEffortLevel,
+    setAgentDefaultOverride,
+} from './agentDefaults';
 
 describe('agent defaults', () => {
     it('uses a canonical Claude model slug by default', () => {
@@ -11,5 +15,38 @@ describe('agent defaults', () => {
         expect(resolveAgentDefaultConfig({
             claude: { modelMode: 'opus' },
         }, 'claude').modelMode).toBe('claude-opus-5');
+    });
+
+    it('defaults fresh Codex users to the highest effort advertised by the selected model', () => {
+        expect(resolveAgentDefaultConfig(undefined, 'codex').effortLevel).toBeNull();
+        expect(resolveAgentDefaultEffortLevel(undefined, 'codex', [
+            { key: 'low' },
+            { key: 'medium' },
+            { key: 'high' },
+            { key: 'xhigh' },
+        ])).toBe('xhigh');
+        expect(resolveAgentDefaultEffortLevel(undefined, 'codex', [
+            { key: 'medium' },
+            { key: 'ultra' },
+        ])).toBe('ultra');
+    });
+
+    it('keeps a synchronized explicit Codex effort while the selected model supports it', () => {
+        const overrides = setAgentDefaultOverride({}, 'codex', 'effortLevel', 'ultra');
+
+        expect(resolveAgentDefaultEffortLevel(overrides, 'codex', [
+            { key: 'medium' },
+            { key: 'ultra' },
+        ])).toBe('ultra');
+    });
+
+    it('falls back to a model maximum without deleting an unsupported synchronized preference', () => {
+        const overrides = setAgentDefaultOverride({}, 'codex', 'effortLevel', 'ultra');
+
+        expect(resolveAgentDefaultEffortLevel(overrides, 'codex', [
+            { key: 'low' },
+            { key: 'xhigh' },
+        ])).toBe('xhigh');
+        expect(resolveAgentDefaultConfig(overrides, 'codex').effortLevel).toBe('ultra');
     });
 });

@@ -38,6 +38,7 @@ import {
 import { resumeExistingThread } from './resumeExistingThread';
 import { emitReadyIfIdle } from './emitReadyIfIdle';
 import { enqueueCodexUserText, isCodexClearText } from './codexClearCommand';
+import { shouldSteerCodexUserInput } from './codexTurnRouting';
 import { downloadCodexFileEventAttachment } from './utils/attachmentEvents';
 import { prepareCodexImageInputItems } from './utils/imageInput';
 import { createSerialAsyncHandler } from './utils/serialAsyncHandler';
@@ -98,7 +99,6 @@ function isAuthoritativeCodexLifecycle(message: Record<string, unknown>): boolea
 }
 
 const DEFAULT_CODEX_MODEL = 'gpt-5.5';
-const DEFAULT_CODEX_EFFORT: ReasoningEffort = 'medium';
 const DEFAULT_CODEX_PERMISSION_MODE: PermissionMode = 'yolo';
 
 /**
@@ -301,7 +301,11 @@ export async function runCodex(opts: {
     // straggler approval after an abort.
     let currentPermissionModeExplicitlySet = false;
     let currentModel: string | undefined = opts.model ?? DEFAULT_CODEX_MODEL;
-    let currentEffort: ReasoningEffort | undefined = opts.effort ?? DEFAULT_CODEX_EFFORT;
+    // The app resolves its semantic "maximum available" default against the
+    // selected model's live capability catalog. A direct terminal launch with
+    // no explicit effort leaves the choice to Codex rather than inventing a
+    // provider token that the installed app-server may reject.
+    let currentEffort: ReasoningEffort | undefined = opts.effort;
     let currentAppendSystemPrompt: string | undefined;
 
     const resetCurrentModeDefaults = () => {
@@ -400,6 +404,40 @@ export async function runCodex(opts: {
             appendSystemPrompt: messageAppendSystemPrompt,
             effort: messageEffort,
         };
+
+        const activeTurnId = client?.activeTurnId ?? null;
+        if (shouldSteerCodexUserInput(message.content.text, activeTurnId)) {
+            const imageInputs = await prepareCodexImageInputItems(attachmentsForThisMessage, {
+                sessionId: session.sessionId,
+            });
+            const hasUserText = message.content.text.trim().length > 0;
+            if (attachmentsForThisMessage.length > 0 && imageInputs.inputItems.length === 0 && !hasUserText) {
+                session.sendSessionEvent({
+                    type: 'message',
+                    message: 'No supported images were available to steer into Codex.',
+                });
+                return;
+            }
+
+            try {
+                await client.steerTurn(message.content.text, {
+                    extraInputItems: imageInputs.inputItems,
+                });
+                if (hasUserText) {
+                    messageBuffer.addMessage(message.content.text, 'user');
+                }
+                logger.debug(`[Codex] Steered follow-up into active turn ${activeTurnId}`);
+            } catch (error) {
+                const reason = error instanceof Error ? error.message : String(error);
+                logger.warn('[Codex] Failed to steer active turn', { activeTurnId, reason });
+                session.sendSessionEvent({
+                    type: 'message',
+                    message: `Could not steer the active Codex turn: ${reason}`,
+                });
+            }
+            return;
+        }
+
         const enqueueResult = enqueueCodexUserText({
             text: message.content.text,
             mode: enhancedMode,

@@ -59,7 +59,11 @@ import {
 import { isRunningOnMac } from '@/utils/platform';
 import { getNewSessionSidebarLayout } from '@/utils/newSessionSidebarLayout';
 import { getAgentPickerItems, getModePickerItems } from '@/utils/newSessionPickerItems';
-import { resolveAgentDefaultConfig } from '@/sync/agentDefaults';
+import {
+    resolveAgentDefaultConfig,
+    resolveAgentDefaultEffortLevel,
+    setAgentDefaultOverride,
+} from '@/sync/agentDefaults';
 import { MobileGlassSurface } from '@/components/MobileGlass';
 import { BubblePressable } from '@/components/BubblePressable';
 import { Header } from '@/components/navigation/Header';
@@ -748,7 +752,7 @@ function NewSessionScreen() {
     const allMachines = useAllMachines({ includeOffline: true });
     const sessions = useSessions();
     const agentInputEnterToSend = useSetting('agentInputEnterToSend');
-    const agentDefaultOverrides = useSetting('agentDefaultOverrides');
+    const [agentDefaultOverrides, setAgentDefaultOverrides] = useSettingMutable('agentDefaultOverrides');
     const fileDiffsSidebarEnabled = useSetting('fileDiffsSidebar');
     const [favoriteMachinePaths, setFavoriteMachinePaths] = useSettingMutable('favoriteMachinePaths');
     const zenMode = useLocalSetting('zenMode');
@@ -1016,6 +1020,9 @@ function NewSessionScreen() {
     const effectiveAgentDefaults = React.useMemo(() => (
         resolveAgentDefaultConfig(agentDefaultOverrides, selectedAgent)
     ), [agentDefaultOverrides, selectedAgent]);
+    const effectiveEffortDefault = React.useMemo(() => (
+        resolveAgentDefaultEffortLevel(agentDefaultOverrides, selectedAgent, effortLevels)
+    ), [agentDefaultOverrides, selectedAgent, effortLevels]);
 
     const supportsWorktree = getSupportsWorktree(selectedAgent);
     const showModel = modelModes.length > 1;
@@ -1053,9 +1060,9 @@ function NewSessionScreen() {
         }
         setEffortIndex(findPreferredModeIndex(effortLevels, [
             draft.effortLevel,
-            effectiveAgentDefaults.effortLevel,
+            effectiveEffortDefault,
         ]));
-    }, [draft.effortLevel, effectiveAgentDefaults.effortLevel, currentModelKey, effortLevels]);
+    }, [draft.effortLevel, effectiveEffortDefault, currentModelKey, effortLevels]);
 
     // The reference keeps the context controls visible while the keyboard is
     // open. Preserve that on mobile and let users collapse them explicitly.
@@ -1116,6 +1123,28 @@ function NewSessionScreen() {
     const agent = availableAgents.find(a => a.key === selectedAgent) ?? ALL_AGENTS[0];
     const currentPermission = permissionModes[permissionIndex] ?? permissionModes[0];
     const currentEffort = effortLevels[effortIndex] ?? effortLevels[0];
+    const selectEffortByKey = React.useCallback((key: string) => {
+        const next = effortLevels.findIndex((level) => level.key === key);
+        if (next < 0) return;
+
+        const effortKey = effortLevels[next]?.key ?? key;
+        setEffortIndex(next);
+        draft.setEffortLevel(effortKey);
+        if (selectedAgent === 'codex') {
+            setAgentDefaultOverrides(setAgentDefaultOverride(
+                agentDefaultOverrides,
+                'codex',
+                'effortLevel',
+                effortKey,
+            ));
+        }
+    }, [
+        effortLevels,
+        draft.setEffortLevel,
+        selectedAgent,
+        agentDefaultOverrides,
+        setAgentDefaultOverrides,
+    ]);
     const permissionStyle = currentPermission?.key !== 'default' ? getPermissionStyle(currentPermission.key) : null;
     const composerSettingsItems = React.useMemo(() => {
         const items: Array<{
@@ -1270,11 +1299,7 @@ function NewSessionScreen() {
                 break;
             }
             case 'effort': {
-                const next = effortLevels.findIndex((level) => level.key === key);
-                if (next >= 0) {
-                    setEffortIndex(next);
-                    draft.setEffortLevel(effortLevels[next]?.key ?? key);
-                }
+                selectEffortByKey(key);
                 break;
             }
             case 'permission': {
@@ -1291,12 +1316,11 @@ function NewSessionScreen() {
         activePicker,
         availableAgents,
         commanders,
-        draft.setEffortLevel,
         draft.setModelMode,
         draft.setPermissionMode,
-        effortLevels,
         modelModes,
         permissionModes,
+        selectEffortByKey,
         setSelectedAgent,
         setSelectedCommanderId,
         setSelectedMachineId,
@@ -1315,11 +1339,7 @@ function NewSessionScreen() {
                 break;
             }
             case 'effort': {
-                const next = effortLevels.findIndex((level) => level.key === key);
-                if (next >= 0) {
-                    setEffortIndex(next);
-                    draft.setEffortLevel(effortLevels[next]?.key ?? key);
-                }
+                selectEffortByKey(key);
                 break;
             }
             case 'permission': {
@@ -1333,7 +1353,7 @@ function NewSessionScreen() {
         }
         setNativePickerMeasuredHeight(null);
         setComposerSettingsPage(null);
-    }, [composerSettingsPage, draft.setEffortLevel, draft.setModelMode, draft.setPermissionMode, effortLevels, modelModes, permissionModes]);
+    }, [composerSettingsPage, draft.setModelMode, draft.setPermissionMode, modelModes, permissionModes, selectEffortByKey]);
 
     // Spawn session handler
     const handleSend = React.useCallback(async (approvedNewDirectoryCreation: boolean = false) => {
@@ -1392,7 +1412,7 @@ function NewSessionScreen() {
                         ? null
                         : currentModelKey;
                     const currentEffortKey = currentEffort?.key ?? null;
-                    const effortOverride = currentEffortKey === effectiveAgentDefaults.effortLevel
+                    const effortOverride = currentEffortKey === effectiveEffortDefault
                         ? null
                         : currentEffortKey;
                     // Mode picks sync via session metadata (#1492). Nothing to
@@ -1446,7 +1466,7 @@ function NewSessionScreen() {
         } finally {
             setIsSpawning(false);
         }
-    }, [selectedMachineId, selectedMachine, selectedPath, selectedCommanderId, selectedAgent, router, navigateToSession, currentPermission.key, currentModelKey, currentEffort?.key, effectiveAgentDefaults.permissionMode, effectiveAgentDefaults.modelMode, effectiveAgentDefaults.effortLevel, worktreeKey]);
+    }, [selectedMachineId, selectedMachine, selectedPath, selectedCommanderId, selectedAgent, router, navigateToSession, currentPermission.key, currentModelKey, currentEffort?.key, effectiveAgentDefaults.permissionMode, effectiveAgentDefaults.modelMode, effectiveEffortDefault, worktreeKey]);
 
     const canSend = selectedMachineId && selectedMachine && isMachineOnline(selectedMachine) && !isSpawning;
     React.useEffect(() => {

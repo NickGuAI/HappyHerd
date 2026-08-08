@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useAllMachines, useSetting } from '@/sync/storage';
-import { resolveAgentDefaultConfig } from '@/sync/agentDefaults';
+import { resolveAgentDefaultConfig, resolveAgentDefaultEffortLevel } from '@/sync/agentDefaults';
 import { machineSpawnNewSession, sessionSetAgentModes, type SessionAgentModesPatch } from '@/sync/ops';
 import { sync } from '@/sync/sync';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
@@ -12,6 +12,9 @@ import {
     getEffortLevelsForModel,
     getHardcodedModelModes,
     getHardcodedPermissionModes,
+    getMachineAdvertisedEffortLevels,
+    getMachineAdvertisedModels,
+    getMachineAdvertisedPermissionModes,
 } from '@/components/modelModeOptions';
 import { Modal } from '@/modal';
 import { t } from '@/text';
@@ -50,17 +53,32 @@ export function useStartSessionFromDraft() {
         }
 
         const defaults = resolveAgentDefaultConfig(defaultOverrides, draft.agentType);
+        const machineCatalog = machine.metadata?.agentCapabilities?.[draft.agentType];
+        const permissionOptions = machineCatalog
+            ? getMachineAdvertisedPermissionModes(machine.metadata, draft.agentType)
+            : getHardcodedPermissionModes(draft.agentType, t);
+        const modelOptions = machineCatalog
+            ? getMachineAdvertisedModels(machine.metadata, draft.agentType)
+            : getHardcodedModelModes(draft.agentType, t);
         const permission = resolveOption(
-            getHardcodedPermissionModes(draft.agentType, t),
+            permissionOptions,
             [draft.permissionMode, defaults.permissionMode],
         );
         const model = resolveOption(
-            getHardcodedModelModes(draft.agentType, t),
+            modelOptions,
             [draft.modelMode, defaults.modelMode],
         );
+        const effortOptions = machineCatalog
+            ? getMachineAdvertisedEffortLevels(machine.metadata, draft.agentType, model?.key ?? 'default')
+            : getEffortLevelsForModel(draft.agentType, model?.key ?? 'default');
+        const effectiveEffortDefault = resolveAgentDefaultEffortLevel(
+            defaultOverrides,
+            draft.agentType,
+            effortOptions,
+        );
         const effort = resolveOption(
-            getEffortLevelsForModel(draft.agentType, model?.key ?? 'default'),
-            [draft.effortLevel, defaults.effortLevel],
+            effortOptions,
+            [draft.effortLevel, effectiveEffortDefault],
         );
         if (!permission || !model) {
             Modal.alert(t('common.error'), 'The selected agent configuration is unavailable');
@@ -126,7 +144,7 @@ export function useStartSessionFromDraft() {
             const modesPatch: SessionAgentModesPatch = {};
             if (permission.key !== defaults.permissionMode) modesPatch.permissionMode = permission.key;
             if (model.key !== defaults.modelMode) modesPatch.modelMode = model.key;
-            if ((effort?.key ?? null) !== defaults.effortLevel) modesPatch.effortLevel = effort?.key ?? null;
+            if ((effort?.key ?? null) !== effectiveEffortDefault) modesPatch.effortLevel = effort?.key ?? null;
             if (Object.keys(modesPatch).length > 0) {
                 sessionSetAgentModes(sessionId, modesPatch);
             }

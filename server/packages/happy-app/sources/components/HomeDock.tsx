@@ -24,7 +24,7 @@ import { layout } from './layout';
 import { t } from '@/text';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
 import { useAllMachines, useSessions, useSetting } from '@/sync/storage';
-import { resolveAgentDefaultConfig } from '@/sync/agentDefaults';
+import { resolveAgentDefaultConfig, resolveAgentDefaultEffortLevel } from '@/sync/agentDefaults';
 import { formatLastSeen, formatPathRelativeToHome } from '@/utils/sessionUtils';
 import { isMachineOnline } from '@/utils/machineUtils';
 import { resolveAbsolutePath } from '@/utils/pathUtils';
@@ -34,6 +34,9 @@ import {
     getEffortLevelsForModel,
     getHardcodedModelModes,
     getHardcodedPermissionModes,
+    getMachineAdvertisedEffortLevels,
+    getMachineAdvertisedModels,
+    getMachineAdvertisedPermissionModes,
     getSupportsWorktree,
     type ModeOption,
 } from './modelModeOptions';
@@ -608,21 +611,33 @@ export const HomeDock = React.memo(({
         () => resolveAgentDefaultConfig(defaultOverrides, agentType),
         [agentType, defaultOverrides],
     );
+    const machineCatalog = selectedMachine?.metadata?.agentCapabilities?.[agentType];
     const permissionOptions = React.useMemo(
-        () => getHardcodedPermissionModes(agentType, t),
-        [agentType],
+        () => machineCatalog
+            ? getMachineAdvertisedPermissionModes(selectedMachine?.metadata, agentType)
+            : getHardcodedPermissionModes(agentType, t),
+        [agentType, machineCatalog, selectedMachine?.metadata],
     );
     const modelOptions = React.useMemo(
-        () => getHardcodedModelModes(agentType, t),
-        [agentType],
+        () => machineCatalog
+            ? getMachineAdvertisedModels(selectedMachine?.metadata, agentType)
+            : getHardcodedModelModes(agentType, t),
+        [agentType, machineCatalog, selectedMachine?.metadata],
     );
     const currentPermission = resolveOption(permissionOptions, [permissionMode, defaults.permissionMode]);
     const currentModel = resolveOption(modelOptions, [modelMode, defaults.modelMode]);
     const effortOptions = React.useMemo(
-        () => getEffortLevelsForModel(agentType, currentModel?.key ?? 'default'),
-        [agentType, currentModel?.key],
+        () => machineCatalog
+            ? getMachineAdvertisedEffortLevels(selectedMachine?.metadata, agentType, currentModel?.key ?? 'default')
+            : getEffortLevelsForModel(agentType, currentModel?.key ?? 'default'),
+        [agentType, currentModel?.key, machineCatalog, selectedMachine?.metadata],
     );
-    const currentEffort = resolveOption(effortOptions, [effortLevel, defaults.effortLevel]);
+    const effectiveEffortDefault = resolveAgentDefaultEffortLevel(
+        defaultOverrides,
+        agentType,
+        effortOptions,
+    );
+    const currentEffort = resolveOption(effortOptions, [effortLevel, effectiveEffortDefault]);
     const currentAgent = availableAgents.find((agent) => agent.key === agentType) ?? availableAgents[0] ?? AGENTS[0];
     const canSubmit = !isSubmitting && (
         prompt.trim().length > 0 || (expImageUpload && selectedImages.length > 0)
@@ -768,11 +783,20 @@ export const HomeDock = React.memo(({
 
     const selectAgent = React.useCallback((agent: NewSessionAgentType) => {
         const nextDefaults = resolveAgentDefaultConfig(defaultOverrides, agent);
+        const nextCatalog = selectedMachine?.metadata?.agentCapabilities?.[agent];
+        const nextModels = nextCatalog
+            ? getMachineAdvertisedModels(selectedMachine?.metadata, agent)
+            : getHardcodedModelModes(agent, t);
+        const nextModel = resolveOption(nextModels, [nextDefaults.modelMode]);
+        const nextEfforts = nextCatalog
+            ? getMachineAdvertisedEffortLevels(selectedMachine?.metadata, agent, nextModel?.key ?? 'default')
+            : getEffortLevelsForModel(agent, nextModel?.key ?? 'default');
+        const nextEffort = resolveAgentDefaultEffortLevel(defaultOverrides, agent, nextEfforts);
         setAgentType(agent);
         setPermissionMode(nextDefaults.permissionMode);
         setModelMode(nextDefaults.modelMode);
-        if (nextDefaults.effortLevel) setEffortLevel(nextDefaults.effortLevel);
-    }, [defaultOverrides, setAgentType, setEffortLevel, setModelMode, setPermissionMode]);
+        if (nextEffort) setEffortLevel(nextEffort);
+    }, [defaultOverrides, selectedMachine?.metadata, setAgentType, setEffortLevel, setModelMode, setPermissionMode]);
 
     React.useEffect(() => {
         if (availableAgents.length > 0 && !availableAgents.some((agent) => agent.key === agentType)) {

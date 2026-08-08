@@ -75,4 +75,28 @@ describe('agent capability discovery', () => {
             'ultra',
         ]);
     });
+
+    it('uses only app-server-compatible effort fallbacks when live Codex discovery is unavailable', async () => {
+        const capabilities = await detectAgentCapabilities({
+            claude: false,
+            codex: true,
+            gemini: false,
+            openclaw: false,
+            agy: false,
+            detectedAt: 1,
+        }, {
+            loadCodexModels: async () => {
+                throw new Error('app-server unavailable');
+            },
+        });
+
+        expect(capabilities.codex.effortLevels.map((effort) => effort.code)).toEqual([
+            'none',
+            'minimal',
+            'low',
+            'medium',
+            'high',
+            'xhigh',
+        ]);
+    });
 });

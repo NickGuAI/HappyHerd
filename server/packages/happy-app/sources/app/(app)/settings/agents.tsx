@@ -17,6 +17,7 @@ import {
     getAgentDefaultOverrideValue,
     hasAgentDefaultOverride,
     resolveAgentDefaultConfig,
+    resolveAgentDefaultEffortLevel,
     setAgentDefaultOverride,
     type AgentDefaultField,
     type AgentKey,
@@ -84,14 +85,19 @@ export default function AgentDefaultsSettingsScreen() {
 
     const renderField = (agent: AgentKey, config: FieldConfig) => {
         const effectiveDefaults = resolveAgentDefaultConfig(agentDefaultOverrides, agent);
-        const effectiveValue = effectiveDefaults[config.field];
+        const effectiveValue = config.field === 'effortLevel'
+            ? resolveAgentDefaultEffortLevel(agentDefaultOverrides, agent, config.options)
+            : effectiveDefaults[config.field];
         const overrideValue = getAgentDefaultOverrideValue(agentDefaultOverrides, agent, config.field);
         const hasOverride = hasAgentDefaultOverride(agentDefaultOverrides, agent, config.field);
         const isExpanded = expanded?.agent === agent && expanded.field === config.field;
         const detail = hasOverride
             ? optionName(config.options, overrideValue)
             : `Default (${optionName(config.options, effectiveValue)})`;
-        const codeDefaultLabel = optionName(config.options, config.codeDefaultKey);
+        const codeDefaultKey = config.field === 'effortLevel'
+            ? resolveAgentDefaultEffortLevel(undefined, agent, config.options)
+            : config.codeDefaultKey;
+        const codeDefaultLabel = optionName(config.options, codeDefaultKey);
 
         return (
             <React.Fragment key={`${agent}-${config.field}`}>

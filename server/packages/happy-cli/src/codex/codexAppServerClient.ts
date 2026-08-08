@@ -44,6 +44,7 @@ import type {
     ApprovalPolicy,
     SandboxMode,
     InputItem,
+    SteerTurnParams,
     ReasoningEffort,
     McpServerElicitationRequestResponse,
     ModelListParams,
@@ -82,6 +83,15 @@ export type ApprovalHandler = (params: {
 
 function stringOrNull(value: unknown): string | null {
     return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function buildTurnInput(prompt: string, extraInputItems: InputItem[] = []): InputItem[] {
+    const input: InputItem[] = [];
+    if (prompt.length > 0 || extraInputItems.length === 0) {
+        input.push({ type: 'text', text: prompt });
+    }
+    input.push(...extraInputItems);
+    return input;
 }
 
 // Codex item ids are per-thread counters, so items from collab subagent
@@ -271,6 +281,11 @@ export class CodexAppServerClient {
 
     get turnId(): string | null {
         return this._turnId;
+    }
+
+    get activeTurnId(): string | null {
+        if (!this.pendingTurnCompletion) return null;
+        return this.pendingTurnCompletion.turnId ?? this._turnId;
     }
 
     supportsGoalActions(): boolean {
@@ -1227,12 +1242,7 @@ export class CodexAppServerClient {
             throw new Error('No active thread. Call startThread first.');
         }
 
-        const extraInputItems = opts?.extraInputItems ?? [];
-        const input: InputItem[] = [];
-        if (prompt.length > 0 || extraInputItems.length === 0) {
-            input.push({ type: 'text', text: prompt });
-        }
-        input.push(...extraInputItems);
+        const input = buildTurnInput(prompt, opts?.extraInputItems);
 
         // Build params — only include optional fields when set (server uses thread defaults otherwise)
         const params: Record<string, unknown> = {
@@ -1270,6 +1280,28 @@ export class CodexAppServerClient {
                 this.pendingTurnCompletion.turnId = turnId;
             }
         }
+    }
+
+    /**
+     * Add user input to the provider-owned active turn. This does not create a
+     * local queue entry or a second turn; Codex remains responsible for the
+     * turn lifecycle and its eventual terminal event.
+     */
+    async steerTurn(prompt: string, opts?: { extraInputItems?: InputItem[] }): Promise<void> {
+        if (!this._threadId) {
+            throw new Error('No active thread. Call startThread first.');
+        }
+        const expectedTurnId = this.activeTurnId;
+        if (!expectedTurnId) {
+            throw new Error('No active Codex turn to steer.');
+        }
+
+        const params: SteerTurnParams = {
+            threadId: this._threadId,
+            expectedTurnId,
+            input: buildTurnInput(prompt, opts?.extraInputItems),
+        };
+        await this.request('turn/steer', params);
     }
 
     /**
