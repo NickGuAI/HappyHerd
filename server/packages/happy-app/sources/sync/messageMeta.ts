@@ -1,6 +1,9 @@
 import type { Session } from './storageTypes';
 import type { Settings } from './settings';
-import { getAgentDefaultOverride } from './agentDefaults';
+import {
+    getAgentDefaultOverride,
+    resolveSupportedAgentEffortLevel,
+} from './agentDefaults';
 import type { PermissionModeKey } from '@/components/PermissionModeSelector';
 import {
     getRigCurrentModel,
@@ -18,9 +21,14 @@ export type MessageModeMeta = {
     effort?: string | null;
 };
 
+type MessageModeCapabilityContext = {
+    availableEfforts?: ReadonlyArray<{ key: string }>;
+};
+
 export function resolveMessageModeMeta(
     session: Pick<Session, 'permissionMode' | 'modelMode' | 'metadata' | 'effortLevel'>,
     settings?: Pick<Settings, 'agentDefaultOverrides'>,
+    capabilities?: MessageModeCapabilityContext,
 ): MessageModeMeta {
     if (isRigMetadataV1(session.metadata)) {
         const meta: MessageModeMeta = {};
@@ -65,8 +73,15 @@ export function resolveMessageModeMeta(
         meta.model = modelMode === 'default' ? null : modelMode;
     }
 
-    const effort = session.effortLevel ?? agentOverrides.effortLevel;
-    if (effort !== undefined) {
+    const configuredEffort = session.effortLevel ?? agentOverrides.effortLevel;
+    const effort = capabilities?.availableEfforts
+        ? resolveSupportedAgentEffortLevel(
+            configuredEffort,
+            session.metadata?.flavor,
+            capabilities.availableEfforts,
+        )
+        : configuredEffort;
+    if (effort !== undefined && effort !== null) {
         meta.effort = effort;
     }
 

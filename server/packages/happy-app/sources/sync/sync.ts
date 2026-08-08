@@ -60,6 +60,11 @@ import { FeedItem } from './feedTypes';
 import { UserProfile } from './friendTypes';
 import { resolveControlHandoffDirection } from './controlHandoff';
 import { resolveMessageModeMeta } from './messageMeta';
+import {
+    normalizeAgentKey,
+    resolveAgentDefaultConfig,
+} from './agentDefaults';
+import { getMachineAdvertisedEffortLevels } from '@/components/modelModeOptions';
 import type { AttachmentPreview, UploadedAttachment } from './attachmentTypes';
 import { requestAttachmentUpload, uploadEncryptedBlob } from './apiAttachments';
 import { encryptBlob } from '@/encryption/blob';
@@ -621,10 +626,24 @@ class Sync {
             }
         }
 
-        const modeMeta = resolveMessageModeMeta(session, storage.getState().settings);
+        const currentState = storage.getState();
+        const settings = currentState.settings;
+        const flavor = session.metadata?.flavor;
+        const agentKey = normalizeAgentKey(flavor);
+        const machine = session.metadata?.machineId
+            ? currentState.machines[session.metadata.machineId]
+            : null;
+        const hasAuthoritativeEffortCatalog = Boolean(
+            machine?.metadata?.agentCapabilities?.[agentKey],
+        );
+        const selectedModel = session.modelMode
+            ?? resolveAgentDefaultConfig(settings.agentDefaultOverrides, flavor).modelMode;
+        const availableEfforts = hasAuthoritativeEffortCatalog
+            ? getMachineAdvertisedEffortLevels(machine?.metadata, agentKey, selectedModel)
+            : undefined;
+        const modeMeta = resolveMessageModeMeta(session, settings, { availableEfforts });
         const { displayText, source = 'chat', attachments } = options ?? {};
 
-        const flavor = session.metadata?.flavor;
         const rigAttachmentPolicy = isRigMetadataV1(session.metadata)
             ? session.metadata?.capabilities?.attachments
             : null;

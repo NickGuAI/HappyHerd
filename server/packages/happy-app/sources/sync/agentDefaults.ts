@@ -98,6 +98,20 @@ export function resolveAgentDefaultEffortLevel(
     availableEfforts: ReadonlyArray<{ key: string }>,
 ): string | null {
     const configured = resolveAgentDefaultConfig(overrides, flavor).effortLevel;
+    return resolveSupportedAgentEffortLevel(configured, flavor, availableEfforts);
+}
+
+/**
+ * Resolve one concrete effort value against the selected model's advertised
+ * capabilities. This is shared by launchers and outbound message metadata so
+ * an unsupported synchronized preference can never re-enter the provider
+ * path after a launcher has already fallen back to the model maximum.
+ */
+export function resolveSupportedAgentEffortLevel(
+    configured: string | null | undefined,
+    flavor: string | null | undefined,
+    availableEfforts: ReadonlyArray<{ key: string }>,
+): string | null {
     if (configured && (
         availableEfforts.length === 0
         || availableEfforts.some((effort) => effort.key === configured)
@@ -109,7 +123,7 @@ export function resolveAgentDefaultEffortLevel(
         return availableEfforts.at(-1)?.key ?? null;
     }
 
-    return configured;
+    return configured ?? null;
 }
 
 export function hasAgentDefaultOverride(

@@ -82,3 +82,6 @@ SUBAGENT_UI	code-ready	fix(subagents): collapse child content by default (#48)	s
 SUBAGENT_UI	code-ready	docs(patches): register collapsed subagent presentation	docs/owned-patches.tsv
 AGENTCONTEXT	code-ready	feat(agentcontext): canonicalize HappyHerd authority	server/packages/happy-cli/src/agentContext/commanderContext.root.test.ts
 AGENTCONTEXT	code-ready	docs(patches): register canonical AgentContext authority	docs/owned-patches.tsv
+R2	code-ready	fix(codex): persist effort and steer active turns	server/packages/happy-cli/src/codex/codexTurnRouting.test.ts
+R2	code-ready	fix(codex): apply saved effort on mobile launcher	server/packages/happy-app/sources/sync/agentDefaults.test.ts
+R2	code-ready	fix(codex): enforce model-supported message effort	server/packages/happy-app/sources/sync/messageMeta.test.ts
