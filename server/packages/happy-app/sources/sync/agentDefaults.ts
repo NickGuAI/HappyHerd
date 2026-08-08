@@ -39,7 +39,10 @@ const codeAgentDefaults: Record<AgentKey, AgentDefaultConfig> = {
         modelMode: HAPPYHERD_DEFAULT_CLAUDE_MODEL_SLUG,
         effortLevel: 'medium',
     },
-    codex: { permissionMode: 'yolo', modelMode: 'gpt-5.5', effortLevel: 'medium' },
+    // Codex effort support is model- and provider-version-specific. A null
+    // code default means "pick the highest effort advertised for the selected
+    // model"; it must never be forwarded to the provider as a literal value.
+    codex: { permissionMode: 'yolo', modelMode: 'gpt-5.5', effortLevel: null },
     gemini: { permissionMode: 'default', modelMode: 'gemini-2.5-pro', effortLevel: null },
     openclaw: { permissionMode: 'default', modelMode: 'default', effortLevel: null },
     agy: { permissionMode: 'default', modelMode: 'Gemini 3.1 Pro (High)', effortLevel: null },
@@ -77,6 +80,51 @@ export function resolveAgentDefaultConfig(
             : modelMode,
         effortLevel: userOverride.effortLevel ?? codeDefaults.effortLevel,
     };
+}
+
+/**
+ * Resolve the effective effort against the selected model's authoritative
+ * capability list. Codex has a semantic "maximum available" default rather
+ * than a hardcoded provider token: today that may be `xhigh`, while a future
+ * model can advertise `ultra` (or another value) without a HappyHerd release.
+ *
+ * An explicit synchronized preference wins while it remains supported. If a
+ * user moves to a model that does not support the saved value, use that
+ * model's highest advertised effort without destroying the saved preference.
+ */
+export function resolveAgentDefaultEffortLevel(
+    overrides: AgentDefaultOverrides | null | undefined,
+    flavor: string | null | undefined,
+    availableEfforts: ReadonlyArray<{ key: string }>,
+): string | null {
+    const configured = resolveAgentDefaultConfig(overrides, flavor).effortLevel;
+    return resolveSupportedAgentEffortLevel(configured, flavor, availableEfforts);
+}
+
+/**
+ * Resolve one concrete effort value against the selected model's advertised
+ * capabilities. This is shared by launchers and outbound message metadata so
+ * an unsupported synchronized preference can never re-enter the provider
+ * path after a launcher has already fallen back to the model maximum.
+ */
+export function resolveSupportedAgentEffortLevel(
+    configured: string | null | undefined,
+    flavor: string | null | undefined,
+    availableEfforts: ReadonlyArray<{ key: string }>,
+): string | null {
+    if (configured && availableEfforts.some((effort) => effort.key === configured)) {
+        return configured;
+    }
+
+    // The selected-model capability list is authoritative. Empty means the
+    // model exposes no effort control, not that validation should be skipped.
+    if (availableEfforts.length === 0) return null;
+
+    if (normalizeAgentKey(flavor) === 'codex') {
+        return availableEfforts.at(-1)?.key ?? null;
+    }
+
+    return null;
 }
 
 export function hasAgentDefaultOverride(

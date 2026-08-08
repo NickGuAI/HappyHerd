@@ -239,6 +239,12 @@ export type SendUserTurnParams = {
     outputSchema: unknown | null;
 };
 
+export type SteerTurnParams = {
+    threadId: ThreadId;
+    expectedTurnId: string;
+    input: InputItem[];
+};
+
 export type InterruptConversationParams = {
     threadId: ThreadId;
     turnId: string;

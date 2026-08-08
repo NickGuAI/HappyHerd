@@ -31,6 +31,11 @@ vi.mock('@/sync/agentDefaults', () => ({
         modelMode: 'default',
         effortLevel: null,
     }),
+    resolveAgentDefaultEffortLevel: (
+        _overrides: unknown,
+        _flavor: unknown,
+        efforts: Array<{ key: string }>,
+    ) => efforts.at(-1)?.key ?? null,
 }));
 
 vi.mock('@/sync/ops', () => ({
@@ -79,6 +84,9 @@ vi.mock('@/components/modelModeOptions', () => ({
     getEffortLevelsForModel: () => [
         { key: 'medium', name: 'Medium' },
     ],
+    getMachineAdvertisedPermissionModes: vi.fn(),
+    getMachineAdvertisedModels: vi.fn(),
+    getMachineAdvertisedEffortLevels: vi.fn(),
 }));
 
 vi.mock('@/modal', () => ({

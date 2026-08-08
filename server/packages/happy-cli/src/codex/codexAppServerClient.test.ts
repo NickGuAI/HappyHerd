@@ -830,6 +830,128 @@ describe('CodexAppServerClient sandbox integration', () => {
         await client.disconnect();
     });
 
+    it('steers follow-up input into the provider-owned active turn', async () => {
+        const requests: MockRpcMessage[] = [];
+        const proc = createMockProcess({
+            pid: 2803,
+            onRequest: (msg, stdout) => {
+                requests.push(msg);
+
+                if (msg.method === 'thread/start' && msg.id != null) {
+                    setTimeout(() => {
+                        pushJsonLine(stdout, {
+                            id: msg.id,
+                            result: {
+                                thread: { id: 'thread-steer', path: '/tmp/thread-steer' },
+                                model: 'gpt-test',
+                                modelProvider: 'openai',
+                                cwd: '/tmp/project',
+                                approvalPolicy: 'never',
+                                sandbox: { type: 'dangerFullAccess' },
+                                reasoningEffort: 'max',
+                            },
+                        });
+                    }, 0);
+                }
+
+                if (msg.method === 'turn/start' && msg.id != null) {
+                    setTimeout(() => {
+                        pushJsonLine(stdout, {
+                            id: msg.id,
+                            result: {
+                                turn: { id: 'turn-steer', items: [], status: 'inProgress', error: null },
+                            },
+                        });
+                    }, 0);
+                }
+
+                if (msg.method === 'turn/steer' && msg.id != null) {
+                    setTimeout(() => pushJsonLine(stdout, { id: msg.id, result: {} }), 0);
+                }
+            },
+        });
+        mockSpawn.mockImplementation(() => proc);
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient();
+
+        await client.connect();
+        await client.startThread({
+            model: 'gpt-test',
+            cwd: '/tmp/project',
+            approvalPolicy: 'never',
+            sandbox: 'danger-full-access',
+        });
+
+        const completion = client.sendTurnAndWait('initial', { effort: 'max' });
+        await waitFor(() => client.activeTurnId === 'turn-steer');
+
+        await client.steerTurn('follow up', {
+            extraInputItems: [{ type: 'localImage', path: '/tmp/follow-up.png' }],
+        });
+
+        expect(requests.find((msg) => msg.method === 'turn/steer')?.params).toEqual({
+            threadId: 'thread-steer',
+            expectedTurnId: 'turn-steer',
+            input: [
+                { type: 'text', text: 'follow up' },
+                { type: 'localImage', path: '/tmp/follow-up.png' },
+            ],
+        });
+
+        pushJsonLine(proc.stdout, {
+            method: 'turn/completed',
+            params: {
+                threadId: 'thread-steer',
+                turn: { id: 'turn-steer', items: [], status: 'completed', error: null },
+            },
+        });
+        await expect(completion).resolves.toEqual({ aborted: false });
+        expect(client.activeTurnId).toBeNull();
+
+        await client.disconnect();
+    });
+
+    it('rejects steering when Codex does not own an active turn', async () => {
+        const proc = createMockProcess({
+            pid: 2804,
+            onRequest: (msg, stdout) => {
+                if (msg.method === 'thread/start' && msg.id != null) {
+                    setTimeout(() => {
+                        pushJsonLine(stdout, {
+                            id: msg.id,
+                            result: {
+                                thread: { id: 'thread-idle', path: '/tmp/thread-idle' },
+                                model: 'gpt-test',
+                                modelProvider: 'openai',
+                                cwd: '/tmp/project',
+                                approvalPolicy: 'never',
+                                sandbox: { type: 'dangerFullAccess' },
+                                reasoningEffort: null,
+                            },
+                        });
+                    }, 0);
+                }
+            },
+        });
+        mockSpawn.mockImplementation(() => proc);
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient();
+
+        await client.connect();
+        await client.startThread({
+            model: 'gpt-test',
+            cwd: '/tmp/project',
+            approvalPolicy: 'never',
+            sandbox: 'danger-full-access',
+        });
+
+        await expect(client.steerTurn('too late')).rejects.toThrow('No active Codex turn to steer');
+
+        await client.disconnect();
+    });
+
     it('maps raw item notifications into legacy events and deduplicates turn completion', async () => {
         const requests: MockRpcMessage[] = [];
         const proc = createMockProcess({

@@ -29,7 +29,7 @@ import { voiceHooks } from '@/realtime/hooks/voiceHooks';
 import { getCurrentVoiceConversationId, getCurrentVoiceSessionDurationSeconds, startRealtimeSession, stopRealtimeSession } from '@/realtime/RealtimeSession';
 import { gitStatusSync } from '@/sync/gitStatusSync';
 import { sessionAbort, sessionGoalAction, sessionSetAgentModes, spawnSideChat, sessionKill, sessionArchive } from '@/sync/ops';
-import { storage, useIsDataReady, useLocalSetting, useMachine, useRealtimeStatus, useSessionGitStatus, useSessionMessages, useSessionUsage, useSetting, useSideChatSessions } from '@/sync/storage';
+import { storage, useIsDataReady, useLocalSetting, useMachine, useRealtimeStatus, useSessionGitStatus, useSessionMessages, useSessionUsage, useSetting, useSettingMutable, useSideChatSessions } from '@/sync/storage';
 import { useSession } from '@/sync/storage';
 import { getSessionForkSource } from '@/utils/sessionFork';
 import { useHappyAction } from '@/hooks/useHappyAction';
@@ -61,7 +61,12 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import type { ModelMode, PermissionMode } from '@/components/PermissionModeSelector';
-import { resolveAgentDefaultConfig } from '@/sync/agentDefaults';
+import {
+    getAgentDefaultOverrideValue,
+    resolveAgentDefaultConfig,
+    resolveAgentDefaultEffortLevel,
+    setAgentDefaultOverride,
+} from '@/sync/agentDefaults';
 import { performAgentGoalAction } from './agentGoalActionHandler';
 import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
 import {
@@ -759,7 +764,7 @@ export function SessionViewLoaded({
     const availableModes = React.useMemo(() => (
         getSessionAvailablePermissionModes(flavor, session.metadata, sessionMachine?.metadata, t, session.permissionMode)
     ), [flavor, session.metadata, session.permissionMode, sessionMachine?.metadata]);
-    const agentDefaultOverrides = useSetting('agentDefaultOverrides');
+    const [agentDefaultOverrides, setAgentDefaultOverrides] = useSettingMutable('agentDefaultOverrides');
     const effectiveAgentDefaults = React.useMemo(() => (
         resolveAgentDefaultConfig(agentDefaultOverrides, flavor)
     ), [agentDefaultOverrides, flavor]);
@@ -791,12 +796,53 @@ export function SessionViewLoaded({
     const availableEffortLevels = React.useMemo<EffortLevel[]>(() => (
         getSessionEffortLevelsForModel(flavor, modelKey, session.metadata, sessionMachine?.metadata)
     ), [flavor, modelKey, session.metadata, sessionMachine?.metadata]);
+    const effectiveEffortDefault = React.useMemo(() => (
+        resolveAgentDefaultEffortLevel(agentDefaultOverrides, flavor, availableEffortLevels)
+    ), [agentDefaultOverrides, flavor, availableEffortLevels]);
     const effortLevel = React.useMemo<EffortLevel | null>(() => (
         resolveCurrentOption(availableEffortLevels, [
             session.effortLevel,
-            isRig ? getRigReasoningSelection(session.metadata, modelKey) : effectiveAgentDefaults.effortLevel,
+            isRig ? getRigReasoningSelection(session.metadata, modelKey) : effectiveEffortDefault,
         ])
-    ), [availableEffortLevels, session.effortLevel, effectiveAgentDefaults.effortLevel, session.metadata, modelKey, isRig]);
+    ), [availableEffortLevels, session.effortLevel, effectiveEffortDefault, session.metadata, modelKey, isRig]);
+
+    // Adopt an explicit effort already stored on an existing Codex session
+    // when upgrading from builds that had no synchronized effort preference.
+    // Once the user-level preference exists, merely opening an older session
+    // must not replace it.
+    React.useEffect(() => {
+        if (flavor !== 'codex' || !session.effortLevel) return;
+        if (!availableEffortLevels.some((level) => level.key === session.effortLevel)) return;
+        if (getAgentDefaultOverrideValue(agentDefaultOverrides, 'codex', 'effortLevel') !== undefined) return;
+        setAgentDefaultOverrides(setAgentDefaultOverride(
+            agentDefaultOverrides,
+            'codex',
+            'effortLevel',
+            session.effortLevel,
+        ));
+    }, [
+        flavor,
+        session.effortLevel,
+        availableEffortLevels,
+        agentDefaultOverrides,
+        setAgentDefaultOverrides,
+    ]);
+
+    // Never send a stale effort token that the selected model no longer
+    // advertises. Preserve the synchronized preference for other models, but
+    // normalize this session to its actual model-supported maximum.
+    React.useEffect(() => {
+        if (flavor !== 'codex' || !session.effortLevel || availableEffortLevels.length === 0) return;
+        if (availableEffortLevels.some((level) => level.key === session.effortLevel)) return;
+        if (!effectiveEffortDefault) return;
+        sessionSetAgentModes(sessionId, { effortLevel: effectiveEffortDefault });
+    }, [
+        flavor,
+        session.effortLevel,
+        availableEffortLevels,
+        effectiveEffortDefault,
+        sessionId,
+    ]);
 
     const sessionStatus = useSessionStatus(session);
     const sessionUsage = useSessionUsage(sessionId);
@@ -860,15 +906,30 @@ export function SessionViewLoaded({
         const currentEffortSupported = session.effortLevel
             ? nextEffortLevels.some((level) => level.key === session.effortLevel)
             : true;
+        const nextEffortDefault = resolveAgentDefaultEffortLevel(
+            agentDefaultOverrides,
+            flavor,
+            nextEffortLevels,
+        );
         sessionSetAgentModes(sessionId, {
             modelMode: mode.key,
-            ...(!currentEffortSupported ? { effortLevel: mode.defaultThinkingLevel ?? null } : {}),
+            ...(!currentEffortSupported ? {
+                effortLevel: mode.defaultThinkingLevel ?? nextEffortDefault,
+            } : {}),
         });
-    }, [sessionId, flavor, session.metadata, session.effortLevel, sessionMachine?.metadata]);
+    }, [sessionId, flavor, session.metadata, session.effortLevel, sessionMachine?.metadata, agentDefaultOverrides]);
 
     const updateEffortLevel = React.useCallback((level: EffortLevel) => {
         sessionSetAgentModes(sessionId, { effortLevel: level.key });
-    }, [sessionId]);
+        if (flavor === 'codex') {
+            setAgentDefaultOverrides(setAgentDefaultOverride(
+                agentDefaultOverrides,
+                'codex',
+                'effortLevel',
+                level.key,
+            ));
+        }
+    }, [sessionId, flavor, agentDefaultOverrides, setAgentDefaultOverrides]);
 
     // Memoize header-dependent styles to prevent re-renders
     const headerDependentStyles = React.useMemo(() => ({
@@ -907,10 +968,12 @@ export function SessionViewLoaded({
     }, [sessionId, expImageUpload, selectedImages, selectedContextFiles, clearImages]);
 
     const handleAbort = React.useCallback(() => {
-        // Mode picks live in synced metadata — clear them there, otherwise the
-        // next inbound metadata update resurrects them (#1492)
+        // Permission is turn-scoped and returns to the launch policy after an
+        // abort. Model and effort are session preferences: the Codex runtime
+        // retains them, so clearing them here would desynchronize the picker
+        // from the next resumed turn.
         if (!isRig) {
-            sessionSetAgentModes(sessionId, { permissionMode: null, modelMode: null, effortLevel: null });
+            sessionSetAgentModes(sessionId, { permissionMode: null });
         }
         sessionAbort(sessionId);
     }, [sessionId, isRig]);

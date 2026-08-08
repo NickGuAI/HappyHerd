@@ -55,6 +55,82 @@ describe('modelModeOptions', () => {
         ]);
     });
 
+    it('resolves the default model effort from the provider-designated default model', () => {
+        const machineMetadata = {
+            agentCapabilities: {
+                codex: {
+                    detectedAt: 1,
+                    sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'daemon' },
+                    models: [
+                        { code: 'default', value: 'default model' },
+                        {
+                            code: 'gpt-default',
+                            value: 'GPT Default',
+                            isDefault: true,
+                            effortLevels: [
+                                { code: 'medium', value: 'medium' },
+                                { code: 'xhigh', value: 'xhigh' },
+                            ],
+                        },
+                        {
+                            code: 'gpt-other',
+                            value: 'GPT Other',
+                            effortLevels: [{ code: 'ultra', value: 'ultra' }],
+                        },
+                    ],
+                    effortLevels: [
+                        { code: 'medium', value: 'medium' },
+                        { code: 'xhigh', value: 'xhigh' },
+                        { code: 'ultra', value: 'ultra' },
+                    ],
+                    permissionModes: [{ code: 'yolo', value: 'full access' }],
+                },
+            },
+        } as any;
+
+        expect(getMachineAdvertisedEffortLevels(machineMetadata, 'codex', 'default').map((mode) => mode.key)).toEqual([
+            'medium',
+            'xhigh',
+        ]);
+    });
+
+    it('honors an explicit empty effort list instead of borrowing another model\'s efforts', () => {
+        const machineMetadata = {
+            agentCapabilities: {
+                codex: {
+                    detectedAt: 1,
+                    sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'provider' },
+                    models: [
+                        {
+                            code: 'no-reasoning',
+                            value: 'No reasoning',
+                            effortLevels: [],
+                            isDefault: true,
+                        },
+                        {
+                            code: 'reasoning',
+                            value: 'Reasoning',
+                            effortLevels: [{ code: 'xhigh', value: 'xhigh' }],
+                        },
+                    ],
+                    effortLevels: [{ code: 'xhigh', value: 'xhigh' }],
+                    permissionModes: [],
+                },
+            },
+        } as any;
+
+        expect(getMachineAdvertisedEffortLevels(
+            machineMetadata,
+            'codex',
+            'no-reasoning',
+        )).toEqual([]);
+        expect(getMachineAdvertisedEffortLevels(
+            machineMetadata,
+            'codex',
+            'stale-model',
+        )).toEqual([]);
+    });
+
     it('uses the New Session machine catalog for active session controls', () => {
         const machineMetadata = {
             agentCapabilities: {
@@ -168,7 +244,7 @@ describe('modelModeOptions', () => {
         expect(getDefaultEffortKey('claude')).toBe('medium');
         expect(getDefaultPermissionModeKey('codex')).toBe('yolo');
         expect(getDefaultModelKey('codex')).toBe('gpt-5.5');
-        expect(getDefaultEffortKey('codex')).toBe('medium');
+        expect(getDefaultEffortKey('codex')).toBeNull();
     });
 
     it('prefers metadata models over hardcoded fallbacks', () => {

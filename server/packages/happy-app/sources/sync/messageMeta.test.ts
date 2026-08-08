@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { resolveMessageModeMeta } from './messageMeta';
 import { rigMetadataFixture } from './__testdata__/rigMetadata';
+import { resolveAgentDefaultEffortLevel } from './agentDefaults';
 
 describe('resolveMessageModeMeta', () => {
     it('omits agent mode metadata when nothing was explicitly overridden', () => {
@@ -73,6 +74,60 @@ describe('resolveMessageModeMeta', () => {
             model: 'gpt-5.4',
             effort: 'xhigh',
         });
+    });
+
+    it('never re-emits an unsupported saved Codex effort after model-aware launch fallback', () => {
+        const availableEfforts = [
+            { key: 'low' },
+            { key: 'medium' },
+            { key: 'high' },
+            { key: 'xhigh' },
+        ];
+        const settings = {
+            agentDefaultOverrides: {
+                codex: {
+                    effortLevel: 'ultra',
+                },
+            },
+        } as any;
+
+        // This is the concrete value the new-session launcher gives Codex.
+        expect(resolveAgentDefaultEffortLevel(
+            settings.agentDefaultOverrides,
+            'codex',
+            availableEfforts,
+        )).toBe('xhigh');
+
+        // Matching the effective default leaves no per-session override. The
+        // outbound path must still resolve against the same model catalog,
+        // rather than leaking the raw synchronized `ultra` preference.
+        const meta = resolveMessageModeMeta({
+            permissionMode: null,
+            modelMode: 'gpt-5.5',
+            effortLevel: null,
+            metadata: { flavor: 'codex' },
+        } as any, settings, { availableEfforts });
+
+        expect(meta).toEqual({
+            model: 'gpt-5.5',
+            effort: 'xhigh',
+        });
+        expect(settings.agentDefaultOverrides.codex.effortLevel).toBe('ultra');
+    });
+
+    it('omits effort when the authoritative selected model advertises none', () => {
+        const meta = resolveMessageModeMeta({
+            permissionMode: null,
+            modelMode: 'no-reasoning',
+            effortLevel: null,
+            metadata: { flavor: 'codex' },
+        } as any, {
+            agentDefaultOverrides: {
+                codex: { effortLevel: 'xhigh' },
+            },
+        } as any, { availableEfforts: [] });
+
+        expect(meta).toEqual({ model: 'no-reasoning' });
     });
 
     it('treats an explicit default model as a reset override', () => {

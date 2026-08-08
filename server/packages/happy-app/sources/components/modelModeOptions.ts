@@ -117,8 +117,16 @@ export function getMachineAdvertisedEffortLevels(
 ): EffortLevel[] {
     const catalog = getMachineCatalog(metadata, flavor);
     if (!catalog) return [];
-    const modelEfforts = catalog.models.find((model) => model.code === modelKey)?.effortLevels;
-    const efforts = modelEfforts && modelEfforts.length > 0 ? modelEfforts : catalog.effortLevels;
+    const selectedModel = modelKey === 'default'
+        ? catalog.models.find((model) => model.isDefault)
+            ?? catalog.models.find((model) => model.code === 'default')
+        : catalog.models.find((model) => model.code === modelKey);
+    if (!selectedModel) return [];
+    const modelEfforts = selectedModel?.effortLevels;
+    // `undefined` means the provider supplied only a catalog-wide fallback.
+    // An explicit empty list is authoritative: this model has no effort knob
+    // and must not inherit another model's values from the catalog union.
+    const efforts = modelEfforts !== undefined ? modelEfforts : catalog.effortLevels;
     return efforts.map((effort) => ({
         key: effort.code,
         name: effort.value,
@@ -429,10 +437,8 @@ export function getEffortLevelsForModel(
             name: level,
         }));
     }
-    // Claude and Codex expose effort/thought levels regardless of which
-    // specific model is picked — the same low/medium/high/max scale applies
-    // to the whole flavor (mirrors how Codex already worked, which the user
-    // asked Claude to match).
+    // Legacy/offline sessions use flavor fallbacks. Connected sessions use
+    // the selected machine's model-specific provider catalog below.
     if (flavor === 'claude') {
         return getClaudeEffortLevels();
     }
