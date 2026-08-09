@@ -38,6 +38,7 @@ import { contextEnvironment, prepareCommanderContext } from '@/agentContext/comm
 import { HappyHerdAutomationService } from '@/automations/service';
 import { automationBootstrapEnvironment, prepareAutomationBootstrap } from '@/automations/sessionBootstrap';
 import { appendDaemonSpawnModeArgs } from './spawnModeArgs';
+import { SessionProcessLifecycle } from './sessionProcessLifecycle';
 
 /** Shell-escape a string for safe interpolation into tmux commands. */
 function shellescape(s: string): string {
@@ -169,6 +170,7 @@ export async function startDaemon(): Promise<void> {
 
     // Ensure auth and machine registration BEFORE anything else
     const { credentials, machineId } = await authAndSetupMachineIfNeeded();
+    const api = await ApiClient.create(credentials);
     logger.debug('[DAEMON RUN] Auth and machine setup complete');
 
     // Setup state - key by PID
@@ -196,6 +198,14 @@ export async function startDaemon(): Promise<void> {
     if (Object.keys(persisted).length > 0) {
       logger.debug(`[DAEMON RUN] Loaded ${Object.keys(persisted).length} persisted sessions from disk`);
     }
+
+    const sessionProcessLifecycle = new SessionProcessLifecycle({
+      trackedSessions: pidToTrackedSession,
+      finishedSessions: sessionIdToFinishedSession,
+      deactivateSession: (sessionId) => api.deactivateSession(sessionId),
+      log: (message) => logger.debug(`[DAEMON RUN] ${message}`),
+    });
+    const onChildExited = (pid: number) => sessionProcessLifecycle.recordExit(pid);
 
     // Session spawning awaiter system
     const pidToAwaiter = new Map<number, (session: TrackedSession) => void>();
@@ -654,14 +664,14 @@ export async function startDaemon(): Promise<void> {
       happyProcess.on('exit', (code, signal) => {
         logger.debug(`[DAEMON RUN] Child PID ${happyProcess.pid} exited with code ${code}, signal ${signal}`);
         if (happyProcess.pid) {
-          onChildExited(happyProcess.pid);
+          void onChildExited(happyProcess.pid);
         }
       });
 
       happyProcess.on('error', (error) => {
         logger.debug(`[DAEMON RUN] Child process error:`, error);
         if (happyProcess.pid) {
-          onChildExited(happyProcess.pid);
+          void onChildExited(happyProcess.pid);
         }
       });
 
@@ -796,6 +806,7 @@ export async function startDaemon(): Promise<void> {
               logger.debug(`[DAEMON RUN] Sent SIGTERM to daemon-spawned session ${sessionId}`);
             } catch (error) {
               logger.debug(`[DAEMON RUN] Failed to kill session ${sessionId}:`, error);
+              void onChildExited(pid);
             }
           } else {
             // For externally started sessions, try to kill by PID
@@ -804,29 +815,17 @@ export async function startDaemon(): Promise<void> {
               logger.debug(`[DAEMON RUN] Sent SIGTERM to external session PID ${pid}`);
             } catch (error) {
               logger.debug(`[DAEMON RUN] Failed to kill external session PID ${pid}:`, error);
+              void onChildExited(pid);
             }
           }
 
-          pidToTrackedSession.delete(pid);
-          logger.debug(`[DAEMON RUN] Removed session ${sessionId} from tracking`);
+          logger.debug(`[DAEMON RUN] Waiting for provider process ${sessionId} to exit before marking it inactive`);
           return true;
         }
       }
 
       logger.debug(`[DAEMON RUN] Session ${sessionId} not found`);
       return false;
-    };
-
-    // Handle child process exit — preserve session data for resume
-    const onChildExited = (pid: number) => {
-      const session = pidToTrackedSession.get(pid);
-      if (session?.happySessionId && session.encryption) {
-        sessionIdToFinishedSession.set(session.happySessionId, session);
-        logger.debug(`[DAEMON RUN] Process PID ${pid} exited, preserved session ${session.happySessionId} for resume`);
-      } else {
-        logger.debug(`[DAEMON RUN] Removing exited process PID ${pid} from tracking`);
-      }
-      pidToTrackedSession.delete(pid);
     };
 
     const automations = new HappyHerdAutomationService(machineId, spawnSession);
@@ -877,9 +876,6 @@ export async function startDaemon(): Promise<void> {
       startedAt: Date.now()
     };
 
-    // Create API client
-    const api = await ApiClient.create(credentials);
-
     // Get or create machine
     const machine = await api.getOrCreateMachine({
       machineId,
@@ -926,11 +922,12 @@ export async function startDaemon(): Promise<void> {
           // Check if process is still alive (signal 0 doesn't kill, just checks)
           process.kill(pid, 0);
         } catch (error) {
-          // Process is dead, remove from tracking
-          logger.debug(`[DAEMON RUN] Removing stale session with PID ${pid} (process no longer exists)`);
-          pidToTrackedSession.delete(pid);
+          // Process is dead: preserve resume state and explicitly deactivate
+          // the session. Elapsed time alone never performs this transition.
+          await onChildExited(pid);
         }
       }
+      await sessionProcessLifecycle.retryPending();
 
       // Check if daemon needs update by detecting whether `dist/index.mjs` was
       // replaced on disk since the daemon started (npm install rewrites the file).

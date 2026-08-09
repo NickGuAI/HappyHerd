@@ -317,6 +317,7 @@ const ChatListInternal = React.memo((props: {
                     sessionId={props.sessionId}
                     expanded={!collapsedGroups.has(item.id)}
                     onToggle={() => handleToggleGroup(item.id)}
+                    forceCompleted={session?.active === false}
                 />
             );
         }
@@ -328,6 +329,8 @@ const ChatListInternal = React.memo((props: {
                     sessionId={props.sessionId}
                     expanded={!collapsedGroups.has(item.id)}
                     onToggle={() => handleToggleGroup(item.id)}
+                    forceCompleted={session?.active === false}
+                    forceCompletedAt={session?.active === false ? session.activeAt : undefined}
                 />
             );
         }
@@ -338,7 +341,7 @@ const ChatListInternal = React.memo((props: {
                 sessionId={props.sessionId}
             />
         );
-    }, [props.metadata, props.sessionId, collapsedGroups, handleToggleGroup]);
+    }, [props.metadata, props.sessionId, collapsedGroups, handleToggleGroup, session?.active]);
 
     // In inverted FlatList, offset 0 = latest messages (visual bottom).
     // Offset increases as user scrolls up to see older messages.
