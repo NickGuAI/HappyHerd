@@ -11,4 +11,9 @@ describe('MessageMetaSchema', () => {
         expect(parsed.permissionMode).toBe('team-custom-mode');
         expect(parsed.model).toBe('custom-model');
     });
+
+    it('accepts only the explicit queue delivery override', () => {
+        expect(MessageMetaSchema.parse({ deliveryMode: 'queue' }).deliveryMode).toBe('queue');
+        expect(MessageMetaSchema.safeParse({ deliveryMode: 'steer' }).success).toBe(false);
+    });
 });

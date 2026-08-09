@@ -25,8 +25,6 @@ import { VoiceAssistantStatusBar } from '@/components/VoiceAssistantStatusBar';
 import { useDraft } from '@/hooks/useDraft';
 import { useImagePicker } from '@/hooks/useImagePicker';
 import { Modal } from '@/modal';
-import { voiceHooks } from '@/realtime/hooks/voiceHooks';
-import { getCurrentVoiceConversationId, getCurrentVoiceSessionDurationSeconds, startRealtimeSession, stopRealtimeSession } from '@/realtime/RealtimeSession';
 import { gitStatusSync } from '@/sync/gitStatusSync';
 import { sessionAbort, sessionGoalAction, sessionSetAgentModes, spawnSideChat, sessionKill, sessionArchive } from '@/sync/ops';
 import { storage, useIsDataReady, useLocalSetting, useMachine, useRealtimeStatus, useSessionGitStatus, useSessionMessages, useSessionUsage, useSetting, useSettingMutable, useSideChatSessions } from '@/sync/storage';
@@ -38,7 +36,6 @@ import { Session } from '@/sync/storageTypes';
 import { sync } from '@/sync/sync';
 import { t } from '@/text';
 import { tracking } from '@/track';
-import { getVoiceMessageCount, getVoiceOnboardingPromptLoadCount } from '@/sync/persistence';
 import { isRunningOnMac } from '@/utils/platform';
 import { useDeviceType, useHeaderHeight, useIsLandscape, useIsTablet } from '@/utils/responsive';
 import { resolveStatusBarGitBranch } from '@/utils/sessionStatusBar';
@@ -84,6 +81,7 @@ import {
 } from '@/sync/rig';
 import { RigActivityBar } from '@/components/RigActivityBar';
 import { useVoiceDictation } from '@/hooks/useVoiceDictation';
+import { useVoiceInputAvailability } from '@/hooks/useVoiceInputAvailability';
 import {
     addWorkspaceContextFile,
     buildWorkspaceContextMessage,
@@ -873,6 +871,7 @@ export function SessionViewLoaded({
         composerHandleRef.current?.appendMessage(text);
     }, []);
     const voiceDictation = useVoiceDictation(handleDictationTranscript);
+    const voiceInputAvailability = useVoiceInputAvailability();
     const selectedContextFiles = React.useSyncExternalStore(
         subscribeWorkspaceContext,
         () => getWorkspaceContextFiles(sessionId),
@@ -941,9 +940,11 @@ export function SessionViewLoaded({
         },
     }), []);
 
-    // handleSend reads the live message via the composer ref, so it doesn't
-    // need to re-create on every keystroke.
-    const handleSend = React.useCallback(async () => {
+    // Read the live message via the composer ref so this callback does not
+    // re-create on every keystroke. Both delivery paths use the same encrypted
+    // outbox; the optional metadata only tells an active Codex turn to retain
+    // this input in its existing provider queue rather than steer it now.
+    const sendComposerMessage = React.useCallback(async (deliveryMode?: 'queue') => {
         const liveMessage = composerHandleRef.current?.getMessage() ?? '';
         if (!liveMessage.trim() && !(expImageUpload && selectedImages.length > 0) && selectedContextFiles.length === 0) {
             return;
@@ -955,17 +956,20 @@ export function SessionViewLoaded({
                 source: 'chat',
                 attachments,
                 ...(selectedContextFiles.length > 0 ? { displayText: contextMessage.displayText } : {}),
+                ...(deliveryMode ? { deliveryMode } : {}),
             });
             composerHandleRef.current?.clearMessage();
             if (expImageUpload) clearImages();
             clearWorkspaceContextFiles(sessionId);
         } catch (error) {
             Modal.alert(
-                'Could not attach workspace context',
-                error instanceof Error ? error.message : 'The selected files could not be read.',
+                t('happyHerd.composer.sendFailedTitle'),
+                error instanceof Error ? error.message : t('happyHerd.composer.sendFailedBody'),
             );
         }
     }, [sessionId, expImageUpload, selectedImages, selectedContextFiles, clearImages]);
+    const handleSend = React.useCallback(() => sendComposerMessage(), [sendComposerMessage]);
+    const handleQueueMessage = React.useCallback(() => sendComposerMessage('queue'), [sendComposerMessage]);
 
     const handleAbort = React.useCallback(() => {
         // Permission is turn-scoped and returns to the launch policy after an
@@ -1045,55 +1049,6 @@ export function SessionViewLoaded({
         });
     }, [sessionId, visibleAgentGoal?.text]);
 
-    // Handle microphone button press - memoized to prevent button flashing
-    const handleMicrophonePress = React.useCallback(async () => {
-        if (realtimeStatus === 'connecting') {
-            return; // Prevent actions during transitions
-        }
-        if (realtimeStatus === 'disconnected' || realtimeStatus === 'error') {
-            try {
-                const initialPrompt = voiceHooks.onVoiceStarted(sessionId);
-                const conversationId = await startRealtimeSession(sessionId, initialPrompt);
-                if (conversationId) {
-                    const hasPro = storage.getState().purchases.entitlements['pro'] ?? false;
-                    tracking?.capture('voice_session_started', {
-                        session_id: sessionId,
-                        elevenlabs_conversation_id: conversationId,
-                        has_pro: hasPro,
-                        onboarding_prompt_load_count: getVoiceOnboardingPromptLoadCount(),
-                        voice_message_count: getVoiceMessageCount(),
-                    });
-                }
-            } catch (error) {
-                console.error('Failed to start realtime session:', error);
-                Modal.alert(t('common.error'), t('errors.voiceSessionFailed'));
-                tracking?.capture('voice_session_error', {
-                    session_id: sessionId,
-                    elevenlabs_conversation_id: getCurrentVoiceConversationId(),
-                    error: error instanceof Error ? error.message : 'Unknown error',
-                });
-            }
-        } else if (realtimeStatus === 'connected') {
-            const conversationId = getCurrentVoiceConversationId();
-            const durationSeconds = getCurrentVoiceSessionDurationSeconds();
-            await stopRealtimeSession();
-            tracking?.capture('voice_session_stopped', {
-                session_id: sessionId,
-                elevenlabs_conversation_id: conversationId,
-                ...(durationSeconds !== undefined ? { duration_seconds: durationSeconds } : {}),
-            });
-
-            // Notify voice assistant about voice session stop
-            voiceHooks.onVoiceStopped();
-        }
-    }, [realtimeStatus, sessionId]);
-
-    // Memoize mic button state to prevent flashing during chat transitions
-    const micButtonState = useMemo(() => ({
-        onMicPress: handleMicrophonePress,
-        isMicActive: realtimeStatus === 'connected' || realtimeStatus === 'connecting'
-    }), [handleMicrophonePress, realtimeStatus]);
-
     // Track route visibility only. App foregrounding and socket reconnects
     // reconcile the current conversation inside Sync without remounting it.
     React.useLayoutEffect(() => {
@@ -1169,8 +1124,11 @@ export function SessionViewLoaded({
             connectionStatus={connectionStatus}
             blockSend={isRig && session.thinking && session.metadata?.capabilities?.steering !== true}
             onSend={handleSend}
-            onMicPress={(embedded || isDisconnected) ? undefined : micButtonState.onMicPress}
-            isMicActive={(embedded || isDisconnected) ? false : micButtonState.isMicActive}
+            onQueueMessage={handleQueueMessage}
+            onMicPress={(embedded || isDisconnected || !voiceInputAvailability.available)
+                ? undefined
+                : voiceDictation.toggle}
+            isMicActive={!embedded && !isDisconnected && voiceDictation.phase === 'recording'}
             onAbort={isDisconnected || !rigCanAbort(session.metadata) ? undefined : handleAbort}
             showAbortButton={rigCanAbort(session.metadata) && (Platform.OS === 'web'
                 ? sessionStatus.state === 'thinking' || sessionStatus.state === 'waiting'
@@ -1184,7 +1142,6 @@ export function SessionViewLoaded({
             onRemoveContextFile={(filePath) => removeWorkspaceContextFile(sessionId, filePath)}
             dictationPhase={voiceDictation.phase}
             dictationError={voiceDictation.error}
-            onDictationPress={(embedded || isDisconnected) ? undefined : voiceDictation.toggle}
             onDictationCancel={voiceDictation.cancel}
             onDictationRetry={voiceDictation.canRetry ? voiceDictation.retry : undefined}
             autocompletePrefixes={AGENT_INPUT_AUTOCOMPLETE_PREFIXES}

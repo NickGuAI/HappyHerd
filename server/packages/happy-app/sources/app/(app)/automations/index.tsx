@@ -18,7 +18,7 @@ import type {
     HappyHerdCommanderSummary,
 } from '@slopus/happy-wire';
 
-import { Text } from '@/components/StyledText';
+import { Text as StyledText } from '@/components/StyledText';
 import { Modal } from '@/modal';
 import {
     machineAutomationHistory,
@@ -35,6 +35,7 @@ import { useAllMachines } from '@/sync/storage';
 import type { Machine } from '@/sync/storageTypes';
 import { isMachineOnline } from '@/utils/machineUtils';
 import { Typography } from '@/constants/Typography';
+import { t } from '@/text';
 
 type Draft = {
     name: string;
@@ -48,6 +49,11 @@ type Draft = {
     status: HappyHerdAutomationCreateInput['status'];
     maxRetries: string;
 };
+
+function Text(props: React.ComponentProps<typeof StyledText>) {
+    const { theme } = useUnistyles();
+    return <StyledText {...props} style={[{ color: theme.colors.text }, props.style]} />;
+}
 
 function localTimezone(): string {
     try {
@@ -174,7 +180,7 @@ export default function AutomationsScreen() {
         if (!machineId || !machine || !isMachineOnline(machine)) {
             setAutomations([]);
             setCommanders([]);
-            setError(machine ? 'This machine is offline. Its schedules remain durable and resume when the daemon returns.' : null);
+            setError(machine ? t('happyHerd.automations.machineOffline') : null);
             return;
         }
         setLoading(true);
@@ -188,7 +194,7 @@ export default function AutomationsScreen() {
             setLegacyCount(automationResult.legacyCount);
             setCommanders(commanderResult.commanders);
         } catch (nextError) {
-            setError(nextError instanceof Error ? nextError.message : 'Unable to load automations');
+            setError(nextError instanceof Error ? nextError.message : t('happyHerd.automations.unableLoad'));
         } finally {
             setLoading(false);
         }
@@ -233,7 +239,7 @@ export default function AutomationsScreen() {
             setEditingId(null);
             await refresh();
         } catch (nextError) {
-            Modal.alert('Unable to save automation', nextError instanceof Error ? nextError.message : 'Unknown error');
+            Modal.alert(t('happyHerd.automations.unableSave'), nextError instanceof Error ? nextError.message : t('happyHerd.automations.unknownError'));
         } finally {
             setSaving(false);
         }
@@ -246,7 +252,7 @@ export default function AutomationsScreen() {
             else await machineResumeAutomation(machineId, automation.id);
             await refresh();
         } catch (nextError) {
-            Modal.alert('Unable to update automation', nextError instanceof Error ? nextError.message : 'Unknown error');
+            Modal.alert(t('happyHerd.automations.unableUpdate'), nextError instanceof Error ? nextError.message : t('happyHerd.automations.unknownError'));
         }
     }, [machineId, refresh]);
 
@@ -257,7 +263,7 @@ export default function AutomationsScreen() {
             setHistory((current) => ({ ...current, [automation.id]: [run, ...(current[automation.id] ?? [])] }));
             await refresh();
         } catch (nextError) {
-            Modal.alert('Unable to run automation', nextError instanceof Error ? nextError.message : 'Unknown error');
+            Modal.alert(t('happyHerd.automations.unableRun'), nextError instanceof Error ? nextError.message : t('happyHerd.automations.unknownError'));
         }
     }, [machineId, refresh]);
 
@@ -275,39 +281,38 @@ export default function AutomationsScreen() {
             const result = await machineAutomationHistory(machineId, automation.id);
             setHistory((current) => ({ ...current, [automation.id]: result.runs }));
         } catch (nextError) {
-            Modal.alert('Unable to load history', nextError instanceof Error ? nextError.message : 'Unknown error');
+            Modal.alert(t('happyHerd.automations.unableHistory'), nextError instanceof Error ? nextError.message : t('happyHerd.automations.unknownError'));
         }
     }, [history, machineId]);
 
     const remove = React.useCallback(async (automation: HappyHerdAutomation) => {
         if (!machineId) return;
         const confirmed = await Modal.confirm(
-            'Delete automation?',
-            `${automation.name} and its local run history will be removed.`,
-            { confirmText: 'Delete', destructive: true },
+            t('happyHerd.automations.deleteTitle'),
+            t('happyHerd.automations.deleteDescription', { name: automation.name }),
+            { confirmText: t('happyHerd.automations.delete'), destructive: true },
         );
         if (!confirmed) return;
         try {
             await machineDeleteAutomation(machineId, automation.id);
             await refresh();
         } catch (nextError) {
-            Modal.alert('Unable to delete automation', nextError instanceof Error ? nextError.message : 'Unknown error');
+            Modal.alert(t('happyHerd.automations.unableDelete'), nextError instanceof Error ? nextError.message : t('happyHerd.automations.unknownError'));
         }
     }, [machineId, refresh]);
 
     return (
         <ScrollView contentContainerStyle={[styles.page, desktop && styles.pageDesktop]}>
-            <Stack.Screen options={{ title: 'Automations' }} />
+            <Stack.Screen options={{ title: t('happyHerd.automations.title') }} />
             <View style={styles.hero}>
-                <View style={{ flex: 1 }}>
-                    <Text style={styles.title}>Automations</Text>
+                <View style={styles.heroCopy}>
                     <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-                        Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.
+                        {t('happyHerd.automations.subtitle')}
                     </Text>
                 </View>
                 <Pressable style={[styles.primaryButton, { backgroundColor: theme.colors.text }]} onPress={openCreate}>
                     <Ionicons name="add" size={18} color={theme.colors.surface} />
-                    <Text style={[styles.buttonText, { color: theme.colors.surface }]}>New</Text>
+                    <Text style={[styles.buttonText, { color: theme.colors.surface }]}>{t('happyHerd.automations.new')}</Text>
                 </Pressable>
             </View>
 
@@ -332,7 +337,7 @@ export default function AutomationsScreen() {
 
             {legacyCount > 0 && (
                 <Text style={[styles.notice, { color: theme.colors.textSecondary, borderColor: theme.colors.divider }]}>
-                    {legacyCount} legacy Herd automation artifact{legacyCount === 1 ? '' : 's'} detected. HappyHerd leaves them unmanaged to prevent duplicate runs.
+                    {t('happyHerd.automations.legacyNotice', { count: legacyCount })}
                 </Text>
             )}
             {error && <Text style={[styles.notice, { color: theme.colors.status.disconnected, borderColor: theme.colors.divider }]}>{error}</Text>}
@@ -341,48 +346,48 @@ export default function AutomationsScreen() {
             {formVisible && (
                 <View style={[styles.form, { borderColor: theme.colors.divider, backgroundColor: theme.colors.surface }]}>
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>{editingId ? 'Edit automation' : 'New automation'}</Text>
+                        <Text style={styles.sectionTitle}>{editingId ? t('happyHerd.automations.edit') : t('happyHerd.automations.create')}</Text>
                         <Pressable onPress={() => setFormVisible(false)}><Ionicons name="close" size={22} color={theme.colors.text} /></Pressable>
                     </View>
-                    <Field label="Name" value={draft.name} onChangeText={(name) => setDraft((current) => ({ ...current, name }))} />
-                    <Field label="Instruction" value={draft.instruction} multiline onChangeText={(instruction) => setDraft((current) => ({ ...current, instruction }))} />
-                    <Text style={styles.label}>Kind</Text>
+                    <Field label={t('happyHerd.automations.name')} value={draft.name} onChangeText={(name) => setDraft((current) => ({ ...current, name }))} />
+                    <Field label={t('happyHerd.automations.instruction')} value={draft.instruction} multiline onChangeText={(instruction) => setDraft((current) => ({ ...current, instruction }))} />
+                    <Text style={styles.label}>{t('happyHerd.automations.kind')}</Text>
                     <View style={styles.choices}>
                         {(['scheduled', 'heartbeat', 'memory-maintenance'] as const).map((kind) => (
                             <Choice key={kind} value={kind} selected={draft.kind === kind} onSelect={(next) => setDraft((current) => ({ ...current, kind: next }))} />
                         ))}
                     </View>
                     <View style={desktop ? styles.twoColumns : undefined}>
-                        <View style={{ flex: 1 }}><Field label="Cron" value={draft.schedule} onChangeText={(schedule) => setDraft((current) => ({ ...current, schedule }))} /></View>
-                        <View style={{ flex: 1 }}><Field label="Timezone" value={draft.timezone} onChangeText={(timezone) => setDraft((current) => ({ ...current, timezone }))} /></View>
+                        <View style={{ flex: 1 }}><Field label={t('happyHerd.automations.cron')} value={draft.schedule} onChangeText={(schedule) => setDraft((current) => ({ ...current, schedule }))} /></View>
+                        <View style={{ flex: 1 }}><Field label={t('happyHerd.automations.timezone')} value={draft.timezone} onChangeText={(timezone) => setDraft((current) => ({ ...current, timezone }))} /></View>
                     </View>
-                    <Field label="Machine workspace" value={draft.workspace} onChangeText={(workspace) => setDraft((current) => ({ ...current, workspace }))} />
-                    <Text style={styles.label}>Provider rail</Text>
+                    <Field label={t('happyHerd.automations.workspace')} value={draft.workspace} onChangeText={(workspace) => setDraft((current) => ({ ...current, workspace }))} />
+                    <Text style={styles.label}>{t('happyHerd.automations.rail')}</Text>
                     <View style={styles.choices}>
                         {(['claude', 'codex'] as const).map((rail) => (
                             <Choice key={rail} value={rail} selected={draft.rail === rail} onSelect={(next) => setDraft((current) => ({ ...current, rail: next }))} />
                         ))}
                     </View>
-                    <Text style={styles.label}>Commander identity</Text>
+                    <Text style={styles.label}>{t('happyHerd.automations.commander')}</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.choices}>
-                        <Choice value="none" selected={draft.commanderId === null} onSelect={() => setDraft((current) => ({ ...current, commanderId: null }))} />
+                        <Choice value={t('happyHerd.automations.none')} selected={draft.commanderId === null} onSelect={() => setDraft((current) => ({ ...current, commanderId: null }))} />
                         {commanders.map((commander) => (
                             <Choice key={commander.id} value={commander.name} selected={draft.commanderId === commander.id} onSelect={() => setDraft((current) => ({ ...current, commanderId: commander.id, workspace: commander.workspace }))} />
                         ))}
                     </ScrollView>
                     <View style={desktop ? styles.twoColumns : undefined}>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.label}>Initial state</Text>
+                            <Text style={styles.label}>{t('happyHerd.automations.initialState')}</Text>
                             <View style={styles.choices}>
                                 {(['paused', 'active'] as const).map((status) => (
                                     <Choice key={status} value={status} selected={draft.status === status} onSelect={(next) => setDraft((current) => ({ ...current, status: next }))} />
                                 ))}
                             </View>
                         </View>
-                        <View style={{ flex: 1 }}><Field label="Spawn retries (0–5)" value={draft.maxRetries} onChangeText={(maxRetries) => setDraft((current) => ({ ...current, maxRetries }))} /></View>
+                        <View style={{ flex: 1 }}><Field label={t('happyHerd.automations.spawnRetries')} value={draft.maxRetries} onChangeText={(maxRetries) => setDraft((current) => ({ ...current, maxRetries }))} /></View>
                     </View>
                     <Pressable disabled={saving} style={[styles.primaryButton, styles.saveButton, { backgroundColor: theme.colors.text }]} onPress={() => void save()}>
-                        {saving ? <ActivityIndicator color={theme.colors.surface} /> : <Text style={[styles.buttonText, { color: theme.colors.surface }]}>Save automation</Text>}
+                        {saving ? <ActivityIndicator color={theme.colors.surface} /> : <Text style={[styles.buttonText, { color: theme.colors.surface }]}>{t('happyHerd.automations.save')}</Text>}
                     </Pressable>
                 </View>
             )}
@@ -391,8 +396,8 @@ export default function AutomationsScreen() {
                 {!loading && automations.length === 0 && (
                     <View style={[styles.empty, { borderColor: theme.colors.divider }]}>
                         <Ionicons name="time-outline" size={32} color={theme.colors.textSecondary} />
-                        <Text style={styles.sectionTitle}>No HappyHerd automations on this machine</Text>
-                        <Text style={{ color: theme.colors.textSecondary }}>Create a paused definition first, inspect it, then enable it.</Text>
+                        <Text style={styles.sectionTitle}>{t('happyHerd.automations.emptyTitle')}</Text>
+                        <Text style={{ color: theme.colors.textSecondary }}>{t('happyHerd.automations.emptySubtitle')}</Text>
                     </View>
                 )}
                 {automations.map((automation) => (
@@ -408,22 +413,22 @@ export default function AutomationsScreen() {
                             <Text style={[styles.badge, { borderColor: theme.colors.divider }]}>{automation.kind}</Text>
                         </View>
                         <Text>{automation.instruction}</Text>
-                        <Text style={{ color: theme.colors.textSecondary }}>{automation.rail} · {automation.workspace}{automation.commanderId ? ` · Commander ${automation.commanderId}` : ''}</Text>
+                        <Text style={{ color: theme.colors.textSecondary }}>{automation.rail} · {automation.workspace}{automation.commanderId ? ` · ${t('happyHerd.automations.commanderValue', { id: automation.commanderId })}` : ''}</Text>
                         <View style={styles.actions}>
-                            <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={() => void toggleStatus(automation)}><Text>{automation.status === 'active' ? 'Pause' : 'Resume'}</Text></Pressable>
-                            <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={() => void runNow(automation)}><Text>Run now</Text></Pressable>
-                            <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={() => void loadHistory(automation)}><Text>History</Text></Pressable>
-                            <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={() => openEdit(automation)}><Text>Edit</Text></Pressable>
-                            <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={() => void remove(automation)}><Text style={{ color: theme.colors.status.disconnected }}>Delete</Text></Pressable>
+                            <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={() => void toggleStatus(automation)}><Text>{automation.status === 'active' ? t('happyHerd.automations.pause') : t('happyHerd.automations.resume')}</Text></Pressable>
+                            <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={() => void runNow(automation)}><Text>{t('happyHerd.automations.runNow')}</Text></Pressable>
+                            <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={() => void loadHistory(automation)}><Text>{t('happyHerd.automations.history')}</Text></Pressable>
+                            <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={() => openEdit(automation)}><Text>{t('happyHerd.automations.editAction')}</Text></Pressable>
+                            <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={() => void remove(automation)}><Text style={{ color: theme.colors.status.disconnected }}>{t('happyHerd.automations.delete')}</Text></Pressable>
                         </View>
                         {history[automation.id] && (
                             <View style={[styles.history, { borderTopColor: theme.colors.divider }]}>
                                 {history[automation.id].length === 0 ? (
-                                    <Text style={{ color: theme.colors.textSecondary }}>No runs yet.</Text>
+                                    <Text style={{ color: theme.colors.textSecondary }}>{t('happyHerd.automations.noRuns')}</Text>
                                 ) : history[automation.id].map((run) => (
                                     <View key={run.id} style={styles.historyRow}>
                                         <Text style={styles.historyStatus}>{run.status}</Text>
-                                        <Text style={{ flex: 1, color: theme.colors.textSecondary }}>{new Date(run.scheduledFor).toLocaleString()} · attempt {run.attempt}{run.sessionId ? ` · ${run.sessionId}` : ''}</Text>
+                                        <Text style={{ flex: 1, color: theme.colors.textSecondary }}>{new Date(run.scheduledFor).toLocaleString()} · {t('happyHerd.automations.attempt', { count: run.attempt })}{run.sessionId ? ` · ${run.sessionId}` : ''}</Text>
                                     </View>
                                 ))}
                             </View>
@@ -438,9 +443,9 @@ export default function AutomationsScreen() {
 const styles = StyleSheet.create((theme) => ({
     page: { padding: 16, paddingBottom: 80, gap: 16 },
     pageDesktop: { width: '100%', maxWidth: 980, alignSelf: 'center', padding: 28 },
-    hero: { flexDirection: 'row', alignItems: 'flex-start', gap: 16 },
-    title: { fontSize: 30, ...Typography.default('semiBold') },
-    subtitle: { marginTop: 4, fontSize: 15, lineHeight: 21, maxWidth: 680 },
+    hero: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+    heroCopy: { flex: 1 },
+    subtitle: { fontSize: 15, lineHeight: 21, maxWidth: 680 },
     primaryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 },
     buttonText: { ...Typography.default('semiBold') },
     choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

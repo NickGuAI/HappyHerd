@@ -1,223 +1,41 @@
-# Happy i18n (Object-Based Implementation)
+# HappyHerd interface localization
 
-A type-safe internationalization system using an object-based approach with functions and constants, accessed via the familiar `t('key', params)` API format.
+HappyHerd has one JSON-backed interface-copy contract and three supported languages:
 
-## Overview
+- `locales/en.json` — canonical key, shape, select-case, and placeholder schema
+- `locales/cn.json` — Chinese
+- `locales/de.json` — German
 
-This implementation uses **no external libraries** and provides:
-- **Full TypeScript type safety** with IntelliSense support
-- **Object parameters** with strict typing: `t('welcome', { name: 'Steve' })`
-- **Mixed value types**: String constants and functions in the same object
-- **Smart pluralization** and complex logic built into translation functions
-- **Compile-time validation** of keys and parameter shapes
+The runtime maps `zh`, `zh-CN`, `zh-Hans`, and legacy Chinese preferences to `cn`; `de-DE` to `de`; and unsupported locales to English. A user preference change takes effect immediately and persists through synchronized settings. Missing translated keys fall back per key to English.
 
-## Architecture
+## Adding or changing interface copy
 
-### Translation Values
-Translation values can be either:
-1. **String constants**: `'Cancel'` for static text
-2. **Functions**: `({ name }: { name: string }) => \`Welcome, ${name}!\`` for dynamic text
+1. Add the same nested key to `en.json`, `cn.json`, and `de.json`.
+2. Use `t('path.to.key')` in the interface. For placeholders, use JSON-safe `{name}` syntax and call `t('path.to.key', { name })`.
+3. For plural or boolean branches, use this JSON shape in every catalog:
 
-### Type Safety
-- **Keys are validated**: Only existing keys can be used
-- **Parameters are enforced**: Required/optional parameters are type-checked
-- **Object shapes are validated**: Parameter objects must match expected structure
-- **Return types are guaranteed**: Always returns a string
-
-## Usage Examples
-
-### Basic Usage
-
-```typescript
-import { t } from '@/text';
-
-// ✅ Simple constants (no parameters)
-t('common.cancel')              // "Cancel"
-t('settings.title')             // "Settings"
-t('session.connected')          // "Connected"
-
-// ✅ Functions with required object parameters
-t('common.welcome', { name: 'Steve' })           // "Welcome, Steve!"
-t('common.itemCount', { count: 5 })              // "5 items"
-t('time.minutesAgo', { count: 1 })               // "1 minute ago"
-
-// ✅ Multiple parameters
-t('errors.fieldError', { field: 'Email', reason: 'Invalid format' })
-t('auth.loginAttempt', { attempt: 2, maxAttempts: 3 })
-
-// ✅ Optional parameters
-t('time.at', { time: '3:00 PM' })                // "3:00 PM"
-t('time.at', { time: '3:00 PM', date: 'Monday' }) // "3:00 PM on Monday"
-```
-
-### Advanced Usage
-
-```typescript
-// Complex logic with multiple parameters
-t('session.summary', { files: 3, messages: 10, duration: 5 })
-// → "3 files, 10 messages in 5 minutes"
-
-// Smart file size formatting
-t('files.fileSize', { bytes: 1536 })  // "2 KB"
-t('files.fileSize', { bytes: 500 })   // "500 B"
-
-// Git status with conditional logic
-t('git.branchStatus', { branch: 'main', ahead: 2, behind: 0 })
-// → "On branch main, 2 commits ahead"
-
-// Strict enum-like typing
-t('common.greeting', { name: 'Steve', time: 'morning' })  // time must be 'morning' | 'afternoon' | 'evening'
-```
-
-### Type Safety Examples
-
-```typescript
-// ❌ These will cause TypeScript errors:
-t('common.cancel', { extra: 'param' })   // Error: Expected 0 arguments
-t('common.welcome')                      // Error: Missing required parameter
-t('common.welcome', { wrongKey: 'x' })   // Error: Object must have 'name' property
-t('common.welcome', { name: 123 })       // Error: 'name' must be string
-t('invalid.key')                         // Error: Key doesn't exist
-```
-
-## Files Structure
-
-### `_default.ts`
-Contains the main translation object with mixed string/function values:
-
-```typescript
-export const en = {
-    common: {
-        cancel: 'Cancel',                    // String constant
-        welcome: ({ name }: { name: string }) => `Welcome, ${name}!`,  // Function
-        itemCount: ({ count }: { count: number }) =>  // Smart pluralization
-            count === 1 ? '1 item' : `${count} items`,
-    },
-    // ... more categories
-} as const;
-```
-
-### `index.ts`
-Main module with the `t` function and utilities:
-- `t()` - Main translation function with strict typing
-- `hasTranslation()` - Check if a key exists
-- `getAllTranslationKeys()` - Get all available keys (development)
-- `getTranslationValue()` - Get raw value (debugging)
-
-## Key Benefits
-
-### 1. **Familiar API**
-Uses the standard `t('key', params)` format that developers expect.
-
-### 2. **Maximum Type Safety**
-```typescript
-// TypeScript knows exactly what parameters each key needs
-type WelcomeParams = TranslationParams<'common.welcome'>;  // { name: string }
-type CancelParams = TranslationParams<'common.cancel'>;    // void
-```
-
-### 3. **Object Parameters**
-Clean, self-documenting parameter syntax:
-```typescript
-// Instead of positional: t('greeting', 'Steve', 'morning')
-// Use named objects: t('greeting', { name: 'Steve', time: 'morning' })
-```
-
-### 4. **Logic in Translations**
-Complex formatting and pluralization logic lives with the text:
-```typescript
-fileSize: ({ bytes }: { bytes: number }) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-    return `${Math.round(bytes / (1024 * 1024))} MB`;
+```json
+{
+  "select": {
+    "param": "count",
+    "cases": {
+      "one": "{count} item",
+      "other": "{count} items"
+    }
+  }
 }
 ```
 
-### 5. **Performance**
-- No string interpolation parsing
-- Direct function calls
-- Tree-shakeable (unused translations can be eliminated)
-- No external dependencies
+4. Generate the TypeScript key/parameter contract and validate everything:
 
-### 6. **Developer Experience**
-- Full IntelliSense support
-- Compile-time error catching
-- Self-documenting parameter names
-- Easy debugging with utility functions
-
-## Migration Guide
-
-If migrating from an interpolation-based system:
-
-```typescript
-// Old: String interpolation
-t('welcome', { name: 'Steve' })  // Parsed "{name}" at runtime
-
-// New: Same API, but with functions
-t('welcome', { name: 'Steve' })  // Direct function call, same result
+```bash
+pnpm --filter happy-app i18n:generate
+pnpm --filter happy-app i18n:check
+pnpm --filter happy-app typecheck
 ```
 
-The API stays the same, but you get:
-- Better performance (no parsing)
-- Stronger typing (object shape validation)  
-- More flexibility (complex logic in functions)
+`generated.ts` is generated and must not be edited manually. CI rejects missing/extra keys, select-shape drift, placeholder drift, stale generated types, and newly hardcoded interface copy.
 
-## Adding New Translations
+## What must remain untranslated
 
-1. **Add to `_default.ts`**:
-```typescript
-// String constant
-newConstant: 'My New Text',
-
-// Function with parameters
-newFunction: ({ user, count }: { user: string; count: number }) =>
-    `Hello ${user}, you have ${count} items`,
-```
-
-2. **TypeScript automatically updates** - the new keys become available with full type checking.
-
-3. **Use immediately**:
-```typescript
-t('category.newConstant')                        // "My New Text"
-t('category.newFunction', { user: 'Steve', count: 5 })  // "Hello Steve, you have 5 items"
-```
-
-## Best Practices
-
-### Parameter Design
-```typescript
-// ✅ Good: Use descriptive parameter names
-messageFrom: ({ sender }: { sender: string }) => `Message from ${sender}`,
-
-// ✅ Good: Use optional parameters when appropriate
-at: ({ time, date }: { time: string; date?: string }) =>
-    date ? `${time} on ${date}` : time,
-
-// ✅ Good: Use union types for strict validation
-greeting: ({ name, time }: { name: string; time: 'morning' | 'afternoon' | 'evening' }) =>
-    `Good ${time}, ${name}!`,
-```
-
-### Complex Logic
-```typescript
-// ✅ Good: Put complex logic in the translation function
-statusMessage: ({ files, online, syncing }: {
-    files: number;
-    online: boolean;
-    syncing: boolean;
-}) => {
-    if (!online) return 'Offline';
-    if (syncing) return 'Syncing...';
-    return files === 0 ? 'No files' : `${files} files ready`;
-}
-```
-
-## Future Expansion
-
-To add more languages:
-1. Create new translation files (e.g., `_spanish.ts`)
-2. Update types to include new locales
-3. Add locale switching logic
-4. All existing type safety is preserved
-
-This implementation provides a solid foundation that can scale while maintaining perfect type safety and developer experience.
+Do not pass raw user or machine data through `t()`: provider/model slugs, file paths, commands, logs, protocol values, user messages, and content returned by agents remain byte-faithful. Only the labels and explanatory copy around that data are localized.

@@ -1,0 +1,1224 @@
+{
+  "tabs": {
+    "inbox": "Posteingang",
+    "sessions": "Terminals",
+    "settings": "Einstellungen"
+  },
+  "inbox": {
+    "emptyTitle": "Leerer Posteingang",
+    "emptyDescription": "Verbinde dich mit Freunden, um Sitzungen zu teilen",
+    "updates": "Aktualisierungen"
+  },
+  "common": {
+    "cancel": "Stornieren",
+    "authenticate": "Authentifizieren",
+    "save": "Speichern",
+    "saveAs": "Speichern unter",
+    "error": "Fehler",
+    "success": "Erfolg",
+    "ok": "OK",
+    "continue": "Weitermachen",
+    "back": "Zurück",
+    "create": "Erstellen",
+    "rename": "Umbenennen",
+    "reset": "Zurücksetzen",
+    "logout": "Abmelden",
+    "yes": "Ja",
+    "no": "NEIN",
+    "discard": "Verwerfen",
+    "version": "Version",
+    "copied": "Kopiert",
+    "copy": "Kopie",
+    "scanning": "Scannen...",
+    "urlPlaceholder": "https://example.com",
+    "home": "Heim",
+    "message": "Nachricht",
+    "files": "Dateien",
+    "fileViewer": "Dateibetrachter",
+    "loading": "Laden...",
+    "retry": "Wiederholen",
+    "delete": "Löschen",
+    "optional": "optional"
+  },
+  "profile": {
+    "userProfile": "Benutzerprofil",
+    "details": "Einzelheiten",
+    "firstName": "Vorname",
+    "lastName": "Nachname",
+    "username": "Benutzername",
+    "status": "Status"
+  },
+  "status": {
+    "connected": "verbunden",
+    "connecting": "verbinden",
+    "disconnected": "getrennt",
+    "error": "Fehler",
+    "online": "online",
+    "offline": "offline",
+    "lastSeen": "zuletzt gesehen {time}",
+    "permissionRequired": "Genehmigung erforderlich",
+    "activeNow": "Jetzt aktiv",
+    "unknown": "unbekannt",
+    "unread": "neue Ergebnisse"
+  },
+  "time": {
+    "justNow": "soeben",
+    "minutesAgo": {
+      "select": {
+        "param": "count",
+        "cases": {
+          "one": "{count} vor einer Minute",
+          "other": "{count} vor Minuten"
+        }
+      }
+    },
+    "hoursAgo": {
+      "select": {
+        "param": "count",
+        "cases": {
+          "one": "{count} vor einer Stunde",
+          "other": "{count} vor Stunden"
+        }
+      }
+    },
+    "daysAgo": {
+      "select": {
+        "param": "count",
+        "cases": {
+          "one": "{count} vor einem Tag",
+          "other": "{count} vor Tagen"
+        }
+      }
+    }
+  },
+  "connect": {
+    "restoreAccount": "Konto wiederherstellen",
+    "enterSecretKey": "Bitte geben Sie einen geheimen Schlüssel ein",
+    "invalidSecretKey": "Ungültiger geheimer Schlüssel. Bitte überprüfen Sie es und versuchen Sie es erneut.",
+    "enterUrlManually": "Geben Sie die URL manuell ein"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "connectedAccounts": "Verbundene Konten",
+    "connectAccount": "Konto verbinden",
+    "github": "GitHub",
+    "machines": "Maschinen",
+    "showOfflineMachines": {
+      "select": {
+        "param": "count",
+        "cases": {
+          "one": "{count} Offline-Maschine anzeigen",
+          "other": "Zeigt {count} Offline-Maschinen an"
+        }
+      }
+    },
+    "hideOfflineMachines": "Offline-Maschinen ausblenden",
+    "features": "Merkmale",
+    "social": "Sozial",
+    "account": "Konto",
+    "accountSubtitle": "Verwalten Sie Ihre Kontodaten",
+    "appearance": "Aussehen",
+    "appearanceSubtitle": "Passen Sie das Aussehen der App an",
+    "voiceAssistant": "Sprachassistent",
+    "voiceAssistantSubtitle": "Konfigurieren Sie die Einstellungen für die Sprachinteraktion",
+    "featuresTitle": "Merkmale",
+    "featuresSubtitle": "App-Funktionen aktivieren oder deaktivieren",
+    "developer": "Entwickler",
+    "developerTools": "Entwicklertools",
+    "about": "Um",
+    "aboutFooter": "HappyHerd ist ein Kunde von Codex und Claude Code. Es ist vollständig Ende-zu-Ende-verschlüsselt und Ihr Konto wird nur auf Ihrem Gerät gespeichert. Nicht mit Anthropic verbunden.",
+    "whatsNew": "Was ist neu",
+    "whatsNewSubtitle": "Sehen Sie sich die neuesten Updates und Verbesserungen an",
+    "reportIssue": "Melden Sie ein Problem",
+    "privacyPolicy": "Datenschutzrichtlinie",
+    "termsOfService": "Nutzungsbedingungen",
+    "eula": "EULA",
+    "supportUs": "Unterstützen Sie uns",
+    "supportUsSubtitlePro": "Vielen Dank für Ihre Unterstützung!",
+    "supportUsSubtitle": "Unterstützen Sie die Projektentwicklung",
+    "scanQrCodeToAuthenticate": "Scannen Sie den QR-Code zur Authentifizierung",
+    "githubConnected": "Verbunden als @{login}",
+    "connectGithubAccount": "Verbinden Sie Ihr GitHub-Konto",
+    "claudeAuthSuccess": "Erfolgreich mit Claude verbunden",
+    "exchangingTokens": "Token austauschen...",
+    "usage": "Verwendung",
+    "usageSubtitle": "Sehen Sie sich Ihre API-Nutzung und Kosten an",
+    "accountConnected": "{service}-Konto verbunden",
+    "machineStatus": "{name} ist {status}",
+    "featureToggled": {
+      "select": {
+        "param": "enabled",
+        "cases": {
+          "true": "{feature} aktiviert",
+          "false": "{feature} deaktiviert"
+        }
+      }
+    }
+  },
+  "settingsAppearance": {
+    "theme": "Thema",
+    "themeDescription": "Wählen Sie Ihr bevorzugtes Farbschema",
+    "themeOptions": {
+      "adaptive": "Adaptiv",
+      "light": "Licht",
+      "dark": "Dunkel"
+    },
+    "themeDescriptions": {
+      "adaptive": "Systemeinstellungen anpassen",
+      "light": "Verwenden Sie immer ein helles Thema",
+      "dark": "Verwenden Sie immer ein dunkles Thema"
+    },
+    "chat": "Chatten",
+    "chatDescription": "Passen Sie das Erscheinungsbild der Chat-Nachricht an",
+    "sessionStatusBar": "Informationen zum Sitzungsstatus",
+    "sessionStatusBarDescription": "Wählen Sie aus, wo Zweig, Modell, Aufwand und Kontext angezeigt werden",
+    "sessionStatusDisplayOptions": {
+      "hidden": "Versteckt",
+      "above": "Oben Komponist",
+      "below": "Unten Komponist"
+    },
+    "usageLimitShowRemaining": "Verbleibendes Kontingent anzeigen",
+    "usageLimitShowRemainingDescription": "Zählen Sie die Plangrenzen abwärts vom vollen Wert, statt aufwärts vom leeren Punkt",
+    "userMessageBubbleColor": "Benutzerblasenfarbe",
+    "userMessageBubbleColorDescription": "Machen Sie Ihre Nachrichten in langen Chats leichter erkennbar",
+    "userMessageBubbleColorOptions": {
+      "blue": "Blau",
+      "green": "Grün",
+      "purple": "Lila",
+      "rose": "Rose",
+      "sand": "Sand",
+      "gray": "Grau"
+    },
+    "display": "Anzeige",
+    "displayDescription": "Kontrollieren Sie Layout und Abstand",
+    "compactToolCalls": "Kompakte Werkzeugaufrufe",
+    "compactToolCallsDescription": "Nicht interaktive Werkzeugaufrufe als einzeilige Zeilen anzeigen; Öffnen Sie eine Zeile für Details",
+    "inlineToolCalls": "Inline-Tool-Aufrufe",
+    "inlineToolCallsDescription": "Tool-Aufrufe direkt in Chat-Nachrichten anzeigen",
+    "expandTodoLists": "Erweitern Sie Aufgabenlisten",
+    "expandTodoListsDescription": "Alle Aufgaben anzeigen statt nur Änderungen",
+    "showLineNumbersInDiffs": "Zeilennummern in Diffs anzeigen",
+    "showLineNumbersInDiffsDescription": "Zeilennummern in Codeunterschieden anzeigen",
+    "showLineNumbersInToolViews": "Zeilennummern in Werkzeugansichten anzeigen",
+    "showLineNumbersInToolViewsDescription": "Zeilennummern in Werkzeugansichtsunterschieden anzeigen",
+    "wrapLinesInDiffs": "Zeilen in Diffs umbrechen",
+    "wrapLinesInDiffsDescription": "Umbrechen Sie lange Zeilen, anstatt in Diff-Ansichten horizontal zu scrollen",
+    "diffStyle": "Diff-Ansicht",
+    "diffStyleDescription": "Unterschiede als einzelne Spalte (einheitlich) oder nebeneinander (geteilt) anzeigen. Die geteilte Ansicht ist nur für das Web verfügbar.",
+    "diffStyleOptions": {
+      "unified": "Einheitlich",
+      "split": "Teilt"
+    },
+    "alwaysShowContextSize": "Kontextgröße immer anzeigen",
+    "alwaysShowContextSizeDescription": "Kontextnutzung anzeigen, auch wenn sie nicht in der Nähe des Grenzwerts liegt",
+    "avatarStyle": "Avatar-Stil",
+    "avatarStyleDescription": "Wählen Sie das Erscheinungsbild des Sitzungs-Avatars",
+    "avatarOptions": {
+      "pixelated": "Pixelig",
+      "gradient": "Gradient",
+      "brutalist": "Brutalistisch"
+    },
+    "showFlavorIcons": "Symbole für KI-Anbieter anzeigen",
+    "showFlavorIconsDescription": "Zeigen Sie KI-Anbietersymbole auf Sitzungsavataren an"
+  },
+  "settingsFeatures": {
+    "experiments": "Experimente",
+    "experimentsDescription": "Aktivieren Sie experimentelle Funktionen, die sich noch in der Entwicklung befinden. Diese Funktionen können instabil sein oder sich ohne Vorankündigung ändern.",
+    "experimentalFeatures": "Experimentelle Funktionen",
+    "experimentalFeaturesEnabled": "Experimentelle Funktionen aktiviert",
+    "experimentalFeaturesDisabled": "Nur stabile Funktionen verwenden",
+    "webFeatures": "Webfunktionen",
+    "webFeaturesDescription": "Funktionen, die nur in der Webversion der App verfügbar sind.",
+    "enterToSend": "Geben Sie zum Senden ein",
+    "enterToSendEnabled": "Drücken Sie zum Senden die Eingabetaste (Umschalt+Eingabetaste für eine neue Zeile).",
+    "enterToSendDisabled": "Enter fügt eine neue Zeile ein",
+    "commandPalette": "Befehlspalette",
+    "commandPaletteEnabled": "Drücken Sie zum Öffnen ⌘K",
+    "commandPaletteDisabled": "Schneller Befehlszugriff deaktiviert",
+    "markdownCopyV2": "Markdown-Kopie v2",
+    "markdownCopyV2Subtitle": "Durch langes Drücken wird das Kopiermodal geöffnet",
+    "hideInactiveSessions": "Inaktive Sitzungen ausblenden",
+    "hideInactiveSessionsSubtitle": "Zeigen Sie nur aktive Chats in Ihrer Liste an",
+    "groupToolCalls": "Gruppen-Tool-Aufrufe",
+    "groupToolCallsSubtitle": "Reduzieren Sie aufeinanderfolgende Werkzeugaufrufe in einem Container",
+    "privacy": "Privatsphäre",
+    "privacyDescription": "Deaktiviert alle Analysen und Telemetrie vollständig. Es werden keine Daten an PostHog oder einen anderen Trackingdienst gesendet.",
+    "disableAnalytics": "Deaktivieren Sie Analytics",
+    "analyticsDisabled": "Sämtliche Tracking- und Telemetriedaten sind deaktiviert",
+    "analyticsEnabled": "Anonyme Nutzungsanalyse aktiv",
+    "imageUpload": "Bild-Upload",
+    "imageUploadSubtitle": "Hängen Sie Bilder an Nachrichten an, damit unterstützte Agenten sie analysieren können"
+  },
+  "workspace": {
+    "title": "Maschinenarbeitsbereich",
+    "featureSubtitle": "Durchsuchen und bearbeiten Sie Dateien auf verbundenen Computern, ohne eine Sitzung zu starten",
+    "featureDisabled": "Der Maschinenarbeitsbereich ist deaktiviert",
+    "featureDisabledDescription": "Aktivieren Sie es in den Funktionen, um den eigenständigen Arbeitsbereich verfügbar zu machen.",
+    "openFeatures": "Öffnen Sie Funktionen",
+    "selectMachine": "Wählen Sie eine Maschine aus",
+    "noMachines": "Mit diesem Konto sind keine Maschinen verbunden.",
+    "searchPlaceholder": "Diesen Ordner durchsuchen...",
+    "pathPlaceholder": "Geben Sie einen absoluten Pfad ein",
+    "go": "Gehen",
+    "home": "Heim",
+    "root": "Wurzel",
+    "parent": "Elternteil",
+    "refresh": "Aktualisieren",
+    "recent": "Jüngste",
+    "favorites": "Favoriten",
+    "emptyFolder": "Dieser Ordner ist leer.",
+    "offlineTitle": "Maschine ist offline",
+    "offlineDescription": "Starten Sie den HappyHerd-Daemon auf diesem Computer und versuchen Sie es erneut.",
+    "permissionDeniedTitle": "Zugriff verweigert",
+    "permissionDeniedDescription": "Der Benutzer des Daemon-Betriebssystems kann diesen Pfad nicht lesen.",
+    "missingPathTitle": "Pfad nicht gefunden",
+    "missingPathDescription": "Wählen Sie Home, Root, einen aktuellen Pfad oder geben Sie einen anderen absoluten Pfad ein.",
+    "readErrorTitle": "Dieses Verzeichnis konnte nicht geöffnet werden",
+    "attachTitle": "Hängen Sie Arbeitsbereichsdateien an",
+    "addToSession": "Zur Sitzung hinzufügen",
+    "selectedCount": "{count} der ausgewählten {max}-Dateien",
+    "openWorkspace": "Arbeitsbereich öffnen",
+    "browseMachine": "Durchsuchen Sie Maschinendateien",
+    "mobileBackToFiles": "Zurück zu den Dateien"
+  },
+  "imageUpload": {
+    "permissionTitle": "Zugang zur Fotobibliothek",
+    "permissionMessage": "Erlauben Sie den Zugriff auf Ihre Fotobibliothek, um Bilder an Nachrichten anzuhängen.",
+    "limitTitle": "Bildlimit erreicht",
+    "limitMessage": "Sie können bis zu {max} Bilder pro Nachricht anhängen.",
+    "fileTooLargeTitle": "Datei zu groß",
+    "fileTooLargeMessage": "„{name}“ überschreitet den {maxMb}MB-Grenzwert und wurde nicht hinzugefügt.",
+    "uploadFailedTitle": "Hochladen fehlgeschlagen",
+    "uploadFailedMessage": {
+      "select": {
+        "param": "count",
+        "cases": {
+          "one": "Ein Bild konnte nicht hochgeladen werden und wurde nicht gesendet.",
+          "other": "{count}-Bilder konnten nicht hochgeladen werden und wurden nicht gesendet."
+        }
+      }
+    },
+    "notSupportedTitle": "Bilder werden nicht unterstützt",
+    "notSupportedMessage": "Dieser Agent unterstützt keine Bildanhänge. Bilder wurden nicht gesendet."
+  },
+  "errors": {
+    "networkError": "Es ist ein Netzwerkfehler aufgetreten",
+    "serverError": "Es ist ein Serverfehler aufgetreten",
+    "unknownError": "Es ist ein unbekannter Fehler aufgetreten",
+    "connectionTimeout": "Zeitüberschreitung bei der Verbindung",
+    "authenticationFailed": "Die Authentifizierung ist fehlgeschlagen",
+    "permissionDenied": "Zugriff verweigert",
+    "fileNotFound": "Datei nicht gefunden",
+    "invalidFormat": "Ungültiges Format",
+    "operationFailed": "Der Vorgang ist fehlgeschlagen",
+    "tryAgain": "Bitte versuchen Sie es erneut",
+    "contactSupport": "Wenden Sie sich an den Support, wenn das Problem weiterhin besteht",
+    "sessionNotFound": "Sitzung nicht gefunden",
+    "voiceSessionFailed": "Die Sprachsitzung konnte nicht gestartet werden",
+    "voiceServiceUnavailable": "Der Sprachdienst ist vorübergehend nicht verfügbar",
+    "voiceLimitReachedTitle": "Sprachlimit erreicht",
+    "voiceHardLimitReached": "Sie haben diesen Monat {hours}+ Sprachstunden genutzt. Dies ist das maximal zulässige Maximum. Sie können Ihren eigenen ElevenLabs-Agenten in den Spracheinstellungen konfigurieren, um Ihr eigenes Kontingent zu verwenden.",
+    "voiceConversationLimitReached": "Sie haben diesen Monat die maximale Anzahl an Sprachgesprächen erreicht. Möglicherweise fügen wir in Zukunft die On-Demand-Sprachnutzung hinzu – bitte melden Sie ein Problem unter github.com/nicepkg/happy/issues, wenn Sie dieses Limit erreichen.",
+    "oauthInitializationFailed": "Der OAuth-Flow konnte nicht initialisiert werden",
+    "tokenStorageFailed": "Authentifizierungstoken konnten nicht gespeichert werden",
+    "oauthStateMismatch": "Die Sicherheitsvalidierung ist fehlgeschlagen. Bitte versuchen Sie es erneut",
+    "tokenExchangeFailed": "Der Austausch des Autorisierungscodes ist fehlgeschlagen",
+    "oauthAuthorizationDenied": "Die Autorisierung wurde verweigert",
+    "webViewLoadFailed": "Die Authentifizierungsseite konnte nicht geladen werden",
+    "failedToLoadProfile": "Benutzerprofil konnte nicht geladen werden",
+    "userNotFound": "Benutzer nicht gefunden",
+    "sessionDeleted": "Sitzung wurde gelöscht",
+    "sessionDeletedDescription": "Diese Sitzung wurde dauerhaft entfernt",
+    "fieldError": "{field}: {reason}",
+    "validationError": "{field} muss zwischen {min} und {max} liegen",
+    "retryIn": {
+      "select": {
+        "param": "seconds",
+        "cases": {
+          "one": "Versuchen Sie es in {seconds} Sekunde erneut",
+          "other": "Versuchen Sie es in {seconds} Sekunden erneut"
+        }
+      }
+    },
+    "errorWithCode": "{message} (Fehler {code})",
+    "disconnectServiceFailed": "{service} konnte nicht getrennt werden",
+    "connectServiceFailed": "{service} konnte nicht verbunden werden. Bitte versuchen Sie es erneut.",
+    "failedToLoadFriends": "Freundesliste konnte nicht geladen werden",
+    "failedToAcceptRequest": "Freundschaftsanfrage konnte nicht angenommen werden",
+    "failedToRejectRequest": "Freundschaftsanfrage konnte nicht abgelehnt werden",
+    "failedToRemoveFriend": "Freund konnte nicht entfernt werden",
+    "searchFailed": "Die Suche ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "failedToSendRequest": "Freundschaftsanfrage konnte nicht gesendet werden"
+  },
+  "newSession": {
+    "title": "Neue Sitzung starten",
+    "machineOffline": "Maschine ist offline",
+    "switchMachinesHint": "• Wechseln Sie die Maschine, indem Sie oben auf die Maschine klicken"
+  },
+  "sessionHistory": {
+    "title": "Sitzungsverlauf",
+    "empty": "Keine Sitzungen gefunden",
+    "today": "Heute",
+    "yesterday": "Gestern",
+    "daysAgo": {
+      "select": {
+        "param": "count",
+        "cases": {
+          "one": "{count} vor einem Tag",
+          "other": "{count} vor Tagen"
+        }
+      }
+    },
+    "viewAll": "Alle Sitzungen anzeigen"
+  },
+  "session": {
+    "inputPlaceholder": "Geben Sie eine Nachricht ein ...",
+    "inactiveArchived": "Diese Sitzung ist inaktiv.",
+    "resumeFromTerminal": "Um es vom Terminal aus fortzusetzen:",
+    "newChat": "Neuer Chat",
+    "statusBarContext": "Kontext",
+    "statusBarPathTitle": "Arbeitsverzeichnis",
+    "forkAction": "Fork-Sitzung",
+    "forkSubtitle": "Fahren Sie in einer neuen Sitzung mit demselben Kontext fort",
+    "duplicateAction": "Duplikat aus Nachricht…",
+    "duplicateSubtitle": "Spulen Sie zu einem ausgewählten Punkt zurück und versuchen Sie es erneut",
+    "forkFromHere": "Ab hier abzweigen",
+    "duplicateSheetTitle": "Wählen Sie einen Rückspulpunkt",
+    "duplicateSheetSubtitle": "Die neue Sitzung hält den gewählten Zug vollständig (Ihre Nachricht und die Antwort des Agenten) und verwirft alle darauffolgenden Eingabeaufforderungen.",
+    "duplicateSheetConfirm": "Duplikat",
+    "duplicateSheetEmpty": "In dieser Sitzung sind noch keine Nachrichten zum Zurückspulen berechtigt.",
+    "duplicateRowDisabled": "Diese Nachricht kann nicht als Rückspulpunkt verwendet werden.",
+    "forkedFromLabel": "Gegabelt von",
+    "forkedFromSubtitle": "Öffnen Sie die Sitzung, von der dieser Fork abgezweigt wurde",
+    "forkErrorOffline": "Diese Maschine ist offline. Fork ist nur verfügbar, während der Computer, der die Sitzung besitzt, online ist.",
+    "forkErrorMissingUuid": "Der gewählte Rückspulpunkt ist in der Quellsitzung nicht mehr vorhanden – versuchen Sie es mit einer Verzweigung ohne Kürzung.",
+    "forkErrorMissingMetadata": "Es fehlen Sitzungsmetadaten, die für den Fork erforderlich sind.",
+    "forkErrorGeneric": "Die Sitzung konnte nicht gegabelt werden.",
+    "forkClaudeOnly": "Fork wird derzeit nur für Claude-Sitzungen unterstützt."
+  },
+  "commandPalette": {
+    "placeholder": "Geben Sie einen Befehl ein oder suchen Sie..."
+  },
+  "server": {
+    "serverConfiguration": "Serverkonfiguration",
+    "enterServerUrl": "Bitte geben Sie eine Server-URL ein",
+    "notValidHappyServer": "Kein gültiger Happy Server",
+    "changeServer": "Server wechseln",
+    "continueWithServer": "Mit diesem Server fortfahren?",
+    "resetToDefault": "Auf Standard zurücksetzen",
+    "resetServerDefault": "Server auf Standard zurücksetzen?",
+    "validating": "Validierung...",
+    "validatingServer": "Server wird validiert...",
+    "serverReturnedError": "Der Server hat einen Fehler zurückgegeben",
+    "failedToConnectToServer": "Verbindung zum Server fehlgeschlagen",
+    "currentlyUsingCustomServer": "Derzeit wird ein benutzerdefinierter Server verwendet",
+    "customServerUrlLabel": "Benutzerdefinierte Server-URL",
+    "advancedFeatureFooter": "Dies ist eine erweiterte Funktion. Wechseln Sie den Server nur, wenn Sie wissen, was Sie tun. Nach einem Serverwechsel müssen Sie sich abmelden und erneut anmelden."
+  },
+  "sessionInfo": {
+    "killSession": "Sitzung beenden",
+    "killSessionConfirm": "Möchten Sie diese Sitzung wirklich beenden?",
+    "archiveSession": "Archivsitzung",
+    "archiveSessionConfirm": "Sind Sie sicher, dass Sie diese Sitzung archivieren möchten?",
+    "happySessionIdCopied": "Happy Session-ID in die Zwischenablage kopiert",
+    "failedToCopySessionId": "Die Happy-Session-ID konnte nicht kopiert werden",
+    "happySessionId": "Happy Session ID",
+    "claudeCodeSessionId": "Claude Code-Sitzungs-ID",
+    "claudeCodeSessionIdCopied": "Claude Code-Sitzungs-ID in die Zwischenablage kopiert",
+    "codexThreadId": "Codex-Thread-ID",
+    "codexThreadIdCopied": "Codex-Thread-ID in die Zwischenablage kopiert",
+    "aiProvider": "KI-Anbieter",
+    "failedToCopyClaudeCodeSessionId": "Das Kopieren der Claude Code-Sitzungs-ID ist fehlgeschlagen",
+    "failedToCopyCodexThreadId": "Codex-Thread-ID konnte nicht kopiert werden",
+    "metadataCopied": "Sitzungsmetadaten in die Zwischenablage kopiert",
+    "failedToCopyMetadata": "Sitzungsmetadaten konnten nicht kopiert werden",
+    "failedToKillSession": "Die Sitzung konnte nicht beendet werden",
+    "failedToArchiveSession": "Sitzung konnte nicht archiviert werden",
+    "connectionStatus": "Verbindungsstatus",
+    "created": "Erstellt",
+    "lastUpdated": "Zuletzt aktualisiert",
+    "sequence": "Sequenz",
+    "quickActions": "Schnelle Aktionen",
+    "viewMachine": "Maschine ansehen",
+    "viewMachineSubtitle": "Maschinendetails und Sitzungen anzeigen",
+    "resumeSession": "Sitzung fortsetzen",
+    "resumeSessionSubtitle": "Setzen Sie diese Sitzung auf demselben Computer fort",
+    "resumeSessionSameMachineOnly": "Diese Sitzung kann nur auf demselben Computer fortgesetzt werden, auf dem sie gestartet wurde.",
+    "resumeSessionMachineOffline": "Diese Maschine ist offline. Der Lebenslauf ist nur verfügbar, solange er online ist.",
+    "resumeSessionNeedsHappyAgent": "„Lebenslauf“ ist auf diesem Computer nicht verfügbar. Führen Sie „happy-agent auth login“ aus, um es zu aktivieren.",
+    "resumeSessionMissingMachine": "Dieser Sitzung fehlen die Maschinenmetadaten und sie kann daher nicht fortgesetzt werden.",
+    "resumeSessionMissingBackendId": "Diese Sitzung verfügt nicht über eine fortsetzbare Claude- oder Codex-ID.",
+    "resumeSessionUnexpectedDirectoryPrompt": "Lebenslauf kann keine Verzeichnisse erstellen. Starten Sie die Sitzung manuell von ihrem ursprünglichen Pfad aus.",
+    "killSessionSubtitle": "Beenden Sie die Sitzung sofort",
+    "archiveSessionSubtitle": "Archivieren Sie diese Sitzung und beenden Sie sie",
+    "metadata": "Metadaten",
+    "host": "Gastgeber",
+    "path": "Weg",
+    "operatingSystem": "Betriebssystem",
+    "processId": "Prozess-ID",
+    "happyHome": "Glückliches Zuhause",
+    "copyMetadata": "Sitzungsmetadaten kopieren",
+    "agentState": "Agentenstatus",
+    "controlledByUser": "Vom Benutzer gesteuert",
+    "pendingRequests": "Ausstehende Anfragen",
+    "activity": "Aktivität",
+    "thinking": "Denken",
+    "thinkingSince": "Denken seitdem",
+    "cliVersion": "CLI-Version",
+    "cliVersionOutdated": "CLI-Update erforderlich",
+    "cliVersionOutdatedMessage": "Version {currentVersion} installiert. Aktualisieren Sie auf {requiredVersion} oder höher",
+    "updateCliInstructions": "Bitte führen Sie npm install -g happy@latest aus",
+    "deleteSession": "Sitzung löschen",
+    "deleteSessionSubtitle": "Entfernen Sie diese Sitzung dauerhaft",
+    "deleteSessionConfirm": "Sitzung dauerhaft löschen?",
+    "deleteSessionWarning": "Diese Aktion kann nicht rückgängig gemacht werden. Alle mit dieser Sitzung verbundenen Nachrichten und Daten werden dauerhaft gelöscht.",
+    "failedToDeleteSession": "Die Sitzung konnte nicht gelöscht werden",
+    "sessionDeleted": "Sitzung erfolgreich gelöscht",
+    "worktreeCleanupTitle": "Arbeitsbaum löschen?",
+    "worktreeCleanupMessage": "Der Arbeitsbaum enthält keine nicht festgeschriebenen Änderungen. Möchten Sie die Worktree-Dateien löschen?",
+    "worktreeCleanupDelete": "Arbeitsbaum löschen",
+    "worktreeCleanupKeep": "Dateien aufbewahren"
+  },
+  "components": {
+    "emptyMainScreen": {
+      "readyToCode": "Bereit zum Codieren?",
+      "installCli": "Installieren Sie die Happy CLI",
+      "runIt": "Führen Sie es aus",
+      "scanQrCode": "Scannen Sie den QR-Code",
+      "openCamera": "Öffnen Sie die Kamera"
+    },
+    "agentGoalBar": {
+      "currentGoal": "Aktuelles Ziel",
+      "accessibilityLabel": "Aktuelles Ziel: {goal}",
+      "clearGoal": "Klares Ziel",
+      "stopGoal": "Ziel stoppen",
+      "editGoal": "Ziel bearbeiten"
+    },
+    "sessionStatusBar": {
+      "contextUsage": "Kontext {used} von {total}-Tokens, {percent}%",
+      "limitFiveHour": "5-Stunden-Limit",
+      "limitSevenDay": "7-Tage-Limit",
+      "limitResets": "setzt {time} zurück",
+      "limitAsOf": "Stand vor {age}",
+      "limitRemaining": "{percent}% übrig"
+    }
+  },
+  "agentInput": {
+    "permissionMode": {
+      "title": "ERLAUBNISMODUS",
+      "default": "Standardberechtigungen",
+      "acceptEdits": "Änderungen akzeptieren",
+      "plan": "planen",
+      "dontAsk": "frag nicht",
+      "bypassPermissions": "yolo",
+      "badgeAcceptAllEdits": "Akzeptieren Sie alle Änderungen",
+      "badgeBypassAllPermissions": "yolo",
+      "badgePlanMode": "Planmodus"
+    },
+    "agent": {
+      "claude": "Claude",
+      "codex": "Kodex",
+      "gemini": "Zwillinge",
+      "openclaw": "OpenClaw"
+    },
+    "model": {
+      "title": "MODELL",
+      "configureInCli": "Konfigurieren Sie Modelle in den CLI-Einstellungen"
+    },
+    "effort": {
+      "title": "BEMÜHUNG"
+    },
+    "codexPermissionMode": {
+      "title": "CODEX-BERECHTIGUNGSMODUS",
+      "default": "Standardberechtigungen",
+      "readOnly": "schreibgeschützt",
+      "safeYolo": "Sicher, Yolo",
+      "yolo": "yolo",
+      "defaultDescription": "Fragen Sie vor nicht vertrauenswürdigen Befehlen",
+      "readOnlyDescription": "nein schreibt",
+      "safeYoloDescription": "Keine Eingabeaufforderungen, Arbeitsbereich-Sandbox",
+      "yoloDescription": "Keine Eingabeaufforderungen, voller Zugriff",
+      "badgeReadOnly": "schreibgeschützt",
+      "badgeSafeYolo": "Sicher, Yolo",
+      "badgeYolo": "yolo"
+    },
+    "codexModel": {
+      "title": "CODEX-MODELL",
+      "gpt5CodexLow": "gpt-5-codex niedrig",
+      "gpt5CodexMedium": "gpt-5-codex-Medium",
+      "gpt5CodexHigh": "gpt-5-codex hoch",
+      "gpt5Minimal": "GPT-5 Minimal",
+      "gpt5Low": "GPT-5 Niedrig",
+      "gpt5Medium": "GPT-5-Medium",
+      "gpt5High": "GPT-5 Hoch"
+    },
+    "geminiPermissionMode": {
+      "title": "GEMINI-BERECHTIGUNGSMODUS",
+      "default": "Standardberechtigungen",
+      "autoEdit": "Automatische Bearbeitung",
+      "yolo": "yolo",
+      "plan": "planen",
+      "badgeAutoEdit": "Automatische Bearbeitung",
+      "badgeYolo": "yolo",
+      "badgePlan": "planen"
+    },
+    "context": {
+      "remaining": "{percent}% übrig"
+    },
+    "suggestion": {
+      "fileLabel": "DATEI",
+      "folderLabel": "ORDNER"
+    },
+    "noMachinesAvailable": "Keine Maschinen"
+  },
+  "machineLauncher": {
+    "showLess": "Weniger anzeigen",
+    "showAll": "Alle anzeigen ({count} Pfade)",
+    "enterCustomPath": "Geben Sie einen benutzerdefinierten Pfad ein",
+    "offlineUnableToSpawn": "Neue Sitzung kann nicht gestartet werden, offline"
+  },
+  "agentQuestion": {
+    "title": "Frage",
+    "submit": "Antwort senden",
+    "chooseMultiple": "Wählen Sie so viele aus, wie zutreffend",
+    "ownAnswer": "Ihre eigene Antwort",
+    "ownAnswerPlaceholder": "Schreiben Sie stattdessen eine Antwort",
+    "submitFailed": "Ihre Antwort konnte nicht gesendet werden",
+    "dismiss": "Zurückweisen",
+    "unsupportedTitle": "Nicht unterstützte Anfrage",
+    "unsupportedDescription": "Diese Version von Happy kann keine „{kind}“-Anfrage anzeigen. Aktualisieren Sie die App, um zu reagieren.",
+    "moreQuestions": {
+      "select": {
+        "param": "count",
+        "cases": {
+          "one": "{count} weitere Frage",
+          "other": "{count} weitere Fragen"
+        }
+      }
+    }
+  },
+  "sidebar": {
+    "sessionsTitle": "Glücklich",
+    "showArchived": "Archiviert anzeigen",
+    "hideArchived": "Archiviert ausblenden",
+    "newSession": "Neue Sitzung",
+    "projects": "Projekte"
+  },
+  "zen": {
+    "toggle": "Zen-Modus"
+  },
+  "toolView": {
+    "input": "Eingang",
+    "output": "Ausgabe"
+  },
+  "toolGroup": {
+    "editedFile": "Bearbeitete Datei",
+    "editedFiles": {
+      "select": {
+        "param": "count",
+        "cases": {
+          "one": "Bearbeitete {count}-Datei",
+          "other": "Bearbeitete {count}-Dateien"
+        }
+      }
+    },
+    "readFiles": {
+      "select": {
+        "param": "count",
+        "cases": {
+          "one": "Lesen Sie die {count}-Datei",
+          "other": "Lesen Sie {count}-Dateien"
+        }
+      }
+    },
+    "ranCommands": {
+      "select": {
+        "param": "count",
+        "cases": {
+          "one": "Befehl {count} ausgeführt",
+          "other": "{count}-Befehle ausgeführt"
+        }
+      }
+    },
+    "searched": {
+      "select": {
+        "param": "count",
+        "cases": {
+          "one": "Durchsuchte {count}-Zeit",
+          "other": "{count} mal durchsucht"
+        }
+      }
+    },
+    "fetchedUrls": {
+      "select": {
+        "param": "count",
+        "cases": {
+          "one": "Abgerufene {count}-URL",
+          "other": "Abgerufene {count}-URLs"
+        }
+      }
+    },
+    "ranTasks": {
+      "select": {
+        "param": "count",
+        "cases": {
+          "one": "{count}-Aufgabe ausgeführt",
+          "other": "{count}-Aufgaben ausgeführt"
+        }
+      }
+    },
+    "usedTools": {
+      "select": {
+        "param": "count",
+        "cases": {
+          "one": "Gebrauchtes {count}-Tool",
+          "other": "Gebrauchte {count}-Werkzeuge"
+        }
+      }
+    },
+    "workedFor": "Funktioniert {duration}"
+  },
+  "tools": {
+    "fullView": {
+      "description": "Beschreibung",
+      "inputParams": "Eingabeparameter",
+      "output": "Ausgabe",
+      "error": "Fehler",
+      "completed": "Tool erfolgreich abgeschlossen",
+      "noOutput": "Es wurde keine Ausgabe erzeugt",
+      "running": "Tool läuft...",
+      "rawJsonDevMode": "Raw JSON (Dev-Modus)"
+    },
+    "taskView": {
+      "initializing": "Agent wird initialisiert...",
+      "moreTools": {
+        "select": {
+          "param": "count",
+          "cases": {
+            "one": "+{count} weiteres Werkzeug",
+            "other": "+{count} weitere Werkzeuge"
+          }
+        }
+      }
+    },
+    "multiEdit": {
+      "editNumber": "Bearbeiten Sie {index} von {total}",
+      "replaceAll": "Alle ersetzen"
+    },
+    "names": {
+      "task": "Aufgabe",
+      "terminal": "Terminal",
+      "searchFiles": "Dateien durchsuchen",
+      "search": "Suchen",
+      "searchContent": "Inhalt durchsuchen",
+      "listFiles": "Dateien auflisten",
+      "planProposal": "Planvorschlag",
+      "readFile": "Datei lesen",
+      "editFile": "Datei bearbeiten",
+      "writeFile": "Datei schreiben",
+      "fetchUrl": "URL abrufen",
+      "readNotebook": "Notizbuch lesen",
+      "editNotebook": "Notizbuch bearbeiten",
+      "todoList": "Todo-Liste",
+      "webSearch": "Websuche",
+      "reasoning": "Argumentation",
+      "applyChanges": "Datei aktualisieren",
+      "viewDiff": "Aktuelle Dateiänderungen",
+      "question": "Frage"
+    },
+    "askUserQuestion": {
+      "submit": "Antwort absenden",
+      "multipleQuestions": "{count} Fragen",
+      "other": "Andere",
+      "otherDescription": "Geben Sie Ihre eigene Antwort ein",
+      "otherPlaceholder": "Geben Sie Ihre Antwort ein..."
+    },
+    "desc": {
+      "terminalCmd": "Terminal (cmd: {cmd})",
+      "searchPattern": "Suche (Muster: {pattern})",
+      "searchPath": "Suche (Pfad: {basename})",
+      "fetchUrlHost": "URL abrufen (URL: {host})",
+      "editNotebookMode": "Notizbuch bearbeiten (Datei: {path}, Modus: {mode})",
+      "todoListCount": "Todo-Liste (Anzahl: {count})",
+      "webSearchQuery": "Websuche (Abfrage: {query})",
+      "grepPattern": "grep(Muster: {pattern})",
+      "multiEditEdits": "{path} ({count}-Änderungen)",
+      "readingFile": "Lesen von {file}",
+      "writingFile": "Schreiben von {file}",
+      "modifyingFile": "Ändern von {file}",
+      "modifyingFiles": "Ändern von {count}-Dateien",
+      "modifyingMultipleFiles": "{file} und {count} mehr",
+      "showingDiff": "Änderungen werden angezeigt"
+    }
+  },
+  "files": {
+    "changes": "Änderungen",
+    "searchPlaceholder": "Dateien durchsuchen...",
+    "detachedHead": "abgetrennter KOPF",
+    "summary": "{staged} bereitgestellt • {unstaged} nicht bereitgestellt",
+    "notRepo": "Kein Git-Repository",
+    "notUnderGit": "Dieses Verzeichnis unterliegt nicht der Git-Versionskontrolle",
+    "searching": "Dateien werden gesucht...",
+    "noFilesFound": "Keine Dateien gefunden",
+    "noFilesInProject": "Keine Dateien im Projekt",
+    "tryDifferentTerm": "Versuchen Sie es mit einem anderen Suchbegriff",
+    "searchResults": "Suchergebnisse ({count})",
+    "projectRoot": "Projektstamm",
+    "stagedChanges": "Gestaffelte Änderungen ({count})",
+    "unstagedChanges": "Nicht bereitgestellte Änderungen ({count})",
+    "loadingFile": "Laden {fileName}...",
+    "binaryFile": "Binärdatei",
+    "cannotDisplayBinary": "Der Inhalt der Binärdatei kann nicht angezeigt werden",
+    "diff": "Diff",
+    "file": "Datei",
+    "fileEmpty": "Die Datei ist leer",
+    "noChanges": "Keine Änderungen an der Anzeige",
+    "noChangesTitle": "Keine Änderungen",
+    "noChangesSubtitle": "Der Arbeitsbaum ist sauber",
+    "deleted": "Gelöscht",
+    "changedFiles": {
+      "select": {
+        "param": "count",
+        "cases": {
+          "one": "{count} Datei geändert",
+          "other": "{count} geänderte Dateien"
+        }
+      }
+    },
+    "allFiles": "Alle Dateien",
+    "addPanel": "Panel hinzufügen",
+    "closePanel": "Panel schließen",
+    "editFile": "Bearbeiten",
+    "saveFile": "Speichern",
+    "failedToRead": "Datei konnte nicht gelesen werden",
+    "failedToSave": "Datei konnte nicht gespeichert werden",
+    "fileConflict": "Dateikonflikt",
+    "fileConflictDescription": "Diese Datei wurde während der Bearbeitung auf dem Gerät geändert. Laden Sie es erneut, um die neueste Version anzuzeigen.",
+    "reload": "Neu laden",
+    "overwrite": "Überschreiben"
+  },
+  "sideChat": {
+    "panelTitle": "Nebenchat",
+    "emptyTitle": "Starten Sie einen Nebenchat",
+    "emptySubtitle": "Fragen Sie den Agenten nebenbei etwas. Es übernimmt den Kontext dieses Chats, bleibt aber isoliert – hier berührt nichts die Hauptkonversation.",
+    "startButton": "Starten Sie den Side-Chat",
+    "creating": "Seitenchat wird gestartet…",
+    "unavailable": "In dieser Sitzung kann noch kein Nebenchat gestartet werden. Warten Sie, bis der Agent online ist.",
+    "composerPlaceholder": "Nachrichtenseitenchat…",
+    "expand": "Vollbild öffnen",
+    "tabLabel": "Nebenchat {index}",
+    "newChat": "Neuer Seitenchat",
+    "close": "Side-Chat schließen"
+  },
+  "settingsVoice": {
+    "languageTitle": "Sprache",
+    "languageDescription": "Wählen Sie Ihre bevorzugte Sprache für die Interaktion mit dem Sprachassistenten. Diese Einstellung wird auf allen Ihren Geräten synchronisiert.",
+    "preferredLanguage": "Bevorzugte Sprache",
+    "preferredLanguageSubtitle": "Sprache, die für die Antworten des Sprachassistenten verwendet wird",
+    "language": {
+      "searchPlaceholder": "Sprachen suchen...",
+      "title": "Sprachen",
+      "footer": {
+        "select": {
+          "param": "count",
+          "cases": {
+            "one": "{count}-Sprache verfügbar",
+            "other": "{count}-Sprachen verfügbar"
+          }
+        }
+      },
+      "autoDetect": "Automatische Erkennung"
+    },
+    "byoTitle": "Bringen Sie Ihren eigenen Agenten mit",
+    "byoDescription": "Verwenden Sie Ihren eigenen ElevenLabs-Agenten anstelle des Happy-Standards. Kein Abonnement erforderlich – verbinden Sie sich direkt mit Ihrem eigenen ElevenLabs-Konto. Ihr Agent muss zwei Client-Tools definieren: messageClaudeCode (sendet Text an den Codierungsagenten) und ProcessPermissionRequest (ermöglicht oder verweigert die Verwendung des Tools). Es empfängt Sitzungskontext über die dynamische Variable {{initialConversationContext}}.",
+    "customAgentId": "ElevenLabs-Agenten-ID",
+    "customAgentIdNotSet": "Nicht konfiguriert",
+    "customAgentIdDescription": "Geben Sie Ihre ElevenLabs-Agenten-ID ein. Lassen Sie das Feld leer, um die Happy-Standardeinstellung zu verwenden.",
+    "customAgentIdPlaceholder": "z.B. abc123def456",
+    "bypassToken": "Direkte Verbindung",
+    "bypassTokenSubtitle": "Überspringen Sie den Happy-Server und stellen Sie eine direkte Verbindung zu ElevenLabs her",
+    "promptGuideTitle": "Leitfaden zur Agentenaufforderung",
+    "promptGuideDescription": "Ihr ElevenLabs-Agent benötigt:\n\n• Tool: messageClaudeCode – Parameter: message (string). Sendet eine Nachricht an die aktive Codierungssitzung.\n• Tool: processPermissionRequest – Parameter: Entscheidung („zulassen“ oder „verweigern“). Genehmigt oder verweigert eine ausstehende Werkzeugberechtigung.\n• Dynamische Variable: {{initialConversationContext}} – empfängt beim Start den Sitzungsverlauf und den Kontext.\n\nDer Agent fungiert als Sprachbrücke zwischen dem Benutzer und den Programmieragenten. Es sollte prägnant sein, nur antworten, wenn es angesprochen wird, und melden, wenn ein Coding-Agent seine Arbeit beendet hat.",
+    "usageTitle": "Nutzung (letzte 30 Tage)",
+    "usageFooter": "In den letzten 30 Tagen genutzte Sprachzeit. Kostenloses Kontingent: 20 Min. Abonniert: 5 Stunden. Maximal 100 Gespräche pro Monat.",
+    "usageLabel": "Sprachzeit",
+    "conversationsLabel": "Gespräche",
+    "usageUsed": "{used} verwendet von {limit}",
+    "supportTitle": "Stimme verbessern",
+    "supportSubtitle": "Erhalten Sie mehr Sprachzeit und unterstützen Sie die Entwicklung"
+  },
+  "settingsAccount": {
+    "accountInformation": "Kontoinformationen",
+    "status": "Status",
+    "statusActive": "Aktiv",
+    "statusNotAuthenticated": "Nicht authentifiziert",
+    "anonymousId": "Anonyme ID",
+    "publicId": "Öffentlicher Ausweis",
+    "notAvailable": "Nicht verfügbar",
+    "linkNewDevice": "Neues Gerät verknüpfen",
+    "linkNewDeviceSubtitle": "QR-Code scannen, um das Gerät zu verknüpfen",
+    "profile": "Profil",
+    "name": "Name",
+    "github": "GitHub",
+    "tapToDisconnect": "Tippen Sie, um die Verbindung zu trennen",
+    "server": "Server",
+    "backup": "Sicherung",
+    "backupDescription": "Ihr geheimer Schlüssel ist die einzige Möglichkeit, Ihr Konto wiederherzustellen. Speichern Sie es an einem sicheren Ort wie einem Passwort-Manager.",
+    "secretKey": "Geheimer Schlüssel",
+    "tapToReveal": "Zum Enthüllen tippen",
+    "tapToHide": "Zum Ausblenden tippen",
+    "secretKeyLabel": "GEHEIMSCHLÜSSEL (ZUM KOPIEREN TIPPEN)",
+    "secretKeyCopied": "Geheimer Schlüssel in die Zwischenablage kopiert. Bewahren Sie es an einem sicheren Ort auf!",
+    "secretKeyCopyFailed": "Der geheime Schlüssel konnte nicht kopiert werden",
+    "privacy": "Privatsphäre",
+    "privacyDescription": "Helfen Sie mit, die App zu verbessern, indem Sie anonyme Nutzungsdaten teilen. Es werden keine personenbezogenen Daten erhoben.",
+    "analytics": "Analytik",
+    "analyticsDisabled": "Es werden keine Daten weitergegeben",
+    "analyticsEnabled": "Es werden anonymisierte Nutzungsdaten weitergegeben",
+    "dangerZone": "Gefahrenzone",
+    "logout": "Abmelden",
+    "logoutSubtitle": "Abmelden und lokale Daten löschen",
+    "logoutConfirm": "Sind Sie sicher, dass Sie sich abmelden möchten? Stellen Sie sicher, dass Sie Ihren geheimen Schlüssel gesichert haben!"
+  },
+  "settingsLanguage": {
+    "title": "Sprache",
+    "description": "Wählen Sie Ihre bevorzugte Sprache für die App-Oberfläche. Dadurch wird die Synchronisierung auf allen Ihren Geräten durchgeführt.",
+    "currentLanguage": "Aktuelle Sprache",
+    "automatic": "Automatisch",
+    "automaticSubtitle": "Anhand der Geräteeinstellungen erkennen",
+    "needsRestart": "Sprache geändert",
+    "needsRestartMessage": "Die App muss neu gestartet werden, um die neue Spracheinstellung zu übernehmen.",
+    "restartNow": "Jetzt neu starten"
+  },
+  "connectButton": {
+    "authenticate": "Terminal authentifizieren",
+    "authenticateWithUrlPaste": "Authentifizieren Sie das Terminal durch Einfügen der URL",
+    "pasteAuthUrl": "Fügen Sie die Authentifizierungs-URL von Ihrem Terminal ein"
+  },
+  "updateBanner": {
+    "updateAvailable": "Update verfügbar",
+    "pressToApply": "Drücken Sie , um das Update anzuwenden",
+    "whatsNew": "Was ist neu",
+    "seeLatest": "Sehen Sie sich die neuesten Updates und Verbesserungen an",
+    "nativeUpdateAvailable": "App-Update verfügbar",
+    "tapToUpdateAppStore": "Tippen Sie hier, um im App Store zu aktualisieren",
+    "tapToUpdatePlayStore": "Tippen Sie hier, um im Play Store zu aktualisieren"
+  },
+  "changelog": {
+    "version": "Version {version}",
+    "noEntriesAvailable": "Keine Changelog-Einträge verfügbar."
+  },
+  "terminal": {
+    "webBrowserRequired": "Webbrowser erforderlich",
+    "webBrowserRequiredDescription": "Terminalverbindungslinks können aus Sicherheitsgründen nur in einem Webbrowser geöffnet werden. Bitte nutzen Sie den QR-Code-Scanner oder öffnen Sie diesen Link auf einem Computer.",
+    "processingConnection": "Verbindung wird verarbeitet...",
+    "invalidConnectionLink": "Ungültiger Verbindungslink",
+    "invalidConnectionLinkDescription": "Der Verbindungslink fehlt oder ist ungültig. Bitte überprüfen Sie die URL und versuchen Sie es erneut.",
+    "connectTerminal": "Terminal anschließen",
+    "terminalRequestDescription": "Ein Terminal fordert eine Verbindung zu Ihrem Happy Coder-Konto an. Dadurch kann das Terminal Nachrichten sicher senden und empfangen.",
+    "connectionDetails": "Verbindungsdetails",
+    "publicKey": "Öffentlicher Schlüssel",
+    "encryption": "Verschlüsselung",
+    "endToEndEncrypted": "Ende-zu-Ende verschlüsselt",
+    "acceptConnection": "Verbindung akzeptieren",
+    "connecting": "Verbinden...",
+    "reject": "Ablehnen",
+    "security": "Sicherheit",
+    "securityFooter": "Dieser Verbindungslink wurde sicher in Ihrem Browser verarbeitet und nie an einen Server gesendet. Ihre privaten Daten bleiben sicher und nur Sie können die Nachrichten entschlüsseln.",
+    "securityFooterDevice": "Diese Verbindung wurde sicher auf Ihrem Gerät verarbeitet und nie an einen Server gesendet. Ihre privaten Daten bleiben sicher und nur Sie können die Nachrichten entschlüsseln.",
+    "clientSideProcessing": "Clientseitige Verarbeitung",
+    "linkProcessedLocally": "Link wird lokal im Browser verarbeitet",
+    "linkProcessedOnDevice": "Link wird lokal auf dem Gerät verarbeitet"
+  },
+  "modals": {
+    "authenticateTerminal": "Terminal authentifizieren",
+    "pasteUrlFromTerminal": "Fügen Sie die Authentifizierungs-URL von Ihrem Terminal ein",
+    "deviceLinkedSuccessfully": "Gerät erfolgreich verknüpft",
+    "terminalConnectedSuccessfully": "Terminal erfolgreich verbunden",
+    "invalidAuthUrl": "Ungültige Authentifizierungs-URL",
+    "developerMode": "Entwicklermodus",
+    "developerModeEnabled": "Entwicklermodus aktiviert",
+    "developerModeDisabled": "Entwicklermodus deaktiviert",
+    "disconnectGithub": "Trennen Sie GitHub",
+    "disconnectGithubConfirm": "Sind Sie sicher, dass Sie Ihr GitHub-Konto trennen möchten?",
+    "disconnectService": "Trennen Sie {service}",
+    "disconnectServiceConfirm": "Sind Sie sicher, dass Sie {service} von Ihrem Konto trennen möchten?",
+    "disconnect": "Trennen",
+    "failedToConnectTerminal": "Verbindung zum Terminal fehlgeschlagen",
+    "cameraPermissionsRequiredToConnectTerminal": "Für die Verbindung mit dem Terminal sind Kameraberechtigungen erforderlich",
+    "failedToLinkDevice": "Gerät konnte nicht verknüpft werden",
+    "cameraPermissionsRequiredToScanQr": "Zum Scannen von QR-Codes sind Kameraberechtigungen erforderlich"
+  },
+  "navigation": {
+    "connectTerminal": "Terminal anschließen",
+    "linkNewDevice": "Neues Gerät verknüpfen",
+    "restoreWithSecretKey": "Mit Secret Key wiederherstellen",
+    "whatsNew": "Was ist neu",
+    "friends": "Freunde"
+  },
+  "welcome": {
+    "title": "Mobiler Codex- und Claude Code-Client",
+    "subtitle": "Ende-zu-Ende-verschlüsselt und Ihr Konto wird nur auf Ihrem Gerät gespeichert.",
+    "createAccount": "Benutzerkonto erstellen",
+    "linkOrRestoreAccount": "Konto verknüpfen oder wiederherstellen",
+    "loginWithMobileApp": "Melden Sie sich mit der mobilen App an"
+  },
+  "review": {
+    "enjoyingApp": "Gefällt Ihnen die App?",
+    "feedbackPrompt": "Wir freuen uns über Ihr Feedback!",
+    "yesILoveIt": "Ja, ich liebe es!",
+    "notReally": "Nicht wirklich"
+  },
+  "items": {
+    "copiedToClipboard": "{label} in die Zwischenablage kopiert"
+  },
+  "machine": {
+    "launchNewSessionInDirectory": "Neue Sitzung im Verzeichnis starten",
+    "offlineUnableToSpawn": "Launcher deaktiviert, während die Maschine offline ist",
+    "offlineHelp": "• Stellen Sie sicher, dass Ihr Computer online ist\n• Führen Sie zur Diagnose „happy daemon status“ aus\n• Führen Sie die neueste CLI-Version aus? Aktualisieren Sie mit „npm install -g happy@latest“.",
+    "daemon": "Dämon",
+    "status": "Status",
+    "stopDaemon": "Stoppen Sie Daemon",
+    "lastKnownPid": "Letzte bekannte PID",
+    "lastKnownHttpPort": "Letzter bekannter HTTP-Port",
+    "startedAt": "Begonnen um",
+    "cliVersion": "CLI-Version",
+    "daemonStateVersion": "Daemon-Statusversion",
+    "activeSessions": "Aktive Sitzungen ({count})",
+    "machineGroup": "Maschine",
+    "host": "Gastgeber",
+    "machineId": "Maschinen-ID",
+    "username": "Benutzername",
+    "homeDirectory": "Home-Verzeichnis",
+    "platform": "Plattform",
+    "architecture": "Architektur",
+    "lastSeen": "Zuletzt gesehen",
+    "never": "Niemals",
+    "metadataVersion": "Metadatenversion",
+    "cliAvailability": "CLI-Verfügbarkeit",
+    "cliInstalled": "Installiert",
+    "cliNotFound": "Nicht gefunden",
+    "lastDetected": "Zuletzt erkannt",
+    "untitledSession": "Sitzung ohne Titel",
+    "back": "Zurück",
+    "dangerZone": "Gefahrenzone",
+    "delete": "Maschine löschen",
+    "deleteFooter": "Entfernen Sie dieses Gerät aus Ihrem Konto. Der Sitzungsverlauf bleibt erhalten, Sie können jedoch keine neuen Sitzungen auf diesem Computer starten.",
+    "deleteConfirmTitle": "Diese Maschine löschen?",
+    "deleteConfirmMessage": "Die Maschine wird von Ihrem Konto entfernt. Der Sitzungsverlauf bleibt erhalten, aber Sie können keine neuen Sitzungen starten, bis Sie den Daemon erneut verbinden.",
+    "deleteFailed": "Maschine konnte nicht gelöscht werden."
+  },
+  "message": {
+    "switchedToMode": "In den {mode}-Modus gewechselt",
+    "unknownEvent": "Unbekanntes Ereignis",
+    "usageLimitUntil": "Nutzungslimit bis {time} erreicht",
+    "sentAsGoal": "Als Ziel gesendet",
+    "unknownTime": "unbekannte Zeit"
+  },
+  "codex": {
+    "permissions": {
+      "yesForSession": "Ja, und bitten Sie nicht um eine Sitzung",
+      "stopAndExplain": "Halten Sie inne und erklären Sie, was zu tun ist"
+    }
+  },
+  "claude": {
+    "permissions": {
+      "yesAllowAllEdits": "Ja, alle Änderungen während dieser Sitzung zulassen",
+      "yesAllowEverything": "Ja, alles während dieser Sitzung zulassen",
+      "yesForTool": "Ja, fragen Sie nicht noch einmal nach diesem Tool",
+      "noTellClaude": "Nein, und geben Sie Feedback"
+    }
+  },
+  "textSelection": {
+    "selectText": "Textbereich auswählen",
+    "title": "Wählen Sie Text aus",
+    "noTextProvided": "Kein Text angegeben",
+    "textNotFound": "Text nicht gefunden oder abgelaufen",
+    "textCopied": "Text in die Zwischenablage kopiert",
+    "failedToCopy": "Text konnte nicht in die Zwischenablage kopiert werden",
+    "noTextToCopy": "Kein Text zum Kopieren verfügbar"
+  },
+  "markdown": {
+    "codeCopied": "Code kopiert",
+    "copyFailed": "Das Kopieren ist fehlgeschlagen",
+    "mermaidRenderFailed": "Das Meerjungfrau-Diagramm konnte nicht gerendert werden"
+  },
+  "artifacts": {
+    "title": "Artefakte",
+    "countSingular": "1 Artefakt",
+    "countPlural": "{count}-Artefakte",
+    "empty": "Noch keine Artefakte",
+    "emptyDescription": "Erstellen Sie Ihr erstes Artefakt, um loszulegen",
+    "new": "Neues Artefakt",
+    "edit": "Artefakt bearbeiten",
+    "delete": "Löschen",
+    "updateError": "Artefakt konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
+    "notFound": "Artefakt nicht gefunden",
+    "discardChanges": "Änderungen verwerfen?",
+    "discardChangesDescription": "Sie haben nicht gespeicherte Änderungen. Sind Sie sicher, dass Sie sie verwerfen möchten?",
+    "deleteConfirm": "Artefakt löschen?",
+    "deleteConfirmDescription": "Diese Aktion kann nicht rückgängig gemacht werden",
+    "titleLabel": "TITEL",
+    "titlePlaceholder": "Geben Sie einen Titel für Ihr Artefakt ein",
+    "bodyLabel": "INHALT",
+    "bodyPlaceholder": "Schreiben Sie hier Ihren Inhalt...",
+    "emptyFieldsError": "Bitte geben Sie einen Titel oder Inhalt ein",
+    "createError": "Artefakt konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+    "save": "Speichern",
+    "saving": "Sparen...",
+    "loading": "Artefakte werden geladen...",
+    "error": "Artefakt konnte nicht geladen werden"
+  },
+  "friends": {
+    "title": "Freunde",
+    "manageFriends": "Verwalten Sie Ihre Freunde und Verbindungen",
+    "searchTitle": "Finde Freunde",
+    "pendingRequests": "Freundschaftsanfragen",
+    "myFriends": "Meine Freunde",
+    "noFriendsYet": "Du hast noch keine Freunde",
+    "findFriends": "Finde Freunde",
+    "remove": "Entfernen",
+    "pendingRequest": "Ausstehend",
+    "sentOn": "Gesendet am {date}",
+    "accept": "Akzeptieren",
+    "reject": "Ablehnen",
+    "addFriend": "Freund hinzufügen",
+    "alreadyFriends": "Schon Freunde",
+    "requestPending": "Anfrage ausstehend",
+    "searchInstructions": "Geben Sie einen Benutzernamen ein, um nach Freunden zu suchen",
+    "searchPlaceholder": "Benutzernamen eingeben...",
+    "searching": "Suche...",
+    "userNotFound": "Benutzer nicht gefunden",
+    "noUserFound": "Kein Benutzer mit diesem Benutzernamen gefunden",
+    "checkUsername": "Bitte überprüfen Sie den Benutzernamen und versuchen Sie es erneut",
+    "howToFind": "So finden Sie Freunde",
+    "findInstructions": "Suchen Sie nach Freunden anhand ihres Benutzernamens. Sowohl Sie als auch Ihr Freund müssen mit GitHub verbunden sein, um Freundschaftsanfragen senden zu können.",
+    "requestSent": "Freundschaftsanfrage gesendet!",
+    "requestAccepted": "Freundschaftsanfrage angenommen!",
+    "requestRejected": "Freundschaftsanfrage abgelehnt",
+    "friendRemoved": "Freund entfernt",
+    "confirmRemove": "Freund entfernen",
+    "confirmRemoveMessage": "Möchten Sie diesen Freund wirklich entfernen?",
+    "cannotAddYourself": "Du kannst keine Freundschaftsanfrage an dich selbst senden",
+    "bothMustHaveGithub": "Beide Benutzer müssen mit GitHub verbunden sein, um Freunde zu werden",
+    "status": {
+      "none": "Nicht verbunden",
+      "requested": "Anfrage gesendet",
+      "pending": "Anfrage ausstehend",
+      "friend": "Freunde",
+      "rejected": "Abgelehnt"
+    },
+    "acceptRequest": "Anfrage annehmen",
+    "removeFriend": "Freund entfernen",
+    "removeFriendConfirm": "Sind Sie sicher, dass Sie {name} als Freund entfernen möchten?",
+    "requestSentDescription": "Deine Freundschaftsanfrage wurde an {name} gesendet",
+    "requestFriendship": "Bitte um Freundschaft",
+    "cancelRequest": "Freundschaftsanfrage abbrechen",
+    "cancelRequestConfirm": "Deine Freundschaftsanfrage an {name} stornieren?",
+    "denyRequest": "Freundschaft verleugnen",
+    "nowFriendsWith": "Du bist jetzt mit {name} befreundet"
+  },
+  "usage": {
+    "today": "Heute",
+    "last7Days": "Letzte 7 Tage",
+    "last30Days": "Letzte 30 Tage",
+    "totalTokens": "Gesamtzahl der Token",
+    "totalCost": "Gesamtkosten",
+    "tokens": "Token",
+    "cost": "Kosten",
+    "usageOverTime": "Nutzung im Laufe der Zeit",
+    "byModel": "Nach Modell",
+    "noData": "Keine Nutzungsdaten verfügbar"
+  },
+  "feed": {
+    "friendRequestFrom": "{name} hat dir eine Freundschaftsanfrage gesendet",
+    "friendRequestGeneric": "Neue Freundschaftsanfrage",
+    "friendAccepted": "Du bist jetzt mit {name} befreundet",
+    "friendAcceptedGeneric": "Freundschaftsanfrage angenommen"
+  },
+  "happyHerd": {
+    "composer": {
+      "queueMessage": "Nachricht einreihen",
+      "addPhoto": "Foto hinzufügen",
+      "addPhotos": "Fotos hinzufügen",
+      "startVoice": "Spracheingabe starten",
+      "finishVoice": "Spracheingabe beenden",
+      "cancelVoice": "Spracheingabe abbrechen",
+      "retryVoice": "Transkription wiederholen",
+      "send": "Senden",
+      "stop": "Stoppen",
+      "sendFailedTitle": "Nachricht konnte nicht gesendet werden",
+      "sendFailedBody": "Die Nachricht konnte nicht vom synchronisierten Postausgang angenommen werden."
+    },
+    "features": {
+      "interface": "Oberfläche",
+      "interfaceFooter": "Optionale Bereiche und Layoutelemente.",
+      "fileDiffsSidebar": "Dateiänderungen",
+      "fileDiffsSidebarSubtitle": "Git-Änderungen neben dem Chat auf dem Desktop anzeigen",
+      "sortRecent": "Nach letzter Aktivität sortieren",
+      "sortRecentSubtitle": "Sitzungen nach letzter Aktivität statt Erstellungsdatum sortieren",
+      "resumeSession": "Sitzung fortsetzen",
+      "resumeSessionSubtitle": "Getrennte Claude-Code- und Codex-Sitzungen über den Rechner-Daemon fortsetzen",
+      "voiceInput": "Spracheingabe",
+      "voiceInputSubtitle": "OpenAI-Transkription anzeigen, wenn ein sicherer Schlüssel eingerichtet ist"
+    },
+    "automations": {
+      "title": "Automatisierungen",
+      "subtitle": "Heartbeats und geplante Aufgaben laufen über den HappyHerd-Daemon des ausgewählten Rechners.",
+      "new": "Neu",
+      "machineOffline": "Dieser Rechner ist offline. Zeitpläne bleiben erhalten und werden fortgesetzt, sobald der Daemon zurückkehrt.",
+      "unableLoad": "Automatisierungen konnten nicht geladen werden",
+      "unableSave": "Automatisierung konnte nicht gespeichert werden",
+      "unableUpdate": "Automatisierung konnte nicht aktualisiert werden",
+      "unableRun": "Automatisierung konnte nicht ausgeführt werden",
+      "unableHistory": "Verlauf konnte nicht geladen werden",
+      "unableDelete": "Automatisierung konnte nicht gelöscht werden",
+      "unknownError": "Unbekannter Fehler",
+      "deleteTitle": "Automatisierung löschen?",
+      "deleteDescription": "{name} und der lokale Ausführungsverlauf werden gelöscht.",
+      "delete": "Löschen",
+      "legacyNotice": {
+        "select": {
+          "param": "count",
+          "cases": {
+            "one": "{count} altes Herd-Automatisierungsartefakt erkannt. HappyHerd verwaltet es nicht, um doppelte Läufe zu vermeiden.",
+            "other": "{count} alte Herd-Automatisierungsartefakte erkannt. HappyHerd verwaltet sie nicht, um doppelte Läufe zu vermeiden."
+          }
+        }
+      },
+      "edit": "Automatisierung bearbeiten",
+      "create": "Neue Automatisierung",
+      "name": "Name",
+      "instruction": "Anweisung",
+      "kind": "Art",
+      "cron": "Cron",
+      "timezone": "Zeitzone",
+      "workspace": "Rechner-Arbeitsbereich",
+      "rail": "Provider-Schiene",
+      "commander": "Commander-Identität",
+      "none": "keine",
+      "initialState": "Anfangsstatus",
+      "spawnRetries": "Startwiederholungen (0–5)",
+      "save": "Automatisierung speichern",
+      "emptyTitle": "Keine HappyHerd-Automatisierungen auf diesem Rechner",
+      "emptySubtitle": "Zuerst eine pausierte Definition erstellen, prüfen und dann aktivieren.",
+      "pause": "Pausieren",
+      "resume": "Fortsetzen",
+      "runNow": "Jetzt ausführen",
+      "history": "Verlauf",
+      "editAction": "Bearbeiten",
+      "noRuns": "Noch keine Ausführungen.",
+      "commanderValue": "Commander {id}",
+      "attempt": "Versuch {count}"
+    },
+    "voice": {
+      "signIn": "Vor der Spracheingabe anmelden",
+      "startFailed": "Aufnahme konnte nicht gestartet werden",
+      "noAudio": "Die Aufnahme hat kein Audio erzeugt",
+      "emptyAudio": "Die Aufnahme war leer",
+      "finishFailed": "Aufnahme konnte nicht abgeschlossen werden",
+      "transcriptionFailed": "Sprachtranskription fehlgeschlagen",
+      "permissionDenied": "Mikrofonberechtigung wurde nicht erteilt"
+    }
+  }
+}

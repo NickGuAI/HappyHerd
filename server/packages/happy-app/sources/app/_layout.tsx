@@ -26,7 +26,7 @@ import { CommandPaletteProvider } from '@/components/CommandPalette/CommandPalet
 import { StatusBarProvider } from '@/components/StatusBarProvider';
 // import * as SystemUI from 'expo-system-ui';
 import { initConsoleLogging, setConsoleOutputEnabled } from '@/utils/consoleLogging';
-import { useLocalSetting } from '@/sync/storage';
+import { useLocalSetting, useSetting } from '@/sync/storage';
 import { useUnistyles } from 'react-native-unistyles';
 import { AsyncLock } from '@/utils/lock';
 import { getSessionRouteFromNotificationResponse } from '@/utils/notificationRouting';
@@ -36,6 +36,7 @@ import { useTauriZoom } from '@/hooks/useTauriZoom';
 import { useTauriDrag } from '@/hooks/useTauriDrag';
 import { BrowserNavigationShortcuts } from '@/hooks/useBrowserNavigationShortcuts';
 import { AccountKeyBackupGate } from '@/components/AccountKeyBackupGate';
+import { setCurrentLanguage } from '@/text';
 
 // Configure notification handler — suppress push display when app is in foreground
 Notifications.setNotificationHandler({
@@ -217,6 +218,8 @@ export default function RootLayout() {
     useTauriDrag();
     const router = useRouter();
     const { theme } = useUnistyles();
+    const preferredLanguage = useSetting('preferredLanguage');
+    const activeLanguage = setCurrentLanguage(preferredLanguage);
     const navigationTheme = React.useMemo(() => {
         if (theme.dark) {
             return {
@@ -420,7 +423,7 @@ export default function RootLayout() {
                                 <AccountKeyAccessGate>
                                     <CommandPaletteProvider>
                                         <RealtimeProvider>
-                                            <HorizontalSafeAreaWrapper>
+                                            <HorizontalSafeAreaWrapper key={activeLanguage}>
                                                 <SidebarNavigator />
                                             </HorizontalSafeAreaWrapper>
                                         </RealtimeProvider>

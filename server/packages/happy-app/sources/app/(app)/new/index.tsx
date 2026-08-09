@@ -43,6 +43,11 @@ import { resolveAbsolutePath } from '@/utils/pathUtils';
 import { formatPathRelativeToHome, formatLastSeen } from '@/utils/sessionUtils';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
+import { useImagePicker } from '@/hooks/useImagePicker';
+import { useVoiceDictation, type VoiceDictationPhase } from '@/hooks/useVoiceDictation';
+import { useVoiceInputAvailability } from '@/hooks/useVoiceInputAvailability';
+import { AgentInputAttachmentStrip } from '@/components/AgentInputAttachmentStrip';
+import { resolveAgentInputPrimaryAction } from '@/components/agentInputPrimaryAction';
 import { useShallow } from 'zustand/react/shallow';
 import type { MultiTextInputHandle } from '@/components/MultiTextInput';
 import { Modal } from '@/modal';
@@ -739,6 +744,90 @@ const PromptInput = React.memo(React.forwardRef<MultiTextInputHandle, PromptInpu
     },
 ));
 
+const NewSessionPrimaryButton = React.memo(function NewSessionPrimaryButton({
+    canSend,
+    isSpawning,
+    isNativeMobile,
+    voiceAvailable,
+    dictationPhase,
+    onSend,
+    onVoice,
+}: {
+    canSend: boolean;
+    isSpawning: boolean;
+    isNativeMobile: boolean;
+    voiceAvailable: boolean;
+    dictationPhase: VoiceDictationPhase;
+    onSend: () => void;
+    onVoice: () => void;
+}) {
+    const { theme } = useUnistyles();
+    const hasContent = useNewSessionDraft((state) => (
+        state.input.trim().length > 0 || state.attachments.length > 0
+    ));
+    const primaryAction = resolveAgentInputPrimaryAction({
+        hasComposerContent: hasContent,
+        isSendBlocked: false,
+        isSendDisabled: !canSend,
+        showAbortButton: false,
+        canAbort: false,
+        canVoice: voiceAvailable,
+    });
+    const voiceAction = primaryAction === 'voice';
+    const busy = isSpawning || (voiceAction && dictationPhase === 'transcribing');
+    const enabled = primaryAction !== 'idle' && !busy;
+    const iconColor = isNativeMobile ? theme.colors.text : theme.colors.button.primary.tint;
+
+    return (
+        <MobileGlassSurface
+            enabled={isNativeMobile}
+            interactive={enabled}
+            style={[
+                styles.sendButton,
+                enabled ? styles.sendButtonActive : styles.sendButtonInactive,
+                isNativeMobile && styles.mobileSendButton,
+                isNativeMobile && enabled && styles.mobileSendButtonActive,
+                isNativeMobile && !enabled && styles.mobileSendButtonInactive,
+            ]}
+        >
+            <Pressable
+                style={(pressedState) => [
+                    styles.sendButtonInner,
+                    pressedState.pressed && styles.sendButtonInnerPressed,
+                ]}
+                hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+                disabled={!enabled}
+                onPress={voiceAction ? onVoice : onSend}
+                accessibilityRole="button"
+                accessibilityLabel={voiceAction
+                    ? (dictationPhase === 'recording' ? t('happyHerd.composer.finishVoice') : t('happyHerd.composer.startVoice'))
+                    : t('happyHerd.composer.send')}
+            >
+                {busy ? (
+                    <ActivityIndicator size="small" color={iconColor} />
+                ) : voiceAction ? (
+                    dictationPhase === 'recording' ? (
+                        <Ionicons name="stop" size={18} color={iconColor} />
+                    ) : (
+                        <RNImage
+                            source={require('@/assets/images/icon-voice-white.png')}
+                            style={{ width: 22, height: 22, tintColor: iconColor }}
+                            resizeMode="contain"
+                        />
+                    )
+                ) : (
+                    <Octicons
+                        name="arrow-up"
+                        size={isNativeMobile ? 18 : 16}
+                        color={iconColor}
+                        style={[styles.sendButtonIcon, { marginTop: Platform.OS === 'web' ? 2 : 0 }]}
+                    />
+                )}
+            </Pressable>
+        </MobileGlassSurface>
+    );
+});
+
 function NewSessionScreen() {
     const { theme } = useUnistyles();
     const safeArea = useSafeAreaInsets();
@@ -754,6 +843,7 @@ function NewSessionScreen() {
     const agentInputEnterToSend = useSetting('agentInputEnterToSend');
     const [agentDefaultOverrides, setAgentDefaultOverrides] = useSettingMutable('agentDefaultOverrides');
     const fileDiffsSidebarEnabled = useSetting('fileDiffsSidebar');
+    const expImageUpload = useSetting('expImageUpload');
     const [favoriteMachinePaths, setFavoriteMachinePaths] = useSettingMutable('favoriteMachinePaths');
     const zenMode = useLocalSetting('zenMode');
     const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -785,6 +875,8 @@ function NewSessionScreen() {
         setSessionType: s.setSessionType,
         worktreeKey: s.worktreeKey,
         setWorktreeKey: s.setWorktreeKey,
+        attachments: s.attachments,
+        setAttachments: s.setAttachments,
     })));
     const selectedAgent = draft.agentType;
     const setSelectedAgent = draft.setAgentType;
@@ -817,6 +909,19 @@ function NewSessionScreen() {
     const pendingPickerRef = React.useRef<PickerType | null>(null);
     const pickerKeyboardSubscriptionRef = React.useRef<ReturnType<typeof Keyboard.addListener> | null>(null);
     const pickerOpenTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const imagePicker = useImagePicker({
+        images: draft.attachments,
+        onChange: draft.setAttachments,
+    });
+    const handleDictationTranscript = React.useCallback((transcript: string) => {
+        const current = useNewSessionDraft.getState().input;
+        const separator = current.length > 0 && !/\s$/.test(current) ? ' ' : '';
+        useNewSessionDraft.getState().setInput(`${current}${separator}${transcript}`);
+        requestAnimationFrame(() => composerInputRef.current?.focus());
+    }, []);
+    const voiceDictation = useVoiceDictation(handleDictationTranscript);
+    const voiceInputAvailability = useVoiceInputAvailability();
 
     // Config collapse — auto-collapses when typing, expands when empty
     const [isConfigExpanded, setIsConfigExpanded] = React.useState(true);
@@ -1426,19 +1531,22 @@ function NewSessionScreen() {
                         sessionSetAgentModes(result.sessionId, modesPatch);
                     }
 
-                    // Pull live prompt and clear it. We read via getState() so this
+                    // Pull the live prompt via getState() so this callback does
                     // callback doesn't have to subscribe to `input` (which would
-                    // re-render the screen on every keystroke).
+                    // re-render the screen on every keystroke). Keep both text
+                    // and attachments intact until the initial message is
+                    // accepted by the synchronized outbox.
                     const draftState = useNewSessionDraft.getState();
                     const trimmedPrompt = draftState.input.trim();
                     const attachments = draftState.attachments;
-                    draftState.setInput('');
-                    draftState.setAttachments([]);
 
                     // Send initial message if provided
                     if (trimmedPrompt || attachments.length > 0) {
                         await sync.sendMessage(result.sessionId, trimmedPrompt, { source: 'new_session', attachments });
                     }
+
+                    draftState.setInput('');
+                    draftState.setAttachments([]);
 
                     router.back();
                     navigateToSession(result.sessionId);
@@ -1962,48 +2070,16 @@ function NewSessionScreen() {
     );
 
     const composerPlaceholder = selectedAgent === 'codex' ? 'Ask Codex' : `Ask ${agent.label}`;
-    const sendButtonIconColor = isNativeMobile
-        ? theme.colors.text
-        : theme.colors.button.primary.tint;
     const sendButtonNode = (
-        <MobileGlassSurface
-            enabled={isNativeMobile}
-            interactive={!!canSend}
-            style={[
-                styles.sendButton,
-                isSpawning ? styles.sendButtonActive :
-                    canSend ? styles.sendButtonActive : styles.sendButtonInactive,
-                isNativeMobile && styles.mobileSendButton,
-                isNativeMobile && canSend && styles.mobileSendButtonActive,
-                isNativeMobile && !canSend && styles.mobileSendButtonInactive,
-            ]}
-        >
-            <Pressable
-                style={(pressedState) => [
-                    styles.sendButtonInner,
-                    pressedState.pressed && styles.sendButtonInnerPressed,
-                ]}
-                hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
-                disabled={!canSend}
-                onPress={() => handleSend()}
-                accessibilityRole="button"
-                accessibilityLabel="Send"
-            >
-                {isSpawning ? (
-                    <ActivityIndicator size="small" color={sendButtonIconColor} />
-                ) : (
-                    <Octicons
-                        name="arrow-up"
-                        size={isNativeMobile ? 18 : 16}
-                        color={sendButtonIconColor}
-                        style={[
-                            styles.sendButtonIcon,
-                            { marginTop: Platform.OS === 'web' ? 2 : 0 },
-                        ]}
-                    />
-                )}
-            </Pressable>
-        </MobileGlassSurface>
+        <NewSessionPrimaryButton
+            canSend={Boolean(canSend)}
+            isSpawning={isSpawning}
+            isNativeMobile={isNativeMobile}
+            voiceAvailable={voiceInputAvailability.available}
+            dictationPhase={voiceDictation.phase}
+            onSend={() => void handleSend()}
+            onVoice={voiceDictation.toggle}
+        />
     );
 
     const composerNode = (
@@ -2016,6 +2092,17 @@ function NewSessionScreen() {
                 : undefined}
             style={[styles.inputBox, isNativeMobile && styles.mobileInputBox]}
         >
+            {expImageUpload && imagePicker.selectedImages.length > 0 && (
+                <AgentInputAttachmentStrip
+                    images={imagePicker.selectedImages}
+                    onRemove={imagePicker.removeImage}
+                />
+            )}
+            {voiceDictation.error && (
+                <Text style={{ color: theme.colors.status.disconnected, paddingHorizontal: 12, paddingTop: 8 }}>
+                    {voiceDictation.error}
+                </Text>
+            )}
             <View style={[styles.inputField, isNativeMobile && styles.mobileInputField]}>
                 <PromptInput
                     ref={composerInputRef}
@@ -2076,20 +2163,52 @@ function NewSessionScreen() {
                         )}
                     </View>
                 )}
-                {isNativeMobile && (
+                {expImageUpload && (
                     <BubblePressable
-                        onPress={() => {
-                            composerInputRef.current?.focus();
-                        }}
+                        onPress={() => void imagePicker.pickImages()}
                         hitSlop={6}
                         style={(pressedState) => [
                             styles.composerActionButton,
                             pressedState.pressed && styles.configRowPressed,
                         ]}
                         accessibilityRole="button"
-                        accessibilityLabel="Voice input"
+                        accessibilityLabel={t('happyHerd.composer.addPhotos')}
                     >
-                        <Ionicons name="mic-outline" size={21} color={theme.colors.textSecondary} />
+                        <Ionicons
+                            name="image-outline"
+                            size={21}
+                            color={imagePicker.selectedImages.length > 0
+                                ? theme.colors.radio.active
+                                : theme.colors.textSecondary}
+                        />
+                    </BubblePressable>
+                )}
+                {voiceDictation.phase === 'recording' && (
+                    <BubblePressable
+                        onPress={voiceDictation.cancel}
+                        hitSlop={6}
+                        style={(pressedState) => [
+                            styles.composerActionButton,
+                            pressedState.pressed && styles.configRowPressed,
+                        ]}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('happyHerd.composer.cancelVoice')}
+                    >
+                        <Ionicons name="close" size={21} color={theme.colors.textSecondary} />
+                    </BubblePressable>
+                )}
+                {voiceDictation.phase === 'error' && voiceDictation.canRetry && (
+                    <BubblePressable
+                        onPress={voiceDictation.retry}
+                        hitSlop={6}
+                        style={(pressedState) => [
+                            styles.composerActionButton,
+                            pressedState.pressed && styles.configRowPressed,
+                        ]}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('happyHerd.composer.retryVoice')}
+                    >
+                        <Ionicons name="refresh" size={21} color={theme.colors.textSecondary} />
                     </BubblePressable>
                 )}
                 {sendButtonNode}

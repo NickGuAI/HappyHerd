@@ -6,7 +6,12 @@ import { parseCodexGoalCommand } from './codexGoalStatus';
  * HappyHerd control commands stay on the local control path so they cannot be
  * accidentally injected into the model as conversational text.
  */
-export function shouldSteerCodexUserInput(text: string, activeTurnId: string | null): boolean {
+export function shouldSteerCodexUserInput(
+    text: string,
+    activeTurnId: string | null,
+    deliveryMode?: 'queue',
+): boolean {
+    if (deliveryMode === 'queue') return false;
     if (!activeTurnId) return false;
     if (isCodexClearText(text)) return false;
     if (parseCodexGoalCommand(text)) return false;
