@@ -770,7 +770,7 @@ const ProjectTreeNodeRow = React.memo(function ProjectTreeNodeRow({
                     }}
                     hitSlop={8}
                     accessibilityRole="button"
-                    accessibilityLabel={`Attach ${node.path} to next message`}
+                    accessibilityLabel={t("uiCopy.attachValueToNextMessage", { value1: node.path })}
                     style={styles.attachFileButton}
                 >
                     <Octicons name="paperclip" size={14} color={theme.colors.textLink} />

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Typography } from '@/constants/Typography';
 
+import { t } from '@/text';
 export const WorkspaceContextStrip = React.memo(function WorkspaceContextStrip({
     files,
     onRemove,
@@ -25,7 +26,7 @@ export const WorkspaceContextStrip = React.memo(function WorkspaceContextStrip({
                         onPress={() => onRemove(filePath)}
                         hitSlop={8}
                         accessibilityRole="button"
-                        accessibilityLabel={`Remove ${filePath} from message context`}
+                        accessibilityLabel={t("uiCopy.removeValueFromMessageContext", { value1: filePath })}
                     >
                         <Ionicons name="close-circle" size={16} color={theme.colors.textSecondary} />
                     </Pressable>

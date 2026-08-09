@@ -301,7 +301,7 @@ const HeaderRight = React.memo(({
                     <Pressable
                         onPress={() => router.push('/automations')}
                         style={styles.headerActionButton}
-                        accessibilityLabel="Automations"
+                        accessibilityLabel={t("happyHerd.automations.title")}
                     >
                         <Ionicons name="time-outline" size={21} color={theme.colors.header.tint} />
                     </Pressable>
@@ -340,7 +340,7 @@ const HeaderRight = React.memo(({
                     onPress={() => router.push('/automations')}
                     hitSlop={12}
                     style={styles.headerButton}
-                    accessibilityLabel="Automations"
+                    accessibilityLabel={t("happyHerd.automations.title")}
                 >
                     <Ionicons name="time-outline" size={22} color={theme.colors.header.tint} />
                 </Pressable>

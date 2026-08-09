@@ -1,0 +1,5824 @@
+{
+  "schemaVersion": 1,
+  "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
+  "sourceFingerprint": "083b16fb37847139f11df4320ab0d30bb6cdc697d06a887b019b78348f9b0a9e",
+  "routeCount": 36,
+  "surfaceCount": 220,
+  "hardcodedCopyCount": 0,
+  "routes": [
+    {
+      "path": "/artifacts/[id]",
+      "owner": "sources/app/(app)/artifacts/[id].tsx",
+      "translationKeys": [
+        "artifacts.delete",
+        "artifacts.deleteConfirm",
+        "artifacts.deleteConfirmDescription",
+        "artifacts.error",
+        "artifacts.loading",
+        "common.error",
+        "uiCopy.failedToDeleteArtifact",
+        "uiCopy.noContent"
+      ],
+      "states": [
+        "error",
+        "loading"
+      ]
+    },
+    {
+      "path": "/artifacts/edit/[id]",
+      "owner": "sources/app/(app)/artifacts/edit/[id].tsx",
+      "translationKeys": [
+        "artifacts.bodyLabel",
+        "artifacts.bodyPlaceholder",
+        "artifacts.edit",
+        "artifacts.emptyFieldsError",
+        "artifacts.loading",
+        "artifacts.notFound",
+        "artifacts.titleLabel",
+        "artifacts.titlePlaceholder",
+        "artifacts.updateError",
+        "common.error",
+        "common.save"
+      ],
+      "states": [
+        "error",
+        "loading"
+      ]
+    },
+    {
+      "path": "/artifacts",
+      "owner": "sources/app/(app)/artifacts/index.tsx",
+      "translationKeys": [
+        "artifacts.empty",
+        "artifacts.emptyDescription",
+        "artifacts.loading"
+      ],
+      "states": [
+        "empty",
+        "loading"
+      ]
+    },
+    {
+      "path": "/artifacts/new",
+      "owner": "sources/app/(app)/artifacts/new.tsx",
+      "translationKeys": [
+        "artifacts.bodyLabel",
+        "artifacts.bodyPlaceholder",
+        "artifacts.createError",
+        "artifacts.emptyFieldsError",
+        "artifacts.new",
+        "artifacts.titleLabel",
+        "artifacts.titlePlaceholder",
+        "common.error",
+        "common.save"
+      ],
+      "states": [
+        "error"
+      ]
+    },
+    {
+      "path": "/automations",
+      "owner": "sources/app/(app)/automations/index.tsx",
+      "translationKeys": [
+        "happyHerd.automations.attempt",
+        "happyHerd.automations.commander",
+        "happyHerd.automations.commanderValue",
+        "happyHerd.automations.create",
+        "happyHerd.automations.cron",
+        "happyHerd.automations.delete",
+        "happyHerd.automations.deleteDescription",
+        "happyHerd.automations.deleteTitle",
+        "happyHerd.automations.edit",
+        "happyHerd.automations.editAction",
+        "happyHerd.automations.emptySubtitle",
+        "happyHerd.automations.emptyTitle",
+        "happyHerd.automations.history",
+        "happyHerd.automations.initialState",
+        "happyHerd.automations.instruction",
+        "happyHerd.automations.kind",
+        "happyHerd.automations.legacyNotice",
+        "happyHerd.automations.machineOffline",
+        "happyHerd.automations.name",
+        "happyHerd.automations.new",
+        "happyHerd.automations.noRuns",
+        "happyHerd.automations.none",
+        "happyHerd.automations.pause",
+        "happyHerd.automations.rail",
+        "happyHerd.automations.resume",
+        "happyHerd.automations.runNow",
+        "happyHerd.automations.save",
+        "happyHerd.automations.spawnRetries",
+        "happyHerd.automations.subtitle",
+        "happyHerd.automations.timezone",
+        "happyHerd.automations.title",
+        "happyHerd.automations.unableDelete",
+        "happyHerd.automations.unableHistory",
+        "happyHerd.automations.unableLoad",
+        "happyHerd.automations.unableRun",
+        "happyHerd.automations.unableSave",
+        "happyHerd.automations.unableUpdate",
+        "happyHerd.automations.unknownError",
+        "happyHerd.automations.workspace"
+      ],
+      "states": []
+    },
+    {
+      "path": "/changelog",
+      "owner": "sources/app/(app)/changelog.tsx",
+      "translationKeys": [
+        "changelog.noEntriesAvailable"
+      ],
+      "states": []
+    },
+    {
+      "path": "/friends",
+      "owner": "sources/app/(app)/friends/index.tsx",
+      "translationKeys": [
+        "friends.confirmRemove",
+        "friends.confirmRemoveMessage",
+        "friends.myFriends",
+        "friends.noFriendsYet",
+        "friends.pendingRequests",
+        "friends.requestPending"
+      ],
+      "states": []
+    },
+    {
+      "path": "/friends/search",
+      "owner": "sources/app/(app)/friends/search.tsx",
+      "translationKeys": [
+        "errors.failedToSendRequest",
+        "friends.bothMustHaveGithub",
+        "friends.cannotAddYourself",
+        "friends.checkUsername",
+        "friends.findInstructions",
+        "friends.howToFind",
+        "friends.noUserFound",
+        "friends.requestSent",
+        "friends.searchInstructions",
+        "friends.searchPlaceholder",
+        "friends.searching"
+      ],
+      "states": []
+    },
+    {
+      "path": "/inbox",
+      "owner": "sources/app/(app)/inbox/index.tsx",
+      "translationKeys": [
+        "tabs.inbox"
+      ],
+      "states": []
+    },
+    {
+      "path": "/",
+      "owner": "sources/app/(app)/index.tsx",
+      "translationKeys": [
+        "navigation.restoreWithSecretKey",
+        "welcome.createAccount",
+        "welcome.loginWithMobileApp",
+        "welcome.subtitle",
+        "welcome.title"
+      ],
+      "states": []
+    },
+    {
+      "path": "/machine/[id]",
+      "owner": "sources/app/(app)/machine/[id].tsx",
+      "translationKeys": [
+        "agentInput.agent.claude",
+        "agentInput.agent.codex",
+        "agentInput.agent.gemini",
+        "agentInput.agent.openclaw",
+        "common.cancel",
+        "common.create",
+        "common.delete",
+        "common.error",
+        "common.rename",
+        "common.success",
+        "machine.architecture",
+        "machine.back",
+        "machine.cliAvailability",
+        "machine.cliInstalled",
+        "machine.cliNotFound",
+        "machine.cliVersion",
+        "machine.daemon",
+        "machine.daemonStateVersion",
+        "machine.dangerZone",
+        "machine.delete",
+        "machine.deleteConfirmMessage",
+        "machine.deleteConfirmTitle",
+        "machine.deleteFailed",
+        "machine.deleteFooter",
+        "machine.homeDirectory",
+        "machine.host",
+        "machine.lastDetected",
+        "machine.lastKnownHttpPort",
+        "machine.lastKnownPid",
+        "machine.lastSeen",
+        "machine.launchNewSessionInDirectory",
+        "machine.machineGroup",
+        "machine.machineId",
+        "machine.metadataVersion",
+        "machine.never",
+        "machine.offlineHelp",
+        "machine.offlineUnableToSpawn",
+        "machine.platform",
+        "machine.startedAt",
+        "machine.status",
+        "machine.stopDaemon",
+        "machine.username",
+        "machineLauncher.enterCustomPath",
+        "machineLauncher.showAll",
+        "machineLauncher.showLess",
+        "status.offline",
+        "status.online",
+        "uiCopy.createDirectory",
+        "uiCopy.daemonStopped",
+        "uiCopy.failedToRenameMachine",
+        "uiCopy.failedToStartSessionDaemon",
+        "uiCopy.failedToStopDaemonItMayNotBeRunning",
+        "uiCopy.giveThisMachineACustomNameLeaveEmptyToUse",
+        "uiCopy.machineNamePlaceholder",
+        "uiCopy.machineNotFound",
+        "uiCopy.machineRenamedSuccessfully",
+        "uiCopy.previousSessionsUpTo5MostRecent",
+        "uiCopy.renameMachine",
+        "uiCopy.stopDaemon",
+        "uiCopy.theDirectoryValueDoesNotExistWouldYouLikeTo",
+        "uiCopy.youWillNotBeAbleToSpawnNewSessionsOn",
+        "workspace.browseMachine",
+        "workspace.title"
+      ],
+      "states": [
+        "error",
+        "offline"
+      ]
+    },
+    {
+      "path": "/new",
+      "owner": "sources/app/(app)/new/index.tsx",
+      "translationKeys": [
+        "agentInput.codexPermissionMode.title",
+        "agentInput.effort.title",
+        "agentInput.model.title",
+        "agentInput.permissionMode.title",
+        "common.back",
+        "common.cancel",
+        "common.create",
+        "common.error",
+        "happyHerd.automations.commander",
+        "happyHerd.composer.addPhotos",
+        "happyHerd.composer.cancelVoice",
+        "happyHerd.composer.finishVoice",
+        "happyHerd.composer.retryVoice",
+        "happyHerd.composer.send",
+        "happyHerd.composer.startVoice",
+        "machine.machineGroup",
+        "machine.offlineHelp",
+        "newSession.machineOffline",
+        "newSession.switchMachinesHint",
+        "newSession.title",
+        "settings.title",
+        "status.lastSeen",
+        "status.online",
+        "uiCopy.agent",
+        "uiCopy.agentValue",
+        "uiCopy.agy",
+        "uiCopy.askValue",
+        "uiCopy.claudeCode",
+        "uiCopy.codex",
+        "uiCopy.createDirectory",
+        "uiCopy.done",
+        "uiCopy.effort",
+        "uiCopy.enterProjectPath",
+        "uiCopy.failedToCreateWorktree",
+        "uiCopy.failedToStartSession",
+        "uiCopy.model",
+        "uiCopy.newWorktree",
+        "uiCopy.noCommander",
+        "uiCopy.noRecentProjectsYet",
+        "uiCopy.noResults",
+        "uiCopy.noWorktree",
+        "uiCopy.openclaw",
+        "uiCopy.permissions",
+        "uiCopy.pleaseSelectAMachine",
+        "uiCopy.project",
+        "uiCopy.search",
+        "uiCopy.searchAgents",
+        "uiCopy.searchCommanders",
+        "uiCopy.searchEfforts",
+        "uiCopy.searchMachines",
+        "uiCopy.searchModels",
+        "uiCopy.searchPermissions",
+        "uiCopy.searchWorktrees",
+        "uiCopy.theDirectoryValueDoesNotExistWouldYouLikeTo",
+        "uiCopy.useGlobalAgentsMdOnly",
+        "uiCopy.usingCustomPathAbove",
+        "uiCopy.whatWouldYouLikeToWorkOn",
+        "uiCopy.worktree",
+        "workspace.recent",
+        "workspace.selectMachine"
+      ],
+      "states": [
+        "error"
+      ]
+    },
+    {
+      "path": "/restore",
+      "owner": "sources/app/(app)/restore/index.tsx",
+      "translationKeys": [
+        "common.error",
+        "errors.authenticationFailed",
+        "uiCopy.restoreWithSecretKeyInstead",
+        "uiCopy.step1OpenHappyOnYourMobileDevice",
+        "uiCopy.step2GoToSettingsAccount",
+        "uiCopy.step3TapLinkNewDevice",
+        "uiCopy.step4ScanThisQrCode"
+      ],
+      "states": [
+        "error"
+      ]
+    },
+    {
+      "path": "/restore/manual",
+      "owner": "sources/app/(app)/restore/manual.tsx",
+      "translationKeys": [
+        "common.error",
+        "connect.enterSecretKey",
+        "connect.invalidSecretKey",
+        "connect.restoreAccount",
+        "uiCopy.enterYourSecretKeyToRestoreAccessToYourAccount",
+        "uiCopy.xxxxxXxxxxXxxxx"
+      ],
+      "states": [
+        "error"
+      ]
+    },
+    {
+      "path": "/server",
+      "owner": "sources/app/(app)/server.tsx",
+      "translationKeys": [
+        "common.back",
+        "common.continue",
+        "common.error",
+        "common.reset",
+        "common.save",
+        "common.urlPlaceholder",
+        "errors.invalidFormat",
+        "server.advancedFeatureFooter",
+        "server.changeServer",
+        "server.continueWithServer",
+        "server.currentlyUsingCustomServer",
+        "server.customServerUrlLabel",
+        "server.enterServerUrl",
+        "server.failedToConnectToServer",
+        "server.notValidHappyServer",
+        "server.resetServerDefault",
+        "server.resetToDefault",
+        "server.serverConfiguration",
+        "server.serverReturnedError",
+        "server.validating",
+        "server.validatingServer"
+      ],
+      "states": [
+        "error"
+      ]
+    },
+    {
+      "path": "/session/[id]",
+      "owner": "sources/app/(app)/session/[id].tsx",
+      "translationKeys": [],
+      "states": []
+    },
+    {
+      "path": "/session/[id]/file",
+      "owner": "sources/app/(app)/session/[id]/file.tsx",
+      "translationKeys": [
+        "agentQuestion.dismiss",
+        "common.error",
+        "files.binaryFile",
+        "files.cannotDisplayBinary",
+        "files.diff",
+        "files.editFile",
+        "files.failedToRead",
+        "files.failedToSave",
+        "files.file",
+        "files.fileConflict",
+        "files.fileConflictDescription",
+        "files.fileEmpty",
+        "files.loadingFile",
+        "files.reload",
+        "files.saveFile",
+        "uiCopy.discardUnsavedChanges",
+        "uiCopy.done",
+        "uiCopy.editValue",
+        "uiCopy.preview",
+        "uiCopy.previewOfValue",
+        "uiCopy.saving",
+        "uiCopy.source",
+        "uiCopy.thisFileChangedOnTheHost",
+        "uiCopy.unsaved",
+        "uiCopy.yourEditsToValueHaveNotBeenSaved"
+      ],
+      "states": [
+        "error"
+      ]
+    },
+    {
+      "path": "/session/[id]/files",
+      "owner": "sources/app/(app)/session/[id]/files.tsx",
+      "translationKeys": [],
+      "states": []
+    },
+    {
+      "path": "/session/[id]/info",
+      "owner": "sources/app/(app)/session/[id]/info.tsx",
+      "translationKeys": [
+        "common.cancel",
+        "common.error",
+        "common.loading",
+        "common.no",
+        "common.success",
+        "common.yes",
+        "errors.sessionDeleted",
+        "errors.sessionDeletedDescription",
+        "session.duplicateAction",
+        "session.duplicateSubtitle",
+        "session.forkAction",
+        "session.forkSubtitle",
+        "session.forkedFromLabel",
+        "session.forkedFromSubtitle",
+        "sessionInfo.activity",
+        "sessionInfo.agentState",
+        "sessionInfo.aiProvider",
+        "sessionInfo.archiveSession",
+        "sessionInfo.archiveSessionSubtitle",
+        "sessionInfo.claudeCodeSessionId",
+        "sessionInfo.claudeCodeSessionIdCopied",
+        "sessionInfo.cliVersion",
+        "sessionInfo.cliVersionOutdated",
+        "sessionInfo.codexThreadId",
+        "sessionInfo.codexThreadIdCopied",
+        "sessionInfo.connectionStatus",
+        "sessionInfo.controlledByUser",
+        "sessionInfo.copyMetadata",
+        "sessionInfo.created",
+        "sessionInfo.deleteSession",
+        "sessionInfo.deleteSessionSubtitle",
+        "sessionInfo.deleteSessionWarning",
+        "sessionInfo.failedToCopyClaudeCodeSessionId",
+        "sessionInfo.failedToCopyCodexThreadId",
+        "sessionInfo.failedToCopySessionId",
+        "sessionInfo.failedToDeleteSession",
+        "sessionInfo.happyHome",
+        "sessionInfo.happySessionId",
+        "sessionInfo.happySessionIdCopied",
+        "sessionInfo.host",
+        "sessionInfo.lastUpdated",
+        "sessionInfo.metadata",
+        "sessionInfo.operatingSystem",
+        "sessionInfo.path",
+        "sessionInfo.pendingRequests",
+        "sessionInfo.processId",
+        "sessionInfo.quickActions",
+        "sessionInfo.resumeSession",
+        "sessionInfo.sequence",
+        "sessionInfo.thinking",
+        "sessionInfo.thinkingSince",
+        "sessionInfo.updateCliInstructions",
+        "sessionInfo.viewMachine",
+        "sessionInfo.viewMachineSubtitle",
+        "status.offline",
+        "status.online",
+        "tools.fullView.rawJsonDevMode",
+        "uiCopy.backgroundProcesses",
+        "uiCopy.client",
+        "uiCopy.copyMetadataAndClientLogs",
+        "uiCopy.dangerouslySkipPermissions",
+        "uiCopy.fullSessionObject",
+        "uiCopy.inProgressAndPending",
+        "uiCopy.model",
+        "uiCopy.resumeCommand",
+        "uiCopy.runningAndQueued",
+        "uiCopy.sandbox",
+        "uiCopy.sessionStatus",
+        "uiCopy.subagents",
+        "uiCopy.tasks",
+        "uiCopy.valueRunning",
+        "uiCopy.workflows"
+      ],
+      "states": [
+        "error",
+        "loading",
+        "offline"
+      ]
+    },
+    {
+      "path": "/session/[id]/message/[messageId]",
+      "owner": "sources/app/(app)/session/[id]/message/[messageId].tsx",
+      "translationKeys": [],
+      "states": []
+    },
+    {
+      "path": "/session/recent",
+      "owner": "sources/app/(app)/session/recent.tsx",
+      "translationKeys": [
+        "sessionHistory.daysAgo",
+        "sessionHistory.empty",
+        "sessionHistory.today",
+        "sessionHistory.yesterday"
+      ],
+      "states": [
+        "empty"
+      ]
+    },
+    {
+      "path": "/settings/account",
+      "owner": "sources/app/(app)/settings/account.tsx",
+      "translationKeys": [
+        "common.delete",
+        "common.error",
+        "common.logout",
+        "common.scanning",
+        "common.success",
+        "errors.disconnectServiceFailed",
+        "modals.disconnect",
+        "modals.disconnectGithub",
+        "modals.disconnectGithubConfirm",
+        "modals.disconnectService",
+        "modals.disconnectServiceConfirm",
+        "settings.connectedAccounts",
+        "settingsAccount.accountInformation",
+        "settingsAccount.analytics",
+        "settingsAccount.analyticsDisabled",
+        "settingsAccount.analyticsEnabled",
+        "settingsAccount.anonymousId",
+        "settingsAccount.backup",
+        "settingsAccount.backupDescription",
+        "settingsAccount.dangerZone",
+        "settingsAccount.github",
+        "settingsAccount.linkNewDevice",
+        "settingsAccount.linkNewDeviceSubtitle",
+        "settingsAccount.logout",
+        "settingsAccount.logoutConfirm",
+        "settingsAccount.logoutSubtitle",
+        "settingsAccount.name",
+        "settingsAccount.notAvailable",
+        "settingsAccount.privacy",
+        "settingsAccount.privacyDescription",
+        "settingsAccount.profile",
+        "settingsAccount.publicId",
+        "settingsAccount.secretKey",
+        "settingsAccount.status",
+        "settingsAccount.statusActive",
+        "settingsAccount.statusNotAuthenticated",
+        "settingsAccount.tapToDisconnect",
+        "uiCopy.currentDeviceMetadataComesFromThisPhoneOlderTokensUse",
+        "uiCopy.currentTokenValue",
+        "uiCopy.deletePushToken",
+        "uiCopy.failedToDeletePushToken",
+        "uiCopy.failedToLoadPushNotificationSettings",
+        "uiCopy.failedToRefreshThisDevicePushToken",
+        "uiCopy.failedToRequestPushNotificationPermission",
+        "uiCopy.fetchAndRegisterExpoToken",
+        "uiCopy.noRegisteredPushTokens",
+        "uiCopy.onceThisDeviceIsRegisteredItWillAppearHere",
+        "uiCopy.openPushSettings",
+        "uiCopy.openSettings",
+        "uiCopy.permission",
+        "uiCopy.pushNotificationPermissionWasNotGranted",
+        "uiCopy.pushNotifications",
+        "uiCopy.pushNotificationsAreEnabledForThisDevice",
+        "uiCopy.pushNotificationsAreNotEnabledForThisDeviceYet",
+        "uiCopy.pushPermissionsUnsupported",
+        "uiCopy.reRegisterThisDevice",
+        "uiCopy.registeredTokensValue",
+        "uiCopy.removeValueFromYourAccount",
+        "uiCopy.requestPermissionAgain",
+        "uiCopy.showPushPromptAgain",
+        "uiCopy.showsEveryPushTokenRegisteredOnYourAccountTapAn",
+        "uiCopy.theSystemWillNotShowThePermissionPromptAgainSo",
+        "uiCopy.thisDevice",
+        "uiCopy.thisDevicePushTokenWasRefreshed"
+      ],
+      "states": [
+        "error"
+      ]
+    },
+    {
+      "path": "/settings/agents",
+      "owner": "sources/app/(app)/settings/agents.tsx",
+      "translationKeys": [
+        "uiCopy.agentDefaults",
+        "uiCopy.clearOverrides",
+        "uiCopy.effort",
+        "uiCopy.model",
+        "uiCopy.permission",
+        "uiCopy.returnEveryAgentToCodeDefaults"
+      ],
+      "states": []
+    },
+    {
+      "path": "/settings/appearance",
+      "owner": "sources/app/(app)/settings/appearance.tsx",
+      "translationKeys": [
+        "settings.appearance",
+        "settingsAppearance.alwaysShowContextSize",
+        "settingsAppearance.alwaysShowContextSizeDescription",
+        "settingsAppearance.avatarOptions.brutalist",
+        "settingsAppearance.avatarOptions.gradient",
+        "settingsAppearance.avatarOptions.pixelated",
+        "settingsAppearance.avatarStyle",
+        "settingsAppearance.avatarStyleDescription",
+        "settingsAppearance.chat",
+        "settingsAppearance.chatDescription",
+        "settingsAppearance.compactToolCalls",
+        "settingsAppearance.compactToolCallsDescription",
+        "settingsAppearance.diffStyle",
+        "settingsAppearance.diffStyleDescription",
+        "settingsAppearance.diffStyleOptions.split",
+        "settingsAppearance.diffStyleOptions.unified",
+        "settingsAppearance.display",
+        "settingsAppearance.displayDescription",
+        "settingsAppearance.expandTodoLists",
+        "settingsAppearance.expandTodoListsDescription",
+        "settingsAppearance.inlineToolCalls",
+        "settingsAppearance.inlineToolCallsDescription",
+        "settingsAppearance.sessionStatusBar",
+        "settingsAppearance.sessionStatusBarDescription",
+        "settingsAppearance.sessionStatusDisplayOptions.above",
+        "settingsAppearance.sessionStatusDisplayOptions.below",
+        "settingsAppearance.sessionStatusDisplayOptions.hidden",
+        "settingsAppearance.showFlavorIcons",
+        "settingsAppearance.showFlavorIconsDescription",
+        "settingsAppearance.showLineNumbersInDiffs",
+        "settingsAppearance.showLineNumbersInDiffsDescription",
+        "settingsAppearance.showLineNumbersInToolViews",
+        "settingsAppearance.showLineNumbersInToolViewsDescription",
+        "settingsAppearance.theme",
+        "settingsAppearance.themeDescription",
+        "settingsAppearance.themeDescriptions.adaptive",
+        "settingsAppearance.themeDescriptions.dark",
+        "settingsAppearance.themeDescriptions.light",
+        "settingsAppearance.themeOptions.adaptive",
+        "settingsAppearance.themeOptions.dark",
+        "settingsAppearance.themeOptions.light",
+        "settingsAppearance.usageLimitShowRemaining",
+        "settingsAppearance.usageLimitShowRemainingDescription",
+        "settingsAppearance.userMessageBubbleColor",
+        "settingsAppearance.userMessageBubbleColorDescription",
+        "settingsAppearance.userMessageBubbleColorOptions.blue",
+        "settingsAppearance.userMessageBubbleColorOptions.gray",
+        "settingsAppearance.userMessageBubbleColorOptions.green",
+        "settingsAppearance.userMessageBubbleColorOptions.purple",
+        "settingsAppearance.userMessageBubbleColorOptions.rose",
+        "settingsAppearance.userMessageBubbleColorOptions.sand",
+        "settingsAppearance.wrapLinesInDiffs",
+        "settingsAppearance.wrapLinesInDiffsDescription",
+        "settingsLanguage.automatic",
+        "settingsLanguage.currentLanguage",
+        "settingsLanguage.description",
+        "settingsLanguage.title"
+      ],
+      "states": []
+    },
+    {
+      "path": "/settings/connect/claude",
+      "owner": "sources/app/(app)/settings/connect/claude.tsx",
+      "translationKeys": [
+        "uiCopy.connect",
+        "uiCopy.runTheFollowingCommandInYourTerminal"
+      ],
+      "states": []
+    },
+    {
+      "path": "/settings/features",
+      "owner": "sources/app/(app)/settings/features.tsx",
+      "translationKeys": [
+        "happyHerd.features.fileDiffsSidebar",
+        "happyHerd.features.fileDiffsSidebarSubtitle",
+        "happyHerd.features.interface",
+        "happyHerd.features.interfaceFooter",
+        "happyHerd.features.resumeSession",
+        "happyHerd.features.resumeSessionSubtitle",
+        "happyHerd.features.sortRecent",
+        "happyHerd.features.sortRecentSubtitle",
+        "happyHerd.features.voiceInput",
+        "happyHerd.features.voiceInputSubtitle",
+        "settingsFeatures.analyticsDisabled",
+        "settingsFeatures.analyticsEnabled",
+        "settingsFeatures.commandPalette",
+        "settingsFeatures.commandPaletteDisabled",
+        "settingsFeatures.commandPaletteEnabled",
+        "settingsFeatures.disableAnalytics",
+        "settingsFeatures.enterToSend",
+        "settingsFeatures.enterToSendDisabled",
+        "settingsFeatures.enterToSendEnabled",
+        "settingsFeatures.experimentalFeatures",
+        "settingsFeatures.experimentalFeaturesDisabled",
+        "settingsFeatures.experimentalFeaturesEnabled",
+        "settingsFeatures.experiments",
+        "settingsFeatures.experimentsDescription",
+        "settingsFeatures.groupToolCalls",
+        "settingsFeatures.groupToolCallsSubtitle",
+        "settingsFeatures.hideInactiveSessions",
+        "settingsFeatures.hideInactiveSessionsSubtitle",
+        "settingsFeatures.imageUpload",
+        "settingsFeatures.imageUploadSubtitle",
+        "settingsFeatures.markdownCopyV2",
+        "settingsFeatures.markdownCopyV2Subtitle",
+        "settingsFeatures.privacy",
+        "settingsFeatures.privacyDescription",
+        "settingsFeatures.webFeatures",
+        "settingsFeatures.webFeaturesDescription",
+        "workspace.featureSubtitle",
+        "workspace.title"
+      ],
+      "states": []
+    },
+    {
+      "path": "/settings",
+      "owner": "sources/app/(app)/settings/index.tsx",
+      "translationKeys": [],
+      "states": []
+    },
+    {
+      "path": "/settings/language",
+      "owner": "sources/app/(app)/settings/language.tsx",
+      "translationKeys": [
+        "settingsLanguage.automatic",
+        "settingsLanguage.automaticSubtitle",
+        "settingsLanguage.currentLanguage",
+        "settingsLanguage.description"
+      ],
+      "states": []
+    },
+    {
+      "path": "/settings/usage",
+      "owner": "sources/app/(app)/settings/usage.tsx",
+      "translationKeys": [],
+      "states": []
+    },
+    {
+      "path": "/settings/voice",
+      "owner": "sources/app/(app)/settings/voice.tsx",
+      "translationKeys": [
+        "settings.developer",
+        "settingsVoice.byoDescription",
+        "settingsVoice.byoTitle",
+        "settingsVoice.bypassToken",
+        "settingsVoice.bypassTokenSubtitle",
+        "settingsVoice.conversationsLabel",
+        "settingsVoice.customAgentId",
+        "settingsVoice.customAgentIdDescription",
+        "settingsVoice.customAgentIdNotSet",
+        "settingsVoice.customAgentIdPlaceholder",
+        "settingsVoice.languageDescription",
+        "settingsVoice.languageTitle",
+        "settingsVoice.preferredLanguage",
+        "settingsVoice.preferredLanguageSubtitle",
+        "settingsVoice.promptGuideDescription",
+        "settingsVoice.promptGuideTitle",
+        "settingsVoice.supportSubtitle",
+        "settingsVoice.supportTitle",
+        "settingsVoice.usageFooter",
+        "settingsVoice.usageLabel",
+        "settingsVoice.usageTitle",
+        "uiCopy.clearLocalVoiceCountersUsedForOnboardingAndSoftPaywall",
+        "uiCopy.configured",
+        "uiCopy.configuredForAccount",
+        "uiCopy.couldNotConfigureOpenaiApiKey",
+        "uiCopy.couldNotRemoveOpenaiApiKey",
+        "uiCopy.deleteTheAccountSpecificTranscriptionKey",
+        "uiCopy.developerOnlyDiagnosticsAndLocalOverrideControlsForTheCurrent",
+        "uiCopy.openaiApiKey",
+        "uiCopy.openaiApiKeyConfigured",
+        "uiCopy.openaiApiKeyTestFailed",
+        "uiCopy.openaiApiKeyWorks",
+        "uiCopy.providedByDeployment",
+        "uiCopy.removeOpenaiApiKey",
+        "uiCopy.removeOpenaiApiKey_18glmc",
+        "uiCopy.resetVoiceCounters",
+        "uiCopy.selectALocalOverrideForTheVoiceUpsellExperiment",
+        "uiCopy.simpleLocalOverrideForTheVoiceUpsellFlag",
+        "uiCopy.sk",
+        "uiCopy.testOpenaiApiKey",
+        "uiCopy.theKeyCouldNotBeRemoved",
+        "uiCopy.theKeyCouldNotBeSaved",
+        "uiCopy.theKeyCouldNotBeTested",
+        "uiCopy.theKeyIsEncryptedForYourAccountHappyherdOnlyDisplays",
+        "uiCopy.theKeyWasAcceptedAndStoredSecurelyForVoiceDictation",
+        "uiCopy.usedOnlyForVoiceDictationTranscriptionHappyherdEncryptsItFor",
+        "uiCopy.verifyAccessWithoutRecordingAudio",
+        "uiCopy.voiceDictationCanReachOpenaiWithTheConfiguredKey",
+        "uiCopy.voiceDictationTranscription",
+        "uiCopy.voiceDictationWillUseTheDeploymentKeyIfOneExists",
+        "uiCopy.voiceExperimentOverride",
+        "uiCopy.voiceExperimentStatus"
+      ],
+      "states": []
+    },
+    {
+      "path": "/settings/voice/language",
+      "owner": "sources/app/(app)/settings/voice/language.tsx",
+      "translationKeys": [
+        "settingsVoice.language.autoDetect",
+        "settingsVoice.language.footer",
+        "settingsVoice.language.searchPlaceholder",
+        "settingsVoice.language.title"
+      ],
+      "states": []
+    },
+    {
+      "path": "/terminal/connect",
+      "owner": "sources/app/(app)/terminal/connect.tsx",
+      "translationKeys": [
+        "terminal.acceptConnection",
+        "terminal.clientSideProcessing",
+        "terminal.connectTerminal",
+        "terminal.connecting",
+        "terminal.connectionDetails",
+        "terminal.encryption",
+        "terminal.endToEndEncrypted",
+        "terminal.invalidConnectionLink",
+        "terminal.invalidConnectionLinkDescription",
+        "terminal.linkProcessedLocally",
+        "terminal.processingConnection",
+        "terminal.publicKey",
+        "terminal.reject",
+        "terminal.security",
+        "terminal.securityFooter",
+        "terminal.terminalRequestDescription",
+        "terminal.webBrowserRequired",
+        "terminal.webBrowserRequiredDescription"
+      ],
+      "states": []
+    },
+    {
+      "path": "/terminal",
+      "owner": "sources/app/(app)/terminal/index.tsx",
+      "translationKeys": [
+        "terminal.acceptConnection",
+        "terminal.clientSideProcessing",
+        "terminal.connectTerminal",
+        "terminal.connecting",
+        "terminal.connectionDetails",
+        "terminal.encryption",
+        "terminal.endToEndEncrypted",
+        "terminal.invalidConnectionLink",
+        "terminal.invalidConnectionLinkDescription",
+        "terminal.linkProcessedOnDevice",
+        "terminal.publicKey",
+        "terminal.reject",
+        "terminal.security",
+        "terminal.securityFooterDevice",
+        "terminal.terminalRequestDescription"
+      ],
+      "states": []
+    },
+    {
+      "path": "/text-selection",
+      "owner": "sources/app/(app)/text-selection.tsx",
+      "translationKeys": [
+        "common.error",
+        "common.loading",
+        "common.ok",
+        "textSelection.failedToCopy",
+        "textSelection.noTextProvided",
+        "textSelection.noTextToCopy",
+        "textSelection.textCopied",
+        "textSelection.textNotFound"
+      ],
+      "states": [
+        "error",
+        "loading"
+      ]
+    },
+    {
+      "path": "/user/[id]",
+      "owner": "sources/app/(app)/user/[id].tsx",
+      "translationKeys": [
+        "common.ok",
+        "common.yes",
+        "errors.failedToLoadProfile",
+        "errors.userNotFound",
+        "friends.acceptRequest",
+        "friends.alreadyFriends",
+        "friends.bothMustHaveGithub",
+        "friends.cancelRequest",
+        "friends.cancelRequestConfirm",
+        "friends.denyRequest",
+        "friends.remove",
+        "friends.removeFriend",
+        "friends.removeFriendConfirm",
+        "friends.requestFriendship",
+        "settings.github"
+      ],
+      "states": []
+    },
+    {
+      "path": "/workspace",
+      "owner": "sources/app/(app)/workspace/index.tsx",
+      "translationKeys": [
+        "common.cancel",
+        "common.discard",
+        "common.fileViewer",
+        "common.files",
+        "common.retry",
+        "errors.tryAgain",
+        "settings.machines",
+        "uiCopy.attachFile",
+        "uiCopy.discardUnsavedChanges",
+        "uiCopy.removeFile",
+        "uiCopy.yourCurrentFileEditsHaveNotBeenSaved",
+        "workspace.addToSession",
+        "workspace.attachTitle",
+        "workspace.browseMachine",
+        "workspace.emptyFolder",
+        "workspace.favorites",
+        "workspace.featureDisabled",
+        "workspace.featureDisabledDescription",
+        "workspace.go",
+        "workspace.home",
+        "workspace.missingPathDescription",
+        "workspace.missingPathTitle",
+        "workspace.mobileBackToFiles",
+        "workspace.noMachines",
+        "workspace.offlineDescription",
+        "workspace.offlineTitle",
+        "workspace.openFeatures",
+        "workspace.parent",
+        "workspace.pathPlaceholder",
+        "workspace.permissionDeniedDescription",
+        "workspace.permissionDeniedTitle",
+        "workspace.readErrorTitle",
+        "workspace.recent",
+        "workspace.refresh",
+        "workspace.root",
+        "workspace.searchPlaceholder",
+        "workspace.selectMachine",
+        "workspace.selectedCount",
+        "workspace.title"
+      ],
+      "states": []
+    }
+  ],
+  "surfaces": [
+    {
+      "owner": "sources/-session/SessionView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SessionView",
+        "SessionViewLoaded"
+      ],
+      "translationKeys": [
+        "common.cancel",
+        "common.save",
+        "components.agentGoalBar.currentGoal",
+        "components.agentGoalBar.editGoal",
+        "errors.sessionDeleted",
+        "errors.sessionDeletedDescription",
+        "happyHerd.composer.sendFailedBody",
+        "happyHerd.composer.sendFailedTitle",
+        "session.inactiveArchived",
+        "session.inputPlaceholder",
+        "session.resumeFromTerminal",
+        "sessionInfo.cliVersionOutdated",
+        "sessionInfo.resumeSession",
+        "sideChat.unavailable",
+        "uiCopy.discardUnsavedChanges",
+        "uiCopy.thisFile",
+        "uiCopy.workspaceContext",
+        "uiCopy.youCanAttachUpTo8FilesToOneMessage",
+        "uiCopy.yourEditsToValueHaveNotBeenSaved"
+      ],
+      "states": [
+        "unavailable"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/_layout.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "RootLayout"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/_layout.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "RootLayout",
+        "unstable_settings"
+      ],
+      "translationKeys": [
+        "artifacts.edit",
+        "artifacts.new",
+        "artifacts.title",
+        "common.back",
+        "common.cancel",
+        "common.fileViewer",
+        "common.files",
+        "common.home",
+        "common.message",
+        "friends.addFriend",
+        "navigation.connectTerminal",
+        "navigation.friends",
+        "navigation.linkNewDevice",
+        "navigation.restoreWithSecretKey",
+        "navigation.whatsNew",
+        "newSession.title",
+        "sessionHistory.title",
+        "settings.account",
+        "settings.appearance",
+        "settings.features",
+        "settings.title",
+        "tabs.inbox",
+        "textSelection.title",
+        "workspace.title"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/artifacts/[id].tsx",
+      "kind": "route",
+      "route": "/artifacts/[id]",
+      "exports": [
+        "ArtifactDetailScreen"
+      ],
+      "translationKeys": [
+        "artifacts.delete",
+        "artifacts.deleteConfirm",
+        "artifacts.deleteConfirmDescription",
+        "artifacts.error",
+        "artifacts.loading",
+        "common.error",
+        "uiCopy.failedToDeleteArtifact",
+        "uiCopy.noContent"
+      ],
+      "states": [
+        "error",
+        "loading"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/artifacts/edit/[id].tsx",
+      "kind": "route",
+      "route": "/artifacts/edit/[id]",
+      "exports": [
+        "EditArtifactScreen"
+      ],
+      "translationKeys": [
+        "artifacts.bodyLabel",
+        "artifacts.bodyPlaceholder",
+        "artifacts.edit",
+        "artifacts.emptyFieldsError",
+        "artifacts.loading",
+        "artifacts.notFound",
+        "artifacts.titleLabel",
+        "artifacts.titlePlaceholder",
+        "artifacts.updateError",
+        "common.error",
+        "common.save"
+      ],
+      "states": [
+        "error",
+        "loading"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/artifacts/index.tsx",
+      "kind": "route",
+      "route": "/artifacts",
+      "exports": [
+        "ArtifactsScreen"
+      ],
+      "translationKeys": [
+        "artifacts.empty",
+        "artifacts.emptyDescription",
+        "artifacts.loading"
+      ],
+      "states": [
+        "empty",
+        "loading"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/artifacts/new.tsx",
+      "kind": "route",
+      "route": "/artifacts/new",
+      "exports": [
+        "NewArtifactScreen"
+      ],
+      "translationKeys": [
+        "artifacts.bodyLabel",
+        "artifacts.bodyPlaceholder",
+        "artifacts.createError",
+        "artifacts.emptyFieldsError",
+        "artifacts.new",
+        "artifacts.titleLabel",
+        "artifacts.titlePlaceholder",
+        "common.error",
+        "common.save"
+      ],
+      "states": [
+        "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/automations/index.tsx",
+      "kind": "route",
+      "route": "/automations",
+      "exports": [
+        "AutomationsScreen"
+      ],
+      "translationKeys": [
+        "happyHerd.automations.attempt",
+        "happyHerd.automations.commander",
+        "happyHerd.automations.commanderValue",
+        "happyHerd.automations.create",
+        "happyHerd.automations.cron",
+        "happyHerd.automations.delete",
+        "happyHerd.automations.deleteDescription",
+        "happyHerd.automations.deleteTitle",
+        "happyHerd.automations.edit",
+        "happyHerd.automations.editAction",
+        "happyHerd.automations.emptySubtitle",
+        "happyHerd.automations.emptyTitle",
+        "happyHerd.automations.history",
+        "happyHerd.automations.initialState",
+        "happyHerd.automations.instruction",
+        "happyHerd.automations.kind",
+        "happyHerd.automations.legacyNotice",
+        "happyHerd.automations.machineOffline",
+        "happyHerd.automations.name",
+        "happyHerd.automations.new",
+        "happyHerd.automations.noRuns",
+        "happyHerd.automations.none",
+        "happyHerd.automations.pause",
+        "happyHerd.automations.rail",
+        "happyHerd.automations.resume",
+        "happyHerd.automations.runNow",
+        "happyHerd.automations.save",
+        "happyHerd.automations.spawnRetries",
+        "happyHerd.automations.subtitle",
+        "happyHerd.automations.timezone",
+        "happyHerd.automations.title",
+        "happyHerd.automations.unableDelete",
+        "happyHerd.automations.unableHistory",
+        "happyHerd.automations.unableLoad",
+        "happyHerd.automations.unableRun",
+        "happyHerd.automations.unableSave",
+        "happyHerd.automations.unableUpdate",
+        "happyHerd.automations.unknownError",
+        "happyHerd.automations.workspace"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/changelog.tsx",
+      "kind": "route",
+      "route": "/changelog",
+      "exports": [
+        "ChangelogScreen"
+      ],
+      "translationKeys": [
+        "changelog.noEntriesAvailable"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/friends/index.tsx",
+      "kind": "route",
+      "route": "/friends",
+      "exports": [
+        "FriendsScreen"
+      ],
+      "translationKeys": [
+        "friends.confirmRemove",
+        "friends.confirmRemoveMessage",
+        "friends.myFriends",
+        "friends.noFriendsYet",
+        "friends.pendingRequests",
+        "friends.requestPending"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/friends/search.tsx",
+      "kind": "route",
+      "route": "/friends/search",
+      "exports": [
+        "SearchFriendsScreen"
+      ],
+      "translationKeys": [
+        "errors.failedToSendRequest",
+        "friends.bothMustHaveGithub",
+        "friends.cannotAddYourself",
+        "friends.checkUsername",
+        "friends.findInstructions",
+        "friends.howToFind",
+        "friends.noUserFound",
+        "friends.requestSent",
+        "friends.searchInstructions",
+        "friends.searchPlaceholder",
+        "friends.searching"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/inbox/index.tsx",
+      "kind": "route",
+      "route": "/inbox",
+      "exports": [
+        "InboxPage"
+      ],
+      "translationKeys": [
+        "tabs.inbox"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/index.tsx",
+      "kind": "route",
+      "route": "/",
+      "exports": [
+        "Home"
+      ],
+      "translationKeys": [
+        "navigation.restoreWithSecretKey",
+        "welcome.createAccount",
+        "welcome.loginWithMobileApp",
+        "welcome.subtitle",
+        "welcome.title"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/machine/[id].tsx",
+      "kind": "route",
+      "route": "/machine/[id]",
+      "exports": [
+        "MachineDetailScreen"
+      ],
+      "translationKeys": [
+        "agentInput.agent.claude",
+        "agentInput.agent.codex",
+        "agentInput.agent.gemini",
+        "agentInput.agent.openclaw",
+        "common.cancel",
+        "common.create",
+        "common.delete",
+        "common.error",
+        "common.rename",
+        "common.success",
+        "machine.architecture",
+        "machine.back",
+        "machine.cliAvailability",
+        "machine.cliInstalled",
+        "machine.cliNotFound",
+        "machine.cliVersion",
+        "machine.daemon",
+        "machine.daemonStateVersion",
+        "machine.dangerZone",
+        "machine.delete",
+        "machine.deleteConfirmMessage",
+        "machine.deleteConfirmTitle",
+        "machine.deleteFailed",
+        "machine.deleteFooter",
+        "machine.homeDirectory",
+        "machine.host",
+        "machine.lastDetected",
+        "machine.lastKnownHttpPort",
+        "machine.lastKnownPid",
+        "machine.lastSeen",
+        "machine.launchNewSessionInDirectory",
+        "machine.machineGroup",
+        "machine.machineId",
+        "machine.metadataVersion",
+        "machine.never",
+        "machine.offlineHelp",
+        "machine.offlineUnableToSpawn",
+        "machine.platform",
+        "machine.startedAt",
+        "machine.status",
+        "machine.stopDaemon",
+        "machine.username",
+        "machineLauncher.enterCustomPath",
+        "machineLauncher.showAll",
+        "machineLauncher.showLess",
+        "status.offline",
+        "status.online",
+        "uiCopy.createDirectory",
+        "uiCopy.daemonStopped",
+        "uiCopy.failedToRenameMachine",
+        "uiCopy.failedToStartSessionDaemon",
+        "uiCopy.failedToStopDaemonItMayNotBeRunning",
+        "uiCopy.giveThisMachineACustomNameLeaveEmptyToUse",
+        "uiCopy.machineNamePlaceholder",
+        "uiCopy.machineNotFound",
+        "uiCopy.machineRenamedSuccessfully",
+        "uiCopy.previousSessionsUpTo5MostRecent",
+        "uiCopy.renameMachine",
+        "uiCopy.stopDaemon",
+        "uiCopy.theDirectoryValueDoesNotExistWouldYouLikeTo",
+        "uiCopy.youWillNotBeAbleToSpawnNewSessionsOn",
+        "workspace.browseMachine",
+        "workspace.title"
+      ],
+      "states": [
+        "error",
+        "offline"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/new/index.tsx",
+      "kind": "route",
+      "route": "/new",
+      "exports": [],
+      "translationKeys": [
+        "agentInput.codexPermissionMode.title",
+        "agentInput.effort.title",
+        "agentInput.model.title",
+        "agentInput.permissionMode.title",
+        "common.back",
+        "common.cancel",
+        "common.create",
+        "common.error",
+        "happyHerd.automations.commander",
+        "happyHerd.composer.addPhotos",
+        "happyHerd.composer.cancelVoice",
+        "happyHerd.composer.finishVoice",
+        "happyHerd.composer.retryVoice",
+        "happyHerd.composer.send",
+        "happyHerd.composer.startVoice",
+        "machine.machineGroup",
+        "machine.offlineHelp",
+        "newSession.machineOffline",
+        "newSession.switchMachinesHint",
+        "newSession.title",
+        "settings.title",
+        "status.lastSeen",
+        "status.online",
+        "uiCopy.agent",
+        "uiCopy.agentValue",
+        "uiCopy.agy",
+        "uiCopy.askValue",
+        "uiCopy.claudeCode",
+        "uiCopy.codex",
+        "uiCopy.createDirectory",
+        "uiCopy.done",
+        "uiCopy.effort",
+        "uiCopy.enterProjectPath",
+        "uiCopy.failedToCreateWorktree",
+        "uiCopy.failedToStartSession",
+        "uiCopy.model",
+        "uiCopy.newWorktree",
+        "uiCopy.noCommander",
+        "uiCopy.noRecentProjectsYet",
+        "uiCopy.noResults",
+        "uiCopy.noWorktree",
+        "uiCopy.openclaw",
+        "uiCopy.permissions",
+        "uiCopy.pleaseSelectAMachine",
+        "uiCopy.project",
+        "uiCopy.search",
+        "uiCopy.searchAgents",
+        "uiCopy.searchCommanders",
+        "uiCopy.searchEfforts",
+        "uiCopy.searchMachines",
+        "uiCopy.searchModels",
+        "uiCopy.searchPermissions",
+        "uiCopy.searchWorktrees",
+        "uiCopy.theDirectoryValueDoesNotExistWouldYouLikeTo",
+        "uiCopy.useGlobalAgentsMdOnly",
+        "uiCopy.usingCustomPathAbove",
+        "uiCopy.whatWouldYouLikeToWorkOn",
+        "uiCopy.worktree",
+        "workspace.recent",
+        "workspace.selectMachine"
+      ],
+      "states": [
+        "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/restore/index.tsx",
+      "kind": "route",
+      "route": "/restore",
+      "exports": [
+        "Restore"
+      ],
+      "translationKeys": [
+        "common.error",
+        "errors.authenticationFailed",
+        "uiCopy.restoreWithSecretKeyInstead",
+        "uiCopy.step1OpenHappyOnYourMobileDevice",
+        "uiCopy.step2GoToSettingsAccount",
+        "uiCopy.step3TapLinkNewDevice",
+        "uiCopy.step4ScanThisQrCode"
+      ],
+      "states": [
+        "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/restore/manual.tsx",
+      "kind": "route",
+      "route": "/restore/manual",
+      "exports": [
+        "Restore"
+      ],
+      "translationKeys": [
+        "common.error",
+        "connect.enterSecretKey",
+        "connect.invalidSecretKey",
+        "connect.restoreAccount",
+        "uiCopy.enterYourSecretKeyToRestoreAccessToYourAccount",
+        "uiCopy.xxxxxXxxxxXxxxx"
+      ],
+      "states": [
+        "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/server.tsx",
+      "kind": "route",
+      "route": "/server",
+      "exports": [
+        "ServerConfigScreen"
+      ],
+      "translationKeys": [
+        "common.back",
+        "common.continue",
+        "common.error",
+        "common.reset",
+        "common.save",
+        "common.urlPlaceholder",
+        "errors.invalidFormat",
+        "server.advancedFeatureFooter",
+        "server.changeServer",
+        "server.continueWithServer",
+        "server.currentlyUsingCustomServer",
+        "server.customServerUrlLabel",
+        "server.enterServerUrl",
+        "server.failedToConnectToServer",
+        "server.notValidHappyServer",
+        "server.resetServerDefault",
+        "server.resetToDefault",
+        "server.serverConfiguration",
+        "server.serverReturnedError",
+        "server.validating",
+        "server.validatingServer"
+      ],
+      "states": [
+        "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/session/[id].tsx",
+      "kind": "route",
+      "route": "/session/[id]",
+      "exports": [],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/session/[id]/file.tsx",
+      "kind": "route",
+      "route": "/session/[id]/file",
+      "exports": [],
+      "translationKeys": [
+        "agentQuestion.dismiss",
+        "common.error",
+        "files.binaryFile",
+        "files.cannotDisplayBinary",
+        "files.diff",
+        "files.editFile",
+        "files.failedToRead",
+        "files.failedToSave",
+        "files.file",
+        "files.fileConflict",
+        "files.fileConflictDescription",
+        "files.fileEmpty",
+        "files.loadingFile",
+        "files.reload",
+        "files.saveFile",
+        "uiCopy.discardUnsavedChanges",
+        "uiCopy.done",
+        "uiCopy.editValue",
+        "uiCopy.preview",
+        "uiCopy.previewOfValue",
+        "uiCopy.saving",
+        "uiCopy.source",
+        "uiCopy.thisFileChangedOnTheHost",
+        "uiCopy.unsaved",
+        "uiCopy.yourEditsToValueHaveNotBeenSaved"
+      ],
+      "states": [
+        "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/session/[id]/files.tsx",
+      "kind": "route",
+      "route": "/session/[id]/files",
+      "exports": [
+        "LegacySessionFilesRedirect"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/session/[id]/info.tsx",
+      "kind": "route",
+      "route": "/session/[id]/info",
+      "exports": [],
+      "translationKeys": [
+        "common.cancel",
+        "common.error",
+        "common.loading",
+        "common.no",
+        "common.success",
+        "common.yes",
+        "errors.sessionDeleted",
+        "errors.sessionDeletedDescription",
+        "session.duplicateAction",
+        "session.duplicateSubtitle",
+        "session.forkAction",
+        "session.forkSubtitle",
+        "session.forkedFromLabel",
+        "session.forkedFromSubtitle",
+        "sessionInfo.activity",
+        "sessionInfo.agentState",
+        "sessionInfo.aiProvider",
+        "sessionInfo.archiveSession",
+        "sessionInfo.archiveSessionSubtitle",
+        "sessionInfo.claudeCodeSessionId",
+        "sessionInfo.claudeCodeSessionIdCopied",
+        "sessionInfo.cliVersion",
+        "sessionInfo.cliVersionOutdated",
+        "sessionInfo.codexThreadId",
+        "sessionInfo.codexThreadIdCopied",
+        "sessionInfo.connectionStatus",
+        "sessionInfo.controlledByUser",
+        "sessionInfo.copyMetadata",
+        "sessionInfo.created",
+        "sessionInfo.deleteSession",
+        "sessionInfo.deleteSessionSubtitle",
+        "sessionInfo.deleteSessionWarning",
+        "sessionInfo.failedToCopyClaudeCodeSessionId",
+        "sessionInfo.failedToCopyCodexThreadId",
+        "sessionInfo.failedToCopySessionId",
+        "sessionInfo.failedToDeleteSession",
+        "sessionInfo.happyHome",
+        "sessionInfo.happySessionId",
+        "sessionInfo.happySessionIdCopied",
+        "sessionInfo.host",
+        "sessionInfo.lastUpdated",
+        "sessionInfo.metadata",
+        "sessionInfo.operatingSystem",
+        "sessionInfo.path",
+        "sessionInfo.pendingRequests",
+        "sessionInfo.processId",
+        "sessionInfo.quickActions",
+        "sessionInfo.resumeSession",
+        "sessionInfo.sequence",
+        "sessionInfo.thinking",
+        "sessionInfo.thinkingSince",
+        "sessionInfo.updateCliInstructions",
+        "sessionInfo.viewMachine",
+        "sessionInfo.viewMachineSubtitle",
+        "status.offline",
+        "status.online",
+        "tools.fullView.rawJsonDevMode",
+        "uiCopy.backgroundProcesses",
+        "uiCopy.client",
+        "uiCopy.copyMetadataAndClientLogs",
+        "uiCopy.dangerouslySkipPermissions",
+        "uiCopy.fullSessionObject",
+        "uiCopy.inProgressAndPending",
+        "uiCopy.model",
+        "uiCopy.resumeCommand",
+        "uiCopy.runningAndQueued",
+        "uiCopy.sandbox",
+        "uiCopy.sessionStatus",
+        "uiCopy.subagents",
+        "uiCopy.tasks",
+        "uiCopy.valueRunning",
+        "uiCopy.workflows"
+      ],
+      "states": [
+        "error",
+        "loading",
+        "offline"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/session/[id]/message/[messageId].tsx",
+      "kind": "route",
+      "route": "/session/[id]/message/[messageId]",
+      "exports": [],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/session/recent.tsx",
+      "kind": "route",
+      "route": "/session/recent",
+      "exports": [
+        "SessionHistory"
+      ],
+      "translationKeys": [
+        "sessionHistory.daysAgo",
+        "sessionHistory.empty",
+        "sessionHistory.today",
+        "sessionHistory.yesterday"
+      ],
+      "states": [
+        "empty"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/settings/account.tsx",
+      "kind": "route",
+      "route": "/settings/account",
+      "exports": [],
+      "translationKeys": [
+        "common.delete",
+        "common.error",
+        "common.logout",
+        "common.scanning",
+        "common.success",
+        "errors.disconnectServiceFailed",
+        "modals.disconnect",
+        "modals.disconnectGithub",
+        "modals.disconnectGithubConfirm",
+        "modals.disconnectService",
+        "modals.disconnectServiceConfirm",
+        "settings.connectedAccounts",
+        "settingsAccount.accountInformation",
+        "settingsAccount.analytics",
+        "settingsAccount.analyticsDisabled",
+        "settingsAccount.analyticsEnabled",
+        "settingsAccount.anonymousId",
+        "settingsAccount.backup",
+        "settingsAccount.backupDescription",
+        "settingsAccount.dangerZone",
+        "settingsAccount.github",
+        "settingsAccount.linkNewDevice",
+        "settingsAccount.linkNewDeviceSubtitle",
+        "settingsAccount.logout",
+        "settingsAccount.logoutConfirm",
+        "settingsAccount.logoutSubtitle",
+        "settingsAccount.name",
+        "settingsAccount.notAvailable",
+        "settingsAccount.privacy",
+        "settingsAccount.privacyDescription",
+        "settingsAccount.profile",
+        "settingsAccount.publicId",
+        "settingsAccount.secretKey",
+        "settingsAccount.status",
+        "settingsAccount.statusActive",
+        "settingsAccount.statusNotAuthenticated",
+        "settingsAccount.tapToDisconnect",
+        "uiCopy.currentDeviceMetadataComesFromThisPhoneOlderTokensUse",
+        "uiCopy.currentTokenValue",
+        "uiCopy.deletePushToken",
+        "uiCopy.failedToDeletePushToken",
+        "uiCopy.failedToLoadPushNotificationSettings",
+        "uiCopy.failedToRefreshThisDevicePushToken",
+        "uiCopy.failedToRequestPushNotificationPermission",
+        "uiCopy.fetchAndRegisterExpoToken",
+        "uiCopy.noRegisteredPushTokens",
+        "uiCopy.onceThisDeviceIsRegisteredItWillAppearHere",
+        "uiCopy.openPushSettings",
+        "uiCopy.openSettings",
+        "uiCopy.permission",
+        "uiCopy.pushNotificationPermissionWasNotGranted",
+        "uiCopy.pushNotifications",
+        "uiCopy.pushNotificationsAreEnabledForThisDevice",
+        "uiCopy.pushNotificationsAreNotEnabledForThisDeviceYet",
+        "uiCopy.pushPermissionsUnsupported",
+        "uiCopy.reRegisterThisDevice",
+        "uiCopy.registeredTokensValue",
+        "uiCopy.removeValueFromYourAccount",
+        "uiCopy.requestPermissionAgain",
+        "uiCopy.showPushPromptAgain",
+        "uiCopy.showsEveryPushTokenRegisteredOnYourAccountTapAn",
+        "uiCopy.theSystemWillNotShowThePermissionPromptAgainSo",
+        "uiCopy.thisDevice",
+        "uiCopy.thisDevicePushTokenWasRefreshed"
+      ],
+      "states": [
+        "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/settings/agents.tsx",
+      "kind": "route",
+      "route": "/settings/agents",
+      "exports": [
+        "AgentDefaultsSettingsScreen"
+      ],
+      "translationKeys": [
+        "uiCopy.agentDefaults",
+        "uiCopy.clearOverrides",
+        "uiCopy.effort",
+        "uiCopy.model",
+        "uiCopy.permission",
+        "uiCopy.returnEveryAgentToCodeDefaults"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/settings/appearance.tsx",
+      "kind": "route",
+      "route": "/settings/appearance",
+      "exports": [
+        "AppearanceSettingsScreen"
+      ],
+      "translationKeys": [
+        "settings.appearance",
+        "settingsAppearance.alwaysShowContextSize",
+        "settingsAppearance.alwaysShowContextSizeDescription",
+        "settingsAppearance.avatarOptions.brutalist",
+        "settingsAppearance.avatarOptions.gradient",
+        "settingsAppearance.avatarOptions.pixelated",
+        "settingsAppearance.avatarStyle",
+        "settingsAppearance.avatarStyleDescription",
+        "settingsAppearance.chat",
+        "settingsAppearance.chatDescription",
+        "settingsAppearance.compactToolCalls",
+        "settingsAppearance.compactToolCallsDescription",
+        "settingsAppearance.diffStyle",
+        "settingsAppearance.diffStyleDescription",
+        "settingsAppearance.diffStyleOptions.split",
+        "settingsAppearance.diffStyleOptions.unified",
+        "settingsAppearance.display",
+        "settingsAppearance.displayDescription",
+        "settingsAppearance.expandTodoLists",
+        "settingsAppearance.expandTodoListsDescription",
+        "settingsAppearance.inlineToolCalls",
+        "settingsAppearance.inlineToolCallsDescription",
+        "settingsAppearance.sessionStatusBar",
+        "settingsAppearance.sessionStatusBarDescription",
+        "settingsAppearance.sessionStatusDisplayOptions.above",
+        "settingsAppearance.sessionStatusDisplayOptions.below",
+        "settingsAppearance.sessionStatusDisplayOptions.hidden",
+        "settingsAppearance.showFlavorIcons",
+        "settingsAppearance.showFlavorIconsDescription",
+        "settingsAppearance.showLineNumbersInDiffs",
+        "settingsAppearance.showLineNumbersInDiffsDescription",
+        "settingsAppearance.showLineNumbersInToolViews",
+        "settingsAppearance.showLineNumbersInToolViewsDescription",
+        "settingsAppearance.theme",
+        "settingsAppearance.themeDescription",
+        "settingsAppearance.themeDescriptions.adaptive",
+        "settingsAppearance.themeDescriptions.dark",
+        "settingsAppearance.themeDescriptions.light",
+        "settingsAppearance.themeOptions.adaptive",
+        "settingsAppearance.themeOptions.dark",
+        "settingsAppearance.themeOptions.light",
+        "settingsAppearance.usageLimitShowRemaining",
+        "settingsAppearance.usageLimitShowRemainingDescription",
+        "settingsAppearance.userMessageBubbleColor",
+        "settingsAppearance.userMessageBubbleColorDescription",
+        "settingsAppearance.userMessageBubbleColorOptions.blue",
+        "settingsAppearance.userMessageBubbleColorOptions.gray",
+        "settingsAppearance.userMessageBubbleColorOptions.green",
+        "settingsAppearance.userMessageBubbleColorOptions.purple",
+        "settingsAppearance.userMessageBubbleColorOptions.rose",
+        "settingsAppearance.userMessageBubbleColorOptions.sand",
+        "settingsAppearance.wrapLinesInDiffs",
+        "settingsAppearance.wrapLinesInDiffsDescription",
+        "settingsLanguage.automatic",
+        "settingsLanguage.currentLanguage",
+        "settingsLanguage.description",
+        "settingsLanguage.title"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/settings/connect/claude.tsx",
+      "kind": "route",
+      "route": "/settings/connect/claude",
+      "exports": [
+        "ClaudeOAuth"
+      ],
+      "translationKeys": [
+        "uiCopy.connect",
+        "uiCopy.runTheFollowingCommandInYourTerminal"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/settings/features.tsx",
+      "kind": "route",
+      "route": "/settings/features",
+      "exports": [
+        "FeaturesSettingsScreen"
+      ],
+      "translationKeys": [
+        "happyHerd.features.fileDiffsSidebar",
+        "happyHerd.features.fileDiffsSidebarSubtitle",
+        "happyHerd.features.interface",
+        "happyHerd.features.interfaceFooter",
+        "happyHerd.features.resumeSession",
+        "happyHerd.features.resumeSessionSubtitle",
+        "happyHerd.features.sortRecent",
+        "happyHerd.features.sortRecentSubtitle",
+        "happyHerd.features.voiceInput",
+        "happyHerd.features.voiceInputSubtitle",
+        "settingsFeatures.analyticsDisabled",
+        "settingsFeatures.analyticsEnabled",
+        "settingsFeatures.commandPalette",
+        "settingsFeatures.commandPaletteDisabled",
+        "settingsFeatures.commandPaletteEnabled",
+        "settingsFeatures.disableAnalytics",
+        "settingsFeatures.enterToSend",
+        "settingsFeatures.enterToSendDisabled",
+        "settingsFeatures.enterToSendEnabled",
+        "settingsFeatures.experimentalFeatures",
+        "settingsFeatures.experimentalFeaturesDisabled",
+        "settingsFeatures.experimentalFeaturesEnabled",
+        "settingsFeatures.experiments",
+        "settingsFeatures.experimentsDescription",
+        "settingsFeatures.groupToolCalls",
+        "settingsFeatures.groupToolCallsSubtitle",
+        "settingsFeatures.hideInactiveSessions",
+        "settingsFeatures.hideInactiveSessionsSubtitle",
+        "settingsFeatures.imageUpload",
+        "settingsFeatures.imageUploadSubtitle",
+        "settingsFeatures.markdownCopyV2",
+        "settingsFeatures.markdownCopyV2Subtitle",
+        "settingsFeatures.privacy",
+        "settingsFeatures.privacyDescription",
+        "settingsFeatures.webFeatures",
+        "settingsFeatures.webFeaturesDescription",
+        "workspace.featureSubtitle",
+        "workspace.title"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/settings/index.tsx",
+      "kind": "route",
+      "route": "/settings",
+      "exports": [],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/settings/language.tsx",
+      "kind": "route",
+      "route": "/settings/language",
+      "exports": [
+        "LanguageSettingsScreen"
+      ],
+      "translationKeys": [
+        "settingsLanguage.automatic",
+        "settingsLanguage.automaticSubtitle",
+        "settingsLanguage.currentLanguage",
+        "settingsLanguage.description"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/settings/usage.tsx",
+      "kind": "route",
+      "route": "/settings/usage",
+      "exports": [
+        "UsageSettingsScreen"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/settings/voice.tsx",
+      "kind": "route",
+      "route": "/settings/voice",
+      "exports": [],
+      "translationKeys": [
+        "settings.developer",
+        "settingsVoice.byoDescription",
+        "settingsVoice.byoTitle",
+        "settingsVoice.bypassToken",
+        "settingsVoice.bypassTokenSubtitle",
+        "settingsVoice.conversationsLabel",
+        "settingsVoice.customAgentId",
+        "settingsVoice.customAgentIdDescription",
+        "settingsVoice.customAgentIdNotSet",
+        "settingsVoice.customAgentIdPlaceholder",
+        "settingsVoice.languageDescription",
+        "settingsVoice.languageTitle",
+        "settingsVoice.preferredLanguage",
+        "settingsVoice.preferredLanguageSubtitle",
+        "settingsVoice.promptGuideDescription",
+        "settingsVoice.promptGuideTitle",
+        "settingsVoice.supportSubtitle",
+        "settingsVoice.supportTitle",
+        "settingsVoice.usageFooter",
+        "settingsVoice.usageLabel",
+        "settingsVoice.usageTitle",
+        "uiCopy.clearLocalVoiceCountersUsedForOnboardingAndSoftPaywall",
+        "uiCopy.configured",
+        "uiCopy.configuredForAccount",
+        "uiCopy.couldNotConfigureOpenaiApiKey",
+        "uiCopy.couldNotRemoveOpenaiApiKey",
+        "uiCopy.deleteTheAccountSpecificTranscriptionKey",
+        "uiCopy.developerOnlyDiagnosticsAndLocalOverrideControlsForTheCurrent",
+        "uiCopy.openaiApiKey",
+        "uiCopy.openaiApiKeyConfigured",
+        "uiCopy.openaiApiKeyTestFailed",
+        "uiCopy.openaiApiKeyWorks",
+        "uiCopy.providedByDeployment",
+        "uiCopy.removeOpenaiApiKey",
+        "uiCopy.removeOpenaiApiKey_18glmc",
+        "uiCopy.resetVoiceCounters",
+        "uiCopy.selectALocalOverrideForTheVoiceUpsellExperiment",
+        "uiCopy.simpleLocalOverrideForTheVoiceUpsellFlag",
+        "uiCopy.sk",
+        "uiCopy.testOpenaiApiKey",
+        "uiCopy.theKeyCouldNotBeRemoved",
+        "uiCopy.theKeyCouldNotBeSaved",
+        "uiCopy.theKeyCouldNotBeTested",
+        "uiCopy.theKeyIsEncryptedForYourAccountHappyherdOnlyDisplays",
+        "uiCopy.theKeyWasAcceptedAndStoredSecurelyForVoiceDictation",
+        "uiCopy.usedOnlyForVoiceDictationTranscriptionHappyherdEncryptsItFor",
+        "uiCopy.verifyAccessWithoutRecordingAudio",
+        "uiCopy.voiceDictationCanReachOpenaiWithTheConfiguredKey",
+        "uiCopy.voiceDictationTranscription",
+        "uiCopy.voiceDictationWillUseTheDeploymentKeyIfOneExists",
+        "uiCopy.voiceExperimentOverride",
+        "uiCopy.voiceExperimentStatus"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/settings/voice/language.tsx",
+      "kind": "route",
+      "route": "/settings/voice/language",
+      "exports": [
+        "LanguageSelectionScreen"
+      ],
+      "translationKeys": [
+        "settingsVoice.language.autoDetect",
+        "settingsVoice.language.footer",
+        "settingsVoice.language.searchPlaceholder",
+        "settingsVoice.language.title"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/terminal/connect.tsx",
+      "kind": "route",
+      "route": "/terminal/connect",
+      "exports": [
+        "TerminalConnectScreen"
+      ],
+      "translationKeys": [
+        "terminal.acceptConnection",
+        "terminal.clientSideProcessing",
+        "terminal.connectTerminal",
+        "terminal.connecting",
+        "terminal.connectionDetails",
+        "terminal.encryption",
+        "terminal.endToEndEncrypted",
+        "terminal.invalidConnectionLink",
+        "terminal.invalidConnectionLinkDescription",
+        "terminal.linkProcessedLocally",
+        "terminal.processingConnection",
+        "terminal.publicKey",
+        "terminal.reject",
+        "terminal.security",
+        "terminal.securityFooter",
+        "terminal.terminalRequestDescription",
+        "terminal.webBrowserRequired",
+        "terminal.webBrowserRequiredDescription"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/terminal/index.tsx",
+      "kind": "route",
+      "route": "/terminal",
+      "exports": [
+        "TerminalScreen"
+      ],
+      "translationKeys": [
+        "terminal.acceptConnection",
+        "terminal.clientSideProcessing",
+        "terminal.connectTerminal",
+        "terminal.connecting",
+        "terminal.connectionDetails",
+        "terminal.encryption",
+        "terminal.endToEndEncrypted",
+        "terminal.invalidConnectionLink",
+        "terminal.invalidConnectionLinkDescription",
+        "terminal.linkProcessedOnDevice",
+        "terminal.publicKey",
+        "terminal.reject",
+        "terminal.security",
+        "terminal.securityFooterDevice",
+        "terminal.terminalRequestDescription"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/text-selection.tsx",
+      "kind": "route",
+      "route": "/text-selection",
+      "exports": [
+        "TextSelectionScreen"
+      ],
+      "translationKeys": [
+        "common.error",
+        "common.loading",
+        "common.ok",
+        "textSelection.failedToCopy",
+        "textSelection.noTextProvided",
+        "textSelection.noTextToCopy",
+        "textSelection.textCopied",
+        "textSelection.textNotFound"
+      ],
+      "states": [
+        "error",
+        "loading"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/user/[id].tsx",
+      "kind": "route",
+      "route": "/user/[id]",
+      "exports": [
+        "UserProfileScreen"
+      ],
+      "translationKeys": [
+        "common.ok",
+        "common.yes",
+        "errors.failedToLoadProfile",
+        "errors.userNotFound",
+        "friends.acceptRequest",
+        "friends.alreadyFriends",
+        "friends.bothMustHaveGithub",
+        "friends.cancelRequest",
+        "friends.cancelRequestConfirm",
+        "friends.denyRequest",
+        "friends.remove",
+        "friends.removeFriend",
+        "friends.removeFriendConfirm",
+        "friends.requestFriendship",
+        "settings.github"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/(app)/workspace/index.tsx",
+      "kind": "route",
+      "route": "/workspace",
+      "exports": [
+        "MachineWorkspaceScreen"
+      ],
+      "translationKeys": [
+        "common.cancel",
+        "common.discard",
+        "common.fileViewer",
+        "common.files",
+        "common.retry",
+        "errors.tryAgain",
+        "settings.machines",
+        "uiCopy.attachFile",
+        "uiCopy.discardUnsavedChanges",
+        "uiCopy.removeFile",
+        "uiCopy.yourCurrentFileEditsHaveNotBeenSaved",
+        "workspace.addToSession",
+        "workspace.attachTitle",
+        "workspace.browseMachine",
+        "workspace.emptyFolder",
+        "workspace.favorites",
+        "workspace.featureDisabled",
+        "workspace.featureDisabledDescription",
+        "workspace.go",
+        "workspace.home",
+        "workspace.missingPathDescription",
+        "workspace.missingPathTitle",
+        "workspace.mobileBackToFiles",
+        "workspace.noMachines",
+        "workspace.offlineDescription",
+        "workspace.offlineTitle",
+        "workspace.openFeatures",
+        "workspace.parent",
+        "workspace.pathPlaceholder",
+        "workspace.permissionDeniedDescription",
+        "workspace.permissionDeniedTitle",
+        "workspace.readErrorTitle",
+        "workspace.recent",
+        "workspace.refresh",
+        "workspace.root",
+        "workspace.searchPlaceholder",
+        "workspace.selectMachine",
+        "workspace.selectedCount",
+        "workspace.title"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/app/+html.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "Root"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/auth/AuthContext.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "AuthProvider",
+        "getCurrentAuth",
+        "setCurrentAuth",
+        "useAuth"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/AccountKeyBackupGate.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "AccountKeyBackupGate"
+      ],
+      "translationKeys": [
+        "common.continue",
+        "settingsAccount.backup",
+        "settingsAccount.backupDescription"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/AccountKeyPanel.tsx",
+      "kind": "panel",
+      "route": null,
+      "exports": [
+        "AccountKeyPanel"
+      ],
+      "translationKeys": [
+        "common.error",
+        "common.success",
+        "settingsAccount.secretKeyCopied",
+        "settingsAccount.secretKeyCopyFailed",
+        "settingsAccount.secretKeyLabel"
+      ],
+      "states": [
+        "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/ActiveSessionsGroupCompact.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ActiveSessionsGroupCompact",
+        "CompactSessionRow"
+      ],
+      "translationKeys": [
+        "sessionInfo.archiveSession",
+        "sessionInfo.failedToArchiveSession",
+        "status.unknown"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/AgentContentView.ios.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "AgentContentView"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/AgentContentView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "AgentContentView"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/AgentGoalBar.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "AgentGoalBar"
+      ],
+      "translationKeys": [
+        "components.agentGoalBar.accessibilityLabel",
+        "components.agentGoalBar.clearGoal",
+        "components.agentGoalBar.currentGoal",
+        "components.agentGoalBar.editGoal",
+        "components.agentGoalBar.stopGoal"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/AgentInput.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "AgentInput"
+      ],
+      "translationKeys": [
+        "agentInput.agent.claude",
+        "agentInput.agent.codex",
+        "agentInput.agent.gemini",
+        "agentInput.agent.openclaw",
+        "agentInput.codexPermissionMode.title",
+        "agentInput.context.remaining",
+        "agentInput.effort.title",
+        "agentInput.geminiPermissionMode.title",
+        "agentInput.model.configureInCli",
+        "agentInput.model.title",
+        "agentInput.noMachinesAvailable",
+        "agentInput.permissionMode.title",
+        "happyHerd.composer.addPhoto",
+        "happyHerd.composer.cancelVoice",
+        "happyHerd.composer.finishVoice",
+        "happyHerd.composer.queueMessage",
+        "happyHerd.composer.retryVoice",
+        "happyHerd.composer.send",
+        "happyHerd.composer.startVoice",
+        "happyHerd.composer.stop",
+        "uiCopy.claude",
+        "uiCopy.codex",
+        "uiCopy.gemini"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/AgentInputAttachmentStrip.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "AgentInputAttachmentStrip"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/AgentInputAutocomplete.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "AgentInputAutocomplete"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/AgentInputSuggestionView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "CommandSuggestion",
+        "FileMentionSuggestion"
+      ],
+      "translationKeys": [
+        "agentInput.suggestion.fileLabel",
+        "agentInput.suggestion.folderLabel"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/AgentQuestionBanner.tsx",
+      "kind": "banner",
+      "route": null,
+      "exports": [
+        "AgentQuestionBanner",
+        "AgentQuestionBannerView"
+      ],
+      "translationKeys": [
+        "agentQuestion.dismiss",
+        "agentQuestion.moreQuestions",
+        "agentQuestion.title",
+        "agentQuestion.unsupportedDescription",
+        "agentQuestion.unsupportedTitle"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/AgentQuestionModal.tsx",
+      "kind": "modal",
+      "route": null,
+      "exports": [
+        "AgentQuestionModal"
+      ],
+      "translationKeys": [
+        "agentQuestion.chooseMultiple",
+        "agentQuestion.ownAnswer",
+        "agentQuestion.ownAnswerPlaceholder",
+        "agentQuestion.submit",
+        "agentQuestion.submitFailed",
+        "agentQuestion.title",
+        "common.cancel"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/AllFilesDiffView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "AllFilesDiffView"
+      ],
+      "translationKeys": [
+        "files.changedFiles",
+        "files.noChanges",
+        "settingsAppearance.diffStyleOptions.split",
+        "settingsAppearance.diffStyleOptions.unified",
+        "uiCopy.deleted",
+        "uiCopy.new"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/AnimatedOverlay.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "AnimatedBlurBackdrop",
+        "AnimatedClickAwayBackdrop",
+        "AnimatedCollapsible",
+        "AnimatedPopup",
+        "LocalBlurHalo"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/Avatar.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "Avatar"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/AvatarBrutalist.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "AvatarBrutalist"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/AvatarGradient.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "AvatarGradient"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/AvatarSkia.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "AvatarSkia"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/AvatarSkia.web.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "AvatarSkia"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/BubblePressable.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "BubblePressable"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/ChatFooter.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ChatFooter"
+      ],
+      "translationKeys": [
+        "uiCopy.permissionsShownInTerminalOnlyResetOrSendAMessage"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/ChatHeaderView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ChatHeaderView"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/ChatList.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ChatList"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/CodeEditor.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "CodeEditor"
+      ],
+      "translationKeys": [
+        "uiCopy.editorNotAvailableOnThisPlatform"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/CodeEditor.web.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "CodeEditor"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/CodeView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "CodeView"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/CommandPalette/CommandPalette.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "CommandPalette"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/CommandPalette/CommandPaletteInput.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "CommandPaletteInput"
+      ],
+      "translationKeys": [
+        "commandPalette.placeholder"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/CommandPalette/CommandPaletteItem.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "CommandPaletteItem"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/CommandPalette/CommandPaletteModal.tsx",
+      "kind": "modal",
+      "route": null,
+      "exports": [
+        "CommandPaletteModal"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/CommandPalette/CommandPaletteProvider.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "CommandPaletteProvider"
+      ],
+      "translationKeys": [
+        "settings.account",
+        "status.unknown",
+        "tabs.settings",
+        "uiCopy.accessDeveloperTools",
+        "uiCopy.browseYourChatHistory",
+        "uiCopy.configureYourPreferences",
+        "uiCopy.connectANewDeviceViaWeb",
+        "uiCopy.connectDevice",
+        "uiCopy.developerMenu",
+        "uiCopy.manageYourAccount",
+        "uiCopy.newSession",
+        "uiCopy.recentSessions",
+        "uiCopy.sessionValue",
+        "uiCopy.signOut",
+        "uiCopy.signOutOfYourAccount",
+        "uiCopy.startANewChatSession",
+        "uiCopy.switchToSession",
+        "uiCopy.viewAllSessions"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/CommandPalette/CommandPaletteResults.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "CommandPaletteResults"
+      ],
+      "translationKeys": [
+        "uiCopy.noCommandsFound"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/CommandView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "CommandView"
+      ],
+      "translationKeys": [
+        "uiCopy.commandCompletedWithNoOutput"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/CompactGitStatus.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "CompactGitStatus"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/ConnectButton.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ConnectButton"
+      ],
+      "translationKeys": [
+        "connectButton.authenticate",
+        "connectButton.authenticateWithUrlPaste",
+        "connectButton.pasteAuthUrl",
+        "uiCopy.happyTerminal"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/Deferred.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "Deferred"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/diff/DiffView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "DiffView"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/diff/PierreDiffView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "PierreDiffView",
+        "prefetchPierreDiff"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/DuplicateSheet.tsx",
+      "kind": "sheet",
+      "route": null,
+      "exports": [
+        "DuplicateSheet"
+      ],
+      "translationKeys": [
+        "common.cancel",
+        "common.error",
+        "common.loading",
+        "session.duplicateRowDisabled",
+        "session.duplicateSheetConfirm",
+        "session.duplicateSheetEmpty",
+        "session.duplicateSheetSubtitle",
+        "session.duplicateSheetTitle",
+        "session.forkErrorGeneric",
+        "session.forkErrorMissingMetadata",
+        "time.daysAgo",
+        "time.hoursAgo",
+        "time.justNow",
+        "time.minutesAgo"
+      ],
+      "states": [
+        "error",
+        "loading"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/EmptyMainScreen.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "EmptyMainScreen"
+      ],
+      "translationKeys": [
+        "common.authenticate",
+        "common.cancel",
+        "components.emptyMainScreen.installCli",
+        "components.emptyMainScreen.openCamera",
+        "components.emptyMainScreen.readyToCode",
+        "components.emptyMainScreen.runIt",
+        "components.emptyMainScreen.scanQrCode",
+        "connect.enterUrlManually",
+        "modals.authenticateTerminal",
+        "modals.pasteUrlFromTerminal",
+        "uiCopy.happy",
+        "uiCopy.happyTerminal",
+        "uiCopy.npmIGHappy"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/EmptyMessages.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "EmptyMessages"
+      ],
+      "translationKeys": [
+        "sessionHistory.daysAgo",
+        "sessionInfo.created",
+        "time.hoursAgo",
+        "time.justNow",
+        "time.minutesAgo",
+        "uiCopy.noMessagesYet"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/EmptySessionsTablet.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "EmptySessionsTablet"
+      ],
+      "translationKeys": [
+        "newSession.title",
+        "uiCopy.noActiveSessions",
+        "uiCopy.openANewTerminalOnYourComputerToStartSession",
+        "uiCopy.startANewSessionOnAnyOfYourConnectedMachines"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/ExternalLink.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ExternalLink"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/FAB.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "FAB"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/FABWide.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "FABWide"
+      ],
+      "translationKeys": [
+        "newSession.title"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/FeedItemCard.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "FeedItemCard"
+      ],
+      "translationKeys": [
+        "feed.friendAccepted",
+        "feed.friendRequestFrom",
+        "sessionHistory.daysAgo",
+        "time.hoursAgo",
+        "time.justNow",
+        "time.minutesAgo"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/FileDocumentPreview.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "FileDocumentPreview"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/FileDocumentPreview.web.tsx",
+      "kind": "ui-module",
+      "route": null,
+      "exports": [
+        "FileDocumentPreview"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/FileIcon.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "FileIcon"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/FilesSidebar.tsx",
+      "kind": "sidebar",
+      "route": null,
+      "exports": [
+        "FilesSidebar"
+      ],
+      "translationKeys": [
+        "files.addPanel",
+        "files.allFiles",
+        "files.changes",
+        "files.closePanel",
+        "files.noChangesSubtitle",
+        "files.noChangesTitle",
+        "files.noFilesFound",
+        "files.noFilesInProject",
+        "files.searchPlaceholder",
+        "sideChat.newChat",
+        "sideChat.panelTitle",
+        "uiCopy.attachValueToNextMessage"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/FileViewPanel.tsx",
+      "kind": "panel",
+      "route": null,
+      "exports": [
+        "FileContentPanel",
+        "FileViewPanel"
+      ],
+      "translationKeys": [
+        "common.error",
+        "files.cannotDisplayBinary",
+        "files.diff",
+        "files.editFile",
+        "files.failedToRead",
+        "files.failedToSave",
+        "files.fileConflict",
+        "files.fileConflictDescription",
+        "files.overwrite",
+        "files.reload",
+        "files.saveFile",
+        "uiCopy.preview",
+        "uiCopy.previewOfValue",
+        "uiCopy.source"
+      ],
+      "states": [
+        "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/FloatingOverlay.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "FloatingOverlay"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/GitStatusBadge.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "GitStatusBadge",
+        "useHasMeaningfulGitStatus"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/HeaderLogo.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HeaderLogo"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/HomeDock.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HomeDock",
+        "MOBILE_HOME_DOCK_CONTENT_INSET"
+      ],
+      "translationKeys": [
+        "agentInput.effort.title",
+        "agentInput.model.title",
+        "agentInput.permissionMode.title",
+        "common.back",
+        "common.ok",
+        "happyHerd.composer.send",
+        "machine.machineGroup",
+        "machineLauncher.enterCustomPath",
+        "status.lastSeen",
+        "status.online",
+        "uiCopy.addImage",
+        "uiCopy.agent",
+        "uiCopy.agent_1wzwjl",
+        "uiCopy.askCodex",
+        "uiCopy.machine",
+        "uiCopy.notSupportedByValue",
+        "uiCopy.pathToProject",
+        "uiCopy.planAskBuild",
+        "uiCopy.project",
+        "uiCopy.project_olvgym",
+        "uiCopy.worktree",
+        "uiCopy.worktree_sdajyg"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/HomeHeader.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HomeHeader",
+        "HomeHeaderNotAuth"
+      ],
+      "translationKeys": [
+        "sidebar.sessionsTitle",
+        "status.connected",
+        "status.connecting",
+        "status.disconnected",
+        "status.error"
+      ],
+      "states": [
+        "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/HorizontalScrollView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HorizontalScrollView"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/InboxView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "InboxView"
+      ],
+      "translationKeys": [
+        "friends.myFriends",
+        "friends.pendingRequests",
+        "friends.requestPending",
+        "inbox.emptyDescription",
+        "inbox.emptyTitle",
+        "inbox.updates",
+        "tabs.inbox"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/InlineFileDiff.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "InlineFileDiff"
+      ],
+      "translationKeys": [
+        "files.noChanges",
+        "settingsAppearance.diffStyleOptions.split",
+        "settingsAppearance.diffStyleOptions.unified"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/Item.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "Item"
+      ],
+      "translationKeys": [
+        "common.copied",
+        "items.copiedToClipboard"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/ItemGroup.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ItemGroup"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/ItemList.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ItemList",
+        "ItemListStatic"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/MachinePathBrowser.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "MachinePathBrowser"
+      ],
+      "translationKeys": [
+        "uiCopy.addWorkspaceFavorite",
+        "uiCopy.browseFilesystemRoot",
+        "uiCopy.browseParentFolder",
+        "uiCopy.folderIsEmpty",
+        "uiCopy.hostFolders",
+        "uiCopy.openFolderValue",
+        "uiCopy.refreshFolder",
+        "uiCopy.removeWorkspaceFavorite",
+        "uiCopy.selected",
+        "uiCopy.useFavoriteValue",
+        "uiCopy.useThisFolder",
+        "uiCopy.useValueAsWorkspace",
+        "workspace.favorites"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/MainView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "MainView"
+      ],
+      "translationKeys": [
+        "happyHerd.automations.title",
+        "status.connected",
+        "status.connecting",
+        "status.disconnected",
+        "status.error",
+        "tools.names.search",
+        "workspace.title"
+      ],
+      "states": [
+        "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/markdown/MarkdownView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "MarkdownView"
+      ],
+      "translationKeys": [
+        "common.copy",
+        "common.error",
+        "common.ok",
+        "common.success",
+        "markdown.codeCopied",
+        "markdown.copyFailed",
+        "uiCopy.failedToOpenTextSelectionPleaseTryAgain",
+        "uiCopy.markdownImage"
+      ],
+      "states": [
+        "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/markdown/MermaidRenderer.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "MermaidRenderer"
+      ],
+      "translationKeys": [
+        "markdown.mermaidRenderFailed",
+        "uiCopy.mermaidDiagramSyntaxError"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/MessageView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "MessageView"
+      ],
+      "translationKeys": [
+        "message.sentAsGoal",
+        "message.switchedToMode",
+        "message.unknownEvent",
+        "message.unknownTime",
+        "message.usageLimitUntil"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/MobileGlass.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "MobileGlassBackdrop",
+        "MobileGlassSurface"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/modelModeOptions.ts",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "findOptionByKey",
+        "getAgyModelModes",
+        "getAgyPermissionModes",
+        "getAvailableModels",
+        "getAvailablePermissionModes",
+        "getClaudeEffortLevels",
+        "getClaudeModelModes",
+        "getClaudePermissionModes",
+        "getCodexEffortLevels",
+        "getCodexModelModes",
+        "getCodexPermissionModes",
+        "getDefaultEffortKey",
+        "getDefaultEffortKeyForModel",
+        "getDefaultModelKey",
+        "getDefaultPermissionModeKey",
+        "getEffortLevelsForModel",
+        "getGeminiModelModes",
+        "getGeminiPermissionModes",
+        "getHardcodedEffortLevels",
+        "getHardcodedModelModes",
+        "getHardcodedPermissionModes",
+        "getMachineAdvertisedEffortLevels",
+        "getMachineAdvertisedModels",
+        "getMachineAdvertisedPermissionModes",
+        "getOpenClawModelModes",
+        "getOpenClawPermissionModes",
+        "getRigCurrentModelOptionKey",
+        "getSessionAvailableModels",
+        "getSessionAvailablePermissionModes",
+        "getSessionEffortLevelsForModel",
+        "getSupportsWorktree",
+        "mapMetadataOptions",
+        "resolveCurrentOption"
+      ],
+      "translationKeys": [
+        "agentInput.codexPermissionMode.default",
+        "agentInput.codexPermissionMode.defaultDescription",
+        "agentInput.codexPermissionMode.readOnly",
+        "agentInput.codexPermissionMode.readOnlyDescription",
+        "agentInput.codexPermissionMode.safeYolo",
+        "agentInput.codexPermissionMode.safeYoloDescription",
+        "agentInput.codexPermissionMode.yolo",
+        "agentInput.codexPermissionMode.yoloDescription",
+        "agentInput.geminiPermissionMode.autoEdit",
+        "agentInput.geminiPermissionMode.default",
+        "agentInput.geminiPermissionMode.plan",
+        "agentInput.geminiPermissionMode.yolo",
+        "agentInput.permissionMode.acceptEdits",
+        "agentInput.permissionMode.bypassPermissions",
+        "agentInput.permissionMode.default",
+        "agentInput.permissionMode.dontAsk",
+        "agentInput.permissionMode.plan",
+        "uiCopy.fastEfficient",
+        "uiCopy.fastest",
+        "uiCopy.latestFast",
+        "uiCopy.latestFastest",
+        "uiCopy.latestMostCapable",
+        "uiCopy.mostCapable",
+        "uiCopy.unavailableInTheCurrentRigModeCatalog"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/MultiTextInput.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "MULTI_TEXT_INPUT_FONT_SIZE",
+        "MULTI_TEXT_INPUT_LINE_HEIGHT",
+        "MultiTextInput"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/MultiTextInput.web.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "MULTI_TEXT_INPUT_FONT_SIZE",
+        "MULTI_TEXT_INPUT_LINE_HEIGHT",
+        "MultiTextInput"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/NativeOptionsPicker.android.tsx",
+      "kind": "picker",
+      "route": null,
+      "exports": [
+        "NativeOptionsPicker"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/NativeOptionsPicker.ios.tsx",
+      "kind": "picker",
+      "route": null,
+      "exports": [
+        "NativeOptionsPicker"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/NativeOptionsPicker.tsx",
+      "kind": "picker",
+      "route": null,
+      "exports": [
+        "NativeOptionsPicker"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/NativeOptionsPicker.web.tsx",
+      "kind": "picker",
+      "route": null,
+      "exports": [
+        "NativeOptionsPicker"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/NativeSettingsMenu.android.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "NativeSettingsMenu"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/NativeSettingsMenu.ios.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "NativeSettingsMenu"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/NativeSettingsMenu.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "NativeSettingsMenu"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/NativeSettingsMenu.web.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "NativeSettingsMenu"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/navigation/Header.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "Header",
+        "createHeader"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/navigation/MobileHeaderScrim.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "MOBILE_STRONG_HEADER_SCRIM_RESTING_OPACITY",
+        "MOBILE_STRONG_HEADER_SCRIM_UNDERLAP_OPACITY",
+        "MobileHeaderScrim"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/OAuthView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "OAuthView",
+        "OAuthViewRender",
+        "OAuthViewUnsupported"
+      ],
+      "translationKeys": [
+        "common.loading",
+        "common.retry",
+        "common.success",
+        "errors.oauthAuthorizationDenied",
+        "errors.oauthStateMismatch",
+        "errors.tokenExchangeFailed",
+        "errors.webViewLoadFailed",
+        "settings.claudeAuthSuccess",
+        "settings.exchangingTokens",
+        "uiCopy.connect",
+        "uiCopy.runTheFollowingCommandInYourTerminal"
+      ],
+      "states": [
+        "loading"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/PermissionModeSelector.tsx",
+      "kind": "picker",
+      "route": null,
+      "exports": [
+        "PermissionModeSelector"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/PlaceholderContainerView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "PlaceholderContainerView"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/PlusPlus.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "PlusPlus"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/PlusPlus.web.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "PlusPlus"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/ProjectGitStatus.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ProjectGitStatus"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/ProjectGroup.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ProjectGroup"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/ProviderIcon.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ProviderIcon"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/qr/QRCode.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "QRCode"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/qr/QRCode.web.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "QRCode"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/RigActivityBar.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "RigActivityBar"
+      ],
+      "translationKeys": [
+        "uiCopy.valueQueued"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/RoundButton.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "RoundButton"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/SearchableListSelector.tsx",
+      "kind": "picker",
+      "route": null,
+      "exports": [
+        "SearchableListSelector"
+      ],
+      "translationKeys": [
+        "common.cancel",
+        "machineLauncher.showAll",
+        "machineLauncher.showLess",
+        "uiCopy.removeFavorite",
+        "uiCopy.removeValueFromValue"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/SessionActionsNativeMenu.android.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SessionActionsNativeMenu"
+      ],
+      "translationKeys": [
+        "happyHerd.automations.resume",
+        "profile.details",
+        "sessionInfo.copyMetadata",
+        "uiCopy.archive"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/SessionActionsNativeMenu.ios.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SessionActionsNativeMenu"
+      ],
+      "translationKeys": [
+        "happyHerd.automations.resume",
+        "profile.details",
+        "sessionInfo.copyMetadata",
+        "uiCopy.archive"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/SessionActionsNativeMenu.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SessionActionsNativeMenu"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/SessionActionsNativeMenu.web.tsx",
+      "kind": "ui-module",
+      "route": null,
+      "exports": [
+        "SessionActionsNativeMenu"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/SessionActionsPopover.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SessionActionsPopover"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/SessionsList.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SessionsList"
+      ],
+      "translationKeys": [
+        "sessionHistory.empty",
+        "sidebar.hideArchived",
+        "sidebar.projects",
+        "sidebar.showArchived",
+        "status.lastSeen",
+        "status.online",
+        "status.permissionRequired",
+        "status.unread"
+      ],
+      "states": [
+        "empty"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/SessionsListWrapper.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SessionsListWrapper"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/SessionStatusBar.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SessionStatusBar"
+      ],
+      "translationKeys": [
+        "components.sessionStatusBar.contextUsage",
+        "components.sessionStatusBar.limitAsOf",
+        "components.sessionStatusBar.limitFiveHour",
+        "components.sessionStatusBar.limitRemaining",
+        "components.sessionStatusBar.limitResets",
+        "components.sessionStatusBar.limitSevenDay"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/SettingsView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SettingsView"
+      ],
+      "translationKeys": [
+        "common.authenticate",
+        "common.version",
+        "connect.enterUrlManually",
+        "modals.authenticateTerminal",
+        "modals.developerMode",
+        "modals.developerModeDisabled",
+        "modals.developerModeEnabled",
+        "modals.disconnect",
+        "modals.disconnectGithub",
+        "modals.disconnectGithubConfirm",
+        "modals.disconnectService",
+        "modals.disconnectServiceConfirm",
+        "modals.pasteUrlFromTerminal",
+        "settings.about",
+        "settings.aboutFooter",
+        "settings.account",
+        "settings.accountSubtitle",
+        "settings.appearance",
+        "settings.appearanceSubtitle",
+        "settings.connectAccount",
+        "settings.connectGithubAccount",
+        "settings.connectedAccounts",
+        "settings.developer",
+        "settings.developerTools",
+        "settings.eula",
+        "settings.features",
+        "settings.featuresSubtitle",
+        "settings.featuresTitle",
+        "settings.github",
+        "settings.githubConnected",
+        "settings.hideOfflineMachines",
+        "settings.machines",
+        "settings.privacyPolicy",
+        "settings.reportIssue",
+        "settings.scanQrCodeToAuthenticate",
+        "settings.showOfflineMachines",
+        "settings.supportUs",
+        "settings.supportUsSubtitle",
+        "settings.supportUsSubtitlePro",
+        "settings.termsOfService",
+        "settings.usage",
+        "settings.usageSubtitle",
+        "settings.voiceAssistant",
+        "settings.voiceAssistantSubtitle",
+        "settings.whatsNew",
+        "settings.whatsNewSubtitle",
+        "settingsAccount.statusActive",
+        "status.offline",
+        "status.online",
+        "uiCopy.agentDefaults",
+        "uiCopy.claudeCode_rfuptw",
+        "uiCopy.defaultModelEffortAndPermissions",
+        "uiCopy.happyTerminal"
+      ],
+      "states": [
+        "offline"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/SettingsViewWrapper.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SettingsViewWrapper"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/Shaker.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "Shaker"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/Shaker.web.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "Shaker"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/ShimmerView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ShimmerView"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/ShortcutHints.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SessionShortcutHintBadge",
+        "ShortcutHintBadge",
+        "ShortcutHintsProvider",
+        "useShortcutHints"
+      ],
+      "translationKeys": [
+        "settings.title",
+        "settingsFeatures.commandPalette",
+        "sidebar.newSession"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/SidebarNavigator.tsx",
+      "kind": "sidebar",
+      "route": null,
+      "exports": [
+        "SidebarNavigator"
+      ],
+      "translationKeys": [
+        "zen.toggle"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/SidebarView.tsx",
+      "kind": "sidebar",
+      "route": null,
+      "exports": [
+        "SidebarView"
+      ],
+      "translationKeys": [
+        "happyHerd.automations.title",
+        "settings.title",
+        "sidebar.newSession",
+        "workspace.title"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/SideChatPanel.tsx",
+      "kind": "panel",
+      "route": null,
+      "exports": [
+        "SideChatPanel"
+      ],
+      "translationKeys": [
+        "sideChat.close",
+        "sideChat.creating",
+        "sideChat.emptySubtitle",
+        "sideChat.emptyTitle",
+        "sideChat.expand",
+        "sideChat.startButton",
+        "sideChat.tabLabel",
+        "sideChat.unavailable"
+      ],
+      "states": [
+        "unavailable"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/SimpleSyntaxHighlighter.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SimpleSyntaxHighlighter"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/StatusBarProvider.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "StatusBarProvider"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/StatusDot.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "StatusDot"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/StyledText.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "Text"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/Switch.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "Switch"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/TabBar.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "MOBILE_TAB_BAR_CONTENT_INSET",
+        "TabBar"
+      ],
+      "translationKeys": [
+        "tabs.inbox",
+        "tabs.sessions",
+        "tabs.settings"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/ToolGroupView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "AgentWorkGroupView",
+        "ToolGroupView"
+      ],
+      "translationKeys": [
+        "toolGroup.workedFor"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/knownTools.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "isMutableTool",
+        "knownTools"
+      ],
+      "translationKeys": [
+        "tools.askUserQuestion.multipleQuestions",
+        "tools.desc.editNotebookMode",
+        "tools.desc.fetchUrlHost",
+        "tools.desc.modifyingFile",
+        "tools.desc.modifyingFiles",
+        "tools.desc.modifyingMultipleFiles",
+        "tools.desc.multiEditEdits",
+        "tools.desc.readingFile",
+        "tools.desc.searchPath",
+        "tools.desc.searchPattern",
+        "tools.desc.showingDiff",
+        "tools.desc.terminalCmd",
+        "tools.desc.todoListCount",
+        "tools.desc.webSearchQuery",
+        "tools.desc.writingFile",
+        "tools.names.applyChanges",
+        "tools.names.editFile",
+        "tools.names.editNotebook",
+        "tools.names.fetchUrl",
+        "tools.names.listFiles",
+        "tools.names.planProposal",
+        "tools.names.question",
+        "tools.names.readFile",
+        "tools.names.readNotebook",
+        "tools.names.reasoning",
+        "tools.names.search",
+        "tools.names.searchFiles",
+        "tools.names.task",
+        "tools.names.terminal",
+        "tools.names.todoList",
+        "tools.names.viewDiff",
+        "tools.names.webSearch",
+        "tools.names.writeFile",
+        "uiCopy.changeTitle"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/PermissionFooter.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "PermissionFooter"
+      ],
+      "translationKeys": [
+        "claude.permissions.noTellClaude",
+        "claude.permissions.yesAllowAllEdits",
+        "claude.permissions.yesAllowEverything",
+        "claude.permissions.yesForTool",
+        "codex.permissions.stopAndExplain",
+        "codex.permissions.yesForSession",
+        "common.yes"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/ToolDiffView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ToolDiffView"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/ToolError.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ToolError"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/ToolFullView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ToolFullView",
+        "toolFullViewStyles"
+      ],
+      "translationKeys": [
+        "tools.fullView.completed",
+        "tools.fullView.description",
+        "tools.fullView.error",
+        "tools.fullView.inputParams",
+        "tools.fullView.noOutput",
+        "tools.fullView.output",
+        "tools.fullView.rawJsonDevMode"
+      ],
+      "states": [
+        "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/ToolHeader.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ToolHeader"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/ToolSectionView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ToolSectionView"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/ToolStatusIndicator.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ToolStatusIndicator"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/ToolView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ToolView"
+      ],
+      "translationKeys": [
+        "toolView.input",
+        "toolView.output"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/views/AskUserQuestionView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "AskUserQuestionView"
+      ],
+      "translationKeys": [
+        "tools.askUserQuestion.submit"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/views/BashView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "BashView"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/views/BashViewFull.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "BashViewFull"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/views/CodexBashView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "CodexBashView"
+      ],
+      "translationKeys": [
+        "tools.desc.readingFile",
+        "tools.desc.writingFile"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/views/CodexDiffView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "CodexDiffView"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/views/CodexPatchView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "CodexPatchView"
+      ],
+      "translationKeys": [
+        "toolGroup.editedFile"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/views/EditView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "EditView"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/views/EditViewFull.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "EditViewFull"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/views/ExitPlanToolView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ExitPlanToolView"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/views/FileView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "FileView"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/views/GeminiEditView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "GeminiEditView"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/views/GeminiExecuteView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "GeminiExecuteView"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/views/MultiEditView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "MultiEditView"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/views/MultiEditViewFull.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "MultiEditViewFull"
+      ],
+      "translationKeys": [
+        "tools.multiEdit.editNumber",
+        "tools.multiEdit.replaceAll"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/views/SubagentView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SubagentView"
+      ],
+      "translationKeys": [
+        "uiCopy.collapseSubagentActivity",
+        "uiCopy.events",
+        "uiCopy.expandSubagentActivity",
+        "uiCopy.hideActivity",
+        "uiCopy.noChildActivityObservedYet",
+        "uiCopy.reasoning",
+        "uiCopy.viewActivity"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/views/TaskView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "TaskView"
+      ],
+      "translationKeys": [
+        "tools.taskView.moreTools"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/views/TodoView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "TodoView"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/views/WriteView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "WriteView"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/UpdateBanner.tsx",
+      "kind": "banner",
+      "route": null,
+      "exports": [
+        "UpdateBanner"
+      ],
+      "translationKeys": [
+        "updateBanner.nativeUpdateAvailable",
+        "updateBanner.pressToApply",
+        "updateBanner.seeLatest",
+        "updateBanner.tapToUpdateAppStore",
+        "updateBanner.tapToUpdatePlayStore",
+        "updateBanner.updateAvailable",
+        "updateBanner.whatsNew"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/usage/UsageBar.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "UsageBar"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/usage/UsageChart.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "UsageChart"
+      ],
+      "translationKeys": [
+        "usage.noData"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/usage/UsagePanel.tsx",
+      "kind": "panel",
+      "route": null,
+      "exports": [
+        "UsagePanel"
+      ],
+      "translationKeys": [
+        "usage.byModel",
+        "usage.cost",
+        "usage.last30Days",
+        "usage.last7Days",
+        "usage.today",
+        "usage.tokens",
+        "usage.totalCost",
+        "usage.totalTokens",
+        "usage.usageOverTime"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/UserCard.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "UserCard"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/UserSearchResult.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "UserSearchResult"
+      ],
+      "translationKeys": [
+        "friends.addFriend",
+        "friends.alreadyFriends",
+        "friends.requestPending",
+        "friends.requestSent"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/VoiceAssistantStatusBar.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "VoiceAssistantStatusBar"
+      ],
+      "translationKeys": [
+        "uiCopy.tapToEnd"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/VoiceBars.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "VoiceBars"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/WorkspaceContextStrip.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "WorkspaceContextStrip"
+      ],
+      "translationKeys": [
+        "uiCopy.removeValueFromMessageContext"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/hooks/useConnectAccount.ts",
+      "kind": "ui-module",
+      "route": null,
+      "exports": [
+        "useConnectAccount"
+      ],
+      "translationKeys": [
+        "common.error",
+        "common.ok",
+        "common.success",
+        "modals.cameraPermissionsRequiredToScanQr",
+        "modals.deviceLinkedSuccessfully",
+        "modals.failedToLinkDevice",
+        "modals.invalidAuthUrl"
+      ],
+      "states": [
+        "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/hooks/useConnectTerminal.ts",
+      "kind": "ui-module",
+      "route": null,
+      "exports": [
+        "useConnectTerminal"
+      ],
+      "translationKeys": [
+        "common.error",
+        "common.ok",
+        "common.success",
+        "modals.cameraPermissionsRequiredToConnectTerminal",
+        "modals.failedToConnectTerminal",
+        "modals.invalidAuthUrl",
+        "modals.terminalConnectedSuccessfully"
+      ],
+      "states": [
+        "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/hooks/useGroupedMessages.ts",
+      "kind": "ui-module",
+      "route": null,
+      "exports": [
+        "formatWorkDuration",
+        "generateGroupSummary",
+        "groupMessagesForDisplay",
+        "groupToolCallsForDisplay",
+        "useGroupedMessages"
+      ],
+      "translationKeys": [
+        "toolGroup.editedFiles",
+        "toolGroup.fetchedUrls",
+        "toolGroup.ranCommands",
+        "toolGroup.ranTasks",
+        "toolGroup.readFiles",
+        "toolGroup.searched",
+        "toolGroup.usedTools"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/hooks/useHappyAction.ts",
+      "kind": "ui-module",
+      "route": null,
+      "exports": [
+        "useHappyAction"
+      ],
+      "translationKeys": [
+        "common.error",
+        "happyHerd.automations.unknownError"
+      ],
+      "states": [
+        "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/hooks/useImagePicker.ts",
+      "kind": "picker",
+      "route": null,
+      "exports": [
+        "MAX_FILE_SIZE",
+        "MAX_IMAGES_PER_MESSAGE",
+        "normalizePickedAssetForUpload",
+        "useImagePicker"
+      ],
+      "translationKeys": [
+        "common.ok",
+        "imageUpload.fileTooLargeMessage",
+        "imageUpload.fileTooLargeTitle",
+        "imageUpload.limitMessage",
+        "imageUpload.limitTitle",
+        "imageUpload.permissionMessage",
+        "imageUpload.permissionTitle"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/hooks/useSessionQuickActions.ts",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "useSessionActionAlert",
+        "useSessionQuickActions"
+      ],
+      "translationKeys": [
+        "common.cancel",
+        "profile.details",
+        "session.duplicateAction",
+        "session.forkAction",
+        "session.forkErrorGeneric",
+        "session.forkErrorMissingMetadata",
+        "sessionInfo.copyMetadata",
+        "sessionInfo.resumeSession",
+        "sessionInfo.resumeSessionMachineOffline",
+        "sessionInfo.resumeSessionMissingBackendId",
+        "sessionInfo.resumeSessionMissingMachine",
+        "sessionInfo.resumeSessionSameMachineOnly",
+        "sessionInfo.resumeSessionSubtitle",
+        "sessionInfo.resumeSessionUnexpectedDirectoryPrompt",
+        "uiCopy.archive",
+        "uiCopy.copyMetadataAndClientLogs",
+        "uiCopy.session"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/hooks/useStartSessionFromDraft.ts",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "useStartSessionFromDraft"
+      ],
+      "translationKeys": [
+        "common.cancel",
+        "common.create",
+        "common.error",
+        "newSession.machineOffline",
+        "uiCopy.createDirectory",
+        "uiCopy.failedToCreateWorktree",
+        "uiCopy.failedToSendTheFirstMessage",
+        "uiCopy.failedToStartSession",
+        "uiCopy.pleaseSelectAMachine",
+        "uiCopy.theDirectoryValueDoesNotExistWouldYouLikeTo",
+        "uiCopy.theSelectedAgentConfigurationIsUnavailable"
+      ],
+      "states": [
+        "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/hooks/useVoiceDictation.ts",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "useVoiceDictation"
+      ],
+      "translationKeys": [
+        "happyHerd.voice.emptyAudio",
+        "happyHerd.voice.finishFailed",
+        "happyHerd.voice.noAudio",
+        "happyHerd.voice.permissionDenied",
+        "happyHerd.voice.signIn",
+        "happyHerd.voice.startFailed",
+        "happyHerd.voice.transcriptionFailed"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/hooks/useWorktreeCleanup.ts",
+      "kind": "ui-module",
+      "route": null,
+      "exports": [
+        "maybeCleanupWorktree"
+      ],
+      "translationKeys": [
+        "sessionInfo.worktreeCleanupDelete",
+        "sessionInfo.worktreeCleanupKeep",
+        "sessionInfo.worktreeCleanupMessage",
+        "sessionInfo.worktreeCleanupTitle"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/modal/components/BaseModal.tsx",
+      "kind": "modal",
+      "route": null,
+      "exports": [
+        "BaseModal"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/modal/components/CustomModal.tsx",
+      "kind": "modal",
+      "route": null,
+      "exports": [
+        "CustomModal"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/modal/components/WebAlertModal.tsx",
+      "kind": "modal",
+      "route": null,
+      "exports": [
+        "WebAlertModal"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/modal/components/WebPromptModal.tsx",
+      "kind": "modal",
+      "route": null,
+      "exports": [
+        "WebPromptModal"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/modal/ModalManager.ts",
+      "kind": "modal",
+      "route": null,
+      "exports": [
+        "Modal"
+      ],
+      "translationKeys": [
+        "common.cancel",
+        "common.ok"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/modal/ModalProvider.tsx",
+      "kind": "modal",
+      "route": null,
+      "exports": [
+        "ModalProvider",
+        "useModal"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/realtime/RealtimeProvider.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "RealtimeProvider"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/realtime/RealtimeProvider.web.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "RealtimeProvider"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/realtime/RealtimeSession.ts",
+      "kind": "ui-module",
+      "route": null,
+      "exports": [
+        "getCurrentRealtimeSessionId",
+        "getCurrentVoiceConversationId",
+        "getCurrentVoiceSessionDurationSeconds",
+        "getVoiceSession",
+        "isVoiceSessionStarted",
+        "registerVoiceSession",
+        "setCurrentRealtimeSessionId",
+        "startRealtimeSession",
+        "stopRealtimeSession"
+      ],
+      "translationKeys": [
+        "common.error",
+        "errors.authenticationFailed",
+        "errors.voiceConversationLimitReached",
+        "errors.voiceLimitReachedTitle",
+        "errors.voiceServiceUnavailable"
+      ],
+      "states": [
+        "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/sync/suggestionCommands.ts",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "IGNORED_COMMANDS",
+        "getAllCommands",
+        "searchCommands"
+      ],
+      "translationKeys": [
+        "uiCopy.clearTheConversation",
+        "uiCopy.compactTheConversationHistory",
+        "uiCopy.setASessionGoal",
+        "uiCopy.showAvailableSkills",
+        "uiCopy.showConnectedMcpServers"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/sync/sync.ts",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "sync",
+        "syncCreate",
+        "syncRestore"
+      ],
+      "translationKeys": [
+        "common.ok",
+        "imageUpload.notSupportedMessage",
+        "imageUpload.notSupportedTitle",
+        "imageUpload.uploadFailedMessage",
+        "imageUpload.uploadFailedTitle",
+        "uiCopy.failedToPresentPaywall",
+        "uiCopy.messageFailed",
+        "uiCopy.messageNotSent",
+        "uiCopy.paywallUnavailable"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/utils/copySessionMetadataToClipboard.ts",
+      "kind": "ui-module",
+      "route": null,
+      "exports": [
+        "copySessionMetadataAndLogsToClipboard",
+        "copySessionMetadataToClipboard"
+      ],
+      "translationKeys": [
+        "common.error",
+        "common.success",
+        "sessionInfo.failedToCopyMetadata",
+        "sessionInfo.metadataCopied"
+      ],
+      "states": [
+        "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/utils/microphonePermissions.ts",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "checkMicrophonePermission",
+        "requestMicrophonePermission",
+        "showMicrophonePermissionDeniedAlert"
+      ],
+      "translationKeys": [
+        "uiCopy.microphoneAccessRequired",
+        "uiCopy.microphoneEnableSettings",
+        "uiCopy.microphoneGrantPrompt",
+        "uiCopy.pleaseAllowMicrophoneAccessInYourBrowserSettingsYouMay"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/utils/requestReview.ts",
+      "kind": "ui-module",
+      "route": null,
+      "exports": [
+        "requestReview",
+        "resetReviewState"
+      ],
+      "translationKeys": [
+        "review.enjoyingApp",
+        "review.feedbackPrompt",
+        "review.notReally",
+        "review.yesILoveIt"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/utils/sessionUtils.ts",
+      "kind": "ui-module",
+      "route": null,
+      "exports": [
+        "formatLastSeen",
+        "formatOSPlatform",
+        "formatPathRelativeToHome",
+        "getResumeCommand",
+        "getResumeCommandBlock",
+        "getSessionAvatarId",
+        "getSessionName",
+        "getSessionSubtitle",
+        "isSessionActive",
+        "isSessionOnline",
+        "useSessionStatus",
+        "vibingMessages"
+      ],
+      "translationKeys": [
+        "session.newChat",
+        "sessionHistory.daysAgo",
+        "status.activeNow",
+        "status.lastSeen",
+        "status.online",
+        "status.permissionRequired",
+        "status.unknown",
+        "time.hoursAgo",
+        "time.justNow",
+        "time.minutesAgo"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/utils/toolDisplay.ts",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "formatMCPTitle",
+        "getTerminalToolCommand",
+        "getToolActivityLabel",
+        "getToolSummaryCategory",
+        "getToolSummaryDetail",
+        "isTerminalToolName",
+        "shouldRenderToolCardHeader",
+        "shouldUseCompactToolRow"
+      ],
+      "translationKeys": [
+        "toolGroup.editedFiles",
+        "toolGroup.fetchedUrls",
+        "toolGroup.ranCommands",
+        "toolGroup.ranTasks",
+        "toolGroup.readFiles",
+        "toolGroup.searched"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    }
+  ],
+  "smokeMatrix": [
+    {
+      "surface": "new-session",
+      "owner": "sources/app/(app)/new/index.tsx",
+      "route": "/new",
+      "locale": "en",
+      "viewport": "mobile",
+      "theme": "light",
+      "copy": {
+        "newSession.title": "Start New Session",
+        "uiCopy.whatWouldYouLikeToWorkOn": "What would you like to work on?"
+      }
+    },
+    {
+      "surface": "new-session",
+      "owner": "sources/app/(app)/new/index.tsx",
+      "route": "/new",
+      "locale": "en",
+      "viewport": "mobile",
+      "theme": "dark",
+      "copy": {
+        "newSession.title": "Start New Session",
+        "uiCopy.whatWouldYouLikeToWorkOn": "What would you like to work on?"
+      }
+    },
+    {
+      "surface": "new-session",
+      "owner": "sources/app/(app)/new/index.tsx",
+      "route": "/new",
+      "locale": "en",
+      "viewport": "desktop",
+      "theme": "light",
+      "copy": {
+        "newSession.title": "Start New Session",
+        "uiCopy.whatWouldYouLikeToWorkOn": "What would you like to work on?"
+      }
+    },
+    {
+      "surface": "new-session",
+      "owner": "sources/app/(app)/new/index.tsx",
+      "route": "/new",
+      "locale": "en",
+      "viewport": "desktop",
+      "theme": "dark",
+      "copy": {
+        "newSession.title": "Start New Session",
+        "uiCopy.whatWouldYouLikeToWorkOn": "What would you like to work on?"
+      }
+    },
+    {
+      "surface": "new-session",
+      "owner": "sources/app/(app)/new/index.tsx",
+      "route": "/new",
+      "locale": "cn",
+      "viewport": "mobile",
+      "theme": "light",
+      "copy": {
+        "newSession.title": "开始新会话",
+        "uiCopy.whatWouldYouLikeToWorkOn": "您想处理什么任务？"
+      }
+    },
+    {
+      "surface": "new-session",
+      "owner": "sources/app/(app)/new/index.tsx",
+      "route": "/new",
+      "locale": "cn",
+      "viewport": "mobile",
+      "theme": "dark",
+      "copy": {
+        "newSession.title": "开始新会话",
+        "uiCopy.whatWouldYouLikeToWorkOn": "您想处理什么任务？"
+      }
+    },
+    {
+      "surface": "new-session",
+      "owner": "sources/app/(app)/new/index.tsx",
+      "route": "/new",
+      "locale": "cn",
+      "viewport": "desktop",
+      "theme": "light",
+      "copy": {
+        "newSession.title": "开始新会话",
+        "uiCopy.whatWouldYouLikeToWorkOn": "您想处理什么任务？"
+      }
+    },
+    {
+      "surface": "new-session",
+      "owner": "sources/app/(app)/new/index.tsx",
+      "route": "/new",
+      "locale": "cn",
+      "viewport": "desktop",
+      "theme": "dark",
+      "copy": {
+        "newSession.title": "开始新会话",
+        "uiCopy.whatWouldYouLikeToWorkOn": "您想处理什么任务？"
+      }
+    },
+    {
+      "surface": "new-session",
+      "owner": "sources/app/(app)/new/index.tsx",
+      "route": "/new",
+      "locale": "de",
+      "viewport": "mobile",
+      "theme": "light",
+      "copy": {
+        "newSession.title": "Neue Sitzung starten",
+        "uiCopy.whatWouldYouLikeToWorkOn": "Woran möchten Sie arbeiten?"
+      }
+    },
+    {
+      "surface": "new-session",
+      "owner": "sources/app/(app)/new/index.tsx",
+      "route": "/new",
+      "locale": "de",
+      "viewport": "mobile",
+      "theme": "dark",
+      "copy": {
+        "newSession.title": "Neue Sitzung starten",
+        "uiCopy.whatWouldYouLikeToWorkOn": "Woran möchten Sie arbeiten?"
+      }
+    },
+    {
+      "surface": "new-session",
+      "owner": "sources/app/(app)/new/index.tsx",
+      "route": "/new",
+      "locale": "de",
+      "viewport": "desktop",
+      "theme": "light",
+      "copy": {
+        "newSession.title": "Neue Sitzung starten",
+        "uiCopy.whatWouldYouLikeToWorkOn": "Woran möchten Sie arbeiten?"
+      }
+    },
+    {
+      "surface": "new-session",
+      "owner": "sources/app/(app)/new/index.tsx",
+      "route": "/new",
+      "locale": "de",
+      "viewport": "desktop",
+      "theme": "dark",
+      "copy": {
+        "newSession.title": "Neue Sitzung starten",
+        "uiCopy.whatWouldYouLikeToWorkOn": "Woran möchten Sie arbeiten?"
+      }
+    },
+    {
+      "surface": "session",
+      "owner": "sources/app/(app)/session/[id].tsx",
+      "route": "/session/[id]",
+      "locale": "en",
+      "viewport": "mobile",
+      "theme": "light",
+      "copy": {
+        "session.inputPlaceholder": "Type a message ...",
+        "status.online": "online"
+      }
+    },
+    {
+      "surface": "session",
+      "owner": "sources/app/(app)/session/[id].tsx",
+      "route": "/session/[id]",
+      "locale": "en",
+      "viewport": "mobile",
+      "theme": "dark",
+      "copy": {
+        "session.inputPlaceholder": "Type a message ...",
+        "status.online": "online"
+      }
+    },
+    {
+      "surface": "session",
+      "owner": "sources/app/(app)/session/[id].tsx",
+      "route": "/session/[id]",
+      "locale": "en",
+      "viewport": "desktop",
+      "theme": "light",
+      "copy": {
+        "session.inputPlaceholder": "Type a message ...",
+        "status.online": "online"
+      }
+    },
+    {
+      "surface": "session",
+      "owner": "sources/app/(app)/session/[id].tsx",
+      "route": "/session/[id]",
+      "locale": "en",
+      "viewport": "desktop",
+      "theme": "dark",
+      "copy": {
+        "session.inputPlaceholder": "Type a message ...",
+        "status.online": "online"
+      }
+    },
+    {
+      "surface": "session",
+      "owner": "sources/app/(app)/session/[id].tsx",
+      "route": "/session/[id]",
+      "locale": "cn",
+      "viewport": "mobile",
+      "theme": "light",
+      "copy": {
+        "session.inputPlaceholder": "输入消息...",
+        "status.online": "在线"
+      }
+    },
+    {
+      "surface": "session",
+      "owner": "sources/app/(app)/session/[id].tsx",
+      "route": "/session/[id]",
+      "locale": "cn",
+      "viewport": "mobile",
+      "theme": "dark",
+      "copy": {
+        "session.inputPlaceholder": "输入消息...",
+        "status.online": "在线"
+      }
+    },
+    {
+      "surface": "session",
+      "owner": "sources/app/(app)/session/[id].tsx",
+      "route": "/session/[id]",
+      "locale": "cn",
+      "viewport": "desktop",
+      "theme": "light",
+      "copy": {
+        "session.inputPlaceholder": "输入消息...",
+        "status.online": "在线"
+      }
+    },
+    {
+      "surface": "session",
+      "owner": "sources/app/(app)/session/[id].tsx",
+      "route": "/session/[id]",
+      "locale": "cn",
+      "viewport": "desktop",
+      "theme": "dark",
+      "copy": {
+        "session.inputPlaceholder": "输入消息...",
+        "status.online": "在线"
+      }
+    },
+    {
+      "surface": "session",
+      "owner": "sources/app/(app)/session/[id].tsx",
+      "route": "/session/[id]",
+      "locale": "de",
+      "viewport": "mobile",
+      "theme": "light",
+      "copy": {
+        "session.inputPlaceholder": "Geben Sie eine Nachricht ein ...",
+        "status.online": "verbunden"
+      }
+    },
+    {
+      "surface": "session",
+      "owner": "sources/app/(app)/session/[id].tsx",
+      "route": "/session/[id]",
+      "locale": "de",
+      "viewport": "mobile",
+      "theme": "dark",
+      "copy": {
+        "session.inputPlaceholder": "Geben Sie eine Nachricht ein ...",
+        "status.online": "verbunden"
+      }
+    },
+    {
+      "surface": "session",
+      "owner": "sources/app/(app)/session/[id].tsx",
+      "route": "/session/[id]",
+      "locale": "de",
+      "viewport": "desktop",
+      "theme": "light",
+      "copy": {
+        "session.inputPlaceholder": "Geben Sie eine Nachricht ein ...",
+        "status.online": "verbunden"
+      }
+    },
+    {
+      "surface": "session",
+      "owner": "sources/app/(app)/session/[id].tsx",
+      "route": "/session/[id]",
+      "locale": "de",
+      "viewport": "desktop",
+      "theme": "dark",
+      "copy": {
+        "session.inputPlaceholder": "Geben Sie eine Nachricht ein ...",
+        "status.online": "verbunden"
+      }
+    },
+    {
+      "surface": "workspace",
+      "owner": "sources/app/(app)/workspace/index.tsx",
+      "route": "/workspace",
+      "locale": "en",
+      "viewport": "mobile",
+      "theme": "light",
+      "copy": {
+        "workspace.title": "Machine Workspace",
+        "workspace.searchPlaceholder": "Search this folder..."
+      }
+    },
+    {
+      "surface": "workspace",
+      "owner": "sources/app/(app)/workspace/index.tsx",
+      "route": "/workspace",
+      "locale": "en",
+      "viewport": "mobile",
+      "theme": "dark",
+      "copy": {
+        "workspace.title": "Machine Workspace",
+        "workspace.searchPlaceholder": "Search this folder..."
+      }
+    },
+    {
+      "surface": "workspace",
+      "owner": "sources/app/(app)/workspace/index.tsx",
+      "route": "/workspace",
+      "locale": "en",
+      "viewport": "desktop",
+      "theme": "light",
+      "copy": {
+        "workspace.title": "Machine Workspace",
+        "workspace.searchPlaceholder": "Search this folder..."
+      }
+    },
+    {
+      "surface": "workspace",
+      "owner": "sources/app/(app)/workspace/index.tsx",
+      "route": "/workspace",
+      "locale": "en",
+      "viewport": "desktop",
+      "theme": "dark",
+      "copy": {
+        "workspace.title": "Machine Workspace",
+        "workspace.searchPlaceholder": "Search this folder..."
+      }
+    },
+    {
+      "surface": "workspace",
+      "owner": "sources/app/(app)/workspace/index.tsx",
+      "route": "/workspace",
+      "locale": "cn",
+      "viewport": "mobile",
+      "theme": "light",
+      "copy": {
+        "workspace.title": "设备工作区",
+        "workspace.searchPlaceholder": "搜索此文件夹…"
+      }
+    },
+    {
+      "surface": "workspace",
+      "owner": "sources/app/(app)/workspace/index.tsx",
+      "route": "/workspace",
+      "locale": "cn",
+      "viewport": "mobile",
+      "theme": "dark",
+      "copy": {
+        "workspace.title": "设备工作区",
+        "workspace.searchPlaceholder": "搜索此文件夹…"
+      }
+    },
+    {
+      "surface": "workspace",
+      "owner": "sources/app/(app)/workspace/index.tsx",
+      "route": "/workspace",
+      "locale": "cn",
+      "viewport": "desktop",
+      "theme": "light",
+      "copy": {
+        "workspace.title": "设备工作区",
+        "workspace.searchPlaceholder": "搜索此文件夹…"
+      }
+    },
+    {
+      "surface": "workspace",
+      "owner": "sources/app/(app)/workspace/index.tsx",
+      "route": "/workspace",
+      "locale": "cn",
+      "viewport": "desktop",
+      "theme": "dark",
+      "copy": {
+        "workspace.title": "设备工作区",
+        "workspace.searchPlaceholder": "搜索此文件夹…"
+      }
+    },
+    {
+      "surface": "workspace",
+      "owner": "sources/app/(app)/workspace/index.tsx",
+      "route": "/workspace",
+      "locale": "de",
+      "viewport": "mobile",
+      "theme": "light",
+      "copy": {
+        "workspace.title": "Maschinenarbeitsbereich",
+        "workspace.searchPlaceholder": "Diesen Ordner durchsuchen..."
+      }
+    },
+    {
+      "surface": "workspace",
+      "owner": "sources/app/(app)/workspace/index.tsx",
+      "route": "/workspace",
+      "locale": "de",
+      "viewport": "mobile",
+      "theme": "dark",
+      "copy": {
+        "workspace.title": "Maschinenarbeitsbereich",
+        "workspace.searchPlaceholder": "Diesen Ordner durchsuchen..."
+      }
+    },
+    {
+      "surface": "workspace",
+      "owner": "sources/app/(app)/workspace/index.tsx",
+      "route": "/workspace",
+      "locale": "de",
+      "viewport": "desktop",
+      "theme": "light",
+      "copy": {
+        "workspace.title": "Maschinenarbeitsbereich",
+        "workspace.searchPlaceholder": "Diesen Ordner durchsuchen..."
+      }
+    },
+    {
+      "surface": "workspace",
+      "owner": "sources/app/(app)/workspace/index.tsx",
+      "route": "/workspace",
+      "locale": "de",
+      "viewport": "desktop",
+      "theme": "dark",
+      "copy": {
+        "workspace.title": "Maschinenarbeitsbereich",
+        "workspace.searchPlaceholder": "Diesen Ordner durchsuchen..."
+      }
+    },
+    {
+      "surface": "automations",
+      "owner": "sources/app/(app)/automations/index.tsx",
+      "route": "/automations",
+      "locale": "en",
+      "viewport": "mobile",
+      "theme": "light",
+      "copy": {
+        "happyHerd.automations.title": "Automations",
+        "happyHerd.automations.subtitle": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon."
+      }
+    },
+    {
+      "surface": "automations",
+      "owner": "sources/app/(app)/automations/index.tsx",
+      "route": "/automations",
+      "locale": "en",
+      "viewport": "mobile",
+      "theme": "dark",
+      "copy": {
+        "happyHerd.automations.title": "Automations",
+        "happyHerd.automations.subtitle": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon."
+      }
+    },
+    {
+      "surface": "automations",
+      "owner": "sources/app/(app)/automations/index.tsx",
+      "route": "/automations",
+      "locale": "en",
+      "viewport": "desktop",
+      "theme": "light",
+      "copy": {
+        "happyHerd.automations.title": "Automations",
+        "happyHerd.automations.subtitle": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon."
+      }
+    },
+    {
+      "surface": "automations",
+      "owner": "sources/app/(app)/automations/index.tsx",
+      "route": "/automations",
+      "locale": "en",
+      "viewport": "desktop",
+      "theme": "dark",
+      "copy": {
+        "happyHerd.automations.title": "Automations",
+        "happyHerd.automations.subtitle": "Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon."
+      }
+    },
+    {
+      "surface": "automations",
+      "owner": "sources/app/(app)/automations/index.tsx",
+      "route": "/automations",
+      "locale": "cn",
+      "viewport": "mobile",
+      "theme": "light",
+      "copy": {
+        "happyHerd.automations.title": "自动化",
+        "happyHerd.automations.subtitle": "心跳和定时任务通过所选机器上的 HappyHerd 守护进程运行。"
+      }
+    },
+    {
+      "surface": "automations",
+      "owner": "sources/app/(app)/automations/index.tsx",
+      "route": "/automations",
+      "locale": "cn",
+      "viewport": "mobile",
+      "theme": "dark",
+      "copy": {
+        "happyHerd.automations.title": "自动化",
+        "happyHerd.automations.subtitle": "心跳和定时任务通过所选机器上的 HappyHerd 守护进程运行。"
+      }
+    },
+    {
+      "surface": "automations",
+      "owner": "sources/app/(app)/automations/index.tsx",
+      "route": "/automations",
+      "locale": "cn",
+      "viewport": "desktop",
+      "theme": "light",
+      "copy": {
+        "happyHerd.automations.title": "自动化",
+        "happyHerd.automations.subtitle": "心跳和定时任务通过所选机器上的 HappyHerd 守护进程运行。"
+      }
+    },
+    {
+      "surface": "automations",
+      "owner": "sources/app/(app)/automations/index.tsx",
+      "route": "/automations",
+      "locale": "cn",
+      "viewport": "desktop",
+      "theme": "dark",
+      "copy": {
+        "happyHerd.automations.title": "自动化",
+        "happyHerd.automations.subtitle": "心跳和定时任务通过所选机器上的 HappyHerd 守护进程运行。"
+      }
+    },
+    {
+      "surface": "automations",
+      "owner": "sources/app/(app)/automations/index.tsx",
+      "route": "/automations",
+      "locale": "de",
+      "viewport": "mobile",
+      "theme": "light",
+      "copy": {
+        "happyHerd.automations.title": "Automatisierungen",
+        "happyHerd.automations.subtitle": "Heartbeats und geplante Aufgaben laufen über den HappyHerd-Daemon des ausgewählten Rechners."
+      }
+    },
+    {
+      "surface": "automations",
+      "owner": "sources/app/(app)/automations/index.tsx",
+      "route": "/automations",
+      "locale": "de",
+      "viewport": "mobile",
+      "theme": "dark",
+      "copy": {
+        "happyHerd.automations.title": "Automatisierungen",
+        "happyHerd.automations.subtitle": "Heartbeats und geplante Aufgaben laufen über den HappyHerd-Daemon des ausgewählten Rechners."
+      }
+    },
+    {
+      "surface": "automations",
+      "owner": "sources/app/(app)/automations/index.tsx",
+      "route": "/automations",
+      "locale": "de",
+      "viewport": "desktop",
+      "theme": "light",
+      "copy": {
+        "happyHerd.automations.title": "Automatisierungen",
+        "happyHerd.automations.subtitle": "Heartbeats und geplante Aufgaben laufen über den HappyHerd-Daemon des ausgewählten Rechners."
+      }
+    },
+    {
+      "surface": "automations",
+      "owner": "sources/app/(app)/automations/index.tsx",
+      "route": "/automations",
+      "locale": "de",
+      "viewport": "desktop",
+      "theme": "dark",
+      "copy": {
+        "happyHerd.automations.title": "Automatisierungen",
+        "happyHerd.automations.subtitle": "Heartbeats und geplante Aufgaben laufen über den HappyHerd-Daemon des ausgewählten Rechners."
+      }
+    },
+    {
+      "surface": "account",
+      "owner": "sources/app/(app)/settings/account.tsx",
+      "route": "/settings/account",
+      "locale": "en",
+      "viewport": "mobile",
+      "theme": "light",
+      "copy": {
+        "settingsAccount.accountInformation": "Account Information",
+        "settingsAccount.analytics": "Analytics"
+      }
+    },
+    {
+      "surface": "account",
+      "owner": "sources/app/(app)/settings/account.tsx",
+      "route": "/settings/account",
+      "locale": "en",
+      "viewport": "mobile",
+      "theme": "dark",
+      "copy": {
+        "settingsAccount.accountInformation": "Account Information",
+        "settingsAccount.analytics": "Analytics"
+      }
+    },
+    {
+      "surface": "account",
+      "owner": "sources/app/(app)/settings/account.tsx",
+      "route": "/settings/account",
+      "locale": "en",
+      "viewport": "desktop",
+      "theme": "light",
+      "copy": {
+        "settingsAccount.accountInformation": "Account Information",
+        "settingsAccount.analytics": "Analytics"
+      }
+    },
+    {
+      "surface": "account",
+      "owner": "sources/app/(app)/settings/account.tsx",
+      "route": "/settings/account",
+      "locale": "en",
+      "viewport": "desktop",
+      "theme": "dark",
+      "copy": {
+        "settingsAccount.accountInformation": "Account Information",
+        "settingsAccount.analytics": "Analytics"
+      }
+    },
+    {
+      "surface": "account",
+      "owner": "sources/app/(app)/settings/account.tsx",
+      "route": "/settings/account",
+      "locale": "cn",
+      "viewport": "mobile",
+      "theme": "light",
+      "copy": {
+        "settingsAccount.accountInformation": "账户信息",
+        "settingsAccount.analytics": "分析"
+      }
+    },
+    {
+      "surface": "account",
+      "owner": "sources/app/(app)/settings/account.tsx",
+      "route": "/settings/account",
+      "locale": "cn",
+      "viewport": "mobile",
+      "theme": "dark",
+      "copy": {
+        "settingsAccount.accountInformation": "账户信息",
+        "settingsAccount.analytics": "分析"
+      }
+    },
+    {
+      "surface": "account",
+      "owner": "sources/app/(app)/settings/account.tsx",
+      "route": "/settings/account",
+      "locale": "cn",
+      "viewport": "desktop",
+      "theme": "light",
+      "copy": {
+        "settingsAccount.accountInformation": "账户信息",
+        "settingsAccount.analytics": "分析"
+      }
+    },
+    {
+      "surface": "account",
+      "owner": "sources/app/(app)/settings/account.tsx",
+      "route": "/settings/account",
+      "locale": "cn",
+      "viewport": "desktop",
+      "theme": "dark",
+      "copy": {
+        "settingsAccount.accountInformation": "账户信息",
+        "settingsAccount.analytics": "分析"
+      }
+    },
+    {
+      "surface": "account",
+      "owner": "sources/app/(app)/settings/account.tsx",
+      "route": "/settings/account",
+      "locale": "de",
+      "viewport": "mobile",
+      "theme": "light",
+      "copy": {
+        "settingsAccount.accountInformation": "Kontoinformationen",
+        "settingsAccount.analytics": "Analytik"
+      }
+    },
+    {
+      "surface": "account",
+      "owner": "sources/app/(app)/settings/account.tsx",
+      "route": "/settings/account",
+      "locale": "de",
+      "viewport": "mobile",
+      "theme": "dark",
+      "copy": {
+        "settingsAccount.accountInformation": "Kontoinformationen",
+        "settingsAccount.analytics": "Analytik"
+      }
+    },
+    {
+      "surface": "account",
+      "owner": "sources/app/(app)/settings/account.tsx",
+      "route": "/settings/account",
+      "locale": "de",
+      "viewport": "desktop",
+      "theme": "light",
+      "copy": {
+        "settingsAccount.accountInformation": "Kontoinformationen",
+        "settingsAccount.analytics": "Analytik"
+      }
+    },
+    {
+      "surface": "account",
+      "owner": "sources/app/(app)/settings/account.tsx",
+      "route": "/settings/account",
+      "locale": "de",
+      "viewport": "desktop",
+      "theme": "dark",
+      "copy": {
+        "settingsAccount.accountInformation": "Kontoinformationen",
+        "settingsAccount.analytics": "Analytik"
+      }
+    },
+    {
+      "surface": "composer",
+      "owner": "sources/components/AgentInput.tsx",
+      "route": null,
+      "locale": "en",
+      "viewport": "mobile",
+      "theme": "light",
+      "copy": {
+        "session.inputPlaceholder": "Type a message ...",
+        "happyHerd.composer.queueMessage": "Queue Msg"
+      }
+    },
+    {
+      "surface": "composer",
+      "owner": "sources/components/AgentInput.tsx",
+      "route": null,
+      "locale": "en",
+      "viewport": "mobile",
+      "theme": "dark",
+      "copy": {
+        "session.inputPlaceholder": "Type a message ...",
+        "happyHerd.composer.queueMessage": "Queue Msg"
+      }
+    },
+    {
+      "surface": "composer",
+      "owner": "sources/components/AgentInput.tsx",
+      "route": null,
+      "locale": "en",
+      "viewport": "desktop",
+      "theme": "light",
+      "copy": {
+        "session.inputPlaceholder": "Type a message ...",
+        "happyHerd.composer.queueMessage": "Queue Msg"
+      }
+    },
+    {
+      "surface": "composer",
+      "owner": "sources/components/AgentInput.tsx",
+      "route": null,
+      "locale": "en",
+      "viewport": "desktop",
+      "theme": "dark",
+      "copy": {
+        "session.inputPlaceholder": "Type a message ...",
+        "happyHerd.composer.queueMessage": "Queue Msg"
+      }
+    },
+    {
+      "surface": "composer",
+      "owner": "sources/components/AgentInput.tsx",
+      "route": null,
+      "locale": "cn",
+      "viewport": "mobile",
+      "theme": "light",
+      "copy": {
+        "session.inputPlaceholder": "输入消息...",
+        "happyHerd.composer.queueMessage": "排队消息"
+      }
+    },
+    {
+      "surface": "composer",
+      "owner": "sources/components/AgentInput.tsx",
+      "route": null,
+      "locale": "cn",
+      "viewport": "mobile",
+      "theme": "dark",
+      "copy": {
+        "session.inputPlaceholder": "输入消息...",
+        "happyHerd.composer.queueMessage": "排队消息"
+      }
+    },
+    {
+      "surface": "composer",
+      "owner": "sources/components/AgentInput.tsx",
+      "route": null,
+      "locale": "cn",
+      "viewport": "desktop",
+      "theme": "light",
+      "copy": {
+        "session.inputPlaceholder": "输入消息...",
+        "happyHerd.composer.queueMessage": "排队消息"
+      }
+    },
+    {
+      "surface": "composer",
+      "owner": "sources/components/AgentInput.tsx",
+      "route": null,
+      "locale": "cn",
+      "viewport": "desktop",
+      "theme": "dark",
+      "copy": {
+        "session.inputPlaceholder": "输入消息...",
+        "happyHerd.composer.queueMessage": "排队消息"
+      }
+    },
+    {
+      "surface": "composer",
+      "owner": "sources/components/AgentInput.tsx",
+      "route": null,
+      "locale": "de",
+      "viewport": "mobile",
+      "theme": "light",
+      "copy": {
+        "session.inputPlaceholder": "Geben Sie eine Nachricht ein ...",
+        "happyHerd.composer.queueMessage": "Nachricht einreihen"
+      }
+    },
+    {
+      "surface": "composer",
+      "owner": "sources/components/AgentInput.tsx",
+      "route": null,
+      "locale": "de",
+      "viewport": "mobile",
+      "theme": "dark",
+      "copy": {
+        "session.inputPlaceholder": "Geben Sie eine Nachricht ein ...",
+        "happyHerd.composer.queueMessage": "Nachricht einreihen"
+      }
+    },
+    {
+      "surface": "composer",
+      "owner": "sources/components/AgentInput.tsx",
+      "route": null,
+      "locale": "de",
+      "viewport": "desktop",
+      "theme": "light",
+      "copy": {
+        "session.inputPlaceholder": "Geben Sie eine Nachricht ein ...",
+        "happyHerd.composer.queueMessage": "Nachricht einreihen"
+      }
+    },
+    {
+      "surface": "composer",
+      "owner": "sources/components/AgentInput.tsx",
+      "route": null,
+      "locale": "de",
+      "viewport": "desktop",
+      "theme": "dark",
+      "copy": {
+        "session.inputPlaceholder": "Geben Sie eine Nachricht ein ...",
+        "happyHerd.composer.queueMessage": "Nachricht einreihen"
+      }
+    }
+  ]
+}

@@ -91,11 +91,11 @@ const agentIcons = {
 };
 
 type AgentKey = NewSessionAgentType;
-const ALL_AGENTS: { key: AgentKey; label: string }[] = [
-    { key: 'claude', label: 'claude code' },
-    { key: 'codex', label: 'codex' },
-    { key: 'openclaw', label: 'openclaw' },
-    { key: 'agy', label: 'agy' },
+const getAllAgents = (): { key: AgentKey; label: string }[] => [
+    { key: 'claude', label: t('uiCopy.claudeCode') },
+    { key: 'codex', label: t('uiCopy.codex') },
+    { key: 'openclaw', label: t('uiCopy.openclaw') },
+    { key: 'agy', label: t('uiCopy.agy') },
 ];
 
 type PickerItem = { key: string; label: string; subtitle?: string; dimmed?: boolean };
@@ -359,7 +359,7 @@ function PickerContent({
                     <TextInput
                         value={search}
                         onChangeText={setSearch}
-                        placeholder={searchPlaceholder ?? 'search...'}
+                        placeholder={searchPlaceholder ?? t('uiCopy.search')}
                         placeholderTextColor={theme.colors.textSecondary}
                         style={[pickerStyles.searchInput, { color: theme.colors.text }]}
                         autoCapitalize="none"
@@ -380,7 +380,7 @@ function PickerContent({
                 {filtered.map(renderOption)}
                 {filtered.length === 0 && search.length > 0 && (
                     <Text style={[pickerStyles.emptyText, { color: theme.colors.textSecondary }]}>
-                        no results
+                        {t("uiCopy.noResults")}
                     </Text>
                 )}
             </ScrollView>
@@ -577,7 +577,7 @@ function PathPickerContent({
                                 { opacity: pressed ? 0.82 : 1 },
                             ]}
                             accessibilityRole="button"
-                            accessibilityLabel="Done"
+                            accessibilityLabel={t("uiCopy.done")}
                         >
                             <GlassView
                                 glassEffectStyle="regular"
@@ -629,7 +629,7 @@ function PathPickerContent({
                         onChangeText={onChangeValue}
                         onSelectionChange={handleSelectionChange}
                         selection={selection}
-                        placeholder="Enter project path"
+                        placeholder={t("uiCopy.enterProjectPath")}
                         placeholderTextColor={theme.colors.textSecondary}
                         style={[
                             pickerStyles.pathTextInput,
@@ -648,12 +648,12 @@ function PathPickerContent({
 
             {isCustomPath && (
                 <Text style={[pickerStyles.pathMetaText, { color: theme.colors.textSecondary }]}>
-                    using custom path above
+                    {t("uiCopy.usingCustomPathAbove")}
                 </Text>
             )}
 
             <Text style={[pickerStyles.sectionLabel, { color: theme.colors.textSecondary }]}>
-                Recent
+                {t("workspace.recent")}
             </Text>
 
             <ScrollView
@@ -697,7 +697,7 @@ function PathPickerContent({
 
                 {items.length === 0 && (
                     <Text style={[pickerStyles.emptyText, { color: theme.colors.textSecondary }]}>
-                        no recent projects yet
+                        {t("uiCopy.noRecentProjectsYet")}
                     </Text>
                 )}
             </ScrollView>
@@ -1092,11 +1092,11 @@ function NewSessionScreen() {
     }, [worktreeItems, worktreeKey]);
 
     // Filter available agents based on CLI availability from machine metadata
-    const availableAgents = React.useMemo(() => {
-        const availability = selectedMachine?.metadata?.cliAvailability;
-        if (!availability) return ALL_AGENTS;
-        return ALL_AGENTS.filter(a => availability[a.key]);
-    }, [selectedMachine]);
+    const allAgents = getAllAgents();
+    const availability = selectedMachine?.metadata?.cliAvailability;
+    const availableAgents = availability
+        ? allAgents.filter((agentOption) => availability[agentOption.key])
+        : allAgents;
 
     // If current agent not available on this machine, switch to first available
     React.useEffect(() => {
@@ -1225,7 +1225,7 @@ function NewSessionScreen() {
     }, [activePicker, cancelPendingPickerOpen, isDesktop]);
 
     const isOffline = selectedMachine ? !isMachineOnline(selectedMachine) : false;
-    const agent = availableAgents.find(a => a.key === selectedAgent) ?? ALL_AGENTS[0];
+    const agent = availableAgents.find(a => a.key === selectedAgent) ?? allAgents[0];
     const currentPermission = permissionModes[permissionIndex] ?? permissionModes[0];
     const currentEffort = effortLevels[effortIndex] ?? effortLevels[0];
     const selectEffortByKey = React.useCallback((key: string) => {
@@ -1290,41 +1290,41 @@ function NewSessionScreen() {
     }, [currentEffort, currentModel, currentPermission, permissionStyle?.icon, selectedAgent, showEffort, showModel, showPermission]);
 
     // Display values
-    const machineName = selectedMachine ? getMachineName(selectedMachine) : 'Select machine';
+    const machineName = selectedMachine ? getMachineName(selectedMachine) : t('workspace.selectMachine');
     const pathName = trimPathInput(selectedPath)
         ? formatPathRelativeToHome(trimPathInput(selectedPath), selectedHomeDir)
         : '~';
     const worktreeLabel = worktreeKey === '__none__'
-        ? 'no worktree'
+        ? t('uiCopy.noWorktree')
         : worktreeKey === '__new__'
-            ? 'new worktree'
+            ? t('uiCopy.newWorktree')
             : worktreeItems.find(wt => wt.key === worktreeKey)?.label || worktreeKey;
     const selectedCommander = commanders.find((commander) => commander.id === selectedCommanderId) ?? null;
-    const commanderLabel = selectedCommander?.name ?? 'no commander';
+    const commanderLabel = selectedCommander?.name ?? t('uiCopy.noCommander');
 
     // Picker data derived from active picker type
     const pickerData = React.useMemo(() => {
         switch (activePicker) {
             case 'machine':
-                return { title: 'Machine', items: machineItems, selectedKey: selectedMachineId, searchPlaceholder: 'search machines...' };
+                return { title: t('machine.machineGroup'), items: machineItems, selectedKey: selectedMachineId, searchPlaceholder: t('uiCopy.searchMachines') };
             case 'worktree':
-                return { title: 'Worktree', fixedItems: WORKTREE_FIXED_ITEMS, items: worktreeItems, selectedKey: worktreeKey, searchPlaceholder: 'search worktrees...' };
+                return { title: t('uiCopy.worktree'), fixedItems: getWorktreeFixedItems(), items: worktreeItems, selectedKey: worktreeKey, searchPlaceholder: t('uiCopy.searchWorktrees') };
             case 'commander':
                 return {
-                    title: 'Commander identity',
-                    fixedItems: [{ key: '__none__', label: 'no commander', subtitle: 'Use global AGENTS.md only' }],
+                    title: t("happyHerd.automations.commander"),
+                    fixedItems: [{ key: '__none__', label: t("uiCopy.noCommander"), subtitle: t("uiCopy.useGlobalAgentsMdOnly") }],
                     items: commanderItems,
                     selectedKey: selectedCommanderId ?? '__none__',
-                    searchPlaceholder: 'search commanders...',
+                    searchPlaceholder: t('uiCopy.searchCommanders'),
                 };
             case 'agent':
-                return { title: 'Agent', items: getAgentPickerItems(availableAgents), selectedKey: selectedAgent, searchPlaceholder: 'search agents...' };
+                return { title: t('uiCopy.agent'), items: getAgentPickerItems(availableAgents), selectedKey: selectedAgent, searchPlaceholder: t('uiCopy.searchAgents') };
             case 'model':
-                return { title: 'Model', items: getModePickerItems(modelModes), selectedKey: currentModelKey, searchPlaceholder: 'search models...' };
+                return { title: t('uiCopy.model'), items: getModePickerItems(modelModes), selectedKey: currentModelKey, searchPlaceholder: t('uiCopy.searchModels') };
             case 'effort':
-                return { title: 'Effort', items: getModePickerItems(effortLevels), selectedKey: currentEffort?.key ?? null, searchPlaceholder: 'search efforts...' };
+                return { title: t('uiCopy.effort'), items: getModePickerItems(effortLevels), selectedKey: currentEffort?.key ?? null, searchPlaceholder: t('uiCopy.searchEfforts') };
             case 'permission':
-                return { title: 'Permissions', items: getModePickerItems(permissionModes), selectedKey: currentPermission?.key ?? null, searchPlaceholder: 'search permissions...' };
+                return { title: t('uiCopy.permissions'), items: getModePickerItems(permissionModes), selectedKey: currentPermission?.key ?? null, searchPlaceholder: t('uiCopy.searchPermissions') };
             default:
                 return null;
         }
@@ -1463,11 +1463,11 @@ function NewSessionScreen() {
     // Spawn session handler
     const handleSend = React.useCallback(async (approvedNewDirectoryCreation: boolean = false) => {
         if (!selectedMachineId || !selectedMachine) {
-            Modal.alert(t('common.error'), 'Please select a machine');
+            Modal.alert(t('common.error'), t("uiCopy.pleaseSelectAMachine"));
             return;
         }
         if (!isMachineOnline(selectedMachine)) {
-            Modal.alert(t('common.error'), 'Machine is offline');
+            Modal.alert(t('common.error'), t("newSession.machineOffline"));
             return;
         }
 
@@ -1481,7 +1481,7 @@ function NewSessionScreen() {
             if (worktreeKey === '__new__') {
                 const worktreeResult = await createWorktree(selectedMachineId, absolutePath);
                 if (!worktreeResult.success) {
-                    Modal.alert(t('common.error'), worktreeResult.error || 'Failed to create worktree');
+                    Modal.alert(t('common.error'), worktreeResult.error || t("uiCopy.failedToCreateWorktree"));
                     return;
                 }
                 spawnDirectory = worktreeResult.worktreePath;
@@ -1553,8 +1553,8 @@ function NewSessionScreen() {
                     break;
                 case 'requestToApproveDirectoryCreation': {
                     const approved = await Modal.confirm(
-                        'Create Directory?',
-                        `The directory '${result.directory}' does not exist. Would you like to create it?`,
+                        t("uiCopy.createDirectory"),
+                        t("uiCopy.theDirectoryValueDoesNotExistWouldYouLikeTo", { value1: result.directory }),
                         { cancelText: t('common.cancel'), confirmText: t('common.create') },
                     );
                     if (approved) {
@@ -1569,7 +1569,7 @@ function NewSessionScreen() {
         } catch (error) {
             const errorMessage = error instanceof Error
                 ? error.message
-                : 'Failed to start session';
+                : t('uiCopy.failedToStartSession');
             Modal.alert(t('common.error'), errorMessage);
         } finally {
             setIsSpawning(false);
@@ -1639,7 +1639,7 @@ function NewSessionScreen() {
 
         const content = type === 'path' ? (
             <PathPickerContent
-                title="Project"
+                title={t("uiCopy.project")}
                 items={pathItems}
                 value={selectedPath}
                 homeDir={selectedHomeDir}
@@ -1707,7 +1707,7 @@ function NewSessionScreen() {
         )
     ) : activePicker === 'path' ? (
         <PathPickerContent
-            title="Project"
+            title={t("uiCopy.project")}
             items={pathItems}
             value={selectedPath}
             homeDir={selectedHomeDir}
@@ -2069,7 +2069,7 @@ function NewSessionScreen() {
         </>
     );
 
-    const composerPlaceholder = selectedAgent === 'codex' ? 'Ask Codex' : `Ask ${agent.label}`;
+    const composerPlaceholder = t('uiCopy.askValue', { value1: agent.label });
     const sendButtonNode = (
         <NewSessionPrimaryButton
             canSend={Boolean(canSend)}
@@ -2107,7 +2107,7 @@ function NewSessionScreen() {
                 <PromptInput
                     ref={composerInputRef}
                     compact={isNativeMobile}
-                    placeholder={isNativeMobile ? composerPlaceholder : 'What would you like to work on?'}
+                    placeholder={isNativeMobile ? composerPlaceholder : t('uiCopy.whatWouldYouLikeToWorkOn')}
                     onSubmitEditing={isNativeMobile
                         ? () => composerInputRef.current?.blur()
                         : undefined}
@@ -2129,7 +2129,7 @@ function NewSessionScreen() {
                                 pressedState.pressed && styles.configRowPressed,
                             ]}
                             accessibilityRole="button"
-                            accessibilityLabel={`Agent: ${agent.label}`}
+                            accessibilityLabel={t("uiCopy.agentValue", { value1: agent.label })}
                         >
                             <RNImage
                                 source={agentIcons[agent.key]}
@@ -2382,7 +2382,7 @@ function NewSessionScreen() {
                 >
                     {activePicker === 'path' ? (
                         <PathPickerContent
-                            title="Project"
+                            title={t("uiCopy.project")}
                             items={pathItems}
                             value={selectedPath}
                             homeDir={selectedHomeDir}
@@ -2403,9 +2403,9 @@ function NewSessionScreen() {
     );
 }
 
-const WORKTREE_FIXED_ITEMS: PickerItem[] = [
-    { key: '__none__', label: 'no worktree' },
-    { key: '__new__', label: 'new worktree' },
+const getWorktreeFixedItems = (): PickerItem[] => [
+    { key: '__none__', label: t('uiCopy.noWorktree') },
+    { key: '__new__', label: t('uiCopy.newWorktree') },
 ];
 
 const styles = StyleSheet.create((theme) => ({

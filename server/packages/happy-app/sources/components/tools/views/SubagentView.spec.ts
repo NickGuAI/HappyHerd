@@ -36,6 +36,18 @@ vi.mock('@/components/markdown/MarkdownView', () => ({
     MarkdownView: ({ markdown }: { markdown: string }) => React.createElement('div', null, markdown),
 }));
 
+vi.mock('@/text', () => ({
+    t: (key: string) => ({
+        'uiCopy.events': 'events',
+        'uiCopy.reasoning': 'REASONING',
+        'uiCopy.noChildActivityObservedYet': 'No child activity observed yet.',
+        'uiCopy.collapseSubagentActivity': 'Collapse sub-agent activity',
+        'uiCopy.expandSubagentActivity': 'Expand sub-agent activity',
+        'uiCopy.hideActivity': 'Hide activity',
+        'uiCopy.viewActivity': 'View activity',
+    } as Record<string, string>)[key] ?? key,
+}));
+
 describe('SubagentView', () => {
     it('keeps child output and tool activity collapsed by default', async () => {
         const { SubagentView } = await import('./SubagentView');

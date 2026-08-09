@@ -371,8 +371,8 @@ export function SearchableListSelector<T>(props: SearchableListSelectorProps<T>)
         if (!onToggleFavorite) return;
 
         Modal.alert(
-            'Remove Favorite',
-            `Remove "${config.getItemTitle(item)}" from ${config.favoritesSectionTitle.toLowerCase()}?`,
+            t("uiCopy.removeFavorite"),
+            t("uiCopy.removeValueFromValue", { value1: config.getItemTitle(item), value2: config.favoritesSectionTitle.toLowerCase() }),
             [
                 { text: t('common.cancel'), style: 'cancel' },
                 {

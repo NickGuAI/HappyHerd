@@ -1,0 +1,2062 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HappyHerd UI Surface Inventory</title>
+  <style>
+    :root{color-scheme:light dark;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:#f5f3ee;color:#171714}body{margin:0;padding:32px}main{max-width:1320px;margin:auto}h1{font-size:clamp(2rem,5vw,4rem);margin:.2em 0}h2{margin-top:48px}.meta{color:#666;margin-bottom:28px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}table{width:100%;border-collapse:collapse;background:white}th,td{text-align:left;padding:10px;border:1px solid #dedbd3;vertical-align:top}code{font-size:.86em}.smoke{border:1px solid #d8d4ca;border-radius:16px;padding:16px;background:#fff;color:#171714;overflow-wrap:anywhere}.smoke.dark{background:#202020;color:#f5f5f5;border-color:#3b3b3b}.smoke.mobile{max-width:360px}.smoke small{letter-spacing:.08em;text-transform:uppercase;color:#777}.smoke p{line-height:1.45}@media(max-width:700px){body{padding:18px}.table-wrap{overflow:auto}}
+  </style>
+</head>
+<body><main>
+  <p>HappyHerd · generated artifact</p>
+  <h1>UI Surface Inventory</h1>
+  <p class="meta">Schema 1 · source 083b16fb37847139 · 36 routes · 220 UI owners · 0 hardcoded findings</p>
+  <h2>Production routes</h2><div class="table-wrap"><table><thead><tr><th>Route</th><th>Source owner</th><th>Keys</th><th>States</th></tr></thead><tbody>
+    <tr>
+      <td><code>/artifacts/[id]</code></td>
+      <td><code>sources/app/(app)/artifacts/[id].tsx</code></td>
+      <td>8</td>
+      <td>error, loading</td>
+    </tr>
+    <tr>
+      <td><code>/artifacts/edit/[id]</code></td>
+      <td><code>sources/app/(app)/artifacts/edit/[id].tsx</code></td>
+      <td>11</td>
+      <td>error, loading</td>
+    </tr>
+    <tr>
+      <td><code>/artifacts</code></td>
+      <td><code>sources/app/(app)/artifacts/index.tsx</code></td>
+      <td>3</td>
+      <td>empty, loading</td>
+    </tr>
+    <tr>
+      <td><code>/artifacts/new</code></td>
+      <td><code>sources/app/(app)/artifacts/new.tsx</code></td>
+      <td>9</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td><code>/automations</code></td>
+      <td><code>sources/app/(app)/automations/index.tsx</code></td>
+      <td>39</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>/changelog</code></td>
+      <td><code>sources/app/(app)/changelog.tsx</code></td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>/friends</code></td>
+      <td><code>sources/app/(app)/friends/index.tsx</code></td>
+      <td>6</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>/friends/search</code></td>
+      <td><code>sources/app/(app)/friends/search.tsx</code></td>
+      <td>11</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>/inbox</code></td>
+      <td><code>sources/app/(app)/inbox/index.tsx</code></td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>/</code></td>
+      <td><code>sources/app/(app)/index.tsx</code></td>
+      <td>5</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>/machine/[id]</code></td>
+      <td><code>sources/app/(app)/machine/[id].tsx</code></td>
+      <td>63</td>
+      <td>error, offline</td>
+    </tr>
+    <tr>
+      <td><code>/new</code></td>
+      <td><code>sources/app/(app)/new/index.tsx</code></td>
+      <td>60</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td><code>/restore</code></td>
+      <td><code>sources/app/(app)/restore/index.tsx</code></td>
+      <td>7</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td><code>/restore/manual</code></td>
+      <td><code>sources/app/(app)/restore/manual.tsx</code></td>
+      <td>6</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td><code>/server</code></td>
+      <td><code>sources/app/(app)/server.tsx</code></td>
+      <td>21</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td><code>/session/[id]</code></td>
+      <td><code>sources/app/(app)/session/[id].tsx</code></td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>/session/[id]/file</code></td>
+      <td><code>sources/app/(app)/session/[id]/file.tsx</code></td>
+      <td>25</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td><code>/session/[id]/files</code></td>
+      <td><code>sources/app/(app)/session/[id]/files.tsx</code></td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>/session/[id]/info</code></td>
+      <td><code>sources/app/(app)/session/[id]/info.tsx</code></td>
+      <td>72</td>
+      <td>error, loading, offline</td>
+    </tr>
+    <tr>
+      <td><code>/session/[id]/message/[messageId]</code></td>
+      <td><code>sources/app/(app)/session/[id]/message/[messageId].tsx</code></td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>/session/recent</code></td>
+      <td><code>sources/app/(app)/session/recent.tsx</code></td>
+      <td>4</td>
+      <td>empty</td>
+    </tr>
+    <tr>
+      <td><code>/settings/account</code></td>
+      <td><code>sources/app/(app)/settings/account.tsx</code></td>
+      <td>64</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td><code>/settings/agents</code></td>
+      <td><code>sources/app/(app)/settings/agents.tsx</code></td>
+      <td>6</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>/settings/appearance</code></td>
+      <td><code>sources/app/(app)/settings/appearance.tsx</code></td>
+      <td>57</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>/settings/connect/claude</code></td>
+      <td><code>sources/app/(app)/settings/connect/claude.tsx</code></td>
+      <td>2</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>/settings/features</code></td>
+      <td><code>sources/app/(app)/settings/features.tsx</code></td>
+      <td>38</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>/settings</code></td>
+      <td><code>sources/app/(app)/settings/index.tsx</code></td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>/settings/language</code></td>
+      <td><code>sources/app/(app)/settings/language.tsx</code></td>
+      <td>4</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>/settings/usage</code></td>
+      <td><code>sources/app/(app)/settings/usage.tsx</code></td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>/settings/voice</code></td>
+      <td><code>sources/app/(app)/settings/voice.tsx</code></td>
+      <td>52</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>/settings/voice/language</code></td>
+      <td><code>sources/app/(app)/settings/voice/language.tsx</code></td>
+      <td>4</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>/terminal/connect</code></td>
+      <td><code>sources/app/(app)/terminal/connect.tsx</code></td>
+      <td>18</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>/terminal</code></td>
+      <td><code>sources/app/(app)/terminal/index.tsx</code></td>
+      <td>15</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>/text-selection</code></td>
+      <td><code>sources/app/(app)/text-selection.tsx</code></td>
+      <td>8</td>
+      <td>error, loading</td>
+    </tr>
+    <tr>
+      <td><code>/user/[id]</code></td>
+      <td><code>sources/app/(app)/user/[id].tsx</code></td>
+      <td>15</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><code>/workspace</code></td>
+      <td><code>sources/app/(app)/workspace/index.tsx</code></td>
+      <td>39</td>
+      <td>—</td>
+    </tr></tbody></table></div>
+  <h2>UI-owning modules</h2><div class="table-wrap"><table><thead><tr><th>Kind</th><th>Source owner</th><th>Exports</th><th>Keys</th><th>States</th></tr></thead><tbody>
+    <tr>
+      <td>component</td>
+      <td><code>sources/-session/SessionView.tsx</code></td>
+      <td>SessionView, SessionViewLoaded</td>
+      <td>19</td>
+      <td>unavailable</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/app/_layout.tsx</code></td>
+      <td>RootLayout</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/app/(app)/_layout.tsx</code></td>
+      <td>RootLayout, unstable_settings</td>
+      <td>24</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/artifacts/[id].tsx</code></td>
+      <td>ArtifactDetailScreen</td>
+      <td>8</td>
+      <td>error, loading</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/artifacts/edit/[id].tsx</code></td>
+      <td>EditArtifactScreen</td>
+      <td>11</td>
+      <td>error, loading</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/artifacts/index.tsx</code></td>
+      <td>ArtifactsScreen</td>
+      <td>3</td>
+      <td>empty, loading</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/artifacts/new.tsx</code></td>
+      <td>NewArtifactScreen</td>
+      <td>9</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/automations/index.tsx</code></td>
+      <td>AutomationsScreen</td>
+      <td>39</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/changelog.tsx</code></td>
+      <td>ChangelogScreen</td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/friends/index.tsx</code></td>
+      <td>FriendsScreen</td>
+      <td>6</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/friends/search.tsx</code></td>
+      <td>SearchFriendsScreen</td>
+      <td>11</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/inbox/index.tsx</code></td>
+      <td>InboxPage</td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/index.tsx</code></td>
+      <td>Home</td>
+      <td>5</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/machine/[id].tsx</code></td>
+      <td>MachineDetailScreen</td>
+      <td>63</td>
+      <td>error, offline</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/new/index.tsx</code></td>
+      <td>module</td>
+      <td>60</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/restore/index.tsx</code></td>
+      <td>Restore</td>
+      <td>7</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/restore/manual.tsx</code></td>
+      <td>Restore</td>
+      <td>6</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/server.tsx</code></td>
+      <td>ServerConfigScreen</td>
+      <td>21</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/session/[id].tsx</code></td>
+      <td>module</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/session/[id]/file.tsx</code></td>
+      <td>module</td>
+      <td>25</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/session/[id]/files.tsx</code></td>
+      <td>LegacySessionFilesRedirect</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/session/[id]/info.tsx</code></td>
+      <td>module</td>
+      <td>72</td>
+      <td>error, loading, offline</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/session/[id]/message/[messageId].tsx</code></td>
+      <td>module</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/session/recent.tsx</code></td>
+      <td>SessionHistory</td>
+      <td>4</td>
+      <td>empty</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/settings/account.tsx</code></td>
+      <td>module</td>
+      <td>64</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/settings/agents.tsx</code></td>
+      <td>AgentDefaultsSettingsScreen</td>
+      <td>6</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/settings/appearance.tsx</code></td>
+      <td>AppearanceSettingsScreen</td>
+      <td>57</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/settings/connect/claude.tsx</code></td>
+      <td>ClaudeOAuth</td>
+      <td>2</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/settings/features.tsx</code></td>
+      <td>FeaturesSettingsScreen</td>
+      <td>38</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/settings/index.tsx</code></td>
+      <td>module</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/settings/language.tsx</code></td>
+      <td>LanguageSettingsScreen</td>
+      <td>4</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/settings/usage.tsx</code></td>
+      <td>UsageSettingsScreen</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/settings/voice.tsx</code></td>
+      <td>module</td>
+      <td>52</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/settings/voice/language.tsx</code></td>
+      <td>LanguageSelectionScreen</td>
+      <td>4</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/terminal/connect.tsx</code></td>
+      <td>TerminalConnectScreen</td>
+      <td>18</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/terminal/index.tsx</code></td>
+      <td>TerminalScreen</td>
+      <td>15</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/text-selection.tsx</code></td>
+      <td>TextSelectionScreen</td>
+      <td>8</td>
+      <td>error, loading</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/user/[id].tsx</code></td>
+      <td>UserProfileScreen</td>
+      <td>15</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>route</td>
+      <td><code>sources/app/(app)/workspace/index.tsx</code></td>
+      <td>MachineWorkspaceScreen</td>
+      <td>39</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/app/+html.tsx</code></td>
+      <td>Root</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/auth/AuthContext.tsx</code></td>
+      <td>AuthProvider, getCurrentAuth, setCurrentAuth, useAuth</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/AccountKeyBackupGate.tsx</code></td>
+      <td>AccountKeyBackupGate</td>
+      <td>3</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>panel</td>
+      <td><code>sources/components/AccountKeyPanel.tsx</code></td>
+      <td>AccountKeyPanel</td>
+      <td>5</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/ActiveSessionsGroupCompact.tsx</code></td>
+      <td>ActiveSessionsGroupCompact, CompactSessionRow</td>
+      <td>3</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/AgentContentView.ios.tsx</code></td>
+      <td>AgentContentView</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/AgentContentView.tsx</code></td>
+      <td>AgentContentView</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/AgentGoalBar.tsx</code></td>
+      <td>AgentGoalBar</td>
+      <td>5</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/AgentInput.tsx</code></td>
+      <td>AgentInput</td>
+      <td>23</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/AgentInputAttachmentStrip.tsx</code></td>
+      <td>AgentInputAttachmentStrip</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/AgentInputAutocomplete.tsx</code></td>
+      <td>AgentInputAutocomplete</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/AgentInputSuggestionView.tsx</code></td>
+      <td>CommandSuggestion, FileMentionSuggestion</td>
+      <td>2</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>banner</td>
+      <td><code>sources/components/AgentQuestionBanner.tsx</code></td>
+      <td>AgentQuestionBanner, AgentQuestionBannerView</td>
+      <td>5</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>modal</td>
+      <td><code>sources/components/AgentQuestionModal.tsx</code></td>
+      <td>AgentQuestionModal</td>
+      <td>7</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/AllFilesDiffView.tsx</code></td>
+      <td>AllFilesDiffView</td>
+      <td>6</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/AnimatedOverlay.tsx</code></td>
+      <td>AnimatedBlurBackdrop, AnimatedClickAwayBackdrop, AnimatedCollapsible, AnimatedPopup, LocalBlurHalo</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/Avatar.tsx</code></td>
+      <td>Avatar</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/AvatarBrutalist.tsx</code></td>
+      <td>AvatarBrutalist</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/AvatarGradient.tsx</code></td>
+      <td>AvatarGradient</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/AvatarSkia.tsx</code></td>
+      <td>AvatarSkia</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/AvatarSkia.web.tsx</code></td>
+      <td>AvatarSkia</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/BubblePressable.tsx</code></td>
+      <td>BubblePressable</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/ChatFooter.tsx</code></td>
+      <td>ChatFooter</td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/ChatHeaderView.tsx</code></td>
+      <td>ChatHeaderView</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/ChatList.tsx</code></td>
+      <td>ChatList</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/CodeEditor.tsx</code></td>
+      <td>CodeEditor</td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/CodeEditor.web.tsx</code></td>
+      <td>CodeEditor</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/CodeView.tsx</code></td>
+      <td>CodeView</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/CommandPalette/CommandPalette.tsx</code></td>
+      <td>CommandPalette</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/CommandPalette/CommandPaletteInput.tsx</code></td>
+      <td>CommandPaletteInput</td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/CommandPalette/CommandPaletteItem.tsx</code></td>
+      <td>CommandPaletteItem</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>modal</td>
+      <td><code>sources/components/CommandPalette/CommandPaletteModal.tsx</code></td>
+      <td>CommandPaletteModal</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/CommandPalette/CommandPaletteProvider.tsx</code></td>
+      <td>CommandPaletteProvider</td>
+      <td>18</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/CommandPalette/CommandPaletteResults.tsx</code></td>
+      <td>CommandPaletteResults</td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/CommandView.tsx</code></td>
+      <td>CommandView</td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/CompactGitStatus.tsx</code></td>
+      <td>CompactGitStatus</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/ConnectButton.tsx</code></td>
+      <td>ConnectButton</td>
+      <td>4</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/Deferred.tsx</code></td>
+      <td>Deferred</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/diff/DiffView.tsx</code></td>
+      <td>DiffView</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/diff/PierreDiffView.tsx</code></td>
+      <td>PierreDiffView, prefetchPierreDiff</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>sheet</td>
+      <td><code>sources/components/DuplicateSheet.tsx</code></td>
+      <td>DuplicateSheet</td>
+      <td>14</td>
+      <td>error, loading</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/EmptyMainScreen.tsx</code></td>
+      <td>EmptyMainScreen</td>
+      <td>13</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/EmptyMessages.tsx</code></td>
+      <td>EmptyMessages</td>
+      <td>6</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/EmptySessionsTablet.tsx</code></td>
+      <td>EmptySessionsTablet</td>
+      <td>4</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/ExternalLink.tsx</code></td>
+      <td>ExternalLink</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/FAB.tsx</code></td>
+      <td>FAB</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/FABWide.tsx</code></td>
+      <td>FABWide</td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/FeedItemCard.tsx</code></td>
+      <td>FeedItemCard</td>
+      <td>6</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/FileDocumentPreview.tsx</code></td>
+      <td>FileDocumentPreview</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>ui-module</td>
+      <td><code>sources/components/FileDocumentPreview.web.tsx</code></td>
+      <td>FileDocumentPreview</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/FileIcon.tsx</code></td>
+      <td>FileIcon</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>sidebar</td>
+      <td><code>sources/components/FilesSidebar.tsx</code></td>
+      <td>FilesSidebar</td>
+      <td>12</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>panel</td>
+      <td><code>sources/components/FileViewPanel.tsx</code></td>
+      <td>FileContentPanel, FileViewPanel</td>
+      <td>14</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/FloatingOverlay.tsx</code></td>
+      <td>FloatingOverlay</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/GitStatusBadge.tsx</code></td>
+      <td>GitStatusBadge, useHasMeaningfulGitStatus</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/HeaderLogo.tsx</code></td>
+      <td>HeaderLogo</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/HomeDock.tsx</code></td>
+      <td>HomeDock, MOBILE_HOME_DOCK_CONTENT_INSET</td>
+      <td>22</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/HomeHeader.tsx</code></td>
+      <td>HomeHeader, HomeHeaderNotAuth</td>
+      <td>5</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/HorizontalScrollView.tsx</code></td>
+      <td>HorizontalScrollView</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/InboxView.tsx</code></td>
+      <td>InboxView</td>
+      <td>7</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/InlineFileDiff.tsx</code></td>
+      <td>InlineFileDiff</td>
+      <td>3</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/Item.tsx</code></td>
+      <td>Item</td>
+      <td>2</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/ItemGroup.tsx</code></td>
+      <td>ItemGroup</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/ItemList.tsx</code></td>
+      <td>ItemList, ItemListStatic</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/MachinePathBrowser.tsx</code></td>
+      <td>MachinePathBrowser</td>
+      <td>13</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/MainView.tsx</code></td>
+      <td>MainView</td>
+      <td>7</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/markdown/MarkdownView.tsx</code></td>
+      <td>MarkdownView</td>
+      <td>8</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/markdown/MermaidRenderer.tsx</code></td>
+      <td>MermaidRenderer</td>
+      <td>2</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/MessageView.tsx</code></td>
+      <td>MessageView</td>
+      <td>5</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/MobileGlass.tsx</code></td>
+      <td>MobileGlassBackdrop, MobileGlassSurface</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/modelModeOptions.ts</code></td>
+      <td>findOptionByKey, getAgyModelModes, getAgyPermissionModes, getAvailableModels, getAvailablePermissionModes, getClaudeEffortLevels, getClaudeModelModes, getClaudePermissionModes, getCodexEffortLevels, getCodexModelModes, getCodexPermissionModes, getDefaultEffortKey, getDefaultEffortKeyForModel, getDefaultModelKey, getDefaultPermissionModeKey, getEffortLevelsForModel, getGeminiModelModes, getGeminiPermissionModes, getHardcodedEffortLevels, getHardcodedModelModes, getHardcodedPermissionModes, getMachineAdvertisedEffortLevels, getMachineAdvertisedModels, getMachineAdvertisedPermissionModes, getOpenClawModelModes, getOpenClawPermissionModes, getRigCurrentModelOptionKey, getSessionAvailableModels, getSessionAvailablePermissionModes, getSessionEffortLevelsForModel, getSupportsWorktree, mapMetadataOptions, resolveCurrentOption</td>
+      <td>24</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/MultiTextInput.tsx</code></td>
+      <td>MULTI_TEXT_INPUT_FONT_SIZE, MULTI_TEXT_INPUT_LINE_HEIGHT, MultiTextInput</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/MultiTextInput.web.tsx</code></td>
+      <td>MULTI_TEXT_INPUT_FONT_SIZE, MULTI_TEXT_INPUT_LINE_HEIGHT, MultiTextInput</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>picker</td>
+      <td><code>sources/components/NativeOptionsPicker.android.tsx</code></td>
+      <td>NativeOptionsPicker</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>picker</td>
+      <td><code>sources/components/NativeOptionsPicker.ios.tsx</code></td>
+      <td>NativeOptionsPicker</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>picker</td>
+      <td><code>sources/components/NativeOptionsPicker.tsx</code></td>
+      <td>NativeOptionsPicker</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>picker</td>
+      <td><code>sources/components/NativeOptionsPicker.web.tsx</code></td>
+      <td>NativeOptionsPicker</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/NativeSettingsMenu.android.tsx</code></td>
+      <td>NativeSettingsMenu</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/NativeSettingsMenu.ios.tsx</code></td>
+      <td>NativeSettingsMenu</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/NativeSettingsMenu.tsx</code></td>
+      <td>NativeSettingsMenu</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/NativeSettingsMenu.web.tsx</code></td>
+      <td>NativeSettingsMenu</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/navigation/Header.tsx</code></td>
+      <td>Header, createHeader</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/navigation/MobileHeaderScrim.tsx</code></td>
+      <td>MOBILE_STRONG_HEADER_SCRIM_RESTING_OPACITY, MOBILE_STRONG_HEADER_SCRIM_UNDERLAP_OPACITY, MobileHeaderScrim</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/OAuthView.tsx</code></td>
+      <td>OAuthView, OAuthViewRender, OAuthViewUnsupported</td>
+      <td>11</td>
+      <td>loading</td>
+    </tr>
+    <tr>
+      <td>picker</td>
+      <td><code>sources/components/PermissionModeSelector.tsx</code></td>
+      <td>PermissionModeSelector</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/PlaceholderContainerView.tsx</code></td>
+      <td>PlaceholderContainerView</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/PlusPlus.tsx</code></td>
+      <td>PlusPlus</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/PlusPlus.web.tsx</code></td>
+      <td>PlusPlus</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/ProjectGitStatus.tsx</code></td>
+      <td>ProjectGitStatus</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/ProjectGroup.tsx</code></td>
+      <td>ProjectGroup</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/ProviderIcon.tsx</code></td>
+      <td>ProviderIcon</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/qr/QRCode.tsx</code></td>
+      <td>QRCode</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/qr/QRCode.web.tsx</code></td>
+      <td>QRCode</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/RigActivityBar.tsx</code></td>
+      <td>RigActivityBar</td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/RoundButton.tsx</code></td>
+      <td>RoundButton</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>picker</td>
+      <td><code>sources/components/SearchableListSelector.tsx</code></td>
+      <td>SearchableListSelector</td>
+      <td>5</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/SessionActionsNativeMenu.android.tsx</code></td>
+      <td>SessionActionsNativeMenu</td>
+      <td>4</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/SessionActionsNativeMenu.ios.tsx</code></td>
+      <td>SessionActionsNativeMenu</td>
+      <td>4</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/SessionActionsNativeMenu.tsx</code></td>
+      <td>SessionActionsNativeMenu</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>ui-module</td>
+      <td><code>sources/components/SessionActionsNativeMenu.web.tsx</code></td>
+      <td>SessionActionsNativeMenu</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/SessionActionsPopover.tsx</code></td>
+      <td>SessionActionsPopover</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/SessionsList.tsx</code></td>
+      <td>SessionsList</td>
+      <td>8</td>
+      <td>empty</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/SessionsListWrapper.tsx</code></td>
+      <td>SessionsListWrapper</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/SessionStatusBar.tsx</code></td>
+      <td>SessionStatusBar</td>
+      <td>6</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/SettingsView.tsx</code></td>
+      <td>SettingsView</td>
+      <td>53</td>
+      <td>offline</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/SettingsViewWrapper.tsx</code></td>
+      <td>SettingsViewWrapper</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/Shaker.tsx</code></td>
+      <td>Shaker</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/Shaker.web.tsx</code></td>
+      <td>Shaker</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/ShimmerView.tsx</code></td>
+      <td>ShimmerView</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/ShortcutHints.tsx</code></td>
+      <td>SessionShortcutHintBadge, ShortcutHintBadge, ShortcutHintsProvider, useShortcutHints</td>
+      <td>3</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>sidebar</td>
+      <td><code>sources/components/SidebarNavigator.tsx</code></td>
+      <td>SidebarNavigator</td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>sidebar</td>
+      <td><code>sources/components/SidebarView.tsx</code></td>
+      <td>SidebarView</td>
+      <td>4</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>panel</td>
+      <td><code>sources/components/SideChatPanel.tsx</code></td>
+      <td>SideChatPanel</td>
+      <td>8</td>
+      <td>unavailable</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/SimpleSyntaxHighlighter.tsx</code></td>
+      <td>SimpleSyntaxHighlighter</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/StatusBarProvider.tsx</code></td>
+      <td>StatusBarProvider</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/StatusDot.tsx</code></td>
+      <td>StatusDot</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/StyledText.tsx</code></td>
+      <td>Text</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/Switch.tsx</code></td>
+      <td>Switch</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/TabBar.tsx</code></td>
+      <td>MOBILE_TAB_BAR_CONTENT_INSET, TabBar</td>
+      <td>3</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/ToolGroupView.tsx</code></td>
+      <td>AgentWorkGroupView, ToolGroupView</td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/knownTools.tsx</code></td>
+      <td>isMutableTool, knownTools</td>
+      <td>34</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/PermissionFooter.tsx</code></td>
+      <td>PermissionFooter</td>
+      <td>7</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/ToolDiffView.tsx</code></td>
+      <td>ToolDiffView</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/ToolError.tsx</code></td>
+      <td>ToolError</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/ToolFullView.tsx</code></td>
+      <td>ToolFullView, toolFullViewStyles</td>
+      <td>7</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/ToolHeader.tsx</code></td>
+      <td>ToolHeader</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/ToolSectionView.tsx</code></td>
+      <td>ToolSectionView</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/ToolStatusIndicator.tsx</code></td>
+      <td>ToolStatusIndicator</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/ToolView.tsx</code></td>
+      <td>ToolView</td>
+      <td>2</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/views/AskUserQuestionView.tsx</code></td>
+      <td>AskUserQuestionView</td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/views/BashView.tsx</code></td>
+      <td>BashView</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/views/BashViewFull.tsx</code></td>
+      <td>BashViewFull</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/views/CodexBashView.tsx</code></td>
+      <td>CodexBashView</td>
+      <td>2</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/views/CodexDiffView.tsx</code></td>
+      <td>CodexDiffView</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/views/CodexPatchView.tsx</code></td>
+      <td>CodexPatchView</td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/views/EditView.tsx</code></td>
+      <td>EditView</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/views/EditViewFull.tsx</code></td>
+      <td>EditViewFull</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/views/ExitPlanToolView.tsx</code></td>
+      <td>ExitPlanToolView</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/views/FileView.tsx</code></td>
+      <td>FileView</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/views/GeminiEditView.tsx</code></td>
+      <td>GeminiEditView</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/views/GeminiExecuteView.tsx</code></td>
+      <td>GeminiExecuteView</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/views/MultiEditView.tsx</code></td>
+      <td>MultiEditView</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/views/MultiEditViewFull.tsx</code></td>
+      <td>MultiEditViewFull</td>
+      <td>2</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/views/SubagentView.tsx</code></td>
+      <td>SubagentView</td>
+      <td>7</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/views/TaskView.tsx</code></td>
+      <td>TaskView</td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/views/TodoView.tsx</code></td>
+      <td>TodoView</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/tools/views/WriteView.tsx</code></td>
+      <td>WriteView</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>banner</td>
+      <td><code>sources/components/UpdateBanner.tsx</code></td>
+      <td>UpdateBanner</td>
+      <td>7</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/usage/UsageBar.tsx</code></td>
+      <td>UsageBar</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/usage/UsageChart.tsx</code></td>
+      <td>UsageChart</td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>panel</td>
+      <td><code>sources/components/usage/UsagePanel.tsx</code></td>
+      <td>UsagePanel</td>
+      <td>9</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/UserCard.tsx</code></td>
+      <td>UserCard</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/UserSearchResult.tsx</code></td>
+      <td>UserSearchResult</td>
+      <td>4</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/VoiceAssistantStatusBar.tsx</code></td>
+      <td>VoiceAssistantStatusBar</td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/VoiceBars.tsx</code></td>
+      <td>VoiceBars</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/WorkspaceContextStrip.tsx</code></td>
+      <td>WorkspaceContextStrip</td>
+      <td>1</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>ui-module</td>
+      <td><code>sources/hooks/useConnectAccount.ts</code></td>
+      <td>useConnectAccount</td>
+      <td>7</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td>ui-module</td>
+      <td><code>sources/hooks/useConnectTerminal.ts</code></td>
+      <td>useConnectTerminal</td>
+      <td>7</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td>ui-module</td>
+      <td><code>sources/hooks/useGroupedMessages.ts</code></td>
+      <td>formatWorkDuration, generateGroupSummary, groupMessagesForDisplay, groupToolCallsForDisplay, useGroupedMessages</td>
+      <td>7</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>ui-module</td>
+      <td><code>sources/hooks/useHappyAction.ts</code></td>
+      <td>useHappyAction</td>
+      <td>2</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td>picker</td>
+      <td><code>sources/hooks/useImagePicker.ts</code></td>
+      <td>MAX_FILE_SIZE, MAX_IMAGES_PER_MESSAGE, normalizePickedAssetForUpload, useImagePicker</td>
+      <td>7</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/hooks/useSessionQuickActions.ts</code></td>
+      <td>useSessionActionAlert, useSessionQuickActions</td>
+      <td>17</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/hooks/useStartSessionFromDraft.ts</code></td>
+      <td>useStartSessionFromDraft</td>
+      <td>11</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/hooks/useVoiceDictation.ts</code></td>
+      <td>useVoiceDictation</td>
+      <td>7</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>ui-module</td>
+      <td><code>sources/hooks/useWorktreeCleanup.ts</code></td>
+      <td>maybeCleanupWorktree</td>
+      <td>4</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>modal</td>
+      <td><code>sources/modal/components/BaseModal.tsx</code></td>
+      <td>BaseModal</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>modal</td>
+      <td><code>sources/modal/components/CustomModal.tsx</code></td>
+      <td>CustomModal</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>modal</td>
+      <td><code>sources/modal/components/WebAlertModal.tsx</code></td>
+      <td>WebAlertModal</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>modal</td>
+      <td><code>sources/modal/components/WebPromptModal.tsx</code></td>
+      <td>WebPromptModal</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>modal</td>
+      <td><code>sources/modal/ModalManager.ts</code></td>
+      <td>Modal</td>
+      <td>2</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>modal</td>
+      <td><code>sources/modal/ModalProvider.tsx</code></td>
+      <td>ModalProvider, useModal</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/realtime/RealtimeProvider.tsx</code></td>
+      <td>RealtimeProvider</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/realtime/RealtimeProvider.web.tsx</code></td>
+      <td>RealtimeProvider</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>ui-module</td>
+      <td><code>sources/realtime/RealtimeSession.ts</code></td>
+      <td>getCurrentRealtimeSessionId, getCurrentVoiceConversationId, getCurrentVoiceSessionDurationSeconds, getVoiceSession, isVoiceSessionStarted, registerVoiceSession, setCurrentRealtimeSessionId, startRealtimeSession, stopRealtimeSession</td>
+      <td>5</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/sync/suggestionCommands.ts</code></td>
+      <td>IGNORED_COMMANDS, getAllCommands, searchCommands</td>
+      <td>5</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/sync/sync.ts</code></td>
+      <td>sync, syncCreate, syncRestore</td>
+      <td>9</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>ui-module</td>
+      <td><code>sources/utils/copySessionMetadataToClipboard.ts</code></td>
+      <td>copySessionMetadataAndLogsToClipboard, copySessionMetadataToClipboard</td>
+      <td>4</td>
+      <td>error</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/utils/microphonePermissions.ts</code></td>
+      <td>checkMicrophonePermission, requestMicrophonePermission, showMicrophonePermissionDeniedAlert</td>
+      <td>4</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>ui-module</td>
+      <td><code>sources/utils/requestReview.ts</code></td>
+      <td>requestReview, resetReviewState</td>
+      <td>4</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>ui-module</td>
+      <td><code>sources/utils/sessionUtils.ts</code></td>
+      <td>formatLastSeen, formatOSPlatform, formatPathRelativeToHome, getResumeCommand, getResumeCommandBlock, getSessionAvatarId, getSessionName, getSessionSubtitle, isSessionActive, isSessionOnline, useSessionStatus, vibingMessages</td>
+      <td>10</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/utils/toolDisplay.ts</code></td>
+      <td>formatMCPTitle, getTerminalToolCommand, getToolActivityLabel, getToolSummaryCategory, getToolSummaryDetail, isTerminalToolName, shouldRenderToolCardHeader, shouldUseCompactToolRow</td>
+      <td>6</td>
+      <td>—</td>
+    </tr></tbody></table></div>
+  <h2>Critical locale × viewport × theme smoke matrix</h2><p>Generated from the same catalogs and source owners enforced by CI.</p><div class="grid">
+    <article class="smoke mobile light" lang="en">
+      <small>new-session · en · mobile · light</small>
+      <p><b>newSession.title</b><br>Start New Session</p><p><b>uiCopy.whatWouldYouLikeToWorkOn</b><br>What would you like to work on?</p>
+    </article>
+    <article class="smoke mobile dark" lang="en">
+      <small>new-session · en · mobile · dark</small>
+      <p><b>newSession.title</b><br>Start New Session</p><p><b>uiCopy.whatWouldYouLikeToWorkOn</b><br>What would you like to work on?</p>
+    </article>
+    <article class="smoke desktop light" lang="en">
+      <small>new-session · en · desktop · light</small>
+      <p><b>newSession.title</b><br>Start New Session</p><p><b>uiCopy.whatWouldYouLikeToWorkOn</b><br>What would you like to work on?</p>
+    </article>
+    <article class="smoke desktop dark" lang="en">
+      <small>new-session · en · desktop · dark</small>
+      <p><b>newSession.title</b><br>Start New Session</p><p><b>uiCopy.whatWouldYouLikeToWorkOn</b><br>What would you like to work on?</p>
+    </article>
+    <article class="smoke mobile light" lang="cn">
+      <small>new-session · cn · mobile · light</small>
+      <p><b>newSession.title</b><br>开始新会话</p><p><b>uiCopy.whatWouldYouLikeToWorkOn</b><br>您想处理什么任务？</p>
+    </article>
+    <article class="smoke mobile dark" lang="cn">
+      <small>new-session · cn · mobile · dark</small>
+      <p><b>newSession.title</b><br>开始新会话</p><p><b>uiCopy.whatWouldYouLikeToWorkOn</b><br>您想处理什么任务？</p>
+    </article>
+    <article class="smoke desktop light" lang="cn">
+      <small>new-session · cn · desktop · light</small>
+      <p><b>newSession.title</b><br>开始新会话</p><p><b>uiCopy.whatWouldYouLikeToWorkOn</b><br>您想处理什么任务？</p>
+    </article>
+    <article class="smoke desktop dark" lang="cn">
+      <small>new-session · cn · desktop · dark</small>
+      <p><b>newSession.title</b><br>开始新会话</p><p><b>uiCopy.whatWouldYouLikeToWorkOn</b><br>您想处理什么任务？</p>
+    </article>
+    <article class="smoke mobile light" lang="de">
+      <small>new-session · de · mobile · light</small>
+      <p><b>newSession.title</b><br>Neue Sitzung starten</p><p><b>uiCopy.whatWouldYouLikeToWorkOn</b><br>Woran möchten Sie arbeiten?</p>
+    </article>
+    <article class="smoke mobile dark" lang="de">
+      <small>new-session · de · mobile · dark</small>
+      <p><b>newSession.title</b><br>Neue Sitzung starten</p><p><b>uiCopy.whatWouldYouLikeToWorkOn</b><br>Woran möchten Sie arbeiten?</p>
+    </article>
+    <article class="smoke desktop light" lang="de">
+      <small>new-session · de · desktop · light</small>
+      <p><b>newSession.title</b><br>Neue Sitzung starten</p><p><b>uiCopy.whatWouldYouLikeToWorkOn</b><br>Woran möchten Sie arbeiten?</p>
+    </article>
+    <article class="smoke desktop dark" lang="de">
+      <small>new-session · de · desktop · dark</small>
+      <p><b>newSession.title</b><br>Neue Sitzung starten</p><p><b>uiCopy.whatWouldYouLikeToWorkOn</b><br>Woran möchten Sie arbeiten?</p>
+    </article>
+    <article class="smoke mobile light" lang="en">
+      <small>session · en · mobile · light</small>
+      <p><b>session.inputPlaceholder</b><br>Type a message ...</p><p><b>status.online</b><br>online</p>
+    </article>
+    <article class="smoke mobile dark" lang="en">
+      <small>session · en · mobile · dark</small>
+      <p><b>session.inputPlaceholder</b><br>Type a message ...</p><p><b>status.online</b><br>online</p>
+    </article>
+    <article class="smoke desktop light" lang="en">
+      <small>session · en · desktop · light</small>
+      <p><b>session.inputPlaceholder</b><br>Type a message ...</p><p><b>status.online</b><br>online</p>
+    </article>
+    <article class="smoke desktop dark" lang="en">
+      <small>session · en · desktop · dark</small>
+      <p><b>session.inputPlaceholder</b><br>Type a message ...</p><p><b>status.online</b><br>online</p>
+    </article>
+    <article class="smoke mobile light" lang="cn">
+      <small>session · cn · mobile · light</small>
+      <p><b>session.inputPlaceholder</b><br>输入消息...</p><p><b>status.online</b><br>在线</p>
+    </article>
+    <article class="smoke mobile dark" lang="cn">
+      <small>session · cn · mobile · dark</small>
+      <p><b>session.inputPlaceholder</b><br>输入消息...</p><p><b>status.online</b><br>在线</p>
+    </article>
+    <article class="smoke desktop light" lang="cn">
+      <small>session · cn · desktop · light</small>
+      <p><b>session.inputPlaceholder</b><br>输入消息...</p><p><b>status.online</b><br>在线</p>
+    </article>
+    <article class="smoke desktop dark" lang="cn">
+      <small>session · cn · desktop · dark</small>
+      <p><b>session.inputPlaceholder</b><br>输入消息...</p><p><b>status.online</b><br>在线</p>
+    </article>
+    <article class="smoke mobile light" lang="de">
+      <small>session · de · mobile · light</small>
+      <p><b>session.inputPlaceholder</b><br>Geben Sie eine Nachricht ein ...</p><p><b>status.online</b><br>verbunden</p>
+    </article>
+    <article class="smoke mobile dark" lang="de">
+      <small>session · de · mobile · dark</small>
+      <p><b>session.inputPlaceholder</b><br>Geben Sie eine Nachricht ein ...</p><p><b>status.online</b><br>verbunden</p>
+    </article>
+    <article class="smoke desktop light" lang="de">
+      <small>session · de · desktop · light</small>
+      <p><b>session.inputPlaceholder</b><br>Geben Sie eine Nachricht ein ...</p><p><b>status.online</b><br>verbunden</p>
+    </article>
+    <article class="smoke desktop dark" lang="de">
+      <small>session · de · desktop · dark</small>
+      <p><b>session.inputPlaceholder</b><br>Geben Sie eine Nachricht ein ...</p><p><b>status.online</b><br>verbunden</p>
+    </article>
+    <article class="smoke mobile light" lang="en">
+      <small>workspace · en · mobile · light</small>
+      <p><b>workspace.title</b><br>Machine Workspace</p><p><b>workspace.searchPlaceholder</b><br>Search this folder...</p>
+    </article>
+    <article class="smoke mobile dark" lang="en">
+      <small>workspace · en · mobile · dark</small>
+      <p><b>workspace.title</b><br>Machine Workspace</p><p><b>workspace.searchPlaceholder</b><br>Search this folder...</p>
+    </article>
+    <article class="smoke desktop light" lang="en">
+      <small>workspace · en · desktop · light</small>
+      <p><b>workspace.title</b><br>Machine Workspace</p><p><b>workspace.searchPlaceholder</b><br>Search this folder...</p>
+    </article>
+    <article class="smoke desktop dark" lang="en">
+      <small>workspace · en · desktop · dark</small>
+      <p><b>workspace.title</b><br>Machine Workspace</p><p><b>workspace.searchPlaceholder</b><br>Search this folder...</p>
+    </article>
+    <article class="smoke mobile light" lang="cn">
+      <small>workspace · cn · mobile · light</small>
+      <p><b>workspace.title</b><br>设备工作区</p><p><b>workspace.searchPlaceholder</b><br>搜索此文件夹…</p>
+    </article>
+    <article class="smoke mobile dark" lang="cn">
+      <small>workspace · cn · mobile · dark</small>
+      <p><b>workspace.title</b><br>设备工作区</p><p><b>workspace.searchPlaceholder</b><br>搜索此文件夹…</p>
+    </article>
+    <article class="smoke desktop light" lang="cn">
+      <small>workspace · cn · desktop · light</small>
+      <p><b>workspace.title</b><br>设备工作区</p><p><b>workspace.searchPlaceholder</b><br>搜索此文件夹…</p>
+    </article>
+    <article class="smoke desktop dark" lang="cn">
+      <small>workspace · cn · desktop · dark</small>
+      <p><b>workspace.title</b><br>设备工作区</p><p><b>workspace.searchPlaceholder</b><br>搜索此文件夹…</p>
+    </article>
+    <article class="smoke mobile light" lang="de">
+      <small>workspace · de · mobile · light</small>
+      <p><b>workspace.title</b><br>Maschinenarbeitsbereich</p><p><b>workspace.searchPlaceholder</b><br>Diesen Ordner durchsuchen...</p>
+    </article>
+    <article class="smoke mobile dark" lang="de">
+      <small>workspace · de · mobile · dark</small>
+      <p><b>workspace.title</b><br>Maschinenarbeitsbereich</p><p><b>workspace.searchPlaceholder</b><br>Diesen Ordner durchsuchen...</p>
+    </article>
+    <article class="smoke desktop light" lang="de">
+      <small>workspace · de · desktop · light</small>
+      <p><b>workspace.title</b><br>Maschinenarbeitsbereich</p><p><b>workspace.searchPlaceholder</b><br>Diesen Ordner durchsuchen...</p>
+    </article>
+    <article class="smoke desktop dark" lang="de">
+      <small>workspace · de · desktop · dark</small>
+      <p><b>workspace.title</b><br>Maschinenarbeitsbereich</p><p><b>workspace.searchPlaceholder</b><br>Diesen Ordner durchsuchen...</p>
+    </article>
+    <article class="smoke mobile light" lang="en">
+      <small>automations · en · mobile · light</small>
+      <p><b>happyHerd.automations.title</b><br>Automations</p><p><b>happyHerd.automations.subtitle</b><br>Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.</p>
+    </article>
+    <article class="smoke mobile dark" lang="en">
+      <small>automations · en · mobile · dark</small>
+      <p><b>happyHerd.automations.title</b><br>Automations</p><p><b>happyHerd.automations.subtitle</b><br>Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.</p>
+    </article>
+    <article class="smoke desktop light" lang="en">
+      <small>automations · en · desktop · light</small>
+      <p><b>happyHerd.automations.title</b><br>Automations</p><p><b>happyHerd.automations.subtitle</b><br>Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.</p>
+    </article>
+    <article class="smoke desktop dark" lang="en">
+      <small>automations · en · desktop · dark</small>
+      <p><b>happyHerd.automations.title</b><br>Automations</p><p><b>happyHerd.automations.subtitle</b><br>Heartbeats and scheduled jobs run on the selected machine through its HappyHerd daemon.</p>
+    </article>
+    <article class="smoke mobile light" lang="cn">
+      <small>automations · cn · mobile · light</small>
+      <p><b>happyHerd.automations.title</b><br>自动化</p><p><b>happyHerd.automations.subtitle</b><br>心跳和定时任务通过所选机器上的 HappyHerd 守护进程运行。</p>
+    </article>
+    <article class="smoke mobile dark" lang="cn">
+      <small>automations · cn · mobile · dark</small>
+      <p><b>happyHerd.automations.title</b><br>自动化</p><p><b>happyHerd.automations.subtitle</b><br>心跳和定时任务通过所选机器上的 HappyHerd 守护进程运行。</p>
+    </article>
+    <article class="smoke desktop light" lang="cn">
+      <small>automations · cn · desktop · light</small>
+      <p><b>happyHerd.automations.title</b><br>自动化</p><p><b>happyHerd.automations.subtitle</b><br>心跳和定时任务通过所选机器上的 HappyHerd 守护进程运行。</p>
+    </article>
+    <article class="smoke desktop dark" lang="cn">
+      <small>automations · cn · desktop · dark</small>
+      <p><b>happyHerd.automations.title</b><br>自动化</p><p><b>happyHerd.automations.subtitle</b><br>心跳和定时任务通过所选机器上的 HappyHerd 守护进程运行。</p>
+    </article>
+    <article class="smoke mobile light" lang="de">
+      <small>automations · de · mobile · light</small>
+      <p><b>happyHerd.automations.title</b><br>Automatisierungen</p><p><b>happyHerd.automations.subtitle</b><br>Heartbeats und geplante Aufgaben laufen über den HappyHerd-Daemon des ausgewählten Rechners.</p>
+    </article>
+    <article class="smoke mobile dark" lang="de">
+      <small>automations · de · mobile · dark</small>
+      <p><b>happyHerd.automations.title</b><br>Automatisierungen</p><p><b>happyHerd.automations.subtitle</b><br>Heartbeats und geplante Aufgaben laufen über den HappyHerd-Daemon des ausgewählten Rechners.</p>
+    </article>
+    <article class="smoke desktop light" lang="de">
+      <small>automations · de · desktop · light</small>
+      <p><b>happyHerd.automations.title</b><br>Automatisierungen</p><p><b>happyHerd.automations.subtitle</b><br>Heartbeats und geplante Aufgaben laufen über den HappyHerd-Daemon des ausgewählten Rechners.</p>
+    </article>
+    <article class="smoke desktop dark" lang="de">
+      <small>automations · de · desktop · dark</small>
+      <p><b>happyHerd.automations.title</b><br>Automatisierungen</p><p><b>happyHerd.automations.subtitle</b><br>Heartbeats und geplante Aufgaben laufen über den HappyHerd-Daemon des ausgewählten Rechners.</p>
+    </article>
+    <article class="smoke mobile light" lang="en">
+      <small>account · en · mobile · light</small>
+      <p><b>settingsAccount.accountInformation</b><br>Account Information</p><p><b>settingsAccount.analytics</b><br>Analytics</p>
+    </article>
+    <article class="smoke mobile dark" lang="en">
+      <small>account · en · mobile · dark</small>
+      <p><b>settingsAccount.accountInformation</b><br>Account Information</p><p><b>settingsAccount.analytics</b><br>Analytics</p>
+    </article>
+    <article class="smoke desktop light" lang="en">
+      <small>account · en · desktop · light</small>
+      <p><b>settingsAccount.accountInformation</b><br>Account Information</p><p><b>settingsAccount.analytics</b><br>Analytics</p>
+    </article>
+    <article class="smoke desktop dark" lang="en">
+      <small>account · en · desktop · dark</small>
+      <p><b>settingsAccount.accountInformation</b><br>Account Information</p><p><b>settingsAccount.analytics</b><br>Analytics</p>
+    </article>
+    <article class="smoke mobile light" lang="cn">
+      <small>account · cn · mobile · light</small>
+      <p><b>settingsAccount.accountInformation</b><br>账户信息</p><p><b>settingsAccount.analytics</b><br>分析</p>
+    </article>
+    <article class="smoke mobile dark" lang="cn">
+      <small>account · cn · mobile · dark</small>
+      <p><b>settingsAccount.accountInformation</b><br>账户信息</p><p><b>settingsAccount.analytics</b><br>分析</p>
+    </article>
+    <article class="smoke desktop light" lang="cn">
+      <small>account · cn · desktop · light</small>
+      <p><b>settingsAccount.accountInformation</b><br>账户信息</p><p><b>settingsAccount.analytics</b><br>分析</p>
+    </article>
+    <article class="smoke desktop dark" lang="cn">
+      <small>account · cn · desktop · dark</small>
+      <p><b>settingsAccount.accountInformation</b><br>账户信息</p><p><b>settingsAccount.analytics</b><br>分析</p>
+    </article>
+    <article class="smoke mobile light" lang="de">
+      <small>account · de · mobile · light</small>
+      <p><b>settingsAccount.accountInformation</b><br>Kontoinformationen</p><p><b>settingsAccount.analytics</b><br>Analytik</p>
+    </article>
+    <article class="smoke mobile dark" lang="de">
+      <small>account · de · mobile · dark</small>
+      <p><b>settingsAccount.accountInformation</b><br>Kontoinformationen</p><p><b>settingsAccount.analytics</b><br>Analytik</p>
+    </article>
+    <article class="smoke desktop light" lang="de">
+      <small>account · de · desktop · light</small>
+      <p><b>settingsAccount.accountInformation</b><br>Kontoinformationen</p><p><b>settingsAccount.analytics</b><br>Analytik</p>
+    </article>
+    <article class="smoke desktop dark" lang="de">
+      <small>account · de · desktop · dark</small>
+      <p><b>settingsAccount.accountInformation</b><br>Kontoinformationen</p><p><b>settingsAccount.analytics</b><br>Analytik</p>
+    </article>
+    <article class="smoke mobile light" lang="en">
+      <small>composer · en · mobile · light</small>
+      <p><b>session.inputPlaceholder</b><br>Type a message ...</p><p><b>happyHerd.composer.queueMessage</b><br>Queue Msg</p>
+    </article>
+    <article class="smoke mobile dark" lang="en">
+      <small>composer · en · mobile · dark</small>
+      <p><b>session.inputPlaceholder</b><br>Type a message ...</p><p><b>happyHerd.composer.queueMessage</b><br>Queue Msg</p>
+    </article>
+    <article class="smoke desktop light" lang="en">
+      <small>composer · en · desktop · light</small>
+      <p><b>session.inputPlaceholder</b><br>Type a message ...</p><p><b>happyHerd.composer.queueMessage</b><br>Queue Msg</p>
+    </article>
+    <article class="smoke desktop dark" lang="en">
+      <small>composer · en · desktop · dark</small>
+      <p><b>session.inputPlaceholder</b><br>Type a message ...</p><p><b>happyHerd.composer.queueMessage</b><br>Queue Msg</p>
+    </article>
+    <article class="smoke mobile light" lang="cn">
+      <small>composer · cn · mobile · light</small>
+      <p><b>session.inputPlaceholder</b><br>输入消息...</p><p><b>happyHerd.composer.queueMessage</b><br>排队消息</p>
+    </article>
+    <article class="smoke mobile dark" lang="cn">
+      <small>composer · cn · mobile · dark</small>
+      <p><b>session.inputPlaceholder</b><br>输入消息...</p><p><b>happyHerd.composer.queueMessage</b><br>排队消息</p>
+    </article>
+    <article class="smoke desktop light" lang="cn">
+      <small>composer · cn · desktop · light</small>
+      <p><b>session.inputPlaceholder</b><br>输入消息...</p><p><b>happyHerd.composer.queueMessage</b><br>排队消息</p>
+    </article>
+    <article class="smoke desktop dark" lang="cn">
+      <small>composer · cn · desktop · dark</small>
+      <p><b>session.inputPlaceholder</b><br>输入消息...</p><p><b>happyHerd.composer.queueMessage</b><br>排队消息</p>
+    </article>
+    <article class="smoke mobile light" lang="de">
+      <small>composer · de · mobile · light</small>
+      <p><b>session.inputPlaceholder</b><br>Geben Sie eine Nachricht ein ...</p><p><b>happyHerd.composer.queueMessage</b><br>Nachricht einreihen</p>
+    </article>
+    <article class="smoke mobile dark" lang="de">
+      <small>composer · de · mobile · dark</small>
+      <p><b>session.inputPlaceholder</b><br>Geben Sie eine Nachricht ein ...</p><p><b>happyHerd.composer.queueMessage</b><br>Nachricht einreihen</p>
+    </article>
+    <article class="smoke desktop light" lang="de">
+      <small>composer · de · desktop · light</small>
+      <p><b>session.inputPlaceholder</b><br>Geben Sie eine Nachricht ein ...</p><p><b>happyHerd.composer.queueMessage</b><br>Nachricht einreihen</p>
+    </article>
+    <article class="smoke desktop dark" lang="de">
+      <small>composer · de · desktop · dark</small>
+      <p><b>session.inputPlaceholder</b><br>Geben Sie eine Nachricht ein ...</p><p><b>happyHerd.composer.queueMessage</b><br>Nachricht einreihen</p>
+    </article></div>
+</main></body></html>

@@ -45,8 +45,8 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
             // Navigation commands
             {
                 id: 'new-session',
-                title: 'New Session',
-                subtitle: 'Start a new chat session',
+                title: t("uiCopy.newSession"),
+                subtitle: t("uiCopy.startANewChatSession"),
                 icon: 'add-circle-outline',
                 category: 'Sessions',
                 shortcut: formatShortcut(preferredModifier, 'N', browserSafeShortcuts),
@@ -56,8 +56,8 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
             },
             {
                 id: 'sessions',
-                title: 'View All Sessions',
-                subtitle: 'Browse your chat history',
+                title: t("uiCopy.viewAllSessions"),
+                subtitle: t("uiCopy.browseYourChatHistory"),
                 icon: 'chatbubbles-outline',
                 category: 'Sessions',
                 action: () => {
@@ -66,8 +66,8 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
             },
             {
                 id: 'settings',
-                title: 'Settings',
-                subtitle: 'Configure your preferences',
+                title: t("tabs.settings"),
+                subtitle: t("uiCopy.configureYourPreferences"),
                 icon: 'settings-outline',
                 category: 'Navigation',
                 shortcut: formatShortcut(preferredModifier, ',', browserSafeShortcuts),
@@ -77,8 +77,8 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
             },
             {
                 id: 'account',
-                title: 'Account',
-                subtitle: 'Manage your account',
+                title: t("settings.account"),
+                subtitle: t("uiCopy.manageYourAccount"),
                 icon: 'person-circle-outline',
                 category: 'Navigation',
                 action: () => {
@@ -87,8 +87,8 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
             },
             {
                 id: 'connect',
-                title: 'Connect Device',
-                subtitle: 'Connect a new device via web',
+                title: t("uiCopy.connectDevice"),
+                subtitle: t("uiCopy.connectANewDeviceViaWeb"),
                 icon: 'link-outline',
                 category: 'Navigation',
                 action: () => {
@@ -103,13 +103,13 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
             .slice(0, 5);
 
         recentSessions.forEach(session => {
-            const sessionName = session.metadata?.name || `Session ${session.id.slice(0, 6)}`;
+            const sessionName = session.metadata?.name || t('uiCopy.sessionValue', { value1: session.id.slice(0, 6) });
             cmds.push({
                 id: `session-${session.id}`,
                 title: sessionName,
-                subtitle: session.metadata?.path || 'Switch to session',
+                subtitle: session.metadata?.path || t('uiCopy.switchToSession'),
                 icon: 'time-outline',
-                category: 'Recent Sessions',
+                category: t('uiCopy.recentSessions'),
                 action: () => {
                     navigateToSession(session.id);
                 }
@@ -119,8 +119,8 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
         // System commands
         cmds.push({
             id: 'sign-out',
-            title: 'Sign Out',
-            subtitle: 'Sign out of your account',
+            title: t("uiCopy.signOut"),
+            subtitle: t("uiCopy.signOutOfYourAccount"),
             icon: 'log-out-outline',
             category: 'System',
             action: async () => {
@@ -132,8 +132,8 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
         if (__DEV__) {
             cmds.push({
                 id: 'dev-menu',
-                title: 'Developer Menu',
-                subtitle: 'Access developer tools',
+                title: t("uiCopy.developerMenu"),
+                subtitle: t("uiCopy.accessDeveloperTools"),
                 icon: 'code-slash-outline',
                 category: 'Developer',
                 action: () => {

@@ -549,7 +549,7 @@ const AgentInputStatusRow = React.memo(function AgentInputStatusRow(p: StatusRow
                                         color: p.connectionStatus.cliStatus.claude ? theme.colors.success : theme.colors.textDestructive,
                                         ...Typography.default()
                                     }}>
-                                        claude
+                                        {t("uiCopy.claude")}
                                     </Text>
                                 </View>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -565,7 +565,7 @@ const AgentInputStatusRow = React.memo(function AgentInputStatusRow(p: StatusRow
                                         color: p.connectionStatus.cliStatus.codex ? theme.colors.success : theme.colors.textDestructive,
                                         ...Typography.default()
                                     }}>
-                                        codex
+                                        {t("uiCopy.codex")}
                                     </Text>
                                 </View>
                                 {p.connectionStatus.cliStatus.gemini !== undefined && (
@@ -582,7 +582,7 @@ const AgentInputStatusRow = React.memo(function AgentInputStatusRow(p: StatusRow
                                             color: p.connectionStatus.cliStatus.gemini ? theme.colors.success : theme.colors.textDestructive,
                                             ...Typography.default()
                                         }}>
-                                            gemini
+                                            {t("uiCopy.gemini")}
                                         </Text>
                                     </View>
                                 )}

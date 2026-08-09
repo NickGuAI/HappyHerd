@@ -79,10 +79,10 @@ export default React.memo(function VoiceSettingsScreen() {
     const handleConfigureTranscriptionKey = React.useCallback(async () => {
         if (!auth.credentials || transcriptionKeyAction) return;
         const value = await Modal.prompt(
-            'OpenAI API key',
-            'Used only for voice dictation transcription. HappyHerd encrypts it for this account and never shows it again.',
+            t("uiCopy.openaiApiKey"),
+            t("uiCopy.usedOnlyForVoiceDictationTranscriptionHappyherdEncryptsItFor"),
             {
-                placeholder: 'sk-…',
+                placeholder: t("uiCopy.sk"),
                 inputType: 'secure-text',
             },
         );
@@ -91,9 +91,9 @@ export default React.memo(function VoiceSettingsScreen() {
         try {
             const status = await configureVoiceTranscriptionKey(auth.credentials, value.trim());
             setTranscriptionKeyStatus(status);
-            Modal.alert('OpenAI API key configured', 'The key was accepted and stored securely for voice dictation.');
+            Modal.alert(t("uiCopy.openaiApiKeyConfigured"), t("uiCopy.theKeyWasAcceptedAndStoredSecurelyForVoiceDictation"));
         } catch (error) {
-            Modal.alert('Could not configure OpenAI API key', error instanceof Error ? error.message : 'The key could not be saved.');
+            Modal.alert(t("uiCopy.couldNotConfigureOpenaiApiKey"), error instanceof Error ? error.message : t("uiCopy.theKeyCouldNotBeSaved"));
         } finally {
             setTranscriptionKeyAction(false);
         }
@@ -104,9 +104,9 @@ export default React.memo(function VoiceSettingsScreen() {
         setTranscriptionKeyAction(true);
         try {
             await testVoiceTranscriptionKey(auth.credentials);
-            Modal.alert('OpenAI API key works', 'Voice dictation can reach OpenAI with the configured key.');
+            Modal.alert(t("uiCopy.openaiApiKeyWorks"), t("uiCopy.voiceDictationCanReachOpenaiWithTheConfiguredKey"));
         } catch (error) {
-            Modal.alert('OpenAI API key test failed', error instanceof Error ? error.message : 'The key could not be tested.');
+            Modal.alert(t("uiCopy.openaiApiKeyTestFailed"), error instanceof Error ? error.message : t("uiCopy.theKeyCouldNotBeTested"));
         } finally {
             setTranscriptionKeyAction(false);
         }
@@ -115,8 +115,8 @@ export default React.memo(function VoiceSettingsScreen() {
     const handleRemoveTranscriptionKey = React.useCallback(async () => {
         if (!auth.credentials || transcriptionKeyAction) return;
         const confirmed = await Modal.confirm(
-            'Remove OpenAI API key?',
-            'Voice dictation will use the deployment key if one exists; otherwise it will stop working.',
+            t("uiCopy.removeOpenaiApiKey"),
+            t("uiCopy.voiceDictationWillUseTheDeploymentKeyIfOneExists"),
             { confirmText: 'Remove', destructive: true },
         );
         if (!confirmed) return;
@@ -124,7 +124,7 @@ export default React.memo(function VoiceSettingsScreen() {
         try {
             setTranscriptionKeyStatus(await removeVoiceTranscriptionKey(auth.credentials));
         } catch (error) {
-            Modal.alert('Could not remove OpenAI API key', error instanceof Error ? error.message : 'The key could not be removed.');
+            Modal.alert(t("uiCopy.couldNotRemoveOpenaiApiKey"), error instanceof Error ? error.message : t("uiCopy.theKeyCouldNotBeRemoved"));
         } finally {
             setTranscriptionKeyAction(false);
         }
@@ -149,8 +149,8 @@ export default React.memo(function VoiceSettingsScreen() {
 
     const handleVoiceExperimentOverride = React.useCallback(() => {
         Modal.alert(
-            'Voice Experiment Override',
-            'Select a local override for the voice-upsell experiment.',
+            t("uiCopy.voiceExperimentOverride"),
+            t("uiCopy.selectALocalOverrideForTheVoiceUpsellExperiment"),
             [
                 { text: 'No Override', onPress: () => setVoiceUpsellOverride(null) },
                 { text: 'Control', onPress: () => setVoiceUpsellOverride('control') },
@@ -162,8 +162,8 @@ export default React.memo(function VoiceSettingsScreen() {
 
     const handleResetVoiceCounters = React.useCallback(async () => {
         const confirmed = await Modal.confirm(
-            'Reset Voice Counters',
-            'Clear local voice counters used for onboarding and soft-paywall behavior on this device?',
+            t("uiCopy.resetVoiceCounters"),
+            t("uiCopy.clearLocalVoiceCountersUsedForOnboardingAndSoftPaywall"),
             {
                 confirmText: 'Reset',
                 destructive: true,
@@ -218,24 +218,24 @@ export default React.memo(function VoiceSettingsScreen() {
     return (
         <ItemList style={{ paddingTop: 0 }}>
             <ItemGroup
-                title="Voice dictation transcription"
-                footer="The key is encrypted for your account. HappyHerd only displays masked status and never returns the stored key to the app."
+                title={t("uiCopy.voiceDictationTranscription")}
+                footer={t("uiCopy.theKeyIsEncryptedForYourAccountHappyherdOnlyDisplays")}
             >
                 <Item
-                    title="OpenAI API key"
+                    title={t("uiCopy.openaiApiKey")}
                     subtitle={transcriptionKeyStatus?.configured
-                        ? (transcriptionKeyStatus.source === 'user' ? '•••••••• · configured for this account' : '•••••••• · provided by this deployment')
-                        : 'Not configured'}
+                        ? `•••••••• · ${transcriptionKeyStatus.source === 'user' ? t('uiCopy.configuredForAccount') : t('uiCopy.providedByDeployment')}`
+                        : t('settingsVoice.customAgentIdNotSet')}
                     icon={<Ionicons name="key-outline" size={29} color="#10A37F" />}
-                    detail={transcriptionKeyStatus?.configured ? 'Configured' : undefined}
+                    detail={transcriptionKeyStatus?.configured ? t('uiCopy.configured') : undefined}
                     loading={transcriptionKeyLoading || transcriptionKeyAction}
                     disabled={transcriptionKeyLoading || transcriptionKeyAction}
                     onPress={handleConfigureTranscriptionKey}
                 />
                 {transcriptionKeyStatus?.configured && (
                     <Item
-                        title="Test OpenAI API key"
-                        subtitle="Verify access without recording audio"
+                        title={t("uiCopy.testOpenaiApiKey")}
+                        subtitle={t("uiCopy.verifyAccessWithoutRecordingAudio")}
                         icon={<Ionicons name="checkmark-circle-outline" size={29} color="#34C759" />}
                         disabled={transcriptionKeyAction}
                         onPress={handleTestTranscriptionKey}
@@ -243,8 +243,8 @@ export default React.memo(function VoiceSettingsScreen() {
                 )}
                 {transcriptionKeyStatus?.source === 'user' && (
                     <Item
-                        title="Remove OpenAI API key"
-                        subtitle="Delete the account-specific transcription key"
+                        title={t("uiCopy.removeOpenaiApiKey_18glmc")}
+                        subtitle={t("uiCopy.deleteTheAccountSpecificTranscriptionKey")}
                         icon={<Ionicons name="trash-outline" size={29} color="#FF3B30" />}
                         destructive
                         disabled={transcriptionKeyAction}
@@ -300,18 +300,18 @@ export default React.memo(function VoiceSettingsScreen() {
 
             {devModeEnabled && (
                 <ItemGroup
-                    title="Developer"
-                    footer="Developer-only diagnostics and local override controls for the current voice rollout. The paid voice gate runs through Happy server unless Direct Connection and a custom ElevenLabs agent are both enabled."
+                    title={t("settings.developer")}
+                    footer={t("uiCopy.developerOnlyDiagnosticsAndLocalOverrideControlsForTheCurrent")}
                 >
                     <Item
-                        title="Voice Experiment Override"
-                        subtitle="Simple local override for the voice-upsell flag"
+                        title={t("uiCopy.voiceExperimentOverride")}
+                        subtitle={t("uiCopy.simpleLocalOverrideForTheVoiceUpsellFlag")}
                         detail={developerOverrideLabel}
                         icon={<Ionicons name="options-outline" size={29} color="#007AFF" />}
                         onPress={handleVoiceExperimentOverride}
                     />
                     <Item
-                        title="Voice Experiment Status"
+                        title={t("uiCopy.voiceExperimentStatus")}
                         subtitle={developerExperimentSubtitle}
                         subtitleLines={0}
                         icon={<Ionicons name="flask-outline" size={29} color="#5856D6" />}
@@ -319,7 +319,7 @@ export default React.memo(function VoiceSettingsScreen() {
                         copy={developerExperimentSubtitle}
                     />
                     <Item
-                        title="Reset Voice Counters"
+                        title={t("uiCopy.resetVoiceCounters")}
                         subtitle={developerCountersSubtitle}
                         subtitleLines={0}
                         icon={<Ionicons name="refresh-outline" size={29} color="#FF9500" />}

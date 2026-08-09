@@ -358,8 +358,8 @@ export default React.memo(function FileScreen() {
         if (!hasChanges || allowDiscardRef.current) return;
         event.preventDefault();
         void Modal.confirm(
-            'Discard unsaved changes?',
-            `Your edits to ${filePath.split('/').pop() || filePath} have not been saved.`,
+            t("uiCopy.discardUnsavedChanges"),
+            t("uiCopy.yourEditsToValueHaveNotBeenSaved", { value1: filePath.split('/').pop() || filePath }),
             { confirmText: 'Discard', destructive: true },
         ).then((confirmed) => {
             if (!confirmed) return;
@@ -553,7 +553,7 @@ export default React.memo(function FileScreen() {
                         source={{ uri: fileContent.previewUri }}
                         style={styles.imagePreview}
                         contentFit="contain"
-                        accessibilityLabel={`Preview of ${fileName}`}
+                        accessibilityLabel={t("uiCopy.previewOfValue", { value1: fileName })}
                     />
                 </View>
             </View>
@@ -568,7 +568,7 @@ export default React.memo(function FileScreen() {
                     <Text style={styles.filePath} numberOfLines={2}>{filePath}</Text>
                 </MobileGlassSurface>
                 <View style={styles.documentPreview}>
-                    <FileDocumentPreview kind="pdf" uri={fileContent.previewUri} title={`Preview of ${fileName}`} />
+                    <FileDocumentPreview kind="pdf" uri={fileContent.previewUri} title={t("uiCopy.previewOfValue", { value1: fileName })} />
                 </View>
             </View>
         );
@@ -601,7 +601,7 @@ export default React.memo(function FileScreen() {
                         : filePath}
                 </Text>
                 {hasChanges && (
-                    <Text style={[styles.unsavedLabel, { color: theme.colors.warning }]}>Unsaved</Text>
+                    <Text style={[styles.unsavedLabel, { color: theme.colors.warning }]}>{t("uiCopy.unsaved")}</Text>
                 )}
                 {displayMode === 'file' && hasSourcePreview && (
                     <Pressable
@@ -609,7 +609,7 @@ export default React.memo(function FileScreen() {
                         style={[styles.headerButton, { backgroundColor: theme.colors.input.background }]}
                     >
                         <Text style={[styles.headerButtonText, { color: theme.colors.text }]}>
-                            {sourceMode === 'preview' ? 'Source' : 'Preview'}
+                            {sourceMode === 'preview' ? t("uiCopy.source") : t("uiCopy.preview")}
                         </Text>
                     </Pressable>
                 )}
@@ -619,7 +619,7 @@ export default React.memo(function FileScreen() {
                         style={[styles.headerButton, { backgroundColor: theme.colors.input.background }]}
                     >
                         <Text style={[styles.headerButtonText, { color: theme.colors.text }]}>
-                            {isEditing ? 'Done' : 'Edit'}
+                            {isEditing ? t("uiCopy.done") : t("files.editFile")}
                         </Text>
                     </Pressable>
                 )}
@@ -629,7 +629,7 @@ export default React.memo(function FileScreen() {
                         disabled={isSaving}
                         style={[styles.headerButton, { backgroundColor: theme.colors.textLink, opacity: isSaving ? 0.6 : 1 }]}
                     >
-                        <Text style={[styles.headerButtonText, { color: 'white' }]}>{isSaving ? 'Saving…' : 'Save'}</Text>
+                        <Text style={[styles.headerButtonText, { color: 'white' }]}>{isSaving ? t("uiCopy.saving") : t("files.saveFile")}</Text>
                     </Pressable>
                 )}
             </MobileGlassSurface>
@@ -637,13 +637,13 @@ export default React.memo(function FileScreen() {
             {externalChange && (
                 <View style={[styles.warningBar, { borderBottomColor: theme.colors.divider, backgroundColor: `${theme.colors.warning}18` }]}>
                     <Ionicons name="alert-circle-outline" size={18} color={theme.colors.warning} />
-                    <Text style={[styles.warningText, { color: theme.colors.text }]}>This file changed on the host.</Text>
+                    <Text style={[styles.warningText, { color: theme.colors.text }]}>{t("uiCopy.thisFileChangedOnTheHost")}</Text>
                     <View style={{ flex: 1 }} />
                     <Pressable onPress={handleReloadExternal} style={styles.warningAction}>
-                        <Text style={{ color: theme.colors.textLink }}>Reload</Text>
+                        <Text style={{ color: theme.colors.textLink }}>{t("files.reload")}</Text>
                     </Pressable>
                     <Pressable onPress={() => setExternalChange(null)} style={styles.warningAction}>
-                        <Text style={{ color: theme.colors.textSecondary }}>Dismiss</Text>
+                        <Text style={{ color: theme.colors.textSecondary }}>{t("agentQuestion.dismiss")}</Text>
                     </Pressable>
                 </View>
             )}
@@ -718,7 +718,7 @@ export default React.memo(function FileScreen() {
                     <FileDocumentPreview
                         kind="html"
                         html={safeHtmlPreviewDocument(editContent)}
-                        title={`Preview of ${fileName}`}
+                        title={t("uiCopy.previewOfValue", { value1: fileName })}
                     />
                 </View>
             ) : sourceMode === 'preview' && language === 'markdown' ? (
@@ -739,7 +739,7 @@ export default React.memo(function FileScreen() {
                     spellCheck={false}
                     textAlignVertical="top"
                     style={[styles.mobileEditor, { color: theme.colors.text, backgroundColor: theme.colors.surface }]}
-                    accessibilityLabel={`Edit ${fileName}`}
+                    accessibilityLabel={t("uiCopy.editValue", { value1: fileName })}
                 />
             ) : (
                 <ScrollView

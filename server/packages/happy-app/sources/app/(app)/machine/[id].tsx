@@ -131,8 +131,8 @@ export default function MachineDetailScreen() {
     const handleStopDaemon = async () => {
         // Show confirmation modal using alert with buttons
         Modal.alert(
-            'Stop Daemon?',
-            'You will not be able to spawn new sessions on this machine until you restart the daemon on your computer again. Your current sessions will stay alive.',
+            t("uiCopy.stopDaemon"),
+            t("uiCopy.youWillNotBeAbleToSpawnNewSessionsOn"),
             [
                 {
                     text: 'Cancel',
@@ -145,11 +145,11 @@ export default function MachineDetailScreen() {
                         setIsStoppingDaemon(true);
                         try {
                             const result = await machineStopDaemon(machineId!);
-                            Modal.alert('Daemon Stopped', result.message);
+                            Modal.alert(t("uiCopy.daemonStopped"), result.message);
                             // Refresh to get updated metadata
                             await sync.refreshMachines();
                         } catch (error) {
-                            Modal.alert(t('common.error'), 'Failed to stop daemon. It may not be running.');
+                            Modal.alert(t('common.error'), t("uiCopy.failedToStopDaemonItMayNotBeRunning"));
                         } finally {
                             setIsStoppingDaemon(false);
                         }
@@ -198,11 +198,11 @@ export default function MachineDetailScreen() {
         if (!machine || !machineId) return;
 
         const newDisplayName = await Modal.prompt(
-            'Rename Machine',
-            'Give this machine a custom name. Leave empty to use the default hostname.',
+            t("uiCopy.renameMachine"),
+            t("uiCopy.giveThisMachineACustomNameLeaveEmptyToUse"),
             {
                 defaultValue: machine.metadata?.displayName || '',
-                placeholder: machine.metadata?.host || 'Enter machine name',
+                placeholder: machine.metadata?.host || t('uiCopy.machineNamePlaceholder'),
                 cancelText: t('common.cancel'),
                 confirmText: t('common.rename')
             }
@@ -222,11 +222,11 @@ export default function MachineDetailScreen() {
                     machine.metadataVersion
                 );
                 
-                Modal.alert(t('common.success'), 'Machine renamed successfully');
+                Modal.alert(t('common.success'), t("uiCopy.machineRenamedSuccessfully"));
             } catch (error) {
                 Modal.alert(
-                    'Error',
-                    error instanceof Error ? error.message : 'Failed to rename machine'
+                    t("common.error"),
+                    error instanceof Error ? error.message : t("uiCopy.failedToRenameMachine")
                 );
                 // Refresh to get latest state
                 await sync.refreshMachines();
@@ -256,7 +256,7 @@ export default function MachineDetailScreen() {
                     navigateToSession(result.sessionId);
                     break;
                 case 'requestToApproveDirectoryCreation': {
-                    const approved = await Modal.confirm('Create Directory?', `The directory '${result.directory}' does not exist. Would you like to create it?`, { cancelText: t('common.cancel'), confirmText: t('common.create') });
+                    const approved = await Modal.confirm(t("uiCopy.createDirectory"), t("uiCopy.theDirectoryValueDoesNotExistWouldYouLikeTo", { value1: result.directory }), { cancelText: t('common.cancel'), confirmText: t('common.create') });
                     if (approved) {
                         await handleStartSession(true);
                     }
@@ -267,7 +267,7 @@ export default function MachineDetailScreen() {
                     break;
             }
         } catch (error) {
-            let errorMessage = 'Failed to start session. Make sure the daemon is running on the target machine.';
+            let errorMessage = t('uiCopy.failedToStartSessionDaemon');
             if (error instanceof Error && !error.message.includes('Failed to spawn session')) {
                 errorMessage = error.message;
             }
@@ -294,7 +294,7 @@ export default function MachineDetailScreen() {
                 />
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <Text style={[Typography.default(), { fontSize: 16, color: '#666' }]}>
-                        Machine not found
+                        {t("uiCopy.machineNotFound")}
                     </Text>
                 </View>
             </>
@@ -390,7 +390,7 @@ export default function MachineDetailScreen() {
                                         ref={inputRef}
                                         value={customPath}
                                         onChangeText={setCustomPath}
-                                        placeholder={'Enter custom path'}
+                                        placeholder={t("machineLauncher.enterCustomPath")}
                                         maxHeight={76}
                                         paddingTop={8}
                                         paddingBottom={8}
@@ -545,7 +545,7 @@ export default function MachineDetailScreen() {
                 {metadata?.cliAvailability && (
                     <ItemGroup title={t('machine.cliAvailability')}>
                         <Item
-                            title="Claude"
+                            title={t("agentInput.agent.claude")}
                             showChevron={false}
                             rightElement={
                                 <Text style={{ color: metadata.cliAvailability.claude ? '#34C759' : theme.colors.textSecondary, fontSize: 14 }}>
@@ -554,7 +554,7 @@ export default function MachineDetailScreen() {
                             }
                         />
                         <Item
-                            title="Codex"
+                            title={t("agentInput.agent.codex")}
                             showChevron={false}
                             rightElement={
                                 <Text style={{ color: metadata.cliAvailability.codex ? '#34C759' : theme.colors.textSecondary, fontSize: 14 }}>
@@ -563,7 +563,7 @@ export default function MachineDetailScreen() {
                             }
                         />
                         <Item
-                            title="Gemini"
+                            title={t("agentInput.agent.gemini")}
                             showChevron={false}
                             rightElement={
                                 <Text style={{ color: metadata.cliAvailability.gemini ? '#34C759' : theme.colors.textSecondary, fontSize: 14 }}>
@@ -572,7 +572,7 @@ export default function MachineDetailScreen() {
                             }
                         />
                         <Item
-                            title="OpenClaw"
+                            title={t("agentInput.agent.openclaw")}
                             showChevron={false}
                             rightElement={
                                 <Text style={{ color: metadata.cliAvailability.openclaw ? '#34C759' : theme.colors.textSecondary, fontSize: 14 }}>
@@ -590,7 +590,7 @@ export default function MachineDetailScreen() {
 
                 {/* Previous Sessions (debug view) */}
                 {previousSessions.length > 0 && (
-                    <ItemGroup title={'Previous Sessions (up to 5 most recent)'}>
+                    <ItemGroup title={t("uiCopy.previousSessionsUpTo5MostRecent")}>
                         {previousSessions.map(session => (
                             <Item
                                 key={session.id}

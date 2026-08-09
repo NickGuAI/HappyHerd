@@ -11,9 +11,18 @@ vi.mock('./storage', () => ({
 
 import { getAllCommands } from './suggestionCommands';
 
+const translations: Record<string, string> = {
+    'uiCopy.compactTheConversationHistory': 'Compact the conversation history',
+    'uiCopy.clearTheConversation': 'Clear the conversation',
+    'uiCopy.setASessionGoal': 'Set a session goal',
+    'uiCopy.showConnectedMcpServers': 'Show connected MCP servers',
+    'uiCopy.showAvailableSkills': 'Show available skills',
+};
+const translate = (key: string) => translations[key] ?? key;
+
 describe('suggestionCommands', () => {
     it('includes /goal in the default slash command suggestions', () => {
-        const commands = getAllCommands('missing-session');
+        const commands = getAllCommands('missing-session', translate);
 
         expect(commands).toEqual(expect.arrayContaining([
             expect.objectContaining({
@@ -32,7 +41,7 @@ describe('suggestionCommands', () => {
             },
         } as Partial<Session>;
 
-        const commands = getAllCommands('codex-session');
+        const commands = getAllCommands('codex-session', translate);
 
         expect(commands).toEqual(expect.arrayContaining([
             expect.objectContaining({ command: 'plan-to-beads' }),

@@ -205,14 +205,14 @@ export const knownTools = {
         }
     },
     'ExitPlanMode': {
-        title: t('tools.names.planProposal'),
+        title: () => t('tools.names.planProposal'),
         icon: ICON_EXIT,
         input: z.object({
             plan: z.string().describe('The plan you came up with')
         }).partial().passthrough()
     },
     'exit_plan_mode': {
-        title: t('tools.names.planProposal'),
+        title: () => t('tools.names.planProposal'),
         icon: ICON_EXIT,
         input: z.object({
             plan: z.string().describe('The plan you came up with')
@@ -411,7 +411,7 @@ export const knownTools = {
         }
     },
     'TodoWrite': {
-        title: t('tools.names.todoList'),
+        title: () => t('tools.names.todoList'),
         icon: ICON_TODO,
         noStatus: true,
         minimal: (opts: { metadata: Metadata | null, tool: ToolCall, messages?: Message[] }) => {
@@ -612,7 +612,7 @@ export const knownTools = {
         }
     },
     'change_title': {
-        title: 'Change Title',
+        title: () => t('uiCopy.changeTitle'),
         icon: ICON_EDIT,
         hidden: true,
         minimal: true,
@@ -624,7 +624,7 @@ export const knownTools = {
     },
     // Gemini internal tools - should be hidden (minimal)
     'search': {
-        title: t('tools.names.search'),
+        title: () => t('tools.names.search'),
         icon: ICON_SEARCH,
         minimal: true,
         input: z.object({
@@ -669,7 +669,7 @@ export const knownTools = {
         }).partial().passthrough()
     },
     'shell': {
-        title: t('tools.names.terminal'),
+        title: () => t('tools.names.terminal'),
         icon: ICON_TERMINAL,
         minimal: true,
         isMutable: true,
@@ -724,7 +724,7 @@ export const knownTools = {
         }
     },
     'CodexPatch': {
-        title: t('tools.names.applyChanges'),
+        title: () => t('tools.names.applyChanges'),
         icon: ICON_EDIT,
         minimal: false,
         hideDefaultError: true,
@@ -779,7 +779,7 @@ export const knownTools = {
         }
     },
     'GeminiBash': {
-        title: t('tools.names.terminal'),
+        title: () => t('tools.names.terminal'),
         icon: ICON_TERMINAL,
         minimal: true,
         hideDefaultError: true,
@@ -793,7 +793,7 @@ export const knownTools = {
         }
     },
     'GeminiPatch': {
-        title: t('tools.names.applyChanges'),
+        title: () => t('tools.names.applyChanges'),
         icon: ICON_EDIT,
         minimal: true,
         hideDefaultError: true,
@@ -848,7 +848,7 @@ export const knownTools = {
         }
     },
     'CodexDiff': {
-        title: t('tools.names.viewDiff'),
+        title: () => t('tools.names.viewDiff'),
         icon: ICON_EDIT,
         minimal: false,  // Show full diff view
         hideDefaultError: true,
@@ -878,7 +878,7 @@ export const knownTools = {
         }
     },
     'GeminiDiff': {
-        title: t('tools.names.viewDiff'),
+        title: () => t('tools.names.viewDiff'),
         icon: ICON_EDIT,
         minimal: false,  // Show full diff view
         hideDefaultError: true,

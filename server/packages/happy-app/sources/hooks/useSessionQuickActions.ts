@@ -275,10 +275,10 @@ export function useSessionQuickActions(
 
         if (canCopySessionMetadata) {
             items.push({ id: 'copy-metadata', icon: 'bug-outline', label: t('sessionInfo.copyMetadata'), onPress: copySessionMetadata });
-            items.push({ id: 'copy-metadata-and-logs', icon: 'document-text-outline', label: t('sessionInfo.copyMetadata') + ' & Client Logs', onPress: copySessionMetadataAndLogs });
+            items.push({ id: 'copy-metadata-and-logs', icon: 'document-text-outline', label: t('uiCopy.copyMetadataAndClientLogs'), onPress: copySessionMetadataAndLogs });
         }
 
-        items.push({ id: 'archive', icon: 'archive-outline', label: 'Archive', onPress: archiveSession, destructive: true });
+        items.push({ id: 'archive', icon: 'archive-outline', label: t("uiCopy.archive"), onPress: archiveSession, destructive: true });
 
         return items;
     }, [
@@ -302,7 +302,7 @@ export function useSessionQuickActions(
             style: item.destructive ? 'destructive' as const : undefined,
         }));
         buttons.push({ text: t('common.cancel'), style: 'cancel' });
-        Modal.alert('Session', undefined, buttons);
+        Modal.alert(t("uiCopy.session"), undefined, buttons);
     }, [actionItems]);
 
     return {

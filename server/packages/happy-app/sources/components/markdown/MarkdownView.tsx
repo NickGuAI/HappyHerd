@@ -53,7 +53,7 @@ export const MarkdownView = React.memo((props: {
             router.push(`/text-selection?textId=${textId}`);
         } catch (error) {
             console.error('Error storing text for selection:', error);
-            Modal.alert('Error', 'Failed to open text selection. Please try again.');
+            Modal.alert(t("common.error"), t("uiCopy.failedToOpenTextSelectionPleaseTryAgain"));
         }
     }, [props.markdown, router]);
     const renderContent = () => {
@@ -208,7 +208,7 @@ function RenderCodeBlock(props: { content: string, language: string | null, firs
 }
 
 function RenderImageBlock(props: { url: string, alt: string, first: boolean, last: boolean }) {
-    const accessibleLabel = props.alt || 'Markdown image';
+    const accessibleLabel = props.alt || t('uiCopy.markdownImage');
 
     return (
         <View style={[style.imageBlock, props.first && style.first, props.last && style.last]}>

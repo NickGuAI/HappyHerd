@@ -46,13 +46,13 @@ type MetadataOption = {
     description?: string | null;
 };
 
-const GEMINI_MODEL_FALLBACKS: ModelMode[] = [
-    { key: 'gemini-3.1-pro-preview', name: 'gemini 3.1 pro', description: 'latest & most capable' },
-    { key: 'gemini-3-flash-preview', name: 'gemini 3 flash', description: 'latest & fast' },
-    { key: 'gemini-3.1-flash-lite-preview', name: 'gemini 3.1 flash lite', description: 'latest & fastest' },
-    { key: 'gemini-2.5-pro', name: 'gemini 2.5 pro', description: 'most capable' },
-    { key: 'gemini-2.5-flash', name: 'gemini 2.5 flash', description: 'fast & efficient' },
-    { key: 'gemini-2.5-flash-lite', name: 'gemini 2.5 flash lite', description: 'fastest' },
+const getGeminiModelFallbacks = (translate: Translate): ModelMode[] => [
+    { key: 'gemini-3.1-pro-preview', name: 'gemini 3.1 pro', description: translate('uiCopy.latestMostCapable') },
+    { key: 'gemini-3-flash-preview', name: 'gemini 3 flash', description: translate('uiCopy.latestFast') },
+    { key: 'gemini-3.1-flash-lite-preview', name: 'gemini 3.1 flash lite', description: translate('uiCopy.latestFastest') },
+    { key: 'gemini-2.5-pro', name: 'gemini 2.5 pro', description: translate('uiCopy.mostCapable') },
+    { key: 'gemini-2.5-flash', name: 'gemini 2.5 flash', description: translate('uiCopy.fastEfficient') },
+    { key: 'gemini-2.5-flash-lite', name: 'gemini 2.5 flash lite', description: translate('uiCopy.fastest') },
 ];
 
 export function mapMetadataOptions(options?: MetadataOption[] | null): ModeOption[] {
@@ -189,8 +189,8 @@ export function getCodexModelModes(): ModelMode[] {
     ];
 }
 
-export function getGeminiModelModes(): ModelMode[] {
-    return GEMINI_MODEL_FALLBACKS;
+export function getGeminiModelModes(translate: Translate): ModelMode[] {
+    return getGeminiModelFallbacks(translate);
 }
 
 export function getOpenClawPermissionModes(translate: Translate): PermissionMode[] {
@@ -245,12 +245,12 @@ export function getAgyModelModes(): ModelMode[] {
     ];
 }
 
-export function getHardcodedModelModes(flavor: AgentFlavor, _translate: Translate): ModelMode[] {
+export function getHardcodedModelModes(flavor: AgentFlavor, translate: Translate): ModelMode[] {
     if (flavor === 'codex') {
         return getCodexModelModes();
     }
     if (flavor === 'gemini') {
-        return getGeminiModelModes();
+        return getGeminiModelModes(translate);
     }
     if (flavor === 'openclaw') {
         return getOpenClawModelModes();
@@ -267,6 +267,7 @@ export function getAvailableModels(
     translate: Translate,
     selectedKey?: string | null,
 ): ModelMode[] {
+    const translateWithParams = translate as (key: any, params: Record<string, string | number | boolean>) => string;
     if (isRigMetadataV1(metadata)) {
         const models: ModelMode[] = getRigModels(metadata).map((model) => ({
             key: model.key,
@@ -286,7 +287,7 @@ export function getAvailableModels(
             models.unshift({
                 key: current.key,
                 name: current.name,
-                description: `${current.providerName} · unavailable`,
+                description: translateWithParams('uiCopy.valueUnavailable', { value1: current.providerName }),
                 modelId: current.id,
                 providerId: current.providerId,
                 providerName: current.providerName,
@@ -305,7 +306,7 @@ export function getAvailableModels(
             models.unshift({
                 key: locallySelectedKey,
                 name: modelId,
-                description: `${providerId} · unavailable`,
+                description: translateWithParams('uiCopy.valueUnavailable', { value1: providerId }),
                 modelId,
                 providerId,
                 providerName: providerId,
@@ -347,7 +348,7 @@ export function getAvailablePermissionModes(
             modes.unshift({
                 key: current,
                 name: current,
-                description: 'Unavailable in the current Rig mode catalog',
+                description: translate('uiCopy.unavailableInTheCurrentRigModeCatalog'),
                 semanticKind: null,
                 disabled: true,
             });
