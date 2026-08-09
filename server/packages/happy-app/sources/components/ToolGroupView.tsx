@@ -102,15 +102,18 @@ interface AgentWorkGroupViewProps {
     sessionId: string;
     expanded: boolean;
     onToggle: () => void;
+    forceCompleted?: boolean;
+    forceCompletedAt?: number;
 }
 
 export const AgentWorkGroupView = React.memo<AgentWorkGroupViewProps>((props) => {
     const { group, metadata, sessionId, expanded, onToggle } = props;
-    const isCompleted = group.completedAt !== null;
-    const runningElapsedSeconds = useElapsedTime(group.completedAt === null ? group.startedAt : null);
-    const durationMs = group.completedAt === null
+    const effectiveCompletedAt = group.completedAt ?? props.forceCompletedAt ?? null;
+    const isCompleted = props.forceCompleted || effectiveCompletedAt !== null;
+    const runningElapsedSeconds = useElapsedTime(effectiveCompletedAt === null ? group.startedAt : null);
+    const durationMs = effectiveCompletedAt === null
         ? runningElapsedSeconds * 1000
-        : group.completedAt - group.startedAt;
+        : Math.max(0, effectiveCompletedAt - group.startedAt);
     const label = t('toolGroup.workedFor', { duration: formatWorkDuration(durationMs) });
     const nestedItemsNewestFirst = React.useMemo(
         () => groupToolCallsForDisplay(group.messages, true, { groupSingleToolCalls: true }),
