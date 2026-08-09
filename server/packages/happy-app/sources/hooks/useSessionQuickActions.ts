@@ -4,8 +4,8 @@ import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 import { Modal } from '@/modal';
 import { machineResumeSession, sessionArchive, sessionKill, sessionSetAgentModes, forkAndSpawn, type ForkSource } from '@/sync/ops';
 import { maybeCleanupWorktree } from '@/hooks/useWorktreeCleanup';
-import { storage, useLocalSetting, useMachine, useSetting } from '@/sync/storage';
-import { Machine, Session } from '@/sync/storageTypes';
+import { storage, useLocalSetting, useMachine } from '@/sync/storage';
+import { Session } from '@/sync/storageTypes';
 import { sync } from '@/sync/sync';
 import { resolveMessageModeMeta } from '@/sync/messageMeta';
 import { t } from '@/text';
@@ -13,6 +13,7 @@ import { HappyError } from '@/utils/errors';
 import { copySessionMetadataToClipboard, copySessionMetadataAndLogsToClipboard } from '@/utils/copySessionMetadataToClipboard';
 import { useSessionStatus } from '@/utils/sessionUtils';
 import { isMachineOnline } from '@/utils/machineUtils';
+import { getResumeAvailability } from '@/utils/sessionResume';
 import { getSessionForkSource } from '@/utils/sessionFork';
 import { useRouter } from 'expo-router';
 import { useSession } from '@/sync/storage';
@@ -34,80 +35,6 @@ interface UseSessionQuickActionsOptions {
     onAfterCopySessionMetadata?: () => void;
 }
 
-type ResumeAvailability = {
-    canResume: boolean;
-    canShowResume: boolean;
-    subtitle: string;
-    message: string;
-};
-
-function getResumeAvailability(session: Session, machine: Machine | null | undefined, isConnected: boolean): ResumeAvailability {
-    if (isRigMetadata(session.metadata) || session.metadata?.capabilities?.resume === false) {
-        return {
-            canResume: false,
-            canShowResume: false,
-            subtitle: '',
-            message: '',
-        };
-    }
-    if (isConnected) {
-        return {
-            canResume: false,
-            canShowResume: false,
-            subtitle: '',
-            message: '',
-        };
-    }
-
-    const machineId = session.metadata?.machineId;
-    if (!machineId) {
-        const message = t('sessionInfo.resumeSessionMissingMachine');
-        return {
-            canResume: false,
-            canShowResume: true,
-            subtitle: message,
-            message,
-        };
-    }
-
-    const hasBackendResumeId = Boolean(session.metadata?.claudeSessionId || session.metadata?.codexThreadId);
-    if (!hasBackendResumeId) {
-        const message = t('sessionInfo.resumeSessionMissingBackendId');
-        return {
-            canResume: false,
-            canShowResume: true,
-            subtitle: message,
-            message,
-        };
-    }
-
-    if (!machine) {
-        const message = t('sessionInfo.resumeSessionSameMachineOnly');
-        return {
-            canResume: false,
-            canShowResume: true,
-            subtitle: message,
-            message,
-        };
-    }
-
-    if (!isMachineOnline(machine)) {
-        return {
-            canResume: false,
-            canShowResume: true,
-            subtitle: t('sessionInfo.resumeSessionMachineOffline'),
-            message: t('sessionInfo.resumeSessionMachineOffline'),
-        };
-    }
-
-    return {
-        canResume: true,
-        canShowResume: true,
-        subtitle: t('sessionInfo.resumeSessionSubtitle'),
-        message: t('sessionInfo.resumeSessionSubtitle'),
-    };
-}
-
 export function useSessionQuickActions(
     session: Session,
     options: UseSessionQuickActionsOptions = {},
@@ -122,16 +49,17 @@ export function useSessionQuickActions(
     const machineId = session.metadata?.machineId ?? '';
     const machine = useMachine(machineId);
     const devModeEnabled = useLocalSetting('devModeEnabled');
-    const expResumeSession = useSetting('expResumeSession');
     const resumeAvailability = React.useMemo(
-        () => expResumeSession ? getResumeAvailability(session, machine, sessionStatus.isConnected) : { canResume: false, canShowResume: false, subtitle: '', message: '' },
-        [machine, session, sessionStatus.isConnected, expResumeSession],
+        () => {
+            const availability = getResumeAvailability(session, machine, sessionStatus.isConnected);
+            const message = availability.messageKey ? t(availability.messageKey) : '';
+            return { ...availability, subtitle: message, message };
+        },
+        [machine, session, sessionStatus.isConnected],
     );
 
-    // Fork eligibility — separate from resume because fork works on both
-    // active AND inactive provider sessions. The user-facing toggle is the same
-    // expResumeSession experiment so all three flows (resume / fork /
-    // duplicate) ride a single switch on settings/features.
+    // Fork eligibility is separate from resume because fork works on both
+    // active and inactive provider sessions.
     const forkSource = React.useMemo(() => getSessionForkSource(session), [
         session.id,
         session.metadata?.flavor,
@@ -141,8 +69,7 @@ export function useSessionQuickActions(
         session.metadata?.codexThreadId,
     ]);
     const canFork = Boolean(
-        expResumeSession
-        && !isRigMetadata(session.metadata)
+        !isRigMetadata(session.metadata)
         && forkSource
         && machine
         && isMachineOnline(machine),

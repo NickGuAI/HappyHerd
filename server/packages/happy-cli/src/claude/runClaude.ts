@@ -40,7 +40,6 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { RawJSONLinesSchema, type RawJSONLines } from './types';
 import {
-    assertReconnectContextMatchesEnvironment,
     contextMetadataFromEnvironment,
     instructionReceiptMetadata,
     mergeContextPrompt,
@@ -171,8 +170,6 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     const reconnectSeq = process.env.HAPPY_RECONNECT_SEQ;
     const reconnectMetadataVersion = process.env.HAPPY_RECONNECT_METADATA_VERSION;
     const reconnectAgentStateVersion = process.env.HAPPY_RECONNECT_AGENT_STATE_VERSION;
-    assertReconnectContextMatchesEnvironment(process.env.HAPPY_RECONNECT_CONTEXT_HASH);
-
     const initialDeliveredInstruction = [happyHerdContextPrompt, systemPrompt]
         .filter((part): part is string => Boolean(part))
         .join('\n\n');

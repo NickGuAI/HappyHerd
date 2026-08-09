@@ -57,7 +57,6 @@ import {
     type CodexGoalCommand,
 } from './codexGoalStatus';
 import {
-    assertReconnectContextMatchesEnvironment,
     instructionReceiptMetadata,
     readContextPromptFromEnvironment,
 } from '@/agentContext/commanderContext';
@@ -197,8 +196,6 @@ export async function runCodex(opts: {
     const reconnectSeq = process.env.HAPPY_RECONNECT_SEQ;
     const reconnectMetadataVersion = process.env.HAPPY_RECONNECT_METADATA_VERSION;
     const reconnectAgentStateVersion = process.env.HAPPY_RECONNECT_AGENT_STATE_VERSION;
-    assertReconnectContextMatchesEnvironment(process.env.HAPPY_RECONNECT_CONTEXT_HASH);
-
     if (happyHerdContextPrompt) {
         Object.assign(metadata, instructionReceiptMetadata({
             provider: 'codex',

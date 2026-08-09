@@ -116,7 +116,6 @@ async function buildReconnectEnv(session: ReconnectableHappySession): Promise<No
         HAPPY_RECONNECT_SEQ: String(session.seq),
         HAPPY_RECONNECT_METADATA_VERSION: String(session.metadataVersion),
         HAPPY_RECONNECT_AGENT_STATE_VERSION: String(session.agentStateVersion),
-        ...(session.metadata.contextHash ? { HAPPY_RECONNECT_CONTEXT_HASH: session.metadata.contextHash } : {}),
     });
 }
 

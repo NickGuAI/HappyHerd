@@ -847,7 +847,6 @@ export function SessionViewLoaded({
     const gitStatus = useSessionGitStatus(sessionId);
     const alwaysShowContextSize = useSetting('alwaysShowContextSize');
     const sessionStatusBarDisplay = useSetting('sessionStatusBarDisplay');
-    const expResumeSession = useSetting('expResumeSession');
     const { canResume, resumeSession, resumingSession } = useSessionQuickActions(session);
     const isDisconnected = !sessionStatus.isConnected;
     const resumeCommandBlock = getResumeCommandBlock(session);
@@ -1161,13 +1160,12 @@ export function SessionViewLoaded({
     // whether they were explicitly archived or just lost their CLI (e.g.
     // Ctrl-C in terminal — lifecycleState stays 'running', server flips
     // active=false). InactiveArchivedHint handles both cases: shows the
-    // Resume button when canResume is true, falls back to the
-    // copy-this-command hint when the experiments toggle is off or the
-    // machine isn't reachable.
+    // Resume button when canResume is true, falling back to the copy command
+    // only when the machine or provider session is not directly resumable.
     const inactiveHint = showBottomDockDetails && isDisconnected && !isRig ? (
         <CenteredInputWidth horizontalPadding={sessionInputHorizontalPadding}>
             <InactiveArchivedHint
-                resumeCommandBlock={expResumeSession ? resumeCommandBlock : null}
+                resumeCommandBlock={resumeCommandBlock}
                 canResume={canResume}
                 resuming={resumingSession}
                 onResume={resumeSession}

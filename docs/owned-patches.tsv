@@ -95,3 +95,4 @@ R8	code-ready	ci(i18n): enforce complete localized UI ownership	server/packages/
 C11	code-ready	feat: render rich agent markdown and images	server/packages/happy-app/sources/components/markdown/parseMarkdown.test.ts
 SESSION_LIFECYCLE	code-ready	fix: bind session activity to provider lifecycle	server/packages/happy-server/sources/app/presence/timeout.spec.ts
 SESSION_LIFECYCLE	code-ready	fix(session): confirm provider exit before deactivation	server/packages/happy-cli/src/daemon/processStatus.test.ts
+R9	code-ready	fix(resume): use current AgentContext on reconnect (#62)	server/packages/happy-cli/src/resume/handleResumeCommand.test.ts

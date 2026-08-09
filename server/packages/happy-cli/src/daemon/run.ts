@@ -781,7 +781,6 @@ export async function startDaemon(): Promise<void> {
             HAPPY_RECONNECT_SEQ: String(tracked.encryption.seq),
             HAPPY_RECONNECT_METADATA_VERSION: String(tracked.encryption.metadataVersion),
             HAPPY_RECONNECT_AGENT_STATE_VERSION: String(tracked.encryption.agentStateVersion),
-            ...(metadata.contextHash ? { HAPPY_RECONNECT_CONTEXT_HASH: metadata.contextHash } : {}),
           }),
         });
       } catch (error) {
