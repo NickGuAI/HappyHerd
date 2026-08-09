@@ -309,8 +309,8 @@ export const SessionView = React.memo((props: { id: string }) => {
             return;
         }
         void Modal.confirm(
-            'Discard unsaved changes?',
-            `Your edits to ${fileViewPath?.split('/').pop() || 'this file'} have not been saved.`,
+            t("uiCopy.discardUnsavedChanges"),
+            t("uiCopy.yourEditsToValueHaveNotBeenSaved", { value1: fileViewPath?.split('/').pop() || t("uiCopy.thisFile") }),
             { confirmText: 'Discard', destructive: true },
         ).then((confirmed) => {
             if (!confirmed) return;
@@ -329,7 +329,7 @@ export const SessionView = React.memo((props: { id: string }) => {
     }, [fileViewPath, pushOverlayNow, withFileDiscardConfirmation]);
     const handleAllFilesFileAttach = React.useCallback((filePath: string) => {
         if (!addWorkspaceContextFile(sessionId, filePath)) {
-            Modal.alert('Workspace context', 'You can attach up to 8 files to one message.');
+            Modal.alert(t("uiCopy.workspaceContext"), t("uiCopy.youCanAttachUpTo8FilesToOneMessage"));
         }
     }, [sessionId]);
 
@@ -992,7 +992,7 @@ export function SessionViewLoaded({
     }, [router, session?.metadata, sessionId]);
 
     const handleAutocompleteSuggestions = React.useCallback((query: string) => (
-        getSuggestions(sessionId, query)
+        getSuggestions(sessionId, query, t)
     ), [sessionId]);
 
     const connectionStatus = React.useMemo(() => ({

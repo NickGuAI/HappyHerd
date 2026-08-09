@@ -116,7 +116,7 @@ export const SidebarView = React.memo(() => {
                 ]}
             >
                 <Ionicons name="time-outline" size={16} color={stylesheet.newSessionText.color} />
-                <Text style={styles.newSessionText}>Automations</Text>
+                <Text style={styles.newSessionText}>{t("happyHerd.automations.title")}</Text>
             </Pressable>
 
             {realtimeStatus !== 'disconnected' && (

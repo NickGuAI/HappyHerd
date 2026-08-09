@@ -196,8 +196,8 @@ export default function MachineWorkspaceScreen() {
             return;
         }
         void Modal.confirm(
-            'Discard unsaved changes?',
-            'Your current file edits have not been saved.',
+            t("uiCopy.discardUnsavedChanges"),
+            t("uiCopy.yourCurrentFileEditsHaveNotBeenSaved"),
             { cancelText: t('common.cancel'), confirmText: t('common.discard'), destructive: true },
         ).then((confirmed) => {
             if (confirmed) action();
@@ -645,7 +645,9 @@ function FileRow({
                     }}
                     hitSlop={8}
                     style={styles.attachButton}
-                    accessibilityLabel={attached ? `Remove ${entry.name}` : `Attach ${entry.name}`}
+                    accessibilityLabel={attached
+                        ? t('uiCopy.removeFile', { value1: entry.name })
+                        : t('uiCopy.attachFile', { value1: entry.name })}
                 >
                     <Ionicons
                         name={attached ? 'checkmark-circle' : 'ellipse-outline'}

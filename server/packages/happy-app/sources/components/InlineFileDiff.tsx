@@ -209,10 +209,10 @@ const DiffStyleToggle = React.memo<{ value: 'unified' | 'split'; onChange: (v: '
     return (
         <View style={[toggleStyles.container, { backgroundColor: theme.colors.groupped.background, borderColor: theme.colors.divider }]}>
             <Pressable onPress={() => onChange('unified')} style={buttonStyle(value === 'unified')}>
-                <Text style={textStyle(value === 'unified')}>Unified</Text>
+                <Text style={textStyle(value === 'unified')}>{t("settingsAppearance.diffStyleOptions.unified")}</Text>
             </Pressable>
             <Pressable onPress={() => onChange('split')} style={buttonStyle(value === 'split')}>
-                <Text style={textStyle(value === 'split')}>Split</Text>
+                <Text style={textStyle(value === 'split')}>{t("settingsAppearance.diffStyleOptions.split")}</Text>
             </Pressable>
         </View>
     );

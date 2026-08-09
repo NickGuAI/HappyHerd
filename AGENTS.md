@@ -27,3 +27,15 @@ Run Happy commands from `server/` and use the pinned `pnpm` version declared by
 upstream. Prefer package-scoped tests during iteration; run the repository
 contract suite before release.
 
+## Interface ownership and localization
+
+- Product-owned copy belongs in the en/cn/de JSON catalogs. Do not introduce
+  production UI literals or a hardcoded-copy allowlist.
+- Keep provider/model slugs, commands, paths, filenames, logs, user content,
+  and agent content byte-faithful; localize only surrounding product copy.
+- When routes or UI-owning modules change, regenerate the source-derived
+  `ui-surface-inventory.json` and `ui-tree.html` with
+  `pnpm --filter happy-app ui:inventory:generate`.
+- `pnpm --filter happy-app i18n:check` is the required guardrail for catalog
+  parity, semantic exemptions, AST copy scanning, the 36-route inventory, and
+  the critical locale/viewport/theme smoke matrix.

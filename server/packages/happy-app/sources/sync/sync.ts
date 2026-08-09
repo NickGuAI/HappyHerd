@@ -446,7 +446,7 @@ class Sync {
         try {
             this.backgroundSendNotificationId = await Notifications.scheduleNotificationAsync({
                 content: {
-                    title: 'Message not sent',
+                    title: t("uiCopy.messageNotSent"),
                     body: 'A message is still sending in the background. It will fail in 30 seconds if not delivered.',
                     sound: true
                 },
@@ -480,7 +480,7 @@ class Sync {
         try {
             await Notifications.scheduleNotificationAsync({
                 content: {
-                    title: 'Message failed',
+                    title: t("uiCopy.messageFailed"),
                     body: 'A message failed to send while the app was in background. Open Happy and retry.',
                     sound: true
                 },
@@ -929,15 +929,15 @@ class Sync {
                     return { success: true, purchased: false };
                 case PaywallResult.NOT_PRESENTED:
                     trackPaywallError('Paywall not presented', flow);
-                    return { success: false, error: 'Paywall not available on this platform' };
+                    return { success: false, error: t('uiCopy.paywallUnavailable') };
                 case PaywallResult.ERROR:
                 default:
-                    const errorMsg = 'Failed to present paywall';
+                    const errorMsg = t('uiCopy.failedToPresentPaywall');
                     trackPaywallError(errorMsg, flow);
                     return { success: false, error: errorMsg };
             }
         } catch (error: any) {
-            const errorMessage = error.message || 'Failed to present paywall';
+            const errorMessage = error.message || t('uiCopy.failedToPresentPaywall');
             trackPaywallError(errorMessage, flow);
             return { success: false, error: errorMessage };
         }

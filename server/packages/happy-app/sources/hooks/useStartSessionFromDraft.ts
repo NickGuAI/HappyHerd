@@ -44,11 +44,11 @@ export function useStartSessionFromDraft() {
         const draft = useNewSessionDraft.getState();
         const machine = machines.find((candidate) => candidate.id === draft.selectedMachineId);
         if (!machine) {
-            Modal.alert(t('common.error'), 'Please select a machine');
+            Modal.alert(t('common.error'), t("uiCopy.pleaseSelectAMachine"));
             return false;
         }
         if (!isMachineOnline(machine)) {
-            Modal.alert(t('common.error'), 'Machine is offline');
+            Modal.alert(t('common.error'), t("newSession.machineOffline"));
             return false;
         }
 
@@ -81,7 +81,7 @@ export function useStartSessionFromDraft() {
             [draft.effortLevel, effectiveEffortDefault],
         );
         if (!permission || !model) {
-            Modal.alert(t('common.error'), 'The selected agent configuration is unavailable');
+            Modal.alert(t('common.error'), t("uiCopy.theSelectedAgentConfigurationIsUnavailable"));
             return false;
         }
 
@@ -100,7 +100,7 @@ export function useStartSessionFromDraft() {
             if (worktreeSelection === '__new__') {
                 const worktreeResult = await createWorktree(machine.id, absolutePath);
                 if (!worktreeResult.success) {
-                    Modal.alert(t('common.error'), worktreeResult.error || 'Failed to create worktree');
+                    Modal.alert(t('common.error'), worktreeResult.error || t("uiCopy.failedToCreateWorktree"));
                     return false;
                 }
                 spawnDirectory = worktreeResult.worktreePath;
@@ -129,8 +129,8 @@ export function useStartSessionFromDraft() {
                 }
 
                 const approved = await Modal.confirm(
-                    'Create Directory?',
-                    `The directory '${result.directory}' does not exist. Would you like to create it?`,
+                    t("uiCopy.createDirectory"),
+                    t("uiCopy.theDirectoryValueDoesNotExistWouldYouLikeTo", { value1: result.directory }),
                     { cancelText: t('common.cancel'), confirmText: t('common.create') },
                 );
                 return approved ? spawn(true) : null;
@@ -159,7 +159,7 @@ export function useStartSessionFromDraft() {
                 void sync.sendMessage(sessionId, prompt, { source: 'new_session', attachments }).catch((error) => {
                     Modal.alert(
                         t('common.error'),
-                        error instanceof Error ? error.message : 'Failed to send the first message',
+                        error instanceof Error ? error.message : t("uiCopy.failedToSendTheFirstMessage"),
                     );
                 });
             }
@@ -167,7 +167,7 @@ export function useStartSessionFromDraft() {
         } catch (error) {
             Modal.alert(
                 t('common.error'),
-                error instanceof Error ? error.message : 'Failed to start session',
+                error instanceof Error ? error.message : t("uiCopy.failedToStartSession"),
             );
             return false;
         } finally {

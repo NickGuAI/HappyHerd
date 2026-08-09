@@ -8,6 +8,7 @@ import { machineGetDirectoryTree, type DirectoryTreeNode } from '@/sync/ops';
 import { formatPathRelativeToHome } from '@/utils/sessionUtils';
 import { hostRoot, parentHostPath } from '@/utils/hostPath';
 
+import { t } from '@/text';
 export type FavoriteMachinePath = { machineId: string; path: string };
 
 export function MachinePathBrowser({
@@ -75,7 +76,7 @@ export function MachinePathBrowser({
             <View style={styles.toolbar}>
                 <BubblePressable
                     accessibilityRole="button"
-                    accessibilityLabel="Browse filesystem root"
+                    accessibilityLabel={t("uiCopy.browseFilesystemRoot")}
                     onPress={() => setCurrentDirectory(root)}
                     style={styles.iconButton}
                 >
@@ -83,7 +84,7 @@ export function MachinePathBrowser({
                 </BubblePressable>
                 <BubblePressable
                     accessibilityRole="button"
-                    accessibilityLabel="Browse parent folder"
+                    accessibilityLabel={t("uiCopy.browseParentFolder")}
                     onPress={() => setCurrentDirectory(parentHostPath(currentDirectory, platform))}
                     style={styles.iconButton}
                 >
@@ -94,7 +95,7 @@ export function MachinePathBrowser({
                 </Text>
                 <BubblePressable
                     accessibilityRole="button"
-                    accessibilityLabel={isFavorite ? 'Remove workspace favorite' : 'Add workspace favorite'}
+                    accessibilityLabel={isFavorite ? t('uiCopy.removeWorkspaceFavorite') : t('uiCopy.addWorkspaceFavorite')}
                     onPress={() => onToggleFavorite(currentDirectory)}
                     style={styles.iconButton}
                 >
@@ -106,7 +107,7 @@ export function MachinePathBrowser({
                 </BubblePressable>
                 <BubblePressable
                     accessibilityRole="button"
-                    accessibilityLabel="Refresh folder"
+                    accessibilityLabel={t("uiCopy.refreshFolder")}
                     onPress={() => void load()}
                     style={styles.iconButton}
                 >
@@ -116,7 +117,7 @@ export function MachinePathBrowser({
 
             <BubblePressable
                 accessibilityRole="button"
-                accessibilityLabel={`Use ${currentDirectory} as workspace`}
+                accessibilityLabel={t("uiCopy.useValueAsWorkspace", { value1: currentDirectory })}
                 onPress={() => {
                     onSelectPath(currentDirectory);
                     onDone?.();
@@ -124,18 +125,18 @@ export function MachinePathBrowser({
                 style={[styles.useFolderButton, { borderColor: theme.colors.divider }]}
             >
                 <Ionicons name="checkmark-circle-outline" size={17} color={theme.colors.text} />
-                <Text style={[styles.useFolderText, { color: theme.colors.text }]}>Use this folder</Text>
+                <Text style={[styles.useFolderText, { color: theme.colors.text }]}>{t("uiCopy.useThisFolder")}</Text>
             </BubblePressable>
 
             {favorites.length > 0 && (
                 <View style={styles.favoriteSection}>
-                    <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>Favorites</Text>
+                    <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>{t("workspace.favorites")}</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.favoriteRow}>
                         {favorites.filter((favorite) => favorite.machineId === machineId).map((favorite) => (
                             <BubblePressable
                                 key={favorite.path}
                                 accessibilityRole="button"
-                                accessibilityLabel={`Use favorite ${favorite.path}`}
+                                accessibilityLabel={t("uiCopy.useFavoriteValue", { value1: favorite.path })}
                                 onPress={() => {
                                     onSelectPath(favorite.path);
                                     onDone?.();
@@ -153,7 +154,7 @@ export function MachinePathBrowser({
             )}
 
             <View style={styles.listHeader}>
-                <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>Host folders</Text>
+                <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>{t("uiCopy.hostFolders")}</Text>
                 {loading && <ActivityIndicator size="small" color={theme.colors.textSecondary} />}
             </View>
             {error ? (
@@ -167,7 +168,7 @@ export function MachinePathBrowser({
                         <BubblePressable
                             key={entry.path}
                             accessibilityRole="button"
-                            accessibilityLabel={`Open folder ${entry.name}`}
+                            accessibilityLabel={t("uiCopy.openFolderValue", { value1: entry.name })}
                             onPress={() => setCurrentDirectory(entry.path)}
                             style={styles.treeRow}
                         >
@@ -183,13 +184,13 @@ export function MachinePathBrowser({
                         </View>
                     ))}
                     {!loading && directories.length === 0 && files.length === 0 && (
-                        <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>Folder is empty</Text>
+                        <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>{t("uiCopy.folderIsEmpty")}</Text>
                     )}
                 </ScrollView>
             )}
             {selectedPath && selectedPath !== currentDirectory && (
                 <Text style={[styles.selectedHint, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                    Selected: {formatPathRelativeToHome(selectedPath, homeDir)}
+                    {t("uiCopy.selected")} {formatPathRelativeToHome(selectedPath, homeDir)}
                 </Text>
             )}
         </View>

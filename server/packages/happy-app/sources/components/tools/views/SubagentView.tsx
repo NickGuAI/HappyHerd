@@ -6,6 +6,7 @@ import { MarkdownView } from '@/components/markdown/MarkdownView';
 import type { Message, ToolCallMessage } from '@/sync/typesMessage';
 import type { ToolViewProps } from './_all';
 
+import { t } from '@/text';
 type SubagentStatus = 'running' | 'completed' | 'failed' | 'cancelled' | 'interrupted' | 'unknown';
 
 function outcome(tool: ToolViewProps['tool']): { status: SubagentStatus; detail?: string } {
@@ -51,7 +52,7 @@ export const SubagentView = React.memo<ToolViewProps>(({ tool, messages, session
             <View style={styles.summaryRow}>
                 <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
                 <Text style={[styles.status, { color: statusColor }]}>{state.status.toUpperCase()}</Text>
-                <Text style={styles.eventCount}>{visibleMessages.length} events</Text>
+                <Text style={styles.eventCount}>{visibleMessages.length} {t("uiCopy.events")}</Text>
             </View>
 
             {state.detail ? (
@@ -66,7 +67,7 @@ export const SubagentView = React.memo<ToolViewProps>(({ tool, messages, session
                         if (message.kind === 'agent-text') {
                             return (
                                 <View key={message.id} style={message.isThinking ? styles.reasoning : styles.output}>
-                                    {message.isThinking ? <Text style={styles.traceLabel}>REASONING</Text> : null}
+                                    {message.isThinking ? <Text style={styles.traceLabel}>{t("uiCopy.reasoning")}</Text> : null}
                                     <MarkdownView markdown={message.text} sessionId={sessionId} />
                                 </View>
                             );
@@ -83,18 +84,18 @@ export const SubagentView = React.memo<ToolViewProps>(({ tool, messages, session
                             </View>
                         );
                     })}
-                    {visibleMessages.length === 0 ? <Text style={styles.empty}>No child activity observed yet.</Text> : null}
+                    {visibleMessages.length === 0 ? <Text style={styles.empty}>{t("uiCopy.noChildActivityObservedYet")}</Text> : null}
                 </View>
             ) : null}
 
             {visibleMessages.length > 0 ? (
                 <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={expanded ? 'Collapse sub-agent activity' : 'Expand sub-agent activity'}
+                    accessibilityLabel={expanded ? t('uiCopy.collapseSubagentActivity') : t('uiCopy.expandSubagentActivity')}
                     onPress={() => setExpanded((value) => !value)}
                     style={styles.toggle}
                 >
-                    <Text style={styles.toggleText}>{expanded ? 'Hide activity' : 'View activity'}</Text>
+                    <Text style={styles.toggleText}>{expanded ? t("uiCopy.hideActivity") : t("uiCopy.viewActivity")}</Text>
                     <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={15} color={theme.colors.textSecondary} />
                 </Pressable>
             ) : null}

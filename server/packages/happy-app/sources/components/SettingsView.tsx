@@ -262,7 +262,7 @@ export const SettingsView = React.memo(function SettingsView({
                                 t('modals.authenticateTerminal'),
                                 t('modals.pasteUrlFromTerminal'),
                                 {
-                                    placeholder: 'happy://terminal?...',
+                                    placeholder: t("uiCopy.happyTerminal"),
                                     confirmText: t('common.authenticate')
                                 }
                             );
@@ -288,7 +288,7 @@ export const SettingsView = React.memo(function SettingsView({
 
             <ItemGroup title={t('settings.connectedAccounts')}>
                 <Item
-                    title="Claude Code"
+                    title={t("uiCopy.claudeCode_rfuptw")}
                     subtitle={isAnthropicConnected
                         ? t('settingsAccount.statusActive')
                         : t('settings.connectAccount')
@@ -408,8 +408,8 @@ export const SettingsView = React.memo(function SettingsView({
                     onPress={() => router.push('/settings/voice')}
                 />
                 <Item
-                    title="Agent Defaults"
-                    subtitle="Default model, effort, and permissions"
+                    title={t("uiCopy.agentDefaults")}
+                    subtitle={t("uiCopy.defaultModelEffortAndPermissions")}
                     icon={<Ionicons name="options-outline" size={29} color="#5AC8FA" />}
                     onPress={() => router.push('/settings/agents' as any)}
                 />

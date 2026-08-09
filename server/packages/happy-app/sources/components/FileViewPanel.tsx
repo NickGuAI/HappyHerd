@@ -396,7 +396,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                     </Text>
                     <View style={{ flex: 1 }} />
                     <Pressable onPress={handleShowDiff} style={[styles.warningAction, { borderColor: theme.colors.divider }]}>
-                        <Text style={[styles.warningActionText, { color: theme.colors.textLink }]}>Diff</Text>
+                        <Text style={[styles.warningActionText, { color: theme.colors.textLink }]}>{t("files.diff")}</Text>
                     </Pressable>
                     <Pressable onPress={handleReload} style={[styles.warningAction, { borderColor: theme.colors.divider }]}>
                         <Text style={[styles.warningActionText, { color: theme.colors.textLink }]}>{t('files.reload')}</Text>
@@ -466,12 +466,12 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                         source={{ uri: fileState.uri }}
                         style={[imagePreviewLayout, { maxWidth: layout.maxWidth }]}
                         contentFit="contain"
-                        accessibilityLabel={`Preview of ${fileName}`}
+                        accessibilityLabel={t("uiCopy.previewOfValue", { value1: fileName })}
                     />
                 </ScrollView>
             ) : fileState.kind === 'pdf' ? (
                 <View style={styles.documentPreview}>
-                    <FileDocumentPreview kind="pdf" uri={fileState.uri} title={`Preview of ${fileName}`} />
+                    <FileDocumentPreview kind="pdf" uri={fileState.uri} title={t("uiCopy.previewOfValue", { value1: fileName })} />
                 </View>
             ) : fileState.kind === 'unsupported' ? (
                 <View style={styles.centered}>
@@ -495,7 +495,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                     <FileDocumentPreview
                         kind="html"
                         html={safeHtmlPreviewDocument(editContent)}
-                        title={`Preview of ${fileName}`}
+                        title={t("uiCopy.previewOfValue", { value1: fileName })}
                     />
                 </View>
             ) : (
@@ -587,7 +587,7 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
                             displayMode === 'edit' && styles.toggleTextActive,
                             displayMode === 'edit' && { color: theme.colors.text },
                         ]}>
-                            {canWrite ? t('files.editFile') : 'Source'}
+                            {canWrite ? t('files.editFile') : t("uiCopy.source")}
                         </Text>
                     </Pressable>
                     <Pressable
@@ -603,7 +603,7 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
                             displayMode === 'preview' && styles.toggleTextActive,
                             displayMode === 'preview' && { color: theme.colors.text },
                         ]}>
-                            Preview
+                            {t("uiCopy.preview")}
                         </Text>
                     </Pressable>
                 </View>

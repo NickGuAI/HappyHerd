@@ -159,7 +159,7 @@ export default function ArtifactDetailScreen() {
             console.error('Failed to delete artifact:', err);
             Modal.alert(
                 t('common.error'),
-                'Failed to delete artifact'
+                t("uiCopy.failedToDeleteArtifact")
             );
         } finally {
             setIsDeleting(false);
@@ -274,7 +274,7 @@ export default function ArtifactDetailScreen() {
                             <MarkdownView markdown={artifact.body} />
                         ) : (
                             <Text style={styles.emptyBody}>
-                                No content
+                                {t("uiCopy.noContent")}
                             </Text>
                         )}
                     </View>

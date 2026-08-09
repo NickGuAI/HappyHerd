@@ -6,6 +6,7 @@ import { Typography } from '@/constants/Typography';
 import type { Metadata } from '@/sync/storageTypes';
 import { getRigActivityIndicators } from '@/sync/rig';
 
+import { t } from '@/text';
 const iconByKey = {
     subagents: 'people-outline',
     workflows: 'git-network-outline',
@@ -38,7 +39,7 @@ export const RigActivityBar = React.memo(function RigActivityBar({ metadata }: {
                 <View key={indicator.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                     <Ionicons name={iconByKey[indicator.key]} size={12} color={theme.colors.textSecondary} />
                     <Text style={{ fontSize: 11, color: theme.colors.textSecondary, ...Typography.default() }}>
-                        {indicator.count}{indicator.queued ? ` +${indicator.queued} queued` : ''} {labelByKey[indicator.key]}
+                        {indicator.count}{indicator.queued ? t("uiCopy.valueQueued", { value1: indicator.queued }) : ''} {labelByKey[indicator.key]}
                     </Text>
                 </View>
             ))}

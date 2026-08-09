@@ -134,11 +134,11 @@ export default function AgentDefaultsSettingsScreen() {
     return (
         <ItemList style={{ paddingTop: 0 }}>
             <ItemGroup
-                title="Agent Defaults"
+                title={t("uiCopy.agentDefaults")}
             >
                 <Item
-                    title="Clear Overrides"
-                    subtitle="Return every agent to code defaults"
+                    title={t("uiCopy.clearOverrides")}
+                    subtitle={t("uiCopy.returnEveryAgentToCodeDefaults")}
                     icon={<Ionicons name="refresh-outline" size={29} color="#FF9500" />}
                     onPress={() => setAgentDefaultOverrides({})}
                     disabled={Object.keys(agentDefaultOverrides).length === 0}
@@ -155,21 +155,21 @@ export default function AgentDefaultsSettingsScreen() {
                 const fields: FieldConfig[] = [
                     {
                         field: 'permissionMode',
-                        title: 'Permission',
+                        title: t("uiCopy.permission"),
                         icon: 'shield-checkmark-outline',
                         options: permissionOptions,
                         codeDefaultKey: codeDefaults.permissionMode,
                     },
                     ...(modelOptions.length > 0 ? [{
                         field: 'modelMode' as const,
-                        title: 'Model',
+                        title: t("uiCopy.model"),
                         icon: 'hardware-chip-outline' as const,
                         options: modelOptions,
                         codeDefaultKey: codeDefaults.modelMode,
                     }] : []),
                     ...(effortOptions.length > 0 ? [{
                         field: 'effortLevel' as const,
-                        title: 'Effort',
+                        title: t("uiCopy.effort"),
                         icon: 'speedometer-outline' as const,
                         options: effortOptions,
                         codeDefaultKey: codeDefaults.effortLevel,
