@@ -14,6 +14,12 @@ export type MarkdownBlock = {
     type: 'numbered-list',
     items: { number: number, depth: number, spans: MarkdownSpan[] }[]
 } | {
+    type: 'task-list',
+    items: { checked: boolean, depth: number, spans: MarkdownSpan[] }[]
+} | {
+    type: 'quote',
+    content: MarkdownSpan[]
+} | {
     type: 'code-block',
     language: string | null,
     content: string
@@ -36,7 +42,7 @@ export type MarkdownBlock = {
 }
 
 export type MarkdownSpan = {
-    styles: ('italic' | 'bold' | 'semibold' | 'code')[],
+    styles: ('italic' | 'bold' | 'semibold' | 'code' | 'strikethrough')[],
     text: string,
     url: string | null
 }

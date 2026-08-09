@@ -34,15 +34,61 @@ describe('parseMarkdown', () => {
     });
 
     it('parses standalone markdown image blocks', () => {
-        const blocks = parseMarkdown('![Markdown renderable image](data:image/png;base64,abc123)');
+        const blocks = parseMarkdown('![Markdown renderable image](https://example.com/render.png)');
 
         expect(blocks).toEqual([
             {
                 type: 'image',
                 alt: 'Markdown renderable image',
-                url: 'data:image/png;base64,abc123',
+                url: 'https://example.com/render.png',
             },
         ]);
+    });
+
+    it('fails closed for markdown images with unsafe schemes', () => {
+        const blocks = parseMarkdown('![secret](data:image/png;base64,abc123)');
+
+        expect(blocks).toEqual([{
+            type: 'text',
+            content: [{ styles: [], text: '![secret](data:image/png;base64,abc123)', url: null }],
+        }]);
+    });
+
+    it('parses block quotes and GFM task lists', () => {
+        const blocks = parseMarkdown([
+            '> Keep the main agent moving.',
+            '> A child failure is an outcome.',
+            '',
+            '- [x] Preserve the result',
+            '- [ ] Retry only when the main agent decides',
+        ].join('\n'));
+
+        expect(blocks).toEqual([
+            {
+                type: 'quote',
+                content: [{ styles: [], text: 'Keep the main agent moving.\nA child failure is an outcome.', url: null }],
+            },
+            {
+                type: 'task-list',
+                items: [
+                    { checked: true, depth: 0, spans: [{ styles: [], text: 'Preserve the result', url: null }] },
+                    { checked: false, depth: 0, spans: [{ styles: [], text: 'Retry only when the main agent decides', url: null }] },
+                ],
+            },
+        ]);
+    });
+
+    it('parses GFM strikethrough spans', () => {
+        const blocks = parseMarkdown('Keep ~~obsolete~~ current guidance.');
+
+        expect(blocks).toEqual([{
+            type: 'text',
+            content: [
+                { styles: [], text: 'Keep ', url: null },
+                { styles: ['strikethrough'], text: 'obsolete', url: null },
+                { styles: [], text: ' current guidance.', url: null },
+            ],
+        }]);
     });
 
     it('auto-linkifies bare URLs in text blocks', () => {

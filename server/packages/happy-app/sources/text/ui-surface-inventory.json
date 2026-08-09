@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "083b16fb37847139f11df4320ab0d30bb6cdc697d06a887b019b78348f9b0a9e",
+  "sourceFingerprint": "8391f7f7d0e9fcbe8d38234ef82bc641c3d992d0023e6ae0ae448eaf56e7109f",
   "routeCount": 36,
   "surfaceCount": 220,
   "hardcodedCopyCount": 0,
@@ -3177,8 +3177,13 @@
         "common.error",
         "common.ok",
         "common.success",
+        "markdown.closeImagePreview",
         "markdown.codeCopied",
+        "markdown.completedTask",
         "markdown.copyFailed",
+        "markdown.imageLoadFailed",
+        "markdown.incompleteTask",
+        "markdown.openImageFullSize",
         "uiCopy.failedToOpenTextSelectionPleaseTryAgain",
         "uiCopy.markdownImage"
       ],

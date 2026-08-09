@@ -1041,7 +1041,12 @@
   "markdown": {
     "codeCopied": "Code kopiert",
     "copyFailed": "Das Kopieren ist fehlgeschlagen",
-    "mermaidRenderFailed": "Das Meerjungfrau-Diagramm konnte nicht gerendert werden"
+    "mermaidRenderFailed": "Das Mermaid-Diagramm konnte nicht gerendert werden",
+    "imageLoadFailed": "Bild konnte nicht geladen werden",
+    "openImageFullSize": "Bild in voller Größe öffnen",
+    "closeImagePreview": "Bildvorschau schließen",
+    "completedTask": "Erledigte Aufgabe",
+    "incompleteTask": "Offene Aufgabe"
   },
   "artifacts": {
     "title": "Artefakte",

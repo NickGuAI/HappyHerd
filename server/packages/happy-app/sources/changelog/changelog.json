@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 9 — Rich agent replies",
+      "summary": "Agent and subagent replies now render safe Markdown and responsive images.",
+      "markdown": "- Main-agent and subagent replies share the same Markdown renderer.\n- Headings, lists, block quotes, code, tables, links, task lists, and strikethrough render in chat.\n- HTTP(S) images render responsively with alt text, lazy loading, failure feedback, and full-size preview.\n- Unsafe image schemes fail closed; existing attachment and file-viewer behavior is unchanged."
+    },
+    {
       "title": "July 28 — Liquid glass, Opus 5",
       "summary": "A full mobile refresh and a new top model.",
       "markdown": "- Liquid-glass mobile UI — glass surfaces across navigation, headers, modals, and session lists.\n- Opus 5 in the Claude model picker.\n- Side chats — fork a parallel conversation right next to your session.\n- Redesigned new-session screen — prompt, attachments, voice, model, effort, and permissions in one place. Drafts are preserved.\n- Pick your own sidebar panels, with keyboard shortcuts.\n- Session launch and resume are more reliable."
@@ -76,5 +81,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "July 28 — Liquid glass, Opus 5"
+  "latestTitle": "August 9 — Rich agent replies"
 }
