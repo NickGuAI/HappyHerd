@@ -90,3 +90,5 @@ R3-R7	code-ready	feat: complete dogfood composer and localization contracts	serv
 R7	code-ready	ci: enforce JSON interface catalogs	.github/workflows/quality-gates.yml
 R7	code-ready	fix(i18n): preserve provider template variables	server/packages/happy-app/sources/text/index.test.ts
 R3-R7	code-ready	docs(patches): register R3-R7 dogfood contracts	docs/owned-patches.tsv
+R8	code-ready	feat(i18n): generate the production UI surface inventory	server/packages/happy-app/scripts/generate-ui-surface-inventory.mjs
+R8	code-ready	ci(i18n): enforce complete localized UI ownership	server/packages/happy-app/scripts/check-i18n-hardcoded.mjs
