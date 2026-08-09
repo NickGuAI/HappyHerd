@@ -90,6 +90,9 @@ jobs:
           pnpm --filter @slopus/happy-wire --fail-if-no-match typecheck
           pnpm --filter happy --fail-if-no-match typecheck
           pnpm --filter ./packages/happy-server --fail-if-no-match typecheck
+      - name: Validate JSON interface catalogs
+        working-directory: server
+        run: pnpm --filter happy-app --fail-if-no-match i18n:check
 
   unit-tests:
     name: Unit tests

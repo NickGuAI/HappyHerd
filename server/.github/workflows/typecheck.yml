@@ -34,3 +34,6 @@ jobs:
 
             - name: TypeScript typecheck
               run: pnpm --filter happy-app typecheck
+
+            - name: Validate i18n catalogs and generated contracts
+              run: pnpm --filter happy-app i18n:check

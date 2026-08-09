@@ -406,7 +406,7 @@ export async function runCodex(opts: {
         };
 
         const activeTurnId = client?.activeTurnId ?? null;
-        if (shouldSteerCodexUserInput(message.content.text, activeTurnId)) {
+        if (shouldSteerCodexUserInput(message.content.text, activeTurnId, message.meta?.deliveryMode)) {
             const imageInputs = await prepareCodexImageInputItems(attachmentsForThisMessage, {
                 sessionId: session.sessionId,
             });

@@ -32,6 +32,16 @@ type UseImagePickerResult = {
     addImages: (images: AttachmentPreview[]) => void;
 };
 
+type UseImagePickerOptions = {
+    /**
+     * Optional controlled attachment list. New Session uses this to keep the
+     * same in-memory draft across navigation without creating a second picker
+     * state that can drift from the visible preview strip.
+     */
+    images?: AttachmentPreview[];
+    onChange?: (images: AttachmentPreview[]) => void;
+};
+
 function withJpegExtension(fileName: string | null | undefined): string {
     const fallback = `image_${Date.now()}.jpg`;
     const name = fileName?.trim() || fallback;
@@ -71,14 +81,26 @@ export async function normalizePickedAssetForUpload(asset: ImagePicker.ImagePick
     };
 }
 
-export function useImagePicker(): UseImagePickerResult {
-    const [selectedImages, setSelectedImages] = useState<AttachmentPreview[]>([]);
-    // Ref tracks current count to avoid stale closures on rapid taps.
-    const selectedCountRef = useRef(0);
+export function useImagePicker(options: UseImagePickerOptions = {}): UseImagePickerResult {
+    const [uncontrolledImages, setUncontrolledImages] = useState<AttachmentPreview[]>([]);
+    const controlled = options.images !== undefined;
+    const selectedImages = controlled ? options.images! : uncontrolledImages;
+    const imagesRef = useRef(selectedImages);
+    const onChangeRef = useRef(options.onChange);
     useEffect(() => {
-        selectedCountRef.current = selectedImages.length;
-    }, [selectedImages]);
+        imagesRef.current = selectedImages;
+        onChangeRef.current = options.onChange;
+    }, [options.onChange, selectedImages]);
 
+    const updateImages = useCallback((update: (current: AttachmentPreview[]) => AttachmentPreview[]) => {
+        const next = update(imagesRef.current);
+        imagesRef.current = next;
+        if (controlled) {
+            onChangeRef.current?.(next);
+        } else {
+            setUncontrolledImages(next);
+        }
+    }, [controlled]);
     const requestPermission = useCallback(async (): Promise<boolean> => {
         if (Platform.OS === 'web') return true;
 
@@ -98,7 +120,7 @@ export function useImagePicker(): UseImagePickerResult {
         const hasPermission = await requestPermission();
         if (!hasPermission) return;
 
-        const remaining = MAX_IMAGES_PER_MESSAGE - selectedCountRef.current;
+        const remaining = MAX_IMAGES_PER_MESSAGE - imagesRef.current.length;
         if (remaining <= 0) {
             Modal.alert(
                 t('imageUpload.limitTitle'),
@@ -154,25 +176,25 @@ export function useImagePicker(): UseImagePickerResult {
         }
 
         if (previews.length > 0) {
-            setSelectedImages(prev => [...prev, ...previews].slice(0, MAX_IMAGES_PER_MESSAGE));
+            updateImages(prev => [...prev, ...previews].slice(0, MAX_IMAGES_PER_MESSAGE));
         }
-    }, [requestPermission]);
+    }, [requestPermission, updateImages]);
 
     const removeImage = useCallback((id: string) => {
-        setSelectedImages(prev => prev.filter(img => img.id !== id));
-    }, []);
+        updateImages(prev => prev.filter(img => img.id !== id));
+    }, [updateImages]);
 
     const clearImages = useCallback(() => {
-        setSelectedImages([]);
-    }, []);
+        updateImages(() => []);
+    }, [updateImages]);
 
     const addImages = useCallback((images: AttachmentPreview[]) => {
-        setSelectedImages(prev => {
+        updateImages(prev => {
             const remaining = MAX_IMAGES_PER_MESSAGE - prev.length;
             if (remaining <= 0) return prev;
             return [...prev, ...images.slice(0, remaining)];
         });
-    }, []);
+    }, [updateImages]);
 
     return { selectedImages, pickImages, removeImage, clearImages, addImages };
 }

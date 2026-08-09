@@ -17,4 +17,8 @@ describe('Codex turn routing', () => {
         expect(shouldSteerCodexUserInput('/goal verify the release', 'turn-1')).toBe(false);
         expect(shouldSteerCodexUserInput('/goal clear', 'turn-1')).toBe(false);
     });
+
+    it('keeps an explicitly queued follow-up on the existing provider queue rail', () => {
+        expect(shouldSteerCodexUserInput('run this after the current turn', 'turn-1', 'queue')).toBe(false);
+    });
 });

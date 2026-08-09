@@ -17,6 +17,11 @@ describe('Rig wire contract', () => {
     });
   });
 
+  it('retains the encrypted queue delivery override and rejects parallel routing values', () => {
+    expect(MessageMetaSchema.parse({ deliveryMode: 'queue' }).deliveryMode).toBe('queue');
+    expect(MessageMetaSchema.safeParse({ deliveryMode: 'steer' }).success).toBe(false);
+  });
+
   it('parses a Rig v1 payload and retains unknown future fields', () => {
     const parsed = RigMetadataV1Schema.parse({
       rigMetadataVersion: 1,

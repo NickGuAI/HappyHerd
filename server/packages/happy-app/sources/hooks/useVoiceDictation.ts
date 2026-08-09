@@ -5,6 +5,7 @@ import { requestMicrophonePermission, showMicrophonePermissionDeniedAlert } from
 import { readFileBytes } from '@/utils/readFileBytes';
 import { transcribeVoiceInput } from '@/sync/apiVoice';
 import { sync } from '@/sync/sync';
+import { t } from '@/text';
 
 export type VoiceDictationPhase = 'idle' | 'recording' | 'transcribing' | 'error';
 
@@ -39,7 +40,7 @@ export function useVoiceDictation(onTranscript: (text: string) => void) {
         setError(null);
         try {
             const credentials = sync.getCredentials();
-            if (!credentials) throw new Error('Sign in before using voice input');
+            if (!credentials) throw new Error(t('happyHerd.voice.signIn'));
             const transcript = await transcribeVoiceInput(credentials, audio.bytes, audio.mimeType);
             if (!mounted.current) return;
             onTranscript(transcript);
@@ -47,7 +48,7 @@ export function useVoiceDictation(onTranscript: (text: string) => void) {
             setPhase('idle');
         } catch (nextError) {
             if (!mounted.current) return;
-            setError(nextError instanceof Error ? nextError.message : 'Voice transcription failed');
+            setError(nextError instanceof Error ? nextError.message : t('happyHerd.voice.transcriptionFailed'));
             setPhase('error');
         }
     }, [onTranscript]);
@@ -58,7 +59,7 @@ export function useVoiceDictation(onTranscript: (text: string) => void) {
         const permission = await requestMicrophonePermission();
         if (!permission.granted) {
             showMicrophonePermissionDeniedAlert(permission.canAskAgain);
-            setError('Microphone permission was not granted');
+            setError(t('happyHerd.voice.permissionDenied'));
             setPhase('error');
             return;
         }
@@ -68,7 +69,7 @@ export function useVoiceDictation(onTranscript: (text: string) => void) {
             lastAudio.current = null;
             setPhase('recording');
         } catch (nextError) {
-            setError(nextError instanceof Error ? nextError.message : 'Could not start recording');
+            setError(nextError instanceof Error ? nextError.message : t('happyHerd.voice.startFailed'));
             setPhase('error');
         }
     }, [phase, recorder]);
@@ -78,13 +79,13 @@ export function useVoiceDictation(onTranscript: (text: string) => void) {
         try {
             await recorder.stop();
             const uri = recorder.uri;
-            if (!uri) throw new Error('Recording did not produce audio');
+            if (!uri) throw new Error(t('happyHerd.voice.noAudio'));
             const audio = { bytes: await readFileBytes(uri), mimeType: mimeTypeForRecording(uri) };
-            if (audio.bytes.length === 0) throw new Error('Recording was empty');
+            if (audio.bytes.length === 0) throw new Error(t('happyHerd.voice.emptyAudio'));
             lastAudio.current = audio;
             await transcribe(audio);
         } catch (nextError) {
-            setError(nextError instanceof Error ? nextError.message : 'Could not finish recording');
+            setError(nextError instanceof Error ? nextError.message : t('happyHerd.voice.finishFailed'));
             setPhase('error');
         }
     }, [phase, recorder, transcribe]);

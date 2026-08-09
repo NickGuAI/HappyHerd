@@ -109,6 +109,8 @@ type SendMessageOptions = {
     source?: MessageSentSource;
     /** Optional image attachments to send before the text message. */
     attachments?: AttachmentPreview[];
+    /** Explicitly retain this message for the provider's next-turn queue. */
+    deliveryMode?: 'queue';
 };
 
 class Sync {
@@ -610,8 +612,7 @@ class Sync {
             await this.sessionsSync.awaitQueue();
             encryption = this.encryption.getSessionEncryption(sessionId);
             if (!encryption) {
-                console.error(`Session ${sessionId} not found after sync`);
-                return;
+                throw new Error(`Session ${sessionId} was not available after synchronization`);
             }
         }
 
@@ -621,8 +622,7 @@ class Sync {
             await this.sessionsSync.awaitQueue();
             session = storage.getState().sessions[sessionId];
             if (!session) {
-                console.error(`Session ${sessionId} not found in storage after sync`);
-                return;
+                throw new Error(`Session ${sessionId} was not found after synchronization`);
             }
         }
 
@@ -642,7 +642,7 @@ class Sync {
             ? getMachineAdvertisedEffortLevels(machine?.metadata, agentKey, selectedModel)
             : undefined;
         const modeMeta = resolveMessageModeMeta(session, settings, { availableEfforts });
-        const { displayText, source = 'chat', attachments } = options ?? {};
+        const { displayText, source = 'chat', attachments, deliveryMode } = options ?? {};
 
         const rigAttachmentPolicy = isRigMetadataV1(session.metadata)
             ? session.metadata?.capabilities?.attachments
@@ -771,7 +771,8 @@ class Sync {
                 ...(modeMeta.model !== undefined ? { model: modeMeta.model } : {}),
                 ...(modeMeta.modelProviderId !== undefined ? { modelProviderId: modeMeta.modelProviderId } : {}),
                 ...(modeMeta.effort !== undefined ? { effort: modeMeta.effort } : {}),
-                ...(displayText && { displayText }) // Add displayText if provided
+                ...(displayText && { displayText }), // Add displayText if provided
+                ...(deliveryMode ? { deliveryMode } : {}),
             }
         };
         const encryptedRawRecord = await encryption.encryptRawRecord(content);
@@ -798,8 +799,8 @@ class Sync {
         // up on user action only — not on background agent output.
         storage.getState().markSessionMessageSent(sessionId);
 
-        this.getSendSync(sessionId).invalidate();
         this.maybeStartBackgroundSendWatchdog();
+        await this.getSendSync(sessionId).invalidateAndAwait();
     }
 
     /** Server sent us settings — merge any pending local changes on top, then apply as one update. */

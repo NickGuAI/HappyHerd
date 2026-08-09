@@ -43,6 +43,7 @@ export const SettingsSchema = z.object({
     groupToolCalls: z.boolean().describe('Collapse consecutive tool calls into grouped containers in chat'),
     compactToolCalls: z.boolean().describe('Render non-interactive tool calls as compact one-line rows'),
     expImageUpload: z.boolean().describe('Enable experimental image upload in chat'),
+    voiceInputEnabled: z.boolean().describe('Enable OpenAI-backed voice dictation when an encrypted transcription key is configured'),
     reviewPromptAnswered: z.boolean().describe('Whether the review prompt has been answered'),
     reviewPromptLikedApp: z.boolean().nullish().describe('Whether user liked the app when asked'),
     voiceAssistantLanguage: z.string().nullable().describe('Preferred language for voice assistant (null for auto-detect)'),
@@ -126,6 +127,7 @@ export const settingsDefaults: Settings = {
     groupToolCalls: false,
     compactToolCalls: true,
     expImageUpload: false,
+    voiceInputEnabled: false,
     reviewPromptAnswered: false,
     reviewPromptLikedApp: null,
     voiceAssistantLanguage: null,
@@ -162,10 +164,14 @@ export function settingsParse(settings: unknown): Settings {
         return { ...settingsDefaults, ...unknownFields };
     }
 
-    // Migration: Convert old 'zh' language code to 'zh-Hans'
-    if (parsed.data.preferredLanguage === 'zh') {
-        console.log('[Settings Migration] Converting language code from "zh" to "zh-Hans"');
-        parsed.data.preferredLanguage = 'zh-Hans';
+    // Collapse legacy locale variants onto the three JSON catalog identifiers.
+    const legacyLanguage = parsed.data.preferredLanguage?.replace('_', '-').toLowerCase();
+    if (legacyLanguage === 'zh' || legacyLanguage?.startsWith('zh-')) {
+        parsed.data.preferredLanguage = 'cn';
+    } else if (legacyLanguage?.startsWith('de-')) {
+        parsed.data.preferredLanguage = 'de';
+    } else if (legacyLanguage?.startsWith('en-')) {
+        parsed.data.preferredLanguage = 'en';
     }
 
     // Merge defaults, parsed settings, and preserve unknown fields

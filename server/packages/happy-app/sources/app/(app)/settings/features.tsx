@@ -19,18 +19,19 @@ export default function FeaturesSettingsScreen() {
     const [machineWorkspace, setMachineWorkspace] = useSettingMutable('machineWorkspace');
     const [groupToolCalls, setGroupToolCalls] = useSettingMutable('groupToolCalls');
     const [expImageUpload, setExpImageUpload] = useSettingMutable('expImageUpload');
+    const [voiceInputEnabled, setVoiceInputEnabled] = useSettingMutable('voiceInputEnabled');
     const [sortSessionsByActivity, setSortSessionsByActivity] = useSettingMutable('sortSessionsByActivity');
 
     return (
         <ItemList style={{ paddingTop: 0 }}>
             {/* Interface */}
             <ItemGroup
-                title="Interface"
-                footer="Optional panels and layout elements."
+                title={t('happyHerd.features.interface')}
+                footer={t('happyHerd.features.interfaceFooter')}
             >
                 <Item
-                    title="File Diffs Sidebar"
-                    subtitle="Show git changes next to the chat on desktop"
+                    title={t('happyHerd.features.fileDiffsSidebar')}
+                    subtitle={t('happyHerd.features.fileDiffsSidebarSubtitle')}
                     icon={<Ionicons name="git-branch-outline" size={29} color="#5AC8FA" />}
                     rightElement={
                         <Switch
@@ -65,8 +66,8 @@ export default function FeaturesSettingsScreen() {
                     showChevron={false}
                 />
                 <Item
-                    title="Sort by Recent Activity"
-                    subtitle="Order the session list by last activity instead of creation date"
+                    title={t('happyHerd.features.sortRecent')}
+                    subtitle={t('happyHerd.features.sortRecentSubtitle')}
                     icon={<Ionicons name="swap-vertical-outline" size={29} color="#FF9500" />}
                     rightElement={
                         <Switch
@@ -120,8 +121,8 @@ export default function FeaturesSettingsScreen() {
                     showChevron={false}
                 />
                 <Item
-                    title="Resume Session"
-                    subtitle="Resume disconnected Claude Code and Codex sessions via the machine daemon"
+                    title={t('happyHerd.features.resumeSession')}
+                    subtitle={t('happyHerd.features.resumeSessionSubtitle')}
                     icon={<Ionicons name="play-circle-outline" size={29} color="#30D158" />}
                     rightElement={
                         <Switch
@@ -139,6 +140,18 @@ export default function FeaturesSettingsScreen() {
                         <Switch
                             value={expImageUpload}
                             onValueChange={setExpImageUpload}
+                        />
+                    }
+                    showChevron={false}
+                />
+                <Item
+                    title={t('happyHerd.features.voiceInput')}
+                    subtitle={t('happyHerd.features.voiceInputSubtitle')}
+                    icon={<Ionicons name="mic-outline" size={29} color="#111111" />}
+                    rightElement={
+                        <Switch
+                            value={voiceInputEnabled}
+                            onValueChange={setVoiceInputEnabled}
                         />
                     }
                     showChevron={false}

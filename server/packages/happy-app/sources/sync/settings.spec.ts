@@ -57,6 +57,13 @@ describe('settings', () => {
             });
         });
 
+        it('migrates legacy locale variants to canonical JSON catalog codes', () => {
+            expect(settingsParse({ preferredLanguage: 'zh-Hans' }).preferredLanguage).toBe('cn');
+            expect(settingsParse({ preferredLanguage: 'zh-CN' }).preferredLanguage).toBe('cn');
+            expect(settingsParse({ preferredLanguage: 'de-DE' }).preferredLanguage).toBe('de');
+            expect(settingsParse({ preferredLanguage: 'en-US' }).preferredLanguage).toBe('en');
+        });
+
         it('should handle settings with null/undefined values', () => {
             const settingsWithNull = {
                 viewInline: null,
@@ -198,6 +205,7 @@ describe('settings', () => {
                 groupToolCalls: false,
                 compactToolCalls: true,
                 expImageUpload: false,
+                voiceInputEnabled: false,
                 machineWorkspace: false,
                 reviewPromptAnswered: false,
                 reviewPromptLikedApp: null,
