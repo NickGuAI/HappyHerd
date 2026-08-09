@@ -37,4 +37,8 @@ describe('JSON i18n runtime', () => {
         expect(t('time.minutesAgo', { count: 1 })).toBe('1 minute ago');
         expect(t('time.minutesAgo', { count: 2 })).toBe('2 minutes ago');
     });
+
+    it('preserves literal double-brace provider variables', () => {
+        expect(t('settingsVoice.byoDescription')).toContain('{{initialConversationContext}}');
+    });
 });

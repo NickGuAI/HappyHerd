@@ -117,8 +117,8 @@ function render(message: Message, params: MessageParams): string {
             ?? Object.values(message.select.cases)[0]
             ?? '';
     }
-    return template.replace(/(?<!\{)\{([A-Za-z][A-Za-z0-9_]*)\}(?!\})/g, (placeholder, name) => (
-        Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : placeholder
+    return template.replace(/\{\{[^{}]+\}\}|\{([A-Za-z][A-Za-z0-9_]*)\}/g, (placeholder, name) => (
+        name && Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : placeholder
     ));
 }
 

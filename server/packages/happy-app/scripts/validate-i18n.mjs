@@ -30,7 +30,8 @@ function flatten(value, prefix = '', output = new Map()) {
 }
 
 function placeholders(message) {
-    return [...message.matchAll(/(?<!\{)\{([A-Za-z][A-Za-z0-9_]*)\}(?!\})/g)]
+    const withoutLiteralDoubleBraces = message.replace(/\{\{[^{}]+\}\}/g, '');
+    return [...withoutLiteralDoubleBraces.matchAll(/\{([A-Za-z][A-Za-z0-9_]*)\}/g)]
         .map((match) => match[1])
         .sort();
 }
