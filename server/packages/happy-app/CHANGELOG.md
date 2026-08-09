@@ -1,3 +1,12 @@
+# August 9 — Rich agent replies
+
+Agent and subagent replies now render safe Markdown and responsive images.
+
+- Main-agent and subagent replies share the same Markdown renderer.
+- Headings, lists, block quotes, code, tables, links, task lists, and strikethrough render in chat.
+- HTTP(S) images render responsively with alt text, lazy loading, failure feedback, and full-size preview.
+- Unsafe image schemes fail closed; existing attachment and file-viewer behavior is unchanged.
+
 # July 28 — Liquid glass, Opus 5
 
 A full mobile refresh and a new top model.

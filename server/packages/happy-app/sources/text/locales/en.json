@@ -1041,7 +1041,12 @@
   "markdown": {
     "codeCopied": "Code copied",
     "copyFailed": "Copy failed",
-    "mermaidRenderFailed": "Failed to render mermaid diagram"
+    "mermaidRenderFailed": "Failed to render mermaid diagram",
+    "imageLoadFailed": "Failed to load image",
+    "openImageFullSize": "Open image at full size",
+    "closeImagePreview": "Close image preview",
+    "completedTask": "Completed task",
+    "incompleteTask": "Incomplete task"
   },
   "artifacts": {
     "title": "Artifacts",

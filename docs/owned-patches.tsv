@@ -92,3 +92,4 @@ R7	code-ready	fix(i18n): preserve provider template variables	server/packages/ha
 R3-R7	code-ready	docs(patches): register R3-R7 dogfood contracts	docs/owned-patches.tsv
 R8	code-ready	feat(i18n): generate the production UI surface inventory	server/packages/happy-app/scripts/generate-ui-surface-inventory.mjs
 R8	code-ready	ci(i18n): enforce complete localized UI ownership	server/packages/happy-app/scripts/check-i18n-hardcoded.mjs
+C11	code-ready	feat: render rich agent markdown and images	server/packages/happy-app/sources/components/markdown/parseMarkdown.test.ts

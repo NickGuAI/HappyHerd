@@ -989,7 +989,12 @@
   "markdown": {
     "codeCopied": "代码已复制",
     "copyFailed": "复制失败",
-    "mermaidRenderFailed": "渲染 mermaid 图表失败"
+    "mermaidRenderFailed": "渲染 mermaid 图表失败",
+    "imageLoadFailed": "图片加载失败",
+    "openImageFullSize": "打开全尺寸图片",
+    "closeImagePreview": "关闭图片预览",
+    "completedTask": "已完成任务",
+    "incompleteTask": "未完成任务"
   },
   "artifacts": {
     "title": "工件",

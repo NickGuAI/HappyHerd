@@ -3,7 +3,7 @@
 
 import { Message, ToolCall } from '@/sync/typesMessage';
 
-const MARKDOWN_RENDERER_TEST_IMAGE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4////fwAJ+wP9KobjigAAAABJRU5ErkJggg==';
+const MARKDOWN_RENDERER_TEST_IMAGE = 'https://raw.githubusercontent.com/NickGuAI/HappyHerd/main/server/packages/happy-app/logo.png';
 
 // Helper to create a tool call with proper timestamps
 const createToolCall = (name: string, state: ToolCall['state'], input: any, result?: any, description?: string | null): ToolCall => ({
@@ -135,6 +135,11 @@ This function handles validation, transformation, and normalization in a single 
 * Bullet item one
 * Bullet item with [Markdown click target](https://example.com/markdown-click-target)
 + Bullet item with bare URL https://example.com/bare-markdown-url
+
+> Agent replies and subagent replies share one safe renderer.
+
+- [x] Render Markdown consistently
+- [ ] Keep unsafe resources closed
 
 Inline code now renders as \`happy render\` without a background highlight.
 
