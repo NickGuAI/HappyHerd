@@ -93,3 +93,5 @@ R3-R7	code-ready	docs(patches): register R3-R7 dogfood contracts	docs/owned-patc
 R8	code-ready	feat(i18n): generate the production UI surface inventory	server/packages/happy-app/scripts/generate-ui-surface-inventory.mjs
 R8	code-ready	ci(i18n): enforce complete localized UI ownership	server/packages/happy-app/scripts/check-i18n-hardcoded.mjs
 C11	code-ready	feat: render rich agent markdown and images	server/packages/happy-app/sources/components/markdown/parseMarkdown.test.ts
+SESSION_LIFECYCLE	code-ready	fix: bind session activity to provider lifecycle	server/packages/happy-server/sources/app/presence/timeout.spec.ts
+SESSION_LIFECYCLE	code-ready	fix(session): confirm provider exit before deactivation	server/packages/happy-cli/src/daemon/processStatus.test.ts

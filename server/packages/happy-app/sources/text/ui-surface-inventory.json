@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "8391f7f7d0e9fcbe8d38234ef82bc641c3d992d0023e6ae0ae448eaf56e7109f",
+  "sourceFingerprint": "afe160172670e4e02b813728fa37a190aeb11b152ff59312ef8f723643bf25f9",
   "routeCount": 36,
   "surfaceCount": 220,
   "hardcodedCopyCount": 0,
@@ -4945,6 +4945,7 @@
         "getToolSummaryCategory",
         "getToolSummaryDetail",
         "isTerminalToolName",
+        "resolveToolDisplayRuntimeState",
         "shouldRenderToolCardHeader",
         "shouldUseCompactToolRow"
       ],

@@ -39,6 +39,7 @@ import { HappyHerdAutomationService } from '@/automations/service';
 import { automationBootstrapEnvironment, prepareAutomationBootstrap } from '@/automations/sessionBootstrap';
 import { appendDaemonSpawnModeArgs } from './spawnModeArgs';
 import { SessionProcessLifecycle } from './sessionProcessLifecycle';
+import { hasProviderProcessExited } from './processStatus';
 
 /** Shell-escape a string for safe interpolation into tmux commands. */
 function shellescape(s: string): string {
@@ -670,8 +671,10 @@ export async function startDaemon(): Promise<void> {
 
       happyProcess.on('error', (error) => {
         logger.debug(`[DAEMON RUN] Child process error:`, error);
-        if (happyProcess.pid) {
+        if (happyProcess.pid && hasProviderProcessExited(happyProcess.pid)) {
           void onChildExited(happyProcess.pid);
+        } else if (happyProcess.pid) {
+          logger.debug(`[DAEMON RUN] Child PID ${happyProcess.pid} still exists after process error; keeping session active`);
         }
       });
 
@@ -806,7 +809,9 @@ export async function startDaemon(): Promise<void> {
               logger.debug(`[DAEMON RUN] Sent SIGTERM to daemon-spawned session ${sessionId}`);
             } catch (error) {
               logger.debug(`[DAEMON RUN] Failed to kill session ${sessionId}:`, error);
-              void onChildExited(pid);
+              if (hasProviderProcessExited(pid)) {
+                void onChildExited(pid);
+              }
             }
           } else {
             // For externally started sessions, try to kill by PID
@@ -815,7 +820,9 @@ export async function startDaemon(): Promise<void> {
               logger.debug(`[DAEMON RUN] Sent SIGTERM to external session PID ${pid}`);
             } catch (error) {
               logger.debug(`[DAEMON RUN] Failed to kill external session PID ${pid}:`, error);
-              void onChildExited(pid);
+              if (hasProviderProcessExited(pid)) {
+                void onChildExited(pid);
+              }
             }
           }
 
@@ -918,12 +925,10 @@ export async function startDaemon(): Promise<void> {
 
       // Prune stale sessions
       for (const [pid, _] of pidToTrackedSession.entries()) {
-        try {
-          // Check if process is still alive (signal 0 doesn't kill, just checks)
-          process.kill(pid, 0);
-        } catch (error) {
-          // Process is dead: preserve resume state and explicitly deactivate
-          // the session. Elapsed time alone never performs this transition.
+        if (hasProviderProcessExited(pid)) {
+          // The operating system confirmed the process is gone: preserve
+          // resume state and explicitly deactivate the session. Elapsed time
+          // and inconclusive process probes never perform this transition.
           await onChildExited(pid);
         }
       }
