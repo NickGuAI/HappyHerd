@@ -139,10 +139,9 @@ export async function startDaemon(): Promise<void> {
   // Check if running daemon version matches current CLI version
   const runningDaemonVersionMatches = await isDaemonRunningCurrentlyInstalledHappyVersion();
   if (!runningDaemonVersionMatches) {
-    // TODO: This hand-rolled self-restart path is awkward to reason about and awkward to test.
-    // We should probably migrate this daemon to native system service management
-    // (launchd/systemd, similar to OpenClaw's model), so startup/start-at-login and upgrades
-    // are owned by the OS instead of by the daemon trying to replace itself in-process.
+    // Keep version handoff inside the detached daemon lifecycle. A host service
+    // manager must not own this process tree because stopping that service can
+    // terminate the Claude/Codex provider sessions the daemon only tracks.
     logger.debug('[DAEMON RUN] Daemon version mismatch detected, restarting daemon with current CLI version');
     await stopDaemon();
   } else {
@@ -946,9 +945,9 @@ export async function startDaemon(): Promise<void> {
         }
       }
       if (bundleReplaced) {
-        // TODO: We probably do not want to keep this in-process self-restart logic long-term.
-        // A native service manager would make startup and upgrades much simpler: the CLI would
-        // ask the OS to start the latest daemon instead of hand-rolling respawn/kill behavior here.
+        // The daemon deliberately hands off to the upstream detached lifecycle.
+        // Provider sessions are independent processes and remain alive while the
+        // daemon changes version and reconnects to them.
         logger.debug('[DAEMON RUN] Daemon bundle replaced on disk, handing off to new daemon');
 
         clearInterval(restartOnStaleVersionAndHeartbeat);

@@ -57,7 +57,9 @@ TARGET="$RELEASE_ROOT/$SOURCE_SHA"
 [[ -x "$CURRENT_LINK/daemon/bin/happy.mjs" ]] || fail 'daemon entrypoint is not executable'
 [[ -x "$CURRENT_LINK/scripts/run-container.sh" ]] || fail 'complete release omitted the server launcher'
 [[ -x "$CURRENT_LINK/scripts/activate-release.sh" ]] || fail 'complete release omitted the release activator'
-[[ -f "$CURRENT_LINK/deploy/happyherd-daemon.service" ]] || fail 'complete release omitted deployment definitions'
+[[ -x "$CURRENT_LINK/scripts/start-host-daemon.sh" ]] || fail 'complete release omitted the detached daemon bootstrap'
+[[ -f "$CURRENT_LINK/deploy/happyherd-daemon.cron" ]] || fail 'complete release omitted the daemon boot entry'
+[[ ! -e "$CURRENT_LINK/deploy/happyherd-daemon.service" ]] || fail 'release retained the host daemon systemd unit'
 
 if "$INSTALLER" "$ARTIFACT_DIR" "$RELEASE_ROOT" "$CURRENT_LINK" >/dev/null 2>&1; then
     fail 'installer overwrote an existing immutable release'

@@ -1,0 +1,6 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Bootstrap only. The command starts Happy's detached daemon and exits; cron
+# never owns the daemon or the Claude/Codex provider processes it tracks.
+@reboot ec2-user /opt/happyherd/current/scripts/start-host-daemon.sh /etc/happyherd/daemon.env 2>&1 | /usr/bin/logger -t happyherd-daemon-bootstrap
