@@ -69,9 +69,9 @@ not two-way synchronization.
 
 | Runtime | Instruction layer | Competing project discovery | Fresh / clear | Native resume | Changed context |
 |---|---|---|---|---|---|
-| Codex | `developerInstructions` on `thread/start`, `thread/resume`, and forced-restart resume | `project_doc_max_bytes=0`; nearest guide is in the bundle | each new thread receives the current bundle | current bundle is supplied again | Happy session resume fails closed when the stored and current hashes differ |
-| Claude remote | Claude Agent SDK appended system instruction | `settingSources: ['user', 'local']`; project is excluded | every query receives the current bundle | current bundle is supplied on resume | Happy session resume fails closed when the stored and current hashes differ |
-| Claude local/offline | `--append-system-prompt` | `--setting-sources user,local` | each process receives the current bundle | current bundle is supplied on resume | Happy session resume fails closed when the stored and current hashes differ |
+| Codex | `developerInstructions` on `thread/start`, `thread/resume`, and forced-restart resume | `project_doc_max_bytes=0`; nearest guide is in the bundle | each new thread receives the current bundle | current bundle is supplied again | the same thread resumes with the current bundle; hashes remain provenance only |
+| Claude remote | Claude Agent SDK appended system instruction | `settingSources: ['user', 'local']`; project is excluded | every query receives the current bundle | current bundle is supplied on resume | the same session resumes with the current bundle; hashes remain provenance only |
+| Claude local/offline | `--append-system-prompt` | `--setting-sources user,local` | each process receives the current bundle | current bundle is supplied on resume | the same session resumes with the current bundle; hashes remain provenance only |
 | Gemini | no verified system-layer route in the current adapter | not applicable | non-Commander sessions remain supported | not applicable | Commander sessions fail closed and direct the user to Claude or Codex |
 
 Session metadata records the bundle hash plus a versioned instruction receipt:

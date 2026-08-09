@@ -406,19 +406,6 @@ export function instructionReceiptMetadata(options: {
   };
 }
 
-export function assertReconnectContextMatchesEnvironment(previousContextHash?: string): void {
-  const currentContextHash = process.env.HAPPYHERD_CONTEXT_HASH;
-  const reconnecting = Boolean(process.env.HAPPY_RECONNECT_SESSION_ID);
-  if (
-    (previousContextHash && previousContextHash !== currentContextHash)
-    || (reconnecting && currentContextHash && !previousContextHash)
-  ) {
-    throw new Error(
-      'HappyHerd AgentContext changed since this session started. Start a fresh session so the new instructions cannot be mixed with stale provider context.',
-    );
-  }
-}
-
 export async function readContextPromptFromEnvironment(): Promise<string | undefined> {
   const bundlePath = process.env.HAPPYHERD_CONTEXT_BUNDLE_PATH;
   const expectedHash = process.env.HAPPYHERD_CONTEXT_HASH;

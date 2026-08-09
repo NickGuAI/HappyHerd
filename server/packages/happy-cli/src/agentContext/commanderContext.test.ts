@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   contextEnvironment,
-  assertReconnectContextMatchesEnvironment,
   instructionReceiptMetadata,
   listCommanders,
   mergeContextPrompt,
@@ -136,11 +135,4 @@ describe('Commander context', () => {
     expect(mergeContextPrompt('base', 'extra')).toContain('extra');
   });
 
-  it('fails closed when a reconnect loses or changes its instruction receipt', () => {
-    process.env.HAPPY_RECONNECT_SESSION_ID = 'session-one';
-    process.env.HAPPYHERD_CONTEXT_HASH = 'current-hash';
-    expect(() => assertReconnectContextMatchesEnvironment()).toThrow(/changed since this session started/);
-    expect(() => assertReconnectContextMatchesEnvironment('old-hash')).toThrow(/changed since this session started/);
-    expect(() => assertReconnectContextMatchesEnvironment('current-hash')).not.toThrow();
-  });
 });

@@ -23,6 +23,11 @@ sudo scripts/install-host-release.sh \
   /opt/happyherd/current
 ```
 
+The detached host daemon checks the installed bundle and hands off to the new
+release without terminating active provider sessions. It is bootstrapped by
+`deploy/happyherd-daemon.cron`; it is not a systemd service. Image activation
+continues to restart only the central `happyherd.service` Web/API server.
+
 Activate its current image:
 
 ```bash

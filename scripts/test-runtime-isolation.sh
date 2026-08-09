@@ -124,11 +124,38 @@ export HAPPYHERD_OPENAI_API_KEY_FILE="$TMP_ROOT/ambient-secret"
 "$ROOT/scripts/validate-runtime-isolation.sh" "$TMP_ROOT/baolab.env" template >/dev/null
 unset HAPPYHERD_OPENAI_API_KEY_FILE
 
-grep -Fq 'User=ec2-user' "$ROOT/deploy/happyherd-daemon.service"
-grep -Fq 'daemon start-sync' "$ROOT/deploy/happyherd-daemon.service"
-grep -Fq 'ExecStartPre=/usr/bin/env claude --version' "$ROOT/deploy/happyherd-daemon.service"
-grep -Fq 'ExecStartPre=/usr/bin/env codex --version' "$ROOT/deploy/happyherd-daemon.service"
+[[ ! -e "$ROOT/deploy/happyherd-daemon.service" ]] || {
+    printf 'error: host daemon systemd unit must not exist\n' >&2
+    exit 1
+}
+grep -Fq '@reboot ec2-user /opt/happyherd/current/scripts/start-host-daemon.sh' "$ROOT/deploy/happyherd-daemon.cron"
+# The contract intentionally matches the literal runtime variable.
+# shellcheck disable=SC2016
+grep -Fq '"$DAEMON_CLI" daemon start' "$ROOT/scripts/start-host-daemon.sh"
+if grep -Fq 'daemon start-sync' "$ROOT/scripts/start-host-daemon.sh" "$ROOT/deploy/happyherd-daemon.cron"; then
+    printf 'error: host bootstrap bypasses the upstream detached daemon lifecycle\n' >&2
+    exit 1
+fi
 grep -Fq 'HAPPY_HOME_DIR=/home/ec2-user/.happyherd' "$ROOT/deploy/happyherd-daemon.env.example"
 grep -Fq '/home/ec2-user/.local/bin' "$ROOT/deploy/happyherd-daemon.env.example"
+
+mkdir -p "$TMP_ROOT/daemon-bin"
+for provider_cli in claude codex; do
+    printf '#!/usr/bin/env bash\nexit 0\n' > "$TMP_ROOT/daemon-bin/$provider_cli"
+    chmod +x "$TMP_ROOT/daemon-bin/$provider_cli"
+done
+cat > "$TMP_ROOT/daemon-bin/happy.mjs" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$HAPPYHERD_BOOTSTRAP_TEST_LOG"
+EOF
+chmod +x "$TMP_ROOT/daemon-bin/happy.mjs"
+cat > "$TMP_ROOT/daemon.env" <<EOF
+HAPPY_HOME_DIR=$TMP_ROOT/happy-home
+PATH=$TMP_ROOT/daemon-bin:/usr/bin:/bin
+HAPPYHERD_DAEMON_CLI=$TMP_ROOT/daemon-bin/happy.mjs
+EOF
+export HAPPYHERD_BOOTSTRAP_TEST_LOG="$TMP_ROOT/daemon-bootstrap.log"
+"$ROOT/scripts/start-host-daemon.sh" "$TMP_ROOT/daemon.env"
+grep -Fxq 'daemon start' "$HAPPYHERD_BOOTSTRAP_TEST_LOG"
 
 printf 'Runtime isolation contract tests passed.\n'
