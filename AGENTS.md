@@ -39,3 +39,16 @@ contract suite before release.
 - `pnpm --filter happy-app i18n:check` is the required guardrail for catalog
   parity, semantic exemptions, AST copy scanning, the 36-route inventory, and
   the critical locale/viewport/theme smoke matrix.
+
+## Product changelog
+
+- Every user-visible HappyHerd change must update
+  `server/packages/happy-app/CHANGELOG.md` in the same pull request. Do not rely
+  on upstream Happy release notes to describe HappyHerd-owned behavior.
+- Keep HappyHerd entries alongside retained upstream entries in reverse
+  chronological order. Write for users: describe the observable outcome and
+  any important compatibility or security boundary, not internal iteration
+  history.
+- After editing the Markdown source, regenerate
+  `server/packages/happy-app/sources/changelog/changelog.json` with the existing
+  changelog parser and verify that the newest title and entry count match.

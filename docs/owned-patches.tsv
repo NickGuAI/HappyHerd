@@ -100,6 +100,7 @@ R10	code-ready	fix(runtime): restore detached host daemon lifecycle (#63)	script
 R11	code-ready	fix(runtime): scope provider availability to sessions (#67)	scripts/test-runtime-isolation.sh
 R11	code-ready	fix(context): repair Claude mirror automatically (#67)	server/packages/happy-cli/src/agentContext/commanderContext.test.ts
 R11	code-ready	docs(changelog): record R11 startup behavior (#67)	server/packages/happy-app/CHANGELOG.md
+R11	code-ready	docs(changelog): include HappyHerd-owned releases (#67)	server/packages/happy-app/CHANGELOG.md
 UPSTREAM_SYNC	code-ready	fix(sync): accept verified production upstream merges	scripts/test-upstream-sync-provenance.sh
 UPSTREAM_SYNC	code-ready	fix(sync): verify upstream merges nested in PR branches	scripts/test-owned-merge-provenance.sh
 R11	code-ready	docs(patches): register R11 guardrail removals	docs/owned-patches.tsv
