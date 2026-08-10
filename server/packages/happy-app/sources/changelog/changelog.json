@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 10 — Flexible machine setup",
+      "summary": "Machines can come online with the providers they actually have, while Commander instructions stay synchronized automatically.",
+      "markdown": "- The host daemon no longer requires both Claude Code and Codex to be installed before a machine can connect.\n- Missing providers stay unavailable for new sessions instead of blocking the whole machine.\n- Commander sessions repair a stale or misdirected `CLAUDE.md` mirror from the canonical `AGENTS.md` automatically.\n- Encryption, machine identity, path containment, and context-bundle integrity checks are unchanged."
+    },
+    {
       "title": "August 9 — Rich agent replies",
       "summary": "Agent and subagent replies now render safe Markdown and responsive images.",
       "markdown": "- Main-agent and subagent replies share the same Markdown renderer.\n- Headings, lists, block quotes, code, tables, links, task lists, and strikethrough render in chat.\n- HTTP(S) images render responsively with alt text, lazy loading, failure feedback, and full-size preview.\n- Unsafe image schemes fail closed; existing attachment and file-viewer behavior is unchanged."
@@ -91,5 +96,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 9 — Rich agent replies"
+  "latestTitle": "August 10 — Flexible machine setup"
 }

@@ -1,3 +1,12 @@
+# August 10 — Flexible machine setup
+
+Machines can come online with the providers they actually have, while Commander instructions stay synchronized automatically.
+
+- The host daemon no longer requires both Claude Code and Codex to be installed before a machine can connect.
+- Missing providers stay unavailable for new sessions instead of blocking the whole machine.
+- Commander sessions repair a stale or misdirected `CLAUDE.md` mirror from the canonical `AGENTS.md` automatically.
+- Encryption, machine identity, path containment, and context-bundle integrity checks are unchanged.
+
 # August 9 — Rich agent replies
 
 Agent and subagent replies now render safe Markdown and responsive images.
