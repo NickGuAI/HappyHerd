@@ -140,10 +140,14 @@ grep -Fq 'HAPPY_HOME_DIR=/home/ec2-user/.happyherd' "$ROOT/deploy/happyherd-daem
 grep -Fq '/home/ec2-user/.local/bin' "$ROOT/deploy/happyherd-daemon.env.example"
 
 mkdir -p "$TMP_ROOT/daemon-bin"
-for provider_cli in claude codex; do
-    printf '#!/usr/bin/env bash\nexit 0\n' > "$TMP_ROOT/daemon-bin/$provider_cli"
-    chmod +x "$TMP_ROOT/daemon-bin/$provider_cli"
-done
+# Provider availability is session-scoped. A broken installed provider and an
+# absent provider must not prevent the machine daemon from coming online.
+cat > "$TMP_ROOT/daemon-bin/claude" <<'EOF'
+#!/usr/bin/env bash
+printf 'error: provider preflight must not run during daemon bootstrap\n' >&2
+exit 99
+EOF
+chmod +x "$TMP_ROOT/daemon-bin/claude"
 cat > "$TMP_ROOT/daemon-bin/happy.mjs" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$HAPPYHERD_BOOTSTRAP_TEST_LOG"
