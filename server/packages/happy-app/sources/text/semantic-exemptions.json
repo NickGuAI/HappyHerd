@@ -28,6 +28,7 @@
     { "key": "happyHerd.automations.cron", "locales": ["cn", "de"], "reason": "Cron is a technical scheduler name and must remain byte-faithful." },
     { "key": "uiCopy.claudeCode", "locales": ["cn", "de"], "reason": "Claude Code is a proper provider name and must remain byte-faithful." },
     { "key": "uiCopy.codex", "locales": ["cn", "de"], "reason": "Codex is a proper provider name and must remain byte-faithful." },
+    { "key": "uiCopy.rig", "locales": ["cn", "de"], "reason": "Rig is a proper upstream agent product name and must remain byte-faithful." },
     { "key": "uiCopy.openclaw", "locales": ["cn", "de"], "reason": "OpenClaw is a proper provider name and must remain byte-faithful." },
     { "key": "uiCopy.agy", "locales": ["cn", "de"], "reason": "agy is a provider identifier and must remain byte-faithful." },
     { "key": "uiCopy.worktree", "locales": ["de"], "reason": "Worktree is the exact Git technical concept used by the provider." },

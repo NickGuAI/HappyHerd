@@ -18,6 +18,8 @@ export function resolveAgentInputPrimaryAction({
     // A blank composer while the agent is working is the one case where the
     // primary control is Stop. As soon as the user starts a follow-up, sending
     // takes priority so the next message can be queued without aborting work.
+    // A blocked send must not suppress Stop: an agent that refuses steering
+    // while it thinks is exactly the one the user has no other way to stop.
     if (showAbortButton && canAbort && !hasComposerContent) {
         return 'stop';
     }
@@ -27,6 +29,8 @@ export function resolveAgentInputPrimaryAction({
     if (!isSendDisabled && hasComposerContent) {
         return 'send';
     }
+    // An empty composer with dictation available falls back to voice rather
+    // than to a dead button, which is what the separate mic button used to do.
     if (!isSendDisabled && canVoice) {
         return 'voice';
     }

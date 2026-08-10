@@ -928,9 +928,6 @@ importers:
       '@paralleldrive/cuid2':
         specifier: ^2.2.2
         version: 2.3.1
-      '@slopus/happy-wire':
-        specifier: workspace:*
-        version: link:../happy-wire
       '@stablelib/base64':
         specifier: ^2.0.1
         version: 2.0.1
@@ -1025,6 +1022,9 @@ importers:
       '@eslint/compat':
         specifier: ^1
         version: 1.4.1(eslint@9.39.2(jiti@2.6.1))
+      '@slopus/happy-wire':
+        specifier: workspace:*
+        version: link:../happy-wire
       '@types/inquirer':
         specifier: ^9.0.9
         version: 9.0.9
@@ -1218,6 +1218,117 @@ importers:
       yaml:
         specifier: ^2.4.2
         version: 2.8.2
+
+  packages/happy-server-self-host:
+    dependencies:
+      '@date-fns/tz':
+        specifier: ^1.2.0
+        version: 1.4.1
+      '@electric-sql/pglite':
+        specifier: ^0.3.15
+        version: 0.3.15
+      '@fastify/bearer-auth':
+        specifier: ^10.1.1
+        version: 10.1.2
+      '@fastify/cors':
+        specifier: ^10.0.1
+        version: 10.1.0
+      '@fastify/static':
+        specifier: ^8.1.1
+        version: 8.3.0
+      '@prisma/client':
+        specifier: 6.19.2
+        version: 6.19.2(prisma@6.19.2(typescript@6.0.3))(typescript@6.0.3)
+      '@slopus/happy-wire':
+        specifier: workspace:*
+        version: link:../happy-wire
+      '@socket.io/redis-streams-adapter':
+        specifier: ^0.2.2
+        version: 0.2.3(socket.io-adapter@2.5.6)
+      axios:
+        specifier: ^1.6.8
+        version: 1.13.4
+      chalk:
+        specifier: 4.1.2
+        version: 4.1.2
+      date-fns:
+        specifier: ^4.1.0
+        version: 4.1.0
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
+      elevenlabs:
+        specifier: ^1.54.0
+        version: 1.59.0(encoding@0.1.13)
+      fastify:
+        specifier: ^5.2.0
+        version: 5.7.2
+      fastify-type-provider-zod:
+        specifier: ^6.1.0
+        version: 6.1.0(@fastify/swagger@9.7.0)(fastify@5.7.2)(openapi-types@12.1.3)(zod@4.4.3)
+      ioredis:
+        specifier: ^5.6.1
+        version: 5.9.2
+      jsonwebtoken:
+        specifier: ^9.0.2
+        version: 9.0.3
+      minio:
+        specifier: ^8.0.5
+        version: 8.0.6
+      octokit:
+        specifier: ^5.0.3
+        version: 5.0.5
+      pglite-prisma-adapter:
+        specifier: ^0.7.2
+        version: 0.7.2(@electric-sql/pglite@0.3.15)(@prisma/client@6.19.2(prisma@6.19.2(typescript@6.0.3))(typescript@6.0.3))
+      pino:
+        specifier: ^10.3.0
+        version: 10.3.0
+      pino-pretty:
+        specifier: ^13.0.0
+        version: 13.1.3
+      prisma:
+        specifier: 6.19.2
+        version: 6.19.2(typescript@6.0.3)
+      prisma-json-types-generator:
+        specifier: ^3.5.1
+        version: 3.6.2(@prisma/client@6.19.2(prisma@6.19.2(typescript@6.0.3))(typescript@6.0.3))(prisma@6.19.2(typescript@6.0.3))(typescript@6.0.3)
+      privacy-kit:
+        specifier: ^0.0.25
+        version: 0.0.25(typescript@6.0.3)(vite@8.0.9(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+      prom-client:
+        specifier: ^15.1.3
+        version: 15.1.3
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
+      semver:
+        specifier: ^7.7.2
+        version: 7.7.3
+      sharp:
+        specifier: ^0.34.3
+        version: 0.34.5
+      socket.io:
+        specifier: ^4.8.1
+        version: 4.8.3
+      socket.io-adapter:
+        specifier: ^2.5.5
+        version: 2.5.6
+      tmp:
+        specifier: ^0.2.3
+        version: 0.2.5
+      tweetnacl:
+        specifier: ^1.0.3
+        version: 1.0.3
+      uuid:
+        specifier: ^9.0.1
+        version: 9.0.1
+      zod:
+        specifier: ^4.0.0
+        version: 4.4.3
+      zod-to-json-schema:
+        specifier: ^3.24.3
+        version: 3.25.2(zod@4.4.3)
 
   packages/happy-wire:
     dependencies:
@@ -15790,6 +15901,11 @@ snapshots:
       prisma: 6.19.2(typescript@5.9.3)
       typescript: 5.9.3
 
+  '@prisma/client@6.19.2(prisma@6.19.2(typescript@6.0.3))(typescript@6.0.3)':
+    optionalDependencies:
+      prisma: 6.19.2(typescript@6.0.3)
+      typescript: 6.0.3
+
   '@prisma/config@6.19.2':
     dependencies:
       c12: 3.1.0
@@ -23141,6 +23257,13 @@ snapshots:
       '@prisma/driver-adapter-utils': 7.2.0
       postgres-array: 3.0.4
 
+  pglite-prisma-adapter@0.7.2(@electric-sql/pglite@0.3.15)(@prisma/client@6.19.2(prisma@6.19.2(typescript@6.0.3))(typescript@6.0.3)):
+    dependencies:
+      '@electric-sql/pglite': 0.3.15
+      '@prisma/client': 6.19.2(prisma@6.19.2(typescript@6.0.3))(typescript@6.0.3)
+      '@prisma/driver-adapter-utils': 7.2.0
+      postgres-array: 3.0.4
+
   picocolors@1.1.1: {}
 
   picomatch@2.3.1: {}
@@ -23340,12 +23463,30 @@ snapshots:
       tslib: 2.8.1
       typescript: 5.9.3
 
+  prisma-json-types-generator@3.6.2(@prisma/client@6.19.2(prisma@6.19.2(typescript@6.0.3))(typescript@6.0.3))(prisma@6.19.2(typescript@6.0.3))(typescript@6.0.3):
+    dependencies:
+      '@prisma/client': 6.19.2(prisma@6.19.2(typescript@6.0.3))(typescript@6.0.3)
+      '@prisma/generator-helper': 6.19.2
+      prisma: 6.19.2(typescript@6.0.3)
+      semver: 7.7.3
+      tslib: 2.8.1
+      typescript: 6.0.3
+
   prisma@6.19.2(typescript@5.9.3):
     dependencies:
       '@prisma/config': 6.19.2
       '@prisma/engines': 6.19.2
     optionalDependencies:
       typescript: 5.9.3
+    transitivePeerDependencies:
+      - magicast
+
+  prisma@6.19.2(typescript@6.0.3):
+    dependencies:
+      '@prisma/config': 6.19.2
+      '@prisma/engines': 6.19.2
+    optionalDependencies:
+      typescript: 6.0.3
     transitivePeerDependencies:
       - magicast
 
@@ -23368,6 +23509,23 @@ snapshots:
       jose: 6.2.2
       tweetnacl: 1.0.3
       vite-tsconfig-paths: 5.1.4(typescript@5.9.3)(vite@8.0.9(@types/node@20.19.39)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - supports-color
+      - typescript
+      - vite
+
+  privacy-kit@0.0.25(typescript@6.0.3)(vite@8.0.9(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)):
+    dependencies:
+      '@cloudflare/voprf-ts': 1.0.0
+      '@noble/curves': 1.9.7
+      '@noble/hashes': 1.8.0
+      '@peculiar/x509': 1.14.3
+      '@stablelib/base64': 2.0.1
+      '@stablelib/hex': 2.0.1
+      jose: 6.2.2
+      tweetnacl: 1.0.3
+      vite-tsconfig-paths: 5.1.4(typescript@6.0.3)(vite@8.0.9(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2))
       zod: 3.25.76
     transitivePeerDependencies:
       - supports-color
@@ -25172,6 +25330,10 @@ snapshots:
     optionalDependencies:
       typescript: 5.9.3
 
+  tsconfck@3.1.6(typescript@6.0.3):
+    optionalDependencies:
+      typescript: 6.0.3
+
   tslib@1.14.1: {}
 
   tslib@2.8.1: {}
@@ -25536,6 +25698,17 @@ snapshots:
       tsconfck: 3.1.6(typescript@5.9.3)
     optionalDependencies:
       vite: 8.0.9(@types/node@20.19.39)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+    transitivePeerDependencies:
+      - supports-color
+      - typescript
+
+  vite-tsconfig-paths@5.1.4(typescript@6.0.3)(vite@8.0.9(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)):
+    dependencies:
+      debug: 4.4.3
+      globrex: 0.1.2
+      tsconfck: 3.1.6(typescript@6.0.3)
+    optionalDependencies:
+      vite: 8.0.9(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - supports-color
       - typescript
