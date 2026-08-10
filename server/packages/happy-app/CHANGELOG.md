@@ -7,6 +7,27 @@ Agent and subagent replies now render safe Markdown and responsive images.
 - HTTP(S) images render responsively with alt text, lazy loading, failure feedback, and full-size preview.
 - Unsafe image schemes fail closed; existing attachment and file-viewer behavior is unchanged.
 
+# August 7 — Gemini 3.6 Flash, Rig sessions
+
+A new Gemini model, Rig as a first-class agent, and web scrolling fixes.
+
+- Gemini 3.6 Flash in the Antigravity model picker — High, Medium, and Low effort.
+- Start and manage native Rig sessions from Happy — connected Rig machines offer their models, permission modes, and effort levels right in the composer.
+- New sessions no longer launch with a stale agent after switching machines.
+- On web, wide tables and code blocks in chat scroll sideways with the trackpad.
+- Community Credits: [@abhisheksoni27](https://github.com/abhisheksoni27), [@charliezong18](https://github.com/charliezong18)
+
+# August 3 — Composer and tool calls
+
+Shorter tool output and a composer that behaves again.
+
+- Tool calls show as one-line rows you can open for details — turn it off with Compact Tool Calls in Settings → Appearance.
+- The mic is back in the send button — voice when the composer is empty, send once you've typed, stop while the agent works.
+- Model and effort sit together next to the send button, and no longer get cut off when you switch.
+- Model, effort, and permission pickers are legible again on iOS 26.
+- The send button is visible again on the light theme.
+- Composer pickers stay tappable while the keyboard is open.
+
 # July 28 — Liquid glass, Opus 5
 
 A full mobile refresh and a new top model.

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "d1d2064dc1504f2c887c5d5851b3054d39069f60f81de266a349ab99554bb4d2",
+  "sourceFingerprint": "16614afc811e597f5be8e55e5626a7430e7cc51744a00dc75e0a0c6f2f0135f6",
   "routeCount": 36,
   "surfaceCount": 220,
   "hardcodedCopyCount": 0,
@@ -243,6 +243,7 @@
         "uiCopy.machineRenamedSuccessfully",
         "uiCopy.previousSessionsUpTo5MostRecent",
         "uiCopy.renameMachine",
+        "uiCopy.rig",
         "uiCopy.stopDaemon",
         "uiCopy.theDirectoryValueDoesNotExistWouldYouLikeTo",
         "uiCopy.youWillNotBeAbleToSpawnNewSessionsOn",
@@ -303,6 +304,8 @@
         "uiCopy.permissions",
         "uiCopy.pleaseSelectAMachine",
         "uiCopy.project",
+        "uiCopy.rig",
+        "uiCopy.rigCreatedTheSessionButItIsStillSyncingWithHappy",
         "uiCopy.search",
         "uiCopy.searchAgents",
         "uiCopy.searchCommanders",
@@ -1335,6 +1338,7 @@
         "uiCopy.machineRenamedSuccessfully",
         "uiCopy.previousSessionsUpTo5MostRecent",
         "uiCopy.renameMachine",
+        "uiCopy.rig",
         "uiCopy.stopDaemon",
         "uiCopy.theDirectoryValueDoesNotExistWouldYouLikeTo",
         "uiCopy.youWillNotBeAbleToSpawnNewSessionsOn",
@@ -1398,6 +1402,8 @@
         "uiCopy.permissions",
         "uiCopy.pleaseSelectAMachine",
         "uiCopy.project",
+        "uiCopy.rig",
+        "uiCopy.rigCreatedTheSessionButItIsStillSyncingWithHappy",
         "uiCopy.search",
         "uiCopy.searchAgents",
         "uiCopy.searchCommanders",
@@ -2304,6 +2310,7 @@
         "happyHerd.composer.send",
         "happyHerd.composer.startVoice",
         "happyHerd.composer.stop",
+        "settings.title",
         "uiCopy.claude",
         "uiCopy.codex",
         "uiCopy.gemini"
@@ -2990,11 +2997,11 @@
         "agentInput.effort.title",
         "agentInput.model.title",
         "agentInput.permissionMode.title",
-        "common.back",
         "common.ok",
         "happyHerd.composer.send",
         "machine.machineGroup",
         "machineLauncher.enterCustomPath",
+        "settings.title",
         "status.lastSeen",
         "status.online",
         "uiCopy.addImage",
@@ -3002,11 +3009,13 @@
         "uiCopy.agent_1wzwjl",
         "uiCopy.askCodex",
         "uiCopy.machine",
+        "uiCopy.notInstalledOnThisMachine",
         "uiCopy.notSupportedByValue",
         "uiCopy.pathToProject",
         "uiCopy.planAskBuild",
         "uiCopy.project",
         "uiCopy.project_olvgym",
+        "uiCopy.selectAConnectedRigMachine",
         "uiCopy.worktree",
         "uiCopy.worktree_sdajyg"
       ],
@@ -3149,6 +3158,9 @@
       ],
       "translationKeys": [
         "happyHerd.automations.title",
+        "settings.title",
+        "sidebar.hideArchived",
+        "sidebar.showArchived",
         "status.connected",
         "status.connecting",
         "status.disconnected",
@@ -3679,13 +3691,12 @@
       ],
       "translationKeys": [
         "sessionHistory.empty",
-        "sidebar.hideArchived",
-        "sidebar.projects",
-        "sidebar.showArchived",
+        "sidebar.sessionsTitle",
         "status.lastSeen",
         "status.online",
         "status.permissionRequired",
-        "status.unread"
+        "status.unread",
+        "uiCopy.rig"
       ],
       "states": [
         "empty"
@@ -3873,7 +3884,9 @@
       "translationKeys": [
         "happyHerd.automations.title",
         "settings.title",
+        "sidebar.hideArchived",
         "sidebar.newSession",
+        "sidebar.showArchived",
         "workspace.title"
       ],
       "states": [],
@@ -4635,8 +4648,10 @@
         "uiCopy.failedToSendTheFirstMessage",
         "uiCopy.failedToStartSession",
         "uiCopy.pleaseSelectAMachine",
+        "uiCopy.rigCreatedTheSessionButItIsStillSyncingWithHappy",
         "uiCopy.theDirectoryValueDoesNotExistWouldYouLikeTo",
-        "uiCopy.theSelectedAgentConfigurationIsUnavailable"
+        "uiCopy.theSelectedAgentConfigurationIsUnavailable",
+        "uiCopy.thisRigMachineIsNotAvailableForSessionCreation"
       ],
       "states": [
         "error"

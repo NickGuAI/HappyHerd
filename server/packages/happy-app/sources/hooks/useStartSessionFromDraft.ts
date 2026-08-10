@@ -18,6 +18,20 @@ import {
 } from '@/components/modelModeOptions';
 import { Modal } from '@/modal';
 import { t } from '@/text';
+import { resolveMachineAgent } from '@/utils/newSessionAgentSelection';
+import { delay } from '@/utils/time';
+import {
+    buildRigSpawnConfiguration,
+    getRigMachineSessionCreation,
+    resolveRigPendingRetryDelayMs,
+} from '@/sync/rigSessionCreation';
+import {
+    buildSpawnRequestSignature,
+    completeSpawnRequest,
+    resolveSpawnRequestId,
+} from '@/sync/spawnRequestId';
+
+const MAX_RIG_PENDING_RESULTS = 3;
 
 function resolveOption<T extends { key: string }>(
     options: T[],
@@ -37,6 +51,10 @@ export function useStartSessionFromDraft() {
     const navigateToSession = useNavigateToSession();
     const [isStarting, setIsStarting] = React.useState(false);
     const isStartingRef = React.useRef(false);
+    const isMountedRef = React.useRef(true);
+    React.useEffect(() => () => {
+        isMountedRef.current = false;
+    }, []);
 
     const startSession = React.useCallback(async (): Promise<boolean> => {
         if (isStartingRef.current) return false;
@@ -52,33 +70,61 @@ export function useStartSessionFromDraft() {
             return false;
         }
 
-        const defaults = resolveAgentDefaultConfig(defaultOverrides, draft.agentType);
-        const machineCatalog = machine.metadata?.agentCapabilities?.[draft.agentType];
-        const permissionOptions = machineCatalog
-            ? getMachineAdvertisedPermissionModes(machine.metadata, draft.agentType)
-            : getHardcodedPermissionModes(draft.agentType, t);
-        const modelOptions = machineCatalog
-            ? getMachineAdvertisedModels(machine.metadata, draft.agentType)
-            : getHardcodedModelModes(draft.agentType, t);
-        const permission = resolveOption(
-            permissionOptions,
-            [draft.permissionMode, defaults.permissionMode],
-        );
-        const model = resolveOption(
-            modelOptions,
-            [draft.modelMode, defaults.modelMode],
-        );
-        const effortOptions = machineCatalog
-            ? getMachineAdvertisedEffortLevels(machine.metadata, draft.agentType, model?.key ?? 'default')
-            : getEffortLevelsForModel(draft.agentType, model?.key ?? 'default');
-        const effectiveEffortDefault = resolveAgentDefaultEffortLevel(
-            defaultOverrides,
+        // The draft survives machine changes and app upgrades. Resolve it again
+        // at launch time so a stale Claude selection cannot spawn Claude while
+        // the selected machine only reports Codex (the Android 1.7.0 regression).
+        const agentType = resolveMachineAgent(
             draft.agentType,
-            effortOptions,
+            machine.metadata?.cliAvailability,
         );
-        const effort = resolveOption(
+        const agentChanged = agentType !== draft.agentType;
+        const rigCreation = agentType === 'rig'
+            ? getRigMachineSessionCreation(machine.metadata)
+            : null;
+        if (agentType === 'rig' && !rigCreation) {
+            Modal.alert(t('common.error'), t('uiCopy.thisRigMachineIsNotAvailableForSessionCreation'));
+            return false;
+        }
+        const machineCatalog = machine.metadata?.agentCapabilities?.[agentType];
+        const defaults = rigCreation
+            ? {
+                permissionMode: rigCreation.defaultPermissionMode ?? '',
+                modelMode: rigCreation.defaultModelKey ?? '',
+                effortLevel: rigCreation.defaultEffortForModel(rigCreation.defaultModelKey),
+            }
+            : resolveAgentDefaultConfig(defaultOverrides, agentType);
+        const permissionOptions = rigCreation?.permissionModes
+            ?? (machineCatalog
+                ? getMachineAdvertisedPermissionModes(machine.metadata, agentType)
+                : getHardcodedPermissionModes(agentType, t));
+        const modelOptions = rigCreation?.models
+            ?? (machineCatalog
+                ? getMachineAdvertisedModels(machine.metadata, agentType)
+                : getHardcodedModelModes(agentType, t));
+        const permission = resolveOption<{ key: string }>(
+            permissionOptions,
+            agentChanged
+                ? [defaults.permissionMode]
+                : [draft.permissionMode, defaults.permissionMode],
+        );
+        const model = resolveOption<{ key: string }>(
+            modelOptions,
+            agentChanged
+                ? [defaults.modelMode]
+                : [draft.modelMode, defaults.modelMode],
+        );
+        const effortOptions = rigCreation
+            ? rigCreation.effortsForModel(model?.key).map((key) => ({ key, name: key }))
+            : machineCatalog
+                ? getMachineAdvertisedEffortLevels(machine.metadata, agentType, model?.key ?? 'default')
+                : getEffortLevelsForModel(agentType, model?.key ?? 'default');
+        const effectiveEffortDefault = rigCreation?.defaultEffortForModel(model?.key)
+            ?? resolveAgentDefaultEffortLevel(defaultOverrides, agentType, effortOptions);
+        const effort = resolveOption<{ key: string }>(
             effortOptions,
-            [draft.effortLevel, effectiveEffortDefault],
+            agentChanged
+                ? [effectiveEffortDefault]
+                : [draft.effortLevel, effectiveEffortDefault],
         );
         if (!permission || !model) {
             Modal.alert(t('common.error'), t("uiCopy.theSelectedAgentConfigurationIsUnavailable"));
@@ -89,9 +135,22 @@ export function useStartSessionFromDraft() {
         const attachments = draft.attachments;
         const selectedPath = draft.selectedPath?.trim() || '~';
         const absolutePath = resolveAbsolutePath(selectedPath, machine.metadata?.homeDir);
-        const worktreeSelection = draft.sessionType === 'worktree'
-            ? draft.worktreeKey ?? '__new__'
-            : '__none__';
+        const worktreeSelection = rigCreation?.supportsWorktrees === false
+            ? '__none__'
+            : draft.sessionType === 'worktree'
+                ? draft.worktreeKey ?? '__new__'
+                : '__none__';
+        // Reused across every retry of this exact request so a second press of
+        // Start is deduped by Rig instead of spawning a second session.
+        const clientRequestId = resolveSpawnRequestId(buildSpawnRequestSignature({
+            machineId: machine.id,
+            agent: agentType,
+            directory: selectedPath,
+            worktree: worktreeSelection,
+            modelKey: model.key,
+            permissionMode: permission.key,
+            effort: effort?.key ?? null,
+        }));
 
         isStartingRef.current = true;
         setIsStarting(true);
@@ -109,22 +168,53 @@ export function useStartSessionFromDraft() {
             }
 
             const spawn = async (approvedNewDirectoryCreation = false): Promise<string | null> => {
-                const result = await machineSpawnNewSession({
-                    machineId: machine.id,
-                    directory: spawnDirectory,
-                    approvedNewDirectoryCreation,
-                    agent: draft.agentType,
-                    permissionMode: draft.agentType === 'codex' || permission.key !== 'default'
-                        ? permission.key
-                        : undefined,
-                    modelMode: model.key !== 'default' ? model.key : undefined,
-                    effortLevel: effort?.key,
-                    commanderId: draft.selectedCommanderId ?? undefined,
-                });
+                const spawnOptions = rigCreation
+                    ? {
+                        machineId: machine.id,
+                        ...buildRigSpawnConfiguration(machine.metadata, {
+                            directory: spawnDirectory,
+                            clientRequestId,
+                            approvedNewDirectoryCreation,
+                            modelKey: model.key,
+                            permissionMode: permission.key,
+                            effort: effort?.key,
+                        }),
+                    }
+                    : {
+                        machineId: machine.id,
+                        directory: spawnDirectory,
+                        approvedNewDirectoryCreation,
+                        agent: agentType,
+                        permissionMode: agentType === 'codex' || permission.key !== 'default'
+                            ? permission.key
+                            : undefined,
+                        modelMode: model.key !== 'default' ? model.key : undefined,
+                        effortLevel: effort?.key,
+                        commanderId: draft.selectedCommanderId ?? undefined,
+                    };
+                let result = await machineSpawnNewSession(spawnOptions);
+                let pendingResults = 0;
+                while (result.type === 'pending' && pendingResults < MAX_RIG_PENDING_RESULTS) {
+                    pendingResults += 1;
+                    await delay(resolveRigPendingRetryDelayMs(
+                        result.retryAfterMs,
+                        rigCreation?.pendingRetryAfterMs,
+                    ));
+                    if (!isMountedRef.current) return null;
+                    result = await machineSpawnNewSession(spawnOptions);
+                }
+                if (!isMountedRef.current) return null;
 
                 if (result.type === 'success') return result.sessionId;
                 if (result.type === 'error') {
                     Modal.alert(t('common.error'), result.errorMessage);
+                    return null;
+                }
+                if (result.type === 'pending') {
+                    Modal.alert(
+                        t('common.error'),
+                        t('uiCopy.rigCreatedTheSessionButItIsStillSyncingWithHappy'),
+                    );
                     return null;
                 }
 
@@ -138,15 +228,19 @@ export function useStartSessionFromDraft() {
 
             const sessionId = await spawn();
             if (!sessionId) return false;
+            // The idempotency key did its job; the next Start is a new session.
+            completeSpawnRequest();
 
             await sync.refreshSessions();
 
-            const modesPatch: SessionAgentModesPatch = {};
-            if (permission.key !== defaults.permissionMode) modesPatch.permissionMode = permission.key;
-            if (model.key !== defaults.modelMode) modesPatch.modelMode = model.key;
-            if ((effort?.key ?? null) !== effectiveEffortDefault) modesPatch.effortLevel = effort?.key ?? null;
-            if (Object.keys(modesPatch).length > 0) {
-                sessionSetAgentModes(sessionId, modesPatch);
+            if (!rigCreation) {
+                const modesPatch: SessionAgentModesPatch = {};
+                if (permission.key !== defaults.permissionMode) modesPatch.permissionMode = permission.key;
+                if (model.key !== defaults.modelMode) modesPatch.modelMode = model.key;
+                if ((effort?.key ?? null) !== effectiveEffortDefault) modesPatch.effortLevel = effort?.key ?? null;
+                if (Object.keys(modesPatch).length > 0) {
+                    sessionSetAgentModes(sessionId, modesPatch);
+                }
             }
 
             draft.setInput('');
@@ -172,7 +266,7 @@ export function useStartSessionFromDraft() {
             return false;
         } finally {
             isStartingRef.current = false;
-            setIsStarting(false);
+            if (isMountedRef.current) setIsStarting(false);
         }
     }, [defaultOverrides, machines, navigateToSession]);
 

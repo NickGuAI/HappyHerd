@@ -37,19 +37,14 @@ describe('resolveAgentInputPrimaryAction', () => {
         expect(resolveAgentInputPrimaryAction(base)).toBe('idle');
     });
 
-    it('uses voice for an empty composer only when dictation is available', () => {
-        expect(resolveAgentInputPrimaryAction({ ...base, canVoice: true })).toBe('voice');
-    });
-
-    it('keeps send ahead of voice when the composer has content', () => {
+    it('falls back to voice on an empty composer when dictation is available', () => {
         expect(resolveAgentInputPrimaryAction({
             ...base,
-            hasComposerContent: true,
             canVoice: true,
-        })).toBe('send');
+        })).toBe('voice');
     });
 
-    it('keeps stop ahead of voice while an empty active turn can be aborted', () => {
+    it('keeps Stop ahead of voice while the agent is thinking', () => {
         expect(resolveAgentInputPrimaryAction({
             ...base,
             showAbortButton: true,
@@ -57,6 +52,22 @@ describe('resolveAgentInputPrimaryAction', () => {
         })).toBe('stop');
     });
 
+    it('keeps Send ahead of voice once there is content', () => {
+        expect(resolveAgentInputPrimaryAction({
+            ...base,
+            hasComposerContent: true,
+            canVoice: true,
+        })).toBe('send');
+    });
+
+    it('still offers Stop for a blank composer when steering is blocked', () => {
+        expect(resolveAgentInputPrimaryAction({
+            ...base,
+            isSendBlocked: true,
+            showAbortButton: true,
+            canVoice: true,
+        })).toBe('stop');
+    });
     it('preserves the blocked-send affordance for content', () => {
         expect(resolveAgentInputPrimaryAction({
             ...base,

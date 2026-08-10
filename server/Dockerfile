@@ -17,10 +17,11 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY scripts ./scripts
 COPY patches ./patches
 
-RUN mkdir -p packages/happy-app packages/happy-server packages/happy-cli packages/happy-agent packages/happy-wire
+RUN mkdir -p packages/happy-app packages/happy-server packages/happy-server-self-host packages/happy-cli packages/happy-agent packages/happy-wire
 
 COPY packages/happy-app/package.json packages/happy-app/
 COPY packages/happy-server/package.json packages/happy-server/
+COPY packages/happy-server-self-host/package.json packages/happy-server-self-host/
 COPY packages/happy-cli/package.json packages/happy-cli/
 COPY packages/happy-agent/package.json packages/happy-agent/
 COPY packages/happy-wire/package.json packages/happy-wire/
@@ -47,11 +48,11 @@ COPY packages/happy-app ./packages/happy-app
 COPY packages/happy-cli ./packages/happy-cli
 COPY packages/happy-wire ./packages/happy-wire
 COPY packages/happy-server ./packages/happy-server
+COPY packages/happy-server-self-host ./packages/happy-server-self-host
 
-RUN pnpm --filter @slopus/happy-wire build
-RUN pnpm --filter ./packages/happy-server --fail-if-no-match build
-RUN pnpm --filter ./packages/happy-server --fail-if-no-match build:standalone
-RUN pnpm --filter ./packages/happy-server --fail-if-no-match bundle:webapp
+RUN pnpm --filter @slopus/happy-wire --fail-if-no-match build
+RUN pnpm --filter happy-server-self-host --fail-if-no-match build
+RUN pnpm --filter happy-server-self-host --fail-if-no-match bundle:webapp
 
 # Stage 3: runtime
 FROM node:20-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS runner
@@ -70,18 +71,17 @@ LABEL org.opencontainers.image.title="HappyHerd" \
       org.opencontainers.image.version="$HAPPYHERD_VERSION" \
       ai.gehirn.happyherd.brand.sha256="$HAPPYHERD_BRAND_SHA256"
 
-WORKDIR /app
+WORKDIR /repo/packages/happy-server-self-host
 
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg curl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 ENV DATA_DIR=/data
 ENV PGLITE_DIR=/data/pglite
-ENV PRISMA_QUERY_ENGINE_LIBRARY=/app/libquery_engine-debian-openssl-3.0.x.so.node
+ENV PRISMA_QUERY_ENGINE_LIBRARY=/repo/node_modules/.prisma/client/libquery_engine-debian-openssl-3.0.x.so.node
 
-COPY --from=builder /repo/packages/happy-server/dist/ ./
-COPY --from=builder /repo/node_modules/.prisma/client/libquery_engine-debian-openssl-3.0.x.so.node ./libquery_engine-debian-openssl-3.0.x.so.node
-COPY --from=builder /repo/packages/happy-server/webapp/ ./webapp/
+COPY --from=builder /repo/node_modules /repo/node_modules
+COPY --from=builder /repo/packages/happy-server-self-host /repo/packages/happy-server-self-host
 
 VOLUME /data
 EXPOSE 3005
@@ -89,4 +89,4 @@ EXPOSE 3005
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD curl --fail --silent --show-error http://127.0.0.1:3005/health >/dev/null || exit 1
 
-CMD ["sh", "-c", "./happy-server migrate && exec ./happy-server serve"]
+CMD ["sh", "-c", "node bin/happy-server.cjs migrate && exec node bin/happy-server.cjs serve"]
