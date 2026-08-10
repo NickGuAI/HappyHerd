@@ -269,6 +269,7 @@ export type TranslationKey =
     | "friends.title"
     | "friends.userNotFound"
     | "happyHerd.automations.attempt"
+    | "happyHerd.automations.collapseDetails"
     | "happyHerd.automations.commander"
     | "happyHerd.automations.commanderValue"
     | "happyHerd.automations.create"
@@ -280,6 +281,7 @@ export type TranslationKey =
     | "happyHerd.automations.editAction"
     | "happyHerd.automations.emptySubtitle"
     | "happyHerd.automations.emptyTitle"
+    | "happyHerd.automations.expandDetails"
     | "happyHerd.automations.history"
     | "happyHerd.automations.initialState"
     | "happyHerd.automations.instruction"
@@ -296,6 +298,8 @@ export type TranslationKey =
     | "happyHerd.automations.runNow"
     | "happyHerd.automations.save"
     | "happyHerd.automations.spawnRetries"
+    | "happyHerd.automations.statusActive"
+    | "happyHerd.automations.statusPaused"
     | "happyHerd.automations.subtitle"
     | "happyHerd.automations.timezone"
     | "happyHerd.automations.title"
@@ -1179,8 +1183,10 @@ export interface TranslationParamsByKey {
     "friends.requestSentDescription": { name: string };
     "friends.sentOn": { date: string };
     "happyHerd.automations.attempt": { count: number };
+    "happyHerd.automations.collapseDetails": { name: string };
     "happyHerd.automations.commanderValue": { id: string };
     "happyHerd.automations.deleteDescription": { name: string };
+    "happyHerd.automations.expandDetails": { name: string };
     "happyHerd.automations.legacyNotice": { count: number };
     "imageUpload.fileTooLargeMessage": { maxMb: number; name: string };
     "imageUpload.limitMessage": { max: number };

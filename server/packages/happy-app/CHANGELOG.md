@@ -1,3 +1,11 @@
+# August 10 — Compact automation cards
+
+Automation lists stay scannable while full controls remain one tap away.
+
+- Automation cards now default to a compact name-and-status summary.
+- Open any card to inspect its schedule, type, instruction, provider, workspace, actions, and run history.
+- Each card expands independently with accessible controls across mobile, desktop, light, and dark themes.
+
 # August 10 — Flexible machine setup
 
 Machines can come online with the providers they actually have, while Commander instructions stay synchronized automatically.

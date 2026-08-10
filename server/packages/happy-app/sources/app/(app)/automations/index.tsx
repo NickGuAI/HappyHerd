@@ -19,6 +19,7 @@ import type {
 } from '@slopus/happy-wire';
 
 import { Text as StyledText } from '@/components/StyledText';
+import { HappyHerdAutomationCard } from '@/components/HappyHerdAutomationCard';
 import { Modal } from '@/modal';
 import {
     machineAutomationHistory,
@@ -401,39 +402,16 @@ export default function AutomationsScreen() {
                     </View>
                 )}
                 {automations.map((automation) => (
-                    <View key={automation.id} style={[styles.card, { borderColor: theme.colors.divider, backgroundColor: theme.colors.surface }]}>
-                        <View style={styles.sectionHeader}>
-                            <View style={{ flex: 1 }}>
-                                <View style={styles.cardTitleRow}>
-                                    <View style={[styles.statusDot, { backgroundColor: automation.status === 'active' ? '#34C759' : theme.colors.textSecondary }]} />
-                                    <Text style={styles.sectionTitle}>{automation.name}</Text>
-                                </View>
-                                <Text style={{ color: theme.colors.textSecondary }}>{automation.schedule} · {automation.timezone}</Text>
-                            </View>
-                            <Text style={[styles.badge, { borderColor: theme.colors.divider }]}>{automation.kind}</Text>
-                        </View>
-                        <Text>{automation.instruction}</Text>
-                        <Text style={{ color: theme.colors.textSecondary }}>{automation.rail} · {automation.workspace}{automation.commanderId ? ` · ${t('happyHerd.automations.commanderValue', { id: automation.commanderId })}` : ''}</Text>
-                        <View style={styles.actions}>
-                            <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={() => void toggleStatus(automation)}><Text>{automation.status === 'active' ? t('happyHerd.automations.pause') : t('happyHerd.automations.resume')}</Text></Pressable>
-                            <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={() => void runNow(automation)}><Text>{t('happyHerd.automations.runNow')}</Text></Pressable>
-                            <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={() => void loadHistory(automation)}><Text>{t('happyHerd.automations.history')}</Text></Pressable>
-                            <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={() => openEdit(automation)}><Text>{t('happyHerd.automations.editAction')}</Text></Pressable>
-                            <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={() => void remove(automation)}><Text style={{ color: theme.colors.status.disconnected }}>{t('happyHerd.automations.delete')}</Text></Pressable>
-                        </View>
-                        {history[automation.id] && (
-                            <View style={[styles.history, { borderTopColor: theme.colors.divider }]}>
-                                {history[automation.id].length === 0 ? (
-                                    <Text style={{ color: theme.colors.textSecondary }}>{t('happyHerd.automations.noRuns')}</Text>
-                                ) : history[automation.id].map((run) => (
-                                    <View key={run.id} style={styles.historyRow}>
-                                        <Text style={styles.historyStatus}>{run.status}</Text>
-                                        <Text style={{ flex: 1, color: theme.colors.textSecondary }}>{new Date(run.scheduledFor).toLocaleString()} · {t('happyHerd.automations.attempt', { count: run.attempt })}{run.sessionId ? ` · ${run.sessionId}` : ''}</Text>
-                                    </View>
-                                ))}
-                            </View>
-                        )}
-                    </View>
+                    <HappyHerdAutomationCard
+                        key={automation.id}
+                        automation={automation}
+                        history={history[automation.id]}
+                        onToggleStatus={() => void toggleStatus(automation)}
+                        onRunNow={() => void runNow(automation)}
+                        onToggleHistory={() => void loadHistory(automation)}
+                        onEdit={() => openEdit(automation)}
+                        onDelete={() => void remove(automation)}
+                    />
                 ))}
             </View>
         </ScrollView>
@@ -465,12 +443,4 @@ const styles = StyleSheet.create((theme) => ({
     saveButton: { alignSelf: 'flex-start', minWidth: 160 },
     list: { gap: 12 },
     empty: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, padding: 28, alignItems: 'center', gap: 8 },
-    card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, padding: 16, gap: 10 },
-    cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    badge: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4, fontSize: 12 },
-    actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-    action: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
-    history: { marginTop: 4, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, gap: 8 },
-    historyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-    historyStatus: { width: 62, ...Typography.default('semiBold') },
 }));

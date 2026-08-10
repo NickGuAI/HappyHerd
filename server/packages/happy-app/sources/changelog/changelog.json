@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 10 — Compact automation cards",
+      "summary": "Automation lists stay scannable while full controls remain one tap away.",
+      "markdown": "- Automation cards now default to a compact name-and-status summary.\n- Open any card to inspect its schedule, type, instruction, provider, workspace, actions, and run history.\n- Each card expands independently with accessible controls across mobile, desktop, light, and dark themes."
+    },
+    {
       "title": "August 10 — Flexible machine setup",
       "summary": "Machines can come online with the providers they actually have, while Commander instructions stay synchronized automatically.",
       "markdown": "- The host daemon no longer requires both Claude Code and Codex to be installed before a machine can connect.\n- Missing providers stay unavailable for new sessions instead of blocking the whole machine.\n- Commander sessions repair a stale or misdirected `CLAUDE.md` mirror from the canonical `AGENTS.md` automatically.\n- Encryption, machine identity, path containment, and context-bundle integrity checks are unchanged."
@@ -101,5 +106,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 10 — Flexible machine setup"
+  "latestTitle": "August 10 — Compact automation cards"
 }
