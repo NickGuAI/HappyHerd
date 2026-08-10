@@ -17,6 +17,8 @@ grep -Fq 'FROM node:20-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77
     fail 'Node runtime image is not pinned to the approved digest'
 grep -Fq 'COPY packages/happy-app ./packages/happy-app' "$DOCKERFILE" || \
     fail 'branded app source is absent from the image build'
+grep -Fq 'COPY packages/happy-server-self-host/scripts packages/happy-server-self-host/scripts' "$DOCKERFILE" || \
+    fail 'self-host install scripts are absent from the dependency stage'
 grep -Fq 'bundle:webapp' "$DOCKERFILE" || fail 'Web bundle is not built into the server image'
 grep -Fq 'happy-server-self-host --fail-if-no-match build' "$DOCKERFILE" || \
     fail 'self-host package is not compiled into a standalone runtime'
@@ -39,5 +41,8 @@ grep -Fq '@sha256:[0-9a-f]{64}' "$ROOT/scripts/smoke-release-image.sh" || \
     fail 'smoke runner does not reject mutable image references'
 grep -Fq 'docker volume create' "$ROOT/scripts/smoke-release-image.sh" || \
     fail 'smoke runner does not provision writable Docker-managed state'
+grep -Fq 'RUNTIME_WEBAPP_PATH="/repo/packages/happy-server-self-host/webapp/index.html"' \
+    "$ROOT/scripts/smoke-release-image.sh" || \
+    fail 'smoke runner does not verify the bundled Web application at the runtime package path'
 
 printf 'Release image contract tests passed.\n'
