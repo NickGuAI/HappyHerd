@@ -18,6 +18,11 @@ fail() {
 export APP_ENV=development
 export CI=1
 export EXPO_NO_TELEMETRY=1
+# The host service exports NODE_ENV=production. Vitest normally supplies its
+# own test environment, but preserves an already-exported value; React's
+# production test renderer intentionally omits act(). Pin the contract suite to
+# the test runtime so verification is independent of the caller's shell.
+export NODE_ENV=test
 
 "$repo_root/scripts/verify-lineage.sh"
 "$repo_root/scripts/verify-patch-discipline.sh"

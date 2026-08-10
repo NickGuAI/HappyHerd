@@ -99,3 +99,4 @@ R9	code-ready	fix(resume): use current AgentContext on reconnect (#62)	server/pa
 R10	code-ready	fix(runtime): restore detached host daemon lifecycle (#63)	scripts/test-runtime-isolation.sh
 UPSTREAM_SYNC	code-ready	fix(sync): accept verified production upstream merges	scripts/test-upstream-sync-provenance.sh
 DEPLOY	code-ready	fix(release): align image contract with self-host package	scripts/test-release-image-contract.sh
+CI	code-ready	fix(ci): pin test environment in contract suite	scripts/contract-suite.sh
