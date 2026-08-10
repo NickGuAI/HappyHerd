@@ -3,17 +3,18 @@ import { constants } from 'node:fs';
 import {
   access,
   lstat,
+  mkdtemp,
   mkdir,
   readFile,
   readdir,
   readlink,
   realpath,
-  rename,
+  rmdir,
   symlink,
   unlink,
   writeFile,
 } from 'node:fs/promises';
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 
 import type { HappyHerdCommanderListResponse, HappyHerdCommanderSummary } from '@slopus/happy-wire';
@@ -64,8 +65,17 @@ function claudeMirrorPath(): string {
   return path.join(agentContextRoot(), 'CLAUDE.md');
 }
 
-function bundleRoot(): string {
-  return path.join(agentContextRoot(), 'agent-context', 'bundles');
+async function writeTransientBundle(content: string, contextHash: string): Promise<string> {
+  const root = await mkdtemp(path.join(tmpdir(), 'happyherd-context-'));
+  const bundlePath = path.join(root, `${contextHash}.md`);
+  await writeFile(bundlePath, content, { mode: 0o600 });
+  return bundlePath;
+}
+
+function isHappyHerdTransientBundle(bundlePath: string): boolean {
+  const bundleRoot = path.dirname(path.resolve(bundlePath));
+  return path.dirname(bundleRoot) === path.resolve(tmpdir())
+    && path.basename(bundleRoot).startsWith('happyherd-context-');
 }
 
 async function isReadable(filePath: string): Promise<boolean> {
@@ -363,14 +373,7 @@ export async function prepareCommanderContext(
     projectGuidanceContent: projectGuidance?.content ?? '',
   });
   const contextHash = createHash('sha256').update(bundleText).digest('hex');
-  const root = bundleRoot();
-  await mkdir(root, { recursive: true, mode: 0o700 });
-  const bundlePath = path.join(root, `${contextHash}.md`);
-  if (!(await isReadable(bundlePath))) {
-    const temporaryPath = `${bundlePath}.${process.pid}.tmp`;
-    await writeFile(temporaryPath, bundleText, { mode: 0o600 });
-    await rename(temporaryPath, bundlePath);
-  }
+  const bundlePath = await writeTransientBundle(bundleText, contextHash);
   return {
     commander,
     contextHash,
@@ -417,12 +420,19 @@ export async function readContextPromptFromEnvironment(): Promise<string | undef
   const bundlePath = process.env.HAPPYHERD_CONTEXT_BUNDLE_PATH;
   const expectedHash = process.env.HAPPYHERD_CONTEXT_HASH;
   if (!bundlePath || !expectedHash) return undefined;
-  const content = await readFile(bundlePath, 'utf8');
-  const actualHash = createHash('sha256').update(content).digest('hex');
-  if (actualHash !== expectedHash) {
-    throw new Error('HappyHerd Commander context bundle failed integrity validation');
+  try {
+    const content = await readFile(bundlePath, 'utf8');
+    const actualHash = createHash('sha256').update(content).digest('hex');
+    if (actualHash !== expectedHash) {
+      throw new Error('HappyHerd Commander context bundle failed integrity validation');
+    }
+    return content;
+  } finally {
+    if (isHappyHerdTransientBundle(bundlePath)) {
+      await unlink(bundlePath).catch(() => undefined);
+      await rmdir(path.dirname(bundlePath)).catch(() => undefined);
+    }
   }
-  return content;
 }
 
 export function contextMetadataFromEnvironment(): CommanderContextMetadata {

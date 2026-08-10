@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, readFile, symlink, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -10,13 +10,17 @@ import {
   mergeContextPrompt,
   parseCommanderIdentity,
   prepareCommanderContext,
+  readContextPromptFromEnvironment,
 } from './commanderContext';
 
 let root: string;
 const originalEnv = { ...process.env };
+const originalTmpDir = os.tmpdir();
 
 beforeEach(async () => {
-  root = await mkdtemp(path.join(os.tmpdir(), 'happyherd-context-'));
+  root = await mkdtemp(path.join(originalTmpDir, 'happyherd-context-'));
+  process.env.TMPDIR = path.join(root, 'tmp');
+  await mkdir(process.env.TMPDIR, { recursive: true });
   process.env.HAPPY_HOME_DIR = path.join(root, '.happyherd');
   await mkdir(process.env.HAPPY_HOME_DIR, { recursive: true });
   await writeFile(path.join(process.env.HAPPY_HOME_DIR, 'AGENTS.md'), '# Global\nAlways verify.\n');
@@ -35,8 +39,12 @@ beforeEach(async () => {
   ].join('\n'));
 });
 
-afterEach(() => {
-  process.env = { ...originalEnv };
+afterEach(async () => {
+  await rm(root, { recursive: true, force: true });
+  for (const key of Object.keys(process.env)) {
+    if (!(key in originalEnv)) delete process.env[key];
+  }
+  Object.assign(process.env, originalEnv);
 });
 
 describe('Commander context', () => {
@@ -85,7 +93,7 @@ describe('Commander context', () => {
     await expect(prepareCommanderContext('escape')).rejects.toThrow('escapes the configured AgentContext root');
   });
 
-  it('creates an integrity-addressed bundle and a CLAUDE mirror', async () => {
+  it('creates a transient integrity-addressed prompt and a CLAUDE mirror', async () => {
     const projectDir = path.join(root, 'workspace');
     await mkdir(projectDir, { recursive: true });
     await writeFile(path.join(projectDir, 'AGENTS.md'), '# Project\nUse project tests.\n');
@@ -98,8 +106,13 @@ describe('Commander context', () => {
     expect(await readFile(path.join(root, '.happyherd', 'CLAUDE.md'), 'utf8')).toContain('Always verify.');
     expect(contextEnvironment(bundle)).toMatchObject({
       HAPPYHERD_COMMANDER_ID: 'athena',
+      HAPPYHERD_CONTEXT_BUNDLE_PATH: bundle.bundlePath,
       HAPPYHERD_CONTEXT_HASH: bundle.contextHash,
     });
+    Object.assign(process.env, contextEnvironment(bundle));
+    expect(await readContextPromptFromEnvironment()).toBe(content);
+    await expect(access(bundle.bundlePath)).rejects.toThrow();
+    await expect(access(path.join(root, '.happyherd', 'agent-context'))).rejects.toThrow();
   });
 
   it('repairs a divergent CLAUDE mirror without blocking Commander session preparation', async () => {
