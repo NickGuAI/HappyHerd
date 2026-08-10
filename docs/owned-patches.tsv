@@ -108,3 +108,4 @@ DEPLOY	code-ready	fix(release): align image contract with self-host package	scri
 CI	code-ready	fix(ci): pin test environment in contract suite	scripts/contract-suite.sh
 CI	code-ready	fix(build): keep production tsconfig strict JSON	server/packages/happy-server/tsconfig.build.json
 DEPLOY	code-ready	fix(release): restore self-host image assembly	scripts/test-release-image-contract.sh
+R12	code-ready	feat(automations): collapse cards by default	server/packages/happy-app/sources/components/HappyHerdAutomationCard.test.ts
