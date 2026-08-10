@@ -29,6 +29,7 @@ COPY packages/happy-wire/package.json packages/happy-wire/
 # Workspace postinstall requirements
 COPY packages/happy-app/patches packages/happy-app/patches
 COPY packages/happy-server/prisma packages/happy-server/prisma
+COPY packages/happy-server-self-host/scripts packages/happy-server-self-host/scripts
 COPY packages/happy-cli/scripts packages/happy-cli/scripts
 COPY packages/happy-cli/tools packages/happy-cli/tools
 

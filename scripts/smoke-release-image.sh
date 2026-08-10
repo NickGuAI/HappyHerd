@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 IMAGE_REF="${1:-}"
 EVIDENCE_FILE="${2:-}"
+RUNTIME_WEBAPP_PATH="/repo/packages/happy-server-self-host/webapp/index.html"
 TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/happyherd-image-smoke.XXXXXX")"
 CONTAINER_NAME="happyherd-smoke-$$"
 DATA_VOLUME="happyherd-smoke-data-$$"
@@ -83,7 +84,7 @@ root_file="$TMP_ROOT/root.html"
 curl --fail --silent --show-error --max-time 5 "$base_url/" > "$root_file"
 grep -Eq '<div[^>]+id="root"|<div[^>]+id=root' "$root_file" || \
     die 'root route did not serve the bundled Web application'
-docker exec "$CONTAINER_NAME" test -f /app/webapp/index.html || \
+docker exec "$CONTAINER_NAME" test -f "$RUNTIME_WEBAPP_PATH" || \
     die 'runtime image does not contain the bundled Web application'
 
 source_sha="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$IMAGE_REF")"
