@@ -102,6 +102,25 @@ describe('Commander context', () => {
     });
   });
 
+  it('repairs a divergent CLAUDE mirror without blocking Commander session preparation', async () => {
+    const mirrorPath = path.join(root, '.happyherd', 'CLAUDE.md');
+    await writeFile(mirrorPath, '# Stale instructions\nDo not use this copy.\n');
+
+    await expect(prepareCommanderContext('athena')).resolves.toBeDefined();
+    expect(await readFile(mirrorPath, 'utf8')).toBe('# Global\nAlways verify.\n');
+  });
+
+  it('repairs a CLAUDE symlink that points away from canonical AGENTS.md', async () => {
+    if (process.platform === 'win32') return;
+    const wrongTarget = path.join(root, 'wrong-claude.md');
+    const mirrorPath = path.join(root, '.happyherd', 'CLAUDE.md');
+    await writeFile(wrongTarget, '# Wrong target\n');
+    await symlink(wrongTarget, mirrorPath);
+
+    await expect(prepareCommanderContext('athena')).resolves.toBeDefined();
+    expect(await readFile(mirrorPath, 'utf8')).toBe('# Global\nAlways verify.\n');
+  });
+
   it('uses the actual session directory and never reloads the retired home guide', async () => {
     await writeFile(path.join(root, 'AGENTS.md'), '# Retired Herd root\n');
     const projectDir = path.join(root, 'workspace', 'project');

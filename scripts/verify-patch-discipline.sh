@@ -119,6 +119,34 @@ resolve_owned_commit() {
   owned_patch_count=$((owned_patch_count + 1))
 }
 
+validate_upstream_merge() {
+  local sha="$1"
+  local subject="$2"
+  local first_parent="$3"
+  local second_parent="$4"
+  local actual_upstream_url outside_server
+
+  [[ "$subject" == "Merge commit '$second_parent'" ]] ||
+    fail "unmanifested merge ${sha:0:12}: $subject"
+  git merge-base --is-ancestor "${upstream_ref}^{commit}" "$second_parent" ||
+    fail "UPSTREAM_SYNC second parent does not descend from upstream"
+  actual_upstream_url="$(git remote get-url upstream 2>/dev/null)" ||
+    fail "UPSTREAM_SYNC requires the trusted upstream remote"
+  [[ "$actual_upstream_url" == "$trusted_upstream_url" ]] ||
+    fail "UPSTREAM_SYNC remote is not the trusted public upstream: $actual_upstream_url"
+  git rev-parse --verify "${trusted_upstream_ref}^{commit}" >/dev/null 2>&1 ||
+    fail "UPSTREAM_SYNC trusted upstream ref is missing: $trusted_upstream_ref"
+  git merge-base --is-ancestor "$second_parent" "${trusted_upstream_ref}^{commit}" ||
+    fail "UPSTREAM_SYNC second parent is not reachable from trusted upstream"
+  if [[ -n "$expected_upstream_sha" ]]; then
+    [[ "$second_parent" == "$expected_upstream_sha" ]] ||
+      fail "UPSTREAM_SYNC second parent does not match observed upstream target"
+  fi
+  outside_server="$(git diff --name-only "$first_parent" "$sha" | awk '!/^server\//')"
+  [[ -z "$outside_server" ]] ||
+    fail "UPSTREAM_SYNC changed paths outside server/: $outside_server"
+}
+
 for record in "${series[@]}"; do
   sha="${record%%$'\t'*}"
   subject="${record#*$'\t'}"
@@ -146,47 +174,27 @@ for record in "${series[@]}"; do
       fail "owned PR merge is not a clean synthetic merge: ${sha:0:12}"
     [[ "$expected_tree" == "$(git rev-parse "${sha}^{tree}")" ]] ||
       fail "owned PR merge tree contains changes outside its branch patches: ${sha:0:12}"
-    mapfile -t branch_commits < <(git rev-list --reverse --topo-order "$first_parent..$second_parent")
+    mapfile -t branch_commits < <(git rev-list --first-parent --reverse "$first_parent..$second_parent")
     [[ "${#branch_commits[@]}" -gt 0 ]] ||
       fail "owned PR merge has no branch patches: ${sha:0:12}"
     for branch_sha in "${branch_commits[@]}"; do
-      resolve_owned_commit "$branch_sha" "$(git show -s --format=%s "$branch_sha")"
+      branch_subject="$(git show -s --format=%s "$branch_sha")"
+      branch_parent_record="$(git rev-list --parents -n 1 "$branch_sha")"
+      branch_parent_count="$(( $(wc -w <<< "$branch_parent_record") - 1 ))"
+      if [[ "$branch_parent_count" -eq 1 ]]; then
+        resolve_owned_commit "$branch_sha" "$branch_subject"
+        continue
+      fi
+      [[ "$branch_parent_count" -eq 2 ]] ||
+        fail "owned PR branch merge must have exactly two parents: ${branch_sha:0:12}"
+      read -r _ branch_first_parent branch_second_parent <<< "$branch_parent_record"
+      validate_upstream_merge \
+        "$branch_sha" "$branch_subject" "$branch_first_parent" "$branch_second_parent"
     done
     continue
   fi
 
-  # A real upstream subtree merge is identified by its exact second-parent
-  # subject and then proven against the trusted public upstream below. Keep the
-  # rehearsal-only knobs for fixture baselines, but do not make production
-  # upstream merges impossible to verify.
-  if [[ "$subject" == "Merge commit '$second_parent'" ]]; then
-    gate="UPSTREAM_SYNC"
-  else
-    fail "unmanifested merge ${sha:0:12}: $subject"
-  fi
-
-  if [[ "$gate" == "UPSTREAM_SYNC" ]]; then
-
-    git merge-base --is-ancestor "${upstream_ref}^{commit}" "$second_parent" ||
-      fail "UPSTREAM_SYNC second parent does not descend from upstream"
-    actual_upstream_url="$(git remote get-url upstream 2>/dev/null)" ||
-      fail "UPSTREAM_SYNC requires the trusted upstream remote"
-    [[ "$actual_upstream_url" == "$trusted_upstream_url" ]] ||
-      fail "UPSTREAM_SYNC remote is not the trusted public upstream: $actual_upstream_url"
-    git rev-parse --verify "${trusted_upstream_ref}^{commit}" >/dev/null 2>&1 ||
-      fail "UPSTREAM_SYNC trusted upstream ref is missing: $trusted_upstream_ref"
-    git merge-base --is-ancestor "$second_parent" "${trusted_upstream_ref}^{commit}" ||
-      fail "UPSTREAM_SYNC second parent is not reachable from trusted upstream"
-    if [[ -n "$expected_upstream_sha" ]]; then
-      [[ "$second_parent" == "$expected_upstream_sha" ]] ||
-        fail "UPSTREAM_SYNC second parent does not match observed upstream target"
-    fi
-    outside_server="$(git diff --name-only "$first_parent" "$sha" | awk '!/^server\//')"
-    [[ -z "$outside_server" ]] ||
-      fail "UPSTREAM_SYNC changed paths outside server/: $outside_server"
-    [[ "$subject" == "Merge commit '$second_parent'" ]] ||
-      fail "UPSTREAM_SYNC subject does not identify its second parent"
-  fi
+  validate_upstream_merge "$sha" "$subject" "$first_parent" "$second_parent"
 done
 
 for subject in "${!manifest_gate[@]}"; do

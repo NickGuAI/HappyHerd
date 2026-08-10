@@ -18,11 +18,6 @@ set +a
 DAEMON_CLI="${HAPPYHERD_DAEMON_CLI:-/opt/happyherd/current/daemon/bin/happy.mjs}"
 [[ -x "$DAEMON_CLI" ]] || die "HappyHerd daemon CLI is not executable: $DAEMON_CLI"
 
-for provider_cli in claude codex; do
-    command -v "$provider_cli" >/dev/null 2>&1 || die "required provider CLI not found: $provider_cli"
-    "$provider_cli" --version >/dev/null
-done
-
 # This is intentionally the upstream detached lifecycle. The bootstrap exits
 # after readiness is confirmed, leaving the daemon and provider sessions out of
 # a HappyHerd-owned service cgroup.

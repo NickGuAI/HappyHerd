@@ -1,3 +1,25 @@
+# August 10 — Flexible machine setup
+
+Machines can come online with the providers they actually have, while Commander instructions stay synchronized automatically.
+
+- The host daemon no longer requires both Claude Code and Codex to be installed before a machine can connect.
+- Missing providers stay unavailable for new sessions instead of blocking the whole machine.
+- Commander sessions repair a stale or misdirected `CLAUDE.md` mirror from the canonical `AGENTS.md` automatically.
+- Encryption, machine identity, path containment, and context-bundle integrity checks are unchanged.
+
+# August 9 — HappyHerd dogfood foundation
+
+HappyHerd's owned product features are now recorded alongside the Happy updates we inherit.
+
+- Create or restore a self-hosted account with one visible, reusable account key.
+- Browse host-machine workspaces, preview images, PDFs, HTML, and Markdown, edit supported files, and attach workspace files to a session.
+- Use Claude Code and Codex subscriptions with canonical model choices, remembered effort, native steering, explicit queued messages, and provider-native resume.
+- Choose a Commander identity when starting a session; canonical `AGENTS.md` instructions and visible heartbeat or scheduled automations follow that identity.
+- Start sessions with text, images, or gated OpenAI voice dictation from the same composer capabilities used in chat.
+- Returning tabs and reconnected clients reconcile new conversation messages automatically; subagent activity is grouped and collapsed by default.
+- English, Simplified Chinese, and German UI catalogs are checked against a generated route, panel, modal, state, and accessibility inventory.
+- HappyHerd support links, reproducible releases, rollback contracts, and detached host-daemon lifecycle are maintained independently from upstream Happy.
+
 # August 9 — Rich agent replies
 
 Agent and subagent replies now render safe Markdown and responsive images.

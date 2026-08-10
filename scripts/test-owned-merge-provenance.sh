@@ -42,14 +42,29 @@ run_case() {
   local variant="$2"
   local expected="$3"
   local case_dir="$work_dir/$name"
-  local output rc=0
+  local output rc=0 upstream_next
 
   git clone --quiet --branch main "$fixture" "$case_dir"
   git -C "$case_dir" config user.name "HappyHerd Owned Merge Test"
   git -C "$case_dir" config user.email "happyherd-owned-merge@invalid.local"
   git -C "$case_dir" remote add upstream "$fixture"
   git -C "$case_dir" update-ref refs/remotes/upstream/main "$upstream_base"
-  git -C "$case_dir" switch -c feat/owned >/dev/null 2>&1
+  if [[ "$variant" == "nested-upstream" ]]; then
+    git -C "$case_dir" switch -c upstream-next "$upstream_base" >/dev/null 2>&1
+    printf 'upstream next\n' > "$case_dir/app.txt"
+    git -C "$case_dir" add app.txt
+    git -C "$case_dir" commit --quiet -m "test: advance fixture upstream"
+    upstream_next="$(git -C "$case_dir" rev-parse HEAD)"
+    git -C "$case_dir" update-ref refs/remotes/upstream/main "$upstream_next"
+    git -C "$case_dir" switch -c feat/owned main >/dev/null 2>&1
+    git -C "$case_dir" merge --no-ff --no-commit --allow-unrelated-histories \
+      -s ours "$upstream_next" >/dev/null 2>&1
+    git -C "$case_dir" show "${upstream_next}:app.txt" > "$case_dir/server/app.txt"
+    git -C "$case_dir" add server/app.txt
+    git -C "$case_dir" commit --quiet -m "Merge commit '$upstream_next'"
+  else
+    git -C "$case_dir" switch -c feat/owned >/dev/null 2>&1
+  fi
   printf 'owned change\n' > "$case_dir/server/app.txt"
   if [[ "$variant" != "unmanifested" ]]; then
     printf 'TEST\tcode-ready\tfeat(test): add owned change\tserver/app.txt\n' \
@@ -87,7 +102,8 @@ run_case() {
 }
 
 run_case valid valid pass
+run_case nested-upstream nested-upstream pass
 run_case unmanifested unmanifested "unmanifested patch"
 run_case merge-only-change merge-only-change "merge tree contains changes outside its branch patches"
 
-echo "owned-merge-provenance: ok (1 valid and 2 rejected fixtures)"
+echo "owned-merge-provenance: ok (2 valid and 2 rejected fixtures)"

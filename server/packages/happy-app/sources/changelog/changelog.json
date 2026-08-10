@@ -1,6 +1,16 @@
 {
   "entries": [
     {
+      "title": "August 10 — Flexible machine setup",
+      "summary": "Machines can come online with the providers they actually have, while Commander instructions stay synchronized automatically.",
+      "markdown": "- The host daemon no longer requires both Claude Code and Codex to be installed before a machine can connect.\n- Missing providers stay unavailable for new sessions instead of blocking the whole machine.\n- Commander sessions repair a stale or misdirected `CLAUDE.md` mirror from the canonical `AGENTS.md` automatically.\n- Encryption, machine identity, path containment, and context-bundle integrity checks are unchanged."
+    },
+    {
+      "title": "August 9 — HappyHerd dogfood foundation",
+      "summary": "HappyHerd's owned product features are now recorded alongside the Happy updates we inherit.",
+      "markdown": "- Create or restore a self-hosted account with one visible, reusable account key.\n- Browse host-machine workspaces, preview images, PDFs, HTML, and Markdown, edit supported files, and attach workspace files to a session.\n- Use Claude Code and Codex subscriptions with canonical model choices, remembered effort, native steering, explicit queued messages, and provider-native resume.\n- Choose a Commander identity when starting a session; canonical `AGENTS.md` instructions and visible heartbeat or scheduled automations follow that identity.\n- Start sessions with text, images, or gated OpenAI voice dictation from the same composer capabilities used in chat.\n- Returning tabs and reconnected clients reconcile new conversation messages automatically; subagent activity is grouped and collapsed by default.\n- English, Simplified Chinese, and German UI catalogs are checked against a generated route, panel, modal, state, and accessibility inventory.\n- HappyHerd support links, reproducible releases, rollback contracts, and detached host-daemon lifecycle are maintained independently from upstream Happy."
+    },
+    {
       "title": "August 9 — Rich agent replies",
       "summary": "Agent and subagent replies now render safe Markdown and responsive images.",
       "markdown": "- Main-agent and subagent replies share the same Markdown renderer.\n- Headings, lists, block quotes, code, tables, links, task lists, and strikethrough render in chat.\n- HTTP(S) images render responsively with alt text, lazy loading, failure feedback, and full-size preview.\n- Unsafe image schemes fail closed; existing attachment and file-viewer behavior is unchanged."
@@ -91,5 +101,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 9 — Rich agent replies"
+  "latestTitle": "August 10 — Flexible machine setup"
 }
