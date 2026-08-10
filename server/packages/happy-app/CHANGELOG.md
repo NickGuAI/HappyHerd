@@ -1,3 +1,10 @@
+# August 10 — Consistent sidebar actions
+
+Machine Workspace and Automations now use the same compact sidebar control as New Session.
+
+- Primary sidebar destinations share one width, height, spacing, typography, and pressed state.
+- Navigation controls no longer stretch vertically when the session list is short or empty.
+
 # August 10 — Lean runtime state
 
 HappyHerd's persistent home now contains durable user state instead of disposable provider transport files.

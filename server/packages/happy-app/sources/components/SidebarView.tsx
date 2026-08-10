@@ -6,12 +6,13 @@ import { useHeaderHeight } from '@/utils/responsive';
 import { VoiceAssistantStatusBar } from './VoiceAssistantStatusBar';
 import { useRealtimeStatus, useSetting, useSettingMutable } from '@/sync/storage';
 import { MainView } from './MainView';
-import { StyleSheet } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography } from '@/constants/Typography';
 import { ShortcutHintBadge, useShortcutHints } from './ShortcutHints';
 import { useHasArchivedSessions } from '@/hooks/useVisibleSessionListViewData';
+import { SidebarNavigationButton } from './SidebarNavigationButton';
 
 const stylesheet = StyleSheet.create((theme) => ({
     container: {
@@ -23,26 +24,15 @@ const stylesheet = StyleSheet.create((theme) => ({
     },
     topControls: {
         flexDirection: 'row',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         marginHorizontal: 16,
         marginTop: 8,
         marginBottom: 4,
         gap: 8,
     },
-    newSessionButton: {
+    primaryNavigation: {
         flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 10,
-        paddingHorizontal: 14,
-        borderRadius: 10,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: theme.colors.divider,
-        backgroundColor: theme.colors.surface,
         gap: 8,
-    },
-    newSessionButtonPressed: {
-        backgroundColor: theme.colors.surfacePressed,
     },
     archiveButton: {
         width: 40,
@@ -57,14 +47,11 @@ const stylesheet = StyleSheet.create((theme) => ({
     archiveButtonActive: {
         backgroundColor: theme.colors.surfaceSelected,
     },
-    shortcutTargetActive: {
+    archiveButtonPressed: {
         backgroundColor: theme.colors.surfacePressed,
     },
-    newSessionText: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: theme.colors.text,
-        ...Typography.default('semiBold'),
+    shortcutTargetActive: {
+        backgroundColor: theme.colors.surfacePressed,
     },
     settingsRow: {
         flexDirection: 'row',
@@ -88,6 +75,7 @@ const stylesheet = StyleSheet.create((theme) => ({
 
 export const SidebarView = React.memo(() => {
     const styles = stylesheet;
+    const { theme } = useUnistyles();
     const safeArea = useSafeAreaInsets();
     const router = useRouter();
     const headerHeight = useHeaderHeight();
@@ -109,18 +97,27 @@ export const SidebarView = React.memo(() => {
     return (
         <View style={[styles.container, { paddingTop: safeArea.top + headerHeight }]}>
             <View style={styles.topControls}>
-                <Pressable
-                    onPress={handleNewSession}
-                    style={({ pressed }) => [
-                        styles.newSessionButton,
-                        shortcutHintsVisible && styles.shortcutTargetActive,
-                        pressed && styles.newSessionButtonPressed,
-                    ]}
-                >
-                    <Ionicons name="create-outline" size={16} color={stylesheet.newSessionText.color} />
-                    <Text style={styles.newSessionText}>{t('sidebar.newSession')}</Text>
-                    <ShortcutHintBadge shortcutKey="N" style={styles.shortcutBadgeInline} />
-                </Pressable>
+                <View style={styles.primaryNavigation}>
+                    <SidebarNavigationButton
+                        icon="create-outline"
+                        label={t('sidebar.newSession')}
+                        onPress={handleNewSession}
+                        highlighted={shortcutHintsVisible}
+                        trailing={<ShortcutHintBadge shortcutKey="N" />}
+                    />
+                    {machineWorkspaceEnabled && (
+                        <SidebarNavigationButton
+                            icon="folder-open-outline"
+                            label={t('workspace.title')}
+                            onPress={() => router.navigate('/workspace')}
+                        />
+                    )}
+                    <SidebarNavigationButton
+                        icon="time-outline"
+                        label={t('happyHerd.automations.title')}
+                        onPress={() => router.navigate('/automations')}
+                    />
+                </View>
                 {hasArchivedSessions && (
                     <Pressable
                         onPress={handleArchiveVisibility}
@@ -132,41 +129,17 @@ export const SidebarView = React.memo(() => {
                         style={({ pressed }) => [
                             styles.archiveButton,
                             !hideArchivedSessions && styles.archiveButtonActive,
-                            pressed && styles.newSessionButtonPressed,
+                            pressed && styles.archiveButtonPressed,
                         ]}
                     >
                         <Ionicons
                             name={hideArchivedSessions ? 'archive-outline' : 'archive'}
                             size={18}
-                            color={stylesheet.newSessionText.color}
+                            color={theme.colors.text}
                         />
                     </Pressable>
                 )}
             </View>
-
-            {machineWorkspaceEnabled && (
-                <Pressable
-                    onPress={() => router.navigate('/workspace')}
-                    style={({ pressed }) => [
-                        styles.newSessionButton,
-                        pressed && styles.newSessionButtonPressed,
-                    ]}
-                >
-                    <Ionicons name="folder-open-outline" size={16} color={stylesheet.newSessionText.color} />
-                    <Text style={styles.newSessionText}>{t('workspace.title')}</Text>
-                </Pressable>
-            )}
-
-            <Pressable
-                onPress={() => router.navigate('/automations')}
-                style={({ pressed }) => [
-                    styles.newSessionButton,
-                    pressed && styles.newSessionButtonPressed,
-                ]}
-            >
-                <Ionicons name="time-outline" size={16} color={stylesheet.newSessionText.color} />
-                <Text style={styles.newSessionText}>{t("happyHerd.automations.title")}</Text>
-            </Pressable>
 
             {realtimeStatus !== 'disconnected' && (
                 <VoiceAssistantStatusBar variant="sidebar" />

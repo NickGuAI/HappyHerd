@@ -111,3 +111,4 @@ DEPLOY	code-ready	fix(release): restore self-host image assembly	scripts/test-re
 R12	code-ready	feat(automations): collapse cards by default	server/packages/happy-app/sources/components/HappyHerdAutomationCard.test.ts
 RUNTIME_STATE	code-ready	fix(context): keep generated Commander bundles out of HappyHerd home	server/packages/happy-cli/src/agentContext/commanderContext.test.ts
 RUNTIME_STATE	code-ready	fix(claude): keep transient hook settings out of HappyHerd home	server/packages/happy-cli/src/claude/utils/generateHookSettings.test.ts
+SIDEBAR_UI	code-ready	fix(navigation): keep primary sidebar actions on shared geometry	server/packages/happy-app/sources/components/SidebarNavigationButton.test.ts
