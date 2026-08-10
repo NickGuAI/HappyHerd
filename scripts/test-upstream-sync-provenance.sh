@@ -111,6 +111,6 @@ run_case valid valid pass
 run_case unrelated unrelated "second parent does not descend from upstream"
 run_case local-descendant local-descendant "second parent is not reachable from trusted upstream"
 run_case outside-prefix outside-prefix "changed paths outside server/"
-run_case wrong-subject wrong-subject "subject does not identify its second parent"
+run_case wrong-subject wrong-subject "unmanifested merge"
 
 echo "upstream-sync-provenance: ok (1 valid and 4 rejected fixtures)"

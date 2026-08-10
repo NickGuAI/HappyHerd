@@ -155,7 +155,11 @@ for record in "${series[@]}"; do
     continue
   fi
 
-  if [[ "${HAPPYHERD_ALLOW_REHEARSAL_SYNC:-0}" == "1" && "$sha" == "$(git rev-parse HEAD)" ]]; then
+  # A real upstream subtree merge is identified by its exact second-parent
+  # subject and then proven against the trusted public upstream below. Keep the
+  # rehearsal-only knobs for fixture baselines, but do not make production
+  # upstream merges impossible to verify.
+  if [[ "$subject" == "Merge commit '$second_parent'" ]]; then
     gate="UPSTREAM_SYNC"
   else
     fail "unmanifested merge ${sha:0:12}: $subject"
