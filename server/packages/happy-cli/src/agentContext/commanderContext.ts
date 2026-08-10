@@ -10,6 +10,7 @@ import {
   realpath,
   rename,
   symlink,
+  unlink,
   writeFile,
 } from 'node:fs/promises';
 import { homedir } from 'node:os';
@@ -245,26 +246,32 @@ async function ensureClaudeMirror(agentsPath: string, content: string): Promise<
   const mirrorPath = claudeMirrorPath();
   if (mirrorPath === agentsPath) return;
 
+  let replaceMirror = false;
+
   try {
     const stats = await lstat(mirrorPath);
     if (stats.isSymbolicLink()) {
       const target = await readlink(mirrorPath);
       const resolvedTarget = path.resolve(path.dirname(mirrorPath), target);
       if (resolvedTarget === agentsPath) return;
-      throw new Error(`CLAUDE.md points to ${resolvedTarget}, not canonical ${agentsPath}`);
+      replaceMirror = true;
+    } else if (stats.isFile()) {
+      const existing = await readFile(mirrorPath, 'utf8');
+      if (existing === content) return;
+      if (existing.startsWith(MANAGED_COPY_HEADER)) {
+        await writeFile(mirrorPath, MANAGED_COPY_HEADER + content, { mode: 0o600 });
+        return;
+      }
+      replaceMirror = true;
+    } else {
+      throw new Error(`CLAUDE.md mirror path is not a file or symbolic link: ${mirrorPath}`);
     }
-    const existing = await readFile(mirrorPath, 'utf8');
-    if (existing === content) return;
-    if (existing.startsWith(MANAGED_COPY_HEADER)) {
-      await writeFile(mirrorPath, MANAGED_COPY_HEADER + content, { mode: 0o600 });
-      return;
-    }
-    throw new Error(`CLAUDE.md diverges from canonical AGENTS.md at ${agentsPath}; reconcile it before starting a Commander session`);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
   }
 
   await mkdir(path.dirname(mirrorPath), { recursive: true });
+  if (replaceMirror) await unlink(mirrorPath);
   if (process.platform !== 'win32') {
     await symlink(path.relative(path.dirname(mirrorPath), agentsPath), mirrorPath);
     return;
