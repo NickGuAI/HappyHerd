@@ -100,3 +100,4 @@ R10	code-ready	fix(runtime): restore detached host daemon lifecycle (#63)	script
 UPSTREAM_SYNC	code-ready	fix(sync): accept verified production upstream merges	scripts/test-upstream-sync-provenance.sh
 DEPLOY	code-ready	fix(release): align image contract with self-host package	scripts/test-release-image-contract.sh
 CI	code-ready	fix(ci): pin test environment in contract suite	scripts/contract-suite.sh
+CI	code-ready	fix(build): keep production tsconfig strict JSON	server/packages/happy-server/tsconfig.build.json
