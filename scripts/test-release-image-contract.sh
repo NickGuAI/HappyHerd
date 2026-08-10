@@ -18,18 +18,20 @@ grep -Fq 'FROM node:20-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77
 grep -Fq 'COPY packages/happy-app ./packages/happy-app' "$DOCKERFILE" || \
     fail 'branded app source is absent from the image build'
 grep -Fq 'bundle:webapp' "$DOCKERFILE" || fail 'Web bundle is not built into the server image'
-grep -Fq 'build:standalone' "$DOCKERFILE" || fail 'server is not compiled into a standalone runtime'
-grep -Fq -- '--compile --external redis' "$ROOT/server/packages/happy-server/package.json" || \
-    fail 'standalone build does not exclude the unreachable node-redis branch'
-grep -Fq 'mkdir -p dist/prisma' "$ROOT/server/packages/happy-server/package.json" || \
-    fail 'standalone build does not create the Prisma migration destination'
-grep -Fq 'PRISMA_QUERY_ENGINE_LIBRARY=/app/libquery_engine-debian-openssl-3.0.x.so.node' "$DOCKERFILE" || \
+grep -Fq 'happy-server-self-host --fail-if-no-match build' "$DOCKERFILE" || \
+    fail 'self-host package is not compiled into a standalone runtime'
+grep -Fq "args.push('--external', dependency)" \
+    "$ROOT/server/packages/happy-server-self-host/scripts/build-runtime.cjs" || \
+    fail 'self-host runtime does not externalize its declared dependencies'
+grep -Fq 'fs.cpSync(prismaSource, prismaTarget, { recursive: true })' \
+    "$ROOT/server/packages/happy-server-self-host/scripts/build-runtime.cjs" || \
+    fail 'self-host runtime does not copy the Prisma schema and migrations'
+grep -Fq 'PRISMA_QUERY_ENGINE_LIBRARY=/repo/node_modules/.prisma/client/libquery_engine-debian-openssl-3.0.x.so.node' "$DOCKERFILE" || \
     fail 'standalone runtime does not identify its native Prisma engine'
 grep -Fq 'node_modules/.prisma/client/libquery_engine-debian-openssl-3.0.x.so.node' "$DOCKERFILE" || \
     fail 'standalone runtime does not contain its native Prisma engine'
-if grep -Eq '^COPY[[:space:]]+--from=builder[[:space:]]+/repo/node_modules/?[[:space:]]' "$DOCKERFILE"; then
-    fail 'runtime image must not contain the build workspace dependency tree'
-fi
+grep -Fq 'COPY --from=builder /repo/packages/happy-server-self-host /repo/packages/happy-server-self-host' "$DOCKERFILE" || \
+    fail 'runtime image does not contain the built self-host package'
 grep -Fq 'HEALTHCHECK' "$DOCKERFILE" || fail 'runtime image has no container healthcheck'
 grep -Fq 'org.opencontainers.image.revision' "$DOCKERFILE" || fail 'image has no source revision label'
 grep -Fq 'ai.gehirn.happyherd.brand.sha256' "$DOCKERFILE" || fail 'image has no brand provenance label'
