@@ -15,16 +15,18 @@ singular `commander/` store, or a second home-level `AGENTS.md`.
 │   ├── rules/
 │   ├── automations/*.json
 │   └── migration-manifest.json
-├── agent-context/bundles/<sha256>.md
 └── commanders/<commander-id>/
     ├── COMMANDER.md
     └── agentcontext/{memory,rules}/
 ```
 
-The immutable bundle is a delivery artifact, not another editable authority.
-It combines exactly one global guide, at most one selected Commander, and the
-nearest project `AGENTS.md` (or `CLAUDE.md` when no `AGENTS.md` exists). Shared
-and private AgentContext paths are referenced for on-demand loading.
+The generated prompt combines exactly one global guide, at most one selected
+Commander, and the nearest project `AGENTS.md` (or `CLAUDE.md` when no
+`AGENTS.md` exists). A one-use bundle transports that prompt through the
+operating system's temporary directory and is removed after the provider child
+reads it. It is never persisted under `~/.happyherd` or treated as a second
+AgentContext tree. Shared and private AgentContext paths are referenced for
+on-demand loading.
 
 Effective precedence is:
 

@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "b9cbff078e2df14784d5f52b242201ffe08828c41cc627e577bba711fe77de47",
+  "sourceFingerprint": "56802a15e9e6da6914ac8709e0824b563ce2a769b44c8715d6b71234ddaeb193",
   "routeCount": 36,
-  "surfaceCount": 221,
+  "surfaceCount": 222,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -3865,6 +3865,17 @@
         "settingsFeatures.commandPalette",
         "sidebar.newSession"
       ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/SidebarNavigationButton.tsx",
+      "kind": "sidebar",
+      "route": null,
+      "exports": [
+        "SidebarNavigationButton"
+      ],
+      "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
     },

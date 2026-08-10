@@ -1,6 +1,16 @@
 {
   "entries": [
     {
+      "title": "August 10 — Consistent sidebar actions",
+      "summary": "Machine Workspace and Automations now use the same compact sidebar control as New Session.",
+      "markdown": "- Primary sidebar destinations share one width, height, spacing, typography, and pressed state.\n- Navigation controls no longer stretch vertically when the session list is short or empty."
+    },
+    {
+      "title": "August 10 — Lean runtime state",
+      "summary": "HappyHerd's persistent home now contains durable user state instead of disposable provider transport files.",
+      "markdown": "- `agentcontext/` and `commanders/` remain the canonical AgentContext stores.\n- Generated Commander prompt bundles use the operating system's temporary directory and are removed after delivery.\n- Claude hook settings also use isolated operating-system temporary directories with automatic cleanup.\n- Codex's image cache remains available for local-image inputs and thread-history previews."
+    },
+    {
       "title": "August 10 — Compact automation cards",
       "summary": "Automation lists stay scannable while full controls remain one tap away.",
       "markdown": "- Automation cards now default to a compact name-and-status summary.\n- Open any card to inspect its schedule, type, instruction, provider, workspace, actions, and run history.\n- Each card expands independently with accessible controls across mobile, desktop, light, and dark themes."
@@ -106,5 +116,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 10 — Compact automation cards"
+  "latestTitle": "August 10 — Consistent sidebar actions"
 }

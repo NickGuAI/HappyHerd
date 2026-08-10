@@ -39,6 +39,11 @@ contract suite before release.
 - `pnpm --filter happy-app i18n:check` is the required guardrail for catalog
   parity, semantic exemptions, AST copy scanning, the 36-route inventory, and
   the critical locale/viewport/theme smoke matrix.
+- Every top-level desktop sidebar destination must use the shared
+  `SidebarNavigationButton` component and live in the primary navigation
+  column. Do not give vertically stacked navigation controls flexible height;
+  new destinations must match the New Session button's width, height, spacing,
+  typography, interaction states, and accessibility semantics.
 
 ## Product changelog
 

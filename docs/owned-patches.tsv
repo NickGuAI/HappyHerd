@@ -109,3 +109,7 @@ CI	code-ready	fix(ci): pin test environment in contract suite	scripts/contract-s
 CI	code-ready	fix(build): keep production tsconfig strict JSON	server/packages/happy-server/tsconfig.build.json
 DEPLOY	code-ready	fix(release): restore self-host image assembly	scripts/test-release-image-contract.sh
 R12	code-ready	feat(automations): collapse cards by default	server/packages/happy-app/sources/components/HappyHerdAutomationCard.test.ts
+RUNTIME_STATE	code-ready	fix(runtime): keep transient state out of HappyHerd home	server/packages/happy-cli/src/agentContext/commanderContext.test.ts
+SIDEBAR_UI	code-ready	fix(navigation): unify primary sidebar actions	server/packages/happy-app/sources/components/SidebarNavigationButton.test.ts
+SIDEBAR_UI	code-ready	chore(ui): refresh sidebar surface artifacts	server/packages/happy-app/sources/text/ui-tree.html
+SIDEBAR_UI	code-ready	docs(patches): register sidebar navigation patch series	docs/owned-patches.tsv
