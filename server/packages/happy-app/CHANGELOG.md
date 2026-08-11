@@ -1,3 +1,11 @@
+# August 11 — Full access follows through
+
+Codex full-access sessions can now complete policy-gated commands without stopping for an approval they cannot display.
+
+- Explicit `full access` / `yolo` sessions keep Codex's approval request channel open.
+- HappyHerd automatically accepts those requests through its existing host approval bridge, so external actions authorized by full access can run.
+- Read-only, workspace-sandboxed, and ask-first modes keep their existing permission boundaries.
+
 # August 10 — Consistent sidebar actions
 
 Machine Workspace and Automations now use the same compact sidebar control as New Session.
