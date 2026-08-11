@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { resolveCodexExecutionPolicy, shouldAutoApproveCodexApproval } from '../executionPolicy';
 
 describe('resolveCodexExecutionPolicy', () => {
-    it('forces never + danger-full-access when sandbox is managed by Happy', () => {
+    it('keeps the approval bridge reachable when sandbox is managed by Happy', () => {
         const policy = resolveCodexExecutionPolicy('default', true);
 
         expect(policy).toEqual({
-            approvalPolicy: 'never',
+            approvalPolicy: 'on-request',
             sandbox: 'danger-full-access',
         });
     });
@@ -38,22 +38,24 @@ describe('resolveCodexExecutionPolicy', () => {
         });
     });
 
-    it('maps yolo mode to never + danger-full-access without managed sandbox', () => {
+    it('maps yolo to requestable approvals that the host auto-accepts', () => {
         const policy = resolveCodexExecutionPolicy('yolo', false);
 
         expect(policy).toEqual({
-            approvalPolicy: 'never',
+            approvalPolicy: 'on-request',
             sandbox: 'danger-full-access',
         });
+        expect(shouldAutoApproveCodexApproval('yolo', false)).toBe(true);
     });
 
-    it('maps bypassPermissions mode to never + danger-full-access without managed sandbox', () => {
+    it('maps bypassPermissions to the same requestable full-access contract', () => {
         const policy = resolveCodexExecutionPolicy('bypassPermissions', false);
 
         expect(policy).toEqual({
-            approvalPolicy: 'never',
+            approvalPolicy: 'on-request',
             sandbox: 'danger-full-access',
         });
+        expect(shouldAutoApproveCodexApproval('bypassPermissions', false)).toBe(true);
     });
 
     it('auto-approves bridge prompts for no-prompt modes without managed sandbox', () => {

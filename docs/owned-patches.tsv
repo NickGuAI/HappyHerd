@@ -113,3 +113,4 @@ RUNTIME_STATE	code-ready	fix(runtime): keep transient state out of HappyHerd hom
 SIDEBAR_UI	code-ready	fix(navigation): unify primary sidebar actions	server/packages/happy-app/sources/components/SidebarNavigationButton.test.ts
 SIDEBAR_UI	code-ready	chore(ui): refresh sidebar surface artifacts	server/packages/happy-app/sources/text/ui-tree.html
 SIDEBAR_UI	code-ready	docs(patches): register sidebar navigation patch series	docs/owned-patches.tsv
+R14	code-ready	fix(codex): honor full-access approval bypass (#76)	server/packages/happy-cli/src/codex/__tests__/executionPolicy.test.ts
