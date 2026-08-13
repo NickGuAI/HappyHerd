@@ -13,6 +13,7 @@ export type NewSessionPickerItem = {
     key: string;
     label: string;
     subtitle?: string;
+    kind?: 'option' | 'action';
 };
 
 export function getAgentPickerItems(agents: AgentPickerSource[]): NewSessionPickerItem[] {

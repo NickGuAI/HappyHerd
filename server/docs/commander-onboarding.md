@@ -6,7 +6,8 @@ boundary.
 
 ## User flow
 
-1. Open the Command Palette and choose **Create Commander**.
+1. On Web, open the New Session Commander picker and choose **Create
+   Commander**. Desktop Web users may alternatively use the Command Palette.
 2. Select the target machine and provider as for any other new session.
 3. The main agent interviews the user one question at a time for the name, role
    and mission, absolute machine workspace, operating boundaries, and useful
@@ -18,6 +19,11 @@ boundary.
 
 The interaction remains resumable because it is a normal HappyHerd session. No
 server-side workflow or hidden creation state exists.
+
+The touch entry is currently Web-only. Native iOS parity is intentionally
+tracked in [HappyHerd issue #85](https://github.com/NickGuAI/HappyHerd/issues/85)
+so a future native implementation reuses this same intent and does not create a
+second onboarding workflow.
 
 ## Manifest contract
 
