@@ -311,6 +311,10 @@ export type TranslationKey =
     | "happyHerd.automations.unableUpdate"
     | "happyHerd.automations.unknownError"
     | "happyHerd.automations.workspace"
+    | "happyHerd.commander.category"
+    | "happyHerd.commander.createSubtitle"
+    | "happyHerd.commander.createTitle"
+    | "happyHerd.commander.onboardingPrompt"
     | "happyHerd.composer.addPhoto"
     | "happyHerd.composer.addPhotos"
     | "happyHerd.composer.cancelVoice"
@@ -1151,6 +1155,12 @@ export type TranslationKey =
     | "workspace.selectMachine"
     | "workspace.selectedCount"
     | "workspace.title"
+    | "workspace.upload"
+    | "workspace.uploadComplete"
+    | "workspace.uploadFailed"
+    | "workspace.uploadTooLarge"
+    | "workspace.uploadTooMany"
+    | "workspace.uploading"
     | "zen.toggle";
 
 export interface TranslationParamsByKey {
@@ -1265,6 +1275,10 @@ export interface TranslationParamsByKey {
     "uiCopy.valueUnavailable": { value1: string | number };
     "uiCopy.yourEditsToValueHaveNotBeenSaved": { value1: string | number };
     "workspace.selectedCount": { count: number; max: number };
+    "workspace.uploadComplete": { count: number };
+    "workspace.uploadTooLarge": { file: string };
+    "workspace.uploadTooMany": { count: number };
+    "workspace.uploading": { completed: string; file: string; total: string | number };
 }
 
 export type TranslationKeyWithParams = keyof TranslationParamsByKey;

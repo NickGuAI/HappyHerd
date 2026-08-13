@@ -47,6 +47,7 @@ import {
 } from '@/utils/machineWorkspace';
 import { formatPathRelativeToHome } from '@/utils/sessionUtils';
 import { resolveAbsolutePath } from '@/utils/pathUtils';
+import { useMachineFileUpload } from '@/hooks/useMachineFileUpload';
 
 function param(value: string | string[] | undefined): string | undefined {
     return Array.isArray(value) ? value[0] : value;
@@ -116,6 +117,20 @@ export default function MachineWorkspaceScreen() {
     const [stagedFiles, setStagedFiles] = React.useState<Set<string>>(
         () => new Set(sessionId ? getWorkspaceContextFiles(sessionId) : []),
     );
+    const handleUploadedFile = React.useCallback((filePath: string) => {
+        if (attachmentMode) {
+            setStagedFiles((current) => {
+                if (current.size >= MAX_WORKSPACE_CONTEXT_FILES) return current;
+                return new Set([...current, filePath]);
+            });
+        }
+        setReloadToken((value) => value + 1);
+    }, [attachmentMode]);
+    const uploader = useMachineFileUpload({
+        machineId: selectedMachineId,
+        directory: currentDirectory,
+        onUploaded: handleUploadedFile,
+    });
 
     React.useEffect(() => {
         if (selectedMachineId && machines.some((machine) => machine.id === selectedMachineId)) return;
@@ -363,7 +378,25 @@ export default function MachineWorkspaceScreen() {
                             <PathAction icon="arrow-up" label={t('workspace.parent')} onPress={() => openDirectory(parentHostPath(currentDirectory, selectedMachine.metadata?.platform))} />
                             <PathAction icon="refresh" label={t('workspace.refresh')} onPress={() => setReloadToken((value) => value + 1)} />
                             <PathAction icon={currentFavorite ? 'star' : 'star-outline'} label={t('workspace.favorites')} onPress={() => toggleFavorite(currentDirectory)} />
+                            <PathAction icon="cloud-upload-outline" label={t('workspace.upload')} onPress={() => void uploader.pickAndUpload()} />
                         </View>
+
+                        {uploader.state.phase !== 'idle' && (
+                            <Text style={[
+                                styles.uploadStatus,
+                                { color: uploader.state.phase === 'error' ? theme.colors.status.disconnected : theme.colors.textSecondary },
+                            ]}>
+                                {uploader.state.phase === 'uploading'
+                                    ? t('workspace.uploading', {
+                                        file: uploader.state.currentFile ?? '',
+                                        completed: String(uploader.state.completed),
+                                        total: String(uploader.state.total),
+                                    })
+                                    : uploader.state.phase === 'complete'
+                                        ? t('workspace.uploadComplete', { count: uploader.state.completed })
+                                        : uploader.state.error}
+                            </Text>
+                        )}
 
                         {machineFavorites.length > 0 && (
                             <PathChipSection
@@ -723,6 +756,7 @@ const styles = StyleSheet.create((theme) => ({
     pathInput: { flex: 1, minWidth: 0, borderWidth: 1, borderRadius: 9, paddingHorizontal: 11, paddingVertical: Platform.OS === 'web' ? 9 : 8, ...Typography.mono() },
     goButton: { minWidth: 50, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
     pathActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+    uploadStatus: { fontSize: 12, ...Typography.default() },
     pathAction: { minWidth: 54, minHeight: 44, alignItems: 'center', justifyContent: 'center', gap: 2, borderRadius: 8 },
     pathActionLabel: { fontSize: 10, ...Typography.default() },
     pathChip: { maxWidth: 220, borderWidth: 1, borderRadius: 8, minHeight: 32, justifyContent: 'center', paddingHorizontal: 9 },

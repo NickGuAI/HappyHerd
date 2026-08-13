@@ -131,7 +131,19 @@ export async function buildWorkspaceContextMessage(
         if (!response.success || response.content === undefined || response.content === null) {
             throw new Error(`Could not read ${filePath}: ${response.error ?? 'unknown error'}`);
         }
-        const decoded = decodeWorkspaceContextText(response.content, filePath);
+        let decoded: { text: string; bytes: number };
+        try {
+            decoded = decodeWorkspaceContextText(response.content, filePath);
+        } catch (error) {
+            if (source.kind !== 'machine') throw error;
+            sections.push([
+                `--- ATTACHED WORKSPACE FILE REFERENCE: ${filePath} ---`,
+                'This binary or large file is available at the exact host path above.',
+                'Use the provider file tools to inspect it when needed.',
+                `--- END ATTACHED WORKSPACE FILE REFERENCE: ${filePath} ---`,
+            ].join('\n'));
+            continue;
+        }
         totalBytes += decoded.bytes;
         if (totalBytes > MAX_WORKSPACE_CONTEXT_TOTAL_BYTES) {
             throw new Error('Attached workspace context is larger than 512 KiB');

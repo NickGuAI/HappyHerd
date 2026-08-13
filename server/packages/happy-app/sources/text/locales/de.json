@@ -264,6 +264,12 @@
     "root": "Wurzel",
     "parent": "Elternteil",
     "refresh": "Aktualisieren",
+    "upload": "Hochladen",
+    "uploading": "{file} wird hochgeladen ({completed}/{total})…",
+    "uploadComplete": "{count} Datei(en) hochgeladen.",
+    "uploadFailed": "Hochladen fehlgeschlagen",
+    "uploadTooMany": "Wählen Sie höchstens {count} Dateien aus",
+    "uploadTooLarge": "{file}: Die Datei ist größer als 20 MiB",
     "recent": "Jüngste",
     "favorites": "Favoriten",
     "emptyFolder": "Dieser Ordner ist leer.",
@@ -1142,6 +1148,12 @@
     "friendAcceptedGeneric": "Freundschaftsanfrage angenommen"
   },
   "happyHerd": {
+    "commander": {
+      "category": "Commander",
+      "createTitle": "Commander erstellen",
+      "createSubtitle": "Eine geführte Onboarding-Sitzung starten",
+      "onboardingPrompt": "Hilf mir, einen neuen HappyHerd Commander zu erstellen. Befrage mich jeweils mit einer Frage zu Name, Rolle und Mission, absolutem Maschinen-Arbeitsbereich, Arbeitsgrenzen und wichtigem Startkontext. Zeige mir eine knappe abschließende Zusammenfassung und warte auf meine ausdrückliche Bestätigung, bevor du etwas schreibst. Verfasse danach die semantischen Inhalte selbst: eine vollständige COMMANDER.md mit identity_and_scope-Frontmatter, nützliche erste Beobachtungen als JSONL, Arbeitsgedächtnis, Langzeitgedächtnis und nur wirklich nützliche Lerndateien. Speichere die exakten Inhalte in einem temporären JSON-Manifest mit den Feldern id, name, workspace, role, commanderMarkdown, observationsJsonl, workingMemoryMarkdown, longTermMemoryMarkdown und learnings[{path,content}]. Führe `happy commander create --manifest <file>` aus, prüfe mit `happy commander list` und lösche dann das temporäre Manifest. Erstelle keine zweite Registry und verwende keine Platzhalterinhalte."
+    },
     "composer": {
       "queueMessage": "Nachricht einreihen",
       "addPhoto": "Foto hinzufügen",

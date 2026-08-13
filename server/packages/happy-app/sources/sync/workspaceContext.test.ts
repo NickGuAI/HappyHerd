@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
     MAX_WORKSPACE_CONTEXT_FILE_BYTES,
     addWorkspaceContextFile,
@@ -7,7 +7,13 @@ import {
     getWorkspaceContextFileSource,
     getWorkspaceContextFiles,
     removeWorkspaceContextFile,
+    buildWorkspaceContextMessage,
 } from './workspaceContext';
+
+vi.mock('./ops', () => ({
+    machineReadFile: vi.fn(async () => ({ success: true, content: btoa('\0binary') })),
+    sessionReadFile: vi.fn(),
+}));
 
 function toBase64(value: string): string {
     return btoa(unescape(encodeURIComponent(value)));
@@ -62,5 +68,14 @@ describe('workspace context selection', () => {
 
     it('decodes utf-8 text', () => {
         expect(decodeWorkspaceContextText(toBase64('你好, HappyHerd'), 'note.md').text).toBe('你好, HappyHerd');
+    });
+
+    it('keeps machine binary attachments as host-path references for the agent', async () => {
+        clearWorkspaceContextFiles('s4');
+        addWorkspaceContextFile('s4', '/home/nick/report.pdf', { kind: 'machine', machineId: 'm1' });
+        const message = await buildWorkspaceContextMessage('s4', 'Review this', ['/home/nick/report.pdf']);
+        expect(message.promptText).toContain('ATTACHED WORKSPACE FILE REFERENCE: /home/nick/report.pdf');
+        expect(message.promptText).toContain('Use the provider file tools');
+        clearWorkspaceContextFiles('s4');
     });
 });

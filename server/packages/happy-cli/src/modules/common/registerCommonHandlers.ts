@@ -1,9 +1,16 @@
 import { logger } from '@/ui/logger';
 import { exec, ExecOptions } from 'child_process';
 import { promisify } from 'util';
-import { readFile, writeFile, readdir, stat } from 'fs/promises';
-import { createHash } from 'crypto';
-import { join, resolve } from 'path';
+import { link, readFile, writeFile, readdir, stat, unlink } from 'fs/promises';
+import { createHash, randomUUID } from 'crypto';
+import { basename, dirname, join, resolve } from 'path';
+import {
+    isSafeWorkspaceUploadFileName,
+    MAX_WORKSPACE_UPLOAD_BYTES,
+    WorkspaceUploadRequestSchema,
+    type WorkspaceUploadRequest,
+    type WorkspaceUploadResponse,
+} from '@slopus/happy-wire';
 import { run as runRipgrep } from '@/modules/ripgrep/index';
 import { run as runDifftastic } from '@/modules/difftastic/index';
 import { RpcHandlerManager } from '../../api/rpc/RpcHandlerManager';
@@ -46,6 +53,22 @@ interface WriteFileResponse {
     success: boolean;
     hash?: string; // hash of written file
     error?: string;
+}
+
+async function writeUploadedFileAtomically(targetPath: string, buffer: Buffer): Promise<void> {
+    const temporaryPath = join(
+        dirname(targetPath),
+        `.happyherd-upload-${randomUUID()}.tmp`,
+    );
+    await writeFile(temporaryPath, buffer, { flag: 'wx', mode: 0o600 });
+    try {
+        // A same-directory hard link publishes the fully written inode without
+        // replacing an existing destination. EEXIST is therefore an atomic
+        // conflict instead of a check-then-write race.
+        await link(temporaryPath, targetPath);
+    } finally {
+        await unlink(temporaryPath).catch(() => undefined);
+    }
 }
 
 interface ListDirectoryRequest {
@@ -369,6 +392,76 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
         } catch (error) {
             logger.debug('Failed to write file:', error);
             return { success: false, error: error instanceof Error ? error.message : 'Failed to write file' };
+        }
+    });
+
+    rpcHandlerManager.registerHandler<WorkspaceUploadRequest, WorkspaceUploadResponse>('uploadFile', async (rawData) => {
+        const parsed = WorkspaceUploadRequestSchema.safeParse(rawData);
+        if (!parsed.success) {
+            return { success: false, code: 'invalid-name', error: 'Invalid upload request' };
+        }
+        const data = parsed.data;
+        if (!isSafeWorkspaceUploadFileName(data.fileName) || basename(data.fileName) !== data.fileName) {
+            return { success: false, code: 'invalid-name', error: 'File name must not contain a path' };
+        }
+
+        const directoryValidation = checkPath(data.directory);
+        if (!directoryValidation.valid) {
+            return { success: false, code: 'write-failed', error: directoryValidation.error };
+        }
+
+        const normalizedContent = data.content.replace(/\s/g, '');
+        const maxEncodedBytes = Math.ceil(MAX_WORKSPACE_UPLOAD_BYTES / 3) * 4;
+        if (normalizedContent.length > maxEncodedBytes + 4) {
+            return { success: false, code: 'too-large', error: 'File is too large to upload (limit 20 MiB)' };
+        }
+        if (normalizedContent.length % 4 !== 0) {
+            return { success: false, code: 'write-failed', error: 'File content is not valid base64' };
+        }
+
+        let buffer: Buffer;
+        try {
+            buffer = Buffer.from(normalizedContent, 'base64');
+        } catch {
+            return { success: false, code: 'write-failed', error: 'File content is not valid base64' };
+        }
+        if (buffer.toString('base64') !== normalizedContent) {
+            return { success: false, code: 'write-failed', error: 'File content is not valid base64' };
+        }
+        if (buffer.byteLength > MAX_WORKSPACE_UPLOAD_BYTES) {
+            return { success: false, code: 'too-large', error: 'File is too large to upload (limit 20 MiB)' };
+        }
+
+        const directoryPath = directoryValidation.resolvedPath!;
+        const targetPath = join(directoryPath, data.fileName);
+        const targetValidation = checkPath(targetPath);
+        if (!targetValidation.valid) {
+            return { success: false, code: 'write-failed', error: targetValidation.error };
+        }
+
+        try {
+            const directoryInfo = await stat(directoryPath);
+            if (!directoryInfo.isDirectory()) {
+                return { success: false, code: 'not-directory', error: 'Upload destination is not a directory' };
+            }
+            await writeUploadedFileAtomically(targetValidation.resolvedPath!, buffer);
+            return {
+                success: true,
+                path: targetValidation.resolvedPath!,
+                size: buffer.byteLength,
+                hash: createHash('sha256').update(buffer).digest('hex'),
+            };
+        } catch (error) {
+            const nodeError = error as NodeJS.ErrnoException;
+            if (nodeError.code === 'EEXIST') {
+                return { success: false, code: 'conflict', error: 'A file with this name already exists' };
+            }
+            logger.debug('Failed to upload file:', error);
+            return {
+                success: false,
+                code: 'write-failed',
+                error: error instanceof Error ? error.message : 'Failed to upload file',
+            };
         }
     });
 

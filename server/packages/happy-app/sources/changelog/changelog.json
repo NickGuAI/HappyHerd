@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 13 — Upload into real workspaces",
+      "summary": "Files can now move from the phone or browser directly into a connected machine workspace.",
+      "markdown": "- Machine Workspace uploads multiple files into the directory you are currently browsing without overwriting existing files.\n- New Session can upload and attach workspace files before the agent starts; current sessions reuse the same Workspace attachment flow.\n- Text files can be included directly as message context, while images, PDFs, and other binary files stay at their exact host path for Claude Code or Codex to inspect with native file tools.\n- Upload publication is atomic, byte-exact, size-bounded, and shared by every interface instead of introducing another file store."
+    },
+    {
       "title": "August 13 — Live conversation catch-up",
       "summary": "Returning to a conversation now catches up without a manual browser refresh.",
       "markdown": "- Visible sessions reconcile immediately when the browser regains network access.\n- Readers who are reviewing older messages keep their scroll position and see a new-message count instead of being pulled away.\n- “Jump to latest” returns to the live edge in one action on mobile and desktop."
@@ -126,5 +131,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 13 — Live conversation catch-up"
+  "latestTitle": "August 13 — Upload into real workspaces"
 }

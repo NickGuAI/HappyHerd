@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "56802a15e9e6da6914ac8709e0824b563ce2a769b44c8715d6b71234ddaeb193",
+  "sourceFingerprint": "8f3edb69ca478f97c57eac1ff04e5b482d27831e92e16076a46dcbc86514cdc7",
   "routeCount": 36,
-  "surfaceCount": 222,
+  "surfaceCount": 223,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -260,6 +260,7 @@
         "common.create",
         "common.error",
         "happyHerd.automations.commander",
+        "happyHerd.commander.onboardingPrompt",
         "happyHerd.composer.addPhotos",
         "happyHerd.composer.cancelVoice",
         "happyHerd.composer.finishVoice",
@@ -312,7 +313,10 @@
         "uiCopy.whatWouldYouLikeToWorkOn",
         "uiCopy.worktree",
         "workspace.recent",
-        "workspace.selectMachine"
+        "workspace.selectMachine",
+        "workspace.upload",
+        "workspace.uploadComplete",
+        "workspace.uploading"
       ],
       "states": [
         "error"
@@ -951,7 +955,10 @@
         "workspace.searchPlaceholder",
         "workspace.selectMachine",
         "workspace.selectedCount",
-        "workspace.title"
+        "workspace.title",
+        "workspace.upload",
+        "workspace.uploadComplete",
+        "workspace.uploading"
       ],
       "states": []
     }
@@ -1350,6 +1357,7 @@
         "common.create",
         "common.error",
         "happyHerd.automations.commander",
+        "happyHerd.commander.onboardingPrompt",
         "happyHerd.composer.addPhotos",
         "happyHerd.composer.cancelVoice",
         "happyHerd.composer.finishVoice",
@@ -1402,7 +1410,10 @@
         "uiCopy.whatWouldYouLikeToWorkOn",
         "uiCopy.worktree",
         "workspace.recent",
-        "workspace.selectMachine"
+        "workspace.selectMachine",
+        "workspace.upload",
+        "workspace.uploadComplete",
+        "workspace.uploading"
       ],
       "states": [
         "error"
@@ -2147,7 +2158,10 @@
         "workspace.searchPlaceholder",
         "workspace.selectMachine",
         "workspace.selectedCount",
-        "workspace.title"
+        "workspace.title",
+        "workspace.upload",
+        "workspace.uploadComplete",
+        "workspace.uploading"
       ],
       "states": [],
       "hardcodedCopy": []
@@ -2506,7 +2520,10 @@
       "exports": [
         "ChatList"
       ],
-      "translationKeys": [],
+      "translationKeys": [
+        "uiCopy.jumpToLatest",
+        "uiCopy.newMessagesJumpToLatest"
+      ],
       "states": [],
       "hardcodedCopy": []
     },
@@ -2599,6 +2616,9 @@
         "CommandPaletteProvider"
       ],
       "translationKeys": [
+        "happyHerd.commander.category",
+        "happyHerd.commander.createSubtitle",
+        "happyHerd.commander.createTitle",
         "settings.account",
         "status.unknown",
         "tabs.settings",
@@ -4619,6 +4639,22 @@
         "imageUpload.limitTitle",
         "imageUpload.permissionMessage",
         "imageUpload.permissionTitle"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/hooks/useMachineFileUpload.ts",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "useMachineFileUpload",
+        "workspaceUploadFailureMessage"
+      ],
+      "translationKeys": [
+        "workspace.uploadFailed",
+        "workspace.uploadTooLarge",
+        "workspace.uploadTooMany"
       ],
       "states": [],
       "hardcodedCopy": []
