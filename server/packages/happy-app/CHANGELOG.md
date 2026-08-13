@@ -1,3 +1,12 @@
+# August 13 — Guided Commander onboarding
+
+Create a Commander through a normal, visible HappyHerd session instead of assembling its files by hand.
+
+- The Command Palette starts a localized onboarding session on the selected machine.
+- The main agent interviews one question at a time, shows a confirmation summary, and authors the exact identity, memory, and learning content.
+- A host-local `happy commander create --manifest <file>` command validates containment and identity, rejects collisions, and atomically publishes the canonical Commander tree.
+- The filesystem remains the only Commander registry, so the new identity appears in New Session without a daemon restart or central CRUD service.
+
 # August 13 — Upload into real workspaces
 
 Files can now move from the phone or browser directly into a connected machine workspace.

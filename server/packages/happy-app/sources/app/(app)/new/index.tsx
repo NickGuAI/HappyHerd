@@ -922,8 +922,7 @@ function NewSessionScreen() {
     React.useEffect(() => {
         if (intent !== 'create-commander' || commanderIntentAppliedRef.current) return;
         commanderIntentAppliedRef.current = true;
-        const current = useNewSessionDraft.getState();
-        if (!current.input.trim()) current.setInput(t('happyHerd.commander.onboardingPrompt'));
+        useNewSessionDraft.getState().setInput(t('happyHerd.commander.onboardingPrompt'));
     }, [intent]);
     const isMountedRef = React.useRef(true);
     const composerInputRef = React.useRef<import('@/components/MultiTextInput').MultiTextInputHandle>(null);

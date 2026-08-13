@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "8f3edb69ca478f97c57eac1ff04e5b482d27831e92e16076a46dcbc86514cdc7",
+  "sourceFingerprint": "c0c20a3875a70df6a1fdf178b8b7e2644516997b7044b50db07678d93af6f584",
   "routeCount": 36,
   "surfaceCount": 223,
   "hardcodedCopyCount": 0,
@@ -4648,8 +4648,7 @@
       "kind": "component",
       "route": null,
       "exports": [
-        "useMachineFileUpload",
-        "workspaceUploadFailureMessage"
+        "useMachineFileUpload"
       ],
       "translationKeys": [
         "workspace.uploadFailed",

@@ -1152,7 +1152,7 @@
       "category": "Commander",
       "createTitle": "创建 Commander",
       "createSubtitle": "启动引导式入职会话",
-      "onboardingPrompt": "请帮我创建一个新的 HappyHerd Commander。每次只问一个问题，依次确认名称、角色与使命、机器上的绝对工作区路径、工作边界，以及必要的初始上下文。先给我一份简洁的最终摘要，必须等我明确确认后才能写入任何内容。确认后，由你亲自撰写语义内容：包含 identity_and_scope frontmatter 的完整 COMMANDER.md、有用的初始 observations JSONL、工作记忆、长期记忆，以及确实有价值的 learning 文件。把这些原文写入临时 JSON manifest，字段为 id、name、workspace、role、commanderMarkdown、observationsJsonl、workingMemoryMarkdown、longTermMemoryMarkdown 和 learnings[{path,content}]。运行 `happy commander create --manifest <file>`，再用 `happy commander list` 验证，最后删除临时 manifest。不要创建第二套 registry，也不要写占位 seed 内容。"
+      "onboardingPrompt": "请帮我创建一个新的 HappyHerd Commander。每次只问一个问题，依次确认名称、角色与使命、机器上的绝对工作区路径、工作边界，以及必要的初始上下文。先给我一份简洁的最终摘要，必须等我明确确认后才能写入任何内容。确认后，由你亲自撰写语义内容：包含 identity_and_scope frontmatter 的完整 COMMANDER.md、有用的初始 observations JSONL、工作记忆、长期记忆，以及 rules/learnings/ 下确实有价值的 learning 文件。把这些原文写入临时 JSON manifest，字段为 id、name、workspace、role、commanderMarkdown、observationsJsonl、workingMemoryMarkdown、longTermMemoryMarkdown 和 learnings[{path,content}]。运行 `happy commander create --manifest <file>`，再用 `happy commander list` 验证，最后删除临时 manifest。不要创建第二套 registry，也不要写占位 seed 内容。"
     },
     "composer": {
       "queueMessage": "排队消息",
