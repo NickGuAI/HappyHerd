@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 13 — Live conversation catch-up",
+      "summary": "Returning to a conversation now catches up without a manual browser refresh.",
+      "markdown": "- Visible sessions reconcile immediately when the browser regains network access.\n- Readers who are reviewing older messages keep their scroll position and see a new-message count instead of being pulled away.\n- “Jump to latest” returns to the live edge in one action on mobile and desktop."
+    },
+    {
       "title": "August 11 — Full access follows through",
       "summary": "Codex full-access sessions can now complete policy-gated commands without stopping for an approval they cannot display.",
       "markdown": "- Explicit `full access` / `yolo` sessions keep Codex's approval request channel open.\n- HappyHerd automatically accepts those requests through its existing host approval bridge, so external actions authorized by full access can run.\n- Read-only, workspace-sandboxed, and ask-first modes keep their existing permission boundaries."
@@ -121,5 +126,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 11 — Full access follows through"
+  "latestTitle": "August 13 — Live conversation catch-up"
 }

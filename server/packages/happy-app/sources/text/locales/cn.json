@@ -1370,6 +1370,8 @@
     "developerMenu": "开发者菜单",
     "accessDeveloperTools": "访问开发者工具",
     "noCommandsFound": "没有找到命令",
+    "jumpToLatest": "跳到最新消息",
+    "newMessagesJumpToLatest": "{count} 条新消息 · 跳到最新",
     "commandCompletedWithNoOutput": "[命令已完成但无输出]",
     "happyTerminal": "happy://terminal?...",
     "npmIGHappy": "$ npm i -g happy",

@@ -1370,6 +1370,8 @@
     "developerMenu": "Entwicklermenü",
     "accessDeveloperTools": "Greifen Sie auf Entwicklertools zu",
     "noCommandsFound": "Keine Befehle gefunden",
+    "jumpToLatest": "Zur neuesten Nachricht",
+    "newMessagesJumpToLatest": "{count} neu · Zur neuesten Nachricht",
     "commandCompletedWithNoOutput": "[Befehl ohne Ausgabe abgeschlossen]",
     "happyTerminal": "happy://terminal?...",
     "npmIGHappy": "$ npm i -g happy",

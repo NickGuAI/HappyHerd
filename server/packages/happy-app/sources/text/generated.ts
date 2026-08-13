@@ -932,6 +932,7 @@ export type TranslationKey =
     | "uiCopy.hideActivity"
     | "uiCopy.hostFolders"
     | "uiCopy.inProgressAndPending"
+    | "uiCopy.jumpToLatest"
     | "uiCopy.latestFast"
     | "uiCopy.latestFastest"
     | "uiCopy.latestMostCapable"
@@ -950,6 +951,7 @@ export type TranslationKey =
     | "uiCopy.model"
     | "uiCopy.mostCapable"
     | "uiCopy.new"
+    | "uiCopy.newMessagesJumpToLatest"
     | "uiCopy.newSession"
     | "uiCopy.newWorktree"
     | "uiCopy.noActiveSessions"
@@ -1244,6 +1246,7 @@ export interface TranslationParamsByKey {
     "uiCopy.currentTokenValue": { value1: string | number };
     "uiCopy.editValue": { value1: string | number };
     "uiCopy.inProgressAndPending": { value1: string | number; value2: string | number };
+    "uiCopy.newMessagesJumpToLatest": { count: number };
     "uiCopy.notSupportedByValue": { value1: string | number };
     "uiCopy.openFolderValue": { value1: string | number };
     "uiCopy.previewOfValue": { value1: string | number };

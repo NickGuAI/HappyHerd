@@ -233,6 +233,14 @@ class Sync {
             document.addEventListener('visibilitychange', broadcast);
             window.addEventListener('focus', broadcast);
             window.addEventListener('blur', broadcast);
+            window.addEventListener('online', () => {
+                // Do not wait for Socket.IO's retry delay before reconciling
+                // the visible message cursor. The existing HTTP forward-sync
+                // is independent of the socket and InvalidateSync owns retry
+                // and event-storm coalescing.
+                apiSocket.reconnectNow();
+                this.reconcileCurrentViewingSession({ source: 'network-online' });
+            });
         }
     }
 
