@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useSession, useSessionMessages, useSetting } from "@/sync/storage";
 import { sync } from '@/sync/sync';
-import { ActivityIndicator, AppState, FlatList, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, View } from 'react-native';
+import { ActivityIndicator, AppState, FlatList, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, Text, View } from 'react-native';
 import { useCallback } from 'react';
 import { useHeaderHeight } from '@/utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,6 +15,8 @@ import { Octicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { resolveControlMode } from '@/sync/controlHandoff';
 import { usesControlledSessionUi } from '@/sync/rig';
+import { countNewConversationMessages, getConversationMessageIds } from './chatLatestNavigation';
+import { t } from '@/text';
 
 const SCROLL_THRESHOLD = 300;
 const DOCK_DETAILS_SHOW_OFFSET = 16;
@@ -92,12 +94,15 @@ const ChatListInternal = React.memo((props: {
     const { theme } = useUnistyles();
     const flatListRef = React.useRef<FlatList>(null);
     const [showScrollButton, setShowScrollButton] = React.useState(false);
+    const [newMessageCount, setNewMessageCount] = React.useState(0);
     const [handoffListRevision, setHandoffListRevision] = React.useState(0);
     // Tracks whether the scroll-button is currently shown, so we only call
     // setShowScrollButton when the threshold is actually crossed instead of
     // on every scroll frame (60Hz). Without this guard, the entire list
     // parent re-renders on every wheel tick.
     const showScrollButtonRef = React.useRef(false);
+    const newMessageCountRef = React.useRef(0);
+    const isFollowingLatestRef = React.useRef(true);
     const headerBackdropVisibleRef = React.useRef(false);
     const bottomDockVisibleRef = React.useRef(true);
     // Native auto-stick-to-bottom also emits scroll events. Only a drag that
@@ -139,6 +144,34 @@ const ChatListInternal = React.memo((props: {
         [collapseCurrentTurn],
     );
     const displayItems = useGroupedMessages(props.messages, groupToolCalls, groupingOptions);
+    const conversationMessageIds = React.useMemo(
+        () => getConversationMessageIds(props.messages),
+        [props.messages],
+    );
+    const previousConversationMessageIdsRef = React.useRef(conversationMessageIds);
+
+    React.useEffect(() => {
+        const added = countNewConversationMessages(
+            previousConversationMessageIdsRef.current,
+            conversationMessageIds,
+        );
+        previousConversationMessageIdsRef.current = conversationMessageIds;
+        if (added === 0 || isFollowingLatestRef.current) {
+            return;
+        }
+        setNewMessageCount((current) => {
+            const next = current + added;
+            newMessageCountRef.current = next;
+            return next;
+        });
+    }, [conversationMessageIds]);
+
+    React.useEffect(() => {
+        previousConversationMessageIdsRef.current = conversationMessageIds;
+        isFollowingLatestRef.current = true;
+        newMessageCountRef.current = 0;
+        setNewMessageCount(0);
+    }, [props.sessionId]);
 
     // Tracks which groups are explicitly collapsed. Groups start collapsed;
     // pending approval groups are the only ones we auto-expand.
@@ -352,6 +385,11 @@ const ChatListInternal = React.memo((props: {
     const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
         const offsetY = e.nativeEvent.contentOffset.y;
         scrollMetricsRef.current.offsetY = offsetY;
+        isFollowingLatestRef.current = offsetY <= 50;
+        if (isFollowingLatestRef.current && newMessageCountRef.current > 0) {
+            newMessageCountRef.current = 0;
+            setNewMessageCount(0);
+        }
         updateHeaderBackdropVisibility();
         if (isUserScrollingRef.current) {
             updateBottomDockVisibility(offsetY);
@@ -389,6 +427,9 @@ const ChatListInternal = React.memo((props: {
         // This is an explicit "go to latest" action, so its animated native
         // scroll should restore the dock even though it is not a drag.
         setBottomDockVisibility(true);
+        isFollowingLatestRef.current = true;
+        newMessageCountRef.current = 0;
+        setNewMessageCount(0);
         flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
     }, [setBottomDockVisibility]);
 
@@ -471,7 +512,7 @@ const ChatListInternal = React.memo((props: {
                 onEndReached={handleLoadOlder}
                 onEndReachedThreshold={0.5}
             />
-            {showScrollButton && (
+            {(showScrollButton || newMessageCount > 0) && (
                 <View style={[
                     styles.scrollButtonContainer,
                     { bottom: 12 + (props.bottomContentInset ?? 0) },
@@ -482,8 +523,15 @@ const ChatListInternal = React.memo((props: {
                             pressed ? styles.scrollButtonPressed : styles.scrollButtonDefault
                         ]}
                         onPress={scrollToBottom}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('uiCopy.jumpToLatest')}
                     >
                         <Octicons name="arrow-down" size={14} color={theme.colors.text} />
+                        <Text style={styles.scrollButtonLabel}>
+                            {newMessageCount > 0
+                                ? t('uiCopy.newMessagesJumpToLatest', { count: newMessageCount })
+                                : t('uiCopy.jumpToLatest')}
+                        </Text>
                     </Pressable>
                 </View>
             )}
@@ -507,8 +555,10 @@ const styles = StyleSheet.create((theme) => ({
     },
     scrollButton: {
         borderRadius: 16,
-        width: 32,
-        height: 32,
+        minHeight: 32,
+        paddingHorizontal: 12,
+        flexDirection: 'row',
+        gap: 6,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
@@ -526,5 +576,10 @@ const styles = StyleSheet.create((theme) => ({
     scrollButtonPressed: {
         backgroundColor: theme.colors.surface,
         opacity: 0.7,
+    },
+    scrollButtonLabel: {
+        color: theme.colors.text,
+        fontSize: 12,
+        fontWeight: '600',
     },
 }));

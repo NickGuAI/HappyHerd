@@ -1,6 +1,21 @@
 {
   "entries": [
     {
+      "title": "August 13 — Guided Commander onboarding",
+      "summary": "Create a Commander through a normal, visible HappyHerd session instead of assembling its files by hand.",
+      "markdown": "- The Command Palette starts a localized onboarding session on the selected machine.\n- The main agent interviews one question at a time, shows a confirmation summary, and authors the exact identity, memory, and learning content.\n- A host-local `happy commander create --manifest <file>` command validates containment and identity, rejects collisions, and atomically publishes the canonical Commander tree.\n- The filesystem remains the only Commander registry, so the new identity appears in New Session without a daemon restart or central CRUD service."
+    },
+    {
+      "title": "August 13 — Upload into real workspaces",
+      "summary": "Files can now move from the phone or browser directly into a connected machine workspace.",
+      "markdown": "- Machine Workspace uploads multiple files into the directory you are currently browsing without overwriting existing files.\n- New Session can upload and attach workspace files before the agent starts; current sessions reuse the same Workspace attachment flow.\n- Every batch reports per-file progress, can be cancelled after the current atomic host write, and retries only the unfinished files without reopening the picker.\n- Text files can be included directly as message context, while images, PDFs, and other binary files stay at their exact host path for Claude Code or Codex to inspect with native file tools.\n- Upload publication is atomic, byte-exact, size-bounded, and shared by every interface instead of introducing another file store."
+    },
+    {
+      "title": "August 13 — Live conversation catch-up",
+      "summary": "Returning to a conversation now catches up without a manual browser refresh.",
+      "markdown": "- Visible sessions reconcile immediately when the browser regains network access.\n- Readers who are reviewing older messages keep their scroll position and see a new-message count instead of being pulled away.\n- “Jump to latest” returns to the live edge in one action on mobile and desktop."
+    },
+    {
       "title": "August 11 — Full access follows through",
       "summary": "Codex full-access sessions can now complete policy-gated commands without stopping for an approval they cannot display.",
       "markdown": "- Explicit `full access` / `yolo` sessions keep Codex's approval request channel open.\n- HappyHerd automatically accepts those requests through its existing host approval bridge, so external actions authorized by full access can run.\n- Read-only, workspace-sandboxed, and ask-first modes keep their existing permission boundaries."
@@ -121,5 +136,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 11 — Full access follows through"
+  "latestTitle": "August 13 — Guided Commander onboarding"
 }

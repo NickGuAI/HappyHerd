@@ -36,6 +36,7 @@ import { ensureDaemonRunning } from './daemon/ensureDaemonRunning'
 import { handleCodexCommand } from './commands/codexCommand'
 import { sanitizeSessionEnvironment } from './daemon/sessionEnvironment'
 import { handleAutomationCommand } from './commands/automation'
+import { handleCommanderCommand } from './commands/commander'
 
 
 (async () => {
@@ -115,6 +116,14 @@ Conversation history is preserved on the server, but in-flight tool calls are in
   } else if (subcommand === 'automation') {
     try {
       await handleAutomationCommand(args.slice(1));
+    } catch (error) {
+      console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
+      process.exit(1)
+    }
+    return;
+  } else if (subcommand === 'commander') {
+    try {
+      await handleCommanderCommand(args.slice(1));
     } catch (error) {
       console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
       process.exit(1)

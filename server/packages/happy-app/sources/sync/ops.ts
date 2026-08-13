@@ -662,6 +662,25 @@ export async function machineWriteFile(
     }
 }
 
+/** Upload one local client file into an existing host directory without overwriting. */
+export async function machineUploadFile(
+    machineId: string,
+    request: import('@slopus/happy-wire').WorkspaceUploadRequest,
+): Promise<import('@slopus/happy-wire').WorkspaceUploadResponse> {
+    try {
+        return await apiSocket.machineRPC<
+            import('@slopus/happy-wire').WorkspaceUploadResponse,
+            import('@slopus/happy-wire').WorkspaceUploadRequest
+        >(machineId, 'uploadFile', request);
+    } catch (error) {
+        return {
+            success: false,
+            code: 'write-failed',
+            error: error instanceof Error ? error.message : 'Failed to upload machine file',
+        };
+    }
+}
+
 /** List one machine directory without tying the request to an agent session. */
 export async function machineListDirectory(
     machineId: string,

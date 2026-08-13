@@ -114,3 +114,8 @@ SIDEBAR_UI	code-ready	fix(navigation): unify primary sidebar actions	server/pack
 SIDEBAR_UI	code-ready	chore(ui): refresh sidebar surface artifacts	server/packages/happy-app/sources/text/ui-tree.html
 SIDEBAR_UI	code-ready	docs(patches): register sidebar navigation patch series	docs/owned-patches.tsv
 R14	code-ready	fix(codex): honor full-access approval bypass (#76)	server/packages/happy-cli/src/codex/__tests__/executionPolicy.test.ts
+R1	code-ready	fix(app): reconcile visible conversations live	server/packages/happy-app/sources/sync/visibleSessionReconciliation.test.ts
+R13	code-ready	feat(workspace): upload files into connected machines	server/packages/happy-cli/src/modules/common/registerCommonHandlers.uploadFile.test.ts
+R15	code-ready	feat(commanders): add session-native onboarding	server/packages/happy-cli/src/commands/commander.test.ts
+R13	code-ready	fix(workspace): add upload cancel and retry	server/packages/happy-app/sources/utils/machineFileUploadBatch.test.ts
+R1-R15	code-ready	docs(patches): register R1 R13 and R15 delivery	docs/owned-patches.tsv

@@ -1,3 +1,30 @@
+# August 13 — Guided Commander onboarding
+
+Create a Commander through a normal, visible HappyHerd session instead of assembling its files by hand.
+
+- The Command Palette starts a localized onboarding session on the selected machine.
+- The main agent interviews one question at a time, shows a confirmation summary, and authors the exact identity, memory, and learning content.
+- A host-local `happy commander create --manifest <file>` command validates containment and identity, rejects collisions, and atomically publishes the canonical Commander tree.
+- The filesystem remains the only Commander registry, so the new identity appears in New Session without a daemon restart or central CRUD service.
+
+# August 13 — Upload into real workspaces
+
+Files can now move from the phone or browser directly into a connected machine workspace.
+
+- Machine Workspace uploads multiple files into the directory you are currently browsing without overwriting existing files.
+- New Session can upload and attach workspace files before the agent starts; current sessions reuse the same Workspace attachment flow.
+- Every batch reports per-file progress, can be cancelled after the current atomic host write, and retries only the unfinished files without reopening the picker.
+- Text files can be included directly as message context, while images, PDFs, and other binary files stay at their exact host path for Claude Code or Codex to inspect with native file tools.
+- Upload publication is atomic, byte-exact, size-bounded, and shared by every interface instead of introducing another file store.
+
+# August 13 — Live conversation catch-up
+
+Returning to a conversation now catches up without a manual browser refresh.
+
+- Visible sessions reconcile immediately when the browser regains network access.
+- Readers who are reviewing older messages keep their scroll position and see a new-message count instead of being pulled away.
+- “Jump to latest” returns to the live edge in one action on mobile and desktop.
+
 # August 11 — Full access follows through
 
 Codex full-access sessions can now complete policy-gated commands without stopping for an approval they cannot display.

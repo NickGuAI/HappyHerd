@@ -6,6 +6,7 @@ describe('requestVisibleSessionReconciliation', () => {
     it.each([
         { source: 'app-state', state: 'active' } as const,
         { source: 'web-lifecycle', state: 'active' } as const,
+        { source: 'network-online' } as const,
         { source: 'socket-reconnect' } as const,
     ])('reconciles the current session for $source', (trigger) => {
         const invalidateMessages = vi.fn();

@@ -311,6 +311,10 @@ export type TranslationKey =
     | "happyHerd.automations.unableUpdate"
     | "happyHerd.automations.unknownError"
     | "happyHerd.automations.workspace"
+    | "happyHerd.commander.category"
+    | "happyHerd.commander.createSubtitle"
+    | "happyHerd.commander.createTitle"
+    | "happyHerd.commander.onboardingPrompt"
     | "happyHerd.composer.addPhoto"
     | "happyHerd.composer.addPhotos"
     | "happyHerd.composer.cancelVoice"
@@ -932,6 +936,7 @@ export type TranslationKey =
     | "uiCopy.hideActivity"
     | "uiCopy.hostFolders"
     | "uiCopy.inProgressAndPending"
+    | "uiCopy.jumpToLatest"
     | "uiCopy.latestFast"
     | "uiCopy.latestFastest"
     | "uiCopy.latestMostCapable"
@@ -950,6 +955,7 @@ export type TranslationKey =
     | "uiCopy.model"
     | "uiCopy.mostCapable"
     | "uiCopy.new"
+    | "uiCopy.newMessagesJumpToLatest"
     | "uiCopy.newSession"
     | "uiCopy.newWorktree"
     | "uiCopy.noActiveSessions"
@@ -1149,6 +1155,14 @@ export type TranslationKey =
     | "workspace.selectMachine"
     | "workspace.selectedCount"
     | "workspace.title"
+    | "workspace.upload"
+    | "workspace.uploadCancelled"
+    | "workspace.uploadCancelling"
+    | "workspace.uploadComplete"
+    | "workspace.uploadFailed"
+    | "workspace.uploadTooLarge"
+    | "workspace.uploadTooMany"
+    | "workspace.uploading"
     | "zen.toggle";
 
 export interface TranslationParamsByKey {
@@ -1244,6 +1258,7 @@ export interface TranslationParamsByKey {
     "uiCopy.currentTokenValue": { value1: string | number };
     "uiCopy.editValue": { value1: string | number };
     "uiCopy.inProgressAndPending": { value1: string | number; value2: string | number };
+    "uiCopy.newMessagesJumpToLatest": { count: number };
     "uiCopy.notSupportedByValue": { value1: string | number };
     "uiCopy.openFolderValue": { value1: string | number };
     "uiCopy.previewOfValue": { value1: string | number };
@@ -1262,6 +1277,11 @@ export interface TranslationParamsByKey {
     "uiCopy.valueUnavailable": { value1: string | number };
     "uiCopy.yourEditsToValueHaveNotBeenSaved": { value1: string | number };
     "workspace.selectedCount": { count: number; max: number };
+    "workspace.uploadCancelled": { completed: string; total: string | number };
+    "workspace.uploadComplete": { count: number };
+    "workspace.uploadTooLarge": { file: string };
+    "workspace.uploadTooMany": { count: number };
+    "workspace.uploading": { completed: string; file: string; total: string | number };
 }
 
 export type TranslationKeyWithParams = keyof TranslationParamsByKey;

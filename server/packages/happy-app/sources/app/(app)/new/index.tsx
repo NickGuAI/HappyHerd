@@ -44,9 +44,11 @@ import { formatPathRelativeToHome, formatLastSeen } from '@/utils/sessionUtils';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
 import { useImagePicker } from '@/hooks/useImagePicker';
+import { useMachineFileUpload } from '@/hooks/useMachineFileUpload';
 import { useVoiceDictation, type VoiceDictationPhase } from '@/hooks/useVoiceDictation';
 import { useVoiceInputAvailability } from '@/hooks/useVoiceInputAvailability';
 import { AgentInputAttachmentStrip } from '@/components/AgentInputAttachmentStrip';
+import { WorkspaceContextStrip } from '@/components/WorkspaceContextStrip';
 import { resolveAgentInputPrimaryAction } from '@/components/agentInputPrimaryAction';
 import { useShallow } from 'zustand/react/shallow';
 import type { MultiTextInputHandle } from '@/components/MultiTextInput';
@@ -91,6 +93,7 @@ import { getNativeGlassInteractivity } from '@/components/glassInteractionPolicy
 import { BubblePressable } from '@/components/BubblePressable';
 import { Header } from '@/components/navigation/Header';
 import { MachinePathBrowser, type FavoriteMachinePath } from '@/components/MachinePathBrowser';
+import { MachineFileUploadStatus } from '@/components/MachineFileUploadStatus';
 import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
 import {
     AnimatedClickAwayBackdrop,
@@ -98,6 +101,12 @@ import {
     LocalBlurHalo,
 } from '@/components/AnimatedOverlay';
 import type { HappyHerdCommanderSummary } from '@slopus/happy-wire';
+import {
+    addWorkspaceContextFile,
+    buildWorkspaceContextMessage,
+    clearWorkspaceContextFiles,
+    MAX_WORKSPACE_CONTEXT_FILES,
+} from '@/sync/workspaceContext';
 
 // Agent icon assets
 const agentIcons = {
@@ -754,6 +763,7 @@ const NewSessionPrimaryButton = React.memo(function NewSessionPrimaryButton({
     dictationPhase,
     onSend,
     onVoice,
+    hasWorkspaceFiles,
 }: {
     canSend: boolean;
     isSpawning: boolean;
@@ -762,10 +772,11 @@ const NewSessionPrimaryButton = React.memo(function NewSessionPrimaryButton({
     dictationPhase: VoiceDictationPhase;
     onSend: () => void;
     onVoice: () => void;
+    hasWorkspaceFiles: boolean;
 }) {
     const { theme } = useUnistyles();
     const hasContent = useNewSessionDraft((state) => (
-        state.input.trim().length > 0 || state.attachments.length > 0
+        state.input.trim().length > 0 || state.attachments.length > 0 || hasWorkspaceFiles
     ));
     const primaryAction = resolveAgentInputPrimaryAction({
         hasComposerContent: hasContent,
@@ -835,7 +846,7 @@ function NewSessionScreen() {
     const safeArea = useSafeAreaInsets();
     const headerHeight = useHeaderHeight();
     const router = useRouter();
-    const { autoSubmit } = useLocalSearchParams<{ autoSubmit?: string }>();
+    const { autoSubmit, intent } = useLocalSearchParams<{ autoSubmit?: string; intent?: string }>();
     const navigation = useNavigation();
     const navigateToSession = useNavigateToSession();
 
@@ -880,6 +891,7 @@ function NewSessionScreen() {
         attachments: s.attachments,
         setAttachments: s.setAttachments,
     })));
+    const [workspaceFiles, setWorkspaceFiles] = React.useState<string[]>([]);
     const selectedAgent = draft.agentType;
     const setSelectedAgent = draft.setAgentType;
     const selectedMachineId = draft.selectedMachineId;
@@ -907,6 +919,12 @@ function NewSessionScreen() {
     const [mobileConfigHeight, setMobileConfigHeight] = React.useState(0);
     const [nativePickerMeasuredHeight, setNativePickerMeasuredHeight] = React.useState<number | null>(null);
     const autoSubmitStartedRef = React.useRef(false);
+    const commanderIntentAppliedRef = React.useRef(false);
+    React.useEffect(() => {
+        if (intent !== 'create-commander' || commanderIntentAppliedRef.current) return;
+        commanderIntentAppliedRef.current = true;
+        useNewSessionDraft.getState().setInput(t('happyHerd.commander.onboardingPrompt'));
+    }, [intent]);
     const isMountedRef = React.useRef(true);
     const composerInputRef = React.useRef<import('@/components/MultiTextInput').MultiTextInputHandle>(null);
     const pendingPickerRef = React.useRef<PickerType | null>(null);
@@ -953,6 +971,25 @@ function NewSessionScreen() {
         ? selectedRigCreation?.supportsWorktrees ?? false
         : rigCreation?.supportsWorktrees ?? getSupportsWorktree(selectedAgent);
     const selectedHomeDir = selectedMachine?.metadata?.homeDir;
+    const uploadDirectory = selectedMachine
+        ? resolveAbsolutePath(trimPathInput(selectedPath) || '~', selectedHomeDir)
+        : null;
+    const handleWorkspaceUploaded = React.useCallback((filePath: string) => {
+        setWorkspaceFiles((current) => (
+            current.includes(filePath) || current.length >= MAX_WORKSPACE_CONTEXT_FILES
+                ? current
+                : [...current, filePath]
+        ));
+    }, []);
+    const workspaceUploader = useMachineFileUpload({
+        machineId: selectedMachineId,
+        directory: uploadDirectory,
+        onUploaded: handleWorkspaceUploaded,
+    });
+    React.useEffect(() => {
+        setWorkspaceFiles([]);
+        workspaceUploader.reset();
+    }, [selectedMachineId, selectedPath]);
     const selectedMachineFavorites = React.useMemo(
         () => favoriteMachinePaths.filter((favorite) => favorite.machineId === selectedMachineId),
         [favoriteMachinePaths, selectedMachineId],
@@ -1620,12 +1657,41 @@ function NewSessionScreen() {
                     const draftState = useNewSessionDraft.getState();
                     const trimmedPrompt = draftState.input.trim();
                     const attachments = draftState.attachments;
+                    let initialPrompt = trimmedPrompt;
+                    let initialDisplayText = trimmedPrompt;
 
-                    // Send initial message if provided
-                    if (trimmedPrompt || attachments.length > 0) {
-                        await sync.sendMessage(result.sessionId, trimmedPrompt, { source: 'new_session', attachments });
+                    if (workspaceFiles.length > 0) {
+                        workspaceFiles.forEach((filePath) => {
+                            addWorkspaceContextFile(result.sessionId, filePath, {
+                                kind: 'machine',
+                                machineId: selectedMachineId,
+                            });
+                        });
+                        const workspaceMessage = await (async () => {
+                            try {
+                                return await buildWorkspaceContextMessage(
+                                    result.sessionId,
+                                    trimmedPrompt,
+                                    workspaceFiles,
+                                );
+                            } finally {
+                                clearWorkspaceContextFiles(result.sessionId);
+                            }
+                        })();
+                        initialPrompt = workspaceMessage.promptText;
+                        initialDisplayText = workspaceMessage.displayText;
                     }
 
+                    // Send initial message if provided
+                    if (initialPrompt || attachments.length > 0) {
+                        await sync.sendMessage(result.sessionId, initialPrompt, {
+                            source: 'new_session',
+                            attachments,
+                            displayText: initialDisplayText,
+                        });
+                    }
+
+                    setWorkspaceFiles([]);
                     draftState.setInput('');
                     draftState.setAttachments([]);
 
@@ -1663,7 +1729,7 @@ function NewSessionScreen() {
         } finally {
             if (isMountedRef.current) setIsSpawning(false);
         }
-    }, [selectedMachineId, selectedMachine, selectedPath, selectedCommanderId, selectedAgent, router, navigateToSession, currentPermission?.key, currentModelKey, currentEffort?.key, effectiveAgentDefaults.permissionMode, effectiveAgentDefaults.modelMode, effectiveEffortDefault, worktreeKey, rigCreation, supportsWorktree]);
+    }, [selectedMachineId, selectedMachine, selectedPath, selectedCommanderId, selectedAgent, router, navigateToSession, currentPermission?.key, currentModelKey, currentEffort?.key, effectiveAgentDefaults.permissionMode, effectiveAgentDefaults.modelMode, effectiveEffortDefault, worktreeKey, rigCreation, supportsWorktree, workspaceFiles]);
 
     const canSend = selectedMachineId && selectedMachine && isMachineOnline(selectedMachine) && !isSpawning;
     React.useEffect(() => {
@@ -1674,6 +1740,7 @@ function NewSessionScreen() {
             || (
                 !useNewSessionDraft.getState().input.trim()
                 && useNewSessionDraft.getState().attachments.length === 0
+                && workspaceFiles.length === 0
             )
         ) {
             return;
@@ -1684,7 +1751,7 @@ function NewSessionScreen() {
             void handleSend();
         }, 180);
         return () => clearTimeout(timeout);
-    }, [autoSubmit, canSend, handleSend]);
+    }, [autoSubmit, canSend, handleSend, workspaceFiles.length]);
 
     const sidebarLayout = getNewSessionSidebarLayout({
         platform: Platform.OS,
@@ -2175,6 +2242,7 @@ function NewSessionScreen() {
             dictationPhase={voiceDictation.phase}
             onSend={() => void handleSend()}
             onVoice={voiceDictation.toggle}
+            hasWorkspaceFiles={workspaceFiles.length > 0}
         />
     );
 
@@ -2188,6 +2256,10 @@ function NewSessionScreen() {
                 : undefined}
             style={[styles.inputBox, isNativeMobile && styles.mobileInputBox]}
         >
+            <WorkspaceContextStrip
+                files={workspaceFiles}
+                onRemove={(filePath) => setWorkspaceFiles((current) => current.filter((path) => path !== filePath))}
+            />
             {expImageUpload && imagePicker.selectedImages.length > 0 && (
                 <AgentInputAttachmentStrip
                     images={imagePicker.selectedImages}
@@ -2199,6 +2271,14 @@ function NewSessionScreen() {
                     {voiceDictation.error}
                 </Text>
             )}
+            <MachineFileUploadStatus
+                state={workspaceUploader.state}
+                canCancel={workspaceUploader.canCancel}
+                canRetry={workspaceUploader.canRetry}
+                onCancel={workspaceUploader.cancel}
+                onRetry={() => void workspaceUploader.retry()}
+                style={{ paddingHorizontal: 12, paddingTop: 8 }}
+            />
             <View style={[styles.inputField, isNativeMobile && styles.mobileInputField]}>
                 <PromptInput
                     ref={composerInputRef}
@@ -2280,6 +2360,25 @@ function NewSessionScreen() {
                         />
                     </BubblePressable>
                 )}
+                <BubblePressable
+                    onPress={() => void workspaceUploader.pickAndUpload()}
+                    hitSlop={6}
+                    disabled={!selectedMachineId || !uploadDirectory || workspaceUploader.state.phase === 'uploading' || workspaceUploader.state.phase === 'cancelling'}
+                    style={(pressedState) => [
+                        styles.composerActionButton,
+                        pressedState.pressed && styles.configRowPressed,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('workspace.upload')}
+                >
+                    <Ionicons
+                        name="document-attach-outline"
+                        size={21}
+                        color={workspaceFiles.length > 0
+                            ? theme.colors.radio.active
+                            : theme.colors.textSecondary}
+                    />
+                </BubblePressable>
                 {voiceDictation.phase === 'recording' && (
                     <BubblePressable
                         onPress={voiceDictation.cancel}
