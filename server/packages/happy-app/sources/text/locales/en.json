@@ -266,6 +266,8 @@
     "refresh": "Refresh",
     "upload": "Upload",
     "uploading": "Uploading {file} ({completed}/{total})…",
+    "uploadCancelling": "Finishing the current file, then cancelling…",
+    "uploadCancelled": "Upload cancelled after {completed} of {total} file(s).",
     "uploadComplete": "Uploaded {count} file(s).",
     "uploadFailed": "Upload failed",
     "uploadTooMany": "Select at most {count} files",

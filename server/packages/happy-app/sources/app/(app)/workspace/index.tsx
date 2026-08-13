@@ -48,6 +48,7 @@ import {
 import { formatPathRelativeToHome } from '@/utils/sessionUtils';
 import { resolveAbsolutePath } from '@/utils/pathUtils';
 import { useMachineFileUpload } from '@/hooks/useMachineFileUpload';
+import { MachineFileUploadStatus } from '@/components/MachineFileUploadStatus';
 
 function param(value: string | string[] | undefined): string | undefined {
     return Array.isArray(value) ? value[0] : value;
@@ -131,6 +132,9 @@ export default function MachineWorkspaceScreen() {
         directory: currentDirectory,
         onUploaded: handleUploadedFile,
     });
+    React.useEffect(() => {
+        uploader.reset();
+    }, [currentDirectory, selectedMachineId]);
 
     React.useEffect(() => {
         if (selectedMachineId && machines.some((machine) => machine.id === selectedMachineId)) return;
@@ -381,22 +385,14 @@ export default function MachineWorkspaceScreen() {
                             <PathAction icon="cloud-upload-outline" label={t('workspace.upload')} onPress={() => void uploader.pickAndUpload()} />
                         </View>
 
-                        {uploader.state.phase !== 'idle' && (
-                            <Text style={[
-                                styles.uploadStatus,
-                                { color: uploader.state.phase === 'error' ? theme.colors.status.disconnected : theme.colors.textSecondary },
-                            ]}>
-                                {uploader.state.phase === 'uploading'
-                                    ? t('workspace.uploading', {
-                                        file: uploader.state.currentFile ?? '',
-                                        completed: String(uploader.state.completed),
-                                        total: String(uploader.state.total),
-                                    })
-                                    : uploader.state.phase === 'complete'
-                                        ? t('workspace.uploadComplete', { count: uploader.state.completed })
-                                        : uploader.state.error}
-                            </Text>
-                        )}
+                        <MachineFileUploadStatus
+                            state={uploader.state}
+                            canCancel={uploader.canCancel}
+                            canRetry={uploader.canRetry}
+                            onCancel={uploader.cancel}
+                            onRetry={() => void uploader.retry()}
+                            style={styles.uploadStatusRow}
+                        />
 
                         {machineFavorites.length > 0 && (
                             <PathChipSection
@@ -756,7 +752,7 @@ const styles = StyleSheet.create((theme) => ({
     pathInput: { flex: 1, minWidth: 0, borderWidth: 1, borderRadius: 9, paddingHorizontal: 11, paddingVertical: Platform.OS === 'web' ? 9 : 8, ...Typography.mono() },
     goButton: { minWidth: 50, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
     pathActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-    uploadStatus: { fontSize: 12, ...Typography.default() },
+    uploadStatusRow: { paddingHorizontal: 2 },
     pathAction: { minWidth: 54, minHeight: 44, alignItems: 'center', justifyContent: 'center', gap: 2, borderRadius: 8 },
     pathActionLabel: { fontSize: 10, ...Typography.default() },
     pathChip: { maxWidth: 220, borderWidth: 1, borderRadius: 8, minHeight: 32, justifyContent: 'center', paddingHorizontal: 9 },

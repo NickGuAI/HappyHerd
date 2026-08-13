@@ -1156,6 +1156,8 @@ export type TranslationKey =
     | "workspace.selectedCount"
     | "workspace.title"
     | "workspace.upload"
+    | "workspace.uploadCancelled"
+    | "workspace.uploadCancelling"
     | "workspace.uploadComplete"
     | "workspace.uploadFailed"
     | "workspace.uploadTooLarge"
@@ -1275,6 +1277,7 @@ export interface TranslationParamsByKey {
     "uiCopy.valueUnavailable": { value1: string | number };
     "uiCopy.yourEditsToValueHaveNotBeenSaved": { value1: string | number };
     "workspace.selectedCount": { count: number; max: number };
+    "workspace.uploadCancelled": { completed: string; total: string | number };
     "workspace.uploadComplete": { count: number };
     "workspace.uploadTooLarge": { file: string };
     "workspace.uploadTooMany": { count: number };

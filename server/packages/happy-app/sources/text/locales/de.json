@@ -266,6 +266,8 @@
     "refresh": "Aktualisieren",
     "upload": "Hochladen",
     "uploading": "{file} wird hochgeladen ({completed}/{total})…",
+    "uploadCancelling": "Die aktuelle Datei wird abgeschlossen, danach wird abgebrochen…",
+    "uploadCancelled": "Upload nach {completed} von {total} Datei(en) abgebrochen.",
     "uploadComplete": "{count} Datei(en) hochgeladen.",
     "uploadFailed": "Hochladen fehlgeschlagen",
     "uploadTooMany": "Wählen Sie höchstens {count} Dateien aus",

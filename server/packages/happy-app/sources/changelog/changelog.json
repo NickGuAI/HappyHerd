@@ -8,7 +8,7 @@
     {
       "title": "August 13 — Upload into real workspaces",
       "summary": "Files can now move from the phone or browser directly into a connected machine workspace.",
-      "markdown": "- Machine Workspace uploads multiple files into the directory you are currently browsing without overwriting existing files.\n- New Session can upload and attach workspace files before the agent starts; current sessions reuse the same Workspace attachment flow.\n- Text files can be included directly as message context, while images, PDFs, and other binary files stay at their exact host path for Claude Code or Codex to inspect with native file tools.\n- Upload publication is atomic, byte-exact, size-bounded, and shared by every interface instead of introducing another file store."
+      "markdown": "- Machine Workspace uploads multiple files into the directory you are currently browsing without overwriting existing files.\n- New Session can upload and attach workspace files before the agent starts; current sessions reuse the same Workspace attachment flow.\n- Every batch reports per-file progress, can be cancelled after the current atomic host write, and retries only the unfinished files without reopening the picker.\n- Text files can be included directly as message context, while images, PDFs, and other binary files stay at their exact host path for Claude Code or Codex to inspect with native file tools.\n- Upload publication is atomic, byte-exact, size-bounded, and shared by every interface instead of introducing another file store."
     },
     {
       "title": "August 13 — Live conversation catch-up",

@@ -93,6 +93,7 @@ import { getNativeGlassInteractivity } from '@/components/glassInteractionPolicy
 import { BubblePressable } from '@/components/BubblePressable';
 import { Header } from '@/components/navigation/Header';
 import { MachinePathBrowser, type FavoriteMachinePath } from '@/components/MachinePathBrowser';
+import { MachineFileUploadStatus } from '@/components/MachineFileUploadStatus';
 import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
 import {
     AnimatedClickAwayBackdrop,
@@ -2270,26 +2271,14 @@ function NewSessionScreen() {
                     {voiceDictation.error}
                 </Text>
             )}
-            {workspaceUploader.state.phase !== 'idle' && (
-                <Text style={{
-                    color: workspaceUploader.state.phase === 'error'
-                        ? theme.colors.status.disconnected
-                        : theme.colors.textSecondary,
-                    paddingHorizontal: 12,
-                    paddingTop: 8,
-                    fontSize: 12,
-                }}>
-                    {workspaceUploader.state.phase === 'uploading'
-                        ? t('workspace.uploading', {
-                            file: workspaceUploader.state.currentFile ?? '',
-                            completed: String(workspaceUploader.state.completed),
-                            total: String(workspaceUploader.state.total),
-                        })
-                        : workspaceUploader.state.phase === 'complete'
-                            ? t('workspace.uploadComplete', { count: workspaceUploader.state.completed })
-                            : workspaceUploader.state.error}
-                </Text>
-            )}
+            <MachineFileUploadStatus
+                state={workspaceUploader.state}
+                canCancel={workspaceUploader.canCancel}
+                canRetry={workspaceUploader.canRetry}
+                onCancel={workspaceUploader.cancel}
+                onRetry={() => void workspaceUploader.retry()}
+                style={{ paddingHorizontal: 12, paddingTop: 8 }}
+            />
             <View style={[styles.inputField, isNativeMobile && styles.mobileInputField]}>
                 <PromptInput
                     ref={composerInputRef}
@@ -2374,7 +2363,7 @@ function NewSessionScreen() {
                 <BubblePressable
                     onPress={() => void workspaceUploader.pickAndUpload()}
                     hitSlop={6}
-                    disabled={!selectedMachineId || !uploadDirectory || workspaceUploader.state.phase === 'uploading'}
+                    disabled={!selectedMachineId || !uploadDirectory || workspaceUploader.state.phase === 'uploading' || workspaceUploader.state.phase === 'cancelling'}
                     style={(pressedState) => [
                         styles.composerActionButton,
                         pressedState.pressed && styles.configRowPressed,

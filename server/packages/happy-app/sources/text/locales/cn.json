@@ -1100,6 +1100,8 @@
     "refresh": "刷新",
     "upload": "上传",
     "uploading": "正在上传 {file}（{completed}/{total}）…",
+    "uploadCancelling": "正在完成当前文件，随后取消…",
+    "uploadCancelled": "上传已取消，已完成 {completed}/{total} 个文件。",
     "uploadComplete": "已上传 {count} 个文件。",
     "uploadFailed": "上传失败",
     "uploadTooMany": "最多选择 {count} 个文件",
