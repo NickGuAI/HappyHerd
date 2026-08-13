@@ -119,3 +119,4 @@ R13	code-ready	feat(workspace): upload files into connected machines	server/pack
 R15	code-ready	feat(commanders): add session-native onboarding	server/packages/happy-cli/src/commands/commander.test.ts
 R13	code-ready	fix(workspace): add upload cancel and retry	server/packages/happy-app/sources/utils/machineFileUploadBatch.test.ts
 R1-R15	code-ready	docs(patches): register R1 R13 and R15 delivery	docs/owned-patches.tsv
+DEPLOY	code-ready	fix(release): package the self-host server runtime	scripts/test-release-server-contract.sh

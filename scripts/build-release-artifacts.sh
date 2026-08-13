@@ -74,10 +74,13 @@ pnpm --filter happy-app --fail-if-no-match exec expo export \
     --platform ios \
     --output-dir "$STAGE/ios"
 
-pnpm --filter ./packages/happy-server --fail-if-no-match build
-cp -a packages/happy-server/dist "$STAGE/server/dist"
-cp -a packages/happy-server/prisma/migrations "$STAGE/server/migrations"
-cp packages/happy-server/package.json "$STAGE/server/package.json"
+pnpm --filter happy-server-self-host --fail-if-no-match build
+cp -a packages/happy-server-self-host/bin "$STAGE/server/bin"
+cp -a packages/happy-server-self-host/dist "$STAGE/server/dist"
+cp -a packages/happy-server-self-host/prisma "$STAGE/server/prisma"
+cp packages/happy-server-self-host/index.cjs "$STAGE/server/index.cjs"
+cp packages/happy-server-self-host/package.json "$STAGE/server/package.json"
+cp packages/happy-server-self-host/README.md "$STAGE/server/README.md"
 
 pnpm --filter happy --fail-if-no-match build
 
