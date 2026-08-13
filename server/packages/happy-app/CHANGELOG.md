@@ -2,7 +2,7 @@
 
 Create a Commander through a normal, visible HappyHerd session instead of assembling its files by hand.
 
-- The Command Palette starts a localized onboarding session on the selected machine.
+- The Command Palette and the touch-accessible Commander picker on Web start the same localized onboarding session on the selected machine.
 - The main agent interviews one question at a time, shows a confirmation summary, and authors the exact identity, memory, and learning content.
 - A host-local `happy commander create --manifest <file>` command validates containment and identity, rejects collisions, and atomically publishes the canonical Commander tree.
 - The filesystem remains the only Commander registry, so the new identity appears in New Session without a daemon restart or central CRUD service.

@@ -65,7 +65,11 @@ import {
 } from '@/components/modelModeOptions';
 import { isRunningOnMac } from '@/utils/platform';
 import { getNewSessionSidebarLayout } from '@/utils/newSessionSidebarLayout';
-import { getAgentPickerItems, getModePickerItems } from '@/utils/newSessionPickerItems';
+import { getAgentPickerItems, getModePickerItems, type NewSessionPickerItem } from '@/utils/newSessionPickerItems';
+import {
+    getCommanderPickerFixedItems,
+    resolveCommanderPickerSelection,
+} from '@/utils/newSessionCommanderCreation';
 import {
     resolveAgentDefaultConfig,
     resolveAgentDefaultEffortLevel,
@@ -127,7 +131,7 @@ const getAllAgents = (): { key: AgentKey; label: string }[] => [
     { key: 'agy', label: t('uiCopy.agy') },
 ];
 
-type PickerItem = { key: string; label: string; subtitle?: string; dimmed?: boolean };
+type PickerItem = NewSessionPickerItem & { dimmed?: boolean };
 
 type PickerType = 'machine' | 'path' | 'commander' | 'worktree' | 'agent' | 'model' | 'effort' | 'permission' | 'settings';
 
@@ -321,10 +325,13 @@ function PickerContent({
 
     const renderOption = (item: PickerItem) => {
         const isSelected = item.key === selectedKey;
+        const isAction = item.kind === 'action';
         return (
             <BubblePressable
                 key={item.key}
                 scaleFeedback={false}
+                accessibilityRole={isAction ? 'button' : 'radio'}
+                accessibilityState={isAction ? undefined : { selected: isSelected }}
                 style={(p) => [
                     pickerStyles.option,
                     embedded && pickerStyles.embeddedOption,
@@ -334,9 +341,9 @@ function PickerContent({
                 onPress={() => onSelect(item.key)}
             >
                 <Octicons
-                    name={isSelected ? 'check-circle-fill' : 'circle'}
+                    name={isAction ? 'plus-circle' : isSelected ? 'check-circle-fill' : 'circle'}
                     size={16}
-                    color={isSelected ? theme.colors.text : theme.colors.textSecondary}
+                    color={isAction || isSelected ? theme.colors.text : theme.colors.textSecondary}
                 />
                 <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={[pickerStyles.optionText, { color: theme.colors.text }]} numberOfLines={1}>
@@ -920,11 +927,14 @@ function NewSessionScreen() {
     const [nativePickerMeasuredHeight, setNativePickerMeasuredHeight] = React.useState<number | null>(null);
     const autoSubmitStartedRef = React.useRef(false);
     const commanderIntentAppliedRef = React.useRef(false);
+    const applyCommanderOnboardingIntent = React.useCallback(() => {
+        useNewSessionDraft.getState().setInput(t('happyHerd.commander.onboardingPrompt'));
+    }, []);
     React.useEffect(() => {
         if (intent !== 'create-commander' || commanderIntentAppliedRef.current) return;
         commanderIntentAppliedRef.current = true;
-        useNewSessionDraft.getState().setInput(t('happyHerd.commander.onboardingPrompt'));
-    }, [intent]);
+        applyCommanderOnboardingIntent();
+    }, [applyCommanderOnboardingIntent, intent]);
     const isMountedRef = React.useRef(true);
     const composerInputRef = React.useRef<import('@/components/MultiTextInput').MultiTextInputHandle>(null);
     const pendingPickerRef = React.useRef<PickerType | null>(null);
@@ -1381,7 +1391,12 @@ function NewSessionScreen() {
             case 'commander':
                 return {
                     title: t("happyHerd.automations.commander"),
-                    fixedItems: [{ key: '__none__', label: t("uiCopy.noCommander"), subtitle: t("uiCopy.useGlobalAgentsMdOnly") }],
+                    fixedItems: getCommanderPickerFixedItems(Platform.OS, {
+                        createLabel: t('happyHerd.commander.createTitle'),
+                        createSubtitle: t('happyHerd.commander.createSubtitle'),
+                        noneLabel: t('uiCopy.noCommander'),
+                        noneSubtitle: t('uiCopy.useGlobalAgentsMdOnly'),
+                    }),
                     items: commanderItems,
                     selectedKey: selectedCommanderId ?? '__none__',
                     searchPlaceholder: t('uiCopy.searchCommanders'),
@@ -1451,8 +1466,13 @@ function NewSessionScreen() {
                 setWorktreeKey(key);
                 break;
             case 'commander': {
-                const commander = commanders.find((candidate) => candidate.id === key);
-                setSelectedCommanderId(key === '__none__' ? null : key);
+                const selection = resolveCommanderPickerSelection(key);
+                if (selection.kind === 'create') {
+                    applyCommanderOnboardingIntent();
+                    break;
+                }
+                const commander = commanders.find((candidate) => candidate.id === selection.commanderId);
+                setSelectedCommanderId(selection.commanderId);
                 if (commander) {
                     setSelectedPath(commander.workspace);
                     setWorktreeKey('__none__');
@@ -1488,6 +1508,7 @@ function NewSessionScreen() {
         closePicker();
     }, [
         activePicker,
+        applyCommanderOnboardingIntent,
         availableAgents,
         commanders,
         closePicker,
