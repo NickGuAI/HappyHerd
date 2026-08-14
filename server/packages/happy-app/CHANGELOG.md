@@ -1,3 +1,10 @@
+# August 14 — Native automation scope
+
+The Automations screen now reports only automation definitions managed by HappyHerd.
+
+- Unmanaged files outside HappyHerd's automation namespace no longer produce a legacy-system warning.
+- Automation listing remains confined to native manifests without scanning or claiming unrelated definitions.
+
 # August 13 — Guided Commander onboarding
 
 Create a Commander through a normal, visible HappyHerd session instead of assembling its files by hand.

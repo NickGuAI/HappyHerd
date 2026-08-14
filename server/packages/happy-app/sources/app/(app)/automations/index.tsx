@@ -161,7 +161,6 @@ export default function AutomationsScreen() {
     const [machineId, setMachineId] = React.useState<string | null>(null);
     const machine = machines.find((candidate) => candidate.id === machineId) ?? null;
     const [automations, setAutomations] = React.useState<HappyHerdAutomation[]>([]);
-    const [legacyCount, setLegacyCount] = React.useState(0);
     const [commanders, setCommanders] = React.useState<HappyHerdCommanderSummary[]>([]);
     const [loading, setLoading] = React.useState(false);
     const [saving, setSaving] = React.useState(false);
@@ -192,7 +191,6 @@ export default function AutomationsScreen() {
                 machineListCommanders(machineId),
             ]);
             setAutomations(automationResult.automations);
-            setLegacyCount(automationResult.legacyCount);
             setCommanders(commanderResult.commanders);
         } catch (nextError) {
             setError(nextError instanceof Error ? nextError.message : t('happyHerd.automations.unableLoad'));
@@ -336,11 +334,6 @@ export default function AutomationsScreen() {
                 ))}
             </ScrollView>
 
-            {legacyCount > 0 && (
-                <Text style={[styles.notice, { color: theme.colors.textSecondary, borderColor: theme.colors.divider }]}>
-                    {t('happyHerd.automations.legacyNotice', { count: legacyCount })}
-                </Text>
-            )}
             {error && <Text style={[styles.notice, { color: theme.colors.status.disconnected, borderColor: theme.colors.divider }]}>{error}</Text>}
             {loading && <ActivityIndicator style={{ marginVertical: 24 }} color={theme.colors.text} />}
 

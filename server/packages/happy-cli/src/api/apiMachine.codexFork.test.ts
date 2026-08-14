@@ -114,7 +114,7 @@ describe('ApiMachineClient Codex fork RPCs', () => {
 
     it('registers automation handlers against the daemon service', async () => {
         const automations = {
-            list: vi.fn().mockResolvedValue({ automations: [], legacyCount: 0 }),
+            list: vi.fn().mockResolvedValue({ automations: [] }),
         } as any;
         const { ApiMachineClient } = await import('./apiMachine');
         const client = new ApiMachineClient('token', machineClient());
@@ -127,7 +127,7 @@ describe('ApiMachineClient Codex fork RPCs', () => {
 
         const result = await handlersFrom(client).get('machine-1:happyherd-automations-list')?.({});
 
-        expect(result).toEqual({ automations: [], legacyCount: 0 });
+        expect(result).toEqual({ automations: [] });
         expect(automations.list).toHaveBeenCalledOnce();
     });
 

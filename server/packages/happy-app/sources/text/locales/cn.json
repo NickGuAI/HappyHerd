@@ -1196,15 +1196,6 @@
       "deleteTitle": "删除自动化？",
       "deleteDescription": "将删除 {name} 及其本地运行历史。",
       "delete": "删除",
-      "legacyNotice": {
-        "select": {
-          "param": "count",
-          "cases": {
-            "one": "检测到 {count} 个旧 Herd 自动化项目。HappyHerd 不管理它，以防重复运行。",
-            "other": "检测到 {count} 个旧 Herd 自动化项目。HappyHerd 不管理它们，以防重复运行。"
-          }
-        }
-      },
       "edit": "编辑自动化",
       "create": "新建自动化",
       "name": "名称",

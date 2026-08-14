@@ -1196,15 +1196,6 @@
       "deleteTitle": "Delete automation?",
       "deleteDescription": "{name} and its local run history will be removed.",
       "delete": "Delete",
-      "legacyNotice": {
-        "select": {
-          "param": "count",
-          "cases": {
-            "one": "{count} legacy Herd automation artifact detected. HappyHerd leaves it unmanaged to prevent duplicate runs.",
-            "other": "{count} legacy Herd automation artifacts detected. HappyHerd leaves them unmanaged to prevent duplicate runs."
-          }
-        }
-      },
       "edit": "Edit automation",
       "create": "New automation",
       "name": "Name",

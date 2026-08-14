@@ -55,7 +55,7 @@ describe('codex fork ops', () => {
     });
 
     it('routes automation CRUD through encrypted machine RPC methods', async () => {
-        machineRPC.mockResolvedValueOnce({ automations: [], legacyCount: 0 });
+        machineRPC.mockResolvedValueOnce({ automations: [] });
         const { machineListAutomations, machineCreateAutomation } = await import('./ops');
 
         await machineListAutomations('machine-1');

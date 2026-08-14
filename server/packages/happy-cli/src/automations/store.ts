@@ -85,15 +85,8 @@ export class HappyHerdAutomationStore {
         // remain inspectable rather than being silently rewritten or deleted.
       }
     }
-    let legacyCount = 0;
-    try {
-      const parentEntries = await readdir(automationsParent(), { withFileTypes: true });
-      legacyCount = parentEntries.filter((entry) => entry.name !== 'happyherd').length;
-    } catch {
-      // The HappyHerd root exists after mkdir above, so this is only defensive.
-    }
     automations.sort((left, right) => right.createdAt.localeCompare(left.createdAt) || left.id.localeCompare(right.id));
-    return { automations, legacyCount };
+    return { automations };
   }
 
   async get(id: string): Promise<HappyHerdAutomation> {
