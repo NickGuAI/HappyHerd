@@ -73,11 +73,11 @@ describe('sessionEnvironment', () => {
         expect(pmaiSessionRuntimeEnvironment({
             discordSurfaceId: 'thread:123:456',
             pmaiCapabilityId: 'A_32-character-capability-id-value-123',
-            pmaiBrokerUrl: 'http://127.0.0.1:3210/mcp',
+            pmaiBrokerUrl: 'http://pmai-broker.localhost:3210/mcp',
         })).toEqual({
             PMAI_DISCORD_SURFACE_ID: 'thread:123:456',
             PMAI_SESSION_CAPABILITY_ID: 'A_32-character-capability-id-value-123',
-            PMAI_BROKER_URL: 'http://127.0.0.1:3210/mcp',
+            PMAI_BROKER_URL: 'http://pmai-broker.localhost:3210/mcp',
         });
     });
 

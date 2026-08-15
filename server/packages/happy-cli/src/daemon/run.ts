@@ -859,7 +859,7 @@ export async function startDaemon(): Promise<void> {
       pid: process.pid,
       httpPort: controlPort,
       startTime: new Date().toLocaleString(),
-      startedWithCliVersion: packageJson.version,
+      startedWithCliVersion: configuration.currentCliVersion,
       daemonLogPath: logger.logFilePath
     };
     writeDaemonState(fileState);
@@ -998,7 +998,7 @@ export async function startDaemon(): Promise<void> {
           pid: process.pid,
           httpPort: controlPort,
           startTime: fileState.startTime,
-          startedWithCliVersion: packageJson.version,
+          startedWithCliVersion: configuration.currentCliVersion,
           lastHeartbeat: new Date().toLocaleString(),
           daemonLogPath: fileState.daemonLogPath
         };

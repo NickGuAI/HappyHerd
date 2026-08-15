@@ -55,7 +55,7 @@ PNPM_VERSION="$(cd "$SERVER_ROOT" && pnpm --version)"
     die "release artifacts must be built from a clean worktree"
 
 rm -rf "$OUT_DIR"
-mkdir -p "$OUT_DIR" "$STAGE/web" "$STAGE/ios" "$STAGE/server" "$STAGE/daemon"
+mkdir -p "$OUT_DIR" "$STAGE/web" "$STAGE/ios" "$STAGE/server" "$STAGE/daemon" "$STAGE/pmai-discord-agent"
 
 export APP_ENV=production
 export CI=1
@@ -187,10 +187,74 @@ for tool_name in difftastic ripgrep; do
     cp "$archive" "$license" "$STAGE/daemon/tools/archives/"
 done
 
+pnpm --filter happy-agent --fail-if-no-match build
+pnpm --filter @happyherd/pmai-discord-agent --fail-if-no-match build
+
+bridge_deploy_log="$STAGE/pmai-discord-agent-deploy.log"
+set +e
+pnpm --frozen-lockfile --offline --filter @happyherd/pmai-discord-agent --fail-if-no-match deploy \
+    --prod "$STAGE/pmai-discord-agent" >"$bridge_deploy_log" 2>&1
+bridge_deploy_status=$?
+set -e
+if [[ "$bridge_deploy_status" -ne 0 ]] && \
+    ! grep -Fq 'ERR_PNPM_LOCKFILE_CONFIG_MISMATCH' "$bridge_deploy_log"; then
+    cat "$bridge_deploy_log" >&2
+    die 'pnpm could not create the locked PMAI Discord Agent deployment payload'
+fi
+[[ -f "$STAGE/pmai-discord-agent/package.json" ]] || die 'PMAI Discord Agent deployment package is missing'
+[[ -f "$STAGE/pmai-discord-agent/pnpm-lock.yaml" ]] || die 'PMAI Discord Agent deployment lockfile is missing'
+
+export DEPLOY_STAGE="$STAGE/pmai-discord-agent"
+node <<'NODE'
+const fs = require('node:fs');
+const path = require('node:path');
+
+const deployStage = process.env.DEPLOY_STAGE;
+const serverRoot = process.cwd();
+const rootPackage = JSON.parse(fs.readFileSync(path.join(serverRoot, 'package.json'), 'utf8'));
+const deployPackagePath = path.join(deployStage, 'package.json');
+const deployLockPath = path.join(deployStage, 'pnpm-lock.yaml');
+const overrides = rootPackage.pnpm?.overrides;
+if (!overrides || Object.keys(overrides).length === 0) throw new Error('source workspace pnpm overrides are missing');
+const deployPackage = JSON.parse(fs.readFileSync(deployPackagePath, 'utf8'));
+deployPackage.pnpm = { ...deployPackage.pnpm, overrides };
+fs.writeFileSync(deployPackagePath, `${JSON.stringify(deployPackage, null, 2)}\n`);
+const yaml = require(require.resolve('yaml', { paths: [serverRoot] }));
+const deployLock = yaml.parse(fs.readFileSync(deployLockPath, 'utf8'));
+deployLock.overrides = overrides;
+fs.writeFileSync(deployLockPath, yaml.stringify(deployLock, { lineWidth: 0 }));
+NODE
+unset DEPLOY_STAGE
+
+(
+    cd "$STAGE/pmai-discord-agent"
+    pnpm --config.prefer-symlinked-executables=true \
+        fetch --prod --frozen-lockfile --ignore-scripts
+    pnpm \
+        --config.inject-workspace-packages=true \
+        --config.prefer-symlinked-executables=true \
+        install --prod --frozen-lockfile --offline --ignore-scripts
+)
+rm -f "$STAGE/pmai-discord-agent/node_modules/.modules.yaml"
+while IFS= read -r -d '' shim; do
+    resolved="$(readlink -f "$shim")"
+    [[ -n "$resolved" && "$resolved" == "$STAGE/pmai-discord-agent/"* ]] || \
+        die "PMAI Discord Agent executable shim escapes its archive: $shim"
+done < <(find "$STAGE/pmai-discord-agent/node_modules" -type l -path '*/.bin/*' -print0)
+if find "$STAGE/pmai-discord-agent/node_modules" -type f -path '*/.bin/*' -print -quit | grep -q .; then
+    die 'PMAI Discord Agent dependency tree contains non-relocatable executable shims'
+fi
+(
+    cd "$STAGE/pmai-discord-agent"
+    node --input-type=module -e \
+        "const bridge = await import('./dist/index.mjs'); if (typeof bridge.startPmaiDiscordAgent !== 'function') process.exit(1)"
+)
+
 stable_archive web happyherd-web.tar.gz
 stable_archive ios happyherd-ios-update.tar.gz
 stable_archive server happyherd-server.tar.gz
 stable_archive daemon "happyherd-daemon-${platform}.tar.gz"
+stable_archive pmai-discord-agent "happyherd-pmai-discord-agent-${platform}.tar.gz"
 
 (
     cd "$OUT_DIR"

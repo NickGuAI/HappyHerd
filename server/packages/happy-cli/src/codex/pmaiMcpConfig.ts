@@ -29,7 +29,7 @@ export function readPmaiSessionEnvironment(
   const url = new URL(brokerUrl);
   if (
     url.protocol !== 'http:'
-    || !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)
+    || !['127.0.0.1', 'localhost', '[::1]', 'pmai-broker.localhost'].includes(url.hostname)
     || url.pathname !== '/mcp'
     || url.username
     || url.password
@@ -64,6 +64,7 @@ export function buildPmaiMcpServerConfig(options: {
     env: {
       PMAI_BROKER_URL: session.brokerUrl,
       PMAI_SESSION_CAPABILITY_ID: session.capabilityId,
+      PMAI_BROKER_PROXY_REQUIRED: '1',
     },
   };
 }

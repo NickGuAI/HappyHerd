@@ -21,27 +21,33 @@ PAYLOAD="$TMP_ROOT/payload"
 RELEASE_ROOT="$TMP_ROOT/releases"
 CURRENT_LINK="$TMP_ROOT/current"
 DAEMON_FILENAME='happyherd-daemon-x64-linux.tar.gz'
+BRIDGE_FILENAME='happyherd-pmai-discord-agent-x64-linux.tar.gz'
 
-mkdir -p "$ARTIFACT_DIR" "$PAYLOAD/daemon/bin"
+mkdir -p "$ARTIFACT_DIR" "$PAYLOAD/daemon/bin" "$PAYLOAD/pmai-discord-agent/dist"
 printf '#!/usr/bin/env node\n' > "$PAYLOAD/daemon/bin/happy.mjs"
 chmod 0755 "$PAYLOAD/daemon/bin/happy.mjs"
+printf 'export async function startPmaiDiscordAgent() {}\n' > "$PAYLOAD/pmai-discord-agent/dist/index.mjs"
 tar -czf "$ARTIFACT_DIR/$DAEMON_FILENAME" -C "$PAYLOAD" daemon
+tar -czf "$ARTIFACT_DIR/$BRIDGE_FILENAME" -C "$PAYLOAD" pmai-discord-agent
 (
     cd "$ARTIFACT_DIR"
-    sha256sum "$DAEMON_FILENAME" > SHA256SUMS
+    sha256sum "$DAEMON_FILENAME" "$BRIDGE_FILENAME" > SHA256SUMS
 )
 
-SOURCE_SHA="$SOURCE_SHA" DAEMON_FILENAME="$DAEMON_FILENAME" ARTIFACT_DIR="$ARTIFACT_DIR" \
+SOURCE_SHA="$SOURCE_SHA" DAEMON_FILENAME="$DAEMON_FILENAME" BRIDGE_FILENAME="$BRIDGE_FILENAME" ARTIFACT_DIR="$ARTIFACT_DIR" \
     node <<'NODE'
 const fs = require('node:fs');
 const path = require('node:path');
 const filename = process.env.DAEMON_FILENAME;
-const artifactPath = path.join(process.env.ARTIFACT_DIR, filename);
+const bridgeFilename = process.env.BRIDGE_FILENAME;
 const manifest = {
     schemaVersion: 1,
     product: 'HappyHerd',
     source: { happyHerdSha: process.env.SOURCE_SHA },
-    artifacts: [{ filename, bytes: fs.statSync(artifactPath).size }],
+    artifacts: [filename, bridgeFilename].map((artifactFilename) => ({
+        filename: artifactFilename,
+        bytes: fs.statSync(path.join(process.env.ARTIFACT_DIR, artifactFilename)).size,
+    })),
 };
 fs.writeFileSync(
     path.join(process.env.ARTIFACT_DIR, 'build-manifest.json'),
@@ -55,10 +61,12 @@ TARGET="$RELEASE_ROOT/$SOURCE_SHA"
 [[ "$(realpath "$CURRENT_LINK")" == "$TARGET" ]] || fail 'current link does not identify the immutable source release'
 [[ "$(stat -Lc '%a' "$CURRENT_LINK")" == 755 ]] || fail 'release root is not traversable by the daemon service account'
 [[ -x "$CURRENT_LINK/daemon/bin/happy.mjs" ]] || fail 'daemon entrypoint is not executable'
+[[ -f "$CURRENT_LINK/pmai-discord-agent/dist/index.mjs" ]] || fail 'PMAI Discord Agent entrypoint is missing'
 [[ -x "$CURRENT_LINK/scripts/run-container.sh" ]] || fail 'complete release omitted the server launcher'
 [[ -x "$CURRENT_LINK/scripts/activate-release.sh" ]] || fail 'complete release omitted the release activator'
 [[ -x "$CURRENT_LINK/scripts/start-host-daemon.sh" ]] || fail 'complete release omitted the detached daemon bootstrap'
 [[ -f "$CURRENT_LINK/deploy/happyherd-daemon.cron" ]] || fail 'complete release omitted the daemon boot entry'
+[[ -f "$CURRENT_LINK/deploy/pmai-discord-agent.service" ]] || fail 'complete release omitted the PMAI Discord Agent unit'
 [[ ! -e "$CURRENT_LINK/deploy/happyherd-daemon.service" ]] || fail 'release retained the host daemon systemd unit'
 
 if "$INSTALLER" "$ARTIFACT_DIR" "$RELEASE_ROOT" "$CURRENT_LINK" >/dev/null 2>&1; then

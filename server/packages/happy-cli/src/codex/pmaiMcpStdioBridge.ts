@@ -8,7 +8,9 @@
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { request } from 'undici';
 import { z } from 'zod';
+import { buildPmaiBrokerDispatcher } from './pmaiBrokerProxy';
 import { PMAI_MCP_TOOLS } from './pmaiMcpTools';
 
 function requiredEnvironment(): { brokerUrl: string; capabilityId: string } {
@@ -20,7 +22,7 @@ function requiredEnvironment(): { brokerUrl: string; capabilityId: string } {
   const parsed = new URL(brokerUrl);
   if (
     parsed.protocol !== 'http:'
-    || !['127.0.0.1', 'localhost', '[::1]'].includes(parsed.hostname)
+    || !['127.0.0.1', 'localhost', '[::1]', 'pmai-broker.localhost'].includes(parsed.hostname)
     || parsed.pathname !== '/mcp'
     || parsed.username
     || parsed.password
@@ -37,6 +39,7 @@ function requiredEnvironment(): { brokerUrl: string; capabilityId: string } {
 
 async function main(): Promise<void> {
   const { brokerUrl, capabilityId } = requiredEnvironment();
+  const dispatcher = buildPmaiBrokerDispatcher();
   const server = new McpServer({ name: 'PMAI governed skills', version: '1.0.0' });
 
   for (const [toolName, family, description] of PMAI_MCP_TOOLS) {
@@ -52,7 +55,7 @@ async function main(): Promise<void> {
       },
       async ({ operation, arguments: toolArguments }) => {
         try {
-          const response = await fetch(brokerUrl, {
+          const response = await request(brokerUrl, {
             method: 'POST',
             headers: {
               authorization: `Bearer ${capabilityId}`,
@@ -60,13 +63,15 @@ async function main(): Promise<void> {
               accept: 'application/json',
             },
             body: JSON.stringify({ family, operation, arguments: toolArguments ?? {} }),
-            signal: AbortSignal.timeout(30_000),
+            headersTimeout: 30_000,
+            bodyTimeout: 30_000,
+            ...(dispatcher ? { dispatcher } : {}),
           });
-          const raw = await response.text();
+          const raw = await response.body.text();
           const body = raw ? JSON.parse(raw) as unknown : null;
           return {
             content: [{ type: 'text' as const, text: JSON.stringify(body) }],
-            isError: !response.ok,
+            isError: response.statusCode < 200 || response.statusCode >= 300,
           };
         } catch (error) {
           return {

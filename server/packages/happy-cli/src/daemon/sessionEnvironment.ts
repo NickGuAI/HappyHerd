@@ -91,7 +91,7 @@ export function pmaiSessionRuntimeEnvironment(
     }
     if (
         brokerUrl.protocol !== 'http:'
-        || !['127.0.0.1', 'localhost', '[::1]'].includes(brokerUrl.hostname)
+        || !['127.0.0.1', 'localhost', '[::1]', 'pmai-broker.localhost'].includes(brokerUrl.hostname)
         || brokerUrl.pathname !== '/mcp'
         || brokerUrl.username
         || brokerUrl.password

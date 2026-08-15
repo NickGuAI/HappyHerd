@@ -29,18 +29,24 @@ const sourceSha = manifest.source?.happyHerdSha;
 const daemonArtifacts = Array.isArray(manifest.artifacts)
     ? manifest.artifacts.filter((artifact) => /^happyherd-daemon-.+\.tar\.gz$/.test(artifact.filename))
     : [];
-if (!/^[0-9a-f]{40}$/.test(sourceSha ?? '') || daemonArtifacts.length !== 1) {
+const bridgeArtifacts = Array.isArray(manifest.artifacts)
+    ? manifest.artifacts.filter((artifact) => /^happyherd-pmai-discord-agent-.+\.tar\.gz$/.test(artifact.filename))
+    : [];
+if (!/^[0-9a-f]{40}$/.test(sourceSha ?? '') || daemonArtifacts.length !== 1 || bridgeArtifacts.length !== 1) {
     process.exit(1);
 }
-process.stdout.write(`${sourceSha}\n${daemonArtifacts[0].filename}\n`);
+process.stdout.write(`${sourceSha}\n${daemonArtifacts[0].filename}\n${bridgeArtifacts[0].filename}\n`);
 NODE
 )
-[[ "${#manifest_values[@]}" -eq 2 ]] || die 'build manifest has no unique daemon artifact'
+[[ "${#manifest_values[@]}" -eq 3 ]] || die 'build manifest has no unique daemon and PMAI Discord Agent artifacts'
 SOURCE_SHA="${manifest_values[0]}"
 DAEMON_FILENAME="${manifest_values[1]}"
+BRIDGE_FILENAME="${manifest_values[2]}"
 DAEMON_ARCHIVE="$ARTIFACT_DIR/$DAEMON_FILENAME"
+BRIDGE_ARCHIVE="$ARTIFACT_DIR/$BRIDGE_FILENAME"
 
 [[ -f "$DAEMON_ARCHIVE" ]] || die "daemon artifact is missing: $DAEMON_FILENAME"
+[[ -f "$BRIDGE_ARCHIVE" ]] || die "PMAI Discord Agent artifact is missing: $BRIDGE_FILENAME"
 git -C "$ROOT" cat-file -e "${SOURCE_SHA}^{commit}" 2>/dev/null || \
     die "source commit is unavailable in this checkout: $SOURCE_SHA"
 
@@ -58,6 +64,15 @@ while IFS= read -r entry; do
         die "daemon archive contains path traversal: $entry"
 done < <(tar -tzf "$DAEMON_ARCHIVE")
 
+while IFS= read -r entry; do
+    case "$entry" in
+        pmai-discord-agent|pmai-discord-agent/*) ;;
+        *) die "PMAI Discord Agent archive contains an unexpected path: $entry" ;;
+    esac
+    [[ "$entry" != *'/../'* && "$entry" != '../'* ]] || \
+        die "PMAI Discord Agent archive contains path traversal: $entry"
+done < <(tar -tzf "$BRIDGE_ARCHIVE")
+
 mkdir -p "$RELEASE_ROOT" "$(dirname "$CURRENT_LINK")"
 RELEASE_ROOT="$(realpath "$RELEASE_ROOT")"
 TARGET="$RELEASE_ROOT/$SOURCE_SHA"
@@ -73,6 +88,7 @@ trap cleanup EXIT
 
 cp "$ARTIFACT_DIR/build-manifest.json" "$ARTIFACT_DIR/SHA256SUMS" "$STAGE/"
 tar -xzf "$DAEMON_ARCHIVE" -C "$STAGE"
+tar -xzf "$BRIDGE_ARCHIVE" -C "$STAGE"
 git -C "$ROOT" archive "$SOURCE_SHA" scripts deploy | tar -x -C "$STAGE"
 
 # mktemp deliberately creates mode 0700. The daemon runs as a non-root service
@@ -82,6 +98,7 @@ chmod 0755 "$STAGE"
 chmod 0755 "$STAGE/daemon/bin/happy.mjs" "$STAGE/scripts/"*.sh
 
 [[ -x "$STAGE/daemon/bin/happy.mjs" ]] || die 'daemon entrypoint is not executable'
+[[ -f "$STAGE/pmai-discord-agent/dist/index.mjs" ]] || die 'PMAI Discord Agent entrypoint is missing'
 [[ -x "$STAGE/scripts/run-container.sh" ]] || die 'server launcher is not executable'
 [[ -x "$STAGE/scripts/activate-release.sh" ]] || die 'release activator is not executable'
 
@@ -95,6 +112,7 @@ LINK_STAGE=''
 
 [[ "$(realpath "$CURRENT_LINK")" == "$TARGET" ]] || die 'current link did not switch atomically'
 [[ -x "$CURRENT_LINK/daemon/bin/happy.mjs" ]] || die 'installed daemon is not executable through current'
+[[ -f "$CURRENT_LINK/pmai-discord-agent/dist/index.mjs" ]] || die 'installed PMAI Discord Agent is unavailable through current'
 [[ -x "$CURRENT_LINK/scripts/run-container.sh" ]] || die 'installed server launcher is unavailable through current'
 
 printf 'HappyHerd host release installed: %s\n' "$TARGET"

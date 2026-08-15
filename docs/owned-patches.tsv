@@ -125,4 +125,8 @@ AUTOMATION	code-ready	feat(automations): confine listings to native manifests	se
 MEMORY	code-ready	feat(memory): add bounded L1 observer runner	server/scripts/tests/test_memory_observer.py
 AUTOMATION-MEMORY	code-ready	docs(patches): register automation observer series	docs/owned-patches.tsv
 R16	code-ready	fix(automations): separate run sessions from conversations	server/packages/happy-app/sources/sync/sessionListVisibility.test.ts
-R16	code-ready	fix(app): keep automation runs out of session lists	server/packages/happy-app/sources/sync/sessionListVisibility.test.ts
+R16	code-ready	fix(app): keep automation runs out of session lists (#89)	server/packages/happy-app/sources/sync/sessionListVisibility.test.ts
+PMAI_DISCORD	code-ready	feat(agent): expose encrypted service control surface	server/packages/happy-agent/src/machineRpc.test.ts
+PMAI_DISCORD	code-ready	feat(discord): add governed PMAI HappyHerd bridge	server/packages/happy-discord-agent/src/bridge.test.ts
+PMAI_DISCORD	code-ready	fix(discord): make bridge settlement restart-safe	server/packages/happy-discord-agent/src/bridge.test.ts
+PMAI_DISCORD	code-ready	ops(discord): ship isolated PMAI agent runtime	scripts/test-pmai-discord-agent-runtime.sh

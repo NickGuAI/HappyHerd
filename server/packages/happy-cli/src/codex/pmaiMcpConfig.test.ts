@@ -14,7 +14,7 @@ describe('buildPmaiMcpServerConfig', () => {
     const capability = 'a'.repeat(43);
     expect(buildPmaiMcpServerConfig({
       env: {
-        PMAI_BROKER_URL: 'http://127.0.0.1:3210/mcp',
+        PMAI_BROKER_URL: 'http://pmai-broker.localhost:3210/mcp',
         PMAI_SESSION_CAPABILITY_ID: capability,
         PMAI_DISCORD_SURFACE_ID: 'dm:123',
         DISCORD_TOKEN: 'must-not-flow',
@@ -27,8 +27,9 @@ describe('buildPmaiMcpServerConfig', () => {
       enabled_tools: ['pmai_guide', 'pmai_crm', 'pmai_luma', 'pmai_discord', 'pmai_canva'],
       required: true,
       env: {
-        PMAI_BROKER_URL: 'http://127.0.0.1:3210/mcp',
+        PMAI_BROKER_URL: 'http://pmai-broker.localhost:3210/mcp',
         PMAI_SESSION_CAPABILITY_ID: capability,
+        PMAI_BROKER_PROXY_REQUIRED: '1',
       },
     });
   });
