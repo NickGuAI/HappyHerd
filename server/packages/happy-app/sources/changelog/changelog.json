@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 15 — PMAI support inside Discord",
+      "summary": "HappyHerd now includes the isolated runtime for a governed PMAI team agent on Discord, without mixing personal authority into the service.",
+      "markdown": "- Once the PMAI authorization routes and fresh service credentials are installed, one bot maps each linked member DM and each shared Discord thread to a durable, encrypted HappyHerd Codex session.\n- Personal reads and confirmed writes stay in DM; guild conversations are mention-gated and read-only.\n- Codex can use only the five governed PMAI guide, CRM, Luma, Discord, and personal Canva tools. Shell, filesystem mutation, arbitrary web access, and unrelated connectors fail closed.\n- Dedicated bridge and agent service accounts keep Discord, PMAI, HappyHerd, and Codex credentials separate from personal runtimes.\n- Production requires a verified replacement for the previously exposed Discord token, healthy PMAI authorization, and a live dedicated HappyHerd machine before the bot reports ready."
+    },
+    {
       "title": "August 15 — Focused automations and memory observation",
       "summary": "Automations stay in their own workflow, while historical observation remains bounded and reviewable.",
       "markdown": "- Unmanaged files outside HappyHerd's automation namespace no longer produce a legacy-system warning.\n- Automation listing remains confined to native manifests without scanning or claiming unrelated definitions.\n- Automation-created sessions stay out of Home and Web Recent even when only part of their provenance is available; open successful runs from Automation History instead.\n- A bounded Observer can review up to 14 local days of Claude and Codex conversations and append L1 evidence to each owning Commander without distilling higher memory tiers."
@@ -141,5 +146,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 15 — Focused automations and memory observation"
+  "latestTitle": "August 15 — PMAI support inside Discord"
 }

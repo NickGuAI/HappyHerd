@@ -164,6 +164,67 @@ describe('CodexAppServerClient sandbox integration', () => {
         await client.disconnect();
     });
 
+    it('starts PMAI app-server with fail-closed hook policy and a five-tool-only thread', async () => {
+        const requests: MockRpcMessage[] = [];
+        mockSpawn.mockImplementation(() => createMockProcess({
+            onRequest: (msg, stdout) => {
+                requests.push(msg);
+                if (msg.method === 'thread/start' && msg.id != null) {
+                    setTimeout(() => pushJsonLine(stdout, {
+                        id: msg.id,
+                        result: {
+                            thread: { id: 'thread-pmai', path: '/tmp/thread-pmai' },
+                            model: 'gpt-test',
+                        },
+                    }), 0);
+                }
+            },
+        }));
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(sandboxConfig, {
+            pmaiPolicyEntrypoint: '/opt/happy/bin/pmai-codex-policy.mjs',
+            requireSandbox: true,
+        });
+
+        await client.connect();
+        const wrappedArgs = mockWrapForMcpTransport.mock.calls[0][1] as string[];
+        expect(wrappedArgs).toContain('--dangerously-bypass-hook-trust');
+        expect(wrappedArgs).toContain('web_search="disabled"');
+        expect(wrappedArgs.join(' ')).toContain('hooks.PreToolUse');
+
+        await client.startThread({
+            sandbox: 'read-only',
+            mcpServers: {
+                pmai: {
+                    command: '/usr/bin/node',
+                    enabled_tools: ['pmai_guide', 'pmai_crm', 'pmai_luma', 'pmai_discord', 'pmai_canva'],
+                    required: true,
+                },
+            },
+        });
+        const start = requests.find((request) => request.method === 'thread/start');
+        expect(start?.params).toEqual(expect.objectContaining({
+            includeApplyPatchTool: false,
+            config: {
+                mcp_servers: expect.objectContaining({ pmai: expect.any(Object) }),
+                web_search: 'disabled',
+            },
+        }));
+        await client.disconnect();
+    });
+
+    it('does not launch a PMAI app-server when its OS sandbox cannot start', async () => {
+        mockInitializeSandbox.mockRejectedValue(new Error('sandbox unavailable'));
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(sandboxConfig, {
+            pmaiPolicyEntrypoint: '/opt/happy/bin/pmai-codex-policy.mjs',
+            requireSandbox: true,
+        });
+
+        await expect(client.connect()).rejects.toThrow('PMAI Codex sandbox initialization failed');
+        expect(mockSpawn).not.toHaveBeenCalled();
+    });
+
     it('falls back to non-sandbox transport when sandbox initialization fails', async () => {
         mockInitializeSandbox.mockRejectedValue(new Error('sandbox init failed'));
         const { CodexAppServerClient } = await import('./codexAppServerClient');

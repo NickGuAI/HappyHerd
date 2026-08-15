@@ -29,8 +29,84 @@ export const SESSION_SCOPED_ENV_KEYS = [
     'HAPPYHERD_AUTOMATION_KIND',
     'HAPPYHERD_AUTOMATION_BOOTSTRAP_PATH',
     'HAPPYHERD_AUTOMATION_BOOTSTRAP_HASH',
+    'PMAI_DISCORD_SURFACE_ID',
+    'PMAI_SESSION_CAPABILITY_ID',
+    'PMAI_BROKER_URL',
     'CODEX_THREAD_ID',
 ] as const;
+
+export type PmaiSessionRuntimeContext = {
+    discordSurfaceId: string;
+    pmaiCapabilityId: string;
+    pmaiBrokerUrl: string;
+};
+
+function requiredBoundedString(value: unknown, label: string): string {
+    if (typeof value !== 'string') {
+        throw new Error(`${label} is required`);
+    }
+    const normalized = value.trim();
+    if (normalized.length === 0 || normalized.length > 512 || normalized.includes('\0')) {
+        throw new Error(`${label} must be a non-empty string no longer than 512 characters`);
+    }
+    return normalized;
+}
+
+/**
+ * Convert the only runtime context accepted from the encrypted machine RPC
+ * into child-process environment. This is deliberately separate from the
+ * generic environmentVariables path so session capabilities cannot arrive via
+ * ambient daemon state or arbitrary key/value injection.
+ */
+export function pmaiSessionRuntimeEnvironment(
+    value: unknown,
+): Record<string, string> {
+    if (value === undefined || value === null) {
+        return {};
+    }
+    if (typeof value !== 'object' || Array.isArray(value)) {
+        throw new Error('PMAI runtime context must be an object');
+    }
+    const context = value as Record<string, unknown>;
+    const expectedKeys = ['discordSurfaceId', 'pmaiCapabilityId', 'pmaiBrokerUrl'];
+    const unexpectedKeys = Object.keys(context).filter((key) => !expectedKeys.includes(key));
+    if (unexpectedKeys.length > 0) {
+        throw new Error(`PMAI runtime context contains unsupported fields: ${unexpectedKeys.join(', ')}`);
+    }
+
+    const discordSurfaceId = requiredBoundedString(context.discordSurfaceId, 'discordSurfaceId');
+    if (!/^(?:dm:\d+|(?:thread|channel):\d+:\d+)$/.test(discordSurfaceId)) {
+        throw new Error('discordSurfaceId is not a supported Discord surface');
+    }
+    const pmaiCapabilityId = requiredBoundedString(context.pmaiCapabilityId, 'pmaiCapabilityId');
+    if (!/^[A-Za-z0-9_-]{32,128}$/.test(pmaiCapabilityId)) {
+        throw new Error('pmaiCapabilityId is not a valid capability identifier');
+    }
+    const rawBrokerUrl = requiredBoundedString(context.pmaiBrokerUrl, 'pmaiBrokerUrl');
+    let brokerUrl: URL;
+    try {
+        brokerUrl = new URL(rawBrokerUrl);
+    } catch {
+        throw new Error('pmaiBrokerUrl must be a valid URL');
+    }
+    if (
+        brokerUrl.protocol !== 'http:'
+        || !['127.0.0.1', 'localhost', '[::1]', 'pmai-broker.localhost'].includes(brokerUrl.hostname)
+        || brokerUrl.pathname !== '/mcp'
+        || brokerUrl.username
+        || brokerUrl.password
+        || brokerUrl.search
+        || brokerUrl.hash
+    ) {
+        throw new Error('pmaiBrokerUrl must be a credential-free loopback HTTP /mcp endpoint');
+    }
+
+    return {
+        PMAI_DISCORD_SURFACE_ID: discordSurfaceId,
+        PMAI_SESSION_CAPABILITY_ID: pmaiCapabilityId,
+        PMAI_BROKER_URL: rawBrokerUrl,
+    };
+}
 
 /**
  * Remove session-scoped state inherited from a parent process without

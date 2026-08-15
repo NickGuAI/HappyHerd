@@ -121,6 +121,9 @@ export function createSessionMetadata(opts: CreateSessionMetadataOptions): Sessi
         ...(opts.isSideChat ? { isSideChat: true } : {}),
         ...contextMetadataFromEnvironment(),
         ...automationMetadataFromEnvironment(),
+        ...(process.env.PMAI_DISCORD_SURFACE_ID
+            ? { pmaiDiscordSurfaceId: process.env.PMAI_DISCORD_SURFACE_ID }
+            : {}),
     };
 
     return { state, metadata };

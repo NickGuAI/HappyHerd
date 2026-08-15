@@ -31,6 +31,7 @@ import { detectResumeSupport } from '@/resume/localHappyAgentAuth';
 import { encodeBase64, decodeBase64, decrypt } from '@/api/encryption';
 import {
   buildSessionChildEnvironment,
+  pmaiSessionRuntimeEnvironment,
   sanitizeSessionEnvironment,
   wrapTmuxCommandWithSessionEnvironmentSanitizer,
 } from './sessionEnvironment';
@@ -371,6 +372,7 @@ export async function startDaemon(): Promise<void> {
           ...authEnv,
           ...contextEnvironment(contextBundle),
           ...sanitizeSessionEnvironment(options.environmentVariables ?? {}),
+          ...pmaiSessionRuntimeEnvironment(options.pmaiRuntimeContext),
           ...(automationBootstrap ? automationBootstrapEnvironment(automationBootstrap) : {}),
         };
         if (options.parentSessionId) {
@@ -724,7 +726,11 @@ export async function startDaemon(): Promise<void> {
       }
     };
 
-    const resumeSession = async (happySessionId: string, options?: { model?: string; permissionMode?: string }): Promise<SpawnSessionResult> => {
+    const resumeSession = async (happySessionId: string, options?: {
+      model?: string;
+      permissionMode?: string;
+      pmaiRuntimeContext?: unknown;
+    }): Promise<SpawnSessionResult> => {
       try {
         const tracked = findTrackedSessionById(happySessionId);
         if (!tracked) {
@@ -768,12 +774,14 @@ export async function startDaemon(): Promise<void> {
 
         await fs.access(launch.cwd);
         const resumedContextBundle = await prepareCommanderContext(metadata.commanderId, launch.cwd);
+        const pmaiRuntimeEnvironment = pmaiSessionRuntimeEnvironment(options?.pmaiRuntimeContext);
 
         return spawnTrackedHappyProcess({
           args: launch.args,
           cwd: launch.cwd,
           env: buildSessionChildEnvironment(ambientEnvironment, {
             ...contextEnvironment(resumedContextBundle),
+            ...pmaiRuntimeEnvironment,
             HAPPY_RECONNECT_SESSION_ID: happySessionId,
             HAPPY_RECONNECT_ENCRYPTION_KEY: encodeBase64(tracked.encryption.encryptionKey),
             HAPPY_RECONNECT_ENCRYPTION_VARIANT: tracked.encryption.encryptionVariant,
@@ -851,7 +859,7 @@ export async function startDaemon(): Promise<void> {
       pid: process.pid,
       httpPort: controlPort,
       startTime: new Date().toLocaleString(),
-      startedWithCliVersion: packageJson.version,
+      startedWithCliVersion: configuration.currentCliVersion,
       daemonLogPath: logger.logFilePath
     };
     writeDaemonState(fileState);
@@ -990,7 +998,7 @@ export async function startDaemon(): Promise<void> {
           pid: process.pid,
           httpPort: controlPort,
           startTime: fileState.startTime,
-          startedWithCliVersion: packageJson.version,
+          startedWithCliVersion: configuration.currentCliVersion,
           lastHeartbeat: new Date().toLocaleString(),
           daemonLogPath: fileState.daemonLogPath
         };

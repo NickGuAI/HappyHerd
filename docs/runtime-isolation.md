@@ -84,3 +84,88 @@ scripts/validate-runtime-isolation.sh /etc/happyherd/runtime.env runtime
 Validation fails for malformed or mismatched public identity, invalid ports,
 overlapping runtime roots, legacy `.happy` or `.happy-server-data`, Herd state,
 any `qmherd` path, an unpinned image, or a missing/weakly-permissioned secret.
+
+## PMAI Discord Agent profile
+
+The PMAI Discord integration adds a trusted edge client without moving
+plaintext into `happy-server`. It is packaged as
+`happyherd-pmai-discord-agent-<arch>-<os>.tar.gz` alongside the daemon artifact
+from the same source commit. The host installer extracts both beneath the same
+immutable release and switches them with one `current` symlink.
+
+Two unprivileged identities split credentials that must never meet:
+
+| Process | User | Private state | Credentials it may read |
+|---|---|---|---|
+| Discord bridge | `pmai-discord-bridge` | `/var/lib/pmai-discord-bridge` | Discord bot, PMAI service signing/transport, Happy control-client account key |
+| Happy daemon and Codex | `pmai-happyherd-agent` | `/var/lib/pmai-happyherd-agent` | Dedicated Happy machine account and dedicated Codex login |
+
+The Codex user cannot traverse the bridge state, secret directory, or daemon
+HappyHerd home. It receives only a short-lived, opaque session capability and
+the loopback broker URL. PMAI turns fail unless the Happy OS sandbox is enabled;
+the workspace has no write grant. The provider starts with hosted web search
+and apply-patch disabled, while a synchronous hook denies shell, filesystem,
+subagent, plugin, and non-PMAI tool calls. Only the five governed PMAI MCP tools
+are exposed. Shared Discord surfaces remain read-only; the broker enforces
+actor scope and same-actor exact-action confirmation.
+
+Provision the public layout and units from an installed release:
+
+```bash
+sudo /opt/happyherd/current/scripts/prepare-pmai-discord-agent-runtime.sh
+sudoedit /etc/pmai-discord-agent/bridge.env
+sudoedit /etc/pmai-discord-agent/daemon.env
+sudo /opt/happyherd/current/scripts/provision-pmai-happy-account.sh
+```
+
+The provisioner creates a new dedicated HappyHerd account, issues distinct
+bridge and daemon client tokens for that account, registers its isolated
+machine, writes the machine ID into the bridge profile, and starts the detached
+daemon. It does not consume a personal HappyHerd credential. Authenticate
+Codex separately and only as `pmai-happyherd-agent`, with the executable
+installed under `/var/lib/pmai-happyherd-agent/.local/bin` and its authentication
+under the declared isolated `CODEX_HOME`. Never copy an account key, Codex
+home, Commander, or workspace from `ec2-user` or another personal runtime. The
+daemon bootstrap is an `@reboot` detached process for the same reason as the
+normal HappyHerd host daemon: bridge restart or release rollback must not
+terminate an active Codex turn.
+
+The bot token previously appeared outside a secret store. Production refuses
+to connect to Discord until that token is reset in Discord, installed as a new
+mode-`0600` file, and accompanied by a receipt bound to the application ID,
+post-incident rotation time, and installed token hash:
+
+```bash
+sudo /opt/happyherd/current/scripts/write-pmai-discord-token-rotation-receipt.sh \
+  /etc/pmai-discord-agent/secrets/discord-token DISCORD_APPLICATION_ID
+```
+
+Install the separate PMAI signing and transport secrets, then validate before
+enablement. The validator checks distinct users and credential stores, exact
+path ownership, Commander/workspace templates, sandbox policy, Happy machine
+binding, token rotation, daemon liveness, and matching release payloads without
+printing secret values.
+
+```bash
+sudo /opt/happyherd/current/scripts/validate-pmai-discord-agent-runtime.sh \
+  /etc/pmai-discord-agent/bridge.env runtime
+sudo systemctl enable --now pmai-discord-agent.service
+sudo /opt/happyherd/current/scripts/health-pmai-discord-agent.sh
+```
+
+`/mcp` must remain loopback-only. Sandboxed Codex reaches it through the
+HappyHerd network mediator using the dedicated `pmai-broker.localhost` alias;
+the production validator requires exactly that alias and the corresponding
+domain allowlist. A TLS reverse proxy may expose only the service-authenticated
+`/internal/discord/execute` route to the PMAI API. The public PMAI authorization
+route and all five provider routes remain owned by Part 1; if any of them is
+absent, revoked, expired, or denies scope, the bridge fails closed before
+privileged agent work.
+
+Rollback switches both daemon and bridge code to one installed source SHA,
+hands the detached daemon to that version, restarts only the bridge, and then
+requires full readiness:
+
+```bash
+sudo /opt/happyherd/current/scripts/rollback-pmai-discord-agent.sh PREVIOUS_SOURCE_SHA
+```

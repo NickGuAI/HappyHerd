@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 2,
+  "onboardingCompleted": true,
+  "daemonAutoStartWhenRunningHappy": false,
+  "sandboxConfig": {
+    "enabled": true,
+    "workspaceRoot": "/var/lib/pmai-happyherd-agent/workspace",
+    "sessionIsolation": "custom",
+    "customWritePaths": [],
+    "denyReadPaths": [
+      "/home/ec2-user",
+      "/root",
+      "/etc/pmai-discord-agent",
+      "/var/lib/pmai-discord-bridge",
+      "/var/lib/pmai-happyherd-agent/happy-home"
+    ],
+    "extraWritePaths": [],
+    "denyWritePaths": [
+      ".env"
+    ],
+    "networkMode": "custom",
+    "allowedDomains": [
+      "*.openai.com",
+      "chatgpt.com",
+      "*.chatgpt.com",
+      "pmai-broker.localhost"
+    ],
+    "deniedDomains": [],
+    "allowLocalBinding": false
+  }
+}

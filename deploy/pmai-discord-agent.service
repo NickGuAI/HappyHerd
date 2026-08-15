@@ -1,0 +1,41 @@
+[Unit]
+Description=PMAI Discord Agent bridge for HappyHerd
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=pmai-discord-bridge
+Group=pmai-discord-bridge
+EnvironmentFile=/etc/pmai-discord-agent/bridge.env
+WorkingDirectory=/var/lib/pmai-discord-bridge
+ExecStartPre=+/opt/happyherd/current/scripts/validate-pmai-discord-agent-runtime.sh /etc/pmai-discord-agent/bridge.env runtime
+ExecStart=/usr/bin/node /opt/happyherd/current/pmai-discord-agent/dist/index.mjs
+Restart=on-failure
+RestartSec=10s
+TimeoutStopSec=30s
+UMask=0077
+
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+ReadWritePaths=/var/lib/pmai-discord-bridge
+ReadOnlyPaths=/opt/happyherd/current /etc/pmai-discord-agent
+
+[Install]
+WantedBy=multi-user.target

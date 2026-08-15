@@ -1,3 +1,13 @@
+# August 15 — PMAI support inside Discord
+
+HappyHerd now includes the isolated runtime for a governed PMAI team agent on Discord, without mixing personal authority into the service.
+
+- Once the PMAI authorization routes and fresh service credentials are installed, one bot maps each linked member DM and each shared Discord thread to a durable, encrypted HappyHerd Codex session.
+- Personal reads and confirmed writes stay in DM; guild conversations are mention-gated and read-only.
+- Codex can use only the five governed PMAI guide, CRM, Luma, Discord, and personal Canva tools. Shell, filesystem mutation, arbitrary web access, and unrelated connectors fail closed.
+- Dedicated bridge and agent service accounts keep Discord, PMAI, HappyHerd, and Codex credentials separate from personal runtimes.
+- Production requires a verified replacement for the previously exposed Discord token, healthy PMAI authorization, and a live dedicated HappyHerd machine before the bot reports ready.
+
 # August 15 — Focused automations and memory observation
 
 Automations stay in their own workflow, while historical observation remains bounded and reviewable.
