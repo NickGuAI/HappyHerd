@@ -121,3 +121,6 @@ R13	code-ready	fix(workspace): add upload cancel and retry	server/packages/happy
 R1-R15	code-ready	docs(patches): register R1 R13 and R15 delivery	docs/owned-patches.tsv
 DEPLOY	code-ready	fix(release): package the self-host server runtime	scripts/test-release-server-contract.sh
 R15	code-ready	feat(commanders): add touch onboarding entry (#84)	server/packages/happy-app/sources/utils/newSessionCommanderCreation.test.ts
+AUTOMATION	code-ready	feat(automations): confine listings to native manifests	server/packages/happy-cli/src/automations/store.test.ts
+MEMORY	code-ready	feat(memory): add bounded L1 observer runner	server/scripts/tests/test_memory_observer.py
+AUTOMATION-MEMORY	code-ready	docs(patches): register automation observer series	docs/owned-patches.tsv
