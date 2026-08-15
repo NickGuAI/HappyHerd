@@ -36,6 +36,7 @@ import { DecryptedArtifact } from "./artifactTypes";
 import { FeedItem } from "./feedTypes";
 import { getRigActivityIndicators, getRigIdentity, isRigMetadata } from './rig';
 import { indexSessionsById } from './sessionIdentity';
+import { filterSessionsForTopLevelLists } from './sessionListVisibility';
 
 // Debounce timer for realtimeMode changes
 let realtimeModeDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -278,12 +279,7 @@ function buildSessionListViewData(
     const rigPathSessions: Session[] = [];
     const happySessions: Session[] = [];
 
-    Object.values(sessions).forEach(session => {
-        // Side chats are hidden children of another session — they render only
-        // inside the parent's sidebar panel, never in the top-level list.
-        if (session.metadata?.isSideChat) {
-            return;
-        }
+    filterSessionsForTopLevelLists(Object.values(sessions)).forEach(session => {
         if (isRigMetadata(session.metadata)) {
             if (isProjectSession(session)) {
                 rigProjectSessions.push(session);
@@ -465,11 +461,7 @@ export const storage = create<StorageState>()((set, get) => {
             const inactiveSessions: Session[] = [];
 
             // Process all sessions from merged set
-            Object.values(mergedSessions).forEach(session => {
-                // Side chats are hidden children — never in any session list.
-                if (session.metadata?.isSideChat) {
-                    return;
-                }
+            filterSessionsForTopLevelLists(Object.values(mergedSessions)).forEach(session => {
                 if (activeSet.has(session.id)) {
                     activeSessions.push(session);
                 } else {
@@ -1465,9 +1457,7 @@ export function useSessionListViewData(): SessionListViewItem[] | null {
 export function useAllSessions(): Session[] {
     return storage(useShallow((state) => {
         if (!state.isDataReady) return [];
-        // Side chats are hidden children — exclude them from every list.
-        return Object.values(state.sessions)
-            .filter((s) => !s.metadata?.isSideChat)
+        return filterSessionsForTopLevelLists(Object.values(state.sessions))
             .sort((a, b) => b.updatedAt - a.updatedAt);
     }));
 }

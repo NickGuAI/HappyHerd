@@ -1222,6 +1222,7 @@
       "history": "历史记录",
       "editAction": "编辑",
       "noRuns": "尚无运行记录。",
+      "openSession": "打开会话 {id}",
       "commanderValue": "指挥官 {id}",
       "attempt": "第 {count} 次尝试"
     },

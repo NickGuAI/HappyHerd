@@ -37,6 +37,7 @@ import type { Machine } from '@/sync/storageTypes';
 import { isMachineOnline } from '@/utils/machineUtils';
 import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
+import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 
 type Draft = {
     name: string;
@@ -155,6 +156,7 @@ function Field({
 
 export default function AutomationsScreen() {
     const { theme } = useUnistyles();
+    const navigateToSession = useNavigateToSession();
     const { width } = useWindowDimensions();
     const desktop = (Platform.OS === 'web' || Platform.OS === 'macos') && width >= 900;
     const machines = useAllMachines({ includeOffline: true });
@@ -402,6 +404,7 @@ export default function AutomationsScreen() {
                         onToggleStatus={() => void toggleStatus(automation)}
                         onRunNow={() => void runNow(automation)}
                         onToggleHistory={() => void loadHistory(automation)}
+                        onOpenSession={navigateToSession}
                         onEdit={() => openEdit(automation)}
                         onDelete={() => void remove(automation)}
                     />

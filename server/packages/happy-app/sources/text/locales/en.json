@@ -1222,6 +1222,7 @@
       "history": "History",
       "editAction": "Edit",
       "noRuns": "No runs yet.",
+      "openSession": "Open session {id}",
       "commanderValue": "Commander {id}",
       "attempt": "attempt {count}"
     },
