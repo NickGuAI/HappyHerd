@@ -131,3 +131,4 @@ PMAI_DISCORD	code-ready	feat(discord): add governed PMAI HappyHerd bridge	server
 PMAI_DISCORD	code-ready	fix(discord): make bridge settlement restart-safe	server/packages/happy-discord-agent/src/bridge.test.ts
 PMAI_DISCORD	code-ready	ops(discord): ship isolated PMAI agent runtime	scripts/test-pmai-discord-agent-runtime.sh
 PMAI_DISCORD	code-ready	fix(discord): reject personal homes across runtimes	server/packages/happy-discord-agent/src/config.test.ts
+PMAI_DISCORD	code-ready	fix(discord): install complete sandbox prerequisites	scripts/test-pmai-discord-agent-runtime.sh

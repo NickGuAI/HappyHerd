@@ -23,9 +23,12 @@ CURRENT_LINK="$TMP_ROOT/current"
 DAEMON_FILENAME='happyherd-daemon-x64-linux.tar.gz'
 BRIDGE_FILENAME='happyherd-pmai-discord-agent-x64-linux.tar.gz'
 
-mkdir -p "$ARTIFACT_DIR" "$PAYLOAD/daemon/bin" "$PAYLOAD/pmai-discord-agent/dist"
+mkdir -p "$ARTIFACT_DIR" "$PAYLOAD/daemon/bin" "$PAYLOAD/daemon/tools/unpacked" "$PAYLOAD/pmai-discord-agent/dist"
 printf '#!/usr/bin/env node\n' > "$PAYLOAD/daemon/bin/happy.mjs"
 chmod 0755 "$PAYLOAD/daemon/bin/happy.mjs"
+printf '#!/usr/bin/env sh\nexit 0\n' > "$PAYLOAD/daemon/tools/unpacked/rg"
+chmod 0755 "$PAYLOAD/daemon/tools/unpacked/rg"
+ln -s ../tools/unpacked/rg "$PAYLOAD/daemon/bin/rg"
 printf 'export async function startPmaiDiscordAgent() {}\n' > "$PAYLOAD/pmai-discord-agent/dist/index.mjs"
 tar -czf "$ARTIFACT_DIR/$DAEMON_FILENAME" -C "$PAYLOAD" daemon
 tar -czf "$ARTIFACT_DIR/$BRIDGE_FILENAME" -C "$PAYLOAD" pmai-discord-agent
@@ -61,6 +64,7 @@ TARGET="$RELEASE_ROOT/$SOURCE_SHA"
 [[ "$(realpath "$CURRENT_LINK")" == "$TARGET" ]] || fail 'current link does not identify the immutable source release'
 [[ "$(stat -Lc '%a' "$CURRENT_LINK")" == 755 ]] || fail 'release root is not traversable by the daemon service account'
 [[ -x "$CURRENT_LINK/daemon/bin/happy.mjs" ]] || fail 'daemon entrypoint is not executable'
+[[ -x "$CURRENT_LINK/daemon/bin/rg" ]] || fail 'daemon sandbox ripgrep is not executable'
 [[ -f "$CURRENT_LINK/pmai-discord-agent/dist/index.mjs" ]] || fail 'PMAI Discord Agent entrypoint is missing'
 [[ -x "$CURRENT_LINK/scripts/run-container.sh" ]] || fail 'complete release omitted the server launcher'
 [[ -x "$CURRENT_LINK/scripts/activate-release.sh" ]] || fail 'complete release omitted the release activator'

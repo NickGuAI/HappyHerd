@@ -98,6 +98,7 @@ chmod 0755 "$STAGE"
 chmod 0755 "$STAGE/daemon/bin/happy.mjs" "$STAGE/scripts/"*.sh
 
 [[ -x "$STAGE/daemon/bin/happy.mjs" ]] || die 'daemon entrypoint is not executable'
+[[ -x "$STAGE/daemon/bin/rg" ]] || die 'daemon sandbox ripgrep is not executable'
 [[ -f "$STAGE/pmai-discord-agent/dist/index.mjs" ]] || die 'PMAI Discord Agent entrypoint is missing'
 [[ -x "$STAGE/scripts/run-container.sh" ]] || die 'server launcher is not executable'
 [[ -x "$STAGE/scripts/activate-release.sh" ]] || die 'release activator is not executable'
@@ -112,6 +113,7 @@ LINK_STAGE=''
 
 [[ "$(realpath "$CURRENT_LINK")" == "$TARGET" ]] || die 'current link did not switch atomically'
 [[ -x "$CURRENT_LINK/daemon/bin/happy.mjs" ]] || die 'installed daemon is not executable through current'
+[[ -x "$CURRENT_LINK/daemon/bin/rg" ]] || die 'installed sandbox ripgrep is unavailable through current'
 [[ -f "$CURRENT_LINK/pmai-discord-agent/dist/index.mjs" ]] || die 'installed PMAI Discord Agent is unavailable through current'
 [[ -x "$CURRENT_LINK/scripts/run-container.sh" ]] || die 'installed server launcher is unavailable through current'
 

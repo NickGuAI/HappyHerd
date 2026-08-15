@@ -6,6 +6,7 @@ HappyHerd now includes the isolated runtime for a governed PMAI team agent on Di
 - Personal reads and confirmed writes stay in DM; guild conversations are mention-gated and read-only.
 - Codex can use only the five governed PMAI guide, CRM, Luma, Discord, and personal Canva tools. Shell, filesystem mutation, arbitrary web access, and unrelated connectors fail closed.
 - Dedicated bridge and agent service accounts keep Discord, PMAI, HappyHerd, and Codex credentials separate from personal runtimes.
+- The release bundles and verifies every sandbox prerequisite before the agent can start, including filesystem isolation, mediated loopback networking, and the sandbox runtime's search executable.
 - Production requires a verified replacement for the previously exposed Discord token, healthy PMAI authorization, and a live dedicated HappyHerd machine before the bot reports ready.
 
 # August 15 — Focused automations and memory observation

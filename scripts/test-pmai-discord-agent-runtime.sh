@@ -34,6 +34,9 @@ grep -Fq 'pmai-happyherd-agent' "$ROOT/deploy/pmai-happyherd-daemon.cron" || fai
 grep -Fq 'PMAI_CODEX_PERMISSION_MODE=read-only' "$ROOT/deploy/pmai-discord-agent.env.example" || fail 'bridge does not lock Codex read-only'
 grep -Fq 'PMAI_DISCORD_TOKEN_ROTATION_RECEIPT_FILE=' "$ROOT/deploy/pmai-discord-agent.env.example" || fail 'token rotation receipt is not required'
 grep -Fq 'PMAI_BROKER_URL=http://pmai-broker.localhost:3210/mcp' "$ROOT/deploy/pmai-discord-agent.env.example" || fail 'bridge does not use the sandbox broker alias'
+grep -Fq 'release-bundled ripgrep is missing' "$ROOT/scripts/prepare-pmai-discord-agent-runtime.sh" || fail 'runtime preparation does not require bundled ripgrep'
+grep -Fq 'release-bundled ripgrep is unusable' "$ROOT/scripts/validate-pmai-discord-agent-runtime.sh" || fail 'runtime validator does not execute bundled ripgrep as the agent user'
+grep -Fq 'command -v rg' "$ROOT/scripts/test-pmai-discord-agent-sandbox.sh" || fail 'sandbox canary does not preflight ripgrep'
 grep -Fq 'provision-pmai-happy-account.sh' "$ROOT/docs/runtime-isolation.md" || fail 'dedicated HappyHerd account provisioning is undocumented'
 [[ -x "$ROOT/scripts/provision-pmai-happy-account.sh" ]] || fail 'dedicated HappyHerd account provisioner is missing'
 

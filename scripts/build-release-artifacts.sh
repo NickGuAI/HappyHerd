@@ -187,6 +187,14 @@ for tool_name in difftastic ripgrep; do
     cp "$archive" "$license" "$STAGE/daemon/tools/archives/"
 done
 
+(
+    cd "$STAGE/daemon"
+    node scripts/unpack-tools.cjs
+)
+[[ -x "$STAGE/daemon/tools/unpacked/rg" ]] || die 'daemon deployment did not unpack ripgrep'
+ln -s ../tools/unpacked/rg "$STAGE/daemon/bin/rg"
+"$STAGE/daemon/bin/rg" --version >/dev/null || die 'daemon deployment ripgrep is unusable'
+
 pnpm --filter happy-agent --fail-if-no-match build
 pnpm --filter @happyherd/pmai-discord-agent --fail-if-no-match build
 

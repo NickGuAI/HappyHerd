@@ -20,6 +20,8 @@ grep -Fq 'happyherd-pmai-discord-agent-${platform}.tar.gz' "$BUILDER" || \
     fail 'release builder does not archive the bridge by platform'
 grep -Fq 'pmai-discord-agent/dist/index.mjs' "$INSTALLER" || \
     fail 'host installer does not verify the bridge entrypoint'
+grep -Fq 'daemon/bin/rg' "$INSTALLER" || \
+    fail 'host installer does not verify the bundled sandbox ripgrep'
 grep -Fq 'PMAI_DISCORD_TOKEN_ROTATION_RECEIPT_FILE=' "$ROOT/deploy/pmai-discord-agent.env.example" || \
     fail 'production profile has no token-rotation gate'
 grep -Fq 'ExecStartPre=+' "$ROOT/deploy/pmai-discord-agent.service" || \
@@ -34,6 +36,12 @@ grep -Fq 'provision-pmai-happy-account.sh' "$ROOT/docs/runtime-isolation.md" || 
     fail 'release does not document dedicated HappyHerd account provisioning'
 grep -Fq 'codex --version' "$ROOT/scripts/validate-pmai-discord-agent-runtime.sh" || \
     fail 'runtime validator does not preflight the dedicated Codex executable'
+grep -Fq 'node scripts/unpack-tools.cjs' "$ROOT/scripts/build-release-artifacts.sh" || \
+    fail 'release builder does not unpack the bundled sandbox tools'
+grep -Fq 'daemon/bin/rg' "$ROOT/scripts/build-release-artifacts.sh" || \
+    fail 'release builder does not expose bundled ripgrep on the daemon PATH'
+grep -Fq 'rg --version' "$ROOT/scripts/validate-pmai-discord-agent-runtime.sh" || \
+    fail 'runtime validator does not execute bundled ripgrep as the agent user'
 grep -Fq '/list' "$ROOT/scripts/validate-pmai-discord-agent-runtime.sh" || \
     fail 'runtime validator does not probe the detached daemon control endpoint'
 

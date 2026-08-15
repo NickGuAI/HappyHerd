@@ -5,16 +5,21 @@ MODE="${1:-source}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 case "$MODE" in
     source) NODE_ROOT="$ROOT/server" ;;
-    runtime) NODE_ROOT="${PMAI_HAPPYHERD_RELEASE:-/opt/happyherd/current}/daemon" ;;
+    runtime)
+        NODE_ROOT="${PMAI_HAPPYHERD_RELEASE:-/opt/happyherd/current}/daemon"
+        export PATH="$NODE_ROOT/bin:${PATH:-/usr/local/bin:/usr/bin:/bin}"
+        ;;
     *) printf 'error: mode must be source or runtime\n' >&2; exit 1 ;;
 esac
 
-if ! command -v bwrap >/dev/null 2>&1 || ! command -v socat >/dev/null 2>&1; then
+if ! command -v bwrap >/dev/null 2>&1 \
+    || ! command -v rg >/dev/null 2>&1 \
+    || ! command -v socat >/dev/null 2>&1; then
     if [[ "$MODE" == source ]]; then
-        printf 'PMAI sandbox broker canary skipped: bwrap and socat are host-only dependencies.\n'
+        printf 'PMAI sandbox broker canary skipped: bwrap, rg, and socat are host-only dependencies.\n'
         exit 0
     fi
-    printf 'error: PMAI sandbox broker canary requires bwrap and socat\n' >&2
+    printf 'error: PMAI sandbox broker canary requires bwrap, rg, and socat\n' >&2
     exit 1
 fi
 [[ -d "$NODE_ROOT/node_modules/@anthropic-ai/sandbox-runtime" ]] || {
@@ -35,9 +40,13 @@ import { SandboxManager } from '@anthropic-ai/sandbox-runtime';
 
 const server = createServer((_request, response) => response.end('pmai-broker-ok'));
 const readOnlyDirectory = await mkdtemp('/var/tmp/pmai-sandbox-readonly-');
+const workspaceDirectory = await mkdtemp('/var/tmp/pmai-sandbox-workspace-');
 const forbiddenWrite = `${readOnlyDirectory}/must-not-exist`;
+const originalCwd = process.cwd();
+const undiciUrl = import.meta.resolve('undici');
 let sandboxInitialized = false;
 try {
+  process.chdir(workspaceDirectory);
   await new Promise((resolve, reject) => {
     server.once('error', reject);
     server.listen(0, '127.0.0.1', resolve);
@@ -62,7 +71,7 @@ try {
 
   const childProgram = [
     'import { writeFileSync } from "node:fs";',
-    'import { ProxyAgent, request } from "undici";',
+    `import { ProxyAgent, request } from ${JSON.stringify(undiciUrl)};`,
     `try { writeFileSync(${JSON.stringify(forbiddenWrite)}, "forbidden"); process.exit(3); } catch {}`,
     'const proxy = process.env.HTTP_PROXY;',
     'if (proxy === undefined) throw new Error("sandbox proxy missing");',
@@ -85,10 +94,12 @@ try {
   }
 } finally {
   if (sandboxInitialized) await SandboxManager.reset();
+  process.chdir(originalCwd);
   if (server.listening) {
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
   await rm(readOnlyDirectory, { recursive: true, force: true });
+  await rm(workspaceDirectory, { recursive: true, force: true });
 }
 NODE
 

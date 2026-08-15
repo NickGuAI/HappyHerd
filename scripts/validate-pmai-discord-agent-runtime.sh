@@ -85,6 +85,7 @@ fi
 [[ "$(id -u)" -eq 0 ]] || die 'runtime validation must run as root'
 command -v bwrap >/dev/null 2>&1 || die 'bubblewrap is required for the PMAI Codex sandbox'
 command -v socat >/dev/null 2>&1 || die 'socat is required for sandbox network mediation'
+[[ -x "$RELEASE_ROOT/daemon/bin/rg" ]] || die 'release-bundled ripgrep is required by the PMAI Codex sandbox runtime'
 for user_name in "$BRIDGE_USER" "$AGENT_USER"; do
     id "$user_name" >/dev/null 2>&1 || die "service user is missing: $user_name"
 done
@@ -125,10 +126,16 @@ done
 if ! runuser -u "$AGENT_USER" -- env -i \
     HOME="$AGENT_ROOT" \
     CODEX_HOME="$AGENT_ROOT/codex-home" \
-    PATH="$AGENT_ROOT/.local/bin:/usr/local/bin:/usr/bin:/bin" \
+    PATH="$RELEASE_ROOT/daemon/bin:$AGENT_ROOT/.local/bin:/usr/local/bin:/usr/bin:/bin" \
     SHELL=/bin/bash \
     codex --version >/dev/null 2>&1; then
     die 'dedicated Codex executable is missing or unusable'
+fi
+if ! runuser -u "$AGENT_USER" -- env -i \
+    HOME="$AGENT_ROOT" \
+    PATH="$RELEASE_ROOT/daemon/bin:/usr/local/bin:/usr/bin:/bin" \
+    rg --version >/dev/null 2>&1; then
+    die 'release-bundled ripgrep is unusable by the dedicated agent'
 fi
 
 export PMAI_VALIDATION_AGENT_KEY="$HAPPY_HOME_DIR/agent.key"
@@ -272,7 +279,9 @@ if (
 ) process.exit(1);
 NODE
 
-runuser -u "$AGENT_USER" -- env PMAI_HAPPYHERD_RELEASE="$RELEASE_ROOT" \
+runuser -u "$AGENT_USER" -- env \
+    PATH="$RELEASE_ROOT/daemon/bin:/usr/local/bin:/usr/bin:/bin" \
+    PMAI_HAPPYHERD_RELEASE="$RELEASE_ROOT" \
     "$RELEASE_ROOT/scripts/test-pmai-discord-agent-sandbox.sh" runtime
 
 printf 'PMAI Discord runtime verified.\n'

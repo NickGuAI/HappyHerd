@@ -26,6 +26,7 @@ if [[ "${#missing_sandbox_dependencies[@]}" -gt 0 ]]; then
 fi
 command -v bwrap >/dev/null 2>&1 || die 'bubblewrap installation did not provide bwrap'
 command -v socat >/dev/null 2>&1 || die 'socat installation did not complete'
+[[ -x "$ROOT/daemon/bin/rg" ]] || die 'release-bundled ripgrep is missing or not executable'
 
 ensure_system_user() {
     local user_name="$1"

@@ -111,6 +111,11 @@ actor scope and same-actor exact-action confirmation.
 
 Provision the public layout and units from an installed release:
 
+The release bundles the exact ripgrep (`rg`) executable required by the sandbox
+runtime, while preparation installs Bubblewrap for filesystem/process isolation
+and `socat` for mediated loopback networking. Runtime validation executes all
+three through the dedicated agent identity and fails closed if any is absent.
+
 ```bash
 sudo /opt/happyherd/current/scripts/prepare-pmai-discord-agent-runtime.sh
 sudoedit /etc/pmai-discord-agent/bridge.env
