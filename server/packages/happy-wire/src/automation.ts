@@ -63,7 +63,6 @@ export type HappyHerdAutomationRun = z.infer<typeof HappyHerdAutomationRunSchema
 
 export const HappyHerdAutomationListResponseSchema = z.object({
   automations: z.array(HappyHerdAutomationSchema),
-  legacyCount: z.number().int().min(0),
 }).strict();
 export type HappyHerdAutomationListResponse = z.infer<typeof HappyHerdAutomationListResponseSchema>;
 

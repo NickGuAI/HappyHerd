@@ -55,13 +55,14 @@ describe('HappyHerdAutomationStore', () => {
     expect(await store.history(automation.id)).toHaveLength(1);
   });
 
-  it('keeps legacy Herd automation artifacts outside its namespace', async () => {
-    const legacyRoot = path.join(root, '.happyherd', 'agentcontext', 'automations');
-    await mkdir(legacyRoot, { recursive: true });
-    await writeFile(path.join(legacyRoot, 'legacy-herd.json'), '{}');
+  it('lists only manifests from its native namespace', async () => {
+    const parentRoot = path.join(root, '.happyherd', 'agentcontext', 'automations');
+    await mkdir(parentRoot, { recursive: true });
+    await writeFile(path.join(parentRoot, 'unmanaged.json'), '{}');
     const store = new HappyHerdAutomationStore();
     await store.create('machine-one', input());
-    expect((await store.list('machine-one')).legacyCount).toBe(1);
+    const result = await store.list('machine-one');
+    expect(result).toEqual({ automations: [expect.objectContaining({ machineId: 'machine-one' })] });
   });
 
   it('rejects unsafe schedules without creating an artifact', async () => {

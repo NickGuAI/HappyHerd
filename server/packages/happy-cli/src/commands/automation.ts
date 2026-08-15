@@ -76,7 +76,8 @@ Usage:
 
 Definitions are stored below the configured HAPPY_HOME_DIR at
 agentcontext/automations/happyherd and
-executed by this machine's HappyHerd daemon. Legacy Herd definitions are not claimed.
+executed by this machine's HappyHerd daemon. Only manifests in this namespace
+are managed.
 `);
 }
 

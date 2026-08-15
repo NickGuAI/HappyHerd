@@ -1196,15 +1196,6 @@
       "deleteTitle": "Automatisierung löschen?",
       "deleteDescription": "{name} und der lokale Ausführungsverlauf werden gelöscht.",
       "delete": "Löschen",
-      "legacyNotice": {
-        "select": {
-          "param": "count",
-          "cases": {
-            "one": "{count} altes Herd-Automatisierungsartefakt erkannt. HappyHerd verwaltet es nicht, um doppelte Läufe zu vermeiden.",
-            "other": "{count} alte Herd-Automatisierungsartefakte erkannt. HappyHerd verwaltet sie nicht, um doppelte Läufe zu vermeiden."
-          }
-        }
-      },
       "edit": "Automatisierung bearbeiten",
       "create": "Neue Automatisierung",
       "name": "Bezeichnung",
