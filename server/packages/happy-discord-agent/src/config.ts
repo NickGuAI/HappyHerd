@@ -93,6 +93,9 @@ function parseAuthorizationPath(raw: string): string {
 
 function assertDedicatedPaths(config: Pick<BridgeConfig, 'happyHomeDir' | 'agentWorkspace' | 'stateDir'>): void {
   const personalRoots = [
+    resolve('/home'),
+    resolve('/Users'),
+    resolve('/root'),
     resolve(homedir(), '.happyherd'),
     resolve(homedir(), '.happy'),
     resolve(homedir(), '.herd'),

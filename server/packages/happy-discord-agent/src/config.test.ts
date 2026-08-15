@@ -1,5 +1,5 @@
 import { chmod, mkdtemp, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
@@ -38,10 +38,14 @@ describe('loadBridgeConfig', () => {
     expect(config.brokerUrl).toBe('http://127.0.0.1:3210/mcp');
   });
 
-  it('rejects Nick personal runtime paths', () => {
+  it('rejects personal runtime paths on every host', () => {
     expect(() => loadBridgeConfig({
       ...baseEnvironment(),
-      HAPPY_HOME_DIR: '/home/ec2-user/.happyherd',
+      HAPPY_HOME_DIR: join(homedir(), '.happyherd'),
+    })).toThrow('dedicated PMAI service path');
+    expect(() => loadBridgeConfig({
+      ...baseEnvironment(),
+      PMAI_AGENT_WORKSPACE: '/home/ec2-user/App',
     })).toThrow('dedicated PMAI service path');
   });
 
