@@ -4,6 +4,41 @@ CLI client for controlling Happy Coder agents remotely.
 
 Unlike `happy-cli` which both runs and controls agents, `happy-agent` only controls them — listing machines, spawning sessions on a machine, creating sessions, sending messages, reading history, monitoring state, and stopping sessions.
 
+## Library control surface
+
+Trusted services can use the side-effect-free `happy-agent/control` export
+instead of shelling out to the CLI:
+
+```ts
+import { HappyControlClient } from 'happy-agent/control';
+
+const happy = HappyControlClient.fromEnvironment();
+const session = await happy.spawnCodexSession({
+  machineId: process.env.HAPPY_MACHINE_ID!,
+  directory: '/srv/pmai-agent/workspace',
+  commanderId: 'pmai-team-agent',
+  permissionMode: 'default',
+  runtimeContext: {
+    discordSurfaceId: 'dm:123',
+    pmaiCapabilityId: 'opaque-local-capability-id',
+    pmaiBrokerSocketPath: '/run/pmai-discord-agent/broker.sock',
+  },
+});
+
+const result = await happy.sendTurn({
+  sessionId: session.id,
+  localId: 'discord:source-message-id',
+  text: 'Summarize my PMAI onboarding status.',
+});
+```
+
+Spawn runtime context is mapped to three fixed environment names. Callers
+cannot pass arbitrary environment variables through this API. `sendTurn()`
+subscribes before sending, uses the caller's stable `localId` for server-side
+deduplication, and returns only non-thinking text from the correlated root
+agent turn. Tool output, ready events, stale turns, and child-agent text are
+excluded.
+
 ## Installation
 
 From the monorepo:

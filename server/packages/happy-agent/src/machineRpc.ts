@@ -5,6 +5,24 @@ import { decodeBase64, encodeBase64, encrypt, decrypt } from './encryption';
 
 export type SupportedAgent = 'claude' | 'codex' | 'gemini' | 'openclaw' | 'agy';
 
+export type SpawnSessionRuntimeContext = {
+    discordSurfaceId?: string;
+    pmaiCapabilityId?: string;
+    pmaiBrokerSocketPath?: string;
+};
+
+export type SpawnSessionOnMachineOptions = {
+    directory: string;
+    approvedNewDirectoryCreation?: boolean;
+    agent?: SupportedAgent;
+    providerToken?: string;
+    permissionMode?: string;
+    modelMode?: string;
+    effortLevel?: string;
+    commanderId?: string;
+    runtimeContext?: SpawnSessionRuntimeContext;
+};
+
 export type SpawnMachineSessionResult =
     | { type: 'success'; sessionId: string }
     | { type: 'requestToApproveDirectoryCreation'; directory: string }
@@ -56,16 +74,38 @@ function normalizeRpcError(error: string | undefined, machineId: string): string
     return error;
 }
 
+function requireBoundedContextValue(value: string | undefined, label: string): string | undefined {
+    if (value === undefined) {
+        return undefined;
+    }
+    const normalized = value.trim();
+    if (normalized.length === 0 || normalized.length > 512 || normalized.includes('\0')) {
+        throw new Error(`${label} must be a non-empty string no longer than 512 characters`);
+    }
+    return normalized;
+}
+
+function runtimeContextEnvironment(
+    context: SpawnSessionRuntimeContext | undefined,
+): Record<string, string> | undefined {
+    if (!context) {
+        return undefined;
+    }
+
+    const entries = [
+        ['PMAI_DISCORD_SURFACE_ID', requireBoundedContextValue(context.discordSurfaceId, 'discordSurfaceId')],
+        ['PMAI_SESSION_CAPABILITY_ID', requireBoundedContextValue(context.pmaiCapabilityId, 'pmaiCapabilityId')],
+        ['PMAI_BROKER_SOCKET_PATH', requireBoundedContextValue(context.pmaiBrokerSocketPath, 'pmaiBrokerSocketPath')],
+    ].filter((entry): entry is [string, string] => entry[1] !== undefined);
+
+    return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
 export async function spawnSessionOnMachine(
     config: Config,
     machine: DecryptedMachine,
     token: string,
-    options: {
-        directory: string;
-        approvedNewDirectoryCreation?: boolean;
-        agent?: SupportedAgent;
-        providerToken?: string;
-    },
+    options: SpawnSessionOnMachineOptions,
 ): Promise<SpawnMachineSessionResult> {
     const socket = io(config.serverUrl, {
         auth: {
@@ -89,6 +129,11 @@ export async function spawnSessionOnMachine(
                 approvedNewDirectoryCreation: options.approvedNewDirectoryCreation ?? false,
                 token: options.providerToken,
                 agent: options.agent,
+                permissionMode: options.permissionMode,
+                modelMode: options.modelMode,
+                effortLevel: options.effortLevel,
+                commanderId: options.commanderId,
+                environmentVariables: runtimeContextEnvironment(options.runtimeContext),
             }),
         );
 
