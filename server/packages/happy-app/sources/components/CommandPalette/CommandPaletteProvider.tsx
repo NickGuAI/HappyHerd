@@ -18,6 +18,7 @@ import { isTauri } from '@/utils/isTauri';
 import { useVisibleSessionListViewData } from '@/hooks/useVisibleSessionListViewData';
 import { getSessionShortcutIdsInDisplayOrder } from '@/utils/sessionDisplayOrder';
 import { t } from '@/text';
+import { getRecentTopLevelSessions } from '@/sync/sessionListVisibility';
 
 const EMPTY_SESSION_IDS: readonly string[] = [];
 
@@ -108,9 +109,7 @@ export function CommandPaletteProvider({ children }: { children: React.ReactNode
         ];
 
         // Add session-specific commands
-        const recentSessions = Object.values(sessions)
-            .sort((a, b) => b.updatedAt - a.updatedAt)
-            .slice(0, 5);
+        const recentSessions = getRecentTopLevelSessions(Object.values(sessions));
 
         recentSessions.forEach(session => {
             const sessionName = session.metadata?.name || t('uiCopy.sessionValue', { value1: session.id.slice(0, 6) });

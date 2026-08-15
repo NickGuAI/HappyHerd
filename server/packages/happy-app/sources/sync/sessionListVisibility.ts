@@ -10,11 +10,21 @@ import type { Session } from './storageTypes';
 export function isSessionVisibleInTopLevelLists(
     session: Pick<Session, 'metadata'>,
 ): boolean {
-    return !session.metadata?.isSideChat && !session.metadata?.automationId;
+    return !session.metadata?.isSideChat
+        && !session.metadata?.automationId
+        && !session.metadata?.automationKind;
 }
 
 export function filterSessionsForTopLevelLists<T extends Pick<Session, 'metadata'>>(
     sessions: readonly T[],
 ): T[] {
     return sessions.filter(isSessionVisibleInTopLevelLists);
+}
+
+export function getRecentTopLevelSessions<
+    T extends Pick<Session, 'metadata' | 'updatedAt'>,
+>(sessions: readonly T[], limit = 5): T[] {
+    return filterSessionsForTopLevelLists(sessions)
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+        .slice(0, limit);
 }

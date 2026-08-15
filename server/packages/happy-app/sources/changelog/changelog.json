@@ -3,7 +3,7 @@
     {
       "title": "August 15 — Focused automations and memory observation",
       "summary": "Automations stay in their own workflow, while historical observation remains bounded and reviewable.",
-      "markdown": "- Unmanaged files outside HappyHerd's automation namespace no longer produce a legacy-system warning.\n- Automation listing remains confined to native manifests without scanning or claiming unrelated definitions.\n- Automation-created sessions no longer crowd Home or Recent; open successful runs from Automation History instead.\n- A bounded Observer can review up to 14 local days of Claude and Codex conversations and append L1 evidence to each owning Commander without distilling higher memory tiers."
+      "markdown": "- Unmanaged files outside HappyHerd's automation namespace no longer produce a legacy-system warning.\n- Automation listing remains confined to native manifests without scanning or claiming unrelated definitions.\n- Automation-created sessions stay out of Home and Web Recent even when only part of their provenance is available; open successful runs from Automation History instead.\n- A bounded Observer can review up to 14 local days of Claude and Codex conversations and append L1 evidence to each owning Commander without distilling higher memory tiers."
     },
     {
       "title": "August 13 — Guided Commander onboarding",

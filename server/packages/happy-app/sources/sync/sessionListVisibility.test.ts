@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Session } from './storageTypes';
 import {
     filterSessionsForTopLevelLists,
+    getRecentTopLevelSessions,
     isSessionVisibleInTopLevelLists,
 } from './sessionListVisibility';
 
@@ -34,6 +35,15 @@ describe('isSessionVisibleInTopLevelLists', () => {
         expect(isSessionVisibleInTopLevelLists(session(automationMetadata, false))).toBe(false);
     });
 
+    it('treats either automation provenance field as sufficient to hide a run', () => {
+        expect(isSessionVisibleInTopLevelLists(session({
+            automationId: '8f0a5dd0-b7c0-4b60-a747-675b49ccfdc8',
+        }))).toBe(false);
+        expect(isSessionVisibleInTopLevelLists(session({
+            automationKind: 'scheduled',
+        }))).toBe(false);
+    });
+
     it('leaves no list rows when a group contains only automation sessions', () => {
         const automationOnly = [
             session({ automationId: '8f0a5dd0-b7c0-4b60-a747-675b49ccfdc8' }, true),
@@ -41,5 +51,23 @@ describe('isSessionVisibleInTopLevelLists', () => {
         ];
 
         expect(filterSessionsForTopLevelLists(automationOnly)).toEqual([]);
+    });
+
+    it('filters automation runs before selecting Recent sessions', () => {
+        const automationRuns = Array.from({ length: 6 }, (_, index) => ({
+            ...session({
+                automationId: `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
+            }),
+            id: `automation-${index}`,
+            updatedAt: 100 - index,
+        }));
+        const conversation = {
+            ...session(),
+            id: 'conversation',
+            updatedAt: 1,
+        };
+
+        expect(getRecentTopLevelSessions([...automationRuns, conversation], 5))
+            .toEqual([conversation]);
     });
 });
