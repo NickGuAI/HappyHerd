@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "af5bc8d8643d31ef9a4d1573f641aa2b07cab7b22b20c9a533c29072f850bcac",
+  "sourceFingerprint": "c52ced668e4b61b55bc9e4bfed79f95656fa4b3b63154e2579b6df2958dc3d26",
   "routeCount": 36,
   "surfaceCount": 224,
   "hardcodedCopyCount": 0,
@@ -2988,6 +2988,7 @@
         "happyHerd.automations.expandDetails",
         "happyHerd.automations.history",
         "happyHerd.automations.noRuns",
+        "happyHerd.automations.openSession",
         "happyHerd.automations.pause",
         "happyHerd.automations.resume",
         "happyHerd.automations.runNow"

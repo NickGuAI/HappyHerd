@@ -124,3 +124,4 @@ R15	code-ready	feat(commanders): add touch onboarding entry (#84)	server/package
 AUTOMATION	code-ready	feat(automations): confine listings to native manifests	server/packages/happy-cli/src/automations/store.test.ts
 MEMORY	code-ready	feat(memory): add bounded L1 observer runner	server/scripts/tests/test_memory_observer.py
 AUTOMATION-MEMORY	code-ready	docs(patches): register automation observer series	docs/owned-patches.tsv
+R16	code-ready	fix(automations): separate run sessions from conversations	server/packages/happy-app/sources/sync/sessionListVisibility.test.ts

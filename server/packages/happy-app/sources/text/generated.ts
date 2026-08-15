@@ -291,6 +291,7 @@ export type TranslationKey =
     | "happyHerd.automations.new"
     | "happyHerd.automations.noRuns"
     | "happyHerd.automations.none"
+    | "happyHerd.automations.openSession"
     | "happyHerd.automations.pause"
     | "happyHerd.automations.rail"
     | "happyHerd.automations.resume"
@@ -1200,6 +1201,7 @@ export interface TranslationParamsByKey {
     "happyHerd.automations.commanderValue": { id: string };
     "happyHerd.automations.deleteDescription": { name: string };
     "happyHerd.automations.expandDetails": { name: string };
+    "happyHerd.automations.openSession": { id: string };
     "imageUpload.fileTooLargeMessage": { maxMb: number; name: string };
     "imageUpload.limitMessage": { max: number };
     "imageUpload.uploadFailedMessage": { count: number };

@@ -20,6 +20,7 @@ export type HappyHerdAutomationCardProps = {
     onToggleStatus: () => void;
     onRunNow: () => void;
     onToggleHistory: () => void;
+    onOpenSession: (sessionId: string) => void;
     onEdit: () => void;
     onDelete: () => void;
 };
@@ -30,6 +31,7 @@ export function HappyHerdAutomationCard({
     onToggleStatus,
     onRunNow,
     onToggleHistory,
+    onOpenSession,
     onEdit,
     onDelete,
 }: HappyHerdAutomationCardProps) {
@@ -107,15 +109,33 @@ export function HappyHerdAutomationCard({
                         <View style={[styles.history, { borderTopColor: theme.colors.divider }]}>
                             {history.length === 0 ? (
                                 <Text style={{ color: theme.colors.textSecondary }}>{t('happyHerd.automations.noRuns')}</Text>
-                            ) : history.map((run) => (
-                                <View key={run.id} style={styles.historyRow}>
-                                    <Text style={styles.historyStatus}>{run.status}</Text>
-                                    <Text style={{ flex: 1, color: theme.colors.textSecondary }}>
-                                        {new Date(run.scheduledFor).toLocaleString()} · {t('happyHerd.automations.attempt', { count: run.attempt })}
-                                        {run.sessionId ? ` · ${run.sessionId}` : ''}
-                                    </Text>
-                                </View>
-                            ))}
+                            ) : history.map((run) => {
+                                const sessionId = run.sessionId;
+                                const rowContent = (
+                                    <>
+                                        <Text style={styles.historyStatus}>{run.status}</Text>
+                                        <Text style={{ flex: 1, color: theme.colors.textSecondary }}>
+                                            {new Date(run.scheduledFor).toLocaleString()} · {t('happyHerd.automations.attempt', { count: run.attempt })}
+                                            {sessionId ? ` · ${sessionId}` : ''}
+                                        </Text>
+                                    </>
+                                );
+
+                                return sessionId ? (
+                                    <Pressable
+                                        key={run.id}
+                                        style={({ pressed }) => [styles.historyRow, styles.historyLink, pressed && styles.historyLinkPressed]}
+                                        onPress={() => onOpenSession(sessionId)}
+                                        accessibilityRole="link"
+                                        accessibilityLabel={t('happyHerd.automations.openSession', { id: sessionId })}
+                                    >
+                                        {rowContent}
+                                        <Ionicons name="chevron-forward" size={16} color={theme.colors.textSecondary} />
+                                    </Pressable>
+                                ) : (
+                                    <View key={run.id} style={styles.historyRow}>{rowContent}</View>
+                                );
+                            })}
                         </View>
                     )}
                 </View>
@@ -167,5 +187,7 @@ const styles = StyleSheet.create(() => ({
     action: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
     history: { marginTop: 4, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, gap: 8 },
     historyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+    historyLink: { borderRadius: 8, paddingVertical: 4, paddingHorizontal: 6, marginHorizontal: -6 },
+    historyLinkPressed: { opacity: 0.7 },
     historyStatus: { width: 62, ...Typography.default('semiBold') },
 }));

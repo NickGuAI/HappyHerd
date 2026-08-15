@@ -1,9 +1,11 @@
-# August 14 — Native automation scope
+# August 15 — Focused automations and memory observation
 
-The Automations screen now reports only automation definitions managed by HappyHerd.
+Automations stay in their own workflow, while historical observation remains bounded and reviewable.
 
 - Unmanaged files outside HappyHerd's automation namespace no longer produce a legacy-system warning.
 - Automation listing remains confined to native manifests without scanning or claiming unrelated definitions.
+- Automation-created sessions no longer crowd Home or Recent; open successful runs from Automation History instead.
+- A bounded Observer can review up to 14 local days of Claude and Codex conversations and append L1 evidence to each owning Commander without distilling higher memory tiers.
 
 # August 13 — Guided Commander onboarding
 
