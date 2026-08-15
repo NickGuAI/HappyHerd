@@ -12,6 +12,7 @@ import type { NormalizedDiscordMessage } from './types';
 
 export interface DiscordReplyTransport {
   sendReply(channelId: string, content: string, sourceMessageId: string): Promise<string[]>;
+  fetchMessage(channelId: string, sourceMessageId: string): Promise<NormalizedDiscordMessage>;
 }
 
 export type CommunityChannel = {
@@ -95,7 +96,7 @@ export class DiscordGateway implements DiscordCommunityTransport {
   private readonly client: Client;
   private ready = false;
 
-  constructor(applicationId: string) {
+  constructor(applicationId: string, onError: (error: Error) => void = () => {}) {
     this.applicationId = applicationId;
     this.client = new Client({
       intents: [
@@ -109,9 +110,17 @@ export class DiscordGateway implements DiscordCommunityTransport {
     this.client.once(Events.ClientReady, () => {
       this.ready = true;
     });
+    this.client.on(Events.ShardReady, () => {
+      this.ready = true;
+    });
+    this.client.on(Events.ShardResume, () => {
+      this.ready = true;
+    });
     this.client.on(Events.ShardDisconnect, () => {
       this.ready = false;
     });
+    this.client.on(Events.Error, onError);
+    this.client.on(Events.ShardError, onError);
   }
 
   onMessage(handler: (message: NormalizedDiscordMessage) => Promise<void>): void {
@@ -146,6 +155,15 @@ export class DiscordGateway implements DiscordCommunityTransport {
       messageIds.push(response.id);
     }
     return messageIds;
+  }
+
+  async fetchMessage(channelId: string, sourceMessageId: string): Promise<NormalizedDiscordMessage> {
+    const channel = await this.client.channels.fetch(channelId);
+    if (!channel || !channel.isTextBased() || !('messages' in channel)) {
+      throw new Error('Discord source channel is not message-readable');
+    }
+    const message = await channel.messages.fetch(sourceMessageId);
+    return normalizeDiscordMessage(message, this.applicationId);
   }
 
   async listChannels(guildIds: Set<string>, channelIds: Set<string>): Promise<CommunityChannel[]> {

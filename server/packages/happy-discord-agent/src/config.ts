@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { constants } from 'node:fs';
 import { access, lstat, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
@@ -6,6 +7,7 @@ import { isAbsolute, resolve } from 'node:path';
 export type BridgeConfig = {
   discordApplicationId: string;
   discordBotTokenFile: string;
+  discordTokenRotationReceiptFile: string | null;
   pmaiApiBaseUrl: string;
   pmaiAuthorizationPath: string;
   pmaiBridgeId: string;
@@ -71,11 +73,22 @@ function parseUrl(raw: string, key: string, production: boolean): string {
   if (url.username || url.password) {
     throw new Error(`${key} must not contain credentials`);
   }
-  const isLoopback = url.hostname === '127.0.0.1' || url.hostname === 'localhost' || url.hostname === '::1';
+  const isLoopback = url.hostname === '127.0.0.1' || url.hostname === 'localhost' || url.hostname === '[::1]';
   if (production && url.protocol !== 'https:' && !isLoopback) {
     throw new Error(`${key} must use HTTPS outside loopback`);
   }
   return url.toString().replace(/\/+$/, '');
+}
+
+function parseAuthorizationPath(raw: string): string {
+  if (!raw.startsWith('/') || raw.startsWith('//')) {
+    throw new Error('PMAI_AUTHORIZATION_PATH must be an origin-relative path');
+  }
+  const parsed = new URL(raw, 'https://pmai.invalid');
+  if (parsed.origin !== 'https://pmai.invalid' || parsed.search || parsed.hash) {
+    throw new Error('PMAI_AUTHORIZATION_PATH must not change origin or include query/fragment data');
+  }
+  return parsed.pathname;
 }
 
 function assertDedicatedPaths(config: Pick<BridgeConfig, 'happyHomeDir' | 'agentWorkspace' | 'stateDir'>): void {
@@ -113,8 +126,13 @@ export function loadBridgeConfig(env: NodeJS.ProcessEnv = process.env): BridgeCo
   const config: BridgeConfig = {
     discordApplicationId: required(env, 'PMAI_DISCORD_APPLICATION_ID'),
     discordBotTokenFile: absolutePath(env, 'PMAI_DISCORD_TOKEN_FILE'),
+    discordTokenRotationReceiptFile: env.PMAI_DISCORD_TOKEN_ROTATION_RECEIPT_FILE
+      ? absolutePath(env, 'PMAI_DISCORD_TOKEN_ROTATION_RECEIPT_FILE')
+      : null,
     pmaiApiBaseUrl,
-    pmaiAuthorizationPath: env.PMAI_AUTHORIZATION_PATH?.trim() || '/api/internal/discord/authorize',
+    pmaiAuthorizationPath: parseAuthorizationPath(
+      env.PMAI_AUTHORIZATION_PATH?.trim() || '/api/internal/discord/authorize',
+    ),
     pmaiBridgeId: env.PMAI_BRIDGE_ID?.trim() || 'pmai-discord',
     pmaiServiceSigningSecretFile: absolutePath(env, 'PMAI_SERVICE_SIGNING_SECRET_FILE'),
     bridgeTransportSecretFile: absolutePath(env, 'PMAI_BRIDGE_TRANSPORT_SECRET_FILE'),
@@ -138,21 +156,29 @@ export function loadBridgeConfig(env: NodeJS.ProcessEnv = process.env): BridgeCo
   const brokerPort = Number(broker.port || (broker.protocol === 'https:' ? '443' : '80'));
   if (
     broker.protocol !== 'http:'
-    || !['127.0.0.1', 'localhost', '::1'].includes(broker.hostname)
+    || !['127.0.0.1', 'localhost', '[::1]', 'pmai-broker.localhost'].includes(broker.hostname)
     || brokerPort !== config.listenPort
     || broker.pathname !== '/mcp'
   ) {
     throw new Error('PMAI_BROKER_URL must be this bridge’s loopback /mcp endpoint');
   }
-  if (new Set([
+  const secretFiles = [
     config.discordBotTokenFile,
     config.pmaiServiceSigningSecretFile,
     config.bridgeTransportSecretFile,
-  ]).size !== 3) {
-    throw new Error('Discord, PMAI signing, and bridge transport secrets must use separate files');
+    ...(config.discordTokenRotationReceiptFile ? [config.discordTokenRotationReceiptFile] : []),
+  ];
+  if (new Set(secretFiles).size !== secretFiles.length) {
+    throw new Error('Discord, rotation receipt, PMAI signing, and bridge transport material must use separate files');
   }
   if (production && (config.allowedGuildIds.size === 0 || config.allowedChannelIds.size === 0)) {
     throw new Error('Production requires explicit PMAI guild and channel allowlists');
+  }
+  if (production && broker.hostname !== 'pmai-broker.localhost') {
+    throw new Error('Production PMAI broker must use the sandbox-proxied loopback alias');
+  }
+  if (production && !config.discordTokenRotationReceiptFile) {
+    throw new Error('Production requires PMAI_DISCORD_TOKEN_ROTATION_RECEIPT_FILE');
   }
   return config;
 }
@@ -174,4 +200,50 @@ export async function readSecretFile(path: string, label: string): Promise<strin
     throw new Error(`${label} is empty`);
   }
   return value;
+}
+
+const EXPOSED_TOKEN_INCIDENT_AT = Date.parse('2026-08-15T00:00:00.000Z');
+
+export async function verifyDiscordTokenRotationReceipt(options: {
+  receiptPath: string | null;
+  token: string;
+  applicationId: string;
+  production: boolean;
+  now?: number;
+}): Promise<void> {
+  if (!options.receiptPath) {
+    if (options.production) throw new Error('Discord token rotation receipt is required');
+    return;
+  }
+  const raw = await readSecretFile(options.receiptPath, 'Discord token rotation receipt');
+  let receipt: unknown;
+  try {
+    receipt = JSON.parse(raw);
+  } catch {
+    throw new Error('Discord token rotation receipt must be valid JSON');
+  }
+  if (!receipt || typeof receipt !== 'object' || Array.isArray(receipt)) {
+    throw new Error('Discord token rotation receipt must be an object');
+  }
+  const record = receipt as Record<string, unknown>;
+  const keys = Object.keys(record).sort();
+  if (JSON.stringify(keys) !== JSON.stringify(['applicationId', 'rotatedAt', 'schemaVersion', 'tokenSha256'])) {
+    throw new Error('Discord token rotation receipt has unexpected fields');
+  }
+  if (record.schemaVersion !== 1 || record.applicationId !== options.applicationId) {
+    throw new Error('Discord token rotation receipt does not match this application');
+  }
+  const rotatedAt = typeof record.rotatedAt === 'string' ? Date.parse(record.rotatedAt) : Number.NaN;
+  const now = options.now ?? Date.now();
+  if (!Number.isFinite(rotatedAt) || rotatedAt <= EXPOSED_TOKEN_INCIDENT_AT || rotatedAt > now + 5 * 60_000) {
+    throw new Error('Discord token rotation receipt is not after the exposure incident');
+  }
+  if (typeof record.tokenSha256 !== 'string' || !/^[0-9a-f]{64}$/.test(record.tokenSha256)) {
+    throw new Error('Discord token rotation receipt tokenSha256 is invalid');
+  }
+  const expected = Buffer.from(createHash('sha256').update(options.token).digest('hex'));
+  const actual = Buffer.from(record.tokenSha256);
+  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
+    throw new Error('Discord token rotation receipt does not match the installed token');
+  }
 }

@@ -5,6 +5,8 @@ export type ActiveCapability = {
   id: string;
   surfaceKey: string;
   pmaiUserId: string | null;
+  discordUserId: string;
+  sourceMessageId: string;
   mode: AuthorizationGrant['mode'];
   grant: AuthorizationGrant;
   activatedAt: number;
@@ -17,7 +19,11 @@ export function createCapabilityId(): string {
 export class CapabilityRegistry {
   private readonly capabilities = new Map<string, ActiveCapability>();
 
-  activate(binding: SurfaceBinding, grant: AuthorizationGrant): ActiveCapability {
+  activate(
+    binding: SurfaceBinding,
+    grant: AuthorizationGrant,
+    sourceMessageId: string,
+  ): ActiveCapability {
     if (binding.surfaceKind === 'dm' && binding.pmaiUserId !== grant.actor.pmaiUserId) {
       throw new Error('PMAI actor does not own this Discord DM surface');
     }
@@ -28,6 +34,8 @@ export class CapabilityRegistry {
       id: binding.capabilityId,
       surfaceKey: binding.surfaceKey,
       pmaiUserId: binding.pmaiUserId,
+      discordUserId: grant.actor.discordUserId,
+      sourceMessageId,
       mode: grant.mode,
       grant,
       activatedAt: Date.now(),

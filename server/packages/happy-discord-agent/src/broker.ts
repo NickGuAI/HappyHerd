@@ -13,6 +13,9 @@ type OperationSpec = {
 type PendingConfirmation = {
   capabilityId: string;
   actionHash: string;
+  pmaiUserId: string;
+  discordUserId: string;
+  requestedBySourceMessageId: string;
   expiresAt: number;
 };
 
@@ -128,10 +131,28 @@ export class PmaiSkillBroker {
     return Object.keys(OPERATIONS[family]);
   }
 
-  private confirmationResult(capabilityId: string, actionHash: string): SkillCallResult {
+  private confirmationResult(
+    capabilityId: string,
+    actionHash: string,
+    actor: {
+      pmaiUserId: string | null;
+      discordUserId: string;
+      sourceMessageId: string;
+    },
+  ): SkillCallResult {
+    if (!actor.pmaiUserId) {
+      return { ok: false, status: 403, body: { code: 'personal_operation_requires_dm' } };
+    }
     const token = randomBytes(24).toString('base64url');
     const expiresAt = Date.now() + 5 * 60_000;
-    this.confirmations.set(token, { capabilityId, actionHash, expiresAt });
+    this.confirmations.set(token, {
+      capabilityId,
+      actionHash,
+      pmaiUserId: actor.pmaiUserId,
+      discordUserId: actor.discordUserId,
+      requestedBySourceMessageId: actor.sourceMessageId,
+      expiresAt,
+    });
     return {
       ok: false,
       status: 409,
@@ -174,18 +195,28 @@ export class PmaiSkillBroker {
     if (spec.write) {
       const confirmationToken = request.arguments.confirmationToken;
       if (typeof confirmationToken !== 'string') {
-        return this.confirmationResult(capabilityId, actionHash);
+        return this.confirmationResult(capabilityId, actionHash, active);
       }
       const pending = this.confirmations.get(confirmationToken);
-      this.confirmations.delete(confirmationToken);
       if (
         !pending
         || pending.capabilityId !== capabilityId
         || pending.actionHash !== actionHash
+        || pending.pmaiUserId !== active.pmaiUserId
+        || pending.discordUserId !== active.discordUserId
         || pending.expiresAt <= Date.now()
       ) {
+        this.confirmations.delete(confirmationToken);
         return { ok: false, status: 409, body: { code: 'confirmation_invalid_or_expired' } };
       }
+      if (pending.requestedBySourceMessageId === active.sourceMessageId) {
+        return {
+          ok: false,
+          status: 409,
+          body: { code: 'confirmation_requires_new_discord_turn' },
+        };
+      }
+      this.confirmations.delete(confirmationToken);
     }
 
     const url = new URL(path, `${this.apiBaseUrl}/`);

@@ -81,6 +81,7 @@ environment or command line.
 |---|---|
 | `PMAI_DISCORD_APPLICATION_ID` | Existing PMAI Discord application ID |
 | `PMAI_DISCORD_TOKEN_FILE` | Rotated bot token file |
+| `PMAI_DISCORD_TOKEN_ROTATION_RECEIPT_FILE` | Post-exposure receipt bound to the installed token hash |
 | `PMAI_ACCESS_API_URL` | PMAI capability gateway base URL |
 | `PMAI_SERVICE_SIGNING_SECRET_FILE` | HMAC secret for authorization requests |
 | `PMAI_BRIDGE_TRANSPORT_SECRET_FILE` | Separate inbound transport service bearer |
@@ -91,7 +92,7 @@ environment or command line.
 | `PMAI_ALLOWED_GUILD_IDS` | Explicit production guild allowlist |
 | `PMAI_ALLOWED_CHANNEL_IDS` | Explicit production channel allowlist |
 | `PMAI_BRIDGE_HOST` / `PMAI_BRIDGE_PORT` | Health, broker, and internal transport listener |
-| `PMAI_BROKER_URL` | Matching loopback `/mcp` URL passed to Codex |
+| `PMAI_BROKER_URL` | Sandboxed `pmai-broker.localhost` `/mcp` alias for the loopback broker |
 | `PMAI_COMMANDER_ID` | Defaults to `pmai-team-agent` |
 
 ## Verification

@@ -14,6 +14,7 @@ function config(): BridgeConfig {
   return {
     discordApplicationId: 'app',
     discordBotTokenFile: '/var/lib/pmai/discord',
+    discordTokenRotationReceiptFile: null,
     pmaiApiBaseUrl: 'https://pmai.example',
     pmaiAuthorizationPath: '/api/internal/discord/authorize',
     pmaiBridgeId: 'bridge',
@@ -46,6 +47,7 @@ describe('BridgeHttpServer', () => {
     const brokerCall = vi.fn(async () => ({ ok: true, status: 200, body: { ready: true } }));
     const discord: DiscordCommunityTransport = {
       sendReply: vi.fn(async () => ['message-1']),
+      fetchMessage: vi.fn(async () => { throw new Error('not used'); }),
       listChannels: vi.fn(async () => [{ id: 'channel-1', guildId: 'guild-1', name: 'team', parentId: null }]),
       listMessages: vi.fn(async () => []),
       addReaction: vi.fn(async () => {}),

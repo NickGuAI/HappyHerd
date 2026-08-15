@@ -79,6 +79,8 @@ export type InboundStatus =
   | 'delivered'
   | 'failed';
 
+export type DeliveryKind = 'answer' | 'denial' | 'failure';
+
 export type InboundRecord = {
   sourceMessageId: string;
   surfaceKey: string;
@@ -90,6 +92,7 @@ export type InboundRecord = {
   baselineSequence: number | null;
   turnId: string | null;
   answerHash: string | null;
+  deliveryKind: DeliveryKind | null;
   replyMessageIds: string[];
   failureReference: string | null;
   createdAt: number;

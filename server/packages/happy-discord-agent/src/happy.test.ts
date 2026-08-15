@@ -8,6 +8,7 @@ function config(): BridgeConfig {
   return {
     discordApplicationId: 'app-1',
     discordBotTokenFile: '/var/lib/pmai/secrets/discord',
+    discordTokenRotationReceiptFile: null,
     pmaiApiBaseUrl: 'https://pmai.example',
     pmaiAuthorizationPath: '/api/internal/discord/authorize',
     pmaiBridgeId: 'pmai-discord',
@@ -48,6 +49,7 @@ describe('HappyHerdRuntime', () => {
     const resumed = { ...inactiveSession(), active: true };
     const control = {
       listSessions: vi.fn(async () => []),
+      resolveMachine: vi.fn(),
       resolveSession: vi.fn(async () => inactiveSession()),
       spawnCodexSession: vi.fn(),
       resumeSession: vi.fn(async () => resumed),

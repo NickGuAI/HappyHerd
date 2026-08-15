@@ -51,7 +51,7 @@ describe('PmaiSkillBroker', () => {
 
   it('uses the server-held delegation for a scoped read', async () => {
     const capabilities = new CapabilityRegistry();
-    capabilities.activate(binding(), grant());
+    capabilities.activate(binding(), grant(), 'source-1');
     const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       expect(String(input)).toBe('https://pmai.example/api/v1/crm/contacts?page=2');
       expect(new Headers(init?.headers).get('authorization')).toBe('Bearer delegation-token');
@@ -68,7 +68,7 @@ describe('PmaiSkillBroker', () => {
 
   it('binds writes to an exact, one-use same-capability confirmation', async () => {
     const capabilities = new CapabilityRegistry();
-    capabilities.activate(binding(), grant());
+    capabilities.activate(binding(), grant(), 'source-1');
     const fetchImpl = vi.fn(async (_input: string | URL | Request, _init?: RequestInit) => (
       new Response(JSON.stringify({ id: 1 }), { status: 201 })
     ));
@@ -92,6 +92,14 @@ describe('PmaiSkillBroker', () => {
 
     const pendingAgain = await broker.call('capability-1', action);
     const validToken = (pendingAgain.body as { confirmationToken: string }).confirmationToken;
+    await expect(broker.call('capability-1', {
+      ...action,
+      arguments: { body: { FIRSTNAME: 'Ada' }, confirmationToken: validToken },
+    })).resolves.toMatchObject({
+      status: 409,
+      body: { code: 'confirmation_requires_new_discord_turn' },
+    });
+    capabilities.activate(binding(), grant(), 'source-2');
     const completed = await broker.call('capability-1', {
       ...action,
       arguments: { body: { FIRSTNAME: 'Ada' }, confirmationToken: validToken },
@@ -110,7 +118,7 @@ describe('PmaiSkillBroker', () => {
       guildId: 'guild-1',
       threadId: 'thread-1',
       pmaiUserId: null,
-    }), grant({ mode: 'shared-read-only' }));
+    }), grant({ mode: 'shared-read-only' }), 'source-1');
     const fetchImpl = vi.fn();
     const broker = new PmaiSkillBroker({ capabilities, apiBaseUrl: 'https://pmai.example', fetchImpl });
 
@@ -129,7 +137,7 @@ describe('PmaiSkillBroker', () => {
 
   it('fails closed for missing scopes and expired capabilities', async () => {
     const capabilities = new CapabilityRegistry();
-    capabilities.activate(binding(), grant({ scopes: [] }));
+    capabilities.activate(binding(), grant({ scopes: [] }), 'source-1');
     const broker = new PmaiSkillBroker({ capabilities, apiBaseUrl: 'https://pmai.example' });
     await expect(broker.call('capability-1', {
       family: 'pmai-crm',

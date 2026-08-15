@@ -17,6 +17,7 @@ function config(): BridgeConfig {
   return {
     discordApplicationId: 'app-1',
     discordBotTokenFile: '/var/lib/pmai/secrets/discord',
+    discordTokenRotationReceiptFile: null,
     pmaiApiBaseUrl: 'https://pmai.example',
     pmaiAuthorizationPath: '/api/internal/discord/authorize',
     pmaiBridgeId: 'pmai-discord',
@@ -95,10 +96,22 @@ class FakeHappy implements HappySessionRuntime {
 
 class FakeDiscord implements DiscordReplyTransport {
   readonly replies: Array<{ channelId: string; content: string; sourceMessageId: string }> = [];
+  readonly sourceMessages = new Map<string, NormalizedDiscordMessage>();
+  failuresRemaining = 0;
 
   async sendReply(channelId: string, content: string, sourceMessageId: string): Promise<string[]> {
+    if (this.failuresRemaining > 0) {
+      this.failuresRemaining -= 1;
+      throw new Error('transient Discord delivery failure');
+    }
     this.replies.push({ channelId, content, sourceMessageId });
     return [`reply-${this.replies.length}`];
+  }
+
+  async fetchMessage(channelId: string, sourceMessageId: string): Promise<NormalizedDiscordMessage> {
+    const recovered = this.sourceMessages.get(`${channelId}:${sourceMessageId}`);
+    if (!recovered) throw new Error('source message unavailable');
+    return recovered;
   }
 }
 
@@ -222,5 +235,168 @@ describe('DiscordAgentBridge', () => {
     await bridge.reconcile();
     expect(discord.replies[0]).toMatchObject({ content: 'Recovered.', sourceMessageId: 'source-1' });
     expect(state.getInbound('source-1')?.status).toBe('delivered');
+  });
+
+  it('refetches and submits a claimed source after a pre-send process restart', async () => {
+    const state = await store();
+    const input = message();
+    await state.claimInbound(input);
+    const happy = new FakeHappy();
+    const discord = new FakeDiscord();
+    discord.sourceMessages.set(`${input.channelId}:${input.sourceMessageId}`, input);
+    const bridge = new DiscordAgentBridge({
+      config: config(),
+      store: state,
+      authorizer: { authorize: async (candidate, mode) => allowed(candidate, mode) },
+      capabilities: new CapabilityRegistry(),
+      happy,
+      discord,
+    });
+
+    await bridge.reconcile();
+
+    expect(happy.turns).toHaveLength(1);
+    expect(discord.replies[0]).toMatchObject({ content: 'Ready.', sourceMessageId: 'source-1' });
+    expect(state.getInbound('source-1')).toMatchObject({ status: 'delivered', deliveryKind: 'answer' });
+  });
+
+  it('keeps a recoverable claim pending while Discord refetch is transiently unavailable', async () => {
+    const state = await store();
+    await state.claimInbound(message());
+    const discord = new FakeDiscord();
+    const bridge = new DiscordAgentBridge({
+      config: config(),
+      store: state,
+      authorizer: { authorize: async (candidate, mode) => allowed(candidate, mode) },
+      capabilities: new CapabilityRegistry(),
+      happy: new FakeHappy(),
+      discord,
+    });
+
+    await bridge.reconcile();
+
+    expect(state.getInbound('source-1')?.status).toBe('claimed');
+    expect(discord.replies).toHaveLength(0);
+  });
+
+  it('settles a denial interrupted during Discord delivery without starting Codex', async () => {
+    const state = await store();
+    const input = message();
+    await state.claimInbound(input);
+    await state.updateInbound(input.sourceMessageId, {
+      status: 'delivering',
+      deliveryKind: 'denial',
+    });
+    const happy = new FakeHappy();
+    const discord = new FakeDiscord();
+    const authorize = vi.fn(async (candidate: NormalizedDiscordMessage, mode: 'personal' | 'shared-read-only') => (
+      allowed(candidate, mode)
+    ));
+    const bridge = new DiscordAgentBridge({
+      config: config(),
+      store: state,
+      authorizer: { authorize },
+      capabilities: new CapabilityRegistry(),
+      happy,
+      discord,
+    });
+
+    await bridge.reconcile();
+
+    expect(authorize).not.toHaveBeenCalled();
+    expect(happy.turns).toHaveLength(0);
+    expect(discord.replies[0].sourceMessageId).toBe('source-1:denied');
+    expect(state.getInbound('source-1')).toMatchObject({ status: 'denied', deliveryKind: 'denial' });
+  });
+
+  it('retries an answer interrupted during Discord delivery without replacing it with a failure', async () => {
+    const state = await store();
+    const happy = new FakeHappy();
+    happy.recovered = {
+      result: { turnId: 'turn:source-1', status: 'completed', text: 'Ready.', messageIds: ['root-1'] },
+      userMessageExists: true,
+    };
+    const discord = new FakeDiscord();
+    discord.failuresRemaining = 1;
+    const bridge = new DiscordAgentBridge({
+      config: config(),
+      store: state,
+      authorizer: { authorize: async (candidate, mode) => allowed(candidate, mode) },
+      capabilities: new CapabilityRegistry(),
+      happy,
+      discord,
+    });
+
+    await bridge.handle(message());
+    expect(state.getInbound('source-1')).toMatchObject({ status: 'delivering', deliveryKind: 'answer' });
+    expect(discord.replies).toHaveLength(0);
+
+    await bridge.reconcile();
+    expect(discord.replies).toEqual([{
+      channelId: 'dm-channel-1',
+      content: 'Ready.',
+      sourceMessageId: 'source-1',
+    }]);
+    expect(state.getInbound('source-1')).toMatchObject({ status: 'delivered', deliveryKind: 'answer' });
+  });
+
+  it('retries an interrupted deterministic failure notice', async () => {
+    const state = await store();
+    const input = message();
+    await state.claimInbound(input);
+    await state.updateInbound(input.sourceMessageId, {
+      status: 'delivering',
+      deliveryKind: 'failure',
+      failureReference: 'failure-reference',
+    });
+    const discord = new FakeDiscord();
+    const bridge = new DiscordAgentBridge({
+      config: config(),
+      store: state,
+      authorizer: { authorize: async (candidate, mode) => allowed(candidate, mode) },
+      capabilities: new CapabilityRegistry(),
+      happy: new FakeHappy(),
+      discord,
+    });
+
+    await bridge.reconcile();
+
+    expect(discord.replies[0]).toMatchObject({
+      content: 'I couldn’t complete that request safely. Reference: failure-reference',
+      sourceMessageId: 'source-1:failure',
+    });
+    expect(state.getInbound('source-1')).toMatchObject({ status: 'failed', deliveryKind: 'failure' });
+  });
+
+  it('never delivers partial text from a failed recovered Codex turn', async () => {
+    const state = await store();
+    const input = message();
+    await state.claimInbound(input);
+    await state.updateInbound(input.sourceMessageId, {
+      status: 'turn-pending',
+      happySessionId: 'session-1',
+      baselineSequence: 5,
+    });
+    const happy = new FakeHappy();
+    happy.recovered = {
+      result: { turnId: 'turn-1', status: 'failed', text: 'Unverified partial text.', messageIds: ['root'] },
+      userMessageExists: true,
+    };
+    const discord = new FakeDiscord();
+    const bridge = new DiscordAgentBridge({
+      config: config(),
+      store: state,
+      authorizer: { authorize: async (candidate, mode) => allowed(candidate, mode) },
+      capabilities: new CapabilityRegistry(),
+      happy,
+      discord,
+    });
+
+    await bridge.reconcile();
+
+    expect(discord.replies).toHaveLength(1);
+    expect(discord.replies[0].content).not.toContain('Unverified partial text.');
+    expect(discord.replies[0].content).toContain('Reference:');
+    expect(state.getInbound('source-1')).toMatchObject({ status: 'failed', deliveryKind: 'failure' });
   });
 });

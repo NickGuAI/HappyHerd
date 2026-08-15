@@ -66,7 +66,7 @@ export class BridgeHttpServer {
     store: BridgeStore;
     discord: DiscordCommunityTransport;
     transportSecret: string;
-    readiness: () => Record<string, boolean>;
+    readiness: () => Record<string, boolean> | Promise<Record<string, boolean>>;
   }) {
     const { config, broker, store, discord, transportSecret, readiness } = options;
     const channelAllowed = (channelId: string) => (
@@ -77,7 +77,7 @@ export class BridgeHttpServer {
       try {
         const url = new URL(request.url ?? '/', `http://${request.headers.host ?? 'localhost'}`);
         if (request.method === 'GET' && url.pathname === '/healthz') {
-          const checks = readiness();
+          const checks = await readiness();
           const ready = Object.values(checks).every(Boolean);
           json(response, ready ? 200 : 503, { ready, checks });
           return;

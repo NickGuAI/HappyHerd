@@ -25,7 +25,7 @@ export interface HappySessionRuntime {
 
 type ControlClient = Pick<
   HappyControlClient,
-  'listSessions' | 'resolveSession' | 'spawnCodexSession' | 'resumeSession' | 'sendTurn' | 'getSessionMessages'
+  'listSessions' | 'resolveMachine' | 'resolveSession' | 'spawnCodexSession' | 'resumeSession' | 'sendTurn' | 'getSessionMessages'
 >;
 
 function metadataSurface(session: DecryptedSession): string | null {
@@ -42,6 +42,15 @@ export class HappyHerdRuntime implements HappySessionRuntime {
   constructor(config: BridgeConfig, control: ControlClient = HappyControlClient.fromEnvironment()) {
     this.config = config;
     this.control = control;
+  }
+
+  async isMachineReady(): Promise<boolean> {
+    try {
+      const machine = await this.control.resolveMachine(this.config.happyMachineId);
+      return machine.active;
+    } catch {
+      return false;
+    }
   }
 
   private async existingSurfaceSession(surfaceKey: string): Promise<DecryptedSession | null> {

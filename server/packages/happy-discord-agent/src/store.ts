@@ -26,7 +26,15 @@ function parseState(raw: string): BridgeState {
   if (!isRecord(parsed.surfaces) || !isRecord(parsed.inbound)) {
     throw new Error('Corrupt PMAI Discord bridge state collections');
   }
-  return parsed as BridgeState;
+  const state = parsed as BridgeState;
+  for (const inbound of Object.values(state.inbound)) {
+    if (!Object.hasOwn(inbound, 'deliveryKind')) {
+      inbound.deliveryKind = inbound.answerHash
+        ? 'answer'
+        : (inbound.failureReference ? 'failure' : null);
+    }
+  }
+  return state;
 }
 
 async function persistAtomic(stateFile: string, stateDir: string, state: BridgeState): Promise<void> {
@@ -150,6 +158,7 @@ export class BridgeStore {
         baselineSequence: null,
         turnId: null,
         answerHash: null,
+        deliveryKind: null,
         replyMessageIds: [],
         failureReference: null,
         createdAt: now,

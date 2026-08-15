@@ -59,6 +59,10 @@ function safeFailure(reference: string): string {
   return `I couldn’t complete that request safely. Reference: ${reference}`;
 }
 
+const DEFAULT_DENIAL = 'I can’t verify an active PMAI team link for this Discord account.';
+
+class TerminalSettlementError extends Error {}
+
 export class DiscordAgentBridge {
   private readonly config: BridgeConfig;
   private readonly store: BridgeStore;
@@ -106,8 +110,11 @@ export class DiscordAgentBridge {
   }
 
   private async deny(record: InboundRecord, safeMessage?: string): Promise<void> {
-    const message = safeMessage || 'I can’t verify an active PMAI team link for this Discord account.';
-    await this.store.updateInbound(record.sourceMessageId, { status: 'delivering' });
+    const message = safeMessage || DEFAULT_DENIAL;
+    await this.store.updateInbound(record.sourceMessageId, {
+      status: 'delivering',
+      deliveryKind: 'denial',
+    });
     const replyMessageIds = await this.discord.sendReply(
       record.channelId,
       message,
@@ -139,7 +146,7 @@ export class DiscordAgentBridge {
         updatedAt: now,
       });
     }
-    this.capabilities.activate(binding, grant);
+    this.capabilities.activate(binding, grant, message.sourceMessageId);
     const ensured = await this.happy.ensureSession(binding);
     if (binding.happySessionId !== ensured.sessionId) {
       binding = await this.store.bindSurface({
@@ -163,22 +170,26 @@ export class DiscordAgentBridge {
       }
       await new Promise((resolve) => setTimeout(resolve, 1_000));
     } while (Date.now() < deadline);
-    throw new Error('Timed out recovering an in-flight HappyHerd turn');
+    throw new TerminalSettlementError('Timed out recovering an in-flight HappyHerd turn');
   }
 
   private async deliver(record: InboundRecord, result: TurnResult): Promise<void> {
+    if (result.status !== 'completed') {
+      throw new TerminalSettlementError(`Recovered HappyHerd turn ${result.turnId} ended with ${result.status}`);
+    }
     const text = result.text.trim();
     if (!text) {
-      throw new Error(`HappyHerd turn ${result.turnId} returned no root assistant text`);
+      throw new TerminalSettlementError(`HappyHerd turn ${result.turnId} returned no root assistant text`);
     }
     const hash = answerHash(text);
     if (record.answerHash && record.answerHash !== hash) {
-      throw new Error('Recovered HappyHerd answer does not match the durable answer claim');
+      throw new TerminalSettlementError('Recovered HappyHerd answer does not match the durable answer claim');
     }
     await this.store.updateInbound(record.sourceMessageId, {
       status: 'answer-ready',
       turnId: result.turnId,
       answerHash: hash,
+      deliveryKind: 'answer',
     });
     await this.store.updateInbound(record.sourceMessageId, { status: 'delivering' });
     const replyMessageIds = await this.discord.sendReply(
@@ -192,12 +203,37 @@ export class DiscordAgentBridge {
     });
   }
 
+  private async deliverFailure(record: InboundRecord, reference: string): Promise<void> {
+    await this.store.updateInbound(record.sourceMessageId, {
+      status: 'delivering',
+      deliveryKind: 'failure',
+      failureReference: reference,
+    });
+    const replyMessageIds = await this.discord.sendReply(
+      record.channelId,
+      safeFailure(reference),
+      `${record.sourceMessageId}:failure`,
+    );
+    await this.store.updateInbound(record.sourceMessageId, {
+      status: 'failed',
+      replyMessageIds,
+    });
+  }
+
   private async process(message: NormalizedDiscordMessage, mode: AuthorizationGrant['mode']): Promise<void> {
     let record = this.store.getInbound(message.sourceMessageId);
     if (!record || ['delivered', 'denied', 'failed'].includes(record.status)) {
       return;
     }
     try {
+      if (record.status === 'delivering' && record.deliveryKind === 'denial') {
+        await this.deny(record);
+        return;
+      }
+      if (record.status === 'delivering' && record.deliveryKind === 'failure') {
+        await this.deliverFailure(record, record.failureReference ?? randomUUID());
+        return;
+      }
       const decision = await this.authorizer.authorize(message, mode);
       if (decision.decision === 'deny') {
         await this.deny(record, decision.safeMessage);
@@ -235,6 +271,19 @@ export class DiscordAgentBridge {
       }
       await this.deliver(record, result);
     } catch (error) {
+      const interruptedDelivery = this.store.getInbound(message.sourceMessageId);
+      if (
+        interruptedDelivery?.status === 'delivering'
+        && interruptedDelivery.deliveryKind !== null
+      ) {
+        this.logger('discord_reply_delivery_deferred', {
+          sourceMessageId: message.sourceMessageId,
+          surfaceKey: message.surfaceKey,
+          deliveryKind: interruptedDelivery.deliveryKind,
+          errorType: error instanceof Error ? error.name : typeof error,
+        });
+        return;
+      }
       const reference = randomUUID();
       this.logger('discord_turn_failed', {
         reference,
@@ -242,17 +291,8 @@ export class DiscordAgentBridge {
         surfaceKey: message.surfaceKey,
         errorType: error instanceof Error ? error.name : typeof error,
       });
-      record = await this.store.updateInbound(message.sourceMessageId, {
-        status: 'failed',
-        failureReference: reference,
-      });
       try {
-        const replyMessageIds = await this.discord.sendReply(
-          record.channelId,
-          safeFailure(reference),
-          `${record.sourceMessageId}:failure`,
-        );
-        await this.store.updateInbound(record.sourceMessageId, { replyMessageIds });
+        await this.deliverFailure(record, reference);
       } catch (deliveryError) {
         this.logger('discord_failure_notice_failed', {
           reference,
@@ -263,32 +303,91 @@ export class DiscordAgentBridge {
   }
 
   async reconcile(): Promise<void> {
-    for (const record of this.store.listRecoverable()) {
-      if (record.status === 'claimed') {
-        await this.store.updateInbound(record.sourceMessageId, {
-          status: 'failed',
-          failureReference: randomUUID(),
-        });
-        continue;
-      }
-      if (Date.now() - record.updatedAt > 15 * 60_000) {
-        await this.store.updateInbound(record.sourceMessageId, {
-          status: 'failed',
-          failureReference: randomUUID(),
-        });
-        continue;
-      }
-      try {
-        const recovered = await this.happy.recoverTurn(record);
-        if (recovered.result) {
-          await this.deliver(record, recovered.result);
+    await Promise.all(this.store.listRecoverable().map((candidate) => this.queue.run(
+      candidate.surfaceKey,
+      async () => {
+        let record = this.store.getInbound(candidate.sourceMessageId);
+        if (!record || !['claimed', 'turn-pending', 'answer-ready', 'delivering'].includes(record.status)) {
+          return;
         }
-      } catch (error) {
-        this.logger('discord_reconcile_failed', {
-          sourceMessageId: record.sourceMessageId,
-          errorType: error instanceof Error ? error.name : typeof error,
-        });
-      }
-    }
+        try {
+          if (record.status === 'delivering' && record.deliveryKind === 'denial') {
+            await this.deny(record);
+            return;
+          }
+          if (record.status === 'delivering' && record.deliveryKind === 'failure') {
+            await this.deliverFailure(record, record.failureReference ?? randomUUID());
+            return;
+          }
+
+          if (record.status !== 'claimed') {
+            const recovered = await this.waitForExistingTurn(record);
+            if (recovered) {
+              await this.deliver(record, recovered);
+              return;
+            }
+            if (record.answerHash || record.deliveryKind === 'answer') {
+              throw new TerminalSettlementError(
+                'Durable HappyHerd answer claim is unavailable from encrypted history',
+              );
+            }
+          }
+
+          if (Date.now() - record.updatedAt > 15 * 60_000) {
+            throw new TerminalSettlementError('Recoverable Discord turn exceeded its settlement window');
+          }
+
+          const message = await this.discord.fetchMessage(record.channelId, record.sourceMessageId);
+          if (
+            message.sourceMessageId !== record.sourceMessageId
+            || message.channelId !== record.channelId
+            || message.authorDiscordId !== record.authorDiscordId
+            || message.surfaceKey !== record.surfaceKey
+          ) {
+            throw new TerminalSettlementError('Recovered Discord source does not match its durable claim');
+          }
+          const policy = evaluateMessagePolicy(message, this.config);
+          if (!policy.accepted) {
+            throw new TerminalSettlementError(
+              `Recovered Discord source no longer passes policy: ${policy.code}`,
+            );
+          }
+          record = await this.store.updateInbound(record.sourceMessageId, {
+            status: 'claimed',
+            happySessionId: null,
+            baselineSequence: null,
+            turnId: null,
+            answerHash: null,
+            deliveryKind: null,
+          });
+          await this.process(message, policy.mode);
+        } catch (error) {
+          if (
+            !(error instanceof TerminalSettlementError)
+            && Date.now() - record.updatedAt <= 15 * 60_000
+          ) {
+            this.logger('discord_reconcile_deferred', {
+              sourceMessageId: record.sourceMessageId,
+              errorType: error instanceof Error ? error.name : typeof error,
+            });
+            return;
+          }
+          const reference = record.failureReference ?? randomUUID();
+          this.logger('discord_reconcile_failed', {
+            reference,
+            sourceMessageId: record.sourceMessageId,
+            errorType: error instanceof Error ? error.name : typeof error,
+          });
+          try {
+            await this.deliverFailure(record, reference);
+          } catch (deliveryError) {
+            this.logger('discord_reconcile_failure_notice_failed', {
+              reference,
+              errorType: deliveryError instanceof Error ? deliveryError.name : typeof deliveryError,
+            });
+          }
+        }
+      },
+    )));
   }
 }
