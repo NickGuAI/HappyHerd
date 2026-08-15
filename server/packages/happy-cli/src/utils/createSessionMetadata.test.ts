@@ -117,6 +117,24 @@ describe('createSessionMetadata', () => {
         expect(metadata.isSideChat).toBeUndefined();
     });
 
+    it('records only the opaque PMAI Discord surface id from session context', () => {
+        const previous = process.env.PMAI_DISCORD_SURFACE_ID;
+        process.env.PMAI_DISCORD_SURFACE_ID = 'dm:discord-user-1';
+        try {
+            const { metadata } = createSessionMetadata({
+                flavor: 'codex',
+                machineId: 'machine-1',
+            });
+            expect(metadata.pmaiDiscordSurfaceId).toBe('dm:discord-user-1');
+        } finally {
+            if (previous === undefined) {
+                delete process.env.PMAI_DISCORD_SURFACE_ID;
+            } else {
+                process.env.PMAI_DISCORD_SURFACE_ID = previous;
+            }
+        }
+    });
+
     it('sets metadata.gitBranch when a git branch is detected', () => {
         mockedExecSync.mockReturnValue('fix/session-status\n');
 

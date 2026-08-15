@@ -6,9 +6,9 @@ import { decodeBase64, encodeBase64, encrypt, decrypt } from './encryption';
 export type SupportedAgent = 'claude' | 'codex' | 'gemini' | 'openclaw' | 'agy';
 
 export type SpawnSessionRuntimeContext = {
-    discordSurfaceId?: string;
-    pmaiCapabilityId?: string;
-    pmaiBrokerSocketPath?: string;
+    discordSurfaceId: string;
+    pmaiCapabilityId: string;
+    pmaiBrokerUrl: string;
 };
 
 export type SpawnSessionOnMachineOptions = {
@@ -85,20 +85,17 @@ function requireBoundedContextValue(value: string | undefined, label: string): s
     return normalized;
 }
 
-function runtimeContextEnvironment(
+function normalizedRuntimeContext(
     context: SpawnSessionRuntimeContext | undefined,
-): Record<string, string> | undefined {
+): SpawnSessionRuntimeContext | undefined {
     if (!context) {
         return undefined;
     }
-
-    const entries = [
-        ['PMAI_DISCORD_SURFACE_ID', requireBoundedContextValue(context.discordSurfaceId, 'discordSurfaceId')],
-        ['PMAI_SESSION_CAPABILITY_ID', requireBoundedContextValue(context.pmaiCapabilityId, 'pmaiCapabilityId')],
-        ['PMAI_BROKER_SOCKET_PATH', requireBoundedContextValue(context.pmaiBrokerSocketPath, 'pmaiBrokerSocketPath')],
-    ].filter((entry): entry is [string, string] => entry[1] !== undefined);
-
-    return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+    return {
+        discordSurfaceId: requireBoundedContextValue(context.discordSurfaceId, 'discordSurfaceId')!,
+        pmaiCapabilityId: requireBoundedContextValue(context.pmaiCapabilityId, 'pmaiCapabilityId')!,
+        pmaiBrokerUrl: requireBoundedContextValue(context.pmaiBrokerUrl, 'pmaiBrokerUrl')!,
+    };
 }
 
 export async function spawnSessionOnMachine(
@@ -133,7 +130,7 @@ export async function spawnSessionOnMachine(
                 modelMode: options.modelMode,
                 effortLevel: options.effortLevel,
                 commanderId: options.commanderId,
-                environmentVariables: runtimeContextEnvironment(options.runtimeContext),
+                runtimeContext: normalizedRuntimeContext(options.runtimeContext),
             }),
         );
 
@@ -185,6 +182,7 @@ export async function resumeSessionOnMachine(
     machine: DecryptedMachine,
     token: string,
     sessionId: string,
+    runtimeContext?: SpawnSessionRuntimeContext,
 ): Promise<SpawnMachineSessionResult> {
     const socket = io(config.serverUrl, {
         auth: {
@@ -204,6 +202,7 @@ export async function resumeSessionOnMachine(
         const params = encodeBase64(
             encrypt(machine.encryption.key, machine.encryption.variant, {
                 sessionId,
+                runtimeContext: normalizedRuntimeContext(runtimeContext),
             }),
         );
 

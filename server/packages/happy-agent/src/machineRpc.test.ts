@@ -48,7 +48,7 @@ vi.mock('socket.io-client', () => ({
     }),
 }));
 
-import { spawnSessionOnMachine } from './machineRpc';
+import { resumeSessionOnMachine, spawnSessionOnMachine } from './machineRpc';
 
 function makeMachine(): DecryptedMachine {
     return {
@@ -87,7 +87,7 @@ describe('spawnSessionOnMachine', () => {
                 runtimeContext: {
                     discordSurfaceId: 'dm:123',
                     pmaiCapabilityId: 'capability-1',
-                    pmaiBrokerSocketPath: '/run/pmai/broker.sock',
+                    pmaiBrokerUrl: 'http://127.0.0.1:3210/mcp',
                 },
             },
         )).resolves.toEqual({ type: 'success', sessionId: 'session-1' });
@@ -106,10 +106,10 @@ describe('spawnSessionOnMachine', () => {
             permissionMode: 'default',
             modelMode: 'gpt-5.6',
             effortLevel: 'high',
-            environmentVariables: {
-                PMAI_DISCORD_SURFACE_ID: 'dm:123',
-                PMAI_SESSION_CAPABILITY_ID: 'capability-1',
-                PMAI_BROKER_SOCKET_PATH: '/run/pmai/broker.sock',
+            runtimeContext: {
+                discordSurfaceId: 'dm:123',
+                pmaiCapabilityId: 'capability-1',
+                pmaiBrokerUrl: 'http://127.0.0.1:3210/mcp',
             },
         }));
     });
@@ -122,8 +122,41 @@ describe('spawnSessionOnMachine', () => {
             {
                 directory: '/srv/pmai-agent',
                 agent: 'codex',
-                runtimeContext: { pmaiCapabilityId: ' '.repeat(513) },
+                runtimeContext: {
+                    discordSurfaceId: 'dm:123',
+                    pmaiCapabilityId: ' '.repeat(513),
+                    pmaiBrokerUrl: 'http://127.0.0.1:3210/mcp',
+                },
             },
         )).rejects.toThrow('pmaiCapabilityId must be a non-empty string');
+    });
+
+    it('reinjects bounded runtime context when resuming a session', async () => {
+        await expect(resumeSessionOnMachine(
+            { serverUrl: 'https://happy.example', homeDir: '/tmp/happy', credentialPath: '/tmp/key' },
+            machine,
+            'account-token',
+            'session-1',
+            {
+                discordSurfaceId: 'guild:456:channel:789',
+                pmaiCapabilityId: 'capability-2',
+                pmaiBrokerUrl: 'http://127.0.0.1:3210/mcp',
+            },
+        )).resolves.toEqual({ type: 'success', sessionId: 'session-1' });
+
+        expect(socket.rpcPayload?.method).toBe('machine-1:resume-happy-session');
+        const params = decrypt(
+            machine.encryption.key,
+            machine.encryption.variant,
+            decodeBase64(socket.rpcPayload!.params),
+        );
+        expect(params).toEqual({
+            sessionId: 'session-1',
+            runtimeContext: {
+                discordSurfaceId: 'guild:456:channel:789',
+                pmaiCapabilityId: 'capability-2',
+                pmaiBrokerUrl: 'http://127.0.0.1:3210/mcp',
+            },
+        });
     });
 });

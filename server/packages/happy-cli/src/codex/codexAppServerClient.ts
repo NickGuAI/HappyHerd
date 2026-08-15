@@ -54,6 +54,7 @@ import type {
 import type { SandboxConfig } from '@/persistence';
 import { initializeSandbox, wrapForMcpTransport } from '@/sandbox/manager';
 import packageJson from '../../package.json';
+import { buildPmaiCodexAppServerArgs } from './pmaiCodexPolicy';
 
 type PendingRequest = {
     resolve: (result: unknown) => void;
@@ -231,6 +232,8 @@ export class CodexAppServerClient {
     private processEpoch = 0;
     private connected = false;
     private sandboxConfig?: SandboxConfig;
+    private readonly pmaiPolicyEntrypoint?: string;
+    private readonly requireSandbox: boolean;
     private sandboxCleanup: (() => Promise<void>) | null = null;
     public sandboxEnabled = false;
 
@@ -271,8 +274,13 @@ export class CodexAppServerClient {
     private eventHandler: ((msg: EventMsg) => void) | null = null;
     private approvalHandler: ApprovalHandler | null = null;
 
-    constructor(sandboxConfig?: SandboxConfig) {
+    constructor(sandboxConfig?: SandboxConfig, options: {
+        pmaiPolicyEntrypoint?: string;
+        requireSandbox?: boolean;
+    } = {}) {
         this.sandboxConfig = sandboxConfig;
+        this.pmaiPolicyEntrypoint = options.pmaiPolicyEntrypoint;
+        this.requireSandbox = options.requireSandbox ?? false;
     }
 
     get threadId(): string | null {
@@ -744,6 +752,9 @@ export class CodexAppServerClient {
 
         let command = 'codex';
         const appServerArgs = [
+            ...(this.pmaiPolicyEntrypoint
+                ? buildPmaiCodexAppServerArgs(this.pmaiPolicyEntrypoint)
+                : []),
             'app-server',
             '--listen',
             'stdio://',
@@ -752,6 +763,10 @@ export class CodexAppServerClient {
         ];
         let args = [...appServerArgs];
         this.sandboxEnabled = false;
+
+        if (this.requireSandbox && !this.sandboxConfig?.enabled) {
+            throw new Error('PMAI Codex requires an enabled HappyHerd OS sandbox');
+        }
 
         if (this.sandboxConfig?.enabled && process.platform !== 'win32') {
             try {
@@ -762,6 +777,9 @@ export class CodexAppServerClient {
                 this.sandboxEnabled = true;
                 logger.info(`[CodexAppServer] Sandbox enabled`);
             } catch (error) {
+                if (this.requireSandbox) {
+                    throw new Error('PMAI Codex sandbox initialization failed', { cause: error });
+                }
                 logger.warn('[CodexAppServer] Failed to initialize sandbox; continuing without.', error);
                 this.sandboxCleanup = null;
             }
@@ -909,6 +927,12 @@ export class CodexAppServerClient {
     }
 
     private buildThreadConfig(mcpServers?: Record<string, unknown>): Record<string, unknown> | null {
+        if (this.pmaiPolicyEntrypoint) {
+            return {
+                mcp_servers: mcpServers ?? {},
+                web_search: 'disabled',
+            };
+        }
         return mcpServers ? { mcp_servers: mcpServers } : null;
     }
 
@@ -951,7 +975,7 @@ export class CodexAppServerClient {
             baseInstructions: null,
             developerInstructions: opts.developerInstructions ?? null,
             compactPrompt: null,
-            includeApplyPatchTool: null,
+            includeApplyPatchTool: this.pmaiPolicyEntrypoint ? false : null,
             experimentalRawEvents: false,
             persistExtendedHistory: true,
         };

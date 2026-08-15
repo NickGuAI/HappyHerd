@@ -21,7 +21,7 @@ const session = await happy.spawnCodexSession({
   runtimeContext: {
     discordSurfaceId: 'dm:123',
     pmaiCapabilityId: 'opaque-local-capability-id',
-    pmaiBrokerSocketPath: '/run/pmai-discord-agent/broker.sock',
+    pmaiBrokerUrl: 'http://127.0.0.1:3210/mcp',
   },
 });
 
@@ -32,7 +32,7 @@ const result = await happy.sendTurn({
 });
 ```
 
-Spawn runtime context is mapped to three fixed environment names. Callers
+Spawn and resume runtime context is mapped to three fixed environment names. Callers
 cannot pass arbitrary environment variables through this API. `sendTurn()`
 subscribes before sending, uses the caller's stable `localId` for server-side
 deduplication, and returns only non-thinking text from the correlated root

@@ -96,7 +96,11 @@ interface DaemonToServerEvents {
 
 type MachineRpcHandlers = {
     spawnSession: (options: SpawnSessionOptions) => Promise<SpawnSessionResult>;
-    resumeSession?: (sessionId: string, options?: { model?: string; permissionMode?: string }) => Promise<SpawnSessionResult>;
+    resumeSession?: (sessionId: string, options?: {
+        model?: string;
+        permissionMode?: string;
+        pmaiRuntimeContext?: unknown;
+    }) => Promise<SpawnSessionResult>;
     stopSession: (sessionId: string) => boolean;
     requestShutdown: () => void;
     automations?: HappyHerdAutomationService;
@@ -128,7 +132,7 @@ export class ApiMachineClient {
     private capabilitiesRefreshInFlight: Promise<void> | null = null;
     private lastCapabilitiesRefreshAt = 0;
     private rpcHandlerManager: RpcHandlerManager;
-    private resumeSessionHandler: ((sessionId: string, options?: { model?: string; permissionMode?: string }) => Promise<SpawnSessionResult>) | null = null;
+    private resumeSessionHandler: MachineRpcHandlers['resumeSession'] | null = null;
     private reconnectInterval: NodeJS.Timeout | null = null;
 
     constructor(
@@ -169,7 +173,7 @@ export class ApiMachineClient {
 
         // Register spawn session handler
         this.rpcHandlerManager.registerHandler('spawn-happy-session', async (params: any) => {
-            const { directory, sessionId, machineId, approvedNewDirectoryCreation, agent, permissionMode, modelMode, effortLevel, commanderId, environmentVariables, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat } = params || {};
+            const { directory, sessionId, machineId, approvedNewDirectoryCreation, agent, permissionMode, modelMode, effortLevel, commanderId, environmentVariables, runtimeContext, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat } = params || {};
             logger.debug('[API MACHINE] Spawning session', {
                 directory,
                 agent,
@@ -179,13 +183,14 @@ export class ApiMachineClient {
                 commanderId,
                 hasToken: Boolean(token),
                 environmentVariableKeys: environmentVariables ? Object.keys(environmentVariables) : [],
+                hasPmaiRuntimeContext: Boolean(runtimeContext),
             });
 
             if (!directory) {
                 throw new Error('Directory is required');
             }
 
-            const result = await spawnSession({ directory, sessionId, machineId, approvedNewDirectoryCreation, agent, permissionMode, modelMode, effortLevel, commanderId, environmentVariables, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat });
+            const result = await spawnSession({ directory, sessionId, machineId, approvedNewDirectoryCreation, agent, permissionMode, modelMode, effortLevel, commanderId, environmentVariables, pmaiRuntimeContext: runtimeContext, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat });
 
             switch (result.type) {
                 case 'success':
@@ -385,7 +390,7 @@ export class ApiMachineClient {
         if (this.resumeSessionHandler) {
             if (!this.rpcHandlerManager.hasHandler(method)) {
                 this.rpcHandlerManager.registerHandler(method, async (params: any) => {
-                    const { sessionId, model, permissionMode } = params || {};
+                    const { sessionId, model, permissionMode, runtimeContext } = params || {};
 
                     if (!sessionId || typeof sessionId !== 'string') {
                         throw new Error('Session ID is required');
@@ -396,7 +401,11 @@ export class ApiMachineClient {
                         throw new Error('Resume session handler not available');
                     }
 
-                    const result = await handler(sessionId, { model, permissionMode });
+                    const result = await handler(sessionId, {
+                        model,
+                        permissionMode,
+                        pmaiRuntimeContext: runtimeContext,
+                    });
                     switch (result.type) {
                         case 'success':
                             return { type: 'success', sessionId: result.sessionId };

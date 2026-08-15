@@ -9,6 +9,7 @@ import { ReasoningProcessor } from './utils/reasoningProcessor';
 import { DiffProcessor } from './utils/diffProcessor';
 import { randomUUID } from 'node:crypto';
 import { execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { logger } from '@/ui/logger';
 import { Credentials, readSettings } from '@/persistence';
 import { initialMachineMetadata } from '@/daemon/run';
@@ -61,6 +62,7 @@ import {
     readContextPromptFromEnvironment,
 } from '@/agentContext/commanderContext';
 import { readAutomationBootstrapFromEnvironment } from '@/automations/sessionBootstrap';
+import { buildPmaiMcpServerConfig, readPmaiSessionEnvironment } from './pmaiMcpConfig';
 
 /**
  * Extracts a human-readable error from a codex task_complete/turn_aborted event.
@@ -152,6 +154,7 @@ export async function runCodex(opts: {
     const settings = await readSettings();
     let machineId = settings?.machineId;
     const sandboxConfig = opts.noSandbox ? undefined : settings?.sandboxConfig;
+    const pmaiSession = readPmaiSessionEnvironment();
     if (!machineId) {
         console.error(`[START] No machine ID found in settings, which is unexpected since authAndSetupMachineIfNeeded should have created it. Please report this issue on https://github.com/slopus/happy-cli/issues`);
         process.exit(1);
@@ -167,6 +170,12 @@ export async function runCodex(opts: {
     //
 
     const initialPermissionMode = opts.permissionMode ?? DEFAULT_CODEX_PERMISSION_MODE;
+    if (pmaiSession && initialPermissionMode !== 'read-only') {
+        throw new Error('PMAI Codex sessions must start in read-only permission mode');
+    }
+    if (pmaiSession && !sandboxConfig?.enabled) {
+        throw new Error('PMAI Codex sessions require the dedicated HappyHerd OS sandbox');
+    }
     // Lineage from the daemon's spawn RPC (set by app-side fork / duplicate).
     const forkedFromSessionId = process.env.HAPPY_FORKED_FROM_SESSION_ID;
     const forkedFromMessageId = process.env.HAPPY_FORKED_FROM_MESSAGE_ID;
@@ -341,7 +350,11 @@ export async function runCodex(opts: {
 
         // Resolve permission mode (validate against Codex-native modes)
         let messagePermissionMode = currentPermissionMode;
-        if (message.meta?.permissionMode) {
+        if (pmaiSession) {
+            messagePermissionMode = 'read-only';
+            currentPermissionMode = 'read-only';
+            currentPermissionModeExplicitlySet = true;
+        } else if (message.meta?.permissionMode) {
             const incoming = message.meta.permissionMode as PermissionMode;
             if (VALID_REMOTE_PERMISSION_MODES.includes(incoming)) {
                 messagePermissionMode = incoming;
@@ -387,7 +400,10 @@ export async function runCodex(opts: {
         }
 
         let messageAppendSystemPrompt = currentAppendSystemPrompt;
-        if (message.meta?.hasOwnProperty('appendSystemPrompt')) {
+        if (pmaiSession) {
+            messageAppendSystemPrompt = undefined;
+            currentAppendSystemPrompt = undefined;
+        } else if (message.meta?.hasOwnProperty('appendSystemPrompt')) {
             messageAppendSystemPrompt = message.meta.appendSystemPrompt?.trim() || undefined;
             currentAppendSystemPrompt = messageAppendSystemPrompt;
             logger.debug(`[Codex] Per-message appended instruction updated: ${messageAppendSystemPrompt ? 'set' : 'reset'}`);
@@ -617,7 +633,7 @@ export async function runCodex(opts: {
             }
 
             // Stop Happy MCP server
-            happyServer.stop();
+            happyServer?.stop();
 
             logger.debug('[Codex] Session termination complete, exiting');
             process.exit(0);
@@ -669,7 +685,14 @@ export async function runCodex(opts: {
     // Start Context 
     //
 
-    client = new CodexAppServerClient(sandboxConfig);
+    const pmaiPolicyEntrypoint = join(projectPath(), 'bin', 'pmai-codex-policy.mjs');
+    if (pmaiSession && !existsSync(pmaiPolicyEntrypoint)) {
+        throw new Error(`PMAI Codex policy entrypoint is missing: ${pmaiPolicyEntrypoint}`);
+    }
+    client = new CodexAppServerClient(sandboxConfig, pmaiSession ? {
+        pmaiPolicyEntrypoint,
+        requireSandbox: true,
+    } : {});
 
     permissionHandler = new CodexPermissionHandler(session);
     // Drop any permission requests left in agent state from a previous CLI
@@ -927,19 +950,35 @@ export async function runCodex(opts: {
         }
     });
 
-    // Start Happy MCP server (HTTP) and prepare STDIO bridge config for Codex
-    const happyServer = await startHappyServer(session);
+    // PMAI sessions expose only their governed MCP. Other sessions retain the
+    // Happy change-title MCP server.
+    const happyServer = pmaiSession ? null : await startHappyServer(session);
     // Launch the bridge via `node <path>` (rather than relying on the .mjs shebang)
     // so it works on Windows, where Windows can't execute shebang scripts directly.
     // codex would otherwise fail to start the MCP server, the change_title tool would
     // not be visible to the model, and the model would improvise with shell echoes.
     const bridgeEntrypoint = join(projectPath(), 'bin', 'happy-mcp.mjs');
-    const mcpServers = {
-        happy: {
+    const mcpServers: Record<string, {
+        command: string;
+        args: string[];
+        env?: Record<string, string>;
+        enabled_tools?: string[];
+        required?: boolean;
+    }> = {};
+    if (happyServer) {
+        mcpServers.happy = {
             command: process.execPath,
             args: ['--no-warnings', '--no-deprecation', bridgeEntrypoint, '--url', happyServer.url]
-        }
-    } as const;
+        };
+    }
+    const pmaiBridgeEntrypoint = join(projectPath(), 'bin', 'pmai-mcp.mjs');
+    const pmaiMcpServer = buildPmaiMcpServerConfig({
+        nodeExecutable: process.execPath,
+        entrypoint: pmaiBridgeEntrypoint,
+    });
+    if (pmaiMcpServer) {
+        mcpServers.pmai = pmaiMcpServer;
+    }
     let first = true;
     let appendSystemPromptInjected = false;
 
@@ -1188,7 +1227,7 @@ export async function runCodex(opts: {
         logger.debug('[codex]: client.disconnect done');
         // Stop Happy MCP server
         logger.debug('[codex]: happyServer.stop');
-        happyServer.stop();
+        happyServer?.stop();
 
         // Clean up ink UI
         if (process.stdin.isTTY) {

@@ -384,6 +384,8 @@ export type Metadata = {
   instructionProvider?: 'codex' | 'claude'
   instructionLayer?: 'developer' | 'system-append'
   instructionHash?: string
+  /** Opaque PMAI Discord surface binding used to reconcile daemon spawns. */
+  pmaiDiscordSurfaceId?: string
   /** Machine-local automation provenance for daemon-started sessions. */
   automationId?: string
   automationKind?: 'scheduled' | 'heartbeat' | 'memory-maintenance'

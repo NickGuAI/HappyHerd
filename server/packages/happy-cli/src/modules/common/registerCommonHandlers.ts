@@ -160,6 +160,12 @@ export interface SpawnSessionOptions {
         instruction: string;
     };
     environmentVariables?: Record<string, string>;
+    /** Strict, session-scoped PMAI values supplied only over encrypted machine RPC. */
+    pmaiRuntimeContext?: {
+        discordSurfaceId: string;
+        pmaiCapabilityId: string;
+        pmaiBrokerUrl: string;
+    };
     token?: string;
     /**
      * If set, the daemon spawns the agent with `--resume <id>` so the new

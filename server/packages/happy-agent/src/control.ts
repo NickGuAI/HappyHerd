@@ -153,7 +153,10 @@ export class HappyControlClient {
         return this.waitForSession(result.sessionId);
     }
 
-    async resumeSession(sessionId: string): Promise<DecryptedSession> {
+    async resumeSession(
+        sessionId: string,
+        runtimeContext?: SpawnSessionRuntimeContext,
+    ): Promise<DecryptedSession> {
         const session = await this.resolveSession(sessionId);
         const metadata = session.metadata as { machineId?: unknown } | null;
         if (typeof metadata?.machineId !== 'string' || metadata.machineId.length === 0) {
@@ -165,6 +168,7 @@ export class HappyControlClient {
             machine,
             this.credentials.token,
             session.id,
+            runtimeContext,
         );
         if (result.type !== 'success') {
             const detail = result.type === 'error'

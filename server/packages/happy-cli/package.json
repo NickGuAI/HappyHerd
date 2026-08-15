@@ -13,7 +13,9 @@
   },
   "bin": {
     "happy": "./bin/happy.mjs",
-    "happy-mcp": "./bin/happy-mcp.mjs"
+    "happy-mcp": "./bin/happy-mcp.mjs",
+    "pmai-mcp": "./bin/pmai-mcp.mjs",
+    "pmai-codex-policy": "./bin/pmai-codex-policy.mjs"
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
@@ -47,6 +49,26 @@
       "import": {
         "types": "./dist/codex/happyMcpStdioBridge.d.mts",
         "default": "./dist/codex/happyMcpStdioBridge.mjs"
+      }
+    },
+    "./codex/pmaiMcpStdioBridge": {
+      "require": {
+        "types": "./dist/codex/pmaiMcpStdioBridge.d.cts",
+        "default": "./dist/codex/pmaiMcpStdioBridge.cjs"
+      },
+      "import": {
+        "types": "./dist/codex/pmaiMcpStdioBridge.d.mts",
+        "default": "./dist/codex/pmaiMcpStdioBridge.mjs"
+      }
+    },
+    "./codex/pmaiCodexPolicy": {
+      "require": {
+        "types": "./dist/codex/pmaiCodexPolicy.d.cts",
+        "default": "./dist/codex/pmaiCodexPolicy.cjs"
+      },
+      "import": {
+        "types": "./dist/codex/pmaiCodexPolicy.d.mts",
+        "default": "./dist/codex/pmaiCodexPolicy.mjs"
       }
     }
   },
