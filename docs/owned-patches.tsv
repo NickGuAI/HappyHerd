@@ -125,3 +125,4 @@ AUTOMATION	code-ready	feat(automations): confine listings to native manifests	se
 MEMORY	code-ready	feat(memory): add bounded L1 observer runner	server/scripts/tests/test_memory_observer.py
 AUTOMATION-MEMORY	code-ready	docs(patches): register automation observer series	docs/owned-patches.tsv
 R16	code-ready	fix(automations): separate run sessions from conversations	server/packages/happy-app/sources/sync/sessionListVisibility.test.ts
+R16	code-ready	fix(app): keep automation runs out of session lists	server/packages/happy-app/sources/sync/sessionListVisibility.test.ts

@@ -4,7 +4,7 @@ Automations stay in their own workflow, while historical observation remains bou
 
 - Unmanaged files outside HappyHerd's automation namespace no longer produce a legacy-system warning.
 - Automation listing remains confined to native manifests without scanning or claiming unrelated definitions.
-- Automation-created sessions no longer crowd Home or Recent; open successful runs from Automation History instead.
+- Automation-created sessions stay out of Home and Web Recent even when only part of their provenance is available; open successful runs from Automation History instead.
 - A bounded Observer can review up to 14 local days of Claude and Codex conversations and append L1 evidence to each owning Commander without distilling higher memory tiers.
 
 # August 13 — Guided Commander onboarding
