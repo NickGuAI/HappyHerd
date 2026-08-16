@@ -46,16 +46,26 @@ describe('ServiceAuthorizationClient', () => {
       expect(headers.get('x-happyherd-agent-content-sha256')).toBe(bodyHash);
       expect(verifyRequestSignature(
         'service-secret',
+        headers.get('x-happyherd-agent-id')!,
         headers.get('x-happyherd-agent-timestamp')!,
         headers.get('x-happyherd-agent-nonce')!,
         bodyHash,
         headers.get('x-happyherd-agent-signature')!,
       )).toBe(true);
+      expect(verifyRequestSignature(
+        'service-secret',
+        'different-agent',
+        headers.get('x-happyherd-agent-timestamp')!,
+        headers.get('x-happyherd-agent-nonce')!,
+        bodyHash,
+        headers.get('x-happyherd-agent-signature')!,
+      )).toBe(false);
       expect(JSON.parse(body)).toMatchObject({
         requestedMode: 'personal',
         source: {
           messageId: 'discord-message-1',
           discordUserId: '123456789012345678',
+          parentChannelId: null,
         },
       });
       return new Response(JSON.stringify(allowResponse()), {
@@ -77,6 +87,38 @@ describe('ServiceAuthorizationClient', () => {
       actor: { subjectId: 'member-1' },
       delegation: { token: 'delegation-token' },
     });
+  });
+
+  it('sends an exact link code only through the signed link capability', async () => {
+    const fetchImpl = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      expect(body).toMatchObject({
+        requestedCapability: 'discord-agent.link',
+        linkCode: 'EXAMPLE-CODE-1234',
+        source: {
+          discordUserId: '123456789012345678',
+          channelId: 'dm-channel-1',
+        },
+      });
+      return new Response(JSON.stringify({
+        decision: 'linked',
+        safeMessage: 'Account connected.',
+      }), { headers: { 'content-type': 'application/json' } });
+    });
+    const client = new ServiceAuthorizationClient({
+      baseUrl: 'https://service.example',
+      authorizationPath: '/api/internal/discord/authorize',
+      agentId: 'example-agent',
+      signingSecret: 'service-secret',
+      fetchImpl,
+      now: () => NOW,
+    });
+
+    await expect(client.link(message(), 'EXAMPLE-CODE-1234')).resolves.toEqual({
+      decision: 'linked',
+      safeMessage: 'Account connected.',
+    });
+    expect(fetchImpl).toHaveBeenCalledOnce();
   });
 
   it('returns a bounded denial', async () => {

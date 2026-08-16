@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ActorAuthorizer } from './authorization';
-import { DiscordAgentBridge } from './bridge';
+import { DiscordAgentBridge, parseLinkCommand } from './bridge';
 import { CapabilityRegistry } from './capabilities';
 import type { BridgeConfig } from './config';
 import type { DiscordReplyTransport } from './discord';
@@ -128,6 +128,40 @@ afterEach(async () => {
 });
 
 describe('DiscordAgentBridge', () => {
+  it('recognizes only an exact bounded account-link command', () => {
+    expect(parseLinkCommand('link EXAMPLE-CODE-1234')).toBe('EXAMPLE-CODE-1234');
+    expect(parseLinkCommand('please link EXAMPLE-CODE-1234')).toBeNull();
+    expect(parseLinkCommand('link short')).toBeNull();
+  });
+
+  it('links in DM without creating a HappyHerd session or persisting message text', async () => {
+    const state = await store();
+    const happy = new FakeHappy();
+    const discord = new FakeDiscord();
+    const authorizer: ActorAuthorizer = {
+      authorize: vi.fn(async (input, mode) => allowed(input, mode)),
+      link: vi.fn(async () => ({ decision: 'linked' as const, safeMessage: 'Account connected.' })),
+    };
+    const bridge = new DiscordAgentBridge({
+      config: config(),
+      store: state,
+      authorizer,
+      capabilities: new CapabilityRegistry(),
+      happy,
+      discord,
+    });
+    const input = message({ content: 'link EXAMPLE-CODE-1234' });
+
+    await bridge.handle(input);
+
+    expect(authorizer.authorize).not.toHaveBeenCalled();
+    expect(authorizer.link).toHaveBeenCalledWith(input, 'EXAMPLE-CODE-1234');
+    expect(happy.bindings).toHaveLength(0);
+    expect(happy.turns).toHaveLength(0);
+    expect(discord.replies[0]).toMatchObject({ content: 'Account connected.' });
+    expect(JSON.stringify(state.getInbound(input.sourceMessageId))).not.toContain('EXAMPLE-CODE-1234');
+  });
+
   it('routes one inbound message through one isolated HappyHerd turn and delivers once', async () => {
     const state = await store();
     const happy = new FakeHappy();

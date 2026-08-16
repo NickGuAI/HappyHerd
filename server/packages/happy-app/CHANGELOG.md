@@ -7,6 +7,8 @@ HappyHerd now provides a manifest-driven Discord agent runtime that any organiza
 - Personal reads and confirmed writes stay in DM; guild conversations remain mention-gated and read-only.
 - Shell, filesystem mutation, arbitrary web access, undeclared connectors, and missing or expired authorization fail closed.
 - Dedicated bridge and agent service accounts keep Discord, service, HappyHerd, and Codex credentials separate from operator runtimes.
+- A first-time member can now send an exact one-time `link CODE` command in the bot DM; the runtime verifies it through the organization service without creating an agent session or retaining the code.
+- Organization authorization signatures now bind the configured agent ID together with the timestamp, replay nonce, and exact request-body hash.
 - Public-boundary verification now rejects embedded personal paths, private infrastructure, secret material, and organization-specific logic outside named examples.
 
 # August 15 — Focused automations and memory observation

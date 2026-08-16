@@ -4,12 +4,19 @@ This directory shows how an organization can configure the generic
 `@happyherd/happyherd-agent` runtime without adding organization-specific
 logic to HappyHerd core. PMAI is an example deployment, not a built-in mode.
 
-The example exposes exactly five governed capabilities: guide, CRM, Discord,
-Luma, and Canva. Gmail and LinkedIn are intentionally absent. Team members
-authenticate their own Canva accounts through the PMAI service; the agent never
-receives a shared Canva credential. PMAI's service remains authoritative for
-team membership, 180-day credential expiry, scopes, resource ownership, and
-write confirmation.
+The example exposes exactly five named capabilities: guide, CRM, Discord,
+Luma, and a Canva connector handoff. Gmail and LinkedIn are intentionally
+absent. Team members authenticate their own Canva accounts in their personal
+agent connector; the Discord runtime receives neither that OAuth grant nor a
+shared Canva credential. PMAI's service remains authoritative for team
+eligibility, 180-day credential expiry, scopes, resource ownership, and write
+confirmation.
+
+Before the first agent turn, the member creates a one-time code in the PMAI
+portal and sends the exact `link CODE` command in a bot DM. The generic runtime
+forwards only that bounded code and signed Discord source metadata to PMAI's
+authorization endpoint; it creates no HappyHerd session for the link command
+and persists neither the command nor its code.
 
 ```text
 Discord member
