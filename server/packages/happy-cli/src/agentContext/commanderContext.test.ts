@@ -25,7 +25,8 @@ beforeEach(async () => {
   await mkdir(process.env.HAPPY_HOME_DIR, { recursive: true });
   await writeFile(path.join(process.env.HAPPY_HOME_DIR, 'AGENTS.md'), '# Global\nAlways verify.\n');
   const commanderDir = path.join(process.env.HAPPY_HOME_DIR, 'commanders', 'athena');
-  await mkdir(path.join(commanderDir, 'agentcontext'), { recursive: true });
+  const memoryDir = path.join(commanderDir, 'agentcontext', 'memory');
+  await mkdir(memoryDir, { recursive: true });
   await writeFile(path.join(commanderDir, 'COMMANDER.md'), [
     '---',
     'identity_and_scope:',
@@ -37,6 +38,9 @@ beforeEach(async () => {
     '# Mission',
     'Ship verified work.',
   ].join('\n'));
+  await writeFile(path.join(memoryDir, '0-observations.jsonl'), '{"private":"L1 evidence stays on demand"}\n');
+  await writeFile(path.join(memoryDir, '1-working-memory.md'), '# Current lane\nFinish the runtime repair.\n');
+  await writeFile(path.join(memoryDir, '2-long-term-memory.md'), '# Durable constraints\nVerify before delivery.\n');
 });
 
 afterEach(async () => {
@@ -101,6 +105,12 @@ describe('Commander context', () => {
     const content = await readFile(bundle.bundlePath, 'utf8');
     expect(content).toContain('Always verify.');
     expect(content).toContain('Ship verified work.');
+    expect(content).toContain('Finish the runtime repair.');
+    expect(content).toContain('Verify before delivery.');
+    expect(content).toContain(`Source: ${path.join(root, '.happyherd', 'commanders', 'athena', 'agentcontext', 'memory', '1-working-memory.md')}`);
+    expect(content).toContain('Commander memory auto-load limit: 65536 bytes per file');
+    expect(content).toContain('Commander L1 observations: on demand (not included)');
+    expect(content).not.toContain('L1 evidence stays on demand');
     expect(content).toContain('Use project tests.');
     expect(bundle.projectGuidancePath).toBe(path.join(projectDir, 'AGENTS.md'));
     expect(await readFile(path.join(root, '.happyherd', 'CLAUDE.md'), 'utf8')).toContain('Always verify.');
@@ -113,6 +123,28 @@ describe('Commander context', () => {
     expect(await readContextPromptFromEnvironment()).toBe(content);
     await expect(access(bundle.bundlePath)).rejects.toThrow();
     await expect(access(path.join(root, '.happyherd', 'agent-context'))).rejects.toThrow();
+  });
+
+  it('bounds each automatically loaded memory file without breaking UTF-8', async () => {
+    const workingMemoryPath = path.join(
+      root,
+      '.happyherd',
+      'commanders',
+      'athena',
+      'agentcontext',
+      'memory',
+      '1-working-memory.md',
+    );
+    await writeFile(workingMemoryPath, `# Oversized\n${'界'.repeat(30_000)}\nMEMORY_END_MARKER\n`);
+
+    const bundle = await prepareCommanderContext('athena');
+    const content = await readFile(bundle.bundlePath, 'utf8');
+
+    expect(content).toContain('Commander L2 working memory:');
+    expect(content).toContain('; truncated)');
+    expect(content).toContain('Truncated: yes');
+    expect(content).not.toContain('MEMORY_END_MARKER');
+    expect(content).not.toContain('\uFFFD');
   });
 
   it('repairs a divergent CLAUDE mirror without blocking Commander session preparation', async () => {

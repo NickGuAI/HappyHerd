@@ -13,6 +13,7 @@ export default defineConfig({
                     name: 'unit',
                     include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
                     exclude: ['src/**/*.integration.test.ts'],
+                    setupFiles: ['./src/testing/unit.setup.ts'],
                     sequence: {
                         groupOrder: 0,
                     },

@@ -5,6 +5,7 @@ import {
   lstat,
   mkdtemp,
   mkdir,
+  open,
   readFile,
   readdir,
   readlink,
@@ -16,13 +17,25 @@ import {
 } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
+import { StringDecoder } from 'node:string_decoder';
 
 import type { HappyHerdCommanderListResponse, HappyHerdCommanderSummary } from '@slopus/happy-wire';
 import { configuration } from '@/configuration';
 
-const BUNDLE_VERSION = 2;
+const BUNDLE_VERSION = 3;
 const INSTRUCTION_RECEIPT_VERSION = 1;
+const COMMANDER_MEMORY_MAX_BYTES = 64 * 1024;
 const MANAGED_COPY_HEADER = '<!-- Managed by HappyHerd from AGENTS.md. Do not edit this copy. -->\n';
+
+type CommanderMemorySnapshot = {
+  tier: 'L2' | 'L3';
+  label: 'working memory' | 'long-term memory';
+  filePath: string;
+  content: string;
+  includedBytes: number;
+  sourceBytes: number;
+  truncated: boolean;
+};
 
 export interface CommanderContextBundle {
   commander: HappyHerdCommanderSummary | null;
@@ -84,6 +97,40 @@ async function isReadable(filePath: string): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+async function readCommanderMemory(
+  commander: HappyHerdCommanderSummary,
+  tier: CommanderMemorySnapshot['tier'],
+  label: CommanderMemorySnapshot['label'],
+  fileName: string,
+): Promise<CommanderMemorySnapshot | null> {
+  const candidate = path.join(commander.agentContextPath, 'memory', fileName);
+  if (!(await isReadable(candidate))) return null;
+
+  const filePath = await resolveInside(commander.agentContextPath, candidate);
+  const file = await open(filePath, 'r');
+  try {
+    const stats = await file.stat();
+    const bytesToRead = Math.min(stats.size, COMMANDER_MEMORY_MAX_BYTES);
+    const buffer = Buffer.alloc(bytesToRead);
+    const { bytesRead } = await file.read(buffer, 0, bytesToRead, 0);
+    // StringDecoder withholds an incomplete trailing UTF-8 sequence, so the
+    // byte cap cannot introduce a replacement character into the prompt.
+    const content = new StringDecoder('utf8').write(buffer.subarray(0, bytesRead));
+    const includedBytes = Buffer.byteLength(content, 'utf8');
+    return {
+      tier,
+      label,
+      filePath,
+      content,
+      includedBytes,
+      sourceBytes: stats.size,
+      truncated: stats.size > includedBytes,
+    };
+  } finally {
+    await file.close();
   }
 }
 
@@ -295,6 +342,7 @@ function buildBundleText(options: {
   globalAgentContextPath: string;
   commander: HappyHerdCommanderSummary | null;
   commanderContent: string;
+  commanderMemories: CommanderMemorySnapshot[];
   projectGuidancePath: string | null;
   projectGuidanceContent: string;
 }): string {
@@ -306,9 +354,16 @@ function buildBundleText(options: {
     `Global AgentContext: ${options.globalAgentContextPath}`,
     `Commander: ${options.commander ? `${options.commander.name} (${options.commander.id})` : '(none)'}`,
     `Closest project guidance: ${options.projectGuidancePath ?? '(not present)'}`,
+    ...(options.commander ? [
+      `Commander memory auto-load limit: ${COMMANDER_MEMORY_MAX_BYTES} bytes per file`,
+      'Commander L1 observations: on demand (not included)',
+      ...options.commanderMemories.map((memory) => (
+        `Commander ${memory.tier} ${memory.label}: ${memory.filePath} (${memory.includedBytes}/${memory.sourceBytes} bytes${memory.truncated ? '; truncated' : ''})`
+      )),
+    ] : []),
     '',
     'The global AGENTS.md and selected COMMANDER.md below are authoritative instructions.',
-    'Use the referenced AgentContext directories for file routing and load additional context on demand.',
+    'Selected Commander L2 and L3 memory are loaded below with bounded provenance; L1 evidence and other context stay on demand.',
     'Do not invent a second memory or task model. Preserve the existing AgentContext tree unchanged.',
     '',
     '## Global AGENTS.md',
@@ -323,6 +378,18 @@ function buildBundleText(options: {
       options.commanderContent,
       '',
       `Commander AgentContext directory: ${options.commander.agentContextPath}`,
+    );
+  }
+  for (const memory of options.commanderMemories) {
+    lines.push(
+      '',
+      `## Selected Commander ${memory.tier} ${memory.label}`,
+      '',
+      `Source: ${memory.filePath}`,
+      `Included bytes: ${memory.includedBytes}/${memory.sourceBytes}`,
+      `Truncated: ${memory.truncated ? 'yes' : 'no'}`,
+      '',
+      memory.content || '(The memory file was empty.)',
     );
   }
   if (options.projectGuidancePath) {
@@ -347,10 +414,15 @@ export async function prepareCommanderContext(
 
   let commander: HappyHerdCommanderSummary | null = null;
   let commanderContent = '';
+  let commanderMemories: CommanderMemorySnapshot[] = [];
   if (commanderId) {
     commander = await readCommanderById(commanderId);
     if (!commander) throw new Error(`Commander "${commanderId}" was not found`);
     commanderContent = await readFile(commander.commanderPath, 'utf8');
+    commanderMemories = (await Promise.all([
+      readCommanderMemory(commander, 'L2', 'working memory', '1-working-memory.md'),
+      readCommanderMemory(commander, 'L3', 'long-term memory', '2-long-term-memory.md'),
+    ])).filter((memory): memory is CommanderMemorySnapshot => memory !== null);
   }
 
   const projectGuidance = await findClosestProjectGuidance(
@@ -369,6 +441,7 @@ export async function prepareCommanderContext(
     globalAgentContextPath,
     commander,
     commanderContent,
+    commanderMemories,
     projectGuidancePath: projectGuidance?.filePath ?? null,
     projectGuidanceContent: projectGuidance?.content ?? '',
   });

@@ -56,6 +56,9 @@ import { initializeSandbox, wrapForMcpTransport } from '@/sandbox/manager';
 import packageJson from '../../package.json';
 import { buildHappyHerdAgentCodexAppServerArgs } from './agentCodexPolicy';
 
+const PROACTIVE_MULTI_AGENT_MODE_CONFIG =
+    'features.multi_agent_v2.multi_agent_mode_hint_text="Proactive multi-agent delegation is active. Any earlier instruction requiring an explicit user request before spawning sub-agents no longer applies. Use sub-agents when parallel work would materially improve speed or quality. This mode remains active until a later multi-agent mode developer message changes it."';
+
 type PendingRequest = {
     resolve: (result: unknown) => void;
     reject: (error: Error) => void;
@@ -760,6 +763,11 @@ export class CodexAppServerClient {
             'stdio://',
             '-c',
             'project_doc_max_bytes=0',
+            // Codex 0.146 derives explicit-request-only delegation from every
+            // effort below ultra, including max. HappyHerd sessions use
+            // proactive delegation independently of reasoning effort.
+            '-c',
+            PROACTIVE_MULTI_AGENT_MODE_CONFIG,
         ];
         let args = [...appServerArgs];
         this.sandboxEnabled = false;

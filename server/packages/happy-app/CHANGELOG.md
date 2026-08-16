@@ -2,6 +2,13 @@
 
 HappyHerd now provides a manifest-driven Discord agent runtime that any organization can configure without adding its identity or provider routes to generic core code.
 
+- Claude, Codex, Automation, and governed-agent sessions now default to maximum available reasoning effort across the app, CLI, and deployment profiles.
+- Ordinary and governed Codex sessions can delegate proactively; governed child agents inherit the exact same read-only sandbox and manifest-only tool boundary.
+- Commander sessions automatically receive the selected `COMMANDER.md`, bounded L2 working memory, bounded L3 long-term memory, and nearest project guidance; L1 evidence remains on demand.
+- `/goal OBJECTIVE` now sets the Codex goal and immediately starts one normal turn for that objective, while `/goal clear` remains state-only.
+- Automation sessions are one-shot: they close only after authoritative provider and goal completion, preserve exact run provenance across daemon handoff, and automatically recycle after verified completion, failure, or timeout without touching ordinary sessions.
+- Daemon upgrades now preserve independent provider processes, rebuild only transient live registration, accept provider re-registration, and verify the exact release SHA before readiness.
+- `happy --version` is a pure query with immutable release identity, and unit tests no longer inherit Commander, reconnect, automation, or session state from the invoking shell.
 - Each deployment declares its own named tools, operation paths, scopes, shared-read policy, and write behavior in a validated manifest.
 - Every Discord surface maps to an encrypted HappyHerd Codex session carrying only an actor-bound capability and the declared tool descriptions.
 - Personal reads and confirmed writes stay in DM; guild conversations remain mention-gated and read-only.

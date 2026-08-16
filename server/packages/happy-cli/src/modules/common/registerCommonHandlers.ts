@@ -156,6 +156,7 @@ export interface SpawnSessionOptions {
      */
     automation?: {
         id: string;
+        runId: string;
         kind: 'scheduled' | 'heartbeat' | 'memory-maintenance';
         instruction: string;
     };

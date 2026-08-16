@@ -10,6 +10,7 @@ import { configuration } from '@/configuration';
 const BootstrapSchema = z.object({
   schemaVersion: z.literal(1),
   automationId: z.string().uuid(),
+  runId: z.string().uuid(),
   kind: HappyHerdAutomationKindSchema,
   instruction: z.string().trim().min(1).max(100_000),
 }).strict();
@@ -18,6 +19,7 @@ export type HappyHerdAutomationBootstrap = z.infer<typeof BootstrapSchema>;
 
 export interface AutomationBootstrapReference {
   automationId: string;
+  runId: string;
   kind: HappyHerdAutomationBootstrap['kind'];
   path: string;
   hash: string;
@@ -47,12 +49,19 @@ export async function prepareAutomationBootstrap(
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     await writeJsonAtomic(filePath, bootstrap);
   }
-  return { automationId: bootstrap.automationId, kind: bootstrap.kind, path: filePath, hash };
+  return {
+    automationId: bootstrap.automationId,
+    runId: bootstrap.runId,
+    kind: bootstrap.kind,
+    path: filePath,
+    hash,
+  };
 }
 
 export function automationBootstrapEnvironment(reference: AutomationBootstrapReference): Record<string, string> {
   return {
     HAPPYHERD_AUTOMATION_ID: reference.automationId,
+    HAPPYHERD_AUTOMATION_RUN_ID: reference.runId,
     HAPPYHERD_AUTOMATION_KIND: reference.kind,
     HAPPYHERD_AUTOMATION_BOOTSTRAP_PATH: reference.path,
     HAPPYHERD_AUTOMATION_BOOTSTRAP_HASH: reference.hash,
@@ -71,6 +80,9 @@ export async function readAutomationBootstrapFromEnvironment(): Promise<HappyHer
   if (process.env.HAPPYHERD_AUTOMATION_ID !== bootstrap.automationId) {
     throw new Error('HappyHerd automation bootstrap id does not match the session environment');
   }
+  if (process.env.HAPPYHERD_AUTOMATION_RUN_ID !== bootstrap.runId) {
+    throw new Error('HappyHerd automation bootstrap run id does not match the session environment');
+  }
   if (process.env.HAPPYHERD_AUTOMATION_KIND !== bootstrap.kind) {
     throw new Error('HappyHerd automation bootstrap kind does not match the session environment');
   }
@@ -79,12 +91,15 @@ export async function readAutomationBootstrapFromEnvironment(): Promise<HappyHer
 
 export function automationMetadataFromEnvironment(): {
   automationId?: string;
+  automationRunId?: string;
   automationKind?: HappyHerdAutomationBootstrap['kind'];
 } {
   const id = z.string().uuid().safeParse(process.env.HAPPYHERD_AUTOMATION_ID);
+  const runId = z.string().uuid().safeParse(process.env.HAPPYHERD_AUTOMATION_RUN_ID);
   const kind = HappyHerdAutomationKindSchema.safeParse(process.env.HAPPYHERD_AUTOMATION_KIND);
   return {
     ...(id.success ? { automationId: id.data } : {}),
+    ...(runId.success ? { automationRunId: runId.data } : {}),
     ...(kind.success ? { automationKind: kind.data } : {}),
   };
 }

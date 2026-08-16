@@ -48,7 +48,7 @@ done
 [[ -z "$(git -C "$ROOT" status --porcelain --untracked-files=normal)" ]] || \
     die 'release images must be built from a clean worktree'
 
-SOURCE_SHA="$(git -C "$ROOT" rev-parse HEAD)"
+SOURCE_SHA="$("$ROOT/scripts/assert-origin-main.sh" "$ROOT")"
 [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] || die 'could not resolve a full source SHA'
 CREATED="$(git -C "$ROOT" show -s --format=%cI HEAD)"
 VERSION="sha-${SOURCE_SHA}"

@@ -46,13 +46,107 @@ describe('HappyHerdAutomationStore', () => {
       source: 'manual',
       scheduledFor: new Date().toISOString(),
       startedAt: new Date().toISOString(),
-      finishedAt: new Date().toISOString(),
+      finishedAt: null,
       status: 'started',
       attempt: 1,
       sessionId: 'session-one',
       message: null,
     });
     expect(await store.history(automation.id)).toHaveLength(1);
+  });
+
+  it('never evicts a nonterminal run when bounded history fills', async () => {
+    const store = new HappyHerdAutomationStore();
+    const automation = await store.create('machine-one', input());
+    const active = {
+      id: crypto.randomUUID(),
+      automationId: automation.id,
+      source: 'manual' as const,
+      scheduledFor: new Date().toISOString(),
+      startedAt: new Date().toISOString(),
+      finishedAt: null,
+      status: 'started' as const,
+      attempt: 1,
+      sessionId: 'active-session',
+      message: null,
+    };
+    await store.appendRun(active);
+    for (let index = 0; index < 55; index += 1) {
+      const now = new Date(Date.now() + index).toISOString();
+      await store.appendRun({
+        id: crypto.randomUUID(),
+        automationId: automation.id,
+        source: 'schedule',
+        scheduledFor: now,
+        startedAt: now,
+        finishedAt: now,
+        status: 'skipped',
+        attempt: 1,
+        sessionId: null,
+        message: 'Previous run is active.',
+      });
+    }
+    expect(await store.history(automation.id)).toHaveLength(50);
+    expect(await store.activeRun(automation.id)).toMatchObject({ id: active.id, sessionId: 'active-session' });
+  });
+
+  it('allows only owned lifecycle transitions for an existing run', async () => {
+    const store = new HappyHerdAutomationStore();
+    const automation = await store.create('machine-one', input());
+    const startedAt = new Date().toISOString();
+    const started = {
+      id: crypto.randomUUID(),
+      automationId: automation.id,
+      source: 'manual' as const,
+      scheduledFor: startedAt,
+      startedAt,
+      finishedAt: null,
+      status: 'started' as const,
+      attempt: 1,
+      sessionId: 'session-one',
+      message: null,
+    };
+    await store.appendRun(started);
+    await store.appendRun({
+      ...started,
+      status: 'completed',
+      finishedAt: new Date().toISOString(),
+    });
+    expect(await store.activeRun(automation.id)).toBeNull();
+    await expect(store.appendRun(started)).rejects.toThrow(/cannot transition from completed to started/);
+  });
+
+  it('normalizes pre-lifecycle started rows into persistent active runs', async () => {
+    const store = new HappyHerdAutomationStore();
+    const automation = await store.create('machine-one', input());
+    const now = new Date().toISOString();
+    const legacyRun = {
+      id: crypto.randomUUID(),
+      automationId: automation.id,
+      source: 'schedule',
+      scheduledFor: now,
+      startedAt: now,
+      finishedAt: now,
+      status: 'started',
+      attempt: 1,
+      sessionId: 'legacy-session',
+      message: 'Session accepted by the daemon.',
+    };
+    const runFile = path.join(
+      root,
+      '.happyherd',
+      'agentcontext',
+      'automations',
+      'happyherd',
+      automation.id,
+      'runs.json',
+    );
+    await writeFile(runFile, JSON.stringify([legacyRun]));
+    expect(await store.activeRun(automation.id)).toMatchObject({
+      id: legacyRun.id,
+      status: 'started',
+      finishedAt: null,
+    });
   });
 
   it('lists only manifests from its native namespace', async () => {

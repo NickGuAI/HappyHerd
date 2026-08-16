@@ -120,7 +120,7 @@ class MemoryObserverTest(unittest.TestCase):
                 "-c",
                 'approval_policy="never"',
                 "-c",
-                'model_reasoning_effort="medium"',
+                'model_reasoning_effort="max"',
                 "--skip-git-repo-check",
                 "-",
             ],

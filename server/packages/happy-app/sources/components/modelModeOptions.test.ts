@@ -3,6 +3,7 @@ import {
     getAgyModelModes,
     getAvailableModels,
     getAvailablePermissionModes,
+    getCodexEffortLevels,
     getCodexModelModes,
     getClaudeModelModes,
     getClaudePermissionModes,
@@ -241,10 +242,11 @@ describe('modelModeOptions', () => {
     it('uses code defaults for agent defaults', () => {
         expect(getDefaultPermissionModeKey('claude')).toBe('bypassPermissions');
         expect(getDefaultModelKey('claude')).toBe('claude-opus-5');
-        expect(getDefaultEffortKey('claude')).toBe('medium');
+        expect(getDefaultEffortKey('claude')).toBe('max');
         expect(getDefaultPermissionModeKey('codex')).toBe('yolo');
         expect(getDefaultModelKey('codex')).toBe('gpt-5.5');
-        expect(getDefaultEffortKey('codex')).toBeNull();
+        expect(getDefaultEffortKey('codex')).toBe('max');
+        expect(getCodexEffortLevels().at(-1)).toEqual({ key: 'max', name: 'max' });
     });
 
     it('prefers metadata models over hardcoded fallbacks', () => {

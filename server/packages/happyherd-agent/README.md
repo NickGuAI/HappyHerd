@@ -25,9 +25,10 @@ paths, scopes, and read/write policy. See
   reauthorized and delegated for at most fifteen minutes.
 - DMs bind one service subject to one capability and one HappyHerd session.
   Guild surfaces are shared and read-only.
-- Codex starts in a dedicated OS sandbox, exposes only manifest-declared MCP
-  tools, and denies shell, filesystem mutation, subagents, web search, and
-  undeclared tools.
+- Codex starts in a dedicated OS sandbox, exposes manifest-declared MCP tools
+  plus built-in collaboration tools, and denies shell, filesystem mutation,
+  web search, undeclared tools, and custom subagent roles. Every child inherits
+  the same governed boundary and cannot expand its authority.
 - Provider credentials and the Discord token remain in the trusted bridge.
   The Codex child receives only an opaque local capability.
 - Writes require a one-use confirmation bound to the actor, capability, exact

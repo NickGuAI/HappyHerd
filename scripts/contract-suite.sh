@@ -48,6 +48,7 @@ node "$repo_root/scripts/verify-product-identity.mjs"
   "$repo_root/deploy/runtime.env.example" template
 "$repo_root/scripts/test-runtime-isolation.sh"
 "$repo_root/scripts/test-release-daemon-contract.sh"
+"$repo_root/scripts/test-release-source-contract.sh"
 "$repo_root/scripts/test-happyherd-agent-runtime.sh"
 "$repo_root/scripts/test-happyherd-agent-release-contract.sh"
 "$repo_root/scripts/test-happyherd-agent-sandbox.sh" source

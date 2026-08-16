@@ -48,6 +48,41 @@ function inactiveSession(): DecryptedSession {
 }
 
 describe('HappyHerdRuntime', () => {
+  it('starts a fresh governed session at max effort', async () => {
+    const spawned = { ...inactiveSession(), active: true };
+    const control = {
+      listSessions: vi.fn(async () => []),
+      resolveMachine: vi.fn(),
+      resolveSession: vi.fn(),
+      spawnCodexSession: vi.fn(async () => spawned),
+      resumeSession: vi.fn(),
+      sendTurn: vi.fn(),
+      getSessionMessages: vi.fn(),
+    };
+    const binding: SurfaceBinding = {
+      surfaceKey: 'dm:123',
+      surfaceKind: 'dm',
+      channelId: '456',
+      guildId: null,
+      threadId: null,
+      subjectId: 'member-1',
+      capabilityId: 'A_32-character-capability-id-value-123',
+      happySessionId: null,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+
+    const runtime = new HappyHerdRuntime(config(), TEST_AGENT_MANIFEST, control);
+    await expect(runtime.ensureSession(binding)).resolves.toEqual({ sessionId: 'session-1', sequence: 12 });
+    expect(control.spawnCodexSession).toHaveBeenCalledWith(expect.objectContaining({
+      effortLevel: 'max',
+      runtimeContext: expect.objectContaining({
+        surfaceId: 'dm:123',
+        capabilityId: 'A_32-character-capability-id-value-123',
+      }),
+    }));
+  });
+
   it('reinjects the current surface capability when resuming an inactive session', async () => {
     const resumed = { ...inactiveSession(), active: true };
     const control = {

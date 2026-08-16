@@ -17,6 +17,61 @@ import { agentContextRoot } from '@/agentContext/commanderContext';
 import { assertValidCron, assertValidTimezone } from './cronValidation';
 
 const HISTORY_CAP = 50;
+const ACTIVE_RUN_STATUSES = new Set<HappyHerdAutomationRun['status']>(['running', 'started']);
+
+function normalizeStoredRun(value: unknown): unknown {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+  const run = value as Record<string, unknown>;
+  // Before the one-shot terminal contract, `started` meant only that the daemon
+  // accepted the provider and was incorrectly written with a finishedAt.
+  // Treat those rows as active until process reconciliation proves otherwise.
+  if (run.status === 'started' && typeof run.finishedAt === 'string') {
+    return { ...run, finishedAt: null };
+  }
+  return value;
+}
+
+function retainBoundedHistory(runs: HappyHerdAutomationRun[]): HappyHerdAutomationRun[] {
+  const activeCount = runs.filter((run) => ACTIVE_RUN_STATUSES.has(run.status)).length;
+  let remainingTerminalSlots = Math.max(0, HISTORY_CAP - activeCount);
+  return runs.filter((run) => {
+    if (ACTIVE_RUN_STATUSES.has(run.status)) return true;
+    if (remainingTerminalSlots === 0) return false;
+    remainingTerminalSlots -= 1;
+    return true;
+  });
+}
+
+function assertValidRunTransition(
+  current: HappyHerdAutomationRun,
+  next: HappyHerdAutomationRun,
+): void {
+  for (const field of ['automationId', 'source', 'scheduledFor', 'startedAt'] as const) {
+    if (current[field] !== next[field]) {
+      throw new Error(`Automation run ${current.id} cannot change ${field}`);
+    }
+  }
+  if (next.attempt < current.attempt) {
+    throw new Error(`Automation run ${current.id} cannot decrease its attempt`);
+  }
+  if (current.sessionId !== null && current.sessionId !== next.sessionId) {
+    throw new Error(`Automation run ${current.id} cannot change its linked session`);
+  }
+  if (current.status === next.status) {
+    if (!ACTIVE_RUN_STATUSES.has(current.status) && JSON.stringify(current) !== JSON.stringify(next)) {
+      throw new Error(`Terminal automation run ${current.id} is immutable`);
+    }
+    return;
+  }
+  const allowed = current.status === 'running'
+    ? next.status === 'started' || next.status === 'failed'
+    : current.status === 'started'
+      ? next.status === 'completed' || next.status === 'failed' || next.status === 'timed-out'
+      : false;
+  if (!allowed) {
+    throw new Error(`Automation run ${current.id} cannot transition from ${current.status} to ${next.status}`);
+  }
+}
 
 function automationsParent(): string {
   return path.join(agentContextRoot(), 'agentcontext', 'automations');
@@ -164,14 +219,32 @@ export class HappyHerdAutomationStore {
 
   async history(id: string): Promise<HappyHerdAutomationRun[]> {
     assertUuid(id);
+    return retainBoundedHistory(await this.readRuns(id));
+  }
+
+  async activeRun(id: string): Promise<HappyHerdAutomationRun | null> {
+    return (await this.activeRuns(id))[0] ?? null;
+  }
+
+  async activeRuns(id: string): Promise<HappyHerdAutomationRun[]> {
+    assertUuid(id);
+    return (await this.readRuns(id)).filter((run) => ACTIVE_RUN_STATUSES.has(run.status));
+  }
+
+  async getRun(automationId: string, runId: string): Promise<HappyHerdAutomationRun | null> {
+    assertUuid(automationId);
+    assertUuid(runId);
+    return (await this.readRuns(automationId)).find((run) => run.id === runId) ?? null;
+  }
+
+  private async readRuns(id: string): Promise<HappyHerdAutomationRun[]> {
     try {
       const raw = await readJson(runsPath(id));
       if (!Array.isArray(raw)) return [];
       return raw
-        .map((entry) => HappyHerdAutomationRunSchema.safeParse(entry))
+        .map((entry) => HappyHerdAutomationRunSchema.safeParse(normalizeStoredRun(entry)))
         .filter((entry) => entry.success)
-        .map((entry) => entry.data)
-        .slice(0, HISTORY_CAP);
+        .map((entry) => entry.data);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
       throw error;
@@ -181,8 +254,11 @@ export class HappyHerdAutomationStore {
   async appendRun(run: HappyHerdAutomationRun): Promise<void> {
     await this.serialize(async () => {
       const parsed = HappyHerdAutomationRunSchema.parse(run);
-      const history = await this.history(parsed.automationId);
-      await writeJsonAtomic(runsPath(parsed.automationId), [parsed, ...history.filter((entry) => entry.id !== parsed.id)].slice(0, HISTORY_CAP));
+      const history = await this.readRuns(parsed.automationId);
+      const current = history.find((entry) => entry.id === parsed.id);
+      if (current) assertValidRunTransition(current, parsed);
+      const next = [parsed, ...history.filter((entry) => entry.id !== parsed.id)];
+      await writeJsonAtomic(runsPath(parsed.automationId), retainBoundedHistory(next));
     });
   }
 }

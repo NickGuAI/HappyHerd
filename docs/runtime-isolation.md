@@ -56,7 +56,10 @@ sudo -u happyherd-runtime /opt/happyherd/current/scripts/start-host-daemon.sh \
 ```
 
 The cron entry is a detached bootstrap, not a supervisor. Version handoff and
-daemon restart therefore do not terminate an active provider session.
+daemon restart therefore do not terminate an active provider session. The
+bootstrap verifies that the replacement daemon reports the exact installed
+release SHA. The daemon holds only an in-memory registration index; provider
+sessions own their lifetimes and re-register after a daemon handoff.
 
 ## Governed Discord agent
 

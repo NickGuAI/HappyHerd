@@ -127,7 +127,7 @@ function baselineClaudeCatalog(detectedAt: number): AgentCapabilityCatalog {
 }
 
 function baselineCodexCatalog(detectedAt: number): AgentCapabilityCatalog {
-    const efforts = uniqueOptions(['none', 'minimal', 'low', 'medium', 'high', 'xhigh']);
+    const efforts = uniqueOptions(['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']);
     return {
         detectedAt,
         providerVersion: readVersion('codex'),

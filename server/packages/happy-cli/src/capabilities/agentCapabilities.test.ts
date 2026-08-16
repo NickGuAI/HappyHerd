@@ -97,6 +97,7 @@ describe('agent capability discovery', () => {
             'medium',
             'high',
             'xhigh',
+            'max',
         ]);
     });
 });

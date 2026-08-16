@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { Update, UpdateMachineBody } from '@slopus/happy-wire';
+import type { HappyHerdAutomationProviderOutcome, Update, UpdateMachineBody } from '@slopus/happy-wire';
 import { UsageSchema } from '@/claude/types'
 import type { SandboxConfig } from '@/persistence'
 
@@ -388,7 +388,10 @@ export type Metadata = {
   happyHerdAgentSurfaceId?: string
   /** Machine-local automation provenance for daemon-started sessions. */
   automationId?: string
+  automationRunId?: string
   automationKind?: 'scheduled' | 'heartbeat' | 'memory-maintenance'
+  /** Provider-written only after the one-shot root and child work is terminal. */
+  automationProviderOutcome?: HappyHerdAutomationProviderOutcome
 };
 
 export type UsageLimitWindowStatus = 'allowed' | 'allowed_warning' | 'rejected'

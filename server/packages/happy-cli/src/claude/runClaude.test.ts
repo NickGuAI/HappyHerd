@@ -1,3 +1,7 @@
+import { createHash } from 'node:crypto';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
@@ -89,6 +93,31 @@ vi.mock('@/claude/claudeLocal', () => ({
 }));
 
 import { runClaude } from './runClaude';
+
+const automationTemporaryDirectories: string[] = [];
+
+async function installAutomationBootstrap(instruction: string) {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'happyherd-run-claude-automation-'));
+    automationTemporaryDirectories.push(directory);
+    const bootstrap = {
+        schemaVersion: 1 as const,
+        automationId: crypto.randomUUID(),
+        runId: crypto.randomUUID(),
+        kind: 'scheduled' as const,
+        instruction,
+    };
+    const serialized = `${JSON.stringify(bootstrap, null, 2)}\n`;
+    const bootstrapPath = path.join(directory, 'bootstrap.json');
+    await writeFile(bootstrapPath, serialized);
+    Object.assign(process.env, {
+        HAPPYHERD_AUTOMATION_ID: bootstrap.automationId,
+        HAPPYHERD_AUTOMATION_RUN_ID: bootstrap.runId,
+        HAPPYHERD_AUTOMATION_KIND: bootstrap.kind,
+        HAPPYHERD_AUTOMATION_BOOTSTRAP_PATH: bootstrapPath,
+        HAPPYHERD_AUTOMATION_BOOTSTRAP_HASH: createHash('sha256').update(serialized).digest('hex'),
+    });
+    return bootstrap;
+}
 
 function createDeferred<T>() {
     let resolve!: (value: T | PromiseLike<T>) => void;
@@ -250,6 +279,11 @@ describe('runClaude remote JSONL scanner', () => {
         delete process.env.HAPPY_FORKED_FROM_SESSION_ID;
         delete process.env.HAPPY_FORKED_FROM_MESSAGE_ID;
         delete process.env.HAPPY_FORK_CLAUDE_SESSION_ID;
+        delete process.env.HAPPYHERD_AUTOMATION_ID;
+        delete process.env.HAPPYHERD_AUTOMATION_RUN_ID;
+        delete process.env.HAPPYHERD_AUTOMATION_KIND;
+        delete process.env.HAPPYHERD_AUTOMATION_BOOTSTRAP_PATH;
+        delete process.env.HAPPYHERD_AUTOMATION_BOOTSTRAP_HASH;
 
         mockReadSettings.mockResolvedValue({
             machineId: 'machine-1',
@@ -271,7 +305,7 @@ describe('runClaude remote JSONL scanner', () => {
         });
     });
 
-    afterEach(() => {
+    afterEach(async () => {
         for (const [event, listeners] of originalListeners) {
             process.removeAllListeners(event as any);
             for (const listener of listeners) {
@@ -279,6 +313,14 @@ describe('runClaude remote JSONL scanner', () => {
             }
         }
         originalListeners.clear();
+        delete process.env.HAPPYHERD_AUTOMATION_ID;
+        delete process.env.HAPPYHERD_AUTOMATION_RUN_ID;
+        delete process.env.HAPPYHERD_AUTOMATION_KIND;
+        delete process.env.HAPPYHERD_AUTOMATION_BOOTSTRAP_PATH;
+        delete process.env.HAPPYHERD_AUTOMATION_BOOTSTRAP_HASH;
+        await Promise.all(automationTemporaryDirectories.splice(0).map((directory) => (
+            rm(directory, { recursive: true, force: true })
+        )));
     });
 
     it('does not forward terminal JSONL messages while local mode owns the transcript', async () => {
@@ -842,6 +884,60 @@ describe('runClaude remote JSONL scanner', () => {
         });
 
         await harness.finish();
+    });
+
+    it('defaults fresh Claude turns to max effort', async () => {
+        const harness = await startRemoteRunClaudeHarness();
+        const userMessageHandler = harness.sessionClient.onUserMessage.mock.calls[0][0];
+
+        await userMessageHandler({
+            content: { text: 'use the configured default' },
+            meta: {},
+        });
+
+        expect(harness.loopOptions.messageQueue.queue[0].mode).toMatchObject({
+            effort: 'max',
+        });
+        await harness.finish();
+    });
+
+    it('resets an explicit Claude effort override back to max', async () => {
+        const harness = await startRemoteRunClaudeHarness();
+        const userMessageHandler = harness.sessionClient.onUserMessage.mock.calls[0][0];
+
+        await userMessageHandler({
+            content: { text: 'use less effort once' },
+            meta: { effort: 'high' },
+        });
+        await userMessageHandler({
+            content: { text: 'return to the configured default' },
+            meta: { effort: null },
+        });
+
+        expect(harness.loopOptions.messageQueue.queue[1].mode).toMatchObject({
+            effort: 'max',
+        });
+        await harness.finish();
+    });
+
+    it('runs one automation instruction and persists its exact terminal outcome before exit', async () => {
+        const bootstrap = await installAutomationBootstrap('Complete this one-shot task.');
+        const harness = await startRemoteRunClaudeHarness();
+
+        expect(harness.loopOptions.messageQueue.queue).toEqual([
+            expect.objectContaining({ message: bootstrap.instruction }),
+        ]);
+        expect(harness.loopOptions.messageQueue.isClosed()).toBe(true);
+
+        harness.loopOptions.onProviderResult({ status: 'completed', message: null });
+        await harness.finish();
+
+        expect(harness.sessionClient.getMetadata().automationProviderOutcome).toMatchObject({
+            automationId: bootstrap.automationId,
+            runId: bootstrap.runId,
+            status: 'completed',
+        });
+        expect(harness.sessionClient.flush).toHaveBeenCalled();
     });
 
     it('rejects Claude goal-action while Claude is still thinking', async () => {

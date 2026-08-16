@@ -96,7 +96,7 @@ export class HappyHerdRuntime implements HappySessionRuntime {
         approvedNewDirectoryCreation: false,
         permissionMode: this.config.permissionMode,
         modelMode: this.config.modelMode,
-        effortLevel: this.config.effortLevel,
+        effortLevel: this.config.effortLevel ?? 'max',
         runtimeContext: {
           surfaceId: binding.surfaceKey,
           capabilityId: binding.capabilityId,
