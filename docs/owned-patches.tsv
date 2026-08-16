@@ -8,3 +8,4 @@ AGENT_LINK_CONTRACT	accepted	fix(agent): add generic Discord account linking	ser
 AGENT_LINK_CONTRACT	accepted	fix(agent): make link settlement retry safe	server/packages/happyherd-agent/src/bridge.test.ts
 AGENT_LINK_CONTRACT	accepted	fix(agent): fail closed on malformed link commands	server/packages/happyherd-agent/src/bridge.test.ts
 RUNTIME_CONTRACT	accepted	fix(runtime): restore session lifecycle contracts	server/packages/happy-cli/src/daemon/run.automation.test.ts
+RUNTIME_CONTRACT	accepted	test(ci): refresh runtime contract fixtures	scripts/test-runtime-isolation.sh

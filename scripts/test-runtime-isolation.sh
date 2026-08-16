@@ -140,6 +140,10 @@ grep -Fq 'HAPPY_HOME_DIR=/var/lib/happyherd-runtime/.happyherd' "$ROOT/deploy/ha
 grep -Fq '/var/lib/happyherd-runtime/.local/bin' "$ROOT/deploy/happyherd-daemon.env.example"
 
 mkdir -p "$TMP_ROOT/daemon-bin"
+# The fixture deliberately constrains PATH. Make the setup-node binary
+# explicit so release-manifest parsing exercises the real bootstrap on CI as
+# well as hosts where Node is installed under /usr/bin.
+ln -s "$(command -v node)" "$TMP_ROOT/daemon-bin/node"
 # Provider availability is session-scoped. A broken installed provider and an
 # absent provider must not prevent the machine daemon from coming online.
 cat > "$TMP_ROOT/daemon-bin/claude" <<'EOF'
