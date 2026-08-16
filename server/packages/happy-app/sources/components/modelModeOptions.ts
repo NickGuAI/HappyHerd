@@ -1,4 +1,5 @@
-import type { Metadata } from '@/sync/storageTypes';
+import type { AgentCapabilityCatalog, MachineMetadata, Metadata } from '@/sync/storageTypes';
+import { HAPPYHERD_CLAUDE_MODEL_SLUGS } from '@slopus/happy-wire';
 import { hackModes } from '@/sync/modeHacks';
 import { getCodeAgentDefaults } from '@/sync/agentDefaults';
 import {
@@ -28,6 +29,7 @@ export type ModelMode = ModeOption & {
     thinkingLevels?: string[];
     defaultThinkingLevel?: string | null;
     unavailable?: boolean;
+    effortLevels?: EffortLevel[];
 };
 
 export type EffortLevel = ModeOption;
@@ -44,13 +46,13 @@ type MetadataOption = {
     description?: string | null;
 };
 
-const GEMINI_MODEL_FALLBACKS: ModelMode[] = [
-    { key: 'gemini-3.1-pro-preview', name: 'gemini 3.1 pro', description: 'latest & most capable' },
-    { key: 'gemini-3-flash-preview', name: 'gemini 3 flash', description: 'latest & fast' },
-    { key: 'gemini-3.1-flash-lite-preview', name: 'gemini 3.1 flash lite', description: 'latest & fastest' },
-    { key: 'gemini-2.5-pro', name: 'gemini 2.5 pro', description: 'most capable' },
-    { key: 'gemini-2.5-flash', name: 'gemini 2.5 flash', description: 'fast & efficient' },
-    { key: 'gemini-2.5-flash-lite', name: 'gemini 2.5 flash lite', description: 'fastest' },
+const getGeminiModelFallbacks = (translate: Translate): ModelMode[] => [
+    { key: 'gemini-3.1-pro-preview', name: 'gemini 3.1 pro', description: translate('uiCopy.latestMostCapable') },
+    { key: 'gemini-3-flash-preview', name: 'gemini 3 flash', description: translate('uiCopy.latestFast') },
+    { key: 'gemini-3.1-flash-lite-preview', name: 'gemini 3.1 flash lite', description: translate('uiCopy.latestFastest') },
+    { key: 'gemini-2.5-pro', name: 'gemini 2.5 pro', description: translate('uiCopy.mostCapable') },
+    { key: 'gemini-2.5-flash', name: 'gemini 2.5 flash', description: translate('uiCopy.fastEfficient') },
+    { key: 'gemini-2.5-flash-lite', name: 'gemini 2.5 flash lite', description: translate('uiCopy.fastest') },
 ];
 
 export function mapMetadataOptions(options?: MetadataOption[] | null): ModeOption[] {
@@ -62,6 +64,73 @@ export function mapMetadataOptions(options?: MetadataOption[] | null): ModeOptio
         key: option.code,
         name: option.value,
         description: option.description ?? null,
+    }));
+}
+
+function getMachineCatalog(
+    metadata: MachineMetadata | null | undefined,
+    flavor: AgentFlavor,
+): AgentCapabilityCatalog | null {
+    if (!flavor) return null;
+    return metadata?.agentCapabilities?.[flavor] ?? null;
+}
+
+export function getMachineAdvertisedModels(
+    metadata: MachineMetadata | null | undefined,
+    flavor: AgentFlavor,
+): ModelMode[] {
+    const catalog = getMachineCatalog(metadata, flavor);
+    if (!catalog) {
+        return [{ key: 'default', name: 'default model', description: null }];
+    }
+    return catalog.models.map((model) => ({
+        key: model.code,
+        name: model.value,
+        description: model.description ?? null,
+        effortLevels: model.effortLevels?.map((effort) => ({
+            key: effort.code,
+            name: effort.value,
+            description: effort.description ?? null,
+        })),
+    }));
+}
+
+export function getMachineAdvertisedPermissionModes(
+    metadata: MachineMetadata | null | undefined,
+    flavor: AgentFlavor,
+): PermissionMode[] {
+    const catalog = getMachineCatalog(metadata, flavor);
+    if (!catalog) {
+        return [{ key: 'default', name: 'default', description: null }];
+    }
+    return catalog.permissionModes.map((mode) => ({
+        key: mode.code,
+        name: mode.value,
+        description: mode.description ?? null,
+    }));
+}
+
+export function getMachineAdvertisedEffortLevels(
+    metadata: MachineMetadata | null | undefined,
+    flavor: AgentFlavor,
+    modelKey: string,
+): EffortLevel[] {
+    const catalog = getMachineCatalog(metadata, flavor);
+    if (!catalog) return [];
+    const selectedModel = modelKey === 'default'
+        ? catalog.models.find((model) => model.isDefault)
+            ?? catalog.models.find((model) => model.code === 'default')
+        : catalog.models.find((model) => model.code === modelKey);
+    if (!selectedModel) return [];
+    const modelEfforts = selectedModel?.effortLevels;
+    // `undefined` means the provider supplied only a catalog-wide fallback.
+    // An explicit empty list is authoritative: this model has no effort knob
+    // and must not inherit another model's values from the catalog union.
+    const efforts = modelEfforts !== undefined ? modelEfforts : catalog.effortLevels;
+    return efforts.map((effort) => ({
+        key: effort.code,
+        name: effort.value,
+        description: effort.description ?? null,
     }));
 }
 
@@ -95,15 +164,12 @@ export function getGeminiPermissionModes(translate: Translate): PermissionMode[]
 
 export function getClaudeModelModes(): ModelMode[] {
     return [
-        { key: 'default', name: 'default model', description: null },
-        // Full model ID, not the `opus-5` short alias: the alias is not in the
-        // CLI's alias table yet (`claude --model opus-5` errors on 2.1.199),
-        // while the full ID passes straight through to the API.
-        { key: 'claude-opus-5', name: 'opus 5', description: null },
-        { key: 'opus', name: 'opus 4.8', description: null },
-        { key: 'fable', name: 'fable 5', description: null },
-        { key: 'sonnet', name: 'sonnet 4.6', description: null },
-        { key: 'haiku', name: 'haiku 4.5', description: null },
+        { key: 'default', name: 'provider default', description: null },
+        ...HAPPYHERD_CLAUDE_MODEL_SLUGS.map((slug) => ({
+            key: slug,
+            name: slug,
+            description: null,
+        })),
     ];
 }
 
@@ -123,8 +189,8 @@ export function getCodexModelModes(): ModelMode[] {
     ];
 }
 
-export function getGeminiModelModes(): ModelMode[] {
-    return GEMINI_MODEL_FALLBACKS;
+export function getGeminiModelModes(translate: Translate): ModelMode[] {
+    return getGeminiModelFallbacks(translate);
 }
 
 export function getOpenClawPermissionModes(translate: Translate): PermissionMode[] {
@@ -182,12 +248,12 @@ export function getAgyModelModes(): ModelMode[] {
     ];
 }
 
-export function getHardcodedModelModes(flavor: AgentFlavor, _translate: Translate): ModelMode[] {
+export function getHardcodedModelModes(flavor: AgentFlavor, translate: Translate): ModelMode[] {
     if (flavor === 'codex') {
         return getCodexModelModes();
     }
     if (flavor === 'gemini') {
-        return getGeminiModelModes();
+        return getGeminiModelModes(translate);
     }
     if (flavor === 'openclaw') {
         return getOpenClawModelModes();
@@ -204,6 +270,7 @@ export function getAvailableModels(
     translate: Translate,
     selectedKey?: string | null,
 ): ModelMode[] {
+    const translateWithParams = translate as (key: any, params: Record<string, string | number | boolean>) => string;
     if (isRigMetadataV1(metadata)) {
         const models: ModelMode[] = getRigModels(metadata).map((model) => ({
             key: model.key,
@@ -223,7 +290,7 @@ export function getAvailableModels(
             models.unshift({
                 key: current.key,
                 name: current.name,
-                description: `${current.providerName} · unavailable`,
+                description: translateWithParams('uiCopy.valueUnavailable', { value1: current.providerName }),
                 modelId: current.id,
                 providerId: current.providerId,
                 providerName: current.providerName,
@@ -242,7 +309,7 @@ export function getAvailableModels(
             models.unshift({
                 key: locallySelectedKey,
                 name: modelId,
-                description: `${providerId} · unavailable`,
+                description: translateWithParams('uiCopy.valueUnavailable', { value1: providerId }),
                 modelId,
                 providerId,
                 providerName: providerId,
@@ -284,7 +351,7 @@ export function getAvailablePermissionModes(
             modes.unshift({
                 key: current,
                 name: current,
-                description: 'Unavailable in the current Rig mode catalog',
+                description: translate('uiCopy.unavailableInTheCurrentRigModeCatalog'),
                 semanticKind: null,
                 disabled: true,
             });
@@ -374,10 +441,8 @@ export function getEffortLevelsForModel(
             name: level,
         }));
     }
-    // Claude and Codex expose effort/thought levels regardless of which
-    // specific model is picked — the same low/medium/high/max scale applies
-    // to the whole flavor (mirrors how Codex already worked, which the user
-    // asked Claude to match).
+    // Legacy/offline sessions use flavor fallbacks. Connected sessions use
+    // the selected machine's model-specific provider catalog below.
     if (flavor === 'claude') {
         return getClaudeEffortLevels();
     }
@@ -385,6 +450,57 @@ export function getEffortLevelsForModel(
         return getCodexEffortLevels();
     }
     return [];
+}
+
+function shouldUseMachineCapabilityCatalog(
+    flavor: AgentFlavor,
+    sessionMetadata: Metadata | null | undefined,
+    machineMetadata: MachineMetadata | null | undefined,
+): boolean {
+    return !isRigMetadataV1(sessionMetadata) && getMachineCatalog(machineMetadata, flavor) !== null;
+}
+
+/**
+ * Active Happy CLI sessions use the same machine-advertised model catalog as
+ * New Session. Rig sessions keep their session-owned dynamic catalog, while
+ * older/offline Happy sessions retain the legacy session fallback.
+ */
+export function getSessionAvailableModels(
+    flavor: AgentFlavor,
+    sessionMetadata: Metadata | null | undefined,
+    machineMetadata: MachineMetadata | null | undefined,
+    translate: Translate,
+    selectedKey?: string | null,
+): ModelMode[] {
+    if (shouldUseMachineCapabilityCatalog(flavor, sessionMetadata, machineMetadata)) {
+        return getMachineAdvertisedModels(machineMetadata, flavor);
+    }
+    return getAvailableModels(flavor, sessionMetadata, translate, selectedKey);
+}
+
+export function getSessionAvailablePermissionModes(
+    flavor: AgentFlavor,
+    sessionMetadata: Metadata | null | undefined,
+    machineMetadata: MachineMetadata | null | undefined,
+    translate: Translate,
+    selectedKey?: string | null,
+): PermissionMode[] {
+    if (shouldUseMachineCapabilityCatalog(flavor, sessionMetadata, machineMetadata)) {
+        return getMachineAdvertisedPermissionModes(machineMetadata, flavor);
+    }
+    return getAvailablePermissionModes(flavor, sessionMetadata, translate, selectedKey);
+}
+
+export function getSessionEffortLevelsForModel(
+    flavor: AgentFlavor,
+    modelKey: string,
+    sessionMetadata: Metadata | null | undefined,
+    machineMetadata: MachineMetadata | null | undefined,
+): EffortLevel[] {
+    if (shouldUseMachineCapabilityCatalog(flavor, sessionMetadata, machineMetadata)) {
+        return getMachineAdvertisedEffortLevels(machineMetadata, flavor, modelKey);
+    }
+    return getEffortLevelsForModel(flavor, modelKey, sessionMetadata);
 }
 
 export function getRigCurrentModelOptionKey(metadata: Metadata | null | undefined): string | null {

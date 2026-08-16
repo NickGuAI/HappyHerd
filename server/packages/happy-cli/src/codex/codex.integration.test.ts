@@ -16,7 +16,7 @@
 import { afterEach, describe, it, expect } from "vitest";
 import { execSync } from "child_process";
 import { CodexAppServerClient } from "./codexAppServerClient";
-import type { ReviewDecision, EventMsg } from "./codexAppServerTypes";
+import type { ReviewDecision, EventMsg, ModelListEntry } from "./codexAppServerTypes";
 import { getIntegrationEnv } from "@/testing/currentIntegrationEnv";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -135,6 +135,7 @@ class CodexDriver {
             sandbox?: string;
             cwd?: string;
             model?: string;
+            effort?: string;
         }
     ): Promise<TurnResult> {
         if (!this.threadStarted) {
@@ -153,6 +154,7 @@ class CodexDriver {
             approvalPolicy: opts?.approvalPolicy as any,
             sandbox: opts?.sandbox as any,
             cwd: opts?.cwd,
+            effort: opts?.effort,
         });
 
         return {
@@ -164,7 +166,7 @@ class CodexDriver {
     /** Continue an existing thread with a new turn. */
     async continue(
         prompt: string,
-        opts?: { model?: string; timeout?: number; approvalPolicy?: string; sandbox?: string }
+        opts?: { model?: string; timeout?: number; approvalPolicy?: string; sandbox?: string; effort?: string }
     ): Promise<TurnResult> {
         if (!this.threadStarted) {
             throw new Error("No active thread — call send() first");
@@ -175,6 +177,7 @@ class CodexDriver {
             model: opts?.model,
             approvalPolicy: opts?.approvalPolicy as any,
             sandbox: opts?.sandbox as any,
+            effort: opts?.effort,
         });
 
         return {
@@ -197,6 +200,18 @@ class CodexDriver {
     clearEvents(): void {
         this.events = [];
         this.permissionCount = 0;
+    }
+
+    get activeTurnId(): string | null {
+        return this.client.activeTurnId;
+    }
+
+    async listModels(): Promise<ModelListEntry[]> {
+        return this.client.listModels();
+    }
+
+    async steer(prompt: string): Promise<void> {
+        await this.client.steerTurn(prompt);
     }
 
     async close(): Promise<void> {
@@ -235,6 +250,42 @@ describe.skipIf(!(await isCodexAppServerAvailable()))(
             expect(driver.permissionCount).toBeGreaterThan(0);
             expect(driver.hasEvent("task_complete")).toBe(true);
             expect(result.aborted).toBe(false);
+        });
+
+        it("should steer a subscription-authenticated active turn without starting another turn", async () => {
+            driver = new CodexDriver();
+            await driver.connect();
+
+            const models = await driver.listModels();
+            const selectedModel = models.find((model) => model.isDefault) ?? models[0];
+            const selectedEffort = selectedModel?.supportedReasoningEfforts.at(-1)?.reasoningEffort;
+            if (!selectedModel || !selectedEffort) {
+                throw new Error('Codex model/list did not advertise a default model with reasoning efforts');
+            }
+
+            const activeTurn = driver.send(
+                'Run this shell command: sleep 5. After it finishes, reply with exactly BEFORE_STEER.',
+                {
+                    approvalPolicy: "never",
+                    sandbox: "danger-full-access",
+                    cwd: integrationEnv.projectPath,
+                    model: selectedModel.model,
+                    effort: selectedEffort,
+                },
+            );
+
+            const deadline = Date.now() + 30_000;
+            while (!driver.activeTurnId && Date.now() < deadline) {
+                await new Promise((resolve) => setTimeout(resolve, 50));
+            }
+            expect(driver.activeTurnId).toBeTruthy();
+
+            await driver.steer('Change the final reply to exactly STEER_ACCEPTED.');
+
+            const result = await activeTurn;
+            expect(result.aborted).toBe(false);
+            expect(driver.hasEvent("task_complete")).toBe(true);
+            expect(driver.getMessages().join(" ")).toContain("STEER_ACCEPTED");
         });
 
         it("should preserve context when continuing after cancel", async () => {

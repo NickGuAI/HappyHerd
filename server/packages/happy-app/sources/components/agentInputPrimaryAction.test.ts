@@ -68,7 +68,6 @@ describe('resolveAgentInputPrimaryAction', () => {
             canVoice: true,
         })).toBe('stop');
     });
-
     it('preserves the blocked-send affordance for content', () => {
         expect(resolveAgentInputPrimaryAction({
             ...base,

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useAllMachines, useSetting } from '@/sync/storage';
-import { resolveAgentDefaultConfig } from '@/sync/agentDefaults';
+import { resolveAgentDefaultConfig, resolveAgentDefaultEffortLevel } from '@/sync/agentDefaults';
 import { machineSpawnNewSession, sessionSetAgentModes, type SessionAgentModesPatch } from '@/sync/ops';
 import { sync } from '@/sync/sync';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
@@ -12,6 +12,9 @@ import {
     getEffortLevelsForModel,
     getHardcodedModelModes,
     getHardcodedPermissionModes,
+    getMachineAdvertisedEffortLevels,
+    getMachineAdvertisedModels,
+    getMachineAdvertisedPermissionModes,
 } from '@/components/modelModeOptions';
 import { Modal } from '@/modal';
 import { t } from '@/text';
@@ -59,11 +62,11 @@ export function useStartSessionFromDraft() {
         const draft = useNewSessionDraft.getState();
         const machine = machines.find((candidate) => candidate.id === draft.selectedMachineId);
         if (!machine) {
-            Modal.alert(t('common.error'), 'Please select a machine');
+            Modal.alert(t('common.error'), t("uiCopy.pleaseSelectAMachine"));
             return false;
         }
         if (!isMachineOnline(machine)) {
-            Modal.alert(t('common.error'), 'Machine is offline');
+            Modal.alert(t('common.error'), t("newSession.machineOffline"));
             return false;
         }
 
@@ -79,9 +82,10 @@ export function useStartSessionFromDraft() {
             ? getRigMachineSessionCreation(machine.metadata)
             : null;
         if (agentType === 'rig' && !rigCreation) {
-            Modal.alert(t('common.error'), 'This Rig machine is not available for session creation');
+            Modal.alert(t('common.error'), t('uiCopy.thisRigMachineIsNotAvailableForSessionCreation'));
             return false;
         }
+        const machineCatalog = machine.metadata?.agentCapabilities?.[agentType];
         const defaults = rigCreation
             ? {
                 permissionMode: rigCreation.defaultPermissionMode ?? '',
@@ -89,30 +93,41 @@ export function useStartSessionFromDraft() {
                 effortLevel: rigCreation.defaultEffortForModel(rigCreation.defaultModelKey),
             }
             : resolveAgentDefaultConfig(defaultOverrides, agentType);
+        const permissionOptions = rigCreation?.permissionModes
+            ?? (machineCatalog
+                ? getMachineAdvertisedPermissionModes(machine.metadata, agentType)
+                : getHardcodedPermissionModes(agentType, t));
+        const modelOptions = rigCreation?.models
+            ?? (machineCatalog
+                ? getMachineAdvertisedModels(machine.metadata, agentType)
+                : getHardcodedModelModes(agentType, t));
         const permission = resolveOption<{ key: string }>(
-            rigCreation?.permissionModes ?? getHardcodedPermissionModes(agentType, t),
+            permissionOptions,
             agentChanged
                 ? [defaults.permissionMode]
                 : [draft.permissionMode, defaults.permissionMode],
         );
         const model = resolveOption<{ key: string }>(
-            rigCreation?.models ?? getHardcodedModelModes(agentType, t),
+            modelOptions,
             agentChanged
                 ? [defaults.modelMode]
                 : [draft.modelMode, defaults.modelMode],
         );
-        const effortDefault = rigCreation?.defaultEffortForModel(model?.key)
-            ?? defaults.effortLevel;
+        const effortOptions = rigCreation
+            ? rigCreation.effortsForModel(model?.key).map((key) => ({ key, name: key }))
+            : machineCatalog
+                ? getMachineAdvertisedEffortLevels(machine.metadata, agentType, model?.key ?? 'default')
+                : getEffortLevelsForModel(agentType, model?.key ?? 'default');
+        const effectiveEffortDefault = rigCreation?.defaultEffortForModel(model?.key)
+            ?? resolveAgentDefaultEffortLevel(defaultOverrides, agentType, effortOptions);
         const effort = resolveOption<{ key: string }>(
-            rigCreation
-                ? rigCreation.effortsForModel(model?.key).map((key) => ({ key, name: key }))
-                : getEffortLevelsForModel(agentType, model?.key ?? 'default'),
+            effortOptions,
             agentChanged
-                ? [effortDefault]
-                : [draft.effortLevel, effortDefault],
+                ? [effectiveEffortDefault]
+                : [draft.effortLevel, effectiveEffortDefault],
         );
         if (!permission || !model) {
-            Modal.alert(t('common.error'), 'The selected agent configuration is unavailable');
+            Modal.alert(t('common.error'), t("uiCopy.theSelectedAgentConfigurationIsUnavailable"));
             return false;
         }
 
@@ -144,7 +159,7 @@ export function useStartSessionFromDraft() {
             if (worktreeSelection === '__new__') {
                 const worktreeResult = await createWorktree(machine.id, absolutePath);
                 if (!worktreeResult.success) {
-                    Modal.alert(t('common.error'), worktreeResult.error || 'Failed to create worktree');
+                    Modal.alert(t('common.error'), worktreeResult.error || t("uiCopy.failedToCreateWorktree"));
                     return false;
                 }
                 spawnDirectory = worktreeResult.worktreePath;
@@ -175,6 +190,7 @@ export function useStartSessionFromDraft() {
                             : undefined,
                         modelMode: model.key !== 'default' ? model.key : undefined,
                         effortLevel: effort?.key,
+                        commanderId: draft.selectedCommanderId ?? undefined,
                     };
                 let result = await machineSpawnNewSession(spawnOptions);
                 let pendingResults = 0;
@@ -197,14 +213,14 @@ export function useStartSessionFromDraft() {
                 if (result.type === 'pending') {
                     Modal.alert(
                         t('common.error'),
-                        'Rig created the session, but it is still syncing with Happy. It should appear shortly.',
+                        t('uiCopy.rigCreatedTheSessionButItIsStillSyncingWithHappy'),
                     );
                     return null;
                 }
 
                 const approved = await Modal.confirm(
-                    'Create Directory?',
-                    `The directory '${result.directory}' does not exist. Would you like to create it?`,
+                    t("uiCopy.createDirectory"),
+                    t("uiCopy.theDirectoryValueDoesNotExistWouldYouLikeTo", { value1: result.directory }),
                     { cancelText: t('common.cancel'), confirmText: t('common.create') },
                 );
                 return approved ? spawn(true) : null;
@@ -221,7 +237,7 @@ export function useStartSessionFromDraft() {
                 const modesPatch: SessionAgentModesPatch = {};
                 if (permission.key !== defaults.permissionMode) modesPatch.permissionMode = permission.key;
                 if (model.key !== defaults.modelMode) modesPatch.modelMode = model.key;
-                if ((effort?.key ?? null) !== defaults.effortLevel) modesPatch.effortLevel = effort?.key ?? null;
+                if ((effort?.key ?? null) !== effectiveEffortDefault) modesPatch.effortLevel = effort?.key ?? null;
                 if (Object.keys(modesPatch).length > 0) {
                     sessionSetAgentModes(sessionId, modesPatch);
                 }
@@ -237,7 +253,7 @@ export function useStartSessionFromDraft() {
                 void sync.sendMessage(sessionId, prompt, { source: 'new_session', attachments }).catch((error) => {
                     Modal.alert(
                         t('common.error'),
-                        error instanceof Error ? error.message : 'Failed to send the first message',
+                        error instanceof Error ? error.message : t("uiCopy.failedToSendTheFirstMessage"),
                     );
                 });
             }
@@ -245,7 +261,7 @@ export function useStartSessionFromDraft() {
         } catch (error) {
             Modal.alert(
                 t('common.error'),
-                error instanceof Error ? error.message : 'Failed to start session',
+                error instanceof Error ? error.message : t("uiCopy.failedToStartSession"),
             );
             return false;
         } finally {

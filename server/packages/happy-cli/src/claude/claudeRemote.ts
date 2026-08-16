@@ -124,6 +124,12 @@ export async function claudeRemote(opts: {
 
     // Prepare SDK options
     let mode = initial.mode;
+    const appendedInstructions = [initial.mode.appendSystemPrompt, systemPrompt]
+        .filter((part): part is string => Boolean(part))
+        .join('\n\n');
+    const customInstructions = initial.mode.customSystemPrompt
+        ? [initial.mode.customSystemPrompt, appendedInstructions].filter(Boolean).join('\n\n')
+        : undefined;
     const sdkOptions: QueryOptions = {
         cwd: opts.path,
         resume: startFrom ?? undefined,
@@ -131,14 +137,15 @@ export async function claudeRemote(opts: {
         permissionMode: mapToClaudeMode(initial.mode.permissionMode),
         model: initial.mode.model,
         fallbackModel: initial.mode.fallbackModel,
-        customSystemPrompt: initial.mode.customSystemPrompt ? initial.mode.customSystemPrompt + '\n\n' + systemPrompt : undefined,
-        appendSystemPrompt: initial.mode.appendSystemPrompt ? initial.mode.appendSystemPrompt + '\n\n' + systemPrompt : systemPrompt,
+        customSystemPrompt: customInstructions,
+        appendSystemPrompt: customInstructions ? undefined : appendedInstructions,
         allowedTools: initial.mode.allowedTools ? initial.mode.allowedTools.concat(opts.allowedTools) : opts.allowedTools,
         disallowedTools: initial.mode.disallowedTools,
         effort: initial.mode.effort,
         canCallTool: (toolName: string, input: unknown, options: CanCallToolOptions) => opts.canCallTool(toolName, input, mode, options),
         abort: opts.signal,
         settingsPath: opts.hookSettingsPath,
+        settingSources: ['user', 'local'],
     }
 
     // Track thinking state

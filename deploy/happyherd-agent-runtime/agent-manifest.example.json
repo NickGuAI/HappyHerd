@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "example-team-agent",
+  "displayName": "Example Team Agent",
+  "tools": [
+    {
+      "name": "team_guide",
+      "family": "guide",
+      "description": "Read the organization's approved onboarding guide.",
+      "operations": {
+        "search": {
+          "method": "GET",
+          "path": "/api/agent/guide/search",
+          "scope": "guide.read",
+          "write": false,
+          "shared": true
+        }
+      }
+    }
+  ]
+}

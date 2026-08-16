@@ -6,6 +6,7 @@ import {
     getToolSummaryCategory,
     getToolSummaryDetail,
     isTerminalToolName,
+    resolveToolDisplayRuntimeState,
     shouldRenderToolCardHeader,
     shouldUseCompactToolRow,
 } from './toolDisplay';
@@ -27,6 +28,13 @@ function tool(name: string, input: unknown): ToolCall {
 }
 
 describe('terminal tool display helpers', () => {
+    it('does not render stale running events as live after the provider session stops', () => {
+        expect(resolveToolDisplayRuntimeState('running', true)).toBe('running');
+        expect(resolveToolDisplayRuntimeState('running', undefined)).toBe('running');
+        expect(resolveToolDisplayRuntimeState('running', false)).toBe('interrupted');
+        expect(resolveToolDisplayRuntimeState('completed', false)).toBe('completed');
+    });
+
     it('detects command-like terminal tools', () => {
         expect(isTerminalToolName('Bash')).toBe(true);
         expect(isTerminalToolName('CodexBash')).toBe(true);
@@ -138,6 +146,7 @@ describe('terminal tool display helpers', () => {
         expect(shouldUseCompactToolRow(tool('brand_new_rig_tool', {}), false)).toBe(false);
         expect(shouldUseCompactToolRow(tool('file', {}), true)).toBe(false);
         expect(shouldUseCompactToolRow(tool('AskUserQuestion', {}), true)).toBe(false);
+        expect(shouldUseCompactToolRow(tool('Subagent', {}), true)).toBe(false);
 
         const pendingPlan = tool('ExitPlanMode', {});
         pendingPlan.permission = {

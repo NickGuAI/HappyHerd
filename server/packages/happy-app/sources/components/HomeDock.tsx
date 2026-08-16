@@ -23,8 +23,12 @@ import { Typography } from '@/constants/Typography';
 import { layout } from './layout';
 import { t } from '@/text';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
-import { useAllMachines, useSessions, useSetting } from '@/sync/storage';
-import { resolveAgentDefaultConfig } from '@/sync/agentDefaults';
+import { useAllMachines, useSessions, useSetting, useSettingMutable } from '@/sync/storage';
+import {
+    resolveAgentDefaultConfig,
+    resolveAgentDefaultEffortLevel,
+    setAgentDefaultOverride,
+} from '@/sync/agentDefaults';
 import { formatLastSeen, formatPathRelativeToHome } from '@/utils/sessionUtils';
 import { isMachineOnline } from '@/utils/machineUtils';
 import { resolveAbsolutePath } from '@/utils/pathUtils';
@@ -34,6 +38,9 @@ import {
     getEffortLevelsForModel,
     getHardcodedModelModes,
     getHardcodedPermissionModes,
+    getMachineAdvertisedEffortLevels,
+    getMachineAdvertisedModels,
+    getMachineAdvertisedPermissionModes,
     getSupportsWorktree,
     type ModeOption,
 } from './modelModeOptions';
@@ -474,7 +481,7 @@ export const HomeDock = React.memo(({
     const setPermissionMode = useNewSessionDraft((state) => state.setPermissionMode);
     const setModelMode = useNewSessionDraft((state) => state.setModelMode);
     const setEffortLevel = useNewSessionDraft((state) => state.setEffortLevel);
-    const defaultOverrides = useSetting('agentDefaultOverrides');
+    const [defaultOverrides, setDefaultOverrides] = useSettingMutable('agentDefaultOverrides');
     const machines = useAllMachines({ includeOffline: true });
     const sessions = useSessions();
     const selectedMachine = React.useMemo(
@@ -582,7 +589,7 @@ export const HomeDock = React.memo(({
             return [{
                 key: '__none__',
                 name: 'No worktree',
-                description: `Not supported by ${AGENTS.find((agent) => agent.key === agentType)?.name ?? agentType}`,
+                description: t("uiCopy.notSupportedByValue", { value1: AGENTS.find((agent) => agent.key === agentType)?.name ?? agentType }),
             }];
         }
         const options: ModeOption[] = [
@@ -614,8 +621,8 @@ export const HomeDock = React.memo(({
                     ...agent,
                     disabled: true,
                     description: agent.key === 'rig'
-                        ? 'Select a connected Rig machine'
-                        : 'Not installed on this machine',
+                        ? t('uiCopy.selectAConnectedRigMachine')
+                        : t('uiCopy.notInstalledOnThisMachine'),
                 };
         });
     }, [rigSelectionMachine, selectedMachine]);
@@ -624,6 +631,9 @@ export const HomeDock = React.memo(({
         : agentType === 'rig'
             ? agentType
             : resolveMachineAgent(agentType, selectedMachine?.metadata?.cliAvailability);
+    const machineCatalog = agentType === 'rig'
+        ? undefined
+        : selectedMachine?.metadata?.agentCapabilities?.[agentType];
     const defaults = React.useMemo(() => rigCreation
         ? {
             permissionMode: rigCreation.defaultPermissionMode ?? '',
@@ -632,24 +642,43 @@ export const HomeDock = React.memo(({
         }
         : resolveAgentDefaultConfig(defaultOverrides, agentType), [agentType, defaultOverrides, rigCreation]);
     const permissionOptions = React.useMemo(
-        () => rigCreation?.permissionModes ?? getHardcodedPermissionModes(agentType, t),
-        [agentType, rigCreation],
+        () => rigCreation?.permissionModes
+            ?? (machineCatalog
+                ? getMachineAdvertisedPermissionModes(selectedMachine?.metadata, agentType)
+                : getHardcodedPermissionModes(agentType, t)),
+        [agentType, machineCatalog, rigCreation, selectedMachine?.metadata],
     );
     const modelOptions = React.useMemo(
-        () => rigCreation?.models ?? getHardcodedModelModes(agentType, t),
-        [agentType, rigCreation],
+        () => rigCreation?.models
+            ?? (machineCatalog
+                ? getMachineAdvertisedModels(selectedMachine?.metadata, agentType)
+                : getHardcodedModelModes(agentType, t)),
+        [agentType, machineCatalog, rigCreation, selectedMachine?.metadata],
     );
     const currentPermission = resolveOption(permissionOptions, [permissionMode, defaults.permissionMode]);
     const currentModel = resolveOption(modelOptions, [modelMode, defaults.modelMode]);
     const effortOptions = React.useMemo(
         () => rigCreation
             ? rigCreation.effortsForModel(currentModel?.key).map((key) => ({ key, name: key }))
-            : getEffortLevelsForModel(agentType, currentModel?.key ?? 'default'),
-        [agentType, currentModel?.key, rigCreation],
+            : machineCatalog
+                ? getMachineAdvertisedEffortLevels(selectedMachine?.metadata, agentType, currentModel?.key ?? 'default')
+                : getEffortLevelsForModel(agentType, currentModel?.key ?? 'default'),
+        [agentType, currentModel?.key, machineCatalog, rigCreation, selectedMachine?.metadata],
     );
-    const currentEffortDefault = rigCreation?.defaultEffortForModel(currentModel?.key)
-        ?? defaults.effortLevel;
-    const currentEffort = resolveOption(effortOptions, [effortLevel, currentEffortDefault]);
+    const effectiveEffortDefault = rigCreation?.defaultEffortForModel(currentModel?.key)
+        ?? resolveAgentDefaultEffortLevel(defaultOverrides, agentType, effortOptions);
+    const currentEffort = resolveOption(effortOptions, [effortLevel, effectiveEffortDefault]);
+    const selectEffort = React.useCallback((key: string) => {
+        setEffortLevel(key);
+        if (agentType === 'codex') {
+            setDefaultOverrides(setAgentDefaultOverride(
+                defaultOverrides,
+                'codex',
+                'effortLevel',
+                key,
+            ));
+        }
+    }, [agentType, defaultOverrides, setDefaultOverrides, setEffortLevel]);
     const currentAgent = availableAgents.find((agent) => agent.key === agentType) ?? availableAgents[0] ?? AGENTS[0];
     const canSubmit = !isSubmitting && (
         prompt.trim().length > 0 || (expImageUpload && selectedImages.length > 0)
@@ -812,14 +841,27 @@ export const HomeDock = React.memo(({
                 effortLevel: nextRigCreation.defaultEffortForModel(nextRigCreation.defaultModelKey),
             }
             : resolveAgentDefaultConfig(defaultOverrides, agent);
+        const nextCatalog = selectedMachine?.metadata?.agentCapabilities?.[agent];
+        const nextModels = nextRigCreation?.models
+            ?? (nextCatalog
+                ? getMachineAdvertisedModels(selectedMachine?.metadata, agent)
+                : getHardcodedModelModes(agent, t));
+        const nextModel = resolveOption(nextModels, [nextDefaults.modelMode]);
+        const nextEfforts = nextRigCreation
+            ? nextRigCreation.effortsForModel(nextModel?.key).map((key) => ({ key, name: key }))
+            : nextCatalog
+                ? getMachineAdvertisedEffortLevels(selectedMachine?.metadata, agent, nextModel?.key ?? 'default')
+                : getEffortLevelsForModel(agent, nextModel?.key ?? 'default');
+        const nextEffort = nextRigCreation?.defaultEffortForModel(nextModel?.key)
+            ?? resolveAgentDefaultEffortLevel(defaultOverrides, agent, nextEfforts);
         if (agent === 'rig' && rigSelectionMachine && rigSelectionMachine.id !== selectedMachineId) {
             setMachineId(rigSelectionMachine.id);
         }
         setAgentType(agent);
         setPermissionMode(nextDefaults.permissionMode);
         setModelMode(nextDefaults.modelMode);
-        if (nextDefaults.effortLevel) setEffortLevel(nextDefaults.effortLevel);
-    }, [defaultOverrides, rigSelectionCreation, rigSelectionMachine, selectedMachineId, setAgentType, setEffortLevel, setMachineId, setModelMode, setPermissionMode]);
+        if (nextEffort) setEffortLevel(nextEffort);
+    }, [defaultOverrides, rigSelectionCreation, rigSelectionMachine, selectedMachine?.metadata, selectedMachineId, setAgentType, setEffortLevel, setMachineId, setModelMode, setPermissionMode]);
 
     React.useEffect(() => {
         if (agentType === 'rig' && rigSelectionMachine && rigSelectionMachine.id !== selectedMachineId) {
@@ -841,12 +883,12 @@ export const HomeDock = React.memo(({
     };
 
     const environmentRows: SettingsRow[] = [
-        { page: 'machine', label: 'MACHINE', value: currentMachine?.name ?? 'Select machine', icon: 'desktop-outline' },
-        { page: 'project', label: 'PROJECT', value: currentProject?.name ?? '~', icon: 'folder-outline' },
-        { page: 'worktree', label: 'WORKTREE', value: currentWorktree?.name ?? 'No worktree', icon: 'git-branch-outline' },
+        { page: 'machine', label: t("uiCopy.machine"), value: currentMachine?.name ?? 'Select machine', icon: 'desktop-outline' },
+        { page: 'project', label: t("uiCopy.project_olvgym"), value: currentProject?.name ?? '~', icon: 'folder-outline' },
+        { page: 'worktree', label: t("uiCopy.worktree_sdajyg"), value: currentWorktree?.name ?? 'No worktree', icon: 'git-branch-outline' },
     ];
     const agentRows: SettingsRow[] = [
-        { page: 'agent', label: 'AGENT', value: currentAgent.name, icon: 'hardware-chip-outline' },
+        { page: 'agent', label: t("uiCopy.agent_1wzwjl"), value: currentAgent.name, icon: 'hardware-chip-outline' },
         ...(currentModel ? [{ page: 'model', label: t('agentInput.model.title'), value: currentModel.name, icon: 'cube-outline' as const }] : []),
         ...(currentPermission ? [{ page: 'permission', label: t('agentInput.permissionMode.title'), value: currentPermission.name, icon: 'shield-outline' as const }] : []),
         ...(currentEffort ? [{ page: 'effort', label: t('agentInput.effort.title'), value: currentEffort.name, icon: 'speedometer-outline' as const }] : []),
@@ -869,7 +911,7 @@ export const HomeDock = React.memo(({
                 t('machineLauncher.enterCustomPath'),
                 undefined,
                 {
-                    placeholder: '~/path/to/project',
+                    placeholder: t("uiCopy.pathToProject"),
                     defaultValue: selectedPath ?? '~',
                     confirmText: t('common.ok'),
                 },
@@ -883,11 +925,11 @@ export const HomeDock = React.memo(({
 
     const getEnvironmentPickerConfig = (setting: EnvironmentSetting): PickerConfig => {
         if (setting === 'machine') {
-            return { title: 'Machine', options: machineOptions, selectedKey: selectedMachineId, onSelect: setMachineId };
+            return { title: t("machine.machineGroup"), options: machineOptions, selectedKey: selectedMachineId, onSelect: setMachineId };
         }
         if (setting === 'project') {
             return {
-                title: 'Project',
+                title: t("uiCopy.project"),
                 options: [
                     ...projectOptions,
                     {
@@ -906,7 +948,7 @@ export const HomeDock = React.memo(({
             };
         }
         return {
-            title: 'Worktree',
+            title: t("uiCopy.worktree"),
             options: worktreeOptions,
             selectedKey: selectedWorktreeKey,
             onSelect: (key) => {
@@ -918,7 +960,7 @@ export const HomeDock = React.memo(({
 
     const getAgentPickerConfig = (setting: AgentSetting): PickerConfig => {
         if (setting === 'agent') {
-            return { title: 'Agent', options: availableAgents, selectedKey: agentType, onSelect: (key) => selectAgent(key as NewSessionAgentType) };
+            return { title: t("uiCopy.agent"), options: availableAgents, selectedKey: agentType, onSelect: (key) => selectAgent(key as NewSessionAgentType) };
         }
         if (setting === 'model') {
             return { title: t('agentInput.model.title'), options: modelOptions, selectedKey: currentModel?.key, onSelect: setModelMode };
@@ -926,7 +968,7 @@ export const HomeDock = React.memo(({
         if (setting === 'permission') {
             return { title: t('agentInput.permissionMode.title'), options: permissionOptions, selectedKey: currentPermission?.key, onSelect: setPermissionMode };
         }
-        return { title: t('agentInput.effort.title'), options: effortOptions, selectedKey: currentEffort?.key, onSelect: setEffortLevel };
+        return { title: t('agentInput.effort.title'), options: effortOptions, selectedKey: currentEffort?.key, onSelect: selectEffort };
     };
 
     const agentSettingsGroups: NativeSettingsMenuGroup[] = agentRows.map((row) => {
@@ -1041,7 +1083,7 @@ export const HomeDock = React.memo(({
                         onSubmitEditing={() => canSubmit && onSend()}
                         onFocus={onFocus}
                         onBlur={onBlur}
-                        placeholder="Plan, ask, build…"
+                        placeholder={t("uiCopy.planAskBuild")}
                         placeholderTextColor={theme.colors.textSecondary}
                         selectionColor={theme.colors.text}
                         returnKeyType="send"
@@ -1054,7 +1096,7 @@ export const HomeDock = React.memo(({
                     disabled={!canSubmit}
                     style={[styles.sendButton, canSubmit && styles.sendButtonActive]}
                     accessibilityRole="button"
-                    accessibilityLabel="Send"
+                    accessibilityLabel={t("happyHerd.composer.send")}
                 >
                     {isSubmitting ? (
                         <ActivityIndicator size="small" color={theme.colors.textSecondary} />
@@ -1123,7 +1165,7 @@ export const HomeDock = React.memo(({
                             value={prompt}
                             onChangeText={onPromptChange}
                             onFocus={() => setIsFocused(true)}
-                            placeholder="Ask Codex"
+                            placeholder={t("uiCopy.askCodex")}
                             placeholderTextColor={theme.colors.textSecondary}
                             selectionColor={theme.colors.text}
                             autoCorrect
@@ -1138,7 +1180,7 @@ export const HomeDock = React.memo(({
                                 onPress={() => void pickImages()}
                                 style={styles.sideButton}
                                 accessibilityRole="button"
-                                accessibilityLabel="Add image"
+                                accessibilityLabel={t("uiCopy.addImage")}
                             >
                                 <Ionicons
                                     name="add"
@@ -1211,7 +1253,7 @@ export const HomeDock = React.memo(({
                             disabled={!canSubmit}
                             style={[styles.sendButton, canSubmit && styles.sendButtonActive]}
                             accessibilityRole="button"
-                            accessibilityLabel="Send"
+                            accessibilityLabel={t("happyHerd.composer.send")}
                         >
                         {isSubmitting ? (
                             <ActivityIndicator size="small" color={theme.colors.textSecondary} />

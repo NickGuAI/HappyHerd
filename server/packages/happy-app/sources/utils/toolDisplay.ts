@@ -2,6 +2,15 @@ import { ToolCall } from '@/sync/typesMessage';
 import { t } from '@/text';
 import { stringifyToolCommand } from './toolCommand';
 
+export type ToolDisplayRuntimeState = ToolCall['state'] | 'interrupted';
+
+export function resolveToolDisplayRuntimeState(
+    toolState: ToolCall['state'],
+    sessionActive: boolean | undefined,
+): ToolDisplayRuntimeState {
+    return toolState === 'running' && sessionActive === false ? 'interrupted' : toolState;
+}
+
 const TERMINAL_TOOL_NAMES = new Set([
     'Bash',
     'CodexBash',
@@ -110,7 +119,12 @@ export function shouldUseCompactToolRow(
     tool: Pick<ToolCall, 'name' | 'permission'>,
     compactMode: boolean,
 ): boolean {
-    if (!compactMode || tool.name === 'file' || tool.name === 'AskUserQuestion') {
+    if (
+        !compactMode
+        || tool.name === 'file'
+        || tool.name === 'AskUserQuestion'
+        || tool.name === 'Subagent'
+    ) {
         return false;
     }
 

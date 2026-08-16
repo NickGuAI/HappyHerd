@@ -3,11 +3,13 @@ import React from "react";
 import { ApiClient } from '@/api/api';
 import { CodexAppServerClient } from './codexAppServerClient';
 import type { ReasoningEffort } from './codexAppServerTypes';
+import { isReasoningEffort } from './reasoningEffort';
 import { CodexPermissionHandler } from './utils/permissionHandler';
 import { ReasoningProcessor } from './utils/reasoningProcessor';
 import { DiffProcessor } from './utils/diffProcessor';
 import { randomUUID } from 'node:crypto';
 import { execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { logger } from '@/ui/logger';
 import { Credentials, readSettings } from '@/persistence';
 import { initialMachineMetadata } from '@/daemon/run';
@@ -37,6 +39,7 @@ import {
 import { resumeExistingThread } from './resumeExistingThread';
 import { emitReadyIfIdle } from './emitReadyIfIdle';
 import { enqueueCodexUserText, isCodexClearText } from './codexClearCommand';
+import { shouldSteerCodexUserInput } from './codexTurnRouting';
 import { downloadCodexFileEventAttachment } from './utils/attachmentEvents';
 import { prepareCodexImageInputItems } from './utils/imageInput';
 import { createSerialAsyncHandler } from './utils/serialAsyncHandler';
@@ -54,6 +57,12 @@ import {
     parseCodexGoalCommand,
     type CodexGoalCommand,
 } from './codexGoalStatus';
+import {
+    instructionReceiptMetadata,
+    readContextPromptFromEnvironment,
+} from '@/agentContext/commanderContext';
+import { readAutomationBootstrapFromEnvironment } from '@/automations/sessionBootstrap';
+import { buildHappyHerdAgentMcpServerConfig, readHappyHerdAgentSessionEnvironment } from './agentMcpConfig';
 
 /**
  * Extracts a human-readable error from a codex task_complete/turn_aborted event.
@@ -80,8 +89,17 @@ function hasCodexSubagentReference(message: Record<string, unknown>): boolean {
     return false;
 }
 
+function isAuthoritativeCodexLifecycle(message: Record<string, unknown>): boolean {
+    if (message.type === 'task_started') {
+        return message.provider_lifecycle === true;
+    }
+    if (message.type === 'task_complete' || message.type === 'turn_aborted') {
+        return message.provider_terminal === true;
+    }
+    return true;
+}
+
 const DEFAULT_CODEX_MODEL = 'gpt-5.5';
-const DEFAULT_CODEX_EFFORT: ReasoningEffort = 'medium';
 const DEFAULT_CODEX_PERMISSION_MODE: PermissionMode = 'yolo';
 
 /**
@@ -96,6 +114,8 @@ export async function runCodex(opts: {
     model?: string;
     effort?: ReasoningEffort;
 }): Promise<void> {
+    const happyHerdContextPrompt = await readContextPromptFromEnvironment();
+    const automationBootstrap = await readAutomationBootstrapFromEnvironment();
     // Early check: ensure Codex CLI is installed before proceeding
     try {
         execSync('codex --version', { encoding: 'utf8', stdio: 'pipe', windowsHide: true });
@@ -134,6 +154,7 @@ export async function runCodex(opts: {
     const settings = await readSettings();
     let machineId = settings?.machineId;
     const sandboxConfig = opts.noSandbox ? undefined : settings?.sandboxConfig;
+    const agentSession = readHappyHerdAgentSessionEnvironment();
     if (!machineId) {
         console.error(`[START] No machine ID found in settings, which is unexpected since authAndSetupMachineIfNeeded should have created it. Please report this issue on https://github.com/slopus/happy-cli/issues`);
         process.exit(1);
@@ -149,6 +170,12 @@ export async function runCodex(opts: {
     //
 
     const initialPermissionMode = opts.permissionMode ?? DEFAULT_CODEX_PERMISSION_MODE;
+    if (agentSession && initialPermissionMode !== 'read-only') {
+        throw new Error('HappyHerd Agent Codex sessions must start in read-only permission mode');
+    }
+    if (agentSession && !sandboxConfig?.enabled) {
+        throw new Error('HappyHerd Agent Codex sessions require the dedicated HappyHerd OS sandbox');
+    }
     // Lineage from the daemon's spawn RPC (set by app-side fork / duplicate).
     const forkedFromSessionId = process.env.HAPPY_FORKED_FROM_SESSION_ID;
     const forkedFromMessageId = process.env.HAPPY_FORKED_FROM_MESSAGE_ID;
@@ -178,6 +205,13 @@ export async function runCodex(opts: {
     const reconnectSeq = process.env.HAPPY_RECONNECT_SEQ;
     const reconnectMetadataVersion = process.env.HAPPY_RECONNECT_METADATA_VERSION;
     const reconnectAgentStateVersion = process.env.HAPPY_RECONNECT_AGENT_STATE_VERSION;
+    if (happyHerdContextPrompt) {
+        Object.assign(metadata, instructionReceiptMetadata({
+            provider: 'codex',
+            layer: 'developer',
+            deliveredInstruction: happyHerdContextPrompt,
+        }));
+    }
 
     let response: ApiSession | null;
     if (reconnectSessionId && reconnectKeyBase64 && reconnectVariant) {
@@ -273,8 +307,12 @@ export async function runCodex(opts: {
     // straggler approval after an abort.
     let currentPermissionModeExplicitlySet = false;
     let currentModel: string | undefined = opts.model ?? DEFAULT_CODEX_MODEL;
-    let currentEffort: ReasoningEffort | undefined = opts.effort ?? DEFAULT_CODEX_EFFORT;
-    let currentAppendSystemPrompt: string | undefined = undefined;
+    // The app resolves its semantic "maximum available" default against the
+    // selected model's live capability catalog. A direct terminal launch with
+    // no explicit effort leaves the choice to Codex rather than inventing a
+    // provider token that the installed app-server may reject.
+    let currentEffort: ReasoningEffort | undefined = opts.effort;
+    let currentAppendSystemPrompt: string | undefined;
 
     const resetCurrentModeDefaults = () => {
         // Reset permission mode and prompts to what the session was launched
@@ -307,16 +345,16 @@ export async function runCodex(opts: {
         'yolo',
     ];
 
-    const VALID_REMOTE_EFFORTS: readonly ReasoningEffort[] = [
-        'none', 'minimal', 'low', 'medium', 'high', 'xhigh',
-    ];
-
     const handleUserMessage = createSerialAsyncHandler<UserMessage>(async (message) => {
         const attachmentsForThisMessage = await session.drainAttachmentsForUserMessage();
 
         // Resolve permission mode (validate against Codex-native modes)
         let messagePermissionMode = currentPermissionMode;
-        if (message.meta?.permissionMode) {
+        if (agentSession) {
+            messagePermissionMode = 'read-only';
+            currentPermissionMode = 'read-only';
+            currentPermissionModeExplicitlySet = true;
+        } else if (message.meta?.permissionMode) {
             const incoming = message.meta.permissionMode as PermissionMode;
             if (VALID_REMOTE_PERMISSION_MODES.includes(incoming)) {
                 messagePermissionMode = incoming;
@@ -340,9 +378,9 @@ export async function runCodex(opts: {
             logger.debug(`[Codex] User message received with no model override, using current: ${currentModel || 'default'}`);
         }
 
-        // Resolve effort — passed straight to sendTurnAndWait. Validate the
-        // incoming value against ReasoningEffort so a stale/garbage entry on
-        // the wire doesn't poison the per-turn options.
+        // Resolve effort — passed straight to sendTurnAndWait. Machine model
+        // catalogs are provider-owned and can add values without a CLI release,
+        // so validate the wire shape here and let Codex enforce compatibility.
         let messageEffort = currentEffort;
         if (message.meta?.hasOwnProperty('effort')) {
             const incoming = (message.meta as Record<string, unknown>).effort;
@@ -350,8 +388,8 @@ export async function runCodex(opts: {
                 messageEffort = undefined;
                 currentEffort = undefined;
                 logger.debug(`[Codex] Effort reset to default`);
-            } else if (typeof incoming === 'string' && (VALID_REMOTE_EFFORTS as readonly string[]).includes(incoming)) {
-                messageEffort = incoming as ReasoningEffort;
+            } else if (isReasoningEffort(incoming)) {
+                messageEffort = incoming;
                 currentEffort = messageEffort;
                 logger.debug(`[Codex] Effort updated from user message: ${messageEffort}`);
             } else {
@@ -362,10 +400,13 @@ export async function runCodex(opts: {
         }
 
         let messageAppendSystemPrompt = currentAppendSystemPrompt;
-        if (message.meta?.hasOwnProperty('appendSystemPrompt')) {
-            messageAppendSystemPrompt = message.meta.appendSystemPrompt || undefined;
+        if (agentSession) {
+            messageAppendSystemPrompt = undefined;
+            currentAppendSystemPrompt = undefined;
+        } else if (message.meta?.hasOwnProperty('appendSystemPrompt')) {
+            messageAppendSystemPrompt = message.meta.appendSystemPrompt?.trim() || undefined;
             currentAppendSystemPrompt = messageAppendSystemPrompt;
-            logger.debug(`[Codex] Append system prompt updated from user message: ${messageAppendSystemPrompt ? 'set' : 'reset to none'}`);
+            logger.debug(`[Codex] Per-message appended instruction updated: ${messageAppendSystemPrompt ? 'set' : 'reset'}`);
         } else {
             logger.debug(`[Codex] User message received with no append system prompt override, using current: ${currentAppendSystemPrompt ? 'set' : 'none'}`);
         }
@@ -376,6 +417,40 @@ export async function runCodex(opts: {
             appendSystemPrompt: messageAppendSystemPrompt,
             effort: messageEffort,
         };
+
+        const activeTurnId = client?.activeTurnId ?? null;
+        if (shouldSteerCodexUserInput(message.content.text, activeTurnId, message.meta?.deliveryMode)) {
+            const imageInputs = await prepareCodexImageInputItems(attachmentsForThisMessage, {
+                sessionId: session.sessionId,
+            });
+            const hasUserText = message.content.text.trim().length > 0;
+            if (attachmentsForThisMessage.length > 0 && imageInputs.inputItems.length === 0 && !hasUserText) {
+                session.sendSessionEvent({
+                    type: 'message',
+                    message: 'No supported images were available to steer into Codex.',
+                });
+                return;
+            }
+
+            try {
+                await client.steerTurn(message.content.text, {
+                    extraInputItems: imageInputs.inputItems,
+                });
+                if (hasUserText) {
+                    messageBuffer.addMessage(message.content.text, 'user');
+                }
+                logger.debug(`[Codex] Steered follow-up into active turn ${activeTurnId}`);
+            } catch (error) {
+                const reason = error instanceof Error ? error.message : String(error);
+                logger.warn('[Codex] Failed to steer active turn', { activeTurnId, reason });
+                session.sendSessionEvent({
+                    type: 'message',
+                    message: `Could not steer the active Codex turn: ${reason}`,
+                });
+            }
+            return;
+        }
+
         const enqueueResult = enqueueCodexUserText({
             text: message.content.text,
             mode: enhancedMode,
@@ -391,6 +466,20 @@ export async function runCodex(opts: {
         });
     });
     session.onUserMessage(handleUserMessage);
+    if (automationBootstrap) {
+        enqueueCodexUserText({
+            text: automationBootstrap.instruction,
+            mode: {
+                permissionMode: currentPermissionMode || 'default',
+                model: currentModel,
+                appendSystemPrompt: currentAppendSystemPrompt,
+                effort: currentEffort,
+            },
+            queue: messageQueue,
+            attachments: [],
+        });
+        logger.debug(`[AUTOMATIONS] Queued initial Codex instruction for ${automationBootstrap.automationId}`);
+    }
     let thinking = false;
     let currentTurnId: string | null = null;
     let codexStartedSubagents = new Set<string>();
@@ -544,7 +633,7 @@ export async function runCodex(opts: {
             }
 
             // Stop Happy MCP server
-            happyServer.stop();
+            happyServer?.stop();
 
             logger.debug('[Codex] Session termination complete, exiting');
             process.exit(0);
@@ -596,7 +685,14 @@ export async function runCodex(opts: {
     // Start Context 
     //
 
-    client = new CodexAppServerClient(sandboxConfig);
+    const agentPolicyEntrypoint = join(projectPath(), 'bin', 'happyherd-agent-codex-policy.mjs');
+    if (agentSession && !existsSync(agentPolicyEntrypoint)) {
+        throw new Error(`HappyHerd Agent Codex policy entrypoint is missing: ${agentPolicyEntrypoint}`);
+    }
+    client = new CodexAppServerClient(sandboxConfig, agentSession ? {
+        agentPolicyEntrypoint,
+        requireSandbox: true,
+    } : {});
 
     permissionHandler = new CodexPermissionHandler(session);
     // Drop any permission requests left in agent state from a previous CLI
@@ -726,6 +822,7 @@ export async function runCodex(opts: {
     client.setEventHandler((msg) => {
         logger.debug(`[Codex] Event: ${JSON.stringify(msg)}`);
         const isSubagentScopedEvent = hasCodexSubagentReference(msg as Record<string, unknown>);
+        const isAuthoritativeLifecycle = isAuthoritativeCodexLifecycle(msg as Record<string, unknown>);
 
         // Add messages to the ink UI buffer based on message type
         if (msg.type === 'agent_message') {
@@ -743,9 +840,9 @@ export async function runCodex(opts: {
                 `Result: ${truncatedOutput}${output.length > 200 ? '...' : ''}`,
                 'result'
             );
-        } else if (msg.type === 'task_started') {
+        } else if (msg.type === 'task_started' && isAuthoritativeLifecycle) {
             messageBuffer.addMessage('Starting task...', 'status');
-        } else if (msg.type === 'task_complete') {
+        } else if (msg.type === 'task_complete' && isAuthoritativeLifecycle) {
             // Ready is emitted from the main loop's idle check so pushes only fire once
             // after the queue is actually drained.
             const failure = describeCodexFailure(msg);
@@ -755,7 +852,7 @@ export async function runCodex(opts: {
             } else {
                 messageBuffer.addMessage('Task completed', 'status');
             }
-        } else if (msg.type === 'turn_aborted') {
+        } else if (msg.type === 'turn_aborted' && isAuthoritativeLifecycle) {
             const failure = describeCodexFailure(msg);
             if (failure) {
                 messageBuffer.addMessage(`Turn aborted: ${failure}`, 'status');
@@ -765,14 +862,14 @@ export async function runCodex(opts: {
             }
         }
 
-        if (msg.type === 'task_started') {
+        if (msg.type === 'task_started' && isAuthoritativeLifecycle) {
             if (!thinking) {
                 logger.debug('thinking started');
                 thinking = true;
                 session.keepAlive(thinking, 'remote');
             }
         }
-        if (msg.type === 'task_complete' || msg.type === 'turn_aborted') {
+        if ((msg.type === 'task_complete' || msg.type === 'turn_aborted') && isAuthoritativeLifecycle) {
             if (thinking) {
                 logger.debug('thinking completed');
                 thinking = false;
@@ -825,7 +922,12 @@ export async function runCodex(opts: {
             || msg.type === 'agent_reasoning'
             || msg.type === 'agent_reasoning_section_break';
         const isForwardableSubagentReasoning = isSubagentScopedEvent && msg.type === 'agent_reasoning';
-        if (msg.type !== 'turn_diff' && (!isReasoningEvent || isForwardableSubagentReasoning)) {
+        const isLifecycleEvent = msg.type === 'task_started'
+            || msg.type === 'task_complete'
+            || msg.type === 'turn_aborted';
+        if (msg.type !== 'turn_diff'
+            && (!isLifecycleEvent || isAuthoritativeLifecycle)
+            && (!isReasoningEvent || isForwardableSubagentReasoning)) {
             const mapped = mapCodexMcpMessageToSessionEnvelopes(msg, {
                 currentTurnId,
                 startedSubagents: codexStartedSubagents,
@@ -848,19 +950,35 @@ export async function runCodex(opts: {
         }
     });
 
-    // Start Happy MCP server (HTTP) and prepare STDIO bridge config for Codex
-    const happyServer = await startHappyServer(session);
+    // Governed agent sessions expose only their manifest-backed MCP. Other sessions retain the
+    // Happy change-title MCP server.
+    const happyServer = agentSession ? null : await startHappyServer(session);
     // Launch the bridge via `node <path>` (rather than relying on the .mjs shebang)
     // so it works on Windows, where Windows can't execute shebang scripts directly.
     // codex would otherwise fail to start the MCP server, the change_title tool would
     // not be visible to the model, and the model would improvise with shell echoes.
     const bridgeEntrypoint = join(projectPath(), 'bin', 'happy-mcp.mjs');
-    const mcpServers = {
-        happy: {
+    const mcpServers: Record<string, {
+        command: string;
+        args: string[];
+        env?: Record<string, string>;
+        enabled_tools?: string[];
+        required?: boolean;
+    }> = {};
+    if (happyServer) {
+        mcpServers.happy = {
             command: process.execPath,
             args: ['--no-warnings', '--no-deprecation', bridgeEntrypoint, '--url', happyServer.url]
-        }
-    } as const;
+        };
+    }
+    const agentBridgeEntrypoint = join(projectPath(), 'bin', 'happyherd-agent-mcp.mjs');
+    const agentMcpServer = buildHappyHerdAgentMcpServerConfig({
+        nodeExecutable: process.execPath,
+        entrypoint: agentBridgeEntrypoint,
+    });
+    if (agentMcpServer) {
+        mcpServers.happyherd_agent = agentMcpServer;
+    }
     let first = true;
     let appendSystemPromptInjected = false;
 
@@ -877,6 +995,7 @@ export async function runCodex(opts: {
                 threadId: opts.resumeThreadId,
                 cwd: process.cwd(),
                 mcpServers,
+                developerInstructions: happyHerdContextPrompt,
                 // Side chats start empty — keep the resume notice out of the UI.
                 announce: !isSideChat,
             });
@@ -999,6 +1118,7 @@ export async function runCodex(opts: {
                         approvalPolicy: executionPolicy.approvalPolicy,
                         sandbox: executionPolicy.sandbox,
                         mcpServers,
+                        developerInstructions: happyHerdContextPrompt,
                     });
                     activeThreadId = startedThread.threadId;
                     session.updateMetadata((currentMetadata) => ({
@@ -1107,7 +1227,7 @@ export async function runCodex(opts: {
         logger.debug('[codex]: client.disconnect done');
         // Stop Happy MCP server
         logger.debug('[codex]: happyServer.stop');
-        happyServer.stop();
+        happyServer?.stop();
 
         // Clean up ink UI
         if (process.stdin.isTTY) {

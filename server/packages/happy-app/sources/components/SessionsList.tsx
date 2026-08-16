@@ -325,7 +325,7 @@ export function SessionsList({
                 return (
                     <View style={styles.headerSection}>
                         <Text style={styles.headerText}>
-                            {item.source === 'rig' ? 'Rig' : t('sidebar.sessionsTitle')}
+                            {item.source === 'rig' ? t('uiCopy.rig') : t('sidebar.sessionsTitle')}
                         </Text>
                     </View>
                 );

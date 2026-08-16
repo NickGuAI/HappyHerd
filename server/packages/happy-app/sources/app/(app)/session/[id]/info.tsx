@@ -26,6 +26,8 @@ import { HappyError } from '@/utils/errors';
 import { MobileGlassSurface } from '@/components/MobileGlass';
 import { getRigIdentity, isRigMetadata } from '@/sync/rig';
 
+const DEFAULT_RIG_NAME = 'Rig';
+
 // Animated status dot component
 function StatusDot({ color, isPulsing, size = 8 }: { color: string; isPulsing?: boolean; size?: number }) {
     const pulseAnim = React.useRef(new Animated.Value(1)).current;
@@ -339,7 +341,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                     {/* TODO: migrate to `happy resume <happy-session-id>` once it works without happy-agent auth */}
                     {!sessionStatus.isConnected && getResumeCommand(session) && (
                         <CopyableItem
-                            title="Resume Command"
+                            title={t("uiCopy.resumeCommand")}
                             subtitle={getResumeCommand(session)!}
                             icon={<Ionicons name="play-circle-outline" size={29} color="#30D158" />}
                             copyText={getResumeCommand(session)!}
@@ -462,8 +464,8 @@ function SessionInfoContent({ session }: { session: Session }) {
                         )}
                         {isRigMetadata(session.metadata) && (
                             <Item
-                                title="Client"
-                                subtitle={`${session.metadata.client?.name ?? 'Rig'}${session.metadata.client?.version ? ` ${session.metadata.client.version}` : ''}`}
+                                title={t("uiCopy.client")}
+                                subtitle={`${session.metadata.client?.name ?? DEFAULT_RIG_NAME}${session.metadata.client?.version ? ` ${session.metadata.client.version}` : ''}`}
                                 icon={<Ionicons name="terminal-outline" size={29} color="#5856D6" />}
                                 showChevron={false}
                             />
@@ -485,20 +487,20 @@ function SessionInfoContent({ session }: { session: Session }) {
                         />
                         {getRigIdentity(session.metadata)?.modelName && (
                             <Item
-                                title="Model"
+                                title={t("uiCopy.model")}
                                 subtitle={getRigIdentity(session.metadata)!.modelName!}
                                 icon={<Ionicons name="hardware-chip-outline" size={29} color="#5856D6" />}
                                 showChevron={false}
                             />
                         )}
                         {!isRigMetadata(session.metadata) && <Item
-                            title="Sandbox"
+                            title={t("uiCopy.sandbox")}
                             subtitle={formatSandboxMetadata(session.metadata.sandbox, session.metadata.homeDir)}
                             icon={<Ionicons name="shield-outline" size={29} color="#5856D6" />}
                             showChevron={false}
                         />}
                         {!isRigMetadata(session.metadata) && <Item
-                            title="Dangerously Skip Permissions"
+                            title={t("uiCopy.dangerouslySkipPermissions")}
                             subtitle={formatDangerouslySkipPermissionsMetadata(
                                 session.metadata.dangerouslySkipPermissions,
                                 session.metadata.flavor,
@@ -530,7 +532,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                             onPress={handleCopyMetadata}
                         />
                         <Item
-                            title={t('sessionInfo.copyMetadata') + '\n& Client Logs'}
+                            title={t('uiCopy.copyMetadataAndClientLogs')}
                             icon={<Ionicons name="document-text-outline" size={29} color="#007AFF" />}
                             onPress={handleCopyMetadataAndLogs}
                         />
@@ -575,30 +577,33 @@ function SessionInfoContent({ session }: { session: Session }) {
                     )}
                     {(session.metadata?.activity?.subagents.running ?? 0) + (session.metadata?.activity?.subagents.queued ?? 0) > 0 && (
                         <Item
-                            title="Subagents"
-                            detail={`${session.metadata!.activity!.subagents.running} running · ${session.metadata!.activity!.subagents.queued} queued`}
+                            title={t("uiCopy.subagents")}
+                            detail={t('uiCopy.runningAndQueued', {
+                                value1: session.metadata!.activity!.subagents.running,
+                                value2: session.metadata!.activity!.subagents.queued,
+                            })}
                             icon={<Ionicons name="people-outline" size={29} color="#5856D6" />}
                             showChevron={false}
                         />
                     )}
                     {(session.metadata?.activity?.workflows.running ?? 0) > 0 && (
-                        <Item title="Workflows" detail={`${session.metadata!.activity!.workflows.running} running`} icon={<Ionicons name="git-network-outline" size={29} color="#5856D6" />} showChevron={false} />
+                        <Item title={t("uiCopy.workflows")} detail={t('uiCopy.valueRunning', { value1: session.metadata!.activity!.workflows.running })} icon={<Ionicons name="git-network-outline" size={29} color="#5856D6" />} showChevron={false} />
                     )}
                     {(session.metadata?.activity?.processes.running ?? 0) > 0 && (
-                        <Item title="Background processes" detail={`${session.metadata!.activity!.processes.running} running`} icon={<Ionicons name="terminal-outline" size={29} color="#5856D6" />} showChevron={false} />
+                        <Item title={t("uiCopy.backgroundProcesses")} detail={t('uiCopy.valueRunning', { value1: session.metadata!.activity!.processes.running })} icon={<Ionicons name="terminal-outline" size={29} color="#5856D6" />} showChevron={false} />
                     )}
                     {(session.metadata?.activity?.tasks.pending ?? 0) + (session.metadata?.activity?.tasks.inProgress ?? 0) > 0 && (
-                        <Item title="Tasks" detail={`${session.metadata!.activity!.tasks.inProgress} in progress · ${session.metadata!.activity!.tasks.pending} pending`} icon={<Ionicons name="checkbox-outline" size={29} color="#5856D6" />} showChevron={false} />
+                        <Item title={t("uiCopy.tasks")} detail={t('uiCopy.inProgressAndPending', { value1: session.metadata!.activity!.tasks.inProgress, value2: session.metadata!.activity!.tasks.pending })} icon={<Ionicons name="checkbox-outline" size={29} color="#5856D6" />} showChevron={false} />
                     )}
                 </ItemGroup>
 
                 {/* Raw JSON (Dev Mode Only) */}
                 {devModeEnabled && (
-                    <ItemGroup title="Raw JSON (Dev Mode)">
+                    <ItemGroup title={t("tools.fullView.rawJsonDevMode")}>
                         {session.agentState && (
                             <>
                                 <Item
-                                    title="Agent State"
+                                    title={t("sessionInfo.agentState")}
                                     icon={<Ionicons name="code-working-outline" size={29} color="#FF9500" />}
                                     showChevron={false}
                                 />
@@ -613,7 +618,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                         {session.metadata && (
                             <>
                                 <Item
-                                    title="Metadata"
+                                    title={t("sessionInfo.metadata")}
                                     icon={<Ionicons name="information-circle-outline" size={29} color="#5856D6" />}
                                     showChevron={false}
                                 />
@@ -628,7 +633,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                         {sessionStatus && (
                             <>
                                 <Item
-                                    title="Session Status"
+                                    title={t("uiCopy.sessionStatus")}
                                     icon={<Ionicons name="analytics-outline" size={29} color="#007AFF" />}
                                     showChevron={false}
                                 />
@@ -648,7 +653,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                         )}
                         {/* Full Session Object */}
                         <Item
-                            title="Full Session Object"
+                            title={t("uiCopy.fullSessionObject")}
                             icon={<Ionicons name="document-text-outline" size={29} color="#34C759" />}
                             showChevron={false}
                         />

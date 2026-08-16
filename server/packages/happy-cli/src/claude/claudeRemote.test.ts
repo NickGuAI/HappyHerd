@@ -105,4 +105,48 @@ describe('claudeRemote', () => {
             isCompactSummary: true,
         }));
     });
+
+    it('delivers Commander context through the SDK system layer and disables project settings', async () => {
+        vi.mocked(query).mockReturnValue({
+            setPermissionMode: vi.fn(),
+            async *[Symbol.asyncIterator]() {
+                yield { type: 'result', subtype: 'success' };
+            },
+        } as any);
+        let messageCount = 0;
+
+        await claudeRemote({
+            sessionId: null,
+            path: process.cwd(),
+            allowedTools: [],
+            hookSettingsPath: '/tmp/happy-test-settings.json',
+            nextMessage: async () => {
+                messageCount += 1;
+                return messageCount === 1
+                    ? {
+                        message: 'verify the instruction layer',
+                        mode: {
+                            permissionMode: 'default',
+                            appendSystemPrompt: 'global + commander + project',
+                        },
+                    }
+                    : null;
+            },
+            onReady: vi.fn(),
+            canCallTool: async () => ({ behavior: 'allow' }) as any,
+            isAborted: () => false,
+            onSessionFound: vi.fn(),
+            onThinkingChange: vi.fn(),
+            onMessage: vi.fn(),
+            onCompletionEvent: vi.fn(),
+            onSessionReset: vi.fn(),
+        });
+
+        expect(query).toHaveBeenCalledWith(expect.objectContaining({
+            options: expect.objectContaining({
+                appendSystemPrompt: expect.stringContaining('global + commander + project'),
+                settingSources: ['user', 'local'],
+            }),
+        }));
+    });
 });

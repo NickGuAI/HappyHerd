@@ -24,7 +24,7 @@ export type {
  * Permission mode type - includes both Claude and Codex modes
  * Must match MessageMetaSchema.permissionMode enum values
  *
- * Claude modes: default, acceptEdits, bypassPermissions, plan
+ * Claude modes: default, acceptEdits, auto, dontAsk, bypassPermissions, plan
  * Codex modes: read-only, safe-yolo, yolo
  *
  * When calling Claude SDK, Codex modes are mapped at the SDK boundary:
@@ -32,7 +32,7 @@ export type {
  * - safe-yolo → default
  * - read-only → default
  */
-export type PermissionMode = 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'read-only' | 'safe-yolo' | 'yolo'
+export type PermissionMode = 'default' | 'acceptEdits' | 'auto' | 'dontAsk' | 'bypassPermissions' | 'plan' | 'read-only' | 'safe-yolo' | 'yolo'
 
 /**
  * Usage data type from Claude
@@ -124,6 +124,32 @@ export type Session = {
   agentStateVersion: number,
 }
 
+export const AgentCapabilityOptionSchema = z.object({
+  code: z.string(),
+  value: z.string(),
+  description: z.string().nullable().optional(),
+})
+
+export const AgentModelCapabilitySchema = AgentCapabilityOptionSchema.extend({
+  effortLevels: z.array(AgentCapabilityOptionSchema).optional(),
+  isDefault: z.boolean().optional(),
+})
+
+export const AgentCapabilityCatalogSchema = z.object({
+  detectedAt: z.number(),
+  providerVersion: z.string().optional(),
+  sources: z.object({
+    models: z.string(),
+    effortLevels: z.string(),
+    permissionModes: z.string(),
+  }),
+  models: z.array(AgentModelCapabilitySchema),
+  effortLevels: z.array(AgentCapabilityOptionSchema),
+  permissionModes: z.array(AgentCapabilityOptionSchema),
+})
+
+export type AgentCapabilityCatalog = z.infer<typeof AgentCapabilityCatalogSchema>
+
 /**
  * Machine metadata - static information (rarely changes)
  */
@@ -139,6 +165,7 @@ export const MachineMetadataSchema = z.object({
     codex: z.boolean(),
     gemini: z.boolean(),
     openclaw: z.boolean(),
+    agy: z.boolean().optional(),
     detectedAt: z.number(),
   }).optional(),
   resumeSupport: z.object({
@@ -148,6 +175,7 @@ export const MachineMetadataSchema = z.object({
     happyAgentAuthenticated: z.boolean(),
     detectedAt: z.number(),
   }).optional(),
+  agentCapabilities: z.record(z.string(), AgentCapabilityCatalogSchema).optional(),
 })
 
 export type MachineMetadata = z.infer<typeof MachineMetadataSchema>
@@ -188,13 +216,24 @@ export type Machine = {
  */
 export const MessageMetaSchema = z.object({
   sentFrom: z.string().optional(), // Source identifier
-  permissionMode: z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan', 'read-only', 'safe-yolo', 'yolo']).optional(), // Permission mode for this message
+  permissionMode: z.enum([
+    'default',
+    'acceptEdits',
+    'auto',
+    'dontAsk',
+    'bypassPermissions',
+    'plan',
+    'read-only',
+    'safe-yolo',
+    'yolo',
+  ]).optional(), // Provider-advertised permission mode for this message
   model: z.string().nullable().optional(), // Model name for this message (null = reset)
   fallbackModel: z.string().nullable().optional(), // Fallback model for this message (null = reset)
   customSystemPrompt: z.string().nullable().optional(), // Custom system prompt for this message (null = reset)
   appendSystemPrompt: z.string().nullable().optional(), // Append to system prompt for this message (null = reset)
   allowedTools: z.array(z.string()).nullable().optional(), // Allowed tools for this message (null = reset)
-  disallowedTools: z.array(z.string()).nullable().optional() // Disallowed tools for this message (null = reset)
+  disallowedTools: z.array(z.string()).nullable().optional(), // Disallowed tools for this message (null = reset)
+  deliveryMode: z.enum(['queue']).optional(), // Explicitly bypass active-turn steering and use the provider queue
 })
 
 export type MessageMeta = z.infer<typeof MessageMetaSchema>
@@ -331,6 +370,25 @@ export type Metadata = {
    * inside the parent session's sidebar panel.
    */
   isSideChat?: boolean
+  /** HappyHerd Commander/AgentContext provenance for this session. */
+  commanderId?: string
+  commanderName?: string
+  commanderPath?: string
+  commanderWorkspace?: string
+  commanderAgentContextPath?: string
+  globalAgentsPath?: string
+  globalAgentContextPath?: string
+  projectGuidancePath?: string
+  contextHash?: string
+  instructionReceiptVersion?: number
+  instructionProvider?: 'codex' | 'claude'
+  instructionLayer?: 'developer' | 'system-append'
+  instructionHash?: string
+  /** Opaque governed Discord surface binding used to reconcile daemon spawns. */
+  happyHerdAgentSurfaceId?: string
+  /** Machine-local automation provenance for daemon-started sessions. */
+  automationId?: string
+  automationKind?: 'scheduled' | 'heartbeat' | 'memory-maintenance'
 };
 
 export type UsageLimitWindowStatus = 'allowed' | 'allowed_warning' | 'rejected'

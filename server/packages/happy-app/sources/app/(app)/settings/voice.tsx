@@ -11,7 +11,15 @@ import { UsageBar } from '@/components/usage/UsageBar';
 import { useSettingMutable, useEntitlement, useLocalSetting, useLocalSettingMutable, useSetting } from '@/sync/storage';
 import { useAuth } from '@/auth/AuthContext';
 import { findLanguageByCode, getLanguageDisplayName, LANGUAGES } from '@/constants/Languages';
-import { fetchVoiceUsage, type VoiceUsageResponse } from '@/sync/apiVoice';
+import {
+    configureVoiceTranscriptionKey,
+    fetchVoiceTranscriptionKeyStatus,
+    fetchVoiceUsage,
+    removeVoiceTranscriptionKey,
+    testVoiceTranscriptionKey,
+    type VoiceTranscriptionKeyStatus,
+    type VoiceUsageResponse,
+} from '@/sync/apiVoice';
 import { t } from '@/text';
 import { Modal } from '@/modal';
 import { sync } from '@/sync/sync';
@@ -39,6 +47,9 @@ export default React.memo(function VoiceSettingsScreen() {
 
     const [usage, setUsage] = React.useState<VoiceUsageResponse | null>(null);
     const [usageLoading, setUsageLoading] = React.useState(true);
+    const [transcriptionKeyStatus, setTranscriptionKeyStatus] = React.useState<VoiceTranscriptionKeyStatus | null>(null);
+    const [transcriptionKeyLoading, setTranscriptionKeyLoading] = React.useState(true);
+    const [transcriptionKeyAction, setTranscriptionKeyAction] = React.useState(false);
     const [voiceLocalCounters, setVoiceLocalCounters] = React.useState(() => getVoiceLocalCounters());
 
     React.useEffect(() => {
@@ -49,6 +60,14 @@ export default React.memo(function VoiceSettingsScreen() {
             .finally(() => setUsageLoading(false));
     }, [auth.credentials]);
 
+    React.useEffect(() => {
+        if (!auth.credentials) return;
+        fetchVoiceTranscriptionKeyStatus(auth.credentials)
+            .then(setTranscriptionKeyStatus)
+            .catch(() => setTranscriptionKeyStatus(null))
+            .finally(() => setTranscriptionKeyLoading(false));
+    }, [auth.credentials]);
+
     // Find current language or default to first option
     const currentLanguage = findLanguageByCode(voiceAssistantLanguage) || LANGUAGES[0];
 
@@ -56,6 +75,60 @@ export default React.memo(function VoiceSettingsScreen() {
         trackPaywallButtonClicked('voluntary_support');
         await sync.presentPaywall('voluntary_support');
     }, []);
+
+    const handleConfigureTranscriptionKey = React.useCallback(async () => {
+        if (!auth.credentials || transcriptionKeyAction) return;
+        const value = await Modal.prompt(
+            t("uiCopy.openaiApiKey"),
+            t("uiCopy.usedOnlyForVoiceDictationTranscriptionHappyherdEncryptsItFor"),
+            {
+                placeholder: t("uiCopy.sk"),
+                inputType: 'secure-text',
+            },
+        );
+        if (value === null || !value.trim()) return;
+        setTranscriptionKeyAction(true);
+        try {
+            const status = await configureVoiceTranscriptionKey(auth.credentials, value.trim());
+            setTranscriptionKeyStatus(status);
+            Modal.alert(t("uiCopy.openaiApiKeyConfigured"), t("uiCopy.theKeyWasAcceptedAndStoredSecurelyForVoiceDictation"));
+        } catch (error) {
+            Modal.alert(t("uiCopy.couldNotConfigureOpenaiApiKey"), error instanceof Error ? error.message : t("uiCopy.theKeyCouldNotBeSaved"));
+        } finally {
+            setTranscriptionKeyAction(false);
+        }
+    }, [auth.credentials, transcriptionKeyAction]);
+
+    const handleTestTranscriptionKey = React.useCallback(async () => {
+        if (!auth.credentials || transcriptionKeyAction) return;
+        setTranscriptionKeyAction(true);
+        try {
+            await testVoiceTranscriptionKey(auth.credentials);
+            Modal.alert(t("uiCopy.openaiApiKeyWorks"), t("uiCopy.voiceDictationCanReachOpenaiWithTheConfiguredKey"));
+        } catch (error) {
+            Modal.alert(t("uiCopy.openaiApiKeyTestFailed"), error instanceof Error ? error.message : t("uiCopy.theKeyCouldNotBeTested"));
+        } finally {
+            setTranscriptionKeyAction(false);
+        }
+    }, [auth.credentials, transcriptionKeyAction]);
+
+    const handleRemoveTranscriptionKey = React.useCallback(async () => {
+        if (!auth.credentials || transcriptionKeyAction) return;
+        const confirmed = await Modal.confirm(
+            t("uiCopy.removeOpenaiApiKey"),
+            t("uiCopy.voiceDictationWillUseTheDeploymentKeyIfOneExists"),
+            { confirmText: 'Remove', destructive: true },
+        );
+        if (!confirmed) return;
+        setTranscriptionKeyAction(true);
+        try {
+            setTranscriptionKeyStatus(await removeVoiceTranscriptionKey(auth.credentials));
+        } catch (error) {
+            Modal.alert(t("uiCopy.couldNotRemoveOpenaiApiKey"), error instanceof Error ? error.message : t("uiCopy.theKeyCouldNotBeRemoved"));
+        } finally {
+            setTranscriptionKeyAction(false);
+        }
+    }, [auth.credentials, transcriptionKeyAction]);
 
     const handleCustomAgentId = React.useCallback(async () => {
         const value = await Modal.prompt(
@@ -76,8 +149,8 @@ export default React.memo(function VoiceSettingsScreen() {
 
     const handleVoiceExperimentOverride = React.useCallback(() => {
         Modal.alert(
-            'Voice Experiment Override',
-            'Select a local override for the voice-upsell experiment.',
+            t("uiCopy.voiceExperimentOverride"),
+            t("uiCopy.selectALocalOverrideForTheVoiceUpsellExperiment"),
             [
                 { text: 'No Override', onPress: () => setVoiceUpsellOverride(null) },
                 { text: 'Control', onPress: () => setVoiceUpsellOverride('control') },
@@ -89,8 +162,8 @@ export default React.memo(function VoiceSettingsScreen() {
 
     const handleResetVoiceCounters = React.useCallback(async () => {
         const confirmed = await Modal.confirm(
-            'Reset Voice Counters',
-            'Clear local voice counters used for onboarding and soft-paywall behavior on this device?',
+            t("uiCopy.resetVoiceCounters"),
+            t("uiCopy.clearLocalVoiceCountersUsedForOnboardingAndSoftPaywall"),
             {
                 confirmText: 'Reset',
                 destructive: true,
@@ -144,6 +217,42 @@ export default React.memo(function VoiceSettingsScreen() {
 
     return (
         <ItemList style={{ paddingTop: 0 }}>
+            <ItemGroup
+                title={t("uiCopy.voiceDictationTranscription")}
+                footer={t("uiCopy.theKeyIsEncryptedForYourAccountHappyherdOnlyDisplays")}
+            >
+                <Item
+                    title={t("uiCopy.openaiApiKey")}
+                    subtitle={transcriptionKeyStatus?.configured
+                        ? `•••••••• · ${transcriptionKeyStatus.source === 'user' ? t('uiCopy.configuredForAccount') : t('uiCopy.providedByDeployment')}`
+                        : t('settingsVoice.customAgentIdNotSet')}
+                    icon={<Ionicons name="key-outline" size={29} color="#10A37F" />}
+                    detail={transcriptionKeyStatus?.configured ? t('uiCopy.configured') : undefined}
+                    loading={transcriptionKeyLoading || transcriptionKeyAction}
+                    disabled={transcriptionKeyLoading || transcriptionKeyAction}
+                    onPress={handleConfigureTranscriptionKey}
+                />
+                {transcriptionKeyStatus?.configured && (
+                    <Item
+                        title={t("uiCopy.testOpenaiApiKey")}
+                        subtitle={t("uiCopy.verifyAccessWithoutRecordingAudio")}
+                        icon={<Ionicons name="checkmark-circle-outline" size={29} color="#34C759" />}
+                        disabled={transcriptionKeyAction}
+                        onPress={handleTestTranscriptionKey}
+                    />
+                )}
+                {transcriptionKeyStatus?.source === 'user' && (
+                    <Item
+                        title={t("uiCopy.removeOpenaiApiKey_18glmc")}
+                        subtitle={t("uiCopy.deleteTheAccountSpecificTranscriptionKey")}
+                        icon={<Ionicons name="trash-outline" size={29} color="#FF3B30" />}
+                        destructive
+                        disabled={transcriptionKeyAction}
+                        onPress={handleRemoveTranscriptionKey}
+                    />
+                )}
+            </ItemGroup>
+
             {/* Voice Usage */}
             {usageLoading ? (
                 <View style={{ paddingVertical: 24, alignItems: 'center' }}>
@@ -191,18 +300,18 @@ export default React.memo(function VoiceSettingsScreen() {
 
             {devModeEnabled && (
                 <ItemGroup
-                    title="Developer"
-                    footer="Developer-only diagnostics and local override controls for the current voice rollout. The paid voice gate runs through Happy server unless Direct Connection and a custom ElevenLabs agent are both enabled."
+                    title={t("settings.developer")}
+                    footer={t("uiCopy.developerOnlyDiagnosticsAndLocalOverrideControlsForTheCurrent")}
                 >
                     <Item
-                        title="Voice Experiment Override"
-                        subtitle="Simple local override for the voice-upsell flag"
+                        title={t("uiCopy.voiceExperimentOverride")}
+                        subtitle={t("uiCopy.simpleLocalOverrideForTheVoiceUpsellFlag")}
                         detail={developerOverrideLabel}
                         icon={<Ionicons name="options-outline" size={29} color="#007AFF" />}
                         onPress={handleVoiceExperimentOverride}
                     />
                     <Item
-                        title="Voice Experiment Status"
+                        title={t("uiCopy.voiceExperimentStatus")}
                         subtitle={developerExperimentSubtitle}
                         subtitleLines={0}
                         icon={<Ionicons name="flask-outline" size={29} color="#5856D6" />}
@@ -210,7 +319,7 @@ export default React.memo(function VoiceSettingsScreen() {
                         copy={developerExperimentSubtitle}
                     />
                     <Item
-                        title="Reset Voice Counters"
+                        title={t("uiCopy.resetVoiceCounters")}
                         subtitle={developerCountersSubtitle}
                         subtitleLines={0}
                         icon={<Ionicons name="refresh-outline" size={29} color="#FF9500" />}

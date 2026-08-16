@@ -14,6 +14,31 @@ export type InitializeParams = {
 
 export type InitializeResponse = { userAgent: string };
 
+export type ModelListParams = {
+    cursor?: string | null;
+    limit?: number | null;
+    includeHidden?: boolean | null;
+};
+
+export type ModelListEntry = {
+    id: string;
+    model: string;
+    displayName: string;
+    description: string;
+    hidden: boolean;
+    supportedReasoningEfforts: Array<{
+        reasoningEffort: string;
+        description: string;
+    }>;
+    defaultReasoningEffort: string;
+    isDefault: boolean;
+};
+
+export type ModelListResponse = {
+    data: ModelListEntry[];
+    nextCursor: string | null;
+};
+
 // --- Thread lifecycle ---
 
 export type NewConversationParams = {
@@ -214,6 +239,12 @@ export type SendUserTurnParams = {
     outputSchema: unknown | null;
 };
 
+export type SteerTurnParams = {
+    threadId: ThreadId;
+    expectedTurnId: string;
+    input: InputItem[];
+};
+
 export type InterruptConversationParams = {
     threadId: ThreadId;
     turnId: string;
@@ -266,7 +297,10 @@ export type ReviewDecision =
 
 export type ApprovalPolicy = "untrusted" | "on-failure" | "on-request" | "never";
 export type SandboxMode = "read-only" | "workspace-write" | "danger-full-access";
-export type ReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+// Codex advertises supported effort values per model through model/list. Keep
+// the transport type open so newly advertised values work without a CLI
+// release; the provider remains authoritative for model/effort compatibility.
+export type ReasoningEffort = string;
 export type ReasoningSummary = "auto" | "concise" | "detailed" | "none";
 export type TurnAbortReason = "interrupted" | "replaced" | "review_ended";
 

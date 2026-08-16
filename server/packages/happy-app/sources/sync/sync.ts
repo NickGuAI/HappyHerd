@@ -60,6 +60,11 @@ import { FeedItem } from './feedTypes';
 import { UserProfile } from './friendTypes';
 import { resolveControlHandoffDirection } from './controlHandoff';
 import { resolveMessageModeMeta } from './messageMeta';
+import {
+    normalizeAgentKey,
+    resolveAgentDefaultConfig,
+} from './agentDefaults';
+import { getMachineAdvertisedEffortLevels } from '@/components/modelModeOptions';
 import type { AttachmentPreview, UploadedAttachment } from './attachmentTypes';
 import { requestAttachmentUpload, uploadEncryptedBlob } from './apiAttachments';
 import { encryptBlob } from '@/encryption/blob';
@@ -67,6 +72,10 @@ import { readFileBytes } from '@/utils/readFileBytes';
 import { Modal } from '@/modal';
 import { t } from '@/text';
 import { isRigMetadataV1, rigCanUseAttachments, usesControlledSessionUi } from './rig';
+import {
+    requestVisibleSessionReconciliation,
+    type VisibleSessionReconciliationTrigger,
+} from './visibleSessionReconciliation';
 
 type V3GetSessionMessagesResponse = {
     messages: ApiMessage[];
@@ -100,6 +109,8 @@ type SendMessageOptions = {
     source?: MessageSentSource;
     /** Optional image attachments to send before the text message. */
     attachments?: AttachmentPreview[];
+    /** Explicitly retain this message for the provider's next-turn queue. */
+    deliveryMode?: 'queue';
 };
 
 class Sync {
@@ -199,6 +210,7 @@ class Sync {
                 this.friendsSync.invalidate();
                 this.friendRequestsSync.invalidate();
                 this.feedSync.invalidate();
+                this.reconcileCurrentViewingSession({ source: 'app-state', state: nextAppState });
             } else {
                 log.log(`📱 App state changed to: ${nextAppState}`);
                 this.maybeStartBackgroundSendWatchdog();
@@ -211,11 +223,24 @@ class Sync {
         // the user is actually looking at this client.
         if (Platform.OS === 'web' && typeof document !== 'undefined') {
             const broadcast = () => {
-                apiSocket.sendAppState(getCurrentAppState());
+                const currentAppState = getCurrentAppState();
+                apiSocket.sendAppState(currentAppState);
+                this.reconcileCurrentViewingSession({
+                    source: 'web-lifecycle',
+                    state: currentAppState,
+                });
             };
             document.addEventListener('visibilitychange', broadcast);
             window.addEventListener('focus', broadcast);
             window.addEventListener('blur', broadcast);
+            window.addEventListener('online', () => {
+                // Do not wait for Socket.IO's retry delay before reconciling
+                // the visible message cursor. The existing HTTP forward-sync
+                // is independent of the socket and InvalidateSync owns retry
+                // and event-storm coalescing.
+                apiSocket.reconnectNow();
+                this.reconcileCurrentViewingSession({ source: 'network-online' });
+            });
         }
     }
 
@@ -287,6 +312,22 @@ class Sync {
             storage.getState().applyReady();
         });
     }
+
+    private reconcileCurrentViewingSession = (trigger: VisibleSessionReconciliationTrigger) => {
+        // Focus events can fire before authentication has restored encryption.
+        // The first SessionView mount will perform the initial fetch after init.
+        if (!this.encryption) {
+            return;
+        }
+
+        const sessionId = requestVisibleSessionReconciliation(trigger, {
+            getCurrentViewingSessionId: () => storage.getState().currentViewingSessionId,
+            invalidateMessages: (visibleSessionId) => this.getMessagesSync(visibleSessionId).invalidate(),
+        });
+        if (sessionId) {
+            log.log(`💬 Reconciling visible session ${sessionId} after ${trigger.source}`);
+        }
+    };
 
 
     onSessionVisible = (sessionId: string) => {
@@ -413,7 +454,7 @@ class Sync {
         try {
             this.backgroundSendNotificationId = await Notifications.scheduleNotificationAsync({
                 content: {
-                    title: 'Message not sent',
+                    title: t("uiCopy.messageNotSent"),
                     body: 'A message is still sending in the background. It will fail in 30 seconds if not delivered.',
                     sound: true
                 },
@@ -447,7 +488,7 @@ class Sync {
         try {
             await Notifications.scheduleNotificationAsync({
                 content: {
-                    title: 'Message failed',
+                    title: t("uiCopy.messageFailed"),
                     body: 'A message failed to send while the app was in background. Open Happy and retry.',
                     sound: true
                 },
@@ -579,8 +620,7 @@ class Sync {
             await this.sessionsSync.awaitQueue();
             encryption = this.encryption.getSessionEncryption(sessionId);
             if (!encryption) {
-                console.error(`Session ${sessionId} not found after sync`);
-                return;
+                throw new Error(`Session ${sessionId} was not available after synchronization`);
             }
         }
 
@@ -590,15 +630,28 @@ class Sync {
             await this.sessionsSync.awaitQueue();
             session = storage.getState().sessions[sessionId];
             if (!session) {
-                console.error(`Session ${sessionId} not found in storage after sync`);
-                return;
+                throw new Error(`Session ${sessionId} was not found after synchronization`);
             }
         }
 
-        const modeMeta = resolveMessageModeMeta(session, storage.getState().settings);
-        const { displayText, source = 'chat', attachments } = options ?? {};
-
+        const currentState = storage.getState();
+        const settings = currentState.settings;
         const flavor = session.metadata?.flavor;
+        const agentKey = normalizeAgentKey(flavor);
+        const machine = session.metadata?.machineId
+            ? currentState.machines[session.metadata.machineId]
+            : null;
+        const hasAuthoritativeEffortCatalog = Boolean(
+            machine?.metadata?.agentCapabilities?.[agentKey],
+        );
+        const selectedModel = session.modelMode
+            ?? resolveAgentDefaultConfig(settings.agentDefaultOverrides, flavor).modelMode;
+        const availableEfforts = hasAuthoritativeEffortCatalog
+            ? getMachineAdvertisedEffortLevels(machine?.metadata, agentKey, selectedModel)
+            : undefined;
+        const modeMeta = resolveMessageModeMeta(session, settings, { availableEfforts });
+        const { displayText, source = 'chat', attachments, deliveryMode } = options ?? {};
+
         const rigAttachmentPolicy = isRigMetadataV1(session.metadata)
             ? session.metadata?.capabilities?.attachments
             : null;
@@ -726,7 +779,8 @@ class Sync {
                 ...(modeMeta.model !== undefined ? { model: modeMeta.model } : {}),
                 ...(modeMeta.modelProviderId !== undefined ? { modelProviderId: modeMeta.modelProviderId } : {}),
                 ...(modeMeta.effort !== undefined ? { effort: modeMeta.effort } : {}),
-                ...(displayText && { displayText }) // Add displayText if provided
+                ...(displayText && { displayText }), // Add displayText if provided
+                ...(deliveryMode ? { deliveryMode } : {}),
             }
         };
         const encryptedRawRecord = await encryption.encryptRawRecord(content);
@@ -753,8 +807,8 @@ class Sync {
         // up on user action only — not on background agent output.
         storage.getState().markSessionMessageSent(sessionId);
 
-        this.getSendSync(sessionId).invalidate();
         this.maybeStartBackgroundSendWatchdog();
+        await this.getSendSync(sessionId).invalidateAndAwait();
     }
 
     /** Server sent us settings — merge any pending local changes on top, then apply as one update. */
@@ -883,15 +937,15 @@ class Sync {
                     return { success: true, purchased: false };
                 case PaywallResult.NOT_PRESENTED:
                     trackPaywallError('Paywall not presented', flow);
-                    return { success: false, error: 'Paywall not available on this platform' };
+                    return { success: false, error: t('uiCopy.paywallUnavailable') };
                 case PaywallResult.ERROR:
                 default:
-                    const errorMsg = 'Failed to present paywall';
+                    const errorMsg = t('uiCopy.failedToPresentPaywall');
                     trackPaywallError(errorMsg, flow);
                     return { success: false, error: errorMsg };
             }
         } catch (error: any) {
-            const errorMessage = error.message || 'Failed to present paywall';
+            const errorMessage = error.message || t('uiCopy.failedToPresentPaywall');
             trackPaywallError(errorMessage, flow);
             return { success: false, error: errorMessage };
         }
@@ -2160,9 +2214,10 @@ class Sync {
             this.friendsSync.invalidate();
             this.friendRequestsSync.invalidate();
             this.feedSync.invalidate();
-            // Messages are fetched lazily per-session via onSessionVisible (called by SessionView
-            // when realtimeStatus changes). Session metadata + agentState (including permission
-            // requests) are already refreshed by sessionsSync.invalidate() above.
+            this.reconcileCurrentViewingSession({ source: 'socket-reconnect' });
+            // Session metadata + agentState (including permission requests)
+            // are refreshed by sessionsSync.invalidate() above. The currently
+            // visible conversation uses its existing forward cursor sync.
             for (const sync of this.sendSync.values()) {
                 sync.invalidate();
             }

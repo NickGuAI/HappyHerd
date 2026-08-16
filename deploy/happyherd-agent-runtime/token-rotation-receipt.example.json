@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "applicationId": "replace-with-application-id",
+  "rotatedAt": "2026-01-02T00:00:00.000Z",
+  "tokenSha256": "replace-with-lowercase-sha256-of-the-rotated-token"
+}

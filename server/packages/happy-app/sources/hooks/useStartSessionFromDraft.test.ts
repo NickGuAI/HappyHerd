@@ -44,6 +44,11 @@ vi.mock('@/sync/agentDefaults', () => ({
         modelMode: 'default',
         effortLevel: null,
     }),
+    resolveAgentDefaultEffortLevel: (
+        _overrides: unknown,
+        _flavor: unknown,
+        efforts: Array<{ key: string }>,
+    ) => efforts.at(-1)?.key ?? null,
 }));
 
 vi.mock('@/sync/ops', () => ({
@@ -95,6 +100,9 @@ vi.mock('@/components/modelModeOptions', () => ({
     getEffortLevelsForModel: () => [
         { key: 'medium', name: 'Medium' },
     ],
+    getMachineAdvertisedPermissionModes: vi.fn(),
+    getMachineAdvertisedModels: vi.fn(),
+    getMachineAdvertisedEffortLevels: vi.fn(),
 }));
 
 vi.mock('@/modal', () => ({
@@ -371,7 +379,7 @@ describe('useStartSessionFromDraft', () => {
         expect(mocks.delay).toHaveBeenCalledTimes(3);
         expect(mocks.alert).toHaveBeenCalledWith(
             'common.error',
-            'Rig created the session, but it is still syncing with Happy. It should appear shortly.',
+            'uiCopy.rigCreatedTheSessionButItIsStillSyncingWithHappy',
         );
         expect(mocks.navigateToSession).not.toHaveBeenCalled();
     });
@@ -385,7 +393,7 @@ describe('useStartSessionFromDraft', () => {
         await expect(startSession()).resolves.toBe(false);
         expect(mocks.alert).toHaveBeenCalledWith(
             'common.error',
-            'The selected agent configuration is unavailable',
+            'uiCopy.theSelectedAgentConfigurationIsUnavailable',
         );
         expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
     });

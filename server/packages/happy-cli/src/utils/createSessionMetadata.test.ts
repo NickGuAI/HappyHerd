@@ -117,6 +117,24 @@ describe('createSessionMetadata', () => {
         expect(metadata.isSideChat).toBeUndefined();
     });
 
+    it('records only the opaque governed Discord surface id from session context', () => {
+        const previous = process.env.HAPPYHERD_AGENT_SURFACE_ID;
+        process.env.HAPPYHERD_AGENT_SURFACE_ID = 'dm:discord-user-1';
+        try {
+            const { metadata } = createSessionMetadata({
+                flavor: 'codex',
+                machineId: 'machine-1',
+            });
+            expect(metadata.happyHerdAgentSurfaceId).toBe('dm:discord-user-1');
+        } finally {
+            if (previous === undefined) {
+                delete process.env.HAPPYHERD_AGENT_SURFACE_ID;
+            } else {
+                process.env.HAPPYHERD_AGENT_SURFACE_ID = previous;
+            }
+        }
+    });
+
     it('sets metadata.gitBranch when a git branch is detected', () => {
         mockedExecSync.mockReturnValue('fix/session-status\n');
 

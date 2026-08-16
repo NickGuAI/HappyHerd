@@ -11,19 +11,22 @@ import { Metadata } from '@/api/types';
 import { decodeBase64 } from '@/api/encryption';
 import { TrackedSession, SessionEncryptionData } from './types';
 import { SpawnSessionOptions, SpawnSessionResult } from '@/modules/common/registerCommonHandlers';
+import type { HappyHerdAutomationService } from '@/automations/service';
 
 export function startDaemonControlServer({
   getChildren,
   stopSession,
   spawnSession,
   requestShutdown,
-  onHappySessionWebhook
+  onHappySessionWebhook,
+  automations,
 }: {
   getChildren: () => TrackedSession[];
   stopSession: (sessionId: string) => boolean;
   spawnSession: (options: SpawnSessionOptions) => Promise<SpawnSessionResult>;
   requestShutdown: () => void;
   onHappySessionWebhook: (sessionId: string, metadata: Metadata, encryption?: SessionEncryptionData) => void;
+  automations: HappyHerdAutomationService;
 }): Promise<{ port: number; stop: () => Promise<void> }> {
   return new Promise((resolve) => {
     const app = fastify({
@@ -121,6 +124,42 @@ export function startDaemonControlServer({
       logger.debug(`[CONTROL SERVER] Stop session request: ${sessionId}`);
       const success = stopSession(sessionId);
       return { success };
+    });
+
+    typed.post('/automations', {
+      schema: {
+        body: z.object({
+          action: z.enum(['list', 'create', 'update', 'pause', 'resume', 'delete', 'run-now', 'history']),
+          id: z.string().optional(),
+          input: z.any().optional(),
+        }),
+        response: { 200: z.any() },
+      },
+    }, async (request) => {
+      const id = request.body.id;
+      switch (request.body.action) {
+        case 'list': return automations.list();
+        case 'create': return automations.create(request.body.input);
+        case 'update':
+          if (!id) throw new Error('id is required');
+          return automations.update(id, request.body.input ?? {});
+        case 'pause':
+          if (!id) throw new Error('id is required');
+          return automations.pause(id);
+        case 'resume':
+          if (!id) throw new Error('id is required');
+          return automations.resume(id);
+        case 'delete':
+          if (!id) throw new Error('id is required');
+          await automations.delete(id);
+          return { deleted: true };
+        case 'run-now':
+          if (!id) throw new Error('id is required');
+          return automations.runNow(id);
+        case 'history':
+          if (!id) throw new Error('id is required');
+          return automations.history(id);
+      }
     });
 
     // Spawn new session

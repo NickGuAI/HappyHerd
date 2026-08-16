@@ -103,7 +103,7 @@ export default function Restore() {
                 if (credentials && !isCancelledRef.current) {
                     // Convert secret bytes to base64url string for login
                     const secretString = encodeBase64(credentials.secret, 'base64url');
-                    await auth.login(credentials.token, secretString);
+                    await auth.login(credentials.token, secretString, 'linked-device');
                     if (!isCancelledRef.current) {
                         router.back();
                     }
@@ -138,10 +138,10 @@ export default function Restore() {
 
                 <View style={{justifyContent: 'flex-end' }}>
                     <Text style={styles.secondInstructionText}>
-                        1. Open Happy on your mobile device{'\n'}
-                        2. Go to Settings → Account{'\n'}
-                        3. Tap "Link New Device"{'\n'}
-                        4. Scan this QR code
+                        {t("uiCopy.step1OpenHappyOnYourMobileDevice")}{'\n'}
+                        {t("uiCopy.step2GoToSettingsAccount")}{'\n'}
+                        {t("uiCopy.step3TapLinkNewDevice")}{'\n'}
+                        {t("uiCopy.step4ScanThisQrCode")}
                     </Text>
                 </View>
                 {!authReady && (
@@ -158,7 +158,7 @@ export default function Restore() {
                     />
                 )}
                 <View style={{ flexGrow: 4, paddingTop: 30 }}>
-                    <RoundButton title="Restore with Secret Key Instead" display='inverted' onPress={() => {
+                    <RoundButton title={t("uiCopy.restoreWithSecretKeyInstead")} display='inverted' onPress={() => {
                         router.push('/restore/manual');
                     }} />
                 </View>

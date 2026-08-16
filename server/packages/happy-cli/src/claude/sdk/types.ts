@@ -45,6 +45,8 @@ export interface QueryOptions {
     canCallTool?: CanCallToolCallback
     /** Path to a settings JSON file to pass to Claude via --settings */
     settingsPath?: string
+    /** Disable competing project CLAUDE.md discovery while retaining user/local settings. */
+    settingSources?: Array<'user' | 'project' | 'local'>
     /**
      * Effort level passed straight through to the Claude Agent SDK option
      * of the same name — controls how much thinking/reasoning Claude

@@ -1,7 +1,35 @@
 import { db } from "@/storage/db";
+import type { FastifyReply, FastifyRequest } from "fastify";
 import { Fastify } from "../types";
 import { httpRequestsCounter, httpRequestDurationHistogram, getMetricsLabelsFromRequest } from "@/app/monitoring/metrics2";
 import { log } from "@/utils/log";
+
+export async function resolveHealthStatus(
+    checkDatabase: () => Promise<unknown> = async () => db.$queryRaw`SELECT 1`,
+) {
+    try {
+        await checkDatabase();
+        return {
+            statusCode: 200 as const,
+            body: {
+                status: 'ok' as const,
+                timestamp: new Date().toISOString(),
+                service: 'happy-server' as const,
+            },
+        };
+    } catch (error) {
+        log({ module: 'health', level: 'error' }, `Health check failed: ${error}`);
+        return {
+            statusCode: 503 as const,
+            body: {
+                status: 'error' as const,
+                timestamp: new Date().toISOString(),
+                service: 'happy-server' as const,
+                error: 'Database connectivity failed',
+            },
+        };
+    }
+}
 
 export function enableMonitoring(app: Fastify) {
     // Add metrics hooks
@@ -24,23 +52,11 @@ export function enableMonitoring(app: Fastify) {
         httpRequestDurationHistogram.observe({ method, route, status, ...labels }, duration);
     });
 
-    app.get('/health', async (request, reply) => {
-        try {
-            // Test database connectivity
-            await db.$queryRaw`SELECT 1`;
-            reply.send({
-                status: 'ok',
-                timestamp: new Date().toISOString(),
-                service: 'happy-server'
-            });
-        } catch (error) {
-            log({ module: 'health', level: 'error' }, `Health check failed: ${error}`);
-            reply.code(503).send({
-                status: 'error',
-                timestamp: new Date().toISOString(),
-                service: 'happy-server',
-                error: 'Database connectivity failed'
-            });
-        }
-    });
+    const healthHandler = async (_request: FastifyRequest, reply: FastifyReply) => {
+        const result = await resolveHealthStatus();
+        return reply.code(result.statusCode).send(result.body);
+    };
+
+    app.get('/health', healthHandler);
+    app.get('/api/health', healthHandler);
 }

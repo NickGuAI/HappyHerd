@@ -73,9 +73,9 @@ const OAuthViewUnsupported = React.memo((props: {
 
     return (
         <View style={styles.unsupportedContainer}>
-            <Text style={styles.unsupportedTitle}>Connect {props.name}</Text>
+            <Text style={styles.unsupportedTitle}>{t("uiCopy.connect")} {props.name}</Text>
             <Text style={styles.unsupportedText}>
-                Run the following command in your terminal:
+                {t("uiCopy.runTheFollowingCommandInYourTerminal")}
             </Text>
             <MobileGlassSurface enabled={Platform.OS !== 'web'} intensity={72} style={styles.terminalContainer}>
                 <Text style={styles.terminalCommand}>

@@ -24,6 +24,16 @@
         "types": "./dist/index.d.mts",
         "default": "./dist/index.mjs"
       }
+    },
+    "./control": {
+      "require": {
+        "types": "./dist/control.d.cts",
+        "default": "./dist/control.cjs"
+      },
+      "import": {
+        "types": "./dist/control.d.mts",
+        "default": "./dist/control.mjs"
+      }
     }
   },
   "files": [

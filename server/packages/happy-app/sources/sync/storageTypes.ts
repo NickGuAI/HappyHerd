@@ -167,6 +167,22 @@ export const MetadataSchema = z.object({
      * inside the parent session's sidebar panel (see `useSideChatSession`).
      */
     isSideChat: z.boolean().optional(),
+    /** HappyHerd Commander/AgentContext provenance for this session. */
+    commanderId: z.string().optional(),
+    commanderName: z.string().optional(),
+    commanderPath: z.string().optional(),
+    commanderWorkspace: z.string().optional(),
+    commanderAgentContextPath: z.string().optional(),
+    globalAgentsPath: z.string().optional(),
+    globalAgentContextPath: z.string().optional(),
+    projectGuidancePath: z.string().optional(),
+    contextHash: z.string().optional(),
+    instructionReceiptVersion: z.number().int().positive().optional(),
+    instructionProvider: z.enum(['codex', 'claude']).optional(),
+    instructionLayer: z.enum(['developer', 'system-append']).optional(),
+    instructionHash: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+    automationId: z.string().uuid().optional(),
+    automationKind: z.enum(['scheduled', 'heartbeat', 'memory-maintenance']).optional(),
     /**
      * Per-session permission / model / effort picks made in any client.
      * Synced through session metadata so every device shows the same
@@ -407,6 +423,32 @@ export interface DecryptedMessage {
 // Machine states
 //
 
+export const AgentCapabilityOptionSchema = z.object({
+    code: z.string(),
+    value: z.string(),
+    description: z.string().nullable().optional(),
+});
+
+export const AgentModelCapabilitySchema = AgentCapabilityOptionSchema.extend({
+    effortLevels: z.array(AgentCapabilityOptionSchema).optional(),
+    isDefault: z.boolean().optional(),
+});
+
+export const AgentCapabilityCatalogSchema = z.object({
+    detectedAt: z.number(),
+    providerVersion: z.string().optional(),
+    sources: z.object({
+        models: z.string(),
+        effortLevels: z.string(),
+        permissionModes: z.string(),
+    }),
+    models: z.array(AgentModelCapabilitySchema),
+    effortLevels: z.array(AgentCapabilityOptionSchema),
+    permissionModes: z.array(AgentCapabilityOptionSchema),
+});
+
+export type AgentCapabilityCatalog = z.infer<typeof AgentCapabilityCatalogSchema>;
+
 export const MachineMetadataSchema = z.object({
     host: z.string(),
     platform: z.string(),
@@ -503,6 +545,7 @@ export const MachineMetadataSchema = z.object({
         happyAgentAuthenticated: z.boolean().optional(),
         detectedAt: z.number().optional(),
     }).passthrough().optional().catch(undefined),
+    agentCapabilities: z.record(z.string(), AgentCapabilityCatalogSchema).optional(),
 }).passthrough();
 
 export type MachineMetadata = z.infer<typeof MachineMetadataSchema>;

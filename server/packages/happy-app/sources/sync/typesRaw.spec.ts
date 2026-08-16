@@ -1816,7 +1816,7 @@ describe('Zod Transform - WOLOG Content Normalization', () => {
             }
         });
 
-        it('maps turn-end to ready event and drops turn-start', () => {
+        it('preserves structured turn-end status and drops turn-start', () => {
             const turnStart = normalizeRawMessage('db-5', null, 1, {
                 ...base,
                 content: {
@@ -1848,7 +1848,7 @@ describe('Zod Transform - WOLOG Content Normalization', () => {
             expect(turnEnd).toMatchObject({
                 id: 'env-6',
                 role: 'event',
-                content: { type: 'ready' }
+                content: { type: 'turn-end', status: 'completed' }
             });
         });
 
@@ -1990,7 +1990,7 @@ describe('Zod Transform - WOLOG Content Normalization', () => {
             }
         });
 
-        it('drops start/stop lifecycle markers', () => {
+        it('normalizes subagent start/stop into one replayable tool panel', () => {
             const subagent = createId();
             const start = normalizeRawMessage('db-start-1', null, 1, {
                 ...base,
@@ -2006,7 +2006,22 @@ describe('Zod Transform - WOLOG Content Normalization', () => {
                     }
                 }
             });
-            expect(start).toBeNull();
+            expect(start).toMatchObject({
+                id: 'env-start-1',
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-call',
+                    id: subagent,
+                    name: 'Subagent',
+                    description: 'Research agent',
+                    input: {
+                        sessionSubagent: subagent,
+                        title: 'Research agent',
+                    },
+                    parentUUID: null,
+                }],
+            });
 
             const stop = normalizeRawMessage('db-stop-1', null, 1, {
                 ...base,
@@ -2018,11 +2033,28 @@ describe('Zod Transform - WOLOG Content Normalization', () => {
                         role: 'agent',
                         turn: 'turn-1',
                         subagent,
-                        ev: { t: 'stop' }
+                        ev: {
+                            t: 'stop',
+                            status: 'failed',
+                            detail: 'Provider child failed',
+                        }
                     }
                 }
             });
-            expect(stop).toBeNull();
+            expect(stop).toMatchObject({
+                id: 'env-stop-1',
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-result',
+                    tool_use_id: subagent,
+                    is_error: true,
+                    content: {
+                        status: 'failed',
+                        detail: 'Provider child failed',
+                    },
+                }],
+            });
         });
 
         it('returns null for non-cuid subagent identifiers', () => {

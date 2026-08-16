@@ -9,6 +9,12 @@ import {
     getDefaultEffortKey,
     getDefaultModelKey,
     getDefaultPermissionModeKey,
+    getMachineAdvertisedEffortLevels,
+    getMachineAdvertisedModels,
+    getMachineAdvertisedPermissionModes,
+    getSessionAvailableModels,
+    getSessionAvailablePermissionModes,
+    getSessionEffortLevelsForModel,
     mapMetadataOptions,
     resolveCurrentOption,
 } from './modelModeOptions';
@@ -17,6 +23,168 @@ import { rigMetadataFixture } from '@/sync/__testdata__/rigMetadata';
 const translate = (key: string) => `tr:${key}`;
 
 describe('modelModeOptions', () => {
+    it('uses only the selected machine capability catalog', () => {
+        const machineMetadata = {
+            agentCapabilities: {
+                codex: {
+                    detectedAt: 1,
+                    sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'daemon' },
+                    models: [
+                        { code: 'default', value: 'default model' },
+                        {
+                            code: 'gpt-machine-only',
+                            value: 'GPT Machine Only',
+                            effortLevels: [{ code: 'ultra', value: 'ultra' }],
+                        },
+                    ],
+                    effortLevels: [{ code: 'medium', value: 'medium' }],
+                    permissionModes: [{ code: 'read-only', value: 'read only' }],
+                },
+            },
+        } as any;
+
+        expect(getMachineAdvertisedModels(machineMetadata, 'codex').map((model) => model.key)).toEqual([
+            'default',
+            'gpt-machine-only',
+        ]);
+        expect(getMachineAdvertisedPermissionModes(machineMetadata, 'codex').map((mode) => mode.key)).toEqual([
+            'read-only',
+        ]);
+        expect(getMachineAdvertisedEffortLevels(machineMetadata, 'codex', 'gpt-machine-only').map((mode) => mode.key)).toEqual([
+            'ultra',
+        ]);
+    });
+
+    it('resolves the default model effort from the provider-designated default model', () => {
+        const machineMetadata = {
+            agentCapabilities: {
+                codex: {
+                    detectedAt: 1,
+                    sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'daemon' },
+                    models: [
+                        { code: 'default', value: 'default model' },
+                        {
+                            code: 'gpt-default',
+                            value: 'GPT Default',
+                            isDefault: true,
+                            effortLevels: [
+                                { code: 'medium', value: 'medium' },
+                                { code: 'xhigh', value: 'xhigh' },
+                            ],
+                        },
+                        {
+                            code: 'gpt-other',
+                            value: 'GPT Other',
+                            effortLevels: [{ code: 'ultra', value: 'ultra' }],
+                        },
+                    ],
+                    effortLevels: [
+                        { code: 'medium', value: 'medium' },
+                        { code: 'xhigh', value: 'xhigh' },
+                        { code: 'ultra', value: 'ultra' },
+                    ],
+                    permissionModes: [{ code: 'yolo', value: 'full access' }],
+                },
+            },
+        } as any;
+
+        expect(getMachineAdvertisedEffortLevels(machineMetadata, 'codex', 'default').map((mode) => mode.key)).toEqual([
+            'medium',
+            'xhigh',
+        ]);
+    });
+
+    it('honors an explicit empty effort list instead of borrowing another model\'s efforts', () => {
+        const machineMetadata = {
+            agentCapabilities: {
+                codex: {
+                    detectedAt: 1,
+                    sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'provider' },
+                    models: [
+                        {
+                            code: 'no-reasoning',
+                            value: 'No reasoning',
+                            effortLevels: [],
+                            isDefault: true,
+                        },
+                        {
+                            code: 'reasoning',
+                            value: 'Reasoning',
+                            effortLevels: [{ code: 'xhigh', value: 'xhigh' }],
+                        },
+                    ],
+                    effortLevels: [{ code: 'xhigh', value: 'xhigh' }],
+                    permissionModes: [],
+                },
+            },
+        } as any;
+
+        expect(getMachineAdvertisedEffortLevels(
+            machineMetadata,
+            'codex',
+            'no-reasoning',
+        )).toEqual([]);
+        expect(getMachineAdvertisedEffortLevels(
+            machineMetadata,
+            'codex',
+            'stale-model',
+        )).toEqual([]);
+    });
+
+    it('uses the New Session machine catalog for active session controls', () => {
+        const machineMetadata = {
+            agentCapabilities: {
+                codex: {
+                    detectedAt: 1,
+                    sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'daemon' },
+                    models: [
+                        { code: 'default', value: 'default model' },
+                        {
+                            code: 'gpt-machine-only',
+                            value: 'GPT Machine Only',
+                            effortLevels: [{ code: 'ultra', value: 'ultra' }],
+                        },
+                    ],
+                    effortLevels: [{ code: 'medium', value: 'medium' }],
+                    permissionModes: [{ code: 'read-only', value: 'read only' }],
+                },
+            },
+        } as any;
+        const sessionMetadata = {
+            flavor: 'codex',
+            models: [{ code: 'stale-model', value: 'Stale model' }],
+            operatingModes: [{ code: 'stale-mode', value: 'Stale mode' }],
+        } as any;
+
+        expect(getSessionAvailableModels(
+            'codex',
+            sessionMetadata,
+            machineMetadata,
+            translate,
+            'gpt-machine-only',
+        )).toEqual(getMachineAdvertisedModels(machineMetadata, 'codex'));
+        expect(getSessionAvailablePermissionModes(
+            'codex',
+            sessionMetadata,
+            machineMetadata,
+            translate,
+            'read-only',
+        )).toEqual(getMachineAdvertisedPermissionModes(machineMetadata, 'codex'));
+
+        const effortLevels = getSessionEffortLevelsForModel(
+            'codex',
+            'gpt-machine-only',
+            sessionMetadata,
+            machineMetadata,
+        );
+        expect(effortLevels).toEqual(getMachineAdvertisedEffortLevels(
+            machineMetadata,
+            'codex',
+            'gpt-machine-only',
+        ));
+        expect(resolveCurrentOption(effortLevels, ['ultra', 'medium'])?.key).toBe('ultra');
+    });
+
     it('maps metadata option shape into mode options', () => {
         expect(mapMetadataOptions([
             { code: 'm1', value: 'Model One', description: 'Primary model' },
@@ -52,30 +220,31 @@ describe('modelModeOptions', () => {
         expect(models[1].name).toBe('gpt-5.6 sol');
     });
 
-    it('builds claude model fallbacks with fable 5', () => {
+    it('builds Claude fallbacks from exact model slugs', () => {
         const models = getClaudeModelModes();
         expect(models.map((model) => model.key)).toEqual([
             'default',
+            'claude-fable-5',
             'claude-opus-5',
-            'opus',
-            'fable',
-            'sonnet',
-            'haiku',
+            'claude-opus-4-8',
+            'claude-opus-4-6',
+            'claude-sonnet-5',
+            'claude-haiku-4-5',
         ]);
-        expect(models.find((model) => model.key === 'fable')).toEqual({
-            key: 'fable',
-            name: 'fable 5',
+        expect(models.find((model) => model.key === 'claude-opus-4-6')).toEqual({
+            key: 'claude-opus-4-6',
+            name: 'claude-opus-4-6',
             description: null,
         });
     });
 
     it('uses code defaults for agent defaults', () => {
         expect(getDefaultPermissionModeKey('claude')).toBe('bypassPermissions');
-        expect(getDefaultModelKey('claude')).toBe('opus');
+        expect(getDefaultModelKey('claude')).toBe('claude-opus-5');
         expect(getDefaultEffortKey('claude')).toBe('medium');
         expect(getDefaultPermissionModeKey('codex')).toBe('yolo');
         expect(getDefaultModelKey('codex')).toBe('gpt-5.5');
-        expect(getDefaultEffortKey('codex')).toBe('medium');
+        expect(getDefaultEffortKey('codex')).toBeNull();
     });
 
     it('prefers metadata models over hardcoded fallbacks', () => {

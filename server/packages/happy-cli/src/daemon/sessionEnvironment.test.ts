@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     buildSessionChildEnvironment,
+    happyHerdAgentSessionRuntimeEnvironment,
     sanitizeSessionEnvironment,
     SESSION_SCOPED_ENV_KEYS,
     sessionEnvironmentKeysToUnset,
@@ -66,6 +67,55 @@ describe('sessionEnvironment', () => {
         });
         expect(childEnv).not.toHaveProperty('HAPPY_FORK_CODEX_THREAD_ID');
         expect(childEnv).not.toHaveProperty('CODEX_THREAD_ID');
+    });
+
+    it('creates only the validated governed-agent session values', () => {
+        const tools = [{ name: 'guide', family: 'guide', description: 'Governed guidance' }];
+        expect(happyHerdAgentSessionRuntimeEnvironment({
+            surfaceId: 'thread:123:456',
+            capabilityId: 'A_32-character-capability-id-value-123',
+            brokerUrl: 'http://happyherd-agent-broker.localhost:3210/mcp',
+            tools,
+        })).toEqual({
+            HAPPYHERD_AGENT_SURFACE_ID: 'thread:123:456',
+            HAPPYHERD_AGENT_CAPABILITY_ID: 'A_32-character-capability-id-value-123',
+            HAPPYHERD_AGENT_BROKER_URL: 'http://happyherd-agent-broker.localhost:3210/mcp',
+            HAPPYHERD_AGENT_TOOL_MANIFEST_JSON: JSON.stringify({ schemaVersion: 1, tools }),
+        });
+    });
+
+    it('rejects arbitrary fields and non-loopback governed-agent brokers', () => {
+        const base = {
+            surfaceId: 'dm:123',
+            capabilityId: 'A_32-character-capability-id-value-123',
+            brokerUrl: 'http://127.0.0.1:3210/mcp',
+            tools: [{ name: 'guide', family: 'guide', description: 'Governed guidance' }],
+        };
+        expect(() => happyHerdAgentSessionRuntimeEnvironment({
+            ...base,
+            OPENAI_API_KEY: 'not-allowed',
+        })).toThrow('unsupported fields');
+        expect(() => happyHerdAgentSessionRuntimeEnvironment({
+            ...base,
+            brokerUrl: 'https://broker.example/mcp',
+        })).toThrow('loopback HTTP /mcp endpoint');
+    });
+
+    it('does not leak automation provenance into an unrelated child', () => {
+        const childEnv = buildSessionChildEnvironment(contaminatedEnvironment(), {
+            HAPPYHERD_AUTOMATION_ID: 'new-automation',
+            HAPPYHERD_AUTOMATION_KIND: 'heartbeat',
+            HAPPYHERD_AUTOMATION_BOOTSTRAP_PATH: '/tmp/bootstrap.json',
+            HAPPYHERD_AUTOMATION_BOOTSTRAP_HASH: 'abc123',
+        });
+
+        expect(childEnv).toMatchObject({
+            HAPPYHERD_AUTOMATION_ID: 'new-automation',
+            HAPPYHERD_AUTOMATION_KIND: 'heartbeat',
+        });
+        const unrelated = buildSessionChildEnvironment(childEnv);
+        expect(unrelated).not.toHaveProperty('HAPPYHERD_AUTOMATION_ID');
+        expect(unrelated).not.toHaveProperty('HAPPYHERD_AUTOMATION_BOOTSTRAP_PATH');
     });
 
     it('unsets inherited tmux values without removing an explicit fork value', () => {

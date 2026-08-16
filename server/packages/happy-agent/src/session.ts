@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events';
+import { randomUUID } from 'node:crypto';
 import { io, Socket } from 'socket.io-client';
 import { decodeBase64, encodeBase64, encrypt, decrypt } from './encryption';
 import type { EncryptionVariant } from './api';
@@ -12,6 +13,25 @@ export type SessionClientOptions = {
     token: string;
     serverUrl: string;
     initialAgentState?: unknown | null;
+    initialSequence?: number;
+};
+
+export type TurnResultStatus = 'completed' | 'failed' | 'cancelled';
+
+export type TurnResult = {
+    turnId: string;
+    status: TurnResultStatus;
+    text: string;
+    messageIds: string[];
+};
+
+type DecryptedSessionMessage = {
+    id: string;
+    seq: number;
+    content: unknown;
+    localId: string | null;
+    createdAt: number;
+    updatedAt: number;
 };
 
 type SessionContentEnvelope = {
@@ -41,7 +61,11 @@ function checkIdleState(
     return !controlledByUser && !hasRequests;
 }
 
-function getTurnEvent(content: unknown): { type: 'turn-start' | 'turn-end'; turnId: string | null } | null {
+function getTurnEvent(content: unknown): {
+    type: 'turn-start' | 'turn-end';
+    turnId: string | null;
+    status: TurnResultStatus | null;
+} | null {
     if (content == null || typeof content !== 'object' || Array.isArray(content)) {
         return null;
     }
@@ -51,8 +75,17 @@ function getTurnEvent(content: unknown): { type: 'turn-start' | 'turn-end'; turn
         return null;
     }
 
-    const body = envelope.content as { turn?: unknown; ev?: { t?: unknown } } | null;
+    const body = envelope.content as {
+        role?: unknown;
+        turn?: unknown;
+        subagent?: unknown;
+        ev?: { t?: unknown; status?: unknown };
+    } | null;
     if (body == null || typeof body !== 'object' || Array.isArray(body)) {
+        return null;
+    }
+
+    if ((body.role !== undefined && body.role !== 'agent') || body.subagent !== undefined) {
         return null;
     }
 
@@ -63,6 +96,44 @@ function getTurnEvent(content: unknown): { type: 'turn-start' | 'turn-end'; turn
     return {
         type: body.ev.t,
         turnId: typeof body.turn === 'string' ? body.turn : null,
+        status:
+            body.ev.status === 'completed'
+            || body.ev.status === 'failed'
+            || body.ev.status === 'cancelled'
+                ? body.ev.status
+                : null,
+    };
+}
+
+function getRootTextEvent(content: unknown): { turnId: string | null; text: string } | null {
+    if (content == null || typeof content !== 'object' || Array.isArray(content)) {
+        return null;
+    }
+
+    const envelope = content as SessionContentEnvelope;
+    if (envelope.role !== 'session') {
+        return null;
+    }
+
+    const body = envelope.content as {
+        role?: unknown;
+        turn?: unknown;
+        subagent?: unknown;
+        ev?: { t?: unknown; text?: unknown; thinking?: unknown };
+    } | null;
+    if (body == null || typeof body !== 'object' || Array.isArray(body)) {
+        return null;
+    }
+    if (body.role !== 'agent' || body.subagent !== undefined) {
+        return null;
+    }
+    if (body.ev?.t !== 'text' || body.ev.thinking === true || typeof body.ev.text !== 'string') {
+        return null;
+    }
+
+    return {
+        turnId: typeof body.turn === 'string' ? body.turn : null,
+        text: body.ev.text,
     };
 }
 
@@ -95,6 +166,7 @@ export class SessionClient extends EventEmitter {
     private metadataVersion = 0;
     private agentState: unknown | null = null;
     private agentStateVersion = 0;
+    private latestSequence = 0;
 
     constructor(opts: SessionClientOptions) {
         super();
@@ -104,6 +176,7 @@ export class SessionClient extends EventEmitter {
         if (opts.initialAgentState !== undefined) {
             this.agentState = opts.initialAgentState;
         }
+        this.latestSequence = opts.initialSequence ?? 0;
 
         // Prevent unhandled 'error' event from crashing the process
         this.on('error', () => {});
@@ -149,6 +222,7 @@ export class SessionClient extends EventEmitter {
                         decodeBase64(msg.content.c),
                     );
                     if (decrypted === null) return;
+                    this.latestSequence = Math.max(this.latestSequence, Number(msg.seq) || 0);
                     this.emit('message', {
                         id: msg.id,
                         seq: msg.seq,
@@ -189,7 +263,10 @@ export class SessionClient extends EventEmitter {
         this.socket.connect();
     }
 
-    sendMessage(text: string, meta?: Record<string, unknown>): void {
+    sendMessage(text: string, meta?: Record<string, unknown>, localId: string = randomUUID()): string {
+        if (localId.length === 0 || localId.length > 128 || localId.includes('\0')) {
+            throw new Error('localId must be a non-empty string no longer than 128 characters');
+        }
         const content = {
             role: 'user',
             content: {
@@ -205,7 +282,9 @@ export class SessionClient extends EventEmitter {
         this.socket.emit('message', {
             sid: this.sessionId,
             message: encrypted,
+            localId,
         });
+        return localId;
     }
 
     getMetadata(): unknown | null {
@@ -214,6 +293,10 @@ export class SessionClient extends EventEmitter {
 
     getAgentState(): unknown | null {
         return this.agentState;
+    }
+
+    getLatestSequence(): number {
+        return this.latestSequence;
     }
 
     waitForConnect(timeoutMs = 10_000): Promise<void> {
@@ -360,6 +443,84 @@ export class SessionClient extends EventEmitter {
 
             this.on('message', onMessage);
             this.on('state-change', onStateChange);
+            this.on('disconnected', onDisconnect);
+        });
+    }
+
+    waitForTurnResult(options: { timeoutMs?: number; afterSeq?: number } = {}): Promise<TurnResult> {
+        const timeoutMs = options.timeoutMs ?? 300_000;
+        const afterSeq = options.afterSeq ?? this.latestSequence;
+
+        return new Promise<TurnResult>((resolve, reject) => {
+            let activeTurnId: string | null = null;
+            const textParts: string[] = [];
+            const messageIds: string[] = [];
+
+            const cleanup = () => {
+                clearTimeout(timeout);
+                this.removeListener('message', onMessage);
+                this.removeListener('disconnected', onDisconnect);
+            };
+
+            const finish = (result?: TurnResult, error?: Error) => {
+                cleanup();
+                if (error) {
+                    reject(error);
+                } else if (result) {
+                    resolve(result);
+                }
+            };
+
+            const timeout = setTimeout(() => {
+                finish(undefined, new Error('Timeout waiting for correlated agent turn result'));
+            }, timeoutMs);
+
+            const onMessage = (message: DecryptedSessionMessage) => {
+                if (message.seq <= afterSeq) {
+                    return;
+                }
+
+                const turnEvent = getTurnEvent(message.content);
+                if (turnEvent?.type === 'turn-start') {
+                    if (activeTurnId === null && turnEvent.turnId) {
+                        activeTurnId = turnEvent.turnId;
+                    }
+                    return;
+                }
+
+                if (activeTurnId === null) {
+                    return;
+                }
+
+                const textEvent = getRootTextEvent(message.content);
+                if (textEvent && textEvent.turnId === activeTurnId) {
+                    const normalized = textEvent.text.trim();
+                    if (normalized && textParts.at(-1) !== normalized) {
+                        textParts.push(normalized);
+                        messageIds.push(message.id);
+                    }
+                    return;
+                }
+
+                if (
+                    turnEvent?.type === 'turn-end'
+                    && turnEvent.turnId === activeTurnId
+                    && turnEvent.status
+                ) {
+                    finish({
+                        turnId: activeTurnId,
+                        status: turnEvent.status,
+                        text: textParts.join('\n\n'),
+                        messageIds,
+                    });
+                }
+            };
+
+            const onDisconnect = () => {
+                finish(undefined, new Error('Socket disconnected while waiting for agent turn result'));
+            };
+
+            this.on('message', onMessage);
             this.on('disconnected', onDisconnect);
         });
     }

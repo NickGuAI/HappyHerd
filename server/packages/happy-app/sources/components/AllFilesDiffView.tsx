@@ -379,10 +379,10 @@ const FileDiffSection = React.memo(function FileDiffSection({
                     {file.fullPath}
                 </Text>
                 {file.status === 'deleted' && (
-                    <Text style={[styles.statusBadge, { color: '#FF3B30' }]}>deleted</Text>
+                    <Text style={[styles.statusBadge, { color: '#FF3B30' }]}>{t("uiCopy.deleted")}</Text>
                 )}
                 {file.status === 'untracked' && (
-                    <Text style={[styles.statusBadge, { color: '#34C759' }]}>new</Text>
+                    <Text style={[styles.statusBadge, { color: '#34C759' }]}>{t("uiCopy.new")}</Text>
                 )}
                 {stats && (stats.additions > 0 || stats.deletions > 0) && (
                     <View style={styles.stats}>
@@ -439,10 +439,10 @@ const DiffStyleToggle = React.memo<{ value: 'unified' | 'split'; onChange: (v: '
     return (
         <View style={[toggleStyles.container, { backgroundColor: theme.colors.groupped.background, borderColor: theme.colors.divider }]}>
             <Pressable onPress={() => onChange('unified')} style={buttonStyle(value === 'unified')}>
-                <Text style={textStyle(value === 'unified')}>Unified</Text>
+                <Text style={textStyle(value === 'unified')}>{t("settingsAppearance.diffStyleOptions.unified")}</Text>
             </Pressable>
             <Pressable onPress={() => onChange('split')} style={buttonStyle(value === 'split')}>
-                <Text style={textStyle(value === 'split')}>Split</Text>
+                <Text style={textStyle(value === 'split')}>{t("settingsAppearance.diffStyleOptions.split")}</Text>
             </Pressable>
         </View>
     );

@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
     mockResolveLocalReconnectableSession: vi.fn(),
     mockHasLocalHappyAgentAuth: vi.fn(),
     mockResolveHappySession: vi.fn(),
+    mockPrepareCommanderContext: vi.fn(),
 }));
 
 vi.mock('node:fs', async (importOriginal) => {
@@ -19,6 +20,14 @@ vi.mock('node:fs', async (importOriginal) => {
 
 vi.mock('@/utils/spawnHappyCLI', () => ({
     spawnHappyCLI: mocks.mockSpawnHappyCLI,
+}));
+
+vi.mock('@/agentContext/commanderContext', () => ({
+    prepareCommanderContext: mocks.mockPrepareCommanderContext,
+    contextEnvironment: () => ({
+        HAPPYHERD_CONTEXT_BUNDLE_PATH: '/tmp/current-agentcontext.md',
+        HAPPYHERD_CONTEXT_HASH: 'current-context-hash',
+    }),
 }));
 
 vi.mock('./localResumeStore', () => {
@@ -81,6 +90,7 @@ function createReconnectableSession() {
             happyHomeDir: '/tmp/.happy',
             happyLibDir: '/tmp/happy',
             happyToolsDir: '/tmp/happy/tools',
+            contextHash: 'historical-context-hash',
         },
         seq: 42,
         metadataVersion: 7,
@@ -94,6 +104,10 @@ beforeEach(() => {
     vi.clearAllMocks();
     mocks.mockExistsSync.mockReturnValue(true);
     mocks.mockSpawnHappyCLI.mockReturnValue(createChildProcess());
+    mocks.mockPrepareCommanderContext.mockResolvedValue({
+        bundlePath: '/tmp/current-agentcontext.md',
+        contextHash: 'current-context-hash',
+    });
     mocks.mockResolveLocalReconnectableSession.mockRejectedValue(
         new LocalResumeSessionError('no local session', 'not_found'),
     );
@@ -212,9 +226,12 @@ describe('handleResumeCommand', () => {
                 HAPPY_RECONNECT_SEQ: '42',
                 HAPPY_RECONNECT_METADATA_VERSION: '7',
                 HAPPY_RECONNECT_AGENT_STATE_VERSION: '9',
+                HAPPYHERD_CONTEXT_BUNDLE_PATH: '/tmp/current-agentcontext.md',
+                HAPPYHERD_CONTEXT_HASH: 'current-context-hash',
             }),
         });
         const spawnedEnv = mocks.mockSpawnHappyCLI.mock.calls[0][1].env;
+        expect(spawnedEnv).not.toHaveProperty('HAPPY_RECONNECT_CONTEXT_HASH');
         expect(spawnedEnv).not.toHaveProperty('HAPPY_FORK_CODEX_THREAD_ID');
         expect(spawnedEnv).not.toHaveProperty('CODEX_THREAD_ID');
     });

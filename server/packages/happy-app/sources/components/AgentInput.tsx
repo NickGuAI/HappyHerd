@@ -3,6 +3,7 @@ import * as React from 'react';
 import { Keyboard, View, Platform, useWindowDimensions, Text, ActivityIndicator, Pressable, TouchableWithoutFeedback } from 'react-native';
 import { Image } from 'expo-image';
 import { AgentInputAttachmentStrip } from './AgentInputAttachmentStrip';
+import { WorkspaceContextStrip } from './WorkspaceContextStrip';
 import type { AttachmentPreview } from '@/sync/attachmentTypes';
 import { generateThumbhash } from '@/utils/thumbhash';
 import { layout } from './layout';
@@ -35,6 +36,7 @@ import { resolveAgentInputPrimaryAction } from './agentInputPrimaryAction';
 import { NativeSettingsMenu, type NativeSettingsMenuGroup } from './NativeSettingsMenu';
 import { ProviderIcon } from './ProviderIcon';
 import { isRigMetadata } from '@/sync/rig';
+import type { VoiceDictationPhase } from '@/hooks/useVoiceDictation';
 import {
     MOBILE_COMPOSER_LAYOUT,
     MOBILE_COMPOSER_METRICS,
@@ -55,6 +57,7 @@ interface AgentInputProps {
     onChangeText?: (text: string) => void;
     sessionId?: string;
     onSend: () => void;
+    onQueueMessage?: () => void;
     sendIcon?: React.ReactNode;
     onMicPress?: () => void;
     isMicActive?: boolean;
@@ -115,6 +118,13 @@ interface AgentInputProps {
     onPickImages?: () => void;
     onRemoveImage?: (id: string) => void;
     onAddImages?: (images: AttachmentPreview[]) => void;
+    /** Explicit workspace files that will be embedded in the next user message. */
+    selectedContextFiles?: readonly string[];
+    onRemoveContextFile?: (filePath: string) => void;
+    dictationPhase?: VoiceDictationPhase;
+    dictationError?: string | null;
+    onDictationCancel?: () => void;
+    onDictationRetry?: () => void;
 }
 
 function permissionKindIcon(kind: string | null | undefined): React.ComponentProps<typeof Ionicons>['name'] {
@@ -333,6 +343,20 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
     mobileModelMenuContent: MOBILE_MODEL_MENU_GEOMETRY.content,
     mobileEffortMenuFrame: MOBILE_EFFORT_MENU_GEOMETRY.frame,
     mobileEffortMenuContent: MOBILE_EFFORT_MENU_GEOMETRY.content,
+    mobileQueueButton: {
+        minWidth: 68,
+        height: MOBILE_COMPOSER_METRICS.actionSize,
+        paddingHorizontal: 8,
+        borderRadius: MOBILE_COMPOSER_METRICS.actionSize / 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+    },
+    mobileQueueButtonText: {
+        color: theme.colors.textSecondary,
+        fontSize: 12,
+        ...Typography.default('semiBold'),
+    },
     mobileModeButton: {
         flex: 1,
         minWidth: 0,
@@ -523,7 +547,7 @@ const AgentInputStatusRow = React.memo(function AgentInputStatusRow(p: StatusRow
                                         color: p.connectionStatus.cliStatus.claude ? theme.colors.success : theme.colors.textDestructive,
                                         ...Typography.default()
                                     }}>
-                                        claude
+                                        {t("uiCopy.claude")}
                                     </Text>
                                 </View>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -539,7 +563,7 @@ const AgentInputStatusRow = React.memo(function AgentInputStatusRow(p: StatusRow
                                         color: p.connectionStatus.cliStatus.codex ? theme.colors.success : theme.colors.textDestructive,
                                         ...Typography.default()
                                     }}>
-                                        codex
+                                        {t("uiCopy.codex")}
                                     </Text>
                                 </View>
                                 {p.connectionStatus.cliStatus.gemini !== undefined && (
@@ -556,7 +580,7 @@ const AgentInputStatusRow = React.memo(function AgentInputStatusRow(p: StatusRow
                                             color: p.connectionStatus.cliStatus.gemini ? theme.colors.success : theme.colors.textDestructive,
                                             ...Typography.default()
                                         }}>
-                                            gemini
+                                            {t("uiCopy.gemini")}
                                         </Text>
                                     </View>
                                 )}
@@ -706,7 +730,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     // never blocks the next character from landing in the textarea.
     const [hasText, setHasText] = React.useState(() => props.initialValue.trim().length > 0);
     const hasImages = (props.selectedImages?.length ?? 0) > 0;
-    const hasComposerContent = hasText || hasImages;
+    const hasContextFiles = (props.selectedContextFiles?.length ?? 0) > 0;
+    const hasComposerContent = hasText || hasImages || hasContextFiles;
 
     // Check if this is a Codex, Gemini, or OpenClaw session
     // Use metadata.flavor for existing sessions, agentType prop for new sessions
@@ -771,17 +796,17 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         isSendDisabled: props.isSendDisabled ?? false,
         showAbortButton: props.showAbortButton ?? false,
         canAbort: !!props.onAbort && !stopRequested,
-        // Only the mobile composer folds the mic into the primary button; the
-        // desktop layout keeps its own send/mic resolution below. A live voice
-        // session stays in this state so the same button can end it.
-        canVoice: compactMobileComposer && !!props.onMicPress,
+        canVoice: !!props.onMicPress,
     });
     const shouldShowStopButton = primaryAction === 'stop';
     const shouldShowVoiceButton = primaryAction === 'voice';
     const canSendMessage = primaryAction === 'send';
-    const mobileCanPressSendButton = !isAborting && primaryAction !== 'idle';
+    const mobileCanPressSendButton = !isAborting
+        && props.dictationPhase !== 'transcribing'
+        && primaryAction !== 'idle';
     const desktopCanPressSendButton = !props.isSending
         && !props.isSendDisabled
+        && props.dictationPhase !== 'transcribing'
         && (isSendBlocked
             ? hasComposerContent
             : hasComposerContent || !!props.onMicPress);
@@ -1047,10 +1072,10 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     }, [props.onAbort]);
 
     const handleBlockedSendAttempt = React.useCallback(() => {
-        if (!isSendBlocked || !hasText || props.isSending) return;
+        if (!isSendBlocked || !hasComposerContent || props.isSending) return;
         hapticsError();
         sendBlockShakerRef.current?.shake();
-    }, [hasText, isSendBlocked, props.isSending]);
+    }, [hasComposerContent, isSendBlocked, props.isSending]);
 
     const handleSendPress = React.useCallback(() => {
         if (isSendBlocked) {
@@ -1062,13 +1087,13 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         hapticsLight();
         // Live read avoids stalling behind the transitioned `hasText`.
         const liveHasText = (inputRef.current?.getText() ?? '').trim().length > 0;
-        if (liveHasText || hasImages) {
+        if (liveHasText || hasImages || hasContextFiles) {
             setStopRequested(false);
             props.onSend();
         } else if (!compactMobileComposer) {
             props.onMicPress?.();
         }
-    }, [compactMobileComposer, handleBlockedSendAttempt, hasImages, isSendBlocked, props.isSendDisabled, props.isSending, props.onMicPress, props.onSend]);
+    }, [compactMobileComposer, handleBlockedSendAttempt, hasContextFiles, hasImages, isSendBlocked, props.isSendDisabled, props.isSending, props.onMicPress, props.onSend]);
 
     const handleMicrophonePress = React.useCallback(() => {
         if (!props.onMicPress || props.isSendDisabled) return;
@@ -1078,12 +1103,13 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
 
     // Stop, voice and send share one button, so which one fires is resolved from
     // the live text rather than from `hasText`, which is set in a transition and
-    // lags a fast type-then-tap. Without the live read that tap would abort the
-    // agent or open dictation instead of sending what was just typed.
+    // lags a fast type-then-tap.
     const handleMobilePrimaryPress = React.useCallback(() => {
-        const liveHasContent = (inputRef.current?.getText() ?? '').trim().length > 0 || hasImages;
+        const liveHasContent = (inputRef.current?.getText() ?? '').trim().length > 0
+            || hasImages
+            || hasContextFiles;
         if (!liveHasContent && shouldShowStopButton) {
-            handleAbortPress();
+            void handleAbortPress();
             return;
         }
         if (!liveHasContent && shouldShowVoiceButton) {
@@ -1095,6 +1121,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         handleAbortPress,
         handleMicrophonePress,
         handleSendPress,
+        hasContextFiles,
         hasImages,
         shouldShowStopButton,
         shouldShowVoiceButton,
@@ -1347,6 +1374,38 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
 
                         <GitStatusButton sessionId={props.sessionId} onPress={props.onFileViewerPress} />
 
+                        <VoiceDictationAuxiliaryControls
+                            phase={props.dictationPhase ?? 'idle'}
+                            onCancel={props.onDictationCancel}
+                            onRetry={props.onDictationRetry}
+                        />
+
+                        {props.onQueueMessage && (
+                            <Pressable
+                                onPress={props.onQueueMessage}
+                                disabled={!hasComposerContent || props.isSendDisabled}
+                                hitSlop={{ top: 5, bottom: 10, left: 0, right: 0 }}
+                                style={(pressedState) => ({
+                                    minHeight: 32,
+                                    justifyContent: 'center',
+                                    paddingHorizontal: 8,
+                                    opacity: !hasComposerContent || props.isSendDisabled
+                                        ? 0.42
+                                        : pressedState.pressed ? 0.7 : 1,
+                                })}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('happyHerd.composer.queueMessage')}
+                            >
+                                <Text style={{
+                                    color: theme.colors.button.secondary.tint,
+                                    fontSize: 13,
+                                    ...Typography.default('semiBold'),
+                                }}>
+                                    {t('happyHerd.composer.queueMessage')}
+                                </Text>
+                            </Pressable>
+                        )}
+
                         {props.onPickImages && (
                             <Pressable
                                 onPress={props.onPickImages}
@@ -1378,7 +1437,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             styles.sendButton,
                             isSendBlocked
                                 ? styles.sendButtonLocked
-                                : (hasText || props.isSending || (props.onMicPress && !props.isMicActive))
+                                : (hasComposerContent || props.isSending || props.onMicPress)
                                     ? styles.sendButtonActive
                                     : styles.sendButtonInactive,
                         ]}
@@ -1399,19 +1458,25 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 <ActivityIndicator size="small" color={theme.colors.button.primary.tint} />
                             ) : isSendBlocked ? (
                                 <Ionicons name="lock-closed" size={15} color={theme.colors.textSecondary} />
-                            ) : hasText ? (
+                            ) : hasComposerContent ? (
                                 <Octicons
                                     name="arrow-up"
                                     size={16}
                                     color={theme.colors.button.primary.tint}
                                     style={[styles.sendButtonIcon, { marginTop: Platform.OS === 'web' ? 2 : 0 }]}
                                 />
-                            ) : props.onMicPress && !props.isMicActive ? (
-                                <Image
-                                    source={require('@/assets/images/icon-voice-white.png')}
-                                    style={{ width: 24, height: 24 }}
-                                    tintColor={theme.colors.button.primary.tint}
-                                />
+                            ) : props.onMicPress ? (
+                                props.dictationPhase === 'transcribing' ? (
+                                    <ActivityIndicator size="small" color={theme.colors.button.primary.tint} />
+                                ) : props.isMicActive ? (
+                                    <Ionicons name="stop" size={18} color={theme.colors.button.primary.tint} />
+                                ) : (
+                                    <Image
+                                        source={require('@/assets/images/icon-voice-white.png')}
+                                        style={{ width: 24, height: 24 }}
+                                        tintColor={theme.colors.button.primary.tint}
+                                    />
+                                )
                             ) : (
                                 <Octicons
                                     name="arrow-up"
@@ -1952,6 +2017,20 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             onRemove={props.onRemoveImage ?? (() => {})}
                         />
                     )}
+                    {props.selectedContextFiles && props.selectedContextFiles.length > 0 && (
+                        <WorkspaceContextStrip
+                            files={props.selectedContextFiles}
+                            onRemove={props.onRemoveContextFile ?? (() => {})}
+                        />
+                    )}
+                    {props.dictationPhase === 'error' && props.dictationError && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingTop: 8 }}>
+                            <Ionicons name="alert-circle-outline" size={14} color={theme.colors.textDestructive} />
+                            <Text style={{ flex: 1, fontSize: 12, color: theme.colors.textDestructive, ...Typography.default() }}>
+                                {props.dictationError}
+                            </Text>
+                        </View>
+                    )}
                     {/* Input field */}
                     <View style={[
                         styles.inputContainer,
@@ -1977,19 +2056,39 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                     </View>
 
                     {compactMobileComposer ? (
-                    /* The action order mirrors the expanded Home composer:
-                        photo, permissions, model/effort, voice, then send/stop. */
+                    /* Explicit queued follow-up precedes attachments; provider
+                        settings and the unified voice/send/stop action follow. */
                     <View style={[
                         styles.actionButtonsContainer,
                         styles.mobileActionButtonsContainer,
                     ]}>
+                        {!props.zenMode && props.onQueueMessage && (
+                            <BubblePressable
+                                onPress={props.onQueueMessage}
+                                disabled={!hasComposerContent || props.isSendDisabled}
+                                hitSlop={6}
+                                style={(pressedState) => [
+                                    styles.mobileQueueButton,
+                                    {
+                                        opacity: !hasComposerContent || props.isSendDisabled
+                                            ? 0.42
+                                            : pressedState.pressed ? 0.7 : 1,
+                                    },
+                                ]}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('happyHerd.composer.queueMessage')}
+                            >
+                                <Text style={styles.mobileQueueButtonText}>{t('happyHerd.composer.queueMessage')}</Text>
+                            </BubblePressable>
+                        )}
+
                         {!props.zenMode && props.onPickImages && (
                             <BubblePressable
                                 onPress={props.onPickImages}
                                 hitSlop={6}
                                 style={styles.mobileIconButton}
                                 accessibilityRole="button"
-                                accessibilityLabel="Add photo"
+                                accessibilityLabel={t('happyHerd.composer.addPhoto')}
                             >
                                 <Ionicons
                                     name="add"
@@ -2123,6 +2222,12 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             <GitStatusButton sessionId={props.sessionId} onPress={props.onFileViewerPress} />
                         )}
 
+                        <VoiceDictationAuxiliaryControls
+                            compact
+                            phase={props.dictationPhase ?? 'idle'}
+                            onCancel={props.onDictationCancel}
+                            onRetry={props.onDictationRetry}
+                        />
                         <Shaker ref={shakerRef}>
                             <View
                                 style={[
@@ -2149,9 +2254,11 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     onPress={handleMobilePrimaryPress}
                                     disabled={!canPressSendButton}
                                     accessibilityRole="button"
-                                    accessibilityLabel={shouldShowStopButton ? 'Stop'
-                                        : shouldShowVoiceButton ? 'Voice'
-                                            : 'Send'}
+                                    accessibilityLabel={shouldShowStopButton
+                                        ? t('happyHerd.composer.stop')
+                                        : shouldShowVoiceButton
+                                            ? (props.isMicActive ? t('happyHerd.composer.finishVoice') : t('happyHerd.composer.startVoice'))
+                                            : t('happyHerd.composer.send')}
                                 >
                                     {isAborting ? (
                                         <ActivityIndicator
@@ -2171,8 +2278,10 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                             color={theme.colors.textSecondary}
                                         />
                                     ) : shouldShowVoiceButton ? (
-                                        props.isMicActive ? (
-                                            <Ionicons name="mic" size={20} color={activeSendIconColor} />
+                                        props.dictationPhase === 'transcribing' ? (
+                                            <ActivityIndicator size="small" color={activeSendIconColor} />
+                                        ) : props.isMicActive ? (
+                                            <Ionicons name="stop" size={20} color={activeSendIconColor} />
                                         ) : (
                                             <Image
                                                 source={require('@/assets/images/icon-voice-white.png')}
@@ -2211,6 +2320,50 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         </View>
     );
 }));
+
+function VoiceDictationAuxiliaryControls({
+    phase,
+    onCancel,
+    onRetry,
+    compact = false,
+}: {
+    phase: VoiceDictationPhase;
+    onCancel?: () => void;
+    onRetry?: () => void;
+    compact?: boolean;
+}) {
+    const { theme } = useUnistyles();
+    if (phase !== 'recording' && phase !== 'error') return null;
+    const buttonStyle = compact
+        ? stylesheet.mobileIconButton
+        : { height: 32, paddingHorizontal: 8, alignItems: 'center' as const, justifyContent: 'center' as const, borderRadius: 16 };
+    return (
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {phase === 'recording' && onCancel && (
+                <BubblePressable
+                    onPress={onCancel}
+                    hitSlop={6}
+                    style={buttonStyle}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('happyHerd.composer.cancelVoice')}
+                >
+                    <Ionicons name="close" size={compact ? 20 : 16} color={theme.colors.textSecondary} />
+                </BubblePressable>
+            )}
+            {phase === 'error' && onRetry && (
+                <BubblePressable
+                    onPress={onRetry}
+                    hitSlop={6}
+                    style={buttonStyle}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('happyHerd.composer.retryVoice')}
+                >
+                    <Ionicons name="refresh" size={compact ? 20 : 16} color={theme.colors.textLink} />
+                </BubblePressable>
+            )}
+        </View>
+    );
+}
 
 // Git Status Button Component
 function GitStatusButton({ sessionId, onPress }: { sessionId?: string, onPress?: () => void }) {

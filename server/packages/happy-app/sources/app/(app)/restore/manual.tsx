@@ -104,7 +104,7 @@ export default function Restore() {
             }
 
             // Login with new credentials
-            await auth.login(token, normalizedKey);
+            await auth.login(token, normalizedKey, 'account-key');
 
             // Dismiss
             router.back();
@@ -120,13 +120,13 @@ export default function Restore() {
             <View style={styles.container}>
                 <View style={styles.contentWrapper}>
                     <Text style={styles.instructionText}>
-                        Enter your secret key to restore access to your account.
+                        {t("uiCopy.enterYourSecretKeyToRestoreAccessToYourAccount")}
                     </Text>
 
                     <MobileGlassSurface enabled={Platform.OS !== 'web'} intensity={68} style={styles.inputGlass}>
                     <TextInput
                         style={styles.textInput}
-                        placeholder="XXXXX-XXXXX-XXXXX..."
+                        placeholder={t("uiCopy.xxxxxXxxxxXxxxx")}
                         placeholderTextColor={theme.colors.input.placeholder}
                         value={restoreKey}
                         onChangeText={setRestoreKey}

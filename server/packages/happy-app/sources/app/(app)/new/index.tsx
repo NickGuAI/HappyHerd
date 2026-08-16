@@ -33,24 +33,31 @@ import { KeyboardAvoidingView, KeyboardStickyView } from 'react-native-keyboard-
 import Constants from 'expo-constants';
 import { useHeaderHeight } from '@/utils/responsive';
 import { t } from '@/text';
-import { useAllMachines, useLocalSetting, useSessions, useSetting, storage } from '@/sync/storage';
+import { useAllMachines, useLocalSetting, useSessions, useSetting, useSettingMutable, storage } from '@/sync/storage';
 import type { NewSessionAgentType } from '@/sync/persistence';
 import { sync } from '@/sync/sync';
 import { isMachineOnline } from '@/utils/machineUtils';
-import { machineSpawnNewSession, sessionSetAgentModes, type SessionAgentModesPatch } from '@/sync/ops';
+import { machineListCommanders, machineSpawnNewSession, sessionSetAgentModes, type SessionAgentModesPatch } from '@/sync/ops';
 import { createWorktree, listWorktrees } from '@/utils/worktree';
 import { resolveAbsolutePath } from '@/utils/pathUtils';
 import { formatPathRelativeToHome, formatLastSeen } from '@/utils/sessionUtils';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
+import { useImagePicker } from '@/hooks/useImagePicker';
+import { useMachineFileUpload } from '@/hooks/useMachineFileUpload';
+import { useVoiceDictation, type VoiceDictationPhase } from '@/hooks/useVoiceDictation';
+import { useVoiceInputAvailability } from '@/hooks/useVoiceInputAvailability';
+import { AgentInputAttachmentStrip } from '@/components/AgentInputAttachmentStrip';
+import { WorkspaceContextStrip } from '@/components/WorkspaceContextStrip';
+import { resolveAgentInputPrimaryAction } from '@/components/agentInputPrimaryAction';
 import { useShallow } from 'zustand/react/shallow';
 import type { MultiTextInputHandle } from '@/components/MultiTextInput';
 import { Modal } from '@/modal';
 import type { Machine, Session } from '@/sync/storageTypes';
 import {
-    getHardcodedPermissionModes,
-    getHardcodedModelModes,
-    getEffortLevelsForModel,
+    getMachineAdvertisedPermissionModes,
+    getMachineAdvertisedModels,
+    getMachineAdvertisedEffortLevels,
     getSupportsWorktree,
     type PermissionMode,
     type ModelMode,
@@ -58,13 +65,21 @@ import {
 } from '@/components/modelModeOptions';
 import { isRunningOnMac } from '@/utils/platform';
 import { getNewSessionSidebarLayout } from '@/utils/newSessionSidebarLayout';
-import { getAgentPickerItems, getModePickerItems } from '@/utils/newSessionPickerItems';
+import { getAgentPickerItems, getModePickerItems, type NewSessionPickerItem } from '@/utils/newSessionPickerItems';
+import {
+    getCommanderPickerFixedItems,
+    resolveCommanderPickerSelection,
+} from '@/utils/newSessionCommanderCreation';
+import {
+    resolveAgentDefaultConfig,
+    resolveAgentDefaultEffortLevel,
+    setAgentDefaultOverride,
+} from '@/sync/agentDefaults';
 import {
     NEW_SESSION_PICKER_LAYERS,
     cancelPendingPickerOpenState,
     resolvePickerToggleAction,
 } from '@/utils/newSessionPickerInteraction';
-import { resolveAgentDefaultConfig } from '@/sync/agentDefaults';
 import { delay } from '@/utils/time';
 import {
     buildRigSpawnConfiguration,
@@ -81,12 +96,21 @@ import { MobileGlassSurface } from '@/components/MobileGlass';
 import { getNativeGlassInteractivity } from '@/components/glassInteractionPolicy';
 import { BubblePressable } from '@/components/BubblePressable';
 import { Header } from '@/components/navigation/Header';
+import { MachinePathBrowser, type FavoriteMachinePath } from '@/components/MachinePathBrowser';
+import { MachineFileUploadStatus } from '@/components/MachineFileUploadStatus';
 import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
 import {
     AnimatedClickAwayBackdrop,
     AnimatedPopup,
     LocalBlurHalo,
 } from '@/components/AnimatedOverlay';
+import type { HappyHerdCommanderSummary } from '@slopus/happy-wire';
+import {
+    addWorkspaceContextFile,
+    buildWorkspaceContextMessage,
+    clearWorkspaceContextFiles,
+    MAX_WORKSPACE_CONTEXT_FILES,
+} from '@/sync/workspaceContext';
 
 // Agent icon assets
 const agentIcons = {
@@ -99,27 +123,28 @@ const agentIcons = {
 };
 
 type AgentKey = NewSessionAgentType;
-const ALL_AGENTS: { key: AgentKey; label: string }[] = [
-    { key: 'rig', label: 'rig' },
-    { key: 'claude', label: 'claude code' },
-    { key: 'codex', label: 'codex' },
-    { key: 'openclaw', label: 'openclaw' },
-    { key: 'agy', label: 'agy' },
+const getAllAgents = (): { key: AgentKey; label: string }[] => [
+    { key: 'rig', label: t('uiCopy.rig') },
+    { key: 'claude', label: t('uiCopy.claudeCode') },
+    { key: 'codex', label: t('uiCopy.codex') },
+    { key: 'openclaw', label: t('uiCopy.openclaw') },
+    { key: 'agy', label: t('uiCopy.agy') },
 ];
 
-type PickerItem = { key: string; label: string; subtitle?: string; dimmed?: boolean };
+type PickerItem = NewSessionPickerItem & { dimmed?: boolean };
 
-type PickerType = 'machine' | 'path' | 'worktree' | 'agent' | 'model' | 'effort' | 'permission' | 'settings';
+type PickerType = 'machine' | 'path' | 'commander' | 'worktree' | 'agent' | 'model' | 'effort' | 'permission' | 'settings';
 
 const NATIVE_PICKER_TOP: Record<PickerType, number> = {
     machine: 48,
     path: 96,
-    agent: 144,
-    model: 144,
-    effort: 144,
-    permission: 192,
-    settings: 144,
-    worktree: 144,
+    commander: 144,
+    agent: 192,
+    model: 192,
+    effort: 192,
+    permission: 240,
+    settings: 192,
+    worktree: 192,
 };
 const NATIVE_PICKER_ESTIMATED_HEIGHT = 264;
 const MAX_RIG_PENDING_RESULTS = 3;
@@ -300,10 +325,13 @@ function PickerContent({
 
     const renderOption = (item: PickerItem) => {
         const isSelected = item.key === selectedKey;
+        const isAction = item.kind === 'action';
         return (
             <BubblePressable
                 key={item.key}
                 scaleFeedback={false}
+                accessibilityRole={isAction ? 'button' : 'radio'}
+                accessibilityState={isAction ? undefined : { selected: isSelected }}
                 style={(p) => [
                     pickerStyles.option,
                     embedded && pickerStyles.embeddedOption,
@@ -313,9 +341,9 @@ function PickerContent({
                 onPress={() => onSelect(item.key)}
             >
                 <Octicons
-                    name={isSelected ? 'check-circle-fill' : 'circle'}
+                    name={isAction ? 'plus-circle' : isSelected ? 'check-circle-fill' : 'circle'}
                     size={16}
-                    color={isSelected ? theme.colors.text : theme.colors.textSecondary}
+                    color={isAction || isSelected ? theme.colors.text : theme.colors.textSecondary}
                 />
                 <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={[pickerStyles.optionText, { color: theme.colors.text }]} numberOfLines={1}>
@@ -347,7 +375,7 @@ function PickerContent({
                     <TextInput
                         value={search}
                         onChangeText={setSearch}
-                        placeholder={searchPlaceholder ?? 'search...'}
+                        placeholder={searchPlaceholder ?? t('uiCopy.search')}
                         placeholderTextColor={theme.colors.textSecondary}
                         style={[pickerStyles.searchInput, { color: theme.colors.text }]}
                         autoCapitalize="none"
@@ -368,7 +396,7 @@ function PickerContent({
                 {filtered.map(renderOption)}
                 {filtered.length === 0 && search.length > 0 && (
                     <Text style={[pickerStyles.emptyText, { color: theme.colors.textSecondary }]}>
-                        no results
+                        {t("uiCopy.noResults")}
                     </Text>
                 )}
             </ScrollView>
@@ -479,6 +507,11 @@ function PathPickerContent({
     items,
     value,
     homeDir,
+    machineId,
+    platform,
+    machineOnline,
+    favorites,
+    onToggleFavorite,
     onChangeValue,
     onDone,
     embedded = false,
@@ -487,6 +520,11 @@ function PathPickerContent({
     items: PickerItem[];
     value: string | null;
     homeDir?: string;
+    machineId: string | null;
+    platform?: string;
+    machineOnline: boolean;
+    favorites: FavoriteMachinePath[];
+    onToggleFavorite: (path: string) => void;
     onChangeValue: (value: string) => void;
     onDone?: () => void;
     embedded?: boolean;
@@ -556,7 +594,7 @@ function PathPickerContent({
                                 { opacity: pressed ? 0.82 : 1 },
                             ]}
                             accessibilityRole="button"
-                            accessibilityLabel="Done"
+                            accessibilityLabel={t("uiCopy.done")}
                         >
                             <GlassView
                                 glassEffectStyle="regular"
@@ -578,6 +616,18 @@ function PathPickerContent({
                 </View>
             )}
 
+            <MachinePathBrowser
+                machineId={machineId}
+                homeDir={homeDir}
+                platform={platform}
+                online={machineOnline}
+                selectedPath={currentValue || null}
+                favorites={favorites}
+                onSelectPath={onChangeValue}
+                onToggleFavorite={onToggleFavorite}
+                onDone={onDone}
+            />
+
             <View
                 style={[
                     pickerStyles.pathInputRow,
@@ -596,7 +646,7 @@ function PathPickerContent({
                         onChangeText={onChangeValue}
                         onSelectionChange={handleSelectionChange}
                         selection={selection}
-                        placeholder="Enter project path"
+                        placeholder={t("uiCopy.enterProjectPath")}
                         placeholderTextColor={theme.colors.textSecondary}
                         style={[
                             pickerStyles.pathTextInput,
@@ -615,12 +665,12 @@ function PathPickerContent({
 
             {isCustomPath && (
                 <Text style={[pickerStyles.pathMetaText, { color: theme.colors.textSecondary }]}>
-                    using custom path above
+                    {t("uiCopy.usingCustomPathAbove")}
                 </Text>
             )}
 
             <Text style={[pickerStyles.sectionLabel, { color: theme.colors.textSecondary }]}>
-                Recent
+                {t("workspace.recent")}
             </Text>
 
             <ScrollView
@@ -665,7 +715,7 @@ function PathPickerContent({
 
                 {items.length === 0 && (
                     <Text style={[pickerStyles.emptyText, { color: theme.colors.textSecondary }]}>
-                        no recent projects yet
+                        {t("uiCopy.noRecentProjectsYet")}
                     </Text>
                 )}
             </ScrollView>
@@ -712,12 +762,98 @@ const PromptInput = React.memo(React.forwardRef<MultiTextInputHandle, PromptInpu
     },
 ));
 
+const NewSessionPrimaryButton = React.memo(function NewSessionPrimaryButton({
+    canSend,
+    isSpawning,
+    isNativeMobile,
+    voiceAvailable,
+    dictationPhase,
+    onSend,
+    onVoice,
+    hasWorkspaceFiles,
+}: {
+    canSend: boolean;
+    isSpawning: boolean;
+    isNativeMobile: boolean;
+    voiceAvailable: boolean;
+    dictationPhase: VoiceDictationPhase;
+    onSend: () => void;
+    onVoice: () => void;
+    hasWorkspaceFiles: boolean;
+}) {
+    const { theme } = useUnistyles();
+    const hasContent = useNewSessionDraft((state) => (
+        state.input.trim().length > 0 || state.attachments.length > 0 || hasWorkspaceFiles
+    ));
+    const primaryAction = resolveAgentInputPrimaryAction({
+        hasComposerContent: hasContent,
+        isSendBlocked: false,
+        isSendDisabled: !canSend,
+        showAbortButton: false,
+        canAbort: false,
+        canVoice: voiceAvailable,
+    });
+    const voiceAction = primaryAction === 'voice';
+    const busy = isSpawning || (voiceAction && dictationPhase === 'transcribing');
+    const enabled = primaryAction !== 'idle' && !busy;
+    const iconColor = isNativeMobile ? theme.colors.text : theme.colors.button.primary.tint;
+
+    return (
+        <MobileGlassSurface
+            enabled={isNativeMobile}
+            interactive={enabled}
+            style={[
+                styles.sendButton,
+                enabled ? styles.sendButtonActive : styles.sendButtonInactive,
+                isNativeMobile && styles.mobileSendButton,
+                isNativeMobile && enabled && styles.mobileSendButtonActive,
+                isNativeMobile && !enabled && styles.mobileSendButtonInactive,
+            ]}
+        >
+            <Pressable
+                style={(pressedState) => [
+                    styles.sendButtonInner,
+                    pressedState.pressed && styles.sendButtonInnerPressed,
+                ]}
+                hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+                disabled={!enabled}
+                onPress={voiceAction ? onVoice : onSend}
+                accessibilityRole="button"
+                accessibilityLabel={voiceAction
+                    ? (dictationPhase === 'recording' ? t('happyHerd.composer.finishVoice') : t('happyHerd.composer.startVoice'))
+                    : t('happyHerd.composer.send')}
+            >
+                {busy ? (
+                    <ActivityIndicator size="small" color={iconColor} />
+                ) : voiceAction ? (
+                    dictationPhase === 'recording' ? (
+                        <Ionicons name="stop" size={18} color={iconColor} />
+                    ) : (
+                        <RNImage
+                            source={require('@/assets/images/icon-voice-white.png')}
+                            style={{ width: 22, height: 22, tintColor: iconColor }}
+                            resizeMode="contain"
+                        />
+                    )
+                ) : (
+                    <Octicons
+                        name="arrow-up"
+                        size={isNativeMobile ? 18 : 16}
+                        color={iconColor}
+                        style={{ color: iconColor, marginTop: Platform.OS === 'web' ? 2 : 0 }}
+                    />
+                )}
+            </Pressable>
+        </MobileGlassSurface>
+    );
+});
+
 function NewSessionScreen() {
     const { theme } = useUnistyles();
     const safeArea = useSafeAreaInsets();
     const headerHeight = useHeaderHeight();
     const router = useRouter();
-    const { autoSubmit } = useLocalSearchParams<{ autoSubmit?: string }>();
+    const { autoSubmit, intent } = useLocalSearchParams<{ autoSubmit?: string; intent?: string }>();
     const navigation = useNavigation();
     const navigateToSession = useNavigateToSession();
 
@@ -725,8 +861,10 @@ function NewSessionScreen() {
     const allMachines = useAllMachines({ includeOffline: true });
     const sessions = useSessions();
     const agentInputEnterToSend = useSetting('agentInputEnterToSend');
-    const agentDefaultOverrides = useSetting('agentDefaultOverrides');
+    const [agentDefaultOverrides, setAgentDefaultOverrides] = useSettingMutable('agentDefaultOverrides');
     const fileDiffsSidebarEnabled = useSetting('fileDiffsSidebar');
+    const expImageUpload = useSetting('expImageUpload');
+    const [favoriteMachinePaths, setFavoriteMachinePaths] = useSettingMutable('favoriteMachinePaths');
     const zenMode = useLocalSetting('zenMode');
     const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
@@ -743,6 +881,8 @@ function NewSessionScreen() {
         setMachineId: s.setMachineId,
         selectedPath: s.selectedPath,
         setPath: s.setPath,
+        selectedCommanderId: s.selectedCommanderId,
+        setCommanderId: s.setCommanderId,
         agentType: s.agentType,
         setAgentType: s.setAgentType,
         permissionMode: s.permissionMode,
@@ -755,13 +895,18 @@ function NewSessionScreen() {
         setSessionType: s.setSessionType,
         worktreeKey: s.worktreeKey,
         setWorktreeKey: s.setWorktreeKey,
+        attachments: s.attachments,
+        setAttachments: s.setAttachments,
     })));
+    const [workspaceFiles, setWorkspaceFiles] = React.useState<string[]>([]);
     const selectedAgent = draft.agentType;
     const setSelectedAgent = draft.setAgentType;
     const selectedMachineId = draft.selectedMachineId;
     const setSelectedMachineId = draft.setMachineId;
     const selectedPath = draft.selectedPath;
     const setSelectedPath = draft.setPath;
+    const selectedCommanderId = draft.selectedCommanderId;
+    const setSelectedCommanderId = draft.setCommanderId;
     const [worktreeKey, setWorktreeKey] = React.useState<string>(
         draft.worktreeKey ?? (draft.sessionType === 'worktree' ? '__new__' : '__none__')
     );
@@ -781,6 +926,15 @@ function NewSessionScreen() {
     const [mobileConfigHeight, setMobileConfigHeight] = React.useState(0);
     const [nativePickerMeasuredHeight, setNativePickerMeasuredHeight] = React.useState<number | null>(null);
     const autoSubmitStartedRef = React.useRef(false);
+    const commanderIntentAppliedRef = React.useRef(false);
+    const applyCommanderOnboardingIntent = React.useCallback(() => {
+        useNewSessionDraft.getState().setInput(t('happyHerd.commander.onboardingPrompt'));
+    }, []);
+    React.useEffect(() => {
+        if (intent !== 'create-commander' || commanderIntentAppliedRef.current) return;
+        commanderIntentAppliedRef.current = true;
+        applyCommanderOnboardingIntent();
+    }, [applyCommanderOnboardingIntent, intent]);
     const isMountedRef = React.useRef(true);
     const composerInputRef = React.useRef<import('@/components/MultiTextInput').MultiTextInputHandle>(null);
     const pendingPickerRef = React.useRef<PickerType | null>(null);
@@ -789,6 +943,19 @@ function NewSessionScreen() {
     React.useEffect(() => () => {
         isMountedRef.current = false;
     }, []);
+
+    const imagePicker = useImagePicker({
+        images: draft.attachments,
+        onChange: draft.setAttachments,
+    });
+    const handleDictationTranscript = React.useCallback((transcript: string) => {
+        const current = useNewSessionDraft.getState().input;
+        const separator = current.length > 0 && !/\s$/.test(current) ? ' ' : '';
+        useNewSessionDraft.getState().setInput(`${current}${separator}${transcript}`);
+        requestAnimationFrame(() => composerInputRef.current?.focus());
+    }, []);
+    const voiceDictation = useVoiceDictation(handleDictationTranscript);
+    const voiceInputAvailability = useVoiceInputAvailability();
 
     // Config collapse — auto-collapses when typing, expands when empty
     const [isConfigExpanded, setIsConfigExpanded] = React.useState(true);
@@ -814,6 +981,82 @@ function NewSessionScreen() {
         ? selectedRigCreation?.supportsWorktrees ?? false
         : rigCreation?.supportsWorktrees ?? getSupportsWorktree(selectedAgent);
     const selectedHomeDir = selectedMachine?.metadata?.homeDir;
+    const uploadDirectory = selectedMachine
+        ? resolveAbsolutePath(trimPathInput(selectedPath) || '~', selectedHomeDir)
+        : null;
+    const handleWorkspaceUploaded = React.useCallback((filePath: string) => {
+        setWorkspaceFiles((current) => (
+            current.includes(filePath) || current.length >= MAX_WORKSPACE_CONTEXT_FILES
+                ? current
+                : [...current, filePath]
+        ));
+    }, []);
+    const workspaceUploader = useMachineFileUpload({
+        machineId: selectedMachineId,
+        directory: uploadDirectory,
+        onUploaded: handleWorkspaceUploaded,
+    });
+    React.useEffect(() => {
+        setWorkspaceFiles([]);
+        workspaceUploader.reset();
+    }, [selectedMachineId, selectedPath]);
+    const selectedMachineFavorites = React.useMemo(
+        () => favoriteMachinePaths.filter((favorite) => favorite.machineId === selectedMachineId),
+        [favoriteMachinePaths, selectedMachineId],
+    );
+    const [commanders, setCommanders] = React.useState<HappyHerdCommanderSummary[]>([]);
+    const [commanderLoadError, setCommanderLoadError] = React.useState<string | null>(null);
+    const [commanderLoadedMachineId, setCommanderLoadedMachineId] = React.useState<string | null>(null);
+    React.useEffect(() => {
+        if (!selectedMachineId || !selectedMachine || !isMachineOnline(selectedMachine)) {
+            setCommanders([]);
+            setCommanderLoadError(null);
+            setCommanderLoadedMachineId(null);
+            return;
+        }
+        let cancelled = false;
+        setCommanderLoadError(null);
+        setCommanderLoadedMachineId(null);
+        machineListCommanders(selectedMachineId).then((result) => {
+            if (!cancelled) {
+                setCommanders(result.commanders);
+                setCommanderLoadedMachineId(selectedMachineId);
+            }
+        }).catch((error) => {
+            if (cancelled) return;
+            setCommanders([]);
+            setCommanderLoadedMachineId(selectedMachineId);
+            setCommanderLoadError(error instanceof Error ? error.message : 'Unable to load Commanders');
+        });
+        return () => { cancelled = true; };
+    }, [selectedMachine, selectedMachineId]);
+
+    React.useEffect(() => {
+        if (
+            selectedCommanderId
+            && commanderLoadedMachineId === selectedMachineId
+            && !commanders.some((commander) => commander.id === selectedCommanderId)
+        ) {
+            setSelectedCommanderId(null);
+        }
+    }, [commanderLoadedMachineId, commanders, selectedCommanderId, selectedMachineId, setSelectedCommanderId]);
+
+    const commanderItems = React.useMemo<PickerItem[]>(() => commanders.map((commander) => ({
+        key: commander.id,
+        label: commander.name,
+        subtitle: commander.role ? `${commander.role} · ${commander.workspace}` : commander.workspace,
+    })), [commanders]);
+    const toggleFavoritePath = React.useCallback((path: string) => {
+        if (!selectedMachineId) return;
+        const exists = favoriteMachinePaths.some((favorite) => (
+            favorite.machineId === selectedMachineId && favorite.path === path
+        ));
+        setFavoriteMachinePaths(exists
+            ? favoriteMachinePaths.filter((favorite) => !(
+                favorite.machineId === selectedMachineId && favorite.path === path
+            ))
+            : [...favoriteMachinePaths, { machineId: selectedMachineId, path }]);
+    }, [favoriteMachinePaths, selectedMachineId, setFavoriteMachinePaths]);
 
     // Build machine picker items: online first, then offline
     const machineItems = React.useMemo<PickerItem[]>(() => {
@@ -910,9 +1153,10 @@ function NewSessionScreen() {
     }, [worktreeItems, worktreeKey]);
 
     // Filter available agents based on CLI availability from machine metadata
+    const allAgents = getAllAgents();
     const availableAgents = React.useMemo(() => {
         const availability = selectedMachine?.metadata?.cliAvailability;
-        return ALL_AGENTS.filter((agent) => agent.key === 'rig'
+        return getAllAgents().filter((agent) => agent.key === 'rig'
             ? selectedRigCreation !== null
             : !availability || availability[agent.key]);
     }, [selectedMachine, selectedRigCreation]);
@@ -926,12 +1170,14 @@ function NewSessionScreen() {
 
     // Derive options from agent type
     const permissionModes = React.useMemo<PermissionMode[]>(
-        () => rigCreation?.permissionModes ?? getHardcodedPermissionModes(selectedAgent, t),
-        [selectedAgent, rigCreation],
+        () => rigCreation?.permissionModes
+            ?? getMachineAdvertisedPermissionModes(selectedMachine?.metadata, selectedAgent),
+        [selectedAgent, selectedMachine?.metadata, rigCreation],
     );
     const modelModes = React.useMemo<ModelMode[]>(
-        () => rigCreation?.models ?? getHardcodedModelModes(selectedAgent, t),
-        [selectedAgent, rigCreation],
+        () => rigCreation?.models
+            ?? getMachineAdvertisedModels(selectedMachine?.metadata, selectedAgent),
+        [selectedAgent, selectedMachine?.metadata, rigCreation],
     );
 
     const currentModel = resolveSelectedOption(modelModes, modelIndex);
@@ -940,8 +1186,8 @@ function NewSessionScreen() {
     const effortLevels = React.useMemo<EffortLevel[]>(
         () => rigCreation
             ? rigCreation.effortsForModel(currentModelKey).map((key) => ({ key, name: key }))
-            : getEffortLevelsForModel(selectedAgent, currentModelKey),
-        [selectedAgent, currentModelKey, rigCreation],
+            : getMachineAdvertisedEffortLevels(selectedMachine?.metadata, selectedAgent, currentModelKey),
+        [selectedAgent, selectedMachine?.metadata, currentModelKey, rigCreation],
     );
     const effectiveAgentDefaults = React.useMemo(() => rigCreation
         ? {
@@ -951,7 +1197,7 @@ function NewSessionScreen() {
         }
         : resolveAgentDefaultConfig(agentDefaultOverrides, selectedAgent), [agentDefaultOverrides, selectedAgent, rigCreation]);
     const effectiveEffortDefault = rigCreation?.defaultEffortForModel(currentModelKey)
-        ?? effectiveAgentDefaults.effortLevel;
+        ?? resolveAgentDefaultEffortLevel(agentDefaultOverrides, selectedAgent, effortLevels);
     const showModel = modelModes.length > 1;
     const showEffort = effortLevels.length > 0;
     const showPermission = permissionModes.length > 1;
@@ -1056,11 +1302,33 @@ function NewSessionScreen() {
     }, [activePicker, cancelPendingPickerOpen, closePicker, isDesktop]);
 
     const isOffline = selectedMachine ? !isMachineOnline(selectedMachine) : false;
-    const agent = availableAgents.find(a => a.key === selectedAgent) ?? ALL_AGENTS[0];
+    const agent = availableAgents.find(a => a.key === selectedAgent) ?? allAgents[0];
     // A Rig machine can publish an empty catalog, so every current pick is
     // nullable — the composer hides the picker instead of rendering a pick.
     const currentPermission = resolveSelectedOption(permissionModes, permissionIndex);
     const currentEffort = resolveSelectedOption(effortLevels, effortIndex);
+    const selectEffortByKey = React.useCallback((key: string) => {
+        const next = effortLevels.findIndex((level) => level.key === key);
+        if (next < 0) return;
+
+        const effortKey = effortLevels[next]?.key ?? key;
+        setEffortIndex(next);
+        draft.setEffortLevel(effortKey);
+        if (selectedAgent === 'codex') {
+            setAgentDefaultOverrides(setAgentDefaultOverride(
+                agentDefaultOverrides,
+                'codex',
+                'effortLevel',
+                effortKey,
+            ));
+        }
+    }, [
+        effortLevels,
+        draft.setEffortLevel,
+        selectedAgent,
+        agentDefaultOverrides,
+        setAgentDefaultOverrides,
+    ]);
     const permissionStyle = resolvePermissionStyle(currentPermission);
     const composerSettingsItems = React.useMemo(() => {
         const items: Array<{
@@ -1101,37 +1369,53 @@ function NewSessionScreen() {
     }, [currentEffort, currentModel, currentPermission, permissionStyle?.icon, selectedAgent, showEffort, showModel, showPermission]);
 
     // Display values
-    const machineName = selectedMachine ? getMachineName(selectedMachine) : 'Select machine';
+    const machineName = selectedMachine ? getMachineName(selectedMachine) : t('workspace.selectMachine');
     const pathName = trimPathInput(selectedPath)
         ? formatPathRelativeToHome(trimPathInput(selectedPath), selectedHomeDir)
         : '~';
     const worktreeLabel = worktreeKey === '__none__'
-        ? 'no worktree'
+        ? t('uiCopy.noWorktree')
         : worktreeKey === '__new__'
-            ? 'new worktree'
+            ? t('uiCopy.newWorktree')
             : worktreeItems.find(wt => wt.key === worktreeKey)?.label || worktreeKey;
+    const selectedCommander = commanders.find((commander) => commander.id === selectedCommanderId) ?? null;
+    const commanderLabel = selectedCommander?.name ?? t('uiCopy.noCommander');
 
     // Picker data derived from active picker type
     const pickerData = React.useMemo(() => {
         switch (activePicker) {
             case 'machine':
-                return { title: 'Machine', items: machineItems, selectedKey: selectedMachineId, searchPlaceholder: 'search machines...' };
+                return { title: t('machine.machineGroup'), items: machineItems, selectedKey: selectedMachineId, searchPlaceholder: t('uiCopy.searchMachines') };
             case 'worktree':
-                return { title: 'Worktree', fixedItems: WORKTREE_FIXED_ITEMS, items: worktreeItems, selectedKey: worktreeKey, searchPlaceholder: 'search worktrees...' };
+                return { title: t('uiCopy.worktree'), fixedItems: getWorktreeFixedItems(), items: worktreeItems, selectedKey: worktreeKey, searchPlaceholder: t('uiCopy.searchWorktrees') };
+            case 'commander':
+                return {
+                    title: t("happyHerd.automations.commander"),
+                    fixedItems: getCommanderPickerFixedItems(Platform.OS, {
+                        createLabel: t('happyHerd.commander.createTitle'),
+                        createSubtitle: t('happyHerd.commander.createSubtitle'),
+                        noneLabel: t('uiCopy.noCommander'),
+                        noneSubtitle: t('uiCopy.useGlobalAgentsMdOnly'),
+                    }),
+                    items: commanderItems,
+                    selectedKey: selectedCommanderId ?? '__none__',
+                    searchPlaceholder: t('uiCopy.searchCommanders'),
+                };
             case 'agent':
-                return { title: 'Agent', items: getAgentPickerItems(availableAgents), selectedKey: selectedAgent, searchPlaceholder: 'search agents...' };
+                return { title: t('uiCopy.agent'), items: getAgentPickerItems(availableAgents), selectedKey: selectedAgent, searchPlaceholder: t('uiCopy.searchAgents') };
             case 'model':
-                return { title: 'Model', items: getModePickerItems(modelModes), selectedKey: currentModelKey, searchPlaceholder: 'search models...' };
+                return { title: t('uiCopy.model'), items: getModePickerItems(modelModes), selectedKey: currentModelKey, searchPlaceholder: t('uiCopy.searchModels') };
             case 'effort':
-                return { title: 'Effort', items: getModePickerItems(effortLevels), selectedKey: currentEffort?.key ?? null, searchPlaceholder: 'search efforts...' };
+                return { title: t('uiCopy.effort'), items: getModePickerItems(effortLevels), selectedKey: currentEffort?.key ?? null, searchPlaceholder: t('uiCopy.searchEfforts') };
             case 'permission':
-                return { title: 'Permissions', items: getModePickerItems(permissionModes), selectedKey: currentPermission?.key ?? null, searchPlaceholder: 'search permissions...' };
+                return { title: t('uiCopy.permissions'), items: getModePickerItems(permissionModes), selectedKey: currentPermission?.key ?? null, searchPlaceholder: t('uiCopy.searchPermissions') };
             default:
                 return null;
         }
     }, [
         activePicker,
         availableAgents,
+        commanderItems,
         currentEffort?.key,
         currentModelKey,
         currentPermission?.key,
@@ -1140,6 +1424,7 @@ function NewSessionScreen() {
         modelModes,
         permissionModes,
         selectedAgent,
+        selectedCommanderId,
         selectedMachineId,
         worktreeKey,
         worktreeItems,
@@ -1180,6 +1465,20 @@ function NewSessionScreen() {
             case 'worktree':
                 setWorktreeKey(key);
                 break;
+            case 'commander': {
+                const selection = resolveCommanderPickerSelection(key);
+                if (selection.kind === 'create') {
+                    applyCommanderOnboardingIntent();
+                    break;
+                }
+                const commander = commanders.find((candidate) => candidate.id === selection.commanderId);
+                setSelectedCommanderId(selection.commanderId);
+                if (commander) {
+                    setSelectedPath(commander.workspace);
+                    setWorktreeKey('__none__');
+                }
+                break;
+            }
             case 'agent':
                 if (availableAgents.some((candidate) => candidate.key === key)) {
                     setSelectedAgent(key as NewSessionAgentType);
@@ -1194,11 +1493,7 @@ function NewSessionScreen() {
                 break;
             }
             case 'effort': {
-                const next = effortLevels.findIndex((level) => level.key === key);
-                if (next >= 0) {
-                    setEffortIndex(next);
-                    draft.setEffortLevel(effortLevels[next]?.key ?? key);
-                }
+                selectEffortByKey(key);
                 break;
             }
             case 'permission': {
@@ -1213,16 +1508,20 @@ function NewSessionScreen() {
         closePicker();
     }, [
         activePicker,
+        applyCommanderOnboardingIntent,
         availableAgents,
+        commanders,
         closePicker,
         draft.setEffortLevel,
         draft.setModelMode,
         draft.setPermissionMode,
-        effortLevels,
         modelModes,
         permissionModes,
+        selectEffortByKey,
         setSelectedAgent,
+        setSelectedCommanderId,
         setSelectedMachineId,
+        setSelectedPath,
         setWorktreeKey,
     ]);
 
@@ -1237,11 +1536,7 @@ function NewSessionScreen() {
                 break;
             }
             case 'effort': {
-                const next = effortLevels.findIndex((level) => level.key === key);
-                if (next >= 0) {
-                    setEffortIndex(next);
-                    draft.setEffortLevel(effortLevels[next]?.key ?? key);
-                }
+                selectEffortByKey(key);
                 break;
             }
             case 'permission': {
@@ -1255,18 +1550,18 @@ function NewSessionScreen() {
         }
         setNativePickerMeasuredHeight(null);
         setComposerSettingsPage(null);
-    }, [composerSettingsPage, draft.setEffortLevel, draft.setModelMode, draft.setPermissionMode, effortLevels, modelModes, permissionModes]);
+    }, [composerSettingsPage, draft.setModelMode, draft.setPermissionMode, modelModes, permissionModes, selectEffortByKey]);
 
     // Spawn session handler
     const handleSend = React.useCallback(async (
         approvedNewDirectoryCreation: boolean = false,
     ) => {
         if (!selectedMachineId || !selectedMachine) {
-            Modal.alert(t('common.error'), 'Please select a machine');
+            Modal.alert(t('common.error'), t("uiCopy.pleaseSelectAMachine"));
             return;
         }
         if (!isMachineOnline(selectedMachine)) {
-            Modal.alert(t('common.error'), 'Machine is offline');
+            Modal.alert(t('common.error'), t("newSession.machineOffline"));
             return;
         }
 
@@ -1295,7 +1590,7 @@ function NewSessionScreen() {
             if (supportsWorktree && worktreeKey === '__new__') {
                 const worktreeResult = await createWorktree(selectedMachineId, absolutePath);
                 if (!worktreeResult.success) {
-                    Modal.alert(t('common.error'), worktreeResult.error || 'Failed to create worktree');
+                    Modal.alert(t('common.error'), worktreeResult.error || t("uiCopy.failedToCreateWorktree"));
                     return;
                 }
                 spawnDirectory = worktreeResult.worktreePath;
@@ -1329,6 +1624,7 @@ function NewSessionScreen() {
                         : undefined,
                     modelMode: currentModelKey !== 'default' ? currentModelKey : undefined,
                     effortLevel: currentEffort?.key,
+                    commanderId: selectedCommanderId ?? undefined,
                 };
             let result = await machineSpawnNewSession(spawnOptions);
             let pendingResults = 0;
@@ -1358,7 +1654,7 @@ function NewSessionScreen() {
                         ? null
                         : currentModelKey;
                     const currentEffortKey = currentEffort?.key ?? null;
-                    const effortOverride = currentEffortKey === effectiveAgentDefaults.effortLevel
+                    const effortOverride = currentEffortKey === effectiveEffortDefault
                         ? null
                         : currentEffortKey;
                     // Mode picks sync via session metadata (#1492). Nothing to
@@ -1374,27 +1670,59 @@ function NewSessionScreen() {
                         }
                     }
 
-                    // Pull live prompt and clear it. We read via getState() so this
+                    // Pull the live prompt via getState() so this callback does
                     // callback doesn't have to subscribe to `input` (which would
-                    // re-render the screen on every keystroke).
+                    // re-render the screen on every keystroke). Keep both text
+                    // and attachments intact until the initial message is
+                    // accepted by the synchronized outbox.
                     const draftState = useNewSessionDraft.getState();
                     const trimmedPrompt = draftState.input.trim();
                     const attachments = draftState.attachments;
-                    draftState.setInput('');
-                    draftState.setAttachments([]);
+                    let initialPrompt = trimmedPrompt;
+                    let initialDisplayText = trimmedPrompt;
+
+                    if (workspaceFiles.length > 0) {
+                        workspaceFiles.forEach((filePath) => {
+                            addWorkspaceContextFile(result.sessionId, filePath, {
+                                kind: 'machine',
+                                machineId: selectedMachineId,
+                            });
+                        });
+                        const workspaceMessage = await (async () => {
+                            try {
+                                return await buildWorkspaceContextMessage(
+                                    result.sessionId,
+                                    trimmedPrompt,
+                                    workspaceFiles,
+                                );
+                            } finally {
+                                clearWorkspaceContextFiles(result.sessionId);
+                            }
+                        })();
+                        initialPrompt = workspaceMessage.promptText;
+                        initialDisplayText = workspaceMessage.displayText;
+                    }
 
                     // Send initial message if provided
-                    if (trimmedPrompt || attachments.length > 0) {
-                        await sync.sendMessage(result.sessionId, trimmedPrompt, { source: 'new_session', attachments });
+                    if (initialPrompt || attachments.length > 0) {
+                        await sync.sendMessage(result.sessionId, initialPrompt, {
+                            source: 'new_session',
+                            attachments,
+                            displayText: initialDisplayText,
+                        });
                     }
+
+                    setWorkspaceFiles([]);
+                    draftState.setInput('');
+                    draftState.setAttachments([]);
 
                     router.back();
                     navigateToSession(result.sessionId);
                     break;
                 case 'requestToApproveDirectoryCreation': {
                     const approved = await Modal.confirm(
-                        'Create Directory?',
-                        `The directory '${result.directory}' does not exist. Would you like to create it?`,
+                        t("uiCopy.createDirectory"),
+                        t("uiCopy.theDirectoryValueDoesNotExistWouldYouLikeTo", { value1: result.directory }),
                         { cancelText: t('common.cancel'), confirmText: t('common.create') },
                     );
                     if (approved) {
@@ -1410,19 +1738,19 @@ function NewSessionScreen() {
                 case 'pending':
                     Modal.alert(
                         t('common.error'),
-                        'Rig created the session, but it is still syncing with Happy. It should appear shortly.',
+                        t('uiCopy.rigCreatedTheSessionButItIsStillSyncingWithHappy'),
                     );
                     break;
             }
         } catch (error) {
             const errorMessage = error instanceof Error
                 ? error.message
-                : 'Failed to start session';
+                : t('uiCopy.failedToStartSession');
             Modal.alert(t('common.error'), errorMessage);
         } finally {
             if (isMountedRef.current) setIsSpawning(false);
         }
-    }, [selectedMachineId, selectedMachine, selectedPath, selectedAgent, router, navigateToSession, currentPermission?.key, currentModelKey, currentEffort?.key, effectiveAgentDefaults.permissionMode, effectiveAgentDefaults.modelMode, effectiveAgentDefaults.effortLevel, worktreeKey, rigCreation, supportsWorktree]);
+    }, [selectedMachineId, selectedMachine, selectedPath, selectedCommanderId, selectedAgent, router, navigateToSession, currentPermission?.key, currentModelKey, currentEffort?.key, effectiveAgentDefaults.permissionMode, effectiveAgentDefaults.modelMode, effectiveEffortDefault, worktreeKey, rigCreation, supportsWorktree, workspaceFiles]);
 
     const canSend = selectedMachineId && selectedMachine && isMachineOnline(selectedMachine) && !isSpawning;
     React.useEffect(() => {
@@ -1433,6 +1761,7 @@ function NewSessionScreen() {
             || (
                 !useNewSessionDraft.getState().input.trim()
                 && useNewSessionDraft.getState().attachments.length === 0
+                && workspaceFiles.length === 0
             )
         ) {
             return;
@@ -1443,7 +1772,7 @@ function NewSessionScreen() {
             void handleSend();
         }, 180);
         return () => clearTimeout(timeout);
-    }, [autoSubmit, canSend, handleSend]);
+    }, [autoSubmit, canSend, handleSend, workspaceFiles.length]);
 
     const sidebarLayout = getNewSessionSidebarLayout({
         platform: Platform.OS,
@@ -1487,10 +1816,15 @@ function NewSessionScreen() {
 
         const content = type === 'path' ? (
             <PathPickerContent
-                title="Project"
+                title={t("uiCopy.project")}
                 items={pathItems}
                 value={selectedPath}
                 homeDir={selectedHomeDir}
+                machineId={selectedMachineId}
+                platform={selectedMachine?.metadata?.platform}
+                machineOnline={!!selectedMachine && isMachineOnline(selectedMachine)}
+                favorites={selectedMachineFavorites}
+                onToggleFavorite={toggleFavoritePath}
                 onChangeValue={setSelectedPath}
                 onDone={closePicker}
                 embedded={sidebarLayout.showSidebar}
@@ -1520,10 +1854,14 @@ function NewSessionScreen() {
         pathItems,
         pickerData,
         selectedHomeDir,
+        selectedMachine,
+        selectedMachineFavorites,
+        selectedMachineId,
         selectedPath,
         setSelectedPath,
         sidebarLayout.showSidebar,
         theme.colors.header.background,
+        toggleFavoritePath,
     ]);
 
     const nativePickerContent = activePicker === 'settings' ? (
@@ -1547,10 +1885,15 @@ function NewSessionScreen() {
         )
     ) : activePicker === 'path' ? (
         <PathPickerContent
-            title="Project"
+            title={t("uiCopy.project")}
             items={pathItems}
             value={selectedPath}
             homeDir={selectedHomeDir}
+            machineId={selectedMachineId}
+            platform={selectedMachine?.metadata?.platform}
+            machineOnline={!!selectedMachine && isMachineOnline(selectedMachine)}
+            favorites={selectedMachineFavorites}
+            onToggleFavorite={toggleFavoritePath}
             onChangeValue={setSelectedPath}
             onDone={closePicker}
             embedded
@@ -1578,7 +1921,8 @@ function NewSessionScreen() {
             );
         }
         if (
-            activePicker === 'agent'
+            activePicker === 'commander'
+            || activePicker === 'agent'
             || activePicker === 'model'
             || activePicker === 'effort'
             || activePicker === 'permission'
@@ -1692,6 +2036,26 @@ function NewSessionScreen() {
                                 <Ionicons name="chevron-down" size={13} color={theme.colors.textSecondary} />
                             </BubblePressable>
                             {renderActivePickerPopover('path')}
+
+                            <BubblePressable
+                                style={(p) => [styles.configRow, p.pressed && styles.configRowPressed]}
+                                onPress={() => togglePicker('commander')}
+                            >
+                                <Ionicons name="person-circle-outline" size={15} color={theme.colors.textSecondary} />
+                                <Text style={[styles.configLabel, styles.configValueText]} numberOfLines={1}>
+                                    {commanderLabel}
+                                </Text>
+                                <Ionicons name="chevron-down" size={13} color={theme.colors.textSecondary} />
+                            </BubblePressable>
+                            {renderActivePickerPopover('commander')}
+                            {commanderLoadError && (
+                                <Text style={[
+                                    styles.offlineHelpText,
+                                    { color: theme.colors.status.disconnected, paddingHorizontal: 10 },
+                                ]}>
+                                    {commanderLoadError}
+                                </Text>
+                            )}
 
                             {!isNativeMobile && (
                                 <>
@@ -1811,6 +2175,18 @@ function NewSessionScreen() {
                                 <Ionicons name="desktop-outline" size={14} color={isOffline ? theme.colors.status.disconnected : theme.colors.textSecondary} />
                             </BubblePressable>
 
+                            <BubblePressable
+                                onPress={() => togglePicker('commander')}
+                                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                                style={(p) => [styles.collapsedIconButton, p.pressed && styles.configRowPressed]}
+                            >
+                                <Ionicons
+                                    name="person-circle-outline"
+                                    size={14}
+                                    color={selectedCommander ? theme.colors.text : theme.colors.textSecondary}
+                                />
+                            </BubblePressable>
+
                             {!isNativeMobile && (
                                 <>
                                     <BubblePressable
@@ -1852,6 +2228,7 @@ function NewSessionScreen() {
                             )}
                         </View>
                         {renderActivePickerPopover('machine')}
+                        {renderActivePickerPopover('commander')}
                         {!isNativeMobile && renderActivePickerPopover('agent')}
                         {!isNativeMobile && renderActivePickerPopover('permission')}
                         {renderActivePickerPopover('worktree')}
@@ -1876,55 +2253,18 @@ function NewSessionScreen() {
         </>
     );
 
-    const composerPlaceholder = selectedAgent === 'codex' ? 'Ask Codex' : `Ask ${agent.label}`;
-    const sendButtonIconColor = isNativeMobile
-        ? theme.colors.text
-        : theme.colors.button.primary.tint;
+    const composerPlaceholder = t('uiCopy.askValue', { value1: agent.label });
     const sendButtonNode = (
-        <MobileGlassSurface
-            enabled={isNativeMobile}
-            interactive={!!canSend}
-            style={[
-                styles.sendButton,
-                isSpawning ? styles.sendButtonActive :
-                    canSend ? styles.sendButtonActive : styles.sendButtonInactive,
-                isNativeMobile && styles.mobileSendButton,
-                isNativeMobile && canSend && styles.mobileSendButtonActive,
-                isNativeMobile && !canSend && styles.mobileSendButtonInactive,
-            ]}
-        >
-            <Pressable
-                style={(pressedState) => [
-                    styles.sendButtonInner,
-                    pressedState.pressed && styles.sendButtonInnerPressed,
-                ]}
-                hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
-                disabled={!canSend}
-                onPress={() => handleSend()}
-                accessibilityRole="button"
-                accessibilityLabel="Send"
-            >
-                {isSpawning ? (
-                    <ActivityIndicator size="small" color={sendButtonIconColor} />
-                ) : (
-                    <Octicons
-                        name="arrow-up"
-                        size={isNativeMobile ? 18 : 16}
-                        color={sendButtonIconColor}
-                        // The color has to travel in `style`, not just the `color`
-                        // prop: @expo/vector-icons builds `[styleDefaults, style, ...]`
-                        // (create-icon-set.js), so a `style` entry always wins over
-                        // `color`. With styles.sendButtonIcon here — it hardcodes the
-                        // primary tint (white) — the computed color was discarded and
-                        // the arrow painted white on the near-white glass composer.
-                        style={{
-                            color: sendButtonIconColor,
-                            marginTop: Platform.OS === 'web' ? 2 : 0,
-                        }}
-                    />
-                )}
-            </Pressable>
-        </MobileGlassSurface>
+        <NewSessionPrimaryButton
+            canSend={Boolean(canSend)}
+            isSpawning={isSpawning}
+            isNativeMobile={isNativeMobile}
+            voiceAvailable={voiceInputAvailability.available}
+            dictationPhase={voiceDictation.phase}
+            onSend={() => void handleSend()}
+            onVoice={voiceDictation.toggle}
+            hasWorkspaceFiles={workspaceFiles.length > 0}
+        />
     );
 
     const composerNode = (
@@ -1937,11 +2277,34 @@ function NewSessionScreen() {
                 : undefined}
             style={[styles.inputBox, isNativeMobile && styles.mobileInputBox]}
         >
+            <WorkspaceContextStrip
+                files={workspaceFiles}
+                onRemove={(filePath) => setWorkspaceFiles((current) => current.filter((path) => path !== filePath))}
+            />
+            {expImageUpload && imagePicker.selectedImages.length > 0 && (
+                <AgentInputAttachmentStrip
+                    images={imagePicker.selectedImages}
+                    onRemove={imagePicker.removeImage}
+                />
+            )}
+            {voiceDictation.error && (
+                <Text style={{ color: theme.colors.status.disconnected, paddingHorizontal: 12, paddingTop: 8 }}>
+                    {voiceDictation.error}
+                </Text>
+            )}
+            <MachineFileUploadStatus
+                state={workspaceUploader.state}
+                canCancel={workspaceUploader.canCancel}
+                canRetry={workspaceUploader.canRetry}
+                onCancel={workspaceUploader.cancel}
+                onRetry={() => void workspaceUploader.retry()}
+                style={{ paddingHorizontal: 12, paddingTop: 8 }}
+            />
             <View style={[styles.inputField, isNativeMobile && styles.mobileInputField]}>
                 <PromptInput
                     ref={composerInputRef}
                     compact={isNativeMobile}
-                    placeholder={isNativeMobile ? composerPlaceholder : 'What would you like to work on?'}
+                    placeholder={isNativeMobile ? composerPlaceholder : t('uiCopy.whatWouldYouLikeToWorkOn')}
                     onSubmitEditing={isNativeMobile
                         ? () => composerInputRef.current?.blur()
                         : undefined}
@@ -1964,7 +2327,7 @@ function NewSessionScreen() {
                                 pressedState.pressed && styles.configRowPressed,
                             ]}
                             accessibilityRole="button"
-                            accessibilityLabel={`Agent: ${agent.label}`}
+                            accessibilityLabel={t("uiCopy.agentValue", { value1: agent.label })}
                         >
                             <RNImage
                                 source={agentIcons[agent.key]}
@@ -1998,20 +2361,71 @@ function NewSessionScreen() {
                         )}
                     </View>
                 )}
-                {isNativeMobile && (
+                {expImageUpload && (
                     <BubblePressable
-                        onPress={() => {
-                            composerInputRef.current?.focus();
-                        }}
+                        onPress={() => void imagePicker.pickImages()}
                         hitSlop={6}
                         style={(pressedState) => [
                             styles.composerActionButton,
                             pressedState.pressed && styles.configRowPressed,
                         ]}
                         accessibilityRole="button"
-                        accessibilityLabel="Voice input"
+                        accessibilityLabel={t('happyHerd.composer.addPhotos')}
                     >
-                        <Ionicons name="mic-outline" size={21} color={theme.colors.textSecondary} />
+                        <Ionicons
+                            name="image-outline"
+                            size={21}
+                            color={imagePicker.selectedImages.length > 0
+                                ? theme.colors.radio.active
+                                : theme.colors.textSecondary}
+                        />
+                    </BubblePressable>
+                )}
+                <BubblePressable
+                    onPress={() => void workspaceUploader.pickAndUpload()}
+                    hitSlop={6}
+                    disabled={!selectedMachineId || !uploadDirectory || workspaceUploader.state.phase === 'uploading' || workspaceUploader.state.phase === 'cancelling'}
+                    style={(pressedState) => [
+                        styles.composerActionButton,
+                        pressedState.pressed && styles.configRowPressed,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('workspace.upload')}
+                >
+                    <Ionicons
+                        name="document-attach-outline"
+                        size={21}
+                        color={workspaceFiles.length > 0
+                            ? theme.colors.radio.active
+                            : theme.colors.textSecondary}
+                    />
+                </BubblePressable>
+                {voiceDictation.phase === 'recording' && (
+                    <BubblePressable
+                        onPress={voiceDictation.cancel}
+                        hitSlop={6}
+                        style={(pressedState) => [
+                            styles.composerActionButton,
+                            pressedState.pressed && styles.configRowPressed,
+                        ]}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('happyHerd.composer.cancelVoice')}
+                    >
+                        <Ionicons name="close" size={21} color={theme.colors.textSecondary} />
+                    </BubblePressable>
+                )}
+                {voiceDictation.phase === 'error' && voiceDictation.canRetry && (
+                    <BubblePressable
+                        onPress={voiceDictation.retry}
+                        hitSlop={6}
+                        style={(pressedState) => [
+                            styles.composerActionButton,
+                            pressedState.pressed && styles.configRowPressed,
+                        ]}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('happyHerd.composer.retryVoice')}
+                    >
+                        <Ionicons name="refresh" size={21} color={theme.colors.textSecondary} />
                     </BubblePressable>
                 )}
                 {sendButtonNode}
@@ -2191,10 +2605,15 @@ function NewSessionScreen() {
                 >
                     {activePicker === 'path' ? (
                         <PathPickerContent
-                            title="Project"
+                            title={t("uiCopy.project")}
                             items={pathItems}
                             value={selectedPath}
                             homeDir={selectedHomeDir}
+                            machineId={selectedMachineId}
+                            platform={selectedMachine?.metadata?.platform}
+                            machineOnline={!!selectedMachine && isMachineOnline(selectedMachine)}
+                            favorites={selectedMachineFavorites}
+                            onToggleFavorite={toggleFavoritePath}
                             onChangeValue={setSelectedPath}
                             onDone={closePicker}
                         />
@@ -2207,9 +2626,9 @@ function NewSessionScreen() {
     );
 }
 
-const WORKTREE_FIXED_ITEMS: PickerItem[] = [
-    { key: '__none__', label: 'no worktree' },
-    { key: '__new__', label: 'new worktree' },
+const getWorktreeFixedItems = (): PickerItem[] => [
+    { key: '__none__', label: t('uiCopy.noWorktree') },
+    { key: '__new__', label: t('uiCopy.newWorktree') },
 ];
 
 const styles = StyleSheet.create((theme) => ({

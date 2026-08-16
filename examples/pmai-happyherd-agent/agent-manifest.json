@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "id": "pmai-happyherd-agent",
+  "displayName": "PMAI HappyHerd Agent",
+  "tools": [
+    {
+      "name": "pmai_guide",
+      "family": "pmai-guide",
+      "description": "Read PMAI onboarding guidance and the member's current access state.",
+      "operations": {
+        "me": { "method": "GET", "path": "/api/v1/me", "scope": null, "write": false, "shared": false },
+        "capabilities": { "method": "GET", "path": "/api/v1/capabilities", "scope": null, "write": false, "shared": true },
+        "onboarding_status": { "method": "GET", "path": "/api/v1/community/onboarding", "scope": null, "write": false, "shared": false }
+      }
+    },
+    {
+      "name": "pmai_crm",
+      "family": "pmai-crm",
+      "description": "Read and maintain CRM records within the member's delegated scope.",
+      "operations": {
+        "contacts_list": { "method": "GET", "path": "/api/v1/crm/contacts", "scope": "crm.contacts.read", "write": false, "shared": false },
+        "contacts_get": { "method": "GET", "path": "/api/v1/crm/contacts/{contactId}", "scope": "crm.contacts.read", "write": false, "shared": false },
+        "contacts_create": { "method": "POST", "path": "/api/v1/crm/contacts", "scope": "crm.contacts.create", "write": true, "shared": false },
+        "contacts_update": { "method": "PATCH", "path": "/api/v1/crm/contacts/{contactId}", "scope": "crm.contacts.update", "write": true, "shared": false },
+        "engagements_list": { "method": "GET", "path": "/api/v1/crm/engagements", "scope": "crm.engagements.read", "write": false, "shared": false },
+        "engagements_get": { "method": "GET", "path": "/api/v1/crm/engagements/{engagementId}", "scope": "crm.engagements.read", "write": false, "shared": false },
+        "engagements_create": { "method": "POST", "path": "/api/v1/crm/engagements", "scope": "crm.engagements.create", "write": true, "shared": false },
+        "engagements_update": { "method": "PATCH", "path": "/api/v1/crm/engagements/{engagementId}", "scope": "crm.engagements.update", "write": true, "shared": false }
+      }
+    },
+    {
+      "name": "pmai_discord",
+      "family": "pmai-discord",
+      "description": "Read allowed community channels and send confirmed messages as the linked member.",
+      "operations": {
+        "channels_list": { "method": "GET", "path": "/api/v1/community/channels", "scope": "community.channels.read", "write": false, "shared": true },
+        "messages_list": { "method": "GET", "path": "/api/v1/community/channels/{channelId}/messages", "scope": "community.messages.read", "write": false, "shared": true },
+        "messages_send": { "method": "POST", "path": "/api/v1/community/channels/{channelId}/messages", "scope": "community.messages.send", "write": true, "shared": false },
+        "reactions_add": { "method": "POST", "path": "/api/v1/community/messages/{messageId}/reactions", "scope": "community.reactions.write", "write": true, "shared": false }
+      }
+    },
+    {
+      "name": "pmai_luma",
+      "family": "pmai-luma",
+      "description": "Read events and manage confirmed event operations through PMAI's Luma connection.",
+      "operations": {
+        "events_list": { "method": "GET", "path": "/api/v1/events", "scope": "events.read", "write": false, "shared": true },
+        "events_create": { "method": "POST", "path": "/api/v1/events", "scope": "events.create", "write": true, "shared": false },
+        "events_update": { "method": "PATCH", "path": "/api/v1/events/{eventId}", "scope": "events.update", "write": true, "shared": false },
+        "guests_list": { "method": "GET", "path": "/api/v1/events/{eventId}/guests", "scope": "events.guests.read", "write": false, "shared": false }
+      }
+    },
+    {
+      "name": "pmai_canva",
+      "family": "pmai-canva",
+      "description": "Use the linked member's own Canva connection for confirmed design operations.",
+      "operations": {
+        "connector_status": { "method": "GET", "path": "/api/v1/connectors/canva", "scope": "canva.designs.read", "write": false, "shared": false },
+        "designs_create": { "method": "POST", "path": "/api/v1/connectors/canva/designs", "scope": "canva.designs.create", "write": true, "shared": false },
+        "designs_export": { "method": "POST", "path": "/api/v1/connectors/canva/designs/{designId}/exports", "scope": "canva.designs.export", "write": true, "shared": false }
+      }
+    }
+  ]
+}

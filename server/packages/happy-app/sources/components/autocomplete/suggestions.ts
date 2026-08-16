@@ -3,7 +3,9 @@ import * as React from 'react';
 import { searchFiles, FileItem } from '@/sync/suggestionFile';
 import { searchCommands, CommandItem } from '@/sync/suggestionCommands';
 
-export async function getCommandSuggestions(sessionId: string, query: string): Promise<{
+type Translate = (key: any) => string;
+
+export async function getCommandSuggestions(sessionId: string, query: string, translate: Translate): Promise<{
     key: string;
     text: string;
     component: React.ComponentType;
@@ -13,7 +15,7 @@ export async function getCommandSuggestions(sessionId: string, query: string): P
 
     try {
         // Use the command search cache with fuzzy matching
-        const commands = await searchCommands(sessionId, searchTerm, { limit: 50 });
+        const commands = await searchCommands(sessionId, searchTerm, translate, { limit: 50 });
 
         // Convert CommandItem to suggestion format
         return commands.map((cmd: CommandItem) => ({
@@ -58,7 +60,7 @@ export async function getFileMentionSuggestions(sessionId: string, query: string
     }
 }
 
-export async function getSuggestions(sessionId: string, query: string): Promise<{
+export async function getSuggestions(sessionId: string, query: string, translate: Translate): Promise<{
     key: string;
     text: string;
     component: React.ComponentType;
@@ -68,7 +70,7 @@ export async function getSuggestions(sessionId: string, query: string): Promise<
     }
 
     if (query.startsWith('/')) {
-        return getCommandSuggestions(sessionId, query);
+        return getCommandSuggestions(sessionId, query, translate);
     }
 
     if (query.startsWith('@')) {

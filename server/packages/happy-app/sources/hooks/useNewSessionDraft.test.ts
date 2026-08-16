@@ -4,6 +4,7 @@ type Draft = {
     input: string;
     selectedMachineId: string | null;
     selectedPath: string | null;
+    selectedCommanderId: string | null;
     agentType: 'claude' | 'codex' | 'gemini' | 'openclaw' | 'agy' | 'rig';
     permissionMode: string | null;
     modelMode: string | null;
@@ -31,6 +32,7 @@ function persistedDraft(overrides: Partial<Draft> = {}): Draft {
         input: '',
         selectedMachineId: null,
         selectedPath: null,
+        selectedCommanderId: null,
         agentType: 'claude',
         permissionMode: null,
         modelMode: null,
@@ -78,6 +80,16 @@ describe('useNewSessionDraft', () => {
 
         expect(useNewSessionDraft.getState().effortLevel).toBe('high');
         expect(mockPersistence.saved.at(-1)).toMatchObject({ effortLevel: 'high' });
+    });
+
+    it('resets the Commander identity when the machine changes', async () => {
+        mockPersistence.draft = persistedDraft({ selectedMachineId: 'one', selectedCommanderId: 'athena' });
+        const { useNewSessionDraft } = await import('./useNewSessionDraft');
+
+        useNewSessionDraft.getState().setMachineId('two');
+
+        expect(useNewSessionDraft.getState().selectedCommanderId).toBeNull();
+        expect(mockPersistence.saved.at(-1)).toMatchObject({ selectedMachineId: 'two', selectedCommanderId: null });
     });
 
     it('keeps temporary image attachments in memory without persisting their file URIs', async () => {

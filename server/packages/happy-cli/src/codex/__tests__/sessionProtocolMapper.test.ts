@@ -255,7 +255,7 @@ describe('mapCodexMcpMessageToSessionEnvelopes', () => {
         expect(closeEnd.envelopes).toEqual(expect.arrayContaining([
             expect.objectContaining({
                 subagent: sessionSubagent,
-                ev: { t: 'stop' },
+                ev: expect.objectContaining({ t: 'stop', status: 'cancelled' }),
             }),
         ]));
     });
@@ -331,11 +331,101 @@ describe('mapCodexMcpMessageToSessionEnvelopes', () => {
             }
         );
 
-        const service = ended.envelopes.find((envelope) => envelope.ev.t === 'service');
-        expect(service).toMatchObject({
+        const result = ended.envelopes.find((envelope) => envelope.ev.t === 'text');
+        expect(result).toMatchObject({
             subagent: sessionSubagent,
-            ev: { t: 'service', text: 'Codex subagent completed: found auth handler' },
+            ev: { t: 'text', text: 'found auth handler' },
         });
+    });
+
+    it('waits for real provider identities and emits one completed sidechain per child', () => {
+        let state: Parameters<typeof mapCodexMcpMessageToSessionEnvelopes>[1] = {
+            currentTurnId: 'turn-1',
+        };
+        const allEnvelopes: ReturnType<typeof mapCodexMcpMessageToSessionEnvelopes>['envelopes'] = [];
+        const advance = (message: Record<string, unknown>) => {
+            const result = mapCodexMcpMessageToSessionEnvelopes(message, state);
+            state = {
+                currentTurnId: result.currentTurnId,
+                startedSubagents: result.startedSubagents,
+                activeSubagents: result.activeSubagents,
+                providerSubagentToSessionSubagent: result.providerSubagentToSessionSubagent,
+                subagentTitles: result.subagentTitles,
+                collabReceiverThreadIdsByCall: result.collabReceiverThreadIdsByCall,
+                collabToolByCall: result.collabToolByCall,
+            };
+            allEnvelopes.push(...result.envelopes);
+            return result.envelopes;
+        };
+
+        for (const child of ['readme', 'package']) {
+            const begin = advance({
+                type: 'collab_agent_begin',
+                call_id: `spawn-${child}`,
+                tool: 'spawnAgent',
+                status: 'inProgress',
+                prompt: `Inspect ${child}`,
+            });
+            expect(begin.some((envelope) => envelope.ev.t === 'start')).toBe(false);
+            expect(begin[0]?.ev).toMatchObject({
+                t: 'tool-call-start',
+                args: expect.not.objectContaining({ sessionSubagent: expect.anything() }),
+            });
+
+            const end = advance({
+                type: 'collab_agent_end',
+                call_id: `spawn-${child}`,
+                status: 'completed',
+                agents_states: {
+                    [`provider-${child}`]: { status: 'pendingInit', message: null },
+                },
+            });
+            expect(end.filter((envelope) => envelope.ev.t === 'start')).toHaveLength(1);
+
+            const activity = advance({
+                type: 'subagent_activity',
+                kind: 'started',
+                agent_thread_id: `provider-${child}`,
+                agent_path: `${child} inspector`,
+            });
+            expect(activity.some((envelope) => envelope.ev.t === 'start')).toBe(false);
+        }
+
+        advance({
+            type: 'collab_agent_begin',
+            call_id: 'wait-both',
+            tool: 'wait',
+            status: 'inProgress',
+        });
+        advance({
+            type: 'collab_agent_end',
+            call_id: 'wait-both',
+            status: 'completed',
+            agents_states: {
+                'provider-readme': { status: 'completed', message: '# HappyHerd' },
+                'provider-package': { status: 'completed', message: 'monorepo' },
+            },
+        });
+        const rootEnd = advance({ type: 'task_complete' });
+
+        const starts = allEnvelopes.filter((envelope) => envelope.ev.t === 'start');
+        const stops = allEnvelopes.filter((envelope) => envelope.ev.t === 'stop');
+        const childResults = allEnvelopes.filter((envelope) => envelope.ev.t === 'text');
+
+        expect(starts).toHaveLength(2);
+        expect(new Set(starts.map((envelope) => envelope.subagent)).size).toBe(2);
+        expect(stops).toHaveLength(2);
+        expect(stops.every((envelope) => (
+            envelope.ev.t === 'stop' && envelope.ev.status === 'completed'
+        ))).toBe(true);
+        expect(childResults.map((envelope) => (
+            envelope.ev.t === 'text' ? envelope.ev.text : null
+        ))).toEqual(['# HappyHerd', 'monorepo']);
+        expect(allEnvelopes.some((envelope) => (
+            envelope.ev.t === 'stop' && envelope.ev.status === 'interrupted'
+        ))).toBe(false);
+        expect(rootEnd).toHaveLength(1);
+        expect(rootEnd[0]?.ev).toEqual({ t: 'turn-end', status: 'completed' });
     });
 
     it('maps Codex subagent activity markers to lifecycle envelopes', () => {
@@ -378,7 +468,11 @@ describe('mapCodexMcpMessageToSessionEnvelopes', () => {
             subagent: started.envelopes[0].subagent,
             ev: { t: 'service', text: 'Codex subagent interrupted' },
         });
-        expect(interrupted.envelopes[1].ev).toEqual({ t: 'stop' });
+        expect(interrupted.envelopes[1].ev).toEqual({
+            t: 'stop',
+            status: 'interrupted',
+            detail: 'Codex reported that the child was interrupted.',
+        });
         expect(interrupted.envelopes[1].subagent).toBe(started.envelopes[0].subagent);
     });
 

@@ -5,6 +5,7 @@
  */
 import * as React from 'react';
 import { View, ScrollView, ActivityIndicator, Pressable, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
@@ -17,18 +18,57 @@ import { t } from '@/text';
 import { layout } from '@/components/layout';
 import { useSession } from '@/sync/storage';
 import { rigCanWriteFiles } from '@/sync/rig';
+import {
+    classifyFilePreview,
+    imageDataUri,
+    imagePreviewLayout,
+    pdfDataUri,
+    safeHtmlPreviewDocument,
+} from '@/utils/filePreview';
+import { FileDocumentPreview } from '@/components/FileDocumentPreview';
 
 interface FileViewPanelProps {
     sessionId: string;
     filePath: string;
     /** Publishes the right-side controls (edit/preview toggle, save button) into the chat header. */
     onHeaderRightSlotChange: (slot: React.ReactNode) => void;
+    onDirtyChange?: (dirty: boolean) => void;
+}
+
+export type FileContentReadResult = {
+    success: boolean;
+    content?: string;
+    error?: string;
+};
+
+export type FileContentWriteResult = {
+    success: boolean;
+    hash?: string;
+    error?: string;
+};
+
+export interface FileContentPanelProps {
+    /** Changes whenever the backing transport/resource changes. */
+    resourceKey: string;
+    filePath: string;
+    readFile: (filePath: string) => Promise<FileContentReadResult>;
+    writeFile?: (
+        filePath: string,
+        content: string,
+        expectedHash?: string | null,
+    ) => Promise<FileContentWriteResult>;
+    canWrite: boolean;
+    markdownSessionId?: string;
+    onHeaderRightSlotChange: (slot: React.ReactNode) => void;
+    onDirtyChange?: (dirty: boolean) => void;
 }
 
 type FileState =
     | { kind: 'loading' }
     | { kind: 'error'; message: string }
-    | { kind: 'binary' }
+    | { kind: 'image'; uri: string }
+    | { kind: 'pdf'; uri: string }
+    | { kind: 'unsupported'; message: string }
     | { kind: 'loaded'; content: string; originalHash: string | null };
 
 function getFileLanguage(path: string): string | null {
@@ -70,21 +110,6 @@ function getFileLanguage(path: string): string | null {
     return ext ? (map[ext] ?? null) : null;
 }
 
-function isBinaryExtension(path: string): boolean {
-    const ext = path.split('.').pop()?.toLowerCase();
-    const binaryExts = [
-        'png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'ico',
-        'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm',
-        'mp3', 'wav', 'flac', 'aac', 'ogg',
-        'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
-        'zip', 'tar', 'gz', 'rar', '7z',
-        'exe', 'dmg', 'deb', 'rpm',
-        'woff', 'woff2', 'ttf', 'otf',
-        'db', 'sqlite', 'sqlite3',
-    ];
-    return ext ? binaryExts.includes(ext) : false;
-}
-
 function decodeBase64ToBytes(base64: string): Uint8Array {
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
@@ -109,9 +134,12 @@ function encodeStringToBase64(str: string): string {
 }
 
 /** Read file and decode to string, returns null on failure */
-async function readFileContent(sessionId: string, filePath: string): Promise<string | null> {
-    const res = await sessionReadFile(sessionId, filePath);
-    if (!res.success || !res.content) return null;
+async function readFileContent(
+    readFile: FileContentPanelProps['readFile'],
+    filePath: string,
+): Promise<string | null> {
+    const res = await readFile(filePath);
+    if (!res.success || typeof res.content !== 'string') return null;
     try {
         return decodeUtf8Bytes(decodeBase64ToBytes(res.content));
     } catch {
@@ -127,14 +155,17 @@ async function computeSHA256(content: string): Promise<string> {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-export const FileViewPanel = React.memo(function FileViewPanel({
-    sessionId,
+export const FileContentPanel = React.memo(function FileContentPanel({
+    resourceKey,
     filePath,
+    readFile,
+    writeFile,
+    canWrite,
+    markdownSessionId,
     onHeaderRightSlotChange,
-}: FileViewPanelProps) {
+    onDirtyChange,
+}: FileContentPanelProps) {
     const { theme } = useUnistyles();
-    const session = useSession(sessionId);
-    const canWrite = rigCanWriteFiles(session?.metadata);
     const [fileState, setFileState] = React.useState<FileState>({ kind: 'loading' });
     const [editContent, setEditContent] = React.useState('');
     const [isSaving, setIsSaving] = React.useState(false);
@@ -147,8 +178,16 @@ export const FileViewPanel = React.memo(function FileViewPanel({
     const fileName = filePath.split('/').pop() || filePath;
     const language = getFileLanguage(filePath);
     const isMarkdown = language === 'markdown';
+    const previewKind = classifyFilePreview(filePath);
+    const isHtml = previewKind === 'html';
+    const hasSourcePreview = isMarkdown || isHtml;
 
     const hasChanges = fileState.kind === 'loaded' && editContent !== fileState.content;
+
+    React.useEffect(() => {
+        onDirtyChange?.(hasChanges);
+        return () => onDirtyChange?.(false);
+    }, [hasChanges, onDirtyChange]);
 
     // Load file content
     React.useEffect(() => {
@@ -157,19 +196,28 @@ export const FileViewPanel = React.memo(function FileViewPanel({
         setExternalChange(null);
         setShowConflictDiff(false);
 
-        if (isBinaryExtension(filePath)) {
-            setFileState({ kind: 'binary' });
+        if (previewKind === 'unsupported') {
+            setFileState({ kind: 'unsupported', message: t('files.cannotDisplayBinary') });
             return;
         }
 
         (async () => {
             try {
-                const fileResponse = await sessionReadFile(sessionId, filePath);
+                const fileResponse = await readFile(filePath);
 
                 if (cancelled) return;
 
-                if (!fileResponse.success || !fileResponse.content) {
+                if (!fileResponse.success || typeof fileResponse.content !== 'string') {
                     setFileState({ kind: 'error', message: fileResponse.error || t('files.failedToRead') });
+                    return;
+                }
+
+                if (previewKind === 'image') {
+                    setFileState({ kind: 'image', uri: imageDataUri(filePath, fileResponse.content) });
+                    return;
+                }
+                if (previewKind === 'pdf') {
+                    setFileState({ kind: 'pdf', uri: pdfDataUri(fileResponse.content) });
                     return;
                 }
 
@@ -179,7 +227,7 @@ export const FileViewPanel = React.memo(function FileViewPanel({
                     rawBytes = decodeBase64ToBytes(fileResponse.content);
                     decodedContent = decodeUtf8Bytes(rawBytes);
                 } catch {
-                    setFileState({ kind: 'binary' });
+                    setFileState({ kind: 'unsupported', message: t('files.cannotDisplayBinary') });
                     return;
                 }
 
@@ -189,7 +237,7 @@ export const FileViewPanel = React.memo(function FileViewPanel({
                     return code < 32 && code !== 9 && code !== 10 && code !== 13;
                 }).length;
                 if (hasNullBytes || (nonPrintableCount / decodedContent.length > 0.1)) {
-                    setFileState({ kind: 'binary' });
+                    setFileState({ kind: 'unsupported', message: t('files.cannotDisplayBinary') });
                     return;
                 }
 
@@ -204,7 +252,11 @@ export const FileViewPanel = React.memo(function FileViewPanel({
         })();
 
         return () => { cancelled = true; };
-    }, [sessionId, filePath]);
+    }, [resourceKey, filePath, previewKind, readFile]);
+
+    React.useEffect(() => {
+        setDisplayMode(hasSourcePreview ? 'preview' : 'edit');
+    }, [filePath, hasSourcePreview]);
 
     // Poll for external changes every 5s
     React.useEffect(() => {
@@ -212,8 +264,8 @@ export const FileViewPanel = React.memo(function FileViewPanel({
         const originalHash = fileState.originalHash;
 
         const interval = setInterval(async () => {
-            const content = await readFileContent(sessionId, filePath);
-            if (!content) return;
+            const content = await readFileContent(readFile, filePath);
+            if (content === null) return;
             const currentHash = await computeSHA256(content);
             if (currentHash !== originalHash) {
                 setExternalChange(content);
@@ -221,10 +273,10 @@ export const FileViewPanel = React.memo(function FileViewPanel({
         }, 5000);
 
         return () => clearInterval(interval);
-    }, [sessionId, filePath, fileState]);
+    }, [resourceKey, filePath, fileState, readFile]);
 
     const handleReload = React.useCallback(() => {
-        if (!externalChange) return;
+        if (externalChange === null) return;
         const reloaded = externalChange;
         setExternalChange(null);
         setShowConflictDiff(false);
@@ -244,13 +296,12 @@ export const FileViewPanel = React.memo(function FileViewPanel({
     }, []);
 
     const handleSave = React.useCallback(async () => {
-        if (!canWrite || fileState.kind !== 'loaded' || !hasChanges) return;
+        if (!canWrite || !writeFile || fileState.kind !== 'loaded' || !hasChanges) return;
         setIsSaving(true);
 
         try {
             const base64 = encodeStringToBase64(editContent);
-            const response = await sessionWriteFile(
-                sessionId,
+            const response = await writeFile(
                 filePath,
                 base64,
                 fileState.originalHash,
@@ -259,7 +310,7 @@ export const FileViewPanel = React.memo(function FileViewPanel({
             if (!response.success) {
                 if (response.error?.includes('hash') || response.error?.includes('mismatch')) {
                     // Fetch the current server content for diff
-                    const serverContent = await readFileContent(sessionId, filePath);
+                    const serverContent = await readFileContent(readFile, filePath);
                     if (serverContent) {
                         setExternalChange(serverContent);
                         setShowConflictDiff(true);
@@ -273,53 +324,55 @@ export const FileViewPanel = React.memo(function FileViewPanel({
             }
 
             // Update original content + hash to match saved state
+            const savedHash = response.hash ?? await computeSHA256(editContent);
             setFileState({
                 kind: 'loaded',
                 content: editContent,
-                originalHash: response.hash ?? null,
+                originalHash: savedHash,
             });
             setExternalChange(null);
             setShowConflictDiff(false);
         } finally {
             setIsSaving(false);
         }
-    }, [sessionId, filePath, editContent, fileState, hasChanges, canWrite]);
+    }, [filePath, editContent, fileState, hasChanges, canWrite, readFile, writeFile]);
 
     const handleForceSave = React.useCallback(async () => {
-        if (!canWrite || fileState.kind !== 'loaded') return;
+        if (!canWrite || !writeFile || fileState.kind !== 'loaded') return;
         setIsSaving(true);
 
         try {
             // Re-read to get current hash, then write
-            const serverContent = await readFileContent(sessionId, filePath);
-            const currentHash = serverContent ? await computeSHA256(serverContent) : undefined;
+            const serverContent = await readFileContent(readFile, filePath);
+            const currentHash = serverContent !== null ? await computeSHA256(serverContent) : undefined;
 
             const base64 = encodeStringToBase64(editContent);
-            const response = await sessionWriteFile(sessionId, filePath, base64, currentHash);
+            const response = await writeFile(filePath, base64, currentHash);
 
             if (!response.success) {
                 Modal.alert(t('common.error'), response.error || t('files.failedToSave'));
                 return;
             }
 
+            const savedHash = response.hash ?? await computeSHA256(editContent);
             setFileState({
                 kind: 'loaded',
                 content: editContent,
-                originalHash: response.hash ?? null,
+                originalHash: savedHash,
             });
             setExternalChange(null);
             setShowConflictDiff(false);
         } finally {
             setIsSaving(false);
         }
-    }, [sessionId, filePath, editContent, fileState, canWrite]);
+    }, [filePath, editContent, fileState, canWrite, readFile, writeFile]);
 
     // Publish right-slot controls (edit/preview toggle, save button) into the chat header.
     const isLoaded = fileState.kind === 'loaded';
     React.useEffect(() => {
         onHeaderRightSlotChange(
             <FileHeaderRight
-                isMarkdown={isMarkdown}
+                hasSourcePreview={hasSourcePreview}
                 isLoaded={isLoaded}
                 displayMode={displayMode}
                 onDisplayModeChange={setDisplayMode}
@@ -330,7 +383,7 @@ export const FileViewPanel = React.memo(function FileViewPanel({
             />
         );
         return () => onHeaderRightSlotChange(null);
-    }, [isMarkdown, isLoaded, displayMode, hasChanges, isSaving, handleSave, onHeaderRightSlotChange, canWrite]);
+    }, [hasSourcePreview, isLoaded, displayMode, hasChanges, isSaving, handleSave, onHeaderRightSlotChange, canWrite]);
 
     return (
         <View style={styles.outer}>
@@ -343,7 +396,7 @@ export const FileViewPanel = React.memo(function FileViewPanel({
                     </Text>
                     <View style={{ flex: 1 }} />
                     <Pressable onPress={handleShowDiff} style={[styles.warningAction, { borderColor: theme.colors.divider }]}>
-                        <Text style={[styles.warningActionText, { color: theme.colors.textLink }]}>Diff</Text>
+                        <Text style={[styles.warningActionText, { color: theme.colors.textLink }]}>{t("files.diff")}</Text>
                     </Pressable>
                     <Pressable onPress={handleReload} style={[styles.warningAction, { borderColor: theme.colors.divider }]}>
                         <Text style={[styles.warningActionText, { color: theme.colors.textLink }]}>{t('files.reload')}</Text>
@@ -402,11 +455,29 @@ export const FileViewPanel = React.memo(function FileViewPanel({
                         {fileState.message}
                     </Text>
                 </View>
-            ) : fileState.kind === 'binary' ? (
+            ) : fileState.kind === 'image' ? (
+                <ScrollView
+                    style={{ flex: 1 }}
+                    contentContainerStyle={styles.imagePreviewContent}
+                    maximumZoomScale={4}
+                    minimumZoomScale={1}
+                >
+                    <Image
+                        source={{ uri: fileState.uri }}
+                        style={[imagePreviewLayout, { maxWidth: layout.maxWidth }]}
+                        contentFit="contain"
+                        accessibilityLabel={t("uiCopy.previewOfValue", { value1: fileName })}
+                    />
+                </ScrollView>
+            ) : fileState.kind === 'pdf' ? (
+                <View style={styles.documentPreview}>
+                    <FileDocumentPreview kind="pdf" uri={fileState.uri} title={t("uiCopy.previewOfValue", { value1: fileName })} />
+                </View>
+            ) : fileState.kind === 'unsupported' ? (
                 <View style={styles.centered}>
                     <Ionicons name="document-outline" size={32} color={theme.colors.textSecondary} />
                     <Text style={{ color: theme.colors.textSecondary, marginTop: 8, ...Typography.default() }}>
-                        {t('files.binaryFile')}
+                        {fileState.message}
                     </Text>
                 </View>
             ) : isMarkdown && displayMode === 'preview' ? (
@@ -416,9 +487,17 @@ export const FileViewPanel = React.memo(function FileViewPanel({
                 >
                     {Platform.OS === 'web' && <EditorPreviewStyles />}
                     <View {...(Platform.OS === 'web' ? { className: 'editor-preview-wrap' } as any : {})}>
-                        <MarkdownView markdown={editContent} sessionId={sessionId} />
+                        <MarkdownView markdown={editContent} sessionId={markdownSessionId} />
                     </View>
                 </ScrollView>
+            ) : isHtml && displayMode === 'preview' ? (
+                <View style={styles.documentPreview}>
+                    <FileDocumentPreview
+                        kind="html"
+                        html={safeHtmlPreviewDocument(editContent)}
+                        title={t("uiCopy.previewOfValue", { value1: fileName })}
+                    />
+                </View>
             ) : (
                 <View style={{ flex: 1, maxWidth: layout.maxWidth, alignSelf: 'center', width: '100%' }}>
                     <EditorView
@@ -433,9 +512,46 @@ export const FileViewPanel = React.memo(function FileViewPanel({
     );
 });
 
+/**
+ * Compatibility wrapper for the desktop session All Files overlay. Its public
+ * props and rendered component remain unchanged while the renderer itself can
+ * also be driven by machine-scoped Workspace RPCs.
+ */
+export const FileViewPanel = React.memo(function FileViewPanel({
+    sessionId,
+    filePath,
+    onHeaderRightSlotChange,
+    onDirtyChange,
+}: FileViewPanelProps) {
+    const session = useSession(sessionId);
+    const readFile = React.useCallback(
+        (path: string) => sessionReadFile(sessionId, path),
+        [sessionId],
+    );
+    const writeFile = React.useCallback(
+        (path: string, content: string, expectedHash?: string | null) => (
+            sessionWriteFile(sessionId, path, content, expectedHash)
+        ),
+        [sessionId],
+    );
+
+    return (
+        <FileContentPanel
+            resourceKey={`session:${sessionId}`}
+            filePath={filePath}
+            readFile={readFile}
+            writeFile={writeFile}
+            canWrite={rigCanWriteFiles(session?.metadata)}
+            markdownSessionId={sessionId}
+            onHeaderRightSlotChange={onHeaderRightSlotChange}
+            onDirtyChange={onDirtyChange}
+        />
+    );
+});
+
 /** Right-side header controls for the file-view overlay. */
 const FileHeaderRight = React.memo(function FileHeaderRight({
-    isMarkdown,
+    hasSourcePreview,
     isLoaded,
     displayMode,
     onDisplayModeChange,
@@ -444,7 +560,7 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
     onSave,
     canWrite,
 }: {
-    isMarkdown: boolean;
+    hasSourcePreview: boolean;
     isLoaded: boolean;
     displayMode: 'edit' | 'preview';
     onDisplayModeChange: (mode: 'edit' | 'preview') => void;
@@ -456,7 +572,7 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
     const { theme } = useUnistyles();
     return (
         <>
-            {canWrite && isMarkdown && isLoaded && (
+            {hasSourcePreview && isLoaded && (
                 <View style={[styles.toggleRow, { backgroundColor: theme.colors.groupped.background, borderColor: theme.colors.divider }]}>
                     <Pressable
                         onPress={() => onDisplayModeChange('edit')}
@@ -471,7 +587,7 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
                             displayMode === 'edit' && styles.toggleTextActive,
                             displayMode === 'edit' && { color: theme.colors.text },
                         ]}>
-                            {t('files.editFile')}
+                            {canWrite ? t('files.editFile') : t("uiCopy.source")}
                         </Text>
                     </Pressable>
                     <Pressable
@@ -487,7 +603,7 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
                             displayMode === 'preview' && styles.toggleTextActive,
                             displayMode === 'preview' && { color: theme.colors.text },
                         ]}>
-                            Preview
+                            {t("uiCopy.preview")}
                         </Text>
                     </Pressable>
                 </View>
@@ -597,6 +713,19 @@ const EditorView = React.memo(function EditorView({
 const styles = StyleSheet.create((theme) => ({
     outer: {
         flex: 1,
+    },
+    imagePreviewContent: {
+        flexGrow: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+    },
+    documentPreview: {
+        flex: 1,
+        width: '100%',
+        maxWidth: layout.maxWidth,
+        alignSelf: 'center',
+        backgroundColor: 'white',
     },
     actionButton: {
         flexDirection: 'row',
