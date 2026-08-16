@@ -9,8 +9,7 @@ Luma, and Canva. Gmail and LinkedIn are intentionally absent. Team members
 authenticate their own Canva accounts through the PMAI service; the agent never
 receives a shared Canva credential. PMAI's service remains authoritative for
 team membership, 180-day credential expiry, scopes, resource ownership, and
-write confirmation. It does not create separate website roles for volunteers,
-officers, or staff.
+write confirmation.
 
 ```text
 Discord member
