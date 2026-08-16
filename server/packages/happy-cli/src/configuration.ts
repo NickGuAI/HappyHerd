@@ -9,14 +9,13 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import packageJson from '../package.json'
+import { resolveReleaseSha, validateReleaseSha } from './releaseIdentity'
 
 export function runtimeCliVersion(packageVersion: string, releaseSha?: string): string {
   const normalizedSha = releaseSha?.trim()
   if (!normalizedSha) return packageVersion
-  if (!/^[0-9a-f]{40}$/.test(normalizedSha)) {
-    throw new Error('HAPPYHERD_RELEASE_SHA must be a full lowercase Git commit SHA')
-  }
-  return `${packageVersion}+happyherd.${normalizedSha.slice(0, 12)}`
+  validateReleaseSha(normalizedSha, 'HappyHerd release identity')
+  return `${packageVersion}+happyherd.${normalizedSha}`
 }
 
 class Configuration {
@@ -32,6 +31,7 @@ class Configuration {
   public readonly daemonStateFile: string
   public readonly daemonLockFile: string
   public readonly sessionsFile: string
+  public readonly releaseSha: string | undefined
   public readonly currentCliVersion: string
 
   public readonly isExperimentalEnabled: boolean
@@ -40,6 +40,7 @@ class Configuration {
   constructor() {
     // Check if we're running as daemon based on process args
     const args = process.argv.slice(2)
+    const isTopLevelVersionQuery = args.length === 1 && (args[0] === '--version' || args[0] === '-v')
     this.isDaemonProcess = args.length >= 2 && args[0] === 'daemon' && (args[1] === 'start-sync')
 
     // Directory configuration - Priority: HAPPY_HOME_DIR env > default home dir
@@ -74,7 +75,8 @@ class Configuration {
     this.isExperimentalEnabled = ['true', '1', 'yes'].includes(process.env.HAPPY_EXPERIMENTAL?.toLowerCase() || '');
     this.disableCaffeinate = ['true', '1', 'yes'].includes(process.env.HAPPY_DISABLE_CAFFEINATE?.toLowerCase() || '');
 
-    this.currentCliVersion = runtimeCliVersion(packageJson.version, process.env.HAPPYHERD_RELEASE_SHA)
+    this.releaseSha = resolveReleaseSha({ environmentSha: process.env.HAPPYHERD_RELEASE_SHA })
+    this.currentCliVersion = runtimeCliVersion(packageJson.version, this.releaseSha)
 
     // Visual indicator on CLI startup (only if not daemon process to avoid log clutter)
     const variant = process.env.HAPPY_VARIANT || 'stable'
@@ -82,12 +84,16 @@ class Configuration {
       console.log('\x1b[33m🔧 DEV MODE\x1b[0m - Data: ' + this.happyHomeDir)
     }
 
-    if (!existsSync(this.happyHomeDir)) {
-      mkdirSync(this.happyHomeDir, { recursive: true })
-    }
-    // Ensure directories exist
-    if (!existsSync(this.logsDir)) {
-      mkdirSync(this.logsDir, { recursive: true })
+    // A top-level version probe is pure: importing the CLI must not create
+    // state directories before index.ts can return its version response.
+    if (!isTopLevelVersionQuery) {
+      if (!existsSync(this.happyHomeDir)) {
+        mkdirSync(this.happyHomeDir, { recursive: true })
+      }
+      // Ensure directories exist
+      if (!existsSync(this.logsDir)) {
+        mkdirSync(this.logsDir, { recursive: true })
+      }
     }
   }
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   HappyHerdAutomationCreateInputSchema,
+  HappyHerdAutomationProviderOutcomeSchema,
   HappyHerdAutomationRunSchema,
   HappyHerdAutomationSchema,
 } from './automation';
@@ -45,8 +46,46 @@ describe('HappyHerd automation wire contract', () => {
     })).toThrow();
   });
 
-  it('records linked session starts and bounded attempts', () => {
+  it('records linked session starts as active until a terminal confirmation', () => {
     expect(HappyHerdAutomationRunSchema.parse({
+      id: crypto.randomUUID(),
+      automationId: id,
+      source: 'manual',
+      scheduledFor: '2026-08-03T00:00:00.000Z',
+      startedAt: '2026-08-03T00:00:01.000Z',
+      finishedAt: null,
+      status: 'started',
+      attempt: 1,
+      sessionId: 'session-one',
+      message: null,
+    }).sessionId).toBe('session-one');
+    expect(HappyHerdAutomationRunSchema.parse({
+      id: crypto.randomUUID(),
+      automationId: id,
+      source: 'manual',
+      scheduledFor: '2026-08-03T00:00:00.000Z',
+      startedAt: '2026-08-03T00:00:01.000Z',
+      finishedAt: '2026-08-03T00:05:00.000Z',
+      status: 'completed',
+      attempt: 1,
+      sessionId: 'session-one',
+      message: null,
+    }).status).toBe('completed');
+    for (const status of ['failed', 'timed-out'] as const) {
+      expect(HappyHerdAutomationRunSchema.parse({
+        id: crypto.randomUUID(),
+        automationId: id,
+        source: 'manual',
+        scheduledFor: '2026-08-03T00:00:00.000Z',
+        startedAt: '2026-08-03T00:00:01.000Z',
+        finishedAt: '2026-08-03T00:05:00.000Z',
+        status,
+        attempt: 1,
+        sessionId: 'session-one',
+        message: null,
+      }).status).toBe(status);
+    }
+    expect(() => HappyHerdAutomationRunSchema.parse({
       id: crypto.randomUUID(),
       automationId: id,
       source: 'manual',
@@ -57,7 +96,7 @@ describe('HappyHerd automation wire contract', () => {
       attempt: 1,
       sessionId: 'session-one',
       message: null,
-    }).sessionId).toBe('session-one');
+    })).toThrow();
     expect(() => HappyHerdAutomationRunSchema.parse({
       id: crypto.randomUUID(),
       automationId: id,
@@ -68,6 +107,25 @@ describe('HappyHerd automation wire contract', () => {
       status: 'running',
       attempt: 0,
       sessionId: null,
+      message: null,
+    })).toThrow();
+  });
+
+  it('carries a provider-owned one-shot outcome for daemon exit reconciliation', () => {
+    expect(HappyHerdAutomationProviderOutcomeSchema.parse({
+      schemaVersion: 1,
+      automationId: id,
+      runId: crypto.randomUUID(),
+      status: 'completed',
+      finishedAt: '2026-08-03T00:05:00.000Z',
+      message: null,
+    }).status).toBe('completed');
+    expect(() => HappyHerdAutomationProviderOutcomeSchema.parse({
+      schemaVersion: 1,
+      automationId: id,
+      runId: crypto.randomUUID(),
+      status: 'timed-out',
+      finishedAt: '2026-08-03T00:05:00.000Z',
       message: null,
     })).toThrow();
   });

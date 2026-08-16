@@ -160,7 +160,7 @@ export function loadBridgeConfig(env: NodeJS.ProcessEnv = process.env): BridgeCo
     brokerUrl,
     permissionMode: env.HAPPYHERD_AGENT_CODEX_PERMISSION_MODE?.trim() || 'read-only',
     ...(env.HAPPYHERD_AGENT_CODEX_MODEL?.trim() ? { modelMode: env.HAPPYHERD_AGENT_CODEX_MODEL.trim() } : {}),
-    ...(env.HAPPYHERD_AGENT_CODEX_EFFORT?.trim() ? { effortLevel: env.HAPPYHERD_AGENT_CODEX_EFFORT.trim() } : {}),
+    effortLevel: env.HAPPYHERD_AGENT_CODEX_EFFORT?.trim() || 'max',
     turnTimeoutMs: parsePositiveInteger(env.HAPPYHERD_AGENT_TURN_TIMEOUT_MS, 300_000, 'HAPPYHERD_AGENT_TURN_TIMEOUT_MS'),
   };
   assertDedicatedPaths(config);

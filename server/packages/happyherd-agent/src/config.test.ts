@@ -32,11 +32,19 @@ afterEach(async () => {
 });
 
 describe('loadBridgeConfig', () => {
-  it('loads isolated service paths and defaults to read-only Codex', () => {
+  it('loads isolated service paths and defaults to read-only Codex at max effort', () => {
     const config = loadBridgeConfig(baseEnvironment());
     expect(config.permissionMode).toBe('read-only');
+    expect(config.effortLevel).toBe('max');
     expect(config.commanderId).toBe('team-agent');
     expect(config.brokerUrl).toBe('http://127.0.0.1:3210/mcp');
+  });
+
+  it('preserves an explicit Codex effort override', () => {
+    expect(loadBridgeConfig({
+      ...baseEnvironment(),
+      HAPPYHERD_AGENT_CODEX_EFFORT: 'high',
+    }).effortLevel).toBe('high');
   });
 
   it('rejects personal runtime paths on every host', () => {

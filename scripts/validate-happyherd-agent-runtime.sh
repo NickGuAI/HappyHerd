@@ -298,8 +298,9 @@ const state = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
 const sourceSha = manifest.source?.happyHerdSha;
 if (
   !/^[0-9a-f]{40}$/.test(sourceSha ?? '')
+  || manifest.source?.originMainSha !== sourceSha
   || typeof state.startedWithCliVersion !== 'string'
-  || !state.startedWithCliVersion.endsWith(`+happyherd.${sourceSha.slice(0, 12)}`)
+  || !state.startedWithCliVersion.endsWith(`+happyherd.${sourceSha}`)
 ) process.exit(1);
 NODE
 

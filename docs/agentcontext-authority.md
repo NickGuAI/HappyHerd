@@ -21,12 +21,18 @@ singular `commander/` store, or a second home-level `AGENTS.md`.
 ```
 
 The generated prompt combines exactly one global guide, at most one selected
-Commander, and the nearest project `AGENTS.md` (or `CLAUDE.md` when no
-`AGENTS.md` exists). A one-use bundle transports that prompt through the
-operating system's temporary directory and is removed after the provider child
-reads it. It is never persisted under `~/.happyherd` or treated as a second
-AgentContext tree. Shared and private AgentContext paths are referenced for
-on-demand loading.
+Commander, that Commander's L2 `1-working-memory.md` and L3
+`2-long-term-memory.md` when present, and the nearest project `AGENTS.md` (or
+`CLAUDE.md` when no `AGENTS.md` exists). Each memory file is capped at 64 KiB;
+the bundle records its canonical source path, included/source byte counts, and
+whether it was truncated. L1 `0-observations.jsonl` remains on demand and is
+never copied into the automatic prompt.
+
+A one-use bundle transports that prompt through the operating system's
+temporary directory and is removed after the provider child reads it. It is
+never persisted under `~/.happyherd` or treated as a second AgentContext tree.
+Other shared and private AgentContext paths remain referenced for on-demand
+loading.
 
 Effective precedence is:
 
@@ -34,8 +40,9 @@ Effective precedence is:
 provider safety/product policy
 → HappyHerd global AGENTS.md
 → selected COMMANDER.md
+→ selected Commander L2/L3 memory (bounded contextual state)
 → closest project guidance
-→ on-demand shared/private AgentContext
+→ on-demand shared/private AgentContext, including L1 evidence
 → user turn
 ```
 

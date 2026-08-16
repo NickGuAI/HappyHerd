@@ -9,6 +9,7 @@ import {
 describe('agent defaults', () => {
     it('uses a canonical Claude model slug by default', () => {
         expect(resolveAgentDefaultConfig(undefined, 'claude').modelMode).toBe('claude-opus-5');
+        expect(resolveAgentDefaultConfig(undefined, 'claude').effortLevel).toBe('max');
     });
 
     it('migrates a persisted Claude alias to its canonical slug', () => {
@@ -17,18 +18,28 @@ describe('agent defaults', () => {
         }, 'claude').modelMode).toBe('claude-opus-5');
     });
 
-    it('defaults fresh Codex users to the highest effort advertised by the selected model', () => {
-        expect(resolveAgentDefaultConfig(undefined, 'codex').effortLevel).toBeNull();
+    it('defaults fresh Codex users to max when the selected model supports it', () => {
+        expect(resolveAgentDefaultConfig(undefined, 'codex').effortLevel).toBe('max');
         expect(resolveAgentDefaultEffortLevel(undefined, 'codex', [
             { key: 'low' },
-            { key: 'medium' },
-            { key: 'high' },
+            { key: 'max' },
+            { key: 'ultra' },
+        ])).toBe('max');
+    });
+
+    it('falls back to the highest advertised effort when max is unsupported', () => {
+        expect(resolveAgentDefaultEffortLevel(undefined, 'codex', [
+            { key: 'low' },
             { key: 'xhigh' },
         ])).toBe('xhigh');
         expect(resolveAgentDefaultEffortLevel(undefined, 'codex', [
             { key: 'medium' },
             { key: 'ultra' },
         ])).toBe('ultra');
+        expect(resolveAgentDefaultEffortLevel(undefined, 'claude', [
+            { key: 'low' },
+            { key: 'xhigh' },
+        ])).toBe('xhigh');
     });
 
     it('keeps a synchronized explicit Codex effort while the selected model supports it', () => {

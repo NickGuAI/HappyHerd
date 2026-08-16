@@ -28,6 +28,8 @@ grep -Fq 'ExecStartPre=+' "$ROOT/deploy/happyherd-agent.service" || \
     fail 'bridge unit does not run root-owned runtime validation before privilege drop'
 grep -Fq 'HAPPYHERD_RELEASE_SHA' "$ROOT/scripts/start-host-daemon.sh" || \
     fail 'daemon handoff is not bound to the immutable release commit'
+grep -Fq 'state.releaseSha === process.argv[2]' "$ROOT/scripts/start-host-daemon.sh" || \
+    fail 'daemon bootstrap does not verify exact release readiness'
 grep -Fq 'startedWithCliVersion.endsWith' "$ROOT/scripts/validate-happyherd-agent-runtime.sh" || \
     fail 'runtime validator does not verify daemon release identity'
 grep -Fq 'happyherd-agent-broker.localhost' "$ROOT/scripts/test-happyherd-agent-sandbox.sh" || \

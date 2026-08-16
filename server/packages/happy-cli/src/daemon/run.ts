@@ -2,6 +2,13 @@ import fs from 'fs/promises';
 import os from 'os';
 import * as tmp from 'tmp';
 import axios from 'axios';
+import { randomUUID } from 'node:crypto';
+import psList from 'ps-list';
+import {
+  HappyHerdAutomationProviderOutcomeSchema,
+  type HappyHerdAutomationProviderOutcome,
+  type HappyHerdAutomationRun,
+} from '@slopus/happy-wire';
 
 import { ApiClient } from '@/api/api';
 import { TrackedSession, SessionEncryptionData } from './types';
@@ -11,13 +18,12 @@ import { logger } from '@/ui/logger';
 import { authAndSetupMachineIfNeeded } from '@/ui/auth';
 import { configuration } from '@/configuration';
 import { startCaffeinate, stopCaffeinate } from '@/utils/caffeinate';
-import packageJson from '../../package.json';
 import { getEnvironmentInfo } from '@/ui/doctor';
 import { spawnHappyCLI } from '@/utils/spawnHappyCLI';
 import { writeDaemonState, DaemonLocallyPersistedState, readDaemonState, acquireDaemonLock, releaseDaemonLock, readPersistedSessions, persistSession } from '@/persistence';
 import type { PersistedSession } from '@/persistence';
 
-import { cleanupDaemonState, isDaemonRunningCurrentlyInstalledHappyVersion, stopDaemon } from './controlClient';
+import { cleanupDaemonState, isDaemonRunningCurrentlyInstalledHappyVersion, listDaemonSessions, stopDaemon } from './controlClient';
 import { startDaemonControlServer } from './controlServer';
 import { statSync } from 'fs';
 import { join } from 'path';
@@ -36,11 +42,129 @@ import {
   wrapTmuxCommandWithSessionEnvironmentSanitizer,
 } from './sessionEnvironment';
 import { contextEnvironment, prepareCommanderContext } from '@/agentContext/commanderContext';
-import { HappyHerdAutomationService } from '@/automations/service';
+import {
+  HAPPYHERD_AUTOMATION_RUN_TIMEOUT_MS,
+  HappyHerdAutomationService,
+} from '@/automations/service';
 import { automationBootstrapEnvironment, prepareAutomationBootstrap } from '@/automations/sessionBootstrap';
 import { appendDaemonSpawnModeArgs } from './spawnModeArgs';
 import { SessionProcessLifecycle } from './sessionProcessLifecycle';
 import { hasProviderProcessExited } from './processStatus';
+
+type AutomationTrackedSession = TrackedSession & {
+  automationId?: string;
+  automationRunId?: string;
+};
+
+const AUTOMATION_TERMINATION_GRACE_MS = 5_000;
+const AUTOMATION_TERMINATION_POLL_MS = 100;
+
+function trackedSessionWithAutomationProvenance(
+  session: TrackedSession,
+  metadata: Metadata | undefined = session.happySessionMetadataFromLocalWebhook,
+): AutomationTrackedSession {
+  const tracked = session as AutomationTrackedSession;
+  return {
+    ...tracked,
+    ...(tracked.automationId ? { automationId: tracked.automationId } : metadata?.automationId ? { automationId: metadata.automationId } : {}),
+    ...(tracked.automationRunId ? { automationRunId: tracked.automationRunId } : metadata?.automationRunId ? { automationRunId: metadata.automationRunId } : {}),
+  };
+}
+
+export function automationSessionMatchesRun(
+  run: HappyHerdAutomationRun,
+  session: AutomationTrackedSession,
+  metadata: Metadata | undefined = session.happySessionMetadataFromLocalWebhook,
+): boolean {
+  return run.status === 'started'
+    && run.sessionId !== null
+    && run.sessionId === session.happySessionId
+    && session.automationId === run.automationId
+    && session.automationRunId === run.id
+    && metadata?.startedFromDaemon === true
+    && metadata.hostPid === session.pid
+    && metadata.automationId === run.automationId
+    && metadata.automationRunId === run.id;
+}
+
+export function automationWebhookMatchesTrackedSession(
+  session: AutomationTrackedSession,
+  metadata: Metadata,
+): boolean {
+  return metadata.startedFromDaemon === true
+    && metadata.hostPid === session.pid
+    && typeof session.automationId === 'string'
+    && typeof session.automationRunId === 'string'
+    && metadata.automationId === session.automationId
+    && metadata.automationRunId === session.automationRunId;
+}
+
+export function exactAutomationProviderOutcome(
+  run: HappyHerdAutomationRun,
+  session: AutomationTrackedSession,
+  metadata: Metadata | undefined,
+): HappyHerdAutomationProviderOutcome | null {
+  if (!automationSessionMatchesRun(run, session, metadata)) return null;
+  const parsed = HappyHerdAutomationProviderOutcomeSchema.safeParse(metadata?.automationProviderOutcome);
+  if (!parsed.success) return null;
+  return parsed.data.automationId === run.automationId && parsed.data.runId === run.id
+    ? parsed.data
+    : null;
+}
+
+export function resolveExitedAutomationProviderOutcome(
+  run: HappyHerdAutomationRun,
+  session: AutomationTrackedSession,
+  metadata: Metadata,
+): Pick<HappyHerdAutomationProviderOutcome, 'status' | 'message'> {
+  const outcome = exactAutomationProviderOutcome(run, session, metadata);
+  return outcome ?? {
+    status: 'failed',
+    message: 'Provider exited before recording an exact one-shot outcome.',
+  };
+}
+
+export async function terminateAutomationProviderBeforeTimeoutConfirmation(
+  pid: number,
+  dependencies: {
+    signal?: (pid: number, signal: NodeJS.Signals) => void;
+    waitForExit?: (pid: number, timeoutMs: number) => Promise<boolean>;
+  } = {},
+): Promise<boolean> {
+  const signal = dependencies.signal ?? ((targetPid, targetSignal) => process.kill(targetPid, targetSignal));
+  const waitForExit = dependencies.waitForExit ?? (async (targetPid, timeoutMs) => {
+    const deadline = Date.now() + timeoutMs;
+    while (!hasProviderProcessExited(targetPid) && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, AUTOMATION_TERMINATION_POLL_MS));
+    }
+    return hasProviderProcessExited(targetPid);
+  });
+
+  try {
+    signal(pid, 'SIGTERM');
+  } catch {
+    return waitForExit(pid, 0);
+  }
+  if (await waitForExit(pid, AUTOMATION_TERMINATION_GRACE_MS)) return true;
+  try {
+    signal(pid, 'SIGKILL');
+  } catch {
+    return waitForExit(pid, 0);
+  }
+  return waitForExit(pid, AUTOMATION_TERMINATION_GRACE_MS);
+}
+
+export function automationProviderCommandMatches(
+  command: string | undefined,
+  rail: Metadata['flavor'],
+  cliEntrypoint: string,
+): boolean {
+  if (!command || (rail !== 'claude' && rail !== 'codex')) return false;
+  return command.includes(cliEntrypoint)
+    && new RegExp(`(?:^|\\s)${rail}(?:\\s|$)`).test(command)
+    && /--happy-starting-mode(?:=|\s+)remote(?:\s|$)/.test(command)
+    && /--started-by(?:=|\s+)daemon(?:\s|$)/.test(command);
+}
 
 /** Shell-escape a string for safe interpolation into tmux commands. */
 function shellescape(s: string): string {
@@ -56,7 +180,7 @@ const initialCLIAvailability = detectCLIAvailability();
 export const initialMachineMetadata: MachineMetadata = {
   host: os.hostname() + hostSuffix,
   platform: os.platform(),
-  happyCliVersion: packageJson.version,
+  happyCliVersion: configuration.currentCliVersion,
   homeDir: os.homedir(),
   happyHomeDir: configuration.happyHomeDir,
   happyLibDir: projectPath(),
@@ -139,6 +263,7 @@ export async function startDaemon(): Promise<void> {
   // Check if already running
   // Check if running daemon version matches current CLI version
   const runningDaemonVersionMatches = await isDaemonRunningCurrentlyInstalledHappyVersion();
+  const handoffSessions = runningDaemonVersionMatches ? [] : await listDaemonSessions();
   if (!runningDaemonVersionMatches) {
     // Keep version handoff inside the detached daemon lifecycle. A host service
     // manager must not own this process tree because stopping that service can
@@ -175,29 +300,41 @@ export async function startDaemon(): Promise<void> {
     logger.debug('[DAEMON RUN] Auth and machine setup complete');
 
     // Setup state - key by PID
-    const pidToTrackedSession = new Map<number, TrackedSession>();
+    const pidToTrackedSession = new Map<number, AutomationTrackedSession>();
 
-    // Retain session data after process exits so resume can still find it.
-    // Pre-populate from disk so sessions survive daemon restarts.
-    const sessionIdToFinishedSession = new Map<string, TrackedSession>();
+    // Reconnect material is durable, but live process registration is not.
+    // A session owns its own lifetime and re-registers with each daemon instance.
+    const sessionIdToFinishedSession = new Map<string, AutomationTrackedSession>();
     const persisted = readPersistedSessions();
-    for (const [id, s] of Object.entries(persisted)) {
-      sessionIdToFinishedSession.set(id, {
-        startedBy: 'persisted',
-        happySessionId: id,
-        happySessionMetadataFromLocalWebhook: s.metadata,
+    const persistedSession = (sessionId: string): AutomationTrackedSession | undefined => {
+      const saved = persisted[sessionId];
+      if (!saved) return undefined;
+      return trackedSessionWithAutomationProvenance({
+        startedBy: 'persisted reconnect material',
+        happySessionId: sessionId,
+        happySessionMetadataFromLocalWebhook: saved.metadata,
         encryption: {
-          encryptionKey: decodeBase64(s.encryptionKey),
-          encryptionVariant: s.encryptionVariant,
-          seq: s.seq,
-          metadataVersion: s.metadataVersion,
-          agentStateVersion: s.agentStateVersion,
+          encryptionKey: decodeBase64(saved.encryptionKey),
+          encryptionVariant: saved.encryptionVariant,
+          seq: saved.seq,
+          metadataVersion: saved.metadataVersion,
+          agentStateVersion: saved.agentStateVersion,
         },
         pid: 0,
-      });
+      }, saved.metadata);
+    };
+    for (const session of handoffSessions) {
+      if (hasProviderProcessExited(session.pid)) continue;
+      const reconnect = persistedSession(session.happySessionId);
+      pidToTrackedSession.set(session.pid, trackedSessionWithAutomationProvenance({
+        ...reconnect,
+        startedBy: session.startedBy,
+        happySessionId: session.happySessionId,
+        pid: session.pid,
+      }, reconnect?.happySessionMetadataFromLocalWebhook));
     }
-    if (Object.keys(persisted).length > 0) {
-      logger.debug(`[DAEMON RUN] Loaded ${Object.keys(persisted).length} persisted sessions from disk`);
+    if (handoffSessions.length > 0) {
+      logger.debug(`[DAEMON RUN] Rebuilt the in-memory index for ${pidToTrackedSession.size} live sessions during handoff`);
     }
 
     const sessionProcessLifecycle = new SessionProcessLifecycle({
@@ -206,10 +343,41 @@ export async function startDaemon(): Promise<void> {
       deactivateSession: (sessionId) => api.deactivateSession(sessionId),
       log: (message) => logger.debug(`[DAEMON RUN] ${message}`),
     });
-    const onChildExited = (pid: number) => sessionProcessLifecycle.recordExit(pid);
+    let automations: HappyHerdAutomationService | null = null;
+    const automationDeadlineTimers = new Map<string, ReturnType<typeof setTimeout>>();
+    const automationTimeoutsInProgress = new Set<string>();
+    let automationReconcileRunning = false;
+
+    const onChildExited = async (pid: number): Promise<void> => {
+      if (!hasProviderProcessExited(pid)) {
+        logger.debug(`[DAEMON RUN] PID ${pid} has not been confirmed exited; keeping it active`);
+        return;
+      }
+      const session = pidToTrackedSession.get(pid);
+      if (!session) return;
+      const exitedBeforeWebhook = !session.happySessionId;
+      try {
+        await finalizeExitedAutomationSession(
+          session,
+          session.automationRunId && automationTimeoutsInProgress.has(session.automationRunId)
+            ? 'timed-out'
+            : null,
+        );
+      } catch (error) {
+        logger.warn(`[AUTOMATIONS] Failed to reconcile exited provider PID ${pid}; the run remains active`, error);
+      } finally {
+        await sessionProcessLifecycle.recordExit(pid);
+      }
+      if (exitedBeforeWebhook) {
+        const resolveEarlyExit = pidToPreWebhookExitAwaiter.get(pid);
+        pidToPreWebhookExitAwaiter.delete(pid);
+        resolveEarlyExit?.();
+      }
+    };
 
     // Session spawning awaiter system
     const pidToAwaiter = new Map<number, (session: TrackedSession) => void>();
+    const pidToPreWebhookExitAwaiter = new Map<number, () => void>();
 
     // Helper functions
     const getCurrentChildren = () => Array.from(pidToTrackedSession.values());
@@ -229,7 +397,7 @@ export async function startDaemon(): Promise<void> {
 
       // Persist encryption data to disk so it survives daemon restarts
       if (encryption) {
-        persistSession(sessionId, {
+        const savedSession: PersistedSession = {
           encryptionKey: encodeBase64(encryption.encryptionKey),
           encryptionVariant: encryption.encryptionVariant,
           seq: encryption.seq,
@@ -237,21 +405,27 @@ export async function startDaemon(): Promise<void> {
           agentStateVersion: encryption.agentStateVersion,
           metadata: sessionMetadata,
           savedAt: Date.now(),
-        });
+        };
+        persistSession(sessionId, savedSession);
+        persisted[sessionId] = savedSession;
       }
 
       // Check if we already have this PID (daemon-spawned)
       const existingSession = pidToTrackedSession.get(pid);
+      const hadPendingSpawnAwaiter = pidToAwaiter.has(pid);
 
-      if (existingSession && existingSession.startedBy === 'daemon') {
-        // Update daemon-spawned session with reported data
+      if (existingSession) {
+        // Refresh either a daemon-spawned session or a session carried across
+        // daemon handoff. The provider remains authoritative for its lifetime.
         existingSession.happySessionId = sessionId;
         existingSession.happySessionMetadataFromLocalWebhook = sessionMetadata;
-        existingSession.encryption = encryption;
+        if (encryption) existingSession.encryption = encryption;
+        existingSession.automationId ??= sessionMetadata.automationId;
+        existingSession.automationRunId ??= sessionMetadata.automationRunId;
         logger.debug(`[DAEMON RUN] Updated daemon-spawned session ${sessionId} with metadata`);
 
         // Resolve any awaiter for this PID
-        const awaiter = pidToAwaiter.get(pid);
+        const awaiter = existingSession.startedBy === 'daemon' ? pidToAwaiter.get(pid) : undefined;
         if (awaiter) {
           pidToAwaiter.delete(pid);
           awaiter(existingSession);
@@ -259,16 +433,34 @@ export async function startDaemon(): Promise<void> {
         }
       } else if (!existingSession) {
         // New session started externally
-        const trackedSession: TrackedSession = {
+        const trackedSession = trackedSessionWithAutomationProvenance({
           startedBy: 'happy directly - likely by user from terminal',
           happySessionId: sessionId,
           happySessionMetadataFromLocalWebhook: sessionMetadata,
           encryption,
           pid
-        };
+        }, sessionMetadata);
         pidToTrackedSession.set(pid, trackedSession);
         logger.debug(`[DAEMON RUN] Registered externally-started session ${sessionId}`);
       }
+      const registeredSession = pidToTrackedSession.get(pid);
+      if (!hadPendingSpawnAwaiter
+        && automations
+        && registeredSession
+        && automationWebhookMatchesTrackedSession(registeredSession, sessionMetadata)) {
+        void automations.confirmRunStarted({
+          automationId: registeredSession.automationId!,
+          runId: registeredSession.automationRunId!,
+          sessionId,
+        }).then(() => reconcileAutomationRuns()).catch((error) => {
+          logger.warn(`[AUTOMATIONS] Refused late session registration ${sessionId}`, error);
+        });
+      }
+      setTimeout(() => {
+        void reconcileAutomationRuns().catch((error) => {
+          logger.warn('[AUTOMATIONS] Failed to reconcile after session registration', error);
+        });
+      }, 0).unref?.();
     };
 
     // Spawn a new session (sessionId reserved for future --resume functionality)
@@ -278,6 +470,7 @@ export async function startDaemon(): Promise<void> {
           ...options,
           automation: {
             id: options.automation.id,
+            runId: options.automation.runId,
             kind: options.automation.kind,
             instructionLength: options.automation.instruction.length,
           },
@@ -364,6 +557,7 @@ export async function startDaemon(): Promise<void> {
           ? await prepareAutomationBootstrap({
             schemaVersion: 1,
             automationId: options.automation.id,
+            runId: options.automation.runId,
             kind: options.automation.kind,
             instruction: options.automation.instruction,
           })
@@ -435,7 +629,10 @@ export async function startDaemon(): Promise<void> {
 
         // Check if tmux is available and should be used
         const tmuxAvailable = await isTmuxAvailable();
-        let useTmux = tmuxAvailable;
+        // Automation providers are independent one-shot processes observed by
+        // the daemon. Keeping them out of tmux gives the automation reconciler
+        // an exact PID and authoritative OS exit evidence.
+        let useTmux = options.automation ? false : tmuxAvailable;
 
         // Get tmux session name from environment variables (now set by profile system)
         // Empty string means "use current/most recent session" (tmux default behavior)
@@ -508,8 +705,10 @@ export async function startDaemon(): Promise<void> {
             }
 
             // Create a tracked session for tmux windows - now we have the real PID!
-            const trackedSession: TrackedSession = {
+            const trackedSession: AutomationTrackedSession = {
               startedBy: 'daemon',
+              automationId: options.automation?.id,
+              automationRunId: options.automation?.runId,
               pid: tmuxResult.pid, // Real PID from tmux -P flag
               tmuxSessionId: tmuxResult.sessionId,
               directoryCreated,
@@ -604,6 +803,9 @@ export async function startDaemon(): Promise<void> {
             env: buildSessionChildEnvironment(ambientEnvironment, extraEnv),
             directoryCreated,
             message: directoryCreated ? `The path '${directory}' did not exist. We created a new folder and spawned a new session there.` : undefined,
+            automation: options.automation
+              ? { id: options.automation.id, runId: options.automation.runId }
+              : undefined,
           });
         }
 
@@ -628,12 +830,14 @@ export async function startDaemon(): Promise<void> {
       env,
       directoryCreated = false,
       message,
+      automation,
     }: {
       args: string[];
       cwd: string;
       env: NodeJS.ProcessEnv;
       directoryCreated?: boolean;
       message?: string;
+      automation?: { id: string; runId: string };
     }): Promise<SpawnSessionResult> => {
       const happyProcess = spawnHappyCLI(args, {
         cwd,
@@ -653,8 +857,10 @@ export async function startDaemon(): Promise<void> {
 
       logger.debug(`[DAEMON RUN] Spawned process with PID ${happyProcess.pid}`);
 
-      const trackedSession: TrackedSession = {
+      const trackedSession: AutomationTrackedSession = {
         startedBy: 'daemon',
+        automationId: automation?.id,
+        automationRunId: automation?.runId,
         pid: happyProcess.pid,
         childProcess: happyProcess,
         directoryCreated,
@@ -682,8 +888,12 @@ export async function startDaemon(): Promise<void> {
       logger.debug(`[DAEMON RUN] Waiting for session webhook for PID ${happyProcess.pid}`);
 
       return new Promise((resolve) => {
+        let settled = false;
         const timeout = setTimeout(() => {
+          if (settled) return;
+          settled = true;
           pidToAwaiter.delete(happyProcess.pid!);
+          pidToPreWebhookExitAwaiter.delete(happyProcess.pid!);
           logger.debug(`[DAEMON RUN] Session webhook timeout for PID ${happyProcess.pid}`);
           resolve({
             type: 'error',
@@ -691,13 +901,36 @@ export async function startDaemon(): Promise<void> {
           });
         }, 15_000);
 
+        if (automation) {
+          pidToPreWebhookExitAwaiter.set(happyProcess.pid!, () => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timeout);
+            pidToAwaiter.delete(happyProcess.pid!);
+            resolve({
+              type: 'error',
+              errorMessage: `Provider PID ${happyProcess.pid} exited before registering a Happy session`,
+            });
+          });
+        }
+
         pidToAwaiter.set(happyProcess.pid!, (completedSession) => {
+          if (settled) return;
+          settled = true;
           clearTimeout(timeout);
+          pidToPreWebhookExitAwaiter.delete(happyProcess.pid!);
           logger.debug(`[DAEMON RUN] Session ${completedSession.happySessionId} fully spawned with webhook`);
           resolve({
             type: 'success',
             sessionId: completedSession.happySessionId!
           });
+          if (automation) {
+            setTimeout(() => {
+              void reconcileAutomationRuns().catch((error) => {
+                logger.warn('[AUTOMATIONS] Failed to arm new automation deadline', error);
+              });
+            }, 0).unref?.();
+          }
         });
       });
     };
@@ -706,7 +939,7 @@ export async function startDaemon(): Promise<void> {
       for (const session of pidToTrackedSession.values()) {
         if (session.happySessionId === happySessionId) return session;
       }
-      return sessionIdToFinishedSession.get(happySessionId);
+      return sessionIdToFinishedSession.get(happySessionId) ?? persistedSession(happySessionId);
     };
 
     const fetchServerSessionMetadata = async (sessionId: string, encryptionKey: Uint8Array, encryptionVariant: 'legacy' | 'dataKey'): Promise<Metadata | null> => {
@@ -726,12 +959,202 @@ export async function startDaemon(): Promise<void> {
       }
     };
 
+    const clearAutomationDeadline = (runId: string): void => {
+      const timer = automationDeadlineTimers.get(runId);
+      if (timer) clearTimeout(timer);
+      automationDeadlineTimers.delete(runId);
+    };
+
+    const clearAllAutomationDeadlines = (): void => {
+      for (const runId of [...automationDeadlineTimers.keys()]) clearAutomationDeadline(runId);
+    };
+
+    async function finalizeExitedAutomationSession(
+      session: AutomationTrackedSession,
+      forcedStatus: 'timed-out' | null,
+    ): Promise<void> {
+      if (!automations || !session.automationId || !session.automationRunId) return;
+      if (!session.happySessionId) {
+        await automations.confirmRunDidNotStart({
+          automationId: session.automationId,
+          runId: session.automationRunId,
+          message: `Provider PID ${session.pid} exited before registering a Happy session.`,
+        });
+        clearAutomationDeadline(session.automationRunId);
+        return;
+      }
+      const run = (await automations.listActiveRuns()).find((candidate) => (
+        candidate.automationId === session.automationId
+        && candidate.id === session.automationRunId
+        && candidate.sessionId === session.happySessionId
+      ));
+      if (!run) {
+        clearAutomationDeadline(session.automationRunId);
+        return;
+      }
+      if (!hasProviderProcessExited(session.pid)) return;
+
+      const localMetadata = session.happySessionMetadataFromLocalWebhook;
+      if (!automationSessionMatchesRun(run, session, localMetadata)) {
+        logger.warn(`[AUTOMATIONS] Refusing to close run ${run.id}: tracked session provenance does not match`);
+        return;
+      }
+
+      if (forcedStatus === 'timed-out') {
+        await automations.confirmRunTermination({
+          automationId: run.automationId,
+          runId: run.id,
+          sessionId: run.sessionId!,
+          status: 'timed-out',
+          message: 'Provider exceeded the 60-minute automation deadline and was terminated.',
+        });
+        clearAutomationDeadline(run.id);
+        return;
+      }
+
+      if (!session.encryption) {
+        await automations.confirmRunTermination({
+          automationId: run.automationId,
+          runId: run.id,
+          sessionId: run.sessionId!,
+          status: 'failed',
+          message: 'Provider exited without the encryption metadata required to read its one-shot outcome.',
+        });
+        clearAutomationDeadline(run.id);
+        return;
+      }
+      const freshMetadata = await fetchServerSessionMetadata(
+        session.happySessionId,
+        session.encryption.encryptionKey,
+        session.encryption.encryptionVariant,
+      );
+      if (!freshMetadata) {
+        logger.warn(`[AUTOMATIONS] Run ${run.id} exited while its server metadata was unavailable; keeping it active for retry`);
+        return;
+      }
+      const outcome = resolveExitedAutomationProviderOutcome(run, session, freshMetadata);
+      session.happySessionMetadataFromLocalWebhook = freshMetadata;
+      await automations.confirmRunTermination({
+        automationId: run.automationId,
+        runId: run.id,
+        sessionId: run.sessionId!,
+        status: outcome.status,
+        message: outcome.message,
+      });
+      clearAutomationDeadline(run.id);
+    }
+
+    const findExactTrackedAutomationSession = (
+      run: HappyHerdAutomationRun,
+    ): AutomationTrackedSession | undefined => [...pidToTrackedSession.values()]
+      .find((session) => automationSessionMatchesRun(run, session));
+
+    const terminateTimedOutAutomation = async (runId: string): Promise<void> => {
+      if (!automations || automationTimeoutsInProgress.has(runId)) return;
+      const run = (await automations.listActiveRuns()).find((candidate) => candidate.id === runId);
+      if (!run || run.status !== 'started') {
+        clearAutomationDeadline(runId);
+        return;
+      }
+      const session = findExactTrackedAutomationSession(run);
+      if (!session) {
+        logger.warn(`[AUTOMATIONS] Refusing to terminate run ${run.id}: no exact live provider provenance`);
+        return;
+      }
+      if (hasProviderProcessExited(session.pid)) {
+        await onChildExited(session.pid);
+        return;
+      }
+      const liveProcess = (await psList()).find((candidate) => candidate.pid === session.pid);
+      if (!automationProviderCommandMatches(
+        liveProcess?.cmd,
+        session.happySessionMetadataFromLocalWebhook?.flavor,
+        join(projectPath(), 'dist', 'index.mjs'),
+      )) {
+        logger.warn(`[AUTOMATIONS] Refusing to terminate run ${run.id}: PID ${session.pid} is not the exact Happy provider process`);
+        return;
+      }
+
+      automationTimeoutsInProgress.add(run.id);
+      try {
+        logger.warn(`[AUTOMATIONS] Terminating timed-out run ${run.id}, PID ${session.pid}`);
+        if (!await terminateAutomationProviderBeforeTimeoutConfirmation(session.pid)) {
+          logger.warn(`[AUTOMATIONS] PID ${session.pid} remains live after timeout termination; run ${run.id} stays active`);
+          return;
+        }
+        await onChildExited(session.pid);
+      } finally {
+        automationTimeoutsInProgress.delete(run.id);
+      }
+    };
+
+    const armAutomationDeadline = (run: HappyHerdAutomationRun): void => {
+      if (automationDeadlineTimers.has(run.id)) return;
+      const deadlineAt = Date.parse(run.startedAt) + HAPPYHERD_AUTOMATION_RUN_TIMEOUT_MS;
+      const timer = setTimeout(() => {
+        automationDeadlineTimers.delete(run.id);
+        void terminateTimedOutAutomation(run.id).catch((error) => {
+          logger.warn(`[AUTOMATIONS] Failed to enforce deadline for run ${run.id}`, error);
+        });
+      }, Math.max(0, deadlineAt - Date.now()));
+      timer.unref?.();
+      automationDeadlineTimers.set(run.id, timer);
+    };
+
+    async function reconcileAutomationRuns(): Promise<void> {
+      if (!automations || automationReconcileRunning) return;
+      automationReconcileRunning = true;
+      try {
+        const activeRuns = await automations.listActiveRuns();
+        const activeIds = new Set(activeRuns.map((run) => run.id));
+        for (const runId of automationDeadlineTimers.keys()) {
+          if (!activeIds.has(runId)) clearAutomationDeadline(runId);
+        }
+
+        for (const run of activeRuns) {
+          if (run.status !== 'started' || !run.sessionId) continue;
+          let session = findExactTrackedAutomationSession(run);
+          if (!session) {
+            const reconnect = persistedSession(run.sessionId);
+            const metadata = reconnect?.happySessionMetadataFromLocalWebhook;
+            const pid = metadata?.hostPid;
+            if (reconnect && pid && pid > 0) {
+              const candidate = trackedSessionWithAutomationProvenance({ ...reconnect, pid }, metadata);
+              const occupied = pidToTrackedSession.get(pid);
+              if ((!occupied || occupied.happySessionId === run.sessionId)
+                && automationSessionMatchesRun(run, candidate, metadata)) {
+                if (hasProviderProcessExited(pid)) {
+                  // Persisted metadata is sufficient to reconcile a process
+                  // already proven gone. A live process must re-register with
+                  // this daemon (or arrive through handoff) before we may arm a
+                  // destructive deadline; this prevents stale-PID reuse.
+                  session = candidate;
+                }
+              }
+            }
+          }
+          if (!session) continue;
+          if (hasProviderProcessExited(session.pid)) {
+            await finalizeExitedAutomationSession(session, null);
+            continue;
+          }
+          armAutomationDeadline(run);
+        }
+      } finally {
+        automationReconcileRunning = false;
+      }
+    }
+
     const resumeSession = async (happySessionId: string, options?: {
       model?: string;
       permissionMode?: string;
       agentRuntimeContext?: unknown;
     }): Promise<SpawnSessionResult> => {
       try {
+        const liveSession = [...pidToTrackedSession.values()].find((session) => session.happySessionId === happySessionId);
+        if (liveSession) {
+          return { type: 'error', errorMessage: `Session ${happySessionId} is already running with PID ${liveSession.pid}.` };
+        }
         const tracked = findTrackedSessionById(happySessionId);
         if (!tracked) {
           return { type: 'error', errorMessage: `Session ${happySessionId} is not tracked by this daemon. It may have been started before the daemon or on another machine.` };
@@ -741,6 +1164,10 @@ export async function startDaemon(): Promise<void> {
         }
         if (!tracked.encryption) {
           return { type: 'error', errorMessage: `Session ${happySessionId} has no stored encryption data. It was likely started before this feature was available. Restart the daemon and start a new session to enable resume.` };
+        }
+        const priorPid = tracked.happySessionMetadataFromLocalWebhook.hostPid;
+        if (priorPid && !hasProviderProcessExited(priorPid)) {
+          return { type: 'error', errorMessage: `Session ${happySessionId} still has a live provider process. Wait for it to register with this daemon before resuming.` };
         }
 
         // Webhook metadata may be stale (missing claudeSessionId/codexThreadId set after startup).
@@ -841,8 +1268,9 @@ export async function startDaemon(): Promise<void> {
       return false;
     };
 
-    const automations = new HappyHerdAutomationService(machineId, spawnSession);
+    automations = new HappyHerdAutomationService(machineId, spawnSession);
     await automations.start();
+    await reconcileAutomationRuns();
 
     // Start control server
     const { port: controlPort, stop: stopControlServer } = await startDaemonControlServer({
@@ -855,11 +1283,14 @@ export async function startDaemon(): Promise<void> {
     });
 
     // Write initial daemon state (no lock needed for state file)
+    const daemonInstanceId = randomUUID();
     const fileState: DaemonLocallyPersistedState = {
       pid: process.pid,
       httpPort: controlPort,
       startTime: new Date().toLocaleString(),
       startedWithCliVersion: configuration.currentCliVersion,
+      instanceId: daemonInstanceId,
+      ...(configuration.releaseSha ? { releaseSha: configuration.releaseSha } : {}),
       daemonLogPath: logger.logFilePath
     };
     writeDaemonState(fileState);
@@ -939,6 +1370,7 @@ export async function startDaemon(): Promise<void> {
         }
       }
       await sessionProcessLifecycle.retryPending();
+      await reconcileAutomationRuns();
 
       // Check if daemon needs update by detecting whether `dist/index.mjs` was
       // replaced on disk since the daemon started (npm install rewrites the file).
@@ -960,10 +1392,11 @@ export async function startDaemon(): Promise<void> {
 
         clearInterval(restartOnStaleVersionAndHeartbeat);
 
-        // Release ownership BEFORE spawning the new daemon. Otherwise the spawned
+        // Release the daemon lock BEFORE spawning the new daemon. Otherwise the spawned
         // `happy daemon start` reads our still-present daemon.state.json, sees
         // isDaemonRunningCurrentlyInstalledHappyVersion() === true, and exits —
         // leaving nothing running once we also exit.
+        clearAllAutomationDeadlines();
         await automations.stop();
         apiMachine.shutdown();
         await stopControlServer();
@@ -984,7 +1417,7 @@ export async function startDaemon(): Promise<void> {
         process.exit(0);
       }
 
-      // Before wrecklessly overriting the daemon state file, we should check if we are the ones who own it
+      // Before overwriting the daemon state file, confirm this process still holds the active daemon role.
       // Race condition is possible, but thats okay for the time being :D
       const daemonState = await readDaemonState();
       if (daemonState && daemonState.pid !== process.pid) {
@@ -999,6 +1432,8 @@ export async function startDaemon(): Promise<void> {
           httpPort: controlPort,
           startTime: fileState.startTime,
           startedWithCliVersion: configuration.currentCliVersion,
+          instanceId: daemonInstanceId,
+          ...(configuration.releaseSha ? { releaseSha: configuration.releaseSha } : {}),
           lastHeartbeat: new Date().toLocaleString(),
           daemonLogPath: fileState.daemonLogPath
         };
@@ -1034,6 +1469,7 @@ export async function startDaemon(): Promise<void> {
       // Give time for metadata update to send
       await new Promise(resolve => setTimeout(resolve, 100));
 
+      clearAllAutomationDeadlines();
       await automations.stop();
       apiMachine.shutdown();
       await stopControlServer();

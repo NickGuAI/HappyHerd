@@ -15,6 +15,11 @@ export type CodexGoalCommand =
     | { type: 'set'; objective: string }
     | { type: 'clear' };
 
+export type CodexGoalTurnPlan = {
+    command: CodexGoalCommand | null;
+    turnText: string | null;
+};
+
 const ACTIVE_CODEX_GOAL_STATUSES = new Set([
     'active',
     'paused',
@@ -137,6 +142,33 @@ export function parseCodexGoalCommand(text: string): CodexGoalCommand | null {
     }
 
     return { type: 'set', objective };
+}
+
+/**
+ * A set command updates provider goal state and then starts one ordinary turn
+ * with the objective. Clear is state-only even when the provider goal request
+ * fails, so it can never leak into the model as conversational text.
+ */
+export function planCodexGoalTurn(text: string): CodexGoalTurnPlan {
+    const command = parseCodexGoalCommand(text);
+    if (!command) {
+        return { command: null, turnText: text };
+    }
+    if (command.type === 'clear') {
+        return { command, turnText: null };
+    }
+    return { command, turnText: command.objective };
+}
+
+export async function prepareCodexGoalTurn(
+    text: string,
+    applyCommand: (command: CodexGoalCommand) => Promise<unknown>,
+): Promise<string | null> {
+    const plan = planCodexGoalTurn(text);
+    if (plan.command) {
+        await applyCommand(plan.command);
+    }
+    return plan.turnText;
 }
 
 export function parseCodexGoalActionParams(params: Record<string, unknown>): CodexGoalCommand | null {

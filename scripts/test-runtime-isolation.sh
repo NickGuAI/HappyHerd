@@ -162,4 +162,34 @@ export HAPPYHERD_BOOTSTRAP_TEST_LOG="$TMP_ROOT/daemon-bootstrap.log"
 "$ROOT/scripts/start-host-daemon.sh" "$TMP_ROOT/daemon.env"
 grep -Fxq 'daemon start' "$HAPPYHERD_BOOTSTRAP_TEST_LOG"
 
+release_sha="$(printf 'b%.0s' {1..40})"
+release_root="$TMP_ROOT/release"
+mkdir -p "$release_root/daemon/bin" "$TMP_ROOT/release-happy-home"
+# This release fixture deliberately constrains PATH. Make the setup-node binary
+# explicit so manifest parsing works on CI as well as hosts where Node is
+# installed under /usr/bin.
+ln -s "$(command -v node)" "$release_root/daemon/bin/node"
+cat > "$release_root/build-manifest.json" <<EOF
+{"source":{"happyHerdSha":"$release_sha","originMainSha":"$release_sha"}}
+EOF
+cat > "$release_root/daemon/bin/happy.mjs" <<'EOF'
+#!/usr/bin/env bash
+mkdir -p "$HAPPY_HOME_DIR"
+printf '{"releaseSha":"%s"}\n' "$HAPPYHERD_RELEASE_SHA" > "$HAPPY_HOME_DIR/daemon.state.json"
+printf '%s\n' "$HAPPYHERD_RELEASE_SHA" >> "$HAPPYHERD_BOOTSTRAP_TEST_LOG"
+EOF
+chmod +x "$release_root/daemon/bin/happy.mjs"
+cat > "$TMP_ROOT/release-daemon.env" <<EOF
+HAPPY_HOME_DIR=$TMP_ROOT/release-happy-home
+PATH=$release_root/daemon/bin:/usr/bin:/bin
+HAPPYHERD_DAEMON_CLI=$release_root/daemon/bin/happy.mjs
+EOF
+"$ROOT/scripts/start-host-daemon.sh" "$TMP_ROOT/release-daemon.env"
+grep -Fxq "$release_sha" "$HAPPYHERD_BOOTSTRAP_TEST_LOG"
+node -e '
+    const fs = require("node:fs");
+    const state = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+    process.exit(state.releaseSha === process.argv[2] ? 0 : 1);
+' "$TMP_ROOT/release-happy-home/daemon.state.json" "$release_sha"
+
 printf 'Runtime isolation contract tests passed.\n'

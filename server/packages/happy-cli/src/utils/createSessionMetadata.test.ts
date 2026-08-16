@@ -135,6 +135,38 @@ describe('createSessionMetadata', () => {
         }
     });
 
+    it('records exact automation run provenance without affecting ordinary sessions', () => {
+        const automationId = crypto.randomUUID();
+        const runId = crypto.randomUUID();
+        process.env.HAPPYHERD_AUTOMATION_ID = automationId;
+        process.env.HAPPYHERD_AUTOMATION_RUN_ID = runId;
+        process.env.HAPPYHERD_AUTOMATION_KIND = 'heartbeat';
+        try {
+            const automated = createSessionMetadata({
+                flavor: 'codex',
+                machineId: 'machine-automation',
+                startedBy: 'daemon',
+            });
+            expect(automated.metadata).toMatchObject({
+                automationId,
+                automationRunId: runId,
+                automationKind: 'heartbeat',
+            });
+        } finally {
+            delete process.env.HAPPYHERD_AUTOMATION_ID;
+            delete process.env.HAPPYHERD_AUTOMATION_RUN_ID;
+            delete process.env.HAPPYHERD_AUTOMATION_KIND;
+        }
+
+        const ordinary = createSessionMetadata({
+            flavor: 'codex',
+            machineId: 'machine-ordinary',
+            startedBy: 'daemon',
+        });
+        expect(ordinary.metadata.automationId).toBeUndefined();
+        expect(ordinary.metadata.automationRunId).toBeUndefined();
+    });
+
     it('sets metadata.gitBranch when a git branch is detected', () => {
         mockedExecSync.mockReturnValue('fix/session-status\n');
 

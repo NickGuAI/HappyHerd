@@ -6,12 +6,14 @@ import { CronExpressionParser } from 'cron-parser';
 import cron, { type ScheduledTask } from 'node-cron';
 import {
   HappyHerdAutomationCreateInputSchema,
+  HappyHerdAutomationTerminalRunStatusSchema,
   HappyHerdAutomationUpdateInputSchema,
   type HappyHerdAutomation,
   type HappyHerdAutomationCreateInput,
   type HappyHerdAutomationHistoryResponse,
   type HappyHerdAutomationListResponse,
   type HappyHerdAutomationRun,
+  type HappyHerdAutomationTerminalRunStatus,
   type HappyHerdAutomationUpdateInput,
 } from '@slopus/happy-wire';
 import type { SpawnSessionOptions, SpawnSessionResult } from '@/modules/common/registerCommonHandlers';
@@ -21,6 +23,31 @@ import { HappyHerdAutomationStore } from './store';
 
 const SCHEDULER_HEARTBEAT_MS = 30_000;
 const MAX_OFFLINE_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1_000;
+export const HAPPYHERD_AUTOMATION_RUN_TIMEOUT_MS = 60 * 60 * 1_000;
+
+type AutomationSpawnSessionOptions = Omit<SpawnSessionOptions, 'automation'> & {
+  automation: NonNullable<SpawnSessionOptions['automation']> & { runId: string };
+};
+
+export interface HappyHerdAutomationTerminationConfirmation {
+  automationId: string;
+  runId: string;
+  sessionId: string;
+  status: HappyHerdAutomationTerminalRunStatus;
+  message?: string | null;
+}
+
+export interface HappyHerdAutomationNoProviderConfirmation {
+  automationId: string;
+  runId: string;
+  message: string;
+}
+
+export interface HappyHerdAutomationStartedConfirmation {
+  automationId: string;
+  runId: string;
+  sessionId: string;
+}
 
 interface SchedulerState {
   schemaVersion: 1;
@@ -82,7 +109,7 @@ export class HappyHerdAutomationService {
 
   constructor(
     private readonly machineId: string,
-    private readonly spawnSession: (options: SpawnSessionOptions) => Promise<SpawnSessionResult>,
+    private readonly spawnSession: (options: AutomationSpawnSessionOptions) => Promise<SpawnSessionResult>,
   ) {}
 
   async start(): Promise<void> {
@@ -163,38 +190,28 @@ export class HappyHerdAutomationService {
     if (automation.machineId !== this.machineId) throw new Error('Automation belongs to another machine');
 
     if (this.inFlight.has(id)) {
-      const skipped: HappyHerdAutomationRun = {
-        id: randomUUID(),
-        automationId: id,
-        source,
-        scheduledFor: scheduledFor.toISOString(),
-        startedAt: new Date().toISOString(),
-        finishedAt: new Date().toISOString(),
-        status: 'skipped',
-        attempt: 1,
-        sessionId: null,
-        message: 'Skipped because the previous run is still active.',
-      };
-      await this.store.appendRun(skipped);
-      return skipped;
+      return this.recordSkipped(id, source, scheduledFor);
     }
 
     this.inFlight.add(id);
-    const runId = randomUUID();
-    const startedAt = new Date().toISOString();
-    let latest: HappyHerdAutomationRun = {
-      id: runId,
-      automationId: id,
-      source,
-      scheduledFor: scheduledFor.toISOString(),
-      startedAt,
-      finishedAt: null,
-      status: 'running',
-      attempt: 1,
-      sessionId: null,
-      message: null,
-    };
     try {
+      if (await this.store.activeRun(id)) {
+        return this.recordSkipped(id, source, scheduledFor);
+      }
+      const runId = randomUUID();
+      const startedAt = new Date().toISOString();
+      let latest: HappyHerdAutomationRun = {
+        id: runId,
+        automationId: id,
+        source,
+        scheduledFor: scheduledFor.toISOString(),
+        startedAt,
+        finishedAt: null,
+        status: 'running',
+        attempt: 1,
+        sessionId: null,
+        message: null,
+      };
       await this.store.recordSchedule(id, scheduledFor.toISOString());
       await this.store.appendRun(latest);
       for (let attempt = 1; attempt <= automation.maxRetries + 1; attempt += 1) {
@@ -205,9 +222,11 @@ export class HappyHerdAutomationService {
             directory: automation.workspace,
             approvedNewDirectoryCreation: false,
             agent: automation.rail,
+            effortLevel: 'max',
             commanderId: automation.commanderId ?? undefined,
             automation: {
               id: automation.id,
+              runId,
               kind: automation.kind,
               instruction: automation.instruction,
             },
@@ -218,14 +237,18 @@ export class HappyHerdAutomationService {
             errorMessage: error instanceof Error ? error.message : String(error),
           };
         }
+        const currentAfterSpawn = await this.store.getRun(id, runId);
+        if (currentAfterSpawn && currentAfterSpawn.status !== 'running') {
+          return currentAfterSpawn;
+        }
         if (result.type === 'success') {
           latest = {
             ...latest,
             status: 'started',
             attempt,
             sessionId: result.sessionId,
-            finishedAt: new Date().toISOString(),
-            message: 'Session accepted by the daemon; open the linked session to follow completion.',
+            finishedAt: null,
+            message: 'Session accepted by the daemon and remains active until its provider exits.',
           };
           await this.store.appendRun(latest);
           return latest;
@@ -233,6 +256,29 @@ export class HappyHerdAutomationService {
         const errorMessage = result.type === 'error'
           ? result.errorMessage
           : `Workspace does not exist: ${result.directory}`;
+        if (attempt <= automation.maxRetries && result.type === 'error' && result.retrySafe === true) {
+          latest = { ...latest, attempt, message: errorMessage };
+          await this.store.appendRun(latest);
+          await new Promise((resolve) => setTimeout(resolve, Math.min(4_000, 1_000 * (2 ** (attempt - 1)))));
+          continue;
+        }
+        if (result.type === 'error' && result.retrySafe !== true) {
+          latest = {
+            ...latest,
+            attempt,
+            message: `${errorMessage} Provider start could not be disproved; the run remains active pending reconciliation.`,
+          };
+          try {
+            await this.store.appendRun(latest);
+          } catch (error) {
+            const concurrentlyReconciled = await this.store.getRun(id, runId);
+            if (concurrentlyReconciled && concurrentlyReconciled.status !== 'running') {
+              return concurrentlyReconciled;
+            }
+            throw error;
+          }
+          return latest;
+        }
         latest = {
           ...latest,
           status: 'failed',
@@ -241,16 +287,34 @@ export class HappyHerdAutomationService {
           message: errorMessage,
         };
         await this.store.appendRun(latest);
-        if (attempt <= automation.maxRetries && result.type === 'error' && result.retrySafe === true) {
-          await new Promise((resolve) => setTimeout(resolve, Math.min(4_000, 1_000 * (2 ** (attempt - 1)))));
-          continue;
-        }
         break;
       }
       return latest;
     } finally {
       this.inFlight.delete(id);
     }
+  }
+
+  private async recordSkipped(
+    id: string,
+    source: 'schedule' | 'manual',
+    scheduledFor: Date,
+  ): Promise<HappyHerdAutomationRun> {
+    const now = new Date().toISOString();
+    const skipped: HappyHerdAutomationRun = {
+      id: randomUUID(),
+      automationId: id,
+      source,
+      scheduledFor: scheduledFor.toISOString(),
+      startedAt: now,
+      finishedAt: now,
+      status: 'skipped',
+      attempt: 1,
+      sessionId: null,
+      message: 'Skipped because the previous run is still active.',
+    };
+    await this.store.appendRun(skipped);
+    return skipped;
   }
 
   async list(): Promise<HappyHerdAutomationListResponse> {
@@ -289,13 +353,99 @@ export class HappyHerdAutomationService {
   async delete(id: string): Promise<void> {
     const current = await this.store.get(id);
     if (current.machineId !== this.machineId) throw new Error('Automation belongs to another machine');
-    if (this.inFlight.has(id)) throw new Error('Automation is currently running; stop or wait for the run before deleting it');
+    if (this.inFlight.has(id) || await this.store.activeRun(id)) {
+      throw new Error('Automation is currently running; stop or wait for the run before deleting it');
+    }
     await this.store.delete(id);
     await this.reconcile();
   }
 
   async runNow(id: string): Promise<HappyHerdAutomationRun> {
     return this.execute(id, 'manual', new Date());
+  }
+
+  async listActiveRuns(): Promise<HappyHerdAutomationRun[]> {
+    const { automations } = await this.store.list(this.machineId);
+    return (await Promise.all(automations.map((automation) => this.store.activeRuns(automation.id)))).flat();
+  }
+
+  /**
+   * Close a started run only after the observing daemon has confirmed provider
+   * exit and resolved its one-shot root/child outcome. This method deliberately
+   * does not infer liveness from session history or transport presence.
+   */
+  async confirmRunTermination(
+    raw: HappyHerdAutomationTerminationConfirmation,
+  ): Promise<HappyHerdAutomationRun> {
+    const automation = await this.store.get(raw.automationId);
+    if (automation.machineId !== this.machineId) throw new Error('Automation belongs to another machine');
+    const status = HappyHerdAutomationTerminalRunStatusSchema.parse(raw.status);
+    const current = await this.store.getRun(raw.automationId, raw.runId);
+    if (!current) throw new Error(`Automation run ${raw.runId} was not found`);
+    if (current.status === status && current.sessionId === raw.sessionId && current.finishedAt !== null) {
+      return current;
+    }
+    if (current.status !== 'started') {
+      throw new Error(`Automation run ${raw.runId} is ${current.status}, not started`);
+    }
+    if (current.sessionId !== raw.sessionId) {
+      throw new Error(`Automation run ${raw.runId} belongs to another session`);
+    }
+    const terminal: HappyHerdAutomationRun = {
+      ...current,
+      status,
+      finishedAt: new Date().toISOString(),
+      message: raw.message ?? null,
+    };
+    await this.store.appendRun(terminal);
+    return terminal;
+  }
+
+  /** Close a running spawn only after the caller proves no provider exists. */
+  async confirmRunDidNotStart(
+    raw: HappyHerdAutomationNoProviderConfirmation,
+  ): Promise<HappyHerdAutomationRun> {
+    const automation = await this.store.get(raw.automationId);
+    if (automation.machineId !== this.machineId) throw new Error('Automation belongs to another machine');
+    const current = await this.store.getRun(raw.automationId, raw.runId);
+    if (!current) throw new Error(`Automation run ${raw.runId} was not found`);
+    if (current.status === 'failed' && current.sessionId === null && current.finishedAt !== null) {
+      return current;
+    }
+    if (current.status !== 'running') {
+      throw new Error(`Automation run ${raw.runId} is ${current.status}, not running`);
+    }
+    const failed: HappyHerdAutomationRun = {
+      ...current,
+      status: 'failed',
+      finishedAt: new Date().toISOString(),
+      message: raw.message,
+    };
+    await this.store.appendRun(failed);
+    return failed;
+  }
+
+  /** Bind an exact late daemon webhook to a spawn that is still running. */
+  async confirmRunStarted(
+    raw: HappyHerdAutomationStartedConfirmation,
+  ): Promise<HappyHerdAutomationRun> {
+    const automation = await this.store.get(raw.automationId);
+    if (automation.machineId !== this.machineId) throw new Error('Automation belongs to another machine');
+    const current = await this.store.getRun(raw.automationId, raw.runId);
+    if (!current) throw new Error(`Automation run ${raw.runId} was not found`);
+    if (current.status === 'started' && current.sessionId === raw.sessionId) return current;
+    if (current.status !== 'running' || current.sessionId !== null) {
+      throw new Error(`Automation run ${raw.runId} cannot bind session ${raw.sessionId} from ${current.status}`);
+    }
+    const started: HappyHerdAutomationRun = {
+      ...current,
+      status: 'started',
+      sessionId: raw.sessionId,
+      finishedAt: null,
+      message: 'Late provider registration was verified and bound to this automation run.',
+    };
+    await this.store.appendRun(started);
+    return started;
   }
 
   async history(id: string): Promise<HappyHerdAutomationHistoryResponse> {

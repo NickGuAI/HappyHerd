@@ -13,8 +13,9 @@ node scripts/verify-release-manifest.mjs docs/releases/RELEASE.json
 
 Install a complete host release before activation. This verifies every built
 artifact, installs the daemon together with the server launch/rollback scripts,
-checks non-root daemon executability, and only then atomically switches
-`/opt/happyherd/current`:
+requires the artifact's source receipt to identify the exact verified
+`origin/main` commit, checks non-root daemon executability, and only then
+atomically switches `/opt/happyherd/current`:
 
 ```bash
 sudo scripts/install-host-release.sh \
@@ -27,6 +28,14 @@ The detached host daemon checks the installed bundle and hands off to the new
 release without terminating active provider sessions. It is bootstrapped by
 `deploy/happyherd-daemon.cron`; it is not a systemd service. Image activation
 continues to restart only the central `happyherd.service` Web/API server.
+`start-host-daemon.sh` accepts the handoff only after `daemon.state.json`
+reports the exact source SHA baked into the installed release and recorded in
+its verified `origin/main` receipt.
+
+The server, daemon, and Claude/Codex provider sessions are independent
+processes. The daemon keeps only a transient live-session index. Each surviving
+provider session re-registers with a new daemon instance; persisted session data
+is reconnect material, not process ownership.
 
 Activate its current image:
 

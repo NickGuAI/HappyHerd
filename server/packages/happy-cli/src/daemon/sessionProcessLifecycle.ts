@@ -10,7 +10,7 @@ interface SessionProcessLifecycleOptions {
 /**
  * Makes the provider process, rather than elapsed heartbeat time, authoritative
  * for session activity. Provider runners still send `session-end` themselves;
- * this daemon-owned path is the idempotent fallback for crashes and hard exits.
+ * this daemon-observed path is the idempotent fallback for crashes and hard exits.
  */
 export class SessionProcessLifecycle {
   private readonly pendingDeactivations = new Set<string>();

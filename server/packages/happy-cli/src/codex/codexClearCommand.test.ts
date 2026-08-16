@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { MessageQueue2 } from '@/utils/MessageQueue2';
 import { enqueueCodexUserText } from './codexClearCommand';
 
 describe('enqueueCodexUserText', () => {
@@ -8,6 +9,7 @@ describe('enqueueCodexUserText', () => {
         const queue = {
             push: vi.fn(),
             pushIsolateAndClear: vi.fn(),
+            pushIsolated: vi.fn(),
         };
 
         const result = enqueueCodexUserText({
@@ -19,6 +21,41 @@ describe('enqueueCodexUserText', () => {
         expect(result).toBe('clear');
         expect(queue.pushIsolateAndClear).toHaveBeenCalledWith('  /clear  ', mode, undefined);
         expect(queue.push).not.toHaveBeenCalled();
+        expect(queue.pushIsolated).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        '/goal verify the release',
+        '/goal clear',
+    ])('queues %s alone without discarding pending work', (text) => {
+        const mode = { permissionMode: 'default' as const };
+        const queue = {
+            push: vi.fn(),
+            pushIsolateAndClear: vi.fn(),
+            pushIsolated: vi.fn(),
+        };
+
+        const result = enqueueCodexUserText({ text, mode, queue });
+
+        expect(result).toBe('goal');
+        expect(queue.pushIsolated).toHaveBeenCalledOnce();
+        expect(queue.pushIsolated).toHaveBeenCalledWith(text, mode, undefined);
+        expect(queue.push).not.toHaveBeenCalled();
+        expect(queue.pushIsolateAndClear).not.toHaveBeenCalled();
+    });
+
+    it('preserves one goal item between already queued turns without batching or duplication', async () => {
+        const mode = { permissionMode: 'default' as const };
+        const queue = new MessageQueue2<typeof mode>(JSON.stringify);
+
+        enqueueCodexUserText({ text: 'before goal', mode, queue });
+        enqueueCodexUserText({ text: '/goal verify the release', mode, queue });
+        enqueueCodexUserText({ text: 'after goal', mode, queue });
+
+        expect((await queue.waitForMessagesAndGetAsString())?.message).toBe('before goal');
+        expect((await queue.waitForMessagesAndGetAsString())?.message).toBe('/goal verify the release');
+        expect((await queue.waitForMessagesAndGetAsString())?.message).toBe('after goal');
+        expect(queue.size()).toBe(0);
     });
 
     it('passes attachments to normal queued messages', () => {
@@ -31,6 +68,7 @@ describe('enqueueCodexUserText', () => {
         const queue = {
             push: vi.fn(),
             pushIsolateAndClear: vi.fn(),
+            pushIsolated: vi.fn(),
         };
 
         const result = enqueueCodexUserText({
@@ -43,6 +81,7 @@ describe('enqueueCodexUserText', () => {
         expect(result).toBe('queued');
         expect(queue.push).toHaveBeenCalledWith('inspect this image', mode, attachments);
         expect(queue.pushIsolateAndClear).not.toHaveBeenCalled();
+        expect(queue.pushIsolated).not.toHaveBeenCalled();
     });
 
     it('passes attachments to isolated clear messages', () => {
@@ -55,6 +94,7 @@ describe('enqueueCodexUserText', () => {
         const queue = {
             push: vi.fn(),
             pushIsolateAndClear: vi.fn(),
+            pushIsolated: vi.fn(),
         };
 
         const result = enqueueCodexUserText({
@@ -67,5 +107,6 @@ describe('enqueueCodexUserText', () => {
         expect(result).toBe('clear');
         expect(queue.pushIsolateAndClear).toHaveBeenCalledWith('/clear', mode, attachments);
         expect(queue.push).not.toHaveBeenCalled();
+        expect(queue.pushIsolated).not.toHaveBeenCalled();
     });
 });
