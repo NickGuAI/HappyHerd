@@ -13,6 +13,9 @@ const organizationExample = 'examples/pmai-happyherd-agent/';
 const organizationMarker = new RegExp(['pm', 'ai'].join('') + '(?:[-_]|\\b)', 'i');
 const organizationNameMarker = new RegExp(['pioneering', 'minds'].join('\\s+'), 'i');
 const maxTextBytes = 2 * 1024 * 1024;
+const canonicalMaintainerName = 'HappyHerd Maintainers';
+const canonicalMaintainerEmail = 'maintainers@happyherd.example';
+const githubCommitterEmail = ['noreply', '@', 'github.com'].join('');
 
 // Hash exact private identifiers so the denylist does not reproduce them in
 // the public source it protects. Labels describe the class, never the value.
@@ -189,13 +192,57 @@ function ownedCommitIds() {
   return [...owned];
 }
 
+export function canonicalCommitIdentityText({
+  authorName,
+  authorEmail,
+  committerName,
+  committerEmail,
+  subject,
+  message,
+  rawCommit,
+  parentCount,
+}) {
+  const canonicalIdentity = `${canonicalMaintainerName} <${canonicalMaintainerEmail}>`;
+  const canonicalTrailer = `Co-authored-by: ${canonicalIdentity}`;
+  const canonicalAuthor = authorName === canonicalMaintainerName
+    && authorEmail === canonicalMaintainerEmail;
+  const hostedNoReplyAuthor = /^[^@]+@users\.noreply\.github\.com$/i.test(authorEmail);
+  const signedGitHubSquash = parentCount === 1
+    && committerName === 'GitHub'
+    && committerEmail === githubCommitterEmail
+    && /^gpgsig -----BEGIN PGP SIGNATURE-----$/m.test(rawCommit)
+    && (canonicalAuthor || hostedNoReplyAuthor)
+    && (canonicalAuthor || message.split(/\r?\n/).includes(canonicalTrailer));
+
+  // GitHub authors a permanent squash object with the merging account even
+  // when every branch commit uses the canonical maintainer identity. Accept
+  // only the signed, single-parent hosting form with explicit canonical
+  // attribution; any missing condition keeps the raw identity fail-closed.
+  return signedGitHubSquash
+    ? `${canonicalIdentity}\n${canonicalIdentity}\n${subject}`
+    : `${authorName} <${authorEmail}>\n${committerName} <${committerEmail}>\n${subject}`;
+}
+
 function commitIdentityEntries() {
-  return ownedCommitIds().map((commit) => ({
-    path: `history/${commit.slice(0, 12)}-commit-metadata.txt`,
-    text: git([
-      'show', '-s', '--format=%an <%ae>%n%cn <%ce>%n%s', commit,
-    ]),
-  }));
+  return ownedCommitIds().map((commit) => {
+    const [authorName, authorEmail, committerName, committerEmail, subject, message] = git([
+      'show', '-s', '--format=%an%x00%ae%x00%cn%x00%ce%x00%s%x00%B', commit,
+    ]).split('\0');
+    const record = git(['rev-list', '--parents', '-n', '1', commit]).trim().split(/\s+/);
+    return {
+      path: `history/${commit.slice(0, 12)}-commit-metadata.txt`,
+      text: canonicalCommitIdentityText({
+        authorName,
+        authorEmail,
+        committerName,
+        committerEmail,
+        subject,
+        message,
+        rawCommit: git(['cat-file', 'commit', commit]),
+        parentCount: record.length - 1,
+      }),
+    };
+  });
 }
 
 function ownedTagMetadataEntries() {

@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import {
+  canonicalCommitIdentityText,
   inspectEntries,
   syntheticPullRequestMergeParents,
 } from './verify-public-boundary.mjs';
@@ -70,5 +71,31 @@ assert.equal(syntheticPullRequestMergeParents({
   ...syntheticMerge,
   record: [merge, head, base],
 }), null);
+
+const canonicalIdentity = 'HappyHerd Maintainers <maintainers@happyherd.example>';
+const hostedSquashIdentity = {
+  authorName: ['Hosted', 'Contributor'].join(''),
+  authorEmail: ['123+', 'Hosted', 'Contributor', 'Example', 'User', '@users', '.noreply', '.github', '.com'].join(''),
+  committerName: 'GitHub',
+  committerEmail: ['noreply', '@', 'github.com'].join(''),
+  subject: 'fix(runtime): example',
+  message: `fix(runtime): example\n\nCo-authored-by: ${canonicalIdentity}\n`,
+  rawCommit: 'tree abc\nparent def\ngpgsig -----BEGIN PGP SIGNATURE-----\n signature\n',
+  parentCount: 1,
+};
+assert.deepEqual(inspect(
+  'metadata.txt',
+  canonicalCommitIdentityText(hostedSquashIdentity),
+), []);
+for (const unsafeIdentity of [
+  { ...hostedSquashIdentity, rawCommit: 'tree abc\nparent def\n' },
+  { ...hostedSquashIdentity, message: 'fix(runtime): example\n' },
+  { ...hostedSquashIdentity, parentCount: 2 },
+]) {
+  assert(inspect(
+    'metadata.txt',
+    canonicalCommitIdentityText(unsafeIdentity),
+  ).includes('operator given name'));
+}
 
 process.stdout.write('public-boundary self-test: ok\n');
