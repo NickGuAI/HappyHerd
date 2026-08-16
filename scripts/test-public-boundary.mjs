@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 
 import assert from 'node:assert/strict';
-import { inspectEntries } from './verify-public-boundary.mjs';
+import {
+  inspectEntries,
+  syntheticPullRequestMergeParents,
+} from './verify-public-boundary.mjs';
 
 const inspect = (path, text) => inspectEntries([{ path, text }]).map(({ rule }) => rule);
 
@@ -41,5 +44,31 @@ assert.deepEqual(
   ),
   [],
 );
+
+const base = 'a'.repeat(40);
+const head = 'b'.repeat(40);
+const merge = 'c'.repeat(40);
+const syntheticMerge = {
+  commit: merge,
+  subject: `Merge ${head} into ${base}`,
+  record: [merge, base, head],
+  env: { GITHUB_EVENT_NAME: 'pull_request', GITHUB_SHA: merge },
+};
+assert.deepEqual(syntheticPullRequestMergeParents(syntheticMerge), {
+  firstParentCommit: base,
+  branchHead: head,
+});
+assert.equal(syntheticPullRequestMergeParents({
+  ...syntheticMerge,
+  env: { GITHUB_EVENT_NAME: 'push', GITHUB_SHA: merge },
+}), null);
+assert.equal(syntheticPullRequestMergeParents({
+  ...syntheticMerge,
+  subject: 'Merge pull request #123 from example/feature',
+}), null);
+assert.equal(syntheticPullRequestMergeParents({
+  ...syntheticMerge,
+  record: [merge, head, base],
+}), null);
 
 process.stdout.write('public-boundary self-test: ok\n');

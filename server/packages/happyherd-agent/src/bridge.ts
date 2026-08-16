@@ -61,9 +61,13 @@ function safeFailure(reference: string): string {
 
 const DEFAULT_DENIAL = 'I can’t verify an active service link for this Discord account.';
 const LINK_IN_DM = 'Send the account-link command in a direct message to this bot.';
+const LINK_SUCCESS = 'Account connected.';
 
 export function parseLinkCommand(content: string): string | null {
-  const match = /^link\s+([A-Za-z0-9][A-Za-z0-9-]{7,127})$/i.exec(content.trim());
+  // The organization service owns link-code shape and validation. The generic
+  // bridge recognizes an exact command with one bounded RFC 3986 unreserved
+  // token so numeric, base64url, and other opaque formats never reach an agent.
+  const match = /^link\s+([A-Za-z0-9._~-]{1,256})$/i.exec(content.trim());
   return match?.[1] ?? null;
 }
 
@@ -244,13 +248,17 @@ export class DiscordAgentBridge {
       await this.deny(record, decision.safeMessage);
       return;
     }
+    await this.deliverLink(record);
+  }
+
+  private async deliverLink(record: InboundRecord): Promise<void> {
     await this.store.updateInbound(record.sourceMessageId, {
       status: 'delivering',
       deliveryKind: 'link',
     });
     const replyMessageIds = await this.discord.sendReply(
       record.channelId,
-      decision.safeMessage,
+      LINK_SUCCESS,
       `${record.sourceMessageId}:link`,
     );
     await this.store.updateInbound(record.sourceMessageId, {
@@ -271,6 +279,10 @@ export class DiscordAgentBridge {
       }
       if (record.status === 'delivering' && record.deliveryKind === 'failure') {
         await this.deliverFailure(record, record.failureReference ?? randomUUID());
+        return;
+      }
+      if (record.status === 'delivering' && record.deliveryKind === 'link') {
+        await this.deliverLink(record);
         return;
       }
       const linkCode = parseLinkCommand(message.content);
@@ -363,8 +375,12 @@ export class DiscordAgentBridge {
             await this.deliverFailure(record, record.failureReference ?? randomUUID());
             return;
           }
+          if (record.status === 'delivering' && record.deliveryKind === 'link') {
+            await this.deliverLink(record);
+            return;
+          }
 
-          if (record.status !== 'claimed' && record.deliveryKind !== 'link') {
+          if (record.status !== 'claimed') {
             const recovered = await this.waitForExistingTurn(record);
             if (recovered) {
               await this.deliver(record, recovered);
