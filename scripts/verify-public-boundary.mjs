@@ -105,6 +105,7 @@ function inspectText(path, text) {
       const domain = email.slice(email.lastIndexOf('@') + 1).toLowerCase();
       if (
         domain !== 'example.com'
+        && !domain.endsWith('.example')
         && domain !== 'users.noreply.github.com'
         && !domain.endsWith('.invalid')
         && !domain.endsWith('.local')
@@ -118,6 +119,42 @@ function inspectText(path, text) {
     if (pattern.test(text)) findings.push(label);
   }
   return [...new Set(findings)];
+}
+
+function ownedCommitIds() {
+  const owned = new Set();
+  let firstParent = [];
+  try {
+    firstParent = git(['rev-list', '--first-parent', '--reverse', 'HEAD'])
+      .trim().split('\n').filter(Boolean);
+  } catch {
+    return [];
+  }
+
+  for (const commit of firstParent) {
+    owned.add(commit);
+    const subject = git(['show', '-s', '--format=%s', commit]).trim();
+    if (!/^Merge pull request #[0-9]+ from [A-Za-z0-9_.-]+\/\S+$/.test(subject)) continue;
+
+    const record = git(['rev-list', '--parents', '-n', '1', commit]).trim().split(/\s+/);
+    if (record.length !== 3) continue;
+    const [, firstParentCommit, branchHead] = record;
+    const branchCommits = git([
+      'rev-list', '--first-parent', '--reverse', `${firstParentCommit}..${branchHead}`,
+    ]).trim().split('\n').filter(Boolean);
+    for (const branchCommit of branchCommits) owned.add(branchCommit);
+  }
+
+  return [...owned];
+}
+
+function commitIdentityEntries() {
+  return ownedCommitIds().map((commit) => ({
+    path: `history/${commit.slice(0, 12)}-commit-metadata.txt`,
+    text: git([
+      'show', '-s', '--format=%an <%ae>%n%cn <%ce>%n%s', commit,
+    ]),
+  }));
 }
 
 export function inspectEntries(entries) {
@@ -194,7 +231,10 @@ function historyEntries() {
 function main() {
   const findings = inspectEntries([
     ...currentEntries(),
-    ...(process.argv.includes('--current-only') ? [] : historyEntries()),
+    ...(process.argv.includes('--current-only') ? [] : [
+      ...historyEntries(),
+      ...commitIdentityEntries(),
+    ]),
   ]);
   if (findings.length > 0) {
     for (const finding of findings.slice(0, 100)) {
