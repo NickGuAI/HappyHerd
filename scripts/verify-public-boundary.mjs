@@ -11,12 +11,14 @@ const baselineTag = 'happyherd-owned-baseline-2026-08-02';
 const ownedTagPattern = /^(?:happyherd-|happy-upstream-base-)/;
 const organizationExample = 'examples/pmai-happyherd-agent/';
 const organizationMarker = new RegExp(['pm', 'ai'].join('') + '(?:[-_]|\\b)', 'i');
+const organizationNameMarker = new RegExp(['pioneering', 'minds'].join('\\s+'), 'i');
 const maxTextBytes = 2 * 1024 * 1024;
 
 // Hash exact private identifiers so the denylist does not reproduce them in
 // the public source it protects. Labels describe the class, never the value.
 const forbiddenTokenDigests = new Map([
   ['5d0e4fa0973bc777d16d5a8ba3101018e7e7b051bb2497a10e7abff6c78cf8bf', 'personal repository owner'],
+  ['5ed5301b7e6bb37006b49b5db6f177b1a7d29860b595b26ec481ec40147ee09d', 'operator given name'],
   ['eff24d49d883b4c51cc6324154c5d2e4a7848a00014de7519ee751eb0826bed9', 'private infrastructure name'],
   ['4eae95b5f193ff6ebab5fdd60975eff022b47ec1d5237f4bb1c95eb5dfb35fb9', 'private infrastructure domain'],
   ['555e0c8e02ffa6fac93197636c4df86abc47b011c4f4f8125b984ff4fd514619', 'private deployment nickname'],
@@ -80,7 +82,14 @@ function inspectText(path, text) {
 
   const withoutExampleReferences = text.replaceAll(organizationExample, '');
   organizationMarker.lastIndex = 0;
-  if (!isOrganizationExample && organizationMarker.test(withoutExampleReferences)) {
+  organizationNameMarker.lastIndex = 0;
+  if (
+    !isOrganizationExample
+    && (
+      organizationMarker.test(withoutExampleReferences)
+      || organizationNameMarker.test(withoutExampleReferences)
+    )
+  ) {
     findings.push('organization-specific content outside its named example');
   }
 
