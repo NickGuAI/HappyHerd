@@ -30,5 +30,16 @@ assert.deepEqual(inspect('metadata.txt', 'HappyHerd Maintainers <maintainers@hap
 assert(inspect('metadata.txt', ['private-person', '@', 'real-company.com'].join('')).includes(
   'non-example email address',
 ));
+assert(inspect('metadata.txt', ['Ni', 'ck'].join('')).includes('operator given name'));
+assert(inspect('docs/organization.md', ['Pioneering', 'Minds'].join(' ')).includes(
+  'organization-specific content outside its named example',
+));
+assert.deepEqual(
+  inspect(
+    'examples/' + ['pm', 'ai-happyherd-agent/organization.md'].join(''),
+    ['Pioneering', 'Minds'].join(' '),
+  ),
+  [],
+);
 
 process.stdout.write('public-boundary self-test: ok\n');
