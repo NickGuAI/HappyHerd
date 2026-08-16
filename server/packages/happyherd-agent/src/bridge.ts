@@ -61,14 +61,19 @@ function safeFailure(reference: string): string {
 
 const DEFAULT_DENIAL = 'I can’t verify an active service link for this Discord account.';
 const LINK_IN_DM = 'Send the account-link command in a direct message to this bot.';
+const INVALID_LINK_COMMAND = 'Invalid account-link command. Send `link CODE` with one code token.';
 const LINK_SUCCESS = 'Account connected.';
 
 export function parseLinkCommand(content: string): string | null {
   // The organization service owns link-code shape and validation. The generic
-  // bridge recognizes an exact command with one bounded RFC 3986 unreserved
-  // token so numeric, base64url, and other opaque formats never reach an agent.
-  const match = /^link\s+([A-Za-z0-9._~-]{1,256})$/i.exec(content.trim());
+  // bridge recognizes an exact command with one bounded non-whitespace token.
+  // This includes numeric, base64url, standard Base64, and other opaque formats.
+  const match = /^link\s+(\S{1,256})$/i.exec(content.trim());
   return match?.[1] ?? null;
+}
+
+function isLinkCommandAttempt(content: string): boolean {
+  return /^link(?:\s|$)/i.test(content.trim());
 }
 
 class TerminalSettlementError extends Error {}
@@ -288,6 +293,10 @@ export class DiscordAgentBridge {
       const linkCode = parseLinkCommand(message.content);
       if (linkCode) {
         await this.processLink(record, message, linkCode);
+        return;
+      }
+      if (isLinkCommandAttempt(message.content)) {
+        await this.deny(record, INVALID_LINK_COMMAND);
         return;
       }
       const decision = await this.authorizer.authorize(message, mode);

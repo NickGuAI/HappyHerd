@@ -132,9 +132,42 @@ describe('DiscordAgentBridge', () => {
     expect(parseLinkCommand('link EXAMPLE-CODE-1234')).toBe('EXAMPLE-CODE-1234');
     expect(parseLinkCommand('link 123456')).toBe('123456');
     expect(parseLinkCommand('link base64url_CODE')).toBe('base64url_CODE');
+    expect(parseLinkCommand('link ab+c/def==')).toBe('ab+c/def==');
     expect(parseLinkCommand('please link EXAMPLE-CODE-1234')).toBeNull();
     expect(parseLinkCommand('link code with spaces')).toBeNull();
     expect(parseLinkCommand(`link ${'a'.repeat(257)}`)).toBeNull();
+  });
+
+  it('fails closed for malformed link attempts without authorizing or creating a session', async () => {
+    const state = await store();
+    const happy = new FakeHappy();
+    const discord = new FakeDiscord();
+    const authorize = vi.fn(async (input: NormalizedDiscordMessage, mode: 'personal' | 'shared-read-only') => (
+      allowed(input, mode)
+    ));
+    const link = vi.fn(async () => ({ decision: 'linked' as const, safeMessage: 'Account connected.' }));
+    const bridge = new DiscordAgentBridge({
+      config: config(),
+      store: state,
+      authorizer: { authorize, link },
+      capabilities: new CapabilityRegistry(),
+      happy,
+      discord,
+    });
+
+    await bridge.handle(message({ content: 'link code with spaces' }));
+    await bridge.handle(message({ sourceMessageId: 'source-2', content: `link ${'a'.repeat(257)}` }));
+    await bridge.handle(message({ sourceMessageId: 'source-3', content: 'link' }));
+
+    expect(authorize).not.toHaveBeenCalled();
+    expect(link).not.toHaveBeenCalled();
+    expect(happy.bindings).toHaveLength(0);
+    expect(happy.turns).toHaveLength(0);
+    expect(discord.replies.map((reply) => reply.content)).toEqual([
+      'Invalid account-link command. Send `link CODE` with one code token.',
+      'Invalid account-link command. Send `link CODE` with one code token.',
+      'Invalid account-link command. Send `link CODE` with one code token.',
+    ]);
   });
 
   it('links in DM without creating a HappyHerd session or persisting message text', async () => {
