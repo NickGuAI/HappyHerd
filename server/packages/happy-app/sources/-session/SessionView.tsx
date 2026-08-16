@@ -7,10 +7,10 @@ import { resolveVisibleAgentGoalStatus } from '@/components/agentGoalStatus';
 import type { MultiTextInputHandle } from '@/components/MultiTextInput';
 import { layout } from '@/components/layout';
 import {
-    getAvailableModels,
-    getAvailablePermissionModes,
-    getEffortLevelsForModel,
     getRigCurrentModelOptionKey,
+    getSessionAvailableModels,
+    getSessionAvailablePermissionModes,
+    getSessionEffortLevelsForModel,
     resolveCurrentOption,
     EffortLevel,
 } from '@/components/modelModeOptions';
@@ -25,11 +25,9 @@ import { VoiceAssistantStatusBar } from '@/components/VoiceAssistantStatusBar';
 import { useDraft } from '@/hooks/useDraft';
 import { useImagePicker } from '@/hooks/useImagePicker';
 import { Modal } from '@/modal';
-import { voiceHooks } from '@/realtime/hooks/voiceHooks';
-import { getCurrentVoiceConversationId, getCurrentVoiceSessionDurationSeconds, startRealtimeSession, stopRealtimeSession } from '@/realtime/RealtimeSession';
 import { gitStatusSync } from '@/sync/gitStatusSync';
 import { sessionAbort, sessionGoalAction, sessionSetAgentModes, spawnSideChat, sessionKill, sessionArchive } from '@/sync/ops';
-import { storage, useIsDataReady, useLocalSetting, useRealtimeStatus, useSessionGitStatus, useSessionMessages, useSessionUsage, useSetting, useSideChatSessions } from '@/sync/storage';
+import { storage, useIsDataReady, useLocalSetting, useMachine, useRealtimeStatus, useSessionGitStatus, useSessionMessages, useSessionUsage, useSetting, useSettingMutable, useSideChatSessions } from '@/sync/storage';
 import { useSession } from '@/sync/storage';
 import { getSessionForkSource } from '@/utils/sessionFork';
 import { useHappyAction } from '@/hooks/useHappyAction';
@@ -38,7 +36,6 @@ import { Session } from '@/sync/storageTypes';
 import { sync } from '@/sync/sync';
 import { t } from '@/text';
 import { tracking } from '@/track';
-import { getVoiceMessageCount, getVoiceOnboardingPromptLoadCount } from '@/sync/persistence';
 import { isRunningOnMac } from '@/utils/platform';
 import { useDeviceType, useHeaderHeight, useIsLandscape, useIsTablet } from '@/utils/responsive';
 import { resolveStatusBarGitBranch } from '@/utils/sessionStatusBar';
@@ -61,7 +58,12 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import type { ModelMode, PermissionMode } from '@/components/PermissionModeSelector';
-import { resolveAgentDefaultConfig } from '@/sync/agentDefaults';
+import {
+    getAgentDefaultOverrideValue,
+    resolveAgentDefaultConfig,
+    resolveAgentDefaultEffortLevel,
+    setAgentDefaultOverride,
+} from '@/sync/agentDefaults';
 import { performAgentGoalAction } from './agentGoalActionHandler';
 import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
 import {
@@ -78,6 +80,17 @@ import {
     rigCanUseShell,
 } from '@/sync/rig';
 import { RigActivityBar } from '@/components/RigActivityBar';
+import { useVoiceDictation } from '@/hooks/useVoiceDictation';
+import { useVoiceInputAvailability } from '@/hooks/useVoiceInputAvailability';
+import {
+    addWorkspaceContextFile,
+    buildWorkspaceContextMessage,
+    clearWorkspaceContextFiles,
+    getWorkspaceContextFiles,
+    removeWorkspaceContextFile,
+    subscribeWorkspaceContext,
+} from '@/sync/workspaceContext';
+import { buildWorkspaceAttachmentParams } from '@/utils/machineWorkspace';
 
 export const SessionView = React.memo((props: { id: string }) => {
     const sessionId = props.id;
@@ -280,8 +293,9 @@ export const SessionView = React.memo((props: { id: string }) => {
     const diffViewOpen = overlayCurrent.kind === 'diff';
     const fileViewPath = overlayCurrent.kind === 'file' ? overlayCurrent.path : null;
     const scrollToFile = overlayCurrent.kind === 'diff' ? overlayCurrent.file : null;
+    const [fileViewDirty, setFileViewDirty] = React.useState(false);
 
-    const pushOverlay = React.useCallback((entry: OverlayEntry) => {
+    const pushOverlayNow = React.useCallback((entry: OverlayEntry) => {
         setOverlayHistory((prev) => {
             const truncated = prev.stack.slice(0, prev.cursor + 1);
             truncated.push(entry);
@@ -289,13 +303,35 @@ export const SessionView = React.memo((props: { id: string }) => {
         });
     }, []);
 
+    const withFileDiscardConfirmation = React.useCallback((action: () => void) => {
+        if (!fileViewDirty) {
+            action();
+            return;
+        }
+        void Modal.confirm(
+            t("uiCopy.discardUnsavedChanges"),
+            t("uiCopy.yourEditsToValueHaveNotBeenSaved", { value1: fileViewPath?.split('/').pop() || t("uiCopy.thisFile") }),
+            { confirmText: 'Discard', destructive: true },
+        ).then((confirmed) => {
+            if (!confirmed) return;
+            setFileViewDirty(false);
+            action();
+        });
+    }, [fileViewDirty, fileViewPath]);
+
     const handleSidebarFilePress = React.useCallback((file: GitFileStatus) => {
         if (file.status === 'deleted') return;
-        pushOverlay({ kind: 'diff', file: file.fullPath });
-    }, [pushOverlay]);
+        withFileDiscardConfirmation(() => pushOverlayNow({ kind: 'diff', file: file.fullPath }));
+    }, [pushOverlayNow, withFileDiscardConfirmation]);
     const handleAllFilesFilePress = React.useCallback((filePath: string) => {
-        pushOverlay({ kind: 'file', path: filePath });
-    }, [pushOverlay]);
+        if (filePath === fileViewPath) return;
+        withFileDiscardConfirmation(() => pushOverlayNow({ kind: 'file', path: filePath }));
+    }, [fileViewPath, pushOverlayNow, withFileDiscardConfirmation]);
+    const handleAllFilesFileAttach = React.useCallback((filePath: string) => {
+        if (!addWorkspaceContextFile(sessionId, filePath)) {
+            Modal.alert(t("uiCopy.workspaceContext"), t("uiCopy.youCanAttachUpTo8FilesToOneMessage"));
+        }
+    }, [sessionId]);
 
     // When sidebar capability is lost (screen too narrow, disabled), close views.
     // Don't close on zen mode toggle — keep the view visible.
@@ -317,21 +353,21 @@ export const SessionView = React.memo((props: { id: string }) => {
             canForward: canOverlayForward,
             back: () => {
                 if (!canOverlayBack) return false;
-                setOverlayHistory((prev) => (
+                withFileDiscardConfirmation(() => setOverlayHistory((prev) => (
                     prev.cursor <= 0 ? prev : { ...prev, cursor: prev.cursor - 1 }
-                ));
+                )));
                 return true;
             },
             forward: () => {
                 if (!canOverlayForward) return false;
-                setOverlayHistory((prev) => (
+                withFileDiscardConfirmation(() => setOverlayHistory((prev) => (
                     prev.cursor >= prev.stack.length - 1 ? prev : { ...prev, cursor: prev.cursor + 1 }
-                ));
+                )));
                 return true;
             },
         });
         return () => useOverlayNav.getState().reset();
-    }, [canOverlayBack, canOverlayForward]);
+    }, [canOverlayBack, canOverlayForward, withFileDiscardConfirmation]);
 
     // Warm Pierre's lazy web chunks while the user is still reading chat.
     React.useEffect(() => {
@@ -519,6 +555,7 @@ export const SessionView = React.memo((props: { id: string }) => {
                             sessionId={sessionId}
                             filePath={fileViewPath}
                             onHeaderRightSlotChange={setHeaderRightSlot}
+                            onDirtyChange={setFileViewDirty}
                         />
                     </View>
                 )}
@@ -535,6 +572,7 @@ export const SessionView = React.memo((props: { id: string }) => {
                         onSelectPanel={selectSidebarPanel}
                         onClosePanel={closeSidebarPanel}
                         onAllFilesFilePress={handleAllFilesFilePress}
+                        onAllFilesFileAttach={handleAllFilesFileAttach}
                         sideChats={sideChats}
                         activeSideChatId={activeSideChatId}
                         onSelectSideChat={setActiveSideChatId}
@@ -560,6 +598,7 @@ const AGENT_INPUT_AUTOCOMPLETE_PREFIXES = ['@', '/'];
 type ChatComposerHandle = {
     getMessage: () => string;
     clearMessage: () => void;
+    appendMessage: (text: string) => void;
 };
 
 type ChatComposerProps = Omit<
@@ -605,6 +644,13 @@ const ChatComposer = React.memo(function ChatComposer(props: ChatComposerProps) 
             inputHandleRef.current?.setTextAndSelection('', { start: 0, end: 0 });
             setMessage('');
             clearDraft();
+        },
+        appendMessage: (text: string) => {
+            const current = inputHandleRef.current?.getText() ?? '';
+            const separator = current.length > 0 && !/\s$/.test(current) ? ' ' : '';
+            const next = `${current}${separator}${text}`;
+            inputHandleRef.current?.setTextAndSelection(next, { start: next.length, end: next.length });
+            setMessage(next);
         },
     }), [clearDraft]);
 
@@ -704,18 +750,19 @@ export function SessionViewLoaded({
     // Check if CLI version is outdated and not already acknowledged
     const cliVersion = session.metadata?.version;
     const machineId = session.metadata?.machineId;
+    const sessionMachine = useMachine(machineId ?? '');
     const isCliOutdated = cliVersion && !isVersionSupported(cliVersion, MINIMUM_CLI_VERSION);
     const isAcknowledged = machineId && acknowledgedCliVersions[machineId] === cliVersion;
     const shouldShowCliWarning = isCliOutdated && !isAcknowledged;
     const flavor = session.metadata?.flavor;
     const isRig = isRigMetadata(session.metadata);
     const availableModels = React.useMemo(() => (
-        getAvailableModels(flavor, session.metadata, t, session.modelMode)
-    ), [flavor, session.metadata, session.modelMode]);
+        getSessionAvailableModels(flavor, session.metadata, sessionMachine?.metadata, t, session.modelMode)
+    ), [flavor, session.metadata, session.modelMode, sessionMachine?.metadata]);
     const availableModes = React.useMemo(() => (
-        getAvailablePermissionModes(flavor, session.metadata, t, session.permissionMode)
-    ), [flavor, session.metadata, session.permissionMode]);
-    const agentDefaultOverrides = useSetting('agentDefaultOverrides');
+        getSessionAvailablePermissionModes(flavor, session.metadata, sessionMachine?.metadata, t, session.permissionMode)
+    ), [flavor, session.metadata, session.permissionMode, sessionMachine?.metadata]);
+    const [agentDefaultOverrides, setAgentDefaultOverrides] = useSettingMutable('agentDefaultOverrides');
     const effectiveAgentDefaults = React.useMemo(() => (
         resolveAgentDefaultConfig(agentDefaultOverrides, flavor)
     ), [agentDefaultOverrides, flavor]);
@@ -745,22 +792,61 @@ export function SessionViewLoaded({
     // Effort level state
     const modelKey = modelMode?.key ?? 'default';
     const availableEffortLevels = React.useMemo<EffortLevel[]>(() => (
-        getEffortLevelsForModel(flavor, modelKey, session.metadata)
-    ), [flavor, modelKey, session.metadata]);
+        getSessionEffortLevelsForModel(flavor, modelKey, session.metadata, sessionMachine?.metadata)
+    ), [flavor, modelKey, session.metadata, sessionMachine?.metadata]);
+    const effectiveEffortDefault = React.useMemo(() => (
+        resolveAgentDefaultEffortLevel(agentDefaultOverrides, flavor, availableEffortLevels)
+    ), [agentDefaultOverrides, flavor, availableEffortLevels]);
     const effortLevel = React.useMemo<EffortLevel | null>(() => (
         resolveCurrentOption(availableEffortLevels, [
             session.effortLevel,
-            isRig ? getRigReasoningSelection(session.metadata, modelKey) : effectiveAgentDefaults.effortLevel,
+            isRig ? getRigReasoningSelection(session.metadata, modelKey) : effectiveEffortDefault,
         ])
-    ), [availableEffortLevels, session.effortLevel, effectiveAgentDefaults.effortLevel, session.metadata, modelKey, isRig]);
+    ), [availableEffortLevels, session.effortLevel, effectiveEffortDefault, session.metadata, modelKey, isRig]);
+
+    // Adopt an explicit effort already stored on an existing Codex session
+    // when upgrading from builds that had no synchronized effort preference.
+    // Once the user-level preference exists, merely opening an older session
+    // must not replace it.
+    React.useEffect(() => {
+        if (flavor !== 'codex' || !session.effortLevel) return;
+        if (!availableEffortLevels.some((level) => level.key === session.effortLevel)) return;
+        if (getAgentDefaultOverrideValue(agentDefaultOverrides, 'codex', 'effortLevel') !== undefined) return;
+        setAgentDefaultOverrides(setAgentDefaultOverride(
+            agentDefaultOverrides,
+            'codex',
+            'effortLevel',
+            session.effortLevel,
+        ));
+    }, [
+        flavor,
+        session.effortLevel,
+        availableEffortLevels,
+        agentDefaultOverrides,
+        setAgentDefaultOverrides,
+    ]);
+
+    // Never send a stale effort token that the selected model no longer
+    // advertises. Preserve the synchronized preference for other models, but
+    // normalize this session to its actual model-supported maximum.
+    React.useEffect(() => {
+        if (flavor !== 'codex' || !session.effortLevel || availableEffortLevels.length === 0) return;
+        if (availableEffortLevels.some((level) => level.key === session.effortLevel)) return;
+        if (!effectiveEffortDefault) return;
+        sessionSetAgentModes(sessionId, { effortLevel: effectiveEffortDefault });
+    }, [
+        flavor,
+        session.effortLevel,
+        availableEffortLevels,
+        effectiveEffortDefault,
+        sessionId,
+    ]);
 
     const sessionStatus = useSessionStatus(session);
     const sessionUsage = useSessionUsage(sessionId);
     const gitStatus = useSessionGitStatus(sessionId);
     const alwaysShowContextSize = useSetting('alwaysShowContextSize');
     const sessionStatusBarDisplay = useSetting('sessionStatusBarDisplay');
-    const experiments = useSetting('experiments');
-    const expResumeSession = useSetting('expResumeSession');
     const { canResume, resumeSession, resumingSession } = useSessionQuickActions(session);
     const isDisconnected = !sessionStatus.isConnected;
     const resumeCommandBlock = getResumeCommandBlock(session);
@@ -780,6 +866,16 @@ export function SessionViewLoaded({
     // clear it without subscribing to it (which would re-render the whole
     // SessionViewLoaded tree on every keystroke).
     const composerHandleRef = React.useRef<ChatComposerHandle | null>(null);
+    const handleDictationTranscript = React.useCallback((text: string) => {
+        composerHandleRef.current?.appendMessage(text);
+    }, []);
+    const voiceDictation = useVoiceDictation(handleDictationTranscript);
+    const voiceInputAvailability = useVoiceInputAvailability();
+    const selectedContextFiles = React.useSyncExternalStore(
+        subscribeWorkspaceContext,
+        () => getWorkspaceContextFiles(sessionId),
+        () => getWorkspaceContextFiles(sessionId),
+    );
 
     // Handle dismissing CLI version warning
     const handleDismissCliWarning = React.useCallback(() => {
@@ -799,19 +895,39 @@ export function SessionViewLoaded({
     }, [sessionId]);
 
     const updateModelMode = React.useCallback((mode: ModelMode) => {
-        const nextEffortLevels = getEffortLevelsForModel(flavor, mode.key, session.metadata);
+        const nextEffortLevels = getSessionEffortLevelsForModel(
+            flavor,
+            mode.key,
+            session.metadata,
+            sessionMachine?.metadata,
+        );
         const currentEffortSupported = session.effortLevel
             ? nextEffortLevels.some((level) => level.key === session.effortLevel)
             : true;
+        const nextEffortDefault = resolveAgentDefaultEffortLevel(
+            agentDefaultOverrides,
+            flavor,
+            nextEffortLevels,
+        );
         sessionSetAgentModes(sessionId, {
             modelMode: mode.key,
-            ...(!currentEffortSupported ? { effortLevel: mode.defaultThinkingLevel ?? null } : {}),
+            ...(!currentEffortSupported ? {
+                effortLevel: mode.defaultThinkingLevel ?? nextEffortDefault,
+            } : {}),
         });
-    }, [sessionId, flavor, session.metadata, session.effortLevel]);
+    }, [sessionId, flavor, session.metadata, session.effortLevel, sessionMachine?.metadata, agentDefaultOverrides]);
 
     const updateEffortLevel = React.useCallback((level: EffortLevel) => {
         sessionSetAgentModes(sessionId, { effortLevel: level.key });
-    }, [sessionId]);
+        if (flavor === 'codex') {
+            setAgentDefaultOverrides(setAgentDefaultOverride(
+                agentDefaultOverrides,
+                'codex',
+                'effortLevel',
+                level.key,
+            ));
+        }
+    }, [sessionId, flavor, agentDefaultOverrides, setAgentDefaultOverrides]);
 
     // Memoize header-dependent styles to prevent re-renders
     const headerDependentStyles = React.useMemo(() => ({
@@ -823,33 +939,59 @@ export function SessionViewLoaded({
         },
     }), []);
 
-    // handleSend reads the live message via the composer ref, so it doesn't
-    // need to re-create on every keystroke.
-    const handleSend = React.useCallback(() => {
+    // Read the live message via the composer ref so this callback does not
+    // re-create on every keystroke. Both delivery paths use the same encrypted
+    // outbox; the optional metadata only tells an active Codex turn to retain
+    // this input in its existing provider queue rather than steer it now.
+    const sendComposerMessage = React.useCallback(async (deliveryMode?: 'queue') => {
         const liveMessage = composerHandleRef.current?.getMessage() ?? '';
-        if (liveMessage.trim() || (expImageUpload && selectedImages.length > 0)) {
+        if (!liveMessage.trim() && !(expImageUpload && selectedImages.length > 0) && selectedContextFiles.length === 0) {
+            return;
+        }
+        try {
+            const contextMessage = await buildWorkspaceContextMessage(sessionId, liveMessage, selectedContextFiles);
             const attachments = expImageUpload ? selectedImages : undefined;
+            await sync.sendMessage(sessionId, contextMessage.promptText, {
+                source: 'chat',
+                attachments,
+                ...(selectedContextFiles.length > 0 ? { displayText: contextMessage.displayText } : {}),
+                ...(deliveryMode ? { deliveryMode } : {}),
+            });
             composerHandleRef.current?.clearMessage();
             if (expImageUpload) clearImages();
-            sync.sendMessage(sessionId, liveMessage, { source: 'chat', attachments });
+            clearWorkspaceContextFiles(sessionId);
+        } catch (error) {
+            Modal.alert(
+                t('happyHerd.composer.sendFailedTitle'),
+                error instanceof Error ? error.message : t('happyHerd.composer.sendFailedBody'),
+            );
         }
-    }, [sessionId, expImageUpload, selectedImages, clearImages]);
+    }, [sessionId, expImageUpload, selectedImages, selectedContextFiles, clearImages]);
+    const handleSend = React.useCallback(() => sendComposerMessage(), [sendComposerMessage]);
+    const handleQueueMessage = React.useCallback(() => sendComposerMessage('queue'), [sendComposerMessage]);
 
     const handleAbort = React.useCallback(() => {
-        // Mode picks live in synced metadata — clear them there, otherwise the
-        // next inbound metadata update resurrects them (#1492)
+        // Permission is turn-scoped and returns to the launch policy after an
+        // abort. Model and effort are session preferences: the Codex runtime
+        // retains them, so clearing them here would desynchronize the picker
+        // from the next resumed turn.
         if (!isRig) {
-            sessionSetAgentModes(sessionId, { permissionMode: null, modelMode: null, effortLevel: null });
+            sessionSetAgentModes(sessionId, { permissionMode: null });
         }
         sessionAbort(sessionId);
     }, [sessionId, isRig]);
 
     const handleFileViewerPress = React.useCallback(() => {
-        router.push(`/session/${sessionId}/files`);
-    }, [router, sessionId]);
+        const params = buildWorkspaceAttachmentParams(sessionId, session?.metadata);
+        if (!params) return;
+        router.push({
+            pathname: '/workspace',
+            params,
+        });
+    }, [router, session?.metadata, sessionId]);
 
     const handleAutocompleteSuggestions = React.useCallback((query: string) => (
-        getSuggestions(sessionId, query)
+        getSuggestions(sessionId, query, t)
     ), [sessionId]);
 
     const connectionStatus = React.useMemo(() => ({
@@ -906,56 +1048,8 @@ export function SessionViewLoaded({
         });
     }, [sessionId, visibleAgentGoal?.text]);
 
-    // Handle microphone button press - memoized to prevent button flashing
-    const handleMicrophonePress = React.useCallback(async () => {
-        if (realtimeStatus === 'connecting') {
-            return; // Prevent actions during transitions
-        }
-        if (realtimeStatus === 'disconnected' || realtimeStatus === 'error') {
-            try {
-                const initialPrompt = voiceHooks.onVoiceStarted(sessionId);
-                const conversationId = await startRealtimeSession(sessionId, initialPrompt);
-                if (conversationId) {
-                    const hasPro = storage.getState().purchases.entitlements['pro'] ?? false;
-                    tracking?.capture('voice_session_started', {
-                        session_id: sessionId,
-                        elevenlabs_conversation_id: conversationId,
-                        has_pro: hasPro,
-                        onboarding_prompt_load_count: getVoiceOnboardingPromptLoadCount(),
-                        voice_message_count: getVoiceMessageCount(),
-                    });
-                }
-            } catch (error) {
-                console.error('Failed to start realtime session:', error);
-                Modal.alert(t('common.error'), t('errors.voiceSessionFailed'));
-                tracking?.capture('voice_session_error', {
-                    session_id: sessionId,
-                    elevenlabs_conversation_id: getCurrentVoiceConversationId(),
-                    error: error instanceof Error ? error.message : 'Unknown error',
-                });
-            }
-        } else if (realtimeStatus === 'connected') {
-            const conversationId = getCurrentVoiceConversationId();
-            const durationSeconds = getCurrentVoiceSessionDurationSeconds();
-            await stopRealtimeSession();
-            tracking?.capture('voice_session_stopped', {
-                session_id: sessionId,
-                elevenlabs_conversation_id: conversationId,
-                ...(durationSeconds !== undefined ? { duration_seconds: durationSeconds } : {}),
-            });
-
-            // Notify voice assistant about voice session stop
-            voiceHooks.onVoiceStopped();
-        }
-    }, [realtimeStatus, sessionId]);
-
-    // Memoize mic button state to prevent flashing during chat transitions
-    const micButtonState = useMemo(() => ({
-        onMicPress: handleMicrophonePress,
-        isMicActive: realtimeStatus === 'connected' || realtimeStatus === 'connecting'
-    }), [handleMicrophonePress, realtimeStatus]);
-
-    // Trigger session visibility and initialize git status sync
+    // Track route visibility only. App foregrounding and socket reconnects
+    // reconcile the current conversation inside Sync without remounting it.
     React.useLayoutEffect(() => {
 
         // Trigger session sync
@@ -981,7 +1075,7 @@ export function SessionViewLoaded({
                 storage.getState().setCurrentViewingSession(null);
             }
         };
-    }, [sessionId, realtimeStatus, embedded]);
+    }, [sessionId, embedded]);
 
     let content = (
         <>
@@ -1029,17 +1123,26 @@ export function SessionViewLoaded({
             connectionStatus={connectionStatus}
             blockSend={isRig && session.thinking && session.metadata?.capabilities?.steering !== true}
             onSend={handleSend}
-            onMicPress={(embedded || isDisconnected) ? undefined : micButtonState.onMicPress}
-            isMicActive={(embedded || isDisconnected) ? false : micButtonState.isMicActive}
+            onQueueMessage={handleQueueMessage}
+            onMicPress={(embedded || isDisconnected || !voiceInputAvailability.available)
+                ? undefined
+                : voiceDictation.toggle}
+            isMicActive={!embedded && !isDisconnected && voiceDictation.phase === 'recording'}
             onAbort={isDisconnected || !rigCanAbort(session.metadata) ? undefined : handleAbort}
             showAbortButton={rigCanAbort(session.metadata) && (Platform.OS === 'web'
                 ? sessionStatus.state === 'thinking' || sessionStatus.state === 'waiting'
                 : sessionStatus.state === 'thinking')}
-            onFileViewerPress={experiments && !isTablet && rigCanBrowseFiles(session.metadata) && rigCanReadFiles(session.metadata) ? handleFileViewerPress : undefined}
+            onFileViewerPress={rigCanBrowseFiles(session.metadata) && rigCanReadFiles(session.metadata) ? handleFileViewerPress : undefined}
             selectedImages={expImageUpload && canUseAttachments ? selectedImages : undefined}
             onPickImages={expImageUpload && canUseAttachments ? pickImages : undefined}
             onRemoveImage={expImageUpload && canUseAttachments ? removeImage : undefined}
             onAddImages={expImageUpload && canUseAttachments ? addImages : undefined}
+            selectedContextFiles={selectedContextFiles}
+            onRemoveContextFile={(filePath) => removeWorkspaceContextFile(sessionId, filePath)}
+            dictationPhase={voiceDictation.phase}
+            dictationError={voiceDictation.error}
+            onDictationCancel={voiceDictation.cancel}
+            onDictationRetry={voiceDictation.canRetry ? voiceDictation.retry : undefined}
             autocompletePrefixes={AGENT_INPUT_AUTOCOMPLETE_PREFIXES}
             autocompleteSuggestions={handleAutocompleteSuggestions}
             usageData={usageData}
@@ -1057,13 +1160,12 @@ export function SessionViewLoaded({
     // whether they were explicitly archived or just lost their CLI (e.g.
     // Ctrl-C in terminal — lifecycleState stays 'running', server flips
     // active=false). InactiveArchivedHint handles both cases: shows the
-    // Resume button when canResume is true, falls back to the
-    // copy-this-command hint when the experiments toggle is off or the
-    // machine isn't reachable.
+    // Resume button when canResume is true, falling back to the copy command
+    // only when the machine or provider session is not directly resumable.
     const inactiveHint = showBottomDockDetails && isDisconnected && !isRig ? (
         <CenteredInputWidth horizontalPadding={sessionInputHorizontalPadding}>
             <InactiveArchivedHint
-                resumeCommandBlock={expResumeSession ? resumeCommandBlock : null}
+                resumeCommandBlock={resumeCommandBlock}
                 canResume={canResume}
                 resuming={resumingSession}
                 onResume={resumeSession}

@@ -16,6 +16,8 @@ interface SearchOptions {
     threshold?: number;
 }
 
+type Translate = (key: any) => string;
+
 // Commands to ignore/filter out
 export const IGNORED_COMMANDS = [
     "add-dir",
@@ -52,12 +54,12 @@ export const IGNORED_COMMANDS = [
 ];
 
 // Default commands always available
-const DEFAULT_COMMANDS: CommandItem[] = [
-    { command: 'compact', description: 'Compact the conversation history' },
-    { command: 'clear', description: 'Clear the conversation' },
-    { command: 'goal', description: 'Set a session goal' },
-    { command: 'mcp', description: 'Show connected MCP servers' },
-    { command: 'skills', description: 'Show available skills' },
+const getDefaultCommands = (translate: Translate): CommandItem[] => [
+    { command: 'compact', description: translate('uiCopy.compactTheConversationHistory') },
+    { command: 'clear', description: translate('uiCopy.clearTheConversation') },
+    { command: 'goal', description: translate('uiCopy.setASessionGoal') },
+    { command: 'mcp', description: translate('uiCopy.showConnectedMcpServers') },
+    { command: 'skills', description: translate('uiCopy.showAvailableSkills') },
 ];
 
 // Command descriptions for known tools/commands
@@ -81,14 +83,14 @@ const COMMAND_DESCRIPTIONS: Record<string, string> = {
 };
 
 // Get commands from session metadata
-function getCommandsFromSession(sessionId: string): CommandItem[] {
+function getCommandsFromSession(sessionId: string, translate: Translate): CommandItem[] {
     const state = storage.getState();
     const session = state.sessions[sessionId];
     if (!session || !session.metadata) {
-        return DEFAULT_COMMANDS;
+        return getDefaultCommands(translate);
     }
 
-    const commands: CommandItem[] = [...DEFAULT_COMMANDS];
+    const commands: CommandItem[] = getDefaultCommands(translate);
 
     const metadataCommands = [
         ...(session.metadata.slashCommands ?? []),
@@ -115,12 +117,13 @@ function getCommandsFromSession(sessionId: string): CommandItem[] {
 export async function searchCommands(
     sessionId: string,
     query: string,
+    translate: Translate,
     options: SearchOptions = {}
 ): Promise<CommandItem[]> {
     const { limit = 10, threshold = 0.3 } = options;
     
     // Get commands from session metadata (no caching)
-    const commands = getCommandsFromSession(sessionId);
+    const commands = getCommandsFromSession(sessionId, translate);
     
     // If query is empty, return all commands
     if (!query || query.trim().length === 0) {
@@ -148,6 +151,6 @@ export async function searchCommands(
 }
 
 // Get all available commands for a session
-export function getAllCommands(sessionId: string): CommandItem[] {
-    return getCommandsFromSession(sessionId);
+export function getAllCommands(sessionId: string, translate: Translate): CommandItem[] {
+    return getCommandsFromSession(sessionId, translate);
 }

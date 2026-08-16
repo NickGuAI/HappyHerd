@@ -44,6 +44,7 @@ export async function claudeLocal(opts: {
     claudeEnvVars?: Record<string, string>,
     claudeArgs?: string[],
     allowedTools?: string[],
+    appendSystemPrompt?: string,
     /** Path to temporary settings file with SessionStart hook (optional - for session tracking) */
     hookSettingsPath?: string,
     sandboxConfig?: SandboxConfig,
@@ -229,7 +230,11 @@ export async function claudeLocal(opts: {
             }
             // If hasResumeFlag && !startFrom: --resume is in claudeArgs, let Claude handle it
 
-            args.push('--append-system-prompt', systemPrompt);
+            const appendedInstructions = [opts.appendSystemPrompt, systemPrompt]
+                .filter((part): part is string => Boolean(part))
+                .join('\n\n');
+            args.push('--append-system-prompt', appendedInstructions);
+            args.push('--setting-sources', 'user,local');
 
             if (opts.mcpServers && Object.keys(opts.mcpServers).length > 0) {
                 args.push('--mcp-config', JSON.stringify({ mcpServers: opts.mcpServers }));

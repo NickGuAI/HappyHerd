@@ -146,7 +146,9 @@ describe('CodexAppServerClient sandbox integration', () => {
         await client.connect();
 
         expect(mockInitializeSandbox).toHaveBeenCalledWith(sandboxConfig, process.cwd());
-        expect(mockWrapForMcpTransport).toHaveBeenCalledWith('codex', ['app-server', '--listen', 'stdio://']);
+        expect(mockWrapForMcpTransport).toHaveBeenCalledWith('codex', [
+            'app-server', '--listen', 'stdio://', '-c', 'project_doc_max_bytes=0',
+        ]);
         expect(mockSpawn).toHaveBeenCalledWith(
             'sh',
             ['-c', 'wrapped codex app-server'],
@@ -162,6 +164,67 @@ describe('CodexAppServerClient sandbox integration', () => {
         await client.disconnect();
     });
 
+    it('starts a governed agent app-server with fail-closed policy and manifest-only tools', async () => {
+        const requests: MockRpcMessage[] = [];
+        mockSpawn.mockImplementation(() => createMockProcess({
+            onRequest: (msg, stdout) => {
+                requests.push(msg);
+                if (msg.method === 'thread/start' && msg.id != null) {
+                    setTimeout(() => pushJsonLine(stdout, {
+                        id: msg.id,
+                        result: {
+                            thread: { id: 'thread-agent', path: '/tmp/thread-agent' },
+                            model: 'gpt-test',
+                        },
+                    }), 0);
+                }
+            },
+        }));
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(sandboxConfig, {
+            agentPolicyEntrypoint: '/opt/happy/bin/happyherd-agent-codex-policy.mjs',
+            requireSandbox: true,
+        });
+
+        await client.connect();
+        const wrappedArgs = mockWrapForMcpTransport.mock.calls[0][1] as string[];
+        expect(wrappedArgs).toContain('--dangerously-bypass-hook-trust');
+        expect(wrappedArgs).toContain('web_search="disabled"');
+        expect(wrappedArgs.join(' ')).toContain('hooks.PreToolUse');
+
+        await client.startThread({
+            sandbox: 'read-only',
+            mcpServers: {
+                happyherd_agent: {
+                    command: '/usr/bin/node',
+                    enabled_tools: ['guide', 'contacts'],
+                    required: true,
+                },
+            },
+        });
+        const start = requests.find((request) => request.method === 'thread/start');
+        expect(start?.params).toEqual(expect.objectContaining({
+            includeApplyPatchTool: false,
+            config: {
+                mcp_servers: expect.objectContaining({ happyherd_agent: expect.any(Object) }),
+                web_search: 'disabled',
+            },
+        }));
+        await client.disconnect();
+    });
+
+    it('does not launch a governed agent app-server when its OS sandbox cannot start', async () => {
+        mockInitializeSandbox.mockRejectedValue(new Error('sandbox unavailable'));
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient(sandboxConfig, {
+            agentPolicyEntrypoint: '/opt/happy/bin/happyherd-agent-codex-policy.mjs',
+            requireSandbox: true,
+        });
+
+        await expect(client.connect()).rejects.toThrow('HappyHerd Agent Codex sandbox initialization failed');
+        expect(mockSpawn).not.toHaveBeenCalled();
+    });
+
     it('falls back to non-sandbox transport when sandbox initialization fails', async () => {
         mockInitializeSandbox.mockRejectedValue(new Error('sandbox init failed'));
         const { CodexAppServerClient } = await import('./codexAppServerClient');
@@ -172,7 +235,7 @@ describe('CodexAppServerClient sandbox integration', () => {
         expect(mockWrapForMcpTransport).not.toHaveBeenCalled();
         expect(mockSpawn).toHaveBeenCalledWith(
             'codex',
-            ['app-server', '--listen', 'stdio://'],
+            ['app-server', '--listen', 'stdio://', '-c', 'project_doc_max_bytes=0'],
             expect.objectContaining({
                 env: expect.objectContaining({
                     RUST_LOG: expect.stringContaining('codex_core::rollout::list=off'),
@@ -266,10 +329,16 @@ describe('CodexAppServerClient sandbox integration', () => {
 
                 if (msg.method === 'turn/start' && msg.id != null) {
                     setTimeout(() => {
-                        pushJsonLine(stdout, { id: msg.id, result: {} });
                         pushJsonLine(stdout, {
-                            method: 'codex/event',
-                            params: { msg: { type: 'task_started', turn_id: 'turn-1' } },
+                            id: msg.id,
+                            result: { turn: { id: 'turn-1', status: 'inProgress' } },
+                        });
+                        pushJsonLine(stdout, {
+                            method: 'turn/started',
+                            params: {
+                                threadId: 'thread-1',
+                                turn: { id: 'turn-1', status: 'inProgress' },
+                            },
                         });
                     }, 0);
                 }
@@ -306,14 +375,23 @@ describe('CodexAppServerClient sandbox integration', () => {
 
                 if (msg.method === 'turn/start' && msg.id != null) {
                     setTimeout(() => {
-                        pushJsonLine(stdout, { id: msg.id, result: {} });
                         pushJsonLine(stdout, {
-                            method: 'codex/event',
-                            params: { msg: { type: 'task_started', turn_id: 'turn-2' } },
+                            id: msg.id,
+                            result: { turn: { id: 'turn-2', status: 'inProgress' } },
                         });
                         pushJsonLine(stdout, {
-                            method: 'codex/event',
-                            params: { msg: { type: 'task_complete', turn_id: 'turn-2' } },
+                            method: 'turn/started',
+                            params: {
+                                threadId: 'thread-1',
+                                turn: { id: 'turn-2', status: 'inProgress' },
+                            },
+                        });
+                        pushJsonLine(stdout, {
+                            method: 'turn/completed',
+                            params: {
+                                threadId: 'thread-1',
+                                turn: { id: 'turn-2', status: 'completed', error: null },
+                            },
                         });
                     }, 0);
                 }
@@ -337,6 +415,7 @@ describe('CodexAppServerClient sandbox integration', () => {
             cwd: '/tmp/project',
             approvalPolicy: 'on-request',
             sandbox: 'read-only',
+            developerInstructions: 'global + commander + project',
         });
 
         const pendingTurn = client.sendTurnAndWait('hang forever', { turnTimeoutMs: 5000 });
@@ -405,10 +484,16 @@ describe('CodexAppServerClient sandbox integration', () => {
 
                 if (msg.method === 'turn/start' && msg.id != null) {
                     setTimeout(() => {
-                        pushJsonLine(stdout, { id: msg.id, result: {} });
                         pushJsonLine(stdout, {
-                            method: 'codex/event',
-                            params: { msg: { type: 'task_started', turn_id: 'turn-stuck-interrupt' } },
+                            id: msg.id,
+                            result: { turn: { id: 'turn-stuck-interrupt', status: 'inProgress' } },
+                        });
+                        pushJsonLine(stdout, {
+                            method: 'turn/started',
+                            params: {
+                                threadId: 'thread-stuck-interrupt',
+                                turn: { id: 'turn-stuck-interrupt', status: 'inProgress' },
+                            },
                         });
                     }, 0);
                 }
@@ -455,6 +540,7 @@ describe('CodexAppServerClient sandbox integration', () => {
             cwd: '/tmp/project',
             approvalPolicy: 'on-request',
             sandbox: 'read-only',
+            developerInstructions: 'global + commander + project',
         });
 
         const pendingTurn = client.sendTurnAndWait('hang on interrupt', { turnTimeoutMs: 5000 });
@@ -477,6 +563,12 @@ describe('CodexAppServerClient sandbox integration', () => {
             resumedThread: true,
         });
         expect(secondProcessRequests.some((msg) => msg.method === 'thread/resume')).toBe(true);
+        expect(firstProcessRequests.find((msg) => msg.method === 'thread/start')?.params).toEqual(
+            expect.objectContaining({ developerInstructions: 'global + commander + project' }),
+        );
+        expect(secondProcessRequests.find((msg) => msg.method === 'thread/resume')?.params).toEqual(
+            expect.objectContaining({ developerInstructions: 'global + commander + project' }),
+        );
 
         await client.disconnect();
     });
@@ -795,6 +887,128 @@ describe('CodexAppServerClient sandbox integration', () => {
             threadId: 'thread-text',
             input: [{ type: 'text', text: 'hello' }],
         });
+
+        await client.disconnect();
+    });
+
+    it('steers follow-up input into the provider-owned active turn', async () => {
+        const requests: MockRpcMessage[] = [];
+        const proc = createMockProcess({
+            pid: 2803,
+            onRequest: (msg, stdout) => {
+                requests.push(msg);
+
+                if (msg.method === 'thread/start' && msg.id != null) {
+                    setTimeout(() => {
+                        pushJsonLine(stdout, {
+                            id: msg.id,
+                            result: {
+                                thread: { id: 'thread-steer', path: '/tmp/thread-steer' },
+                                model: 'gpt-test',
+                                modelProvider: 'openai',
+                                cwd: '/tmp/project',
+                                approvalPolicy: 'never',
+                                sandbox: { type: 'dangerFullAccess' },
+                                reasoningEffort: 'max',
+                            },
+                        });
+                    }, 0);
+                }
+
+                if (msg.method === 'turn/start' && msg.id != null) {
+                    setTimeout(() => {
+                        pushJsonLine(stdout, {
+                            id: msg.id,
+                            result: {
+                                turn: { id: 'turn-steer', items: [], status: 'inProgress', error: null },
+                            },
+                        });
+                    }, 0);
+                }
+
+                if (msg.method === 'turn/steer' && msg.id != null) {
+                    setTimeout(() => pushJsonLine(stdout, { id: msg.id, result: {} }), 0);
+                }
+            },
+        });
+        mockSpawn.mockImplementation(() => proc);
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient();
+
+        await client.connect();
+        await client.startThread({
+            model: 'gpt-test',
+            cwd: '/tmp/project',
+            approvalPolicy: 'never',
+            sandbox: 'danger-full-access',
+        });
+
+        const completion = client.sendTurnAndWait('initial', { effort: 'max' });
+        await waitFor(() => client.activeTurnId === 'turn-steer');
+
+        await client.steerTurn('follow up', {
+            extraInputItems: [{ type: 'localImage', path: '/tmp/follow-up.png' }],
+        });
+
+        expect(requests.find((msg) => msg.method === 'turn/steer')?.params).toEqual({
+            threadId: 'thread-steer',
+            expectedTurnId: 'turn-steer',
+            input: [
+                { type: 'text', text: 'follow up' },
+                { type: 'localImage', path: '/tmp/follow-up.png' },
+            ],
+        });
+
+        pushJsonLine(proc.stdout, {
+            method: 'turn/completed',
+            params: {
+                threadId: 'thread-steer',
+                turn: { id: 'turn-steer', items: [], status: 'completed', error: null },
+            },
+        });
+        await expect(completion).resolves.toEqual({ aborted: false });
+        expect(client.activeTurnId).toBeNull();
+
+        await client.disconnect();
+    });
+
+    it('rejects steering when Codex does not own an active turn', async () => {
+        const proc = createMockProcess({
+            pid: 2804,
+            onRequest: (msg, stdout) => {
+                if (msg.method === 'thread/start' && msg.id != null) {
+                    setTimeout(() => {
+                        pushJsonLine(stdout, {
+                            id: msg.id,
+                            result: {
+                                thread: { id: 'thread-idle', path: '/tmp/thread-idle' },
+                                model: 'gpt-test',
+                                modelProvider: 'openai',
+                                cwd: '/tmp/project',
+                                approvalPolicy: 'never',
+                                sandbox: { type: 'dangerFullAccess' },
+                                reasoningEffort: null,
+                            },
+                        });
+                    }, 0);
+                }
+            },
+        });
+        mockSpawn.mockImplementation(() => proc);
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient();
+
+        await client.connect();
+        await client.startThread({
+            model: 'gpt-test',
+            cwd: '/tmp/project',
+            approvalPolicy: 'never',
+            sandbox: 'danger-full-access',
+        });
+
+        await expect(client.steerTurn('too late')).rejects.toThrow('No active Codex turn to steer');
 
         await client.disconnect();
     });
@@ -1310,6 +1524,13 @@ describe('CodexAppServerClient sandbox integration', () => {
                                 },
                             },
                         });
+                        pushJsonLine(stdout, {
+                            method: 'turn/completed',
+                            params: {
+                                threadId: 'thread-raw-3',
+                                turn: { id: 'turn-raw-3', status: 'completed', error: null },
+                            },
+                        });
                     }, 0);
                 }
             },
@@ -1596,7 +1817,7 @@ describe('CodexAppServerClient sandbox integration', () => {
         await client.disconnect();
     });
 
-    it('falls back to final answer completion when raw turn/completed is missing', async () => {
+    it('does not release the root waiter on a final-answer item without turn/completed', async () => {
         const proc = createMockProcess({
             pid: 3002,
             onRequest: (msg, stdout) => {
@@ -1667,12 +1888,159 @@ describe('CodexAppServerClient sandbox integration', () => {
             sandbox: 'danger-full-access',
         });
 
-        await expect(client.sendTurnAndWait('say hi')).resolves.toEqual({ aborted: false });
+        let settled = false;
+        const pending = client.sendTurnAndWait('say hi', { turnTimeoutMs: 1 }).then((result) => {
+            settled = true;
+            return result;
+        });
+        await waitFor(() => events.some((event) => event.type === 'agent_message'));
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        expect(settled).toBe(false);
+        expect(events.some((event) => event.type === 'task_complete')).toBe(false);
+
+        pushJsonLine(proc.stdout, {
+            method: 'turn/completed',
+            params: {
+                threadId: 'thread-raw-2',
+                turn: { id: 'turn-raw-2', status: 'completed', error: null },
+            },
+        });
+        await expect(pending).resolves.toEqual({ aborted: false });
         expect(events).toEqual(expect.arrayContaining([
             expect.objectContaining({ type: 'task_started', turn_id: 'turn-raw-2' }),
             expect.objectContaining({ type: 'agent_message', message: 'still works' }),
             expect.objectContaining({ type: 'task_complete', turn_id: 'turn-raw-2' }),
         ]));
+
+        await client.disconnect();
+    });
+
+    it('keeps child terminal evidence separate from the authoritative root lifecycle', async () => {
+        const proc = createMockProcess({
+            pid: 3008,
+            onRequest: (msg, stdout) => {
+                if (msg.method === 'thread/start' && msg.id != null) {
+                    setTimeout(() => {
+                        pushJsonLine(stdout, {
+                            id: msg.id,
+                            result: {
+                                thread: { id: 'thread-root', path: '/tmp/thread-root' },
+                                model: 'gpt-test',
+                                modelProvider: 'openai',
+                                cwd: '/tmp/project',
+                                approvalPolicy: 'never',
+                                sandbox: { type: 'dangerFullAccess' },
+                                reasoningEffort: null,
+                            },
+                        });
+                    }, 0);
+                }
+
+                if (msg.method === 'turn/start' && msg.id != null) {
+                    setTimeout(() => {
+                        pushJsonLine(stdout, {
+                            id: msg.id,
+                            result: { turn: { id: 'turn-root', status: 'inProgress' } },
+                        });
+                        pushJsonLine(stdout, {
+                            method: 'turn/started',
+                            params: {
+                                threadId: 'thread-root',
+                                turn: { id: 'turn-root', status: 'inProgress' },
+                            },
+                        });
+                        pushJsonLine(stdout, {
+                            method: 'codex/event',
+                            params: { msg: { type: 'task_complete', turn_id: 'turn-root' } },
+                        });
+                        pushJsonLine(stdout, {
+                            method: 'turn/started',
+                            params: {
+                                threadId: 'thread-child',
+                                turn: { id: 'turn-child', status: 'inProgress' },
+                            },
+                        });
+                        pushJsonLine(stdout, {
+                            method: 'item/completed',
+                            params: {
+                                threadId: 'thread-child',
+                                turnId: 'turn-child',
+                                item: {
+                                    type: 'agentMessage',
+                                    id: 'child-message',
+                                    text: 'partial child evidence',
+                                    phase: 'commentary',
+                                },
+                            },
+                        });
+                        pushJsonLine(stdout, {
+                            method: 'turn/completed',
+                            params: {
+                                threadId: 'thread-child',
+                                turn: {
+                                    id: 'turn-child',
+                                    status: 'failed',
+                                    error: { message: 'child failed' },
+                                },
+                            },
+                        });
+                    }, 0);
+                }
+            },
+        });
+        mockSpawn.mockImplementation(() => proc);
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient();
+        const events: Array<Record<string, unknown>> = [];
+        client.setEventHandler((msg) => events.push(msg as Record<string, unknown>));
+
+        await client.connect();
+        await client.startThread({
+            model: 'gpt-test',
+            cwd: '/tmp/project',
+            approvalPolicy: 'never',
+            sandbox: 'danger-full-access',
+        });
+
+        let settled = false;
+        const pending = client.sendTurnAndWait('delegate').then((result) => {
+            settled = true;
+            return result;
+        });
+        await waitFor(() => events.some((event) => event.type === 'subagent_terminal'));
+        expect(settled).toBe(false);
+        expect(events).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                type: 'agent_message',
+                message: 'partial child evidence',
+                agentThreadId: 'thread-child',
+            }),
+            expect.objectContaining({
+                type: 'subagent_terminal',
+                agentThreadId: 'thread-child',
+                status: 'failed',
+                error: { message: 'child failed' },
+            }),
+            expect.objectContaining({
+                type: 'task_complete',
+                provider_terminal: false,
+            }),
+        ]));
+
+        pushJsonLine(proc.stdout, {
+            method: 'turn/completed',
+            params: {
+                threadId: 'thread-root',
+                turn: { id: 'turn-root', status: 'completed', error: null },
+            },
+        });
+        await expect(pending).resolves.toEqual({ aborted: false });
+        expect(events).toContainEqual(expect.objectContaining({
+            type: 'task_complete',
+            provider_terminal: true,
+            turn_id: 'turn-root',
+        }));
 
         await client.disconnect();
     });

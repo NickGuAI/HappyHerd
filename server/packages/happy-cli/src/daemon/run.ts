@@ -25,39 +25,26 @@ import { projectPath } from '@/projectPath';
 import { getTmuxUtilities, isTmuxAvailable, parseTmuxSessionIdentifier, formatTmuxSessionIdentifier } from '@/utils/tmux';
 import { expandEnvironmentVariables } from '@/utils/expandEnvVars';
 import { detectCLIAvailability } from '@/utils/detectCLI';
+import { buildBaselineAgentCapabilities } from '@/capabilities/agentCapabilities';
 import { buildResumeLaunch } from '@/resume/handleResumeCommand';
 import { detectResumeSupport } from '@/resume/localHappyAgentAuth';
 import { encodeBase64, decodeBase64, decrypt } from '@/api/encryption';
 import {
   buildSessionChildEnvironment,
+  happyHerdAgentSessionRuntimeEnvironment,
   sanitizeSessionEnvironment,
   wrapTmuxCommandWithSessionEnvironmentSanitizer,
 } from './sessionEnvironment';
+import { contextEnvironment, prepareCommanderContext } from '@/agentContext/commanderContext';
+import { HappyHerdAutomationService } from '@/automations/service';
+import { automationBootstrapEnvironment, prepareAutomationBootstrap } from '@/automations/sessionBootstrap';
+import { appendDaemonSpawnModeArgs } from './spawnModeArgs';
+import { SessionProcessLifecycle } from './sessionProcessLifecycle';
+import { hasProviderProcessExited } from './processStatus';
 
 /** Shell-escape a string for safe interpolation into tmux commands. */
 function shellescape(s: string): string {
     return "'" + s.replace(/'/g, "'\\''") + "'";
-}
-
-function appendDaemonSpawnModeArgs(args: string[], options: SpawnSessionOptions, agent: string): void {
-  if (agent !== 'claude' && agent !== 'codex') {
-    return;
-  }
-  // For claude, 'default' is the app's ambient "no override" value — forwarding
-  // it would pin the session to prompting mode and lose the CLI's own default
-  // (e.g. a --yolo setup where sessions must bypass permissions). For codex,
-  // 'default' IS a concrete ask-first mode (untrusted + workspace-write)
-  // distinct from the codex launch default ('yolo'), so it must be forwarded
-  // or the user's explicit ask-first pick silently yields a yolo session.
-  if (options.permissionMode && (agent === 'codex' || options.permissionMode !== 'default')) {
-    args.push('--permission-mode', options.permissionMode);
-  }
-  if (options.modelMode && options.modelMode !== 'default') {
-    args.push('--model', options.modelMode);
-  }
-  if (options.effortLevel) {
-    args.push('--effort', options.effortLevel);
-  }
 }
 
 // Prepare initial metadata
@@ -65,6 +52,7 @@ function appendDaemonSpawnModeArgs(args: string[], options: SpawnSessionOptions,
 // is visually distinct from the stable one in the machine list (they otherwise
 // share the same hostname and look identical).
 const hostSuffix = process.env.HAPPY_VARIANT === 'dev' ? '-dev' : '';
+const initialCLIAvailability = detectCLIAvailability();
 export const initialMachineMetadata: MachineMetadata = {
   host: os.hostname() + hostSuffix,
   platform: os.platform(),
@@ -72,8 +60,9 @@ export const initialMachineMetadata: MachineMetadata = {
   homeDir: os.homedir(),
   happyHomeDir: configuration.happyHomeDir,
   happyLibDir: projectPath(),
-  cliAvailability: detectCLIAvailability(),
+  cliAvailability: initialCLIAvailability,
   resumeSupport: { ...detectResumeSupport(), rpcAvailable: true },
+  agentCapabilities: buildBaselineAgentCapabilities(initialCLIAvailability),
 };
 
 export async function startDaemon(): Promise<void> {
@@ -151,10 +140,9 @@ export async function startDaemon(): Promise<void> {
   // Check if running daemon version matches current CLI version
   const runningDaemonVersionMatches = await isDaemonRunningCurrentlyInstalledHappyVersion();
   if (!runningDaemonVersionMatches) {
-    // TODO: This hand-rolled self-restart path is awkward to reason about and awkward to test.
-    // We should probably migrate this daemon to native system service management
-    // (launchd/systemd, similar to OpenClaw's model), so startup/start-at-login and upgrades
-    // are owned by the OS instead of by the daemon trying to replace itself in-process.
+    // Keep version handoff inside the detached daemon lifecycle. A host service
+    // manager must not own this process tree because stopping that service can
+    // terminate the Claude/Codex provider sessions the daemon only tracks.
     logger.debug('[DAEMON RUN] Daemon version mismatch detected, restarting daemon with current CLI version');
     await stopDaemon();
   } else {
@@ -183,6 +171,7 @@ export async function startDaemon(): Promise<void> {
 
     // Ensure auth and machine registration BEFORE anything else
     const { credentials, machineId } = await authAndSetupMachineIfNeeded();
+    const api = await ApiClient.create(credentials);
     logger.debug('[DAEMON RUN] Auth and machine setup complete');
 
     // Setup state - key by PID
@@ -210,6 +199,14 @@ export async function startDaemon(): Promise<void> {
     if (Object.keys(persisted).length > 0) {
       logger.debug(`[DAEMON RUN] Loaded ${Object.keys(persisted).length} persisted sessions from disk`);
     }
+
+    const sessionProcessLifecycle = new SessionProcessLifecycle({
+      trackedSessions: pidToTrackedSession,
+      finishedSessions: sessionIdToFinishedSession,
+      deactivateSession: (sessionId) => api.deactivateSession(sessionId),
+      log: (message) => logger.debug(`[DAEMON RUN] ${message}`),
+    });
+    const onChildExited = (pid: number) => sessionProcessLifecycle.recordExit(pid);
 
     // Session spawning awaiter system
     const pidToAwaiter = new Map<number, (session: TrackedSession) => void>();
@@ -276,9 +273,25 @@ export async function startDaemon(): Promise<void> {
 
     // Spawn a new session (sessionId reserved for future --resume functionality)
     const spawnSession = async (options: SpawnSessionOptions): Promise<SpawnSessionResult> => {
-      logger.debugLargeJson('[DAEMON RUN] Spawning session', options);
+      logger.debugLargeJson('[DAEMON RUN] Spawning session', options.automation
+        ? {
+          ...options,
+          automation: {
+            id: options.automation.id,
+            kind: options.automation.kind,
+            instructionLength: options.automation.instruction.length,
+          },
+        }
+        : options);
 
-      const { directory, sessionId, machineId, approvedNewDirectoryCreation = true } = options;
+      const contextBundle = await prepareCommanderContext(options.commanderId, options.directory);
+      // Commander workspace is the picker's default, not authority to replace
+      // the directory the user actually selected for this session. Keeping the
+      // spawn cwd and the closest project guide on the same requested path
+      // prevents a valid Commander identity from loading guidance for one
+      // project while operating in another.
+      const directory = options.directory;
+      const { sessionId, machineId, approvedNewDirectoryCreation = true } = options;
       let directoryCreated = false;
 
       try {
@@ -347,9 +360,20 @@ export async function startDaemon(): Promise<void> {
           }
         }
 
+        const automationBootstrap = options.automation
+          ? await prepareAutomationBootstrap({
+            schemaVersion: 1,
+            automationId: options.automation.id,
+            kind: options.automation.kind,
+            instruction: options.automation.instruction,
+          })
+          : null;
         let extraEnv: Record<string, string> = {
           ...authEnv,
+          ...contextEnvironment(contextBundle),
           ...sanitizeSessionEnvironment(options.environmentVariables ?? {}),
+          ...happyHerdAgentSessionRuntimeEnvironment(options.agentRuntimeContext),
+          ...(automationBootstrap ? automationBootstrapEnvironment(automationBootstrap) : {}),
         };
         if (options.parentSessionId) {
           extraEnv.HAPPY_FORKED_FROM_SESSION_ID = options.parentSessionId;
@@ -622,7 +646,8 @@ export async function startDaemon(): Promise<void> {
         logger.debug('[DAEMON RUN] Failed to spawn process - no PID returned');
         return Promise.resolve({
           type: 'error',
-          errorMessage: 'Failed to spawn Happy process - no PID returned'
+          errorMessage: 'Failed to spawn Happy process - no PID returned',
+          retrySafe: true,
         });
       }
 
@@ -641,14 +666,16 @@ export async function startDaemon(): Promise<void> {
       happyProcess.on('exit', (code, signal) => {
         logger.debug(`[DAEMON RUN] Child PID ${happyProcess.pid} exited with code ${code}, signal ${signal}`);
         if (happyProcess.pid) {
-          onChildExited(happyProcess.pid);
+          void onChildExited(happyProcess.pid);
         }
       });
 
       happyProcess.on('error', (error) => {
         logger.debug(`[DAEMON RUN] Child process error:`, error);
-        if (happyProcess.pid) {
-          onChildExited(happyProcess.pid);
+        if (happyProcess.pid && hasProviderProcessExited(happyProcess.pid)) {
+          void onChildExited(happyProcess.pid);
+        } else if (happyProcess.pid) {
+          logger.debug(`[DAEMON RUN] Child PID ${happyProcess.pid} still exists after process error; keeping session active`);
         }
       });
 
@@ -699,7 +726,11 @@ export async function startDaemon(): Promise<void> {
       }
     };
 
-    const resumeSession = async (happySessionId: string, options?: { model?: string; permissionMode?: string }): Promise<SpawnSessionResult> => {
+    const resumeSession = async (happySessionId: string, options?: {
+      model?: string;
+      permissionMode?: string;
+      agentRuntimeContext?: unknown;
+    }): Promise<SpawnSessionResult> => {
       try {
         const tracked = findTrackedSessionById(happySessionId);
         if (!tracked) {
@@ -742,11 +773,15 @@ export async function startDaemon(): Promise<void> {
         }
 
         await fs.access(launch.cwd);
+        const resumedContextBundle = await prepareCommanderContext(metadata.commanderId, launch.cwd);
+        const agentRuntimeEnvironment = happyHerdAgentSessionRuntimeEnvironment(options?.agentRuntimeContext);
 
         return spawnTrackedHappyProcess({
           args: launch.args,
           cwd: launch.cwd,
           env: buildSessionChildEnvironment(ambientEnvironment, {
+            ...contextEnvironment(resumedContextBundle),
+            ...agentRuntimeEnvironment,
             HAPPY_RECONNECT_SESSION_ID: happySessionId,
             HAPPY_RECONNECT_ENCRYPTION_KEY: encodeBase64(tracked.encryption.encryptionKey),
             HAPPY_RECONNECT_ENCRYPTION_VARIANT: tracked.encryption.encryptionVariant,
@@ -780,6 +815,9 @@ export async function startDaemon(): Promise<void> {
               logger.debug(`[DAEMON RUN] Sent SIGTERM to daemon-spawned session ${sessionId}`);
             } catch (error) {
               logger.debug(`[DAEMON RUN] Failed to kill session ${sessionId}:`, error);
+              if (hasProviderProcessExited(pid)) {
+                void onChildExited(pid);
+              }
             }
           } else {
             // For externally started sessions, try to kill by PID
@@ -788,11 +826,13 @@ export async function startDaemon(): Promise<void> {
               logger.debug(`[DAEMON RUN] Sent SIGTERM to external session PID ${pid}`);
             } catch (error) {
               logger.debug(`[DAEMON RUN] Failed to kill external session PID ${pid}:`, error);
+              if (hasProviderProcessExited(pid)) {
+                void onChildExited(pid);
+              }
             }
           }
 
-          pidToTrackedSession.delete(pid);
-          logger.debug(`[DAEMON RUN] Removed session ${sessionId} from tracking`);
+          logger.debug(`[DAEMON RUN] Waiting for provider process ${sessionId} to exit before marking it inactive`);
           return true;
         }
       }
@@ -801,17 +841,8 @@ export async function startDaemon(): Promise<void> {
       return false;
     };
 
-    // Handle child process exit — preserve session data for resume
-    const onChildExited = (pid: number) => {
-      const session = pidToTrackedSession.get(pid);
-      if (session?.happySessionId && session.encryption) {
-        sessionIdToFinishedSession.set(session.happySessionId, session);
-        logger.debug(`[DAEMON RUN] Process PID ${pid} exited, preserved session ${session.happySessionId} for resume`);
-      } else {
-        logger.debug(`[DAEMON RUN] Removing exited process PID ${pid} from tracking`);
-      }
-      pidToTrackedSession.delete(pid);
-    };
+    const automations = new HappyHerdAutomationService(machineId, spawnSession);
+    await automations.start();
 
     // Start control server
     const { port: controlPort, stop: stopControlServer } = await startDaemonControlServer({
@@ -819,7 +850,8 @@ export async function startDaemon(): Promise<void> {
       stopSession,
       spawnSession,
       requestShutdown: () => requestShutdown('happy-cli'),
-      onHappySessionWebhook
+      onHappySessionWebhook,
+      automations,
     });
 
     // Write initial daemon state (no lock needed for state file)
@@ -827,7 +859,7 @@ export async function startDaemon(): Promise<void> {
       pid: process.pid,
       httpPort: controlPort,
       startTime: new Date().toLocaleString(),
-      startedWithCliVersion: packageJson.version,
+      startedWithCliVersion: configuration.currentCliVersion,
       daemonLogPath: logger.logFilePath
     };
     writeDaemonState(fileState);
@@ -857,9 +889,6 @@ export async function startDaemon(): Promise<void> {
       startedAt: Date.now()
     };
 
-    // Create API client
-    const api = await ApiClient.create(credentials);
-
     // Get or create machine
     const machine = await api.getOrCreateMachine({
       machineId,
@@ -876,7 +905,8 @@ export async function startDaemon(): Promise<void> {
       spawnSession,
       resumeSession,
       stopSession,
-      requestShutdown: () => requestShutdown('happy-app')
+      requestShutdown: () => requestShutdown('happy-app'),
+      automations,
     });
 
     // Connect to server
@@ -901,15 +931,14 @@ export async function startDaemon(): Promise<void> {
 
       // Prune stale sessions
       for (const [pid, _] of pidToTrackedSession.entries()) {
-        try {
-          // Check if process is still alive (signal 0 doesn't kill, just checks)
-          process.kill(pid, 0);
-        } catch (error) {
-          // Process is dead, remove from tracking
-          logger.debug(`[DAEMON RUN] Removing stale session with PID ${pid} (process no longer exists)`);
-          pidToTrackedSession.delete(pid);
+        if (hasProviderProcessExited(pid)) {
+          // The operating system confirmed the process is gone: preserve
+          // resume state and explicitly deactivate the session. Elapsed time
+          // and inconclusive process probes never perform this transition.
+          await onChildExited(pid);
         }
       }
+      await sessionProcessLifecycle.retryPending();
 
       // Check if daemon needs update by detecting whether `dist/index.mjs` was
       // replaced on disk since the daemon started (npm install rewrites the file).
@@ -924,9 +953,9 @@ export async function startDaemon(): Promise<void> {
         }
       }
       if (bundleReplaced) {
-        // TODO: We probably do not want to keep this in-process self-restart logic long-term.
-        // A native service manager would make startup and upgrades much simpler: the CLI would
-        // ask the OS to start the latest daemon instead of hand-rolling respawn/kill behavior here.
+        // The daemon deliberately hands off to the upstream detached lifecycle.
+        // Provider sessions are independent processes and remain alive while the
+        // daemon changes version and reconnects to them.
         logger.debug('[DAEMON RUN] Daemon bundle replaced on disk, handing off to new daemon');
 
         clearInterval(restartOnStaleVersionAndHeartbeat);
@@ -935,6 +964,7 @@ export async function startDaemon(): Promise<void> {
         // `happy daemon start` reads our still-present daemon.state.json, sees
         // isDaemonRunningCurrentlyInstalledHappyVersion() === true, and exits —
         // leaving nothing running once we also exit.
+        await automations.stop();
         apiMachine.shutdown();
         await stopControlServer();
         await cleanupDaemonState();
@@ -968,7 +998,7 @@ export async function startDaemon(): Promise<void> {
           pid: process.pid,
           httpPort: controlPort,
           startTime: fileState.startTime,
-          startedWithCliVersion: packageJson.version,
+          startedWithCliVersion: configuration.currentCliVersion,
           lastHeartbeat: new Date().toLocaleString(),
           daemonLogPath: fileState.daemonLogPath
         };
@@ -1004,6 +1034,7 @@ export async function startDaemon(): Promise<void> {
       // Give time for metadata update to send
       await new Promise(resolve => setTimeout(resolve, 100));
 
+      await automations.stop();
       apiMachine.shutdown();
       await stopControlServer();
       await cleanupDaemonState();

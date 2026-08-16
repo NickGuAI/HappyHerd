@@ -1,5 +1,4 @@
-import { describe, it, expect, vi, beforeAll } from 'vitest';
-import sodium from 'libsodium-wrappers';
+import { describe, it, expect, vi } from 'vitest';
 
 // Mock expo-crypto to use Node.js crypto
 vi.mock('expo-crypto', () => ({
@@ -10,9 +9,26 @@ vi.mock('expo-crypto', () => ({
 }));
 
 // Mock the libsodium.lib import to use the Node.js libsodium-wrappers
-vi.mock('@/encryption/libsodium.lib', () => {
-    const s = require('libsodium-wrappers');
-    return { default: s };
+vi.mock('@/encryption/libsodium.lib', async () => {
+    const { default: s } = await import('libsodium-wrappers');
+    // The blob helper is synchronous, so initialize the exact wrapper object
+    // injected into it before the module under test is evaluated. Waiting on a
+    // separate ESM/CJS view makes clean CI workers depend on module warm-up
+    // order and can leave the injected object without secretbox functions.
+    await s.ready;
+    // Model runtimes where wrapper metadata is not available when the
+    // synchronous blob helper runs. The 24-byte nonce is a wire-format
+    // invariant, not something encryptBlob should discover at runtime.
+    return {
+        default: new Proxy(s, {
+            get(target, property, receiver) {
+                if (property === 'crypto_secretbox_NONCEBYTES') {
+                    return undefined;
+                }
+                return Reflect.get(target, property, receiver);
+            },
+        }),
+    };
 });
 
 import { encryptBlob, decryptBlob } from './blob';
@@ -20,10 +36,6 @@ import { encryptBlob, decryptBlob } from './blob';
 // 32-byte key for crypto_secretbox (NaCl symmetric encryption)
 const TEST_KEY = new Uint8Array(32);
 for (let i = 0; i < 32; i++) TEST_KEY[i] = i;
-
-beforeAll(async () => {
-    await sodium.ready;
-});
 
 describe('blob encryption', () => {
     it('should encrypt and decrypt a small blob', () => {

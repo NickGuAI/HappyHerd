@@ -2,6 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
 const AUTH_KEY = 'auth_credentials';
+const ACCOUNT_KEY_BACKUP_REQUIRED_KEY = 'account_key_backup_required';
 
 // Cache for synchronous access
 let credentialsCache: string | null = null;
@@ -43,13 +44,43 @@ export const TokenStorage = {
         }
     },
 
-    async removeCredentials(): Promise<boolean> {
-        if (Platform.OS === 'web') {    
-            localStorage.removeItem(AUTH_KEY);
+    async getAccountKeyBackupRequired(): Promise<boolean> {
+        if (Platform.OS === 'web') {
+            return localStorage.getItem(ACCOUNT_KEY_BACKUP_REQUIRED_KEY) === 'true';
+        }
+        try {
+            return await SecureStore.getItemAsync(ACCOUNT_KEY_BACKUP_REQUIRED_KEY) === 'true';
+        } catch (error) {
+            console.error('Error getting account key backup state:', error);
+            return false;
+        }
+    },
+
+    async setAccountKeyBackupRequired(required: boolean): Promise<boolean> {
+        if (Platform.OS === 'web') {
+            localStorage.setItem(ACCOUNT_KEY_BACKUP_REQUIRED_KEY, String(required));
             return true;
         }
         try {
-            await SecureStore.deleteItemAsync(AUTH_KEY);
+            await SecureStore.setItemAsync(ACCOUNT_KEY_BACKUP_REQUIRED_KEY, String(required));
+            return true;
+        } catch (error) {
+            console.error('Error setting account key backup state:', error);
+            return false;
+        }
+    },
+
+    async removeCredentials(): Promise<boolean> {
+        if (Platform.OS === 'web') {
+            localStorage.removeItem(AUTH_KEY);
+            localStorage.removeItem(ACCOUNT_KEY_BACKUP_REQUIRED_KEY);
+            return true;
+        }
+        try {
+            await Promise.all([
+                SecureStore.deleteItemAsync(AUTH_KEY),
+                SecureStore.deleteItemAsync(ACCOUNT_KEY_BACKUP_REQUIRED_KEY),
+            ]);
             credentialsCache = null; // Clear cache
             return true;
         } catch (error) {

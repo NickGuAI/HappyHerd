@@ -13,7 +13,9 @@
   },
   "bin": {
     "happy": "./bin/happy.mjs",
-    "happy-mcp": "./bin/happy-mcp.mjs"
+    "happy-mcp": "./bin/happy-mcp.mjs",
+    "happyherd-agent-mcp": "./bin/happyherd-agent-mcp.mjs",
+    "happyherd-agent-codex-policy": "./bin/happyherd-agent-codex-policy.mjs"
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
@@ -47,6 +49,26 @@
       "import": {
         "types": "./dist/codex/happyMcpStdioBridge.d.mts",
         "default": "./dist/codex/happyMcpStdioBridge.mjs"
+      }
+    },
+    "./codex/agentMcpStdioBridge": {
+      "require": {
+        "types": "./dist/codex/agentMcpStdioBridge.d.cts",
+        "default": "./dist/codex/agentMcpStdioBridge.cjs"
+      },
+      "import": {
+        "types": "./dist/codex/agentMcpStdioBridge.d.mts",
+        "default": "./dist/codex/agentMcpStdioBridge.mjs"
+      }
+    },
+    "./codex/agentCodexPolicy": {
+      "require": {
+        "types": "./dist/codex/agentCodexPolicy.d.cts",
+        "default": "./dist/codex/agentCodexPolicy.cjs"
+      },
+      "import": {
+        "types": "./dist/codex/agentCodexPolicy.d.mts",
+        "default": "./dist/codex/agentCodexPolicy.mjs"
       }
     }
   },
@@ -88,6 +110,7 @@
     "ai": "^5.0.107",
     "axios": "^1.13.2",
     "chalk": "^5.6.2",
+    "cron-parser": "5.7.0",
     "cross-spawn": "^7.0.6",
     "expo-server-sdk": "^3.15.0",
     "fastify": "^5.6.2",
@@ -96,6 +119,7 @@
     "http-proxy-middleware": "^3.0.5",
     "ink": "^6.5.1",
     "inquirer": "^13.2.2",
+    "node-cron": "4.2.1",
     "open": "^10.2.0",
     "ps-list": "^8.1.1",
     "qrcode-terminal": "^0.12.0",
@@ -104,6 +128,7 @@
     "tar": "^7.5.2",
     "tmp": "^0.2.5",
     "tweetnacl": "^1.0.3",
+    "undici": "^6.28.0",
     "ws": "^8.19.0",
     "zod": "^4.0.0"
   },

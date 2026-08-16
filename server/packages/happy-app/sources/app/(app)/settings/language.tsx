@@ -5,9 +5,7 @@ import { ItemGroup } from '@/components/ItemGroup';
 import { ItemList } from '@/components/ItemList';
 import { useSettingMutable } from '@/sync/storage';
 import { useUnistyles } from 'react-native-unistyles';
-import { t, getLanguageNativeName, SUPPORTED_LANGUAGES, SUPPORTED_LANGUAGE_CODES, type SupportedLanguage } from '@/text';
-import { Modal } from '@/modal';
-import { useUpdates } from '@/hooks/useUpdates';
+import { t, getLanguageNativeName, resolveSupportedLanguage, SUPPORTED_LANGUAGE_CODES, type SupportedLanguage } from '@/text';
 import * as Localization from 'expo-localization';
 
 type LanguageOption = 'auto' | SupportedLanguage;
@@ -21,19 +19,15 @@ interface LanguageItem {
 export default function LanguageSettingsScreen() {
     const { theme } = useUnistyles();
     const [preferredLanguage, setPreferredLanguage] = useSettingMutable('preferredLanguage');
-    const { reloadApp } = useUpdates();
 
     // Get device locale for automatic detection
     const deviceLocale = Localization.getLocales()?.[0]?.languageTag ?? 'en-US';
-    const deviceLanguage = deviceLocale.split('-')[0].toLowerCase();
-    const detectedLanguageName = deviceLanguage in SUPPORTED_LANGUAGES ? 
-                                 getLanguageNativeName(deviceLanguage as keyof typeof SUPPORTED_LANGUAGES) : 
-                                 getLanguageNativeName('en');
+    const detectedLanguageName = getLanguageNativeName(resolveSupportedLanguage(deviceLocale));
 
     // Current selection
-    const currentSelection: LanguageOption = preferredLanguage === null ? 'auto' : 
-                                           SUPPORTED_LANGUAGE_CODES.includes(preferredLanguage as SupportedLanguage) ? 
-                                           preferredLanguage as SupportedLanguage : 'auto';
+    const currentSelection: LanguageOption = preferredLanguage === null
+        ? 'auto'
+        : resolveSupportedLanguage(preferredLanguage);
 
     // Language options - dynamically generated from supported languages
     const languageOptions: LanguageItem[] = [
@@ -48,27 +42,12 @@ export default function LanguageSettingsScreen() {
         }))
     ];
 
-    const handleLanguageChange = async (newLanguage: LanguageOption) => {
+    const handleLanguageChange = (newLanguage: LanguageOption) => {
         if (newLanguage === currentSelection) {
             return; // No change
         }
 
-        // Show confirmation modal
-        const confirmed = await Modal.confirm(
-            t('settingsLanguage.needsRestart'),
-            t('settingsLanguage.needsRestartMessage')
-        );
-
-        if (confirmed) {
-            // Update the preference
-            const newPreference = newLanguage === 'auto' ? null : newLanguage;
-            setPreferredLanguage(newPreference);
-
-            // Small delay to ensure setting is saved
-            setTimeout(() => {
-                reloadApp();
-            }, 100);
-        }
+        setPreferredLanguage(newLanguage === 'auto' ? null : newLanguage);
     };
 
     return (

@@ -1,0 +1,6 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Detached bootstrap: cron never owns the daemon or its Codex provider
+# processes, so release handoff cannot kill an in-flight Discord turn.
+@reboot happyherd-agent-runtime /opt/happyherd/current/scripts/start-host-daemon.sh /etc/happyherd-agent/daemon.env 2>&1 | /usr/bin/logger -t happyherd-agent-daemon-bootstrap

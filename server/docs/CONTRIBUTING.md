@@ -106,7 +106,7 @@ To sandbox dev data, set `HAPPY_HOME_DIR=~/.happy-dev` in your shell before runn
 ### Happy Server
 
 ```bash
-pnpm --filter happy-server standalone:dev   # Local server (no Docker needed)
+pnpm --filter ./packages/happy-server --fail-if-no-match standalone:dev   # Local server (no Docker needed)
 ```
 
 Runs on `localhost:3005` with embedded PGlite. To point the app at your local server:

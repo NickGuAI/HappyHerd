@@ -14,5 +14,6 @@ export const MessageMetaSchema = z.object({
   disallowedTools: z.array(z.string()).nullable().optional(),
   effort: z.string().nullable().optional(),
   displayText: z.string().optional(),
+  deliveryMode: z.enum(['queue']).optional(),
 });
 export type MessageMeta = z.infer<typeof MessageMetaSchema>;

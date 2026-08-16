@@ -35,6 +35,11 @@ describe('session protocol schemas', () => {
       { t: 'start', title: 'Research agent' },
       { t: 'turn-end', status: 'completed' },
       { t: 'stop' },
+      { t: 'stop', status: 'completed' },
+      { t: 'stop', status: 'failed', detail: 'Provider child failed' },
+      { t: 'stop', status: 'cancelled' },
+      { t: 'stop', status: 'interrupted', detail: 'Root turn ended' },
+      { t: 'stop', status: 'unknown' },
     ];
 
     for (const event of events) {
@@ -49,6 +54,8 @@ describe('session protocol schemas', () => {
     expect(sessionEventSchema.safeParse({ t: 'turn-end' }).success).toBe(false);
     expect(sessionEventSchema.safeParse({ t: 'turn-end', status: 'canceled' }).success).toBe(false);
     expect(sessionEventSchema.safeParse({ t: 'start', title: 1 }).success).toBe(false);
+    expect(sessionEventSchema.safeParse({ t: 'stop', status: 'running' }).success).toBe(false);
+    expect(sessionEventSchema.safeParse({ t: 'stop', detail: 1 }).success).toBe(false);
     expect(sessionEventSchema.safeParse({ t: 'service' }).success).toBe(false);
     expect(sessionEventSchema.safeParse({ t: 'not-real' }).success).toBe(false);
   });

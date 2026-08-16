@@ -1,15 +1,23 @@
 import { logger } from '@/ui/logger';
 import { exec, ExecOptions } from 'child_process';
 import { promisify } from 'util';
-import { readFile, writeFile, readdir, stat } from 'fs/promises';
-import { createHash } from 'crypto';
-import { join, resolve } from 'path';
+import { link, readFile, writeFile, readdir, stat, unlink } from 'fs/promises';
+import { createHash, randomUUID } from 'crypto';
+import { basename, dirname, join, resolve } from 'path';
+import {
+    isSafeWorkspaceUploadFileName,
+    MAX_WORKSPACE_UPLOAD_BYTES,
+    WorkspaceUploadRequestSchema,
+    type WorkspaceUploadRequest,
+    type WorkspaceUploadResponse,
+} from '@slopus/happy-wire';
 import { run as runRipgrep } from '@/modules/ripgrep/index';
 import { run as runDifftastic } from '@/modules/difftastic/index';
 import { RpcHandlerManager } from '../../api/rpc/RpcHandlerManager';
 import { validatePath, PathValidationResult } from './pathSecurity';
 
 const execAsync = promisify(exec);
+export const MAX_FILE_PREVIEW_BYTES = 20 * 1024 * 1024;
 
 interface BashRequest {
     command: string;
@@ -45,6 +53,22 @@ interface WriteFileResponse {
     success: boolean;
     hash?: string; // hash of written file
     error?: string;
+}
+
+async function writeUploadedFileAtomically(targetPath: string, buffer: Buffer): Promise<void> {
+    const temporaryPath = join(
+        dirname(targetPath),
+        `.happyherd-upload-${randomUUID()}.tmp`,
+    );
+    await writeFile(temporaryPath, buffer, { flag: 'wx', mode: 0o600 });
+    try {
+        // A same-directory hard link publishes the fully written inode without
+        // replacing an existing destination. EEXIST is therefore an atomic
+        // conflict instead of a check-then-write race.
+        await link(temporaryPath, targetPath);
+    } finally {
+        await unlink(temporaryPath).catch(() => undefined);
+    }
 }
 
 interface ListDirectoryRequest {
@@ -124,7 +148,29 @@ export interface SpawnSessionOptions {
     permissionMode?: string;
     modelMode?: string;
     effortLevel?: string;
+    /** Existing HappyHerd Commander identity to bind to this session. */
+    commanderId?: string;
+    /**
+     * Machine-local automation snapshot. Only the daemon automation service
+     * sets this field; the remote spawn RPC deliberately does not forward it.
+     */
+    automation?: {
+        id: string;
+        kind: 'scheduled' | 'heartbeat' | 'memory-maintenance';
+        instruction: string;
+    };
     environmentVariables?: Record<string, string>;
+    /** Strict, session-scoped governed-agent values supplied only over encrypted machine RPC. */
+    agentRuntimeContext?: {
+        surfaceId: string;
+        capabilityId: string;
+        brokerUrl: string;
+        tools: Array<{
+            name: string;
+            family: string;
+            description: string;
+        }>;
+    };
     token?: string;
     /**
      * If set, the daemon spawns the agent with `--resume <id>` so the new
@@ -155,7 +201,16 @@ export interface SpawnSessionOptions {
 export type SpawnSessionResult =
     | { type: 'success'; sessionId: string }
     | { type: 'requestToApproveDirectoryCreation'; directory: string }
-    | { type: 'error'; errorMessage: string };
+    | {
+        type: 'error';
+        errorMessage: string;
+        /**
+         * True only when the daemon can prove no provider process was
+         * started. Automation retries must remain off for ambiguous webhook
+         * timeouts, otherwise one schedule tick could create two sessions.
+         */
+        retrySafe?: boolean;
+    };
 
 /**
  * Register all RPC handlers with the session
@@ -269,6 +324,13 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
         }
 
         try {
+            const fileInfo = await stat(validation.resolvedPath!);
+            if (!fileInfo.isFile()) {
+                return { success: false, error: 'Path is not a file' };
+            }
+            if (fileInfo.size > MAX_FILE_PREVIEW_BYTES) {
+                return { success: false, error: 'File is too large to preview (limit 20 MiB)' };
+            }
             const buffer = await readFile(validation.resolvedPath!);
             const content = buffer.toString('base64');
             return { success: true, content };
@@ -344,6 +406,76 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
         }
     });
 
+    rpcHandlerManager.registerHandler<WorkspaceUploadRequest, WorkspaceUploadResponse>('uploadFile', async (rawData) => {
+        const parsed = WorkspaceUploadRequestSchema.safeParse(rawData);
+        if (!parsed.success) {
+            return { success: false, code: 'invalid-name', error: 'Invalid upload request' };
+        }
+        const data = parsed.data;
+        if (!isSafeWorkspaceUploadFileName(data.fileName) || basename(data.fileName) !== data.fileName) {
+            return { success: false, code: 'invalid-name', error: 'File name must not contain a path' };
+        }
+
+        const directoryValidation = checkPath(data.directory);
+        if (!directoryValidation.valid) {
+            return { success: false, code: 'write-failed', error: directoryValidation.error };
+        }
+
+        const normalizedContent = data.content.replace(/\s/g, '');
+        const maxEncodedBytes = Math.ceil(MAX_WORKSPACE_UPLOAD_BYTES / 3) * 4;
+        if (normalizedContent.length > maxEncodedBytes + 4) {
+            return { success: false, code: 'too-large', error: 'File is too large to upload (limit 20 MiB)' };
+        }
+        if (normalizedContent.length % 4 !== 0) {
+            return { success: false, code: 'write-failed', error: 'File content is not valid base64' };
+        }
+
+        let buffer: Buffer;
+        try {
+            buffer = Buffer.from(normalizedContent, 'base64');
+        } catch {
+            return { success: false, code: 'write-failed', error: 'File content is not valid base64' };
+        }
+        if (buffer.toString('base64') !== normalizedContent) {
+            return { success: false, code: 'write-failed', error: 'File content is not valid base64' };
+        }
+        if (buffer.byteLength > MAX_WORKSPACE_UPLOAD_BYTES) {
+            return { success: false, code: 'too-large', error: 'File is too large to upload (limit 20 MiB)' };
+        }
+
+        const directoryPath = directoryValidation.resolvedPath!;
+        const targetPath = join(directoryPath, data.fileName);
+        const targetValidation = checkPath(targetPath);
+        if (!targetValidation.valid) {
+            return { success: false, code: 'write-failed', error: targetValidation.error };
+        }
+
+        try {
+            const directoryInfo = await stat(directoryPath);
+            if (!directoryInfo.isDirectory()) {
+                return { success: false, code: 'not-directory', error: 'Upload destination is not a directory' };
+            }
+            await writeUploadedFileAtomically(targetValidation.resolvedPath!, buffer);
+            return {
+                success: true,
+                path: targetValidation.resolvedPath!,
+                size: buffer.byteLength,
+                hash: createHash('sha256').update(buffer).digest('hex'),
+            };
+        } catch (error) {
+            const nodeError = error as NodeJS.ErrnoException;
+            if (nodeError.code === 'EEXIST') {
+                return { success: false, code: 'conflict', error: 'A file with this name already exists' };
+            }
+            logger.debug('Failed to upload file:', error);
+            return {
+                success: false,
+                code: 'write-failed',
+                error: error instanceof Error ? error.message : 'Failed to upload file',
+            };
+        }
+    });
+
     // List directory handler
     rpcHandlerManager.registerHandler<ListDirectoryRequest, ListDirectoryResponse>('listDirectory', async (data) => {
         logger.debug('List directory request:', data.path);
@@ -414,7 +546,12 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
         }
 
         // Helper function to build tree recursively
-        async function buildTree(path: string, name: string, currentDepth: number): Promise<TreeNode | null> {
+        async function buildTree(
+            path: string,
+            name: string,
+            currentDepth: number,
+            ignoreError: boolean,
+        ): Promise<TreeNode | null> {
             try {
                 const stats = await stat(path);
 
@@ -432,17 +569,20 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
                     const entries = await readdir(path, { withFileTypes: true });
                     const children: TreeNode[] = [];
 
-                    // Process entries in parallel, filtering out symlinks
+                    // Session RPCs remain workspace-scoped and skip symlinks so
+                    // a link cannot escape that workspace. Machine RPCs are
+                    // deliberately unrestricted: follow links at the requested
+                    // depth so every path visible to the daemon OS user remains
+                    // browseable. maxDepth bounds link cycles.
                     await Promise.all(
                         entries.map(async (entry) => {
-                            // Skip symbolic links completely
-                            if (entry.isSymbolicLink()) {
+                            if (entry.isSymbolicLink() && workingDirectory !== null) {
                                 logger.debug(`Skipping symlink: ${join(path, entry.name)}`);
                                 return;
                             }
 
                             const childPath = join(path, entry.name);
-                            const childNode = await buildTree(childPath, entry.name, currentDepth + 1);
+                            const childNode = await buildTree(childPath, entry.name, currentDepth + 1, true);
                             if (childNode) {
                                 children.push(childNode);
                             }
@@ -461,8 +601,14 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
 
                 return node;
             } catch (error) {
-                // Log error but continue traversal
+                // Child failures stay non-fatal so one unreadable entry does not
+                // hide an otherwise browseable directory. The requested root is
+                // different: preserve its native errno so the client can render
+                // permission-denied and missing-path states accurately.
                 logger.debug(`Failed to process ${path}:`, error instanceof Error ? error.message : String(error));
+                if (!ignoreError) {
+                    throw error;
+                }
                 return null;
             }
         }
@@ -476,7 +622,7 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
             // Get the base name for the root node
             const rootPath = validation.resolvedPath!;
             const baseName = rootPath === '/' ? '/' : rootPath.split('/').pop() || rootPath;
-            const tree = await buildTree(rootPath, baseName, 0);
+            const tree = await buildTree(rootPath, baseName, 0, false);
 
             if (!tree) {
                 return { success: false, error: 'Failed to access the specified path' };

@@ -5,9 +5,9 @@
  * to notify our HTTP server when sessions change (new session, resume, compact, etc.)
  */
 
-import { join, resolve } from 'node:path';
-import { writeFileSync, mkdirSync, unlinkSync, existsSync } from 'node:fs';
-import { configuration } from '@/configuration';
+import { existsSync, mkdtempSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { logger } from '@/ui/logger';
 import { projectPath } from '@/projectPath';
 
@@ -17,9 +17,8 @@ import { projectPath } from '@/projectPath';
  * @param port - The port where Happy server is listening
  * @returns Path to the generated settings file
  */
-export function generateHookSettingsFile(port: number): string {
-    const hooksDir = join(configuration.happyHomeDir, 'tmp', 'hooks');
-    mkdirSync(hooksDir, { recursive: true });
+export function generateHookSettingsFile(port: number, tempRoot: string = tmpdir()): string {
+    const hooksDir = mkdtempSync(join(tempRoot, 'happyherd-hooks-'));
 
     // Unique filename per process to avoid conflicts
     const filename = `session-hook-${process.pid}.json`;
@@ -45,7 +44,7 @@ export function generateHookSettingsFile(port: number): string {
         }
     };
 
-    writeFileSync(filepath, JSON.stringify(settings, null, 2));
+    writeFileSync(filepath, JSON.stringify(settings, null, 2), { mode: 0o600 });
     logger.debug(`[generateHookSettings] Created hook settings file: ${filepath}`);
 
     return filepath;
@@ -60,10 +59,10 @@ export function cleanupHookSettingsFile(filepath: string): void {
     try {
         if (existsSync(filepath)) {
             unlinkSync(filepath);
-            logger.debug(`[generateHookSettings] Cleaned up hook settings file: ${filepath}`);
+            rmdirSync(dirname(filepath));
+            logger.debug(`[generateHookSettings] Cleaned up hook settings directory: ${dirname(filepath)}`);
         }
     } catch (error) {
         logger.debug(`[generateHookSettings] Failed to cleanup hook settings file: ${error}`);
     }
 }
-

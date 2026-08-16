@@ -1,0 +1,41 @@
+[Unit]
+Description=Governed Discord agent bridge for HappyHerd
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=happyherd-agent-bridge
+Group=happyherd-agent-bridge
+EnvironmentFile=/etc/happyherd-agent/bridge.env
+WorkingDirectory=/var/lib/happyherd-agent-bridge
+ExecStartPre=+/opt/happyherd/current/scripts/validate-happyherd-agent-runtime.sh /etc/happyherd-agent/bridge.env runtime
+ExecStart=/usr/bin/node /opt/happyherd/current/happyherd-agent/dist/index.mjs
+Restart=on-failure
+RestartSec=10s
+TimeoutStopSec=30s
+UMask=0077
+
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+ReadWritePaths=/var/lib/happyherd-agent-bridge
+ReadOnlyPaths=/opt/happyherd/current /etc/happyherd-agent
+
+[Install]
+WantedBy=multi-user.target

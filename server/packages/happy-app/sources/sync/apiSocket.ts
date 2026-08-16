@@ -117,6 +117,19 @@ class ApiSocket {
         this.updateStatus('disconnected');
     }
 
+    /**
+     * Ask Socket.IO to reconnect immediately after the browser reports that
+     * network access has returned. This bypasses the current exponential
+     * retry delay without changing the normal reconnect policy.
+     */
+    reconnectNow() {
+        if (!this.socket || this.socket.connected) {
+            return;
+        }
+        this.updateStatus('connecting');
+        this.socket.connect();
+    }
+
     //
     // Listener Management
     //

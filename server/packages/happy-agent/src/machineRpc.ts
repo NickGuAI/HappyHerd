@@ -5,6 +5,29 @@ import { decodeBase64, encodeBase64, encrypt, decrypt } from './encryption';
 
 export type SupportedAgent = 'claude' | 'codex' | 'gemini' | 'openclaw' | 'agy';
 
+export type SpawnSessionRuntimeContext = {
+    surfaceId: string;
+    capabilityId: string;
+    brokerUrl: string;
+    tools: Array<{
+        name: string;
+        family: string;
+        description: string;
+    }>;
+};
+
+export type SpawnSessionOnMachineOptions = {
+    directory: string;
+    approvedNewDirectoryCreation?: boolean;
+    agent?: SupportedAgent;
+    providerToken?: string;
+    permissionMode?: string;
+    modelMode?: string;
+    effortLevel?: string;
+    commanderId?: string;
+    runtimeContext?: SpawnSessionRuntimeContext;
+};
+
 export type SpawnMachineSessionResult =
     | { type: 'success'; sessionId: string }
     | { type: 'requestToApproveDirectoryCreation'; directory: string }
@@ -56,16 +79,44 @@ function normalizeRpcError(error: string | undefined, machineId: string): string
     return error;
 }
 
+function requireBoundedContextValue(value: string | undefined, label: string): string | undefined {
+    if (value === undefined) {
+        return undefined;
+    }
+    const normalized = value.trim();
+    if (normalized.length === 0 || normalized.length > 512 || normalized.includes('\0')) {
+        throw new Error(`${label} must be a non-empty string no longer than 512 characters`);
+    }
+    return normalized;
+}
+
+function normalizedRuntimeContext(
+    context: SpawnSessionRuntimeContext | undefined,
+): SpawnSessionRuntimeContext | undefined {
+    if (!context) {
+        return undefined;
+    }
+    if (!Array.isArray(context.tools) || context.tools.length === 0 || context.tools.length > 32) {
+        throw new Error('tools must contain between 1 and 32 governed tool definitions');
+    }
+    const tools = context.tools.map((tool, index) => ({
+        name: requireBoundedContextValue(tool?.name, `tools[${index}].name`)!,
+        family: requireBoundedContextValue(tool?.family, `tools[${index}].family`)!,
+        description: requireBoundedContextValue(tool?.description, `tools[${index}].description`)!,
+    }));
+    return {
+        surfaceId: requireBoundedContextValue(context.surfaceId, 'surfaceId')!,
+        capabilityId: requireBoundedContextValue(context.capabilityId, 'capabilityId')!,
+        brokerUrl: requireBoundedContextValue(context.brokerUrl, 'brokerUrl')!,
+        tools,
+    };
+}
+
 export async function spawnSessionOnMachine(
     config: Config,
     machine: DecryptedMachine,
     token: string,
-    options: {
-        directory: string;
-        approvedNewDirectoryCreation?: boolean;
-        agent?: SupportedAgent;
-        providerToken?: string;
-    },
+    options: SpawnSessionOnMachineOptions,
 ): Promise<SpawnMachineSessionResult> {
     const socket = io(config.serverUrl, {
         auth: {
@@ -89,6 +140,11 @@ export async function spawnSessionOnMachine(
                 approvedNewDirectoryCreation: options.approvedNewDirectoryCreation ?? false,
                 token: options.providerToken,
                 agent: options.agent,
+                permissionMode: options.permissionMode,
+                modelMode: options.modelMode,
+                effortLevel: options.effortLevel,
+                commanderId: options.commanderId,
+                runtimeContext: normalizedRuntimeContext(options.runtimeContext),
             }),
         );
 
@@ -140,6 +196,7 @@ export async function resumeSessionOnMachine(
     machine: DecryptedMachine,
     token: string,
     sessionId: string,
+    runtimeContext?: SpawnSessionRuntimeContext,
 ): Promise<SpawnMachineSessionResult> {
     const socket = io(config.serverUrl, {
         auth: {
@@ -159,6 +216,7 @@ export async function resumeSessionOnMachine(
         const params = encodeBase64(
             encrypt(machine.encryption.key, machine.encryption.variant, {
                 sessionId,
+                runtimeContext: normalizedRuntimeContext(runtimeContext),
             }),
         );
 

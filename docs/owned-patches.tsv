@@ -1,0 +1,2 @@
+# gate	state	subject	evidence
+PUBLIC_BOUNDARY	accepted	feat(agent): make governed runtime organization-neutral	scripts/verify-public-boundary.mjs

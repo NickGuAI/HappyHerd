@@ -11,7 +11,7 @@ import { Appearance, Platform, Pressable, Text, View } from 'react-native';
 import * as SystemUI from 'expo-system-ui';
 import { darkTheme, lightTheme } from '@/theme';
 import { SESSION_STATUS_BAR_DISPLAY_MODES, type SessionStatusBarDisplay } from '@/sync/settings';
-import { t, getLanguageNativeName, SUPPORTED_LANGUAGES } from '@/text';
+import { t, getLanguageNativeName, resolveSupportedLanguage } from '@/text';
 import {
     normalizeUserMessageBubbleColor,
     resolveUserMessageBubbleColor,
@@ -237,13 +237,10 @@ export default function AppearanceSettingsScreen() {
     const getLanguageDisplayText = () => {
         if (preferredLanguage === null) {
             const deviceLocale = Localization.getLocales()?.[0]?.languageTag ?? 'en-US';
-            const deviceLanguage = deviceLocale.split('-')[0].toLowerCase();
-            const detectedLanguageName = deviceLanguage in SUPPORTED_LANGUAGES ? 
-                                        getLanguageNativeName(deviceLanguage as keyof typeof SUPPORTED_LANGUAGES) : 
-                                        getLanguageNativeName('en');
+            const detectedLanguageName = getLanguageNativeName(resolveSupportedLanguage(deviceLocale));
             return `${t('settingsLanguage.automatic')} (${detectedLanguageName})`;
-        } else if (preferredLanguage && preferredLanguage in SUPPORTED_LANGUAGES) {
-            return getLanguageNativeName(preferredLanguage as keyof typeof SUPPORTED_LANGUAGES);
+        } else if (preferredLanguage) {
+            return getLanguageNativeName(resolveSupportedLanguage(preferredLanguage));
         }
         return t('settingsLanguage.automatic');
     };

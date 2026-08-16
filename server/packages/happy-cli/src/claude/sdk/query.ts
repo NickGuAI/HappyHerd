@@ -41,6 +41,7 @@ export function query(params: { prompt: QueryPrompt; options?: QueryOptions }): 
         mcpServers: opts?.mcpServers as Options['mcpServers'],
         systemPrompt,
         settings: opts?.settingsPath,
+        settingSources: opts?.settingSources,
         strictMcpConfig: opts?.strictMcpConfig,
         sessionId: undefined,
         effort: opts?.effort,

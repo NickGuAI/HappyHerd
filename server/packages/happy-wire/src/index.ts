@@ -4,3 +4,7 @@ export * from './sessionProtocol';
 export * from './controlMessages';
 export * from './voice';
 export * from './rigMetadata';
+export * from './commanderContext';
+export * from './automation';
+export * from './providerModels';
+export * from './workspaceUpload';

@@ -34,16 +34,16 @@ export function SessionActionsNativeMenu({
         <DropdownMenu>
             <DropdownMenu.Items>
                 <DropdownMenuItem onClick={openDetails}>
-                    <DropdownMenuItem.Text>Details</DropdownMenuItem.Text>
+                    <DropdownMenuItem.Text>{t("profile.details")}</DropdownMenuItem.Text>
                 </DropdownMenuItem>
                 {canArchive && (
                     <DropdownMenuItem onClick={archiveSession}>
-                        <DropdownMenuItem.Text>Archive</DropdownMenuItem.Text>
+                        <DropdownMenuItem.Text>{t("uiCopy.archive")}</DropdownMenuItem.Text>
                     </DropdownMenuItem>
                 )}
                 {canShowResume && (
                     <DropdownMenuItem onClick={resumeSession}>
-                        <DropdownMenuItem.Text>Resume</DropdownMenuItem.Text>
+                        <DropdownMenuItem.Text>{t("happyHerd.automations.resume")}</DropdownMenuItem.Text>
                     </DropdownMenuItem>
                 )}
                 {canCopySessionMetadata && (

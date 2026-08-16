@@ -115,6 +115,22 @@ export default function RootLayout() {
                 }}
             />
             <Stack.Screen
+                name="workspace/index"
+                options={{
+                    headerShown: true,
+                    headerTitle: t('workspace.title'),
+                    headerBackTitle: t('common.back'),
+                }}
+            />
+            <Stack.Screen
+                name="automations/index"
+                options={{
+                    headerShown: true,
+                    headerTitle: 'Automations',
+                    headerBackTitle: t('common.back'),
+                }}
+            />
+            <Stack.Screen
                 name="settings/account"
                 options={{
                     headerTitle: t('settings.account'),

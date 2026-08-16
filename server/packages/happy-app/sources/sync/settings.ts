@@ -41,11 +41,13 @@ export const SettingsSchema = z.object({
     // rename migration to carry an old key across.
     hideInactiveSessions: z.boolean().describe('Hide archived sessions in the main list'),
     sortSessionsByActivity: z.boolean().describe('Sort the session list by last activity instead of creation date'),
-    expResumeSession: z.boolean().describe('Enable experimental session resume feature'),
+    expResumeSession: z.boolean().describe('Deprecated compatibility value; session resume is always available when eligible'),
     fileDiffsSidebar: z.boolean().describe('Show the file diffs sidebar next to the chat on desktop'),
+    machineWorkspace: z.boolean().describe('Expose the independent machine-scoped Workspace surface'),
     groupToolCalls: z.boolean().describe('Collapse consecutive tool calls into grouped containers in chat'),
     compactToolCalls: z.boolean().describe('Render non-interactive tool calls as compact one-line rows'),
     expImageUpload: z.boolean().describe('Enable experimental image upload in chat'),
+    voiceInputEnabled: z.boolean().describe('Enable OpenAI-backed voice dictation when an encrypted transcription key is configured'),
     reviewPromptAnswered: z.boolean().describe('Whether the review prompt has been answered'),
     reviewPromptLikedApp: z.boolean().nullish().describe('Whether user liked the app when asked'),
     voiceAssistantLanguage: z.string().nullable().describe('Preferred language for voice assistant (null for auto-detect)'),
@@ -56,6 +58,10 @@ export const SettingsSchema = z.object({
         machineId: z.string(),
         path: z.string()
     })).describe('Last 10 machine-path combinations, ordered by most recent first'),
+    favoriteMachinePaths: z.array(z.object({
+        machineId: z.string(),
+        path: z.string(),
+    })).describe('User-pinned workspace paths grouped by machine'),
     lastUsedAgent: z.string().nullable().describe('Last selected agent type for new sessions'),
     lastUsedPermissionMode: z.string().nullable().describe('Last selected permission mode for new sessions'),
     lastUsedModelMode: z.string().nullable().describe('Last selected model mode for new sessions'),
@@ -121,9 +127,11 @@ export const settingsDefaults: Settings = {
     sortSessionsByActivity: false,
     expResumeSession: false,
     fileDiffsSidebar: false,
+    machineWorkspace: false,
     groupToolCalls: false,
     compactToolCalls: true,
     expImageUpload: false,
+    voiceInputEnabled: false,
     reviewPromptAnswered: false,
     reviewPromptLikedApp: null,
     voiceAssistantLanguage: null,
@@ -131,6 +139,7 @@ export const settingsDefaults: Settings = {
     voiceBypassToken: false,
     preferredLanguage: null,
     recentMachinePaths: [],
+    favoriteMachinePaths: [],
     lastUsedAgent: null,
     lastUsedPermissionMode: null,
     lastUsedModelMode: null,
@@ -159,10 +168,14 @@ export function settingsParse(settings: unknown): Settings {
         return { ...settingsDefaults, ...unknownFields };
     }
 
-    // Migration: Convert old 'zh' language code to 'zh-Hans'
-    if (parsed.data.preferredLanguage === 'zh') {
-        console.log('[Settings Migration] Converting language code from "zh" to "zh-Hans"');
-        parsed.data.preferredLanguage = 'zh-Hans';
+    // Collapse legacy locale variants onto the three JSON catalog identifiers.
+    const legacyLanguage = parsed.data.preferredLanguage?.replace('_', '-').toLowerCase();
+    if (legacyLanguage === 'zh' || legacyLanguage?.startsWith('zh-')) {
+        parsed.data.preferredLanguage = 'cn';
+    } else if (legacyLanguage?.startsWith('de-')) {
+        parsed.data.preferredLanguage = 'de';
+    } else if (legacyLanguage?.startsWith('en-')) {
+        parsed.data.preferredLanguage = 'en';
     }
 
     // Merge defaults, parsed settings, and preserve unknown fields

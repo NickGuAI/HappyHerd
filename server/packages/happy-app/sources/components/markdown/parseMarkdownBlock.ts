@@ -1,5 +1,6 @@
 import type { MarkdownBlock, MarkdownSpan } from "./parseMarkdown";
 import { parseMarkdownSpans } from "./parseMarkdownSpans";
+import { isHttpMarkdownLink } from "./linkUtils";
 
 // Split a pipe-delimited table row into cells, stripping only the leading/trailing
 // empty strings caused by outer pipes while preserving interior empty cells.
@@ -136,10 +137,61 @@ export function parseMarkdownBlock(markdown: string) {
             continue;
         }
 
-        // Image block
+        // Image block. Remote images must fail closed: the attachment pipeline
+        // owns local/data-backed images, while Markdown only fetches HTTP(S).
         const imageMatch = trimmed.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
         if (imageMatch) {
-            blocks.push({ type: 'image', alt: imageMatch[1], url: imageMatch[2].trim() });
+            const url = imageMatch[2].trim();
+            if (isHttpMarkdownLink(url)) {
+                blocks.push({ type: 'image', alt: imageMatch[1], url });
+            } else {
+                blocks.push({ type: 'text', content: [{ styles: [], text: trimmed, url: null }] });
+            }
+            continue;
+        }
+
+        // Block quotes. Consecutive quote lines are one semantic block so
+        // streaming replies do not produce a separate border for every line.
+        if (/^>\s?/.test(trimmed)) {
+            const quotedLines = [trimmed.replace(/^>\s?/, '')];
+            while (index < lines.length && /^\s*>\s?/.test(lines[index])) {
+                quotedLines.push(lines[index].trim().replace(/^>\s?/, ''));
+                index++;
+            }
+            blocks.push({ type: 'quote', content: parseMarkdownSpans(quotedLines.join('\n'), false) });
+            continue;
+        }
+
+        // GFM task lists must be recognized before ordinary bullet lists.
+        const taskListMatch = trimmed.match(/^([-*+])\s+\[([ xX])\]\s+(.*)$/);
+        if (taskListMatch) {
+            const indent = line.length - line.trimStart().length;
+            const allLines = [{
+                checked: taskListMatch[2].toLowerCase() === 'x',
+                indent,
+                content: taskListMatch[3],
+            }];
+            while (index < lines.length) {
+                const nextRaw = lines[index];
+                const nextTrimmed = nextRaw.trim();
+                const nextMatch = nextTrimmed.match(/^([-*+])\s+\[([ xX])\]\s+(.*)$/);
+                if (!nextMatch) break;
+                allLines.push({
+                    checked: nextMatch[2].toLowerCase() === 'x',
+                    indent: nextRaw.length - nextRaw.trimStart().length,
+                    content: nextMatch[3],
+                });
+                index++;
+            }
+            const baseIndent = allLines[0].indent;
+            blocks.push({
+                type: 'task-list',
+                items: allLines.map((item) => ({
+                    checked: item.checked,
+                    depth: Math.floor((item.indent - baseIndent) / 2),
+                    spans: parseMarkdownSpans(item.content, false),
+                })),
+            });
             continue;
         }
 

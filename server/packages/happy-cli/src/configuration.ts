@@ -10,6 +10,15 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import packageJson from '../package.json'
 
+export function runtimeCliVersion(packageVersion: string, releaseSha?: string): string {
+  const normalizedSha = releaseSha?.trim()
+  if (!normalizedSha) return packageVersion
+  if (!/^[0-9a-f]{40}$/.test(normalizedSha)) {
+    throw new Error('HAPPYHERD_RELEASE_SHA must be a full lowercase Git commit SHA')
+  }
+  return `${packageVersion}+happyherd.${normalizedSha.slice(0, 12)}`
+}
+
 class Configuration {
   public readonly serverUrl: string
   public readonly webappUrl: string
@@ -39,7 +48,7 @@ class Configuration {
       const expandedPath = process.env.HAPPY_HOME_DIR.replace(/^~/, homedir())
       this.happyHomeDir = expandedPath
     } else {
-      this.happyHomeDir = join(homedir(), '.happy')
+      this.happyHomeDir = join(homedir(), '.happyherd')
     }
 
     this.logsDir = join(this.happyHomeDir, 'logs')
@@ -65,7 +74,7 @@ class Configuration {
     this.isExperimentalEnabled = ['true', '1', 'yes'].includes(process.env.HAPPY_EXPERIMENTAL?.toLowerCase() || '');
     this.disableCaffeinate = ['true', '1', 'yes'].includes(process.env.HAPPY_DISABLE_CAFFEINATE?.toLowerCase() || '');
 
-    this.currentCliVersion = packageJson.version
+    this.currentCliVersion = runtimeCliVersion(packageJson.version, process.env.HAPPYHERD_RELEASE_SHA)
 
     // Visual indicator on CLI startup (only if not daemon process to avoid log clutter)
     const variant = process.env.HAPPY_VARIANT || 'stable'

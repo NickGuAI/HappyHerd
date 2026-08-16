@@ -1,7 +1,7 @@
 import type { MarkdownSpan } from "./parseMarkdown";
 
 // Updated pattern to handle nested markdown and asterisks
-const pattern = /(\*\*(.*?)(?:\*\*|$))|(\*(.*?)(?:\*|$))|(\[([^\]]+)\](?:\(([^)]+)\))?)|(`(.*?)(?:`|$))/g;
+const pattern = /(\*\*(.*?)(?:\*\*|$))|(\*(.*?)(?:\*|$))|(\[([^\]]+)\](?:\(([^)]+)\))?)|(`(.*?)(?:`|$))|(~~(.*?)(?:~~|$))/g;
 
 function pushTextWithAutoLinks(spans: MarkdownSpan[], text: string, styles: MarkdownSpan['styles']) {
     const urlPattern = /https?:\/\/[^\s<]+/g;
@@ -74,6 +74,9 @@ export function parseMarkdownSpans(markdown: string, header: boolean) {
         } else if (match[8]) {
             // Inline code
             spans.push({ styles: ['code'], text: match[9], url: null });
+        } else if (match[10]) {
+            // GFM strikethrough
+            pushTextWithAutoLinks(spans, match[11], ['strikethrough']);
         }
 
         lastIndex = pattern.lastIndex;

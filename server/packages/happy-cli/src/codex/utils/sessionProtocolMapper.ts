@@ -45,6 +45,7 @@ type LegacyToolLikeMessage = {
 };
 
 type TurnEndStatus = 'completed' | 'failed' | 'cancelled';
+type SubagentStopStatus = 'completed' | 'failed' | 'cancelled' | 'interrupted' | 'unknown';
 
 function getStartedSubagents(state: CodexTurnState): Set<string> {
     return state.startedSubagents ?? new Set<string>();
@@ -117,12 +118,18 @@ function maybeEmitSubagentStop(
     opts: CreateEnvelopeOptions,
     activeSubagents: Set<string>,
     envelopes: SessionEnvelope[],
+    status: SubagentStopStatus,
+    detail?: string,
 ): void {
     if (!subagent || !activeSubagents.has(subagent)) {
         return;
     }
 
-    envelopes.push(createEnvelope('agent', { t: 'stop' }, { ...opts, subagent }));
+    envelopes.push(createEnvelope('agent', {
+        t: 'stop',
+        status,
+        ...(detail ? { detail } : {}),
+    }, { ...opts, subagent }));
     activeSubagents.delete(subagent);
 }
 
@@ -130,10 +137,16 @@ function emitSubagentStops(
     opts: CreateEnvelopeOptions,
     startedSubagents: Set<string>,
     activeSubagents: Set<string>,
+    status: SubagentStopStatus,
+    detail?: string,
 ): SessionEnvelope[] {
     const envelopes: SessionEnvelope[] = [];
     for (const subagent of activeSubagents) {
-        envelopes.push(createEnvelope('agent', { t: 'stop' }, { ...opts, subagent }));
+        envelopes.push(createEnvelope('agent', {
+            t: 'stop',
+            status,
+            ...(detail ? { detail } : {}),
+        }, { ...opts, subagent }));
     }
     activeSubagents.clear();
     startedSubagents.clear();
@@ -350,7 +363,11 @@ function resolveCollabProviderIds(
         return stateThreadIds;
     }
 
-    return [call];
+    // A collab call id identifies the provider tool invocation, not the child
+    // thread. Codex may omit receiver ids from the begin event and supply them
+    // only on the matching end/activity event. Creating a child from `call`
+    // would leave a duplicate provisional sidechain beside the real child.
+    return [];
 }
 
 function resolveCollabTool(
@@ -401,6 +418,7 @@ function emitCollabAgentStateMessages(
     message: Record<string, unknown>,
     sessionSubagentsByProviderId: Record<string, string>,
     opts: CreateEnvelopeOptions,
+    activeSubagents: Set<string>,
 ): void {
     const raw = message.agents_states ?? message.agentsStates;
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
@@ -417,12 +435,75 @@ function emitCollabAgentStateMessages(
         if (!statusMessage) {
             continue;
         }
-        const prefix = status ? `Codex subagent ${status}` : 'Codex subagent';
         envelopes.push(createEnvelope('agent', {
-            t: 'service',
-            text: `${prefix}: ${statusMessage}`,
+            // This is provider-returned child output, not harness telemetry.
+            // Retain it as ordinary sidechain text so the child panel exposes
+            // the result to both the user and the main agent transcript.
+            t: 'text',
+            text: statusMessage,
         }, { ...opts, subagent: sessionSubagent }));
+
+        const terminal = collabTerminalOutcome(status);
+        if (terminal) {
+            maybeEmitSubagentStop(
+                sessionSubagent,
+                opts,
+                activeSubagents,
+                envelopes,
+                terminal,
+                terminal === 'failed' || terminal === 'interrupted' ? statusMessage : undefined,
+            );
+        }
     }
+}
+
+function collabTerminalOutcome(status: string | undefined): SubagentStopStatus | null {
+    switch (status) {
+        case 'completed':
+            return 'completed';
+        case 'errored':
+        case 'notFound':
+            return 'failed';
+        case 'interrupted':
+            return 'interrupted';
+        case 'shutdown':
+            return 'cancelled';
+        default:
+            return null;
+    }
+}
+
+function pickSubagentStopStatus(value: unknown): SubagentStopStatus {
+    switch (value) {
+        case 'completed':
+            return 'completed';
+        case 'failed':
+        case 'errored':
+        case 'notFound':
+            return 'failed';
+        case 'cancelled':
+        case 'canceled':
+        case 'shutdown':
+            return 'cancelled';
+        case 'interrupted':
+        case 'aborted':
+            return 'interrupted';
+        default:
+            return 'unknown';
+    }
+}
+
+function pickErrorDetail(value: unknown): string | undefined {
+    if (typeof value === 'string' && value.trim().length > 0) {
+        return shortText(value.trim(), 1000);
+    }
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+        const message = (value as { message?: unknown }).message;
+        if (typeof message === 'string' && message.trim().length > 0) {
+            return shortText(message.trim(), 1000);
+        }
+    }
+    return undefined;
 }
 
 function subagentActivityServiceText(kind: unknown, agentPath: string | undefined): string | undefined {
@@ -796,14 +877,14 @@ export function mapCodexThreadItemToSessionEnvelopes(
             }
 
             if (!isCollabCallInProgress(itemRecord)) {
-                emitCollabAgentStateMessages(envelopes, itemRecord, sessionSubagents, endOpts);
+                emitCollabAgentStateMessages(envelopes, itemRecord, sessionSubagents, endOpts, activeSubagents);
                 envelopes.push(createEnvelope('agent', { t: 'tool-call-end', call: item.id }, {
                     ...endOpts,
                     id: `${item.id}:end`,
                 }));
                 if (tool === 'closeAgent') {
                     for (const sessionSubagent of Object.values(sessionSubagents)) {
-                        maybeEmitSubagentStop(sessionSubagent, endOpts, activeSubagents, envelopes);
+                        maybeEmitSubagentStop(sessionSubagent, endOpts, activeSubagents, envelopes, 'cancelled');
                     }
                 }
                 collabReceiverThreadIdsByCall.delete(item.id);
@@ -838,7 +919,14 @@ export function mapCodexThreadItemToSessionEnvelopes(
             );
             maybeEmitSubagentActivityService(envelopes, itemRecord.kind, agentPath, opts, sessionSubagent);
             if (itemRecord.kind === 'interrupted') {
-                maybeEmitSubagentStop(sessionSubagent, opts, activeSubagents, envelopes);
+                maybeEmitSubagentStop(
+                    sessionSubagent,
+                    opts,
+                    activeSubagents,
+                    envelopes,
+                    'interrupted',
+                    'Codex reported that the child was interrupted.',
+                );
             }
             return envelopes;
         }
@@ -882,6 +970,8 @@ export function mapCodexThreadToSessionEnvelopes(thread: Pick<Thread, 'turns'>):
                 { turn: turn.id, time: completedAt },
                 getStartedSubagents(state),
                 getActiveSubagents(state),
+                'interrupted',
+                'The root turn ended before a child terminal result was observed.',
             ));
             envelopes.push(createEnvelope('agent', { t: 'turn-end', status: turnStatus(turn) }, {
                 id: `${turn.id}:end`,
@@ -987,7 +1077,13 @@ export function mapCodexMcpMessageToSessionEnvelopes(message: Record<string, unk
             collabReceiverThreadIdsByCall,
             collabToolByCall,
             envelopes: [
-                ...emitSubagentStops(lifecycleOpts, startedSubagents, activeSubagents),
+                ...emitSubagentStops(
+                    lifecycleOpts,
+                    startedSubagents,
+                    activeSubagents,
+                    'interrupted',
+                    'The root turn ended before a child terminal result was observed.',
+                ),
                 createEnvelope('agent', {
                     t: 'turn-end',
                     status: pickTurnEndStatus(message, type),
@@ -1054,11 +1150,23 @@ export function mapCodexMcpMessageToSessionEnvelopes(message: Record<string, unk
                 );
             }
         } else {
-            emitCollabAgentStateMessages(envelopes, message, sessionSubagents, turnOpts);
+            // Codex can reveal child thread ids only when the spawn call ends.
+            // Start the real sidechain here if the begin event was identity-free.
+            for (const sessionSubagent of Object.values(sessionSubagents)) {
+                maybeEmitSubagentStart(
+                    sessionSubagent,
+                    turnOpts,
+                    startedSubagents,
+                    activeSubagents,
+                    subagentTitles,
+                    envelopes,
+                );
+            }
+            emitCollabAgentStateMessages(envelopes, message, sessionSubagents, turnOpts, activeSubagents);
             envelopes.push(createEnvelope('agent', { t: 'tool-call-end', call }, turnOpts));
             if (tool === 'closeAgent') {
                 for (const sessionSubagent of Object.values(sessionSubagents)) {
-                    maybeEmitSubagentStop(sessionSubagent, turnOpts, activeSubagents, envelopes);
+                    maybeEmitSubagentStop(sessionSubagent, turnOpts, activeSubagents, envelopes, 'cancelled');
                 }
             }
             collabReceiverThreadIdsByCall.delete(call);
@@ -1109,8 +1217,66 @@ export function mapCodexMcpMessageToSessionEnvelopes(message: Record<string, unk
         );
         maybeEmitSubagentActivityService(envelopes, message.kind, agentPath, turnOpts, sessionSubagent);
         if (message.kind === 'interrupted') {
-            maybeEmitSubagentStop(sessionSubagent, turnOpts, activeSubagents, envelopes);
+            maybeEmitSubagentStop(
+                sessionSubagent,
+                turnOpts,
+                activeSubagents,
+                envelopes,
+                'interrupted',
+                'Codex reported that the child was interrupted.',
+            );
         }
+
+        return {
+            currentTurnId: state.currentTurnId,
+            startedSubagents,
+            activeSubagents,
+            providerSubagentToSessionSubagent,
+            subagentTitles,
+            collabReceiverThreadIdsByCall,
+            collabToolByCall,
+            envelopes,
+        };
+    }
+
+    if (type === 'subagent_terminal') {
+        const providerSubagent = pickString(message.agent_thread_id ?? message.agentThreadId);
+        if (!providerSubagent) {
+            return {
+                currentTurnId: state.currentTurnId,
+                startedSubagents,
+                activeSubagents,
+                providerSubagentToSessionSubagent,
+                subagentTitles,
+                collabReceiverThreadIdsByCall,
+                collabToolByCall,
+                envelopes: [],
+            };
+        }
+
+        const sessionSubagent = ensureSessionSubagent(providerSubagent, providerSubagentToSessionSubagent);
+        const turnOpts = buildEnvelopeOptions(state.currentTurnId);
+        const envelopes: SessionEnvelope[] = [];
+        maybeEmitSubagentStart(
+            sessionSubagent,
+            turnOpts,
+            startedSubagents,
+            activeSubagents,
+            subagentTitles,
+            envelopes,
+        );
+        const status = pickSubagentStopStatus(message.status);
+        const detail = status === 'failed' || status === 'interrupted'
+            ? pickErrorDetail(message.error ?? message.detail)
+            : undefined;
+        maybeEmitSubagentStop(
+            sessionSubagent,
+            turnOpts,
+            activeSubagents,
+            envelopes,
+            status,
+            detail,
+        );
 
         return {
             currentTurnId: state.currentTurnId,
@@ -1191,6 +1357,53 @@ export function mapCodexMcpMessageToSessionEnvelopes(message: Record<string, unk
         const envelopes: SessionEnvelope[] = [];
         maybeEmitSubagentStart(subagent, opts, startedSubagents, activeSubagents, subagentTitles, envelopes);
         envelopes.push(createEnvelope('agent', { t: 'text', text, thinking: true }, opts));
+        return {
+            currentTurnId: state.currentTurnId,
+            startedSubagents,
+            activeSubagents,
+            providerSubagentToSessionSubagent,
+            subagentTitles,
+            collabReceiverThreadIdsByCall,
+            collabToolByCall,
+            envelopes,
+        };
+    }
+
+    if (type === 'mcp_tool_begin') {
+        const call = pickCallId(message);
+        const server = pickString(message.server) ?? 'mcp';
+        const tool = pickString(message.tool) ?? 'tool';
+        const envelopes: SessionEnvelope[] = [];
+        maybeEmitSubagentStart(subagent, opts, startedSubagents, activeSubagents, subagentTitles, envelopes);
+        envelopes.push(createEnvelope('agent', {
+            t: 'tool-call-start',
+            call,
+            name: 'McpTool',
+            title: `${server}.${tool}`,
+            description: `${server}.${tool}`,
+            args: {
+                server,
+                tool,
+                arguments: message.arguments,
+            },
+        }, opts));
+        return {
+            currentTurnId: state.currentTurnId,
+            startedSubagents,
+            activeSubagents,
+            providerSubagentToSessionSubagent,
+            subagentTitles,
+            collabReceiverThreadIdsByCall,
+            collabToolByCall,
+            envelopes,
+        };
+    }
+
+    if (type === 'mcp_tool_end') {
+        const call = pickCallId(message);
+        const envelopes: SessionEnvelope[] = [];
+        maybeEmitSubagentStart(subagent, opts, startedSubagents, activeSubagents, subagentTitles, envelopes);
+        envelopes.push(createEnvelope('agent', { t: 'tool-call-end', call }, opts));
         return {
             currentTurnId: state.currentTurnId,
             startedSubagents,

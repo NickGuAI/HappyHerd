@@ -57,6 +57,7 @@
 // ============================================================================
 
 import { NormalizedMessage } from '../typesRaw';
+import { isCuid } from '@paralleldrive/cuid2';
 
 // Extended message type with sidechain ID for tracking message relationships
 export type TracedMessage = NormalizedMessage & {
@@ -182,18 +183,33 @@ export function traceMessages(state: TracerState, messages: NormalizedMessage[])
             continue;
         }
         
-        // Extract Task tools and index them by message ID for later sidechain matching
+        // Extract Task tools and index them by message ID for later sidechain matching.
+        // Orphans released by a newly-arrived parent must be emitted *after*
+        // that parent, otherwise the reducer sees child rows before the tool
+        // panel they belong to during replay.
+        const releasedToolCallOrphans: TracedMessage[] = [];
         if (message.role === 'agent') {
             for (const content of message.content) {
                 if (content.type === 'tool-call') {
                     for (const parentId of getToolCallParentIds(content)) {
-                        state.toolCallToMessageId.set(parentId, message.id);
+                        // The generic Subagent lifecycle card is the canonical
+                        // owner for a provider child. Provider management calls
+                        // (for example Codex spawn/wait) can repeat the same
+                        // sessionSubagent id later in the turn; they must not
+                        // steal the child's sidechain from that standalone card.
+                        // A canonical owner may still replace an earlier
+                        // provider mapping when events arrive out of order.
+                        const isCanonicalSubagentOwner = content.name === 'Subagent';
+                        if (isCanonicalSubagentOwner || !state.toolCallToMessageId.has(parentId)) {
+                            state.toolCallToMessageId.set(parentId, message.id);
+                        }
 
                         // Session protocol sidechain messages can arrive before their parent tool call.
                         // If we already buffered children keyed by subagent/tool id, flush them now.
-                        const subagentOrphans = processOrphans(state, parentId, message.id);
+                        const canonicalOwnerId = state.toolCallToMessageId.get(parentId) ?? message.id;
+                        const subagentOrphans = processOrphans(state, parentId, canonicalOwnerId);
                         if (subagentOrphans.length > 0) {
-                            results.push(...subagentOrphans);
+                            releasedToolCallOrphans.push(...subagentOrphans);
                         }
                     }
                 }
@@ -217,8 +233,14 @@ export function traceMessages(state: TracerState, messages: NormalizedMessage[])
                 ...message
             };
             results.push(tracedMessage);
+            results.push(...releasedToolCallOrphans);
             continue;
         }
+
+        // Preserve the historical ordering for sidechain tool-call messages;
+        // generic subagent owners are non-sidechain and take the ordered path
+        // above.
+        results.push(...releasedToolCallOrphans);
         
         // Handle sidechain messages - these need to be linked to their originating Task
         const uuid = getMessageUuid(message);
@@ -282,7 +304,7 @@ export function traceMessages(state: TracerState, messages: NormalizedMessage[])
                 // For non-UUID parent references (e.g. subagent ids), treat as standalone
                 // when no parent mapping exists. CLI mapper is expected to resolve/sequence
                 // subagent ownership, so app should not permanently orphan these messages.
-                if (!isUuidLike(parentUuid)) {
+                if (!isUuidLike(parentUuid) && !isCuid(parentUuid)) {
                     state.processedIds.add(message.id);
                     const tracedMessage: TracedMessage = {
                         ...message

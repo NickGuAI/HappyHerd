@@ -1,3 +1,113 @@
+# August 16 — Governed agents without organization lock-in
+
+HappyHerd now provides a manifest-driven Discord agent runtime that any organization can configure without adding its identity or provider routes to generic core code.
+
+- Each deployment declares its own named tools, operation paths, scopes, shared-read policy, and write behavior in a validated manifest.
+- Every Discord surface maps to an encrypted HappyHerd Codex session carrying only an actor-bound capability and the declared tool descriptions.
+- Personal reads and confirmed writes stay in DM; guild conversations remain mention-gated and read-only.
+- Shell, filesystem mutation, arbitrary web access, undeclared connectors, and missing or expired authorization fail closed.
+- Dedicated bridge and agent service accounts keep Discord, service, HappyHerd, and Codex credentials separate from operator runtimes.
+- Public-boundary verification now rejects embedded personal paths, private infrastructure, secret material, and organization-specific logic outside named examples.
+
+# August 15 — Focused automations and memory observation
+
+Automations stay in their own workflow, while historical observation remains bounded and reviewable.
+
+- Unmanaged files outside HappyHerd's automation namespace no longer produce a legacy-system warning.
+- Automation listing remains confined to native manifests without scanning or claiming unrelated definitions.
+- Automation-created sessions stay out of Home and Web Recent even when only part of their provenance is available; open successful runs from Automation History instead.
+- A bounded Observer can review up to 14 local days of Claude and Codex conversations and append L1 evidence to each owning Commander without distilling higher memory tiers.
+
+# August 13 — Guided Commander onboarding
+
+Create a Commander through a normal, visible HappyHerd session instead of assembling its files by hand.
+
+- The Command Palette and the touch-accessible Commander picker on Web start the same localized onboarding session on the selected machine.
+- The main agent interviews one question at a time, shows a confirmation summary, and authors the exact identity, memory, and learning content.
+- A host-local `happy commander create --manifest <file>` command validates containment and identity, rejects collisions, and atomically publishes the canonical Commander tree.
+- The filesystem remains the only Commander registry, so the new identity appears in New Session without a daemon restart or central CRUD service.
+
+# August 13 — Upload into real workspaces
+
+Files can now move from the phone or browser directly into a connected machine workspace.
+
+- Machine Workspace uploads multiple files into the directory you are currently browsing without overwriting existing files.
+- New Session can upload and attach workspace files before the agent starts; current sessions reuse the same Workspace attachment flow.
+- Every batch reports per-file progress, can be cancelled after the current atomic host write, and retries only the unfinished files without reopening the picker.
+- Text files can be included directly as message context, while images, PDFs, and other binary files stay at their exact host path for Claude Code or Codex to inspect with native file tools.
+- Upload publication is atomic, byte-exact, size-bounded, and shared by every interface instead of introducing another file store.
+
+# August 13 — Live conversation catch-up
+
+Returning to a conversation now catches up without a manual browser refresh.
+
+- Visible sessions reconcile immediately when the browser regains network access.
+- Readers who are reviewing older messages keep their scroll position and see a new-message count instead of being pulled away.
+- “Jump to latest” returns to the live edge in one action on mobile and desktop.
+
+# August 11 — Full access follows through
+
+Codex full-access sessions can now complete policy-gated commands without stopping for an approval they cannot display.
+
+- Explicit `full access` / `yolo` sessions keep Codex's approval request channel open.
+- HappyHerd automatically accepts those requests through its existing host approval bridge, so external actions authorized by full access can run.
+- Read-only, workspace-sandboxed, and ask-first modes keep their existing permission boundaries.
+
+# August 10 — Consistent sidebar actions
+
+Machine Workspace and Automations now use the same compact sidebar control as New Session.
+
+- Primary sidebar destinations share one width, height, spacing, typography, and pressed state.
+- Navigation controls no longer stretch vertically when the session list is short or empty.
+
+# August 10 — Lean runtime state
+
+HappyHerd's persistent home now contains durable user state instead of disposable provider transport files.
+
+- `agentcontext/` and `commanders/` remain the canonical AgentContext stores.
+- Generated Commander prompt bundles use the operating system's temporary directory and are removed after delivery.
+- Claude hook settings also use isolated operating-system temporary directories with automatic cleanup.
+- Codex's image cache remains available for local-image inputs and thread-history previews.
+
+# August 10 — Compact automation cards
+
+Automation lists stay scannable while full controls remain one tap away.
+
+- Automation cards now default to a compact name-and-status summary.
+- Open any card to inspect its schedule, type, instruction, provider, workspace, actions, and run history.
+- Each card expands independently with accessible controls across mobile, desktop, light, and dark themes.
+
+# August 10 — Flexible machine setup
+
+Machines can come online with the providers they actually have, while Commander instructions stay synchronized automatically.
+
+- The host daemon no longer requires both Claude Code and Codex to be installed before a machine can connect.
+- Missing providers stay unavailable for new sessions instead of blocking the whole machine.
+- Commander sessions repair a stale or misdirected `CLAUDE.md` mirror from the canonical `AGENTS.md` automatically.
+- Encryption, machine identity, path containment, and context-bundle integrity checks are unchanged.
+
+# August 9 — HappyHerd dogfood foundation
+
+HappyHerd's owned product features are now recorded alongside the Happy updates we inherit.
+
+- Create or restore a self-hosted account with one visible, reusable account key.
+- Browse host-machine workspaces, preview images, PDFs, HTML, and Markdown, edit supported files, and attach workspace files to a session.
+- Use Claude Code and Codex subscriptions with canonical model choices, remembered effort, native steering, explicit queued messages, and provider-native resume.
+- Choose a Commander identity when starting a session; canonical `AGENTS.md` instructions and visible heartbeat or scheduled automations follow that identity.
+- Start sessions with text, images, or gated OpenAI voice dictation from the same composer capabilities used in chat.
+- Returning tabs and reconnected clients reconcile new conversation messages automatically; subagent activity is grouped and collapsed by default.
+- English, Simplified Chinese, and German UI catalogs are checked against a generated route, panel, modal, state, and accessibility inventory.
+- HappyHerd support links, reproducible releases, rollback contracts, and detached host-daemon lifecycle are maintained independently from upstream Happy.
+
+# August 9 — Rich agent replies
+
+Agent and subagent replies now render safe Markdown and responsive images.
+
+- Main-agent and subagent replies share the same Markdown renderer.
+- Headings, lists, block quotes, code, tables, links, task lists, and strikethrough render in chat.
+- HTTP(S) images render responsively with alt text, lazy loading, failure feedback, and full-size preview.
+- Unsafe image schemes fail closed; existing attachment and file-viewer behavior is unchanged.
+
 # August 7 — Gemini 3.6 Flash, Rig sessions
 
 A new Gemini model, Rig as a first-class agent, and web scrolling fixes.

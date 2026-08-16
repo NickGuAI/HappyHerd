@@ -17,6 +17,7 @@ import {
     getAgentDefaultOverrideValue,
     hasAgentDefaultOverride,
     resolveAgentDefaultConfig,
+    resolveAgentDefaultEffortLevel,
     setAgentDefaultOverride,
     type AgentDefaultField,
     type AgentKey,
@@ -84,14 +85,19 @@ export default function AgentDefaultsSettingsScreen() {
 
     const renderField = (agent: AgentKey, config: FieldConfig) => {
         const effectiveDefaults = resolveAgentDefaultConfig(agentDefaultOverrides, agent);
-        const effectiveValue = effectiveDefaults[config.field];
+        const effectiveValue = config.field === 'effortLevel'
+            ? resolveAgentDefaultEffortLevel(agentDefaultOverrides, agent, config.options)
+            : effectiveDefaults[config.field];
         const overrideValue = getAgentDefaultOverrideValue(agentDefaultOverrides, agent, config.field);
         const hasOverride = hasAgentDefaultOverride(agentDefaultOverrides, agent, config.field);
         const isExpanded = expanded?.agent === agent && expanded.field === config.field;
         const detail = hasOverride
             ? optionName(config.options, overrideValue)
             : `Default (${optionName(config.options, effectiveValue)})`;
-        const codeDefaultLabel = optionName(config.options, config.codeDefaultKey);
+        const codeDefaultKey = config.field === 'effortLevel'
+            ? resolveAgentDefaultEffortLevel(undefined, agent, config.options)
+            : config.codeDefaultKey;
+        const codeDefaultLabel = optionName(config.options, codeDefaultKey);
 
         return (
             <React.Fragment key={`${agent}-${config.field}`}>
@@ -128,11 +134,11 @@ export default function AgentDefaultsSettingsScreen() {
     return (
         <ItemList style={{ paddingTop: 0 }}>
             <ItemGroup
-                title="Agent Defaults"
+                title={t("uiCopy.agentDefaults")}
             >
                 <Item
-                    title="Clear Overrides"
-                    subtitle="Return every agent to code defaults"
+                    title={t("uiCopy.clearOverrides")}
+                    subtitle={t("uiCopy.returnEveryAgentToCodeDefaults")}
                     icon={<Ionicons name="refresh-outline" size={29} color="#FF9500" />}
                     onPress={() => setAgentDefaultOverrides({})}
                     disabled={Object.keys(agentDefaultOverrides).length === 0}
@@ -149,21 +155,21 @@ export default function AgentDefaultsSettingsScreen() {
                 const fields: FieldConfig[] = [
                     {
                         field: 'permissionMode',
-                        title: 'Permission',
+                        title: t("uiCopy.permission"),
                         icon: 'shield-checkmark-outline',
                         options: permissionOptions,
                         codeDefaultKey: codeDefaults.permissionMode,
                     },
                     ...(modelOptions.length > 0 ? [{
                         field: 'modelMode' as const,
-                        title: 'Model',
+                        title: t("uiCopy.model"),
                         icon: 'hardware-chip-outline' as const,
                         options: modelOptions,
                         codeDefaultKey: codeDefaults.modelMode,
                     }] : []),
                     ...(effortOptions.length > 0 ? [{
                         field: 'effortLevel' as const,
-                        title: 'Effort',
+                        title: t("uiCopy.effort"),
                         icon: 'speedometer-outline' as const,
                         options: effortOptions,
                         codeDefaultKey: codeDefaults.effortLevel,

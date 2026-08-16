@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 2,
+  "onboardingCompleted": true,
+  "daemonAutoStartWhenRunningHappy": false,
+  "sandboxConfig": {
+    "enabled": true,
+    "workspaceRoot": "/var/lib/happyherd-agent-runtime/workspace",
+    "sessionIsolation": "custom",
+    "customWritePaths": [],
+    "denyReadPaths": [
+      "/home",
+      "/root",
+      "/etc/happyherd-agent",
+      "/var/lib/happyherd-agent-bridge",
+      "/var/lib/happyherd-agent-runtime/happy-home"
+    ],
+    "extraWritePaths": [],
+    "denyWritePaths": [
+      ".env"
+    ],
+    "networkMode": "custom",
+    "allowedDomains": [
+      "*.openai.com",
+      "chatgpt.com",
+      "*.chatgpt.com",
+      "happyherd-agent-broker.localhost"
+    ],
+    "deniedDomains": [],
+    "allowLocalBinding": false
+  }
+}

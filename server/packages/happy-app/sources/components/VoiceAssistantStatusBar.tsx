@@ -9,6 +9,7 @@ import { stopRealtimeSession } from '@/realtime/RealtimeSession';
 import { useUnistyles } from 'react-native-unistyles';
 import { VoiceBars } from './VoiceBars';
 
+import { t } from '@/text';
 interface VoiceAssistantStatusBarProps {
     variant?: 'full' | 'sidebar';
     style?: any;
@@ -128,7 +129,7 @@ export const VoiceAssistantStatusBar = React.memo(({ variant = 'full', style }: 
                                 />
                             )}
                             <Text style={[styles.tapToEndText, { color: statusInfo.textColor, marginLeft: isVoiceSpeaking ? 8 : 0 }]}>
-                                Tap to end
+                                {t("uiCopy.tapToEnd")}
                             </Text>
                         </View>
                     </View>

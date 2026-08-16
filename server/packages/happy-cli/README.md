@@ -116,6 +116,23 @@ happy connect status
 | `happy resume <id>` | Resume a previous session |
 | `happy notify` | Send push notification to your devices |
 | `happy doctor` | Diagnostics & troubleshooting |
+| `happy commander list` | List Commanders available on this machine |
+| `happy commander create --manifest <file>` | Atomically install agent-authored Commander content |
+
+---
+
+## Commander onboarding
+
+Use **Create Commander** from the HappyHerd Command Palette. It opens a normal,
+resumable session where the selected agent interviews you, presents a summary,
+and waits for explicit confirmation. The agent authors the identity, memory, and
+learning content, then invokes the host-local scaffold command.
+
+The scaffold is intentionally narrow: it validates the manifest and publishes
+the canonical `~/.happyherd/commanders/<id>` tree atomically. It does not invent
+Commander content, maintain a second registry, restart the daemon, or write
+through the HappyHerd server. See [`docs/commander-onboarding.md`](../../docs/commander-onboarding.md)
+for the manifest contract and failure guarantees.
 
 ---
 

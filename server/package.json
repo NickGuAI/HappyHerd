@@ -33,6 +33,7 @@
             "packages/happy-server-self-host",
             "packages/happy-wire",
             "packages/happy-app-logs",
+            "packages/happyherd-agent",
             "packages/codium"
         ]
     },

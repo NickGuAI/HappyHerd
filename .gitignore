@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+.runtime/
+.artifacts/
+.happyherd/
+data/
+logs/
+*.log
+!docs/acceptance/*.log
+*.pid
+*.local

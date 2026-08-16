@@ -29,6 +29,7 @@ import { useProfile } from '@/sync/storage';
 import { getDisplayName, getAvatarUrl, getBio } from '@/sync/profile';
 import { Avatar } from '@/components/Avatar';
 import { t } from '@/text';
+import { PRODUCT } from '@/constants/product';
 
 type BuildConfig = {
     buildCommitSha?: unknown;
@@ -116,11 +117,11 @@ export const SettingsView = React.memo(function SettingsView({
     const { connectTerminal, connectWithUrl, isLoading } = useConnectTerminal();
 
     const handleGitHub = async () => {
-        await openExternalUrl('https://github.com/slopus/happy');
+        await openExternalUrl(PRODUCT.repositoryUrl);
     };
 
     const handleReportIssue = async () => {
-        await openExternalUrl('https://github.com/slopus/happy/issues');
+        await openExternalUrl(PRODUCT.issueUrl);
     };
 
     const handleSubscribe = async () => {
@@ -233,9 +234,10 @@ export const SettingsView = React.memo(function SettingsView({
                         // Logo view: Original logo + version
                         <>
                             <Image
-                                source={theme.dark ? require('@/assets/images/logotype-light.png') : require('@/assets/images/logotype-dark.png')}
+                                source={require('@/assets/images/logo-black.png')}
                                 contentFit="contain"
-                                style={{ width: 300, height: 90, marginBottom: 12 }}
+                                style={{ width: 120, height: 120, marginBottom: 12 }}
+                                tintColor={theme.colors.text}
                             />
                         </>
                     )}
@@ -260,7 +262,7 @@ export const SettingsView = React.memo(function SettingsView({
                                 t('modals.authenticateTerminal'),
                                 t('modals.pasteUrlFromTerminal'),
                                 {
-                                    placeholder: 'happy://terminal?...',
+                                    placeholder: t("uiCopy.happyTerminal"),
                                     confirmText: t('common.authenticate')
                                 }
                             );
@@ -286,7 +288,7 @@ export const SettingsView = React.memo(function SettingsView({
 
             <ItemGroup title={t('settings.connectedAccounts')}>
                 <Item
-                    title="Claude Code"
+                    title={t("uiCopy.claudeCode_rfuptw")}
                     subtitle={isAnthropicConnected
                         ? t('settingsAccount.statusActive')
                         : t('settings.connectAccount')
@@ -406,8 +408,8 @@ export const SettingsView = React.memo(function SettingsView({
                     onPress={() => router.push('/settings/voice')}
                 />
                 <Item
-                    title="Agent Defaults"
-                    subtitle="Default model, effort, and permissions"
+                    title={t("uiCopy.agentDefaults")}
+                    subtitle={t("uiCopy.defaultModelEffortAndPermissions")}
                     icon={<Ionicons name="options-outline" size={29} color="#5AC8FA" />}
                     onPress={() => router.push('/settings/agents' as any)}
                 />
@@ -449,17 +451,21 @@ export const SettingsView = React.memo(function SettingsView({
                         router.push('/changelog');
                     }}
                 />
-                <Item
-                    title={t('settings.github')}
-                    icon={<Ionicons name="logo-github" size={29} color={theme.colors.text} />}
-                    detail="slopus/happy"
-                    onPress={handleGitHub}
-                />
-                <Item
-                    title={t('settings.reportIssue')}
-                    icon={<Ionicons name="bug-outline" size={29} color="#FF3B30" />}
-                    onPress={handleReportIssue}
-                />
+                {PRODUCT.repositoryUrl ? (
+                    <Item
+                        title={t('settings.github')}
+                        icon={<Ionicons name="logo-github" size={29} color={theme.colors.text} />}
+                        detail={PRODUCT.repositoryDisplay}
+                        onPress={handleGitHub}
+                    />
+                ) : null}
+                {PRODUCT.issueUrl ? (
+                    <Item
+                        title={t('settings.reportIssue')}
+                        icon={<Ionicons name="bug-outline" size={29} color="#FF3B30" />}
+                        onPress={handleReportIssue}
+                    />
+                ) : null}
                 <Item
                     title={t('settings.privacyPolicy')}
                     icon={<Ionicons name="shield-checkmark-outline" size={29} color="#007AFF" />}

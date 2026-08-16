@@ -283,6 +283,25 @@ describe('claudeLocal --continue handling', () => {
         expect(mockSandboxCleanup).toHaveBeenCalledTimes(1);
     });
 
+    it('delivers Commander context as an appended system instruction without project discovery', async () => {
+        await claudeLocal({
+            abort: new AbortController().signal,
+            sessionId: null,
+            path: '/tmp',
+            onSessionFound,
+            claudeArgs: [],
+            appendSystemPrompt: 'global + commander + project',
+        });
+
+        const spawnedArgs = mockSpawn.mock.calls[0][1] as string[];
+        const promptIndex = spawnedArgs.indexOf('--append-system-prompt');
+        const settingSourcesIndex = spawnedArgs.indexOf('--setting-sources');
+        expect(spawnedArgs[promptIndex + 1]).toBe(
+            'global + commander + project\n\ntest-system-prompt',
+        );
+        expect(spawnedArgs[settingSourcesIndex + 1]).toBe('user,local');
+    });
+
     it('should continue without sandbox when initialization fails', async () => {
         mockInitializeSandbox.mockRejectedValue(new Error('sandbox failed'));
 

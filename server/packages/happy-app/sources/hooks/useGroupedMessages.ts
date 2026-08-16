@@ -79,7 +79,7 @@ export function groupMessagesForDisplay(
         // into one AgentWorkGroupItem above the final response.
         if (!collapseCurrentTurn && turnOf[index] === 0) return false;
         if (hiddenWorkIndexes.has(index)) return false;
-        if (isInvisibleMessage(msg) || isUserAttachment(msg)) return false;
+        if (isInvisibleMessage(msg) || isUserAttachment(msg) || isSubagentPanelMessage(msg)) return false;
         return msg.kind === 'tool-call';
     };
 
@@ -149,7 +149,7 @@ export function groupToolCallsForDisplay(
     const groupSingleToolCalls = options.groupSingleToolCalls ?? false;
     const toolRuns = collectToolRuns(messages, (msg) => {
         if (msg.kind !== 'tool-call') return false;
-        if (isInvisibleMessage(msg) || isUserAttachment(msg)) return false;
+        if (isInvisibleMessage(msg) || isUserAttachment(msg) || isSubagentPanelMessage(msg)) return false;
         return true;
     });
 
@@ -273,7 +273,7 @@ function collectAgentWorkGroups(messages: Message[], turnOf: number[], collapseC
         const visibleAgentIndexes = indexes.filter((index) => {
             const msg = messages[index];
             if (msg.kind === 'user-text') return false;
-            if (isInvisibleMessage(msg) || isUserAttachment(msg)) return false;
+            if (isInvisibleMessage(msg) || isUserAttachment(msg) || isSubagentPanelMessage(msg)) return false;
             return true;
         });
 
@@ -324,6 +324,11 @@ function isInvisibleMessage(msg: Message): boolean {
 /** User-sent file/image attachments should never be collapsed into a group */
 function isUserAttachment(msg: Message): boolean {
     return msg.kind === 'tool-call' && msg.tool.name === 'file';
+}
+
+/** Synthetic child owners are first-class transcript panels, never tool rows. */
+function isSubagentPanelMessage(msg: Message): boolean {
+    return msg.kind === 'tool-call' && msg.tool.name === 'Subagent';
 }
 
 function hasPendingPermission(messages: Message[]): boolean {

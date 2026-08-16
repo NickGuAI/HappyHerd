@@ -1,0 +1,21 @@
+[Unit]
+Description=HappyHerd self-host service
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/opt/happyherd/current/scripts/run-container.sh /etc/happyherd/runtime.env
+ExecStop=/opt/happyherd/current/scripts/stop-container.sh /etc/happyherd/runtime.env
+Restart=always
+RestartSec=5
+TimeoutStartSec=180
+TimeoutStopSec=45
+StandardOutput=append:/var/log/happyherd/server.log
+StandardError=append:/var/log/happyherd/server.log
+
+[Install]
+WantedBy=multi-user.target

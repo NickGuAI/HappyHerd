@@ -60,6 +60,7 @@ export async function runGemini(opts: {
   credentials: Credentials;
   startedBy?: 'daemon' | 'terminal';
 }): Promise<void> {
+  assertGeminiCommanderSupport();
   //
   // Define session
   //
@@ -1334,4 +1335,13 @@ export async function runGemini(opts: {
 
     logger.debug('[gemini]: Final cleanup completed');
   }
+}
+
+export function assertGeminiCommanderSupport(
+  environment: NodeJS.ProcessEnv = process.env,
+): void {
+  if (!environment.HAPPYHERD_COMMANDER_ID) return;
+  throw new Error(
+    'Gemini Commander sessions are disabled because this backend has no verified system-layer AgentContext delivery path. Use Claude or Codex.',
+  );
 }

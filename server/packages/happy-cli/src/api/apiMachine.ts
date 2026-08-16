@@ -12,6 +12,10 @@ import { encodeBase64, decodeBase64, encrypt, decrypt } from './encryption';
 import { backoff } from '@/utils/time';
 import { RpcHandlerManager } from './rpc/RpcHandlerManager';
 import { detectCLIAvailability, CLIAvailability } from '@/utils/detectCLI';
+import {
+    capabilityFingerprint,
+    detectAgentCapabilities,
+} from '@/capabilities/agentCapabilities';
 import { detectResumeSupport, type ResumeSupport } from '@/resume/localHappyAgentAuth';
 import { shouldReconnect } from '@/utils/lidState';
 import { getProjectPath } from '@/claude/utils/path';
@@ -28,6 +32,8 @@ import {
     forkCodexThread,
     listCodexRewindPoints,
 } from '@/codex/codexThreadFork';
+import { listCommanders } from '@/agentContext/commanderContext';
+import type { HappyHerdAutomationService } from '@/automations/service';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -90,9 +96,14 @@ interface DaemonToServerEvents {
 
 type MachineRpcHandlers = {
     spawnSession: (options: SpawnSessionOptions) => Promise<SpawnSessionResult>;
-    resumeSession?: (sessionId: string, options?: { model?: string; permissionMode?: string }) => Promise<SpawnSessionResult>;
+    resumeSession?: (sessionId: string, options?: {
+        model?: string;
+        permissionMode?: string;
+        agentRuntimeContext?: unknown;
+    }) => Promise<SpawnSessionResult>;
     stopSession: (sessionId: string) => boolean;
     requestShutdown: () => void;
+    automations?: HappyHerdAutomationService;
 }
 
 function requireNonEmptyString(value: unknown, name: string): string {
@@ -116,9 +127,12 @@ export class ApiMachineClient {
     private socket!: Socket<ServerToDaemonEvents, DaemonToServerEvents>;
     private keepAliveInterval: NodeJS.Timeout | null = null;
     private lastKnownCLIAvailability: CLIAvailability | null = null;
-    private lastKnownResumeSupport: ResumeSupport | null = null;
+    private lastKnownResumeSupport: Pick<ResumeSupport, 'rpcAvailable' | 'happyAgentAuthenticated'> | null = null;
+    private lastKnownCapabilitiesFingerprint: string | null = null;
+    private capabilitiesRefreshInFlight: Promise<void> | null = null;
+    private lastCapabilitiesRefreshAt = 0;
     private rpcHandlerManager: RpcHandlerManager;
-    private resumeSessionHandler: ((sessionId: string, options?: { model?: string; permissionMode?: string }) => Promise<SpawnSessionResult>) | null = null;
+    private resumeSessionHandler: MachineRpcHandlers['resumeSession'] | null = null;
     private reconnectInterval: NodeJS.Timeout | null = null;
 
     constructor(
@@ -132,6 +146,16 @@ export class ApiMachineClient {
             encryptionVariant: this.machine.encryptionVariant,
             logger: (msg, data) => logger.debug(msg, data)
         });
+        this.lastKnownCapabilitiesFingerprint = this.machine.metadata?.agentCapabilities
+            ? capabilityFingerprint(this.machine.metadata.agentCapabilities)
+            : null;
+        this.lastKnownCLIAvailability = this.machine.metadata?.cliAvailability
+            ? {
+                ...this.machine.metadata.cliAvailability,
+                agy: this.machine.metadata.cliAvailability.agy ?? false,
+            }
+            : null;
+        this.lastKnownResumeSupport = this.machine.metadata?.resumeSupport ?? null;
 
         // null = unrestricted: the daemon serves the whole machine, and its
         // process.cwd() is an accident of where it was started, not a workspace.
@@ -142,20 +166,31 @@ export class ApiMachineClient {
         spawnSession,
         resumeSession,
         stopSession,
-        requestShutdown
+        requestShutdown,
+        automations,
     }: MachineRpcHandlers) {
         this.resumeSessionHandler = resumeSession ?? null;
 
         // Register spawn session handler
         this.rpcHandlerManager.registerHandler('spawn-happy-session', async (params: any) => {
-            const { directory, sessionId, machineId, approvedNewDirectoryCreation, agent, permissionMode, modelMode, effortLevel, environmentVariables, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat } = params || {};
-            logger.debug(`[API MACHINE] Spawning session with params: ${JSON.stringify(params)}`);
+            const { directory, sessionId, machineId, approvedNewDirectoryCreation, agent, permissionMode, modelMode, effortLevel, commanderId, environmentVariables, runtimeContext, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat } = params || {};
+            logger.debug('[API MACHINE] Spawning session', {
+                directory,
+                agent,
+                permissionMode,
+                modelMode,
+                effortLevel,
+                commanderId,
+                hasToken: Boolean(token),
+                environmentVariableKeys: environmentVariables ? Object.keys(environmentVariables) : [],
+                hasAgentRuntimeContext: Boolean(runtimeContext),
+            });
 
             if (!directory) {
                 throw new Error('Directory is required');
             }
 
-            const result = await spawnSession({ directory, sessionId, machineId, approvedNewDirectoryCreation, agent, permissionMode, modelMode, effortLevel, environmentVariables, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat });
+            const result = await spawnSession({ directory, sessionId, machineId, approvedNewDirectoryCreation, agent, permissionMode, modelMode, effortLevel, commanderId, environmentVariables, agentRuntimeContext: runtimeContext, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat });
 
             switch (result.type) {
                 case 'success':
@@ -170,6 +205,24 @@ export class ApiMachineClient {
                     throw new Error(result.errorMessage);
             }
         });
+
+        this.rpcHandlerManager.registerHandler('happyherd-list-commanders', async () => listCommanders());
+        if (automations) {
+            this.rpcHandlerManager.registerHandler('happyherd-automations-list', async () => automations.list());
+            this.rpcHandlerManager.registerHandler('happyherd-automations-create', async (params: any) => automations.create(params));
+            this.rpcHandlerManager.registerHandler('happyherd-automations-update', async (params: any) => automations.update(
+                requireNonEmptyString(params?.id, 'id'),
+                params?.patch ?? {},
+            ));
+            this.rpcHandlerManager.registerHandler('happyherd-automations-pause', async (params: any) => automations.pause(requireNonEmptyString(params?.id, 'id')));
+            this.rpcHandlerManager.registerHandler('happyherd-automations-resume', async (params: any) => automations.resume(requireNonEmptyString(params?.id, 'id')));
+            this.rpcHandlerManager.registerHandler('happyherd-automations-delete', async (params: any) => {
+                await automations.delete(requireNonEmptyString(params?.id, 'id'));
+                return { deleted: true };
+            });
+            this.rpcHandlerManager.registerHandler('happyherd-automations-run-now', async (params: any) => automations.runNow(requireNonEmptyString(params?.id, 'id')));
+            this.rpcHandlerManager.registerHandler('happyherd-automations-history', async (params: any) => automations.history(requireNonEmptyString(params?.id, 'id')));
+        }
 
         this.syncResumeSessionRpcRegistration();
 
@@ -337,7 +390,7 @@ export class ApiMachineClient {
         if (this.resumeSessionHandler) {
             if (!this.rpcHandlerManager.hasHandler(method)) {
                 this.rpcHandlerManager.registerHandler(method, async (params: any) => {
-                    const { sessionId, model, permissionMode } = params || {};
+                    const { sessionId, model, permissionMode, runtimeContext } = params || {};
 
                     if (!sessionId || typeof sessionId !== 'string') {
                         throw new Error('Session ID is required');
@@ -348,7 +401,11 @@ export class ApiMachineClient {
                         throw new Error('Resume session handler not available');
                     }
 
-                    const result = await handler(sessionId, { model, permissionMode });
+                    const result = await handler(sessionId, {
+                        model,
+                        permissionMode,
+                        agentRuntimeContext: runtimeContext,
+                    });
                     switch (result.type) {
                         case 'success':
                             return { type: 'success', sessionId: result.sessionId };
@@ -459,6 +516,7 @@ export class ApiMachineClient {
             this.rpcHandlerManager.onSocketConnect(this.socket);
             this.syncResumeSessionRpcRegistration();
             this.startKeepAlive();
+            void this.refreshAgentCapabilities(true);
         });
 
         this.socket.on('disconnect', (reason) => {
@@ -522,7 +580,12 @@ export class ApiMachineClient {
         const prev = this.lastKnownCLIAvailability;
         const newResumeSupport = detectResumeSupport();
         const prevResume = this.lastKnownResumeSupport;
-        const cliAvailabilityChanged = !prev || prev.claude !== newAvailability.claude || prev.codex !== newAvailability.codex || prev.gemini !== newAvailability.gemini || prev.openclaw !== newAvailability.openclaw;
+        const cliAvailabilityChanged = !prev
+            || prev.claude !== newAvailability.claude
+            || prev.codex !== newAvailability.codex
+            || prev.gemini !== newAvailability.gemini
+            || prev.openclaw !== newAvailability.openclaw
+            || prev.agy !== newAvailability.agy;
         const resumeSupportChanged = !prevResume
             || prevResume.rpcAvailable !== newResumeSupport.rpcAvailable
             || prevResume.happyAgentAuthenticated !== newResumeSupport.happyAgentAuthenticated;
@@ -538,6 +601,42 @@ export class ApiMachineClient {
                 logger.debug('[API MACHINE] Failed to update machine capabilities:', err);
             });
         }
+
+        if (cliAvailabilityChanged || Date.now() - this.lastCapabilitiesRefreshAt > 5 * 60_000) {
+            void this.refreshAgentCapabilities(cliAvailabilityChanged);
+        }
+    }
+
+    private refreshAgentCapabilities(force: boolean): Promise<void> {
+        if (this.capabilitiesRefreshInFlight) {
+            return this.capabilitiesRefreshInFlight;
+        }
+        if (!force && Date.now() - this.lastCapabilitiesRefreshAt <= 5 * 60_000) {
+            return Promise.resolve();
+        }
+
+        this.capabilitiesRefreshInFlight = (async () => {
+            const availability = detectCLIAvailability();
+            const capabilities = await detectAgentCapabilities(availability);
+            const fingerprint = capabilityFingerprint(capabilities);
+            this.lastCapabilitiesRefreshAt = Date.now();
+            if (fingerprint === this.lastKnownCapabilitiesFingerprint) {
+                return;
+            }
+
+            await this.updateMachineMetadata((metadata) => ({
+                ...(metadata || {} as MachineMetadata),
+                cliAvailability: availability,
+                agentCapabilities: capabilities,
+            }));
+            this.lastKnownCapabilitiesFingerprint = fingerprint;
+        })().catch((error) => {
+            logger.debug('[API MACHINE] Failed to refresh agent capability catalog:', error);
+        }).finally(() => {
+            this.capabilitiesRefreshInFlight = null;
+        });
+
+        return this.capabilitiesRefreshInFlight;
     }
 
     private startKeepAlive() {

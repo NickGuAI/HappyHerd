@@ -17,6 +17,15 @@ import {
     rigCanWriteFiles,
     rigHasRpcMethod,
 } from './rig';
+import type {
+    HappyHerdAutomation,
+    HappyHerdAutomationCreateInput,
+    HappyHerdAutomationHistoryResponse,
+    HappyHerdAutomationListResponse,
+    HappyHerdAutomationRun,
+    HappyHerdAutomationUpdateInput,
+    HappyHerdCommanderListResponse,
+} from '@slopus/happy-wire';
 
 export type { SessionAgentModesPatch };
 
@@ -119,6 +128,21 @@ interface SessionGetDirectoryTreeRequest {
     maxDepth: number;
 }
 
+export interface DirectoryTreeNode {
+    name: string;
+    path: string;
+    type: 'file' | 'directory';
+    size?: number;
+    modified?: number;
+    children?: DirectoryTreeNode[];
+}
+
+export interface DirectoryTreeResponse {
+    success: boolean;
+    tree?: DirectoryTreeNode;
+    error?: string;
+}
+
 interface TreeNode {
     name: string;
     path: string;
@@ -175,6 +199,7 @@ export interface SpawnSessionOptions {
     permissionMode?: string;
     modelMode?: string;
     effortLevel?: string;
+    commanderId?: string;
     /** Stable idempotency key required by Rig's machine RPC. */
     clientRequestId?: string;
     /** Rig-native provider/model selection. */
@@ -257,7 +282,7 @@ export interface ResumeSessionOptions {
  */
 export async function machineSpawnNewSession(options: SpawnSessionOptions): Promise<SpawnSessionResult> {
 
-    const { machineId, directory, approvedNewDirectoryCreation = false, token, agent, permissionMode, modelMode, effortLevel, clientRequestId, providerId, modelId, effort, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat } = options;
+    const { machineId, directory, approvedNewDirectoryCreation = false, token, agent, permissionMode, modelMode, effortLevel, commanderId, clientRequestId, providerId, modelId, effort, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat } = options;
 
     try {
         if (agent === 'rig' && !clientRequestId) {
@@ -272,6 +297,7 @@ export async function machineSpawnNewSession(options: SpawnSessionOptions): Prom
             permissionMode?: string,
             modelMode?: string,
             effortLevel?: string,
+            commanderId?: string,
             clientRequestId?: string,
             providerId?: string,
             modelId?: string,
@@ -294,7 +320,7 @@ export async function machineSpawnNewSession(options: SpawnSessionOptions): Prom
                 ...(modelId ? { modelId } : {}),
                 ...((effort ?? effortLevel) ? { effort: effort ?? effortLevel } : {}),
             }
-            : { type: 'spawn-in-directory', directory, approvedNewDirectoryCreation, token, agent, permissionMode, modelMode, effortLevel, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat };
+            : { type: 'spawn-in-directory', directory, approvedNewDirectoryCreation, token, agent, permissionMode, modelMode, effortLevel, commanderId, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat };
         const result = await apiSocket.machineRPC<SpawnSessionResult, SpawnRequest>(
             machineId,
             'spawn-happy-session',
@@ -308,6 +334,64 @@ export async function machineSpawnNewSession(options: SpawnSessionOptions): Prom
             errorMessage: error instanceof Error ? error.message : 'Failed to spawn session'
         };
     }
+}
+
+export async function machineListCommanders(machineId: string): Promise<HappyHerdCommanderListResponse> {
+    return apiSocket.machineRPC<HappyHerdCommanderListResponse, Record<string, never>>(
+        machineId,
+        'happyherd-list-commanders',
+        {},
+    );
+}
+
+async function machineAutomationRPC<T>(machineId: string, method: string, params: unknown): Promise<T> {
+    const result = await apiSocket.machineRPC<T | { error: string }, unknown>(machineId, method, params);
+    if (result && typeof result === 'object' && 'error' in result && typeof result.error === 'string') {
+        throw new Error(result.error);
+    }
+    return result as T;
+}
+
+export async function machineListAutomations(machineId: string): Promise<HappyHerdAutomationListResponse> {
+    return machineAutomationRPC(machineId, 'happyherd-automations-list', {});
+}
+
+export async function machineCreateAutomation(
+    machineId: string,
+    input: HappyHerdAutomationCreateInput,
+): Promise<HappyHerdAutomation> {
+    return machineAutomationRPC(machineId, 'happyherd-automations-create', input);
+}
+
+export async function machineUpdateAutomation(
+    machineId: string,
+    id: string,
+    patch: HappyHerdAutomationUpdateInput,
+): Promise<HappyHerdAutomation> {
+    return machineAutomationRPC(machineId, 'happyherd-automations-update', { id, patch });
+}
+
+export async function machinePauseAutomation(machineId: string, id: string): Promise<HappyHerdAutomation> {
+    return machineAutomationRPC(machineId, 'happyherd-automations-pause', { id });
+}
+
+export async function machineResumeAutomation(machineId: string, id: string): Promise<HappyHerdAutomation> {
+    return machineAutomationRPC(machineId, 'happyherd-automations-resume', { id });
+}
+
+export async function machineDeleteAutomation(machineId: string, id: string): Promise<void> {
+    await machineAutomationRPC(machineId, 'happyherd-automations-delete', { id });
+}
+
+export async function machineRunAutomationNow(machineId: string, id: string): Promise<HappyHerdAutomationRun> {
+    return machineAutomationRPC(machineId, 'happyherd-automations-run-now', { id });
+}
+
+export async function machineAutomationHistory(
+    machineId: string,
+    id: string,
+): Promise<HappyHerdAutomationHistoryResponse> {
+    return machineAutomationRPC(machineId, 'happyherd-automations-history', { id });
 }
 
 /**
@@ -511,6 +595,109 @@ export async function machineStopDaemon(machineId: string): Promise<{ message: s
         {}
     );
     return result;
+}
+
+/**
+ * Browse the filesystem exposed by a machine daemon. Machine RPC handlers are
+ * intentionally registered without a workspace root, so the daemon OS user's
+ * own filesystem permissions are the only boundary.
+ */
+export async function machineGetDirectoryTree(
+    machineId: string,
+    path: string,
+    maxDepth = 1,
+): Promise<DirectoryTreeResponse> {
+    try {
+        return await apiSocket.machineRPC<DirectoryTreeResponse, { path: string; maxDepth: number }>(
+            machineId,
+            'getDirectoryTree',
+            { path, maxDepth },
+        );
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to browse machine directory',
+        };
+    }
+}
+
+/**
+ * Read a file through the machine daemon rather than an agent session. This is
+ * the transport used by the independent Machine Workspace, so browsing and
+ * previewing do not require a running session.
+ */
+export async function machineReadFile(machineId: string, path: string): Promise<SessionReadFileResponse> {
+    try {
+        return await apiSocket.machineRPC<SessionReadFileResponse, SessionReadFileRequest>(
+            machineId,
+            'readFile',
+            { path },
+        );
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to read machine file',
+        };
+    }
+}
+
+/** Write a file through the machine daemon with optimistic hash protection. */
+export async function machineWriteFile(
+    machineId: string,
+    path: string,
+    content: string,
+    expectedHash?: string | null,
+): Promise<SessionWriteFileResponse> {
+    try {
+        return await apiSocket.machineRPC<SessionWriteFileResponse, SessionWriteFileRequest>(
+            machineId,
+            'writeFile',
+            { path, content, expectedHash },
+        );
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to write machine file',
+        };
+    }
+}
+
+/** Upload one local client file into an existing host directory without overwriting. */
+export async function machineUploadFile(
+    machineId: string,
+    request: import('@slopus/happy-wire').WorkspaceUploadRequest,
+): Promise<import('@slopus/happy-wire').WorkspaceUploadResponse> {
+    try {
+        return await apiSocket.machineRPC<
+            import('@slopus/happy-wire').WorkspaceUploadResponse,
+            import('@slopus/happy-wire').WorkspaceUploadRequest
+        >(machineId, 'uploadFile', request);
+    } catch (error) {
+        return {
+            success: false,
+            code: 'write-failed',
+            error: error instanceof Error ? error.message : 'Failed to upload machine file',
+        };
+    }
+}
+
+/** List one machine directory without tying the request to an agent session. */
+export async function machineListDirectory(
+    machineId: string,
+    path: string,
+): Promise<SessionListDirectoryResponse> {
+    try {
+        return await apiSocket.machineRPC<SessionListDirectoryResponse, SessionListDirectoryRequest>(
+            machineId,
+            'listDirectory',
+            { path },
+        );
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to list machine directory',
+        };
+    }
 }
 
 /**

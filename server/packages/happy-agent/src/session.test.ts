@@ -286,6 +286,24 @@ describe('SessionClient', () => {
             client.close();
         });
 
+        it('uses the caller localId for server-side message deduplication', () => {
+            const opts = makeOptions();
+            const client = new SessionClient(opts);
+
+            const localId = client.sendMessage('Hello', undefined, 'discord:source-123');
+
+            const messageEvent = mockSocketInstance!.emittedEvents.find(
+                (event) => event.event === 'message',
+            );
+            expect(localId).toBe('discord:source-123');
+            expect(messageEvent?.args[0]).toMatchObject({
+                sid: 'test-session-id',
+                localId: 'discord:source-123',
+            });
+
+            client.close();
+        });
+
         it('works with legacy encryption variant', () => {
             const opts = makeOptions({ encryptionVariant: 'legacy' });
             const client = new SessionClient(opts);
@@ -833,6 +851,107 @@ describe('SessionClient', () => {
             expect(resolved).toBe(true);
 
             client.close();
+        });
+    });
+
+    describe('waitForTurnResult', () => {
+        it('returns only correlated root non-thinking text', async () => {
+            const opts = makeOptions({ initialSequence: 10 });
+            const client = new SessionClient(opts);
+            const result = client.waitForTurnResult({ timeoutMs: 1000 });
+
+            const emitEnvelope = (
+                seq: number,
+                id: string,
+                envelope: Record<string, unknown>,
+            ) => mockSocketInstance!.simulateServerEvent('update', makeEncryptedUpdate(
+                opts.encryptionKey,
+                opts.encryptionVariant,
+                { role: 'session', content: envelope },
+                opts.sessionId,
+                { seq, id },
+            ));
+
+            emitEnvelope(11, 'start', {
+                role: 'agent',
+                turn: 'turn-1',
+                ev: { t: 'turn-start' },
+            });
+            emitEnvelope(12, 'thinking', {
+                role: 'agent',
+                turn: 'turn-1',
+                ev: { t: 'text', text: 'private reasoning', thinking: true },
+            });
+            emitEnvelope(13, 'child', {
+                role: 'agent',
+                turn: 'turn-1',
+                subagent: 'child-1',
+                ev: { t: 'text', text: 'child output' },
+            });
+            emitEnvelope(14, 'root-1', {
+                role: 'agent',
+                turn: 'turn-1',
+                ev: { t: 'text', text: 'First paragraph.' },
+            });
+            emitEnvelope(15, 'root-2', {
+                role: 'agent',
+                turn: 'turn-1',
+                ev: { t: 'text', text: 'Second paragraph.' },
+            });
+            emitEnvelope(16, 'end', {
+                role: 'agent',
+                turn: 'turn-1',
+                ev: { t: 'turn-end', status: 'completed' },
+            });
+
+            await expect(result).resolves.toEqual({
+                turnId: 'turn-1',
+                status: 'completed',
+                text: 'First paragraph.\n\nSecond paragraph.',
+                messageIds: ['root-1', 'root-2'],
+            });
+            client.close();
+        });
+
+        it('ignores stale events and unrelated turn endings', async () => {
+            const opts = makeOptions({ initialSequence: 20 });
+            const client = new SessionClient(opts);
+            const result = client.waitForTurnResult({ timeoutMs: 1000 });
+
+            const emitEnvelope = (seq: number, envelope: Record<string, unknown>) => {
+                mockSocketInstance!.simulateServerEvent('update', makeEncryptedUpdate(
+                    opts.encryptionKey,
+                    opts.encryptionVariant,
+                    { role: 'session', content: envelope },
+                    opts.sessionId,
+                    { seq, id: `msg-${seq}` },
+                ));
+            };
+
+            emitEnvelope(20, { role: 'agent', turn: 'stale', ev: { t: 'turn-start' } });
+            emitEnvelope(21, { role: 'agent', turn: 'fresh', ev: { t: 'turn-start' } });
+            emitEnvelope(22, { role: 'agent', turn: 'other', ev: { t: 'turn-end', status: 'completed' } });
+            emitEnvelope(23, { role: 'agent', turn: 'fresh', ev: { t: 'text', text: 'Fresh result' } });
+            emitEnvelope(24, { role: 'agent', turn: 'fresh', ev: { t: 'turn-end', status: 'failed' } });
+
+            await expect(result).resolves.toMatchObject({
+                turnId: 'fresh',
+                status: 'failed',
+                text: 'Fresh result',
+            });
+            client.close();
+        });
+
+        it('rejects when the socket disconnects before a terminal event', async () => {
+            const opts = makeOptions();
+            const client = new SessionClient(opts);
+            const result = client.waitForTurnResult({ timeoutMs: 1000 });
+
+            mockSocketInstance!.close();
+
+            await expect(result).rejects.toThrow(
+                'Socket disconnected while waiting for agent turn result',
+            );
         });
     });
 

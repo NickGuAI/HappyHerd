@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import { useFriendRequests, useSocketStatus, useRealtimeStatus, useSettingMutable } from '@/sync/storage';
+import { useFriendRequests, useSocketStatus, useRealtimeStatus, useSetting, useSettingMutable } from '@/sync/storage';
 import { useHasArchivedSessions, useVisibleSessionListViewData } from '@/hooks/useVisibleSessionListViewData';
 import { useIsTablet } from '@/utils/responsive';
 import { useRouter } from 'expo-router';
@@ -296,11 +296,28 @@ const HeaderRight = React.memo(({
     const router = useRouter();
     const { theme } = useUnistyles();
     const isCustomServer = isUsingCustomServer();
+    const machineWorkspaceEnabled = useSetting('machineWorkspace');
 
     if (activeTab === 'sessions') {
         if (Platform.OS !== 'web') {
             return (
                 <View style={styles.headerActions}>
+                    {machineWorkspaceEnabled && (
+                        <Pressable
+                            onPress={() => router.push('/workspace')}
+                            style={styles.headerActionButton}
+                            accessibilityLabel={t('workspace.title')}
+                        >
+                            <Ionicons name="folder-open-outline" size={21} color={theme.colors.header.tint} />
+                        </Pressable>
+                    )}
+                    <Pressable
+                        onPress={() => router.push('/automations')}
+                        style={styles.headerActionButton}
+                        accessibilityLabel={t("happyHerd.automations.title")}
+                    >
+                        <Ionicons name="time-outline" size={21} color={theme.colors.header.tint} />
+                    </Pressable>
                     <Pressable
                         onPress={onSearchPress}
                         accessibilityLabel={t('tools.names.search')}
@@ -346,6 +363,24 @@ const HeaderRight = React.memo(({
         }
         return (
             <View style={styles.headerActions}>
+                {machineWorkspaceEnabled && (
+                    <Pressable
+                        onPress={() => router.push('/workspace')}
+                        hitSlop={12}
+                        style={styles.headerButton}
+                        accessibilityLabel={t('workspace.title')}
+                    >
+                        <Ionicons name="folder-open-outline" size={22} color={theme.colors.header.tint} />
+                    </Pressable>
+                )}
+                <Pressable
+                    onPress={() => router.push('/automations')}
+                    hitSlop={12}
+                    style={styles.headerButton}
+                    accessibilityLabel={t("happyHerd.automations.title")}
+                >
+                    <Ionicons name="time-outline" size={22} color={theme.colors.header.tint} />
+                </Pressable>
                 {hasArchivedSessions && (
                     <Pressable
                         onPress={onArchiveVisibilityPress}
