@@ -33,11 +33,19 @@ paths, scopes, and read/write policy. See
 - Writes require a one-use confirmation bound to the actor, capability, exact
   action hash, and a later Discord turn.
 - State stores routing identifiers and delivery receipts, never message text.
+- An exact `link <opaque-code>` command is accepted only in DM, sent to the
+  signed organization endpoint, and settled without creating an agent session
+  or retaining the command/code in bridge state.
 
 ## Integration contract
 
 The configured authorization endpoint receives signed Discord source metadata
 and returns either a denial or a short-lived grant:
+
+The request body is SHA-256 hashed. The lowercase-hex HMAC-SHA256 signature
+covers `agentId + "\\n" + timestamp + "\\n" + nonce + "\\n" + bodyHash`, so
+the deployment identity, freshness, replay nonce, and exact JSON body are one
+authorization statement.
 
 ```json
 {
@@ -49,6 +57,12 @@ and returns either a denial or a short-lived grant:
   "delegation": { "token": "opaque", "expiresAt": 1893456000000 }
 }
 ```
+
+For account linking the same endpoint receives
+`requestedCapability: "discord-agent.link"`, the bounded one-time code, and the
+same signed source metadata. It returns either `decision: "linked"` with a
+bounded safe message or the standard denial shape. Organization-specific code
+formats and identity policy stay in the organization service.
 
 The organization service may call `POST /internal/discord/execute` with the
 separate transport bearer for bounded channel/message/reaction operations. It

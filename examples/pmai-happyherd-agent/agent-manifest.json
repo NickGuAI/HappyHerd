@@ -9,7 +9,7 @@
       "description": "Read PMAI onboarding guidance and the member's current access state.",
       "operations": {
         "me": { "method": "GET", "path": "/api/v1/me", "scope": null, "write": false, "shared": false },
-        "capabilities": { "method": "GET", "path": "/api/v1/capabilities", "scope": null, "write": false, "shared": true },
+        "capabilities": { "method": "GET", "path": "/api/v1/capabilities", "scope": null, "write": false, "shared": false },
         "onboarding_status": { "method": "GET", "path": "/api/v1/community/onboarding", "scope": null, "write": false, "shared": false }
       }
     },
@@ -33,10 +33,12 @@
       "family": "pmai-discord",
       "description": "Read allowed community channels and send confirmed messages as the linked member.",
       "operations": {
-        "channels_list": { "method": "GET", "path": "/api/v1/community/channels", "scope": "community.channels.read", "write": false, "shared": true },
-        "messages_list": { "method": "GET", "path": "/api/v1/community/channels/{channelId}/messages", "scope": "community.messages.read", "write": false, "shared": true },
+        "link_status": { "method": "GET", "path": "/api/v1/community/link", "scope": "community.channels.read", "write": false, "shared": false },
+        "channels_list": { "method": "GET", "path": "/api/v1/community/channels", "scope": "community.channels.read", "write": false, "shared": false },
+        "messages_list": { "method": "GET", "path": "/api/v1/community/channels/{channelId}/messages", "scope": "community.messages.read", "write": false, "shared": false },
         "messages_send": { "method": "POST", "path": "/api/v1/community/channels/{channelId}/messages", "scope": "community.messages.send", "write": true, "shared": false },
-        "reactions_add": { "method": "POST", "path": "/api/v1/community/messages/{messageId}/reactions", "scope": "community.reactions.write", "write": true, "shared": false }
+        "messages_edit": { "method": "PATCH", "path": "/api/v1/community/channels/{channelId}/messages/{messageId}", "scope": "community.messages.send", "write": true, "shared": false },
+        "reactions_add": { "method": "POST", "path": "/api/v1/community/channels/{channelId}/messages/{messageId}/reactions", "scope": "community.reactions.write", "write": true, "shared": false }
       }
     },
     {
@@ -45,6 +47,7 @@
       "description": "Read events and manage confirmed event operations through PMAI's Luma connection.",
       "operations": {
         "events_list": { "method": "GET", "path": "/api/v1/events", "scope": "events.read", "write": false, "shared": true },
+        "events_get": { "method": "GET", "path": "/api/v1/events/{eventId}", "scope": "events.read", "write": false, "shared": true },
         "events_create": { "method": "POST", "path": "/api/v1/events", "scope": "events.create", "write": true, "shared": false },
         "events_update": { "method": "PATCH", "path": "/api/v1/events/{eventId}", "scope": "events.update", "write": true, "shared": false },
         "guests_list": { "method": "GET", "path": "/api/v1/events/{eventId}/guests", "scope": "events.guests.read", "write": false, "shared": false }
@@ -53,11 +56,9 @@
     {
       "name": "pmai_canva",
       "family": "pmai-canva",
-      "description": "Use the linked member's own Canva connection for confirmed design operations.",
+      "description": "Explain the handoff to the linked member's separately authenticated Canva connector.",
       "operations": {
-        "connector_status": { "method": "GET", "path": "/api/v1/connectors/canva", "scope": "canva.designs.read", "write": false, "shared": false },
-        "designs_create": { "method": "POST", "path": "/api/v1/connectors/canva/designs", "scope": "canva.designs.create", "write": true, "shared": false },
-        "designs_export": { "method": "POST", "path": "/api/v1/connectors/canva/designs/{designId}/exports", "scope": "canva.designs.export", "write": true, "shared": false }
+        "connector_handoff": { "method": "GET", "path": "/api/v1/community/onboarding", "scope": null, "write": false, "shared": false }
       }
     }
   ]
