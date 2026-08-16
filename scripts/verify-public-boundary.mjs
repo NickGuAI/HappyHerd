@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const repoRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const baselineTag = 'happyherd-owned-baseline-2026-08-02';
+const ownedTagPattern = /^(?:happyherd-|happy-upstream-base-)/;
 const organizationExample = 'examples/pmai-happyherd-agent/';
 const organizationMarker = new RegExp(['pm', 'ai'].join('') + '(?:[-_]|\\b)', 'i');
 const maxTextBytes = 2 * 1024 * 1024;
@@ -157,6 +158,24 @@ function commitIdentityEntries() {
   }));
 }
 
+function ownedTagMetadataEntries() {
+  let tags = [];
+  try {
+    tags = git(['tag', '--list']).trim().split('\n').filter(Boolean);
+  } catch {
+    return [];
+  }
+
+  return tags.filter((tag) => ownedTagPattern.test(tag)).map((tag) => ({
+    path: `history/tag-${tag}-metadata.txt`,
+    text: git([
+      'for-each-ref',
+      '--format=%(taggername) %(taggeremail)%n%(contents:subject)',
+      `refs/tags/${tag}`,
+    ]),
+  }));
+}
+
 export function inspectEntries(entries) {
   const findings = [];
   for (const entry of entries) {
@@ -234,6 +253,7 @@ function main() {
     ...(process.argv.includes('--current-only') ? [] : [
       ...historyEntries(),
       ...commitIdentityEntries(),
+      ...ownedTagMetadataEntries(),
     ]),
   ]);
   if (findings.length > 0) {
