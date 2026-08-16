@@ -43,6 +43,7 @@ export type AuthorizationSource = {
   discordUserId: string;
   guildId: string | null;
   channelId: string;
+  parentChannelId: string | null;
   threadId: string | null;
   surfaceKind: SurfaceKind;
 };
@@ -70,6 +71,13 @@ export type AuthorizationDenial = {
 
 export type AuthorizationDecision = AuthorizationGrant | AuthorizationDenial;
 
+export type LinkSuccess = {
+  decision: 'linked';
+  safeMessage: string;
+};
+
+export type LinkDecision = LinkSuccess | AuthorizationDenial;
+
 export type SurfaceBinding = {
   surfaceKey: string;
   surfaceKind: SurfaceKind;
@@ -92,7 +100,7 @@ export type InboundStatus =
   | 'delivered'
   | 'failed';
 
-export type DeliveryKind = 'answer' | 'denial' | 'failure';
+export type DeliveryKind = 'answer' | 'denial' | 'failure' | 'link';
 
 export type InboundRecord = {
   sourceMessageId: string;
