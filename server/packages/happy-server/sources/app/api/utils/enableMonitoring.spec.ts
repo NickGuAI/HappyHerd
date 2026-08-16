@@ -13,7 +13,11 @@ vi.mock('@/app/monitoring/metrics2', () => ({
     getMetricsLabelsFromRequest: () => ({}),
 }));
 
-vi.mock('@/utils/log', () => ({ log: vi.fn() }));
+vi.mock('@/utils/log', () => ({
+    debug: vi.fn(),
+    isProduction: false,
+    log: vi.fn(),
+}));
 
 import { enableMonitoring, resolveHealthStatus } from './enableMonitoring';
 
