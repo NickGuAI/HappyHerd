@@ -26,5 +26,9 @@ assert(inspect('config.txt', ['sk-', 'proj-', 'a'.repeat(32)].join('')).includes
 assert(inspect('contact.md', ['person', '@', 'private.example.net'].join('')).includes(
   'non-example email address',
 ));
+assert.deepEqual(inspect('metadata.txt', 'HappyHerd Maintainers <maintainers@happyherd.example>'), []);
+assert(inspect('metadata.txt', ['private-person', '@', 'real-company.com'].join('')).includes(
+  'non-example email address',
+));
 
 process.stdout.write('public-boundary self-test: ok\n');

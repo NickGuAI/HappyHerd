@@ -1,2 +1,3 @@
 # gate	state	subject	evidence
 PUBLIC_BOUNDARY	accepted	feat(agent): make governed runtime organization-neutral	scripts/verify-public-boundary.mjs
+PUBLIC_BOUNDARY	accepted	fix(public-boundary): scan owned commit identities	scripts/test-public-boundary.mjs
