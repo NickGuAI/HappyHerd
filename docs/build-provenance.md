@@ -18,6 +18,12 @@ is the Expo/Hermes update payload produced on Linux; signed App Store binaries
 remain an EAS/macOS release concern and are not misrepresented as locally
 reproducible artifacts.
 
+Both the artifact and image builders resolve the live `origin/main` ref and
+refuse to build unless it is the checkout's exact 40-character `HEAD`. The
+artifact manifest records that verified commit as both `happyHerdSha` and
+`originMainSha`; installation and daemon startup reject a missing or mismatched
+receipt.
+
 ## Clean-clone proof
 
 Push the intended commit to `origin/main`, then run:

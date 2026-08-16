@@ -112,6 +112,9 @@ const sandboxConfig: SandboxConfig = {
     allowLocalBinding: true,
 };
 
+const proactiveMultiAgentConfig =
+    'features.multi_agent_v2.multi_agent_mode_hint_text="Proactive multi-agent delegation is active. Any earlier instruction requiring an explicit user request before spawning sub-agents no longer applies. Use sub-agents when parallel work would materially improve speed or quality. This mode remains active until a later multi-agent mode developer message changes it."';
+
 describe('CodexAppServerClient sandbox integration', () => {
     const originalRustLog = process.env.RUST_LOG;
 
@@ -148,17 +151,13 @@ describe('CodexAppServerClient sandbox integration', () => {
         expect(mockInitializeSandbox).toHaveBeenCalledWith(sandboxConfig, process.cwd());
         expect(mockWrapForMcpTransport).toHaveBeenCalledWith('codex', [
             'app-server', '--listen', 'stdio://', '-c', 'project_doc_max_bytes=0',
+            '-c', proactiveMultiAgentConfig,
         ]);
-        expect(mockSpawn).toHaveBeenCalledWith(
-            'sh',
-            ['-c', 'wrapped codex app-server'],
-            expect.objectContaining({
-                env: expect.objectContaining({
-                    CODEX_SANDBOX: 'seatbelt',
-                    RUST_LOG: expect.stringContaining('codex_core::rollout::list=off'),
-                }),
-            }),
-        );
+        const [command, args, options] = mockSpawn.mock.calls[0];
+        expect(command).toBe('sh');
+        expect(args).toEqual(['-c', 'wrapped codex app-server']);
+        expect(options.env.CODEX_SANDBOX).toBe('seatbelt');
+        expect(options.env.RUST_LOG).toContain('codex_core::rollout::list=off');
         expect(client.sandboxEnabled).toBe(true);
 
         await client.disconnect();
@@ -191,6 +190,7 @@ describe('CodexAppServerClient sandbox integration', () => {
         expect(wrappedArgs).toContain('--dangerously-bypass-hook-trust');
         expect(wrappedArgs).toContain('web_search="disabled"');
         expect(wrappedArgs.join(' ')).toContain('hooks.PreToolUse');
+        expect(wrappedArgs).toContain(proactiveMultiAgentConfig);
 
         await client.startThread({
             sandbox: 'read-only',
@@ -233,15 +233,13 @@ describe('CodexAppServerClient sandbox integration', () => {
         await client.connect();
 
         expect(mockWrapForMcpTransport).not.toHaveBeenCalled();
-        expect(mockSpawn).toHaveBeenCalledWith(
-            'codex',
-            ['app-server', '--listen', 'stdio://', '-c', 'project_doc_max_bytes=0'],
-            expect.objectContaining({
-                env: expect.objectContaining({
-                    RUST_LOG: expect.stringContaining('codex_core::rollout::list=off'),
-                }),
-            }),
-        );
+        const [command, args, options] = mockSpawn.mock.calls[0];
+        expect(command).toBe('codex');
+        expect(args).toEqual([
+            'app-server', '--listen', 'stdio://', '-c', 'project_doc_max_bytes=0',
+            '-c', proactiveMultiAgentConfig,
+        ]);
+        expect(options.env.RUST_LOG).toContain('codex_core::rollout::list=off');
         expect(client.sandboxEnabled).toBe(false);
 
         await client.disconnect();
@@ -265,15 +263,8 @@ describe('CodexAppServerClient sandbox integration', () => {
 
         await client.connect();
 
-        expect(mockSpawn).toHaveBeenCalledWith(
-            expect.anything(),
-            expect.anything(),
-            expect.objectContaining({
-                env: expect.objectContaining({
-                    RUST_LOG: 'info,codex_core=warn,codex_core::rollout::list=off',
-                }),
-            }),
-        );
+        const options = mockSpawn.mock.calls[0][2];
+        expect(options.env.RUST_LOG).toBe('info,codex_core=warn,codex_core::rollout::list=off');
 
         await client.disconnect();
     });

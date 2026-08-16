@@ -26,6 +26,7 @@ BRIDGE_FILENAME='happyherd-agent-x64-linux.tar.gz'
 mkdir -p "$ARTIFACT_DIR" "$PAYLOAD/daemon/bin" "$PAYLOAD/daemon/tools/unpacked" "$PAYLOAD/happyherd-agent/dist"
 printf '#!/usr/bin/env node\n' > "$PAYLOAD/daemon/bin/happy.mjs"
 chmod 0755 "$PAYLOAD/daemon/bin/happy.mjs"
+printf '{"schemaVersion":1,"happyHerdSha":"%s"}\n' "$SOURCE_SHA" > "$PAYLOAD/daemon/happyherd-release.json"
 printf '#!/usr/bin/env sh\nexit 0\n' > "$PAYLOAD/daemon/tools/unpacked/rg"
 chmod 0755 "$PAYLOAD/daemon/tools/unpacked/rg"
 ln -s ../tools/unpacked/rg "$PAYLOAD/daemon/bin/rg"
@@ -46,7 +47,7 @@ const bridgeFilename = process.env.BRIDGE_FILENAME;
 const manifest = {
     schemaVersion: 1,
     product: 'HappyHerd',
-    source: { happyHerdSha: process.env.SOURCE_SHA },
+    source: { happyHerdSha: process.env.SOURCE_SHA, originMainSha: process.env.SOURCE_SHA },
     artifacts: [filename, bridgeFilename].map((artifactFilename) => ({
         filename: artifactFilename,
         bytes: fs.statSync(path.join(process.env.ARTIFACT_DIR, artifactFilename)).size,
@@ -65,6 +66,8 @@ TARGET="$RELEASE_ROOT/$SOURCE_SHA"
 [[ "$(stat -Lc '%a' "$CURRENT_LINK")" == 755 ]] || fail 'release root is not traversable by the daemon service account'
 [[ -x "$CURRENT_LINK/daemon/bin/happy.mjs" ]] || fail 'daemon entrypoint is not executable'
 [[ -x "$CURRENT_LINK/daemon/bin/rg" ]] || fail 'daemon sandbox ripgrep is not executable'
+[[ "$(node -p "require('$CURRENT_LINK/daemon/happyherd-release.json').happyHerdSha")" == "$SOURCE_SHA" ]] || \
+    fail 'daemon release identity does not match the installed source release'
 [[ -f "$CURRENT_LINK/happyherd-agent/dist/index.mjs" ]] || fail 'HappyHerd Agent entrypoint is missing'
 [[ -x "$CURRENT_LINK/scripts/run-container.sh" ]] || fail 'complete release omitted the server launcher'
 [[ -x "$CURRENT_LINK/scripts/activate-release.sh" ]] || fail 'complete release omitted the release activator'

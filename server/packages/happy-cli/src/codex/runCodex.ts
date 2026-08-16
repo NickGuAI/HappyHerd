@@ -3,7 +3,13 @@ import React from "react";
 import { ApiClient } from '@/api/api';
 import { CodexAppServerClient } from './codexAppServerClient';
 import type { ReasoningEffort } from './codexAppServerTypes';
-import { isReasoningEffort } from './reasoningEffort';
+import {
+    DEFAULT_CODEX_REASONING_EFFORT,
+    initialCodexReasoningEffort,
+    isReasoningEffort,
+    resolveCodexReasoningEffort,
+} from './reasoningEffort';
+import type { ModelListEntry } from './codexAppServerTypes';
 import { CodexPermissionHandler } from './utils/permissionHandler';
 import { ReasoningProcessor } from './utils/reasoningProcessor';
 import { DiffProcessor } from './utils/diffProcessor';
@@ -54,7 +60,7 @@ import {
     codexGoalActionCapabilities,
     mapCodexGoalEventToAgentGoalStatus,
     parseCodexGoalActionParams,
-    parseCodexGoalCommand,
+    prepareCodexGoalTurn,
     type CodexGoalCommand,
 } from './codexGoalStatus';
 import {
@@ -62,6 +68,10 @@ import {
     readContextPromptFromEnvironment,
 } from '@/agentContext/commanderContext';
 import { readAutomationBootstrapFromEnvironment } from '@/automations/sessionBootstrap';
+import {
+    AutomationGoalTerminalGate,
+    persistAutomationProviderOutcome,
+} from '@/automations/providerOutcome';
 import { buildHappyHerdAgentMcpServerConfig, readHappyHerdAgentSessionEnvironment } from './agentMcpConfig';
 
 /**
@@ -116,6 +126,7 @@ export async function runCodex(opts: {
 }): Promise<void> {
     const happyHerdContextPrompt = await readContextPromptFromEnvironment();
     const automationBootstrap = await readAutomationBootstrapFromEnvironment();
+    const automationGoalGate = new AutomationGoalTerminalGate();
     // Early check: ensure Codex CLI is installed before proceeding
     try {
         execSync('codex --version', { encoding: 'utf8', stdio: 'pipe', windowsHide: true });
@@ -236,6 +247,7 @@ export async function runCodex(opts: {
     // (assigned later at line ~385 after client setup)
     let permissionHandler: CodexPermissionHandler;
     let client!: CodexAppServerClient;
+    let modelCatalog: ModelListEntry[] = [];
     let reasoningProcessor!: ReasoningProcessor;
     let abortInProgress: Promise<void> | null = null;
     const { session: initialSession, reconnectionHandle } = setupOfflineReconnection({
@@ -307,11 +319,7 @@ export async function runCodex(opts: {
     // straggler approval after an abort.
     let currentPermissionModeExplicitlySet = false;
     let currentModel: string | undefined = opts.model ?? DEFAULT_CODEX_MODEL;
-    // The app resolves its semantic "maximum available" default against the
-    // selected model's live capability catalog. A direct terminal launch with
-    // no explicit effort leaves the choice to Codex rather than inventing a
-    // provider token that the installed app-server may reject.
-    let currentEffort: ReasoningEffort | undefined = opts.effort;
+    let currentEffort: ReasoningEffort = initialCodexReasoningEffort(opts.effort);
     let currentAppendSystemPrompt: string | undefined;
 
     const resetCurrentModeDefaults = () => {
@@ -385,9 +393,9 @@ export async function runCodex(opts: {
         if (message.meta?.hasOwnProperty('effort')) {
             const incoming = (message.meta as Record<string, unknown>).effort;
             if (incoming === null || incoming === undefined) {
-                messageEffort = undefined;
-                currentEffort = undefined;
-                logger.debug(`[Codex] Effort reset to default`);
+                messageEffort = DEFAULT_CODEX_REASONING_EFFORT;
+                currentEffort = DEFAULT_CODEX_REASONING_EFFORT;
+                logger.debug(`[Codex] Effort reset to default: ${DEFAULT_CODEX_REASONING_EFFORT}`);
             } else if (isReasoningEffort(incoming)) {
                 messageEffort = incoming;
                 currentEffort = messageEffort;
@@ -478,6 +486,7 @@ export async function runCodex(opts: {
             queue: messageQueue,
             attachments: [],
         });
+        messageQueue.close();
         logger.debug(`[AUTOMATIONS] Queued initial Codex instruction for ${automationBootstrap.automationId}`);
     }
     let thinking = false;
@@ -489,6 +498,7 @@ export async function runCodex(opts: {
     let codexCollabReceiverThreadIdsByCall = new Map<string, string[]>();
     let codexCollabToolByCall = new Map<string, string>();
     let activeTurnPermissionMode: PermissionMode | undefined = undefined;
+    let automationTerminalEvent: { status: 'completed' | 'failed'; message: string | null } | null = null;
     session.keepAlive(thinking, 'remote');
     // Periodic keep-alive; store handle so we can clear on exit
     const keepAliveInterval = setInterval(() => {
@@ -541,6 +551,21 @@ export async function runCodex(opts: {
     // Turn cancellation uses client.interruptTurn() — no AbortController hack needed.
     let abortController = new AbortController();
     let shouldExit = false;
+
+    const finishAutomationSession = async (
+        status: 'completed' | 'failed',
+        message: string | null,
+    ): Promise<void> => {
+        if (!automationBootstrap) return;
+        await automationGoalGate.wait();
+        await persistAutomationProviderOutcome(
+            session,
+            automationBootstrap,
+            status,
+            message,
+        );
+        shouldExit = true;
+    };
 
     /**
      * Handles aborting the current task/inference without exiting the process.
@@ -721,6 +746,9 @@ export async function runCodex(opts: {
         if (!goalStatus) {
             return;
         }
+        if (automationBootstrap) {
+            automationGoalGate.observe(goalStatus);
+        }
         session.updateAgentState((currentState) => ({
             ...currentState,
             agentGoalStatus: goalStatus,
@@ -755,7 +783,12 @@ export async function runCodex(opts: {
             messageBuffer.addMessage('Goal updated', 'status');
             return true;
         } catch (error) {
-            logger.debug('[Codex] Goal command API failed; falling back to normal turn:', error);
+            logger.debug(
+                command.type === 'set'
+                    ? '[Codex] Goal set API failed; falling back to one normal turn:'
+                    : '[Codex] Goal clear API failed; keeping clear state-only:',
+                error,
+            );
             return false;
         }
     };
@@ -852,6 +885,11 @@ export async function runCodex(opts: {
             } else {
                 messageBuffer.addMessage('Task completed', 'status');
             }
+            if (automationBootstrap) {
+                automationTerminalEvent = failure
+                    ? { status: 'failed', message: failure }
+                    : { status: 'completed', message: null };
+            }
         } else if (msg.type === 'turn_aborted' && isAuthoritativeLifecycle) {
             const failure = describeCodexFailure(msg);
             if (failure) {
@@ -859,6 +897,12 @@ export async function runCodex(opts: {
                 session.sendSessionEvent({ type: 'message', message: `Codex error: ${failure}` });
             } else {
                 messageBuffer.addMessage('Turn aborted', 'status');
+            }
+            if (automationBootstrap) {
+                automationTerminalEvent = {
+                    status: 'failed',
+                    message: failure ?? 'Codex automation turn was aborted.',
+                };
             }
         }
 
@@ -986,6 +1030,11 @@ export async function runCodex(opts: {
         logger.debug('[codex]: client.connect begin');
         await client.connect();
         logger.debug('[codex]: client.connect done');
+        try {
+            modelCatalog = await client.listModels({ includeHidden: true });
+        } catch (error) {
+            logger.warn('[Codex] Could not read the model effort catalog; Codex will validate the requested effort', error);
+        }
 
         if (opts.resumeThreadId) {
             await resumeExistingThread({
@@ -1091,6 +1140,7 @@ export async function runCodex(opts: {
                     shouldExit,
                     sendReady,
                 });
+                await finishAutomationSession('completed', 'Codex automation reset the session context.');
                 continue;
             }
 
@@ -1099,6 +1149,7 @@ export async function runCodex(opts: {
                 messageBuffer.addMessage(message.message, 'user');
             }
 
+            let automationCaughtFailure: string | null = null;
             try {
                 // Map permission mode to approval policy and sandbox.
                 // With app-server, these are per-turn — no restart needed on mode change.
@@ -1127,8 +1178,12 @@ export async function runCodex(opts: {
                     }));
                 }
 
-                const goalCommand = parseCodexGoalCommand(message.message);
-                if (goalCommand && await handleCodexGoalCommand(goalCommand, activeThreadId)) {
+                const goalTurnText = await prepareCodexGoalTurn(
+                    message.message,
+                    (command) => handleCodexGoalCommand(command, activeThreadId),
+                );
+                if (goalTurnText === null) {
+                    await finishAutomationSession('completed', 'Codex automation completed a state-only goal command.');
                     continue;
                 }
 
@@ -1150,20 +1205,26 @@ export async function runCodex(opts: {
                         type: 'message',
                         message: 'No supported images were available to send to Codex.',
                     });
+                    await finishAutomationSession('failed', 'No supported images were available to send to Codex.');
                     continue;
                 }
                 const turnPrompt = buildCodexTurnPrompt({
-                    message: message.message,
+                    message: goalTurnText,
                     mode: message.mode,
                     includeAppendSystemPrompt,
                     includeTitleInstruction: first,
                 });
 
+                const turnEffort = resolveCodexReasoningEffort(
+                    message.mode.effort,
+                    message.mode.model,
+                    modelCatalog,
+                );
                 const result = await client.sendTurnAndWait(turnPrompt, {
                     model: message.mode.model,
                     approvalPolicy: executionPolicy.approvalPolicy,
                     sandbox: executionPolicy.sandbox,
-                    effort: message.mode.effort,
+                    effort: turnEffort,
                     extraInputItems: imageInputs.inputItems,
                 });
                 first = false;
@@ -1175,12 +1236,19 @@ export async function runCodex(opts: {
                     // Turn was aborted (user abort or permission cancel).
                     // UI handling already done by the event handler (turn_aborted).
                     logger.debug('[Codex] Turn aborted');
+                    if (automationBootstrap && !automationTerminalEvent) {
+                        automationTerminalEvent = {
+                            status: 'failed',
+                            message: 'Codex automation turn was aborted.',
+                        };
+                    }
                 }
             } catch (error) {
                 // Only actual errors reach here (process crash, connection failure, etc.)
                 logger.warn('Error in codex session:', error);
                 messageBuffer.addMessage('Process exited unexpectedly', 'status');
                 session.sendSessionEvent({ type: 'message', message: 'Process exited unexpectedly' });
+                automationCaughtFailure = error instanceof Error ? error.message : String(error);
             } finally {
                 // Reset permission handler, reasoning processor, and diff processor
                 permissionHandler.reset();
@@ -1196,6 +1264,16 @@ export async function runCodex(opts: {
                     sendReady,
                 });
                 logActiveHandles('after-turn');
+            }
+
+            if (automationBootstrap) {
+                const terminal = automationCaughtFailure
+                    ? { status: 'failed' as const, message: automationCaughtFailure }
+                    : automationTerminalEvent ?? {
+                        status: 'failed' as const,
+                        message: 'Codex automation ended without authoritative provider terminal evidence.',
+                    };
+                await finishAutomationSession(terminal.status, terminal.message);
             }
         }
 

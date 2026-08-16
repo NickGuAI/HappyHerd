@@ -56,6 +56,8 @@ PNPM_VERSION="$(cd "$SERVER_ROOT" && pnpm --version)"
 [[ "$(bun --version)" == "1.3.11" ]] || die "bun 1.3.11 is required"
 [[ -z "$(git -C "$ROOT" status --porcelain --untracked-files=normal)" ]] || \
     die "release artifacts must be built from a clean worktree"
+ORIGIN_MAIN_SHA="$("$ROOT/scripts/assert-origin-main.sh" "$ROOT")"
+[[ "$ORIGIN_MAIN_SHA" == "$HEAD_SHA" ]] || die 'release source does not match origin/main'
 
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR" "$STAGE/web" "$STAGE/ios" "$STAGE/server" "$STAGE/daemon" "$STAGE/happyherd-agent"
@@ -107,6 +109,17 @@ if [[ "$daemon_deploy_status" -ne 0 ]] && \
 fi
 [[ -f "$STAGE/daemon/package.json" ]] || die 'daemon deployment package is missing'
 [[ -f "$STAGE/daemon/pnpm-lock.yaml" ]] || die 'daemon deployment lockfile is missing'
+
+export DAEMON_RELEASE_PATH="$STAGE/daemon/happyherd-release.json"
+export HEAD_SHA
+node <<'NODE'
+const fs = require('node:fs');
+fs.writeFileSync(
+    process.env.DAEMON_RELEASE_PATH,
+    `${JSON.stringify({ schemaVersion: 1, happyHerdSha: process.env.HEAD_SHA }, null, 2)}\n`,
+);
+NODE
+unset DAEMON_RELEASE_PATH
 
 export DAEMON_STAGE="$STAGE/daemon"
 node <<'NODE'
@@ -275,7 +288,7 @@ stable_archive happyherd-agent "happyherd-agent-${platform}.tar.gz"
     sha256sum happyherd-*.tar.gz | LC_ALL=C sort -k2 > SHA256SUMS
 )
 
-export ROOT OUT_DIR HEAD_SHA UPSTREAM_SHA SOURCE_DATE_EPOCH COMMIT_TIMESTAMP PUBLIC_URL
+export ROOT OUT_DIR HEAD_SHA ORIGIN_MAIN_SHA UPSTREAM_SHA SOURCE_DATE_EPOCH COMMIT_TIMESTAMP PUBLIC_URL
 NODE_VERSION="$(node --version)"
 export NODE_VERSION
 export PNPM_VERSION
@@ -300,6 +313,7 @@ const manifest = {
     product: 'HappyHerd',
     source: {
         happyHerdSha: process.env.HEAD_SHA,
+        originMainSha: process.env.ORIGIN_MAIN_SHA,
         upstreamBaseSha: process.env.UPSTREAM_SHA,
         sourceDateEpoch: Number(process.env.SOURCE_DATE_EPOCH),
         commitTimestamp: process.env.COMMIT_TIMESTAMP,

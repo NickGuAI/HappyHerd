@@ -416,6 +416,7 @@ export function getCodexEffortLevels(): EffortLevel[] {
         { key: 'medium', name: 'medium' },
         { key: 'high', name: 'high' },
         { key: 'xhigh', name: 'xhigh' },
+        { key: 'max', name: 'max' },
     ];
 }
 

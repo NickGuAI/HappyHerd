@@ -49,6 +49,10 @@ import {
     automationMetadataFromEnvironment,
     readAutomationBootstrapFromEnvironment,
 } from '@/automations/sessionBootstrap';
+import {
+    AutomationGoalTerminalGate,
+    persistAutomationProviderOutcome,
+} from '@/automations/providerOutcome';
 import { systemPrompt } from './utils/systemPrompt';
 
 /** JavaScript runtime to use for spawning Claude Code */
@@ -70,7 +74,7 @@ export interface StartOptions {
 
 const DEFAULT_CLAUDE_PERMISSION_MODE: PermissionMode = 'yolo';
 const DEFAULT_CLAUDE_MODEL = 'opus';
-const DEFAULT_CLAUDE_EFFORT: 'low' | 'medium' | 'high' | 'xhigh' | 'max' = 'medium';
+const DEFAULT_CLAUDE_EFFORT: 'low' | 'medium' | 'high' | 'xhigh' | 'max' = 'max';
 type ClaudeGoalCommand = NonNullable<ReturnType<typeof parseClaudeGoalActionParams>>;
 type PendingClaudeGoalAction = {
     command: ClaudeGoalCommand;
@@ -87,6 +91,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     const sessionTag = randomUUID();
     const happyHerdContextPrompt = await readContextPromptFromEnvironment();
     const automationBootstrap = await readAutomationBootstrapFromEnvironment();
+    const automationGoalGate = new AutomationGoalTerminalGate();
 
     // Log environment info at startup
     logger.debugLargeJson('[START] Happy process started', getEnvironmentInfo());
@@ -201,6 +206,9 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     // Handle server unreachable case - run Claude locally with hot reconnection
     // Note: connectionState.notifyOffline() was already called by api.ts with error details
     if (!response) {
+        if (automationBootstrap) {
+            throw new Error('HappyHerd automation requires a reachable server-backed session');
+        }
         let offlineSessionId: string | null = null;
 
         const reconnection = startOfflineReconnection({
@@ -447,6 +455,9 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         }
         observedClaudeGoalRevisions.add(event.sourceRevision);
         latestClaudeGoalStatus = goalStatus;
+        if (automationBootstrap) {
+            automationGoalGate.observe(goalStatus);
+        }
         settlePendingClaudeGoalAction(goalStatus);
         session.updateAgentState((current) => ({
             ...current,
@@ -773,9 +784,9 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         if (message.meta?.hasOwnProperty('effort')) {
             const incoming = (message.meta as Record<string, unknown>).effort;
             if (incoming === null || incoming === undefined) {
-                messageEffort = undefined;
-                currentEffort = undefined;
-                logger.debug(`[loop] Effort reset to default`);
+                messageEffort = DEFAULT_CLAUDE_EFFORT;
+                currentEffort = DEFAULT_CLAUDE_EFFORT;
+                logger.debug(`[loop] Effort reset to default: ${DEFAULT_CLAUDE_EFFORT}`);
             } else if (typeof incoming === 'string' && VALID_EFFORTS.has(incoming)) {
                 messageEffort = incoming as 'low' | 'medium' | 'high' | 'xhigh' | 'max';
                 currentEffort = messageEffort;
@@ -853,6 +864,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
 
     if (automationBootstrap) {
         messageQueue.push(automationBootstrap.instruction, currentEnhancedMode(), []);
+        messageQueue.close();
         logger.debug(`[AUTOMATIONS] Queued initial Claude instruction for ${automationBootstrap.automationId}`);
     }
 
@@ -957,40 +969,69 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     registerKillSessionHandler(session.rpcHandlerManager, () => cleanup({ archive: true }));
 
     // Create claude loop
-    const exitCode = await loop({
-        path: workingDirectory,
-        model: options.model,
-        permissionMode: initialPermissionMode,
-        startingMode: options.startingMode,
-        messageQueue,
-        api,
-        allowedTools: happyServer.toolNames.map(toolName => `mcp__happy__${toolName}`),
-        onModeChange: (newMode) => {
-            currentRunMode = newMode;
-            session.sendSessionEvent({ type: 'switch', mode: newMode });
-            session.updateAgentState((currentState) => ({
-                ...currentState,
-                controlledByUser: newMode === 'local'
-            }));
-        },
-        onSessionReady: (sessionInstance) => {
-            // Store reference for hook server callback
-            currentSession = sessionInstance;
-        },
-        onAbort: resetCurrentModeDefaults,
-        mcpServers: {
-            'happy': {
-                type: 'http' as const,
-                url: happyServer.url,
-            }
-        },
-        session,
-        claudeEnvVars: options.claudeEnvVars,
-        claudeArgs: options.claudeArgs,
-        sandboxConfig,
-        hookSettingsPath,
-        jsRuntime: options.jsRuntime
-    });
+    let automationProviderResult: { status: 'completed' | 'failed'; message: string | null } | null = null;
+    let exitCode: number;
+    try {
+        exitCode = await loop({
+            path: workingDirectory,
+            model: options.model,
+            permissionMode: initialPermissionMode,
+            startingMode: options.startingMode,
+            messageQueue,
+            api,
+            allowedTools: happyServer.toolNames.map(toolName => `mcp__happy__${toolName}`),
+            onModeChange: (newMode) => {
+                currentRunMode = newMode;
+                session.sendSessionEvent({ type: 'switch', mode: newMode });
+                session.updateAgentState((currentState) => ({
+                    ...currentState,
+                    controlledByUser: newMode === 'local'
+                }));
+            },
+            onSessionReady: (sessionInstance) => {
+                // Store reference for hook server callback
+                currentSession = sessionInstance;
+            },
+            onAbort: resetCurrentModeDefaults,
+            onProviderResult: (result) => {
+                if (automationBootstrap) automationProviderResult = result;
+            },
+            mcpServers: {
+                'happy': {
+                    type: 'http' as const,
+                    url: happyServer.url,
+                }
+            },
+            session,
+            claudeEnvVars: options.claudeEnvVars,
+            claudeArgs: options.claudeArgs,
+            sandboxConfig,
+            hookSettingsPath,
+            jsRuntime: options.jsRuntime
+        });
+    } catch (error) {
+        if (!automationBootstrap) throw error;
+        automationProviderResult = {
+            status: 'failed',
+            message: error instanceof Error ? error.message : String(error),
+        };
+        exitCode = 1;
+    }
+
+    if (automationBootstrap) {
+        await automationGoalGate.wait();
+        const terminal = automationProviderResult ?? {
+            status: 'failed' as const,
+            message: 'Claude automation ended without a provider result.',
+        };
+        await persistAutomationProviderOutcome(
+            session,
+            automationBootstrap,
+            terminal.status,
+            terminal.message,
+        );
+        if (terminal.status === 'failed') exitCode = 1;
+    }
 
     // Cleanup session resources (intervals, callbacks) - prevents memory leak
     // Note: currentSession is set by onSessionReady callback during loop()

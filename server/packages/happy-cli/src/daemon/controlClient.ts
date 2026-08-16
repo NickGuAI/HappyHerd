@@ -7,6 +7,7 @@ import { logger } from '@/ui/logger';
 import { clearDaemonState, readDaemonState } from '@/persistence';
 import { Metadata } from '@/api/types';
 import { configuration } from '@/configuration';
+import { daemonInstanceKey, maintainDaemonSessionRegistration } from './sessionRegistration';
 
 async function daemonPost(path: string, body?: any, timeoutOverride?: number): Promise<{ error?: string } | any> {
   const state = await readDaemonState();
@@ -69,6 +70,7 @@ async function daemonPost(path: string, body?: any, timeoutOverride?: number): P
 
 const SESSION_STARTED_RETRY_TIMEOUT_MS = 3000;
 const SESSION_STARTED_RETRY_INTERVAL_MS = 100;
+const sessionRegistrationWatchers = new Map<string, () => void>();
 
 export async function notifyDaemonSessionStarted(
   sessionId: string,
@@ -88,22 +90,39 @@ export async function notifyDaemonSessionStarted(
   const payload = { sessionId, metadata, encryption };
   const deadline = Date.now() + SESSION_STARTED_RETRY_TIMEOUT_MS;
   let result: { error?: string } | any;
+  const installRegistrationWatcher = async (): Promise<void> => {
+    const initialDaemonKey = result?.error ? null : daemonInstanceKey(await readDaemonState());
+    sessionRegistrationWatchers.get(sessionId)?.();
+    sessionRegistrationWatchers.set(sessionId, maintainDaemonSessionRegistration({
+      initialDaemonKey,
+      readState: readDaemonState,
+      register: async () => !(await daemonPost('/session-started', payload))?.error,
+    }));
+  };
 
   while (true) {
     result = await daemonPost('/session-started', payload);
     if (!result?.error) {
+      await installRegistrationWatcher();
       return result;
     }
     if (Date.now() >= deadline) {
+      await installRegistrationWatcher();
       return result;
     }
     await new Promise(resolve => setTimeout(resolve, SESSION_STARTED_RETRY_INTERVAL_MS));
   }
 }
 
-export async function listDaemonSessions(): Promise<any[]> {
+export interface DaemonSessionSummary {
+  startedBy: string;
+  happySessionId: string;
+  pid: number;
+}
+
+export async function listDaemonSessions(): Promise<DaemonSessionSummary[]> {
   const result = await daemonPost('/list');
-  return result.children || [];
+  return Array.isArray(result.children) ? result.children as DaemonSessionSummary[] : [];
 }
 
 export async function stopDaemonSession(sessionId: string): Promise<boolean> {

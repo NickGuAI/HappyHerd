@@ -26,13 +26,14 @@ readarray -t manifest_values < <(node - "$ARTIFACT_DIR/build-manifest.json" <<'N
 const fs = require('node:fs');
 const manifest = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 const sourceSha = manifest.source?.happyHerdSha;
+const originMainSha = manifest.source?.originMainSha;
 const daemonArtifacts = Array.isArray(manifest.artifacts)
     ? manifest.artifacts.filter((artifact) => /^happyherd-daemon-.+\.tar\.gz$/.test(artifact.filename))
     : [];
 const bridgeArtifacts = Array.isArray(manifest.artifacts)
     ? manifest.artifacts.filter((artifact) => /^happyherd-agent-.+\.tar\.gz$/.test(artifact.filename))
     : [];
-if (!/^[0-9a-f]{40}$/.test(sourceSha ?? '') || daemonArtifacts.length !== 1 || bridgeArtifacts.length !== 1) {
+if (!/^[0-9a-f]{40}$/.test(sourceSha ?? '') || originMainSha !== sourceSha || daemonArtifacts.length !== 1 || bridgeArtifacts.length !== 1) {
     process.exit(1);
 }
 process.stdout.write(`${sourceSha}\n${daemonArtifacts[0].filename}\n${bridgeArtifacts[0].filename}\n`);
@@ -99,6 +100,12 @@ chmod 0755 "$STAGE/daemon/bin/happy.mjs" "$STAGE/scripts/"*.sh
 
 [[ -x "$STAGE/daemon/bin/happy.mjs" ]] || die 'daemon entrypoint is not executable'
 [[ -x "$STAGE/daemon/bin/rg" ]] || die 'daemon sandbox ripgrep is not executable'
+[[ -f "$STAGE/daemon/happyherd-release.json" ]] || die 'daemon release identity is missing'
+node - "$STAGE/daemon/happyherd-release.json" "$SOURCE_SHA" <<'NODE'
+const fs = require('node:fs');
+const identity = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+if (identity.schemaVersion !== 1 || identity.happyHerdSha !== process.argv[3]) process.exit(1);
+NODE
 [[ -f "$STAGE/happyherd-agent/dist/index.mjs" ]] || die 'HappyHerd Agent entrypoint is missing'
 [[ -x "$STAGE/scripts/run-container.sh" ]] || die 'server launcher is not executable'
 [[ -x "$STAGE/scripts/activate-release.sh" ]] || die 'release activator is not executable'
@@ -114,6 +121,7 @@ LINK_STAGE=''
 [[ "$(realpath "$CURRENT_LINK")" == "$TARGET" ]] || die 'current link did not switch atomically'
 [[ -x "$CURRENT_LINK/daemon/bin/happy.mjs" ]] || die 'installed daemon is not executable through current'
 [[ -x "$CURRENT_LINK/daemon/bin/rg" ]] || die 'installed sandbox ripgrep is unavailable through current'
+[[ -f "$CURRENT_LINK/daemon/happyherd-release.json" ]] || die 'installed daemon release identity is unavailable through current'
 [[ -f "$CURRENT_LINK/happyherd-agent/dist/index.mjs" ]] || die 'installed HappyHerd Agent is unavailable through current'
 [[ -x "$CURRENT_LINK/scripts/run-container.sh" ]] || die 'installed server launcher is unavailable through current'
 

@@ -75,6 +75,8 @@ export interface DaemonLocallyPersistedState {
   httpPort: number;
   startTime: string;
   startedWithCliVersion: string;
+  instanceId?: string;
+  releaseSha?: string;
   lastHeartbeat?: string;
   daemonLogPath?: string;
 }

@@ -37,6 +37,8 @@ grep -Fq 'COPY --from=builder /repo/packages/happy-server-self-host /repo/packag
 grep -Fq 'HEALTHCHECK' "$DOCKERFILE" || fail 'runtime image has no container healthcheck'
 grep -Fq 'org.opencontainers.image.revision' "$DOCKERFILE" || fail 'image has no source revision label'
 grep -Fq 'org.happyherd.brand.sha256' "$DOCKERFILE" || fail 'image has no brand provenance label'
+grep -Fq 'assert-origin-main.sh' "$ROOT/scripts/build-release-image.sh" || \
+    fail 'release image builder does not require HEAD to equal live origin/main'
 grep -Fq '@sha256:[0-9a-f]{64}' "$ROOT/scripts/smoke-release-image.sh" || \
     fail 'smoke runner does not reject mutable image references'
 grep -Fq 'docker volume create' "$ROOT/scripts/smoke-release-image.sh" || \

@@ -37,10 +37,18 @@ import { handleCodexCommand } from './commands/codexCommand'
 import { sanitizeSessionEnvironment } from './daemon/sessionEnvironment'
 import { handleAutomationCommand } from './commands/automation'
 import { handleCommanderCommand } from './commands/commander'
+import { configuration } from './configuration'
 
 
 (async () => {
   const args = process.argv.slice(2)
+
+  // Top-level version is a Happy CLI query, not a Claude passthrough. Return
+  // before authentication, daemon startup, or any provider launch.
+  if (args.length === 1 && (args[0] === '--version' || args[0] === '-v')) {
+    console.log(`happy version: ${configuration.currentCliVersion}`)
+    return
+  }
 
   // If --version is passed - do not log, its likely daemon inquiring about our version
   if (!args.includes('--version')) {
@@ -784,11 +792,9 @@ ${chalk.bold.cyan('Claude Code Options (from `claude --help`):')}
       process.exit(0)
     }
 
-    // Show version
-    if (showVersion) {
-      console.log(`happy version: ${packageJson.version}`)
-      // Don't exit - continue to pass --version to Claude Code
-    }
+    // A standalone top-level version flag returned before command dispatch.
+    // Retain passthrough behavior only when it accompanies other Claude args.
+    if (showVersion) console.log(`happy version: ${packageJson.version}`)
 
     // Normal flow - auth and machine setup
     const {

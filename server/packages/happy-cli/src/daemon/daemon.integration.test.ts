@@ -127,6 +127,7 @@ describe('Daemon Integration Tests', { timeout: 180_000 }, () => {
     );
     
     expect(spawnedSession).toBeDefined();
+    if (!spawnedSession) throw new Error('Spawned daemon session was not tracked');
     expect(spawnedSession.startedBy).toBe('daemon');
     
     // Clean up - stop the spawned session
@@ -196,9 +197,11 @@ describe('Daemon Integration Tests', { timeout: 180_000 }, () => {
     );
 
     expect(terminalSession).toBeDefined();
+    if (!terminalSession) throw new Error('Terminal session was not tracked');
     expect(terminalSession.startedBy).toBe('happy directly - likely by user from terminal');
     
     expect(daemonSession).toBeDefined();
+    if (!daemonSession) throw new Error('Daemon session was not tracked');
     expect(daemonSession.startedBy).toBe('daemon');
 
     // Clean up both sessions

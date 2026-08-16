@@ -4,6 +4,8 @@ import {
     mapCodexGoalEventToAgentGoalStatus,
     parseCodexGoalActionParams,
     parseCodexGoalCommand,
+    planCodexGoalTurn,
+    prepareCodexGoalTurn,
 } from './codexGoalStatus';
 
 describe('mapCodexGoalEventToAgentGoalStatus', () => {
@@ -186,6 +188,39 @@ describe('parseCodexGoalCommand', () => {
     it('ignores empty goal commands and ordinary text', () => {
         expect(parseCodexGoalCommand('/goal')).toBeNull();
         expect(parseCodexGoalCommand('please /goal finish the release')).toBeNull();
+    });
+
+    it('plans goal set as one normal objective turn and clear as state-only', () => {
+        expect(planCodexGoalTurn('/goal finish the release')).toEqual({
+            command: { type: 'set', objective: 'finish the release' },
+            turnText: 'finish the release',
+        });
+        expect(planCodexGoalTurn('/goal clear')).toEqual({
+            command: { type: 'clear' },
+            turnText: null,
+        });
+        expect(planCodexGoalTurn('ordinary follow-up')).toEqual({
+            command: null,
+            turnText: 'ordinary follow-up',
+        });
+    });
+
+    it('applies goal state exactly once before returning the normal turn text', async () => {
+        const applied: string[] = [];
+        const applyCommand = vi.fn(async (command: { type: 'set'; objective: string } | { type: 'clear' }) => {
+            applied.push(command.type);
+        });
+
+        const setTurn = await prepareCodexGoalTurn('/goal finish the release', applyCommand);
+        expect(applied).toEqual(['set']);
+        expect(setTurn).toBe('finish the release');
+        expect(applyCommand).toHaveBeenCalledTimes(1);
+
+        applyCommand.mockClear();
+        const clearTurn = await prepareCodexGoalTurn('/goal clear', applyCommand);
+        expect(applied).toEqual(['set', 'clear']);
+        expect(clearTurn).toBeNull();
+        expect(applyCommand).toHaveBeenCalledTimes(1);
     });
 });
 

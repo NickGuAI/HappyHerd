@@ -37,6 +37,12 @@ grep -Fq 'OUT_DIR="$ROOT/$OUT_DIR"' "$BUILDER" || \
 # shellcheck disable=SC2016
 grep -Fq 'node "$STAGE/daemon/bin/happy.mjs" auth status' "$BUILDER" || \
     fail 'release builder has no clean-directory daemon smoke probe'
+grep -Fq 'happyherd-release.json' "$BUILDER" || \
+    fail 'daemon artifact does not embed its immutable HappyHerd source identity'
+grep -Fq 'assert-origin-main.sh' "$BUILDER" || \
+    fail 'release builder does not require HEAD to equal live origin/main'
+grep -Fq 'originMainSha' "$BUILDER" || \
+    fail 'release manifest does not carry verified origin/main provenance'
 
 # The contract intentionally matches a literal shell variable.
 # shellcheck disable=SC2016

@@ -37,12 +37,12 @@ const codeAgentDefaults: Record<AgentKey, AgentDefaultConfig> = {
     claude: {
         permissionMode: 'bypassPermissions',
         modelMode: HAPPYHERD_DEFAULT_CLAUDE_MODEL_SLUG,
-        effortLevel: 'medium',
+        effortLevel: 'max',
     },
-    // Codex effort support is model- and provider-version-specific. A null
-    // code default means "pick the highest effort advertised for the selected
-    // model"; it must never be forwarded to the provider as a literal value.
-    codex: { permissionMode: 'yolo', modelMode: 'gpt-5.5', effortLevel: null },
+    // Max is the configured default. The selected model's advertised
+    // capabilities remain authoritative, so unsupported models fall back to
+    // their highest available effort rather than receiving an invalid value.
+    codex: { permissionMode: 'yolo', modelMode: 'gpt-5.5', effortLevel: 'max' },
     gemini: { permissionMode: 'default', modelMode: 'gemini-2.5-pro', effortLevel: null },
     openclaw: { permissionMode: 'default', modelMode: 'default', effortLevel: null },
     agy: { permissionMode: 'default', modelMode: 'Gemini 3.1 Pro (High)', effortLevel: null },
@@ -84,9 +84,10 @@ export function resolveAgentDefaultConfig(
 
 /**
  * Resolve the effective effort against the selected model's authoritative
- * capability list. Codex has a semantic "maximum available" default rather
- * than a hardcoded provider token: today that may be `xhigh`, while a future
- * model can advertise `ultra` (or another value) without a HappyHerd release.
+ * capability list. Claude and Codex have a semantic "maximum available"
+ * default rather than forcing an unsupported provider token: today that may
+ * be `xhigh`, while a future model can advertise another top value without a
+ * HappyHerd release.
  *
  * An explicit synchronized preference wins while it remains supported. If a
  * user moves to a model that does not support the saved value, use that
@@ -120,7 +121,8 @@ export function resolveSupportedAgentEffortLevel(
     // model exposes no effort control, not that validation should be skipped.
     if (availableEfforts.length === 0) return null;
 
-    if (normalizeAgentKey(flavor) === 'codex') {
+    const agent = normalizeAgentKey(flavor);
+    if (agent === 'claude' || agent === 'codex') {
         return availableEfforts.at(-1)?.key ?? null;
     }
 

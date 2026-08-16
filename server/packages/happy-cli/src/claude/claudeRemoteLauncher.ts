@@ -27,7 +27,12 @@ interface PermissionsField {
     allowedTools?: string[];
 }
 
-export async function claudeRemoteLauncher(session: Session): Promise<'switch' | 'exit'> {
+export async function claudeRemoteLauncher(
+    session: Session,
+    opts: {
+        onProviderResult?: (result: { status: 'completed' | 'failed'; message: string | null }) => void;
+    } = {},
+): Promise<'switch' | 'exit'> {
     logger.debug('[claudeRemoteLauncher] Starting remote launcher');
 
     // Check if we have a TTY for UI rendering
@@ -137,6 +142,19 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
     let notifiedQuestionToolCalls = new Set<string>();
 
     function onMessage(message: SDKMessage) {
+
+        if (message.type === 'result') {
+            const succeeded = message.subtype === 'success' && message.is_error !== true;
+            const detail = succeeded
+                ? null
+                : ('errors' in message && Array.isArray(message.errors) && message.errors.length > 0
+                    ? message.errors.join('; ')
+                    : `Claude automation ended with ${message.subtype}.`);
+            opts.onProviderResult?.({
+                status: succeeded ? 'completed' : 'failed',
+                message: detail,
+            });
+        }
 
         // Write to message log
         formatClaudeMessageForInk(message, messageBuffer);
@@ -443,6 +461,10 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                     },
                     signal: abortController.signal,
                 });
+
+                if (session.queue.isClosed()) {
+                    exitReason = 'exit';
+                }
                 
                 // Consume one-time Claude flags after spawn
                 session.consumeOneTimeFlags();
@@ -456,6 +478,13 @@ export async function claudeRemoteLauncher(session: Session): Promise<'switch' |
                 if (!exitReason) {
                     session.client.closeClaudeSessionTurn('failed');
                     session.client.sendSessionEvent({ type: 'message', message: launchFailureMessage(e) });
+                    if (session.queue.isClosed()) {
+                        opts.onProviderResult?.({
+                            status: 'failed',
+                            message: e instanceof Error ? e.message : String(e),
+                        });
+                        exitReason = 'exit';
+                    }
                     continue;
                 }
             } finally {
