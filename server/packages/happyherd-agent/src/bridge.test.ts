@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ActorAuthorizer } from './authorization';
-import { DiscordAgentBridge } from './bridge';
+import { DiscordAgentBridge, parseLinkCommand } from './bridge';
 import { CapabilityRegistry } from './capabilities';
 import type { BridgeConfig } from './config';
 import type { DiscordReplyTransport } from './discord';
@@ -128,6 +128,156 @@ afterEach(async () => {
 });
 
 describe('DiscordAgentBridge', () => {
+  it('recognizes only an exact bounded account-link command', () => {
+    expect(parseLinkCommand('link EXAMPLE-CODE-1234')).toBe('EXAMPLE-CODE-1234');
+    expect(parseLinkCommand('link 123456')).toBe('123456');
+    expect(parseLinkCommand('link base64url_CODE')).toBe('base64url_CODE');
+    expect(parseLinkCommand('link ab+c/def==')).toBe('ab+c/def==');
+    expect(parseLinkCommand('please link EXAMPLE-CODE-1234')).toBeNull();
+    expect(parseLinkCommand('link code with spaces')).toBeNull();
+    expect(parseLinkCommand(`link ${'a'.repeat(257)}`)).toBeNull();
+  });
+
+  it('fails closed for malformed link attempts without authorizing or creating a session', async () => {
+    const state = await store();
+    const happy = new FakeHappy();
+    const discord = new FakeDiscord();
+    const authorize = vi.fn(async (input: NormalizedDiscordMessage, mode: 'personal' | 'shared-read-only') => (
+      allowed(input, mode)
+    ));
+    const link = vi.fn(async () => ({ decision: 'linked' as const, safeMessage: 'Account connected.' }));
+    const bridge = new DiscordAgentBridge({
+      config: config(),
+      store: state,
+      authorizer: { authorize, link },
+      capabilities: new CapabilityRegistry(),
+      happy,
+      discord,
+    });
+
+    await bridge.handle(message({ content: 'link code with spaces' }));
+    await bridge.handle(message({ sourceMessageId: 'source-2', content: `link ${'a'.repeat(257)}` }));
+    await bridge.handle(message({ sourceMessageId: 'source-3', content: 'link' }));
+
+    expect(authorize).not.toHaveBeenCalled();
+    expect(link).not.toHaveBeenCalled();
+    expect(happy.bindings).toHaveLength(0);
+    expect(happy.turns).toHaveLength(0);
+    expect(discord.replies.map((reply) => reply.content)).toEqual([
+      'Invalid account-link command. Send `link CODE` with one code token.',
+      'Invalid account-link command. Send `link CODE` with one code token.',
+      'Invalid account-link command. Send `link CODE` with one code token.',
+    ]);
+  });
+
+  it('links in DM without creating a HappyHerd session or persisting message text', async () => {
+    const state = await store();
+    const happy = new FakeHappy();
+    const discord = new FakeDiscord();
+    const authorizer: ActorAuthorizer = {
+      authorize: vi.fn(async (input, mode) => allowed(input, mode)),
+      link: vi.fn(async () => ({ decision: 'linked' as const, safeMessage: 'Account connected.' })),
+    };
+    const bridge = new DiscordAgentBridge({
+      config: config(),
+      store: state,
+      authorizer,
+      capabilities: new CapabilityRegistry(),
+      happy,
+      discord,
+    });
+    const input = message({ content: 'link EXAMPLE-CODE-1234' });
+
+    await bridge.handle(input);
+
+    expect(authorizer.authorize).not.toHaveBeenCalled();
+    expect(authorizer.link).toHaveBeenCalledWith(input, 'EXAMPLE-CODE-1234');
+    expect(happy.bindings).toHaveLength(0);
+    expect(happy.turns).toHaveLength(0);
+    expect(discord.replies[0]).toMatchObject({ content: 'Account connected.' });
+    expect(JSON.stringify(state.getInbound(input.sourceMessageId))).not.toContain('EXAMPLE-CODE-1234');
+  });
+
+  it('does not create a session when linking is unconfigured or attempted outside DM', async () => {
+    const state = await store();
+    const happy = new FakeHappy();
+    const discord = new FakeDiscord();
+    const authorize = vi.fn(async (input: NormalizedDiscordMessage, mode: 'personal' | 'shared-read-only') => (
+      allowed(input, mode)
+    ));
+    const bridge = new DiscordAgentBridge({
+      config: config(),
+      store: state,
+      authorizer: { authorize },
+      capabilities: new CapabilityRegistry(),
+      happy,
+      discord,
+    });
+
+    await bridge.handle(message({ content: 'link 123456' }));
+    await bridge.handle(message({
+      sourceMessageId: 'source-2',
+      content: 'link 654321',
+      channelId: 'channel-1',
+      guildId: 'guild-1',
+      surfaceKind: 'guild-channel',
+      surfaceKey: 'guild:guild-1:channel:channel-1',
+      mentionsApplication: true,
+    }));
+
+    expect(authorize).not.toHaveBeenCalled();
+    expect(happy.bindings).toHaveLength(0);
+    expect(happy.turns).toHaveLength(0);
+    expect(discord.replies.map((reply) => reply.content)).toEqual([
+      'Account linking is not configured for this agent.',
+      'Send the account-link command in a direct message to this bot.',
+    ]);
+  });
+
+  it('retries interrupted link delivery without consuming the one-time code twice', async () => {
+    const state = await store();
+    const happy = new FakeHappy();
+    const discord = new FakeDiscord();
+    discord.failuresRemaining = 1;
+    const link = vi.fn(async () => ({
+      decision: 'linked' as const,
+      safeMessage: 'Organization-specific success text.',
+    }));
+    const bridge = new DiscordAgentBridge({
+      config: config(),
+      store: state,
+      authorizer: {
+        authorize: vi.fn(async (input, mode) => allowed(input, mode)),
+        link,
+      },
+      capabilities: new CapabilityRegistry(),
+      happy,
+      discord,
+    });
+
+    await bridge.handle(message({ content: 'link 123456' }));
+    expect(link).toHaveBeenCalledTimes(1);
+    expect(state.getInbound('source-1')).toMatchObject({
+      status: 'delivering',
+      deliveryKind: 'link',
+    });
+
+    await bridge.reconcile();
+
+    expect(link).toHaveBeenCalledTimes(1);
+    expect(discord.replies).toEqual([{
+      channelId: 'dm-channel-1',
+      content: 'Account connected.',
+      sourceMessageId: 'source-1:link',
+    }]);
+    expect(state.getInbound('source-1')).toMatchObject({
+      status: 'delivered',
+      deliveryKind: 'link',
+    });
+    expect(happy.bindings).toHaveLength(0);
+    expect(happy.turns).toHaveLength(0);
+  });
+
   it('routes one inbound message through one isolated HappyHerd turn and delivers once', async () => {
     const state = await store();
     const happy = new FakeHappy();

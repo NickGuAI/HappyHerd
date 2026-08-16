@@ -131,6 +131,25 @@ function inspectText(path, text) {
   return [...new Set(findings)];
 }
 
+export function syntheticPullRequestMergeParents({ commit, subject, record, env = process.env }) {
+  if (env.GITHUB_EVENT_NAME !== 'pull_request' || env.GITHUB_SHA !== commit) return null;
+  if (record.length !== 3) return null;
+
+  const match = /^Merge ([0-9a-f]{40}) into ([0-9a-f]{40})$/.exec(subject);
+  if (!match) return null;
+
+  const [, firstParentCommit, branchHead] = record;
+  const [, subjectBranchHead, subjectFirstParent] = match;
+  if (firstParentCommit !== subjectFirstParent || branchHead !== subjectBranchHead) return null;
+  return { firstParentCommit, branchHead };
+}
+
+function branchCommitIds(firstParentCommit, branchHead) {
+  return git([
+    'rev-list', '--first-parent', '--reverse', `${firstParentCommit}..${branchHead}`,
+  ]).trim().split('\n').filter(Boolean);
+}
+
 function ownedCommitIds() {
   const owned = new Set();
   let firstParent = [];
@@ -142,17 +161,29 @@ function ownedCommitIds() {
   }
 
   for (const commit of firstParent) {
-    owned.add(commit);
     const subject = git(['show', '-s', '--format=%s', commit]).trim();
-    if (!/^Merge pull request #[0-9]+ from [A-Za-z0-9_.-]+\/\S+$/.test(subject)) continue;
-
     const record = git(['rev-list', '--parents', '-n', '1', commit]).trim().split(/\s+/);
+    const syntheticParents = syntheticPullRequestMergeParents({ commit, subject, record });
+
+    // GitHub creates a temporary merge object for pull_request workflows. Its
+    // author/committer belong to the hosting operation, not to repository
+    // history, so do not treat that ephemeral node as an owned commit. The
+    // actual PR commits remain fully scanned through the second parent.
+    if (syntheticParents) {
+      for (const branchCommit of branchCommitIds(
+        syntheticParents.firstParentCommit,
+        syntheticParents.branchHead,
+      )) owned.add(branchCommit);
+      continue;
+    }
+
+    owned.add(commit);
+    if (!/^Merge pull request #[0-9]+ from [A-Za-z0-9_.-]+\/\S+$/.test(subject)) continue;
     if (record.length !== 3) continue;
     const [, firstParentCommit, branchHead] = record;
-    const branchCommits = git([
-      'rev-list', '--first-parent', '--reverse', `${firstParentCommit}..${branchHead}`,
-    ]).trim().split('\n').filter(Boolean);
-    for (const branchCommit of branchCommits) owned.add(branchCommit);
+    for (const branchCommit of branchCommitIds(firstParentCommit, branchHead)) {
+      owned.add(branchCommit);
+    }
   }
 
   return [...owned];

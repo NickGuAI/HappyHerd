@@ -60,6 +60,21 @@ function safeFailure(reference: string): string {
 }
 
 const DEFAULT_DENIAL = 'I can’t verify an active service link for this Discord account.';
+const LINK_IN_DM = 'Send the account-link command in a direct message to this bot.';
+const INVALID_LINK_COMMAND = 'Invalid account-link command. Send `link CODE` with one code token.';
+const LINK_SUCCESS = 'Account connected.';
+
+export function parseLinkCommand(content: string): string | null {
+  // The organization service owns link-code shape and validation. The generic
+  // bridge recognizes an exact command with one bounded non-whitespace token.
+  // This includes numeric, base64url, standard Base64, and other opaque formats.
+  const match = /^link\s+(\S{1,256})$/i.exec(content.trim());
+  return match?.[1] ?? null;
+}
+
+function isLinkCommandAttempt(content: string): boolean {
+  return /^link(?:\s|$)/i.test(content.trim());
+}
 
 class TerminalSettlementError extends Error {}
 
@@ -220,6 +235,43 @@ export class DiscordAgentBridge {
     });
   }
 
+  private async processLink(
+    record: InboundRecord,
+    message: NormalizedDiscordMessage,
+    linkCode: string,
+  ): Promise<void> {
+    if (message.surfaceKind !== 'dm') {
+      await this.deny(record, LINK_IN_DM);
+      return;
+    }
+    if (!this.authorizer.link) {
+      await this.deny(record, 'Account linking is not configured for this agent.');
+      return;
+    }
+    const decision = await this.authorizer.link(message, linkCode);
+    if (decision.decision === 'deny') {
+      await this.deny(record, decision.safeMessage);
+      return;
+    }
+    await this.deliverLink(record);
+  }
+
+  private async deliverLink(record: InboundRecord): Promise<void> {
+    await this.store.updateInbound(record.sourceMessageId, {
+      status: 'delivering',
+      deliveryKind: 'link',
+    });
+    const replyMessageIds = await this.discord.sendReply(
+      record.channelId,
+      LINK_SUCCESS,
+      `${record.sourceMessageId}:link`,
+    );
+    await this.store.updateInbound(record.sourceMessageId, {
+      status: 'delivered',
+      replyMessageIds,
+    });
+  }
+
   private async process(message: NormalizedDiscordMessage, mode: AuthorizationGrant['mode']): Promise<void> {
     let record = this.store.getInbound(message.sourceMessageId);
     if (!record || ['delivered', 'denied', 'failed'].includes(record.status)) {
@@ -232,6 +284,19 @@ export class DiscordAgentBridge {
       }
       if (record.status === 'delivering' && record.deliveryKind === 'failure') {
         await this.deliverFailure(record, record.failureReference ?? randomUUID());
+        return;
+      }
+      if (record.status === 'delivering' && record.deliveryKind === 'link') {
+        await this.deliverLink(record);
+        return;
+      }
+      const linkCode = parseLinkCommand(message.content);
+      if (linkCode) {
+        await this.processLink(record, message, linkCode);
+        return;
+      }
+      if (isLinkCommandAttempt(message.content)) {
+        await this.deny(record, INVALID_LINK_COMMAND);
         return;
       }
       const decision = await this.authorizer.authorize(message, mode);
@@ -317,6 +382,10 @@ export class DiscordAgentBridge {
           }
           if (record.status === 'delivering' && record.deliveryKind === 'failure') {
             await this.deliverFailure(record, record.failureReference ?? randomUUID());
+            return;
+          }
+          if (record.status === 'delivering' && record.deliveryKind === 'link') {
+            await this.deliverLink(record);
             return;
           }
 

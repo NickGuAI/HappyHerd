@@ -3,11 +3,13 @@ import type {
   AuthorizationDecision,
   AuthorizationGrant,
   CapabilityMode,
+  LinkDecision,
   NormalizedDiscordMessage,
 } from './types';
 
 export interface ActorAuthorizer {
   authorize(message: NormalizedDiscordMessage, requestedMode: CapabilityMode): Promise<AuthorizationDecision>;
+  link?(message: NormalizedDiscordMessage, linkCode: string): Promise<LinkDecision>;
 }
 
 export type ServiceAuthorizationClientOptions = {
@@ -89,13 +91,14 @@ function parseGrant(
 
 export function verifyRequestSignature(
   secret: string,
+  agentId: string,
   timestamp: string,
   nonce: string,
   bodyHash: string,
   candidate: string,
 ): boolean {
   const expected = createHmac('sha256', secret)
-    .update(`${timestamp}\n${nonce}\n${bodyHash}`)
+    .update(`${agentId}\n${timestamp}\n${nonce}\n${bodyHash}`)
     .digest();
   let provided: Buffer;
   try {
@@ -118,28 +121,12 @@ export class ServiceAuthorizationClient implements ActorAuthorizer {
     };
   }
 
-  async authorize(
-    message: NormalizedDiscordMessage,
-    requestedMode: CapabilityMode,
-  ): Promise<AuthorizationDecision> {
-    const body = JSON.stringify({
-      schemaVersion: 1,
-      requestedCapability: 'discord-agent.turn',
-      requestedMode,
-      source: {
-        messageId: message.sourceMessageId,
-        discordUserId: message.authorDiscordId,
-        guildId: message.guildId,
-        channelId: message.channelId,
-        threadId: message.threadId,
-        surfaceKind: message.surfaceKind,
-      },
-    });
+  private async signedRequest(body: string): Promise<Record<string, unknown>> {
     const timestamp = String(this.options.now());
     const nonce = randomUUID();
     const bodyHash = createHash('sha256').update(body).digest('hex');
     const signature = createHmac('sha256', this.options.signingSecret)
-      .update(`${timestamp}\n${nonce}\n${bodyHash}`)
+      .update(`${this.options.agentId}\n${timestamp}\n${nonce}\n${bodyHash}`)
       .digest('hex');
     const url = new URL(this.options.authorizationPath, `${this.options.baseUrl}/`);
 
@@ -169,7 +156,28 @@ export class ServiceAuthorizationClient implements ActorAuthorizer {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
       throw new Error('Invalid service authorization response');
     }
-    const record = raw as Record<string, unknown>;
+    return raw as Record<string, unknown>;
+  }
+
+  async authorize(
+    message: NormalizedDiscordMessage,
+    requestedMode: CapabilityMode,
+  ): Promise<AuthorizationDecision> {
+    const body = JSON.stringify({
+      schemaVersion: 1,
+      requestedCapability: 'discord-agent.turn',
+      requestedMode,
+      source: {
+        messageId: message.sourceMessageId,
+        discordUserId: message.authorDiscordId,
+        guildId: message.guildId,
+        channelId: message.channelId,
+        parentChannelId: message.parentChannelId,
+        threadId: message.threadId,
+        surfaceKind: message.surfaceKind,
+      },
+    });
+    const record = await this.signedRequest(body);
     if (record.decision === 'deny') {
       return {
         decision: 'deny',
@@ -183,5 +191,39 @@ export class ServiceAuthorizationClient implements ActorAuthorizer {
       throw new Error('Invalid service authorization response: decision');
     }
     return parseGrant(record, message, requestedMode, this.options.now());
+  }
+
+  async link(message: NormalizedDiscordMessage, linkCode: string): Promise<LinkDecision> {
+    const body = JSON.stringify({
+      schemaVersion: 1,
+      requestedCapability: 'discord-agent.link',
+      linkCode,
+      source: {
+        messageId: message.sourceMessageId,
+        discordUserId: message.authorDiscordId,
+        guildId: message.guildId,
+        channelId: message.channelId,
+        parentChannelId: message.parentChannelId,
+        threadId: message.threadId,
+        surfaceKind: message.surfaceKind,
+      },
+    });
+    const record = await this.signedRequest(body);
+    if (record.decision === 'deny') {
+      return {
+        decision: 'deny',
+        code: nonEmptyString(record.code, 'denial code', 128),
+        ...(typeof record.safeMessage === 'string' && record.safeMessage.length <= 500
+          ? { safeMessage: record.safeMessage }
+          : {}),
+      };
+    }
+    if (record.decision !== 'linked') {
+      throw new Error('Invalid service authorization response: link decision');
+    }
+    return {
+      decision: 'linked',
+      safeMessage: nonEmptyString(record.safeMessage, 'safeMessage', 500),
+    };
   }
 }
