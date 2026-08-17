@@ -30,3 +30,4 @@ PUBLIC_RELEASE	accepted	fix(release): stabilize macOS disabled identities	script
 PUBLIC_RELEASE	accepted	fix(release): supply deterministic Windows spawn path	scripts/test-public-launcher-release-contract.sh
 PUBLIC_RELEASE	accepted	fix(release): tolerate empty Windows fixture logs	scripts/test-public-launcher-release-contract.sh
 PUBLIC_RELEASE	accepted	fix(release): parse macOS identity attributes safely	scripts/test-public-launcher-release-contract.sh
+PUBLIC_RELEASE	accepted	fix(release): wait for broker before credential purge	scripts/test-public-launcher-release-contract.sh

@@ -318,6 +318,15 @@ let b="";process.stdin.on("data",c=>{b+=c;if(Buffer.byteLength(b)>1048576)proces
   else
     sudo launchctl kickstart -k system/"$service_name" >/dev/null 2>&1 || fail 'broker service could not start to purge OS-store credentials'
   fi
+  broker_ready=0
+  attempt=0
+  while [ "$attempt" -lt 30 ]; do
+    if "$install_dir/bin/happyherd" doctor --installation >/dev/null 2>&1; then broker_ready=1; break; fi
+    attempt=$((attempt + 1))
+    sleep 1
+  done
+  [ "$broker_ready" -eq 1 ] \
+    || fail 'broker service did not become ready to purge OS-store credentials; installation was preserved'
   credential_output=$("$install_dir/bin/happyherd" disconnect --all) || fail 'OS-store credentials could not be verified and removed; installation was preserved'
   printf '%s\n' "$credential_output"
 

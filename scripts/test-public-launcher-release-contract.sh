@@ -272,6 +272,16 @@ fi
 service_recheck_line=$(grep -nF 'actual=$(mac_read_attribute "/Users/$service_user" RealName)' "$root/installers/uninstall.sh" | /usr/bin/cut -d: -f1)
 install_remove_line=$(grep -nF 'sudo rm -rf -- "$install_dir" "$state_root"' "$root/installers/uninstall.sh" | /usr/bin/tail -n 1 | /usr/bin/cut -d: -f1)
 test "$service_recheck_line" -lt "$install_remove_line"
+unix_service_start_line=$(grep -nF 'sudo launchctl kickstart -k system/"$service_name"' "$root/installers/uninstall.sh" | /usr/bin/cut -d: -f1)
+unix_uninstall_ready_line=$(grep -nF 'doctor --installation' "$root/installers/uninstall.sh" | /usr/bin/cut -d: -f1)
+unix_disconnect_line=$(grep -nF 'disconnect --all' "$root/installers/uninstall.sh" | /usr/bin/cut -d: -f1)
+test "$unix_service_start_line" -lt "$unix_uninstall_ready_line"
+test "$unix_uninstall_ready_line" -lt "$unix_disconnect_line"
+windows_service_start_line=$(grep -nF 'Start-Service -Name $ServiceName' "$root/installers/uninstall.ps1" | /usr/bin/cut -d: -f1)
+windows_uninstall_ready_line=$(grep -nF '& $Launcher doctor --installation' "$root/installers/uninstall.ps1" | /usr/bin/cut -d: -f1)
+windows_disconnect_line=$(grep -nF '& $Launcher disconnect --all' "$root/installers/uninstall.ps1" | /usr/bin/cut -d: -f1)
+test "$windows_service_start_line" -lt "$windows_uninstall_ready_line"
+test "$windows_uninstall_ready_line" -lt "$windows_disconnect_line"
 grep -Fq "signingPublicKey=crypto.createPublicKey(fs.readFileSync(e.HAPPYHERD_PRIVATE_KEY_PATH)).export({type:'spki',format:'pem'}).toString()" "$root/installers/install.sh.template"
 if grep -Fq 'HAPPYHERD_PUBLIC_KEY' "$root/installers/install.sh.template"; then
   echo 'Unix installer transports a multiline trust anchor through an environment variable' >&2

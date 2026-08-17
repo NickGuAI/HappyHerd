@@ -226,6 +226,13 @@ if ($Preflight.schemaVersion -ne 1 -or $null -eq $Preflight.verified -or $null -
 # Credentials must be purged by the still-running broker identity. If the
 # service or its OS vault is unavailable, preserve everything for repair.
 Start-Service -Name $ServiceName -ErrorAction SilentlyContinue
+$BrokerReady = $false
+for ($Attempt = 0; $Attempt -lt 30; $Attempt += 1) {
+  & $Launcher doctor --installation *> $null
+  if ($LASTEXITCODE -eq 0) { $BrokerReady = $true; break }
+  Start-Sleep -Seconds 1
+}
+if (-not $BrokerReady) { Fail 'broker service did not become ready to purge OS-store credentials; installation was preserved' }
 $DisconnectOutput = & $Launcher disconnect --all | Out-String
 if ($LASTEXITCODE -ne 0 -or -not $DisconnectOutput.Contains('from the OS secret store')) { Fail 'OS-store credentials could not be verified and removed; installation was preserved' }
 Write-Host $DisconnectOutput.Trim()
