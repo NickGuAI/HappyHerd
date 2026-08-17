@@ -235,7 +235,7 @@ grep -Fq 'new_tool_user=1' "$root/installers/install.sh.template"
 service_no_auth_line=$(grep -nF 'mac_remove_authentication_authority "/Users/$service_user"' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
 service_password_line=$(grep -nF 'mac_create_attribute "/Users/$service_user" Password' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
 service_post_password_check_line=$(grep -nF 'mac_require_no_authentication_authority "/Users/$service_user"' "$root/installers/install.sh.template" | /usr/bin/tail -n 1 | /usr/bin/cut -d: -f1)
-service_readback_line=$(grep -nF "created_service_home=\$(dscl . -read" "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
+service_readback_line=$(grep -nF 'created_service_home=$(mac_read_attribute' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
 service_ready_line=$(grep -nF '    new_service_identity=1' "$root/installers/install.sh.template" | /usr/bin/tail -n 1 | /usr/bin/cut -d: -f1)
 test "$service_no_auth_line" -lt "$service_password_line"
 test "$service_password_line" -lt "$service_post_password_check_line"
@@ -244,7 +244,7 @@ test "$service_readback_line" -lt "$service_ready_line"
 tool_no_auth_line=$(grep -nF 'mac_remove_authentication_authority "/Users/$tool_user"' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
 tool_password_line=$(grep -nF 'mac_create_attribute "/Users/$tool_user" Password' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
 tool_post_password_check_line=$(grep -nF 'mac_require_no_authentication_authority "/Users/$tool_user"' "$root/installers/install.sh.template" | /usr/bin/tail -n 1 | /usr/bin/cut -d: -f1)
-tool_readback_line=$(grep -nF "created_tool_home=\$(dscl . -read" "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
+tool_readback_line=$(grep -nF 'created_tool_home=$(mac_read_attribute' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
 tool_ready_line=$(grep -nF '    new_tool_identity=1' "$root/installers/install.sh.template" | /usr/bin/tail -n 1 | /usr/bin/cut -d: -f1)
 test "$tool_no_auth_line" -lt "$tool_password_line"
 test "$tool_password_line" -lt "$tool_post_password_check_line"
@@ -254,6 +254,24 @@ grep -Fq "[ \"\$created_service_password\" = '*' ]" "$root/installers/install.sh
 grep -Fq "[ \"\$created_tool_password\" = '*' ]" "$root/installers/install.sh.template"
 grep -Fq 'created broker service identity read-back mismatch:$created_service_mismatch' "$root/installers/install.sh.template"
 grep -Fq 'created isolated tool identity read-back mismatch:$created_tool_mismatch' "$root/installers/install.sh.template"
+grep -Fq 'dscl -plist . -read "$record" "$attribute"' "$root/installers/install.sh.template"
+grep -Fq '/usr/bin/plutil -convert json -o - -' "$root/installers/install.sh.template"
+grep -Fq 'if (matches.length !== 1) process.exit(3);' "$root/installers/install.sh.template"
+grep -Fq 'if (!Array.isArray(values) || values.length !== 1 || typeof values[0] !== "string") process.exit(4);' "$root/installers/install.sh.template"
+test "$(grep -Fc '=$(dscl . -read "/Users/$service_user"' "$root/installers/install.sh.template")" -eq 0
+test "$(grep -Fc '=$(dscl . -read "/Users/$tool_user"' "$root/installers/install.sh.template")" -eq 0
+test "$(grep -Fc '=$(dscl . -read "/Groups/$service_group"' "$root/installers/install.sh.template")" -eq 0
+grep -Fq 'dscl -plist . -read "$record" "$attribute"' "$root/installers/uninstall.sh"
+grep -Fq '/usr/bin/plutil -convert json -o - -' "$root/installers/uninstall.sh"
+grep -Fq 'if (matches.length !== 1) process.exit(3);' "$root/installers/uninstall.sh"
+grep -Fq 'if (!Array.isArray(values) || values.length !== 1 || typeof values[0] !== "string") process.exit(4);' "$root/installers/uninstall.sh"
+if grep -Eq 'dscl .* -read .*\| ([^ ]*/)?(sed|cut)([[:space:]]|$)' "$root/installers/install.sh.template" "$root/installers/uninstall.sh"; then
+  echo 'macOS lifecycle parses a Directory Service scalar from ambiguous text output' >&2
+  exit 1
+fi
+service_recheck_line=$(grep -nF 'actual=$(mac_read_attribute "/Users/$service_user" RealName)' "$root/installers/uninstall.sh" | /usr/bin/cut -d: -f1)
+install_remove_line=$(grep -nF 'sudo rm -rf -- "$install_dir" "$state_root"' "$root/installers/uninstall.sh" | /usr/bin/tail -n 1 | /usr/bin/cut -d: -f1)
+test "$service_recheck_line" -lt "$install_remove_line"
 grep -Fq "signingPublicKey=crypto.createPublicKey(fs.readFileSync(e.HAPPYHERD_PRIVATE_KEY_PATH)).export({type:'spki',format:'pem'}).toString()" "$root/installers/install.sh.template"
 if grep -Fq 'HAPPYHERD_PUBLIC_KEY' "$root/installers/install.sh.template"; then
   echo 'Unix installer transports a multiline trust anchor through an environment variable' >&2

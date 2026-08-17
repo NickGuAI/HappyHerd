@@ -97,7 +97,7 @@ if [ "$platform" = linux ]; then
   service_identity_prefix=uid
   owner_home=$(getent passwd "$owner_user" | cut -d: -f6)
 else
-  for command_name in dscl dseditgroup dscacheutil launchctl shasum uuidgen; do
+  for command_name in dscl dseditgroup dscacheutil launchctl plutil shasum uuidgen; do
     command -v "$command_name" >/dev/null 2>&1 || fail "required broker service command not found: $command_name"
   done
   install_dir="/Library/Application Support/HappyHerd/$owner_uid"
@@ -116,7 +116,11 @@ else
   keychain_master_dir="/Library/Application Support/HappyHerd/Secrets/$owner_uid"
   keychain_master_path="$keychain_master_dir/keychain-master"
   service_identity_prefix=uid
-  owner_home=$(dscl . -read "/Users/$owner_user" NFSHomeDirectory | sed 's/^[^:]*: //')
+  owner_record=$(dscacheutil -q user -a name "$owner_user") \
+    || fail 'target user account could not be resolved'
+  [ "$(printf '%s\n' "$owner_record" | /usr/bin/grep -Ec '^dir: ')" -eq 1 ] \
+    || fail 'target user account has an ambiguous home'
+  owner_home=$(printf '%s\n' "$owner_record" | /usr/bin/sed -n 's/^dir: //p')
 fi
 case "$owner_home" in ''|'/') fail 'target user home is unsafe' ;; esac
 
@@ -245,6 +249,28 @@ mac_create_attribute() {
   value=$3
   label=$4
   sudo dscl . -create "$record" "$attribute" "$value" || fail "could not set $attribute on the macOS $label record"
+}
+
+mac_read_attribute() {
+  record=$1
+  attribute=$2
+  dscl -plist . -read "$record" "$attribute" \
+    | /usr/bin/plutil -convert json -o - - \
+    | sudo "$root_node" -e '
+const fs = require("node:fs");
+const attribute = process.argv[1];
+let record;
+try {
+  const bytes = fs.readFileSync(0);
+  if (bytes.length > 65536) process.exit(2);
+  record = JSON.parse(bytes.toString("utf8"));
+} catch { process.exit(2); }
+const matches = Object.entries(record).filter(([key]) => key === attribute || key.endsWith(`:${attribute}`));
+if (matches.length !== 1) process.exit(3);
+const values = matches[0][1];
+if (!Array.isArray(values) || values.length !== 1 || typeof values[0] !== "string") process.exit(4);
+process.stdout.write(values[0]);
+' "$attribute"
 }
 
 mac_require_no_authentication_authority() {
@@ -510,23 +536,32 @@ else
     fail 'macOS broker service user/group namespace is incomplete or conflicts with another installation'
   fi
   if [ "$service_user_exists" -eq 1 ]; then
-    existing_home=$(dscl . -read "/Users/$service_user" NFSHomeDirectory | sed 's/^[^:]*: //')
+    existing_home=$(mac_read_attribute "/Users/$service_user" NFSHomeDirectory) \
+      || fail 'existing broker service user home could not be verified'
     [ "$existing_home" = "$state_root" ] || fail 'existing broker service user has an unexpected home'
-    existing_shell=$(dscl . -read "/Users/$service_user" UserShell | sed 's/^[^:]*: //')
+    existing_shell=$(mac_read_attribute "/Users/$service_user" UserShell) \
+      || fail 'existing broker service user shell could not be verified'
     [ "$existing_shell" = /usr/bin/false ] || fail 'existing broker service user has an unsafe login shell'
-    existing_hidden=$(dscl . -read "/Users/$service_user" IsHidden | sed 's/^[^:]*: //')
+    existing_hidden=$(mac_read_attribute "/Users/$service_user" IsHidden) \
+      || fail 'existing broker service user hidden state could not be verified'
     [ "$existing_hidden" = 1 ] || fail 'existing broker service user is not hidden'
-    existing_password=$(dscl . -read "/Users/$service_user" Password | sed 's/^[^:]*: //')
+    existing_password=$(mac_read_attribute "/Users/$service_user" Password) \
+      || fail 'existing broker service user password state could not be verified'
     [ "$existing_password" = '*' ] || fail 'existing broker service user password is not disabled'
-    existing_generated_uid=$(dscl . -read "/Users/$service_user" GeneratedUID | sed 's/^[^:]*: //')
+    existing_generated_uid=$(mac_read_attribute "/Users/$service_user" GeneratedUID) \
+      || fail 'existing broker service user generated identity could not be verified'
     printf '%s\n' "$existing_generated_uid" | /usr/bin/grep -Eq '^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$' \
       || fail 'existing broker service user has an invalid generated identity'
     mac_require_no_authentication_authority "/Users/$service_user" 'broker service user'
-    existing_marker=$(dscl . -read "/Users/$service_user" RealName | sed 's/^[^:]*: //')
+    existing_marker=$(mac_read_attribute "/Users/$service_user" RealName) \
+      || fail 'existing broker service user marker could not be verified'
     [ "$existing_marker" = "$service_marker" ] || fail 'existing broker service user marker is unsafe'
-    existing_gid=$(dscl . -read "/Users/$service_user" PrimaryGroupID | sed 's/^[^:]*: //')
-    group_gid=$(dscl . -read "/Groups/$service_group" PrimaryGroupID 2>/dev/null | sed 's/^[^:]*: //')
-    group_marker=$(dscl . -read "/Groups/$service_group" RealName 2>/dev/null | sed 's/^[^:]*: //')
+    existing_gid=$(mac_read_attribute "/Users/$service_user" PrimaryGroupID) \
+      || fail 'existing broker service user group could not be verified'
+    group_gid=$(mac_read_attribute "/Groups/$service_group" PrimaryGroupID) \
+      || fail 'existing broker service group ID could not be verified'
+    group_marker=$(mac_read_attribute "/Groups/$service_group" RealName) \
+      || fail 'existing broker service group marker could not be verified'
     if [ "$existing_gid" != "$group_gid" ] || [ "$group_marker" != "$service_marker group" ]; then fail 'existing broker service group is unsafe'; fi
     if sudo dseditgroup -o checkmember -m "$service_user" admin | /usr/bin/grep -Fq 'yes'; then fail 'broker service identity must not be an administrator'; fi
   else
@@ -548,16 +583,16 @@ else
     mac_remove_authentication_authority "/Users/$service_user" 'broker service user'
     mac_create_attribute "/Users/$service_user" Password '*' 'broker service user'
     mac_require_no_authentication_authority "/Users/$service_user" 'broker service user'
-    created_service_home=$(dscl . -read "/Users/$service_user" NFSHomeDirectory | sed 's/^[^:]*: //') || fail 'created broker service user home could not be verified'
-    created_service_shell=$(dscl . -read "/Users/$service_user" UserShell | sed 's/^[^:]*: //') || fail 'created broker service user shell could not be verified'
-    created_service_hidden=$(dscl . -read "/Users/$service_user" IsHidden | sed 's/^[^:]*: //') || fail 'created broker service user hidden state could not be verified'
-    created_service_password=$(dscl . -read "/Users/$service_user" Password | sed 's/^[^:]*: //') || fail 'created broker service user password state could not be verified'
-    created_service_generated_uid=$(dscl . -read "/Users/$service_user" GeneratedUID | sed 's/^[^:]*: //') || fail 'created broker service user generated identity could not be verified'
-    created_service_marker=$(dscl . -read "/Users/$service_user" RealName | sed 's/^[^:]*: //') || fail 'created broker service user marker could not be verified'
-    created_service_gid=$(dscl . -read "/Users/$service_user" PrimaryGroupID | sed 's/^[^:]*: //') || fail 'created broker service user group could not be verified'
-    created_service_uid=$(dscl . -read "/Users/$service_user" UniqueID | sed 's/^[^:]*: //') || fail 'created broker service user ID could not be verified'
-    created_group_gid=$(dscl . -read "/Groups/$service_group" PrimaryGroupID | sed 's/^[^:]*: //') || fail 'created broker service group ID could not be verified'
-    created_group_marker=$(dscl . -read "/Groups/$service_group" RealName | sed 's/^[^:]*: //') || fail 'created broker service group marker could not be verified'
+    created_service_home=$(mac_read_attribute "/Users/$service_user" NFSHomeDirectory) || fail 'created broker service user home could not be verified'
+    created_service_shell=$(mac_read_attribute "/Users/$service_user" UserShell) || fail 'created broker service user shell could not be verified'
+    created_service_hidden=$(mac_read_attribute "/Users/$service_user" IsHidden) || fail 'created broker service user hidden state could not be verified'
+    created_service_password=$(mac_read_attribute "/Users/$service_user" Password) || fail 'created broker service user password state could not be verified'
+    created_service_generated_uid=$(mac_read_attribute "/Users/$service_user" GeneratedUID) || fail 'created broker service user generated identity could not be verified'
+    created_service_marker=$(mac_read_attribute "/Users/$service_user" RealName) || fail 'created broker service user marker could not be verified'
+    created_service_gid=$(mac_read_attribute "/Users/$service_user" PrimaryGroupID) || fail 'created broker service user group could not be verified'
+    created_service_uid=$(mac_read_attribute "/Users/$service_user" UniqueID) || fail 'created broker service user ID could not be verified'
+    created_group_gid=$(mac_read_attribute "/Groups/$service_group" PrimaryGroupID) || fail 'created broker service group ID could not be verified'
+    created_group_marker=$(mac_read_attribute "/Groups/$service_group" RealName) || fail 'created broker service group marker could not be verified'
     printf '%s\n' "$created_service_generated_uid" | /usr/bin/grep -Eq '^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$' \
       || fail 'created broker service user has an invalid generated identity'
     created_service_mismatch=''
@@ -578,16 +613,23 @@ else
   service_uid=$(id -u "$service_user")
   service_gid=$(id -g "$service_user")
   if dscl . -read "/Users/$tool_user" >/dev/null 2>&1; then
-    tool_home=$(dscl . -read "/Users/$tool_user" NFSHomeDirectory | sed 's/^[^:]*: //')
-    tool_shell=$(dscl . -read "/Users/$tool_user" UserShell | sed 's/^[^:]*: //')
-    tool_hidden=$(dscl . -read "/Users/$tool_user" IsHidden | sed 's/^[^:]*: //')
-    tool_password=$(dscl . -read "/Users/$tool_user" Password | sed 's/^[^:]*: //')
-    tool_generated_uid=$(dscl . -read "/Users/$tool_user" GeneratedUID | sed 's/^[^:]*: //')
+    tool_home=$(mac_read_attribute "/Users/$tool_user" NFSHomeDirectory) \
+      || fail 'existing isolated tool user home could not be verified'
+    tool_shell=$(mac_read_attribute "/Users/$tool_user" UserShell) \
+      || fail 'existing isolated tool user shell could not be verified'
+    tool_hidden=$(mac_read_attribute "/Users/$tool_user" IsHidden) \
+      || fail 'existing isolated tool user hidden state could not be verified'
+    tool_password=$(mac_read_attribute "/Users/$tool_user" Password) \
+      || fail 'existing isolated tool user password state could not be verified'
+    tool_generated_uid=$(mac_read_attribute "/Users/$tool_user" GeneratedUID) \
+      || fail 'existing isolated tool user generated identity could not be verified'
     printf '%s\n' "$tool_generated_uid" | /usr/bin/grep -Eq '^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$' \
       || fail 'existing tool execution user has an invalid generated identity'
     mac_require_no_authentication_authority "/Users/$tool_user" 'isolated tool user'
-    tool_existing_marker=$(dscl . -read "/Users/$tool_user" RealName | sed 's/^[^:]*: //')
-    tool_existing_gid=$(dscl . -read "/Users/$tool_user" PrimaryGroupID | sed 's/^[^:]*: //')
+    tool_existing_marker=$(mac_read_attribute "/Users/$tool_user" RealName) \
+      || fail 'existing isolated tool user marker could not be verified'
+    tool_existing_gid=$(mac_read_attribute "/Users/$tool_user" PrimaryGroupID) \
+      || fail 'existing isolated tool user group could not be verified'
     if ! { [ "$tool_home" = /var/empty ] \
       && [ "$tool_shell" = /usr/bin/false ] \
       && [ "$tool_hidden" = 1 ] \
@@ -609,14 +651,14 @@ else
     mac_remove_authentication_authority "/Users/$tool_user" 'isolated tool user'
     mac_create_attribute "/Users/$tool_user" Password '*' 'isolated tool user'
     mac_require_no_authentication_authority "/Users/$tool_user" 'isolated tool user'
-    created_tool_home=$(dscl . -read "/Users/$tool_user" NFSHomeDirectory | sed 's/^[^:]*: //') || fail 'created isolated tool user home could not be verified'
-    created_tool_shell=$(dscl . -read "/Users/$tool_user" UserShell | sed 's/^[^:]*: //') || fail 'created isolated tool user shell could not be verified'
-    created_tool_hidden=$(dscl . -read "/Users/$tool_user" IsHidden | sed 's/^[^:]*: //') || fail 'created isolated tool user hidden state could not be verified'
-    created_tool_password=$(dscl . -read "/Users/$tool_user" Password | sed 's/^[^:]*: //') || fail 'created isolated tool user password state could not be verified'
-    created_tool_generated_uid=$(dscl . -read "/Users/$tool_user" GeneratedUID | sed 's/^[^:]*: //') || fail 'created isolated tool user generated identity could not be verified'
-    created_tool_marker=$(dscl . -read "/Users/$tool_user" RealName | sed 's/^[^:]*: //') || fail 'created isolated tool user marker could not be verified'
-    created_tool_gid=$(dscl . -read "/Users/$tool_user" PrimaryGroupID | sed 's/^[^:]*: //') || fail 'created isolated tool user group could not be verified'
-    created_tool_uid=$(dscl . -read "/Users/$tool_user" UniqueID | sed 's/^[^:]*: //') || fail 'created isolated tool user ID could not be verified'
+    created_tool_home=$(mac_read_attribute "/Users/$tool_user" NFSHomeDirectory) || fail 'created isolated tool user home could not be verified'
+    created_tool_shell=$(mac_read_attribute "/Users/$tool_user" UserShell) || fail 'created isolated tool user shell could not be verified'
+    created_tool_hidden=$(mac_read_attribute "/Users/$tool_user" IsHidden) || fail 'created isolated tool user hidden state could not be verified'
+    created_tool_password=$(mac_read_attribute "/Users/$tool_user" Password) || fail 'created isolated tool user password state could not be verified'
+    created_tool_generated_uid=$(mac_read_attribute "/Users/$tool_user" GeneratedUID) || fail 'created isolated tool user generated identity could not be verified'
+    created_tool_marker=$(mac_read_attribute "/Users/$tool_user" RealName) || fail 'created isolated tool user marker could not be verified'
+    created_tool_gid=$(mac_read_attribute "/Users/$tool_user" PrimaryGroupID) || fail 'created isolated tool user group could not be verified'
+    created_tool_uid=$(mac_read_attribute "/Users/$tool_user" UniqueID) || fail 'created isolated tool user ID could not be verified'
     printf '%s\n' "$created_tool_generated_uid" | /usr/bin/grep -Eq '^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$' \
       || fail 'created isolated tool user has an invalid generated identity'
     created_tool_mismatch=''

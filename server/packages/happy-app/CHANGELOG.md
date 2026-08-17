@@ -10,6 +10,7 @@ HappyHerd now ships a generic end-user launcher and traceable installers for mac
 - `happyherd run-tool` re-verifies a manifest-declared script and supplies the issuer credential only to that child as `HAPPYHERD_ACCESS_TOKEN`, never to the agent session, arguments, registry, or receipts.
 - `happyherd launch claude` and `happyherd launch codex` use the bundled maintained Happy runtime.
 - Bundled Node.js and Python runtimes keep installation independent of host-language runtimes, while pinned offline installation accepts only an explicit local manifest and matching platform asset.
+- macOS installation and removal verify hidden service identities through structured Directory Service records, including paths and ownership markers that contain spaces.
 - Per-owner broker capabilities, isolated tool identities, bounded output, operation locks, provider-tree integrity checks, and detached-child containment keep organization access outside agent prompts and unrelated user sessions.
 - `happyherd upgrade` checks a source-traceable release manifest and reports the verified platform installer without replacing a running session.
 - Tagged `happyherd-v*` releases publish five native-platform assets, two installers, `SHA256SUMS`, and a manifest tied to the exact Git source SHA; SemVer prereleases are explicitly marked as prereleases instead of stable/latest releases.

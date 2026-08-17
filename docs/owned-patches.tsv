@@ -29,3 +29,4 @@ PUBLIC_RELEASE	accepted	fix(release): anchor Windows verifier process	scripts/te
 PUBLIC_RELEASE	accepted	fix(release): stabilize macOS disabled identities	scripts/test-public-launcher-release-contract.sh
 PUBLIC_RELEASE	accepted	fix(release): supply deterministic Windows spawn path	scripts/test-public-launcher-release-contract.sh
 PUBLIC_RELEASE	accepted	fix(release): tolerate empty Windows fixture logs	scripts/test-public-launcher-release-contract.sh
+PUBLIC_RELEASE	accepted	fix(release): parse macOS identity attributes safely	scripts/test-public-launcher-release-contract.sh

@@ -31,9 +31,13 @@ case "$(uname -s)" in
     tool_marker="HappyHerd isolated tool runner for UID $owner_uid"
     ;;
   Darwin)
-    for command_name in dscl dseditgroup launchctl; do command -v "$command_name" >/dev/null 2>&1 || fail "required command not found: $command_name"; done
+    for command_name in dscl dseditgroup dscacheutil launchctl plutil; do command -v "$command_name" >/dev/null 2>&1 || fail "required command not found: $command_name"; done
     platform=darwin
-    owner_home=$(dscl . -read "/Users/$owner_user" NFSHomeDirectory | /usr/bin/sed 's/^[^:]*: //')
+    owner_record=$(dscacheutil -q user -a name "$owner_user") \
+      || fail 'target user account could not be resolved'
+    [ "$(printf '%s\n' "$owner_record" | /usr/bin/grep -Ec '^dir: ')" -eq 1 ] \
+      || fail 'target user account has an ambiguous home'
+    owner_home=$(printf '%s\n' "$owner_record" | /usr/bin/sed -n 's/^dir: //p')
     install_dir="/Library/Application Support/HappyHerd/$owner_uid"
     state_root="/Library/Application Support/HappyHerd/Broker/$owner_uid"
     service_user="happyherd$owner_uid"
@@ -104,6 +108,28 @@ mac_require_no_authentication_authority() {
   if printf '%s\n' "$authentication_record_data" | /usr/bin/grep -Eq '^[[:space:]]*AuthenticationAuthority:'; then
     fail "macOS $label unexpectedly has an authentication authority"
   fi
+}
+
+mac_read_attribute() {
+  record=$1
+  attribute=$2
+  dscl -plist . -read "$record" "$attribute" \
+    | /usr/bin/plutil -convert json -o - - \
+    | sudo "$bundled_node" -e '
+const fs = require("node:fs");
+const attribute = process.argv[1];
+let record;
+try {
+  const bytes = fs.readFileSync(0);
+  if (bytes.length > 65536) process.exit(2);
+  record = JSON.parse(bytes.toString("utf8"));
+} catch { process.exit(2); }
+const matches = Object.entries(record).filter(([key]) => key === attribute || key.endsWith(`:${attribute}`));
+if (matches.length !== 1) process.exit(3);
+const values = matches[0][1];
+if (!Array.isArray(values) || values.length !== 1 || typeof values[0] !== "string") process.exit(4);
+process.stdout.write(values[0]);
+' "$attribute"
 }
 
 if [ "$platform" = linux ]; then
@@ -178,24 +204,24 @@ else
   dscl . -read "/Groups/$service_group" >/dev/null 2>&1 || fail 'owned broker service group was not found'
   mac_require_no_authentication_authority "/Users/$service_user" 'broker service identity'
   mac_require_no_authentication_authority "/Users/$tool_user" 'tool execution identity'
-  service_home=$(dscl . -read "/Users/$service_user" NFSHomeDirectory | /usr/bin/sed 's/^[^:]*: //')
-  service_shell=$(dscl . -read "/Users/$service_user" UserShell | /usr/bin/sed 's/^[^:]*: //')
-  service_hidden=$(dscl . -read "/Users/$service_user" IsHidden | /usr/bin/sed 's/^[^:]*: //')
-  service_password=$(dscl . -read "/Users/$service_user" Password | /usr/bin/sed 's/^[^:]*: //')
-  service_generated_uid=$(dscl . -read "/Users/$service_user" GeneratedUID | /usr/bin/sed 's/^[^:]*: //')
-  service_actual_marker=$(dscl . -read "/Users/$service_user" RealName | /usr/bin/sed 's/^[^:]*: //')
-  service_gid=$(dscl . -read "/Users/$service_user" PrimaryGroupID | /usr/bin/sed 's/^[^:]*: //')
-  service_uid=$(dscl . -read "/Users/$service_user" UniqueID | /usr/bin/sed 's/^[^:]*: //')
-  group_gid=$(dscl . -read "/Groups/$service_group" PrimaryGroupID | /usr/bin/sed 's/^[^:]*: //')
-  group_marker=$(dscl . -read "/Groups/$service_group" RealName | /usr/bin/sed 's/^[^:]*: //')
-  tool_home=$(dscl . -read "/Users/$tool_user" NFSHomeDirectory | /usr/bin/sed 's/^[^:]*: //')
-  tool_shell=$(dscl . -read "/Users/$tool_user" UserShell | /usr/bin/sed 's/^[^:]*: //')
-  tool_hidden=$(dscl . -read "/Users/$tool_user" IsHidden | /usr/bin/sed 's/^[^:]*: //')
-  tool_password=$(dscl . -read "/Users/$tool_user" Password | /usr/bin/sed 's/^[^:]*: //')
-  tool_generated_uid=$(dscl . -read "/Users/$tool_user" GeneratedUID | /usr/bin/sed 's/^[^:]*: //')
-  tool_actual_marker=$(dscl . -read "/Users/$tool_user" RealName | /usr/bin/sed 's/^[^:]*: //')
-  tool_gid=$(dscl . -read "/Users/$tool_user" PrimaryGroupID | /usr/bin/sed 's/^[^:]*: //')
-  tool_uid=$(dscl . -read "/Users/$tool_user" UniqueID | /usr/bin/sed 's/^[^:]*: //')
+  service_home=$(mac_read_attribute "/Users/$service_user" NFSHomeDirectory) || fail 'broker service identity home could not be verified'
+  service_shell=$(mac_read_attribute "/Users/$service_user" UserShell) || fail 'broker service identity shell could not be verified'
+  service_hidden=$(mac_read_attribute "/Users/$service_user" IsHidden) || fail 'broker service identity hidden state could not be verified'
+  service_password=$(mac_read_attribute "/Users/$service_user" Password) || fail 'broker service identity password state could not be verified'
+  service_generated_uid=$(mac_read_attribute "/Users/$service_user" GeneratedUID) || fail 'broker service generated identity could not be verified'
+  service_actual_marker=$(mac_read_attribute "/Users/$service_user" RealName) || fail 'broker service identity marker could not be verified'
+  service_gid=$(mac_read_attribute "/Users/$service_user" PrimaryGroupID) || fail 'broker service identity group could not be verified'
+  service_uid=$(mac_read_attribute "/Users/$service_user" UniqueID) || fail 'broker service identity ID could not be verified'
+  group_gid=$(mac_read_attribute "/Groups/$service_group" PrimaryGroupID) || fail 'broker service group ID could not be verified'
+  group_marker=$(mac_read_attribute "/Groups/$service_group" RealName) || fail 'broker service group marker could not be verified'
+  tool_home=$(mac_read_attribute "/Users/$tool_user" NFSHomeDirectory) || fail 'tool execution identity home could not be verified'
+  tool_shell=$(mac_read_attribute "/Users/$tool_user" UserShell) || fail 'tool execution identity shell could not be verified'
+  tool_hidden=$(mac_read_attribute "/Users/$tool_user" IsHidden) || fail 'tool execution identity hidden state could not be verified'
+  tool_password=$(mac_read_attribute "/Users/$tool_user" Password) || fail 'tool execution identity password state could not be verified'
+  tool_generated_uid=$(mac_read_attribute "/Users/$tool_user" GeneratedUID) || fail 'tool execution generated identity could not be verified'
+  tool_actual_marker=$(mac_read_attribute "/Users/$tool_user" RealName) || fail 'tool execution identity marker could not be verified'
+  tool_gid=$(mac_read_attribute "/Users/$tool_user" PrimaryGroupID) || fail 'tool execution identity group could not be verified'
+  tool_uid=$(mac_read_attribute "/Users/$tool_user" UniqueID) || fail 'tool execution identity ID could not be verified'
   printf '%s\n' "$service_generated_uid" | /usr/bin/grep -Eq '^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$' \
     || fail 'broker service identity has an invalid generated identity'
   printf '%s\n' "$tool_generated_uid" | /usr/bin/grep -Eq '^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$' \
@@ -349,21 +375,28 @@ if [ "$platform" = darwin ]; then sudo rm -f -- "$service_definition"; fi
 
 sudo rm -f -- "$tool_launcher_config"
 if [ "$platform" = linux ]; then sudo rm -f -- "$keyring_credential"; fi
-sudo rm -rf -- "$install_dir" "$state_root"
 if [ "$platform" = linux ]; then
+  sudo rm -rf -- "$install_dir" "$state_root"
   sudo userdel "$tool_user" >/dev/null 2>&1 || true
   sudo userdel "$service_user" >/dev/null 2>&1 || true
   sudo groupdel "$service_group" >/dev/null 2>&1 || true
 else
   expected="HappyHerd broker for UID $owner_uid"
-  actual=$(dscl . -read "/Users/$service_user" RealName 2>/dev/null | /usr/bin/sed 's/^[^:]*: //' || true)
-  if [ -n "$actual" ] && [ "$actual" != "$expected" ]; then fail 'refusing to delete a service identity with an unexpected owner marker'; fi
-  sudo dscl . -delete "/Users/$service_user" >/dev/null 2>&1 || true
+  if dscl . -read "/Users/$service_user" >/dev/null 2>&1; then
+    actual=$(mac_read_attribute "/Users/$service_user" RealName) \
+      || fail 'service identity owner marker could not be reverified'
+    [ "$actual" = "$expected" ] || fail 'refusing to delete a service identity with an unexpected owner marker'
+    sudo dscl . -delete "/Users/$service_user" >/dev/null 2>&1 || true
+  fi
   sudo dscl . -delete "/Groups/$service_group" >/dev/null 2>&1 || true
   tool_expected="HappyHerd isolated tool runner for UID $owner_uid"
-  tool_actual=$(dscl . -read "/Users/$tool_user" RealName 2>/dev/null | /usr/bin/sed 's/^[^:]*: //' || true)
-  if [ -n "$tool_actual" ] && [ "$tool_actual" != "$tool_expected" ]; then fail 'refusing to delete a tool identity with an unexpected owner marker'; fi
-  sudo dscl . -delete "/Users/$tool_user" >/dev/null 2>&1 || true
+  if dscl . -read "/Users/$tool_user" >/dev/null 2>&1; then
+    tool_actual=$(mac_read_attribute "/Users/$tool_user" RealName) \
+      || fail 'tool identity owner marker could not be reverified'
+    [ "$tool_actual" = "$tool_expected" ] || fail 'refusing to delete a tool identity with an unexpected owner marker'
+    sudo dscl . -delete "/Users/$tool_user" >/dev/null 2>&1 || true
+  fi
   sudo rm -f -- "$keychain_host"
+  sudo rm -rf -- "$install_dir" "$state_root"
 fi
 printf 'Removed HappyHerd, its broker service, managed Skill copies, and its credential vault. Stored issuer credentials are not recoverable.\n'
