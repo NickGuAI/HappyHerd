@@ -21,7 +21,7 @@ import {
   statSync,
 } from 'node:fs';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep, win32 } from 'node:path';
 import { connectIssuer, openApprovalUrl, type ConnectEvent } from './deviceFlow';
 import { normalizeIssuer } from './contracts';
 import { installSkillBundle, descriptorFromCredential, type InstalledSkillBundle } from './skills';
@@ -43,6 +43,23 @@ const MAX_REQUEST_BYTES = 64 * 1024;
 const MAX_BROKER_JSON_RESPONSE_BYTES = 5 * 1024 * 1024;
 const MAX_ARGUMENTS = 64;
 const MAX_ARGUMENT_BYTES = 32 * 1024;
+
+export function isolatedChildEnvironment(
+  platform: NodeJS.Platform = process.platform,
+  environment: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  if (platform !== 'win32') return {};
+  const systemRoot = Object.entries(environment)
+    .find(([name]) => name.toLowerCase() === 'systemroot')?.[1];
+  if (
+    typeof systemRoot !== 'string'
+    || systemRoot.length === 0
+    || systemRoot.length > 4096
+    || /[\u0000-\u001f\u007f-\u009f]/.test(systemRoot)
+    || !win32.isAbsolute(systemRoot)
+  ) throw new Error('Windows SystemRoot is unavailable for an isolated child process');
+  return { SystemRoot: systemRoot };
+}
 
 export interface BrokerServiceConfig {
   schemaVersion: 1;
@@ -192,7 +209,7 @@ function verifyWindowsProtectedPaths(
   const args = entries.flatMap((entry) => [entry.kind === 'file' ? '--file' : '--directory', resolve(entry.path)]);
   const result = spawnSync(verifier, args, {
     encoding: 'utf8',
-    env: {},
+    env: isolatedChildEnvironment(),
     timeout: 10_000,
     maxBuffer: 64 * 1024,
     windowsHide: true,
@@ -246,7 +263,7 @@ function verifyUnixClientConfigAcl(path: string, ownerUid: number): void {
     }
     const result = spawnSync('/usr/bin/getfacl', [
       '--absolute-names', '--numeric', '--omit-header', '--', path,
-    ], { encoding: 'utf8', env: {}, timeout: 10_000, maxBuffer: 64 * 1024 });
+    ], { encoding: 'utf8', env: isolatedChildEnvironment(), timeout: 10_000, maxBuffer: 64 * 1024 });
     if (result.error || result.status !== 0 || result.stderr) {
       throw new Error('HappyHerd broker client configuration Linux ACL could not be verified');
     }
@@ -258,14 +275,14 @@ function verifyUnixClientConfigAcl(path: string, ownerUid: number): void {
       throw new Error('HappyHerd broker client configuration macOS mode is not private');
     }
     const identity = spawnSync('/usr/bin/id', ['-un', String(ownerUid)], {
-      encoding: 'utf8', env: {}, timeout: 10_000, maxBuffer: 4096,
+      encoding: 'utf8', env: isolatedChildEnvironment(), timeout: 10_000, maxBuffer: 4096,
     });
     if (identity.error || identity.status !== 0 || identity.stderr) {
       throw new Error('HappyHerd broker client configuration owner account could not be verified');
     }
     const ownerName = identity.stdout.trim();
     const acl = spawnSync('/bin/ls', ['-lde', path], {
-      encoding: 'utf8', env: {}, timeout: 10_000, maxBuffer: 64 * 1024,
+      encoding: 'utf8', env: isolatedChildEnvironment(), timeout: 10_000, maxBuffer: 64 * 1024,
     });
     if (acl.error || acl.status !== 0 || acl.stderr) {
       throw new Error('HappyHerd broker client configuration macOS ACL could not be verified');
@@ -279,7 +296,7 @@ function verifyWindowsClientConfig(path: string, ownerSid: string): void {
   const installationRoot = dirname(dirname(resolve(process.execPath)));
   const verifier = join(installationRoot, 'service', 'happyherd-acl-check.exe');
   const result = spawnSync(verifier, ['--client-file', resolve(path), ownerSid], {
-    encoding: 'utf8', env: {}, timeout: 10_000, maxBuffer: 64 * 1024, windowsHide: true,
+    encoding: 'utf8', env: isolatedChildEnvironment(), timeout: 10_000, maxBuffer: 64 * 1024, windowsHide: true,
   });
   if (result.error || result.status !== 0) {
     throw new Error('HappyHerd broker client configuration Windows ACL is not exclusive to its owner');
@@ -622,7 +639,7 @@ export function validateBrokerRuntime(config: BrokerServiceConfig): BrokerRuntim
     'import json,sys;from zoneinfo import ZoneInfo;print(json.dumps({"version":list(sys.version_info[:3]),"timezone":ZoneInfo("America/New_York").key}))',
   ], {
     cwd: config.installationRoot,
-    env: {},
+    env: isolatedChildEnvironment(),
     encoding: 'utf8',
     timeout: 15_000,
     maxBuffer: 64 * 1024,

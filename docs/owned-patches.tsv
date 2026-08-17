@@ -17,3 +17,4 @@ PUBLIC_RELEASE	accepted	fix(release): restore locked native lifecycle	server/pnp
 PUBLIC_RELEASE	accepted	fix(release): publish portable target closures	scripts/prepare-public-launcher-payload.mjs
 PUBLIC_RELEASE	accepted	fix(release): verify native secret and ACL boundaries	server/packages/happyherd-cli/src/secretStore.test.ts
 PUBLIC_RELEASE	accepted	fix(release): create macOS identities in supported order	scripts/test-public-launcher-release-contract.sh
+PUBLIC_RELEASE	accepted	fix(release): preserve the Windows loader root	server/packages/happyherd-cli/src/broker.test.ts

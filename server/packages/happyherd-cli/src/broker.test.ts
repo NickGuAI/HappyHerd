@@ -11,6 +11,7 @@ import yazl from 'yazl';
 import {
   BrokerClient,
   createBrokerServer,
+  isolatedChildEnvironment,
   parseBrokerClientConfig,
   parseBrokerServiceConfig,
   type BrokerClientConfig,
@@ -206,6 +207,17 @@ async function registerToolFixture(instance: Awaited<ReturnType<typeof fixture>>
 }
 
 describe('OS-separated broker IPC', () => {
+  it('keeps only the protected Windows loader root in isolated child processes', () => {
+    expect(isolatedChildEnvironment('win32', {
+      PATH: 'C:\\untrusted',
+      SYSTEMROOT: 'C:\\Windows',
+      TEMP: 'C:\\untrusted-temp',
+    })).toEqual({ SystemRoot: 'C:\\Windows' });
+    expect(() => isolatedChildEnvironment('win32', {})).toThrow(/SystemRoot/);
+    expect(() => isolatedChildEnvironment('win32', { SystemRoot: 'relative\\Windows' })).toThrow(/SystemRoot/);
+    expect(isolatedChildEnvironment('linux', { SystemRoot: '/ignored' })).toEqual({});
+  });
+
   it('accepts only a canonical Ed25519 broker trust anchor', () => {
     const publicKey = generateKeyPairSync('ed25519').publicKey
       .export({ type: 'spki', format: 'pem' })
