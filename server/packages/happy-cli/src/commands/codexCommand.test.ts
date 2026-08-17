@@ -66,6 +66,17 @@ describe('handleCodexCommand', () => {
     ).toBeLessThan(mocks.mockRunCodex.mock.invocationCallOrder[0])
   })
 
+  it('shows native Codex help without authentication or daemon startup', async () => {
+    const showNativeHelp = vi.fn()
+
+    await handleCodexCommand(['--help'], { showNativeHelp })
+
+    expect(showNativeHelp).toHaveBeenCalledTimes(1)
+    expect(mocks.mockAuthAndSetupMachineIfNeeded).not.toHaveBeenCalled()
+    expect(mocks.mockEnsureDaemonRunning).not.toHaveBeenCalled()
+    expect(mocks.mockRunCodex).not.toHaveBeenCalled()
+  })
+
   it('passes parsed no-sandbox and resume flags through to runCodex', async () => {
     mocks.mockExtractNoSandboxFlag.mockReturnValue({
       noSandbox: true,

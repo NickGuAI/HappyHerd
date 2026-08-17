@@ -1,3 +1,19 @@
+# August 17 — Install, connect, and verify HappyHerd locally
+
+HappyHerd now ships a generic end-user launcher and traceable installers for macOS, Windows, and Linux.
+
+- `happyherd doctor` verifies the installed runtime, supported platform, Node.js, and operating-system secret-store adapter.
+- `happyherd connect <issuer>` discovers an organization through a standard well-known document and completes a ten-minute, one-time browser approval with PKCE and device proof.
+- Long-lived organization credentials stay in Keychain, Credential Manager, or Secret Service; there is no plaintext fallback and credentials never enter agent prompts or URLs.
+- `happyherd install-skills` verifies the ZIP, raw manifest, declared file inventory, minimum version, and canonical content digest before atomically publishing a generic bundle.
+- Verified Skills appear in both local Claude and Codex discovery roots through owned receipts; HappyHerd refuses collisions with user-managed Skills and blocks launch if a managed copy becomes stale.
+- `happyherd run-tool` re-verifies a manifest-declared script and supplies the issuer credential only to that child as `HAPPYHERD_ACCESS_TOKEN`, never to the agent session, arguments, registry, or receipts.
+- `happyherd launch claude` and `happyherd launch codex` use the bundled maintained Happy runtime.
+- Bundled Node.js and Python runtimes keep installation independent of host-language runtimes, while pinned offline installation accepts only an explicit local manifest and matching platform asset.
+- Per-owner broker capabilities, isolated tool identities, bounded output, operation locks, provider-tree integrity checks, and detached-child containment keep organization access outside agent prompts and unrelated user sessions.
+- `happyherd upgrade` checks a source-traceable release manifest and reports the verified platform installer without replacing a running session.
+- Tagged `happyherd-v*` releases publish five native-platform assets, two installers, `SHA256SUMS`, and a manifest tied to the exact Git source SHA; SemVer prereleases are explicitly marked as prereleases instead of stable/latest releases.
+
 # August 16 — Governed agents without organization lock-in
 
 HappyHerd now provides a manifest-driven Discord agent runtime that any organization can configure without adding its identity or provider routes to generic core code.

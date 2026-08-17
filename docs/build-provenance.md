@@ -53,3 +53,8 @@ input path from the bundle content. Upstream otherwise embeds a random path in
 the iOS bytecode, making identical clean-clone exports byte-different. The patch
 fails loudly if Expo changes the target layout so an upgrade cannot silently
 drop this reproducibility contract.
+
+End-user launcher releases use a separate five-platform contract. See
+[public-launcher-release.md](public-launcher-release.md) for the
+`happyherd-v*` tag namespace, native credential-store payloads, release manifest,
+and installer verification.

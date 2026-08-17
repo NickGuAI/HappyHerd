@@ -5,8 +5,23 @@ import { extractNoSandboxFlag } from '@/utils/sandboxFlags'
 import { ensureDaemonRunning } from '@/daemon/ensureDaemonRunning'
 import type { PermissionMode } from '@/api/types'
 import type { ReasoningEffort } from '@/codex/codexAppServerTypes'
+import { execFileSync } from 'node:child_process'
 
-export async function handleCodexCommand(args: string[]): Promise<void> {
+export interface CodexCommandDependencies {
+  showNativeHelp?: () => void
+}
+
+export async function handleCodexCommand(
+  args: string[],
+  dependencies: CodexCommandDependencies = {},
+): Promise<void> {
+  if (args.length === 1 && (args[0] === '--help' || args[0] === '-h')) {
+    const showNativeHelp = dependencies.showNativeHelp ?? (() => {
+      execFileSync('codex', ['--help'], { stdio: 'inherit', windowsHide: true })
+    })
+    showNativeHelp()
+    return
+  }
   let startedBy: 'daemon' | 'terminal' | undefined = undefined
   let permissionMode: PermissionMode | undefined = undefined
   let model: string | undefined = undefined

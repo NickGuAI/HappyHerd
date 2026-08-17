@@ -1,0 +1,49 @@
+{
+  "name": "@happyherd/cli",
+  "version": "1.2.1-beta.1",
+  "private": true,
+  "description": "Generic HappyHerd launcher, issuer connection, and verified Skill bundle installer",
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "bin": {
+    "happyherd": "./bin/happyherd.mjs"
+  },
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      }
+    }
+  },
+  "files": [
+    "bin",
+    "dist",
+    "package.json",
+    "README.md"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc --noEmit && pkgroll",
+    "test": "$npm_execpath run build && vitest run"
+  },
+  "dependencies": {
+    "@napi-rs/keyring": "1.3.0",
+    "happy": "workspace:*",
+    "yauzl": "3.4.0"
+  },
+  "devDependencies": {
+    "@types/node": ">=20",
+    "@types/yauzl": "3.4.0",
+    "@types/yazl": "3.3.1",
+    "pkgroll": "^2.14.2",
+    "typescript": "5.9.3",
+    "vitest": "^3.2.4",
+    "yazl": "3.3.1"
+  },
+  "packageManager": "pnpm@10.11.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

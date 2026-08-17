@@ -1,0 +1,397 @@
+name: HappyHerd public launcher release
+
+on:
+  push:
+    tags:
+      - happyherd-v*
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CI: 1
+  PNPM_VERSION: 10.11.0
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: darwin-arm64
+            runner: macos-14
+            format: tar.gz
+          - target: darwin-x64
+            runner: macos-15-intel
+            format: tar.gz
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+            format: tar.gz
+          - target: linux-x64
+            runner: ubuntu-24.04
+            format: tar.gz
+          - target: win32-x64
+            runner: windows-2022
+            format: zip
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - name: Check out exact tag source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install broker-owned Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Linux native service prerequisites
+        if: startsWith(matrix.target, 'linux-')
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends acl dbus-daemon gnome-keyring
+
+      - name: Pin timezone database into Python runtime
+        shell: bash
+        run: python -m pip install --disable-pip-version-check --no-input tzdata==2025.2
+
+      - name: Install frozen dependencies
+        working-directory: server
+        run: pnpm install --frozen-lockfile
+
+      - name: Build maintained runtime and launcher
+        working-directory: server
+        run: |
+          pnpm --filter happy --fail-if-no-match build
+          pnpm --filter @happyherd/cli --fail-if-no-match build
+
+      - name: Create locked launcher deployment
+        shell: bash
+        run: |
+          pnpm --dir server --filter @happyherd/cli --fail-if-no-match deploy \
+            --prod "$RUNNER_TEMP/payload"
+
+      - name: Build Windows service host
+        if: matrix.target == 'win32-x64'
+        shell: pwsh
+        run: |
+          $VsWhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $Install = & $VsWhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $Install) { throw 'Visual C++ build tools are unavailable' }
+          $VsDevCmd = Join-Path $Install 'Common7\Tools\VsDevCmd.bat'
+          $Source = Join-Path $env:GITHUB_WORKSPACE 'installers\service\windows\happyherd-broker-service.cpp'
+          $Output = Join-Path $env:RUNNER_TEMP 'happyherd-broker-service.exe'
+          $ToolSource = Join-Path $env:GITHUB_WORKSPACE 'installers\service\windows\happyherd-tool-launcher.cpp'
+          $ToolOutput = Join-Path $env:RUNNER_TEMP 'happyherd-tool-launcher.exe'
+          $VerifierSource = Join-Path $env:GITHUB_WORKSPACE 'installers\service\windows\happyherd-acl-check.cpp'
+          $VerifierOutput = Join-Path $env:RUNNER_TEMP 'happyherd-acl-check.exe'
+          $Command = 'call "' + $VsDevCmd + '" -arch=x64 -host_arch=x64 && cl.exe /nologo /EHsc /std:c++17 /W4 /WX /DUNICODE /D_UNICODE /Fe:"' + $Output + '" "' + $Source + '" Advapi32.lib && cl.exe /nologo /EHsc /std:c++17 /W4 /WX /DUNICODE /D_UNICODE /Fe:"' + $ToolOutput + '" "' + $ToolSource + '" Advapi32.lib Crypt32.lib && cl.exe /nologo /EHsc /std:c++17 /W4 /WX /DUNICODE /D_UNICODE /Fe:"' + $VerifierOutput + '" "' + $VerifierSource + '" Advapi32.lib'
+          & cmd.exe /d /s /c $Command
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $Output) -or -not (Test-Path -LiteralPath $ToolOutput) -or -not (Test-Path -LiteralPath $VerifierOutput)) { throw 'Windows native host compilation failed' }
+
+      - name: Build Unix isolated tool launcher
+        if: matrix.target != 'win32-x64'
+        shell: bash
+        run: |
+          cc -std=c11 -O2 -Wall -Wextra -Werror \
+            installers/service/unix/happyherd-tool-launcher.c \
+            -o "$RUNNER_TEMP/happyherd-tool-launcher"
+
+      - name: Build macOS durable Keychain broker host
+        if: startsWith(matrix.target, 'darwin-')
+        shell: bash
+        run: |
+          cc -std=c11 -O2 -Wall -Wextra -Werror -Wno-deprecated-declarations \
+            installers/service/darwin/happyherd-keychain-broker.c \
+            -framework Security -framework CoreFoundation \
+            -o "$RUNNER_TEMP/happyherd-keychain-broker"
+
+      - name: Stage traceable payload
+        shell: bash
+        run: |
+          version="$(node -p "require('./server/packages/happyherd-cli/package.json').version")"
+          case "${{ matrix.target }}" in
+            linux-*) service_asset="$GITHUB_WORKSPACE/installers/service/linux/happyherd-broker.service.template"; secret_service_args="--secret-service-wrapper $GITHUB_WORKSPACE/installers/service/linux/happyherd-secret-service.sh"; tool_launcher="$RUNNER_TEMP/happyherd-tool-launcher"; uninstaller="$GITHUB_WORKSPACE/installers/uninstall.sh" ;;
+            darwin-*) service_asset="$GITHUB_WORKSPACE/installers/service/darwin/dev.happyherd.broker.plist.template"; keychain_host_args="--keychain-host $RUNNER_TEMP/happyherd-keychain-broker"; tool_launcher="$RUNNER_TEMP/happyherd-tool-launcher"; uninstaller="$GITHUB_WORKSPACE/installers/uninstall.sh" ;;
+            win32-*) service_asset="$RUNNER_TEMP/happyherd-broker-service.exe"; tool_launcher="$RUNNER_TEMP/happyherd-tool-launcher.exe"; trust_verifier_args="--trust-verifier $RUNNER_TEMP/happyherd-acl-check.exe"; uninstaller="$GITHUB_WORKSPACE/installers/uninstall.ps1" ;;
+          esac
+          node scripts/prepare-public-launcher-asset.mjs \
+            --payload "$RUNNER_TEMP/payload" \
+            --stage "$RUNNER_TEMP/stage" \
+            --target "${{ matrix.target }}" \
+            --source-sha "$GITHUB_SHA" \
+            --version "$version" \
+            --node-runtime "$(node -p 'process.execPath')" \
+            --python-root "$pythonLocation" \
+            --python-executable "$(python -c 'import sys; print(sys.executable)')" \
+            --service-asset "$service_asset" \
+            ${secret_service_args:-} \
+            ${keychain_host_args:-} \
+            --tool-launcher "$tool_launcher" \
+            ${trust_verifier_args:-} \
+            --uninstaller "$uninstaller"
+
+      - name: Smoke staged launcher on Unix
+        if: matrix.format == 'tar.gz'
+        shell: bash
+        run: |
+          "$RUNNER_TEMP/stage/happyherd/bin/happyherd" --version
+          "$RUNNER_TEMP/stage/happyherd/bin/happyherd" --help
+          python_relative="$(node -p "require('$RUNNER_TEMP/stage/happyherd/release.json').pythonRuntime")"
+          env -i "$RUNNER_TEMP/stage/happyherd/$python_relative" -I -X utf8 -c 'from zoneinfo import ZoneInfo; assert ZoneInfo("America/New_York").key == "America/New_York"'
+
+      - name: Smoke staged launcher on Windows
+        if: matrix.format == 'zip'
+        shell: pwsh
+        run: |
+          & "$env:RUNNER_TEMP\stage\happyherd\happyherd.cmd" --version
+          if ($LASTEXITCODE -ne 0) { throw 'staged launcher version check failed' }
+          & "$env:RUNNER_TEMP\stage\happyherd\happyherd.cmd" --help
+          if ($LASTEXITCODE -ne 0) { throw 'staged launcher help check failed' }
+          $Receipt = Get-Content -Raw "$env:RUNNER_TEMP\stage\happyherd\release.json" | ConvertFrom-Json
+          $Python = Join-Path "$env:RUNNER_TEMP\stage\happyherd" $Receipt.pythonRuntime
+          & $Python -I -X utf8 -c 'from zoneinfo import ZoneInfo; assert ZoneInfo("America/New_York").key == "America/New_York"'
+          if ($LASTEXITCODE -ne 0) { throw 'staged broker Python check failed' }
+
+      - name: Package Unix asset
+        if: matrix.format == 'tar.gz'
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/out"
+          version="$(node -p "require('./server/packages/happyherd-cli/package.json').version")"
+          filename="happyherd-v${version}-${{ matrix.target }}.tar.gz"
+          tar --format=ustar -czf "$RUNNER_TEMP/out/$filename" -C "$RUNNER_TEMP/stage" happyherd
+          node scripts/write-public-asset-fragment.mjs \
+            --asset "$RUNNER_TEMP/out/$filename" \
+            --output "$RUNNER_TEMP/out/${{ matrix.target }}.asset.json" \
+            --target "${{ matrix.target }}" \
+            --format tar.gz \
+            --source-sha "$GITHUB_SHA"
+
+      - name: Package Windows asset
+        if: matrix.format == 'zip'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:RUNNER_TEMP\out" | Out-Null
+          $version = node -p "require('./server/packages/happyherd-cli/package.json').version"
+          $filename = "happyherd-v$version-${{ matrix.target }}.zip"
+          Compress-Archive -Path "$env:RUNNER_TEMP\stage\happyherd" -DestinationPath "$env:RUNNER_TEMP\out\$filename"
+          node scripts/write-public-asset-fragment.mjs `
+            --asset "$env:RUNNER_TEMP\out\$filename" `
+            --output "$env:RUNNER_TEMP\out\${{ matrix.target }}.asset.json" `
+            --target "${{ matrix.target }}" `
+            --format zip `
+            --source-sha "$env:GITHUB_SHA"
+
+      - name: Install and verify native Unix lifecycle
+        if: matrix.format == 'tar.gz'
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./server/packages/happyherd-cli/package.json').version")"
+          issuer_port="$(python -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1]);s.close()')"
+          node scripts/prepare-native-release-fixture.mjs \
+            --fragment "$RUNNER_TEMP/out/${{ matrix.target }}.asset.json" \
+            --asset "$RUNNER_TEMP/out/happyherd-v${version}-${{ matrix.target }}.tar.gz" \
+            --output "$RUNNER_TEMP/native-release" \
+            --version "$version" \
+            --base-url "http://127.0.0.1:9" \
+            --shell sh
+          scripts/prepare-agent-cli-fixtures.sh "$HOME/.local/bin"
+          PATH="$HOME/.local/bin:$PATH" sh "$RUNNER_TEMP/native-release/install.sh" \
+            --local-manifest "$RUNNER_TEMP/native-release/release-manifest.json" \
+            --local-asset "$RUNNER_TEMP/native-release/happyherd-v${version}-${{ matrix.target }}.tar.gz"
+          PATH="$HOME/.local/bin:$PATH" scripts/test-installed-happyherd-e2e.sh "$HOME/.local/bin/happyherd" "$issuer_port"
+          case "${{ matrix.target }}" in
+            linux-*) uninstaller="/opt/happyherd/$(id -u)/uninstall.sh" ;;
+            darwin-*) uninstaller="/Library/Application Support/HappyHerd/$(id -u)/uninstall.sh" ;;
+          esac
+          uninstall_output="$(PATH="$HOME/.local/bin:$PATH" sh "$uninstaller")"
+          printf '%s\n' "$uninstall_output"
+          grep -Fq 'Removed 1 local issuer credential' <<<"$uninstall_output"
+          test ! -e "$HOME/.local/bin/happyherd"
+          test ! -e "$HOME/.claude/skills/generic-guide"
+          test ! -e "$HOME/.codex/skills/generic-guide"
+
+      - name: Install and verify native Windows lifecycle
+        if: matrix.format == 'zip'
+        shell: pwsh
+        run: |
+          $Version = node -p "require('./server/packages/happyherd-cli/package.json').version"
+          function Get-LoopbackPort {
+            $Listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+            $Listener.Start(); $Port = ([Net.IPEndPoint]$Listener.LocalEndpoint).Port; $Listener.Stop(); return $Port
+          }
+          $IssuerPort = Get-LoopbackPort
+          node scripts/prepare-native-release-fixture.mjs `
+            --fragment "$env:RUNNER_TEMP\out\${{ matrix.target }}.asset.json" `
+            --asset "$env:RUNNER_TEMP\out\happyherd-v$Version-${{ matrix.target }}.zip" `
+            --output "$env:RUNNER_TEMP\native-release" `
+            --version "$Version" `
+            --base-url "http://127.0.0.1:9" `
+            --shell powershell
+          $Keeper = $null
+          $TestUser = 'HHdE2E-' + [Guid]::NewGuid().ToString('N').Substring(0, 8)
+          $TestPassword = 'Aa1!' + [Guid]::NewGuid().ToString('N') + [Guid]::NewGuid().ToString('N')
+          $SpyUser = 'HHdSpy-' + [Guid]::NewGuid().ToString('N').Substring(0, 8)
+          $SpyPassword = 'Aa1!' + [Guid]::NewGuid().ToString('N') + [Guid]::NewGuid().ToString('N')
+          $TargetSid = $null
+          $TargetHome = $null
+          try {
+            $SecurePassword = ConvertTo-SecureString $TestPassword -AsPlainText -Force
+            New-LocalUser -Name $TestUser -Password $SecurePassword -Description 'HappyHerd native E2E target employee' -PasswordNeverExpires | Out-Null
+            $UsersGroup = ([Security.Principal.SecurityIdentifier]::new('S-1-5-32-545')).Translate([Security.Principal.NTAccount]).Value
+            Add-LocalGroupMember -Group $UsersGroup -Member $TestUser
+            $SpySecurePassword = ConvertTo-SecureString $SpyPassword -AsPlainText -Force
+            New-LocalUser -Name $SpyUser -Password $SpySecurePassword -Description 'HappyHerd native E2E independent local spy' -PasswordNeverExpires | Out-Null
+            Add-LocalGroupMember -Group $UsersGroup -Member $SpyUser
+            $TargetSid = (Get-LocalUser -Name $TestUser).Sid.Value
+            $TargetCredential = [Management.Automation.PSCredential]::new("$env:COMPUTERNAME\$TestUser", $SecurePassword)
+            $KeeperCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes('New-Item -ItemType Directory -Force -Path $env:LOCALAPPDATA, HKCU:\Environment | Out-Null; Start-Sleep -Seconds 1800'))
+            $Keeper = Start-Process -FilePath "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -Credential $TargetCredential -PassThru -ArgumentList @('-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', $KeeperCommand)
+            $ProfileKey = "Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$TargetSid"
+            $HiveKey = "Registry::HKEY_USERS\$TargetSid"
+            for ($Attempt = 0; $Attempt -lt 100; $Attempt += 1) { if ((Test-Path -LiteralPath $ProfileKey) -and (Test-Path -LiteralPath $HiveKey)) { break }; Start-Sleep -Milliseconds 100 }
+            if (-not (Test-Path -LiteralPath $ProfileKey) -or -not (Test-Path -LiteralPath $HiveKey)) { throw 'standard employee profile/hive did not load' }
+            $TargetHome = [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables((Get-ItemPropertyValue -LiteralPath $ProfileKey -Name ProfileImagePath)))
+            $TargetLocalAppData = Join-Path $TargetHome 'AppData\Local'
+            $AgentBin = Join-Path $TargetHome 'happyherd-e2e-agent-bin'
+            & scripts/prepare-agent-cli-fixtures.ps1 $AgentBin
+            $env:Path = "$AgentBin;$env:Path"
+            & "$env:RUNNER_TEMP\native-release\install.ps1" `
+              -LocalManifest "$env:RUNNER_TEMP\native-release\release-manifest.json" `
+              -LocalAsset "$env:RUNNER_TEMP\native-release\happyherd-v$Version-${{ matrix.target }}.zip" `
+              -TargetUserSid $TargetSid -TargetUserHome $TargetHome -TargetLocalAppData $TargetLocalAppData -Elevated
+            $SidBytes = [Text.Encoding]::UTF8.GetBytes($TargetSid)
+            $SidHasher = [Security.Cryptography.SHA256]::Create()
+            try { $OwnerKey = ([BitConverter]::ToString($SidHasher.ComputeHash($SidBytes))).Replace('-', '').ToLowerInvariant().Substring(0, 20) } finally { $SidHasher.Dispose() }
+            $InstallRoot = Join-Path $env:ProgramFiles "HappyHerd\$OwnerKey"
+            $Launcher = Join-Path $InstallRoot 'happyherd.cmd'
+            $InstalledIdentity = Get-Content -Raw -LiteralPath (Join-Path $InstallRoot 'installation.json') | ConvertFrom-Json
+            if ($InstalledIdentity.ownerSid -ne $TargetSid -or $InstalledIdentity.ownerSid -eq [Security.Principal.WindowsIdentity]::GetCurrent().User.Value -or $InstalledIdentity.ownerHome -ne $TargetHome) { throw 'installation bound itself to the administrator instead of the standard employee' }
+            $env:HAPPYHERD_E2E_TARGET_USER = "$env:COMPUTERNAME\$TestUser"
+            $env:HAPPYHERD_E2E_TARGET_PASSWORD = $TestPassword
+            $env:HAPPYHERD_E2E_SPY_USER = "$env:COMPUTERNAME\$SpyUser"
+            $env:HAPPYHERD_E2E_SPY_PASSWORD = $SpyPassword
+            & scripts/test-installed-happyherd-e2e.ps1 $Launcher $IssuerPort
+            $UninstallOutput = & (Join-Path $InstallRoot 'uninstall.ps1') -Elevated | Out-String
+            if (-not $UninstallOutput.Contains('Removed 1 local issuer credential')) { throw 'Windows uninstaller did not purge the live OS-store credential' }
+            if (Test-Path -LiteralPath $InstallRoot) { throw 'Windows installation survived verified uninstall' }
+            if (Test-Path -LiteralPath (Join-Path $TargetHome '.claude\skills\generic-guide')) { throw 'Claude Skill survived verified uninstall' }
+            if (Test-Path -LiteralPath (Join-Path $TargetHome '.codex\skills\generic-guide')) { throw 'Codex Skill survived verified uninstall' }
+          } finally {
+            $env:HAPPYHERD_E2E_TARGET_PASSWORD = $null
+            $env:HAPPYHERD_E2E_TARGET_USER = $null
+            $env:HAPPYHERD_E2E_SPY_PASSWORD = $null
+            $env:HAPPYHERD_E2E_SPY_USER = $null
+            if ($Keeper -and -not $Keeper.HasExited) { Stop-Process -Id $Keeper.Id -Force -ErrorAction SilentlyContinue; $Keeper.WaitForExit() }
+            if (Get-LocalUser -Name $TestUser -ErrorAction SilentlyContinue) { Remove-LocalUser -Name $TestUser }
+            if (Get-LocalUser -Name $SpyUser -ErrorAction SilentlyContinue) { Remove-LocalUser -Name $SpyUser }
+            if ($TargetSid) {
+              $Profile = Get-CimInstance Win32_UserProfile -Filter "SID='$TargetSid'" -ErrorAction SilentlyContinue
+              if ($Profile -and $TargetHome -and [StringComparer]::OrdinalIgnoreCase.Equals([string]$Profile.LocalPath, $TargetHome)) { Remove-CimInstance -InputObject $Profile -ErrorAction SilentlyContinue }
+            }
+          }
+
+      - name: Upload native asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: launcher-${{ matrix.target }}
+          path: ${{ runner.temp }}/out/*
+          if-no-files-found: error
+          retention-days: 7
+
+  metadata:
+    name: Build and verify release metadata
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact release source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Download all native assets
+        uses: actions/download-artifact@v4
+        with:
+          pattern: launcher-*
+          path: ${{ runner.temp }}/assets
+          merge-multiple: true
+
+      - name: Validate tag and build metadata
+        shell: bash
+        run: |
+          version="$(node -p "require('./server/packages/happyherd-cli/package.json').version")"
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            [[ "$GITHUB_REF_NAME" == "happyherd-v${version}" ]]
+            release_base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+          else
+            release_base="https://downloads.happyherd.example/releases/happyherd-v${version}"
+          fi
+          published_at="$(git show -s --format=%cI "$GITHUB_SHA")"
+          mkdir -p "$RUNNER_TEMP/release"
+          cp "$RUNNER_TEMP"/assets/happyherd-* "$RUNNER_TEMP/release/"
+          node scripts/build-public-release-metadata.mjs \
+            --assets-dir "$RUNNER_TEMP/assets" \
+            --output "$RUNNER_TEMP/release" \
+            --version "$version" \
+            --source-sha "$GITHUB_SHA" \
+            --published-at "$published_at" \
+            --release-base-url "$release_base"
+          node scripts/verify-public-launcher-release.mjs "$RUNNER_TEMP/release"
+
+      - name: Upload verified public release
+        uses: actions/upload-artifact@v4
+        with:
+          name: happyherd-public-release
+          path: ${{ runner.temp }}/release/*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish tagged GitHub release
+    if: startsWith(github.ref, 'refs/tags/happyherd-v')
+    needs: metadata
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download verified public release
+        uses: actions/download-artifact@v4
+        with:
+          name: happyherd-public-release
+          path: release
+
+      - name: Publish immutable tag assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#happyherd-v}"
+          prerelease=()
+          case "$version" in *-*) prerelease+=(--prerelease) ;; esac
+          gh release create "$GITHUB_REF_NAME" release/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "HappyHerd ${GITHUB_REF_NAME#happyherd-v}" \
+            --notes-from-tag \
+            "${prerelease[@]}"

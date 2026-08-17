@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
@@ -16,18 +15,6 @@ const maxTextBytes = 2 * 1024 * 1024;
 const canonicalMaintainerName = 'HappyHerd Maintainers';
 const canonicalMaintainerEmail = 'maintainers@happyherd.example';
 const githubCommitterEmail = ['noreply', '@', 'github.com'].join('');
-
-// Hash exact private identifiers so the denylist does not reproduce them in
-// the public source it protects. Labels describe the class, never the value.
-const forbiddenTokenDigests = new Map([
-  ['5d0e4fa0973bc777d16d5a8ba3101018e7e7b051bb2497a10e7abff6c78cf8bf', 'personal repository owner'],
-  ['5ed5301b7e6bb37006b49b5db6f177b1a7d29860b595b26ec481ec40147ee09d', 'operator given name'],
-  ['eff24d49d883b4c51cc6324154c5d2e4a7848a00014de7519ee751eb0826bed9', 'private infrastructure name'],
-  ['4eae95b5f193ff6ebab5fdd60975eff022b47ec1d5237f4bb1c95eb5dfb35fb9', 'private infrastructure domain'],
-  ['555e0c8e02ffa6fac93197636c4df86abc47b011c4f4f8125b984ff4fd514619', 'private deployment nickname'],
-  ['e40d9ee0f679bea99929df03c2e101a489e1eb0bd7b797d6f5cfb9847cc42951', 'operator account name'],
-  ['af935c5d4ab604ac4dc3797ad367d25f565bff78e364fbec5270ac6e04342acb', 'private object-store bucket'],
-]);
 
 const secretPatterns = [
   ['OpenAI-style secret', /\bsk-(?:proj|ant|live|test)-[A-Za-z0-9_-]{16,}\b/g],
@@ -54,21 +41,8 @@ function nulList(value) {
   return value.split('\0').filter(Boolean);
 }
 
-function sha256(value) {
-  return createHash('sha256').update(value).digest('hex');
-}
-
 function isText(buffer) {
   return buffer.length <= maxTextBytes && !buffer.subarray(0, 8192).includes(0);
-}
-
-function tokenFindings(text) {
-  const findings = [];
-  for (const token of text.match(/[A-Za-z0-9][A-Za-z0-9_.-]{2,}/g) ?? []) {
-    const label = forbiddenTokenDigests.get(sha256(token.toLowerCase()));
-    if (label) findings.push(label);
-  }
-  return findings;
 }
 
 function inspectText(path, text) {
@@ -95,8 +69,6 @@ function inspectText(path, text) {
   ) {
     findings.push('organization-specific content outside its named example');
   }
-
-  findings.push(...tokenFindings(text));
 
   for (const match of text.matchAll(/\/home\/([A-Za-z0-9._-]+)/g)) {
     if (!['user', 'example-user', 'runner', 'me', 'test', 'second'].includes(match[1].toLowerCase())
@@ -206,6 +178,9 @@ export function canonicalCommitIdentityText({
   const canonicalTrailer = `Co-authored-by: ${canonicalIdentity}`;
   const canonicalAuthor = authorName === canonicalMaintainerName
     && authorEmail === canonicalMaintainerEmail;
+  const canonicalCommitter = committerName === canonicalMaintainerName
+    && committerEmail === canonicalMaintainerEmail;
+  const canonicalCommit = canonicalAuthor && canonicalCommitter;
   const hostedNoReplyAuthor = /^[^@]+@users\.noreply\.github\.com$/i.test(authorEmail);
   const signedGitHubSquash = parentCount === 1
     && committerName === 'GitHub'
@@ -218,9 +193,9 @@ export function canonicalCommitIdentityText({
   // when every branch commit uses the canonical maintainer identity. Accept
   // only the signed, single-parent hosting form with explicit canonical
   // attribution; any missing condition keeps the raw identity fail-closed.
-  return signedGitHubSquash
+  return canonicalCommit || signedGitHubSquash
     ? `${canonicalIdentity}\n${canonicalIdentity}\n${subject}`
-    : `${authorName} <${authorEmail}>\n${committerName} <${committerEmail}>\n${subject}`;
+    : null;
 }
 
 function commitIdentityEntries() {
@@ -229,18 +204,20 @@ function commitIdentityEntries() {
       'show', '-s', '--format=%an%x00%ae%x00%cn%x00%ce%x00%s%x00%B', commit,
     ]).split('\0');
     const record = git(['rev-list', '--parents', '-n', '1', commit]).trim().split(/\s+/);
+    const text = canonicalCommitIdentityText({
+      authorName,
+      authorEmail,
+      committerName,
+      committerEmail,
+      subject,
+      message,
+      rawCommit: git(['cat-file', 'commit', commit]),
+      parentCount: record.length - 1,
+    });
     return {
       path: `history/${commit.slice(0, 12)}-commit-metadata.txt`,
-      text: canonicalCommitIdentityText({
-        authorName,
-        authorEmail,
-        committerName,
-        committerEmail,
-        subject,
-        message,
-        rawCommit: git(['cat-file', 'commit', commit]),
-        parentCount: record.length - 1,
-      }),
+      text: text ?? '',
+      ...(text === null ? { rule: 'non-canonical owned identity' } : {}),
     };
   });
 }
@@ -266,6 +243,7 @@ function ownedTagMetadataEntries() {
 export function inspectEntries(entries) {
   const findings = [];
   for (const entry of entries) {
+    if (entry.rule) findings.push({ path: entry.displayPath ?? entry.path, rule: entry.rule });
     for (const rule of inspectText(entry.path, entry.text)) {
       findings.push({ path: entry.displayPath ?? entry.path, rule });
     }

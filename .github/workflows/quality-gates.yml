@@ -93,6 +93,7 @@ jobs:
           pnpm --filter happy-app --fail-if-no-match typecheck
           pnpm --filter @slopus/happy-wire --fail-if-no-match typecheck
           pnpm --filter happy --fail-if-no-match typecheck
+          pnpm --filter @happyherd/cli --fail-if-no-match typecheck
           pnpm --filter ./packages/happy-server --fail-if-no-match typecheck
       - name: Enforce interface inventory and localization
         working-directory: server
@@ -122,6 +123,7 @@ jobs:
           pnpm --filter happy-app --fail-if-no-match test --run
           pnpm --filter @slopus/happy-wire --fail-if-no-match test
           pnpm --filter happy-agent --fail-if-no-match test
+          pnpm --filter @happyherd/cli --fail-if-no-match test
           pnpm --filter happy --fail-if-no-match test
           pnpm --filter ./packages/happy-server --fail-if-no-match test
 

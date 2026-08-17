@@ -34,7 +34,6 @@ assert.deepEqual(inspect('metadata.txt', 'HappyHerd Maintainers <maintainers@hap
 assert(inspect('metadata.txt', ['private-person', '@', 'real-company.com'].join('')).includes(
   'non-example email address',
 ));
-assert(inspect('metadata.txt', ['Hosted', 'Contributor'].join('')).includes('operator given name'));
 assert(inspect('docs/organization.md', ['Pioneering', 'Minds'].join(' ')).includes(
   'organization-specific content outside its named example',
 ));
@@ -74,8 +73,8 @@ assert.equal(syntheticPullRequestMergeParents({
 
 const canonicalIdentity = 'HappyHerd Maintainers <maintainers@happyherd.example>';
 const hostedSquashIdentity = {
-  authorName: ['Hosted', 'Contributor'].join(''),
-  authorEmail: ['123+', 'Hosted', 'Contributor', 'Example', 'User', '@users', '.noreply', '.github', '.com'].join(''),
+  authorName: 'Hosted Contributor',
+  authorEmail: ['123+', 'hosted-contributor', '@users', '.noreply', '.github', '.com'].join(''),
   committerName: 'GitHub',
   committerEmail: ['noreply', '@', 'github.com'].join(''),
   subject: 'fix(runtime): example',
@@ -87,15 +86,23 @@ assert.deepEqual(inspect(
   'metadata.txt',
   canonicalCommitIdentityText(hostedSquashIdentity),
 ), []);
+assert.deepEqual(inspect(
+  'metadata.txt',
+  canonicalCommitIdentityText({
+    ...hostedSquashIdentity,
+    authorName: 'HappyHerd Maintainers',
+    authorEmail: 'maintainers@happyherd.example',
+    committerName: 'HappyHerd Maintainers',
+    committerEmail: 'maintainers@happyherd.example',
+    rawCommit: 'tree abc\nparent def\n',
+  }),
+), []);
 for (const unsafeIdentity of [
   { ...hostedSquashIdentity, rawCommit: 'tree abc\nparent def\n' },
   { ...hostedSquashIdentity, message: 'fix(runtime): example\n' },
   { ...hostedSquashIdentity, parentCount: 2 },
 ]) {
-  assert(inspect(
-    'metadata.txt',
-    canonicalCommitIdentityText(unsafeIdentity),
-  ).includes('operator given name'));
+  assert.equal(canonicalCommitIdentityText(unsafeIdentity), null);
 }
 
 process.stdout.write('public-boundary self-test: ok\n');

@@ -4,6 +4,37 @@ This directory shows how an organization can configure the generic
 `@happyherd/happyherd-agent` runtime without adding organization-specific
 logic to HappyHerd core. PMAI is an example deployment, not a built-in mode.
 
+## Separate local launcher example
+
+The employee's local issuer connection is separate from this Discord bridge:
+
+```text
+happyherd doctor
+happyherd connect https://www.pioneeringminds.ai
+happyherd install-skills --issuer https://www.pioneeringminds.ai
+happyherd launch codex
+```
+
+The uploaded team Skill describes the workflow, but a web-only Claude sandbox
+cannot execute the employee's local scripts or provider registry. The local
+HappyHerd install is therefore the execution surface. A Skill invokes its
+verified tool through the generic bridge, for example:
+
+```text
+happyherd run-tool --issuer https://www.pioneeringminds.ai \
+  --skill pmai-crm --script scripts/pmai_crm.py -- readiness
+```
+
+No PMAI token is placed in the agent environment or command line. HappyHerd
+reads the connected credential from the OS secret store and provides only
+`HAPPYHERD_ACCESS_TOKEN` to the verified child process.
+
+The launcher discovers the public protocol at
+`https://www.pioneeringminds.ai/.well-known/happyherd.json`. The employee does
+not paste a PMAI credential into the terminal command, Discord, or an agent
+conversation. `issuer.example.json` records only the public discovery entry;
+authorization endpoints and permissions remain server-discovered.
+
 The example exposes exactly five named capabilities: guide, CRM, Discord,
 Luma, and a Canva connector handoff. Gmail and LinkedIn are intentionally
 absent. Team members authenticate their own Canva accounts in their personal

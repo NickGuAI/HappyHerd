@@ -44,6 +44,7 @@ node "$repo_root/scripts/test-public-boundary.mjs"
 node "$repo_root/scripts/verify-public-boundary.mjs"
 node "$repo_root/scripts/lint-source.mjs"
 node "$repo_root/scripts/verify-product-identity.mjs"
+"$repo_root/scripts/test-public-launcher-release-contract.sh"
 "$repo_root/scripts/validate-runtime-isolation.sh" \
   "$repo_root/deploy/runtime.env.example" template
 "$repo_root/scripts/test-runtime-isolation.sh"
@@ -59,7 +60,8 @@ node "$repo_root/scripts/verify-product-identity.mjs"
 "$repo_root/scripts/test-release-rollback.sh"
 "$repo_root/scripts/test-upstream-sync-provenance.sh"
 "$repo_root/scripts/test-owned-merge-provenance.sh"
-shellcheck -x "$repo_root"/scripts/*.sh "$repo_root"/scripts/lib/*.sh
+shellcheck -x "$repo_root"/scripts/*.sh "$repo_root"/scripts/lib/*.sh \
+  "$repo_root/installers/install.sh.template"
 
 cd "$server_root"
 pnpm --filter happy-app --fail-if-no-match typecheck
@@ -67,6 +69,7 @@ pnpm --filter happy-app --fail-if-no-match test --run
 pnpm --filter @slopus/happy-wire --fail-if-no-match test
 pnpm --filter happy-agent --fail-if-no-match test
 pnpm --filter @happyherd/happyherd-agent --fail-if-no-match test
+pnpm --filter @happyherd/cli --fail-if-no-match test
 pnpm --filter happy --fail-if-no-match test
 pnpm --filter ./packages/happy-server --fail-if-no-match typecheck
 pnpm --filter ./packages/happy-server --fail-if-no-match test

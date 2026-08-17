@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>@SERVICE_LABEL@</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>@KEYCHAIN_HOST@</string>
+    <string>--run</string>
+    <string>@OWNER_UID@</string>
+    <string>@SERVICE_UID@</string>
+    <string>@SERVICE_GID@</string>
+    <string>@STATE_ROOT@</string>
+    <string>@KEYCHAIN_PATH@</string>
+    <string>@NODE_RUNTIME@</string>
+    <string>@BROKER_SCRIPT@</string>
+    <string>@SERVICE_CONFIG@</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ProcessType</key><string>Background</string>
+  <key>StandardOutPath</key><string>@BROKER_LOG@</string>
+  <key>StandardErrorPath</key><string>@BROKER_LOG@</string>
+  <key>Umask</key><integer>23</integer>
+</dict>
+</plist>

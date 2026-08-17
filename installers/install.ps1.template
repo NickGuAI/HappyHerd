@@ -1,0 +1,687 @@
+[CmdletBinding()]
+param(
+  [string]$TargetUserSid = '',
+  [string]$TargetUserHome = '',
+  [string]$TargetLocalAppData = '',
+  [string]$LocalManifest = '',
+  [string]$LocalAsset = '',
+  [string]$ExpectedInstallerSha256 = '',
+  [switch]$Elevated
+)
+
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+
+$ReleaseBase = '@RELEASE_BASE_URL@'
+$ReleaseVersion = '@RELEASE_VERSION@'
+$Target = 'win32-x64'
+$PinnedFilename = '@WIN32_X64_FILENAME@'
+$PinnedSha256 = '@WIN32_X64_SHA256@'
+[long]$PinnedSizeBytes = @WIN32_X64_SIZE@
+$PinnedSourceSha = '@WIN32_X64_SOURCE_SHA@'
+
+function Fail([string]$Message) { throw "happyherd installer: $Message" }
+function Full-Path([string]$Path) { return [IO.Path]::GetFullPath($Path) }
+function Assert-NoReparseChain([string]$Path, [string]$Label) {
+  $Candidate = Full-Path $Path
+  $Root = [IO.Path]::GetPathRoot($Candidate)
+  $Cursor = $Root.TrimEnd('\')
+  foreach ($Segment in $Candidate.Substring($Root.Length).Split('\')) {
+    if (-not $Segment) { continue }
+    $Cursor = Join-Path $Cursor $Segment
+    if (-not (Test-Path -LiteralPath $Cursor)) { Fail "$Label path component is missing: $Cursor" }
+    if (((Get-Item -Force -LiteralPath $Cursor).Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { Fail "$Label path contains a reparse point: $Cursor" }
+  }
+}
+function Utf8-NoBom([string]$Path, [string]$Value) {
+  $Directory = Split-Path $Path -Parent
+  if (-not (Test-Path -LiteralPath $Directory -PathType Container)) { New-Item -ItemType Directory -Force -Path $Directory | Out-Null }
+  $TemporaryFile = Join-Path $Directory ('.happyherd-write-' + [Guid]::NewGuid().ToString('N'))
+  try {
+    [IO.File]::WriteAllText($TemporaryFile, $Value, [Text.UTF8Encoding]::new($false))
+    $Bytes = [IO.File]::ReadAllBytes($TemporaryFile)
+    if ($Bytes.Length -ge 3 -and $Bytes[0] -eq 0xef -and $Bytes[1] -eq 0xbb -and $Bytes[2] -eq 0xbf) { Fail "UTF-8 BOM was written unexpectedly: $Path" }
+    if (Test-Path -LiteralPath $Path) { [IO.File]::Replace($TemporaryFile, $Path, $null, $true) }
+    else { [IO.File]::Move($TemporaryFile, $Path) }
+  } finally {
+    if (Test-Path -LiteralPath $TemporaryFile) { Remove-Item -LiteralPath $TemporaryFile -Force }
+  }
+}
+function Sid-Key([string]$Sid) {
+  $Bytes = [Text.Encoding]::UTF8.GetBytes($Sid)
+  $Hasher = [Security.Cryptography.SHA256]::Create()
+  try { return ([BitConverter]::ToString($Hasher.ComputeHash($Bytes))).Replace('-', '').ToLowerInvariant().Substring(0, 20) }
+  finally { $Hasher.Dispose(); [Array]::Clear($Bytes, 0, $Bytes.Length) }
+}
+
+if (-not [Environment]::Is64BitOperatingSystem) { Fail 'Windows x64 is required' }
+$WindowsDirectory = [Environment]::GetFolderPath([Environment+SpecialFolder]::Windows)
+$PowerShellExe = Join-Path $WindowsDirectory 'System32\WindowsPowerShell\v1.0\powershell.exe'
+$ScExe = Join-Path $WindowsDirectory 'System32\sc.exe'
+$IcaclsExe = Join-Path $WindowsDirectory 'System32\icacls.exe'
+foreach ($FixedTool in @($PowerShellExe, $ScExe, $IcaclsExe)) {
+  if (-not (Test-Path -LiteralPath $FixedTool -PathType Leaf)) { Fail "required protected Windows tool is missing: $FixedTool" }
+}
+
+if ([bool]$LocalManifest -ne [bool]$LocalAsset) { Fail 'LocalManifest and LocalAsset must be supplied together' }
+if ($LocalManifest) {
+  if (-not [IO.Path]::IsPathFullyQualified($LocalManifest) -or -not [IO.Path]::IsPathFullyQualified($LocalAsset)) { Fail 'local manifest and asset paths must be absolute' }
+  $LocalManifest = Full-Path $LocalManifest
+  $LocalAsset = Full-Path $LocalAsset
+  foreach ($LocalPath in @($LocalManifest, $LocalAsset)) {
+    if (-not (Test-Path -LiteralPath $LocalPath -PathType Leaf) -or ((Get-Item -Force -LiteralPath $LocalPath).Attributes -band [IO.FileAttributes]::ReparsePoint)) { Fail 'local release input is missing or a reparse point' }
+  }
+  if ((Split-Path $LocalManifest -Leaf) -ne 'release-manifest.json' -or (Split-Path $LocalAsset -Leaf) -ne $PinnedFilename) { Fail 'local release input filenames do not match the installer-baked release identity' }
+}
+
+$Identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+$Principal = [Security.Principal.WindowsPrincipal]::new($Identity)
+$IsAdministrator = $Principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
+# Capture the employee identity and known folders before UAC. The elevated
+# process may run as a different administrator, but every installed path and
+# ACL remains bound to this original employee SID.
+if (-not $IsAdministrator) {
+  if ($Elevated) { Fail 'elevation did not produce an administrator process' }
+  $CapturedSid = $Identity.User.Value
+  $CapturedHome = Full-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile))
+  $CapturedLocal = Full-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData))
+  $InstallerPath = Full-Path $PSCommandPath
+  $InstallerSha = (Get-FileHash -LiteralPath $InstallerPath -Algorithm SHA256).Hash.ToLowerInvariant()
+  $Payload = [ordered]@{
+    script = $InstallerPath
+    sid = $CapturedSid
+    home = $CapturedHome
+    local = $CapturedLocal
+    sha256 = $InstallerSha
+    manifest = $LocalManifest
+    asset = $LocalAsset
+  } | ConvertTo-Json -Compress
+  $PayloadBase64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($Payload))
+  $Bootstrap = @'
+$ErrorActionPreference='Stop'
+$p=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__PAYLOAD__'))|ConvertFrom-Json
+$system=[Security.Principal.SecurityIdentifier]::new('S-1-5-18')
+$admins=[Security.Principal.SecurityIdentifier]::new('S-1-5-32-544')
+function Test-Protected([string]$path){
+  $item=Get-Item -Force -LiteralPath $path
+  if(-not $item.PSIsContainer -or ($item.Attributes-band [IO.FileAttributes]::ReparsePoint)){throw 'unsafe bootstrap staging directory'}
+  $acl=Get-Acl -LiteralPath $path
+  if(-not $acl.AreAccessRulesProtected -or $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value-ne'S-1-5-18'){throw 'untrusted bootstrap staging owner'}
+  foreach($rule in $acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])){
+    $mutating=[Security.AccessControl.FileSystemRights]::Write-bor[Security.AccessControl.FileSystemRights]::Modify-bor[Security.AccessControl.FileSystemRights]::FullControl-bor[Security.AccessControl.FileSystemRights]::Delete-bor[Security.AccessControl.FileSystemRights]::ChangePermissions-bor[Security.AccessControl.FileSystemRights]::TakeOwnership
+    if($rule.AccessControlType-eq[Security.AccessControl.AccessControlType]::Allow-and($rule.FileSystemRights-band$mutating)-and$rule.IdentityReference.Value-notin@('S-1-5-18','S-1-5-32-544')){throw 'untrusted bootstrap staging writer'}
+  }
+}
+function Protect-New([string]$path){
+  $acl=[Security.AccessControl.DirectorySecurity]::new();$acl.SetOwner($system)
+  $flags=[Security.AccessControl.InheritanceFlags]::ContainerInherit-bor[Security.AccessControl.InheritanceFlags]::ObjectInherit
+  foreach($sid in @($system,$admins)){$acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($sid,[Security.AccessControl.FileSystemRights]::FullControl,$flags,[Security.AccessControl.PropagationFlags]::None,[Security.AccessControl.AccessControlType]::Allow))}
+  $acl.SetAccessRuleProtection($true,$false);[IO.Directory]::CreateDirectory($path,$acl)|Out-Null;Test-Protected $path
+}
+function Test-Marker([string]$path){
+  $item=Get-Item -Force -LiteralPath $path
+  if($item.PSIsContainer-or($item.Attributes-band[IO.FileAttributes]::ReparsePoint)){throw 'unsafe bootstrap root marker'}
+  $acl=Get-Acl -LiteralPath $path
+  if(-not$acl.AreAccessRulesProtected-or$acl.GetOwner([Security.Principal.SecurityIdentifier]).Value-ne'S-1-5-18'){throw 'untrusted bootstrap root marker'}
+  foreach($rule in $acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])){
+    $mutating=[Security.AccessControl.FileSystemRights]::Write-bor[Security.AccessControl.FileSystemRights]::Modify-bor[Security.AccessControl.FileSystemRights]::FullControl-bor[Security.AccessControl.FileSystemRights]::Delete-bor[Security.AccessControl.FileSystemRights]::ChangePermissions-bor[Security.AccessControl.FileSystemRights]::TakeOwnership
+    if($rule.AccessControlType-eq[Security.AccessControl.AccessControlType]::Allow-and($rule.FileSystemRights-band$mutating)-and$rule.IdentityReference.Value-notin@('S-1-5-18','S-1-5-32-544')){throw 'untrusted bootstrap root marker writer'}
+  }
+}
+function Protect-Marker([string]$path){
+  $acl=[Security.AccessControl.FileSecurity]::new();$acl.SetOwner($system)
+  foreach($sid in @($system,$admins)){$acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($sid,[Security.AccessControl.FileSystemRights]::FullControl,[Security.AccessControl.AccessControlType]::Allow))}
+  $acl.SetAccessRuleProtection($true,$false);Set-Acl -LiteralPath $path -AclObject $acl;Test-Marker $path
+}
+$programData=[Environment]::GetFolderPath([Environment+SpecialFolder]::CommonApplicationData)
+$root=Join-Path $programData 'HappyHerd'
+if(Test-Path -LiteralPath $root){Test-Protected $root}else{Protect-New $root;[IO.File]::WriteAllText((Join-Path $root 'root.json'),'{"schemaVersion":1,"product":"HappyHerd","root":"managed-native-installation"}'+"`n",[Text.UTF8Encoding]::new($false));Protect-Marker (Join-Path $root 'root.json')}
+$rootMarker=Join-Path $root 'root.json'
+if(-not(Test-Path -LiteralPath $rootMarker -PathType Leaf)){throw 'bootstrap staging root is not owned by HappyHerd'}
+Test-Marker $rootMarker
+$rootValue=Get-Content -Raw -LiteralPath $rootMarker|ConvertFrom-Json
+if($rootValue.schemaVersion -ne 1 -or $rootValue.product -ne 'HappyHerd' -or $rootValue.root -ne 'managed-native-installation'){throw 'bootstrap staging root is not owned by HappyHerd'}
+$bootstrapRoot=Join-Path $root 'Bootstrap'
+if(Test-Path -LiteralPath $bootstrapRoot){Test-Protected $bootstrapRoot}else{Protect-New $bootstrapRoot}
+$stage=Join-Path $bootstrapRoot ([Guid]::NewGuid().ToString('N'));Protect-New $stage
+$copy=Join-Path $stage 'install.ps1'
+try{
+  [IO.File]::Copy([string]$p.script,$copy,$false)
+  if((Get-FileHash -LiteralPath $copy -Algorithm SHA256).Hash.ToLowerInvariant()-ne$p.sha256){throw 'installer changed before protected staging'}
+  $invoke=@('-TargetUserSid',$p.sid,'-TargetUserHome',$p.home,'-TargetLocalAppData',$p.local,'-ExpectedInstallerSha256',$p.sha256,'-Elevated')
+  if($p.manifest){$invoke+=@('-LocalManifest',$p.manifest,'-LocalAsset',$p.asset)}
+  & $copy @invoke
+  if(-not $?){throw 'protected installer failed'}
+}finally{if(Test-Path -LiteralPath $stage){Remove-Item -LiteralPath $stage -Recurse -Force}}
+'@.Replace('__PAYLOAD__', $PayloadBase64)
+  $EncodedBootstrap = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($Bootstrap))
+  $Process = Start-Process -FilePath $PowerShellExe -Verb RunAs -Wait -PassThru -ArgumentList @('-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', $EncodedBootstrap)
+  exit $Process.ExitCode
+}
+
+if (-not $IsAdministrator) { Fail 'administrator approval is required' }
+if (-not $TargetUserSid) {
+  $TargetUserSid = $Identity.User.Value
+  $TargetUserHome = Full-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile))
+  $TargetLocalAppData = Full-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData))
+}
+if ($ExpectedInstallerSha256) {
+  if ($ExpectedInstallerSha256 -notmatch '^[0-9a-f]{64}$') { Fail 'captured installer digest is invalid' }
+  $ActualInstallerSha = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()
+  if ($ActualInstallerSha -ne $ExpectedInstallerSha256) { Fail 'installer changed between employee launch and administrator approval' }
+}
+if ($TargetUserSid.Length -lt 12 -or $TargetUserSid.Length -gt 184 -or $TargetUserSid -notmatch '^S-1-\d+(?:-\d+){2,15}$') { Fail 'target employee SID is invalid' }
+try { $ParsedOwnerSid = [Security.Principal.SecurityIdentifier]::new($TargetUserSid) } catch { Fail 'target employee SID cannot be parsed' }
+if ($ParsedOwnerSid.Value -ne $TargetUserSid -or $TargetUserSid -match '^S-1-5-(?:18|19|20|32|80)(?:-|$)') { Fail 'target SID is a built-in or service identity, not an employee profile' }
+$OwnerSid = $ParsedOwnerSid.Value
+$OwnerKey = Sid-Key $OwnerSid
+try {
+  $OwnerAccount = ([Security.Principal.SecurityIdentifier]::new($OwnerSid)).Translate([Security.Principal.NTAccount]).Value
+} catch { Fail 'target employee SID does not resolve to a Windows account' }
+
+$ProfileKey = "Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\$OwnerSid"
+if (-not (Test-Path -LiteralPath $ProfileKey)) { Fail 'target employee has no registered Windows profile' }
+$RegisteredHome = Full-Path ([Environment]::ExpandEnvironmentVariables((Get-ItemPropertyValue -LiteralPath $ProfileKey -Name ProfileImagePath)))
+if (-not $TargetUserHome) { $TargetUserHome = $RegisteredHome }
+$OwnerHome = Full-Path $TargetUserHome
+if (-not [StringComparer]::OrdinalIgnoreCase.Equals($OwnerHome.TrimEnd('\'), $RegisteredHome.TrimEnd('\'))) { Fail 'captured target profile does not match the employee SID' }
+if (-not (Test-Path -LiteralPath $OwnerHome -PathType Container)) { Fail 'target employee profile directory is missing' }
+Assert-NoReparseChain $OwnerHome 'target employee profile'
+if (-not $TargetLocalAppData) { $TargetLocalAppData = Join-Path $OwnerHome 'AppData\Local' }
+$OwnerLocalAppData = Full-Path $TargetLocalAppData
+if (-not $OwnerLocalAppData.StartsWith($OwnerHome.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) { Fail 'captured LocalAppData is outside the target employee profile' }
+
+$ProgramFilesRoot = Full-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::ProgramFiles))
+$ProgramDataRoot = Full-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::CommonApplicationData))
+$InstallDir = Join-Path $ProgramFilesRoot "HappyHerd\$OwnerKey"
+$StateRoot = Join-Path $ProgramDataRoot "HappyHerd\Broker\$OwnerKey"
+$ClientDir = Join-Path $InstallDir 'client'
+$ClientConfig = Join-Path $ClientDir 'broker.json'
+$ClaudeRoot = Join-Path $OwnerHome '.claude'
+$CodexRoot = Join-Path $OwnerHome '.codex'
+$ClaudeSkills = Join-Path $ClaudeRoot 'skills'
+$CodexSkills = Join-Path $CodexRoot 'skills'
+$ServiceName = "HappyHerdBroker-$OwnerKey"
+$ServiceIdentity = "NT SERVICE\$ServiceName"
+$ToolUser = "HHd-$($OwnerKey.Substring(0, 16))"
+if ($ToolUser.Length -gt 20) { Fail 'derived isolated tool account name exceeds the Windows local-account limit' }
+$ToolMarker = "HappyHerd isolated tool runner for SID $OwnerSid"
+$ToolConfig = Join-Path $StateRoot 'tool-launcher.conf'
+$ProviderAclReceipt = Join-Path $StateRoot 'provider-acls.json'
+$Backup = "$InstallDir.previous"
+$StagingParent = Join-Path $ProgramDataRoot 'HappyHerd\Install'
+$Temporary = Join-Path $StagingParent ("$OwnerKey-" + [Guid]::NewGuid().ToString('N'))
+$UserEnvironmentKey = "Registry::HKEY_USERS\$OwnerSid\Environment"
+
+function Invoke-Icacls([string]$Path, [string[]]$Arguments) {
+  & $IcaclsExe $Path @Arguments | Out-Null
+  if ($LASTEXITCODE -ne 0) { Fail "ACL operation failed for $Path" }
+}
+function Invoke-Sc([string[]]$Arguments) {
+  & $ScExe @Arguments | Out-Null
+  if ($LASTEXITCODE -ne 0) { Fail "service control failed: sc.exe $($Arguments -join ' ')" }
+}
+function Test-SafeDirectory([string]$Path) {
+  if (-not (Test-Path -LiteralPath $Path -PathType Container)) { return $false }
+  return ((Get-Item -Force -LiteralPath $Path).Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0
+}
+function Test-HappyHerdInstall([string]$Path) {
+  if (-not (Test-SafeDirectory $Path)) { return $false }
+  $ReceiptPath = Join-Path $Path 'release.json'
+  $InstallationPath = Join-Path $Path 'installation.json'
+  if (-not (Test-Path -LiteralPath $ReceiptPath -PathType Leaf) -or -not (Test-Path -LiteralPath $InstallationPath -PathType Leaf)) { return $false }
+  try {
+    Assert-TrustedAcl $Path $true @()
+    Assert-TrustedAcl $ReceiptPath $false @()
+    Assert-TrustedAcl $InstallationPath $false @()
+    $ReceiptValue = Get-Content -Raw -LiteralPath $ReceiptPath | ConvertFrom-Json
+    $InstallationValue = Get-Content -Raw -LiteralPath $InstallationPath | ConvertFrom-Json
+    return $ReceiptValue.schemaVersion -eq 1 -and $ReceiptValue.product -eq 'HappyHerd' -and $InstallationValue.schemaVersion -eq 1 -and $InstallationValue.product -eq 'HappyHerd' -and $InstallationValue.ownerSid -eq $OwnerSid -and $InstallationValue.ownerKey -eq $OwnerKey
+  } catch { return $false }
+}
+function Assert-TrustedAcl([string]$Path, [bool]$Directory, [string[]]$AllowedWriters) {
+  if ($Directory) {
+    if (-not (Test-SafeDirectory $Path)) { Fail "trusted directory is missing or unsafe: $Path" }
+  } else {
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf) -or ((Get-Item -Force -LiteralPath $Path).Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { Fail "trusted file is missing or unsafe: $Path" }
+  }
+  $Acl = Get-Acl -LiteralPath $Path
+  if (-not $Acl.AreAccessRulesProtected -or $Acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -ne 'S-1-5-18') { Fail "trusted path is not LocalSystem-owned with a protected DACL: $Path" }
+  $TrustedWriters = @('S-1-5-18', 'S-1-5-32-544') + @($AllowedWriters)
+  $Mutating = [Security.AccessControl.FileSystemRights]::Write -bor [Security.AccessControl.FileSystemRights]::Modify -bor [Security.AccessControl.FileSystemRights]::FullControl -bor [Security.AccessControl.FileSystemRights]::Delete -bor [Security.AccessControl.FileSystemRights]::ChangePermissions -bor [Security.AccessControl.FileSystemRights]::TakeOwnership
+  foreach ($Rule in $Acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier])) {
+    if ($Rule.IsInherited) { Fail "trusted path contains inherited access: $Path" }
+    if ($Rule.AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow -and ($Rule.FileSystemRights -band $Mutating) -and $Rule.IdentityReference.Value -notin $TrustedWriters) { Fail "untrusted identity can mutate protected path: $Path" }
+  }
+}
+function Protect-AdminDirectory([string]$Path) {
+  $Candidate = Full-Path $Path
+  if ($Candidate.StartsWith($ProgramDataRoot.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) { $TrustedRoot = $ProgramDataRoot }
+  elseif ($Candidate.StartsWith($ProgramFilesRoot.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) { $TrustedRoot = $ProgramFilesRoot }
+  else { Fail "protected path is outside ProgramData and Program Files: $Path" }
+  if (-not (Test-SafeDirectory $TrustedRoot)) { Fail "trusted known-folder root is unsafe: $TrustedRoot" }
+  $Relative = $Candidate.Substring($TrustedRoot.TrimEnd('\').Length).TrimStart('\')
+  if (-not $Relative) { Fail 'refusing to rewrite the known-folder root ACL' }
+  $Cursor = $TrustedRoot.TrimEnd('\')
+  $Segments = @($Relative.Split('\'))
+  $FinalExisted = $false
+  for ($Index = 0; $Index -lt $Segments.Count; $Index += 1) {
+    $Segment = $Segments[$Index]
+    if (-not $Segment -or $Segment -eq '.' -or $Segment -eq '..') { Fail "protected path has an unsafe component: $Path" }
+    $Cursor = Join-Path $Cursor $Segment
+    $Existed = Test-Path -LiteralPath $Cursor
+    if ($Index -eq $Segments.Count - 1) { $FinalExisted = $Existed }
+    if ($Existed) {
+      $AllowedWriters = @()
+      if ([StringComparer]::OrdinalIgnoreCase.Equals($Cursor, $StateRoot) -and $ServiceSid) { $AllowedWriters = @($ServiceSid) }
+      Assert-TrustedAcl $Cursor $true $AllowedWriters
+    } else {
+      $Security = [Security.AccessControl.DirectorySecurity]::new()
+      $Security.SetOwner([Security.Principal.SecurityIdentifier]::new('S-1-5-18'))
+      $Flags = [Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [Security.AccessControl.InheritanceFlags]::ObjectInherit
+      foreach ($Sid in @('S-1-5-18', 'S-1-5-32-544')) {
+        $Security.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new([Security.Principal.SecurityIdentifier]::new($Sid), [Security.AccessControl.FileSystemRights]::FullControl, $Flags, [Security.AccessControl.PropagationFlags]::None, [Security.AccessControl.AccessControlType]::Allow))
+      }
+      $Security.SetAccessRuleProtection($true, $false)
+      [IO.Directory]::CreateDirectory($Cursor, $Security) | Out-Null
+      if (-not (Test-SafeDirectory $Cursor)) { Fail "new protected directory is unsafe: $Cursor" }
+      Assert-TrustedAcl $Cursor $true @()
+    }
+    if ($Index -eq 0) {
+      $Marker = Join-Path $Cursor 'root.json'
+      if ($Existed) {
+        Assert-TrustedAcl $Marker $false @()
+        try { $MarkerValue = Get-Content -Raw -LiteralPath $Marker | ConvertFrom-Json } catch { Fail "HappyHerd root marker is invalid: $Marker" }
+        if ($MarkerValue.schemaVersion -ne 1 -or $MarkerValue.product -ne 'HappyHerd' -or $MarkerValue.root -ne 'managed-native-installation') { Fail "pre-existing root is not owned by HappyHerd: $Cursor" }
+      } else {
+        Utf8-NoBom $Marker ("{`"schemaVersion`":1,`"product`":`"HappyHerd`",`"root`":`"managed-native-installation`"}`n")
+        Protect-File $Marker @()
+      }
+    }
+  }
+  return $FinalExisted
+}
+function Get-RandomPassword {
+  $Bytes = New-Object byte[] 48
+  $Generator = [Security.Cryptography.RandomNumberGenerator]::Create()
+  try { $Generator.GetBytes($Bytes); return [Convert]::ToBase64String($Bytes) }
+  finally { $Generator.Dispose(); [Array]::Clear($Bytes, 0, $Bytes.Length) }
+}
+function Protect-File([string]$Path, [string[]]$Readers) {
+  Invoke-Icacls $Path @('/setowner', '*S-1-5-18')
+  $Rules = @('/inheritance:r', '/grant:r', '*S-1-5-18:F', '*S-1-5-32-544:F')
+  foreach ($Reader in $Readers) { $Rules += "$Reader`:R" }
+  Invoke-Icacls $Path $Rules
+  Assert-TrustedAcl $Path $false @()
+}
+function Assert-ClientConfigAcl([string]$Path) {
+  Assert-TrustedAcl $Path $false @()
+  $Acl = Get-Acl -LiteralPath $Path
+  $Expected = @('S-1-5-18', 'S-1-5-32-544', $OwnerSid)
+  $Seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+  $RequiredRead = [Security.AccessControl.FileSystemRights]::Read
+  $Mutating = [Security.AccessControl.FileSystemRights]::Write -bor [Security.AccessControl.FileSystemRights]::Modify -bor [Security.AccessControl.FileSystemRights]::FullControl -bor [Security.AccessControl.FileSystemRights]::Delete -bor [Security.AccessControl.FileSystemRights]::ChangePermissions -bor [Security.AccessControl.FileSystemRights]::TakeOwnership
+  foreach ($Rule in $Acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier])) {
+    $Sid = $Rule.IdentityReference.Value
+    if ($Rule.IsInherited -or $Rule.AccessControlType -ne [Security.AccessControl.AccessControlType]::Allow -or $Sid -notin $Expected -or -not $Seen.Add($Sid)) { Fail 'broker client capability DACL contains an unexpected reader' }
+    if (($Rule.FileSystemRights -band $RequiredRead) -ne $RequiredRead) { Fail 'broker client capability trusted reader has incomplete access' }
+    if ($Sid -eq $OwnerSid -and ($Rule.FileSystemRights -band $Mutating)) { Fail 'broker client capability owner access is not read-only' }
+  }
+  if ($Seen.Count -ne 3) { Fail 'broker client capability DACL is missing an exact trusted reader' }
+}
+function New-DirectoryAcl([string]$Path, [bool]$ProviderRoot) {
+  New-Item -ItemType Directory -Force -Path $Path | Out-Null
+  if (-not (Test-SafeDirectory $Path)) { Fail "provider directory is unsafe: $Path" }
+  $Security = [Security.AccessControl.DirectorySecurity]::new()
+  $Security.SetOwner([Security.Principal.SecurityIdentifier]::new('S-1-5-18'))
+  $ContainerObject = [Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [Security.AccessControl.InheritanceFlags]::ObjectInherit
+  $NonePropagation = [Security.AccessControl.PropagationFlags]::None
+  $InheritOnly = [Security.AccessControl.PropagationFlags]::InheritOnly
+  $Allow = [Security.AccessControl.AccessControlType]::Allow
+  foreach ($Sid in @('S-1-5-18', 'S-1-5-32-544')) {
+    $Security.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new([Security.Principal.SecurityIdentifier]::new($Sid), [Security.AccessControl.FileSystemRights]::FullControl, $ContainerObject, $NonePropagation, $Allow))
+  }
+  $OwnerIdentity = [Security.Principal.SecurityIdentifier]::new($OwnerSid)
+  $Security.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($OwnerIdentity, [Security.AccessControl.FileSystemRights]::ReadAndExecute, $ContainerObject, $NonePropagation, $Allow))
+  $Security.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($OwnerIdentity, [Security.AccessControl.FileSystemRights]::Write -bor [Security.AccessControl.FileSystemRights]::ReadAndExecute, [Security.AccessControl.InheritanceFlags]::None, $NonePropagation, $Allow))
+  $Security.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new([Security.Principal.SecurityIdentifier]::new('S-1-3-0'), [Security.AccessControl.FileSystemRights]::FullControl, $ContainerObject, $InheritOnly, $Allow))
+  $ServiceSidObject = ([Security.Principal.NTAccount]::new($ServiceIdentity)).Translate([Security.Principal.SecurityIdentifier])
+  if ($ProviderRoot) {
+    $Security.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($ServiceSidObject, [Security.AccessControl.FileSystemRights]::FullControl, $ContainerObject, $NonePropagation, $Allow))
+  } else {
+    $Security.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($ServiceSidObject, [Security.AccessControl.FileSystemRights]::ReadAndExecute, [Security.AccessControl.InheritanceFlags]::None, $NonePropagation, $Allow))
+  }
+  $Security.SetAccessRuleProtection($true, $false)
+  Set-Acl -LiteralPath $Path -AclObject $Security
+}
+function Capture-ProviderAcls {
+  $Records = @()
+  foreach ($Path in @($ClaudeRoot, $ClaudeSkills, $CodexRoot, $CodexSkills)) {
+    if (Test-Path -LiteralPath $Path) {
+      if (-not (Test-SafeDirectory $Path)) { Fail "provider path is not a regular directory: $Path" }
+      $Records += [ordered]@{ path = $Path; existed = $true; sddl = (Get-Acl -LiteralPath $Path).Sddl }
+    } else {
+      $Records += [ordered]@{ path = $Path; existed = $false; sddl = '' }
+    }
+  }
+  return ,$Records
+}
+function Read-ProviderAclReceipt([string]$Path) {
+  if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
+  $Item = Get-Item -Force -LiteralPath $Path
+  if (($Item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { Fail 'provider ACL receipt is a reparse point' }
+  if ((Get-Acl -LiteralPath $Path).GetOwner([Security.Principal.SecurityIdentifier]).Value -ne 'S-1-5-18') { Fail 'provider ACL receipt is not owned by LocalSystem' }
+  Assert-TrustedAcl $Path $false @()
+  try { $Value = Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json } catch { Fail 'provider ACL receipt is invalid JSON' }
+  if ($Value.schemaVersion -ne 1 -or $Value.product -ne 'HappyHerd' -or $Value.ownerSid -ne $OwnerSid -or @($Value.records).Count -ne 4) { Fail 'provider ACL receipt identity is invalid' }
+  $Expected = @($ClaudeRoot, $ClaudeSkills, $CodexRoot, $CodexSkills)
+  for ($Index = 0; $Index -lt 4; $Index += 1) {
+    $Record = @($Value.records)[$Index]
+    if ($Record.path -ne $Expected[$Index] -or $Record.existed -isnot [bool] -or ($Record.existed -and (-not $Record.sddl))) { Fail 'provider ACL receipt path is invalid' }
+  }
+  return ,@($Value.records)
+}
+function Restore-ProviderAcls([object[]]$Records) {
+  for ($Index = $Records.Count - 1; $Index -ge 0; $Index -= 1) {
+    $Record = $Records[$Index]
+    if ($Record.existed -and (Test-Path -LiteralPath $Record.path -PathType Container)) {
+      $Security = [Security.AccessControl.DirectorySecurity]::new()
+      $Security.SetSecurityDescriptorSddlForm([string]$Record.sddl)
+      Set-Acl -LiteralPath ([string]$Record.path) -AclObject $Security
+    } elseif ((-not $Record.existed) -and (Test-Path -LiteralPath $Record.path -PathType Container)) {
+      if (@(Get-ChildItem -Force -LiteralPath $Record.path).Count -eq 0) { Remove-Item -LiteralPath $Record.path -Force }
+    }
+  }
+}
+function Read-ToolPasswordEnvelope([string]$Path) {
+  if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return '' }
+  if (((Get-Item -Force -LiteralPath $Path).Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { Fail 'existing isolated tool configuration is a reparse point' }
+  $Owner = (Get-Acl -LiteralPath $Path).GetOwner([Security.Principal.SecurityIdentifier]).Value
+  if ($Owner -ne 'S-1-5-18') { Fail 'existing isolated tool configuration is not owned by LocalSystem' }
+  Assert-TrustedAcl $Path $false @()
+  $Values = @{}
+  foreach ($Line in (Get-Content -LiteralPath $Path)) {
+    if ($Line -notmatch '^([a-z_]+)=(.+)$' -or $Values.ContainsKey($Matches[1])) { Fail 'existing isolated tool configuration is invalid' }
+    $Values[$Matches[1]] = $Matches[2]
+  }
+  if ($Values.Count -ne 7 -or $Values.schema -ne '1' -or $Values.tool_user -ne $ToolUser -or $Values.tool_password -notmatch '^[A-Za-z0-9+/=]+$') { Fail 'existing isolated tool configuration identity is invalid' }
+  return [string]$Values.tool_password
+}
+
+$HadPrevious = $false
+$Published = $false
+$CreatedService = $false
+$CreatedToolUser = $false
+$ProviderAclsChanged = $false
+$ProviderAclRecords = @()
+$RollbackProviderAclRecords = @()
+$ServiceSid = ''
+$ExistingService = $null -ne (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue)
+if ($ExistingService) {
+  try { $ServiceSid = ([Security.Principal.NTAccount]::new($ServiceIdentity)).Translate([Security.Principal.SecurityIdentifier]).Value } catch { Fail 'existing broker service SID cannot be resolved' }
+}
+$StoppedExistingService = $false
+$HadState = $false
+$OriginalUserPath = ''
+if (Test-Path -LiteralPath $UserEnvironmentKey) {
+  try { $OriginalUserPath = [string](Get-ItemPropertyValue -LiteralPath $UserEnvironmentKey -Name Path -ErrorAction Stop) } catch { $OriginalUserPath = '' }
+} else { Fail 'target employee registry hive is not loaded; run the installer from that employee session' }
+$ClientBackup = Join-Path $Temporary 'client.previous'
+$ConfigBackup = Join-Path $Temporary 'service-config.previous'
+$ToolConfigBackup = Join-Path $Temporary 'tool-config.previous'
+
+try {
+  if ($ExistingService) { Stop-Service -Name $ServiceName -Force; $StoppedExistingService = $true }
+  $HadState = Protect-AdminDirectory $StateRoot
+  [void](Protect-AdminDirectory $StagingParent)
+  [void](Protect-AdminDirectory $Temporary)
+  [void](Protect-AdminDirectory (Split-Path $InstallDir -Parent))
+  $ManifestPath = Join-Path $Temporary 'release-manifest.json'
+  $ArchivePath = Join-Path $Temporary 'happyherd.zip'
+  if ($LocalManifest) {
+    Copy-Item -LiteralPath $LocalManifest -Destination $ManifestPath
+    Copy-Item -LiteralPath $LocalAsset -Destination $ArchivePath
+  } else {
+    Invoke-WebRequest -UseBasicParsing -Uri "$ReleaseBase/release-manifest.json" -OutFile $ManifestPath
+  }
+  if ((Get-Item -LiteralPath $ManifestPath).Length -gt 1MB) { Fail 'release manifest exceeds the byte limit' }
+  $Manifest = Get-Content -Raw -LiteralPath $ManifestPath | ConvertFrom-Json
+  if ($Manifest.schemaVersion -ne 1 -or $Manifest.product -ne 'HappyHerd' -or $Manifest.version -ne $ReleaseVersion -or $Manifest.sourceSha -notmatch '^[0-9a-f]{40}$') { Fail 'release manifest identity failed validation' }
+  if ($PinnedFilename -match '^@' -or $PinnedSha256 -notmatch '^[0-9a-f]{64}$' -or $PinnedSourceSha -notmatch '^[0-9a-f]{40}$' -or $PinnedSizeBytes -lt 1) { Fail 'installer contains unresolved Windows release pins' }
+  $Assets = @($Manifest.assets | Where-Object { $_.target -eq $Target })
+  if ($Assets.Count -ne 1 -or $Assets[0].format -ne 'zip' -or $Assets[0].sourceSha -ne $Manifest.sourceSha) { Fail 'release manifest does not contain exactly one Windows x64 asset' }
+  $Asset = $Assets[0]
+  if ($Asset.filename -notmatch '^[A-Za-z0-9._+-]+\.zip$' -or $Asset.sha256 -notmatch '^[0-9a-f]{64}$' -or $Asset.sizeBytes -lt 1 -or $Asset.sizeBytes -gt 1GB) { Fail 'Windows asset metadata is invalid' }
+  if ($Manifest.sourceSha -ne $PinnedSourceSha -or $Asset.filename -ne $PinnedFilename -or $Asset.sha256 -ne $PinnedSha256 -or [long]$Asset.sizeBytes -ne $PinnedSizeBytes) { Fail 'release manifest does not match the installer-baked Windows asset identity' }
+  if (-not $LocalManifest) { Invoke-WebRequest -UseBasicParsing -Uri "$ReleaseBase/$($Asset.filename)" -OutFile $ArchivePath }
+  if ((Get-Item -LiteralPath $ArchivePath).Length -ne $Asset.sizeBytes) { Fail 'downloaded asset failed byte-count verification' }
+  if ((Get-FileHash -Algorithm SHA256 -LiteralPath $ArchivePath).Hash.ToLowerInvariant() -ne $Asset.sha256) { Fail 'downloaded asset failed SHA-256 verification' }
+
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  $Zip = [IO.Compression.ZipFile]::OpenRead($ArchivePath)
+  try {
+    $Seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    [long]$UncompressedBytes = 0
+    if ($Zip.Entries.Count -lt 1 -or $Zip.Entries.Count -gt 100000) { Fail 'asset archive entry count is invalid' }
+    foreach ($Entry in $Zip.Entries) {
+      $Path = $Entry.FullName
+      $UnixMode = ($Entry.ExternalAttributes -shr 16) -band 0xffff
+      $Segments = @($Path.TrimEnd('/').Split('/'))
+      $Reserved = $false
+      foreach ($Segment in $Segments) {
+        $Stem = ($Segment -split '\.')[0]
+        if ($Segment.EndsWith('.') -or $Segment.EndsWith(' ') -or $Segment.Contains(':') -or $Stem -match '^(?i:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$') { $Reserved = $true; break }
+      }
+      if (-not $Path.StartsWith('happyherd/', [StringComparison]::Ordinal) -or $Path.Contains('\') -or $Path.Contains('//') -or $Segments -contains '.' -or $Segments -contains '..' -or $Path -notmatch '^[\x20-\x7e]+$' -or $Reserved -or ($UnixMode -band 0xf000) -eq 0xa000) { Fail "asset archive contains an unsafe path: $Path" }
+      $Key = $Path.TrimEnd('/').Normalize([Text.NormalizationForm]::FormKC).ToUpperInvariant()
+      if (-not $Seen.Add($Key)) { Fail "asset archive contains a duplicate or confusable path: $Path" }
+      $UncompressedBytes += $Entry.Length
+      if ($UncompressedBytes -gt 2GB) { Fail 'asset archive expands beyond the safety limit' }
+    }
+  } finally { $Zip.Dispose() }
+  [IO.Compression.ZipFile]::ExtractToDirectory($ArchivePath, $Temporary)
+  $Stage = Join-Path $Temporary 'happyherd'
+  if (-not (Test-SafeDirectory $Stage)) { Fail 'extracted release root is unsafe' }
+  $Receipt = Get-Content -Raw -LiteralPath (Join-Path $Stage 'release.json') | ConvertFrom-Json
+  if ($Receipt.schemaVersion -ne 1 -or $Receipt.product -ne 'HappyHerd' -or $Receipt.version -ne $ReleaseVersion -or $Receipt.target -ne $Target -or $Receipt.sourceSha -ne $Manifest.sourceSha) { Fail 'embedded release receipt failed validation' }
+  if ($Receipt.nodeRuntime -ne 'native/node.exe' -or $Receipt.pythonRuntime -notmatch '^python/[A-Za-z0-9._+@/-]+$' -or $Receipt.pythonVersion -notmatch '^3\.(1\d|[2-9]\d)\.\d+$' -or $Receipt.tzdataVersion -notmatch '^\d{4}\.\d+$' -or $Receipt.toolLauncher -ne 'service/happyherd-tool-launcher.exe' -or $Receipt.trustVerifier -ne 'service/happyherd-acl-check.exe') { Fail 'embedded runtime receipt failed validation' }
+  $StageNode = Join-Path $Stage 'native\node.exe'
+  $StagePython = Join-Path $Stage ($Receipt.pythonRuntime -replace '/', '\')
+  foreach ($Path in @($StageNode, $StagePython)) { if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { Fail "staged runtime is missing: $Path" } }
+  & $StagePython -I -X utf8 -c 'from zoneinfo import ZoneInfo; assert ZoneInfo("America/New_York").key == "America/New_York"'
+  if ($LASTEXITCODE -ne 0) { Fail 'bundled Python runtime failed before publication' }
+
+  if (Test-Path -LiteralPath $InstallDir) { if (-not (Test-HappyHerdInstall $InstallDir)) { Fail 'install path exists and is not a recognized HappyHerd installation' } }
+  if ($ExistingService -and -not (Test-HappyHerdInstall $InstallDir)) { Fail 'service name is occupied without a matching HappyHerd installation' }
+  if (Test-Path -LiteralPath $Backup) {
+    if (-not (Test-HappyHerdInstall $Backup)) { Fail 'backup path exists and is not owned by HappyHerd' }
+    Assert-ClientConfigAcl (Join-Path $Backup 'client\broker.json')
+    Remove-Item -LiteralPath $Backup -Recurse -Force
+  }
+  if (Test-Path -LiteralPath $ClientConfig -PathType Leaf) { Assert-ClientConfigAcl $ClientConfig; Copy-Item -LiteralPath $ClientConfig -Destination $ClientBackup }
+  if (Test-Path -LiteralPath (Join-Path $StateRoot 'broker-service.json') -PathType Leaf) { Assert-TrustedAcl (Join-Path $StateRoot 'broker-service.json') $false @(); Copy-Item -LiteralPath (Join-Path $StateRoot 'broker-service.json') -Destination $ConfigBackup }
+  if (Test-Path -LiteralPath $ToolConfig -PathType Leaf) { Assert-TrustedAcl $ToolConfig $false @(); Copy-Item -LiteralPath $ToolConfig -Destination $ToolConfigBackup }
+  if (Test-Path -LiteralPath $InstallDir) { Move-Item -LiteralPath $InstallDir -Destination $Backup; $HadPrevious = $true }
+  Protect-AdminDirectory (Split-Path $InstallDir -Parent)
+  Move-Item -LiteralPath $Stage -Destination $InstallDir
+  $Published = $true
+
+  $NodeRuntime = Join-Path $InstallDir 'native\node.exe'
+  $PythonRuntime = Join-Path $InstallDir ($Receipt.pythonRuntime -replace '/', '\')
+  $BrokerScript = Join-Path $InstallDir 'runtime\bin\happyherd.mjs'
+  $Wrapper = Join-Path $InstallDir 'service\happyherd-broker-service.exe'
+  $ToolLauncher = Join-Path $InstallDir 'service\happyherd-tool-launcher.exe'
+  $TrustVerifier = Join-Path $InstallDir 'service\happyherd-acl-check.exe'
+  foreach ($Path in @($NodeRuntime, $PythonRuntime, $BrokerScript, $Wrapper, $ToolLauncher, $TrustVerifier, (Join-Path $InstallDir 'happyherd.cmd'), (Join-Path $InstallDir 'uninstall.ps1'))) {
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { Fail "required installed runtime is missing: $Path" }
+  }
+
+  $Service = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
+  $LogPath = Join-Path $StateRoot 'broker.log'
+  $ServiceConfig = Join-Path $StateRoot 'broker-service.json'
+  $BinaryPath = '"' + $Wrapper + '" --service-name "' + $ServiceName + '" --node "' + $NodeRuntime + '" --script "' + $BrokerScript + '" --config "' + $ServiceConfig + '" --log "' + $LogPath + '"'
+  if ($null -eq $Service) {
+    Invoke-Sc @('create', $ServiceName, 'binPath=', $BinaryPath, 'start=', 'auto', 'obj=', $ServiceIdentity)
+    $CreatedService = $true
+  } else {
+    Invoke-Sc @('config', $ServiceName, 'binPath=', $BinaryPath, 'start=', 'auto', 'obj=', $ServiceIdentity)
+  }
+  Invoke-Sc @('sidtype', $ServiceName, 'unrestricted')
+  try { $ServiceSid = ([Security.Principal.NTAccount]::new($ServiceIdentity)).Translate([Security.Principal.SecurityIdentifier]).Value } catch { Fail 'Windows could not resolve the broker service SID' }
+
+  $ExistingToolUser = Get-LocalUser -Name $ToolUser -ErrorAction SilentlyContinue
+  $ToolPasswordEnvelope = ''
+  if ($ExistingToolUser) {
+    if ($ExistingToolUser.Description -ne $ToolMarker) { Fail 'isolated tool account name is occupied by an unrelated account' }
+    $ToolPasswordEnvelope = Read-ToolPasswordEnvelope $ToolConfig
+    if (-not $ToolPasswordEnvelope) { Fail 'existing isolated tool account has no protected password envelope' }
+    if ($ExistingToolUser.Enabled -ne $true) { Fail 'existing isolated tool account is disabled' }
+  } else {
+    $ToolPassword = Get-RandomPassword
+    $SecurePassword = ConvertTo-SecureString $ToolPassword -AsPlainText -Force
+    New-LocalUser -Name $ToolUser -Password $SecurePassword -Description $ToolMarker -AccountNeverExpires -PasswordNeverExpires -UserMayNotChangePassword | Out-Null
+    $CreatedToolUser = $true
+    $UsersGroup = ([Security.Principal.SecurityIdentifier]::new('S-1-5-32-545')).Translate([Security.Principal.NTAccount]).Value
+    Add-LocalGroupMember -Group $UsersGroup -Member $ToolUser
+    $PlainBytes = [Text.Encoding]::Unicode.GetBytes($ToolPassword)
+    try {
+      $ProtectedBytes = [Security.Cryptography.ProtectedData]::Protect($PlainBytes, $null, [Security.Cryptography.DataProtectionScope]::LocalMachine)
+      try { $ToolPasswordEnvelope = [Convert]::ToBase64String($ProtectedBytes) }
+      finally { [Array]::Clear($ProtectedBytes, 0, $ProtectedBytes.Length) }
+    } finally { [Array]::Clear($PlainBytes, 0, $PlainBytes.Length); $ToolPassword = $null }
+  }
+  $ToolSid = (Get-LocalUser -Name $ToolUser).Sid.Value
+  $ToolGroupSids = @()
+  foreach ($Group in @(Get-LocalGroup)) {
+    $Members = @(Get-LocalGroupMember -SID $Group.Sid -ErrorAction SilentlyContinue)
+    if ($Members.SID.Value -contains $ToolSid) { $ToolGroupSids += $Group.Sid.Value }
+  }
+  if (@($ToolGroupSids).Count -ne 1 -or $ToolGroupSids[0] -ne 'S-1-5-32-545') { Fail 'isolated tool account must belong only to the built-in Users group' }
+
+  $RollbackProviderAclRecords = Capture-ProviderAcls
+  $SavedProviderAclRecords = Read-ProviderAclReceipt $ProviderAclReceipt
+  if ($null -eq $SavedProviderAclRecords) { $ProviderAclRecords = $RollbackProviderAclRecords }
+  else { $ProviderAclRecords = $SavedProviderAclRecords }
+  New-DirectoryAcl $ClaudeRoot $false
+  New-DirectoryAcl $ClaudeSkills $true
+  New-DirectoryAcl $CodexRoot $false
+  New-DirectoryAcl $CodexSkills $true
+  $ProviderAclsChanged = $true
+
+  [void](Protect-AdminDirectory $StateRoot)
+  Invoke-Icacls $StateRoot @('/grant', "$ServiceSid`:(OI)(CI)F", "$ToolSid`:(RX)")
+  New-Item -ItemType Directory -Force -Path (Join-Path $StateRoot 'bundles'), (Join-Path $StateRoot 'registry'), $ClientDir | Out-Null
+  Invoke-Icacls (Join-Path $StateRoot 'bundles') @('/grant', "$ToolSid`:(OI)(CI)RX")
+
+  $CapabilityPath = Join-Path $StateRoot 'client-capability'
+  $PrivateKeyPath = Join-Path $StateRoot 'signing-private.pem'
+  $PublicKeyPath = Join-Path $Temporary 'signing-public.pem'
+  if (-not (Test-Path -LiteralPath $CapabilityPath -PathType Leaf) -or -not (Test-Path -LiteralPath $PrivateKeyPath -PathType Leaf)) {
+    & $NodeRuntime -e 'const fs=require("node:fs"),c=require("node:crypto");const [cap,priv,pub]=process.argv.slice(1);const k=c.generateKeyPairSync("ed25519");fs.writeFileSync(cap,c.randomBytes(32).toString("hex")+"\n");fs.writeFileSync(priv,k.privateKey.export({type:"pkcs8",format:"pem"}));fs.writeFileSync(pub,k.publicKey.export({type:"spki",format:"pem"}));' $CapabilityPath $PrivateKeyPath $PublicKeyPath
+  } else {
+    & $NodeRuntime -e 'const fs=require("node:fs"),c=require("node:crypto");fs.writeFileSync(process.argv[2],c.createPublicKey(fs.readFileSync(process.argv[1])).export({type:"spki",format:"pem"}));' $PrivateKeyPath $PublicKeyPath
+  }
+  if ($LASTEXITCODE -ne 0) { Fail 'bundled Node could not create the broker trust material' }
+  Protect-File $CapabilityPath @($ServiceSid)
+  Protect-File $PrivateKeyPath @($ServiceSid)
+  $Capability = (Get-Content -Raw -LiteralPath $CapabilityPath).Trim()
+  $SigningPublic = Get-Content -Raw -LiteralPath $PublicKeyPath
+
+  if (Test-Path -LiteralPath $ServiceConfig) { try { $BrokerPort = (Get-Content -Raw -LiteralPath $ServiceConfig | ConvertFrom-Json).listen.port } catch { $BrokerPort = 0 } } else { $BrokerPort = 0 }
+  if ($BrokerPort -lt 1024 -or $BrokerPort -gt 65535) {
+    $Listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+    $Listener.Start(); $BrokerPort = ([Net.IPEndPoint]$Listener.LocalEndpoint).Port; $Listener.Stop()
+  }
+
+  $ToolConfigText = @(
+    'schema=1'
+    "broker_sid=$ServiceSid"
+    "tool_user=$ToolUser"
+    "tool_password=$ToolPasswordEnvelope"
+    "bundle_root=$(Join-Path $StateRoot 'bundles')"
+    "python_runtime=$PythonRuntime"
+    "node_runtime=$NodeRuntime"
+  ) -join "`n"
+  Utf8-NoBom $ToolConfig ($ToolConfigText + "`n")
+  Protect-File $ToolConfig @($ServiceSid)
+
+  $ServiceConfigValue = [ordered]@{
+    schemaVersion = 1; product = 'HappyHerd'; listen = [ordered]@{ host = '127.0.0.1'; port = [int]$BrokerPort }
+    ownerIdentity = "sid:$OwnerSid"; serviceIdentity = "nt-service:$ServiceName"
+    clientCapabilityPath = $CapabilityPath; signingPrivateKeyPath = $PrivateKeyPath; stateRoot = $StateRoot
+    bundleRoot = (Join-Path $StateRoot 'bundles'); registryRoot = (Join-Path $StateRoot 'registry')
+    providerRoots = [ordered]@{ claude = $ClaudeSkills; codex = $CodexSkills }
+    installationRoot = $InstallDir; nodeRuntime = $NodeRuntime; pythonRuntime = $PythonRuntime
+    toolLauncher = $ToolLauncher; toolLauncherConfig = $ToolConfig; toolIdentity = "local-user:$ToolUser"
+  }
+  Utf8-NoBom $ServiceConfig (($ServiceConfigValue | ConvertTo-Json -Depth 5) + "`n")
+  Protect-File $ServiceConfig @($ServiceSid)
+  $ClientConfigValue = [ordered]@{
+    schemaVersion = 1; product = 'HappyHerd'; brokerUrl = "http://127.0.0.1:$BrokerPort"; clientCapability = $Capability
+    signingPublicKey = $SigningPublic; ownerIdentity = "sid:$OwnerSid"; serviceIdentity = "nt-service:$ServiceName"
+  }
+  Utf8-NoBom $ClientConfig (($ClientConfigValue | ConvertTo-Json -Depth 3) + "`n")
+
+  $InstallationReceipt = Join-Path $InstallDir 'installation.json'
+  $InstallationReceiptValue = [ordered]@{
+    schemaVersion = 1; product = 'HappyHerd'; ownerSid = $OwnerSid; ownerKey = $OwnerKey
+    ownerHome = $OwnerHome; ownerLocalAppData = $OwnerLocalAppData
+    serviceName = $ServiceName; serviceSid = $ServiceSid
+    toolUser = $ToolUser; toolSid = $ToolSid; toolGroupSid = 'S-1-5-32-545'; stateRoot = $StateRoot
+    providerRoots = [ordered]@{ claude = $ClaudeSkills; codex = $CodexSkills }
+  }
+  Utf8-NoBom $InstallationReceipt (($InstallationReceiptValue | ConvertTo-Json -Depth 4) + "`n")
+
+  Utf8-NoBom $ProviderAclReceipt (([ordered]@{ schemaVersion = 1; product = 'HappyHerd'; ownerSid = $OwnerSid; records = $ProviderAclRecords } | ConvertTo-Json -Depth 5) + "`n")
+  Protect-File $ProviderAclReceipt @($ServiceSid)
+
+  Invoke-Icacls $InstallDir @('/setowner', '*S-1-5-18', '/T', '/C')
+  Invoke-Icacls $InstallDir @('/inheritance:r', '/grant:r', '*S-1-5-18:(OI)(CI)F', '*S-1-5-32-544:(OI)(CI)F', "$ServiceSid`:(OI)(CI)RX", "$ToolSid`:(OI)(CI)RX", "$OwnerSid`:(OI)(CI)RX", '/T', '/C')
+  Protect-File $ClientConfig @($OwnerSid)
+  Assert-ClientConfigAcl $ClientConfig
+  Protect-File $InstallationReceipt @($OwnerSid, $ServiceSid)
+
+  Start-Service -Name $ServiceName
+  $PathEntries = @($OriginalUserPath -split ';' | Where-Object { $_ })
+  if ($PathEntries -notcontains $InstallDir) {
+    $NextPath = (($OriginalUserPath.TrimEnd(';') + ';' + $InstallDir).TrimStart(';'))
+    Set-ItemProperty -LiteralPath $UserEnvironmentKey -Name Path -Value $NextPath
+  }
+
+  $Launcher = Join-Path $InstallDir 'happyherd.cmd'
+  $Ready = $false
+  for ($Attempt = 0; $Attempt -lt 30; $Attempt += 1) {
+    & $Launcher doctor --installation *> $null
+    if ($LASTEXITCODE -eq 0) { $Ready = $true; break }
+    Start-Sleep -Seconds 1
+  }
+  if (-not $Ready) { Fail 'broker attestation or runtime verification failed' }
+  if ($HadPrevious) { Remove-Item -LiteralPath $Backup -Recurse -Force }
+  Write-Host "Installed HappyHerd $ReleaseVersion for $OwnerAccount with isolated broker $ServiceName"
+  Write-Host 'Open a new PowerShell as that employee, then run: happyherd doctor'
+} catch {
+  Stop-Service -Name $ServiceName -Force -ErrorAction SilentlyContinue
+  if ($Published -and (Test-SafeDirectory $InstallDir)) { Remove-Item -LiteralPath $InstallDir -Recurse -Force }
+  if ($HadPrevious -and (Test-Path -LiteralPath $Backup)) { Move-Item -LiteralPath $Backup -Destination $InstallDir }
+  if (Test-Path -LiteralPath $ConfigBackup) { New-Item -ItemType Directory -Force -Path $StateRoot | Out-Null; Copy-Item -LiteralPath $ConfigBackup -Destination (Join-Path $StateRoot 'broker-service.json') -Force }
+  if (Test-Path -LiteralPath $ToolConfigBackup) { Copy-Item -LiteralPath $ToolConfigBackup -Destination $ToolConfig -Force }
+  if ($ProviderAclsChanged) { Restore-ProviderAcls $RollbackProviderAclRecords }
+  if (Test-Path -LiteralPath $UserEnvironmentKey) { Set-ItemProperty -LiteralPath $UserEnvironmentKey -Name Path -Value $OriginalUserPath }
+  if ($CreatedService) { & $ScExe delete $ServiceName | Out-Null }
+  elseif ($ExistingService -and $StoppedExistingService) {
+    try {
+      if (-not $ServiceSid) { $ServiceSid = ([Security.Principal.NTAccount]::new($ServiceIdentity)).Translate([Security.Principal.SecurityIdentifier]).Value }
+      if (Test-Path -LiteralPath $StateRoot) { Invoke-Icacls $StateRoot @('/grant', "$ServiceSid`:(OI)(CI)F") }
+    } catch { }
+    Start-Service -Name $ServiceName -ErrorAction SilentlyContinue
+  }
+  if ($CreatedToolUser) {
+    $Candidate = Get-LocalUser -Name $ToolUser -ErrorAction SilentlyContinue
+    if ($Candidate -and $Candidate.Description -eq $ToolMarker) { Remove-LocalUser -Name $ToolUser }
+  }
+  if (-not $HadState -and (Test-Path -LiteralPath $StateRoot)) { Remove-Item -LiteralPath $StateRoot -Recurse -Force }
+  throw
+} finally {
+  if (Test-Path -LiteralPath $Temporary) { Remove-Item -LiteralPath $Temporary -Recurse -Force }
+}

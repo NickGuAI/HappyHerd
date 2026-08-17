@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1,
+  "issuer": "https://www.pioneeringminds.ai",
+  "discoveryUrl": "https://www.pioneeringminds.ai/.well-known/happyherd.json"
+}
