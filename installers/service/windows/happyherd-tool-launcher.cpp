@@ -269,7 +269,7 @@ int wmain(int argc, wchar_t** argv) {
   if (!private_station) fail(L"private tool window station could not be created");
   if (!SetProcessWindowStation(private_station)) fail(L"private tool window station could not be selected");
   const std::wstring desktop_name = L"Default";
-  HDESK private_desktop = CreateDesktopW(desktop_name.c_str(), nullptr, nullptr, 0, DESKTOP_ALL_ACCESS, &desktop_attributes);
+  HDESK private_desktop = CreateDesktopW(desktop_name.c_str(), nullptr, nullptr, 0, MAXIMUM_ALLOWED, &desktop_attributes);
   if (!private_desktop) fail(L"private tool desktop could not be created");
   if (!SetProcessWindowStation(original_station)) fail(L"broker window station could not be restored");
   std::wstring startup_desktop = station_name + L"\\" + desktop_name;
