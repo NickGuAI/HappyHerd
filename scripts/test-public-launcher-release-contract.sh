@@ -39,6 +39,10 @@ node "$root/scripts/test-macos-uninstall-recovery.mjs"
 node "$root/scripts/test-happyherd-profile-path.mjs"
 grep -Fq 'happyherd-v*' "$workflow"
 grep -Fq 'gh release create' "$workflow"
+if grep -Fq -- '--repo "$GITHUB_REPOSITORY"' "$workflow"; then
+  echo "release publishing must not combine --repo with --notes-from-tag" >&2
+  exit 1
+fi
 grep -Fq -- '--prerelease' "$workflow"
 package_line=$(grep -nF 'name: Package Windows asset' "$workflow" | /usr/bin/cut -d: -f1)
 upload_line=$(grep -nF 'name: Upload native asset' "$workflow" | /usr/bin/cut -d: -f1)
