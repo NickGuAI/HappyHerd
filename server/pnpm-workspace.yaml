@@ -11,3 +11,4 @@ packages:
   - "packages/codium"
 
 injectWorkspacePackages: true
+forceLegacyDeploy: true

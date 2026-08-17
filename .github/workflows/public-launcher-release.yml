@@ -71,7 +71,11 @@ jobs:
 
       - name: Install frozen dependencies
         working-directory: server
-        run: pnpm install --frozen-lockfile
+        shell: bash
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          node scripts/postinstall.cjs
+          node packages/happy-cli/scripts/unpack-tools.cjs
 
       - name: Build maintained runtime and launcher
         working-directory: server
