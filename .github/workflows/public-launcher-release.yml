@@ -184,7 +184,10 @@ jobs:
           $ToolOutput = Join-Path $env:RUNNER_TEMP 'happyherd-tool-launcher.exe'
           $VerifierSource = Join-Path $env:GITHUB_WORKSPACE 'installers\service\windows\happyherd-acl-check.cpp'
           $VerifierOutput = Join-Path $env:RUNNER_TEMP 'happyherd-acl-check.exe'
-          $Command = 'call "' + $VsDevCmd + '" -arch=x64 -host_arch=x64 && cl.exe /nologo /EHsc /std:c++17 /W4 /WX /Fe:"' + $Output + '" "' + $Source + '" Advapi32.lib && cl.exe /nologo /EHsc /std:c++17 /W4 /WX /Fe:"' + $ToolOutput + '" "' + $ToolSource + '" Advapi32.lib Crypt32.lib && cl.exe /nologo /EHsc /std:c++17 /W4 /WX /Fe:"' + $VerifierOutput + '" "' + $VerifierSource + '" Advapi32.lib'
+          # The service starts with an intentionally minimal environment. Link
+          # the MSVC runtime statically so every native boundary can start
+          # without inheriting a runner- or workstation-specific DLL path.
+          $Command = 'call "' + $VsDevCmd + '" -arch=x64 -host_arch=x64 && cl.exe /nologo /EHsc /std:c++17 /MT /W4 /WX /Fe:"' + $Output + '" "' + $Source + '" Advapi32.lib && cl.exe /nologo /EHsc /std:c++17 /MT /W4 /WX /Fe:"' + $ToolOutput + '" "' + $ToolSource + '" Advapi32.lib Crypt32.lib && cl.exe /nologo /EHsc /std:c++17 /MT /W4 /WX /Fe:"' + $VerifierOutput + '" "' + $VerifierSource + '" Advapi32.lib'
           & cmd.exe /d /s /c $Command
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $Output) -or -not (Test-Path -LiteralPath $ToolOutput) -or -not (Test-Path -LiteralPath $VerifierOutput)) { throw 'Windows native host compilation failed' }
 

@@ -250,6 +250,7 @@ test "$(grep -Fc 'Protect-ManagedTree $ClientDir $InstallReaders' "$root/install
 grep -Fq -- '--directory $ClientDir `' "$root/installers/install.ps1.template"
 grep -Fq -- '--directory $ClientDir `' "$root/installers/uninstall.ps1"
 grep -Fq 'verifier process failed (${verifierError?.code ?? result.error.name})' "$root/server/packages/happyherd-cli/src/broker.ts"
+test "$(grep -Fc '/std:c++17 /MT /W4 /WX' "$root/.github/workflows/public-launcher-release.yml")" -eq 1
 grep -Fq "trap failure_report ERR" "$root/scripts/test-installed-happyherd-e2e.sh"
 grep -Fq 'employee renamed a macOS managed Skill' "$root/scripts/test-installed-happyherd-e2e.sh"
 grep -Fq 'tool execution ignored renamed managed Skill' "$root/scripts/test-installed-happyherd-e2e.sh"
