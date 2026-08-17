@@ -719,6 +719,14 @@ while [ "$attempt" -lt 30 ]; do
   attempt=$((attempt+1)); sleep 1
 done
 if [ "$ready" -ne 1 ]; then
+  printf '%s\n' 'HappyHerd installation diagnostics (no credential values are displayed):' >&2
+  PATH="$agent_path" "$link_path" doctor --installation >&2 || true
+  if [ "$platform" = linux ]; then
+    sudo systemctl status "$service_name" --no-pager --lines=40 >&2 || true
+    sudo journalctl --unit "$service_name" --no-pager --lines=80 >&2 || true
+  else
+    sudo tail -n 80 "$state_root/broker.log" >&2 || true
+  fi
   fail 'broker attestation or runtime verification failed; the previous installation was restored'
 fi
 

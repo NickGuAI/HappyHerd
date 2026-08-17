@@ -9,6 +9,13 @@ version='1.2.1-beta.1'
 source_sha='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 published_at='2026-08-17T00:00:00Z'
 workflow="$root/.github/workflows/public-launcher-release.yml"
+if grep -Fq 'forceLegacyDeploy:' "$root/server/pnpm-workspace.yaml"; then
+  echo 'public launcher must not disable lockfile-backed deployment globally' >&2
+  exit 1
+fi
+grep -Fq -- '--frozen-lockfile --offline' "$workflow"
+grep -Fq 'test -f "$RUNNER_TEMP/payload/pnpm-lock.yaml"' "$workflow"
+grep -Fq 'install --prod --frozen-lockfile --offline --ignore-scripts' "$workflow"
 tool_launcher_source="$root/installers/service/unix/happyherd-tool-launcher.c"
 keychain_broker_source="$root/installers/service/darwin/happyherd-keychain-broker.c"
 node "$root/scripts/test-macos-uninstall-recovery.mjs"
@@ -33,6 +40,9 @@ if grep -Fq '/DUNICODE /D_UNICODE' "$workflow"; then
   exit 1
 fi
 grep -Fq 'sudo chown root:root /opt' "$workflow"
+grep -Fq 'Get-LocalGroup -SID $UsersGroupSid' "$workflow"
+grep -Fq 'HappyHerd installation diagnostics (no credential values are displayed):' "$root/installers/install.sh.template"
+grep -Fq 'sudo journalctl --unit "$service_name" --no-pager --lines=80' "$root/installers/install.sh.template"
 payload="$fixture/payload"
 mkdir -p \
   "$payload/bin" \

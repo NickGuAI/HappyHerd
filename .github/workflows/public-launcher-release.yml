@@ -86,8 +86,47 @@ jobs:
       - name: Create locked launcher deployment
         shell: bash
         run: |
-          pnpm --dir server --filter @happyherd/cli --fail-if-no-match deploy \
-            --prod "$RUNNER_TEMP/payload"
+          deploy_log="$RUNNER_TEMP/happyherd-cli-deploy.log"
+          set +e
+          pnpm --dir server --frozen-lockfile --offline \
+            --filter @happyherd/cli --fail-if-no-match deploy \
+            --prod "$RUNNER_TEMP/payload" >"$deploy_log" 2>&1
+          deploy_status=$?
+          set -e
+          if [[ "$deploy_status" -ne 0 ]] && \
+             ! grep -Fq 'ERR_PNPM_LOCKFILE_CONFIG_MISMATCH' "$deploy_log"; then
+            cat "$deploy_log" >&2
+            exit 1
+          fi
+          test -f "$RUNNER_TEMP/payload/package.json"
+          test -f "$RUNNER_TEMP/payload/pnpm-lock.yaml"
+          PAYLOAD_STAGE="$RUNNER_TEMP/payload" SERVER_ROOT="$GITHUB_WORKSPACE/server" node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const payload = process.env.PAYLOAD_STAGE;
+          const serverRoot = process.env.SERVER_ROOT;
+          const rootPackage = JSON.parse(fs.readFileSync(path.join(serverRoot, 'package.json'), 'utf8'));
+          const overrides = rootPackage.pnpm?.overrides;
+          if (!overrides || Object.keys(overrides).length === 0) throw new Error('source workspace pnpm overrides are missing');
+          const packagePath = path.join(payload, 'package.json');
+          const lockPath = path.join(payload, 'pnpm-lock.yaml');
+          const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+          packageJson.pnpm = { ...packageJson.pnpm, overrides };
+          fs.writeFileSync(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`);
+          const yaml = require(require.resolve('yaml', { paths: [serverRoot] }));
+          const lockfile = yaml.parse(fs.readFileSync(lockPath, 'utf8'));
+          lockfile.overrides = overrides;
+          fs.writeFileSync(lockPath, yaml.stringify(lockfile, { lineWidth: 0 }));
+          NODE
+          (
+            cd "$RUNNER_TEMP/payload"
+            pnpm --config.prefer-symlinked-executables=true \
+              fetch --prod --frozen-lockfile --ignore-scripts
+            pnpm --config.inject-workspace-packages=true \
+              --config.prefer-symlinked-executables=true \
+              install --prod --frozen-lockfile --offline --ignore-scripts
+          )
+          rm -f "$RUNNER_TEMP/payload/node_modules/.modules.yaml"
 
       - name: Build Windows service host
         if: matrix.target == 'win32-x64'
@@ -271,7 +310,8 @@ jobs:
           try {
             $SecurePassword = ConvertTo-SecureString $TestPassword -AsPlainText -Force
             New-LocalUser -Name $TestUser -Password $SecurePassword -Description 'HappyHerd native E2E target employee' -PasswordNeverExpires | Out-Null
-            $UsersGroup = ([Security.Principal.SecurityIdentifier]::new('S-1-5-32-545')).Translate([Security.Principal.NTAccount]).Value
+            $UsersGroupSid = [Security.Principal.SecurityIdentifier]::new('S-1-5-32-545')
+            $UsersGroup = Get-LocalGroup -SID $UsersGroupSid
             Add-LocalGroupMember -Group $UsersGroup -Member $TestUser
             $SpySecurePassword = ConvertTo-SecureString $SpyPassword -AsPlainText -Force
             New-LocalUser -Name $SpyUser -Password $SpySecurePassword -Description 'HappyHerd native E2E independent local spy' -PasswordNeverExpires | Out-Null
