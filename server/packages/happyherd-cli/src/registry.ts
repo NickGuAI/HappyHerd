@@ -493,15 +493,26 @@ function writeSkillStage(
   // Provider copies are owned and writable only by the broker identity, but
   // the target user's Claude/Codex process must be able to traverse and read
   // them. Canonical bundles and credentials remain in service-only state.
-  mkdirSync(stage, { mode: 0o755 });
-  for (const file of skillDeclarations(bundle.manifest, skill)) {
-    const source = join(bundle.path, ...file.path.split('/'));
-    const destination = join(stage, ...file.relativePath.split('/'));
-    mkdirSync(dirname(destination), { recursive: true, mode: 0o755 });
-    writeFileSync(destination, readFileSync(source), { mode: file.mode, flag: 'wx' });
-    chmodSync(destination, file.mode);
+  // launchd services inherit a restrictive umask. Narrow it only across this
+  // synchronous, non-secret provider publication block so every newly-created
+  // directory is traversable by the employee without recursively following
+  // paths that an employee-owned namespace could swap underneath the broker.
+  const previousUmask = process.umask(0o022);
+  try {
+    mkdirSync(stage, { mode: 0o755 });
+    for (const file of skillDeclarations(bundle.manifest, skill)) {
+      const source = join(bundle.path, ...file.path.split('/'));
+      const destination = join(stage, ...file.relativePath.split('/'));
+      mkdirSync(dirname(destination), { recursive: true, mode: 0o755 });
+      writeFileSync(destination, readFileSync(source), { mode: file.mode, flag: 'wx' });
+      chmodSync(destination, file.mode);
+    }
+    const receiptPath = join(stage, OWNER_RECEIPT);
+    writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`, { mode: 0o644, flag: 'wx' });
+    chmodSync(receiptPath, 0o644);
+  } finally {
+    process.umask(previousUmask);
   }
-  writeFileSync(join(stage, OWNER_RECEIPT), `${JSON.stringify(receipt, null, 2)}\n`, { mode: 0o644, flag: 'wx' });
 }
 
 export function registerInstalledSkillBundle(

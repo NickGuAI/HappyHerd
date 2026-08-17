@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import {
   chmodSync,
   existsSync,
+  lstatSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
@@ -164,6 +165,26 @@ describe('Claude and Codex Skill registry bridge', () => {
     expect(readFileSync(join(paths.providerRoots.codex, 'generic-guide', 'SKILL.md'), 'utf8')).toContain('Generic Guide');
     expect(validateManagedSkillRegistry(paths).registeredSkills).toBe(1);
     expect(registerInstalledSkillBundle(bundle, { ...paths, issuer: 'https://issuer.example' }).registeredSkills).toBe(1);
+  });
+
+  it('normalizes provider copy modes under a restrictive service umask', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'happyherd-registry-'));
+    temporaryDirectories.push(directory);
+    const bundle = await installedFixture(directory);
+    const paths = testPaths(directory);
+    const previousUmask = process.umask(0o077);
+    try {
+      registerInstalledSkillBundle(bundle, { ...paths, issuer: 'https://issuer.example' });
+    } finally {
+      process.umask(previousUmask);
+    }
+    for (const provider of ['claude', 'codex'] as const) {
+      const target = join(paths.providerRoots[provider], 'generic-guide');
+      expect(lstatSync(target).mode & 0o777).toBe(0o755);
+      expect(lstatSync(join(target, 'scripts')).mode & 0o777).toBe(0o755);
+      expect(lstatSync(join(target, '.happyherd-owner.json')).mode & 0o777).toBe(0o644);
+      expect(validateManagedSkillRegistry(paths).registeredSkills).toBe(1);
+    }
   });
 
   it('keeps the committed registry intact when backup cleanup fails partway', async () => {

@@ -15,3 +15,4 @@ PUBLIC_RELEASE	accepted	fix(release): make native lifecycle portable	scripts/tes
 PUBLIC_RELEASE	accepted	fix(release): make keychain host environment portable	installers/service/darwin/happyherd-keychain-broker.c
 PUBLIC_RELEASE	accepted	fix(release): restore locked native lifecycle	server/pnpm-workspace.yaml
 PUBLIC_RELEASE	accepted	fix(release): publish portable target closures	scripts/prepare-public-launcher-payload.mjs
+PUBLIC_RELEASE	accepted	fix(release): verify native secret and ACL boundaries	server/packages/happyherd-cli/src/secretStore.test.ts

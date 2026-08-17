@@ -26,10 +26,42 @@ function Assert-BootstrapAcl([string]$Path, [bool]$Directory) {
   } else { Safe-Leaf $Path 'protected bootstrap file' }
   $Acl = Get-Acl -LiteralPath $Path
   if (-not $Acl.AreAccessRulesProtected -or $Acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -ne 'S-1-5-18') { Fail "protected bootstrap path is not LocalSystem-owned: $Path" }
-  $Mutating = [Security.AccessControl.FileSystemRights]::Write -bor [Security.AccessControl.FileSystemRights]::Modify -bor [Security.AccessControl.FileSystemRights]::FullControl -bor [Security.AccessControl.FileSystemRights]::Delete -bor [Security.AccessControl.FileSystemRights]::ChangePermissions -bor [Security.AccessControl.FileSystemRights]::TakeOwnership
+  $Mutating = [Security.AccessControl.FileSystemRights]::WriteData -bor [Security.AccessControl.FileSystemRights]::AppendData -bor [Security.AccessControl.FileSystemRights]::WriteExtendedAttributes -bor [Security.AccessControl.FileSystemRights]::DeleteSubdirectoriesAndFiles -bor [Security.AccessControl.FileSystemRights]::WriteAttributes -bor [Security.AccessControl.FileSystemRights]::Delete -bor [Security.AccessControl.FileSystemRights]::ChangePermissions -bor [Security.AccessControl.FileSystemRights]::TakeOwnership
   foreach ($Rule in $Acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier])) {
     if ($Rule.IsInherited -or ($Rule.AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow -and ($Rule.FileSystemRights -band $Mutating) -and $Rule.IdentityReference.Value -notin @('S-1-5-18', 'S-1-5-32-544'))) { Fail "protected bootstrap path is writable by an untrusted identity: $Path" }
   }
+}
+function Assert-SharedDirectoryMetadata([string]$Path, [string[]]$ReaderSids) {
+  Assert-BootstrapAcl $Path $true
+  $Acl = Get-Acl -LiteralPath $Path
+  foreach ($Sid in $ReaderSids) {
+    $Rules = @($Acl.GetAccessRules($true, $false, [Security.Principal.SecurityIdentifier]) | Where-Object {
+      $_.IdentityReference.Value -eq $Sid
+    })
+    if (
+      $Rules.Count -ne 1 -or
+      $Rules[0].AccessControlType -ne [Security.AccessControl.AccessControlType]::Allow -or
+      $Rules[0].InheritanceFlags -ne [Security.AccessControl.InheritanceFlags]::None -or
+      $Rules[0].PropagationFlags -ne [Security.AccessControl.PropagationFlags]::None -or
+      [int]$Rules[0].FileSystemRights -ne [int]$SharedMetadataRights
+    ) { Fail "shared directory metadata rule is missing or not exact: $Path" }
+  }
+}
+function Remove-SharedDirectoryMetadata([string]$Path, [string[]]$ReaderSids) {
+  Assert-SharedDirectoryMetadata $Path $ReaderSids
+  $Security = Get-Acl -LiteralPath $Path
+  foreach ($Sid in $ReaderSids) {
+    $Rule = @($Security.GetAccessRules($true, $false, [Security.Principal.SecurityIdentifier]) | Where-Object {
+      $_.IdentityReference.Value -eq $Sid
+    })[0]
+    [void]$Security.RemoveAccessRuleSpecific($Rule)
+  }
+  Set-Acl -LiteralPath $Path -AclObject $Security
+  Assert-BootstrapAcl $Path $true
+  $Remaining = @((Get-Acl -LiteralPath $Path).GetAccessRules($true, $false, [Security.Principal.SecurityIdentifier]) | Where-Object {
+    $_.IdentityReference.Value -in $ReaderSids
+  })
+  if ($Remaining.Count -ne 0) { Fail "shared directory metadata rule survived removal: $Path" }
 }
 function Load-Receipt([string]$Path) {
   Safe-Leaf $Path 'protected installation receipt'
@@ -81,6 +113,14 @@ if ((Get-Acl -LiteralPath $ReceiptPath).GetOwner([Security.Principal.SecurityIde
 $OwnerHome = Full-Path ([string]$Receipt.ownerHome)
 $OwnerLocalAppData = Full-Path ([string]$Receipt.ownerLocalAppData)
 $StateRoot = Full-Path ([string]$Receipt.stateRoot)
+$InstallProductRoot = Split-Path $InstallDir -Parent
+$StateBrokerRoot = Split-Path $StateRoot -Parent
+$StateProductRoot = Split-Path $StateBrokerRoot -Parent
+$SharedMetadataRights = [Security.AccessControl.FileSystemRights]::Traverse -bor
+  [Security.AccessControl.FileSystemRights]::ReadAttributes -bor
+  [Security.AccessControl.FileSystemRights]::ReadExtendedAttributes -bor
+  [Security.AccessControl.FileSystemRights]::ReadPermissions -bor
+  [Security.AccessControl.FileSystemRights]::Synchronize
 $ServiceName = [string]$Receipt.serviceName
 $ToolUser = [string]$Receipt.toolUser
 $ServiceIdentity = "NT SERVICE\$ServiceName"
@@ -112,7 +152,8 @@ $ToolLauncher = Join-Path $InstallDir 'service\happyherd-tool-launcher.exe'
 $ServiceConfig = Join-Path $StateRoot 'broker-service.json'
 $ProviderAclReceipt = Join-Path $StateRoot 'provider-acls.json'
 $ToolConfig = Join-Path $StateRoot 'tool-launcher.conf'
-$ClientConfig = Join-Path $InstallDir 'client\broker.json'
+$ClientDir = Join-Path $InstallDir 'client'
+$ClientConfig = Join-Path $ClientDir 'broker.json'
 foreach ($Path in @($NodeRuntime, $Launcher, $ManagedRemoval, $TrustVerifier, $BrokerHost, $ToolLauncher, $ServiceConfig, $ProviderAclReceipt, $ToolConfig, $ClientConfig)) { Safe-Leaf $Path 'required uninstall evidence' }
 
 Assert-BootstrapAcl $InstallDir $true
@@ -121,6 +162,7 @@ Assert-BootstrapAcl $ReceiptPath $false
 Assert-BootstrapAcl $ReleaseReceiptPath $false
 & $TrustVerifier `
   --directory $InstallDir `
+  --directory $ClientDir `
   --directory-writer $StateRoot $ServiceSid `
   --file $ReceiptPath `
   --file $ReleaseReceiptPath `
@@ -150,6 +192,9 @@ foreach ($Group in @(Get-LocalGroup)) {
 }
 if (@($ToolGroupSids).Count -ne 1 -or $ToolGroupSids[0] -ne 'S-1-5-32-545') { Fail 'isolated tool account group memberships are not exact' }
 if ($null -eq (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue)) { Fail 'broker service is missing; repair the installation before uninstalling' }
+Assert-SharedDirectoryMetadata $InstallProductRoot @($ServiceSid, $ToolSid, $OwnerSid)
+Assert-SharedDirectoryMetadata $StateProductRoot @($ServiceSid, $ToolSid)
+Assert-SharedDirectoryMetadata $StateBrokerRoot @($ServiceSid, $ToolSid)
 
 $UserEnvironmentKey = "Registry::HKEY_USERS\$OwnerSid\Environment"
 if (-not (Test-Path -LiteralPath $UserEnvironmentKey)) { Fail 'target employee registry hive is not loaded; no uninstall mutation was attempted' }
@@ -223,6 +268,10 @@ for ($Index = $Records.Count - 1; $Index -ge 0; $Index -= 1) {
     Set-Acl -LiteralPath ([string]$Record.path) -AclObject $Security
   }
 }
+
+Remove-SharedDirectoryMetadata $InstallProductRoot @($ServiceSid, $ToolSid, $OwnerSid)
+Remove-SharedDirectoryMetadata $StateProductRoot @($ServiceSid, $ToolSid)
+Remove-SharedDirectoryMetadata $StateBrokerRoot @($ServiceSid, $ToolSid)
 
 & $ScExe delete $ServiceName | Out-Null
 if ($LASTEXITCODE -ne 0) { Fail 'broker service could not be deleted' }

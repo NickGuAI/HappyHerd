@@ -31,8 +31,10 @@ case "$(uname -s)" in
     ;;
   Darwin)
     install_root="/Library/Application Support/HappyHerd/$(id -u)"
+    state_root="/Library/Application Support/HappyHerd/Broker/$(id -u)"
+    service_user="happyherd$(id -u)"
     service_name="dev.happyherd.broker.$(id -u)"
-    keychain_path="$install_root/Library/Keychains/happyherd.keychain-db"
+    keychain_path="$state_root/Library/Keychains/happyherd.keychain-db"
     keychain_master="/Library/Application Support/HappyHerd/Secrets/$(id -u)/keychain-master"
     restart_broker() { sudo launchctl kickstart -k "system/$service_name"; }
     ;;
@@ -108,21 +110,35 @@ if ! grep -Fq '"spawnDenied": true' "$fixture/spawn.out" || [[ -e "$spawn_marker
   exit 1
 fi
 
-# The provider tree belongs to the employee and remains manageable. If that
-# user (or a compromised same-user agent) renames a managed child or replaces
-# the entire .claude/.codex hierarchy, registry validation must observe the
-# live namespace and refuse token-bearing execution. The canonical tool still
-# lives only in the protected broker bundle root.
+# Managed provider copies are never trusted as the executable source. macOS
+# prevents the employee from mutating a service-created managed child; Linux
+# permits an owner-controlled parent rename, so live registry validation must
+# detect it and refuse token-bearing execution. Unrelated employee Skills stay
+# manageable on both platforms. The canonical tool lives only in the protected
+# broker bundle root.
 current_step='managed Skill namespace tamper denial'
 for provider in .claude .codex; do
   skills_root="$HOME/$provider/skills"
   managed="$skills_root/generic-guide"
   renamed="$skills_root/generic-guide.owner-renamed"
-  mv "$managed" "$renamed"
-  if "$launcher" run-tool --issuer "$issuer" --skill generic-guide --script scripts/check.py >/dev/null 2>&1; then
-    echo "tool execution ignored renamed managed Skill in $provider" >&2; exit 1
+  if [[ "$(uname -s)" == Darwin ]]; then
+    if mv "$managed" "$renamed" 2>/dev/null; then
+      mv "$renamed" "$managed"
+      echo "employee renamed a macOS managed Skill in $provider" >&2; exit 1
+    fi
+    write_probe="$managed/.employee-write-probe"
+    if { printf 'tamper\n' >"$write_probe"; } 2>/dev/null; then
+      rm -f -- "$write_probe"
+      echo "employee wrote inside a macOS managed Skill in $provider" >&2; exit 1
+    fi
+    "$launcher" run-tool --issuer "$issuer" --skill generic-guide --script scripts/check.py >/dev/null
+  else
+    mv "$managed" "$renamed"
+    if "$launcher" run-tool --issuer "$issuer" --skill generic-guide --script scripts/check.py >/dev/null 2>&1; then
+      echo "tool execution ignored renamed managed Skill in $provider" >&2; exit 1
+    fi
+    mv "$renamed" "$managed"
   fi
-  mv "$renamed" "$managed"
   unrelated="$skills_root/employee-owned-skill"
   mkdir "$unrelated"
   printf '# Employee owned\n' >"$unrelated/SKILL.md"
@@ -149,7 +165,7 @@ grep -Fq '"result": "verified-e2e"' "$fixture/tool-after-provider-restore.out"
 # remain unavailable to the owner process itself.
 current_step='broker restart persistence'
 if [[ "$(uname -s)" == Darwin ]]; then
-  sudo /usr/bin/security lock-keychain "$keychain_path"
+  sudo -u "$service_user" env HOME="$state_root" /usr/bin/security lock-keychain "$keychain_path"
 fi
 restart_broker
 for _ in {1..50}; do "$launcher" doctor >/dev/null 2>&1 && break; sleep 0.2; done

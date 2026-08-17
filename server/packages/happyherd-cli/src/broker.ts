@@ -198,7 +198,11 @@ function verifyWindowsProtectedPaths(
     windowsHide: true,
   });
   if (result.error || result.status !== 0) {
-    throw new Error(`${label} Windows ACL verification failed`);
+    const verifierError = result.error as NodeJS.ErrnoException | undefined;
+    const verifierDiagnostic = result.error
+      ? `verifier process failed (${verifierError?.code ?? result.error.name})`
+      : result.stderr.trim().replace(/\s+/g, ' ').slice(0, 512) || `verifier exited ${String(result.status)}`;
+    throw new Error(`${label} Windows ACL verification failed: ${verifierDiagnostic}`);
   }
 }
 

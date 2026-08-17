@@ -101,7 +101,7 @@ grep -Fq "stat -f '%z:%l' \"\$keychain_master_path\"" "$root/installers/install.
 grep -Fq "stat -f '%z:%l' \"\$keychain_master_path\"" "$root/installers/uninstall.sh"
 test "$(grep -F "stat -f '%z:%l' \"\$keychain_master_path\"" "$root/installers/install.sh.template" "$root/installers/uninstall.sh" | grep -Fc "= '64:1'")" -eq 2
 grep -Fq "master_metadata=\$(sudo /usr/bin/stat -f '%u:%g:%Lp:%z:%l' \"\$keychain_master\")" "$root/scripts/test-installed-happyherd-e2e.sh"
-grep -Fq 'sudo /usr/bin/security lock-keychain "$keychain_path"' "$root/scripts/test-installed-happyherd-e2e.sh"
+grep -Fq 'sudo -u "$service_user" env HOME="$state_root" /usr/bin/security lock-keychain "$keychain_path"' "$root/scripts/test-installed-happyherd-e2e.sh"
 grep -Fq 'detached-descendant evidence (bounded):' "$root/scripts/test-installed-happyherd-e2e.sh"
 grep -Fq 'claude_fixture="$destination/claude.js"' "$root/scripts/prepare-agent-cli-fixtures.sh"
 grep -Fq 'ln -sf claude.js "$destination/claude"' "$root/scripts/prepare-agent-cli-fixtures.sh"
@@ -114,10 +114,78 @@ if grep -Fq '$Members.SID.Value' "$root/installers/install.ps1.template" "$root/
   echo 'Windows local-group validation is not empty-safe under strict mode' >&2
   exit 1
 fi
-grep -Fq '"*$ServiceSid`:(OI)(CI)F"' "$root/installers/install.ps1.template"
-grep -Fq '"*$ToolSid`:(OI)(CI)RX"' "$root/installers/install.ps1.template"
-grep -Fq '"*$OwnerSid`:(OI)(CI)RX"' "$root/installers/install.ps1.template"
-grep -Fq '$Rules += "*$Reader`:R"' "$root/installers/install.ps1.template"
+grep -Fq '$InstallReaders = @($ServiceSid, $ToolSid, $OwnerSid)' "$root/installers/install.ps1.template"
+grep -Fq '[Security.AccessControl.FileSystemRights]::ReadAndExecute, $Flags, $Propagation, $Allow' "$root/installers/install.ps1.template"
+grep -Fq '$Security = [Security.AccessControl.FileSecurity]::new()' "$root/installers/install.ps1.template"
+grep -Fq '$Security.SetAccessRuleProtection($true, $false)' "$root/installers/install.ps1.template"
+grep -Fq '[Security.AccessControl.FileSystemRights]::Read' "$root/installers/install.ps1.template"
+grep -Fq 'Set-Acl -LiteralPath $Path -AclObject $Security' "$root/installers/install.ps1.template"
+if grep -Fq 'Invoke-Icacls $Path $Rules' "$root/installers/install.ps1.template"; then
+  echo 'Windows protected files still reuse pre-existing explicit ACL entries' >&2
+  exit 1
+fi
+if grep -Eq "inheritance:r['\",[:space:]]+.*grant:r" "$root/installers/install.ps1.template"; then
+  echo 'Windows ACL publication removes inherited access before trusted grants are explicit' >&2
+  exit 1
+fi
+grep -Fq 'function Protect-ManagedTree([string]$Path, [string[]]$ReadExecuteSids)' "$root/installers/install.ps1.template"
+grep -Fq "Invoke-Icacls \$Children @('/reset', '/T', '/C')" "$root/installers/install.ps1.template"
+grep -Fq 'Protect-ManagedTree $InstallDir $InstallReaders' "$root/installers/install.ps1.template"
+grep -Fq 'Protect-ManagedTree $InstallDir @()' "$root/installers/install.ps1.template"
+grep -Fq 'Protect-ManagedTree $StateRoot @()' "$root/installers/install.ps1.template"
+grep -Fq 'Protect-File $ReleaseReceipt $InstallReaders' "$root/installers/install.ps1.template"
+grep -Fq 'Protect-File $ExecutablePath $InstallReaders $ReadAndExecute' "$root/installers/install.ps1.template"
+grep -Fq 'native ACL verification rejected the published installation' "$root/installers/install.ps1.template"
+grep -Fq 'Start-BrokerService $ServiceName $LogPath' "$root/installers/install.ps1.template"
+grep -Fq 'sc=$(Bounded-Diagnostic $StartOutput); query=$(Bounded-Diagnostic $QueryOutput)' "$root/installers/install.ps1.template"
+grep -Fq 'Windows ACL verification failed: ${verifierDiagnostic}' "$root/server/packages/happyherd-cli/src/broker.ts"
+grep -Fq 'function Grant-SharedDirectoryMetadata([string]$Path, [string[]]$ReaderSids)' "$root/installers/install.ps1.template"
+grep -Fq '[Security.AccessControl.FileSystemRights]::Traverse -bor' "$root/installers/install.ps1.template"
+grep -Fq '[Security.AccessControl.InheritanceFlags]::None' "$root/installers/install.ps1.template"
+grep -Fq 'Grant-SharedDirectoryMetadata $InstallProductRoot @($ServiceSid, $ToolSid, $OwnerSid)' "$root/installers/install.ps1.template"
+grep -Fq 'Grant-SharedDirectoryMetadata $StateProductRoot @($ServiceSid, $ToolSid)' "$root/installers/install.ps1.template"
+grep -Fq 'Grant-SharedDirectoryMetadata $StateBrokerRoot @($ServiceSid, $ToolSid)' "$root/installers/install.ps1.template"
+grep -Fq '$SharedDirectoryAclRecords += [ordered]@{ path = $SharedPath; sddl = (Get-Acl -LiteralPath $SharedPath).Sddl }' "$root/installers/install.ps1.template"
+grep -Fq '$Security.SetSecurityDescriptorSddlForm([string]$Record.sddl)' "$root/installers/install.ps1.template"
+grep -Fq 'restore shared directory ACLs:' "$root/installers/install.ps1.template"
+grep -Fq 'function Assert-SharedDirectoryMetadata([string]$Path, [string[]]$ReaderSids)' "$root/installers/uninstall.ps1"
+grep -Fq 'function Remove-SharedDirectoryMetadata([string]$Path, [string[]]$ReaderSids)' "$root/installers/uninstall.ps1"
+grep -Fq '[int]$Rules[0].FileSystemRights -ne [int]$SharedMetadataRights' "$root/installers/uninstall.ps1"
+grep -Fq '[void]$Security.RemoveAccessRuleSpecific($Rule)' "$root/installers/uninstall.ps1"
+grep -Fq 'Assert-SharedDirectoryMetadata $InstallProductRoot @($ServiceSid, $ToolSid, $OwnerSid)' "$root/installers/uninstall.ps1"
+grep -Fq 'Assert-SharedDirectoryMetadata $StateProductRoot @($ServiceSid, $ToolSid)' "$root/installers/uninstall.ps1"
+grep -Fq 'Assert-SharedDirectoryMetadata $StateBrokerRoot @($ServiceSid, $ToolSid)' "$root/installers/uninstall.ps1"
+grep -Fq 'Remove-SharedDirectoryMetadata $InstallProductRoot @($ServiceSid, $ToolSid, $OwnerSid)' "$root/installers/uninstall.ps1"
+grep -Fq 'Remove-SharedDirectoryMetadata $StateProductRoot @($ServiceSid, $ToolSid)' "$root/installers/uninstall.ps1"
+grep -Fq 'Remove-SharedDirectoryMetadata $StateBrokerRoot @($ServiceSid, $ToolSid)' "$root/installers/uninstall.ps1"
+shared_acl_preflight_line=$(grep -nF 'Assert-SharedDirectoryMetadata $InstallProductRoot' "$root/installers/uninstall.ps1" | /usr/bin/tail -n 1 | /usr/bin/cut -d: -f1)
+managed_preflight_line=$(grep -nF '$PreflightJson = & $NodeRuntime $ManagedRemoval --preflight' "$root/installers/uninstall.ps1" | /usr/bin/cut -d: -f1)
+shared_acl_remove_line=$(grep -nF 'Remove-SharedDirectoryMetadata $InstallProductRoot' "$root/installers/uninstall.ps1" | /usr/bin/cut -d: -f1)
+tool_identity_remove_line=$(grep -nF 'Remove-LocalUser -Name $ToolUser' "$root/installers/uninstall.ps1" | /usr/bin/cut -d: -f1)
+test "$shared_acl_preflight_line" -lt "$managed_preflight_line"
+test "$shared_acl_remove_line" -lt "$tool_identity_remove_line"
+if grep -Fq "Invoke-Icacls \$InstallDir @('/grant:r'" "$root/installers/install.ps1.template"; then
+  echo 'Windows install-tree publication still writes inheritance-only ACEs recursively' >&2
+  exit 1
+fi
+grep -Fq 'function Bounded-Diagnostic([object[]]$Lines)' "$root/installers/install.ps1.template"
+grep -Fq '$PrimaryError = $_' "$root/installers/install.ps1.template"
+grep -Fq '$ServiceStopped = $false' "$root/installers/install.ps1.template"
+test "$(grep -Fc 'because the broker service stop was not verified' "$root/installers/install.ps1.template")" -eq 5
+grep -Fq 'previous broker service remains stopped because rollback validation is incomplete' "$root/installers/install.ps1.template"
+grep -Fq 'if (-not $InstallRollbackReady -or -not $ConfigRollbackReady -or -not $ProviderRollbackReady -or -not $SharedAclRollbackReady)' "$root/installers/install.ps1.template"
+windows_commit_line=$(grep -nF '$Committed = $true' "$root/installers/install.ps1.template" | /usr/bin/cut -d: -f1)
+windows_catch_line=$(/usr/bin/awk -v start="$windows_commit_line" 'NR > start && $0 == "} catch {" { print NR; exit }' "$root/installers/install.ps1.template")
+windows_retire_line=$(grep -nF '$RetiredBackup = ' "$root/installers/install.ps1.template" | /usr/bin/cut -d: -f1)
+test "$windows_commit_line" -lt "$windows_catch_line"
+test "$windows_catch_line" -lt "$windows_retire_line"
+grep -Fq 'if (-not $Committed -and $Temporary -and (Test-Path -LiteralPath $Temporary))' "$root/installers/install.ps1.template"
+test "$(grep -Eic '\$mutating[[:space:]]*=.*FileSystemRights]::WriteData.*FileSystemRights]::AppendData.*FileSystemRights]::WriteExtendedAttributes.*FileSystemRights]::DeleteSubdirectoriesAndFiles.*FileSystemRights]::WriteAttributes.*FileSystemRights]::Delete.*FileSystemRights]::ChangePermissions.*FileSystemRights]::TakeOwnership' "$root/installers/install.ps1.template")" -eq 4
+test "$(grep -Eic '\$mutating[[:space:]]*=.*FileSystemRights]::WriteData.*FileSystemRights]::AppendData.*FileSystemRights]::WriteExtendedAttributes.*FileSystemRights]::DeleteSubdirectoriesAndFiles.*FileSystemRights]::WriteAttributes.*FileSystemRights]::Delete.*FileSystemRights]::ChangePermissions.*FileSystemRights]::TakeOwnership' "$root/installers/uninstall.ps1")" -eq 1
+if grep -Ei '\$mutating[[:space:]]*=.*FileSystemRights]::(Write|Modify|FullControl)([[:space:]]|-bor|$)' "$root/installers/install.ps1.template" "$root/installers/uninstall.ps1"; then
+  echo 'Windows ACL mutation mask includes a composite right that overlaps legitimate read-only access' >&2
+  exit 1
+fi
 if grep -Eq '"\$(ServiceSid|ToolSid|OwnerSid)`:' "$root/installers/install.ps1.template"; then
   echo 'Windows icacls uses an unresolved dynamic SID without the required literal-SID prefix' >&2
   exit 1
@@ -138,13 +206,33 @@ grep -Fq 'dscacheutil -q user -a uid "$candidate"' "$root/installers/install.sh.
 grep -Fq 'dscacheutil -q group -a gid "$candidate"' "$root/installers/install.sh.template"
 grep -Fq "mac_create_record \"/Groups/\$service_group\" 'broker service group'" "$root/installers/install.sh.template"
 test "$(grep -Fc 'GeneratedUID "$(uuidgen)"' "$root/installers/install.sh.template")" -eq 1
-if grep -F '/Users/$' "$root/installers/install.sh.template" | grep -Fq 'GeneratedUID'; then
-  echo 'macOS installer writes the protected GeneratedUID attribute on a local user' >&2
-  exit 1
-fi
+grep -Fq 'mac_create_attribute "/Users/$service_user" GeneratedUID "$service_generated_uid"' "$root/installers/install.sh.template"
+grep -Fq 'mac_create_attribute "/Users/$tool_user" GeneratedUID "$tool_generated_uid"' "$root/installers/install.sh.template"
 grep -Fq 'new_service_group=1' "$root/installers/install.sh.template"
 grep -Fq 'new_service_user=1' "$root/installers/install.sh.template"
 grep -Fq 'new_tool_user=1' "$root/installers/install.sh.template"
+service_generated_line=$(grep -nF 'mac_create_attribute "/Users/$service_user" GeneratedUID' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
+service_password_line=$(grep -nF 'mac_create_attribute "/Users/$service_user" Password' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
+service_disabled_line=$(grep -nF 'mac_create_attribute "/Users/$service_user" AuthenticationAuthority' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
+service_readback_line=$(grep -nF "created_service_auth=\$(dscl . -read" "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
+service_ready_line=$(grep -nF '    new_service_identity=1' "$root/installers/install.sh.template" | /usr/bin/tail -n 1 | /usr/bin/cut -d: -f1)
+test "$service_generated_line" -lt "$service_password_line"
+test "$service_password_line" -lt "$service_disabled_line"
+test "$service_disabled_line" -lt "$service_readback_line"
+test "$service_readback_line" -lt "$service_ready_line"
+tool_generated_line=$(grep -nF 'mac_create_attribute "/Users/$tool_user" GeneratedUID' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
+tool_password_line=$(grep -nF 'mac_create_attribute "/Users/$tool_user" Password' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
+tool_disabled_line=$(grep -nF 'mac_create_attribute "/Users/$tool_user" AuthenticationAuthority' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
+tool_readback_line=$(grep -nF "created_tool_auth=\$(dscl . -read" "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
+tool_ready_line=$(grep -nF '    new_tool_identity=1' "$root/installers/install.sh.template" | /usr/bin/tail -n 1 | /usr/bin/cut -d: -f1)
+test "$tool_generated_line" -lt "$tool_password_line"
+test "$tool_password_line" -lt "$tool_disabled_line"
+test "$tool_disabled_line" -lt "$tool_readback_line"
+test "$tool_readback_line" -lt "$tool_ready_line"
+grep -Fq "[ \"\$created_service_password\" = '*' ]" "$root/installers/install.sh.template"
+grep -Fq "[ \"\$created_tool_password\" = '*' ]" "$root/installers/install.sh.template"
+grep -Fq "[ \"\$created_service_auth\" = ';DisabledUser;' ]" "$root/installers/install.sh.template"
+grep -Fq "[ \"\$created_tool_auth\" = ';DisabledUser;' ]" "$root/installers/install.sh.template"
 grep -Fq "signingPublicKey=crypto.createPublicKey(fs.readFileSync(e.HAPPYHERD_PRIVATE_KEY_PATH)).export({type:'spki',format:'pem'}).toString()" "$root/installers/install.sh.template"
 if grep -Fq 'HAPPYHERD_PUBLIC_KEY' "$root/installers/install.sh.template"; then
   echo 'Unix installer transports a multiline trust anchor through an environment variable' >&2
@@ -158,7 +246,16 @@ test "$(grep -Fc "Invoke-Icacls \$path @('/setowner','*S-1-5-18')" "$root/instal
 test "$(grep -Fc "Invoke-Icacls \$Cursor @('/setowner', '*S-1-5-18')" "$root/installers/install.ps1.template")" -eq 1
 grep -Fq '$ToolMarker = "HappyHerd tool $OwnerKey"' "$root/installers/install.ps1.template"
 grep -Fq '$ToolMarker = "HappyHerd tool $OwnerKey"' "$root/installers/uninstall.ps1"
+test "$(grep -Fc 'Protect-ManagedTree $ClientDir $InstallReaders' "$root/installers/install.ps1.template")" -eq 1
+grep -Fq -- '--directory $ClientDir `' "$root/installers/install.ps1.template"
+grep -Fq -- '--directory $ClientDir `' "$root/installers/uninstall.ps1"
+grep -Fq 'verifier process failed (${verifierError?.code ?? result.error.name})' "$root/server/packages/happyherd-cli/src/broker.ts"
 grep -Fq "trap failure_report ERR" "$root/scripts/test-installed-happyherd-e2e.sh"
+grep -Fq 'employee renamed a macOS managed Skill' "$root/scripts/test-installed-happyherd-e2e.sh"
+grep -Fq 'tool execution ignored renamed managed Skill' "$root/scripts/test-installed-happyherd-e2e.sh"
+grep -Fq 'state_root="/Library/Application Support/HappyHerd/Broker/$(id -u)"' "$root/scripts/test-installed-happyherd-e2e.sh"
+grep -Fq 'service_user="happyherd$(id -u)"' "$root/scripts/test-installed-happyherd-e2e.sh"
+grep -Fq 'keychain_path="$state_root/Library/Keychains/happyherd.keychain-db"' "$root/scripts/test-installed-happyherd-e2e.sh"
 platform_branch_line=$(grep -nF 'if [ "$platform" = linux ]; then' "$root/installers/install.sh.template" | /usr/bin/head -n 1 | /usr/bin/cut -d: -f1)
 service_marker_line=$(grep -nF 'service_marker="HappyHerd broker for UID $owner_uid"' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
 tool_marker_line=$(grep -nF 'tool_marker="HappyHerd isolated tool runner for UID $owner_uid"' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
