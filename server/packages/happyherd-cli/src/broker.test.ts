@@ -207,12 +207,12 @@ async function registerToolFixture(instance: Awaited<ReturnType<typeof fixture>>
 }
 
 describe('OS-separated broker IPC', () => {
-  it('keeps only the protected Windows loader root in isolated child processes', () => {
+  it('keeps only the protected Windows loader root and its deterministic system path', () => {
     expect(isolatedChildEnvironment('win32', {
       PATH: 'C:\\untrusted',
       SYSTEMROOT: 'C:\\Windows',
       TEMP: 'C:\\untrusted-temp',
-    })).toEqual({ SystemRoot: 'C:\\Windows' });
+    })).toEqual({ Path: 'C:\\Windows\\System32', SystemRoot: 'C:\\Windows' });
     expect(() => isolatedChildEnvironment('win32', {})).toThrow(/SystemRoot/);
     expect(() => isolatedChildEnvironment('win32', { SystemRoot: 'relative\\Windows' })).toThrow(/SystemRoot/);
     expect(isolatedChildEnvironment('linux', { SystemRoot: '/ignored' })).toEqual({});

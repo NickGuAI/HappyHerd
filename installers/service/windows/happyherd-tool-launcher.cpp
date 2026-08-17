@@ -201,6 +201,7 @@ int wmain(int argc, wchar_t** argv) {
     L"HAPPYHERD_ACCESS_TOKEN=" + token,
     L"HAPPYHERD_API_BASE_URL=" + base,
     L"HAPPYHERD_ISSUER=" + issuer,
+    L"Path=" + std::wstring(windows_directory) + L"\\System32",
     L"SystemRoot=" + std::wstring(windows_directory),
   };
   std::sort(environment_values.begin(), environment_values.end(), [](const auto& left, const auto& right) { return _wcsicmp(left.c_str(), right.c_str()) < 0; });

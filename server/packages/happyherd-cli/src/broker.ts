@@ -58,7 +58,10 @@ export function isolatedChildEnvironment(
     || /[\u0000-\u001f\u007f-\u009f]/.test(systemRoot)
     || !win32.isAbsolute(systemRoot)
   ) throw new Error('Windows SystemRoot is unavailable for an isolated child process');
-  return { SystemRoot: systemRoot };
+  // Bundled Node 20's libuv requires PATH to exist before it evaluates whether
+  // an executable path is already absolute. Derive a single trusted search
+  // directory from the validated loader root instead of inheriting user PATH.
+  return { Path: win32.join(systemRoot, 'System32'), SystemRoot: systemRoot };
 }
 
 export interface BrokerServiceConfig {
@@ -209,6 +212,25 @@ function windowsVerifierDiagnostic(
   const bounded = (value: unknown): string => String(value ?? '')
     .replace(/[\u0000-\u001f\u007f-\u009f]+/g, ' ')
     .slice(0, 512);
+  const probe = (executable: string, args: string[]): string => {
+    const outcome = spawnSync(executable, args, {
+      cwd: installationRoot,
+      encoding: 'utf8',
+      env: isolatedChildEnvironment(),
+      timeout: 2_000,
+      maxBuffer: 4096,
+      windowsHide: true,
+    });
+    if (outcome.error) {
+      const error = outcome.error as NodeJS.ErrnoException;
+      return `error:${bounded(error.code || error.name)}:${bounded(error.errno)}`;
+    }
+    return `status:${bounded(outcome.status)}:signal:${bounded(outcome.signal)}`;
+  };
+  const systemRoot = isolatedChildEnvironment().SystemRoot as string;
+  const nodeProbe = probe(process.execPath, ['--version']);
+  const commandProbe = probe(join(systemRoot, 'System32', 'cmd.exe'), ['/d', '/c', 'exit', '0']);
+  const verifierMetadata = statSync(verifier);
   return [
     `verifier process failed (${bounded(error.code || error.name)})`,
     `errno=${bounded(error.errno)}`,
@@ -218,6 +240,9 @@ function windowsVerifierDiagnostic(
     `inheritedCwd=${bounded(process.cwd())}`,
     `spawnCwd=${bounded(installationRoot)}`,
     `verifier=${bounded(verifier)}`,
+    `verifierSize=${bounded(verifierMetadata.size)}`,
+    `nodeProbe=${nodeProbe}`,
+    `commandProbe=${commandProbe}`,
   ].join('; ').slice(0, 2048);
 }
 

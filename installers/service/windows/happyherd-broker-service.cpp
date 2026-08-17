@@ -57,9 +57,10 @@ static std::vector<wchar_t> minimal_environment() {
   wchar_t windows_directory[MAX_PATH + 1]{};
   GetWindowsDirectoryW(windows_directory, MAX_PATH);
   std::wstring system_root = L"SystemRoot=" + std::wstring(windows_directory);
+  std::wstring path = L"Path=" + std::wstring(windows_directory) + L"\\System32";
   std::wstring identity = L"HAPPYHERD_BROKER_SERVICE_IDENTITY=nt-service:" + service_name;
   std::wstring native_installation = L"HAPPYHERD_NATIVE_INSTALLATION=1";
-  std::vector<std::wstring> values = {system_root, identity, native_installation};
+  std::vector<std::wstring> values = {system_root, path, identity, native_installation};
   std::sort(values.begin(), values.end(), [](const auto& left, const auto& right) {
     return _wcsicmp(left.c_str(), right.c_str()) < 0;
   });
