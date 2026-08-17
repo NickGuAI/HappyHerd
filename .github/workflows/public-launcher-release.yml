@@ -501,7 +501,6 @@ jobs:
           prerelease=()
           case "$version" in *-*) prerelease+=(--prerelease) ;; esac
           gh release create "$GITHUB_REF_NAME" release/* \
-            --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
             --title "HappyHerd ${GITHUB_REF_NAME#happyherd-v}" \
             --notes-from-tag \
