@@ -13,6 +13,7 @@ $Fixture = Join-Path ([IO.Path]::GetTempPath()) ("happyherd-issuer-e2e-" + [Guid
 New-Item -ItemType Directory -Path $Fixture | Out-Null
 $Issuer = "http://127.0.0.1:$Port"
 $Server = $null
+$SpyScriptPath = $null
 $SpawnMarker = Join-Path $env:SystemRoot ("Temp\happyherd-detached-e2e-" + [Guid]::NewGuid().ToString('N'))
 try {
   & node (Join-Path $Root 'server\packages\happyherd-cli\scripts\create-e2e-issuer-fixture.mjs') --output $Fixture --issuer $Issuer | Out-Null
@@ -43,10 +44,14 @@ try{& ([string]$p.launcher) run-tool --issuer ([string]$p.issuer) --skill generi
 if($read-or$doctor-or$tool){exit 9}
 exit 0
 '@.Replace('__PAYLOAD__', $SpyPayloadBase64)
-    $SpyScript = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($SpyBody))
+    $SpyScriptPath = Join-Path $env:SystemRoot ("Temp\happyherd-spy-probe-" + [Guid]::NewGuid().ToString('N') + '.ps1')
+    [IO.File]::WriteAllText($SpyScriptPath, $SpyBody, [Text.UTF8Encoding]::new($false))
+    $SpySid = ([Security.Principal.NTAccount]::new($env:HAPPYHERD_E2E_SPY_USER)).Translate([Security.Principal.SecurityIdentifier]).Value
+    & "$env:SystemRoot\System32\icacls.exe" $SpyScriptPath /grant:r "*${SpySid}:(RX)" | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'could not grant the independent local spy read access to its probe' }
     $SpyPassword = ConvertTo-SecureString $env:HAPPYHERD_E2E_SPY_PASSWORD -AsPlainText -Force
     $SpyCredential = [Management.Automation.PSCredential]::new($env:HAPPYHERD_E2E_SPY_USER, $SpyPassword)
-    $SpyProcess = Start-Process -FilePath (Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::Windows)) 'System32\WindowsPowerShell\v1.0\powershell.exe') -Credential $SpyCredential -Wait -PassThru -ArgumentList @('-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', $SpyScript)
+    $SpyProcess = Start-Process -FilePath "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -Credential $SpyCredential -Wait -PassThru -ArgumentList @('-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', $SpyScriptPath)
     if ($SpyProcess.ExitCode -ne 0) { throw 'another local user read the broker capability or authenticated to the broker' }
   } else { throw 'native Windows E2E did not provide an independent local spy identity' }
   $Connect = & $Launcher connect $Issuer --no-open | Out-String
@@ -115,6 +120,7 @@ $result.credentialDenied=$LASTEXITCODE -eq 0
   Write-Host 'installed-happyherd-e2e: ok'
 } finally {
   if ($Server -and -not $Server.HasExited) { Stop-Process -Id $Server.Id -Force -ErrorAction SilentlyContinue }
+  if ($SpyScriptPath -and (Test-Path -LiteralPath $SpyScriptPath)) { Remove-Item -LiteralPath $SpyScriptPath -Force -ErrorAction SilentlyContinue }
   if (Test-Path -LiteralPath $SpawnMarker) { Remove-Item -LiteralPath $SpawnMarker -Force -ErrorAction SilentlyContinue }
   if (Test-Path $Fixture) { Remove-Item -LiteralPath $Fixture -Recurse -Force }
 }

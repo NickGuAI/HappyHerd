@@ -107,8 +107,20 @@ grep -Fq "\$LogText = ''" "$root/scripts/test-installed-happyherd-e2e.ps1"
 grep -Fq '$LogCandidate = Get-Content -Raw -LiteralPath $Log -ErrorAction SilentlyContinue' "$root/scripts/test-installed-happyherd-e2e.ps1"
 grep -Fq 'if ($null -ne $LogCandidate) { $LogText = [string]$LogCandidate }' "$root/scripts/test-installed-happyherd-e2e.ps1"
 grep -Fq 'if ($LogText -and $LogText.Contains("issuer-ready $Issuer")) { $IssuerReady = $true; break }' "$root/scripts/test-installed-happyherd-e2e.ps1"
+grep -Fq '$SpyScriptPath = Join-Path $env:SystemRoot ("Temp\happyherd-spy-probe-"' "$root/scripts/test-installed-happyherd-e2e.ps1"
+grep -Fq '"*${SpySid}:(RX)"' "$root/scripts/test-installed-happyherd-e2e.ps1"
+grep -Fq "'-File', \$SpyScriptPath" "$root/scripts/test-installed-happyherd-e2e.ps1"
+grep -Fq 'if ($SpyScriptPath -and (Test-Path -LiteralPath $SpyScriptPath))' "$root/scripts/test-installed-happyherd-e2e.ps1"
 if grep -Fq '(Get-Content -Raw $Log).Contains' "$root/scripts/test-installed-happyherd-e2e.ps1"; then
   echo 'Windows native E2E calls a method on a possibly empty log read' >&2
+  exit 1
+fi
+if grep -Fq "'-EncodedCommand', \$SpyScript" "$root/scripts/test-installed-happyherd-e2e.ps1"; then
+  echo 'Windows native E2E exceeds the credentialed-process command-line limit' >&2
+  exit 1
+fi
+if grep -Fq '$SpyScriptPath, $SpyPayloadBase64' "$root/scripts/test-installed-happyherd-e2e.ps1"; then
+  echo 'Windows native E2E puts its probe payload back on the credentialed command line' >&2
   exit 1
 fi
 grep -Fq 'claude_fixture="$destination/claude.js"' "$root/scripts/prepare-agent-cli-fixtures.sh"
