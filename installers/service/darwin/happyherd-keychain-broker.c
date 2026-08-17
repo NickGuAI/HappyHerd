@@ -65,6 +65,16 @@ static void require_regular(const char *path, uid_t owner, bool executable, cons
   }
 }
 
+static char *environment_assignment(const char *name, const char *value) {
+  size_t name_length = strlen(name), value_length = strlen(value);
+  char *assignment = malloc(name_length + value_length + 2);
+  if (assignment == NULL) fail("could not allocate the isolated broker environment");
+  memcpy(assignment, name, name_length);
+  assignment[name_length] = '=';
+  memcpy(assignment + name_length + 1, value, value_length + 1);
+  return assignment;
+}
+
 static void ensure_service_directory(const char *path, uid_t uid, gid_t gid) {
   struct stat value;
   if (lstat(path, &value) == 0) {
@@ -253,13 +263,13 @@ static void run_broker(
       || getuid() != service_uid || geteuid() != service_uid || getgid() != service_gid || getegid() != service_gid) {
     fail("could not drop to the isolated broker identity");
   }
-  if (clearenv() != 0
-      || setenv("HOME", state_root, 1) != 0
-      || setenv("HAPPYHERD_KEYRING_TARGET", keychain_path, 1) != 0
-      || setenv("HAPPYHERD_NATIVE_INSTALLATION", "1", 1) != 0
-      || setenv("PATH", "/usr/bin:/bin", 1) != 0) {
-    fail("could not construct the isolated broker environment");
-  }
+  char *clean_environment[] = {
+    environment_assignment("HOME", state_root),
+    environment_assignment("HAPPYHERD_KEYRING_TARGET", keychain_path),
+    environment_assignment("HAPPYHERD_NATIVE_INSTALLATION", "1"),
+    environment_assignment("PATH", "/usr/bin:/bin"),
+    NULL,
+  };
   char *const arguments[] = {
     (char *)node_runtime,
     (char *)broker_script,
@@ -268,7 +278,7 @@ static void run_broker(
     (char *)broker_config,
     NULL,
   };
-  execv(node_runtime, arguments);
+  execve(node_runtime, arguments, clean_environment);
   fail("could not execute the protected broker runtime");
 }
 
