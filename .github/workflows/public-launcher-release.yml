@@ -407,7 +407,7 @@ jobs:
             $env:HAPPYHERD_E2E_SPY_USER = "$env:COMPUTERNAME\$SpyUser"
             $env:HAPPYHERD_E2E_SPY_PASSWORD = $SpyPassword
             & scripts/test-installed-happyherd-e2e.ps1 $Launcher $IssuerPort
-            $UninstallOutput = & (Join-Path $InstallRoot 'uninstall.ps1') -Elevated | Out-String
+            $UninstallOutput = & (Join-Path $InstallRoot 'uninstall.ps1') -Elevated 6>&1 | Out-String
             if (-not $UninstallOutput.Contains('Removed 1 local issuer credential')) { throw 'Windows uninstaller did not purge the live OS-store credential' }
             if (Test-Path -LiteralPath $InstallRoot) { throw 'Windows installation survived verified uninstall' }
             if (Test-Path -LiteralPath (Join-Path $TargetHome '.claude\skills\generic-guide')) { throw 'Claude Skill survived verified uninstall' }

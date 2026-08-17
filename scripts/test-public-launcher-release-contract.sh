@@ -334,6 +334,7 @@ grep -Fq 'password.c_str(), 0,' "$root/installers/service/windows/happyherd-tool
 grep -Fq '"tool_sid=$ToolSid"' "$root/installers/install.ps1.template"
 grep -Fq 'Crypt32.lib User32.lib' "$root/.github/workflows/public-launcher-release.yml"
 grep -Fq '& $Python -I -X utf8 -c '\''import ctypes; from zoneinfo import ZoneInfo;' "$root/.github/workflows/public-launcher-release.yml"
+grep -Fq '$UninstallOutput = & (Join-Path $InstallRoot '\''uninstall.ps1'\'') -Elevated 6>&1 | Out-String' "$root/.github/workflows/public-launcher-release.yml"
 grep -Fq '`spawnargs=${bounded(error.spawnargs?.join('"'"' '"'"'))}`' "$root/server/packages/happyherd-cli/src/broker.ts"
 test "$(grep -Fc 'cwd: installationRoot,' "$root/server/packages/happyherd-cli/src/broker.ts")" -eq 3
 test "$(grep -Fc '/std:c++17 /MT /W4 /WX' "$root/.github/workflows/public-launcher-release.yml")" -eq 1

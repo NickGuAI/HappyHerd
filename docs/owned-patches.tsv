@@ -37,3 +37,4 @@ PUBLIC_RELEASE	accepted	fix(release): load bundled Windows Python extensions	scr
 PUBLIC_RELEASE	accepted	fix(release): request portable desktop access	scripts/test-public-launcher-release-contract.sh
 PUBLIC_RELEASE	accepted	fix(release): probe staged Windows Python	scripts/test-public-launcher-release-contract.sh
 PUBLIC_RELEASE	accepted	fix(release): use the isolated service station	scripts/test-public-launcher-release-contract.sh
+PUBLIC_RELEASE	accepted	fix(release): capture Windows uninstall receipts	scripts/test-public-launcher-release-contract.sh
