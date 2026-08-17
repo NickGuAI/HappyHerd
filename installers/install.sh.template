@@ -257,6 +257,14 @@ mac_require_no_authentication_authority() {
   fi
 }
 
+mac_remove_authentication_authority() {
+  record=$1
+  label=$2
+  sudo dscl . -delete "$record" AuthenticationAuthority \
+    || fail "could not remove authentication from the macOS $label record"
+  mac_require_no_authentication_authority "$record" "$label"
+}
+
 case "$install_dir" in ''|'/'|'/opt'|'/Library'|'/Library/Application Support') fail 'resolved install path is unsafe' ;; esac
 case "$state_root" in ''|'/'|'/var'|'/var/lib'|'/Library'|'/Library/Application Support') fail 'resolved broker state path is unsafe' ;; esac
 
@@ -538,7 +546,7 @@ else
     mac_create_attribute "/Users/$service_user" RealName "$service_marker" 'broker service user'
     mac_create_attribute "/Users/$service_user" IsHidden 1 'broker service user'
     mac_create_attribute "/Users/$service_user" Password '*' 'broker service user'
-    mac_require_no_authentication_authority "/Users/$service_user" 'broker service user'
+    mac_remove_authentication_authority "/Users/$service_user" 'broker service user'
     created_service_home=$(dscl . -read "/Users/$service_user" NFSHomeDirectory | sed 's/^[^:]*: //') || fail 'created broker service user home could not be verified'
     created_service_shell=$(dscl . -read "/Users/$service_user" UserShell | sed 's/^[^:]*: //') || fail 'created broker service user shell could not be verified'
     created_service_hidden=$(dscl . -read "/Users/$service_user" IsHidden | sed 's/^[^:]*: //') || fail 'created broker service user hidden state could not be verified'
@@ -597,7 +605,7 @@ else
     mac_create_attribute "/Users/$tool_user" RealName "$tool_marker" 'isolated tool user'
     mac_create_attribute "/Users/$tool_user" IsHidden 1 'isolated tool user'
     mac_create_attribute "/Users/$tool_user" Password '*' 'isolated tool user'
-    mac_require_no_authentication_authority "/Users/$tool_user" 'isolated tool user'
+    mac_remove_authentication_authority "/Users/$tool_user" 'isolated tool user'
     created_tool_home=$(dscl . -read "/Users/$tool_user" NFSHomeDirectory | sed 's/^[^:]*: //') || fail 'created isolated tool user home could not be verified'
     created_tool_shell=$(dscl . -read "/Users/$tool_user" UserShell | sed 's/^[^:]*: //') || fail 'created isolated tool user shell could not be verified'
     created_tool_hidden=$(dscl . -read "/Users/$tool_user" IsHidden | sed 's/^[^:]*: //') || fail 'created isolated tool user hidden state could not be verified'
