@@ -212,27 +212,21 @@ grep -Fq 'new_service_group=1' "$root/installers/install.sh.template"
 grep -Fq 'new_service_user=1' "$root/installers/install.sh.template"
 grep -Fq 'new_tool_user=1' "$root/installers/install.sh.template"
 service_generated_line=$(grep -nF 'mac_create_attribute "/Users/$service_user" GeneratedUID' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
-service_password_line=$(grep -nF 'mac_create_attribute "/Users/$service_user" Password' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
-service_disabled_line=$(grep -nF 'mac_create_attribute "/Users/$service_user" AuthenticationAuthority' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
-service_readback_line=$(grep -nF "created_service_auth=\$(dscl . -read" "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
+service_password_line=$(grep -nF 'mac_disable_password "/Users/$service_user"' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
+service_readback_line=$(grep -nF "created_service_password=\$(dscl . -read" "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
 service_ready_line=$(grep -nF '    new_service_identity=1' "$root/installers/install.sh.template" | /usr/bin/tail -n 1 | /usr/bin/cut -d: -f1)
-test "$service_generated_line" -lt "$service_password_line"
-test "$service_password_line" -lt "$service_disabled_line"
-test "$service_disabled_line" -lt "$service_readback_line"
+test "$service_password_line" -lt "$service_generated_line"
+test "$service_generated_line" -lt "$service_readback_line"
 test "$service_readback_line" -lt "$service_ready_line"
 tool_generated_line=$(grep -nF 'mac_create_attribute "/Users/$tool_user" GeneratedUID' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
-tool_password_line=$(grep -nF 'mac_create_attribute "/Users/$tool_user" Password' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
-tool_disabled_line=$(grep -nF 'mac_create_attribute "/Users/$tool_user" AuthenticationAuthority' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
-tool_readback_line=$(grep -nF "created_tool_auth=\$(dscl . -read" "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
+tool_password_line=$(grep -nF 'mac_disable_password "/Users/$tool_user"' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
+tool_readback_line=$(grep -nF "created_tool_password=\$(dscl . -read" "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
 tool_ready_line=$(grep -nF '    new_tool_identity=1' "$root/installers/install.sh.template" | /usr/bin/tail -n 1 | /usr/bin/cut -d: -f1)
-test "$tool_generated_line" -lt "$tool_password_line"
-test "$tool_password_line" -lt "$tool_disabled_line"
-test "$tool_disabled_line" -lt "$tool_readback_line"
+test "$tool_password_line" -lt "$tool_generated_line"
+test "$tool_generated_line" -lt "$tool_readback_line"
 test "$tool_readback_line" -lt "$tool_ready_line"
 grep -Fq "[ \"\$created_service_password\" = '*' ]" "$root/installers/install.sh.template"
 grep -Fq "[ \"\$created_tool_password\" = '*' ]" "$root/installers/install.sh.template"
-grep -Fq "[ \"\$created_service_auth\" = ';DisabledUser;' ]" "$root/installers/install.sh.template"
-grep -Fq "[ \"\$created_tool_auth\" = ';DisabledUser;' ]" "$root/installers/install.sh.template"
 grep -Fq "signingPublicKey=crypto.createPublicKey(fs.readFileSync(e.HAPPYHERD_PRIVATE_KEY_PATH)).export({type:'spki',format:'pem'}).toString()" "$root/installers/install.sh.template"
 if grep -Fq 'HAPPYHERD_PUBLIC_KEY' "$root/installers/install.sh.template"; then
   echo 'Unix installer transports a multiline trust anchor through an environment variable' >&2
