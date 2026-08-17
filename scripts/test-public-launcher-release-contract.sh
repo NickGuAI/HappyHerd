@@ -103,9 +103,10 @@ test "$(grep -F "stat -f '%z:%l' \"\$keychain_master_path\"" "$root/installers/i
 grep -Fq "master_metadata=\$(sudo /usr/bin/stat -f '%u:%g:%Lp:%z:%l' \"\$keychain_master\")" "$root/scripts/test-installed-happyherd-e2e.sh"
 grep -Fq 'sudo -u "$service_user" env HOME="$state_root" /usr/bin/security lock-keychain "$keychain_path"' "$root/scripts/test-installed-happyherd-e2e.sh"
 grep -Fq 'detached-descendant evidence (bounded):' "$root/scripts/test-installed-happyherd-e2e.sh"
-grep -Fq '$LogText = if (Test-Path -LiteralPath $Log -PathType Leaf) { [string](Get-Content -Raw -LiteralPath $Log) }' "$root/scripts/test-installed-happyherd-e2e.ps1"
-grep -Fq "else { '' }" "$root/scripts/test-installed-happyherd-e2e.ps1"
-grep -Fq 'if ($LogText.Contains("issuer-ready $Issuer")) { $IssuerReady = $true; break }' "$root/scripts/test-installed-happyherd-e2e.ps1"
+grep -Fq "\$LogText = ''" "$root/scripts/test-installed-happyherd-e2e.ps1"
+grep -Fq '$LogCandidate = Get-Content -Raw -LiteralPath $Log -ErrorAction SilentlyContinue' "$root/scripts/test-installed-happyherd-e2e.ps1"
+grep -Fq 'if ($null -ne $LogCandidate) { $LogText = [string]$LogCandidate }' "$root/scripts/test-installed-happyherd-e2e.ps1"
+grep -Fq 'if ($LogText -and $LogText.Contains("issuer-ready $Issuer")) { $IssuerReady = $true; break }' "$root/scripts/test-installed-happyherd-e2e.ps1"
 if grep -Fq '(Get-Content -Raw $Log).Contains' "$root/scripts/test-installed-happyherd-e2e.ps1"; then
   echo 'Windows native E2E calls a method on a possibly empty log read' >&2
   exit 1

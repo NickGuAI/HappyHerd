@@ -20,8 +20,12 @@ try {
   $Server = Start-Process -FilePath node -ArgumentList @((Join-Path $Root 'server\packages\happyherd-cli\scripts\run-e2e-issuer.mjs'), '--fixture', (Join-Path $Fixture 'fixture.json')) -RedirectStandardOutput $Log -RedirectStandardError (Join-Path $Fixture 'issuer.err') -PassThru
   $IssuerReady = $false
   for ($Attempt = 0; $Attempt -lt 50; $Attempt += 1) {
-    $LogText = if (Test-Path -LiteralPath $Log -PathType Leaf) { [string](Get-Content -Raw -LiteralPath $Log) } else { '' }
-    if ($LogText.Contains("issuer-ready $Issuer")) { $IssuerReady = $true; break }
+    $LogText = ''
+    if (Test-Path -LiteralPath $Log -PathType Leaf) {
+      $LogCandidate = Get-Content -Raw -LiteralPath $Log -ErrorAction SilentlyContinue
+      if ($null -ne $LogCandidate) { $LogText = [string]$LogCandidate }
+    }
+    if ($LogText -and $LogText.Contains("issuer-ready $Issuer")) { $IssuerReady = $true; break }
     if ($Server.HasExited) { break }
     Start-Sleep -Milliseconds 100
   }
