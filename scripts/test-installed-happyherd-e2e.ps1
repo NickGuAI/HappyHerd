@@ -18,8 +18,14 @@ try {
   & node (Join-Path $Root 'server\packages\happyherd-cli\scripts\create-e2e-issuer-fixture.mjs') --output $Fixture --issuer $Issuer | Out-Null
   $Log = Join-Path $Fixture 'issuer.log'
   $Server = Start-Process -FilePath node -ArgumentList @((Join-Path $Root 'server\packages\happyherd-cli\scripts\run-e2e-issuer.mjs'), '--fixture', (Join-Path $Fixture 'fixture.json')) -RedirectStandardOutput $Log -RedirectStandardError (Join-Path $Fixture 'issuer.err') -PassThru
-  for ($Attempt = 0; $Attempt -lt 50; $Attempt += 1) { if ((Test-Path $Log) -and (Get-Content -Raw $Log).Contains('issuer-ready')) { break }; Start-Sleep -Milliseconds 100 }
-  if (-not (Get-Content -Raw $Log).Contains("issuer-ready $Issuer")) { throw 'issuer fixture did not start' }
+  $IssuerReady = $false
+  for ($Attempt = 0; $Attempt -lt 50; $Attempt += 1) {
+    $LogText = if (Test-Path -LiteralPath $Log -PathType Leaf) { [string](Get-Content -Raw -LiteralPath $Log) } else { '' }
+    if ($LogText.Contains("issuer-ready $Issuer")) { $IssuerReady = $true; break }
+    if ($Server.HasExited) { break }
+    Start-Sleep -Milliseconds 100
+  }
+  if (-not $IssuerReady) { throw 'issuer fixture did not start' }
   if ($env:HAPPYHERD_E2E_SPY_USER -and $env:HAPPYHERD_E2E_SPY_PASSWORD) {
     $ClientConfig = Join-Path $InstallRoot 'client\broker.json'
     $SpyPayload = [ordered]@{ config = $ClientConfig; launcher = $Launcher; issuer = $Issuer } | ConvertTo-Json -Compress
