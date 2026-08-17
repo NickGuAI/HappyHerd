@@ -116,6 +116,16 @@ static const char *bounded_environment(const char *name) {
   return value;
 }
 
+static char *environment_assignment(const char *name, const char *value) {
+  size_t name_length = strlen(name), value_length = strlen(value);
+  char *assignment = malloc(name_length + value_length + 2);
+  if (!assignment) fail("execution environment allocation failed");
+  memcpy(assignment, name, name_length);
+  assignment[name_length] = '=';
+  memcpy(assignment + name_length + 1, value, value_length + 1);
+  return assignment;
+}
+
 #ifdef __linux__
 static void restrict_process_creation(void) {
 #if defined(__x86_64__)
@@ -188,12 +198,12 @@ int main(int argc, char **argv) {
   const char *token = bounded_environment("HAPPYHERD_ACCESS_TOKEN");
   const char *issuer = bounded_environment("HAPPYHERD_ISSUER");
   const char *base = bounded_environment("HAPPYHERD_API_BASE_URL");
-  char *token_copy = strdup(token), *issuer_copy = strdup(issuer), *base_copy = strdup(base);
-  if (!token_copy || !issuer_copy || !base_copy) fail("execution environment allocation failed");
-  if (clearenv()) fail("execution environment could not be cleared");
-  if (setenv("HAPPYHERD_ACCESS_TOKEN", token_copy, 1) || setenv("HAPPYHERD_ISSUER", issuer_copy, 1) || setenv("HAPPYHERD_API_BASE_URL", base_copy, 1)) {
-    fail("execution environment could not be created");
-  }
+  char *clean_environment[] = {
+    environment_assignment("HAPPYHERD_ACCESS_TOKEN", token),
+    environment_assignment("HAPPYHERD_ISSUER", issuer),
+    environment_assignment("HAPPYHERD_API_BASE_URL", base),
+    NULL,
+  };
 
   gid_t groups[] = { config.tool_gid };
   if (setgroups(1, groups) || setgid(config.tool_gid) || setuid(config.tool_uid)) fail("tool identity isolation failed");
@@ -213,7 +223,7 @@ int main(int argc, char **argv) {
 
 #ifdef __linux__
   restrict_process_creation();
-  execv(runtime, child);
+  execve(runtime, child, clean_environment);
 #else
   const char *profile = "(version 1)(allow default)(deny process-fork)";
   char **sandbox = calloc(cursor + 5, sizeof(char *));
@@ -221,7 +231,7 @@ int main(int argc, char **argv) {
   sandbox[0] = "/usr/bin/sandbox-exec"; sandbox[1] = "-p"; sandbox[2] = (char *)profile; sandbox[3] = runtime;
   for (size_t index = 1; index < cursor; index++) sandbox[index + 3] = child[index];
   sandbox[cursor + 3] = NULL;
-  execv(sandbox[0], sandbox);
+  execve(sandbox[0], sandbox, clean_environment);
 #endif
   fail("verified tool runtime could not be executed");
   return 126;

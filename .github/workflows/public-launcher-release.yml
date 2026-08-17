@@ -103,7 +103,7 @@ jobs:
           $ToolOutput = Join-Path $env:RUNNER_TEMP 'happyherd-tool-launcher.exe'
           $VerifierSource = Join-Path $env:GITHUB_WORKSPACE 'installers\service\windows\happyherd-acl-check.cpp'
           $VerifierOutput = Join-Path $env:RUNNER_TEMP 'happyherd-acl-check.exe'
-          $Command = 'call "' + $VsDevCmd + '" -arch=x64 -host_arch=x64 && cl.exe /nologo /EHsc /std:c++17 /W4 /WX /DUNICODE /D_UNICODE /Fe:"' + $Output + '" "' + $Source + '" Advapi32.lib && cl.exe /nologo /EHsc /std:c++17 /W4 /WX /DUNICODE /D_UNICODE /Fe:"' + $ToolOutput + '" "' + $ToolSource + '" Advapi32.lib Crypt32.lib && cl.exe /nologo /EHsc /std:c++17 /W4 /WX /DUNICODE /D_UNICODE /Fe:"' + $VerifierOutput + '" "' + $VerifierSource + '" Advapi32.lib'
+          $Command = 'call "' + $VsDevCmd + '" -arch=x64 -host_arch=x64 && cl.exe /nologo /EHsc /std:c++17 /W4 /WX /Fe:"' + $Output + '" "' + $Source + '" Advapi32.lib && cl.exe /nologo /EHsc /std:c++17 /W4 /WX /Fe:"' + $ToolOutput + '" "' + $ToolSource + '" Advapi32.lib Crypt32.lib && cl.exe /nologo /EHsc /std:c++17 /W4 /WX /Fe:"' + $VerifierOutput + '" "' + $VerifierSource + '" Advapi32.lib'
           & cmd.exe /d /s /c $Command
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $Output) -or -not (Test-Path -LiteralPath $ToolOutput) -or -not (Test-Path -LiteralPath $VerifierOutput)) { throw 'Windows native host compilation failed' }
 
@@ -216,6 +216,19 @@ jobs:
             --base-url "http://127.0.0.1:9" \
             --shell sh
           scripts/prepare-agent-cli-fixtures.sh "$HOME/.local/bin"
+          if [[ "${{ matrix.target }}" == linux-* ]]; then
+            sudo chown root:root /opt
+            sudo chmod 0755 /opt
+            for trust_root in /opt /var /var/lib; do
+              test -d "$trust_root"
+              test ! -L "$trust_root"
+              metadata="$(stat -c '%u:%a' "$trust_root")"
+              uid="${metadata%%:*}"
+              mode="${metadata#*:}"
+              test "$uid" -eq 0
+              test $((8#$mode & 022)) -eq 0
+            done
+          fi
           PATH="$HOME/.local/bin:$PATH" sh "$RUNNER_TEMP/native-release/install.sh" \
             --local-manifest "$RUNNER_TEMP/native-release/release-manifest.json" \
             --local-asset "$RUNNER_TEMP/native-release/happyherd-v${version}-${{ matrix.target }}.tar.gz"

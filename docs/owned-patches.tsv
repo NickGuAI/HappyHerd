@@ -11,3 +11,4 @@ RUNTIME_CONTRACT	accepted	fix(runtime): restore session lifecycle contracts	serv
 PUBLIC_BOUNDARY	accepted	fix(public-boundary): canonicalize signed GitHub squash	scripts/test-public-boundary.mjs
 ISSUER_ONBOARDING	accepted	feat(launcher): add generic governed local runtime	scripts/test-public-launcher-release-contract.sh
 PUBLIC_RELEASE	accepted	fix(release): make native matrix deterministic	.github/workflows/public-launcher-release.yml
+PUBLIC_RELEASE	accepted	fix(release): make native lifecycle portable	scripts/test-public-launcher-release-contract.sh

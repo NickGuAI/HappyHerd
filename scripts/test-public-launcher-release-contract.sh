@@ -9,6 +9,7 @@ version='1.2.1-beta.1'
 source_sha='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 published_at='2026-08-17T00:00:00Z'
 workflow="$root/.github/workflows/public-launcher-release.yml"
+tool_launcher_source="$root/installers/service/unix/happyherd-tool-launcher.c"
 node "$root/scripts/test-macos-uninstall-recovery.mjs"
 node "$root/scripts/test-happyherd-profile-path.mjs"
 grep -Fq 'happyherd-v*' "$workflow"
@@ -17,6 +18,17 @@ grep -Fq -- '--prerelease' "$workflow"
 for required_target in darwin-arm64 darwin-x64 linux-arm64 linux-x64 win32-x64; do
   grep -Fq "target: $required_target" "$workflow"
 done
+grep -Fq 'execve(runtime, child, clean_environment);' "$tool_launcher_source"
+grep -Fq 'execve(sandbox[0], sandbox, clean_environment);' "$tool_launcher_source"
+if grep -Fq 'clearenv()' "$tool_launcher_source"; then
+  echo 'Unix tool launcher uses non-portable environment mutation' >&2
+  exit 1
+fi
+if grep -Fq '/DUNICODE /D_UNICODE' "$workflow"; then
+  echo 'Windows release build duplicates source-owned Unicode definitions' >&2
+  exit 1
+fi
+grep -Fq 'sudo chown root:root /opt' "$workflow"
 payload="$fixture/payload"
 mkdir -p \
   "$payload/bin" \
