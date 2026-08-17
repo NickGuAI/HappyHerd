@@ -25,3 +25,4 @@ PUBLIC_RELEASE	accepted	fix(release): preserve macOS generated identities	script
 PUBLIC_RELEASE	accepted	fix(release): require macOS no-login identities	scripts/test-public-launcher-release-contract.sh
 PUBLIC_RELEASE	accepted	fix(release): fail closed on macOS identity reads	scripts/test-public-launcher-release-contract.sh
 PUBLIC_RELEASE	accepted	fix(release): remove macOS service authentication	scripts/test-public-launcher-release-contract.sh
+PUBLIC_RELEASE	accepted	fix(release): anchor Windows verifier process	scripts/test-public-launcher-release-contract.sh

@@ -11,7 +11,7 @@ import {
   timingSafeEqual,
   verify,
 } from 'node:crypto';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn, spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import {
   chmodSync,
   existsSync,
@@ -196,6 +196,31 @@ function protectedFile(path: string, label: string): string {
   return readFileSync(path, 'utf8').trim();
 }
 
+function windowsVerifierDiagnostic(
+  result: SpawnSyncReturns<string>,
+  verifier: string,
+  installationRoot: string,
+): string {
+  if (!result.error) {
+    return result.stderr.trim().replace(/\s+/g, ' ').slice(0, 512)
+      || `verifier exited ${String(result.status)}`;
+  }
+  const error = result.error as NodeJS.ErrnoException & { path?: string; spawnargs?: string[] };
+  const bounded = (value: unknown): string => String(value ?? '')
+    .replace(/[\u0000-\u001f\u007f-\u009f]+/g, ' ')
+    .slice(0, 512);
+  return [
+    `verifier process failed (${bounded(error.code || error.name)})`,
+    `errno=${bounded(error.errno)}`,
+    `syscall=${bounded(error.syscall)}`,
+    `path=${bounded(error.path)}`,
+    `spawnargs=${bounded(error.spawnargs?.join(' '))}`,
+    `inheritedCwd=${bounded(process.cwd())}`,
+    `spawnCwd=${bounded(installationRoot)}`,
+    `verifier=${bounded(verifier)}`,
+  ].join('; ').slice(0, 2048);
+}
+
 function verifyWindowsProtectedPaths(
   entries: Array<{ kind: 'file' | 'directory'; path: string }>,
   label: string,
@@ -208,6 +233,7 @@ function verifyWindowsProtectedPaths(
   }
   const args = entries.flatMap((entry) => [entry.kind === 'file' ? '--file' : '--directory', resolve(entry.path)]);
   const result = spawnSync(verifier, args, {
+    cwd: installationRoot,
     encoding: 'utf8',
     env: isolatedChildEnvironment(),
     timeout: 10_000,
@@ -215,10 +241,7 @@ function verifyWindowsProtectedPaths(
     windowsHide: true,
   });
   if (result.error || result.status !== 0) {
-    const verifierError = result.error as NodeJS.ErrnoException | undefined;
-    const verifierDiagnostic = result.error
-      ? `verifier process failed (${verifierError?.code ?? result.error.name})`
-      : result.stderr.trim().replace(/\s+/g, ' ').slice(0, 512) || `verifier exited ${String(result.status)}`;
+    const verifierDiagnostic = windowsVerifierDiagnostic(result, verifier, installationRoot);
     throw new Error(`${label} Windows ACL verification failed: ${verifierDiagnostic}`);
   }
 }
@@ -296,10 +319,16 @@ function verifyWindowsClientConfig(path: string, ownerSid: string): void {
   const installationRoot = dirname(dirname(resolve(process.execPath)));
   const verifier = join(installationRoot, 'service', 'happyherd-acl-check.exe');
   const result = spawnSync(verifier, ['--client-file', resolve(path), ownerSid], {
-    encoding: 'utf8', env: isolatedChildEnvironment(), timeout: 10_000, maxBuffer: 64 * 1024, windowsHide: true,
+    cwd: installationRoot,
+    encoding: 'utf8',
+    env: isolatedChildEnvironment(),
+    timeout: 10_000,
+    maxBuffer: 64 * 1024,
+    windowsHide: true,
   });
   if (result.error || result.status !== 0) {
-    throw new Error('HappyHerd broker client configuration Windows ACL is not exclusive to its owner');
+    const verifierDiagnostic = windowsVerifierDiagnostic(result, verifier, installationRoot);
+    throw new Error(`HappyHerd broker client configuration Windows ACL verification failed: ${verifierDiagnostic}`);
   }
 }
 
