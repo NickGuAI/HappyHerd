@@ -545,8 +545,9 @@ else
     mac_create_attribute "/Users/$service_user" UserShell /usr/bin/false 'broker service user'
     mac_create_attribute "/Users/$service_user" RealName "$service_marker" 'broker service user'
     mac_create_attribute "/Users/$service_user" IsHidden 1 'broker service user'
-    mac_create_attribute "/Users/$service_user" Password '*' 'broker service user'
     mac_remove_authentication_authority "/Users/$service_user" 'broker service user'
+    mac_create_attribute "/Users/$service_user" Password '*' 'broker service user'
+    mac_require_no_authentication_authority "/Users/$service_user" 'broker service user'
     created_service_home=$(dscl . -read "/Users/$service_user" NFSHomeDirectory | sed 's/^[^:]*: //') || fail 'created broker service user home could not be verified'
     created_service_shell=$(dscl . -read "/Users/$service_user" UserShell | sed 's/^[^:]*: //') || fail 'created broker service user shell could not be verified'
     created_service_hidden=$(dscl . -read "/Users/$service_user" IsHidden | sed 's/^[^:]*: //') || fail 'created broker service user hidden state could not be verified'
@@ -559,17 +560,18 @@ else
     created_group_marker=$(dscl . -read "/Groups/$service_group" RealName | sed 's/^[^:]*: //') || fail 'created broker service group marker could not be verified'
     printf '%s\n' "$created_service_generated_uid" | /usr/bin/grep -Eq '^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$' \
       || fail 'created broker service user has an invalid generated identity'
-    if ! { [ "$created_service_home" = "$state_root" ] \
-      && [ "$created_service_shell" = /usr/bin/false ] \
-      && [ "$created_service_hidden" = 1 ] \
-      && [ "$created_service_password" = '*' ] \
-      && [ "$created_service_marker" = "$service_marker" ] \
-      && [ "$created_service_gid" = "$next_gid" ] \
-      && [ "$created_service_uid" = "$next_id" ] \
-      && [ "$created_group_gid" = "$next_gid" ] \
-      && [ "$created_group_marker" = "$service_marker group" ]; }; then
-      fail 'created broker service identity failed exact read-back verification'
-    fi
+    created_service_mismatch=''
+    [ "$created_service_home" = "$state_root" ] || created_service_mismatch="$created_service_mismatch home"
+    [ "$created_service_shell" = /usr/bin/false ] || created_service_mismatch="$created_service_mismatch shell"
+    [ "$created_service_hidden" = 1 ] || created_service_mismatch="$created_service_mismatch hidden"
+    [ "$created_service_password" = '*' ] || created_service_mismatch="$created_service_mismatch password"
+    [ "$created_service_marker" = "$service_marker" ] || created_service_mismatch="$created_service_mismatch marker"
+    [ "$created_service_gid" = "$next_gid" ] || created_service_mismatch="$created_service_mismatch primary-group-id"
+    [ "$created_service_uid" = "$next_id" ] || created_service_mismatch="$created_service_mismatch unique-id"
+    [ "$created_group_gid" = "$next_gid" ] || created_service_mismatch="$created_service_mismatch group-id"
+    [ "$created_group_marker" = "$service_marker group" ] || created_service_mismatch="$created_service_mismatch group-marker"
+    [ -z "$created_service_mismatch" ] \
+      || fail "created broker service identity read-back mismatch:$created_service_mismatch"
     if sudo dseditgroup -o checkmember -m "$service_user" admin | /usr/bin/grep -Fq 'yes'; then fail 'broker service identity must not be an administrator'; fi
     new_service_identity=1
   fi
@@ -604,8 +606,9 @@ else
     mac_create_attribute "/Users/$tool_user" UserShell /usr/bin/false 'isolated tool user'
     mac_create_attribute "/Users/$tool_user" RealName "$tool_marker" 'isolated tool user'
     mac_create_attribute "/Users/$tool_user" IsHidden 1 'isolated tool user'
-    mac_create_attribute "/Users/$tool_user" Password '*' 'isolated tool user'
     mac_remove_authentication_authority "/Users/$tool_user" 'isolated tool user'
+    mac_create_attribute "/Users/$tool_user" Password '*' 'isolated tool user'
+    mac_require_no_authentication_authority "/Users/$tool_user" 'isolated tool user'
     created_tool_home=$(dscl . -read "/Users/$tool_user" NFSHomeDirectory | sed 's/^[^:]*: //') || fail 'created isolated tool user home could not be verified'
     created_tool_shell=$(dscl . -read "/Users/$tool_user" UserShell | sed 's/^[^:]*: //') || fail 'created isolated tool user shell could not be verified'
     created_tool_hidden=$(dscl . -read "/Users/$tool_user" IsHidden | sed 's/^[^:]*: //') || fail 'created isolated tool user hidden state could not be verified'
@@ -616,15 +619,16 @@ else
     created_tool_uid=$(dscl . -read "/Users/$tool_user" UniqueID | sed 's/^[^:]*: //') || fail 'created isolated tool user ID could not be verified'
     printf '%s\n' "$created_tool_generated_uid" | /usr/bin/grep -Eq '^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$' \
       || fail 'created isolated tool user has an invalid generated identity'
-    if ! { [ "$created_tool_home" = /var/empty ] \
-      && [ "$created_tool_shell" = /usr/bin/false ] \
-      && [ "$created_tool_hidden" = 1 ] \
-      && [ "$created_tool_password" = '*' ] \
-      && [ "$created_tool_marker" = "$tool_marker" ] \
-      && [ "$created_tool_gid" = "$service_gid" ] \
-      && [ "$created_tool_uid" = "$next_tool_id" ]; }; then
-      fail 'created isolated tool identity failed exact read-back verification'
-    fi
+    created_tool_mismatch=''
+    [ "$created_tool_home" = /var/empty ] || created_tool_mismatch="$created_tool_mismatch home"
+    [ "$created_tool_shell" = /usr/bin/false ] || created_tool_mismatch="$created_tool_mismatch shell"
+    [ "$created_tool_hidden" = 1 ] || created_tool_mismatch="$created_tool_mismatch hidden"
+    [ "$created_tool_password" = '*' ] || created_tool_mismatch="$created_tool_mismatch password"
+    [ "$created_tool_marker" = "$tool_marker" ] || created_tool_mismatch="$created_tool_mismatch marker"
+    [ "$created_tool_gid" = "$service_gid" ] || created_tool_mismatch="$created_tool_mismatch primary-group-id"
+    [ "$created_tool_uid" = "$next_tool_id" ] || created_tool_mismatch="$created_tool_mismatch unique-id"
+    [ -z "$created_tool_mismatch" ] \
+      || fail "created isolated tool identity read-back mismatch:$created_tool_mismatch"
     new_tool_identity=1
   fi
   if sudo dseditgroup -o checkmember -m "$tool_user" admin | /usr/bin/grep -Fq 'yes'; then fail 'tool execution identity must not be an administrator'; fi
