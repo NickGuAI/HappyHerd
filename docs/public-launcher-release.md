@@ -111,6 +111,10 @@ inside the service Keychain. The client
 capability file is administrator-owned and explicitly readable only by the
 target employee (plus Windows SYSTEM/Administrators). A second local user is
 denied both raw reads and broker calls in every native lifecycle test.
+On Windows, tool processes receive temporary read/execute access to the
+broker's service-specific noninteractive window station and run on a random,
+protected per-launch desktop. The original station ACL is restored after the
+contained process exits; tools never receive access to `WinSta0`.
 
 `happyherd upgrade --manifest <url>` checks the same manifest and reports the
 verified platform installer and expected digest. It does not silently replace a

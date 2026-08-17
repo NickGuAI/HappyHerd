@@ -10,7 +10,7 @@ HappyHerd now ships a generic end-user launcher and traceable installers for mac
 - `happyherd run-tool` re-verifies a manifest-declared script and supplies the issuer credential only to that child as `HAPPYHERD_ACCESS_TOKEN`, never to the agent session, arguments, registry, or receipts.
 - `happyherd launch claude` and `happyherd launch codex` use the bundled maintained Happy runtime.
 - Bundled Node.js and Python runtimes keep installation independent of host-language runtimes, while pinned offline installation accepts only an explicit local manifest and matching platform asset.
-- Isolated Windows tools run on a per-launch private, noninteractive window station and desktop instead of inheriting a shared service or interactive desktop.
+- Isolated Windows tools run on a protected per-launch desktop inside the broker's service-specific noninteractive window station; temporary station access is removed after the contained process exits, and tools never receive access to the interactive desktop.
 - macOS installation and removal verify hidden service identities through structured Directory Service records, including paths and ownership markers that contain spaces.
 - Native uninstallers wait for the restarted broker to pass signed installation health checks before purging OS-store credentials.
 - Per-owner broker capabilities, isolated tool identities, bounded output, operation locks, provider-tree integrity checks, and detached-child containment keep organization access outside agent prompts and unrelated user sessions.

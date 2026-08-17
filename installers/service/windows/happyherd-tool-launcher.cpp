@@ -172,6 +172,92 @@ static std::wstring random_object_name() {
   return output;
 }
 
+static std::wstring user_object_name(HANDLE object) {
+  DWORD size = 0;
+  GetUserObjectInformationW(object, UOI_NAME, nullptr, 0, &size);
+  if (GetLastError() != ERROR_INSUFFICIENT_BUFFER || size < sizeof(wchar_t) || size > 4096) {
+    fail(L"broker window station name could not be sized");
+  }
+  std::vector<wchar_t> buffer((size + sizeof(wchar_t) - 1) / sizeof(wchar_t));
+  if (!GetUserObjectInformationW(object, UOI_NAME, buffer.data(), size, &size)) {
+    fail(L"broker window station name could not be read");
+  }
+  std::wstring output(buffer.data());
+  if (output.size() < 9 || _wcsnicmp(output.c_str(), L"Service-", 8) || !_wcsicmp(output.c_str(), L"WinSta0")) {
+    fail(L"broker is not attached to a service-specific window station");
+  }
+  USEROBJECTFLAGS flags{};
+  DWORD flags_size = 0;
+  if (!GetUserObjectInformationW(object, UOI_FLAGS, &flags, sizeof(flags), &flags_size) || flags_size != sizeof(flags)) {
+    fail(L"broker window station flags could not be read");
+  }
+  if (flags.dwFlags & WSF_VISIBLE) fail(L"broker window station must be noninteractive");
+  return output;
+}
+
+struct WindowStationAccess {
+  HWINSTA station = nullptr;
+  PSECURITY_DESCRIPTOR original_descriptor = nullptr;
+  PACL original_dacl = nullptr;
+  bool changed = false;
+};
+
+static WindowStationAccess grant_tool_station_access(const std::wstring& station_name, const std::wstring& tool_sid_value) {
+  WindowStationAccess access{};
+  access.station = OpenWindowStationW(station_name.c_str(), FALSE, READ_CONTROL | WRITE_DAC);
+  if (!access.station) fail(L"broker window station security could not be opened");
+  DWORD status = GetSecurityInfo(access.station, SE_WINDOW_OBJECT, DACL_SECURITY_INFORMATION,
+    nullptr, nullptr, &access.original_dacl, nullptr, &access.original_descriptor);
+  if (status != ERROR_SUCCESS || !access.original_descriptor || !access.original_dacl) {
+    CloseWindowStation(access.station);
+    fail(L"broker window station access could not be read");
+  }
+  PSID tool_sid = nullptr;
+  if (!ConvertStringSidToSidW(tool_sid_value.c_str(), &tool_sid)) {
+    LocalFree(access.original_descriptor); CloseWindowStation(access.station);
+    fail(L"isolated tool account SID could not be created");
+  }
+  EXPLICIT_ACCESSW entry{};
+  entry.grfAccessPermissions = GENERIC_READ | GENERIC_EXECUTE;
+  entry.grfAccessMode = GRANT_ACCESS;
+  entry.grfInheritance = NO_INHERITANCE;
+  entry.Trustee.TrusteeForm = TRUSTEE_IS_SID;
+  entry.Trustee.TrusteeType = TRUSTEE_IS_USER;
+  entry.Trustee.ptstrName = static_cast<LPWSTR>(tool_sid);
+  PACL updated_dacl = nullptr;
+  status = SetEntriesInAclW(1, &entry, access.original_dacl, &updated_dacl);
+  if (status == ERROR_SUCCESS) {
+    status = SetSecurityInfo(access.station, SE_WINDOW_OBJECT, DACL_SECURITY_INFORMATION,
+      nullptr, nullptr, updated_dacl, nullptr);
+  }
+  LocalFree(updated_dacl);
+  LocalFree(tool_sid);
+  if (status != ERROR_SUCCESS) {
+    SetSecurityInfo(access.station, SE_WINDOW_OBJECT, DACL_SECURITY_INFORMATION,
+      nullptr, nullptr, access.original_dacl, nullptr);
+    LocalFree(access.original_descriptor); CloseWindowStation(access.station);
+    fail(L"isolated tool account could not access the broker window station");
+  }
+  access.changed = true;
+  return access;
+}
+
+static bool restore_window_station_access(WindowStationAccess& access) {
+  DWORD status = ERROR_INVALID_HANDLE;
+  if (access.changed && access.station && access.original_descriptor && access.original_dacl) {
+    for (int attempt = 0; attempt < 3; attempt++) {
+      status = SetSecurityInfo(access.station, SE_WINDOW_OBJECT, DACL_SECURITY_INFORMATION,
+        nullptr, nullptr, access.original_dacl, nullptr);
+      if (status == ERROR_SUCCESS) break;
+      Sleep(10);
+    }
+  }
+  LocalFree(access.original_descriptor);
+  if (access.station) CloseWindowStation(access.station);
+  access = {};
+  return status == ERROR_SUCCESS;
+}
+
 static PSECURITY_DESCRIPTOR private_desktop_security(const std::wstring& broker_sid, const std::wstring& tool_sid) {
   std::wstring sddl = L"D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GA;;;" + broker_sid + L")(A;;GA;;;" + tool_sid + L")";
   PSECURITY_DESCRIPTOR descriptor = nullptr;
@@ -256,22 +342,19 @@ int wmain(int argc, wchar_t** argv) {
   for (int index = divider + 1; index < argc; index++) command += L" " + quote(argv[index]);
   std::vector<wchar_t> mutable_command(command.begin(), command.end()); mutable_command.push_back(L'\0');
 
-  // CreateProcessWithLogonW otherwise inherits the broker service's window
-  // station and desktop. Microsoft requires the alternate account to have
-  // access to both objects; a private pair avoids granting it access to a
-  // shared service or interactive desktop.
+  // CreateProcessWithLogonW requires its alternate account to access the
+  // selected station and desktop. A virtual service account cannot create a
+  // named station, so retain its unique noninteractive service station, grant
+  // the fixed tool SID only temporary read/execute access, and create a
+  // protected random desktop for this one tool process.
   PSECURITY_DESCRIPTOR desktop_security = private_desktop_security(config[L"broker_sid"], config[L"tool_sid"]);
   SECURITY_ATTRIBUTES desktop_attributes{sizeof(SECURITY_ATTRIBUTES), desktop_security, FALSE};
-  std::wstring station_name = random_object_name();
   HWINSTA original_station = GetProcessWindowStation();
   if (!original_station) fail(L"broker window station could not be read");
-  HWINSTA private_station = CreateWindowStationW(station_name.c_str(), 0, WINSTA_ALL_ACCESS, &desktop_attributes);
-  if (!private_station) fail(L"private tool window station could not be created");
-  if (!SetProcessWindowStation(private_station)) fail(L"private tool window station could not be selected");
-  const std::wstring desktop_name = L"Default";
+  std::wstring station_name = user_object_name(original_station);
+  const std::wstring desktop_name = random_object_name();
   HDESK private_desktop = CreateDesktopW(desktop_name.c_str(), nullptr, nullptr, 0, MAXIMUM_ALLOWED, &desktop_attributes);
   if (!private_desktop) fail(L"private tool desktop could not be created");
-  if (!SetProcessWindowStation(original_station)) fail(L"broker window station could not be restored");
   std::wstring startup_desktop = station_name + L"\\" + desktop_name;
 
   HANDLE job = CreateJobObjectW(nullptr, nullptr);
@@ -284,21 +367,37 @@ int wmain(int argc, wchar_t** argv) {
   startup.hStdInput = GetStdHandle(STD_INPUT_HANDLE); startup.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE); startup.hStdError = GetStdHandle(STD_ERROR_HANDLE);
   PROCESS_INFORMATION process{};
   std::wstring password = decrypt_password(config[L"tool_password"]);
+  WindowStationAccess station_access = grant_tool_station_access(station_name, config[L"tool_sid"]);
   BOOL created = CreateProcessWithLogonW(config[L"tool_user"].c_str(), L".", password.c_str(), 0,
     runtime.c_str(), mutable_command.data(), CREATE_SUSPENDED | CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT,
     environment.data(), cwd.c_str(), &startup, &process);
   SecureZeroMemory(password.data(), password.size() * sizeof(wchar_t));
-  if (!created) { CloseHandle(job); fail(L"isolated tool process could not be created"); }
-  if (!AssignProcessToJobObject(job, process.hProcess)) { TerminateProcess(process.hProcess, 126); CloseHandle(process.hThread); CloseHandle(process.hProcess); CloseHandle(job); fail(L"tool process could not enter its containment job"); }
-  if (ResumeThread(process.hThread) == static_cast<DWORD>(-1)) {
-    TerminateJobObject(job, 126); CloseHandle(process.hThread); CloseHandle(process.hProcess); CloseHandle(job);
-    fail(L"contained tool process could not be resumed");
+  const wchar_t* failure = nullptr;
+  DWORD exit_code = 126;
+  if (!created) {
+    failure = L"isolated tool process could not be created";
+  } else if (!AssignProcessToJobObject(job, process.hProcess)) {
+    TerminateProcess(process.hProcess, 126);
+    WaitForSingleObject(process.hProcess, 5000);
+    failure = L"tool process could not enter its containment job";
+  } else if (ResumeThread(process.hThread) == static_cast<DWORD>(-1)) {
+    TerminateJobObject(job, 126);
+    WaitForSingleObject(process.hProcess, 5000);
+    failure = L"contained tool process could not be resumed";
+  } else {
+    DWORD wait = WaitForSingleObject(process.hProcess, 60000);
+    if (wait != WAIT_OBJECT_0) TerminateJobObject(job, 124);
+    WaitForSingleObject(process.hProcess, 5000);
+    exit_code = 124;
+    GetExitCodeProcess(process.hProcess, &exit_code);
   }
-  CloseHandle(process.hThread);
-  DWORD wait = WaitForSingleObject(process.hProcess, 60000);
-  if (wait != WAIT_OBJECT_0) TerminateJobObject(job, 124);
-  WaitForSingleObject(process.hProcess, 5000);
-  DWORD exit_code = 124; GetExitCodeProcess(process.hProcess, &exit_code);
-  CloseHandle(process.hProcess); CloseHandle(job); CloseDesktop(private_desktop); CloseWindowStation(private_station); LocalFree(desktop_security);
+  if (process.hThread) CloseHandle(process.hThread);
+  if (process.hProcess) CloseHandle(process.hProcess);
+  CloseHandle(job);
+  CloseDesktop(private_desktop);
+  bool restored = restore_window_station_access(station_access);
+  LocalFree(desktop_security);
+  if (!restored) fail(L"broker window station access could not be restored");
+  if (failure) fail(failure);
   return static_cast<int>(exit_code);
 }
