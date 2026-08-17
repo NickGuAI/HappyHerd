@@ -250,7 +250,9 @@ mac_create_attribute() {
 mac_require_no_authentication_authority() {
   record=$1
   label=$2
-  if dscl . -read "$record" AuthenticationAuthority >/dev/null 2>&1; then
+  authentication_record_data=$(dscl . -read "$record") \
+    || fail "could not verify the macOS $label record"
+  if printf '%s\n' "$authentication_record_data" | /usr/bin/grep -Eq '^[[:space:]]*AuthenticationAuthority:'; then
     fail "macOS $label unexpectedly has an authentication authority"
   fi
 }

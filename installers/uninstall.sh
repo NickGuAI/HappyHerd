@@ -96,6 +96,16 @@ protected_client_config() {
   fi
 }
 
+mac_require_no_authentication_authority() {
+  record=$1
+  label=$2
+  authentication_record_data=$(dscl . -read "$record") \
+    || fail "could not verify the macOS $label record"
+  if printf '%s\n' "$authentication_record_data" | /usr/bin/grep -Eq '^[[:space:]]*AuthenticationAuthority:'; then
+    fail "macOS $label unexpectedly has an authentication authority"
+  fi
+}
+
 if [ "$platform" = linux ]; then
   protected_directory /opt || fail '/opt is not administrator-protected'
   protected_directory /opt/happyherd || fail 'HappyHerd install parent is unsafe'
@@ -166,12 +176,8 @@ else
   dscl . -read "/Users/$service_user" >/dev/null 2>&1 || fail 'owned broker service identity was not found'
   dscl . -read "/Users/$tool_user" >/dev/null 2>&1 || fail 'owned tool execution identity was not found'
   dscl . -read "/Groups/$service_group" >/dev/null 2>&1 || fail 'owned broker service group was not found'
-  if dscl . -read "/Users/$service_user" AuthenticationAuthority >/dev/null 2>&1; then
-    fail 'broker service identity unexpectedly has an authentication authority'
-  fi
-  if dscl . -read "/Users/$tool_user" AuthenticationAuthority >/dev/null 2>&1; then
-    fail 'tool execution identity unexpectedly has an authentication authority'
-  fi
+  mac_require_no_authentication_authority "/Users/$service_user" 'broker service identity'
+  mac_require_no_authentication_authority "/Users/$tool_user" 'tool execution identity'
   service_home=$(dscl . -read "/Users/$service_user" NFSHomeDirectory | /usr/bin/sed 's/^[^:]*: //')
   service_shell=$(dscl . -read "/Users/$service_user" UserShell | /usr/bin/sed 's/^[^:]*: //')
   service_hidden=$(dscl . -read "/Users/$service_user" IsHidden | /usr/bin/sed 's/^[^:]*: //')

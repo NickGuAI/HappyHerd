@@ -211,11 +211,14 @@ if grep -Fq 'mac_create_attribute "/Users/$service_user" GeneratedUID' "$root/in
   echo 'macOS installer replaces a system-generated user identity' >&2
   exit 1
 fi
-grep -Fq 'if dscl . -read "$record" AuthenticationAuthority >/dev/null 2>&1; then' "$root/installers/install.sh.template"
+test "$(grep -Fc 'authentication_record_data=$(dscl . -read "$record")' "$root/installers/install.sh.template")" -eq 1
+test "$(grep -Fc "grep -Eq '^[[:space:]]*AuthenticationAuthority:'" "$root/installers/install.sh.template")" -eq 1
 test "$(grep -Fc 'mac_require_no_authentication_authority "/Users/$service_user"' "$root/installers/install.sh.template")" -eq 2
 test "$(grep -Fc 'mac_require_no_authentication_authority "/Users/$tool_user"' "$root/installers/install.sh.template")" -eq 2
-grep -Fq 'if dscl . -read "/Users/$service_user" AuthenticationAuthority >/dev/null 2>&1; then' "$root/installers/uninstall.sh"
-grep -Fq 'if dscl . -read "/Users/$tool_user" AuthenticationAuthority >/dev/null 2>&1; then' "$root/installers/uninstall.sh"
+test "$(grep -Fc 'authentication_record_data=$(dscl . -read "$record")' "$root/installers/uninstall.sh")" -eq 1
+test "$(grep -Fc "grep -Eq '^[[:space:]]*AuthenticationAuthority:'" "$root/installers/uninstall.sh")" -eq 1
+grep -Fq 'mac_require_no_authentication_authority "/Users/$service_user"' "$root/installers/uninstall.sh"
+grep -Fq 'mac_require_no_authentication_authority "/Users/$tool_user"' "$root/installers/uninstall.sh"
 grep -Fq 'new_service_group=1' "$root/installers/install.sh.template"
 grep -Fq 'new_service_user=1' "$root/installers/install.sh.template"
 grep -Fq 'new_tool_user=1' "$root/installers/install.sh.template"
