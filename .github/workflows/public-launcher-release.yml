@@ -252,7 +252,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'staged launcher help check failed' }
           $Receipt = Get-Content -Raw "$env:RUNNER_TEMP\stage\happyherd\release.json" | ConvertFrom-Json
           $Python = Join-Path "$env:RUNNER_TEMP\stage\happyherd" $Receipt.pythonRuntime
-          & $Python -I -X utf8 -c 'from zoneinfo import ZoneInfo; assert ZoneInfo("America/New_York").key == "America/New_York"'
+          & $Python -I -X utf8 -c 'import ctypes; from zoneinfo import ZoneInfo; assert ZoneInfo("America/New_York").key == "America/New_York"'
           if ($LASTEXITCODE -ne 0) { throw 'staged broker Python check failed' }
 
       - name: Package Unix asset
@@ -362,8 +362,6 @@ jobs:
             --version "$Version" `
             --base-url "http://127.0.0.1:9" `
             --shell powershell
-          & "$env:RUNNER_TEMP\payload\python\python.exe" -I -X utf8 -c 'import ctypes'
-          if ($LASTEXITCODE -ne 0) { throw 'bundled Windows Python could not import ctypes before isolated execution' }
           $Keeper = $null
           $TestUser = 'HHdE2E-' + [Guid]::NewGuid().ToString('N').Substring(0, 8)
           $TestPassword = 'Aa1!' + [Guid]::NewGuid().ToString('N') + [Guid]::NewGuid().ToString('N')
