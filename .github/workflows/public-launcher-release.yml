@@ -187,7 +187,7 @@ jobs:
           # The service starts with an intentionally minimal environment. Link
           # the MSVC runtime statically so every native boundary can start
           # without inheriting a runner- or workstation-specific DLL path.
-          $Command = 'call "' + $VsDevCmd + '" -arch=x64 -host_arch=x64 && cl.exe /nologo /EHsc /std:c++17 /MT /W4 /WX /Fe:"' + $Output + '" "' + $Source + '" Advapi32.lib && cl.exe /nologo /EHsc /std:c++17 /MT /W4 /WX /Fe:"' + $ToolOutput + '" "' + $ToolSource + '" Advapi32.lib Crypt32.lib && cl.exe /nologo /EHsc /std:c++17 /MT /W4 /WX /Fe:"' + $VerifierOutput + '" "' + $VerifierSource + '" Advapi32.lib'
+          $Command = 'call "' + $VsDevCmd + '" -arch=x64 -host_arch=x64 && cl.exe /nologo /EHsc /std:c++17 /MT /W4 /WX /Fe:"' + $Output + '" "' + $Source + '" Advapi32.lib && cl.exe /nologo /EHsc /std:c++17 /MT /W4 /WX /Fe:"' + $ToolOutput + '" "' + $ToolSource + '" Advapi32.lib Crypt32.lib User32.lib && cl.exe /nologo /EHsc /std:c++17 /MT /W4 /WX /Fe:"' + $VerifierOutput + '" "' + $VerifierSource + '" Advapi32.lib'
           & cmd.exe /d /s /c $Command
           if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $Output) -or -not (Test-Path -LiteralPath $ToolOutput) -or -not (Test-Path -LiteralPath $VerifierOutput)) { throw 'Windows native host compilation failed' }
 
@@ -362,6 +362,8 @@ jobs:
             --version "$Version" `
             --base-url "http://127.0.0.1:9" `
             --shell powershell
+          & "$env:RUNNER_TEMP\payload\python\python.exe" -I -X utf8 -c 'import ctypes'
+          if ($LASTEXITCODE -ne 0) { throw 'bundled Windows Python could not import ctypes before isolated execution' }
           $Keeper = $null
           $TestUser = 'HHdE2E-' + [Guid]::NewGuid().ToString('N').Substring(0, 8)
           $TestPassword = 'Aa1!' + [Guid]::NewGuid().ToString('N') + [Guid]::NewGuid().ToString('N')

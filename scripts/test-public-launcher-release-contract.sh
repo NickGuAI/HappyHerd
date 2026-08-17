@@ -318,6 +318,16 @@ grep -Fq "const commandProbe = probe(join(systemRoot, 'System32', 'cmd.exe'), ['
 grep -Fq '`verifierSize=${bounded(verifierMetadata.size)}`' "$root/server/packages/happyherd-cli/src/broker.ts"
 grep -Fq "return { Path: win32.join(systemRoot, 'System32'), SystemRoot: systemRoot };" "$root/server/packages/happyherd-cli/src/broker.ts"
 test "$(grep -Fhc 'L"Path=" + std::wstring(windows_directory) + L"\\System32"' "$root/installers/service/windows/happyherd-broker-service.cpp" "$root/installers/service/windows/happyherd-tool-launcher.cpp" | /usr/bin/awk '{ total += $1 } END { print total }')" -eq 2
+grep -Fq 'L"tool_sid"' "$root/installers/service/windows/happyherd-tool-launcher.cpp"
+grep -Fq 'if (_wcsicmp(account_sid(config[L"tool_user"]).c_str(), config[L"tool_sid"].c_str()))' "$root/installers/service/windows/happyherd-tool-launcher.cpp"
+grep -Fq 'L"D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GA;;;" + broker_sid + L")(A;;GA;;;" + tool_sid + L")"' "$root/installers/service/windows/happyherd-tool-launcher.cpp"
+grep -Fq 'CreateWindowStationW(station_name.c_str(), 0, WINSTA_ALL_ACCESS, &desktop_attributes)' "$root/installers/service/windows/happyherd-tool-launcher.cpp"
+grep -Fq 'CreateDesktopW(desktop_name.c_str(), nullptr, nullptr, 0, DESKTOP_ALL_ACCESS, &desktop_attributes)' "$root/installers/service/windows/happyherd-tool-launcher.cpp"
+grep -Fq 'startup.lpDesktop = startup_desktop.data()' "$root/installers/service/windows/happyherd-tool-launcher.cpp"
+grep -Fq 'password.c_str(), 0,' "$root/installers/service/windows/happyherd-tool-launcher.cpp"
+grep -Fq '"tool_sid=$ToolSid"' "$root/installers/install.ps1.template"
+grep -Fq 'Crypt32.lib User32.lib' "$root/.github/workflows/public-launcher-release.yml"
+grep -Fq "throw 'bundled Windows Python could not import ctypes before isolated execution'" "$root/.github/workflows/public-launcher-release.yml"
 grep -Fq '`spawnargs=${bounded(error.spawnargs?.join('"'"' '"'"'))}`' "$root/server/packages/happyherd-cli/src/broker.ts"
 test "$(grep -Fc 'cwd: installationRoot,' "$root/server/packages/happyherd-cli/src/broker.ts")" -eq 3
 test "$(grep -Fc '/std:c++17 /MT /W4 /WX' "$root/.github/workflows/public-launcher-release.yml")" -eq 1

@@ -123,8 +123,8 @@ static std::map<std::wstring, std::wstring> load_config(const std::wstring& inpu
     std::wstring key = line.substr(0, equals), value = line.substr(equals + 1);
     if (!values.emplace(key, value).second) fail(L"launcher config has duplicate fields");
   }
-  const wchar_t* required[] = {L"schema", L"broker_sid", L"tool_user", L"tool_password", L"bundle_root", L"python_runtime", L"node_runtime"};
-  if (values.size() != 7 || values[L"schema"] != L"1") fail(L"launcher config shape is invalid");
+  const wchar_t* required[] = {L"schema", L"broker_sid", L"tool_user", L"tool_sid", L"tool_password", L"bundle_root", L"python_runtime", L"node_runtime"};
+  if (values.size() != 8 || values[L"schema"] != L"1") fail(L"launcher config shape is invalid");
   for (const wchar_t* key : required) if (!values.count(key)) fail(L"launcher config is incomplete");
   return values;
 }
@@ -139,6 +139,46 @@ static std::wstring current_sid() {
   LPWSTR value = nullptr;
   if (!ConvertSidToStringSidW(reinterpret_cast<TOKEN_USER*>(bytes.data())->User.Sid, &value)) fail(L"caller SID could not be rendered");
   std::wstring output(value); LocalFree(value); return output;
+}
+
+static std::wstring account_sid(const std::wstring& account) {
+  DWORD sid_size = 0, domain_size = 0;
+  SID_NAME_USE use{};
+  LookupAccountNameW(nullptr, account.c_str(), nullptr, &sid_size, nullptr, &domain_size, &use);
+  if (GetLastError() != ERROR_INSUFFICIENT_BUFFER || !sid_size) fail(L"isolated tool account SID could not be sized");
+  std::vector<unsigned char> sid(sid_size);
+  std::vector<wchar_t> domain(domain_size ? domain_size : 1);
+  if (!LookupAccountNameW(nullptr, account.c_str(), sid.data(), &sid_size, domain.data(), &domain_size, &use) || !IsValidSid(sid.data())) {
+    fail(L"isolated tool account SID could not be resolved");
+  }
+  LPWSTR value = nullptr;
+  if (!ConvertSidToStringSidW(sid.data(), &value)) fail(L"isolated tool account SID could not be rendered");
+  std::wstring output(value); LocalFree(value); return output;
+}
+
+static std::wstring random_object_name() {
+  HCRYPTPROV provider = 0;
+  unsigned char bytes[16]{};
+  if (!CryptAcquireContextW(&provider, nullptr, nullptr, PROV_RSA_AES, CRYPT_VERIFYCONTEXT | CRYPT_SILENT)) {
+    fail(L"private desktop name provider could not be opened");
+  }
+  BOOL generated = CryptGenRandom(provider, static_cast<DWORD>(sizeof(bytes)), bytes);
+  CryptReleaseContext(provider, 0);
+  if (!generated) fail(L"private desktop name could not be generated");
+  static const wchar_t* digits = L"0123456789abcdef";
+  std::wstring output = L"HappyHerd-";
+  output.reserve(output.size() + sizeof(bytes) * 2);
+  for (unsigned char byte : bytes) { output.push_back(digits[byte >> 4]); output.push_back(digits[byte & 0x0f]); }
+  return output;
+}
+
+static PSECURITY_DESCRIPTOR private_desktop_security(const std::wstring& broker_sid, const std::wstring& tool_sid) {
+  std::wstring sddl = L"D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;GA;;;" + broker_sid + L")(A;;GA;;;" + tool_sid + L")";
+  PSECURITY_DESCRIPTOR descriptor = nullptr;
+  if (!ConvertStringSecurityDescriptorToSecurityDescriptorW(sddl.c_str(), SDDL_REVISION_1, &descriptor, nullptr)) {
+    fail(L"private desktop security descriptor could not be created");
+  }
+  return descriptor;
 }
 
 static std::wstring decrypt_password(const std::wstring& encoded) {
@@ -183,6 +223,7 @@ int wmain(int argc, wchar_t** argv) {
   if (divider < 0 || config_path.empty() || runtime_name.empty() || script_input.empty() || cwd_input.empty() || argc - divider - 1 > 64) fail(L"launcher arguments are invalid");
   auto config = load_config(config_path);
   if (_wcsicmp(current_sid().c_str(), config[L"broker_sid"].c_str())) fail(L"caller is not the configured broker service identity");
+  if (_wcsicmp(account_sid(config[L"tool_user"]).c_str(), config[L"tool_sid"].c_str())) fail(L"isolated tool account does not match the protected configuration");
 
   std::wstring bundle = final_path(config[L"bundle_root"], true);
   std::wstring script = final_path(script_input, false), cwd = final_path(cwd_input, true);
@@ -215,13 +256,31 @@ int wmain(int argc, wchar_t** argv) {
   for (int index = divider + 1; index < argc; index++) command += L" " + quote(argv[index]);
   std::vector<wchar_t> mutable_command(command.begin(), command.end()); mutable_command.push_back(L'\0');
 
+  // CreateProcessWithLogonW otherwise inherits the broker service's window
+  // station and desktop. Microsoft requires the alternate account to have
+  // access to both objects; a private pair avoids granting it access to a
+  // shared service or interactive desktop.
+  PSECURITY_DESCRIPTOR desktop_security = private_desktop_security(config[L"broker_sid"], config[L"tool_sid"]);
+  SECURITY_ATTRIBUTES desktop_attributes{sizeof(SECURITY_ATTRIBUTES), desktop_security, FALSE};
+  std::wstring station_name = random_object_name();
+  HWINSTA original_station = GetProcessWindowStation();
+  if (!original_station) fail(L"broker window station could not be read");
+  HWINSTA private_station = CreateWindowStationW(station_name.c_str(), 0, WINSTA_ALL_ACCESS, &desktop_attributes);
+  if (!private_station) fail(L"private tool window station could not be created");
+  if (!SetProcessWindowStation(private_station)) fail(L"private tool window station could not be selected");
+  const std::wstring desktop_name = L"Default";
+  HDESK private_desktop = CreateDesktopW(desktop_name.c_str(), nullptr, nullptr, 0, DESKTOP_ALL_ACCESS, &desktop_attributes);
+  if (!private_desktop) fail(L"private tool desktop could not be created");
+  if (!SetProcessWindowStation(original_station)) fail(L"broker window station could not be restored");
+  std::wstring startup_desktop = station_name + L"\\" + desktop_name;
+
   HANDLE job = CreateJobObjectW(nullptr, nullptr);
   JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
   limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_ACTIVE_PROCESS;
   limits.BasicLimitInformation.ActiveProcessLimit = 1;
   if (!job || !SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limits, sizeof(limits))) fail(L"tool process job could not be created");
 
-  STARTUPINFOW startup{}; startup.cb = sizeof(startup); startup.dwFlags = STARTF_USESTDHANDLES;
+  STARTUPINFOW startup{}; startup.cb = sizeof(startup); startup.dwFlags = STARTF_USESTDHANDLES; startup.lpDesktop = startup_desktop.data();
   startup.hStdInput = GetStdHandle(STD_INPUT_HANDLE); startup.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE); startup.hStdError = GetStdHandle(STD_ERROR_HANDLE);
   PROCESS_INFORMATION process{};
   std::wstring password = decrypt_password(config[L"tool_password"]);
@@ -240,6 +299,6 @@ int wmain(int argc, wchar_t** argv) {
   if (wait != WAIT_OBJECT_0) TerminateJobObject(job, 124);
   WaitForSingleObject(process.hProcess, 5000);
   DWORD exit_code = 124; GetExitCodeProcess(process.hProcess, &exit_code);
-  CloseHandle(process.hProcess); CloseHandle(job);
+  CloseHandle(process.hProcess); CloseHandle(job); CloseDesktop(private_desktop); CloseWindowStation(private_station); LocalFree(desktop_security);
   return static_cast<int>(exit_code);
 }

@@ -473,7 +473,7 @@ function Restore-ProviderAcls([object[]]$Records) {
     }
   }
 }
-function Read-ToolPasswordEnvelope([string]$Path) {
+function Read-ToolPasswordEnvelope([string]$Path, [string]$ExpectedToolSid) {
   if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return '' }
   if (((Get-Item -Force -LiteralPath $Path).Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { Fail 'existing isolated tool configuration is a reparse point' }
   $Owner = (Get-Acl -LiteralPath $Path).GetOwner([Security.Principal.SecurityIdentifier]).Value
@@ -484,7 +484,13 @@ function Read-ToolPasswordEnvelope([string]$Path) {
     if ($Line -notmatch '^([a-z_]+)=(.+)$' -or $Values.ContainsKey($Matches[1])) { Fail 'existing isolated tool configuration is invalid' }
     $Values[$Matches[1]] = $Matches[2]
   }
-  if ($Values.Count -ne 7 -or $Values.schema -ne '1' -or $Values.tool_user -ne $ToolUser -or $Values.tool_password -notmatch '^[A-Za-z0-9+/=]+$') { Fail 'existing isolated tool configuration identity is invalid' }
+  if (
+    $Values.Count -notin @(7, 8) -or
+    $Values.schema -ne '1' -or
+    $Values.tool_user -ne $ToolUser -or
+    ($Values.ContainsKey('tool_sid') -and $Values.tool_sid -ne $ExpectedToolSid) -or
+    $Values.tool_password -notmatch '^[A-Za-z0-9+/=]+$'
+  ) { Fail 'existing isolated tool configuration identity is invalid' }
   return [string]$Values.tool_password
 }
 
@@ -618,7 +624,7 @@ try {
   $ToolPasswordEnvelope = ''
   if ($ExistingToolUser) {
     if ($ExistingToolUser.Description -ne $ToolMarker) { Fail 'isolated tool account name is occupied by an unrelated account' }
-    $ToolPasswordEnvelope = Read-ToolPasswordEnvelope $ToolConfig
+    $ToolPasswordEnvelope = Read-ToolPasswordEnvelope $ToolConfig $ExistingToolUser.Sid.Value
     if (-not $ToolPasswordEnvelope) { Fail 'existing isolated tool account has no protected password envelope' }
     if ($ExistingToolUser.Enabled -ne $true) { Fail 'existing isolated tool account is disabled' }
   } else {
@@ -696,6 +702,7 @@ try {
     'schema=1'
     "broker_sid=$ServiceSid"
     "tool_user=$ToolUser"
+    "tool_sid=$ToolSid"
     "tool_password=$ToolPasswordEnvelope"
     "bundle_root=$(Join-Path $StateRoot 'bundles')"
     "python_runtime=$PythonRuntime"
