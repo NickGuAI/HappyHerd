@@ -206,27 +206,29 @@ grep -Fq 'dscacheutil -q user -a uid "$candidate"' "$root/installers/install.sh.
 grep -Fq 'dscacheutil -q group -a gid "$candidate"' "$root/installers/install.sh.template"
 grep -Fq "mac_create_record \"/Groups/\$service_group\" 'broker service group'" "$root/installers/install.sh.template"
 test "$(grep -Fc 'GeneratedUID "$(uuidgen)"' "$root/installers/install.sh.template")" -eq 1
-grep -Fq 'mac_create_attribute "/Users/$service_user" GeneratedUID "$service_generated_uid"' "$root/installers/install.sh.template"
-grep -Fq 'mac_create_attribute "/Users/$tool_user" GeneratedUID "$tool_generated_uid"' "$root/installers/install.sh.template"
+if grep -Fq 'mac_create_attribute "/Users/$service_user" GeneratedUID' "$root/installers/install.sh.template" \
+  || grep -Fq 'mac_create_attribute "/Users/$tool_user" GeneratedUID' "$root/installers/install.sh.template"; then
+  echo 'macOS installer replaces a system-generated user identity' >&2
+  exit 1
+fi
+grep -Fq "sudo dscl . -append \"\$record\" AuthenticationAuthority ';DisabledUser;'" "$root/installers/install.sh.template"
+test "$(grep -Fc 'mac_disable_authentication "/Users/$service_user"' "$root/installers/install.sh.template")" -eq 1
+test "$(grep -Fc 'mac_disable_authentication "/Users/$tool_user"' "$root/installers/install.sh.template")" -eq 1
 grep -Fq 'new_service_group=1' "$root/installers/install.sh.template"
 grep -Fq 'new_service_user=1' "$root/installers/install.sh.template"
 grep -Fq 'new_tool_user=1' "$root/installers/install.sh.template"
-service_generated_line=$(grep -nF 'mac_create_attribute "/Users/$service_user" GeneratedUID' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
 service_password_line=$(grep -nF 'mac_create_attribute "/Users/$service_user" Password' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
-service_disabled_line=$(grep -nF 'mac_create_attribute "/Users/$service_user" AuthenticationAuthority' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
+service_disabled_line=$(grep -nF 'mac_disable_authentication "/Users/$service_user"' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
 service_readback_line=$(grep -nF "created_service_auth=\$(dscl . -read" "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
 service_ready_line=$(grep -nF '    new_service_identity=1' "$root/installers/install.sh.template" | /usr/bin/tail -n 1 | /usr/bin/cut -d: -f1)
-test "$service_password_line" -lt "$service_generated_line"
-test "$service_generated_line" -lt "$service_disabled_line"
+test "$service_password_line" -lt "$service_disabled_line"
 test "$service_disabled_line" -lt "$service_readback_line"
 test "$service_readback_line" -lt "$service_ready_line"
-tool_generated_line=$(grep -nF 'mac_create_attribute "/Users/$tool_user" GeneratedUID' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
 tool_password_line=$(grep -nF 'mac_create_attribute "/Users/$tool_user" Password' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
-tool_disabled_line=$(grep -nF 'mac_create_attribute "/Users/$tool_user" AuthenticationAuthority' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
+tool_disabled_line=$(grep -nF 'mac_disable_authentication "/Users/$tool_user"' "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
 tool_readback_line=$(grep -nF "created_tool_auth=\$(dscl . -read" "$root/installers/install.sh.template" | /usr/bin/cut -d: -f1)
 tool_ready_line=$(grep -nF '    new_tool_identity=1' "$root/installers/install.sh.template" | /usr/bin/tail -n 1 | /usr/bin/cut -d: -f1)
-test "$tool_password_line" -lt "$tool_generated_line"
-test "$tool_generated_line" -lt "$tool_disabled_line"
+test "$tool_password_line" -lt "$tool_disabled_line"
 test "$tool_disabled_line" -lt "$tool_readback_line"
 test "$tool_readback_line" -lt "$tool_ready_line"
 grep -Fq "[ \"\$created_service_password\" = '*' ]" "$root/installers/install.sh.template"
