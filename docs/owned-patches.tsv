@@ -22,3 +22,4 @@ PUBLIC_RELEASE	accepted	fix(release): disable macOS service authentication	scrip
 PUBLIC_RELEASE	accepted	fix(release): statically link Windows service boundaries	.github/workflows/public-launcher-release.yml
 PUBLIC_RELEASE	accepted	chore(release): record native portability patches	docs/owned-patches.tsv
 PUBLIC_RELEASE	accepted	fix(release): preserve macOS generated identities	scripts/test-public-launcher-release-contract.sh
+PUBLIC_RELEASE	accepted	fix(release): require macOS no-login identities	scripts/test-public-launcher-release-contract.sh

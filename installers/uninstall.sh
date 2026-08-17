@@ -166,12 +166,17 @@ else
   dscl . -read "/Users/$service_user" >/dev/null 2>&1 || fail 'owned broker service identity was not found'
   dscl . -read "/Users/$tool_user" >/dev/null 2>&1 || fail 'owned tool execution identity was not found'
   dscl . -read "/Groups/$service_group" >/dev/null 2>&1 || fail 'owned broker service group was not found'
+  if dscl . -read "/Users/$service_user" AuthenticationAuthority >/dev/null 2>&1; then
+    fail 'broker service identity unexpectedly has an authentication authority'
+  fi
+  if dscl . -read "/Users/$tool_user" AuthenticationAuthority >/dev/null 2>&1; then
+    fail 'tool execution identity unexpectedly has an authentication authority'
+  fi
   service_home=$(dscl . -read "/Users/$service_user" NFSHomeDirectory | /usr/bin/sed 's/^[^:]*: //')
   service_shell=$(dscl . -read "/Users/$service_user" UserShell | /usr/bin/sed 's/^[^:]*: //')
   service_hidden=$(dscl . -read "/Users/$service_user" IsHidden | /usr/bin/sed 's/^[^:]*: //')
   service_password=$(dscl . -read "/Users/$service_user" Password | /usr/bin/sed 's/^[^:]*: //')
   service_generated_uid=$(dscl . -read "/Users/$service_user" GeneratedUID | /usr/bin/sed 's/^[^:]*: //')
-  service_auth=$(dscl . -read "/Users/$service_user" AuthenticationAuthority | /usr/bin/sed 's/^[^:]*: //')
   service_actual_marker=$(dscl . -read "/Users/$service_user" RealName | /usr/bin/sed 's/^[^:]*: //')
   service_gid=$(dscl . -read "/Users/$service_user" PrimaryGroupID | /usr/bin/sed 's/^[^:]*: //')
   service_uid=$(dscl . -read "/Users/$service_user" UniqueID | /usr/bin/sed 's/^[^:]*: //')
@@ -182,7 +187,6 @@ else
   tool_hidden=$(dscl . -read "/Users/$tool_user" IsHidden | /usr/bin/sed 's/^[^:]*: //')
   tool_password=$(dscl . -read "/Users/$tool_user" Password | /usr/bin/sed 's/^[^:]*: //')
   tool_generated_uid=$(dscl . -read "/Users/$tool_user" GeneratedUID | /usr/bin/sed 's/^[^:]*: //')
-  tool_auth=$(dscl . -read "/Users/$tool_user" AuthenticationAuthority | /usr/bin/sed 's/^[^:]*: //')
   tool_actual_marker=$(dscl . -read "/Users/$tool_user" RealName | /usr/bin/sed 's/^[^:]*: //')
   tool_gid=$(dscl . -read "/Users/$tool_user" PrimaryGroupID | /usr/bin/sed 's/^[^:]*: //')
   tool_uid=$(dscl . -read "/Users/$tool_user" UniqueID | /usr/bin/sed 's/^[^:]*: //')
@@ -194,7 +198,6 @@ else
     && [ "$service_shell" = /usr/bin/false ] \
     && [ "$service_hidden" = 1 ] \
     && [ "$service_password" = '*' ] \
-    && [ "$service_auth" = ';DisabledUser;' ] \
     && [ "$service_actual_marker" = "HappyHerd broker for UID $owner_uid" ] \
     && [ "$service_gid" = "$group_gid" ] \
     && [ "$group_marker" = "HappyHerd broker for UID $owner_uid group" ] \
@@ -202,7 +205,6 @@ else
     && [ "$tool_shell" = /usr/bin/false ] \
     && [ "$tool_hidden" = 1 ] \
     && [ "$tool_password" = '*' ] \
-    && [ "$tool_auth" = ';DisabledUser;' ] \
     && [ "$tool_actual_marker" = "HappyHerd isolated tool runner for UID $owner_uid" ] \
     && [ "$tool_gid" = "$service_gid" ] \
     || fail 'refusing to remove macOS identities not exactly owned by this HappyHerd installation'
