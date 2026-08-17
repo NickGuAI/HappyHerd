@@ -18,3 +18,6 @@ PUBLIC_RELEASE	accepted	fix(release): publish portable target closures	scripts/p
 PUBLIC_RELEASE	accepted	fix(release): verify native secret and ACL boundaries	server/packages/happyherd-cli/src/secretStore.test.ts
 PUBLIC_RELEASE	accepted	fix(release): create macOS identities in supported order	scripts/test-public-launcher-release-contract.sh
 PUBLIC_RELEASE	accepted	fix(release): preserve the Windows loader root	server/packages/happyherd-cli/src/broker.test.ts
+PUBLIC_RELEASE	accepted	fix(release): disable macOS service authentication	scripts/test-public-launcher-release-contract.sh
+PUBLIC_RELEASE	accepted	fix(release): statically link Windows service boundaries	.github/workflows/public-launcher-release.yml
+PUBLIC_RELEASE	accepted	chore(release): record native portability patches	docs/owned-patches.tsv
