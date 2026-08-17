@@ -24,6 +24,9 @@ assert.deepEqual(
 assert(inspect('docs/path.md', ['/home/', 'real-person', '/workspace'].join('')).includes(
   'operator-specific POSIX home path',
 ));
+assert(inspect('README.md', ['Nick', 'GuAI'].join('')).includes(
+  'operator-specific personal identity',
+));
 assert(inspect('config.txt', ['sk-', 'proj-', 'a'.repeat(32)].join('')).includes(
   'OpenAI-style secret',
 ));

@@ -126,6 +126,27 @@ function strictString(value: unknown, label: string, maximum: number, pattern?: 
   return value;
 }
 
+function canonicalSigningPublicKey(value: unknown): string {
+  if (
+    typeof value !== 'string'
+    || value.length === 0
+    || value.length > 4096
+    || /[\u0000-\u0009\u000b\u000c\u000e-\u001f\u007f-\u009f]/.test(value)
+  ) throw new Error('signingPublicKey is invalid');
+
+  let key;
+  try {
+    key = createPublicKey(value);
+  } catch {
+    throw new Error('signingPublicKey is invalid');
+  }
+  if (key.asymmetricKeyType !== 'ed25519') throw new Error('signingPublicKey is invalid');
+
+  const canonical = key.export({ type: 'spki', format: 'pem' }).toString();
+  if (value.replace(/\r\n/g, '\n') !== canonical) throw new Error('signingPublicKey is invalid');
+  return canonical;
+}
+
 function absolutePath(value: unknown, label: string): string {
   const path = strictString(value, label, 4096);
   if (!isAbsolute(path) || resolve(path) !== path) throw new Error(`${label} must be an absolute normalized path`);
@@ -349,12 +370,7 @@ export function parseBrokerClientConfig(value: unknown): BrokerClientConfig {
   if (config.schemaVersion !== 1 || config.product !== 'HappyHerd') {
     throw new Error('broker client config identity is invalid');
   }
-  const signingPublicKey = strictString(config.signingPublicKey, 'signingPublicKey', 4096);
-  try {
-    createPublicKey(signingPublicKey);
-  } catch {
-    throw new Error('signingPublicKey is invalid');
-  }
+  const signingPublicKey = canonicalSigningPublicKey(config.signingPublicKey);
   return {
     schemaVersion: 1,
     product: 'HappyHerd',

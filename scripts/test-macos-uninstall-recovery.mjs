@@ -51,7 +51,7 @@ try {
   };
   const currentUid = process.getuid?.() ?? 0;
   let customKeychainExists = true;
-  let systemMasterExists = true;
+  let unlockMasterExists = true;
   let invocations = 0;
   const dependencies = {
     expectedAdminUid: currentUid,
@@ -60,25 +60,25 @@ try {
       invocations += 1;
       if (customKeychainExists) customKeychainExists = false;
       if (invocations === 1) {
-        return { ok: false, detail: 'injected System Keychain master deletion failure' };
+        return { ok: false, detail: 'injected root-only unlock master deletion failure' };
       }
-      systemMasterExists = false;
+      unlockMasterExists = false;
       return { ok: true };
     },
   };
 
   assert.throws(
     () => runMacosKeychainDestroyPhase(testContract, dependencies),
-    /injected System Keychain master deletion failure/,
+    /injected root-only unlock master deletion failure/,
   );
   assert.equal(customKeychainExists, false, 'first attempt must fail after custom Keychain deletion');
-  assert.equal(systemMasterExists, true, 'first attempt must preserve the System Keychain master');
+  assert.equal(unlockMasterExists, true, 'first attempt must preserve the root-only unlock master');
   const keychainPendingReceipt = readFileSync(testContract.receiptPath, 'utf8');
   assert.equal(verifyMacosKeychainPhase(testContract, dependencies).receipt.phase, 'macos-keychain-destroy-pending');
 
   const recovered = runMacosKeychainDestroyPhase(testContract, dependencies);
   assert.equal(recovered.resumed, true, 'second attempt must take the protected resume path');
-  assert.equal(systemMasterExists, false, 'second attempt must delete the remaining System Keychain master');
+  assert.equal(unlockMasterExists, false, 'second attempt must delete the remaining root-only unlock master');
   assert.equal(recovered.receipt.phase, 'macos-final-cleanup-pending');
   const finalCleanupReceipt = readFileSync(testContract.receiptPath, 'utf8');
   assert.notEqual(finalCleanupReceipt, keychainPendingReceipt, 'successful destruction must atomically advance the receipt');

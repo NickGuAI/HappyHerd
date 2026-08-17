@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   mockExtractCodexResumeFlag: vi.fn(),
   mockExtractNoSandboxFlag: vi.fn(),
   mockEnsureDaemonRunning: vi.fn(),
+  mockCodexHelpSpawnSync: vi.fn(),
 }))
 
 vi.mock('@/ui/auth', () => ({
@@ -28,6 +29,10 @@ vi.mock('@/daemon/ensureDaemonRunning', () => ({
   ensureDaemonRunning: mocks.mockEnsureDaemonRunning,
 }))
 
+vi.mock('cross-spawn', () => ({
+  default: { sync: mocks.mockCodexHelpSpawnSync },
+}))
+
 import { handleCodexCommand } from './codexCommand'
 
 describe('handleCodexCommand', () => {
@@ -46,6 +51,7 @@ describe('handleCodexCommand', () => {
     }))
     mocks.mockEnsureDaemonRunning.mockResolvedValue(undefined)
     mocks.mockRunCodex.mockResolvedValue(undefined)
+    mocks.mockCodexHelpSpawnSync.mockReturnValue({ status: 0 })
   })
 
   it('ensures the daemon is running before starting a codex session', async () => {
@@ -75,6 +81,18 @@ describe('handleCodexCommand', () => {
     expect(mocks.mockAuthAndSetupMachineIfNeeded).not.toHaveBeenCalled()
     expect(mocks.mockEnsureDaemonRunning).not.toHaveBeenCalled()
     expect(mocks.mockRunCodex).not.toHaveBeenCalled()
+  })
+
+  it('uses the cross-platform launcher for native Codex help', async () => {
+    await handleCodexCommand(['--help'])
+
+    expect(mocks.mockCodexHelpSpawnSync).toHaveBeenCalledWith(
+      'codex',
+      ['--help'],
+      { stdio: 'inherit', windowsHide: true },
+    )
+    expect(mocks.mockAuthAndSetupMachineIfNeeded).not.toHaveBeenCalled()
+    expect(mocks.mockEnsureDaemonRunning).not.toHaveBeenCalled()
   })
 
   it('passes parsed no-sandbox and resume flags through to runCodex', async () => {

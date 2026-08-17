@@ -5,7 +5,7 @@ import { extractNoSandboxFlag } from '@/utils/sandboxFlags'
 import { ensureDaemonRunning } from '@/daemon/ensureDaemonRunning'
 import type { PermissionMode } from '@/api/types'
 import type { ReasoningEffort } from '@/codex/codexAppServerTypes'
-import { execFileSync } from 'node:child_process'
+import spawn from 'cross-spawn'
 
 export interface CodexCommandDependencies {
   showNativeHelp?: () => void
@@ -17,7 +17,9 @@ export async function handleCodexCommand(
 ): Promise<void> {
   if (args.length === 1 && (args[0] === '--help' || args[0] === '-h')) {
     const showNativeHelp = dependencies.showNativeHelp ?? (() => {
-      execFileSync('codex', ['--help'], { stdio: 'inherit', windowsHide: true })
+      const result = spawn.sync('codex', ['--help'], { stdio: 'inherit', windowsHide: true })
+      if (result.error) throw result.error
+      if (result.status !== 0) throw new Error(`Codex help exited with status ${result.status ?? 'unknown'}`)
     })
     showNativeHelp()
     return

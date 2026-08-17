@@ -11,6 +11,7 @@ import yazl from 'yazl';
 import {
   BrokerClient,
   createBrokerServer,
+  parseBrokerClientConfig,
   parseBrokerServiceConfig,
   type BrokerClientConfig,
   type BrokerServiceConfig,
@@ -205,6 +206,33 @@ async function registerToolFixture(instance: Awaited<ReturnType<typeof fixture>>
 }
 
 describe('OS-separated broker IPC', () => {
+  it('accepts only a canonical Ed25519 broker trust anchor', () => {
+    const publicKey = generateKeyPairSync('ed25519').publicKey
+      .export({ type: 'spki', format: 'pem' })
+      .toString();
+    const base = {
+      schemaVersion: 1,
+      product: 'HappyHerd',
+      brokerUrl: 'http://127.0.0.1:32199',
+      clientCapability: 'a'.repeat(64),
+      ownerIdentity: 'uid:1000',
+      serviceIdentity: 'uid:999',
+    };
+
+    expect(parseBrokerClientConfig({ ...base, signingPublicKey: publicKey }).signingPublicKey).toBe(publicKey);
+    expect(parseBrokerClientConfig({
+      ...base,
+      signingPublicKey: publicKey.replace(/\n/g, '\r\n'),
+    }).signingPublicKey).toBe(publicKey);
+
+    const rsaPublicKey = generateKeyPairSync('rsa', { modulusLength: 2048 }).publicKey
+      .export({ type: 'spki', format: 'pem' })
+      .toString();
+    expect(() => parseBrokerClientConfig({ ...base, signingPublicKey: rsaPublicKey })).toThrow('signingPublicKey is invalid');
+    expect(() => parseBrokerClientConfig({ ...base, signingPublicKey: `${publicKey}\n` })).toThrow('signingPublicKey is invalid');
+    expect(() => parseBrokerClientConfig({ ...base, signingPublicKey: `${publicKey}\u0000` })).toThrow('signingPublicKey is invalid');
+  });
+
   it('parses the exact service configuration emitted by the native installers', () => {
     const installerConfig = {
       schemaVersion: 1,

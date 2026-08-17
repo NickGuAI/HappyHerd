@@ -119,17 +119,19 @@ export class KeyringSecretStore implements SecretStore {
     entryFactory?: SecretEntryFactory,
     enumerate?: SecretEnumeration,
   ) {
-    const configuredTarget = process.platform === 'darwin' ? process.env.HAPPYHERD_KEYRING_TARGET : undefined;
-    if (configuredTarget !== undefined && (
-      !isAbsolute(configuredTarget)
-      || resolve(configuredTarget) !== configuredTarget
-      || !configuredTarget.endsWith('/happyherd.keychain-db')
-      || /[\u0000-\u001f\u007f-\u009f]/.test(configuredTarget)
+    const configuredPath = process.platform === 'darwin' ? process.env.HAPPYHERD_KEYRING_PATH : undefined;
+    if (configuredPath !== undefined && (
+      !isAbsolute(configuredPath)
+      || resolve(configuredPath) !== configuredPath
+      || !configuredPath.endsWith('/happyherd.keychain-db')
+      || /[\u0000-\u001f\u007f-\u009f]/.test(configuredPath)
     )) throw new Error('the configured macOS service Keychain target is invalid');
-    this.#entryFactory = entryFactory ?? (configuredTarget
-      ? (service, account) => Entry.withTarget(configuredTarget, service, account)
-      : (service, account) => new Entry(service, account));
-    this.#enumerate = enumerate ?? ((service) => findCredentials(service, configuredTarget));
+    // The native macOS host publishes its private Keychain as the isolated
+    // service user's complete User-domain search list before this process is
+    // started. Using the normal User domain is intentional: the current
+    // @napi-rs/keyring macOS target modifier accepts domain names, not paths.
+    this.#entryFactory = entryFactory ?? ((service, account) => new Entry(service, account));
+    this.#enumerate = enumerate ?? ((service) => findCredentials(service));
   }
 
   #credentials(): Credential[] {
@@ -240,7 +242,7 @@ export class KeyringSecretStore implements SecretStore {
   diagnostic(): string {
     this.#credentials();
     return process.platform === 'darwin'
-      ? (process.env.HAPPYHERD_KEYRING_TARGET
+      ? (process.env.HAPPYHERD_KEYRING_PATH
         ? 'durable isolated macOS service Keychain ready'
         : 'macOS login Keychain ready')
       : process.platform === 'win32'

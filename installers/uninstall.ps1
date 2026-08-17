@@ -138,14 +138,15 @@ if ($LASTEXITCODE -ne 0) { Fail 'native ACL verification rejected the installati
 $ReleaseReceipt = Get-Content -Raw -LiteralPath $ReleaseReceiptPath | ConvertFrom-Json
 if ($ReleaseReceipt.schemaVersion -ne 1 -or $ReleaseReceipt.product -ne 'HappyHerd' -or $ReleaseReceipt.target -ne 'win32-x64' -or $ReleaseReceipt.nodeRuntime -ne 'native/node.exe' -or $ReleaseReceipt.trustVerifier -ne 'service/happyherd-acl-check.exe') { Fail 'release receipt is not an owned Windows HappyHerd installation' }
 
-$ToolMarker = "HappyHerd isolated tool runner for SID $OwnerSid"
+$ToolMarker = "HappyHerd tool $OwnerKey"
 $ToolAccount = Get-LocalUser -Name $ToolUser -ErrorAction SilentlyContinue
 if (-not $ToolAccount -or $ToolAccount.Description -ne $ToolMarker) { Fail 'isolated tool account is missing or not owned by this installation' }
 if ($ToolAccount.Sid.Value -ne $ToolSid -or -not $ToolAccount.Enabled) { Fail 'isolated tool account identity does not match the protected installation receipt' }
 $ToolGroupSids = @()
 foreach ($Group in @(Get-LocalGroup)) {
   $Members = @(Get-LocalGroupMember -SID $Group.Sid -ErrorAction SilentlyContinue)
-  if ($Members.SID.Value -contains $ToolSid) { $ToolGroupSids += $Group.Sid.Value }
+  $MemberSids = @($Members | ForEach-Object { $_.SID.Value })
+  if ($MemberSids -contains $ToolSid) { $ToolGroupSids += $Group.Sid.Value }
 }
 if (@($ToolGroupSids).Count -ne 1 -or $ToolGroupSids[0] -ne 'S-1-5-32-545') { Fail 'isolated tool account group memberships are not exact' }
 if ($null -eq (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue)) { Fail 'broker service is missing; repair the installation before uninstalling' }

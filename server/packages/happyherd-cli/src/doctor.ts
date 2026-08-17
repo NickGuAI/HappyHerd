@@ -1,6 +1,6 @@
 /** User-visible installation and security-boundary diagnostics. */
 
-import { spawnSync } from 'node:child_process';
+import spawnCommand from 'cross-spawn';
 import { existsSync } from 'node:fs';
 import { resolveHappyBinary } from './runtime';
 import type { BrokerClientInterface } from './broker';
@@ -73,7 +73,7 @@ export async function runDoctor(
   dependencies: DoctorDependencies = {},
 ): Promise<DoctorReport> {
   const checks: DoctorCheck[] = [];
-  const spawn: DoctorSpawn = dependencies.spawn ?? ((command, args, options) => spawnSync(command, args, options));
+  const spawn: DoctorSpawn = dependencies.spawn ?? ((command, args, options) => spawnCommand.sync(command, args, options));
   const exists = dependencies.exists ?? existsSync;
   const nodeMajor = Number(process.versions.node.split('.')[0]);
   checks.push({

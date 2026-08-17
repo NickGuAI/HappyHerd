@@ -44,6 +44,8 @@ case "$(uname -s)" in
     tool_launcher_config="/Library/Application Support/HappyHerd/tool-launcher-$owner_uid.conf"
     keychain_host="/Library/PrivilegedHelperTools/dev.happyherd.keychain-broker-$owner_uid"
     keychain_path="$state_root/Library/Keychains/happyherd.keychain-db"
+    keychain_master_dir="/Library/Application Support/HappyHerd/Secrets/$owner_uid"
+    keychain_master_path="$keychain_master_dir/keychain-master"
     ;;
   *) fail 'unsupported operating system' ;;
 esac
@@ -136,6 +138,7 @@ if [ "$platform" = linux ]; then
   service_home=$(printf '%s\n' "$service_record" | /usr/bin/cut -d: -f6)
   service_shell=$(printf '%s\n' "$service_record" | /usr/bin/cut -d: -f7)
   service_actual_marker=$(printf '%s\n' "$service_record" | /usr/bin/cut -d: -f5)
+  service_uid=$(id -u "$service_user")
   service_gid=$(id -g "$service_user")
   service_groups=$(id -G "$service_user")
   service_group_name=$(getent group "$service_gid" | /usr/bin/cut -d: -f1)
@@ -155,9 +158,9 @@ if [ "$platform" = linux ]; then
     && [ "$tool_gid" = "$service_gid" ] \
     && [ "$tool_groups" = "$service_gid" ] \
     || fail 'refusing to remove system identities not owned by this HappyHerd installation'
-  [ "$(id -u "$service_user")" -ne "$owner_uid" ] \
+  [ "$service_uid" -ne "$owner_uid" ] \
     && [ "$(id -u "$tool_user")" -ne "$owner_uid" ] \
-    && [ "$(id -u "$service_user")" -ne "$(id -u "$tool_user")" ] \
+    && [ "$service_uid" -ne "$(id -u "$tool_user")" ] \
     || fail 'HappyHerd system identities overlap a protected identity'
 else
   dscl . -read "/Users/$service_user" >/dev/null 2>&1 || fail 'owned broker service identity was not found'
@@ -231,6 +234,17 @@ else
     macos_phase --verify || fail 'macOS uninstall resume evidence is unsafe'
     mac_resume=1
   fi
+  if sudo test -e "$keychain_master_path" || sudo test -L "$keychain_master_path"; then
+    protected_directory '/Library/Application Support/HappyHerd/Secrets' || fail 'macOS Keychain master root is unsafe'
+    [ "$(protected_metadata '/Library/Application Support/HappyHerd/Secrets')" = '0:0:700' ] || fail 'macOS Keychain master root metadata is unsafe'
+    protected_directory "$keychain_master_dir" || fail 'macOS Keychain master owner directory is unsafe'
+    [ "$(protected_metadata "$keychain_master_dir")" = '0:0:700' ] || fail 'macOS Keychain master owner directory metadata is unsafe'
+    protected_regular "$keychain_master_path" || fail 'macOS Keychain unlock master is unsafe'
+    [ "$(protected_metadata "$keychain_master_path")" = '0:0:400' ] || fail 'macOS Keychain unlock master metadata is unsafe'
+    [ "$(sudo /usr/bin/stat -f '%z:%l' "$keychain_master_path")" = '64:1' ] || fail 'macOS Keychain unlock master shape is unsafe'
+  elif [ "$mac_resume" -ne 1 ]; then
+    fail 'macOS Keychain unlock master is unsafe'
+  fi
   if sudo test -e "$keychain_path" || sudo test -L "$keychain_path"; then
     service_regular "$keychain_path" 600 || fail 'durable macOS service Keychain is unsafe'
   elif [ "$mac_resume" -ne 1 ]; then
@@ -285,6 +299,10 @@ if [ "$platform" = linux ]; then
   sudo systemctl daemon-reload
 else
   macos_phase --destroy || fail 'durable macOS service Keychain could not be destroyed; protected resume evidence was retained'
+  if sudo test -e "$keychain_master_path" || sudo test -L "$keychain_master_path" \
+    || sudo test -e "$keychain_master_dir" || sudo test -L "$keychain_master_dir"; then
+    fail 'macOS Keychain unlock master survived verified destruction'
+  fi
 fi
 
 if [ "$platform" = linux ]; then

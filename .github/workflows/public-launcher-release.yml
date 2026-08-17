@@ -53,21 +53,73 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install broker-owned Python
+      - name: Install CI Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
 
-      - name: Install Linux native service prerequisites
-        if: startsWith(matrix.target, 'linux-')
+      - name: Prepare digest-pinned relocatable Python
         shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends acl dbus-daemon gnome-keyring
-
-      - name: Pin timezone database into Python runtime
-        shell: bash
-        run: python -m pip install --disable-pip-version-check --no-input tzdata==2025.2
+          case "${{ matrix.target }}" in
+            darwin-arm64)
+              python_archive='cpython-3.13.14+20260718-aarch64-apple-darwin-install_only_stripped.tar.gz'
+              python_sha256='06469835e1b0f73bcdb6c498a1d60ce579cc43a980754490a6f1e30062f43850'
+              ;;
+            darwin-x64)
+              python_archive='cpython-3.13.14+20260718-x86_64-apple-darwin-install_only_stripped.tar.gz'
+              python_sha256='93ec3863e3265ed87382a9216d2e973b47ab7ef330b496c0249bfc2bfc164cee'
+              ;;
+            linux-arm64)
+              python_archive='cpython-3.13.14+20260718-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz'
+              python_sha256='8d5ac68458a4df9bc3c349d607da2674d8390ad26162482b17215563e45aca83'
+              ;;
+            linux-x64)
+              python_archive='cpython-3.13.14+20260718-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz'
+              python_sha256='571a710c62520b26dbadbd16e8850e24565c01dea94440223bc16caa21614021'
+              ;;
+            win32-x64)
+              python_archive='cpython-3.13.14+20260718-x86_64-pc-windows-msvc-install_only_stripped.tar.gz'
+              python_sha256='91ea0cd883295458fa766eae36241df3ecc21f7029814189707d54b450e55c69'
+              ;;
+          esac
+          python_url="https://github.com/astral-sh/python-build-standalone/releases/download/20260718/${python_archive/+/%2B}"
+          archive_path="$RUNNER_TEMP/$python_archive"
+          extract_root="$RUNNER_TEMP/bundled-python"
+          archive_shell_path="$archive_path"
+          extract_shell_root="$extract_root"
+          if [[ "${{ matrix.target }}" == win32-* ]]; then
+            archive_shell_path="$(cygpath -u "$archive_path")"
+            extract_shell_root="$(cygpath -u "$extract_root")"
+          fi
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --output "$archive_shell_path" "$python_url"
+          PYTHON_ARCHIVE="$archive_path" PYTHON_SHA256="$python_sha256" node <<'NODE'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const actual = crypto.createHash('sha256').update(fs.readFileSync(process.env.PYTHON_ARCHIVE)).digest('hex');
+          if (actual !== process.env.PYTHON_SHA256) throw new Error('relocatable Python archive digest mismatch');
+          NODE
+          mkdir -p "$extract_shell_root"
+          tar -xzf "$archive_shell_path" -C "$extract_shell_root"
+          python_root="$(node -e "process.stdout.write(require('node:path').resolve(process.env.RUNNER_TEMP, 'bundled-python', 'python'))")"
+          if [[ "${{ matrix.target }}" == win32-* ]]; then
+            python_executable="$(node -e "process.stdout.write(require('node:path').resolve(process.env.RUNNER_TEMP, 'bundled-python', 'python', 'python.exe'))")"
+          else
+            python_executable="$(node -e "process.stdout.write(require('node:path').resolve(process.env.RUNNER_TEMP, 'bundled-python', 'python', 'bin', 'python3'))")"
+          fi
+          test -f "$python_executable"
+          "$python_executable" -m pip install \
+            --disable-pip-version-check --no-input --only-binary=:all: tzdata==2025.2
+          "$python_executable" -I -X utf8 -c \
+            'from importlib.metadata import version; from zoneinfo import ZoneInfo; assert version("tzdata") == "2025.2"; assert ZoneInfo("America/New_York").key == "America/New_York"'
+          # The standalone runtime's terminal database contains names that
+          # collide under the installer's cross-platform case-folded archive
+          # policy. Broker-owned Python does not use this terminal database.
+          BUNDLED_PYTHON_ROOT="$python_root" node -e \
+            "require('node:fs').rmSync(require('node:path').join(process.env.BUNDLED_PYTHON_ROOT, 'share', 'terminfo'), { recursive: true, force: true })"
+          printf 'BUNDLED_PYTHON_ROOT=%s\n' "$python_root" >> "$GITHUB_ENV"
+          printf 'BUNDLED_PYTHON_EXECUTABLE=%s\n' "$python_executable" >> "$GITHUB_ENV"
 
       - name: Install frozen dependencies
         working-directory: server
@@ -100,33 +152,23 @@ jobs:
           fi
           test -f "$RUNNER_TEMP/payload/package.json"
           test -f "$RUNNER_TEMP/payload/pnpm-lock.yaml"
-          PAYLOAD_STAGE="$RUNNER_TEMP/payload" SERVER_ROOT="$GITHUB_WORKSPACE/server" node <<'NODE'
-          const fs = require('node:fs');
-          const path = require('node:path');
-          const payload = process.env.PAYLOAD_STAGE;
-          const serverRoot = process.env.SERVER_ROOT;
-          const rootPackage = JSON.parse(fs.readFileSync(path.join(serverRoot, 'package.json'), 'utf8'));
-          const overrides = rootPackage.pnpm?.overrides;
-          if (!overrides || Object.keys(overrides).length === 0) throw new Error('source workspace pnpm overrides are missing');
-          const packagePath = path.join(payload, 'package.json');
-          const lockPath = path.join(payload, 'pnpm-lock.yaml');
-          const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
-          packageJson.pnpm = { ...packageJson.pnpm, overrides };
-          fs.writeFileSync(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`);
-          const yaml = require(require.resolve('yaml', { paths: [serverRoot] }));
-          const lockfile = yaml.parse(fs.readFileSync(lockPath, 'utf8'));
-          lockfile.overrides = overrides;
-          fs.writeFileSync(lockPath, yaml.stringify(lockfile, { lineWidth: 0 }));
-          NODE
+          node scripts/prepare-public-launcher-payload.mjs \
+            --phase configure \
+            --payload "$RUNNER_TEMP/payload" \
+            --server-root "$GITHUB_WORKSPACE/server" \
+            --target "${{ matrix.target }}"
+          node -e "require('node:fs').rmSync(process.argv[1], { recursive: true, force: true })" \
+            "$RUNNER_TEMP/payload/node_modules"
           (
             cd "$RUNNER_TEMP/payload"
-            pnpm --config.prefer-symlinked-executables=true \
-              fetch --prod --frozen-lockfile --ignore-scripts
-            pnpm --config.inject-workspace-packages=true \
-              --config.prefer-symlinked-executables=true \
-              install --prod --frozen-lockfile --offline --ignore-scripts
+            pnpm fetch --prod --frozen-lockfile --ignore-scripts
+            pnpm install --prod --frozen-lockfile --offline --ignore-scripts
           )
-          rm -f "$RUNNER_TEMP/payload/node_modules/.modules.yaml"
+          node scripts/prepare-public-launcher-payload.mjs \
+            --phase finalize \
+            --payload "$RUNNER_TEMP/payload" \
+            --server-root "$GITHUB_WORKSPACE/server" \
+            --target "${{ matrix.target }}"
 
       - name: Build Windows service host
         if: matrix.target == 'win32-x64'
@@ -179,8 +221,8 @@ jobs:
             --source-sha "$GITHUB_SHA" \
             --version "$version" \
             --node-runtime "$(node -p 'process.execPath')" \
-            --python-root "$pythonLocation" \
-            --python-executable "$(python -c 'import sys; print(sys.executable)')" \
+            --python-root "$BUNDLED_PYTHON_ROOT" \
+            --python-executable "$BUNDLED_PYTHON_EXECUTABLE" \
             --service-asset "$service_asset" \
             ${secret_service_args:-} \
             ${keychain_host_args:-} \
@@ -240,8 +282,20 @@ jobs:
             --format zip `
             --source-sha "$env:GITHUB_SHA"
 
+      # Retain the exact packaged bytes even when a native lifecycle check
+      # fails. Downstream metadata and release publication still require the
+      # complete build matrix to pass.
+      - name: Upload native asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: launcher-${{ matrix.target }}
+          path: ${{ runner.temp }}/out/*
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Install and verify native Unix lifecycle
         if: matrix.format == 'tar.gz'
+        timeout-minutes: 15
         shell: bash
         run: |
           set -euo pipefail
@@ -282,9 +336,14 @@ jobs:
           test ! -e "$HOME/.local/bin/happyherd"
           test ! -e "$HOME/.claude/skills/generic-guide"
           test ! -e "$HOME/.codex/skills/generic-guide"
+          if [[ "${{ matrix.target }}" == darwin-* ]]; then
+            test ! -e "/Library/Application Support/HappyHerd/Secrets/$(id -u)/keychain-master"
+            test ! -e "/Library/Application Support/HappyHerd/Secrets/$(id -u)"
+          fi
 
       - name: Install and verify native Windows lifecycle
         if: matrix.format == 'zip'
+        timeout-minutes: 15
         shell: pwsh
         run: |
           $Version = node -p "require('./server/packages/happyherd-cli/package.json').version"
@@ -363,14 +422,6 @@ jobs:
               if ($Profile -and $TargetHome -and [StringComparer]::OrdinalIgnoreCase.Equals([string]$Profile.LocalPath, $TargetHome)) { Remove-CimInstance -InputObject $Profile -ErrorAction SilentlyContinue }
             }
           }
-
-      - name: Upload native asset
-        uses: actions/upload-artifact@v4
-        with:
-          name: launcher-${{ matrix.target }}
-          path: ${{ runner.temp }}/out/*
-          if-no-files-found: error
-          retention-days: 7
 
   metadata:
     name: Build and verify release metadata

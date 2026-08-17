@@ -22,7 +22,29 @@ source code. A public-boundary gate checks that invariant before changes ship.
 
 Tagged `happyherd-v*` releases contain native-platform archives, `SHA256SUMS`,
 a source-SHA release manifest, and installers for macOS, Windows, and Linux.
-After installation, the generic local workflow is:
+From this repository's Releases page, download and inspect `install.sh` from
+the current beta release. Run it as your normal local account on macOS or
+Linux:
+
+```sh
+sh ./install.sh
+```
+
+On Windows, download and inspect `install.ps1` from the same release. Open
+PowerShell as your normal local account (not an Administrator) and run:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PWD\install.ps1"
+```
+
+The installer requests sudo or Windows UAC only for its isolated local service.
+Linux automatically installs `acl`, `dbus-daemon`, and `gnome-keyring` through
+apt, dnf, or yum when they are absent. Windows requires a registered local user
+profile; all platforms require an internet connection for online installation.
+Node.js and Python are bundled.
+
+Open a new terminal if the launcher was not already on `PATH`, then verify and
+connect:
 
 ```text
 happyherd doctor
@@ -62,6 +84,20 @@ To disconnect one organization or clear every local issuer connection:
 ```text
 happyherd disconnect https://issuer.example
 happyherd disconnect --all
+```
+
+To remove the native installation and its managed Skills, use the installed
+uninstaller from the employee account. It requests elevation only for the
+protected service and system-owned files:
+
+```text
+Linux: sh /opt/happyherd/$(id -u)/uninstall.sh
+macOS: sh "/Library/Application Support/HappyHerd/$(id -u)/uninstall.sh"
+```
+
+```powershell
+$HappyHerdCommand = (Get-Command happyherd.cmd -CommandType Application -ErrorAction Stop).Source
+& (Join-Path (Split-Path -Parent $HappyHerdCommand) 'uninstall.ps1')
 ```
 
 The issuer is discovered through `/.well-known/happyherd.json`. Long-lived

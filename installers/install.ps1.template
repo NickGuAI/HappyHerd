@@ -103,6 +103,8 @@ $ErrorActionPreference='Stop'
 $p=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__PAYLOAD__'))|ConvertFrom-Json
 $system=[Security.Principal.SecurityIdentifier]::new('S-1-5-18')
 $admins=[Security.Principal.SecurityIdentifier]::new('S-1-5-32-544')
+$icacls=Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::Windows)) 'System32\icacls.exe'
+function Invoke-Icacls([string]$path,[string[]]$arguments){& $icacls $path @arguments|Out-Null;if($LASTEXITCODE-ne0){throw "bootstrap ACL operation failed: $path"}}
 function Test-Protected([string]$path){
   $item=Get-Item -Force -LiteralPath $path
   if(-not $item.PSIsContainer -or ($item.Attributes-band [IO.FileAttributes]::ReparsePoint)){throw 'unsafe bootstrap staging directory'}
@@ -114,10 +116,10 @@ function Test-Protected([string]$path){
   }
 }
 function Protect-New([string]$path){
-  $acl=[Security.AccessControl.DirectorySecurity]::new();$acl.SetOwner($system)
-  $flags=[Security.AccessControl.InheritanceFlags]::ContainerInherit-bor[Security.AccessControl.InheritanceFlags]::ObjectInherit
-  foreach($sid in @($system,$admins)){$acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($sid,[Security.AccessControl.FileSystemRights]::FullControl,$flags,[Security.AccessControl.PropagationFlags]::None,[Security.AccessControl.AccessControlType]::Allow))}
-  $acl.SetAccessRuleProtection($true,$false);[IO.Directory]::CreateDirectory($path,$acl)|Out-Null;Test-Protected $path
+  [IO.Directory]::CreateDirectory($path)|Out-Null
+  Invoke-Icacls $path @('/setowner','*S-1-5-18')
+  Invoke-Icacls $path @('/inheritance:r','/grant:r','*S-1-5-18:(OI)(CI)F','*S-1-5-32-544:(OI)(CI)F')
+  Test-Protected $path
 }
 function Test-Marker([string]$path){
   $item=Get-Item -Force -LiteralPath $path
@@ -206,7 +208,7 @@ $ServiceName = "HappyHerdBroker-$OwnerKey"
 $ServiceIdentity = "NT SERVICE\$ServiceName"
 $ToolUser = "HHd-$($OwnerKey.Substring(0, 16))"
 if ($ToolUser.Length -gt 20) { Fail 'derived isolated tool account name exceeds the Windows local-account limit' }
-$ToolMarker = "HappyHerd isolated tool runner for SID $OwnerSid"
+$ToolMarker = "HappyHerd tool $OwnerKey"
 $ToolConfig = Join-Path $StateRoot 'tool-launcher.conf'
 $ProviderAclReceipt = Join-Path $StateRoot 'provider-acls.json'
 $Backup = "$InstallDir.previous"
@@ -277,14 +279,9 @@ function Protect-AdminDirectory([string]$Path) {
       if ([StringComparer]::OrdinalIgnoreCase.Equals($Cursor, $StateRoot) -and $ServiceSid) { $AllowedWriters = @($ServiceSid) }
       Assert-TrustedAcl $Cursor $true $AllowedWriters
     } else {
-      $Security = [Security.AccessControl.DirectorySecurity]::new()
-      $Security.SetOwner([Security.Principal.SecurityIdentifier]::new('S-1-5-18'))
-      $Flags = [Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [Security.AccessControl.InheritanceFlags]::ObjectInherit
-      foreach ($Sid in @('S-1-5-18', 'S-1-5-32-544')) {
-        $Security.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new([Security.Principal.SecurityIdentifier]::new($Sid), [Security.AccessControl.FileSystemRights]::FullControl, $Flags, [Security.AccessControl.PropagationFlags]::None, [Security.AccessControl.AccessControlType]::Allow))
-      }
-      $Security.SetAccessRuleProtection($true, $false)
-      [IO.Directory]::CreateDirectory($Cursor, $Security) | Out-Null
+      [IO.Directory]::CreateDirectory($Cursor) | Out-Null
+      Invoke-Icacls $Cursor @('/setowner', '*S-1-5-18')
+      Invoke-Icacls $Cursor @('/inheritance:r', '/grant:r', '*S-1-5-18:(OI)(CI)F', '*S-1-5-32-544:(OI)(CI)F')
       if (-not (Test-SafeDirectory $Cursor)) { Fail "new protected directory is unsafe: $Cursor" }
       Assert-TrustedAcl $Cursor $true @()
     }
@@ -311,7 +308,7 @@ function Get-RandomPassword {
 function Protect-File([string]$Path, [string[]]$Readers) {
   Invoke-Icacls $Path @('/setowner', '*S-1-5-18')
   $Rules = @('/inheritance:r', '/grant:r', '*S-1-5-18:F', '*S-1-5-32-544:F')
-  foreach ($Reader in $Readers) { $Rules += "$Reader`:R" }
+  foreach ($Reader in $Readers) { $Rules += "*$Reader`:R" }
   Invoke-Icacls $Path $Rules
   Assert-TrustedAcl $Path $false @()
 }
@@ -542,7 +539,8 @@ try {
     $SecurePassword = ConvertTo-SecureString $ToolPassword -AsPlainText -Force
     New-LocalUser -Name $ToolUser -Password $SecurePassword -Description $ToolMarker -AccountNeverExpires -PasswordNeverExpires -UserMayNotChangePassword | Out-Null
     $CreatedToolUser = $true
-    $UsersGroup = ([Security.Principal.SecurityIdentifier]::new('S-1-5-32-545')).Translate([Security.Principal.NTAccount]).Value
+    $UsersGroupSid = [Security.Principal.SecurityIdentifier]::new('S-1-5-32-545')
+    $UsersGroup = Get-LocalGroup -SID $UsersGroupSid
     Add-LocalGroupMember -Group $UsersGroup -Member $ToolUser
     $PlainBytes = [Text.Encoding]::Unicode.GetBytes($ToolPassword)
     try {
@@ -555,7 +553,8 @@ try {
   $ToolGroupSids = @()
   foreach ($Group in @(Get-LocalGroup)) {
     $Members = @(Get-LocalGroupMember -SID $Group.Sid -ErrorAction SilentlyContinue)
-    if ($Members.SID.Value -contains $ToolSid) { $ToolGroupSids += $Group.Sid.Value }
+    $MemberSids = @($Members | ForEach-Object { $_.SID.Value })
+    if ($MemberSids -contains $ToolSid) { $ToolGroupSids += $Group.Sid.Value }
   }
   if (@($ToolGroupSids).Count -ne 1 -or $ToolGroupSids[0] -ne 'S-1-5-32-545') { Fail 'isolated tool account must belong only to the built-in Users group' }
 
@@ -570,9 +569,9 @@ try {
   $ProviderAclsChanged = $true
 
   [void](Protect-AdminDirectory $StateRoot)
-  Invoke-Icacls $StateRoot @('/grant', "$ServiceSid`:(OI)(CI)F", "$ToolSid`:(RX)")
+  Invoke-Icacls $StateRoot @('/grant', "*$ServiceSid`:(OI)(CI)F", "*$ToolSid`:(RX)")
   New-Item -ItemType Directory -Force -Path (Join-Path $StateRoot 'bundles'), (Join-Path $StateRoot 'registry'), $ClientDir | Out-Null
-  Invoke-Icacls (Join-Path $StateRoot 'bundles') @('/grant', "$ToolSid`:(OI)(CI)RX")
+  Invoke-Icacls (Join-Path $StateRoot 'bundles') @('/grant', "*$ToolSid`:(OI)(CI)RX")
 
   $CapabilityPath = Join-Path $StateRoot 'client-capability'
   $PrivateKeyPath = Join-Path $StateRoot 'signing-private.pem'
@@ -637,7 +636,7 @@ try {
   Protect-File $ProviderAclReceipt @($ServiceSid)
 
   Invoke-Icacls $InstallDir @('/setowner', '*S-1-5-18', '/T', '/C')
-  Invoke-Icacls $InstallDir @('/inheritance:r', '/grant:r', '*S-1-5-18:(OI)(CI)F', '*S-1-5-32-544:(OI)(CI)F', "$ServiceSid`:(OI)(CI)RX", "$ToolSid`:(OI)(CI)RX", "$OwnerSid`:(OI)(CI)RX", '/T', '/C')
+  Invoke-Icacls $InstallDir @('/inheritance:r', '/grant:r', '*S-1-5-18:(OI)(CI)F', '*S-1-5-32-544:(OI)(CI)F', "*$ServiceSid`:(OI)(CI)RX", "*$ToolSid`:(OI)(CI)RX", "*$OwnerSid`:(OI)(CI)RX", '/T', '/C')
   Protect-File $ClientConfig @($OwnerSid)
   Assert-ClientConfigAcl $ClientConfig
   Protect-File $InstallationReceipt @($OwnerSid, $ServiceSid)
@@ -660,6 +659,8 @@ try {
   if ($HadPrevious) { Remove-Item -LiteralPath $Backup -Recurse -Force }
   Write-Host "Installed HappyHerd $ReleaseVersion for $OwnerAccount with isolated broker $ServiceName"
   Write-Host 'Open a new PowerShell as that employee, then run: happyherd doctor'
+  $Uninstaller = Join-Path $InstallDir 'uninstall.ps1'
+  Write-Host "To uninstall later from that employee account: & `"$Uninstaller`""
 } catch {
   Stop-Service -Name $ServiceName -Force -ErrorAction SilentlyContinue
   if ($Published -and (Test-SafeDirectory $InstallDir)) { Remove-Item -LiteralPath $InstallDir -Recurse -Force }
@@ -672,7 +673,7 @@ try {
   elseif ($ExistingService -and $StoppedExistingService) {
     try {
       if (-not $ServiceSid) { $ServiceSid = ([Security.Principal.NTAccount]::new($ServiceIdentity)).Translate([Security.Principal.SecurityIdentifier]).Value }
-      if (Test-Path -LiteralPath $StateRoot) { Invoke-Icacls $StateRoot @('/grant', "$ServiceSid`:(OI)(CI)F") }
+      if (Test-Path -LiteralPath $StateRoot) { Invoke-Icacls $StateRoot @('/grant', "*$ServiceSid`:(OI)(CI)F") }
     } catch { }
     Start-Service -Name $ServiceName -ErrorAction SilentlyContinue
   }

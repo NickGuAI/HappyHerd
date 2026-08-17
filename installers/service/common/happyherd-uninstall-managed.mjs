@@ -3,7 +3,7 @@
 import {
   loadBrokerServiceConfig,
   removeVerifiedManagedSkillsForUninstall,
-} from '../../runtime/dist/index.mjs';
+} from '../runtime/dist/index.mjs';
 
 const mode = process.argv[2];
 const configPath = process.argv[3];

@@ -15,15 +15,15 @@ ExecStart=/usr/bin/dbus-run-session -- "@SECRET_SERVICE_WRAPPER@" "@NODE_RUNTIME
 Restart=on-failure
 RestartSec=3
 PrivateTmp=true
-PrivateDevices=true
 PrivateMounts=true
 ProtectSystem=full
 ProtectHome=false
-ProtectKernelTunables=true
-ProtectKernelModules=true
 ProtectControlGroups=true
-RestrictSUIDSGID=true
-LockPersonality=true
+# The broker's root-owned launcher validates this service identity, reads only
+# root-private configuration, then immediately drops to the isolated tool UID.
+# NoNewPrivileges and every option that implies it must remain disabled here;
+# otherwise the launcher's guarded setuid transition is unavailable.
+NoNewPrivileges=false
 
 [Install]
 WantedBy=multi-user.target

@@ -17,6 +17,13 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 const targets = new Set(['darwin-arm64', 'darwin-x64', 'linux-arm64', 'linux-x64', 'win32-x64']);
+const targetRuntimePackages = {
+  'darwin-arm64': ['claude-agent-sdk-darwin-arm64', 'keyring-darwin-arm64'],
+  'darwin-x64': ['claude-agent-sdk-darwin-x64', 'keyring-darwin-x64'],
+  'linux-arm64': ['claude-agent-sdk-linux-arm64', 'keyring-linux-arm64-gnu'],
+  'linux-x64': ['claude-agent-sdk-linux-x64', 'keyring-linux-x64-gnu'],
+  'win32-x64': ['claude-agent-sdk-win32-x64', 'keyring-win32-x64-msvc'],
+};
 
 function fail(message) {
   throw new Error(`public-launcher-stage: ${message}`);
@@ -60,12 +67,29 @@ const packageJson = JSON.parse(readFileSync(join(payload, 'package.json'), 'utf8
 if (packageJson.name !== '@happyherd/cli' || packageJson.version !== version) {
   fail('deployment payload identity does not match the requested release');
 }
+const [agentPackage, keyringPackage] = targetRuntimePackages[target];
+const toolSuffix = target === 'win32-x64' ? '.exe' : '';
 for (const required of [
   'bin/happyherd.mjs',
   'dist/index.mjs',
   'node_modules/happy/package.json',
+  `node_modules/happy/tools/unpacked/difft${toolSuffix}`,
+  `node_modules/happy/tools/unpacked/rg${toolSuffix}`,
+  'node_modules/happy/tools/unpacked/ripgrep.node',
+  `node_modules/@anthropic-ai/${agentPackage}/package.json`,
+  `node_modules/@napi-rs/${keyringPackage}/package.json`,
 ]) {
   if (!existsSync(join(payload, required))) fail(`deployment payload is missing ${required}`);
+}
+for (const forbidden of [
+  'pnpm-lock.yaml',
+  'pnpm-workspace.yaml',
+  'node_modules/.modules.yaml',
+  'node_modules/.pnpm-workspace-state.json',
+  'node_modules/.pnpm',
+  'node_modules/happy/tools/archives',
+]) {
+  if (existsSync(join(payload, forbidden))) fail(`deployment payload retains build metadata: ${forbidden}`);
 }
 
 for (const [path, label] of [
@@ -179,7 +203,7 @@ function materializeLinks(directory) {
     if (stat.isSymbolicLink()) {
       const targetPath = realpathSync(path);
       const targetStat = lstatSync(targetPath);
-      rmSync(path, { force: true });
+      rmSync(path, { recursive: true, force: true });
       if (targetStat.isDirectory()) {
         cpSync(targetPath, path, { recursive: true, dereference: true });
         materializeLinks(path);

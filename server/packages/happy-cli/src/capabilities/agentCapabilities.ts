@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import spawn from 'cross-spawn';
 import { HAPPYHERD_CLAUDE_MODEL_SLUGS } from '@slopus/happy-wire';
 
 import type { AgentCapabilityCatalog } from '@/api/types';
@@ -49,12 +49,14 @@ function uniqueOptions(values: string[]): CapabilityOption[] {
 
 function readCommand(command: string, args: string[]): string | null {
     try {
-        return execFileSync(command, args, {
+        const result = spawn.sync(command, args, {
             encoding: 'utf8',
             timeout: 5_000,
             windowsHide: true,
             stdio: ['ignore', 'pipe', 'ignore'],
-        }).trim();
+        });
+        if (result.error || result.status !== 0) return null;
+        return String(result.stdout ?? '').trim();
     } catch {
         return null;
     }

@@ -11,6 +11,11 @@ const ownedTagPattern = /^(?:happyherd-|happy-upstream-base-)/;
 const organizationExample = 'examples/pmai-happyherd-agent/';
 const organizationMarker = new RegExp(['pm', 'ai'].join('') + '(?:[-_]|\\b)', 'i');
 const organizationNameMarker = new RegExp(['pioneering', 'minds'].join('\\s+'), 'i');
+const personalIdentityMarkers = [
+  new RegExp(['nick', 'guai'].join(''), 'i'),
+  new RegExp(['nick', 'gu'].join('[\\s._-]*'), 'i'),
+  new RegExp(['yu', 'gu', 'columbia'].join('[\\s._@-]*'), 'i'),
+];
 const maxTextBytes = 2 * 1024 * 1024;
 const canonicalMaintainerName = 'HappyHerd Maintainers';
 const canonicalMaintainerEmail = 'maintainers@happyherd.example';
@@ -83,6 +88,9 @@ function inspectText(path, text) {
   }
   if (/\.happyherd\/commanders\/[0-9a-f]{8}-[0-9a-f-]{27,}/i.test(text)) {
     findings.push('concrete private Commander identifier');
+  }
+  if (personalIdentityMarkers.some((pattern) => pattern.test(text))) {
+    findings.push('operator-specific personal identity');
   }
 
   if (normalizedPath !== 'server/pnpm-lock.yaml' && !normalizedPath.startsWith('server/.agents/')) {

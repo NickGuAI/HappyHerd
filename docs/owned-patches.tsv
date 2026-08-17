@@ -13,6 +13,5 @@ ISSUER_ONBOARDING	accepted	feat(launcher): add generic governed local runtime	sc
 PUBLIC_RELEASE	accepted	fix(release): make native matrix deterministic	.github/workflows/public-launcher-release.yml
 PUBLIC_RELEASE	accepted	fix(release): make native lifecycle portable	scripts/test-public-launcher-release-contract.sh
 PUBLIC_RELEASE	accepted	fix(release): make keychain host environment portable	installers/service/darwin/happyherd-keychain-broker.c
-PUBLIC_RELEASE	accepted	fix(release): resolve the Windows users group by SID	.github/workflows/public-launcher-release.yml
-PUBLIC_RELEASE	accepted	fix(release): surface bounded native-install diagnostics	installers/install.sh.template
-PUBLIC_RELEASE	accepted	fix(release): preserve lockfile-backed release deployment	server/pnpm-workspace.yaml
+PUBLIC_RELEASE	accepted	fix(release): restore locked native lifecycle	server/pnpm-workspace.yaml
+PUBLIC_RELEASE	accepted	fix(release): publish portable target closures	scripts/prepare-public-launcher-payload.mjs

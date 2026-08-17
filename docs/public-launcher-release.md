@@ -53,8 +53,24 @@ The previous installation remains recoverable until the verified new directory
 has passed launcher-link publication, receipt writing, and `happyherd doctor`.
 Any final failure restores the recognized prior installation.
 
-The normal no-argument installer downloads the canonical release. A caller
-that already holds a release-lock may use only the following offline interface:
+Download and inspect `install.sh` or `install.ps1` from this repository's
+current Release. The normal no-argument installer downloads the canonical
+platform asset:
+
+```sh
+sh ./install.sh
+```
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PWD\install.ps1"
+```
+
+Run either installer as the target employee account. It asks for sudo or UAC
+only when creating the isolated service. A Linux host must use systemd; missing
+`acl`, `dbus-daemon`, and `gnome-keyring` packages are installed through apt,
+dnf, or yum. Node.js and Python come from the verified platform archive.
+
+For a caller that already holds a release-lock, the offline interface is:
 
 ```text
 sh /absolute/install.sh \
@@ -81,12 +97,17 @@ Linux uninstall:  sh /opt/happyherd/$(id -u)/uninstall.sh
 macOS launcher:   $HOME/.local/bin/happyherd
 macOS uninstall:  sh "/Library/Application Support/HappyHerd/$(id -u)/uninstall.sh"
 Windows launcher: %ProgramFiles%\HappyHerd\<ownerKey>\happyherd.cmd
-Windows uninstall: & "$InstallRoot\uninstall.ps1"
+Windows uninstall (new employee PowerShell):
+  $HappyHerdCommand = (Get-Command happyherd.cmd -CommandType Application -ErrorAction Stop).Source
+  & (Join-Path (Split-Path -Parent $HappyHerdCommand) 'uninstall.ps1')
 ```
 
 Linux keeps issuer tokens in an isolated Secret Service session, macOS uses a
-dedicated service Keychain whose master is sealed to the protected helper, and
-Windows uses the broker service identity's Credential Manager. The client
+dedicated service Keychain whose random unlock master is readable only by the
+root-owned protected helper (`root:wheel`, mode `0400`, beneath a no-link
+`0700` directory), and Windows uses the broker service identity's Credential
+Manager. The unlock master is not an issuer credential; issuer tokens remain
+inside the service Keychain. The client
 capability file is administrator-owned and explicitly readable only by the
 target employee (plus Windows SYSTEM/Administrators). A second local user is
 denied both raw reads and broker calls in every native lifecycle test.
