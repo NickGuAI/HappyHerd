@@ -1,6 +1,16 @@
 {
   "entries": [
     {
+      "title": "August 21 — Codex sessions recover from stale turns",
+      "summary": "Follow-up messages no longer get trapped behind a Codex turn that already ended at the provider.",
+      "markdown": "- HappyHerd retires stale local turn state only when Codex definitively reports that there is no active turn to steer.\n- The untouched follow-up, including its permissions, model settings, instructions, effort, and attachments, is queued exactly once as the next turn.\n- Ambiguous timeouts and transport errors are never replayed, and late lifecycle events cannot close a newer turn."
+    },
+    {
+      "title": "August 21 — One standalone AgentContext authority",
+      "summary": "HappyHerd session instructions now come from one canonical home without predecessor migration or compatibility state.",
+      "markdown": "- `HAPPY_HOME_DIR` is the sole HappyHerd instruction authority; one-time migration tooling and its frozen manifest are gone.\n- Commander identity requires the supported frontmatter contract instead of retired header parsing.\n- Intentional runtime-isolation checks still reject unsafe personal state paths."
+    },
+    {
       "title": "August 17 — Install, connect, and verify HappyHerd locally",
       "summary": "HappyHerd now ships a generic end-user launcher and traceable installers for macOS, Windows, and Linux.",
       "markdown": "- `happyherd doctor` verifies the installed runtime, supported platform, Node.js, and operating-system secret-store adapter.\n- `happyherd connect <issuer>` discovers an organization through a standard well-known document and completes a ten-minute, one-time browser approval with PKCE and device proof.\n- Long-lived organization credentials stay in Keychain, Credential Manager, or Secret Service; there is no plaintext fallback and credentials never enter agent prompts or URLs.\n- `happyherd install-skills` verifies the ZIP, raw manifest, declared file inventory, minimum version, and canonical content digest before atomically publishing a generic bundle.\n- Verified Skills appear in both local Claude and Codex discovery roots through owned receipts; HappyHerd refuses collisions with user-managed Skills and blocks launch if a managed copy becomes stale.\n- `happyherd run-tool` re-verifies a manifest-declared script and supplies the issuer credential only to that child as `HAPPYHERD_ACCESS_TOKEN`, never to the agent session, arguments, registry, or receipts.\n- `happyherd launch claude` and `happyherd launch codex` use the bundled maintained Happy runtime.\n- Bundled Node.js and Python runtimes keep installation independent of host-language runtimes, while pinned offline installation accepts only an explicit local manifest and matching platform asset.\n- Isolated Windows tools run on a protected per-launch desktop inside the broker's service-specific noninteractive window station; temporary station access is removed after the contained process exits, and tools never receive access to the interactive desktop.\n- macOS installation and removal verify hidden service identities through structured Directory Service records, including paths and ownership markers that contain spaces.\n- Native uninstallers wait for the restarted broker to pass signed installation health checks before purging OS-store credentials.\n- Per-owner broker capabilities, isolated tool identities, bounded output, operation locks, provider-tree integrity checks, and detached-child containment keep organization access outside agent prompts and unrelated user sessions.\n- `happyherd upgrade` checks a source-traceable release manifest and reports the verified platform installer without replacing a running session.\n- Tagged `happyherd-v*` releases publish five native-platform assets, two installers, `SHA256SUMS`, and a manifest tied to the exact Git source SHA; SemVer prereleases are explicitly marked as prereleases instead of stable/latest releases."
@@ -151,5 +161,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 17 — Install, connect, and verify HappyHerd locally"
+  "latestTitle": "August 21 — Codex sessions recover from stale turns"
 }

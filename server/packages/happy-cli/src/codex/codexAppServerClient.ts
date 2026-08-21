@@ -66,6 +66,31 @@ type PendingRequest = {
     epoch: number;
 };
 
+type PendingTurnCompletion = {
+    resolve: (aborted: boolean) => void;
+    turnId: string | null;
+};
+
+class CodexAppServerRpcError extends Error {
+    constructor(
+        readonly method: string,
+        readonly code: number | null,
+        readonly rpcMessage: string,
+    ) {
+        super(`${method}: ${rpcMessage}${code === null ? '' : ` (code=${code})`}`);
+        this.name = 'CodexAppServerRpcError';
+    }
+}
+
+function isNoActiveTurnToSteerError(error: unknown): error is CodexAppServerRpcError {
+    return error instanceof CodexAppServerRpcError
+        && error.method === 'turn/steer'
+        && error.code === -32600
+        && error.rpcMessage.trim().toLowerCase() === 'no active turn to steer';
+}
+
+export type CodexSteerTurnResult = 'steered' | 'turn-not-active';
+
 type LegacyPatchChanges = Record<string, Record<string, unknown>>;
 
 export type ApprovalHandler = (params: {
@@ -253,11 +278,8 @@ export class CodexAppServerClient {
     } | null = null;
 
     // Turn completion tracking for the currently active sendTurnAndWait call.
-    // A completion event only resolves once we have seen task_started for this turn.
-    private pendingTurnCompletion: {
-        resolve: (aborted: boolean) => void;
-        turnId: string | null;
-    } | null = null;
+    // Provider turn identity keeps stale or child completions from releasing it.
+    private pendingTurnCompletion: PendingTurnCompletion | null = null;
 
     // Tracks in-flight interruptTurn() RPCs so sendTurnAndWait can wait for them
     // before starting a new turn (prevents stale turn/interrupt from aborting the next turn).
@@ -393,14 +415,16 @@ export class CodexAppServerClient {
         error: unknown,
         source: string,
     ): void {
-        const aborted = status === 'cancelled' || status === 'canceled' || status === 'aborted' || status === 'interrupted';
-
-        this.tryResolvePendingTurn(aborted, turnId, source);
-        this._turnId = null;
-
-        if (turnId && this.completedTurnIds.has(turnId)) {
+        if (this.shouldIgnoreTurnLifecycle(turnId, source)) {
             return;
         }
+
+        const aborted = status === 'cancelled' || status === 'canceled' || status === 'aborted' || status === 'interrupted';
+        this.resolvePendingTurn(aborted);
+        if (!turnId || this._turnId === turnId) {
+            this._turnId = null;
+        }
+
         if (turnId) {
             this.completedTurnIds.add(turnId);
         }
@@ -444,6 +468,9 @@ export class CodexAppServerClient {
                 return true;
             }
             const turnId = this.extractTurnId(params);
+            if (this.shouldIgnoreTurnLifecycle(turnId, method)) {
+                return true;
+            }
             if (turnId) {
                 this._turnId = turnId;
             }
@@ -1179,22 +1206,57 @@ export class CodexAppServerClient {
         }
     }
 
-    private tryResolvePendingTurn(aborted: boolean, turnId: string | null, source: string): void {
-        const pending = this.pendingTurnCompletion;
-        if (!pending) return;
+    private shouldIgnoreTurnLifecycle(turnId: string | null, source: string): boolean {
+        if (!turnId) {
+            return false;
+        }
+        if (this.completedTurnIds.has(turnId)) {
+            logger.debug(`[CodexAppServer] Ignoring ${source} for retired turn ${turnId}`);
+            return true;
+        }
 
-        // Guard against stale completion notifications from a *different* turn.
-        // We use turn ID matching instead of the `started` flag because Codex
-        // can skip the turn/started notification entirely for fast turns,
-        // which would cause us to discard a valid turn/completed and hang forever.
-        if (pending.turnId && turnId && pending.turnId !== turnId) {
+        const activeTurnId = this.pendingTurnCompletion?.turnId ?? this._turnId;
+        if (activeTurnId && activeTurnId !== turnId) {
             logger.debug(
-                `[CodexAppServer] Ignoring ${source} for turn ${turnId}; awaiting ${pending.turnId}`,
+                `[CodexAppServer] Ignoring ${source} for turn ${turnId}; awaiting ${activeTurnId}`,
             );
+            return true;
+        }
+        return false;
+    }
+
+    private reconcileInactiveSteer(
+        pending: PendingTurnCompletion | null,
+        expectedTurnId: string,
+    ): void {
+        const currentTurnId = pending?.turnId ?? this._turnId;
+        if (!pending
+            || this.pendingTurnCompletion !== pending
+            || currentTurnId !== expectedTurnId
+            || (this._turnId !== null && this._turnId !== expectedTurnId)) {
             return;
         }
 
-        this.resolvePendingTurn(aborted);
+        this.pendingTurnCompletion = null;
+        if (this._turnId === expectedTurnId) {
+            this._turnId = null;
+        }
+
+        if (!this.completedTurnIds.has(expectedTurnId)) {
+            this.completedTurnIds.add(expectedTurnId);
+            this.eventHandler?.({
+                type: 'task_complete',
+                provider_terminal: true,
+                turn_id: expectedTurnId,
+                status: 'completed',
+                reason: 'stale_turn_reconciled',
+                reconciled: true,
+            });
+        }
+
+        // Let the steering caller queue the untouched input before the old turn
+        // loop resumes and considers the session idle.
+        queueMicrotask(() => pending.resolve(false));
     }
 
     private async waitForTurnCompletion(timeoutMs: number): Promise<boolean> {
@@ -1319,13 +1381,17 @@ export class CodexAppServerClient {
      * local queue entry or a second turn; Codex remains responsible for the
      * turn lifecycle and its eventual terminal event.
      */
-    async steerTurn(prompt: string, opts?: { extraInputItems?: InputItem[] }): Promise<void> {
+    async steerTurn(
+        prompt: string,
+        opts?: { extraInputItems?: InputItem[] },
+    ): Promise<CodexSteerTurnResult> {
         if (!this._threadId) {
             throw new Error('No active thread. Call startThread first.');
         }
-        const expectedTurnId = this.activeTurnId;
+        const pending = this.pendingTurnCompletion;
+        const expectedTurnId = pending?.turnId ?? (pending ? this._turnId : null);
         if (!expectedTurnId) {
-            throw new Error('No active Codex turn to steer.');
+            return 'turn-not-active';
         }
 
         const params: SteerTurnParams = {
@@ -1333,7 +1399,16 @@ export class CodexAppServerClient {
             expectedTurnId,
             input: buildTurnInput(prompt, opts?.extraInputItems),
         };
-        await this.request('turn/steer', params);
+        try {
+            await this.request('turn/steer', params);
+            return 'steered';
+        } catch (error) {
+            if (!isNoActiveTurnToSteerError(error)) {
+                throw error;
+            }
+            this.reconcileInactiveSteer(pending, expectedTurnId);
+            return 'turn-not-active';
+        }
     }
 
     /**
@@ -1518,7 +1593,13 @@ export class CodexAppServerClient {
                 }
                 this.pending.delete(msg.id);
                 if (msg.error) {
-                    pending.reject(new Error(`${pending.method}: ${msg.error.message} (code=${msg.error.code})`));
+                    const rpcMessage = typeof msg.error?.message === 'string'
+                        ? msg.error.message
+                        : 'Unknown error';
+                    const rpcCode = typeof msg.error?.code === 'number'
+                        ? msg.error.code
+                        : null;
+                    pending.reject(new CodexAppServerRpcError(pending.method, rpcCode, rpcMessage));
                 } else {
                     pending.resolve(msg.result);
                 }

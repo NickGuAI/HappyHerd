@@ -180,16 +180,6 @@ export function parseCommanderIdentity(markdown: string): {
     }
   }
 
-  // Established Herd Commander files predate the frontmatter contract. Only
-  // inspect their bounded header so prose later in the file cannot silently
-  // redefine identity or workspace routing.
-  const legacyHeader = markdown.split(/\r?\n/).slice(0, 40).join('\n');
-  const legacyIdentity = legacyHeader.match(/^You are\s+([^,\n.]+?)(?:,\s*(.+?))?\.\s*$/m);
-  const legacyWorkspace = legacyHeader.match(/^Workspace:\s*`([^`\n]+)`\s*$/m)
-    ?? legacyHeader.match(/^Workspace:\s*(\/\S+)\s*$/m);
-  if (!result.name && legacyIdentity?.[1]?.trim()) result.name = legacyIdentity[1].trim();
-  if (!result.role && legacyIdentity?.[2]?.trim()) result.role = legacyIdentity[2].trim();
-  if (!result.workspace && legacyWorkspace?.[1]?.trim()) result.workspace = legacyWorkspace[1].trim();
   return result;
 }
 

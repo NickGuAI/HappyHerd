@@ -32,7 +32,7 @@ describe('HappyHerd automation wire contract', () => {
       lastRunAt: null,
     };
     expect(HappyHerdAutomationSchema.parse(definition)).toEqual(definition);
-    expect(() => HappyHerdAutomationSchema.parse({ ...definition, providerTransport: 'herd' })).toThrow();
+    expect(() => HappyHerdAutomationSchema.parse({ ...definition, providerTransport: 'unsupported' })).toThrow();
   });
 
   it('requires an explicit rail, workspace, timezone, and paused/active state', () => {

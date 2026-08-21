@@ -108,4 +108,23 @@ for (const unsafeIdentity of [
   assert.equal(canonicalCommitIdentityText(unsafeIdentity), null);
 }
 
+const normalizedHistoricalIdentity = {
+  ...hostedSquashIdentity,
+  commit: 'd6c14a9abf9bafb531f1b3a5212007a360bdd665',
+  authorName: 'HappyHerd Maintainers',
+  authorEmail: 'maintainers@happyherd.example',
+  committerName: 'Legacy Hosting Account',
+  committerEmail: ['legacy-host', '@users', '.noreply', '.github', '.com'].join(''),
+  rawCommit: 'tree abc\nparent def\n',
+  message: 'fix(release): example\n',
+};
+assert.deepEqual(inspect(
+  'metadata.txt',
+  canonicalCommitIdentityText(normalizedHistoricalIdentity),
+), []);
+assert.equal(canonicalCommitIdentityText({
+  ...normalizedHistoricalIdentity,
+  commit: 'd6c14a9abf9bafb531f1b3a5212007a360bdd664',
+}), null);
+
 process.stdout.write('public-boundary self-test: ok\n');

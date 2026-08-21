@@ -58,6 +58,13 @@ describe('Commander context', () => {
     });
   });
 
+  it('does not infer identity from unsupported header prose', () => {
+    expect(parseCommanderIdentity([
+      'You are Legacy, an unsupported commander.',
+      'Workspace: `/tmp/legacy`',
+    ].join('\n'))).toEqual({});
+  });
+
   it('lists valid commanders and their existing paths', async () => {
     const result = await listCommanders();
     expect(result.commanders).toHaveLength(1);
@@ -167,7 +174,7 @@ describe('Commander context', () => {
   });
 
   it('uses the actual session directory and never reloads the retired home guide', async () => {
-    await writeFile(path.join(root, 'AGENTS.md'), '# Retired Herd root\n');
+    await writeFile(path.join(root, 'AGENTS.md'), '# Retired home root\n');
     const projectDir = path.join(root, 'workspace', 'project');
     await mkdir(projectDir, { recursive: true });
     await writeFile(path.join(root, 'workspace', 'AGENTS.md'), '# Closest project\n');
@@ -177,7 +184,7 @@ describe('Commander context', () => {
 
     expect(bundle.projectGuidancePath).toBe(path.join(root, 'workspace', 'AGENTS.md'));
     expect(content).toContain('Closest project');
-    expect(content).not.toContain('Retired Herd root');
+    expect(content).not.toContain('Retired home root');
   });
 
   it('records a versioned digest of the instruction content delivered to a provider', () => {

@@ -1,7 +1,7 @@
 import cron from 'node-cron';
 
-// Adapted from Herd's bounded node-cron validator. node-cron remains the
-// semantic authority; this guard only prevents pathological range expansion.
+// node-cron remains the semantic authority; this guard only prevents
+// pathological range expansion.
 const MAX_CRON_RANGE_VALUES = 10_000;
 const RANGE_PATTERN = /(?<!\d)(?=(\d+)-(\d+)(?:\/(\d+))?)/g;
 const ZERO_STEP_PATTERN = /\/0+(?!\d)/;
