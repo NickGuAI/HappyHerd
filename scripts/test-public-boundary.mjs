@@ -108,6 +108,33 @@ for (const unsafeIdentity of [
   assert.equal(canonicalCommitIdentityText(unsafeIdentity), null);
 }
 
+const hostedMergeIdentity = {
+  ...hostedSquashIdentity,
+  subject: `Merge pull request #123 from ${['Nick', 'GuAI'].join('')}/feature`,
+  message: 'Merge pull request #123\n\nExample change\n',
+  rawCommit: 'tree abc\nparent def\nparent ghi\ngpgsig -----BEGIN PGP SIGNATURE-----\n signature\n',
+  parentCount: 2,
+};
+assert.equal(
+  canonicalCommitIdentityText(hostedMergeIdentity),
+  `${canonicalIdentity}\n${canonicalIdentity}\nMerge pull request #123`,
+);
+assert.deepEqual(inspect(
+  'metadata.txt',
+  canonicalCommitIdentityText(hostedMergeIdentity),
+), []);
+for (const unsafeIdentity of [
+  { ...hostedMergeIdentity, rawCommit: 'tree abc\nparent def\nparent ghi\n' },
+  { ...hostedMergeIdentity, subject: 'Merge branch feature' },
+  { ...hostedMergeIdentity, parentCount: 1 },
+  { ...hostedMergeIdentity, parentCount: 3 },
+  { ...hostedMergeIdentity, authorEmail: ['person', '@', 'private.example.net'].join('') },
+  { ...hostedMergeIdentity, committerName: 'Hosted Contributor' },
+  { ...hostedMergeIdentity, committerEmail: 'noreply@example.com' },
+]) {
+  assert.equal(canonicalCommitIdentityText(unsafeIdentity), null);
+}
+
 const normalizedHistoricalIdentity = {
   ...hostedSquashIdentity,
   commit: 'd6c14a9abf9bafb531f1b3a5212007a360bdd665',

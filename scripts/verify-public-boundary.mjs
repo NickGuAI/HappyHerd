@@ -198,18 +198,27 @@ export function canonicalCommitIdentityText({
     && committerEmail === canonicalMaintainerEmail;
   const canonicalCommit = canonicalAuthor && canonicalCommitter;
   const hostedNoReplyAuthor = /^[^@]+@users\.noreply\.github\.com$/i.test(authorEmail);
-  const signedGitHubSquash = parentCount === 1
-    && committerName === 'GitHub'
+  const signedByGitHub = committerName === 'GitHub'
     && committerEmail === githubCommitterEmail
-    && /^gpgsig -----BEGIN PGP SIGNATURE-----$/m.test(rawCommit)
+    && /^gpgsig -----BEGIN PGP SIGNATURE-----$/m.test(rawCommit);
+  const signedGitHubSquash = parentCount === 1
+    && signedByGitHub
     && (canonicalAuthor || hostedNoReplyAuthor)
     && (canonicalAuthor || message.split(/\r?\n/).includes(canonicalTrailer));
+  const pullRequestMergeMatch = /^Merge pull request #([0-9]+) from [A-Za-z0-9_.-]+\/\S+$/.exec(subject);
+  const signedGitHubPullRequestMerge = parentCount === 2
+    && signedByGitHub
+    && (canonicalAuthor || hostedNoReplyAuthor)
+    && pullRequestMergeMatch;
   const normalizedHistoricalCommit = normalizedHistoricalCommitIds.has(commit);
 
-  // GitHub authors a permanent squash object with the merging account even
-  // when every branch commit uses the canonical maintainer identity. Accept
-  // only the signed, single-parent hosting form with explicit canonical
-  // attribution; any missing condition keeps the raw identity fail-closed.
+  // GitHub authors permanent squash and structural pull-request merge objects
+  // with the merging account even when every branch commit uses the canonical
+  // maintainer identity. Accept only their signed, exact hosting forms; branch
+  // commits remain independently scanned and every near miss fails closed.
+  if (signedGitHubPullRequestMerge) {
+    return `${canonicalIdentity}\n${canonicalIdentity}\nMerge pull request #${pullRequestMergeMatch[1]}`;
+  }
   return canonicalCommit || signedGitHubSquash || normalizedHistoricalCommit
     ? `${canonicalIdentity}\n${canonicalIdentity}\n${subject}`
     : null;
