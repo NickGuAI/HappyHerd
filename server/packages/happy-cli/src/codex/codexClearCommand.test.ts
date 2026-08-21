@@ -84,6 +84,29 @@ describe('enqueueCodexUserText', () => {
         expect(queue.pushIsolated).not.toHaveBeenCalled();
     });
 
+    it('preserves the persisted queue message ID', () => {
+        const mode = { permissionMode: 'default' as const };
+        const queue = {
+            push: vi.fn(),
+            pushIsolateAndClear: vi.fn(),
+            pushIsolated: vi.fn(),
+        };
+
+        enqueueCodexUserText({
+            text: 'queued from the app',
+            mode,
+            queue,
+            queueMessageId: 'persisted-message-1',
+        });
+
+        expect(queue.push).toHaveBeenCalledWith(
+            'queued from the app',
+            mode,
+            undefined,
+            'persisted-message-1',
+        );
+    });
+
     it('passes attachments to isolated clear messages', () => {
         const mode = { permissionMode: 'default' as const };
         const attachments = [{

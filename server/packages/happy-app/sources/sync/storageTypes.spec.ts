@@ -286,4 +286,28 @@ describe('AgentGoalStatusSchema', () => {
         expect(malformed.controlledByUser).toBe(true);
         expect(malformed.usageLimits).toBeUndefined();
     });
+
+    it('preserves ordered queue IDs and degrades only a malformed queue snapshot', () => {
+        const state = AgentStateSchema.parse({
+            controlledByUser: true,
+            messageQueue: {
+                pendingMessageIds: ['queue-2', 'queue-3'],
+                currentMessageIds: ['queue-1'],
+            },
+        });
+        expect(state.messageQueue).toEqual({
+            pendingMessageIds: ['queue-2', 'queue-3'],
+            currentMessageIds: ['queue-1'],
+        });
+
+        const malformed = AgentStateSchema.parse({
+            controlledByUser: true,
+            messageQueue: {
+                pendingMessageIds: [''],
+                currentMessageIds: [],
+            },
+        });
+        expect(malformed.controlledByUser).toBe(true);
+        expect(malformed.messageQueue).toBeUndefined();
+    });
 });

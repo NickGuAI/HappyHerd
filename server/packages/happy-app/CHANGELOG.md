@@ -1,3 +1,11 @@
+# August 21 — Queued messages stay visibly queued
+
+Queue Msg follow-ups now appear in an ordered queue above the composer instead of looking like messages that already entered the conversation.
+
+- Waiting text and attachments stay together in a read-only queue panel and move into the conversation only when the owning runtime starts that work.
+- Batched follow-ups preserve their individual order and identity across Claude Code, Codex, reconnects, and message catch-up.
+- Failed local sends cannot leave ghost queue counts, while sessions on older runtimes retain their established transcript behavior.
+
 # August 21 — Automations grouped by project and machine
 
 Automations now appear in a Project → Machine → Automation hierarchy across every online HappyHerd host.

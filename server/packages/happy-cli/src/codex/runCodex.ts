@@ -21,7 +21,12 @@ import { Credentials, readSettings } from '@/persistence';
 import { initialMachineMetadata } from '@/daemon/run';
 import { configuration } from '@/configuration';
 import packageJson from '../../package.json';
-import { MessageQueue2, type PendingAttachment } from '@/utils/MessageQueue2';
+import {
+    MessageQueue2,
+    queueMessageIdsForResume,
+    type MessageQueueBatch,
+    type PendingAttachment,
+} from '@/utils/MessageQueue2';
 import { projectPath } from '@/projectPath';
 import { join } from 'node:path';
 import { createSessionMetadata } from '@/utils/createSessionMetadata';
@@ -237,6 +242,7 @@ export async function runCodex(opts: {
             agentState: state,
             agentStateVersion: parseInt(reconnectAgentStateVersion || '0', 10),
         };
+        response = await api.refreshSessionForReconnect(response);
     } else {
         response = await api.getOrCreateSession({ tag: sessionTag, metadata, state });
     }
@@ -265,11 +271,14 @@ export async function runCodex(opts: {
         }
     });
     session = initialSession;
+    const reconnectQueueMessageIds = reconnectSessionId && response
+        ? queueMessageIdsForResume(response.agentState?.messageQueue)
+        : [];
 
     // On reconnect, un-archive the session and skip replaying old messages.
     if (reconnectSessionId) {
         session.suppressNextArchiveSignal();
-        session.skipExistingMessages();
+        session.skipExistingMessages(reconnectQueueMessageIds, response?.seq ?? Number.MAX_SAFE_INTEGER);
         session.updateMetadata((meta) => ({
             ...meta,
             lifecycleState: 'running',
@@ -299,6 +308,17 @@ export async function runCodex(opts: {
     }
 
     const messageQueue = new MessageQueue2<EnhancedMode>(hashCodexEnhancedMode);
+    messageQueue.restorePendingQueueMessageIds(reconnectQueueMessageIds);
+    messageQueue.setOnQueueStateChange((messageQueueState) => {
+        session.updateAgentState((currentState) => ({
+            ...currentState,
+            messageQueue: messageQueueState,
+        }));
+    });
+    session.updateAgentState((currentState) => ({
+        ...currentState,
+        messageQueue: messageQueue.getQueueState(),
+    }));
 
     session.onFileEvent((fileEvent) => {
         const ev = fileEvent.content.data.ev;
@@ -306,7 +326,10 @@ export async function runCodex(opts: {
             size: ev.size,
             hasMimeType: Boolean(ev.mimeType),
         });
-        session.trackAttachmentDownload(downloadCodexFileEventAttachment(session, fileEvent));
+        session.trackAttachmentDownload(
+            downloadCodexFileEventAttachment(session, fileEvent),
+            fileEvent.meta?.queueMessageId,
+        );
     });
 
     // Track current overrides to apply per message
@@ -354,7 +377,10 @@ export async function runCodex(opts: {
     ];
 
     const handleUserMessage = createSerialAsyncHandler<UserMessage>(async (message) => {
-        const attachmentsForThisMessage = await session.drainAttachmentsForUserMessage();
+        const queueMessageId = message.meta?.deliveryMode === 'queue'
+            ? message.localKey ?? message.meta.queueMessageId
+            : undefined;
+        const attachmentsForThisMessage = await session.drainAttachmentsForUserMessage(queueMessageId);
 
         // Resolve permission mode (validate against Codex-native modes)
         let messagePermissionMode = currentPermissionMode;
@@ -474,6 +500,7 @@ export async function runCodex(opts: {
             mode: enhancedMode,
             queue: messageQueue,
             attachments: attachmentsForThisMessage,
+            queueMessageId,
         });
         if (enqueueResult === 'clear') {
             logger.debug('[Codex] /clear command pushed to isolated queue');
@@ -1094,11 +1121,11 @@ export async function runCodex(opts: {
             }));
         }
 
-        let pending: { message: string; mode: EnhancedMode; isolate: boolean; hash: string; attachments?: PendingAttachment[] } | null = null;
+        let pending: MessageQueueBatch<EnhancedMode> | null = null;
 
         while (!shouldExit) {
             logActiveHandles('loop-top');
-            let message: { message: string; mode: EnhancedMode; isolate: boolean; hash: string; attachments?: PendingAttachment[] } | null = pending;
+            let message: MessageQueueBatch<EnhancedMode> | null = pending;
             pending = null;
             if (!message) {
                 // Capture the current signal to distinguish idle-abort from queue close
@@ -1120,6 +1147,8 @@ export async function runCodex(opts: {
             if (!message) {
                 break;
             }
+
+            messageQueue.markBatchStarted(message.queueMessageIds);
 
             if (isCodexClearText(message.message)) {
                 logger.debug('[Codex] Handling /clear command - resetting Codex thread state');
@@ -1144,6 +1173,7 @@ export async function runCodex(opts: {
                     delete nextMetadata.codexThreadId;
                     return nextMetadata;
                 });
+                messageQueue.completeCurrentBatch(message.queueMessageIds);
                 emitReadyIfIdle({
                     pending,
                     queueSize: () => messageQueue.size(),
@@ -1267,6 +1297,7 @@ export async function runCodex(opts: {
                 activeTurnPermissionMode = undefined;
                 thinking = false;
                 session.keepAlive(thinking, 'remote');
+                messageQueue.completeCurrentBatch(message.queueMessageIds);
                 emitReadyIfIdle({
                     pending,
                     queueSize: () => messageQueue.size(),

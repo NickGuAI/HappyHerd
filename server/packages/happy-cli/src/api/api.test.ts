@@ -4,13 +4,16 @@ import axios from 'axios';
 import { connectionState } from '@/utils/serverConnectionErrors';
 
 // Use vi.hoisted to ensure mock functions are available when vi.mock factory runs
-const { mockPost, mockIsAxiosError } = vi.hoisted(() => ({
+const { mockGet, mockPost, mockIsAxiosError, mockDecrypt } = vi.hoisted(() => ({
+    mockGet: vi.fn(),
     mockPost: vi.fn(),
-    mockIsAxiosError: vi.fn(() => true)
+    mockIsAxiosError: vi.fn(() => true),
+    mockDecrypt: vi.fn((_: unknown, __: unknown, data: unknown) => data),
 }));
 
 vi.mock('axios', () => ({
     default: {
+        get: mockGet,
         post: mockPost,
         isAxiosError: mockIsAxiosError
     },
@@ -27,12 +30,12 @@ vi.mock('@/ui/logger', () => ({
 vi.mock('./encryption', () => ({
     decodeBase64: vi.fn((data: string) => data),
     encodeBase64: vi.fn((data: any) => data),
-    decrypt: vi.fn((data: any) => data),
+    decrypt: mockDecrypt,
     encrypt: vi.fn((data: any) => data)
 }));
 
 // Mock configuration
-vi.mock('./configuration', () => ({
+vi.mock('@/configuration', () => ({
     configuration: {
         serverUrl: 'https://api.example.com'
     }
@@ -234,6 +237,78 @@ describe('Api server error handling', () => {
                 expect.stringContaining('⚠️  Happy server unreachable')
             );
             consoleSpy.mockRestore();
+        });
+    });
+
+    describe('refreshSessionForReconnect', () => {
+        it('refreshes queue-owning AgentState and merges current process metadata', async () => {
+            const encryptionKey = new Uint8Array(32);
+            mockGet.mockResolvedValue({
+                data: {
+                    sessions: [{
+                        id: 'session-1',
+                        seq: 42,
+                        metadata: 'encrypted-metadata',
+                        metadataVersion: 7,
+                        agentState: 'encrypted-agent-state',
+                        agentStateVersion: 9,
+                    }],
+                },
+            });
+            mockDecrypt
+                .mockReturnValueOnce({ ...testMetadata, claudeSessionId: 'claude-1', hostPid: 1 })
+                .mockReturnValueOnce({
+                    messageQueue: {
+                        pendingMessageIds: ['queued-2'],
+                        currentMessageIds: ['queued-1'],
+                    },
+                });
+
+            const result = await api.refreshSessionForReconnect({
+                id: 'session-1',
+                seq: 10,
+                encryptionKey,
+                encryptionVariant: 'legacy',
+                metadata: { ...testMetadata, hostPid: 99 },
+                metadataVersion: 2,
+                agentState: {},
+                agentStateVersion: 3,
+            });
+
+            expect(result).toMatchObject({
+                id: 'session-1',
+                seq: 42,
+                metadata: {
+                    claudeSessionId: 'claude-1',
+                    hostPid: 99,
+                },
+                metadataVersion: 7,
+                agentState: {
+                    messageQueue: {
+                        pendingMessageIds: ['queued-2'],
+                        currentMessageIds: ['queued-1'],
+                    },
+                },
+                agentStateVersion: 9,
+            });
+            expect(mockGet).toHaveBeenCalledWith(
+                expect.stringMatching(/\/v1\/sessions$/),
+                expect.objectContaining({ timeout: 60000 }),
+            );
+        });
+
+        it('fails closed when the reconnect target is absent', async () => {
+            mockGet.mockResolvedValue({ data: { sessions: [] } });
+            await expect(api.refreshSessionForReconnect({
+                id: 'missing-session',
+                seq: 0,
+                encryptionKey: new Uint8Array(32),
+                encryptionVariant: 'legacy',
+                metadata: testMetadata,
+                metadataVersion: 0,
+                agentState: {},
+                agentStateVersion: 0,
+            })).rejects.toThrow('Cannot refresh Happy session missing-session for reconnect');
         });
     });
 

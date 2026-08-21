@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { HappyHerdAutomationProviderOutcome, Update, UpdateMachineBody } from '@slopus/happy-wire';
+import type { AgentMessageQueueState, HappyHerdAutomationProviderOutcome, Update, UpdateMachineBody } from '@slopus/happy-wire';
 import { UsageSchema } from '@/claude/types'
 import type { SandboxConfig } from '@/persistence'
 
@@ -234,6 +234,7 @@ export const MessageMetaSchema = z.object({
   allowedTools: z.array(z.string()).nullable().optional(), // Allowed tools for this message (null = reset)
   disallowedTools: z.array(z.string()).nullable().optional(), // Disallowed tools for this message (null = reset)
   deliveryMode: z.enum(['queue']).optional(), // Explicitly bypass active-turn steering and use the provider queue
+  queueMessageId: z.string().trim().min(1).optional(), // Parent local ID for queued attachment records
 })
 
 export type MessageMeta = z.infer<typeof MessageMetaSchema>
@@ -299,6 +300,7 @@ export const FileEventMessageSchema = z.object({
       }),
     }),
   }),
+  meta: MessageMetaSchema.optional(),
 })
 
 export type FileEventMessage = z.infer<typeof FileEventMessageSchema>
@@ -453,6 +455,8 @@ export type AgentState = {
    * Apps must tolerate window ids they don't recognize.
    */
   usageLimits?: UsageLimits
+  /** Ordered IDs for the runtime-owned explicit user-message queue. */
+  messageQueue?: AgentMessageQueueState
   requests?: {
     [id: string]: {
       tool: string,

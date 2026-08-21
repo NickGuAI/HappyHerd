@@ -15,5 +15,7 @@ export const MessageMetaSchema = z.object({
   effort: z.string().nullable().optional(),
   displayText: z.string().optional(),
   deliveryMode: z.enum(['queue']).optional(),
+  // Associates immutable attachment records with their queued user message.
+  queueMessageId: z.string().trim().min(1).optional(),
 });
 export type MessageMeta = z.infer<typeof MessageMetaSchema>;

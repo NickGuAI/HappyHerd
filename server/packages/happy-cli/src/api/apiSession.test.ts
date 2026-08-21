@@ -105,7 +105,7 @@ function encryptContent(session: ReturnType<typeof makeSession>, content: unknow
     return encodeBase64(encrypt(session.encryptionKey, session.encryptionVariant, content));
 }
 
-function createNewMessageUpdate(seq: number, encryptedContent: string): Update {
+function createNewMessageUpdate(seq: number, encryptedContent: string, localId: string | null = null): Update {
     return {
         id: `upd-${seq}`,
         seq,
@@ -116,7 +116,7 @@ function createNewMessageUpdate(seq: number, encryptedContent: string): Update {
             message: {
                 id: `msg-${seq}`,
                 seq,
-                localId: null,
+                localId,
                 content: {
                     t: 'encrypted',
                     c: encryptedContent
@@ -775,6 +775,182 @@ describe('ApiSessionClient v3 messages API migration', () => {
         expect((client as any).lastSeq).toBe(1);
     });
 
+    it('preserves the persisted user local ID through catch-up fetch', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        const onUserMessage = vi.fn();
+        client.onUserMessage(onUserMessage);
+        const userMessage = {
+            role: 'user',
+            content: { type: 'text', text: 'queued during reconnect' },
+            localKey: 'stale-embedded-id',
+            meta: { deliveryMode: 'queue' },
+        };
+
+        mockAxiosGet.mockResolvedValueOnce({
+            data: {
+                messages: [{
+                    id: 'msg-queue-fetch',
+                    seq: 1,
+                    content: {
+                        t: 'encrypted',
+                        c: encryptContent(session, userMessage),
+                    },
+                    localId: 'queue-local-fetch',
+                    createdAt: 1000,
+                    updatedAt: 1000,
+                }],
+                hasMore: false,
+            },
+        });
+
+        await (client as any).fetchMessages();
+
+        expect(onUserMessage).toHaveBeenCalledWith({
+            ...userMessage,
+            localKey: 'queue-local-fetch',
+        });
+    });
+
+    it('replays only unfinished queued text and attachment records during reconnect catch-up', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        const onUserMessage = vi.fn();
+        const onFileEvent = vi.fn();
+        client.onUserMessage(onUserMessage);
+        client.onFileEvent(onFileEvent);
+        client.skipExistingMessages(['queue-pending']);
+
+        const historicalUser = {
+            role: 'user',
+            content: { type: 'text', text: 'already completed' },
+        };
+        const queuedFile = {
+            role: 'session',
+            content: {
+                type: 'session',
+                data: {
+                    id: 'file-event-pending',
+                    time: 1000,
+                    role: 'user',
+                    ev: {
+                        t: 'file',
+                        ref: 'sessions/test-session-id/attachments/pending.enc',
+                        name: 'pending.png',
+                        size: 42,
+                        mimeType: 'image/png',
+                    },
+                },
+            },
+            meta: { deliveryMode: 'queue', queueMessageId: 'queue-pending' },
+        };
+        const queuedUser = {
+            role: 'user',
+            content: { type: 'text', text: 'finish me' },
+            meta: { deliveryMode: 'queue', queueMessageId: 'queue-pending' },
+        };
+        const historicalAgent = {
+            role: 'agent',
+            content: { type: 'output', data: { text: 'old answer' } },
+        };
+        const records = [historicalUser, queuedFile, queuedUser, historicalAgent];
+        mockAxiosGet.mockResolvedValueOnce({
+            data: {
+                messages: records.map((record, index) => ({
+                    id: `msg-${index + 1}`,
+                    seq: index + 1,
+                    content: { t: 'encrypted', c: encryptContent(session, record) },
+                    localId: index === 2 ? 'queue-pending' : `local-${index + 1}`,
+                    createdAt: 1000 + index,
+                    updatedAt: 1000 + index,
+                })),
+                hasMore: false,
+            },
+        });
+
+        await (client as any).fetchMessages();
+
+        expect(onFileEvent).toHaveBeenCalledTimes(1);
+        expect(onFileEvent).toHaveBeenCalledWith(queuedFile);
+        expect(onUserMessage).toHaveBeenCalledTimes(1);
+        expect(onUserMessage).toHaveBeenCalledWith({ ...queuedUser, localKey: 'queue-pending' });
+        expect((client as any).lastSeq).toBe(4);
+        expect((client as any).skipInitialMessages).toBe(false);
+    });
+
+    it('keeps reconnect filtering active when the initial catch-up request fails', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        const onUserMessage = vi.fn();
+        client.onUserMessage(onUserMessage);
+        client.skipExistingMessages(['queue-pending']);
+        mockAxiosGet
+            .mockRejectedValueOnce(new Error('temporary network failure'))
+            .mockResolvedValueOnce({
+                data: {
+                    messages: [{
+                        id: 'msg-history',
+                        seq: 1,
+                        content: {
+                            t: 'encrypted',
+                            c: encryptContent(session, {
+                                role: 'user',
+                                content: { type: 'text', text: 'already completed' },
+                            }),
+                        },
+                        localId: 'old-local-id',
+                        createdAt: 1000,
+                        updatedAt: 1000,
+                    }],
+                    hasMore: false,
+                },
+            });
+
+        await expect((client as any).fetchMessages()).rejects.toThrow('temporary network failure');
+        await (client as any).fetchMessages();
+
+        expect(onUserMessage).not.toHaveBeenCalled();
+        expect((client as any).skipInitialMessages).toBe(false);
+    });
+
+    it('routes messages created after the reconnect snapshot while filtering older history', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        const onUserMessage = vi.fn();
+        client.onUserMessage(onUserMessage);
+        client.skipExistingMessages([], 1);
+        const oldMessage = { role: 'user', content: { type: 'text', text: 'old' } };
+        const newMessage = { role: 'user', content: { type: 'text', text: 'new during reconnect' } };
+        mockAxiosGet.mockResolvedValueOnce({
+            data: {
+                messages: [oldMessage, newMessage].map((record, index) => ({
+                    id: `msg-${index + 1}`,
+                    seq: index + 1,
+                    content: { t: 'encrypted', c: encryptContent(session, record) },
+                    localId: `local-${index + 1}`,
+                    createdAt: 1000 + index,
+                    updatedAt: 1000 + index,
+                })),
+                hasMore: false,
+            },
+        });
+
+        await (client as any).fetchMessages();
+
+        expect(onUserMessage).toHaveBeenCalledTimes(1);
+        expect(onUserMessage).toHaveBeenCalledWith({ ...newMessage, localKey: 'local-2' });
+    });
+
+    it('keeps queued attachment downloads bound to their parent message ID', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        const first = { data: new Uint8Array([1]), mimeType: 'image/png', name: 'first.png' };
+        const second = { data: new Uint8Array([2]), mimeType: 'image/png', name: 'second.png' };
+        const ordinary = { data: new Uint8Array([3]), mimeType: 'image/png', name: 'ordinary.png' };
+        client.trackAttachmentDownload(Promise.resolve(first), 'queue-first');
+        client.trackAttachmentDownload(Promise.resolve(second), 'queue-second');
+        client.trackAttachmentDownload(Promise.resolve(ordinary));
+
+        await expect(client.drainAttachmentsForUserMessage('queue-second')).resolves.toEqual([second]);
+        await expect(client.drainAttachmentsForUserMessage('queue-first')).resolves.toEqual([first]);
+        await expect(client.drainAttachmentsForUserMessage()).resolves.toEqual([ordinary]);
+    });
+
     it('fetchMessages uses incremental cursor and paginates while hasMore is true', async () => {
         const client = new ApiSessionClient('fake-token', session);
         const onUserMessage = vi.fn();
@@ -1010,6 +1186,29 @@ describe('ApiSessionClient v3 messages API migration', () => {
         expect(onUserMessage).toHaveBeenCalledTimes(1);
         expect(onUserMessage).toHaveBeenCalledWith(userMessage);
         expect((client as any).lastSeq).toBe(2);
+        expect(mockAxiosGet).not.toHaveBeenCalled();
+    });
+
+    it('preserves the persisted user local ID through the websocket fast path', () => {
+        const client = new ApiSessionClient('fake-token', session);
+        const onUserMessage = vi.fn();
+        client.onUserMessage(onUserMessage);
+        (client as any).lastSeq = 1;
+        const userMessage = {
+            role: 'user',
+            content: { type: 'text', text: 'queued live' },
+            meta: { deliveryMode: 'queue' },
+        };
+
+        emitSocketEvent(
+            'update',
+            createNewMessageUpdate(2, encryptContent(session, userMessage), 'queue-local-live'),
+        );
+
+        expect(onUserMessage).toHaveBeenCalledWith({
+            ...userMessage,
+            localKey: 'queue-local-live',
+        });
         expect(mockAxiosGet).not.toHaveBeenCalled();
     });
 

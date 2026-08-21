@@ -17,6 +17,7 @@ import {
 import { getSuggestions } from '@/components/autocomplete/suggestions';
 import { ChatHeaderView } from '@/components/ChatHeaderView';
 import { ChatList } from '@/components/ChatList';
+import { QueuedMessagesPanel } from '@/components/QueuedMessagesPanel';
 import { Deferred } from '@/components/Deferred';
 import { EmptyMessages } from '@/components/EmptyMessages';
 import { SessionStatusBar } from '@/components/SessionStatusBar';
@@ -91,6 +92,7 @@ import {
     subscribeWorkspaceContext,
 } from '@/sync/workspaceContext';
 import { buildWorkspaceAttachmentParams } from '@/utils/machineWorkspace';
+import { projectSessionQueue } from '@/sync/queueProjection';
 
 export const SessionView = React.memo((props: { id: string }) => {
     const sessionId = props.id;
@@ -735,6 +737,10 @@ export function SessionViewLoaded({
 
     const realtimeStatus = useRealtimeStatus();
     const { messages, isLoaded } = useSessionMessages(sessionId);
+    const queueProjection = React.useMemo(
+        () => projectSessionQueue(messages, session.agentState?.messageQueue),
+        [messages, session.agentState?.messageQueue],
+    );
     const acknowledgedCliVersions = useLocalSetting('acknowledgedCliVersions');
     const zenMode = useLocalSetting('zenMode');
     const sessionInputHorizontalPadding = Platform.OS === 'web' || isRunningOnMac() || isTablet ? 12 : 8;
@@ -1211,6 +1217,9 @@ export function SessionViewLoaded({
             </CenteredInputWidth>
             {sessionStatusBarPosition === 'above' ? sessionStatusBar : null}
             {showBottomDockDetails && <RigActivityBar metadata={session.metadata} />}
+            <CenteredInputWidth horizontalPadding={sessionInputHorizontalPadding}>
+                <QueuedMessagesPanel projection={queueProjection} />
+            </CenteredInputWidth>
             {composer}
             {sessionStatusBarPosition === 'below' ? sessionStatusBar : null}
         </>

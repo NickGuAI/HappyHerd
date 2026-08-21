@@ -17,6 +17,7 @@ import { resolveControlMode } from '@/sync/controlHandoff';
 import { usesControlledSessionUi } from '@/sync/rig';
 import { countNewConversationMessages, getConversationMessageIds } from './chatLatestNavigation';
 import { t } from '@/text';
+import { projectSessionQueue } from '@/sync/queueProjection';
 
 const SCROLL_THRESHOLD = 300;
 const DOCK_DETAILS_SHOW_OFFSET = 16;
@@ -31,11 +32,15 @@ export const ChatList = React.memo((props: {
     onBottomDockVisibilityChange?: (visible: boolean) => void;
 }) => {
     const { messages, hasMoreOlder, isLoadingOlder } = useSessionMessages(props.session.id);
+    const queueProjection = React.useMemo(
+        () => projectSessionQueue(messages, props.session.agentState?.messageQueue),
+        [messages, props.session.agentState?.messageQueue],
+    );
     return (
         <ChatListInternal
             metadata={props.session.metadata}
             sessionId={props.session.id}
-            messages={messages}
+            messages={queueProjection.transcriptMessages}
             hasMoreOlder={hasMoreOlder}
             isLoadingOlder={isLoadingOlder}
             topContentInset={props.topContentInset}

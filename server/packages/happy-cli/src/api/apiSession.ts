@@ -204,7 +204,10 @@ export class ApiSessionClient extends EventEmitter {
      * null on failure), so per-message ownership is intrinsic — there is no
      * shared push-array between batches that a late download could leak into.
      */
-    private pendingDownloads: Promise<{ data: Uint8Array; mimeType: string; name: string } | null>[] = [];
+    private pendingDownloads: Array<{
+        promise: Promise<{ data: Uint8Array; mimeType: string; name: string } | null>;
+        queueMessageId?: string;
+    }> = [];
     readonly rpcHandlerManager: RpcHandlerManager;
     private agentStateLock = new AsyncLock();
     private metadataLock = new AsyncLock();
@@ -213,6 +216,8 @@ export class ApiSessionClient extends EventEmitter {
     private reconnectInterval: NodeJS.Timeout | null = null;
     private ignoreArchiveSignal = false;
     private skipInitialMessages = false;
+    private skipExistingMessagesThroughSeq = Number.MAX_SAFE_INTEGER;
+    private replayExistingQueueMessageIds = new Set<string>();
     private claudeSessionProtocolState: ClaudeSessionProtocolState = {
         currentTurnId: null,
         uuidToProviderSubagent: new Map<string, string>(),
@@ -325,7 +330,7 @@ export class ApiSessionClient extends EventEmitter {
                             ? (body as { content: { type: string } }).content.type
                             : 'unknown',
                     });
-                    this.routeIncomingMessage(body);
+                    this.routeIncomingMessage(body, data.body.message.localId);
                     this.lastSeq = messageSeq;
                 } else if (data.body.t === 'update-session') {
                     if (data.body.metadata && data.body.metadata.version > this.metadataVersion) {
@@ -523,8 +528,14 @@ export class ApiSessionClient extends EventEmitter {
      * events that arrive after the swap go into a fresh bucket bound to the
      * next user-text message.
      */
-    trackAttachmentDownload(promise: Promise<{ data: Uint8Array; mimeType: string; name: string } | null>): void {
-        this.pendingDownloads.push(promise);
+    trackAttachmentDownload(
+        promise: Promise<{ data: Uint8Array; mimeType: string; name: string } | null>,
+        queueMessageId?: string,
+    ): void {
+        this.pendingDownloads.push({
+            promise,
+            ...(queueMessageId ? { queueMessageId } : {}),
+        });
     }
 
     /**
@@ -532,11 +543,15 @@ export class ApiSessionClient extends EventEmitter {
      * to resolve, and return the successful ones. The swap-then-await order
      * guarantees that a late-arriving file event cannot leak into this batch.
      */
-    async drainAttachmentsForUserMessage(): Promise<Array<{ data: Uint8Array; mimeType: string; name: string }>> {
-        const downloads = this.pendingDownloads;
-        this.pendingDownloads = [];
+    async drainAttachmentsForUserMessage(queueMessageId?: string): Promise<Array<{ data: Uint8Array; mimeType: string; name: string }>> {
+        const downloads = this.pendingDownloads.filter((download) => (
+            queueMessageId
+                ? download.queueMessageId === queueMessageId
+                : download.queueMessageId === undefined
+        ));
+        this.pendingDownloads = this.pendingDownloads.filter((download) => !downloads.includes(download));
         if (downloads.length === 0) return [];
-        const results = await Promise.all(downloads);
+        const results = await Promise.all(downloads.map((download) => download.promise));
         return results.filter((x): x is { data: Uint8Array; mimeType: string; name: string } => x !== null);
     }
 
@@ -548,13 +563,19 @@ export class ApiSessionClient extends EventEmitter {
         };
     }
 
-    private routeIncomingMessage(message: unknown) {
+    private routeIncomingMessage(message: unknown, persistedLocalId?: string | null) {
         const userResult = UserMessageSchema.safeParse(message);
         if (userResult.success) {
+            const localKey = persistedLocalId
+                ?? userResult.data.localKey
+                ?? userResult.data.meta?.queueMessageId;
+            const userMessage = localKey
+                ? { ...userResult.data, localKey }
+                : userResult.data;
             if (this.pendingMessageCallback) {
-                this.pendingMessageCallback(userResult.data);
+                this.pendingMessageCallback(userMessage);
             } else {
-                this.pendingMessages.push(userResult.data);
+                this.pendingMessages.push(userMessage);
             }
             return;
         }
@@ -582,7 +603,6 @@ export class ApiSessionClient extends EventEmitter {
         // On reconnect, skip processing existing messages — just advance lastSeq
         const skipRouting = this.skipInitialMessages;
         if (skipRouting) {
-            this.skipInitialMessages = false;
             logger.debug('[API] Reconnect mode: skipping existing messages, advancing lastSeq');
         }
 
@@ -608,15 +628,18 @@ export class ApiSessionClient extends EventEmitter {
                     maxSeq = message.seq;
                 }
 
-                if (skipRouting) continue;
-
                 if (message.content?.t !== 'encrypted') {
                     continue;
                 }
 
                 try {
                     const body = decrypt(this.encryptionKey, this.encryptionVariant, decodeBase64(message.content.c));
-                    this.routeIncomingMessage(body);
+                    const isExistingAtReconnect = skipRouting
+                        && message.seq <= this.skipExistingMessagesThroughSeq;
+                    if (isExistingAtReconnect && !this.shouldReplayExistingQueueRecord(body, message.localId)) {
+                        continue;
+                    }
+                    this.routeIncomingMessage(body, message.localId);
                 } catch (error) {
                     logger.debug('[API] Failed to decrypt fetched message', {
                         sessionId: this.sessionId,
@@ -640,6 +663,34 @@ export class ApiSessionClient extends EventEmitter {
                 break;
             }
         }
+        if (skipRouting) {
+            this.skipInitialMessages = false;
+            this.skipExistingMessagesThroughSeq = Number.MAX_SAFE_INTEGER;
+            this.replayExistingQueueMessageIds.clear();
+        }
+    }
+
+    private shouldReplayExistingQueueRecord(body: unknown, persistedLocalId?: string | null): boolean {
+        if (this.replayExistingQueueMessageIds.size === 0 || !body || typeof body !== 'object') {
+            return false;
+        }
+        const record = body as {
+            role?: unknown;
+            meta?: { queueMessageId?: unknown; deliveryMode?: unknown };
+        };
+        const parentQueueMessageId = typeof record.meta?.queueMessageId === 'string'
+            ? record.meta.queueMessageId
+            : null;
+        if (record.role === 'user') {
+            return (
+                (typeof persistedLocalId === 'string' && this.replayExistingQueueMessageIds.has(persistedLocalId))
+                || (record.meta?.deliveryMode === 'queue'
+                    && parentQueueMessageId !== null
+                    && this.replayExistingQueueMessageIds.has(parentQueueMessageId))
+            );
+        }
+        return parentQueueMessageId !== null
+            && this.replayExistingQueueMessageIds.has(parentQueueMessageId);
     }
 
     private static readonly MAX_OUTBOX_BATCH_SIZE = 50;
@@ -916,8 +967,13 @@ export class ApiSessionClient extends EventEmitter {
         this.ignoreArchiveSignal = true;
     }
 
-    skipExistingMessages() {
+    skipExistingMessages(
+        queueMessageIds: readonly string[] = [],
+        throughSeq: number = Number.MAX_SAFE_INTEGER,
+    ) {
         this.skipInitialMessages = true;
+        this.skipExistingMessagesThroughSeq = throughSeq;
+        this.replayExistingQueueMessageIds = new Set(queueMessageIds);
     }
 
     updateMetadata(handler: (metadata: Metadata) => Metadata): Promise<void> {

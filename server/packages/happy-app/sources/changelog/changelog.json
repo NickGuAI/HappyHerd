@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 21 — Queued messages stay visibly queued",
+      "summary": "Queue Msg follow-ups now appear in an ordered queue above the composer instead of looking like messages that already entered the conversation.",
+      "markdown": "- Waiting text and attachments stay together in a read-only queue panel and move into the conversation only when the owning runtime starts that work.\n- Batched follow-ups preserve their individual order and identity across Claude Code, Codex, reconnects, and message catch-up.\n- Failed local sends cannot leave ghost queue counts, while sessions on older runtimes retain their established transcript behavior."
+    },
+    {
       "title": "August 21 — Automations grouped by project and machine",
       "summary": "Automations now appear in a Project → Machine → Automation hierarchy across every online HappyHerd host.",
       "markdown": "- Add one or more project tags while creating or editing an automation; multi-tag automations appear in each matching project and definitions without tags stay under Untagged.\n- One failed or offline machine no longer hides automations loaded from the other connected machines, and every action still targets the machine that owns that automation.\n- Older daemons continue to load their existing definitions safely as Untagged and show an upgrade prompt before tags can be edited.\n- The shared Automations route provides the same organization and tag controls on Web, mobile, and native iOS."
@@ -171,5 +176,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 21 — Automations grouped by project and machine"
+  "latestTitle": "August 21 — Queued messages stay visibly queued"
 }
