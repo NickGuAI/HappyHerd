@@ -1,3 +1,12 @@
+# August 21 — Automations grouped by project and machine
+
+Automations now appear in a Project → Machine → Automation hierarchy across every online HappyHerd host.
+
+- Add one or more project tags while creating or editing an automation; multi-tag automations appear in each matching project and definitions without tags stay under Untagged.
+- One failed or offline machine no longer hides automations loaded from the other connected machines, and every action still targets the machine that owns that automation.
+- Older daemons continue to load their existing definitions safely as Untagged and show an upgrade prompt before tags can be edited.
+- The shared Automations route provides the same organization and tag controls on Web, mobile, and native iOS.
+
 # August 21 — Commander identity in every conversation
 
 Compact conversation lists now show the selected Commander's profile image next to the conversation title.

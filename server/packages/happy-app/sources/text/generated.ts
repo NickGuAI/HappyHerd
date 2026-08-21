@@ -286,6 +286,7 @@ export type TranslationKey =
     | "happyHerd.automations.initialState"
     | "happyHerd.automations.instruction"
     | "happyHerd.automations.kind"
+    | "happyHerd.automations.machineLoadFailed"
     | "happyHerd.automations.machineOffline"
     | "happyHerd.automations.name"
     | "happyHerd.automations.new"
@@ -301,6 +302,9 @@ export type TranslationKey =
     | "happyHerd.automations.statusActive"
     | "happyHerd.automations.statusPaused"
     | "happyHerd.automations.subtitle"
+    | "happyHerd.automations.tags"
+    | "happyHerd.automations.tagsHint"
+    | "happyHerd.automations.tagsRequiresUpgrade"
     | "happyHerd.automations.timezone"
     | "happyHerd.automations.title"
     | "happyHerd.automations.unableDelete"
@@ -310,6 +314,7 @@ export type TranslationKey =
     | "happyHerd.automations.unableSave"
     | "happyHerd.automations.unableUpdate"
     | "happyHerd.automations.unknownError"
+    | "happyHerd.automations.untagged"
     | "happyHerd.automations.workspace"
     | "happyHerd.commander.category"
     | "happyHerd.commander.createSubtitle"
@@ -1201,6 +1206,7 @@ export interface TranslationParamsByKey {
     "happyHerd.automations.commanderValue": { id: string };
     "happyHerd.automations.deleteDescription": { name: string };
     "happyHerd.automations.expandDetails": { name: string };
+    "happyHerd.automations.machineLoadFailed": { message: string; name: string };
     "happyHerd.automations.openSession": { id: string };
     "imageUpload.fileTooLargeMessage": { maxMb: number; name: string };
     "imageUpload.limitMessage": { max: number };

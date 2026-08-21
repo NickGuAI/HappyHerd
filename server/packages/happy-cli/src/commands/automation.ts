@@ -3,7 +3,7 @@ import type { HappyHerdAutomationCreateInput, HappyHerdAutomationUpdateInput } f
 import { daemonAutomationAction } from '@/daemon/controlClient';
 import { ensureDaemonRunning } from '@/daemon/ensureDaemonRunning';
 
-type Flags = Record<string, string | boolean>;
+type Flags = Record<string, string | boolean | string[]>;
 
 function parseFlags(args: string[]): { positional: string[]; flags: Flags } {
   const positional: string[] = [];
@@ -17,13 +17,39 @@ function parseFlags(args: string[]): { positional: string[]; flags: Flags } {
     const key = value.slice(2);
     const next = args[index + 1];
     if (next && !next.startsWith('--')) {
-      flags[key] = next;
+      if (key === 'tag') {
+        const current = flags[key];
+        flags[key] = typeof current === 'string'
+          ? [current, next]
+          : Array.isArray(current)
+            ? [...current, next]
+            : next;
+      } else {
+        flags[key] = next;
+      }
       index += 1;
     } else {
       flags[key] = true;
     }
   }
   return { positional, flags };
+}
+
+function repeatedStringFlag(flags: Flags, name: string): string[] {
+  const value = flags[name];
+  if (value === undefined) return [];
+  const values = Array.isArray(value) ? value : [value];
+  if (values.some((entry) => typeof entry !== 'string' || !entry.trim())) {
+    throw new Error(`--${name} requires a value`);
+  }
+  return values.map((entry) => (entry as string).trim());
+}
+
+function booleanFlag(flags: Flags, name: string): boolean {
+  const value = flags[name];
+  if (value === undefined) return false;
+  if (value === true) return true;
+  throw new Error(`--${name} does not accept a value`);
 }
 
 function stringFlag(flags: Flags, name: string, required = false): string | undefined {
@@ -46,6 +72,11 @@ function inputFromFlags(flags: Flags, partial: boolean): HappyHerdAutomationCrea
   const commander = stringFlag(flags, 'commander');
   const status = stringFlag(flags, 'status');
   const maxRetriesRaw = stringFlag(flags, 'max-retries');
+  const tags = repeatedStringFlag(flags, 'tag');
+  const clearTags = booleanFlag(flags, 'clear-tags');
+  if (tags.length > 0 && clearTags) {
+    throw new Error('--tag and --clear-tags cannot be combined');
+  }
   return {
     ...(name ? { name } : {}),
     ...(kind ? { kind: kind as HappyHerdAutomationCreateInput['kind'] } : {}),
@@ -59,6 +90,7 @@ function inputFromFlags(flags: Flags, partial: boolean): HappyHerdAutomationCrea
     ...(maxRetriesRaw !== undefined
       ? { maxRetries: Number.parseInt(maxRetriesRaw, 10) }
       : (!partial ? { maxRetries: 0 } : {})),
+    ...(tags.length > 0 ? { tags } : clearTags ? { tags: [] } : {}),
   } as HappyHerdAutomationCreateInput | HappyHerdAutomationUpdateInput;
 }
 
@@ -70,8 +102,9 @@ Usage:
   happy automation list [--json]
   happy automation create --name NAME --kind scheduled|heartbeat|memory-maintenance \\
     --instruction TEXT --schedule CRON --timezone IANA --workspace PATH \\
-    --rail claude|codex [--commander ID|none] [--status active|paused] [--max-retries N]
-  happy automation update ID [the same optional flags]
+    --rail claude|codex [--commander ID|none] [--status active|paused] [--max-retries N] \\
+    [--tag VALUE ...]
+  happy automation update ID [the same optional flags] [--clear-tags]
   happy automation pause|resume|run-now|delete|history ID [--json]
 
 Definitions are stored below the configured HAPPY_HOME_DIR at

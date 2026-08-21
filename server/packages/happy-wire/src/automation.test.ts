@@ -1,16 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  HAPPYHERD_AUTOMATION_MAX_TAG_LENGTH,
+  HAPPYHERD_AUTOMATION_MAX_TAGS,
   HappyHerdAutomationCreateInputSchema,
+  HappyHerdAutomationListResponseSchema,
   HappyHerdAutomationProviderOutcomeSchema,
   HappyHerdAutomationRunSchema,
   HappyHerdAutomationSchema,
+  HappyHerdAutomationUpdateInputSchema,
 } from './automation';
 
 const id = '8f0a5dd0-b7c0-4b60-a747-675b49ccfdc8';
 
 describe('HappyHerd automation wire contract', () => {
-  it('accepts the owned machine-local definition and rejects unknown fields', () => {
+  it('normalizes strict v1 definitions to v2 with no tags', () => {
     const definition = {
       schemaVersion: 1 as const,
       runtimeOwner: 'happyherd' as const,
@@ -31,8 +35,74 @@ describe('HappyHerd automation wire contract', () => {
       lastScheduledAt: null,
       lastRunAt: null,
     };
-    expect(HappyHerdAutomationSchema.parse(definition)).toEqual(definition);
+    expect(HappyHerdAutomationSchema.parse(definition)).toEqual({
+      ...definition,
+      schemaVersion: 2,
+      tags: [],
+    });
     expect(() => HappyHerdAutomationSchema.parse({ ...definition, providerTransport: 'unsupported' })).toThrow();
+  });
+
+  it('accepts normalized v2 tags and enforces bounded unique values', () => {
+    const definition = {
+      schemaVersion: 2 as const,
+      runtimeOwner: 'happyherd' as const,
+      id,
+      machineId: 'machine-one',
+      name: 'Memory maintenance',
+      kind: 'memory-maintenance' as const,
+      instruction: 'Distill durable memory.',
+      schedule: '0 2 * * *',
+      timezone: 'UTC',
+      workspace: '/srv/app',
+      rail: 'claude' as const,
+      commanderId: 'athena',
+      status: 'paused' as const,
+      maxRetries: 1,
+      tags: [' Operations ', 'Project Beacon'],
+      createdAt: '2026-08-03T00:00:00.000Z',
+      updatedAt: '2026-08-03T00:00:00.000Z',
+      lastScheduledAt: null,
+      lastRunAt: null,
+    };
+
+    expect(HappyHerdAutomationSchema.parse(definition).tags).toEqual(['Operations', 'Project Beacon']);
+    expect(() => HappyHerdAutomationSchema.parse({ ...definition, tags: ['same', ' same '] })).toThrow(/Duplicate/);
+    expect(() => HappyHerdAutomationSchema.parse({
+      ...definition,
+      tags: Array.from({ length: HAPPYHERD_AUTOMATION_MAX_TAGS + 1 }, (_, index) => `tag-${index}`),
+    })).toThrow();
+    expect(() => HappyHerdAutomationSchema.parse({
+      ...definition,
+      tags: ['x'.repeat(HAPPYHERD_AUTOMATION_MAX_TAG_LENGTH + 1)],
+    })).toThrow();
+    expect(() => HappyHerdAutomationSchema.parse({ ...definition, schedulerHint: true })).toThrow();
+  });
+
+  it('defaults create tags, keeps update tags optional, and advertises list capability safely', () => {
+    const createInput = {
+      name: 'Heartbeat',
+      kind: 'heartbeat' as const,
+      instruction: 'Check status.',
+      schedule: '*/15 * * * *',
+      timezone: 'UTC',
+      workspace: '/srv/app',
+      rail: 'codex' as const,
+      commanderId: null,
+      status: 'active' as const,
+      maxRetries: 0,
+    };
+    expect(HappyHerdAutomationCreateInputSchema.parse(createInput).tags).toEqual([]);
+    expect(HappyHerdAutomationUpdateInputSchema.parse({ name: 'Renamed' })).toEqual({ name: 'Renamed' });
+    expect(HappyHerdAutomationUpdateInputSchema.parse({ tags: [' z ', 'a'] }).tags).toEqual(['a', 'z']);
+    expect(HappyHerdAutomationListResponseSchema.parse({ automations: [] })).toEqual({
+      definitionSchemaVersion: 1,
+      automations: [],
+    });
+    expect(HappyHerdAutomationListResponseSchema.parse({
+      definitionSchemaVersion: 2,
+      automations: [],
+    }).definitionSchemaVersion).toBe(2);
   });
 
   it('requires an explicit rail, workspace, timezone, and paused/active state', () => {
