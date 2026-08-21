@@ -1,0 +1,39 @@
+# Change routing
+
+Start with the narrowest owning surface, then inspect the coupled callers and
+state owners before editing. Paths are relative to the repository root.
+
+| Touching | Inspect first | Coupled surfaces to inspect | Minimum targeted proof |
+|---|---|---|---|
+| Distribution governance, owned patches, or upstream history | `AGENTS.md`, `docs/lineage.md`, `docs/patch-discipline.md`, `docs/owned-patches.tsv` | `scripts/verify-lineage.sh`, `scripts/verify-patch-discipline.sh`, `docs/upstream-sync-rehearsal.md` | Lineage and patch verifiers; then the contract suite from a clean committed tree |
+| App routes or components | `server/packages/happy-app/index.ts`, `server/packages/happy-app/sources/app/**`, `server/packages/happy-app/sources/components/**` | `server/packages/happy-app/sources/sync/**`, `server/packages/happy-app/sources/text/locales/{en,cn,de}.json`, UI inventory, changelog | App typecheck/tests, `i18n:check`, production web export |
+| Localized copy, catalog keys, or UI ownership | `server/packages/happy-app/sources/text/locales/{en,cn,de}.json`, `server/packages/happy-app/scripts/validate-i18n.mjs`, `server/packages/happy-app/scripts/generate-ui-surface-inventory.mjs` | Owning route/component, generated `server/packages/happy-app/sources/text/ui-surface-inventory.json` and `server/packages/happy-app/sources/text/ui-tree.html`, changelog | Generate when required, review the diff, then `i18n:check` |
+| Sync, message ordering, reconnect, or session visibility | `server/packages/happy-app/sources/sync/{sync,storage,apiSocket,apiTypes}.ts` | `happy-wire`, server API/socket/event routing, CLI `apiSession` | Focused tests plus app, wire, CLI, and server suites |
+| Shared protocol or encrypted payload shape | `server/packages/happy-wire/src/index.ts` and the relevant schema module | Every importer under app, CLI, server, and `happy-agent` | Wire tests and all affected consumer typechecks/tests |
+| CLI command or provider behavior | `server/packages/happy-cli/bin/happy.mjs`, `server/packages/happy-cli/src/index.ts`, provider directory under `server/packages/happy-cli/src/` | `server/packages/happy-cli/src/configuration.ts`, `server/packages/happy-cli/src/persistence.ts`, daemon, API clients, app session UI | `pnpm --filter happy typecheck` and `pnpm --filter happy test` |
+| Codex turn lifecycle | `server/packages/happy-cli/src/codex/{runCodex,codexAppServerClient,codexTurnRouting}.ts` | Colocated tests, `server/packages/happy-cli/src/api/apiSession.ts`, queue and protocol mapping | Codex-focused tests, then the Happy CLI package test |
+| Daemon or machine RPC | `server/packages/happy-cli/src/daemon/run.ts`, `server/packages/happy-cli/src/api/apiMachine.ts`, `server/packages/happy-cli/src/modules/common/registerCommonHandlers.ts` | `server/packages/happy-app/sources/sync/ops.ts`, `server/packages/happy-server/sources/app/api/socket/rpcHandler.ts`, `server/packages/happy-agent/src/machineRpc.ts` | Focused daemon/API tests and the cross-package contract suite |
+| Commander or AgentContext behavior | `server/packages/happy-cli/src/agentContext/commanderContext.ts`, `server/packages/happy-cli/src/commands/commander.ts` | `server/packages/happy-wire/src/commanderContext.ts`, app session creation/selector, automation bootstrap | Commander/context tests plus affected CLI/app tests |
+| Automations | `server/packages/happy-wire/src/automation.ts`; `server/packages/happy-cli/src/automations/{store,service,sessionBootstrap,providerOutcome}.ts` | Daemon lifecycle/API handlers and app automation route/card/ops | Wire, CLI, and app automation tests |
+| Server API, events, or database | `server/packages/happy-server/sources/{main,index,standalone}.ts`, `server/packages/happy-server/sources/app/api/api.ts`, `server/packages/happy-server/prisma/schema.prisma` | Route handler, event router, app/CLI caller, wire schema, storage adapter | Server typecheck/test/build plus affected client tests |
+| Self-host server bundle | `server/packages/happy-server-self-host/scripts/build-runtime.cjs`, `server/Dockerfile` | Happy server dependency list, Prisma migrations, app web bundle | Self-host build and nearest server/image release contracts |
+| Public launcher, issuer, Skills, or credential broker | `server/packages/happyherd-cli/src/{cli,contracts,broker,secretStore,skills,registry,toolRunner,runtime}.ts` | Native installer/service sources, issuer/release docs, release workflow | Launcher typecheck/tests and public-launcher contract |
+| Governed Discord agent | `server/packages/happyherd-agent/src/{index,config,bridge,store,happy,broker,httpServer,manifest}.ts` | `server/packages/happy-agent/src/control.ts`, deploy templates, runtime-isolation contract | Both agent suites and runtime/sandbox/release contracts |
+| `happy-agent` remote control | `server/packages/happy-agent/src/{index,control,api,machineRpc,session}.ts` | Server APIs/socket and `happyherd-agent` | `happy-agent` tests; integration tests when prerequisites exist |
+| Release, installer, deployment, or rollback | Root `scripts/`, `deploy/`, `installers/`, root `.github/workflows/` | Build provenance, public launcher, runtime isolation, rollback docs | Nearest executable contract followed by the full suite |
+| Codium desktop | `server/packages/codium/electron.vite.config.ts`, `server/packages/codium/sources/boot/**`, renderer routes/plugins | Agent workers and shared IPC protocols | Codium typecheck/test; no root required CI job currently owns it |
+| App log receiver | `server/packages/happy-app-logs/src/server.ts`, `server/packages/happy-app/sources/utils/consoleLogging.ts` | App log-server setting and the configured log root | Manual local start/smoke; no repository test currently owns it |
+
+## Routing rules
+
+- Root `.github/workflows/**` is the active repository CI. Files under
+  `server/.github/workflows/**` are retained upstream context.
+- `server/` preserves upstream history, but HappyHerd-owned changes inside it
+  still follow root patch discipline and root verification.
+- Shared runtime method strings may be contracts even when they are not all
+  declared in `happy-wire`; trace both endpoints before renaming one.
+- Do not normalize retained upstream product names or URLs merely because they
+  differ from distribution-owned names. `AGENTS.md` defines the branding scope.
+- A release or rehearsal command may intentionally require a clean, synchronized
+  `main`. Use targeted checks on feature branches and the documented main proof
+  at the correct lifecycle stage.
