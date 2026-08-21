@@ -45,7 +45,7 @@ import {
 import { resumeExistingThread } from './resumeExistingThread';
 import { emitReadyIfIdle } from './emitReadyIfIdle';
 import { enqueueCodexUserText, isCodexClearText } from './codexClearCommand';
-import { shouldSteerCodexUserInput } from './codexTurnRouting';
+import { deliverCodexActiveTurnInput, shouldSteerCodexUserInput } from './codexTurnRouting';
 import { downloadCodexFileEventAttachment } from './utils/attachmentEvents';
 import { prepareCodexImageInputItems } from './utils/imageInput';
 import { createSerialAsyncHandler } from './utils/serialAsyncHandler';
@@ -441,13 +441,23 @@ export async function runCodex(opts: {
             }
 
             try {
-                await client.steerTurn(message.content.text, {
-                    extraInputItems: imageInputs.inputItems,
+                const delivery = await deliverCodexActiveTurnInput({
+                    steer: () => client.steerTurn(message.content.text, {
+                        extraInputItems: imageInputs.inputItems,
+                    }),
+                    text: message.content.text,
+                    mode: enhancedMode,
+                    queue: messageQueue,
+                    attachments: attachmentsForThisMessage,
                 });
-                if (hasUserText) {
-                    messageBuffer.addMessage(message.content.text, 'user');
+                if (delivery === 'steered') {
+                    if (hasUserText) {
+                        messageBuffer.addMessage(message.content.text, 'user');
+                    }
+                    logger.debug(`[Codex] Steered follow-up into active turn ${activeTurnId}`);
+                } else {
+                    logger.warn(`[Codex] Active turn ${activeTurnId} ended before steering; queued follow-up as the next turn`);
                 }
-                logger.debug(`[Codex] Steered follow-up into active turn ${activeTurnId}`);
             } catch (error) {
                 const reason = error instanceof Error ? error.message : String(error);
                 logger.warn('[Codex] Failed to steer active turn', { activeTurnId, reason });

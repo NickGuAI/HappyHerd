@@ -1,3 +1,11 @@
+# August 21 — Codex sessions recover from stale turns
+
+Follow-up messages no longer get trapped behind a Codex turn that already ended at the provider.
+
+- HappyHerd retires stale local turn state only when Codex definitively reports that there is no active turn to steer.
+- The untouched follow-up, including its permissions, model settings, instructions, effort, and attachments, is queued exactly once as the next turn.
+- Ambiguous timeouts and transport errors are never replayed, and late lifecycle events cannot close a newer turn.
+
 # August 21 — One standalone AgentContext authority
 
 HappyHerd session instructions now come from one canonical home without predecessor migration or compatibility state.

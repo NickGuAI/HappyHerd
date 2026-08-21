@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 21 — Codex sessions recover from stale turns",
+      "summary": "Follow-up messages no longer get trapped behind a Codex turn that already ended at the provider.",
+      "markdown": "- HappyHerd retires stale local turn state only when Codex definitively reports that there is no active turn to steer.\n- The untouched follow-up, including its permissions, model settings, instructions, effort, and attachments, is queued exactly once as the next turn.\n- Ambiguous timeouts and transport errors are never replayed, and late lifecycle events cannot close a newer turn."
+    },
+    {
       "title": "August 21 — One standalone AgentContext authority",
       "summary": "HappyHerd session instructions now come from one canonical home without predecessor migration or compatibility state.",
       "markdown": "- `HAPPY_HOME_DIR` is the sole HappyHerd instruction authority; one-time migration tooling and its frozen manifest are gone.\n- Commander identity requires the supported frontmatter contract instead of retired header parsing.\n- Intentional runtime-isolation checks still reject unsafe personal state paths."
@@ -156,5 +161,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 21 — One standalone AgentContext authority"
+  "latestTitle": "August 21 — Codex sessions recover from stale turns"
 }

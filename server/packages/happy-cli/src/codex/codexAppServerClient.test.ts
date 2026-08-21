@@ -938,9 +938,9 @@ describe('CodexAppServerClient sandbox integration', () => {
         const completion = client.sendTurnAndWait('initial', { effort: 'max' });
         await waitFor(() => client.activeTurnId === 'turn-steer');
 
-        await client.steerTurn('follow up', {
+        await expect(client.steerTurn('follow up', {
             extraInputItems: [{ type: 'localImage', path: '/tmp/follow-up.png' }],
-        });
+        })).resolves.toBe('steered');
 
         expect(requests.find((msg) => msg.method === 'turn/steer')?.params).toEqual({
             threadId: 'thread-steer',
@@ -964,9 +964,282 @@ describe('CodexAppServerClient sandbox integration', () => {
         await client.disconnect();
     });
 
-    it('rejects steering when Codex does not own an active turn', async () => {
+    it('ignores a mismatched root completion without publishing false terminal state', async () => {
         const proc = createMockProcess({
             pid: 2804,
+            onRequest: (msg, stdout) => {
+                if (msg.method === 'thread/start' && msg.id != null) {
+                    setTimeout(() => pushJsonLine(stdout, {
+                        id: msg.id,
+                        result: {
+                            thread: { id: 'thread-mismatch', path: '/tmp/thread-mismatch' },
+                            model: 'gpt-test',
+                        },
+                    }), 0);
+                }
+
+                if (msg.method === 'turn/start' && msg.id != null) {
+                    setTimeout(() => {
+                        pushJsonLine(stdout, {
+                            id: msg.id,
+                            result: { turn: { id: 'turn-current', status: 'inProgress' } },
+                        });
+                        pushJsonLine(stdout, {
+                            method: 'turn/started',
+                            params: {
+                                threadId: 'thread-mismatch',
+                                turn: { id: 'turn-current', status: 'inProgress' },
+                            },
+                        });
+                    }, 0);
+                }
+            },
+        });
+        mockSpawn.mockImplementation(() => proc);
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient();
+        const events: Array<Record<string, unknown>> = [];
+        client.setEventHandler((event) => events.push(event as Record<string, unknown>));
+
+        await client.connect();
+        await client.startThread({
+            model: 'gpt-test',
+            cwd: '/tmp/project',
+            approvalPolicy: 'never',
+            sandbox: 'danger-full-access',
+        });
+
+        const completion = client.sendTurnAndWait('initial');
+        await waitFor(() => client.activeTurnId === 'turn-current');
+        let completionSettled = false;
+        void completion.then(() => {
+            completionSettled = true;
+        });
+
+        pushJsonLine(proc.stdout, {
+            method: 'turn/started',
+            params: {
+                threadId: 'thread-mismatch',
+                turn: { id: 'turn-stale', status: 'inProgress' },
+            },
+        });
+        pushJsonLine(proc.stdout, {
+            method: 'turn/completed',
+            params: {
+                threadId: 'thread-mismatch',
+                turn: { id: 'turn-stale', status: 'completed', error: null },
+            },
+        });
+        await new Promise((resolve) => setTimeout(resolve, 10));
+
+        expect(client.activeTurnId).toBe('turn-current');
+        expect(client.turnId).toBe('turn-current');
+        expect(completionSettled).toBe(false);
+        expect(events).not.toContainEqual(expect.objectContaining({
+            provider_terminal: true,
+            turn_id: 'turn-stale',
+        }));
+        expect(events).not.toContainEqual(expect.objectContaining({
+            type: 'task_started',
+            turn_id: 'turn-stale',
+        }));
+
+        pushJsonLine(proc.stdout, {
+            method: 'turn/completed',
+            params: {
+                threadId: 'thread-mismatch',
+                turn: { id: 'turn-current', status: 'completed', error: null },
+            },
+        });
+        await expect(completion).resolves.toEqual({ aborted: false });
+        expect(client.activeTurnId).toBeNull();
+
+        await client.disconnect();
+    });
+
+    it('releases a stale pending turn when the provider rejects steering and allows one retry', async () => {
+        const requests: MockRpcMessage[] = [];
+        let turnStartCount = 0;
+        const proc = createMockProcess({
+            pid: 2805,
+            onRequest: (msg, stdout) => {
+                requests.push(msg);
+                if (msg.method === 'thread/start' && msg.id != null) {
+                    setTimeout(() => pushJsonLine(stdout, {
+                        id: msg.id,
+                        result: {
+                            thread: { id: 'thread-stale-steer', path: '/tmp/thread-stale-steer' },
+                            model: 'gpt-test',
+                        },
+                    }), 0);
+                }
+
+                if (msg.method === 'turn/start' && msg.id != null) {
+                    turnStartCount += 1;
+                    const turnId = turnStartCount === 1 ? 'turn-stale' : 'turn-recovered';
+                    setTimeout(() => pushJsonLine(stdout, {
+                        id: msg.id,
+                        result: { turn: { id: turnId, status: 'inProgress' } },
+                    }), 0);
+                }
+
+                if (msg.method === 'turn/steer' && msg.id != null) {
+                    setTimeout(() => pushJsonLine(stdout, {
+                        id: msg.id,
+                        error: { code: -32600, message: 'no active turn to steer' },
+                    }), 0);
+                }
+            },
+        });
+        mockSpawn.mockImplementation(() => proc);
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient();
+        const events: Array<Record<string, unknown>> = [];
+        client.setEventHandler((event) => events.push(event as Record<string, unknown>));
+
+        await client.connect();
+        await client.startThread({
+            model: 'gpt-test',
+            cwd: '/tmp/project',
+            approvalPolicy: 'never',
+            sandbox: 'danger-full-access',
+        });
+
+        const staleCompletion = client.sendTurnAndWait('initial');
+        await waitFor(() => client.activeTurnId === 'turn-stale');
+        let staleCompletionSettled = false;
+        void staleCompletion.then(() => {
+            staleCompletionSettled = true;
+        });
+
+        const steerResult = await client.steerTurn('follow up');
+        expect(steerResult).toBe('turn-not-active');
+        expect(staleCompletionSettled).toBe(false);
+        await expect(staleCompletion).resolves.toEqual({ aborted: false });
+        expect(client.activeTurnId).toBeNull();
+        expect(events.filter((event) => event.provider_terminal === true && event.turn_id === 'turn-stale')).toEqual([
+            expect.objectContaining({
+                type: 'task_complete',
+                status: 'completed',
+                reason: 'stale_turn_reconciled',
+                reconciled: true,
+            }),
+        ]);
+
+        const recoveredCompletion = client.sendTurnAndWait('follow up');
+        await waitFor(() => client.activeTurnId === 'turn-recovered');
+        let recoveredCompletionSettled = false;
+        void recoveredCompletion.then(() => {
+            recoveredCompletionSettled = true;
+        });
+
+        pushJsonLine(proc.stdout, {
+            method: 'turn/started',
+            params: {
+                threadId: 'thread-stale-steer',
+                turn: { id: 'turn-stale', status: 'inProgress' },
+            },
+        });
+        pushJsonLine(proc.stdout, {
+            method: 'turn/completed',
+            params: {
+                threadId: 'thread-stale-steer',
+                turn: { id: 'turn-stale', status: 'completed', error: null },
+            },
+        });
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        expect(client.activeTurnId).toBe('turn-recovered');
+        expect(client.turnId).toBe('turn-recovered');
+        expect(recoveredCompletionSettled).toBe(false);
+        expect(events.filter((event) => event.provider_terminal === true && event.turn_id === 'turn-stale')).toHaveLength(1);
+
+        pushJsonLine(proc.stdout, {
+            method: 'turn/completed',
+            params: {
+                threadId: 'thread-stale-steer',
+                turn: { id: 'turn-recovered', status: 'completed', error: null },
+            },
+        });
+        await expect(recoveredCompletion).resolves.toEqual({ aborted: false });
+
+        const turnStarts = requests.filter((request) => request.method === 'turn/start');
+        expect(turnStarts).toHaveLength(2);
+        expect(turnStarts[1]?.params.input).toEqual([{ type: 'text', text: 'follow up' }]);
+
+        await client.disconnect();
+    });
+
+    it('does not reconcile steering failures that only partially match the inactive-turn error', async () => {
+        let steerAttempt = 0;
+        const proc = createMockProcess({
+            pid: 2806,
+            onRequest: (msg, stdout) => {
+                if (msg.method === 'thread/start' && msg.id != null) {
+                    setTimeout(() => pushJsonLine(stdout, {
+                        id: msg.id,
+                        result: {
+                            thread: { id: 'thread-steer-error', path: '/tmp/thread-steer-error' },
+                            model: 'gpt-test',
+                        },
+                    }), 0);
+                }
+
+                if (msg.method === 'turn/start' && msg.id != null) {
+                    setTimeout(() => pushJsonLine(stdout, {
+                        id: msg.id,
+                        result: { turn: { id: 'turn-steer-error', status: 'inProgress' } },
+                    }), 0);
+                }
+
+                if (msg.method === 'turn/steer' && msg.id != null) {
+                    steerAttempt += 1;
+                    setTimeout(() => pushJsonLine(stdout, {
+                        id: msg.id,
+                        error: steerAttempt === 1
+                            ? { code: -32600, message: 'invalid expected turn id' }
+                            : { code: -32603, message: 'no active turn to steer' },
+                    }), 0);
+                }
+            },
+        });
+        mockSpawn.mockImplementation(() => proc);
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient();
+
+        await client.connect();
+        await client.startThread({
+            model: 'gpt-test',
+            cwd: '/tmp/project',
+            approvalPolicy: 'never',
+            sandbox: 'danger-full-access',
+        });
+
+        const completion = client.sendTurnAndWait('initial');
+        await waitFor(() => client.activeTurnId === 'turn-steer-error');
+
+        await expect(client.steerTurn('follow up')).rejects.toThrow('invalid expected turn id');
+        expect(client.activeTurnId).toBe('turn-steer-error');
+        await expect(client.steerTurn('follow up again')).rejects.toThrow('no active turn to steer');
+        expect(client.activeTurnId).toBe('turn-steer-error');
+
+        pushJsonLine(proc.stdout, {
+            method: 'turn/completed',
+            params: {
+                threadId: 'thread-steer-error',
+                turn: { id: 'turn-steer-error', status: 'completed', error: null },
+            },
+        });
+        await expect(completion).resolves.toEqual({ aborted: false });
+
+        await client.disconnect();
+    });
+
+    it('reports an inactive outcome when Codex does not own an active turn', async () => {
+        const proc = createMockProcess({
+            pid: 2807,
             onRequest: (msg, stdout) => {
                 if (msg.method === 'thread/start' && msg.id != null) {
                     setTimeout(() => {
@@ -999,7 +1272,7 @@ describe('CodexAppServerClient sandbox integration', () => {
             sandbox: 'danger-full-access',
         });
 
-        await expect(client.steerTurn('too late')).rejects.toThrow('No active Codex turn to steer');
+        await expect(client.steerTurn('too late')).resolves.toBe('turn-not-active');
 
         await client.disconnect();
     });
