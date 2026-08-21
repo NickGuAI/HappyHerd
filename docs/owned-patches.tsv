@@ -43,3 +43,4 @@ PUBLIC_RELEASE	accepted	fix(release): publish annotated tag notes compatibly	scr
 CODEX_TURN_RECOVERY	accepted	fix(codex): recover stale active turns	server/packages/happy-cli/src/codex/codexAppServerClient.test.ts
 PUBLIC_BOUNDARY	accepted	fix(public-boundary): pin legacy committer normalization	scripts/test-public-boundary.mjs
 PUBLIC_BOUNDARY	accepted	fix(public-boundary): accept signed PR merges	scripts/test-public-boundary.mjs
+DEVELOPMENT_CONTEXT	accepted	docs(dev): add development context	.dev/README.md

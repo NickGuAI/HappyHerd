@@ -4,12 +4,16 @@
 
 When the user says `sync to main` or `synt to main`, they mean:
 
-1. Fetch `origin/main`.
-2. Rebase the current branch on `origin/main`.
-3. Push the current HEAD directly to `main` with a normal push, for example:
-   `git push origin HEAD:main`
+1. Fetch `origin/main` and rebase the current topical branch onto it.
+2. Push only that feature branch and open or update its pull request.
+3. Wait for every required protected-branch check and resolve review threads.
+4. Merge with a GitHub merge commit.
+5. Verify the main-push workflows, including the real upstream rehearsal, then
+   delete only the exact merged PR head.
 
-Do not force push for this workflow.
+Never push `HEAD:main` or force-push `main`. Follow the complete repository
+lifecycle and race-safe cleanup procedure in
+`../.dev/playbooks/development-lifecycle.md`.
 
 ## Interface localization
 
