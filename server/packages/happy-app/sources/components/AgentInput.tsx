@@ -4,7 +4,9 @@ import { Keyboard, View, Platform, useWindowDimensions, Text, ActivityIndicator,
 import { Image } from 'expo-image';
 import { AgentInputAttachmentStrip } from './AgentInputAttachmentStrip';
 import { WorkspaceContextStrip } from './WorkspaceContextStrip';
+import { CompactWorkspaceContextButton } from './CompactWorkspaceContextButton';
 import type { AttachmentPreview } from '@/sync/attachmentTypes';
+import type { WorkspaceContextEntry } from '@/sync/workspaceContext';
 import { generateThumbhash } from '@/utils/thumbhash';
 import { layout } from './layout';
 import { MultiTextInput, KeyPressEvent } from './MultiTextInput';
@@ -118,9 +120,9 @@ interface AgentInputProps {
     onPickImages?: () => void;
     onRemoveImage?: (id: string) => void;
     onAddImages?: (images: AttachmentPreview[]) => void;
-    /** Explicit workspace files that will be embedded in the next user message. */
-    selectedContextFiles?: readonly string[];
-    onRemoveContextFile?: (filePath: string) => void;
+    /** Explicit workspace files/directories embedded in the next user message. */
+    selectedContextEntries?: readonly WorkspaceContextEntry[];
+    onRemoveContextEntry?: (path: string) => void;
     dictationPhase?: VoiceDictationPhase;
     dictationError?: string | null;
     onDictationCancel?: () => void;
@@ -730,8 +732,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     // never blocks the next character from landing in the textarea.
     const [hasText, setHasText] = React.useState(() => props.initialValue.trim().length > 0);
     const hasImages = (props.selectedImages?.length ?? 0) > 0;
-    const hasContextFiles = (props.selectedContextFiles?.length ?? 0) > 0;
-    const hasComposerContent = hasText || hasImages || hasContextFiles;
+    const hasContextEntries = (props.selectedContextEntries?.length ?? 0) > 0;
+    const hasComposerContent = hasText || hasImages || hasContextEntries;
 
     // Check if this is a Codex, Gemini, or OpenClaw session
     // Use metadata.flavor for existing sessions, agentType prop for new sessions
@@ -1087,13 +1089,13 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         hapticsLight();
         // Live read avoids stalling behind the transitioned `hasText`.
         const liveHasText = (inputRef.current?.getText() ?? '').trim().length > 0;
-        if (liveHasText || hasImages || hasContextFiles) {
+        if (liveHasText || hasImages || hasContextEntries) {
             setStopRequested(false);
             props.onSend();
         } else if (!compactMobileComposer) {
             props.onMicPress?.();
         }
-    }, [compactMobileComposer, handleBlockedSendAttempt, hasContextFiles, hasImages, isSendBlocked, props.isSendDisabled, props.isSending, props.onMicPress, props.onSend]);
+    }, [compactMobileComposer, handleBlockedSendAttempt, hasContextEntries, hasImages, isSendBlocked, props.isSendDisabled, props.isSending, props.onMicPress, props.onSend]);
 
     const handleMicrophonePress = React.useCallback(() => {
         if (!props.onMicPress || props.isSendDisabled) return;
@@ -1107,7 +1109,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     const handleMobilePrimaryPress = React.useCallback(() => {
         const liveHasContent = (inputRef.current?.getText() ?? '').trim().length > 0
             || hasImages
-            || hasContextFiles;
+            || hasContextEntries;
         if (!liveHasContent && shouldShowStopButton) {
             void handleAbortPress();
             return;
@@ -1121,7 +1123,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         handleAbortPress,
         handleMicrophonePress,
         handleSendPress,
-        hasContextFiles,
+        hasContextEntries,
         hasImages,
         shouldShowStopButton,
         shouldShowVoiceButton,
@@ -2017,10 +2019,10 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             onRemove={props.onRemoveImage ?? (() => {})}
                         />
                     )}
-                    {props.selectedContextFiles && props.selectedContextFiles.length > 0 && (
+                    {props.selectedContextEntries && props.selectedContextEntries.length > 0 && (
                         <WorkspaceContextStrip
-                            files={props.selectedContextFiles}
-                            onRemove={props.onRemoveContextFile ?? (() => {})}
+                            entries={props.selectedContextEntries}
+                            onRemove={props.onRemoveContextEntry ?? (() => {})}
                         />
                     )}
                     {props.dictationPhase === 'error' && props.dictationError && (
@@ -2098,6 +2100,16 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                         : theme.colors.text}
                                 />
                             </BubblePressable>
+                        )}
+
+                        {!props.zenMode && (
+                            <CompactWorkspaceContextButton
+                                onPress={props.onFileViewerPress}
+                                active={(props.selectedContextEntries?.length ?? 0) > 0}
+                                color={theme.colors.text}
+                                activeColor={theme.colors.radio.active}
+                                style={styles.mobileIconButton}
+                            />
                         )}
 
                         {!props.zenMode && permissionSettingsGroups.length > 0 && (

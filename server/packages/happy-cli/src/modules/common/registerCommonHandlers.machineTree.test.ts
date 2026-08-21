@@ -31,6 +31,12 @@ describe('machine directory tree', () => {
             path: join(root, 'linked-target'),
             type: 'directory',
         });
+
+        const listing = await handlers.get('listDirectory')?.({ path: root });
+        expect(listing?.success).toBe(true);
+        expect(listing?.entries?.find((entry: any) => entry.name === 'linked-target')).toMatchObject({
+            type: 'other',
+        });
     });
 
     it('preserves the root filesystem error for a missing absolute path', async () => {

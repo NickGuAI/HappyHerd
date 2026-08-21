@@ -87,8 +87,8 @@ import {
     addWorkspaceContextFile,
     buildWorkspaceContextMessage,
     clearWorkspaceContextFiles,
-    getWorkspaceContextFiles,
-    removeWorkspaceContextFile,
+    getWorkspaceContextEntries,
+    removeWorkspaceContextEntry,
     subscribeWorkspaceContext,
 } from '@/sync/workspaceContext';
 import { buildWorkspaceAttachmentParams } from '@/utils/machineWorkspace';
@@ -877,10 +877,10 @@ export function SessionViewLoaded({
     }, []);
     const voiceDictation = useVoiceDictation(handleDictationTranscript);
     const voiceInputAvailability = useVoiceInputAvailability();
-    const selectedContextFiles = React.useSyncExternalStore(
+    const selectedContextEntries = React.useSyncExternalStore(
         subscribeWorkspaceContext,
-        () => getWorkspaceContextFiles(sessionId),
-        () => getWorkspaceContextFiles(sessionId),
+        () => getWorkspaceContextEntries(sessionId),
+        () => getWorkspaceContextEntries(sessionId),
     );
 
     // Handle dismissing CLI version warning
@@ -951,16 +951,16 @@ export function SessionViewLoaded({
     // this input in its existing provider queue rather than steer it now.
     const sendComposerMessage = React.useCallback(async (deliveryMode?: 'queue') => {
         const liveMessage = composerHandleRef.current?.getMessage() ?? '';
-        if (!liveMessage.trim() && !(expImageUpload && selectedImages.length > 0) && selectedContextFiles.length === 0) {
+        if (!liveMessage.trim() && !(expImageUpload && selectedImages.length > 0) && selectedContextEntries.length === 0) {
             return;
         }
         try {
-            const contextMessage = await buildWorkspaceContextMessage(sessionId, liveMessage, selectedContextFiles);
+            const contextMessage = await buildWorkspaceContextMessage(sessionId, liveMessage, selectedContextEntries);
             const attachments = expImageUpload ? selectedImages : undefined;
             await sync.sendMessage(sessionId, contextMessage.promptText, {
                 source: 'chat',
                 attachments,
-                ...(selectedContextFiles.length > 0 ? { displayText: contextMessage.displayText } : {}),
+                ...(selectedContextEntries.length > 0 ? { displayText: contextMessage.displayText } : {}),
                 ...(deliveryMode ? { deliveryMode } : {}),
             });
             composerHandleRef.current?.clearMessage();
@@ -972,7 +972,7 @@ export function SessionViewLoaded({
                 error instanceof Error ? error.message : t('happyHerd.composer.sendFailedBody'),
             );
         }
-    }, [sessionId, expImageUpload, selectedImages, selectedContextFiles, clearImages]);
+    }, [sessionId, expImageUpload, selectedImages, selectedContextEntries, clearImages]);
     const handleSend = React.useCallback(() => sendComposerMessage(), [sendComposerMessage]);
     const handleQueueMessage = React.useCallback(() => sendComposerMessage('queue'), [sendComposerMessage]);
 
@@ -1143,8 +1143,8 @@ export function SessionViewLoaded({
             onPickImages={expImageUpload && canUseAttachments ? pickImages : undefined}
             onRemoveImage={expImageUpload && canUseAttachments ? removeImage : undefined}
             onAddImages={expImageUpload && canUseAttachments ? addImages : undefined}
-            selectedContextFiles={selectedContextFiles}
-            onRemoveContextFile={(filePath) => removeWorkspaceContextFile(sessionId, filePath)}
+            selectedContextEntries={selectedContextEntries}
+            onRemoveContextEntry={(path) => removeWorkspaceContextEntry(sessionId, path)}
             dictationPhase={voiceDictation.phase}
             dictationError={voiceDictation.error}
             onDictationCancel={voiceDictation.cancel}

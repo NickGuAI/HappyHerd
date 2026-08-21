@@ -49,6 +49,7 @@ import { useVoiceDictation, type VoiceDictationPhase } from '@/hooks/useVoiceDic
 import { useVoiceInputAvailability } from '@/hooks/useVoiceInputAvailability';
 import { AgentInputAttachmentStrip } from '@/components/AgentInputAttachmentStrip';
 import { WorkspaceContextStrip } from '@/components/WorkspaceContextStrip';
+import { MachineWorkspaceContextPicker } from '@/components/MachineWorkspaceContextPicker';
 import { resolveAgentInputPrimaryAction } from '@/components/agentInputPrimaryAction';
 import { useShallow } from 'zustand/react/shallow';
 import type { MultiTextInputHandle } from '@/components/MultiTextInput';
@@ -106,10 +107,11 @@ import {
 } from '@/components/AnimatedOverlay';
 import type { HappyHerdCommanderSummary } from '@slopus/happy-wire';
 import {
-    addWorkspaceContextFile,
+    addWorkspaceContextEntry,
     buildWorkspaceContextMessage,
     clearWorkspaceContextFiles,
-    MAX_WORKSPACE_CONTEXT_FILES,
+    MAX_WORKSPACE_CONTEXT_ITEMS,
+    type WorkspaceContextEntry,
 } from '@/sync/workspaceContext';
 
 // Agent icon assets
@@ -898,7 +900,8 @@ function NewSessionScreen() {
         attachments: s.attachments,
         setAttachments: s.setAttachments,
     })));
-    const [workspaceFiles, setWorkspaceFiles] = React.useState<string[]>([]);
+    const [workspaceEntries, setWorkspaceEntries] = React.useState<WorkspaceContextEntry[]>([]);
+    const [workspaceContextOpen, setWorkspaceContextOpen] = React.useState(false);
     const selectedAgent = draft.agentType;
     const setSelectedAgent = draft.setAgentType;
     const selectedMachineId = draft.selectedMachineId;
@@ -985,19 +988,35 @@ function NewSessionScreen() {
         ? resolveAbsolutePath(trimPathInput(selectedPath) || '~', selectedHomeDir)
         : null;
     const handleWorkspaceUploaded = React.useCallback((filePath: string) => {
-        setWorkspaceFiles((current) => (
-            current.includes(filePath) || current.length >= MAX_WORKSPACE_CONTEXT_FILES
+        if (!selectedMachineId) return;
+        setWorkspaceEntries((current) => (
+            current.some((entry) => entry.path === filePath) || current.length >= MAX_WORKSPACE_CONTEXT_ITEMS
                 ? current
-                : [...current, filePath]
+                : [...current, {
+                    path: filePath,
+                    kind: 'file',
+                    source: { kind: 'machine', machineId: selectedMachineId },
+                }]
         ));
+    }, [selectedMachineId]);
+    const toggleWorkspaceEntry = React.useCallback((entry: WorkspaceContextEntry) => {
+        setWorkspaceEntries((current) => {
+            const existing = current.some((candidate) => candidate.path === entry.path);
+            if (existing) return current.filter((candidate) => candidate.path !== entry.path);
+            if (current.length >= MAX_WORKSPACE_CONTEXT_ITEMS) return current;
+            return [...current, entry];
+        });
     }, []);
     const workspaceUploader = useMachineFileUpload({
         machineId: selectedMachineId,
         directory: uploadDirectory,
+        targetLabel: selectedMachine ? getMachineName(selectedMachine) : undefined,
+        maxFiles: MAX_WORKSPACE_CONTEXT_ITEMS - workspaceEntries.length,
         onUploaded: handleWorkspaceUploaded,
     });
     React.useEffect(() => {
-        setWorkspaceFiles([]);
+        setWorkspaceEntries([]);
+        setWorkspaceContextOpen(false);
         workspaceUploader.reset();
     }, [selectedMachineId, selectedPath]);
     const selectedMachineFavorites = React.useMemo(
@@ -1681,19 +1700,16 @@ function NewSessionScreen() {
                     let initialPrompt = trimmedPrompt;
                     let initialDisplayText = trimmedPrompt;
 
-                    if (workspaceFiles.length > 0) {
-                        workspaceFiles.forEach((filePath) => {
-                            addWorkspaceContextFile(result.sessionId, filePath, {
-                                kind: 'machine',
-                                machineId: selectedMachineId,
-                            });
+                    if (workspaceEntries.length > 0) {
+                        workspaceEntries.forEach((entry) => {
+                            addWorkspaceContextEntry(result.sessionId, entry);
                         });
                         const workspaceMessage = await (async () => {
                             try {
                                 return await buildWorkspaceContextMessage(
                                     result.sessionId,
                                     trimmedPrompt,
-                                    workspaceFiles,
+                                    workspaceEntries,
                                 );
                             } finally {
                                 clearWorkspaceContextFiles(result.sessionId);
@@ -1712,7 +1728,7 @@ function NewSessionScreen() {
                         });
                     }
 
-                    setWorkspaceFiles([]);
+                    setWorkspaceEntries([]);
                     draftState.setInput('');
                     draftState.setAttachments([]);
 
@@ -1750,7 +1766,7 @@ function NewSessionScreen() {
         } finally {
             if (isMountedRef.current) setIsSpawning(false);
         }
-    }, [selectedMachineId, selectedMachine, selectedPath, selectedCommanderId, selectedAgent, router, navigateToSession, currentPermission?.key, currentModelKey, currentEffort?.key, effectiveAgentDefaults.permissionMode, effectiveAgentDefaults.modelMode, effectiveEffortDefault, worktreeKey, rigCreation, supportsWorktree, workspaceFiles]);
+    }, [selectedMachineId, selectedMachine, selectedPath, selectedCommanderId, selectedAgent, router, navigateToSession, currentPermission?.key, currentModelKey, currentEffort?.key, effectiveAgentDefaults.permissionMode, effectiveAgentDefaults.modelMode, effectiveEffortDefault, worktreeKey, rigCreation, supportsWorktree, workspaceEntries]);
 
     const canSend = selectedMachineId && selectedMachine && isMachineOnline(selectedMachine) && !isSpawning;
     React.useEffect(() => {
@@ -1761,7 +1777,7 @@ function NewSessionScreen() {
             || (
                 !useNewSessionDraft.getState().input.trim()
                 && useNewSessionDraft.getState().attachments.length === 0
-                && workspaceFiles.length === 0
+                && workspaceEntries.length === 0
             )
         ) {
             return;
@@ -1772,7 +1788,7 @@ function NewSessionScreen() {
             void handleSend();
         }, 180);
         return () => clearTimeout(timeout);
-    }, [autoSubmit, canSend, handleSend, workspaceFiles.length]);
+    }, [autoSubmit, canSend, handleSend, workspaceEntries.length]);
 
     const sidebarLayout = getNewSessionSidebarLayout({
         platform: Platform.OS,
@@ -2263,7 +2279,7 @@ function NewSessionScreen() {
             dictationPhase={voiceDictation.phase}
             onSend={() => void handleSend()}
             onVoice={voiceDictation.toggle}
-            hasWorkspaceFiles={workspaceFiles.length > 0}
+            hasWorkspaceFiles={workspaceEntries.length > 0}
         />
     );
 
@@ -2278,8 +2294,8 @@ function NewSessionScreen() {
             style={[styles.inputBox, isNativeMobile && styles.mobileInputBox]}
         >
             <WorkspaceContextStrip
-                files={workspaceFiles}
-                onRemove={(filePath) => setWorkspaceFiles((current) => current.filter((path) => path !== filePath))}
+                entries={workspaceEntries}
+                onRemove={(path) => setWorkspaceEntries((current) => current.filter((entry) => entry.path !== path))}
             />
             {expImageUpload && imagePicker.selectedImages.length > 0 && (
                 <AgentInputAttachmentStrip
@@ -2384,7 +2400,7 @@ function NewSessionScreen() {
                 <BubblePressable
                     onPress={() => void workspaceUploader.pickAndUpload()}
                     hitSlop={6}
-                    disabled={!selectedMachineId || !uploadDirectory || workspaceUploader.state.phase === 'uploading' || workspaceUploader.state.phase === 'cancelling'}
+                    disabled={!selectedMachineId || !uploadDirectory || workspaceEntries.length >= MAX_WORKSPACE_CONTEXT_ITEMS || workspaceUploader.state.phase === 'uploading' || workspaceUploader.state.phase === 'cancelling'}
                     style={(pressedState) => [
                         styles.composerActionButton,
                         pressedState.pressed && styles.configRowPressed,
@@ -2395,7 +2411,26 @@ function NewSessionScreen() {
                     <Ionicons
                         name="document-attach-outline"
                         size={21}
-                        color={workspaceFiles.length > 0
+                        color={workspaceEntries.length > 0
+                            ? theme.colors.radio.active
+                            : theme.colors.textSecondary}
+                    />
+                </BubblePressable>
+                <BubblePressable
+                    onPress={() => setWorkspaceContextOpen(true)}
+                    hitSlop={6}
+                    disabled={!selectedMachineId || !uploadDirectory}
+                    style={(pressedState) => [
+                        styles.composerActionButton,
+                        pressedState.pressed && styles.configRowPressed,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('workspace.browseContext')}
+                >
+                    <Ionicons
+                        name="folder-open-outline"
+                        size={21}
+                        color={workspaceEntries.some((entry) => entry.kind === 'directory')
                             ? theme.colors.radio.active
                             : theme.colors.textSecondary}
                     />
@@ -2622,6 +2657,23 @@ function NewSessionScreen() {
                     ) : null}
                 </BottomSheet>
             )}
+
+            <BottomSheet
+                visible={workspaceContextOpen}
+                onClose={() => setWorkspaceContextOpen(false)}
+            >
+                {selectedMachineId && selectedMachine && uploadDirectory ? (
+                    <MachineWorkspaceContextPicker
+                        machineId={selectedMachineId}
+                        initialDirectory={uploadDirectory}
+                        platform={selectedMachine.metadata?.platform}
+                        online={isMachineOnline(selectedMachine)}
+                        entries={workspaceEntries}
+                        onToggle={toggleWorkspaceEntry}
+                        onDone={() => setWorkspaceContextOpen(false)}
+                    />
+                ) : null}
+            </BottomSheet>
         </KeyboardAvoidingView>
     );
 }

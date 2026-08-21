@@ -1,3 +1,12 @@
+# August 21 — Files and folders as message context
+
+Machine Workspace now provides a complete create, upload, and context flow for both new and current conversations.
+
+- Create one safe child folder in the directory you are browsing, then navigate into it immediately.
+- Upload selection failures are reported, attachment limits are enforced before writing, in-flight batches stay pinned to their original machine and directory, and names containing spaces, `+`, `%`, `#`, or Unicode remain exact.
+- Select files or folders as context from Workspace or New Session; active Chat keeps their file/folder identity visible in the composer.
+- Text files are embedded within bounded untrusted-data markers, binary files remain exact host-path references, and folders contribute a deterministic bounded one-level listing.
+
 # August 21 — Queued messages stay visibly queued
 
 Queue Msg follow-ups now appear in an ordered queue above the composer instead of looking like messages that already entered the conversation.

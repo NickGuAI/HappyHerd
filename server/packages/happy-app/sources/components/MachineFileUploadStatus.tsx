@@ -37,12 +37,19 @@ export function MachineFileUploadStatus(props: {
 
     return (
         <View style={[styles.container, props.style]}>
-            <Text style={[
-                styles.status,
-                { color: errorColor ? theme.colors.status.disconnected : theme.colors.textSecondary },
-            ]}>
-                {status}
-            </Text>
+            <View style={styles.statusColumn}>
+                <Text style={[
+                    styles.status,
+                    { color: errorColor ? theme.colors.status.disconnected : theme.colors.textSecondary },
+                ]}>
+                    {status}
+                </Text>
+                {props.state.target && (
+                    <Text style={[styles.target, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                        {[props.state.target.label, props.state.target.directory].filter(Boolean).join(' · ')}
+                    </Text>
+                )}
+            </View>
             {props.canCancel && (
                 <Pressable
                     accessibilityRole="button"
@@ -81,10 +88,11 @@ const styles = StyleSheet.create(() => ({
         minHeight: 28,
     },
     status: {
-        flex: 1,
         fontSize: 12,
         ...Typography.default(),
     },
+    statusColumn: { flex: 1, minWidth: 0, gap: 2 },
+    target: { fontSize: 10, ...Typography.mono() },
     action: {
         minHeight: 28,
         paddingHorizontal: 10,

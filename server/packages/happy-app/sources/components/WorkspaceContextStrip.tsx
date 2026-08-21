@@ -5,28 +5,34 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Typography } from '@/constants/Typography';
 
 import { t } from '@/text';
+import type { WorkspaceContextEntry } from '@/sync/workspaceContext';
+
 export const WorkspaceContextStrip = React.memo(function WorkspaceContextStrip({
-    files,
+    entries,
     onRemove,
 }: {
-    files: readonly string[];
-    onRemove: (filePath: string) => void;
+    entries: readonly WorkspaceContextEntry[];
+    onRemove: (path: string) => void;
 }) {
     const { theme } = useUnistyles();
-    if (files.length === 0) return null;
+    if (entries.length === 0) return null;
     return (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.container}>
-            {files.map((filePath) => (
-                <View key={filePath} style={[styles.chip, { borderColor: theme.colors.divider }]}>
-                    <Ionicons name="document-attach-outline" size={14} color={theme.colors.textLink} />
+            {entries.map((entry) => (
+                <View key={`${entry.kind}:${entry.path}`} style={[styles.chip, { borderColor: theme.colors.divider }]}>
+                    <Ionicons
+                        name={entry.kind === 'directory' ? 'folder-outline' : 'document-attach-outline'}
+                        size={14}
+                        color={theme.colors.textLink}
+                    />
                     <Text style={[styles.label, { color: theme.colors.text }]} numberOfLines={1}>
-                        {filePath}
+                        {entry.path}
                     </Text>
                     <Pressable
-                        onPress={() => onRemove(filePath)}
+                        onPress={() => onRemove(entry.path)}
                         hitSlop={8}
                         accessibilityRole="button"
-                        accessibilityLabel={t("uiCopy.removeValueFromMessageContext", { value1: filePath })}
+                        accessibilityLabel={t("uiCopy.removeValueFromMessageContext", { value1: entry.path })}
                     >
                         <Ionicons name="close-circle" size={16} color={theme.colors.textSecondary} />
                     </Pressable>
