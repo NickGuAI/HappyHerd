@@ -19,12 +19,19 @@ import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 
-import type { HappyHerdCommanderListResponse, HappyHerdCommanderSummary } from '@slopus/happy-wire';
+import {
+  detectHappyHerdCommanderAvatarMimeType,
+  MAX_HAPPYHERD_COMMANDER_AVATAR_BYTES,
+  type HappyHerdCommanderAvatar,
+  type HappyHerdCommanderListResponse,
+  type HappyHerdCommanderSummary,
+} from '@slopus/happy-wire';
 import { configuration } from '@/configuration';
 
 const BUNDLE_VERSION = 3;
 const INSTRUCTION_RECEIPT_VERSION = 1;
 const COMMANDER_MEMORY_MAX_BYTES = 64 * 1024;
+const COMMANDER_AVATAR_FILE_NAME = 'avatar.png';
 const MANAGED_COPY_HEADER = '<!-- Managed by HappyHerd from AGENTS.md. Do not edit this copy. -->\n';
 
 type CommanderMemorySnapshot = {
@@ -193,6 +200,34 @@ async function resolveInside(root: string, candidate: string): Promise<string> {
   return realCandidate;
 }
 
+async function readCommanderAvatar(commanderDir: string): Promise<HappyHerdCommanderAvatar | undefined> {
+  const candidate = path.join(commanderDir, COMMANDER_AVATAR_FILE_NAME);
+  try {
+    // The canonical avatar must be a regular file, not a link to another
+    // Commander's image or to data elsewhere on the host.
+    const candidateStats = await lstat(candidate);
+    if (!candidateStats.isFile()) return undefined;
+    if (candidateStats.size <= 0 || candidateStats.size > MAX_HAPPYHERD_COMMANDER_AVATAR_BYTES) {
+      return undefined;
+    }
+    const resolvedPath = await resolveInside(commanderDir, candidate);
+    const content = await readFile(resolvedPath);
+    if (content.byteLength !== candidateStats.size) return undefined;
+    const mimeType = detectHappyHerdCommanderAvatarMimeType(content);
+    if (!mimeType) return undefined;
+    return {
+      path: resolvedPath,
+      mimeType,
+      byteLength: content.byteLength,
+      sha256: createHash('sha256').update(content).digest('hex'),
+    };
+  } catch {
+    // An avatar is optional presentation data. Missing, unreadable, linked, or
+    // malformed images must never hide an otherwise valid Commander.
+    return undefined;
+  }
+}
+
 async function readCommander(root: string, directoryName: string): Promise<HappyHerdCommanderSummary | null> {
   if (!directoryName || directoryName === '.' || directoryName === '..' || directoryName.includes(path.sep)) {
     return null;
@@ -217,6 +252,7 @@ async function readCommander(root: string, directoryName: string): Promise<Happy
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
   }
+  const avatar = await readCommanderAvatar(commanderDir);
   return {
     id,
     name: identity.name || id,
@@ -224,6 +260,7 @@ async function readCommander(root: string, directoryName: string): Promise<Happy
     workspace,
     commanderPath,
     agentContextPath,
+    ...(avatar ? { avatar } : {}),
   };
 }
 

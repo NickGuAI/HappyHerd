@@ -28,6 +28,8 @@ function session(
         active: true,
         archived: false,
         machineId,
+        commanderId: null,
+        commanderName: null,
         path,
         homeDir: null,
         completedTodosCount: 0,

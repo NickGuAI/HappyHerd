@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 21 — Commander identity in every conversation",
+      "summary": "Compact conversation lists now show the selected Commander's profile image next to the conversation title.",
+      "markdown": "- Commander images are loaded from the owning machine and cached by machine plus Commander, so identities cannot cross between hosts.\n- Missing, invalid, oversized, or unavailable profile images fall back to the same deterministic generated avatar instead of hiding the conversation.\n- Conversations without a Commander retain their existing unread, draft, and activity indicators."
+    },
+    {
       "title": "August 21 — Codex sessions recover from stale turns",
       "summary": "Follow-up messages no longer get trapped behind a Codex turn that already ended at the provider.",
       "markdown": "- HappyHerd retires stale local turn state only when Codex definitively reports that there is no active turn to steer.\n- The untouched follow-up, including its permissions, model settings, instructions, effort, and attachments, is queued exactly once as the next turn.\n- Ambiguous timeouts and transport errors are never replayed, and late lifecycle events cannot close a newer turn."
@@ -161,5 +166,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 21 — Codex sessions recover from stale turns"
+  "latestTitle": "August 21 — Commander identity in every conversation"
 }

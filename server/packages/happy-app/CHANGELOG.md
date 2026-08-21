@@ -1,3 +1,11 @@
+# August 21 — Commander identity in every conversation
+
+Compact conversation lists now show the selected Commander's profile image next to the conversation title.
+
+- Commander images are loaded from the owning machine and cached by machine plus Commander, so identities cannot cross between hosts.
+- Missing, invalid, oversized, or unavailable profile images fall back to the same deterministic generated avatar instead of hiding the conversation.
+- Conversations without a Commander retain their existing unread, draft, and activity indicators.
+
 # August 21 — Codex sessions recover from stale turns
 
 Follow-up messages no longer get trapped behind a Codex turn that already ended at the provider.

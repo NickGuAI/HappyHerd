@@ -101,6 +101,8 @@ export interface SessionRowData {
     active: boolean;
     archived: boolean;
     machineId: string | null;
+    commanderId: string | null;
+    commanderName: string | null;
     path: string | null;
     homeDir: string | null;
     completedTodosCount: number;
@@ -152,6 +154,8 @@ function buildSessionRowData(session: Session, unreadSessionIds?: Set<string>): 
         archived: session.metadata?.lifecycleState === 'archived'
             || (!isRigMetadata(session.metadata) && !session.active),
         machineId: session.metadata?.machineId ?? null,
+        commanderId: session.metadata?.commanderId ?? null,
+        commanderName: session.metadata?.commanderName ?? null,
         path: session.metadata?.path ?? null,
         homeDir: session.metadata?.homeDir ?? null,
         completedTodosCount: session.todos?.filter(todo => todo.status === 'completed').length ?? 0,

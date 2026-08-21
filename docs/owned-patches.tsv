@@ -45,3 +45,4 @@ PUBLIC_BOUNDARY	accepted	fix(public-boundary): pin legacy committer normalizatio
 PUBLIC_BOUNDARY	accepted	fix(public-boundary): accept signed PR merges	scripts/test-public-boundary.mjs
 DEVELOPMENT_CONTEXT	accepted	docs(dev): add development context	.dev/README.md
 COMMUNITY_SURFACE	accepted	docs(project): publish community contracts	scripts/verify-community-contract.mjs
+COMMANDER_AVATAR	accepted	feat(sessions): show Commander avatars	server/packages/happy-cli/src/agentContext/commanderContext.test.ts
