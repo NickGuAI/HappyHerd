@@ -8,8 +8,8 @@ describe('HappyHerd Commander wire contracts', () => {
       name: 'Athena',
       role: 'Engineering commander',
       workspace: '/srv/app',
-      commanderPath: '/home/me/.herd/commanders/athena/COMMANDER.md',
-      agentContextPath: '/home/me/.herd/commanders/athena/agentcontext',
+      commanderPath: '/home/me/.happyherd/commanders/athena/COMMANDER.md',
+      agentContextPath: '/home/me/.happyherd/commanders/athena/agentcontext',
     });
     expect(parsed.name).toBe('Athena');
     expect(parsed).not.toHaveProperty('content');

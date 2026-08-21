@@ -1,4 +1,5 @@
 # gate	state	subject	evidence
+AGENT_CONTEXT_AUTHORITY	accepted	fix(context): make AgentContext standalone	server/packages/happy-cli/src/agentContext/commanderContext.test.ts
 PUBLIC_BOUNDARY	accepted	feat(agent): make governed runtime organization-neutral	scripts/verify-public-boundary.mjs
 PUBLIC_BOUNDARY	accepted	fix(public-boundary): scan owned commit identities	scripts/test-public-boundary.mjs
 EXAMPLE_SCOPE	accepted	fix(example): remove obsolete role language	examples/pmai-happyherd-agent/README.md

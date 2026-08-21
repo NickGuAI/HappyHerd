@@ -28,7 +28,7 @@ describe('HappyHerd voice transcription', () => {
         expect(() => decodeTranscriptionAudio(Buffer.alloc(MAX_TRANSCRIPTION_AUDIO_BYTES + 1).toString('base64'))).toThrow('larger than 15 MiB');
     });
 
-    it('ports the Herd transcription contract to OpenAI without exposing the key', async () => {
+    it('sends the transcription request to OpenAI without exposing the key', async () => {
         const fetchImpl = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
             expect(init?.headers).toEqual({ Authorization: 'Bearer server-secret' });
             const form = init?.body as unknown as FormData;

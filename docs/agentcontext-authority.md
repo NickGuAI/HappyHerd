@@ -1,8 +1,9 @@
 # HappyHerd AgentContext authority
 
 HappyHerd has one editable instruction authority: the directory configured by
-`HAPPY_HOME_DIR` (normally `~/.happyherd`). It does not fall back to `.herd`, a
-singular `commander/` store, or a second home-level `AGENTS.md`.
+`HAPPY_HOME_DIR` (normally `~/.happyherd`). It does not fall back to another
+state root, a singular `commander/` store, or a second home-level instruction
+copy.
 
 ## Canonical layout
 
@@ -13,8 +14,7 @@ singular `commander/` store, or a second home-level `AGENTS.md`.
 ├── agentcontext/
 │   ├── USER.md
 │   ├── rules/
-│   ├── automations/*.json
-│   └── migration-manifest.json
+│   └── automations/happyherd/<automation-id>/manifest.json
 └── commanders/<commander-id>/
     ├── COMMANDER.md
     └── agentcontext/{memory,rules}/
@@ -45,34 +45,6 @@ provider safety/product policy
 → on-demand shared/private AgentContext, including L1 evidence
 → user turn
 ```
-
-## Migration
-
-Run a dry inventory first, then apply:
-
-```bash
-node scripts/migrate-agentcontext.mjs
-node scripts/migrate-agentcontext.mjs --apply
-node scripts/check-agentcontext-authority.mjs --verify-migration-snapshot
-```
-
-The migration copies only root guidance, shared knowledge, top-level
-automation definitions, Commander definitions, memory tiers 0–2, and private
-Markdown rules. It excludes credentials, runtime databases, sessions,
-transcripts, proposals, run history, telemetry, logs, quests, profiles,
-avatars, and ledgers. Automation definitions are copied without their embedded
-`history`, `lastRun`, `totalRuns`, or `totalCostUsd` fields. The manifest records
-that explicit exclusion, source/destination hashes, every root rewrite, and
-normalized knowledge-content parity.
-
-The snapshot flag is a cutover check: it confirms current destination bytes
-still match the just-written manifest. Omit it for routine authority checks so
-intentional post-cutover edits to canonical `.happyherd` knowledge do not make
-the frozen migration record masquerade as a permanent dual-root synchronizer.
-
-`.herd` remains an untouched rollback source after the copy. Once cut over,
-edit only `.happyherd`; rerunning the migration is an explicit replacement,
-not two-way synchronization.
 
 ## Provider acceptance matrix
 

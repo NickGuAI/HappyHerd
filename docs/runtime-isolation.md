@@ -3,7 +3,7 @@
 HappyHerd uses explicit deployment profiles rather than embedding an operator,
 domain, registry, host path, or organization in runtime code. Every profile
 owns separate server data, logs, CLI state, and secret files. Profiles must not
-reuse legacy Happy or Herd state.
+reuse personal or retired application state.
 
 The default template is `deploy/runtime.env.example`; a second independent
 template is `deploy/runtime.secondary.env.example`. Both use documentation

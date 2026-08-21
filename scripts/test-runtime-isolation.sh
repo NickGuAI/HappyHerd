@@ -82,15 +82,15 @@ expect_rejected "$TMP_ROOT/invalid-port.env"
 write_config "$TMP_ROOT/invalid-domain.env" "invalid..example.com" "https://invalid..example.com" "20001" "$TMP_ROOT/data" "$TMP_ROOT/logs" "$TMP_ROOT/cli" "$TMP_ROOT/secret"
 expect_rejected "$TMP_ROOT/invalid-domain.env"
 
-write_config "$TMP_ROOT/herd.env" "happyherd.example.com" "https://happyherd.example.com" "20015" "$HOME/.herd/happyherd" "$TMP_ROOT/logs" "$TMP_ROOT/cli" "$TMP_ROOT/secret"
-expect_rejected "$TMP_ROOT/herd.env"
+write_config "$TMP_ROOT/forbidden-personal-state.env" "happyherd.example.com" "https://happyherd.example.com" "20015" "$HOME/.herd/happyherd" "$TMP_ROOT/logs" "$TMP_ROOT/cli" "$TMP_ROOT/secret"
+expect_rejected "$TMP_ROOT/forbidden-personal-state.env"
 
 write_config "$TMP_ROOT/happy.env" "happyherd.example.com" "https://happyherd.example.com" "20015" "$TMP_ROOT/data" "$TMP_ROOT/logs" "$HOME/.happy" "$TMP_ROOT/secret"
 expect_rejected "$TMP_ROOT/happy.env"
 
-write_config "$TMP_ROOT/secondary-herd.env" "secondary.happyherd.example.com" "https://secondary.happyherd.example.com" "20001" "/home/.herd/happyherd" "$TMP_ROOT/logs" "$TMP_ROOT/cli" "$TMP_ROOT/secret"
-env -u HOME "$ROOT/scripts/validate-runtime-isolation.sh" "$TMP_ROOT/secondary-herd.env" template >/dev/null 2>&1 && {
-    printf 'error: secondary profile legacy Herd state was accepted without HOME\n' >&2
+write_config "$TMP_ROOT/secondary-forbidden-state.env" "secondary.happyherd.example.com" "https://secondary.happyherd.example.com" "20001" "/home/.herd/happyherd" "$TMP_ROOT/logs" "$TMP_ROOT/cli" "$TMP_ROOT/secret"
+env -u HOME "$ROOT/scripts/validate-runtime-isolation.sh" "$TMP_ROOT/secondary-forbidden-state.env" template >/dev/null 2>&1 && {
+    printf 'error: secondary profile forbidden personal state was accepted without HOME\n' >&2
     exit 1
 }
 
