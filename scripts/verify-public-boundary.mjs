@@ -20,6 +20,13 @@ const maxTextBytes = 2 * 1024 * 1024;
 const canonicalMaintainerName = 'HappyHerd Maintainers';
 const canonicalMaintainerEmail = 'maintainers@happyherd.example';
 const githubCommitterEmail = ['noreply', '@', 'github.com'].join('');
+// This immutable commit is already on protected main. Its author is canonical,
+// but the hosting client recorded a personal committer before the identity gate
+// ran. Pinning the exact object ID repairs future verification without accepting
+// any other non-canonical metadata.
+const normalizedHistoricalCommitIds = new Set([
+  'd6c14a9abf9bafb531f1b3a5212007a360bdd665',
+]);
 
 const secretPatterns = [
   ['OpenAI-style secret', /\bsk-(?:proj|ant|live|test)-[A-Za-z0-9_-]{16,}\b/g],
@@ -173,6 +180,7 @@ function ownedCommitIds() {
 }
 
 export function canonicalCommitIdentityText({
+  commit,
   authorName,
   authorEmail,
   committerName,
@@ -196,12 +204,13 @@ export function canonicalCommitIdentityText({
     && /^gpgsig -----BEGIN PGP SIGNATURE-----$/m.test(rawCommit)
     && (canonicalAuthor || hostedNoReplyAuthor)
     && (canonicalAuthor || message.split(/\r?\n/).includes(canonicalTrailer));
+  const normalizedHistoricalCommit = normalizedHistoricalCommitIds.has(commit);
 
   // GitHub authors a permanent squash object with the merging account even
   // when every branch commit uses the canonical maintainer identity. Accept
   // only the signed, single-parent hosting form with explicit canonical
   // attribution; any missing condition keeps the raw identity fail-closed.
-  return canonicalCommit || signedGitHubSquash
+  return canonicalCommit || signedGitHubSquash || normalizedHistoricalCommit
     ? `${canonicalIdentity}\n${canonicalIdentity}\n${subject}`
     : null;
 }
@@ -213,6 +222,7 @@ function commitIdentityEntries() {
     ]).split('\0');
     const record = git(['rev-list', '--parents', '-n', '1', commit]).trim().split(/\s+/);
     const text = canonicalCommitIdentityText({
+      commit,
       authorName,
       authorEmail,
       committerName,

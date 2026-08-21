@@ -41,3 +41,4 @@ PUBLIC_RELEASE	accepted	fix(release): use the isolated service station	scripts/t
 PUBLIC_RELEASE	accepted	fix(release): capture Windows uninstall receipts	scripts/test-public-launcher-release-contract.sh
 PUBLIC_RELEASE	accepted	fix(release): publish annotated tag notes compatibly	scripts/test-public-launcher-release-contract.sh
 CODEX_TURN_RECOVERY	accepted	fix(codex): recover stale active turns	server/packages/happy-cli/src/codex/codexAppServerClient.test.ts
+PUBLIC_BOUNDARY	accepted	fix(public-boundary): pin legacy committer normalization	scripts/test-public-boundary.mjs
