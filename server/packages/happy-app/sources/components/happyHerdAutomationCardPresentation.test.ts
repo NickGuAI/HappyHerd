@@ -13,6 +13,7 @@ const automation = {
     rail: 'codex',
     workspace: '/srv/workspace',
     commanderId: null,
+    tags: ['Operations', 'Project Beacon'],
 } as HappyHerdAutomation;
 
 describe('happyHerdAutomationCardPresentation', () => {
@@ -34,6 +35,7 @@ describe('happyHerdAutomationCardPresentation', () => {
             rail: 'codex',
             workspace: '/srv/workspace',
             commanderId: null,
+            tags: ['Operations', 'Project Beacon'],
         });
     });
 });

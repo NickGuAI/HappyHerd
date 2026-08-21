@@ -23,6 +23,7 @@ import { useRouter } from 'expo-router';
 import { SessionShortcutHintBadge } from './ShortcutHints';
 import { buildActiveSessionDisplayGroups } from '@/utils/sessionDisplayOrder';
 import { ProviderIcon } from './ProviderIcon';
+import { CommanderSessionAvatar } from './CommanderSessionAvatar';
 
 const STATUS_CONFIG: Record<SessionState, { color: string; dotColor: string; isPulsing: boolean; isConnected: boolean }> = {
     disconnected: { color: '#999', dotColor: '#999', isPulsing: false, isConnected: false },
@@ -271,7 +272,15 @@ export const CompactSessionRow = React.memo(({ session, selected, showBorder }: 
     const renderLeadingIndicator = () => {
         let indicator: React.ReactNode = null;
 
-        if (session.hasUnread) {
+        if (session.commanderId) {
+            indicator = (
+                <CommanderSessionAvatar
+                    machineId={session.machineId}
+                    commanderId={session.commanderId}
+                    refreshKey={session.state}
+                />
+            );
+        } else if (session.hasUnread) {
             indicator = <StatusDot color={status.dotColor} isPulsing={false} />;
         } else if (session.state === 'waiting' && session.hasDraft) {
             indicator = (

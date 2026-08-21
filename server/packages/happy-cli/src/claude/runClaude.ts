@@ -8,7 +8,7 @@ import { AgentGoalStatus, AgentState, Metadata } from '@/api/types';
 import packageJson from '../../package.json';
 import { Credentials, readSettings } from '@/persistence';
 import { EnhancedMode, PermissionMode } from './loop';
-import { MessageQueue2 } from '@/utils/MessageQueue2';
+import { MessageQueue2, queueMessageIdsForResume } from '@/utils/MessageQueue2';
 import { hashObject } from '@/utils/deterministicJson';
 import { parseSpecialCommand } from '@/parsers/specialCommands';
 import { getEnvironmentInfo } from '@/ui/doctor';
@@ -199,6 +199,8 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
             agentState: state,
             agentStateVersion: parseInt(reconnectAgentStateVersion || '0', 10),
         };
+        response = await api.refreshSessionForReconnect(response);
+        state = response.agentState ?? state;
     } else {
         response = await api.getOrCreateSession({ tag: sessionTag, metadata, state });
     }
@@ -311,11 +313,14 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
 
     // Create realtime session
     const session = api.sessionSyncClient(response);
+    const reconnectQueueMessageIds = reconnectSessionId
+        ? queueMessageIdsForResume(response.agentState?.messageQueue)
+        : [];
 
     // On reconnect, un-archive the session and skip replaying old messages.
     if (reconnectSessionId) {
         session.suppressNextArchiveSignal();
-        session.skipExistingMessages();
+        session.skipExistingMessages(reconnectQueueMessageIds, response.seq);
         session.updateMetadata((meta) => ({
             ...meta,
             lifecycleState: 'running',
@@ -544,12 +549,6 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     logger.infoDeveloper(`Session: ${response.id}`);
     logger.infoDeveloper(`Logs: ${logPath}`);
 
-    // Set initial agent state
-    session.updateAgentState((currentState) => ({
-        ...currentState,
-        controlledByUser: options.startingMode !== 'remote'
-    }));
-
     // Import MessageQueue2 and create message queue
     const messageQueue = new MessageQueue2<EnhancedMode>(mode => hashObject({
         isPlan: mode.permissionMode === 'plan',
@@ -560,6 +559,21 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         allowedTools: mode.allowedTools,
         disallowedTools: mode.disallowedTools,
         effort: mode.effort,
+    }));
+    messageQueue.restorePendingQueueMessageIds(reconnectQueueMessageIds);
+    messageQueue.setOnQueueStateChange((messageQueueState) => {
+        session.updateAgentState((currentState) => ({
+            ...currentState,
+            messageQueue: messageQueueState,
+        }));
+    });
+
+    // Set initial agent state, including an empty authoritative queue snapshot
+    // so new clients can distinguish queue-aware runtimes from older CLIs.
+    session.updateAgentState((currentState) => ({
+        ...currentState,
+        controlledByUser: options.startingMode !== 'remote',
+        messageQueue: messageQueue.getQueueState(),
     }));
 
     // Forward messages to the queue
@@ -677,10 +691,14 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
                 return null;
             }
         })();
-        session.trackAttachmentDownload(downloadPromise);
+        session.trackAttachmentDownload(downloadPromise, fileEvent.meta?.queueMessageId);
     });
 
     session.onUserMessage(async (message) => {
+
+        const queueMessageId = message.meta?.deliveryMode === 'queue'
+            ? message.localKey ?? message.meta.queueMessageId
+            : undefined;
 
         // Stamp the prompt so the remote-mode JSONL scanner can dedupe
         // it later — the SDK is about to write this same text to disk
@@ -691,7 +709,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
 
         // Claim every file attachment that arrived strictly before this text.
         // New file events from this point on belong to the next user message.
-        const attachmentsForThisMessage = await session.drainAttachmentsForUserMessage();
+        const attachmentsForThisMessage = await session.drainAttachmentsForUserMessage(queueMessageId);
 
         // Resolve permission mode from meta - pass through as-is, mapping happens at SDK boundary
         let messagePermissionMode: PermissionMode | undefined = currentPermissionMode;
@@ -803,14 +821,14 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
 
         if (specialCommand.type === 'compact') {
             logger.debug('[start] Detected /compact command');
-            messageQueue.pushIsolateAndClear(specialCommand.originalMessage || message.content.text, currentEnhancedMode(), attachmentsForThisMessage);
+            messageQueue.pushIsolateAndClear(specialCommand.originalMessage || message.content.text, currentEnhancedMode(), attachmentsForThisMessage, queueMessageId);
             logger.debugLargeJson('[start] /compact command pushed to queue:', message);
             return;
         }
 
         if (specialCommand.type === 'clear') {
             logger.debug('[start] Detected /clear command');
-            messageQueue.pushIsolateAndClear(specialCommand.originalMessage || message.content.text, currentEnhancedMode(), attachmentsForThisMessage);
+            messageQueue.pushIsolateAndClear(specialCommand.originalMessage || message.content.text, currentEnhancedMode(), attachmentsForThisMessage, queueMessageId);
             logger.debugLargeJson('[start] /clear command pushed to queue:', message);
             return;
         }
@@ -858,7 +876,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         }
 
         // Push with resolved permission mode, model, system prompts, and tools
-        messageQueue.push(message.content.text, currentEnhancedMode(), attachmentsForThisMessage);
+        messageQueue.push(message.content.text, currentEnhancedMode(), attachmentsForThisMessage, queueMessageId);
         logger.debugLargeJson('User message pushed to queue:', message)
     });
 

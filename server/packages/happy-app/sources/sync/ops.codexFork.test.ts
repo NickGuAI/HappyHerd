@@ -56,7 +56,7 @@ describe('codex fork ops', () => {
 
     it('routes automation CRUD through encrypted machine RPC methods', async () => {
         machineRPC.mockResolvedValueOnce({ automations: [] });
-        const { machineListAutomations, machineCreateAutomation } = await import('./ops');
+        const { machineListAutomations, machineCreateAutomation, machineUpdateAutomation } = await import('./ops');
 
         await machineListAutomations('machine-1');
         expect(machineRPC).toHaveBeenNthCalledWith(1, 'machine-1', 'happyherd-automations-list', {});
@@ -72,10 +72,18 @@ describe('codex fork ops', () => {
             commanderId: null,
             status: 'paused' as const,
             maxRetries: 0,
+            tags: ['Project Beacon', 'Operations'],
         };
         machineRPC.mockResolvedValueOnce({ id: 'automation-1' });
         await machineCreateAutomation('machine-1', input);
         expect(machineRPC).toHaveBeenNthCalledWith(2, 'machine-1', 'happyherd-automations-create', input);
+
+        machineRPC.mockResolvedValueOnce({ id: 'automation-1', tags: [] });
+        await machineUpdateAutomation('machine-1', 'automation-1', { tags: [] });
+        expect(machineRPC).toHaveBeenNthCalledWith(3, 'machine-1', 'happyherd-automations-update', {
+            id: 'automation-1',
+            patch: { tags: [] },
+        });
     });
 
     it('turns encrypted automation handler failures into client errors', async () => {

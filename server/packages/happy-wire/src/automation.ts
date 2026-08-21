@@ -10,8 +10,35 @@ export const HappyHerdAutomationRunStatusSchema = z.enum([
   'running', 'started', 'completed', 'failed', 'timed-out', 'skipped', 'missed',
 ]);
 
-export const HappyHerdAutomationSchema = z.object({
-  schemaVersion: z.literal(1),
+export const HAPPYHERD_AUTOMATION_DEFINITION_SCHEMA_VERSION = 2 as const;
+export const HAPPYHERD_AUTOMATION_MAX_TAGS = 20;
+export const HAPPYHERD_AUTOMATION_MAX_TAG_LENGTH = 80;
+
+export const HappyHerdAutomationTagSchema = z.string()
+  .trim()
+  .min(1)
+  .max(HAPPYHERD_AUTOMATION_MAX_TAG_LENGTH);
+
+export const HappyHerdAutomationTagsSchema = z.array(HappyHerdAutomationTagSchema)
+  .max(HAPPYHERD_AUTOMATION_MAX_TAGS)
+  .superRefine((tags, context) => {
+    const seen = new Set<string>();
+    for (const [index, tag] of tags.entries()) {
+      if (seen.has(tag)) {
+        context.addIssue({
+          code: 'custom',
+          path: [index],
+          message: `Duplicate automation tag: ${tag}`,
+        });
+      }
+      seen.add(tag);
+    }
+  })
+  .transform((tags) => [...tags].sort((left, right) => (
+    left < right ? -1 : left > right ? 1 : 0
+  )));
+
+const HappyHerdAutomationDefinitionFieldsSchema = z.object({
   runtimeOwner: z.literal('happyherd'),
   id: z.string().uuid(),
   machineId: z.string().trim().min(1),
@@ -31,24 +58,49 @@ export const HappyHerdAutomationSchema = z.object({
   lastRunAt: z.string().datetime().nullable(),
 }).strict();
 
-export type HappyHerdAutomation = z.infer<typeof HappyHerdAutomationSchema>;
+export const HappyHerdAutomationV1Schema = HappyHerdAutomationDefinitionFieldsSchema.extend({
+  schemaVersion: z.literal(1),
+}).strict();
 
-export const HappyHerdAutomationCreateInputSchema = HappyHerdAutomationSchema.pick({
-  name: true,
-  kind: true,
-  instruction: true,
-  schedule: true,
-  timezone: true,
-  workspace: true,
-  rail: true,
-  commanderId: true,
-  status: true,
-  maxRetries: true,
-});
-export type HappyHerdAutomationCreateInput = z.infer<typeof HappyHerdAutomationCreateInputSchema>;
+export const HappyHerdAutomationV2Schema = HappyHerdAutomationDefinitionFieldsSchema.extend({
+  schemaVersion: z.literal(HAPPYHERD_AUTOMATION_DEFINITION_SCHEMA_VERSION),
+  tags: HappyHerdAutomationTagsSchema,
+}).strict();
 
-export const HappyHerdAutomationUpdateInputSchema = HappyHerdAutomationCreateInputSchema.partial().strict();
-export type HappyHerdAutomationUpdateInput = z.infer<typeof HappyHerdAutomationUpdateInputSchema>;
+export const HappyHerdAutomationSchema = z.union([
+  HappyHerdAutomationV2Schema,
+  HappyHerdAutomationV1Schema,
+]).transform((automation) => automation.schemaVersion === 1
+  ? {
+      ...automation,
+      schemaVersion: HAPPYHERD_AUTOMATION_DEFINITION_SCHEMA_VERSION,
+      tags: [],
+    }
+  : automation);
+
+export type HappyHerdAutomation = z.output<typeof HappyHerdAutomationSchema>;
+
+const HappyHerdAutomationMutableFieldsSchema = z.object({
+  name: z.string().trim().min(1).max(160),
+  kind: HappyHerdAutomationKindSchema,
+  instruction: z.string().trim().min(1).max(100_000),
+  schedule: z.string().trim().min(1).max(512),
+  timezone: z.string().trim().min(1).max(128),
+  workspace: z.string().trim().min(1),
+  rail: HappyHerdAutomationRailSchema,
+  commanderId: z.string().trim().min(1).nullable(),
+  status: HappyHerdAutomationStatusSchema,
+  maxRetries: z.number().int().min(0).max(5),
+  tags: HappyHerdAutomationTagsSchema,
+}).strict();
+
+export const HappyHerdAutomationCreateInputSchema = HappyHerdAutomationMutableFieldsSchema.extend({
+  tags: HappyHerdAutomationTagsSchema.default([]),
+}).strict();
+export type HappyHerdAutomationCreateInput = z.input<typeof HappyHerdAutomationCreateInputSchema>;
+
+export const HappyHerdAutomationUpdateInputSchema = HappyHerdAutomationMutableFieldsSchema.partial().strict();
+export type HappyHerdAutomationUpdateInput = z.input<typeof HappyHerdAutomationUpdateInputSchema>;
 
 export const HappyHerdAutomationRunSchema = z.object({
   id: z.string().uuid(),
@@ -109,9 +161,10 @@ export const HappyHerdAutomationProviderOutcomeSchema = z.object({
 export type HappyHerdAutomationProviderOutcome = z.infer<typeof HappyHerdAutomationProviderOutcomeSchema>;
 
 export const HappyHerdAutomationListResponseSchema = z.object({
+  definitionSchemaVersion: z.union([z.literal(1), z.literal(2)]).default(1),
   automations: z.array(HappyHerdAutomationSchema),
 }).strict();
-export type HappyHerdAutomationListResponse = z.infer<typeof HappyHerdAutomationListResponseSchema>;
+export type HappyHerdAutomationListResponse = z.output<typeof HappyHerdAutomationListResponseSchema>;
 
 export const HappyHerdAutomationHistoryResponseSchema = z.object({
   runs: z.array(HappyHerdAutomationRunSchema),

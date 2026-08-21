@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AgentMessageQueueStateSchema } from '@slopus/happy-wire';
 
 //
 // Agent states
@@ -324,6 +325,9 @@ export type CompletedAgentCommunication = z.infer<typeof CompletedAgentCommunica
 
 export const AgentStateSchema = z.object({
     controlledByUser: z.boolean().nullish(),
+    // A malformed/newer queue snapshot must not invalidate permissions or the
+    // rest of the encrypted agent state for older clients.
+    messageQueue: AgentMessageQueueStateSchema.optional().catch(undefined),
     // Ephemeral runtime state. A malformed snapshot must not invalidate
     // permission requests or the rest of the agent state.
     usageLimits: UsageLimitsSchema,

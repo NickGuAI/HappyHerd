@@ -6,7 +6,7 @@ export type HappyHerdAutomationCardPresentation = {
     statusKey: 'happyHerd.automations.statusActive' | 'happyHerd.automations.statusPaused';
     details: null | Pick<
         HappyHerdAutomation,
-        'schedule' | 'timezone' | 'kind' | 'instruction' | 'rail' | 'workspace' | 'commanderId'
+        'schedule' | 'timezone' | 'kind' | 'instruction' | 'rail' | 'workspace' | 'commanderId' | 'tags'
     >;
 };
 
@@ -29,6 +29,7 @@ export function happyHerdAutomationCardPresentation(
             rail: automation.rail,
             workspace: automation.workspace,
             commanderId: automation.commanderId,
+            tags: automation.tags,
         } : null,
     };
 }

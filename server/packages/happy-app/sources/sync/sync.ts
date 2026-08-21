@@ -76,6 +76,7 @@ import {
     requestVisibleSessionReconciliation,
     type VisibleSessionReconciliationTrigger,
 } from './visibleSessionReconciliation';
+import { appendPendingQueueMessageId, removeQueueMessageIds } from './queueState';
 
 type V3GetSessionMessagesResponse = {
     messages: ApiMessage[];
@@ -506,17 +507,31 @@ class Sync {
         this.sendAbortControllers.clear();
 
         const now = Date.now();
-        const sessionIds: string[] = [];
+        const failedMessageIdsBySession = new Map<string, string[]>();
         for (const [sessionId, pending] of this.pendingOutbox) {
             if (pending.length === 0) {
                 continue;
             }
+            failedMessageIdsBySession.set(sessionId, pending.map((message) => message.localId));
             pending.length = 0;
             this.pendingOutbox.delete(sessionId);
-            sessionIds.push(sessionId);
         }
 
-        for (const sessionId of sessionIds) {
+        for (const [sessionId, failedMessageIds] of failedMessageIdsBySession) {
+            const currentSession = storage.getState().sessions[sessionId];
+            const currentQueue = currentSession?.agentState?.messageQueue;
+            if (currentSession && currentQueue) {
+                const nextQueue = removeQueueMessageIds(currentQueue, failedMessageIds);
+                if (nextQueue !== currentQueue) {
+                    this.applySessions([{
+                        ...currentSession,
+                        agentState: {
+                            ...(currentSession.agentState ?? {}),
+                            messageQueue: nextQueue,
+                        },
+                    }]);
+                }
+            }
             this.enqueueMessages(sessionId, [{
                 id: randomUUID(),
                 localId: null,
@@ -682,6 +697,15 @@ class Sync {
             }
         }
 
+        // One persisted local ID owns the queued text plus any attachment
+        // records that precede it in the immutable message log.
+        const localId = randomUUID();
+        const preparedQueuedAttachments: Array<{
+            localId: string;
+            content: string;
+            normalized: NormalizedMessage | null;
+        }> = [];
+
         // Upload attachments and queue file events before the text message.
         if (effectiveAttachments && effectiveAttachments.length > 0) {
             const { uploaded, failed } = await this.uploadAttachmentsForSession(sessionId, effectiveAttachments);
@@ -695,9 +719,9 @@ class Sync {
             }
 
             if (uploaded.length > 0) {
-                let pending = this.pendingOutbox.get(sessionId);
-                if (!pending) {
-                    pending = [];
+                let pending: OutboxMessage[] | null = null;
+                if (deliveryMode !== 'queue') {
+                    pending = this.pendingOutbox.get(sessionId) ?? [];
                     this.pendingOutbox.set(sessionId, pending);
                 }
 
@@ -733,20 +757,31 @@ class Sync {
                                 },
                             },
                         },
+                        ...(deliveryMode === 'queue' ? {
+                            meta: {
+                                deliveryMode,
+                                queueMessageId: localId,
+                            },
+                        } : {}),
                     };
                     const encryptedFileRecord = await encryption.encryptRawRecord(fileRecord);
                     const fileLocalId = randomUUID();
                     const fileNormalized = normalizeRawMessage(fileLocalId, fileLocalId, Date.now(), fileRecord);
-                    if (fileNormalized) {
-                        this.enqueueMessages(sessionId, [fileNormalized]);
+                    if (deliveryMode === 'queue') {
+                        preparedQueuedAttachments.push({
+                            localId: fileLocalId,
+                            content: encryptedFileRecord,
+                            normalized: fileNormalized,
+                        });
+                    } else {
+                        if (fileNormalized) {
+                            this.enqueueMessages(sessionId, [fileNormalized]);
+                        }
+                        pending!.push({ localId: fileLocalId, content: encryptedFileRecord });
                     }
-                    pending.push({ localId: fileLocalId, content: encryptedFileRecord });
                 }
             }
         }
-
-        // Generate local ID
-        const localId = randomUUID();
 
         // Determine sentFrom based on platform
         let sentFrom: string;
@@ -781,15 +816,32 @@ class Sync {
                 ...(modeMeta.effort !== undefined ? { effort: modeMeta.effort } : {}),
                 ...(displayText && { displayText }), // Add displayText if provided
                 ...(deliveryMode ? { deliveryMode } : {}),
+                ...(deliveryMode === 'queue' ? { queueMessageId: localId } : {}),
             }
         };
         const encryptedRawRecord = await encryption.encryptRawRecord(content);
 
-        // Add to messages - normalize the raw record
-        const createdAt = Date.now();
-        const normalizedMessage = normalizeRawMessage(localId, localId, createdAt, content);
-        if (normalizedMessage) {
-            this.enqueueMessages(sessionId, [normalizedMessage]);
+        // Queue-aware runtimes publish an empty snapshot at startup. Wait
+        // until every queued record has encrypted successfully before adding
+        // the optimistic ID, so a preparation failure cannot leave a ghost
+        // count. Older runtimes have no snapshot and keep legacy rendering.
+        let optimisticQueueInserted = false;
+        if (deliveryMode === 'queue') {
+            const currentSession = storage.getState().sessions[sessionId];
+            const currentQueue = currentSession?.agentState?.messageQueue;
+            if (currentSession && currentQueue) {
+                const nextQueue = appendPendingQueueMessageId(currentQueue, localId);
+                if (nextQueue !== currentQueue) {
+                    this.applySessions([{
+                        ...currentSession,
+                        agentState: {
+                            ...(currentSession.agentState ?? {}),
+                            messageQueue: nextQueue,
+                        },
+                    }]);
+                    optimisticQueueInserted = true;
+                }
+            }
         }
 
         let pending = this.pendingOutbox.get(sessionId);
@@ -797,10 +849,43 @@ class Sync {
             pending = [];
             this.pendingOutbox.set(sessionId, pending);
         }
-        pending.push({
-            localId,
-            content: encryptedRawRecord
-        });
+
+        // Add the prepared attachments and user message as one local step.
+        // Roll the optimistic projection back if local persistence itself
+        // fails; network failures keep the outbox pending for its normal retry.
+        const createdAt = Date.now();
+        const normalizedMessage = normalizeRawMessage(localId, localId, createdAt, content);
+        try {
+            for (const attachment of preparedQueuedAttachments) {
+                if (attachment.normalized) {
+                    this.enqueueMessages(sessionId, [attachment.normalized]);
+                }
+                pending.push({ localId: attachment.localId, content: attachment.content });
+            }
+            if (normalizedMessage) {
+                this.enqueueMessages(sessionId, [normalizedMessage]);
+            }
+            pending.push({
+                localId,
+                content: encryptedRawRecord
+            });
+        } catch (error) {
+            if (optimisticQueueInserted) {
+                const latestSession = storage.getState().sessions[sessionId];
+                const latestQueue = latestSession?.agentState?.messageQueue;
+                if (latestSession && latestQueue) {
+                    const nextQueue = removeQueueMessageIds(latestQueue, [localId]);
+                    this.applySessions([{
+                        ...latestSession,
+                        agentState: {
+                            ...(latestSession.agentState ?? {}),
+                            messageQueue: nextQueue,
+                        },
+                    }]);
+                }
+            }
+            throw error;
+        }
         trackMessageSent(source, session.metadata);
 
         // Stamp local activity time so the (opt-in) activity sort bubbles this session

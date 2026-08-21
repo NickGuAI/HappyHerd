@@ -1,3 +1,37 @@
+# August 21 — Files and folders as message context
+
+Machine Workspace now provides a complete create, upload, and context flow for both new and current conversations.
+
+- Create one safe child folder in the directory you are browsing, then navigate into it immediately.
+- Upload selection failures are reported, attachment limits are enforced before writing, in-flight batches stay pinned to their original machine and directory, and names containing spaces, `+`, `%`, `#`, or Unicode remain exact.
+- Select files or folders as context from Workspace or New Session; active Chat keeps their file/folder identity visible in the composer.
+- Text files are embedded within bounded untrusted-data markers, binary files remain exact host-path references, and folders contribute a deterministic bounded one-level listing.
+
+# August 21 — Queued messages stay visibly queued
+
+Queue Msg follow-ups now appear in an ordered queue above the composer instead of looking like messages that already entered the conversation.
+
+- Waiting text and attachments stay together in a read-only queue panel and move into the conversation only when the owning runtime starts that work.
+- Batched follow-ups preserve their individual order and identity across Claude Code, Codex, reconnects, and message catch-up.
+- Failed local sends cannot leave ghost queue counts, while sessions on older runtimes retain their established transcript behavior.
+
+# August 21 — Automations grouped by project and machine
+
+Automations now appear in a Project → Machine → Automation hierarchy across every online HappyHerd host.
+
+- Add one or more project tags while creating or editing an automation; multi-tag automations appear in each matching project and definitions without tags stay under Untagged.
+- One failed or offline machine no longer hides automations loaded from the other connected machines, and every action still targets the machine that owns that automation.
+- Older daemons continue to load their existing definitions safely as Untagged and show an upgrade prompt before tags can be edited.
+- The shared Automations route provides the same organization and tag controls on Web, mobile, and native iOS.
+
+# August 21 — Commander identity in every conversation
+
+Compact conversation lists now show the selected Commander's profile image next to the conversation title.
+
+- Commander images are loaded from the owning machine and cached by machine plus Commander, so identities cannot cross between hosts.
+- Missing, invalid, oversized, or unavailable profile images fall back to the same deterministic generated avatar instead of hiding the conversation.
+- Conversations without a Commander retain their existing unread, draft, and activity indicators.
+
 # August 21 — Codex sessions recover from stale turns
 
 Follow-up messages no longer get trapped behind a Codex turn that already ended at the provider.

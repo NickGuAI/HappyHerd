@@ -9,6 +9,21 @@ Repository ownership, deployment domains, infrastructure identifiers, operator
 paths, and organization-specific integrations are configuration—not generic
 source code. A public-boundary gate checks that invariant before changes ship.
 
+## Continuous integration
+
+Every pull request runs the
+[quality gates](.github/workflows/quality-gates.yml)—Clean install, Lint,
+Typecheck, Unit tests, and Production build—and the independent
+[Contract suite](.github/workflows/contract-suite.yml). These checks cover the
+reproducible install, source and localization contracts, production packages,
+and HappyHerd's maintained patch boundary.
+
+## License and support
+
+HappyHerd is distributed under the [MIT](LICENSE) license, the same license as
+upstream Happy. If HappyHerd is useful to you, you can
+[buy the developer one $5 coffee](https://buymeacoffee.com/nickguy).
+
 ## Repository layout
 
 - `server/` — full-history Happy subtree plus HappyHerd-owned runtime changes.

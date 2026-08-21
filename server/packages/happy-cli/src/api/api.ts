@@ -138,6 +138,58 @@ export class ApiClient {
   }
 
   /**
+   * Reload the authoritative encrypted state for a session that is being
+   * resumed in place. The daemon-provided reconnect tuple deliberately keeps
+   * only the last known versions; queue-aware resumes must refresh the actual
+   * AgentState before deciding which historical user records still need to be
+   * delivered.
+   */
+  async refreshSessionForReconnect(session: Session): Promise<Session> {
+    const response = await axios.get<{
+      sessions?: Array<{
+        id: string,
+        seq: number,
+        metadata: string,
+        metadataVersion: number,
+        agentState: string | null,
+        agentStateVersion: number,
+      }>
+    }>(`${configuration.serverUrl}/v1/sessions`, {
+      headers: {
+        'Authorization': `Bearer ${this.credential.token}`,
+        'X-Happy-Client': `cli-coding-session/${configuration.currentCliVersion}`
+      },
+      timeout: 60000
+    });
+
+    const raw = response.data.sessions?.find((candidate) => candidate.id === session.id);
+    if (!raw) {
+      throw new Error(`Cannot refresh Happy session ${session.id} for reconnect`);
+    }
+
+    const persistedMetadata = decrypt(
+      session.encryptionKey,
+      session.encryptionVariant,
+      decodeBase64(raw.metadata),
+    ) as Metadata;
+    const persistedAgentState = raw.agentState
+      ? decrypt(session.encryptionKey, session.encryptionVariant, decodeBase64(raw.agentState)) as AgentState
+      : null;
+
+    return {
+      ...session,
+      seq: raw.seq,
+      metadata: {
+        ...persistedMetadata,
+        ...session.metadata,
+      },
+      metadataVersion: raw.metadataVersion,
+      agentState: persistedAgentState,
+      agentStateVersion: raw.agentStateVersion,
+    };
+  }
+
+  /**
    * Register or update machine with the server
    * Returns the current machine state from the server with decrypted metadata and daemonState
    */

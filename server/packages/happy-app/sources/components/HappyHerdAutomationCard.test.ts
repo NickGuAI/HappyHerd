@@ -94,6 +94,7 @@ const automation = {
     rail: 'codex',
     workspace: '/srv/workspace',
     commanderId: null,
+    tags: ['Operations', 'Project Beacon'],
 } as HappyHerdAutomation;
 
 describe('HappyHerdAutomationCard', () => {
@@ -115,6 +116,7 @@ describe('HappyHerdAutomationCard', () => {
         expect(visibleText(renderer)).toContain('memory-reflector-weekly Active');
         expect(visibleText(renderer)).not.toContain('0 4 * * 0');
         expect(visibleText(renderer)).not.toContain('Private automation instruction');
+        expect(visibleText(renderer)).not.toContain('Project Beacon');
 
         const summary = renderer.root.findByProps({
             accessibilityLabel: 'Show details for memory-reflector-weekly',
@@ -126,6 +128,7 @@ describe('HappyHerdAutomationCard', () => {
         expect(visibleText(renderer)).toContain('0 4 * * 0');
         expect(visibleText(renderer)).toContain('America/New_York');
         expect(visibleText(renderer)).toContain('Private automation instruction');
+        expect(visibleText(renderer)).toContain('Operations Project Beacon');
         expect(visibleText(renderer)).toContain('Run now');
         expect(renderer.root.findByProps({
             accessibilityLabel: 'Hide details for memory-reflector-weekly',

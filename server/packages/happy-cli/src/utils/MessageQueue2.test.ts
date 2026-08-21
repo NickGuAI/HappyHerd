@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MessageQueue2 } from './MessageQueue2';
+import { MessageQueue2, queueMessageIdsForResume } from './MessageQueue2';
 import { hashObject } from './deterministicJson';
 
 describe('MessageQueue2', () => {
@@ -513,5 +513,96 @@ describe('MessageQueue2', () => {
         const batch3 = await queue.waitForMessagesAndGetAsString();
         expect(batch3?.message).toBe('after-isolated');
         expect(batch3?.mode.type).toBe('B');
+    });
+
+    it('publishes ordered persisted IDs across pending, current, and completed lifecycle', async () => {
+        const queue = new MessageQueue2<string>((mode) => mode);
+        const states: Array<{ pendingMessageIds: string[]; currentMessageIds: string[] }> = [];
+        queue.setOnQueueStateChange((state) => states.push(state));
+
+        queue.push('first', 'same-mode', undefined, 'queue-1');
+        queue.push('second', 'same-mode', undefined, 'queue-2');
+
+        expect(states).toEqual([
+            { pendingMessageIds: ['queue-1'], currentMessageIds: [] },
+            { pendingMessageIds: ['queue-1', 'queue-2'], currentMessageIds: [] },
+        ]);
+
+        const batch = await queue.waitForMessagesAndGetAsString();
+        expect(batch?.queueMessageIds).toEqual(['queue-1', 'queue-2']);
+        expect(queue.getQueueState()).toEqual({
+            pendingMessageIds: ['queue-1', 'queue-2'],
+            currentMessageIds: [],
+        });
+
+        queue.markBatchStarted(batch!.queueMessageIds);
+        expect(queue.getQueueState()).toEqual({
+            pendingMessageIds: [],
+            currentMessageIds: ['queue-1', 'queue-2'],
+        });
+
+        queue.completeCurrentBatch(batch!.queueMessageIds);
+        expect(queue.getQueueState()).toEqual({
+            pendingMessageIds: [],
+            currentMessageIds: [],
+        });
+    });
+
+    it('keeps a mode-changing dequeued ID pending until its provider turn starts', async () => {
+        const queue = new MessageQueue2<string>((mode) => mode);
+        queue.push('first mode', 'A', undefined, 'queue-a');
+        queue.push('next mode', 'B', undefined, 'queue-b');
+
+        const first = await queue.waitForMessagesAndGetAsString();
+        queue.markBatchStarted(first!.queueMessageIds);
+        const next = await queue.waitForMessagesAndGetAsString();
+
+        expect(next?.queueMessageIds).toEqual(['queue-b']);
+        expect(queue.getQueueState()).toEqual({
+            pendingMessageIds: ['queue-b'],
+            currentMessageIds: ['queue-a'],
+        });
+    });
+
+    it('accepts each persisted queue message ID exactly once', async () => {
+        const queue = new MessageQueue2<string>((mode) => mode);
+        const states: Array<{ pendingMessageIds: string[]; currentMessageIds: string[] }> = [];
+        queue.setOnQueueStateChange((state) => states.push(state));
+
+        queue.push('original', 'same-mode', undefined, 'persisted-1');
+        queue.push('duplicate delivery', 'same-mode', undefined, 'persisted-1');
+
+        expect(queue.size()).toBe(1);
+        await expect(queue.waitForMessagesAndGetAsString()).resolves.toMatchObject({
+            message: 'original',
+            queueMessageIds: ['persisted-1'],
+        });
+        expect(states).toHaveLength(1);
+    });
+
+    it('restores interrupted current work ahead of pending FIFO entries', () => {
+        expect(queueMessageIdsForResume({
+            pendingMessageIds: ['queue-2', 'queue-3', 'queue-1'],
+            currentMessageIds: ['queue-1'],
+        })).toEqual(['queue-1', 'queue-2', 'queue-3']);
+    });
+
+    it('keeps restored IDs pending while immutable records hydrate into the queue', () => {
+        const queue = new MessageQueue2<string>((mode) => mode);
+        const states: Array<{ pendingMessageIds: string[]; currentMessageIds: string[] }> = [];
+        queue.restorePendingQueueMessageIds(['queue-1', 'queue-2']);
+        queue.setOnQueueStateChange((state) => states.push(state));
+
+        queue.push('first restored prompt', 'same-mode', undefined, 'queue-1');
+        queue.push('second restored prompt', 'same-mode', undefined, 'queue-2');
+
+        expect(states).toEqual([
+            { pendingMessageIds: ['queue-1', 'queue-2'], currentMessageIds: [] },
+            { pendingMessageIds: ['queue-1', 'queue-2'], currentMessageIds: [] },
+        ]);
+        expect(queue.getQueueState()).toEqual({
+            pendingMessageIds: ['queue-1', 'queue-2'],
+            currentMessageIds: [],
+        });
     });
 });

@@ -64,6 +64,8 @@ jobs:
         run: node scripts/lint-source.mjs
       - name: Verify product identity contract
         run: node scripts/verify-product-identity.mjs
+      - name: Verify community contract
+        run: node scripts/verify-community-contract.mjs
       - name: Verify public repository boundary
         run: |
           node scripts/test-public-boundary.mjs

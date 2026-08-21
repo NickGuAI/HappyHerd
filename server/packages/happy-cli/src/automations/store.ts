@@ -3,6 +3,7 @@ import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promise
 import path from 'node:path';
 
 import {
+  HAPPYHERD_AUTOMATION_DEFINITION_SCHEMA_VERSION,
   HappyHerdAutomationCreateInputSchema,
   HappyHerdAutomationRunSchema,
   HappyHerdAutomationSchema,
@@ -141,7 +142,10 @@ export class HappyHerdAutomationStore {
       }
     }
     automations.sort((left, right) => right.createdAt.localeCompare(left.createdAt) || left.id.localeCompare(right.id));
-    return { automations };
+    return {
+      definitionSchemaVersion: HAPPYHERD_AUTOMATION_DEFINITION_SCHEMA_VERSION,
+      automations,
+    };
   }
 
   async get(id: string): Promise<HappyHerdAutomation> {
@@ -161,7 +165,7 @@ export class HappyHerdAutomationStore {
       const now = new Date().toISOString();
       const automation = HappyHerdAutomationSchema.parse({
         ...input,
-        schemaVersion: 1,
+        schemaVersion: HAPPYHERD_AUTOMATION_DEFINITION_SCHEMA_VERSION,
         runtimeOwner: 'happyherd',
         id: randomUUID(),
         machineId,
@@ -186,7 +190,7 @@ export class HappyHerdAutomationStore {
         id: current.id,
         machineId: current.machineId,
         runtimeOwner: 'happyherd',
-        schemaVersion: 1,
+        schemaVersion: HAPPYHERD_AUTOMATION_DEFINITION_SCHEMA_VERSION,
         createdAt: current.createdAt,
         updatedAt: new Date().toISOString(),
       });

@@ -2,6 +2,7 @@ import { access, mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:f
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { MAX_HAPPYHERD_COMMANDER_AVATAR_BYTES } from '@slopus/happy-wire';
 
 import {
   contextEnvironment,
@@ -70,6 +71,52 @@ describe('Commander context', () => {
     expect(result.commanders).toHaveLength(1);
     expect(result.commanders[0]).toMatchObject({ id: 'athena', name: 'Athena' });
     expect(result.globalAgentsPath).toBe(path.join(root, '.happyherd', 'AGENTS.md'));
+  });
+
+  it('lists a bounded canonical avatar using its validated content type without embedding bytes', async () => {
+    const avatarPath = path.join(root, '.happyherd', 'commanders', 'athena', 'avatar.png');
+    // Existing Commander profiles may contain JPEG bytes behind the canonical
+    // avatar.png filename, so MIME comes from the signature, not the suffix.
+    const avatar = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x02, 0xff, 0xd9]);
+    await writeFile(avatarPath, avatar);
+
+    const result = await listCommanders();
+
+    expect(result.commanders[0].avatar).toEqual({
+      path: avatarPath,
+      mimeType: 'image/jpeg',
+      byteLength: avatar.byteLength,
+      sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+    });
+    expect(result.commanders[0]).not.toHaveProperty('avatar.content');
+  });
+
+  it('ignores malformed, oversized, and linked avatars without hiding the Commander', async () => {
+    const commanderDir = path.join(root, '.happyherd', 'commanders', 'athena');
+    const avatarPath = path.join(commanderDir, 'avatar.png');
+
+    await writeFile(avatarPath, 'not a png');
+    expect((await listCommanders()).commanders[0]).not.toHaveProperty('avatar');
+
+    for (const signatureOnly of [
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.from([0xff, 0xd8, 0xff]),
+      Buffer.from('RIFF0000WEBP'),
+    ]) {
+      await writeFile(avatarPath, signatureOnly);
+      expect((await listCommanders()).commanders[0]).not.toHaveProperty('avatar');
+    }
+
+    await writeFile(avatarPath, Buffer.alloc(MAX_HAPPYHERD_COMMANDER_AVATAR_BYTES + 1));
+    expect((await listCommanders()).commanders[0]).not.toHaveProperty('avatar');
+
+    await rm(avatarPath);
+    const outsideAvatar = path.join(root, 'outside-avatar.png');
+    await writeFile(outsideAvatar, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    await symlink(outsideAvatar, avatarPath);
+    const linkedResult = await listCommanders();
+    expect(linkedResult.commanders).toHaveLength(1);
+    expect(linkedResult.commanders[0]).not.toHaveProperty('avatar');
   });
 
   it('does not load the retired singular Commander store', async () => {

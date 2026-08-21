@@ -297,6 +297,7 @@ export async function claudeRemoteLauncher(
         let pending: {
             message: MessageParam['content'];
             mode: EnhancedMode;
+            queueMessageIds: string[];
         } | null = null;
 
         // Track session ID to detect when it actually changes
@@ -344,6 +345,7 @@ export async function claudeRemoteLauncher(
                             let p = pending;
                             pending = null;
                             permissionHandler.handleModeChange(p.mode.permissionMode);
+                            session.queue.markBatchStarted(p.queueMessageIds);
                             return p;
                         }
 
@@ -390,15 +392,19 @@ export async function claudeRemoteLauncher(
                                 }
                                 contentBlocks.push({ type: 'text' as const, text: msg.message });
                                 logger.debug(`[remote] Combined ${contentBlocks.length - 1} image(s) with text message`);
+                                session.queue.markBatchStarted(msg.queueMessageIds);
                                 return {
                                     message: contentBlocks,
                                     mode: msg.mode,
+                                    queueMessageIds: msg.queueMessageIds,
                                 };
                             }
 
+                            session.queue.markBatchStarted(msg.queueMessageIds);
                             return {
                                 message: msg.message,
-                                mode: msg.mode
+                                mode: msg.mode,
+                                queueMessageIds: msg.queueMessageIds,
                             }
                         }
 
@@ -447,6 +453,7 @@ export async function claudeRemoteLauncher(
                     },
                     onReady: () => {
                         session.client.closeClaudeSessionTurn('completed');
+                        session.queue.completeCurrentBatch();
                         if (!pending && session.queue.size() === 0) {
                             session.api.push().sendSessionNotification({
                                 kind: 'done',
@@ -471,12 +478,14 @@ export async function claudeRemoteLauncher(
                 
                 if (!exitReason && abortController.signal.aborted) {
                     session.client.closeClaudeSessionTurn('cancelled');
+                    session.queue.completeCurrentBatch();
                     session.client.sendSessionEvent({ type: 'message', message: 'Aborted by user' });
                 }
             } catch (e) {
                 logger.debug('[remote]: launch error', e);
                 if (!exitReason) {
                     session.client.closeClaudeSessionTurn('failed');
+                    session.queue.completeCurrentBatch();
                     session.client.sendSessionEvent({ type: 'message', message: launchFailureMessage(e) });
                     if (session.queue.isClosed()) {
                         opts.onProviderResult?.({
@@ -490,6 +499,9 @@ export async function claudeRemoteLauncher(
             } finally {
 
                 logger.debug('[remote]: launch finally');
+                // onReady owns the normal transition; this is the terminal
+                // safety net for launcher exits that never emitted ready.
+                session.queue.completeCurrentBatch();
 
                 // Terminate all ongoing tool calls
                 for (let [toolCallId, { parentToolCallId }] of ongoingToolCalls) {

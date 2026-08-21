@@ -140,6 +140,7 @@ async function expectPromptRejectsFast(promise: Promise<unknown>, pattern: RegEx
 
 async function startRemoteRunClaudeHarness(opts: {
     metadata?: Record<string, unknown>;
+    reconnectAgentState?: Record<string, unknown>;
     updateAgentState?: ReturnType<typeof vi.fn>;
     registerHandler?: ReturnType<typeof vi.fn>;
 } = {}) {
@@ -184,6 +185,11 @@ async function startRemoteRunClaudeHarness(opts: {
             agentStateVersion: 0,
             encryptionKey: new Uint8Array(32),
             encryptionVariant: 'legacy' as const,
+        })),
+        refreshSessionForReconnect: vi.fn(async (reconnectSession: any) => ({
+            ...reconnectSession,
+            agentState: opts.reconnectAgentState ?? reconnectSession.agentState,
+            agentStateVersion: opts.reconnectAgentState ? 9 : reconnectSession.agentStateVersion,
         })),
         sessionSyncClient: vi.fn(() => sessionClient),
         deactivateSession: vi.fn(async () => {}),
@@ -323,6 +329,40 @@ describe('runClaude remote JSONL scanner', () => {
         )));
     });
 
+    it('refreshes and rehydrates unfinished queue IDs when resuming Claude', async () => {
+        process.env.HAPPY_RECONNECT_SESSION_ID = 'happy-session-1';
+        process.env.HAPPY_RECONNECT_ENCRYPTION_KEY = Buffer.alloc(32).toString('base64');
+        process.env.HAPPY_RECONNECT_ENCRYPTION_VARIANT = 'legacy';
+        process.env.HAPPY_RECONNECT_SEQ = '42';
+        process.env.HAPPY_RECONNECT_METADATA_VERSION = '7';
+        process.env.HAPPY_RECONNECT_AGENT_STATE_VERSION = '8';
+        const harness = await startRemoteRunClaudeHarness({
+            reconnectAgentState: {
+                messageQueue: {
+                    pendingMessageIds: ['queue-pending'],
+                    currentMessageIds: ['queue-interrupted'],
+                },
+            },
+        });
+
+        expect(harness.api.refreshSessionForReconnect).toHaveBeenCalledTimes(1);
+        expect(harness.sessionClient.skipExistingMessages).toHaveBeenCalledWith(
+            ['queue-interrupted', 'queue-pending'],
+            42,
+        );
+        const initialQueueUpdater = harness.updateAgentState.mock.calls
+            .map(([updater]) => updater)
+            .find((updater) => typeof updater === 'function');
+        expect(initialQueueUpdater?.({})).toMatchObject({
+            messageQueue: {
+                pendingMessageIds: ['queue-interrupted', 'queue-pending'],
+                currentMessageIds: [],
+            },
+        });
+
+        await harness.finish();
+    });
+
     it('does not forward terminal JSONL messages while local mode owns the transcript', async () => {
         const sentMessages: unknown[] = [];
         const sessionClient = {
@@ -361,6 +401,7 @@ describe('runClaude remote JSONL scanner', () => {
                 encryptionKey: new Uint8Array(32),
                 encryptionVariant: 'legacy' as const,
             })),
+            refreshSessionForReconnect: vi.fn(async (reconnectSession: any) => reconnectSession),
             sessionSyncClient: vi.fn(() => sessionClient),
             deactivateSession: vi.fn(async () => {}),
         };
@@ -470,6 +511,7 @@ describe('runClaude remote JSONL scanner', () => {
                 encryptionKey: new Uint8Array(32),
                 encryptionVariant: 'legacy' as const,
             })),
+            refreshSessionForReconnect: vi.fn(async (reconnectSession: any) => reconnectSession),
             sessionSyncClient: vi.fn(() => sessionClient),
             deactivateSession: vi.fn(async () => {}),
         };
@@ -898,6 +940,33 @@ describe('runClaude remote JSONL scanner', () => {
         expect(harness.loopOptions.messageQueue.queue[0].mode).toMatchObject({
             effort: 'max',
         });
+        await harness.finish();
+    });
+
+    it('keeps an explicit Queue Msg local ID and publishes it as pending', async () => {
+        const harness = await startRemoteRunClaudeHarness();
+        const userMessageHandler = harness.sessionClient.onUserMessage.mock.calls[0][0];
+
+        await userMessageHandler({
+            localKey: 'persisted-queue-message-1',
+            content: { text: 'process this after the active turn' },
+            meta: { deliveryMode: 'queue' },
+        });
+
+        expect(harness.loopOptions.messageQueue.queue[0]).toMatchObject({
+            message: 'process this after the active turn',
+            queueMessageId: 'persisted-queue-message-1',
+        });
+        expect(harness.updateAgentState).toHaveBeenCalledTimes(2);
+        const queueUpdater = harness.updateAgentState.mock.calls[1][0];
+        expect(queueUpdater({ controlledByUser: false })).toMatchObject({
+            controlledByUser: false,
+            messageQueue: {
+                pendingMessageIds: ['persisted-queue-message-1'],
+                currentMessageIds: [],
+            },
+        });
+
         await harness.finish();
     });
 

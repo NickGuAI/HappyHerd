@@ -17,6 +17,10 @@ import {
     rigCanWriteFiles,
     rigHasRpcMethod,
 } from './rig';
+import {
+    MAX_WORKSPACE_UPLOAD_BYTES,
+    MAX_WORKSPACE_UPLOAD_CHUNK_BASE64_LENGTH,
+} from '@slopus/happy-wire';
 import type {
     HappyHerdAutomation,
     HappyHerdAutomationCreateInput,
@@ -25,6 +29,14 @@ import type {
     HappyHerdAutomationRun,
     HappyHerdAutomationUpdateInput,
     HappyHerdCommanderListResponse,
+    WorkspaceUploadAbortResponse,
+    WorkspaceUploadChunkRequest,
+    WorkspaceUploadChunkResponse,
+    WorkspaceUploadFinishRequest,
+    WorkspaceUploadRequest,
+    WorkspaceUploadResponse,
+    WorkspaceUploadStartRequest,
+    WorkspaceUploadStartResponse,
 } from '@slopus/happy-wire';
 
 export type { SessionAgentModesPatch };
@@ -102,6 +114,28 @@ interface SessionWriteFileResponse {
     success: boolean;
     hash?: string;
     error?: string;
+}
+
+function base64CharacterValue(code: number): number {
+    if (code >= 65 && code <= 90) return code - 65;
+    if (code >= 97 && code <= 122) return code - 71;
+    if (code >= 48 && code <= 57) return code + 4;
+    if (code === 43) return 62;
+    if (code === 47) return 63;
+    return -1;
+}
+
+function isCanonicalBase64Content(content: string): boolean {
+    if (content.length % 4 !== 0) return false;
+    const padding = content.endsWith('==') ? 2 : content.endsWith('=') ? 1 : 0;
+    const dataLength = content.length - padding;
+    for (let index = 0; index < dataLength; index += 1) {
+        if (base64CharacterValue(content.charCodeAt(index)) < 0) return false;
+    }
+    if (content.indexOf('=') !== (padding > 0 ? dataLength : -1)) return false;
+    if (padding === 2 && (base64CharacterValue(content.charCodeAt(dataLength - 1)) & 0x0f) !== 0) return false;
+    if (padding === 1 && (base64CharacterValue(content.charCodeAt(dataLength - 1)) & 0x03) !== 0) return false;
+    return true;
 }
 
 // List directory operation types
@@ -665,18 +699,98 @@ export async function machineWriteFile(
 /** Upload one local client file into an existing host directory without overwriting. */
 export async function machineUploadFile(
     machineId: string,
-    request: import('@slopus/happy-wire').WorkspaceUploadRequest,
-): Promise<import('@slopus/happy-wire').WorkspaceUploadResponse> {
+    request: WorkspaceUploadRequest,
+): Promise<WorkspaceUploadResponse> {
+    let uploadId: string | undefined;
     try {
-        return await apiSocket.machineRPC<
-            import('@slopus/happy-wire').WorkspaceUploadResponse,
-            import('@slopus/happy-wire').WorkspaceUploadRequest
-        >(machineId, 'uploadFile', request);
+        const content = request.content.replace(/\s/g, '');
+        if (!isCanonicalBase64Content(content)) {
+            return { success: false, code: 'write-failed', error: 'File content is not valid base64' };
+        }
+        const padding = content.endsWith('==') ? 2 : content.endsWith('=') ? 1 : 0;
+        const size = (content.length / 4) * 3 - padding;
+        if (size > MAX_WORKSPACE_UPLOAD_BYTES) {
+            return { success: false, code: 'too-large', error: 'File is too large to upload (limit 20 MiB)' };
+        }
+
+        const start = await apiSocket.machineRPC<WorkspaceUploadStartResponse, WorkspaceUploadStartRequest>(
+            machineId,
+            'uploadFileStart',
+            { directory: request.directory, fileName: request.fileName, size },
+        );
+        if (!start.success || !start.uploadId) {
+            return {
+                success: false,
+                code: start.code ?? 'write-failed',
+                error: start.error ?? 'Failed to start machine file upload',
+            };
+        }
+        uploadId = start.uploadId;
+
+        let offset = 0;
+        for (let index = 0; index < content.length; index += MAX_WORKSPACE_UPLOAD_CHUNK_BASE64_LENGTH) {
+            const chunkContent = content.slice(index, index + MAX_WORKSPACE_UPLOAD_CHUNK_BASE64_LENGTH);
+            const chunk = await apiSocket.machineRPC<WorkspaceUploadChunkResponse, WorkspaceUploadChunkRequest>(
+                machineId,
+                'uploadFileChunk',
+                { uploadId, offset, content: chunkContent },
+            );
+            const chunkPadding = chunkContent.endsWith('==') ? 2 : chunkContent.endsWith('=') ? 1 : 0;
+            const expectedReceived = offset + (chunkContent.length / 4) * 3 - chunkPadding;
+            if (!chunk.success || chunk.received !== expectedReceived) {
+                await apiSocket.machineRPC<WorkspaceUploadAbortResponse, WorkspaceUploadFinishRequest>(
+                    machineId,
+                    'uploadFileAbort',
+                    { uploadId },
+                ).catch(() => undefined);
+                uploadId = undefined;
+                return {
+                    success: false,
+                    code: chunk.code === 'too-large' ? 'too-large' : 'write-failed',
+                    error: chunk.error ?? 'Failed to upload machine file chunk',
+                };
+            }
+            offset = chunk.received;
+        }
+
+        const finished = await apiSocket.machineRPC<WorkspaceUploadResponse, WorkspaceUploadFinishRequest>(
+            machineId,
+            'uploadFileFinish',
+            { uploadId },
+        );
+        uploadId = undefined;
+        return finished;
     } catch (error) {
+        if (uploadId) {
+            await apiSocket.machineRPC<WorkspaceUploadAbortResponse, WorkspaceUploadFinishRequest>(
+                machineId,
+                'uploadFileAbort',
+                { uploadId },
+            ).catch(() => undefined);
+        }
         return {
             success: false,
             code: 'write-failed',
             error: error instanceof Error ? error.message : 'Failed to upload machine file',
+        };
+    }
+}
+
+/** Create exactly one child folder in an existing machine directory. */
+export async function machineCreateDirectory(
+    machineId: string,
+    request: import('@slopus/happy-wire').WorkspaceCreateDirectoryRequest,
+): Promise<import('@slopus/happy-wire').WorkspaceCreateDirectoryResponse> {
+    try {
+        return await apiSocket.machineRPC<
+            import('@slopus/happy-wire').WorkspaceCreateDirectoryResponse,
+            import('@slopus/happy-wire').WorkspaceCreateDirectoryRequest
+        >(machineId, 'createDirectory', request);
+    } catch (error) {
+        return {
+            success: false,
+            code: 'write-failed',
+            error: error instanceof Error ? error.message : 'Failed to create machine folder',
         };
     }
 }

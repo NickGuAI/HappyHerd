@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "ac98b6d9a7017865d08062897171ac65666f9712d2abcb272db073e0dcaedaaa",
+  "sourceFingerprint": "fe4fdea7e48e560d260178391213f7edca0bfe7c6d7b8c1446b859df85d136f3",
   "routeCount": 36,
-  "surfaceCount": 224,
+  "surfaceCount": 228,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -92,6 +92,7 @@
         "happyHerd.automations.initialState",
         "happyHerd.automations.instruction",
         "happyHerd.automations.kind",
+        "happyHerd.automations.machineLoadFailed",
         "happyHerd.automations.machineOffline",
         "happyHerd.automations.name",
         "happyHerd.automations.new",
@@ -100,6 +101,9 @@
         "happyHerd.automations.save",
         "happyHerd.automations.spawnRetries",
         "happyHerd.automations.subtitle",
+        "happyHerd.automations.tags",
+        "happyHerd.automations.tagsHint",
+        "happyHerd.automations.tagsRequiresUpgrade",
         "happyHerd.automations.timezone",
         "happyHerd.automations.title",
         "happyHerd.automations.unableDelete",
@@ -109,6 +113,7 @@
         "happyHerd.automations.unableSave",
         "happyHerd.automations.unableUpdate",
         "happyHerd.automations.unknownError",
+        "happyHerd.automations.untagged",
         "happyHerd.automations.workspace"
       ],
       "states": []
@@ -313,6 +318,7 @@
         "uiCopy.usingCustomPathAbove",
         "uiCopy.whatWouldYouLikeToWorkOn",
         "uiCopy.worktree",
+        "workspace.browseContext",
         "workspace.recent",
         "workspace.selectMachine",
         "workspace.upload"
@@ -917,28 +923,34 @@
       "owner": "sources/app/(app)/workspace/index.tsx",
       "translationKeys": [
         "common.cancel",
+        "common.create",
         "common.discard",
+        "common.error",
         "common.fileViewer",
         "common.files",
         "common.retry",
         "errors.tryAgain",
         "settings.machines",
-        "uiCopy.attachFile",
+        "uiCopy.attachValueToNextMessage",
         "uiCopy.discardUnsavedChanges",
-        "uiCopy.removeFile",
+        "uiCopy.removeValueFromMessageContext",
         "uiCopy.yourCurrentFileEditsHaveNotBeenSaved",
         "workspace.addToSession",
         "workspace.attachTitle",
         "workspace.browseMachine",
+        "workspace.createFolderFailed",
         "workspace.emptyFolder",
         "workspace.favorites",
         "workspace.featureDisabled",
         "workspace.featureDisabledDescription",
+        "workspace.folderNamePlaceholder",
         "workspace.go",
         "workspace.home",
         "workspace.missingPathDescription",
         "workspace.missingPathTitle",
         "workspace.mobileBackToFiles",
+        "workspace.newFolder",
+        "workspace.newFolderPrompt",
         "workspace.noMachines",
         "workspace.offlineDescription",
         "workspace.offlineTitle",
@@ -953,11 +965,13 @@
         "workspace.root",
         "workspace.searchPlaceholder",
         "workspace.selectMachine",
-        "workspace.selectedCount",
+        "workspace.selectedItemsCount",
         "workspace.title",
         "workspace.upload"
       ],
-      "states": []
+      "states": [
+        "error"
+      ]
     }
   ],
   "surfaces": [
@@ -1153,6 +1167,7 @@
         "happyHerd.automations.initialState",
         "happyHerd.automations.instruction",
         "happyHerd.automations.kind",
+        "happyHerd.automations.machineLoadFailed",
         "happyHerd.automations.machineOffline",
         "happyHerd.automations.name",
         "happyHerd.automations.new",
@@ -1161,6 +1176,9 @@
         "happyHerd.automations.save",
         "happyHerd.automations.spawnRetries",
         "happyHerd.automations.subtitle",
+        "happyHerd.automations.tags",
+        "happyHerd.automations.tagsHint",
+        "happyHerd.automations.tagsRequiresUpgrade",
         "happyHerd.automations.timezone",
         "happyHerd.automations.title",
         "happyHerd.automations.unableDelete",
@@ -1170,6 +1188,7 @@
         "happyHerd.automations.unableSave",
         "happyHerd.automations.unableUpdate",
         "happyHerd.automations.unknownError",
+        "happyHerd.automations.untagged",
         "happyHerd.automations.workspace"
       ],
       "states": [],
@@ -1407,6 +1426,7 @@
         "uiCopy.usingCustomPathAbove",
         "uiCopy.whatWouldYouLikeToWorkOn",
         "uiCopy.worktree",
+        "workspace.browseContext",
         "workspace.recent",
         "workspace.selectMachine",
         "workspace.upload"
@@ -2117,28 +2137,34 @@
       ],
       "translationKeys": [
         "common.cancel",
+        "common.create",
         "common.discard",
+        "common.error",
         "common.fileViewer",
         "common.files",
         "common.retry",
         "errors.tryAgain",
         "settings.machines",
-        "uiCopy.attachFile",
+        "uiCopy.attachValueToNextMessage",
         "uiCopy.discardUnsavedChanges",
-        "uiCopy.removeFile",
+        "uiCopy.removeValueFromMessageContext",
         "uiCopy.yourCurrentFileEditsHaveNotBeenSaved",
         "workspace.addToSession",
         "workspace.attachTitle",
         "workspace.browseMachine",
+        "workspace.createFolderFailed",
         "workspace.emptyFolder",
         "workspace.favorites",
         "workspace.featureDisabled",
         "workspace.featureDisabledDescription",
+        "workspace.folderNamePlaceholder",
         "workspace.go",
         "workspace.home",
         "workspace.missingPathDescription",
         "workspace.missingPathTitle",
         "workspace.mobileBackToFiles",
+        "workspace.newFolder",
+        "workspace.newFolderPrompt",
         "workspace.noMachines",
         "workspace.offlineDescription",
         "workspace.offlineTitle",
@@ -2153,11 +2179,13 @@
         "workspace.root",
         "workspace.searchPlaceholder",
         "workspace.selectMachine",
-        "workspace.selectedCount",
+        "workspace.selectedItemsCount",
         "workspace.title",
         "workspace.upload"
       ],
-      "states": [],
+      "states": [
+        "error"
+      ],
       "hardcodedCopy": []
     },
     {
@@ -2557,6 +2585,17 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/CommanderSessionAvatar.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "CommanderSessionAvatar"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/CommandPalette/CommandPalette.tsx",
       "kind": "component",
       "route": null,
@@ -2669,6 +2708,19 @@
         "CompactGitStatus"
       ],
       "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/CompactWorkspaceContextButton.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "CompactWorkspaceContextButton"
+      ],
+      "translationKeys": [
+        "workspace.browseContext"
+      ],
       "states": [],
       "hardcodedCopy": []
     },
@@ -3190,6 +3242,38 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/MachineWorkspaceContextPicker.tsx",
+      "kind": "picker",
+      "route": null,
+      "exports": [
+        "MachineWorkspaceContextPicker"
+      ],
+      "translationKeys": [
+        "common.cancel",
+        "common.create",
+        "common.error",
+        "common.files",
+        "uiCopy.attachValueToNextMessage",
+        "uiCopy.done",
+        "uiCopy.removeValueFromMessageContext",
+        "workspace.addCurrentFolder",
+        "workspace.createFolderFailed",
+        "workspace.emptyFolder",
+        "workspace.folderNamePlaceholder",
+        "workspace.newFolder",
+        "workspace.newFolderPrompt",
+        "workspace.offlineDescription",
+        "workspace.parent",
+        "workspace.readErrorTitle",
+        "workspace.refresh",
+        "workspace.selectedItemsCount"
+      ],
+      "states": [
+        "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/MainView.tsx",
       "kind": "component",
       "route": null,
@@ -3613,6 +3697,20 @@
         "QRCode"
       ],
       "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/QueuedMessagesPanel.tsx",
+      "kind": "panel",
+      "route": null,
+      "exports": [
+        "QueuedMessagesPanel"
+      ],
+      "translationKeys": [
+        "happyHerd.composer.queueMessage",
+        "uiCopy.valueQueued"
+      ],
       "states": [],
       "hardcodedCopy": []
     },

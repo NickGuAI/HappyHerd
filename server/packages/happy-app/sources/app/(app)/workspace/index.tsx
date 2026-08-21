@@ -19,6 +19,7 @@ import { layout } from '@/components/layout';
 import { Modal } from '@/modal';
 import {
     machineGetDirectoryTree,
+    machineCreateDirectory,
     machineReadFile,
     machineWriteFile,
     type DirectoryTreeNode,
@@ -27,10 +28,11 @@ import { storage, useAllMachines, useSetting } from '@/sync/storage';
 import { sync } from '@/sync/sync';
 import type { Machine } from '@/sync/storageTypes';
 import {
-    MAX_WORKSPACE_CONTEXT_FILES,
-    addWorkspaceContextFile,
-    getWorkspaceContextFiles,
-    removeWorkspaceContextFile,
+    MAX_WORKSPACE_CONTEXT_ITEMS,
+    addWorkspaceContextEntry,
+    getWorkspaceContextEntries,
+    removeWorkspaceContextEntry,
+    type WorkspaceContextEntry,
 } from '@/sync/workspaceContext';
 import { t } from '@/text';
 import { Typography } from '@/constants/Typography';
@@ -114,22 +116,31 @@ export default function MachineWorkspaceScreen() {
     const [selectedFile, setSelectedFile] = React.useState<string | null>(null);
     const [headerRightSlot, setHeaderRightSlot] = React.useState<React.ReactNode>(null);
     const [fileDirty, setFileDirty] = React.useState(false);
+    const [creatingFolder, setCreatingFolder] = React.useState(false);
     const [reloadToken, setReloadToken] = React.useState(0);
-    const [stagedFiles, setStagedFiles] = React.useState<Set<string>>(
-        () => new Set(sessionId ? getWorkspaceContextFiles(sessionId) : []),
+    const [stagedEntries, setStagedEntries] = React.useState<Map<string, WorkspaceContextEntry>>(
+        () => new Map((sessionId ? getWorkspaceContextEntries(sessionId) : []).map((entry) => [entry.path, entry])),
     );
     const handleUploadedFile = React.useCallback((filePath: string) => {
-        if (attachmentMode) {
-            setStagedFiles((current) => {
-                if (current.size >= MAX_WORKSPACE_CONTEXT_FILES) return current;
-                return new Set([...current, filePath]);
+        if (attachmentMode && selectedMachineId) {
+            setStagedEntries((current) => {
+                if (current.size >= MAX_WORKSPACE_CONTEXT_ITEMS) return current;
+                const next = new Map(current);
+                next.set(filePath, {
+                    path: filePath,
+                    kind: 'file',
+                    source: { kind: 'machine', machineId: selectedMachineId },
+                });
+                return next;
             });
         }
         setReloadToken((value) => value + 1);
-    }, [attachmentMode]);
+    }, [attachmentMode, selectedMachineId]);
     const uploader = useMachineFileUpload({
         machineId: selectedMachineId,
         directory: currentDirectory,
+        targetLabel: selectedMachine ? machineName(selectedMachine) : undefined,
+        maxFiles: attachmentMode ? MAX_WORKSPACE_CONTEXT_ITEMS - stagedEntries.size : undefined,
         onUploaded: handleUploadedFile,
     });
     React.useEffect(() => {
@@ -250,45 +261,73 @@ export default function MachineWorkspaceScreen() {
         guardUnsavedChanges(() => setSelectedFile(path));
     }, [guardUnsavedChanges]);
 
-    const toggleStagedFile = React.useCallback((path: string) => {
-        setStagedFiles((current) => {
-            const next = new Set(current);
+    const toggleStagedEntry = React.useCallback((path: string, kind: 'file' | 'directory') => {
+        if (!selectedMachineId) return;
+        setStagedEntries((current) => {
+            const next = new Map(current);
             if (next.has(path)) {
                 next.delete(path);
                 return next;
             }
-            if (next.size >= MAX_WORKSPACE_CONTEXT_FILES) {
+            if (next.size >= MAX_WORKSPACE_CONTEXT_ITEMS) {
                 Modal.alert(
                     t('common.files'),
-                    t('workspace.selectedCount', {
-                        count: MAX_WORKSPACE_CONTEXT_FILES,
-                        max: MAX_WORKSPACE_CONTEXT_FILES,
+                    t('workspace.selectedItemsCount', {
+                        count: MAX_WORKSPACE_CONTEXT_ITEMS,
+                        max: MAX_WORKSPACE_CONTEXT_ITEMS,
                     }),
                 );
                 return current;
             }
-            next.add(path);
+            next.set(path, {
+                path,
+                kind,
+                source: { kind: 'machine', machineId: selectedMachineId },
+            });
             return next;
         });
-    }, []);
+    }, [selectedMachineId]);
+
+    const createFolder = React.useCallback(async () => {
+        if (!selectedMachine || !currentDirectory || creatingFolder || !isMachineOnline(selectedMachine)) return;
+        const directoryName = await Modal.prompt(
+            t('workspace.newFolder'),
+            t('workspace.newFolderPrompt'),
+            {
+                placeholder: t('workspace.folderNamePlaceholder'),
+                cancelText: t('common.cancel'),
+                confirmText: t('common.create'),
+            },
+        );
+        if (directoryName === null || !directoryName.trim()) return;
+        setCreatingFolder(true);
+        try {
+            const response = await machineCreateDirectory(selectedMachine.id, {
+                directory: currentDirectory,
+                directoryName,
+            });
+            if (!response.success || !response.path) {
+                Modal.alert(t('common.error'), response.error ?? t('workspace.createFolderFailed'));
+                return;
+            }
+            openDirectory(response.path);
+            setReloadToken((value) => value + 1);
+        } finally {
+            setCreatingFolder(false);
+        }
+    }, [creatingFolder, currentDirectory, openDirectory, selectedMachine]);
 
     const commitAttachments = React.useCallback(() => {
         if (!attachmentMode || !sessionId || !selectedMachine) return;
-        const existing = getWorkspaceContextFiles(sessionId);
-        existing.forEach((filePath) => {
-            if (!stagedFiles.has(filePath)) removeWorkspaceContextFile(sessionId, filePath);
+        const existing = getWorkspaceContextEntries(sessionId);
+        existing.forEach((entry) => {
+            if (!stagedEntries.has(entry.path)) removeWorkspaceContextEntry(sessionId, entry.path);
         });
-        stagedFiles.forEach((filePath) => {
-            // Re-add existing selections as well: addWorkspaceContextFile
-            // upgrades legacy session-scoped paths to the explicit machine
-            // source without duplicating their visible chips.
-            addWorkspaceContextFile(sessionId, filePath, {
-                kind: 'machine',
-                machineId: selectedMachine.id,
-            });
+        stagedEntries.forEach((entry) => {
+            addWorkspaceContextEntry(sessionId, entry);
         });
         router.back();
-    }, [attachmentMode, router, selectedMachine, sessionId, stagedFiles]);
+    }, [attachmentMode, router, selectedMachine, sessionId, stagedEntries]);
 
     const children = React.useMemo(() => {
         const entries = tree?.children ?? [];
@@ -382,7 +421,18 @@ export default function MachineWorkspaceScreen() {
                             <PathAction icon="arrow-up" label={t('workspace.parent')} onPress={() => openDirectory(parentHostPath(currentDirectory, selectedMachine.metadata?.platform))} />
                             <PathAction icon="refresh" label={t('workspace.refresh')} onPress={() => setReloadToken((value) => value + 1)} />
                             <PathAction icon={currentFavorite ? 'star' : 'star-outline'} label={t('workspace.favorites')} onPress={() => toggleFavorite(currentDirectory)} />
-                            <PathAction icon="cloud-upload-outline" label={t('workspace.upload')} onPress={() => void uploader.pickAndUpload()} />
+                            <PathAction
+                                icon="cloud-upload-outline"
+                                label={t('workspace.upload')}
+                                disabled={attachmentMode && stagedEntries.size >= MAX_WORKSPACE_CONTEXT_ITEMS}
+                                onPress={() => void uploader.pickAndUpload()}
+                            />
+                            <PathAction
+                                icon="folder-outline"
+                                label={t('workspace.newFolder')}
+                                disabled={creatingFolder || !isMachineOnline(selectedMachine)}
+                                onPress={() => void createFolder()}
+                            />
                         </View>
 
                         <MachineFileUploadStatus
@@ -435,10 +485,10 @@ export default function MachineWorkspaceScreen() {
                                         key={entry.path}
                                         entry={entry}
                                         selected={selectedFile === entry.path}
-                                        attached={stagedFiles.has(entry.path)}
+                                        attached={stagedEntries.has(entry.path)}
                                         attachmentMode={attachmentMode}
                                         onOpen={() => entry.type === 'directory' ? openDirectory(entry.path) : selectFile(entry.path)}
-                                        onToggleAttach={() => entry.type === 'file' && toggleStagedFile(entry.path)}
+                                        onToggleAttach={() => toggleStagedEntry(entry.path, entry.type)}
                                     />
                                 ))}
                             </View>
@@ -468,13 +518,13 @@ export default function MachineWorkspaceScreen() {
                 </View>
                 {attachmentMode && (
                     <Pressable
-                        onPress={() => toggleStagedFile(selectedFile)}
+                        onPress={() => toggleStagedEntry(selectedFile, 'file')}
                         style={({ pressed }) => [styles.attachButton, { borderColor: theme.colors.divider, opacity: pressed ? 0.75 : 1 }]}
                     >
                         <Ionicons
-                            name={stagedFiles.has(selectedFile) ? 'checkmark-circle' : 'attach-outline'}
+                            name={stagedEntries.has(selectedFile) ? 'checkmark-circle' : 'attach-outline'}
                             size={17}
-                            color={stagedFiles.has(selectedFile) ? theme.colors.success : theme.colors.textLink}
+                            color={stagedEntries.has(selectedFile) ? theme.colors.success : theme.colors.textLink}
                         />
                     </Pressable>
                 )}
@@ -527,7 +577,7 @@ export default function MachineWorkspaceScreen() {
                                 <Text style={{ color: theme.colors.textSecondary, ...Typography.default('semiBold') }}>{t('common.cancel')}</Text>
                             </Pressable>
                             <Text style={[styles.selectionCount, { color: theme.colors.textSecondary }]}>
-                                {t('workspace.selectedCount', { count: stagedFiles.size, max: MAX_WORKSPACE_CONTEXT_FILES })}
+                                {t('workspace.selectedItemsCount', { count: stagedEntries.size, max: MAX_WORKSPACE_CONTEXT_ITEMS })}
                             </Text>
                             <Pressable
                                 onPress={commitAttachments}
@@ -583,15 +633,23 @@ function MachineFileViewer({
 function PathAction({
     icon,
     label,
+    disabled = false,
     onPress,
 }: {
     icon: React.ComponentProps<typeof Ionicons>['name'];
     label: string;
+    disabled?: boolean;
     onPress: () => void;
 }) {
     const { theme } = useUnistyles();
     return (
-        <Pressable onPress={onPress} style={({ pressed }) => [styles.pathAction, { opacity: pressed ? 0.65 : 1 }]} accessibilityLabel={label}>
+        <Pressable
+            disabled={disabled}
+            onPress={onPress}
+            style={({ pressed }) => [styles.pathAction, { opacity: disabled ? 0.4 : pressed ? 0.65 : 1 }]}
+            accessibilityLabel={label}
+            accessibilityState={{ disabled }}
+        >
             <Ionicons name={icon} size={17} color={theme.colors.textSecondary} />
             <Text style={[styles.pathActionLabel, { color: theme.colors.textSecondary }]}>{label}</Text>
         </Pressable>
@@ -666,7 +724,7 @@ function FileRow({
                     <Text style={{ color: theme.colors.textSecondary, fontSize: 11, ...Typography.default() }}>{formatBytes(entry.size)}</Text>
                 )}
             </View>
-            {attachmentMode && entry.type === 'file' && (
+            {attachmentMode && (
                 <Pressable
                     onPress={(event) => {
                         event.stopPropagation?.();
@@ -675,8 +733,8 @@ function FileRow({
                     hitSlop={8}
                     style={styles.attachButton}
                     accessibilityLabel={attached
-                        ? t('uiCopy.removeFile', { value1: entry.name })
-                        : t('uiCopy.attachFile', { value1: entry.name })}
+                        ? t('uiCopy.removeValueFromMessageContext', { value1: entry.name })
+                        : t('uiCopy.attachValueToNextMessage', { value1: entry.name })}
                 >
                     <Ionicons
                         name={attached ? 'checkmark-circle' : 'ellipse-outline'}

@@ -1,14 +1,27 @@
 import { logger } from '@/ui/logger';
 import { exec, ExecOptions } from 'child_process';
 import { promisify } from 'util';
-import { link, readFile, writeFile, readdir, stat, unlink } from 'fs/promises';
+import { link, lstat, mkdir, open, readFile, writeFile, readdir, stat, unlink, type FileHandle } from 'fs/promises';
 import { createHash, randomUUID } from 'crypto';
-import { basename, dirname, join, resolve } from 'path';
+import { basename, join, resolve } from 'path';
 import {
     isSafeWorkspaceUploadFileName,
+    isSafeWorkspacePathSegment,
     MAX_WORKSPACE_UPLOAD_BYTES,
-    WorkspaceUploadRequestSchema,
-    type WorkspaceUploadRequest,
+    WorkspaceCreateDirectoryRequestSchema,
+    WorkspaceUploadAbortRequestSchema,
+    WorkspaceUploadChunkRequestSchema,
+    WorkspaceUploadFinishRequestSchema,
+    WorkspaceUploadStartRequestSchema,
+    type WorkspaceCreateDirectoryRequest,
+    type WorkspaceCreateDirectoryResponse,
+    type WorkspaceUploadAbortRequest,
+    type WorkspaceUploadAbortResponse,
+    type WorkspaceUploadChunkRequest,
+    type WorkspaceUploadChunkResponse,
+    type WorkspaceUploadFinishRequest,
+    type WorkspaceUploadStartRequest,
+    type WorkspaceUploadStartResponse,
     type WorkspaceUploadResponse,
 } from '@slopus/happy-wire';
 import { run as runRipgrep } from '@/modules/ripgrep/index';
@@ -53,22 +66,6 @@ interface WriteFileResponse {
     success: boolean;
     hash?: string; // hash of written file
     error?: string;
-}
-
-async function writeUploadedFileAtomically(targetPath: string, buffer: Buffer): Promise<void> {
-    const temporaryPath = join(
-        dirname(targetPath),
-        `.happyherd-upload-${randomUUID()}.tmp`,
-    );
-    await writeFile(temporaryPath, buffer, { flag: 'wx', mode: 0o600 });
-    try {
-        // A same-directory hard link publishes the fully written inode without
-        // replacing an existing destination. EEXIST is therefore an atomic
-        // conflict instead of a check-then-write race.
-        await link(temporaryPath, targetPath);
-    } finally {
-        await unlink(temporaryPath).catch(() => undefined);
-    }
 }
 
 interface ListDirectoryRequest {
@@ -213,6 +210,22 @@ export type SpawnSessionResult =
         retrySafe?: boolean;
     };
 
+const MAX_PENDING_WORKSPACE_UPLOADS = 8;
+const WORKSPACE_UPLOAD_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
+
+type PendingWorkspaceUpload = {
+    uploadId: string;
+    temporaryPath: string;
+    targetPath: string;
+    expectedSize: number;
+    received: number;
+    hash: ReturnType<typeof createHash>;
+    handle: FileHandle;
+    closed: boolean;
+    busy: boolean;
+    timer?: ReturnType<typeof setTimeout>;
+};
+
 /**
  * Register all RPC handlers with the session
  *
@@ -227,6 +240,28 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
         workingDirectory === null
             ? { valid: true, resolvedPath: resolve(targetPath) }
             : validatePath(targetPath, workingDirectory);
+
+    const pendingWorkspaceUploads = new Map<string, PendingWorkspaceUpload>();
+
+    const cleanupWorkspaceUpload = async (upload: PendingWorkspaceUpload): Promise<void> => {
+        if (pendingWorkspaceUploads.get(upload.uploadId) === upload) {
+            pendingWorkspaceUploads.delete(upload.uploadId);
+        }
+        if (upload.timer) clearTimeout(upload.timer);
+        if (!upload.closed) {
+            upload.closed = true;
+            await upload.handle.close().catch(() => undefined);
+        }
+        await unlink(upload.temporaryPath).catch(() => undefined);
+    };
+
+    const refreshWorkspaceUploadTimeout = (upload: PendingWorkspaceUpload): void => {
+        if (upload.timer) clearTimeout(upload.timer);
+        upload.timer = setTimeout(() => {
+            void cleanupWorkspaceUpload(upload);
+        }, WORKSPACE_UPLOAD_IDLE_TIMEOUT_MS);
+        upload.timer.unref?.();
+    };
 
     // Shell command handler - executes commands in the default shell
     rpcHandlerManager.registerHandler<BashRequest, BashResponse>('bash', async (data) => {
@@ -407,75 +442,251 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
         }
     });
 
-    rpcHandlerManager.registerHandler<WorkspaceUploadRequest, WorkspaceUploadResponse>('uploadFile', async (rawData) => {
-        const parsed = WorkspaceUploadRequestSchema.safeParse(rawData);
-        if (!parsed.success) {
-            return { success: false, code: 'invalid-name', error: 'Invalid upload request' };
-        }
-        const data = parsed.data;
-        if (!isSafeWorkspaceUploadFileName(data.fileName) || basename(data.fileName) !== data.fileName) {
-            return { success: false, code: 'invalid-name', error: 'File name must not contain a path' };
-        }
-
-        const directoryValidation = checkPath(data.directory);
-        if (!directoryValidation.valid) {
-            return { success: false, code: 'write-failed', error: directoryValidation.error };
-        }
-
-        const normalizedContent = data.content.replace(/\s/g, '');
-        const maxEncodedBytes = Math.ceil(MAX_WORKSPACE_UPLOAD_BYTES / 3) * 4;
-        if (normalizedContent.length > maxEncodedBytes + 4) {
-            return { success: false, code: 'too-large', error: 'File is too large to upload (limit 20 MiB)' };
-        }
-        if (normalizedContent.length % 4 !== 0) {
-            return { success: false, code: 'write-failed', error: 'File content is not valid base64' };
-        }
-
-        let buffer: Buffer;
-        try {
-            buffer = Buffer.from(normalizedContent, 'base64');
-        } catch {
-            return { success: false, code: 'write-failed', error: 'File content is not valid base64' };
-        }
-        if (buffer.toString('base64') !== normalizedContent) {
-            return { success: false, code: 'write-failed', error: 'File content is not valid base64' };
-        }
-        if (buffer.byteLength > MAX_WORKSPACE_UPLOAD_BYTES) {
-            return { success: false, code: 'too-large', error: 'File is too large to upload (limit 20 MiB)' };
-        }
-
-        const directoryPath = directoryValidation.resolvedPath!;
-        const targetPath = join(directoryPath, data.fileName);
-        const targetValidation = checkPath(targetPath);
-        if (!targetValidation.valid) {
-            return { success: false, code: 'write-failed', error: targetValidation.error };
-        }
-
-        try {
-            const directoryInfo = await stat(directoryPath);
-            if (!directoryInfo.isDirectory()) {
-                return { success: false, code: 'not-directory', error: 'Upload destination is not a directory' };
+    rpcHandlerManager.registerHandler<WorkspaceUploadStartRequest, WorkspaceUploadStartResponse>(
+        'uploadFileStart',
+        async (rawData) => {
+            const parsed = WorkspaceUploadStartRequestSchema.safeParse(rawData);
+            if (!parsed.success) {
+                const requestedSize = (rawData as { size?: unknown } | null)?.size;
+                if (typeof requestedSize === 'number' && requestedSize > MAX_WORKSPACE_UPLOAD_BYTES) {
+                    return { success: false, code: 'too-large', error: 'File is too large to upload (limit 20 MiB)' };
+                }
+                return { success: false, code: 'invalid-name', error: 'Invalid upload request' };
             }
-            await writeUploadedFileAtomically(targetValidation.resolvedPath!, buffer);
-            return {
-                success: true,
-                path: targetValidation.resolvedPath!,
-                size: buffer.byteLength,
-                hash: createHash('sha256').update(buffer).digest('hex'),
-            };
-        } catch (error) {
-            const nodeError = error as NodeJS.ErrnoException;
-            if (nodeError.code === 'EEXIST') {
-                return { success: false, code: 'conflict', error: 'A file with this name already exists' };
+            const data = parsed.data;
+            if (!isSafeWorkspaceUploadFileName(data.fileName) || basename(data.fileName) !== data.fileName) {
+                return { success: false, code: 'invalid-name', error: 'File name must not contain a path' };
             }
-            logger.debug('Failed to upload file:', error);
-            return {
-                success: false,
-                code: 'write-failed',
-                error: error instanceof Error ? error.message : 'Failed to upload file',
-            };
-        }
-    });
+            if (pendingWorkspaceUploads.size >= MAX_PENDING_WORKSPACE_UPLOADS) {
+                return { success: false, code: 'write-failed', error: 'Too many uploads are already in progress' };
+            }
+
+            const directoryValidation = checkPath(data.directory);
+            if (!directoryValidation.valid) {
+                return { success: false, code: 'write-failed', error: directoryValidation.error };
+            }
+            const directoryPath = directoryValidation.resolvedPath!;
+            const targetValidation = checkPath(join(directoryPath, data.fileName));
+            if (!targetValidation.valid) {
+                return { success: false, code: 'write-failed', error: targetValidation.error };
+            }
+
+            let temporaryPath: string | undefined;
+            let handle: FileHandle | undefined;
+            try {
+                const directoryInfo = await stat(directoryPath);
+                if (!directoryInfo.isDirectory()) {
+                    return { success: false, code: 'not-directory', error: 'Upload destination is not a directory' };
+                }
+                try {
+                    await lstat(targetValidation.resolvedPath!);
+                    return { success: false, code: 'conflict', error: 'A file with this name already exists' };
+                } catch (error) {
+                    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+                }
+
+                const uploadId = randomUUID();
+                temporaryPath = join(directoryPath, `.happyherd-upload-${uploadId}.tmp`);
+                handle = await open(temporaryPath, 'wx', 0o600);
+                const upload: PendingWorkspaceUpload = {
+                    uploadId,
+                    temporaryPath,
+                    targetPath: targetValidation.resolvedPath!,
+                    expectedSize: data.size,
+                    received: 0,
+                    hash: createHash('sha256'),
+                    handle,
+                    closed: false,
+                    busy: false,
+                };
+                pendingWorkspaceUploads.set(uploadId, upload);
+                refreshWorkspaceUploadTimeout(upload);
+                return { success: true, uploadId };
+            } catch (error) {
+                await handle?.close().catch(() => undefined);
+                if (temporaryPath) await unlink(temporaryPath).catch(() => undefined);
+                const nodeError = error as NodeJS.ErrnoException;
+                if (nodeError.code === 'EEXIST') {
+                    return { success: false, code: 'conflict', error: 'A file with this name already exists' };
+                }
+                logger.debug('Failed to start file upload:', error);
+                return {
+                    success: false,
+                    code: 'write-failed',
+                    error: error instanceof Error ? error.message : 'Failed to start file upload',
+                };
+            }
+        },
+    );
+
+    rpcHandlerManager.registerHandler<WorkspaceUploadChunkRequest, WorkspaceUploadChunkResponse>(
+        'uploadFileChunk',
+        async (rawData) => {
+            const parsed = WorkspaceUploadChunkRequestSchema.safeParse(rawData);
+            if (!parsed.success) {
+                return { success: false, code: 'invalid-content', error: 'Invalid upload chunk' };
+            }
+            const data = parsed.data;
+            const upload = pendingWorkspaceUploads.get(data.uploadId);
+            if (!upload || upload.busy || data.offset !== upload.received) {
+                return { success: false, code: 'invalid-upload', error: 'Upload is missing or out of sequence' };
+            }
+
+            let buffer: Buffer;
+            try {
+                buffer = Buffer.from(data.content, 'base64');
+            } catch {
+                return { success: false, code: 'invalid-content', error: 'File content is not valid base64' };
+            }
+            if (buffer.toString('base64') !== data.content) {
+                return { success: false, code: 'invalid-content', error: 'File content is not valid base64' };
+            }
+            if (upload.received + buffer.byteLength > upload.expectedSize
+                || upload.received + buffer.byteLength > MAX_WORKSPACE_UPLOAD_BYTES) {
+                await cleanupWorkspaceUpload(upload);
+                return { success: false, code: 'too-large', error: 'Upload exceeds its declared size' };
+            }
+
+            upload.busy = true;
+            if (upload.timer) clearTimeout(upload.timer);
+            try {
+                let written = 0;
+                while (written < buffer.byteLength) {
+                    const result = await upload.handle.write(
+                        buffer,
+                        written,
+                        buffer.byteLength - written,
+                        upload.received + written,
+                    );
+                    if (result.bytesWritten === 0) throw new Error('File upload write made no progress');
+                    written += result.bytesWritten;
+                }
+                upload.hash.update(buffer);
+                upload.received += buffer.byteLength;
+                upload.busy = false;
+                refreshWorkspaceUploadTimeout(upload);
+                return { success: true, received: upload.received };
+            } catch (error) {
+                await cleanupWorkspaceUpload(upload);
+                logger.debug('Failed to write file upload chunk:', error);
+                return {
+                    success: false,
+                    code: 'write-failed',
+                    error: error instanceof Error ? error.message : 'Failed to write file upload chunk',
+                };
+            }
+        },
+    );
+
+    rpcHandlerManager.registerHandler<WorkspaceUploadFinishRequest, WorkspaceUploadResponse>(
+        'uploadFileFinish',
+        async (rawData) => {
+            const parsed = WorkspaceUploadFinishRequestSchema.safeParse(rawData);
+            const upload = parsed.success ? pendingWorkspaceUploads.get(parsed.data.uploadId) : undefined;
+            if (!upload || upload.busy) {
+                return { success: false, code: 'write-failed', error: 'Upload is missing or still in progress' };
+            }
+            upload.busy = true;
+            if (upload.timer) clearTimeout(upload.timer);
+            pendingWorkspaceUploads.delete(upload.uploadId);
+
+            if (upload.received !== upload.expectedSize) {
+                await cleanupWorkspaceUpload(upload);
+                return { success: false, code: 'write-failed', error: 'Upload is incomplete' };
+            }
+
+            try {
+                await upload.handle.sync();
+                await upload.handle.close();
+                upload.closed = true;
+                // A same-directory hard link publishes the fully written inode
+                // without replacing an existing destination.
+                await link(upload.temporaryPath, upload.targetPath);
+                return {
+                    success: true,
+                    path: upload.targetPath,
+                    size: upload.received,
+                    hash: upload.hash.digest('hex'),
+                };
+            } catch (error) {
+                const nodeError = error as NodeJS.ErrnoException;
+                if (nodeError.code === 'EEXIST') {
+                    return { success: false, code: 'conflict', error: 'A file with this name already exists' };
+                }
+                logger.debug('Failed to finish file upload:', error);
+                return {
+                    success: false,
+                    code: 'write-failed',
+                    error: error instanceof Error ? error.message : 'Failed to finish file upload',
+                };
+            } finally {
+                await cleanupWorkspaceUpload(upload);
+            }
+        },
+    );
+
+    rpcHandlerManager.registerHandler<WorkspaceUploadAbortRequest, WorkspaceUploadAbortResponse>(
+        'uploadFileAbort',
+        async (rawData) => {
+            const parsed = WorkspaceUploadAbortRequestSchema.safeParse(rawData);
+            const upload = parsed.success ? pendingWorkspaceUploads.get(parsed.data.uploadId) : undefined;
+            if (upload) await cleanupWorkspaceUpload(upload);
+            return { success: true };
+        },
+    );
+
+    rpcHandlerManager.registerHandler<WorkspaceCreateDirectoryRequest, WorkspaceCreateDirectoryResponse>(
+        'createDirectory',
+        async (rawData) => {
+            const parsed = WorkspaceCreateDirectoryRequestSchema.safeParse(rawData);
+            if (!parsed.success) {
+                return { success: false, code: 'invalid-name', error: 'Invalid create-directory request' };
+            }
+            const data = parsed.data;
+            if (!isSafeWorkspacePathSegment(data.directoryName) || basename(data.directoryName) !== data.directoryName) {
+                return { success: false, code: 'invalid-name', error: 'Folder name must be one path segment' };
+            }
+
+            const parentValidation = checkPath(data.directory);
+            if (!parentValidation.valid) {
+                return { success: false, code: 'write-failed', error: parentValidation.error };
+            }
+            const parentPath = parentValidation.resolvedPath!;
+            const targetValidation = checkPath(join(parentPath, data.directoryName));
+            if (!targetValidation.valid) {
+                return { success: false, code: 'write-failed', error: targetValidation.error };
+            }
+
+            try {
+                const parentInfo = await stat(parentPath);
+                if (!parentInfo.isDirectory()) {
+                    return { success: false, code: 'not-directory', error: 'Folder parent is not a directory' };
+                }
+                await mkdir(targetValidation.resolvedPath!, { recursive: false, mode: 0o700 });
+                return { success: true, path: targetValidation.resolvedPath! };
+            } catch (error) {
+                const nodeError = error as NodeJS.ErrnoException;
+                if (nodeError.code === 'EEXIST') {
+                    return { success: false, code: 'conflict', error: 'A file or folder with this name already exists' };
+                }
+                if (nodeError.code === 'ENOENT') {
+                    return { success: false, code: 'not-found', error: 'Folder parent does not exist' };
+                }
+                if (nodeError.code === 'ENOTDIR') {
+                    return { success: false, code: 'not-directory', error: 'Folder parent is not a directory' };
+                }
+                if (nodeError.code === 'EACCES' || nodeError.code === 'EPERM') {
+                    return { success: false, code: 'permission-denied', error: 'Permission denied while creating folder' };
+                }
+                logger.debug('Failed to create directory:', error);
+                return {
+                    success: false,
+                    code: 'write-failed',
+                    error: error instanceof Error ? error.message : 'Failed to create folder',
+                };
+            }
+        },
+    );
 
     // List directory handler
     rpcHandlerManager.registerHandler<ListDirectoryRequest, ListDirectoryResponse>('listDirectory', async (data) => {

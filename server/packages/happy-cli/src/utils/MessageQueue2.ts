@@ -1,4 +1,5 @@
 import { logger } from "@/ui/logger";
+import type { AgentMessageQueueState } from '@slopus/happy-wire';
 
 export type PendingAttachment = { data: Uint8Array; mimeType: string; name: string };
 
@@ -9,6 +10,27 @@ interface QueueItem<T> {
     isolate?: boolean; // If true, this message must be processed alone
     /** Decoded image attachments owned by *this* message (per-message ownership). */
     attachments?: PendingAttachment[];
+    /** Persisted app message local ID. Present only for explicit Queue Msg input. */
+    queueMessageId?: string;
+}
+
+export type MessageQueueBatch<T> = {
+    message: string;
+    mode: T;
+    isolate: boolean;
+    hash: string;
+    attachments?: PendingAttachment[];
+    /** IDs remain pending until the provider marks this batch as started. */
+    queueMessageIds: string[];
+};
+
+/** Reclassify interrupted current work as pending, preserving FIFO order. */
+export function queueMessageIdsForResume(state: AgentMessageQueueState | null | undefined): string[] {
+    const ordered = [
+        ...(Array.isArray(state?.currentMessageIds) ? state.currentMessageIds : []),
+        ...(Array.isArray(state?.pendingMessageIds) ? state.pendingMessageIds : []),
+    ];
+    return [...new Set(ordered.filter((id): id is string => typeof id === 'string' && id.length > 0))];
 }
 
 /**
@@ -20,6 +42,11 @@ export class MessageQueue2<T> {
     private waiter: ((hasMessages: boolean) => void) | null = null;
     private closed = false;
     private onMessageHandler: ((message: string, mode: T) => void) | null = null;
+    private onQueueStateChangeHandler: ((state: AgentMessageQueueState) => void) | null = null;
+    private reservedQueueMessageIds: string[] = [];
+    private restoredQueueMessageOrder: string[] = [];
+    private currentQueueMessageIds: string[] = [];
+    private acceptedQueueMessageIds = new Set<string>();
     modeHasher: (mode: T) => string;
 
     constructor(
@@ -38,14 +65,61 @@ export class MessageQueue2<T> {
         this.onMessageHandler = handler;
     }
 
+    /** Publish explicit Queue Msg lifecycle without duplicating message content. */
+    setOnQueueStateChange(handler: ((state: AgentMessageQueueState) => void) | null): void {
+        this.onQueueStateChangeHandler = handler;
+    }
+
+    /** Hold restored IDs pending until their immutable records are rehydrated. */
+    restorePendingQueueMessageIds(queueMessageIds: readonly string[]): void {
+        if (this.queue.length > 0 || this.currentQueueMessageIds.length > 0) {
+            throw new Error('Cannot restore queue IDs after queue processing has started');
+        }
+        this.reservedQueueMessageIds = [...new Set(queueMessageIds)];
+        this.restoredQueueMessageOrder = [...this.reservedQueueMessageIds];
+        this.notifyQueueStateChange();
+    }
+
+    getQueueState(): AgentMessageQueueState {
+        const pending = [
+            ...this.reservedQueueMessageIds,
+            ...this.queue.flatMap((item) => item.queueMessageId ? [item.queueMessageId] : []),
+        ];
+        const pendingSet = new Set(pending);
+        const restoredPending = this.restoredQueueMessageOrder.filter((id) => pendingSet.delete(id));
+        return {
+            pendingMessageIds: [
+                ...restoredPending,
+                ...pending.filter((id) => pendingSet.delete(id)),
+            ],
+            currentMessageIds: [...this.currentQueueMessageIds],
+        };
+    }
+
+    private notifyQueueStateChange(): void {
+        this.onQueueStateChangeHandler?.(this.getQueueState());
+    }
+
+    private acceptQueueMessageId(queueMessageId?: string): boolean {
+        if (!queueMessageId) return true;
+        if (this.acceptedQueueMessageIds.has(queueMessageId)) {
+            logger.debug(`[MessageQueue2] Ignoring duplicate persisted queue message ID`);
+            return false;
+        }
+        this.acceptedQueueMessageIds.add(queueMessageId);
+        this.reservedQueueMessageIds = this.reservedQueueMessageIds.filter((id) => id !== queueMessageId);
+        return true;
+    }
+
     /**
      * Push a message to the queue with a mode and an optional list of
      * attachments that travel with this message.
      */
-    push(message: string, mode: T, attachments?: PendingAttachment[]): void {
+    push(message: string, mode: T, attachments?: PendingAttachment[], queueMessageId?: string): void {
         if (this.closed) {
             throw new Error('Cannot push to closed queue');
         }
+        if (!this.acceptQueueMessageId(queueMessageId)) return;
 
         const modeHash = this.modeHasher(mode);
         logger.debug(`[MessageQueue2] push() called with mode hash: ${modeHash}`);
@@ -56,7 +130,10 @@ export class MessageQueue2<T> {
             modeHash,
             isolate: false,
             attachments,
+            ...(queueMessageId ? { queueMessageId } : {}),
         });
+
+        if (queueMessageId) this.notifyQueueStateChange();
 
         // Trigger message handler if set
         if (this.onMessageHandler) {
@@ -78,10 +155,11 @@ export class MessageQueue2<T> {
      * Push a message immediately without batching delay.
      * Does not clear the queue or enforce isolation.
      */
-    pushImmediate(message: string, mode: T): void {
+    pushImmediate(message: string, mode: T, queueMessageId?: string): void {
         if (this.closed) {
             throw new Error('Cannot push to closed queue');
         }
+        if (!this.acceptQueueMessageId(queueMessageId)) return;
 
         const modeHash = this.modeHasher(mode);
         logger.debug(`[MessageQueue2] pushImmediate() called with mode hash: ${modeHash}`);
@@ -90,8 +168,11 @@ export class MessageQueue2<T> {
             message,
             mode,
             modeHash,
-            isolate: false
+            isolate: false,
+            ...(queueMessageId ? { queueMessageId } : {}),
         });
+
+        if (queueMessageId) this.notifyQueueStateChange();
 
         // Trigger message handler if set
         if (this.onMessageHandler) {
@@ -114,15 +195,17 @@ export class MessageQueue2<T> {
      * Clears any pending messages and ensures this message is never batched with others.
      * Used for special commands that require dedicated processing.
      */
-    pushIsolateAndClear(message: string, mode: T, attachments?: PendingAttachment[]): void {
+    pushIsolateAndClear(message: string, mode: T, attachments?: PendingAttachment[], queueMessageId?: string): void {
         if (this.closed) {
             throw new Error('Cannot push to closed queue');
         }
+        if (!this.acceptQueueMessageId(queueMessageId)) return;
 
         const modeHash = this.modeHasher(mode);
         logger.debug(`[MessageQueue2] pushIsolateAndClear() called with mode hash: ${modeHash} - clearing ${this.queue.length} pending messages`);
 
         // Clear any pending messages to ensure this message is processed in complete isolation
+        const removedTrackedMessage = this.queue.some((item) => !!item.queueMessageId);
         this.queue = [];
 
         this.queue.push({
@@ -131,7 +214,10 @@ export class MessageQueue2<T> {
             modeHash,
             isolate: true,
             attachments,
+            ...(queueMessageId ? { queueMessageId } : {}),
         });
+
+        if (removedTrackedMessage || queueMessageId) this.notifyQueueStateChange();
 
         // Trigger message handler if set
         if (this.onMessageHandler) {
@@ -153,10 +239,11 @@ export class MessageQueue2<T> {
      * Push a message that must be processed alone without discarding
      * already-queued user prompts.
      */
-    pushIsolated(message: string, mode: T, attachments?: PendingAttachment[]): void {
+    pushIsolated(message: string, mode: T, attachments?: PendingAttachment[], queueMessageId?: string): void {
         if (this.closed) {
             throw new Error('Cannot push to closed queue');
         }
+        if (!this.acceptQueueMessageId(queueMessageId)) return;
 
         const modeHash = this.modeHasher(mode);
         logger.debug(`[MessageQueue2] pushIsolated() called with mode hash: ${modeHash}`);
@@ -167,7 +254,10 @@ export class MessageQueue2<T> {
             modeHash,
             isolate: true,
             attachments,
+            ...(queueMessageId ? { queueMessageId } : {}),
         });
+
+        if (queueMessageId) this.notifyQueueStateChange();
 
         // Trigger message handler if set
         if (this.onMessageHandler) {
@@ -188,10 +278,11 @@ export class MessageQueue2<T> {
     /**
      * Push a message to the beginning of the queue with a mode.
      */
-    unshift(message: string, mode: T): void {
+    unshift(message: string, mode: T, queueMessageId?: string): void {
         if (this.closed) {
             throw new Error('Cannot unshift to closed queue');
         }
+        if (!this.acceptQueueMessageId(queueMessageId)) return;
 
         const modeHash = this.modeHasher(mode);
         logger.debug(`[MessageQueue2] unshift() called with mode hash: ${modeHash}`);
@@ -200,8 +291,11 @@ export class MessageQueue2<T> {
             message,
             mode,
             modeHash,
-            isolate: false
+            isolate: false,
+            ...(queueMessageId ? { queueMessageId } : {}),
         });
+
+        if (queueMessageId) this.notifyQueueStateChange();
 
         // Trigger message handler if set
         if (this.onMessageHandler) {
@@ -224,11 +318,17 @@ export class MessageQueue2<T> {
      */
     reset(): void {
         logger.debug(`[MessageQueue2] reset() called. Clearing ${this.queue.length} messages`);
+        const hadTrackedMessages = this.getQueueState().pendingMessageIds.length > 0
+            || this.currentQueueMessageIds.length > 0;
         this.queue = [];
+        this.reservedQueueMessageIds = [];
+        this.restoredQueueMessageOrder = [];
+        this.currentQueueMessageIds = [];
         this.closed = false;
 
         // Clear waiter without calling it since we're not closing
         this.waiter = null;
+        if (hadTrackedMessages) this.notifyQueueStateChange();
     }
 
     /**
@@ -264,7 +364,7 @@ export class MessageQueue2<T> {
      * Wait for messages and return all messages with the same mode as a single string
      * Returns { message: string, mode: T } or null if aborted/closed
      */
-    async waitForMessagesAndGetAsString(abortSignal?: AbortSignal): Promise<{ message: string, mode: T, isolate: boolean, hash: string, attachments?: PendingAttachment[] } | null> {
+    async waitForMessagesAndGetAsString(abortSignal?: AbortSignal): Promise<MessageQueueBatch<T> | null> {
         // If we have messages, return them immediately
         if (this.queue.length > 0) {
             return this.collectBatch();
@@ -288,7 +388,7 @@ export class MessageQueue2<T> {
     /**
      * Collect a batch of messages with the same mode, respecting isolation requirements
      */
-    private collectBatch(): { message: string, mode: T, hash: string, isolate: boolean, attachments?: PendingAttachment[] } | null {
+    private collectBatch(): MessageQueueBatch<T> | null {
         if (this.queue.length === 0) {
             return null;
         }
@@ -296,6 +396,7 @@ export class MessageQueue2<T> {
         const firstItem = this.queue[0];
         const sameModeMessages: string[] = [];
         const collectedAttachments: PendingAttachment[] = [];
+        const queueMessageIds: string[] = [];
         let mode = firstItem.mode;
         let isolate = firstItem.isolate ?? false;
         const targetModeHash = firstItem.modeHash;
@@ -305,6 +406,7 @@ export class MessageQueue2<T> {
             const item = this.queue.shift()!;
             sameModeMessages.push(item.message);
             if (item.attachments) collectedAttachments.push(...item.attachments);
+            if (item.queueMessageId) queueMessageIds.push(item.queueMessageId);
             logger.debug(`[MessageQueue2] Collected isolated message with mode hash: ${targetModeHash}`);
         } else {
             // Collect all messages with the same mode until we hit an isolated message
@@ -314,6 +416,7 @@ export class MessageQueue2<T> {
                 const item = this.queue.shift()!;
                 sameModeMessages.push(item.message);
                 if (item.attachments) collectedAttachments.push(...item.attachments);
+                if (item.queueMessageId) queueMessageIds.push(item.queueMessageId);
             }
             logger.debug(`[MessageQueue2] Collected batch of ${sameModeMessages.length} messages with mode hash: ${targetModeHash}`);
         }
@@ -321,13 +424,37 @@ export class MessageQueue2<T> {
         // Join all messages with newlines
         const combinedMessage = sameModeMessages.join('\n');
 
+        // The provider may hold a mode-changing batch before it actually starts
+        // work. Keep those IDs pending until markBatchStarted is called.
+        this.reservedQueueMessageIds = queueMessageIds;
+
         return {
             message: combinedMessage,
             mode,
             hash: targetModeHash,
             isolate,
             attachments: collectedAttachments.length > 0 ? collectedAttachments : undefined,
+            queueMessageIds,
         };
+    }
+
+    /** Move a dequeued batch from waiting to runtime-owned current work. */
+    markBatchStarted(queueMessageIds: readonly string[]): void {
+        if (queueMessageIds.length === 0) return;
+        const started = new Set(queueMessageIds);
+        this.reservedQueueMessageIds = this.reservedQueueMessageIds.filter((id) => !started.has(id));
+        this.currentQueueMessageIds = [...queueMessageIds];
+        this.notifyQueueStateChange();
+    }
+
+    /** Clear current IDs after the provider turn reaches a terminal state. */
+    completeCurrentBatch(queueMessageIds?: readonly string[]): void {
+        if (this.currentQueueMessageIds.length === 0) return;
+        if (queueMessageIds && !queueMessageIds.some((id) => this.currentQueueMessageIds.includes(id))) {
+            return;
+        }
+        this.currentQueueMessageIds = [];
+        this.notifyQueueStateChange();
     }
 
     /**

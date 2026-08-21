@@ -13,7 +13,14 @@ describe('MessageMetaSchema', () => {
     });
 
     it('accepts only the explicit queue delivery override', () => {
-        expect(MessageMetaSchema.parse({ deliveryMode: 'queue' }).deliveryMode).toBe('queue');
+        expect(MessageMetaSchema.parse({
+            deliveryMode: 'queue',
+            queueMessageId: 'persisted-message-1',
+        })).toMatchObject({
+            deliveryMode: 'queue',
+            queueMessageId: 'persisted-message-1',
+        });
         expect(MessageMetaSchema.safeParse({ deliveryMode: 'steer' }).success).toBe(false);
+        expect(MessageMetaSchema.safeParse({ queueMessageId: '  ' }).success).toBe(false);
     });
 });

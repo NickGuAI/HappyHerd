@@ -17,6 +17,7 @@ interface AvatarProps {
     clientId?: string | null;
     imageUrl?: string | null;
     thumbhash?: string | null;
+    onImageError?: () => void;
 }
 
 const flavorIcons = {
@@ -55,7 +56,7 @@ const styles = StyleSheet.create((theme) => ({
 }));
 
 export const Avatar = React.memo((props: AvatarProps) => {
-    const { flavor, clientId, size = 48, imageUrl, thumbhash, ...avatarProps } = props;
+    const { flavor, clientId, size = 48, imageUrl, thumbhash, onImageError, ...avatarProps } = props;
     const avatarStyle = useSetting('avatarStyle');
     const showFlavorIcons = useSetting('showFlavorIcons');
     const { theme } = useUnistyles();
@@ -67,6 +68,7 @@ export const Avatar = React.memo((props: AvatarProps) => {
                 source={{ uri: imageUrl, thumbhash: thumbhash || undefined }}
                 placeholder={thumbhash ? { thumbhash: thumbhash } : undefined}
                 contentFit="cover"
+                onError={onImageError}
                 style={{
                     width: size,
                     height: size,

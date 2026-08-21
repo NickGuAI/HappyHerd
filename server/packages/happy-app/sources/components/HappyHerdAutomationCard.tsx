@@ -88,6 +88,13 @@ export function HappyHerdAutomationCard({
                             ? ` · ${t('happyHerd.automations.commanderValue', { id: presentation.details.commanderId })}`
                             : ''}
                     </Text>
+                    {presentation.details.tags.length > 0 && (
+                        <View style={styles.tags}>
+                            {presentation.details.tags.map((tag) => (
+                                <Text key={tag} style={[styles.badge, { borderColor: theme.colors.divider }]}>{tag}</Text>
+                            ))}
+                        </View>
+                    )}
                     <View style={styles.actions}>
                         <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={onToggleStatus}>
                             <Text>{presentation.active ? t('happyHerd.automations.pause') : t('happyHerd.automations.resume')}</Text>
@@ -184,6 +191,7 @@ const styles = StyleSheet.create(() => ({
         fontSize: 12,
     },
     actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
+    tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
     action: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
     history: { marginTop: 4, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, gap: 8 },
     historyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },

@@ -286,6 +286,7 @@ export type TranslationKey =
     | "happyHerd.automations.initialState"
     | "happyHerd.automations.instruction"
     | "happyHerd.automations.kind"
+    | "happyHerd.automations.machineLoadFailed"
     | "happyHerd.automations.machineOffline"
     | "happyHerd.automations.name"
     | "happyHerd.automations.new"
@@ -301,6 +302,9 @@ export type TranslationKey =
     | "happyHerd.automations.statusActive"
     | "happyHerd.automations.statusPaused"
     | "happyHerd.automations.subtitle"
+    | "happyHerd.automations.tags"
+    | "happyHerd.automations.tagsHint"
+    | "happyHerd.automations.tagsRequiresUpgrade"
     | "happyHerd.automations.timezone"
     | "happyHerd.automations.title"
     | "happyHerd.automations.unableDelete"
@@ -310,6 +314,7 @@ export type TranslationKey =
     | "happyHerd.automations.unableSave"
     | "happyHerd.automations.unableUpdate"
     | "happyHerd.automations.unknownError"
+    | "happyHerd.automations.untagged"
     | "happyHerd.automations.workspace"
     | "happyHerd.commander.category"
     | "happyHerd.commander.createSubtitle"
@@ -1125,19 +1130,25 @@ export type TranslationKey =
     | "welcome.loginWithMobileApp"
     | "welcome.subtitle"
     | "welcome.title"
+    | "workspace.addCurrentFolder"
     | "workspace.addToSession"
     | "workspace.attachTitle"
+    | "workspace.browseContext"
     | "workspace.browseMachine"
+    | "workspace.createFolderFailed"
     | "workspace.emptyFolder"
     | "workspace.favorites"
     | "workspace.featureDisabled"
     | "workspace.featureDisabledDescription"
     | "workspace.featureSubtitle"
+    | "workspace.folderNamePlaceholder"
     | "workspace.go"
     | "workspace.home"
     | "workspace.missingPathDescription"
     | "workspace.missingPathTitle"
     | "workspace.mobileBackToFiles"
+    | "workspace.newFolder"
+    | "workspace.newFolderPrompt"
     | "workspace.noMachines"
     | "workspace.offlineDescription"
     | "workspace.offlineTitle"
@@ -1154,6 +1165,7 @@ export type TranslationKey =
     | "workspace.searchPlaceholder"
     | "workspace.selectMachine"
     | "workspace.selectedCount"
+    | "workspace.selectedItemsCount"
     | "workspace.title"
     | "workspace.upload"
     | "workspace.uploadCancelled"
@@ -1201,6 +1213,7 @@ export interface TranslationParamsByKey {
     "happyHerd.automations.commanderValue": { id: string };
     "happyHerd.automations.deleteDescription": { name: string };
     "happyHerd.automations.expandDetails": { name: string };
+    "happyHerd.automations.machineLoadFailed": { message: string; name: string };
     "happyHerd.automations.openSession": { id: string };
     "imageUpload.fileTooLargeMessage": { maxMb: number; name: string };
     "imageUpload.limitMessage": { max: number };
@@ -1277,6 +1290,7 @@ export interface TranslationParamsByKey {
     "uiCopy.valueUnavailable": { value1: string | number };
     "uiCopy.yourEditsToValueHaveNotBeenSaved": { value1: string | number };
     "workspace.selectedCount": { count: number; max: number };
+    "workspace.selectedItemsCount": { count: number; max: number };
     "workspace.uploadCancelled": { completed: string; total: string | number };
     "workspace.uploadComplete": { count: number };
     "workspace.uploadTooLarge": { file: string };

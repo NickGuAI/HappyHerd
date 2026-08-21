@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -37,8 +37,12 @@ function input() {
 describe('HappyHerdAutomationStore', () => {
   it('persists machine-scoped definitions and bounded history', async () => {
     const store = new HappyHerdAutomationStore();
-    const automation = await store.create('machine-one', input());
-    expect((await store.list('machine-one')).automations).toHaveLength(1);
+    const automation = await store.create('machine-one', { ...input(), tags: [' Project Beacon ', 'Operations'] });
+    expect(automation).toMatchObject({ schemaVersion: 2, tags: ['Operations', 'Project Beacon'] });
+    expect(await store.list('machine-one')).toMatchObject({
+      definitionSchemaVersion: 2,
+      automations: [{ id: automation.id, tags: ['Operations', 'Project Beacon'] }],
+    });
     expect((await store.list('machine-two')).automations).toHaveLength(0);
     await store.appendRun({
       id: crypto.randomUUID(),
@@ -156,7 +160,57 @@ describe('HappyHerdAutomationStore', () => {
     const store = new HappyHerdAutomationStore();
     await store.create('machine-one', input());
     const result = await store.list('machine-one');
-    expect(result).toEqual({ automations: [expect.objectContaining({ machineId: 'machine-one' })] });
+    expect(result).toEqual({
+      definitionSchemaVersion: 2,
+      automations: [expect.objectContaining({ machineId: 'machine-one' })],
+    });
+  });
+
+  it('reads strict v1 manifests as untagged and writes v2 on mutation', async () => {
+    const store = new HappyHerdAutomationStore();
+    const automation = await store.create('machine-one', input());
+    const manifest = path.join(
+      root,
+      '.happyherd',
+      'agentcontext',
+      'automations',
+      'happyherd',
+      automation.id,
+      'manifest.json',
+    );
+    const { tags: _tags, schemaVersion: _schemaVersion, ...fields } = JSON.parse(await readFile(manifest, 'utf8'));
+    await writeFile(manifest, JSON.stringify({ schemaVersion: 1, ...fields }));
+
+    expect((await store.list('machine-one')).automations).toEqual([
+      expect.objectContaining({ id: automation.id, schemaVersion: 2, tags: [] }),
+    ]);
+
+    await store.recordSchedule(automation.id, '2026-08-21T08:00:00.000Z');
+    expect(JSON.parse(await readFile(manifest, 'utf8'))).toMatchObject({
+      schemaVersion: 2,
+      tags: [],
+    });
+
+    await store.update(automation.id, { tags: [' Zeta ', 'Alpha'] });
+    expect(JSON.parse(await readFile(manifest, 'utf8'))).toMatchObject({
+      schemaVersion: 2,
+      tags: ['Alpha', 'Zeta'],
+    });
+
+    await store.update(automation.id, { tags: [] });
+    expect(JSON.parse(await readFile(manifest, 'utf8'))).toMatchObject({
+      schemaVersion: 2,
+      tags: [],
+    });
+  });
+
+  it('rejects tags that collide after trimming', async () => {
+    const store = new HappyHerdAutomationStore();
+    await expect(store.create('machine-one', {
+      ...input(),
+      tags: ['Project Beacon', ' Project Beacon '],
+    })).rejects.toThrow(/Duplicate/);
+    expect((await store.list('machine-one')).automations).toHaveLength(0);
   });
 
   it('rejects unsafe schedules without creating an artifact', async () => {
