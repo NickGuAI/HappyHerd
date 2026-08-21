@@ -44,6 +44,7 @@ node "$repo_root/scripts/test-public-boundary.mjs"
 node "$repo_root/scripts/verify-public-boundary.mjs"
 node "$repo_root/scripts/lint-source.mjs"
 node "$repo_root/scripts/verify-product-identity.mjs"
+node "$repo_root/scripts/verify-community-contract.mjs"
 "$repo_root/scripts/test-public-launcher-release-contract.sh"
 "$repo_root/scripts/validate-runtime-isolation.sh" \
   "$repo_root/deploy/runtime.env.example" template

@@ -16,6 +16,12 @@ const personalIdentityMarkers = [
   new RegExp(['nick', 'gu'].join('[\\s._-]*'), 'i'),
   new RegExp(['yu', 'gu', 'columbia'].join('[\\s._@-]*'), 'i'),
 ];
+const approvedPublicSupportUrl = ['https://buymeacoffee.com/', 'nick', 'guy'].join('');
+const approvedPublicSupportPattern = new RegExp(
+  `${approvedPublicSupportUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`
+    + `(?=$|[\\s)"'\\]}>]|[.,](?:$|[\\s)"'\\]}>]))`,
+  'g',
+);
 const maxTextBytes = 2 * 1024 * 1024;
 const canonicalMaintainerName = 'HappyHerd Maintainers';
 const canonicalMaintainerEmail = 'maintainers@happyherd.example';
@@ -96,7 +102,8 @@ function inspectText(path, text) {
   if (/\.happyherd\/commanders\/[0-9a-f]{8}-[0-9a-f-]{27,}/i.test(text)) {
     findings.push('concrete private Commander identifier');
   }
-  if (personalIdentityMarkers.some((pattern) => pattern.test(text))) {
+  const withoutApprovedPublicSupport = text.replace(approvedPublicSupportPattern, '');
+  if (personalIdentityMarkers.some((pattern) => pattern.test(withoutApprovedPublicSupport))) {
     findings.push('operator-specific personal identity');
   }
 

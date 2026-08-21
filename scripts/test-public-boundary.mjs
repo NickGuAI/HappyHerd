@@ -6,6 +6,7 @@ import {
   inspectEntries,
   syntheticPullRequestMergeParents,
 } from './verify-public-boundary.mjs';
+import { hasExactMarkdownLink } from './verify-community-contract.mjs';
 
 const inspect = (path, text) => inspectEntries([{ path, text }]).map(({ rule }) => rule);
 
@@ -27,6 +28,19 @@ assert(inspect('docs/path.md', ['/home/', 'real-person', '/workspace'].join(''))
 assert(inspect('README.md', ['Nick', 'GuAI'].join('')).includes(
   'operator-specific personal identity',
 ));
+const approvedSupportUrl = ['https://buymeacoffee.com/', 'nick', 'guy'].join('');
+assert.deepEqual(inspect('README.md', `Support HappyHerd at ${approvedSupportUrl}.`), []);
+assert(inspect('README.md', `${approvedSupportUrl}-unapproved`).includes(
+  'operator-specific personal identity',
+));
+for (const suffix of ['.evil', ',evil']) {
+  assert(inspect('README.md', `${approvedSupportUrl}${suffix}`).includes(
+    'operator-specific personal identity',
+  ));
+}
+assert.equal(hasExactMarkdownLink(`[support](${approvedSupportUrl})`, approvedSupportUrl), true);
+assert.equal(hasExactMarkdownLink(`[support](${approvedSupportUrl}.evil)`, approvedSupportUrl), false);
+assert.equal(hasExactMarkdownLink(`[support](${approvedSupportUrl},evil)`, approvedSupportUrl), false);
 assert(inspect('config.txt', ['sk-', 'proj-', 'a'.repeat(32)].join('')).includes(
   'OpenAI-style secret',
 ));
