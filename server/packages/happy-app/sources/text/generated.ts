@@ -322,6 +322,20 @@ export type TranslationKey =
     | "happyHerd.commander.createSubtitle"
     | "happyHerd.commander.createTitle"
     | "happyHerd.commander.onboardingPrompt"
+    | "happyHerd.commanderAvatars.description"
+    | "happyHerd.commanderAvatars.empty"
+    | "happyHerd.commanderAvatars.invalidFormat"
+    | "happyHerd.commanderAvatars.loadFailed"
+    | "happyHerd.commanderAvatars.loading"
+    | "happyHerd.commanderAvatars.machineOffline"
+    | "happyHerd.commanderAvatars.noCommanders"
+    | "happyHerd.commanderAvatars.noMachines"
+    | "happyHerd.commanderAvatars.runtimeUnsupported"
+    | "happyHerd.commanderAvatars.stale"
+    | "happyHerd.commanderAvatars.title"
+    | "happyHerd.commanderAvatars.tooLarge"
+    | "happyHerd.commanderAvatars.updated"
+    | "happyHerd.commanderAvatars.uploadFailed"
     | "happyHerd.composer.addPhoto"
     | "happyHerd.composer.addPhotos"
     | "happyHerd.composer.cancelVoice"
@@ -333,6 +347,8 @@ export type TranslationKey =
     | "happyHerd.composer.sendFailedTitle"
     | "happyHerd.composer.startVoice"
     | "happyHerd.composer.stop"
+    | "happyHerd.features.commanderProfilePictures"
+    | "happyHerd.features.commanderProfilePicturesSubtitle"
     | "happyHerd.features.fileDiffsSidebar"
     | "happyHerd.features.fileDiffsSidebarSubtitle"
     | "happyHerd.features.interface"
@@ -1217,6 +1233,7 @@ export interface TranslationParamsByKey {
     "happyHerd.automations.expandDetails": { name: string };
     "happyHerd.automations.machineLoadFailed": { message: string; name: string };
     "happyHerd.automations.openSession": { id: string };
+    "happyHerd.commanderAvatars.updated": { name: string };
     "imageUpload.fileTooLargeMessage": { maxMb: number; name: string };
     "imageUpload.limitMessage": { max: number };
     "imageUpload.uploadFailedMessage": { count: number };

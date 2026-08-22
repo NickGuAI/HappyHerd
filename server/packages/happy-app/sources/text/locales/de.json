@@ -1185,8 +1185,26 @@
       "sortRecentSubtitle": "Sitzungen nach letzter Aktivität statt Erstellungsdatum sortieren",
       "resumeSession": "Sitzung fortsetzen",
       "resumeSessionSubtitle": "Getrennte Claude Code- und Codex-Sitzungen über den Rechner-Daemon fortsetzen",
+      "commanderProfilePictures": "Commander-Profilbilder",
+      "commanderProfilePicturesSubtitle": "Commander-Bilder in Gesprächslisten anzeigen und bei aktiver Arbeit pulsieren lassen",
       "voiceInput": "Spracheingabe",
       "voiceInputSubtitle": "OpenAI-Transkription anzeigen, wenn ein sicherer Schlüssel eingerichtet ist"
+    },
+    "commanderAvatars": {
+      "title": "Commander-Profilbilder",
+      "description": "Wähle ein Bild pro Commander und Rechner. PNG, JPEG oder WebP bis 2 MiB.",
+      "noMachines": "Keine Rechner verfügbar",
+      "machineOffline": "Dieser Rechner ist offline",
+      "loading": "Commander werden geladen…",
+      "loadFailed": "Commander konnten nicht geladen werden",
+      "noCommanders": "Keine Commander auf diesem Rechner",
+      "updated": "Das Profilbild von {name} wurde aktualisiert.",
+      "uploadFailed": "Das Commander-Profilbild konnte nicht aktualisiert werden.",
+      "empty": "Die ausgewählte Datei ist leer.",
+      "tooLarge": "Wähle ein Bild, das nicht größer als 2 MiB ist.",
+      "invalidFormat": "Wähle ein vollständiges PNG-, JPEG- oder WebP-Bild.",
+      "stale": "Das Profilbild wurde auf dem Rechner geändert. Öffne „Funktionen“ erneut und versuche es noch einmal.",
+      "runtimeUnsupported": "Aktualisiere HappyHerd auf diesem Rechner, bevor du sein Commander-Profilbild ersetzt."
     },
     "automations": {
       "title": "Automatisierungen",

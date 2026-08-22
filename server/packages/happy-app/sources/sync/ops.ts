@@ -20,6 +20,7 @@ import {
 import {
     MAX_WORKSPACE_UPLOAD_BYTES,
     MAX_WORKSPACE_UPLOAD_CHUNK_BASE64_LENGTH,
+    WorkspaceFileHashResponseSchema,
 } from '@slopus/happy-wire';
 import type {
     HappyHerdAutomation,
@@ -29,6 +30,8 @@ import type {
     HappyHerdAutomationRun,
     HappyHerdAutomationUpdateInput,
     HappyHerdCommanderListResponse,
+    WorkspaceFileHashRequest,
+    WorkspaceFileHashResponse,
     WorkspaceUploadAbortResponse,
     WorkspaceUploadChunkRequest,
     WorkspaceUploadChunkResponse,
@@ -675,6 +678,39 @@ export async function machineReadFile(machineId: string, path: string): Promise<
     }
 }
 
+/**
+ * Read only a bounded regular file's size and SHA-256 identity. Newer daemon
+ * support for this RPC is also the capability preflight for safe replacement.
+ */
+export async function machineHashFile(
+    machineId: string,
+    path: string,
+    maxBytes: number,
+): Promise<WorkspaceFileHashResponse> {
+    try {
+        const response = await apiSocket.machineRPC<WorkspaceFileHashResponse, WorkspaceFileHashRequest>(
+            machineId,
+            'hashFile',
+            { path, maxBytes },
+        );
+        const parsed = WorkspaceFileHashResponseSchema.safeParse(response);
+        if (!parsed.success) {
+            return {
+                success: false,
+                code: 'unavailable',
+                error: 'Machine runtime returned an unsupported file hash response',
+            };
+        }
+        return parsed.data;
+    } catch (error) {
+        return {
+            success: false,
+            code: 'unavailable',
+            error: error instanceof Error ? error.message : 'Machine runtime does not support file hashing',
+        };
+    }
+}
+
 /** Write a file through the machine daemon with optimistic hash protection. */
 export async function machineWriteFile(
     machineId: string,
@@ -696,7 +732,7 @@ export async function machineWriteFile(
     }
 }
 
-/** Upload one local client file into an existing host directory without overwriting. */
+/** Upload one local client file, optionally replacing the expected current version atomically. */
 export async function machineUploadFile(
     machineId: string,
     request: WorkspaceUploadRequest,
@@ -716,7 +752,12 @@ export async function machineUploadFile(
         const start = await apiSocket.machineRPC<WorkspaceUploadStartResponse, WorkspaceUploadStartRequest>(
             machineId,
             'uploadFileStart',
-            { directory: request.directory, fileName: request.fileName, size },
+            {
+                directory: request.directory,
+                fileName: request.fileName,
+                size,
+                ...(request.expectedHash ? { expectedHash: request.expectedHash } : {}),
+            },
         );
         if (!start.success || !start.uploadId) {
             return {

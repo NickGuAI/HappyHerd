@@ -9,6 +9,7 @@ export const MAX_WORKSPACE_UPLOAD_FILES = 10;
  * 1,000,000-byte frame limit without raising that global limit.
  */
 export const MAX_WORKSPACE_UPLOAD_CHUNK_BASE64_LENGTH = 256 * 1024;
+const SHA256_HEX_PATTERN = /^[a-f0-9]{64}$/;
 
 export function isSafeWorkspacePathSegment(name: string): boolean {
   return name.length > 0
@@ -23,6 +24,7 @@ export const WorkspaceUploadRequestSchema = z.object({
   directory: z.string().min(1).refine((value) => value.trim().length > 0),
   fileName: z.string().min(1).max(255).refine((value) => value.trim().length > 0),
   content: z.string(),
+  expectedHash: z.string().regex(SHA256_HEX_PATTERN).optional(),
 }).strict();
 
 export type WorkspaceUploadRequest = z.infer<typeof WorkspaceUploadRequestSchema>;
@@ -46,6 +48,7 @@ export const WorkspaceUploadStartRequestSchema = z.object({
   directory: z.string().min(1).refine((value) => value.trim().length > 0),
   fileName: z.string().min(1).max(255).refine((value) => value.trim().length > 0),
   size: z.number().int().min(0).max(MAX_WORKSPACE_UPLOAD_BYTES),
+  expectedHash: z.string().regex(SHA256_HEX_PATTERN).optional(),
 }).strict();
 
 export type WorkspaceUploadStartRequest = z.infer<typeof WorkspaceUploadStartRequestSchema>;
@@ -90,6 +93,37 @@ export const WorkspaceUploadAbortResponseSchema = z.object({
 }).strict();
 
 export type WorkspaceUploadAbortResponse = z.infer<typeof WorkspaceUploadAbortResponseSchema>;
+
+/**
+ * Read only the bounded size and SHA-256 identity of a regular machine file.
+ * The daemon never returns file content through this preflight operation.
+ */
+export const WorkspaceFileHashRequestSchema = z.object({
+  path: z.string().min(1).refine((value) => value.trim().length > 0),
+  maxBytes: z.number().int().positive().max(MAX_WORKSPACE_UPLOAD_BYTES),
+}).strict();
+
+export type WorkspaceFileHashRequest = z.infer<typeof WorkspaceFileHashRequestSchema>;
+
+export const WorkspaceFileHashResponseSchema = z.union([
+  z.object({
+    success: z.literal(true),
+    exists: z.literal(false),
+  }).strict(),
+  z.object({
+    success: z.literal(true),
+    exists: z.literal(true),
+    size: z.number().int().min(0),
+    hash: z.string().regex(SHA256_HEX_PATTERN),
+  }).strict(),
+  z.object({
+    success: z.literal(false),
+    code: z.enum(['invalid-path', 'not-regular', 'too-large', 'read-failed', 'unavailable']),
+    error: z.string().optional(),
+  }).strict(),
+]);
+
+export type WorkspaceFileHashResponse = z.infer<typeof WorkspaceFileHashResponseSchema>;
 
 export const WorkspaceCreateDirectoryRequestSchema = z.object({
   directory: z.string().min(1).refine((value) => value.trim().length > 0),
