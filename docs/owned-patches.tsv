@@ -53,3 +53,4 @@ RELEASE_IMAGE	accepted	fix(release): scope server image dependency installation	
 COMPONENT_DEPLOYMENT	accepted	refactor(release): restore component-native deployment	scripts/test-component-deployment-contract.sh
 AUTOMATION_REFRESH	accepted	fix(automations): stop heartbeat-driven reloads	server/packages/happy-app/sources/components/AutomationsScreen.test.ts
 COMPONENT_DEPLOYMENT	accepted	fix(daemon): render Linux bootstrap user (#116)	scripts/test-component-deployment-contract.sh
+AUTOMATION_PROJECT_SELECTOR	accepted	fix(automations): move machine selection into projects	server/packages/happy-app/sources/components/AutomationsScreen.test.ts
