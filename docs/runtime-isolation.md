@@ -43,11 +43,14 @@ The Happy CLI is built and installed independently of the server image:
 sudo scripts/install-host-cli.sh
 sudo install -m 0600 deploy/happyherd-daemon.env.example \
   /etc/happyherd/daemon.env
-sudo scripts/install-linux-daemon-bootstrap.sh /etc/happyherd/daemon.env
-sudo -u happyherd-runtime \
+sudo scripts/install-linux-daemon-bootstrap.sh /etc/happyherd/daemon.env ec2-user
+sudo -u ec2-user \
   /usr/local/lib/happyherd/start-host-daemon.sh \
   /etc/happyherd/daemon.env
 ```
+
+Replace `ec2-user` with the actual account that owns the configured
+`HAPPY_HOME_DIR` and provider credentials.
 
 The Linux cron entry is only a boot-time availability adapter. It calls the
 maintained Happy CLI's native detached `daemon start` lifecycle and exits. The

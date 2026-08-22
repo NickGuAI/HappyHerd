@@ -47,13 +47,18 @@ sudo scripts/install-host-cli.sh
 On Linux, install the small boot adapter once:
 
 ```bash
-sudo scripts/install-linux-daemon-bootstrap.sh /etc/happyherd/daemon.env
+sudo scripts/install-linux-daemon-bootstrap.sh \
+  /etc/happyherd/daemon.env \
+  ec2-user
 ```
 
 The adapter invokes `/usr/local/bin/happy daemon start`. The CLI owns the
 native daemon lifecycle; systemd does not own the daemon or Claude/Codex
 provider processes. A CLI upgrade therefore does not require a server image or
-mobile build.
+mobile build. Replace `ec2-user` with the real host account that owns the
+HappyHerd home and provider credentials. When invoked through `sudo`, omitting
+the second argument selects `SUDO_USER`; noninteractive root installs must pass
+the account explicitly.
 
 ## Governed agent
 

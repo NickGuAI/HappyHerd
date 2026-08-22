@@ -42,6 +42,16 @@ grep -Fq '/usr/local/lib/happyherd/run-container.sh' "$ROOT/deploy/happyherd.ser
     fail 'server unit does not use the stable server support path'
 grep -Fq '/usr/local/lib/happyherd/start-host-daemon.sh' "$ROOT/deploy/happyherd-daemon.cron" || \
     fail 'Linux daemon bootstrap does not use its stable path'
+grep -Fq '__HAPPYHERD_DAEMON_USER__' "$ROOT/deploy/happyherd-daemon.cron" || \
+    fail 'Linux daemon cron source does not defer the run account to installation'
+grep -Fq "id \"\$RUN_USER\"" "$ROOT/scripts/install-linux-daemon-bootstrap.sh" || \
+    fail 'Linux daemon bootstrap does not validate the selected host account'
+grep -Fq "awk -v run_user=\"\$RUN_USER\"" "$ROOT/scripts/install-linux-daemon-bootstrap.sh" || \
+    fail 'Linux daemon bootstrap does not render the selected host account'
+if rg -n '@reboot happyherd-runtime|HAPPY_HOME_DIR=/var/lib/happyherd-runtime' \
+    "$ROOT/deploy/happyherd-daemon.cron" "$ROOT/deploy/happyherd-daemon.env.example" >/dev/null; then
+    fail 'host daemon lane still assumes a synthetic happyherd-runtime account'
+fi
 grep -Fq 'HAPPYHERD_DAEMON_CLI=/usr/local/bin/happy' "$ROOT/deploy/happyherd-daemon.env.example" || \
     fail 'daemon does not select the independently installed Happy CLI'
 grep -Fq "runuser -u \"\$BUILD_USER\"" "$ROOT/scripts/install-host-cli.sh" || \
