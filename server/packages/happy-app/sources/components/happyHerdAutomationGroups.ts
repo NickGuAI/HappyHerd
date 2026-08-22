@@ -8,6 +8,11 @@ import type { Machine } from '@/sync/storageTypes';
 
 export type HappyHerdAutomationMachine = Pick<Machine, 'id' | 'metadata'>;
 
+type HappyHerdAutomationReloadMachine = Pick<
+    Machine,
+    'id' | 'active' | 'metadataVersion' | 'daemonStateVersion'
+>;
+
 type RuntimeListResponse = {
     definitionSchemaVersion?: 1 | 2;
     automations: unknown[];
@@ -55,6 +60,17 @@ export function happyHerdAutomationTagInput(
 
 export function happyHerdAutomationProjectKey(tag: string | null): string {
     return tag === null ? 'project:untagged' : `project:tag:${tag}`;
+}
+
+export function happyHerdAutomationReloadKey(
+    machines: readonly HappyHerdAutomationReloadMachine[],
+): string {
+    return JSON.stringify(
+        machines
+            .filter((machine) => machine.active)
+            .map((machine) => [machine.id, machine.metadataVersion, machine.daemonStateVersion] as const)
+            .sort(([left], [right]) => bytewiseCompare(left, right)),
+    );
 }
 
 function normalizeRuntimeAutomation(value: unknown): HappyHerdAutomation {

@@ -1215,6 +1215,7 @@
       "commander": "Commander-Identität",
       "tags": "Projekt-Tags",
       "tagsHint": "Gib pro Zeile ein Projekt-Tag ein.",
+      "tagGuide": "Um eine Automation zu taggen, klappe sie auf, wähle „Bearbeiten“, gib pro Zeile ein Projekt-Tag ein und speichere. Mehrere Tags ordnen sie jedem entsprechenden Projekt zu.",
       "tagsRequiresUpgrade": "Aktualisiere HappyHerd auf diesem Rechner, um Tags zu bearbeiten.",
       "untagged": "Ohne Tags",
       "machineLoadFailed": "Fehler beim Laden von {name}: {message}",

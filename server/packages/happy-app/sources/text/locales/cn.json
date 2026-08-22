@@ -1215,6 +1215,7 @@
       "commander": "Commander 身份",
       "tags": "项目标签",
       "tagsHint": "每行输入一个项目标签。",
+      "tagGuide": "给自动化添加标签：先展开卡片并选择“编辑”，再在“项目标签”中每行输入一个标签并保存。多个标签会让它出现在对应的每个项目中。",
       "tagsRequiresUpgrade": "请更新此机器上的 HappyHerd 后再编辑标签。",
       "untagged": "未标记",
       "machineLoadFailed": "无法加载 {name}：{message}",

@@ -9,6 +9,7 @@ import {
     useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import type {
@@ -25,6 +26,7 @@ import {
     groupHappyHerdAutomationsByProject,
     happyHerdAutomationMachineName,
     happyHerdAutomationProjectKey,
+    happyHerdAutomationReloadKey,
     happyHerdAutomationTagInput,
     loadHappyHerdAutomationMachines,
     type HappyHerdAutomationMachineCollection,
@@ -182,8 +184,13 @@ export default function AutomationsScreen() {
     const desktop = (Platform.OS === 'web' || Platform.OS === 'macos') && width >= 900;
     const machines = useAllMachines({ includeOffline: true });
     const onlineMachines = React.useMemo(() => machines.filter(isMachineOnline), [machines]);
+    const onlineMachinesRef = React.useRef(onlineMachines);
+    onlineMachinesRef.current = onlineMachines;
+    const automationReloadKey = happyHerdAutomationReloadKey(machines);
     const [machineId, setMachineId] = React.useState<string | null>(null);
     const machine = machines.find((candidate) => candidate.id === machineId) ?? null;
+    const machineExists = machine !== null;
+    const machineOnline = machine ? isMachineOnline(machine) : false;
     const [machineCollections, setMachineCollections] = React.useState<HappyHerdAutomationMachineCollection<Machine>[]>([]);
     const [machineFailures, setMachineFailures] = React.useState<HappyHerdAutomationMachineFailure<Machine>[]>([]);
     const [commanders, setCommanders] = React.useState<HappyHerdCommanderSummary[]>([]);
@@ -217,21 +224,25 @@ export default function AutomationsScreen() {
     const refresh = React.useCallback(async () => {
         setLoading(true);
         try {
-            const result = await loadHappyHerdAutomationMachines(onlineMachines, machineListAutomations);
+            const result = await loadHappyHerdAutomationMachines(onlineMachinesRef.current, machineListAutomations);
             setMachineCollections(result.collections);
             setMachineFailures(result.failures);
         } finally {
             setLoading(false);
         }
-    }, [onlineMachines]);
+    }, []);
 
-    React.useEffect(() => { void refresh(); }, [refresh]);
+    useFocusEffect(
+        React.useCallback(() => {
+            void refresh();
+        }, [automationReloadKey, refresh]),
+    );
 
-    React.useEffect(() => {
+    useFocusEffect(React.useCallback(() => {
         let cancelled = false;
-        if (!machineId || !machine || !isMachineOnline(machine)) {
+        if (!machineId || !machineExists || !machineOnline) {
             setCommanders([]);
-            setError(machine ? t('happyHerd.automations.machineOffline') : null);
+            setError(machineExists ? t('happyHerd.automations.machineOffline') : null);
             return () => { cancelled = true; };
         }
         setError(null);
@@ -247,7 +258,7 @@ export default function AutomationsScreen() {
             },
         );
         return () => { cancelled = true; };
-    }, [machine, machineId]);
+    }, [machineExists, machineId, machineOnline]));
 
     const openCreate = React.useCallback(() => {
         if (!machine || !isMachineOnline(machine)) return;
@@ -357,6 +368,9 @@ export default function AutomationsScreen() {
                 <View style={styles.heroCopy}>
                     <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
                         {t('happyHerd.automations.subtitle')}
+                    </Text>
+                    <Text style={[styles.tagGuide, { color: theme.colors.textSecondary }]}>
+                        {t('happyHerd.automations.tagGuide')}
                     </Text>
                 </View>
                 <Pressable
@@ -524,8 +538,9 @@ const styles = StyleSheet.create((theme) => ({
     page: { padding: 16, paddingBottom: 80, gap: 16 },
     pageDesktop: { width: '100%', maxWidth: 980, alignSelf: 'center', padding: 28 },
     hero: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-    heroCopy: { flex: 1 },
+    heroCopy: { flex: 1, gap: 6 },
     subtitle: { fontSize: 15, lineHeight: 21, maxWidth: 680 },
+    tagGuide: { fontSize: 13, lineHeight: 19, maxWidth: 680 },
     primaryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 },
     buttonDisabled: { opacity: 0.45 },
     buttonText: { ...Typography.default('semiBold') },
