@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/runtime-config.sh
-source "$ROOT/scripts/lib/runtime-config.sh"
+source "$SCRIPT_DIR/lib/runtime-config.sh"
 
 ENV_FILE="${1:-/etc/happyherd/runtime.env}"
 happyherd_load_runtime_config "$ENV_FILE"
-"$ROOT/scripts/validate-runtime-isolation.sh" "$ENV_FILE" runtime
 
 master_secret="$(tr -d '\r\n' < "$HAPPYHERD_MASTER_SECRET_FILE")"
 [[ -n "$master_secret" ]] || {
@@ -23,10 +22,6 @@ docker_args=(
     --publish "0.0.0.0:${HAPPYHERD_PORT}:3005"
     --volume "$HAPPYHERD_DATA_DIR:/data"
     --volume "$HAPPYHERD_CLI_HOME:/happyherd-cli"
-    --read-only
-    --tmpfs "/tmp:rw,noexec,nosuid,size=256m"
-    --security-opt no-new-privileges:true
-    --cap-drop ALL
     --env HOST=0.0.0.0
     --env PORT=3005
     --env DATA_DIR=/data

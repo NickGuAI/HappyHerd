@@ -121,9 +121,11 @@ allowlist entry to hide new hardcoded interface copy.
 | Governed bridge | `happy-agent`, `happyherd-agent`, deploy/runtime contracts |
 | Native public launcher | `happyherd-cli`, `happy-cli`, installers, native service code |
 
-Reproducible release scripts intentionally bind artifacts to a clean checkout
-whose `HEAD` equals `origin/main`. A passing feature-branch test is not release
-evidence.
+These are independent delivery lanes. The self-host server intentionally
+contains the Web bundle, but changing the CLI/daemon, mobile client, governed
+agent, or public launcher does not rebuild or activate the others. Compatibility
+is enforced at wire/API boundaries and by component tests, not by requiring one
+Git SHA on every host.
 
 ### Owned patches and upstream history
 

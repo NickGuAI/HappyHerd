@@ -9,8 +9,8 @@ User=happyherd-agent-bridge
 Group=happyherd-agent-bridge
 EnvironmentFile=/etc/happyherd-agent/bridge.env
 WorkingDirectory=/var/lib/happyherd-agent-bridge
-ExecStartPre=+/opt/happyherd/current/scripts/validate-happyherd-agent-runtime.sh /etc/happyherd-agent/bridge.env runtime
-ExecStart=/usr/bin/node /opt/happyherd/current/happyherd-agent/dist/index.mjs
+ExecStartPre=+/usr/local/lib/happyherd-agent-support/scripts/validate-happyherd-agent-runtime.sh /etc/happyherd-agent/bridge.env runtime
+ExecStart=/usr/bin/node /usr/local/lib/happyherd-agent/dist/index.mjs
 Restart=on-failure
 RestartSec=10s
 TimeoutStopSec=30s
@@ -35,7 +35,7 @@ LockPersonality=true
 CapabilityBoundingSet=
 AmbientCapabilities=
 ReadWritePaths=/var/lib/happyherd-agent-bridge
-ReadOnlyPaths=/opt/happyherd/current /etc/happyherd-agent
+ReadOnlyPaths=/usr/local/lib/happyherd-agent /usr/local/lib/happyherd-agent-support /usr/local/lib/happyherd-cli /etc/happyherd-agent
 
 [Install]
 WantedBy=multi-user.target

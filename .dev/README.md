@@ -45,7 +45,8 @@ and `server/AGENTS.md`. Record any new discrepancy in
  happy-server-self-host ──uses wire; bundles──► happy-server + happy-app
 
  Root docs + scripts + workflows govern lineage, patches, verification,
- reproducible releases, runtime isolation, rollback, and upstream rehearsal.
+ component-native deployment, runtime boundaries, the public launcher, and
+ upstream rehearsal.
 ```
 
 The dependency edges above are grounded in `server/pnpm-workspace.yaml`, the
@@ -94,7 +95,7 @@ Update this directory when any of these change:
 - app routes, localization catalogs, UI inventory, or changelog generation;
 - package scripts, pinned tool versions, tests, build commands, or CI checks;
 - branch protection, merge policy, patch discipline, or upstream-sync rules;
-- release, installer, runtime-isolation, deployment, or rollback contracts; or
+- component deployment, installer, runtime-boundary, or public-release contracts; or
 - a source audit disproves a route or coupling documented here.
 
 Review the concrete source again before changing the map. Do not preserve a

@@ -1290,7 +1290,6 @@ export async function startDaemon(): Promise<void> {
       startTime: new Date().toLocaleString(),
       startedWithCliVersion: configuration.currentCliVersion,
       instanceId: daemonInstanceId,
-      ...(configuration.releaseSha ? { releaseSha: configuration.releaseSha } : {}),
       daemonLogPath: logger.logFilePath
     };
     writeDaemonState(fileState);
@@ -1433,7 +1432,6 @@ export async function startDaemon(): Promise<void> {
           startTime: fileState.startTime,
           startedWithCliVersion: configuration.currentCliVersion,
           instanceId: daemonInstanceId,
-          ...(configuration.releaseSha ? { releaseSha: configuration.releaseSha } : {}),
           lastHeartbeat: new Date().toLocaleString(),
           daemonLogPath: fileState.daemonLogPath
         };

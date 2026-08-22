@@ -8,7 +8,9 @@ AGENT_USER=happyherd-agent-runtime
 BRIDGE_KEY=/var/lib/happyherd-agent-bridge/happy-agent/agent.key
 DAEMON_KEY=/var/lib/happyherd-agent-runtime/happy-home/access.key
 DAEMON_SETTINGS=/var/lib/happyherd-agent-runtime/happy-home/settings.json
-DAEMON_CLI=/opt/happyherd/current/daemon/bin/happy.mjs
+DAEMON_ROOT="${HAPPYHERD_CLI_ROOT:-/usr/local/lib/happyherd-cli}"
+DAEMON_CLI="${HAPPYHERD_DAEMON_CLI:-$DAEMON_ROOT/bin/happy.mjs}"
+DAEMON_BOOTSTRAP="${HAPPYHERD_DAEMON_BOOTSTRAP:-/usr/local/lib/happyherd/start-host-daemon.sh}"
 
 die() {
     printf 'error: %s\n' "$*" >&2
@@ -30,11 +32,12 @@ set +a
 export HAPPYHERD_AGENT_PROVISION_HAPPY_SERVER_URL="$HAPPY_SERVER_URL"
 export HAPPYHERD_AGENT_PROVISION_BRIDGE_KEY="$BRIDGE_KEY"
 export HAPPYHERD_AGENT_PROVISION_DAEMON_KEY="$DAEMON_KEY"
+export HAPPYHERD_AGENT_PROVISION_DAEMON_ROOT="$DAEMON_ROOT"
 node <<'NODE'
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
-const tweetnacl = require('/opt/happyherd/current/daemon/node_modules/tweetnacl');
+const tweetnacl = require(`${process.env.HAPPYHERD_AGENT_PROVISION_DAEMON_ROOT}/node_modules/tweetnacl`);
 
 const serverUrl = new URL(process.env.HAPPYHERD_AGENT_PROVISION_HAPPY_SERVER_URL);
 if (serverUrl.protocol !== 'https:' || serverUrl.username || serverUrl.password) {
@@ -111,7 +114,8 @@ const writeAtomicExclusive = (target, value) => {
   process.exit(1);
 });
 NODE
-unset HAPPYHERD_AGENT_PROVISION_HAPPY_SERVER_URL HAPPYHERD_AGENT_PROVISION_BRIDGE_KEY HAPPYHERD_AGENT_PROVISION_DAEMON_KEY
+unset HAPPYHERD_AGENT_PROVISION_HAPPY_SERVER_URL HAPPYHERD_AGENT_PROVISION_BRIDGE_KEY \
+    HAPPYHERD_AGENT_PROVISION_DAEMON_KEY HAPPYHERD_AGENT_PROVISION_DAEMON_ROOT
 
 chown "$BRIDGE_USER:$BRIDGE_USER" "$BRIDGE_KEY"
 chmod 0600 "$BRIDGE_KEY"
@@ -123,7 +127,7 @@ runuser -u "$AGENT_USER" -- env -i \
     HAPPY_SERVER_URL="$HAPPY_SERVER_URL" \
     HAPPY_WEBAPP_URL="$HAPPY_SERVER_URL" \
     HAPPY_HOME_DIR=/var/lib/happyherd-agent-runtime/happy-home \
-    PATH=/opt/happyherd/current/daemon/bin:/usr/local/bin:/usr/bin:/bin \
+    PATH="$DAEMON_ROOT/bin:$DAEMON_ROOT/tools/unpacked:/usr/local/bin:/usr/bin:/bin" \
     SHELL=/bin/bash \
     /usr/bin/node "$DAEMON_CLI" auth login
 
@@ -145,5 +149,5 @@ fs.writeFileSync(path, updated.join('\n'));
 NODE
 unset HAPPYHERD_AGENT_PROVISION_BRIDGE_ENV HAPPYHERD_AGENT_PROVISION_MACHINE_ID
 
-runuser -u "$AGENT_USER" -- /opt/happyherd/current/scripts/start-host-daemon.sh "$DAEMON_ENV"
+runuser -u "$AGENT_USER" -- "$DAEMON_BOOTSTRAP" "$DAEMON_ENV"
 printf 'Dedicated HappyHerd Agent account, machine, and daemon provisioned without personal credentials.\n'

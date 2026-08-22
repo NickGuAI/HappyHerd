@@ -6,8 +6,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 case "$MODE" in
     source) NODE_ROOT="$ROOT/server" ;;
     runtime)
-        NODE_ROOT="${HAPPYHERD_AGENT_RELEASE:-/opt/happyherd/current}/daemon"
-        export PATH="$NODE_ROOT/bin:${PATH:-/usr/local/bin:/usr/bin:/bin}"
+        NODE_ROOT="${HAPPYHERD_CLI_ROOT:-/usr/local/lib/happyherd-cli}"
+        export PATH="$NODE_ROOT/bin:$NODE_ROOT/tools/unpacked:${PATH:-/usr/local/bin:/usr/bin:/bin}"
         ;;
     *) printf 'error: mode must be source or runtime\n' >&2; exit 1 ;;
 esac

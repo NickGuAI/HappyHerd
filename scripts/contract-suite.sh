@@ -46,19 +46,9 @@ node "$repo_root/scripts/lint-source.mjs"
 node "$repo_root/scripts/verify-product-identity.mjs"
 node "$repo_root/scripts/verify-community-contract.mjs"
 "$repo_root/scripts/test-public-launcher-release-contract.sh"
-"$repo_root/scripts/validate-runtime-isolation.sh" \
-  "$repo_root/deploy/runtime.env.example" template
-"$repo_root/scripts/test-runtime-isolation.sh"
-"$repo_root/scripts/test-release-daemon-contract.sh"
-"$repo_root/scripts/test-release-source-contract.sh"
+"$repo_root/scripts/test-component-deployment-contract.sh"
 "$repo_root/scripts/test-happyherd-agent-runtime.sh"
-"$repo_root/scripts/test-happyherd-agent-release-contract.sh"
 "$repo_root/scripts/test-happyherd-agent-sandbox.sh" source
-"$repo_root/scripts/test-happyherd-agent-rollback.sh"
-"$repo_root/scripts/test-install-host-release.sh"
-"$repo_root/scripts/test-release-server-contract.sh"
-"$repo_root/scripts/test-release-image-contract.sh"
-"$repo_root/scripts/test-release-rollback.sh"
 "$repo_root/scripts/test-upstream-sync-provenance.sh"
 "$repo_root/scripts/test-owned-merge-provenance.sh"
 shellcheck -x "$repo_root"/scripts/*.sh "$repo_root"/scripts/lib/*.sh \

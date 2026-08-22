@@ -16,11 +16,11 @@ state owners before editing. Paths are relative to the repository root.
 | Commander or AgentContext behavior | `server/packages/happy-cli/src/agentContext/commanderContext.ts`, `server/packages/happy-cli/src/commands/commander.ts` | `server/packages/happy-wire/src/commanderContext.ts`, app session creation/selector, automation bootstrap | Commander/context tests plus affected CLI/app tests |
 | Automations | `server/packages/happy-wire/src/automation.ts`; `server/packages/happy-cli/src/automations/{store,service,sessionBootstrap,providerOutcome}.ts` | Daemon lifecycle/API handlers and app automation route/card/ops | Wire, CLI, and app automation tests |
 | Server API, events, or database | `server/packages/happy-server/sources/{main,index,standalone}.ts`, `server/packages/happy-server/sources/app/api/api.ts`, `server/packages/happy-server/prisma/schema.prisma` | Route handler, event router, app/CLI caller, wire schema, storage adapter | Server typecheck/test/build plus affected client tests |
-| Self-host server bundle | `server/packages/happy-server-self-host/scripts/build-runtime.cjs`, `server/Dockerfile` | Happy server dependency list, Prisma migrations, app web bundle | Self-host build and nearest server/image release contracts |
+| Self-host server bundle | `server/packages/happy-server-self-host/scripts/build-runtime.cjs`, `server/Dockerfile` | Happy server dependency list, Prisma migrations, app web bundle | Self-host build and `scripts/test-component-deployment-contract.sh` |
 | Public launcher, issuer, Skills, or credential broker | `server/packages/happyherd-cli/src/{cli,contracts,broker,secretStore,skills,registry,toolRunner,runtime}.ts` | Native installer/service sources, issuer/release docs, release workflow | Launcher typecheck/tests and public-launcher contract |
-| Governed Discord agent | `server/packages/happyherd-agent/src/{index,config,bridge,store,happy,broker,httpServer,manifest}.ts` | `server/packages/happy-agent/src/control.ts`, deploy templates, runtime-isolation contract | Both agent suites and runtime/sandbox/release contracts |
+| Governed Discord agent | `server/packages/happyherd-agent/src/{index,config,bridge,store,happy,broker,httpServer,manifest}.ts` | `server/packages/happy-agent/src/control.ts`, deploy templates, runtime boundary | Both agent suites and runtime/sandbox contracts |
 | `happy-agent` remote control | `server/packages/happy-agent/src/{index,control,api,machineRpc,session}.ts` | Server APIs/socket and `happyherd-agent` | `happy-agent` tests; integration tests when prerequisites exist |
-| Release, installer, deployment, or rollback | Root `scripts/`, `deploy/`, `installers/`, root `.github/workflows/` | Build provenance, public launcher, runtime isolation, rollback docs | Nearest executable contract followed by the full suite |
+| Component deployment or public installer | Root `scripts/`, `deploy/`, `installers/`, root `.github/workflows/` | Component deployment, public launcher, and runtime-boundary docs | Component or public-launcher contract followed by the full suite |
 | Codium desktop | `server/packages/codium/electron.vite.config.ts`, `server/packages/codium/sources/boot/**`, renderer routes/plugins | Agent workers and shared IPC protocols | Codium typecheck/test; no root required CI job currently owns it |
 | App log receiver | `server/packages/happy-app-logs/src/server.ts`, `server/packages/happy-app/sources/utils/consoleLogging.ts` | App log-server setting and the configured log root | Manual local start/smoke; no repository test currently owns it |
 
@@ -34,6 +34,6 @@ state owners before editing. Paths are relative to the repository root.
   declared in `happy-wire`; trace both endpoints before renaming one.
 - Do not normalize retained upstream product names or URLs merely because they
   differ from distribution-owned names. `AGENTS.md` defines the branding scope.
-- A release or rehearsal command may intentionally require a clean, synchronized
-  `main`. Use targeted checks on feature branches and the documented main proof
-  at the correct lifecycle stage.
+- Upstream-sync rehearsals and the public native-launcher release retain their
+  own provenance rules. Self-host server, CLI/daemon, mobile, and governed-agent
+  deployment remain independent of those release channels.

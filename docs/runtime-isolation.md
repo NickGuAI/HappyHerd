@@ -1,120 +1,97 @@
-# Runtime isolation
+# Runtime boundaries
 
-HappyHerd uses explicit deployment profiles rather than embedding an operator,
-domain, registry, host path, or organization in runtime code. Every profile
-owns separate server data, logs, CLI state, and secret files. Profiles must not
-reuse personal or retired application state.
+HappyHerd keeps deployment configuration outside the repository and keeps each
+runtime's durable state separate. These are ordinary operational boundaries,
+not a requirement that unrelated components share a build, Git SHA, image
+digest, activation directory, or rollback transaction.
 
-The default template is `deploy/runtime.env.example`; a second independent
-template is `deploy/runtime.secondary.env.example`. Both use documentation
-domains and a placeholder image repository. Operators copy a template outside
-the source tree and replace every placeholder with their own values.
+The default server template is `deploy/runtime.env.example`; a second template
+is `deploy/runtime.secondary.env.example`. Operators copy a template to
+`/etc/happyherd/runtime.env`, replace the examples, and keep secret values in
+separate mode-`0600` files. A server image is selected by a normal registry
+tag.
 
-Secrets live in separate mode-`0600` files. They are never committed, echoed,
-or placed on a container command line. Images must be selected by immutable
-digest.
+## Central self-host server
 
-## Server profile
+The self-host image contains the API server, Prisma migrations, and the Web
+bundle served by that server. The central server is the one HappyHerd component
+owned by `happyherd.service`:
 
 ```bash
 sudo install -d -m 0750 /etc/happyherd
 sudo install -m 0600 deploy/runtime.env.example /etc/happyherd/runtime.env
-# Replace the example domain, repository, and image digest.
-sudo scripts/prepare-runtime.sh /etc/happyherd/runtime.env
-sudo install -m 0644 deploy/happyherd.service /etc/systemd/system/happyherd.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now happyherd.service
+# Edit the copied public URL, paths, image tag, and secret-file path.
+sudo scripts/install-server-service.sh /etc/happyherd/runtime.env
+sudo scripts/deploy-server.sh ghcr.io/example/happyherd:main \
+  /etc/happyherd/runtime.env
 ```
 
-The unit runs the immutable container in the foreground, persists application
-state only under the configured data root, and writes logs only under the
-configured log root. Both `/health` and `/api/health` return the same
-database-backed readiness result.
+`deploy-server.sh` pulls the exact operator-selected tag, restarts only the
+central server, and verifies both local and public `/health`. Rollback is
+explicit: rerun the same command with a previously published image tag.
 
-Validate a profile before activation:
+The service persists application state only under `HAPPYHERD_DATA_DIR`, writes
+logs under `HAPPYHERD_LOG_DIR`, and reads its master secret from
+`HAPPYHERD_MASTER_SECRET_FILE`. The image is replaceable; those host paths are
+durable.
 
-```bash
-scripts/validate-runtime-isolation.sh /etc/happyherd/runtime.env runtime
-```
+## Host CLI, daemon, and provider sessions
 
-Validation rejects malformed public identity, invalid ports, overlapping
-runtime roots, legacy state, mutable images, and missing or weakly protected
-secret files.
-
-## Host daemon
-
-The host daemon is built from the same source commit as the server image. Its
-environment template uses a dedicated service home; operators may substitute a
-different unprivileged identity without encoding that identity in the public
-repository.
+The Happy CLI is built and installed independently of the server image:
 
 ```bash
-sudo install -m 0600 deploy/happyherd-daemon.env.example /etc/happyherd/daemon.env
-sudo install -m 0644 deploy/happyherd-daemon.cron /etc/cron.d/happyherd-daemon
-sudo -u happyherd-runtime /opt/happyherd/current/scripts/start-host-daemon.sh \
+sudo scripts/install-host-cli.sh
+sudo install -m 0600 deploy/happyherd-daemon.env.example \
+  /etc/happyherd/daemon.env
+sudo scripts/install-linux-daemon-bootstrap.sh /etc/happyherd/daemon.env
+sudo -u happyherd-runtime \
+  /usr/local/lib/happyherd/start-host-daemon.sh \
   /etc/happyherd/daemon.env
 ```
 
-The cron entry is a detached bootstrap, not a supervisor. Version handoff and
-daemon restart therefore do not terminate an active provider session. The
-bootstrap verifies that the replacement daemon reports the exact installed
-release SHA. The daemon holds only an in-memory registration index; provider
-sessions own their lifetimes and re-register after a daemon handoff.
+The Linux cron entry is only a boot-time availability adapter. It calls the
+maintained Happy CLI's native detached `daemon start` lifecycle and exits. The
+daemon and Claude/Codex provider processes are not placed in a HappyHerd-owned
+systemd cgroup. They may reconnect and complete sessions independently of
+central-server or CLI upgrades.
+
+The daemon does not compare its Git identity with the server. Compatibility is
+owned by the existing wire/API contract and component tests.
 
 ## Governed Discord agent
 
-`@happyherd/happyherd-agent` is a generic Discord-to-HappyHerd runtime. An
-operator supplies a strict tool manifest, authorization endpoint, isolated
-HappyHerd account, isolated Codex home, and Discord allowlists. The generic
-release does not know which organization or provider families the manifest
-represents.
-
-```text
-Discord message
-      │
-      ▼
-isolated bridge ── authorization grant ── organization service
-      │
-      ├── encrypted HappyHerd session
-      │
-      └── loopback-only governed MCP broker
-                    │
-                    ▼
-             manifest-approved operation
-```
-
-Two unprivileged service identities split credentials:
-
-| Process | Private state | Credentials it may read |
-|---|---|---|
-| Discord bridge | `/var/lib/happyherd-agent-bridge` | Discord token, service signing/transport material, bridge HappyHerd key |
-| Happy daemon and Codex | `/var/lib/happyherd-agent-runtime` | dedicated HappyHerd machine key and dedicated Codex login |
-
-Codex receives only an opaque short-lived capability, the loopback broker URL,
-and the current manifest's tool descriptions. Shared Discord surfaces are
-read-only. Personal operations and every write require a DM, actor-bound scope,
-and exact-action confirmation. Missing, expired, or denied authorization fails
-closed before a privileged turn starts.
-
-Provision and verify an installed release:
+`@happyherd/happyherd-agent` is optional and has its own build/install lane. It
+composes `happy-agent/control` with Discord and a policy-bounded organization
+service broker. Install it only when that component changes:
 
 ```bash
-sudo /opt/happyherd/current/scripts/prepare-happyherd-agent-runtime.sh
+sudo scripts/install-host-cli.sh
+sudo scripts/install-agent-runtime.sh
+sudo /usr/local/lib/happyherd-agent-support/scripts/prepare-happyherd-agent-runtime.sh
 sudoedit /etc/happyherd-agent/bridge.env
 sudoedit /etc/happyherd-agent/daemon.env
 sudoedit /etc/happyherd-agent/agent-manifest.json
-sudo /opt/happyherd/current/scripts/provision-happyherd-agent-account.sh
-sudo /opt/happyherd/current/scripts/write-discord-token-rotation-receipt.sh \
-  /etc/happyherd-agent/secrets/discord-token DISCORD_APPLICATION_ID
-sudo /opt/happyherd/current/scripts/validate-happyherd-agent-runtime.sh \
+sudo /usr/local/lib/happyherd-agent-support/scripts/provision-happyherd-agent-account.sh
+sudo /usr/local/lib/happyherd-agent-support/scripts/validate-happyherd-agent-runtime.sh \
   /etc/happyherd-agent/bridge.env runtime
-sudo systemctl enable --now happyherd-agent.service
-sudo /opt/happyherd/current/scripts/health-happyherd-agent.sh
 ```
 
-The `/mcp` listener remains loopback-only and is reachable from sandboxed Codex
-only through `happyherd-agent-broker.localhost`. A reverse proxy may expose the
-separately authenticated execution route to the organization service.
+Two unprivileged identities keep bridge credentials apart from the dedicated
+Happy/Codex runtime. Codex receives an opaque short-lived capability and the
+loopback broker URL, not the Discord token or organization-service credential.
+The `/mcp` listener remains loopback-only.
 
-The generic template includes one neutral guide tool. A concrete organization
-example lives in [`examples/pmai-happyherd-agent/`](../examples/pmai-happyherd-agent/).
+## Independent release lanes
+
+- **Server + Web:** one self-host container image, because upstream Happy
+  intentionally bundles the Web export into the self-host server.
+- **CLI + host daemon:** native Happy CLI package, upgraded without rebuilding
+  or restarting the central server.
+- **Mobile:** its own app build, only when mobile source changes.
+- **Governed agent:** its own package and operator-controlled service, only when
+  agent source changes.
+- **Public launcher:** the existing tagged five-platform release remains a
+  separate end-user integrity contract; it does not control self-host server or
+  daemon deployment.
+
+See [deployment.md](deployment.md) for the operator sequence.

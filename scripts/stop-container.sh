@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/runtime-config.sh
-source "$ROOT/scripts/lib/runtime-config.sh"
+source "$SCRIPT_DIR/lib/runtime-config.sh"
 
 ENV_FILE="${1:-/etc/happyherd/runtime.env}"
 happyherd_load_runtime_config "$ENV_FILE"

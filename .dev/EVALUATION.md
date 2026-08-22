@@ -27,11 +27,12 @@ The generation pass read these authoritative groups:
   `.github/workflows/contract-suite.yml`, and
   `.github/workflows/public-launcher-release.yml`;
 - `scripts/contract-suite.sh`, lineage, patch-discipline, public-boundary,
-  product-identity, upstream rehearsal, release, runtime, and rollback scripts;
+  product-identity, upstream rehearsal, component-deployment, public-launcher,
+  and runtime scripts;
 - `docs/lineage.md`, `docs/patch-discipline.md`, `docs/owned-patches.tsv`,
-  `docs/upstream-sync-rehearsal.md`, `docs/build-provenance.md`,
-  `docs/public-launcher-release.md`, `docs/release-rollback.md`,
-  `docs/runtime-isolation.md`, `docs/issuer-protocol.md`, and
+  `docs/upstream-sync-rehearsal.md`, `docs/deployment.md`,
+  `docs/public-launcher-release.md`, `docs/runtime-isolation.md`,
+  `docs/issuer-protocol.md`, and
   `docs/agentcontext-authority.md`.
 
 ## Evidence commands
