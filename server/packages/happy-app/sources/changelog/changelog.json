@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 22 — Machine switching now lives inside each automation project",
+      "summary": "The Automations page now follows the Project → Machine → Automation hierarchy without duplicating machine controls.",
+      "markdown": "- Each project contains its own machine selector and shows automation cards only for that project's selected machine.\n- Project selections remain independent, so switching machines in one project does not change another project.\n- Creating an automation exposes its target machine in the form, while editing stays pinned to the machine that owns the automation."
+    },
+    {
       "title": "August 22 — Independent component deployment",
       "summary": "HappyHerd operators can now update the component that changed without rebuilding or synchronizing the whole product.",
       "markdown": "- The self-host server and bundled Web UI publish ordinary GHCR tags and deploy with one command plus a `/health` check.\n- The Happy CLI and host daemon install independently and retain Happy's native detached daemon lifecycle; server restarts do not own or interrupt Claude Code or Codex provider processes.\n- Mobile, governed-agent, and public-launcher releases remain independent lanes and run only when their own source changes.\n- Cross-host SHA locks, digest-only activation, generated release trees and receipts, deterministic all-component archives, and automatic rollback have been removed; an operator can redeploy any older server tag manually."
@@ -191,5 +196,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 22 — Independent component deployment"
+  "latestTitle": "August 22 — Machine switching now lives inside each automation project"
 }

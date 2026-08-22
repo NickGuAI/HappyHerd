@@ -1,3 +1,11 @@
+# August 22 — Machine switching now lives inside each automation project
+
+The Automations page now follows the Project → Machine → Automation hierarchy without duplicating machine controls.
+
+- Each project contains its own machine selector and shows automation cards only for that project's selected machine.
+- Project selections remain independent, so switching machines in one project does not change another project.
+- Creating an automation exposes its target machine in the form, while editing stays pinned to the machine that owns the automation.
+
 # August 22 — Independent component deployment
 
 HappyHerd operators can now update the component that changed without rebuilding or synchronizing the whole product.

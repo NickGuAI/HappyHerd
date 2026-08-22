@@ -286,6 +286,7 @@ export type TranslationKey =
     | "happyHerd.automations.initialState"
     | "happyHerd.automations.instruction"
     | "happyHerd.automations.kind"
+    | "happyHerd.automations.machine"
     | "happyHerd.automations.machineLoadFailed"
     | "happyHerd.automations.machineOffline"
     | "happyHerd.automations.name"
