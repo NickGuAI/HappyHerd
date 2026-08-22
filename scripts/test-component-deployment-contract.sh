@@ -93,6 +93,10 @@ if rg -n '^FROM .*@sha256:' "$ROOT/server/Dockerfile" >/dev/null; then
     fail 'server build still requires immutable base-image digests'
 fi
 
+if rg -n '^[[:space:]]*VOLUME([[:space:]]|$)' "$ROOT/server/Dockerfile" >/dev/null; then
+    fail 'server image declares storage ownership instead of using an operator-managed /data mount'
+fi
+
 grep -Fq 'deployment-guardrail-audit.md' "$ROOT/docs/deployment.md" || \
     fail 'human-reviewed deployment guardrail inventory is not linked'
 grep -Fq 'without explicit human approval recorded' "$ROOT/AGENTS.md" || \
