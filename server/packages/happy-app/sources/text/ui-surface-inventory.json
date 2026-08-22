@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "f637ee41944e93b639359cda4854037da628306e1cf4d3f70f17aee5f90762b0",
+  "sourceFingerprint": "bddbfc76935ef30c35b581b989b3c0fd8c3d30e683663c1054d8b182c20e33ab",
   "routeCount": 36,
   "surfaceCount": 229,
   "hardcodedCopyCount": 0,
@@ -2565,7 +2565,7 @@
         "CodeEditor"
       ],
       "translationKeys": [
-        "uiCopy.editorNotAvailableOnThisPlatform"
+        "files.editFile"
       ],
       "states": [],
       "hardcodedCopy": []

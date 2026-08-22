@@ -39,6 +39,38 @@ describe('machine directory tree', () => {
         });
     });
 
+    it('lists dotfiles and hidden directories without filtering their names', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'happyherd-machine-tree-hidden-'));
+        cleanup.push(root);
+        const hiddenDirectory = join(root, '.config');
+        await mkdir(hiddenDirectory);
+        await writeFile(join(root, '.xxenv'), 'HIDDEN=value\n');
+        await writeFile(join(root, '.mcp.json'), '{"mcpServers":{}}\n');
+        await writeFile(join(hiddenDirectory, '.nested-config'), 'nested\n');
+
+        const handlers = new Map<string, (params: any) => Promise<any>>();
+        registerCommonHandlers({
+            registerHandler: (name: string, handler: (params: any) => Promise<any>) => handlers.set(name, handler),
+        } as any, null);
+
+        const response = await handlers.get('getDirectoryTree')?.({ path: root, maxDepth: 2 });
+        expect(response?.success).toBe(true);
+        expect(response?.tree?.children?.map((entry: any) => entry.name)).toEqual(
+            expect.arrayContaining(['.config', '.mcp.json', '.xxenv']),
+        );
+        expect(response?.tree?.children?.find((entry: any) => entry.name === '.config')).toMatchObject({
+            path: hiddenDirectory,
+            type: 'directory',
+            children: [expect.objectContaining({ name: '.nested-config', type: 'file' })],
+        });
+
+        const listing = await handlers.get('listDirectory')?.({ path: root });
+        expect(listing?.success).toBe(true);
+        expect(listing?.entries?.map((entry: any) => entry.name)).toEqual(
+            expect.arrayContaining(['.config', '.mcp.json', '.xxenv']),
+        );
+    });
+
     it('preserves the root filesystem error for a missing absolute path', async () => {
         const root = await mkdtemp(join(tmpdir(), 'happyherd-machine-tree-missing-'));
         cleanup.push(root);

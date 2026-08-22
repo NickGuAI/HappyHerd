@@ -20,8 +20,13 @@ import { useSession } from '@/sync/storage';
 import { rigCanWriteFiles } from '@/sync/rig';
 import {
     classifyFilePreview,
+    decodeEditableText,
+    encodeEditableText,
     imageDataUri,
+    imageMimeType,
     imagePreviewLayout,
+    isSvgDocument,
+    matchesRichPreviewContent,
     pdfDataUri,
     safeHtmlPreviewDocument,
 } from '@/utils/filePreview';
@@ -69,7 +74,13 @@ type FileState =
     | { kind: 'image'; uri: string }
     | { kind: 'pdf'; uri: string }
     | { kind: 'unsupported'; message: string }
-    | { kind: 'loaded'; content: string; originalHash: string | null };
+    | { kind: 'loaded'; content: string; originalHash: string | null; hasUtf8Bom: boolean };
+
+type EditableFileSnapshot = {
+    content: string;
+    hash: string;
+    hasUtf8Bom: boolean;
+};
 
 function getFileLanguage(path: string): string | null {
     const ext = path.split('.').pop()?.toLowerCase();
@@ -119,13 +130,7 @@ function decodeBase64ToBytes(base64: string): Uint8Array {
     return bytes;
 }
 
-function decodeUtf8Bytes(bytes: Uint8Array): string {
-    return new TextDecoder().decode(bytes);
-}
-
-function encodeStringToBase64(str: string): string {
-    const encoder = new TextEncoder();
-    const bytes = encoder.encode(str);
+function encodeBytesToBase64(bytes: Uint8Array): string {
     let binary = '';
     for (let i = 0; i < bytes.length; i++) {
         binary += String.fromCharCode(bytes[i]);
@@ -133,24 +138,31 @@ function encodeStringToBase64(str: string): string {
     return btoa(binary);
 }
 
-/** Read file and decode to string, returns null on failure */
+/** Read a byte-safe editable text snapshot, or null for failures and binary content. */
 async function readFileContent(
     readFile: FileContentPanelProps['readFile'],
     filePath: string,
-): Promise<string | null> {
+): Promise<EditableFileSnapshot | null> {
     const res = await readFile(filePath);
     if (!res.success || typeof res.content !== 'string') return null;
     try {
-        return decodeUtf8Bytes(decodeBase64ToBytes(res.content));
+        const bytes = decodeBase64ToBytes(res.content);
+        const decoded = decodeEditableText(bytes);
+        if (!decoded) return null;
+        return {
+            ...decoded,
+            hash: await computeSHA256Bytes(bytes),
+        };
     } catch {
         return null;
     }
 }
 
-/** Compute SHA-256 hash of a UTF-8 string (matches server's crypto.createHash('sha256').update(str).digest('hex')) */
-async function computeSHA256(content: string): Promise<string> {
-    const data = new TextEncoder().encode(content);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+/** Compute the exact byte hash expected by the daemon's optimistic write guard. */
+async function computeSHA256Bytes(bytes: Uint8Array): Promise<string> {
+    const copy = new Uint8Array(bytes.byteLength);
+    copy.set(bytes);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', copy.buffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
@@ -170,9 +182,10 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     const [editContent, setEditContent] = React.useState('');
     const [isSaving, setIsSaving] = React.useState(false);
     const [displayMode, setDisplayMode] = React.useState<'edit' | 'preview'>('edit');
+    const [reloadRevision, setReloadRevision] = React.useState(0);
 
     // External change detection
-    const [externalChange, setExternalChange] = React.useState<string | null>(null); // new content from device
+    const [externalChange, setExternalChange] = React.useState<EditableFileSnapshot | null>(null);
     const [showConflictDiff, setShowConflictDiff] = React.useState(false);
 
     const fileName = filePath.split('/').pop() || filePath;
@@ -180,7 +193,11 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     const isMarkdown = language === 'markdown';
     const previewKind = classifyFilePreview(filePath);
     const isHtml = previewKind === 'html';
-    const hasSourcePreview = isMarkdown || isHtml;
+    const hasSvgPreview = previewKind === 'image'
+        && imageMimeType(filePath) === 'image/svg+xml'
+        && fileState.kind === 'loaded'
+        && isSvgDocument(fileState.content);
+    const hasSourcePreview = isMarkdown || isHtml || hasSvgPreview;
 
     const hasChanges = fileState.kind === 'loaded' && editContent !== fileState.content;
 
@@ -196,11 +213,6 @@ export const FileContentPanel = React.memo(function FileContentPanel({
         setExternalChange(null);
         setShowConflictDiff(false);
 
-        if (previewKind === 'unsupported') {
-            setFileState({ kind: 'unsupported', message: t('files.cannotDisplayBinary') });
-            return;
-        }
-
         (async () => {
             try {
                 const fileResponse = await readFile(filePath);
@@ -212,38 +224,42 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                     return;
                 }
 
-                if (previewKind === 'image') {
-                    setFileState({ kind: 'image', uri: imageDataUri(filePath, fileResponse.content) });
-                    return;
-                }
-                if (previewKind === 'pdf') {
-                    setFileState({ kind: 'pdf', uri: pdfDataUri(fileResponse.content) });
-                    return;
-                }
-
                 let rawBytes: Uint8Array;
-                let decodedContent: string;
+                let decodedContent;
                 try {
                     rawBytes = decodeBase64ToBytes(fileResponse.content);
-                    decodedContent = decodeUtf8Bytes(rawBytes);
+                    decodedContent = decodeEditableText(rawBytes);
                 } catch {
                     setFileState({ kind: 'unsupported', message: t('files.cannotDisplayBinary') });
                     return;
                 }
 
-                const hasNullBytes = rawBytes.some((byte) => byte === 0);
-                const nonPrintableCount = decodedContent.split('').filter(char => {
-                    const code = char.charCodeAt(0);
-                    return code < 32 && code !== 9 && code !== 10 && code !== 13;
-                }).length;
-                if (hasNullBytes || (nonPrintableCount / decodedContent.length > 0.1)) {
+                if (
+                    previewKind === 'image'
+                    && imageMimeType(filePath) !== 'image/svg+xml'
+                    && matchesRichPreviewContent(filePath, rawBytes)
+                ) {
+                    setFileState({ kind: 'image', uri: imageDataUri(filePath, fileResponse.content) });
+                    return;
+                }
+                if (previewKind === 'pdf' && matchesRichPreviewContent(filePath, rawBytes)) {
+                    setFileState({ kind: 'pdf', uri: pdfDataUri(fileResponse.content) });
+                    return;
+                }
+
+                if (!decodedContent) {
                     setFileState({ kind: 'unsupported', message: t('files.cannotDisplayBinary') });
                     return;
                 }
 
-                const hash = await computeSHA256(decodedContent);
-                setFileState({ kind: 'loaded', content: decodedContent, originalHash: hash });
-                setEditContent(decodedContent);
+                const hash = await computeSHA256Bytes(rawBytes);
+                setFileState({
+                    kind: 'loaded',
+                    content: decodedContent.content,
+                    originalHash: hash,
+                    hasUtf8Bom: decodedContent.hasUtf8Bom,
+                });
+                setEditContent(decodedContent.content);
             } catch {
                 if (!cancelled) {
                     setFileState({ kind: 'error', message: t('files.failedToRead') });
@@ -252,7 +268,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
         })();
 
         return () => { cancelled = true; };
-    }, [resourceKey, filePath, previewKind, readFile]);
+    }, [resourceKey, filePath, previewKind, readFile, reloadRevision]);
 
     React.useEffect(() => {
         setDisplayMode(hasSourcePreview ? 'preview' : 'edit');
@@ -264,11 +280,9 @@ export const FileContentPanel = React.memo(function FileContentPanel({
         const originalHash = fileState.originalHash;
 
         const interval = setInterval(async () => {
-            const content = await readFileContent(readFile, filePath);
-            if (content === null) return;
-            const currentHash = await computeSHA256(content);
-            if (currentHash !== originalHash) {
-                setExternalChange(content);
+            const snapshot = await readFileContent(readFile, filePath);
+            if (snapshot && snapshot.hash !== originalHash) {
+                setExternalChange(snapshot);
             }
         }, 5000);
 
@@ -277,14 +291,11 @@ export const FileContentPanel = React.memo(function FileContentPanel({
 
     const handleReload = React.useCallback(() => {
         if (externalChange === null) return;
-        const reloaded = externalChange;
         setExternalChange(null);
         setShowConflictDiff(false);
-        (async () => {
-            const hash = await computeSHA256(reloaded);
-            setFileState({ kind: 'loaded', content: reloaded, originalHash: hash });
-            setEditContent(reloaded);
-        })();
+        // Re-enter the complete load path so an externally replaced image,
+        // PDF, or binary file cannot inherit the old editable-text state.
+        setReloadRevision((revision) => revision + 1);
     }, [externalChange]);
 
     const handleDismissWarning = React.useCallback(() => {
@@ -300,7 +311,8 @@ export const FileContentPanel = React.memo(function FileContentPanel({
         setIsSaving(true);
 
         try {
-            const base64 = encodeStringToBase64(editContent);
+            const savedBytes = encodeEditableText(editContent, fileState.hasUtf8Bom);
+            const base64 = encodeBytesToBase64(savedBytes);
             const response = await writeFile(
                 filePath,
                 base64,
@@ -324,11 +336,12 @@ export const FileContentPanel = React.memo(function FileContentPanel({
             }
 
             // Update original content + hash to match saved state
-            const savedHash = response.hash ?? await computeSHA256(editContent);
+            const savedHash = response.hash ?? await computeSHA256Bytes(savedBytes);
             setFileState({
                 kind: 'loaded',
                 content: editContent,
                 originalHash: savedHash,
+                hasUtf8Bom: fileState.hasUtf8Bom,
             });
             setExternalChange(null);
             setShowConflictDiff(false);
@@ -344,9 +357,10 @@ export const FileContentPanel = React.memo(function FileContentPanel({
         try {
             // Re-read to get current hash, then write
             const serverContent = await readFileContent(readFile, filePath);
-            const currentHash = serverContent !== null ? await computeSHA256(serverContent) : undefined;
+            const currentHash = serverContent?.hash;
 
-            const base64 = encodeStringToBase64(editContent);
+            const savedBytes = encodeEditableText(editContent, fileState.hasUtf8Bom);
+            const base64 = encodeBytesToBase64(savedBytes);
             const response = await writeFile(filePath, base64, currentHash);
 
             if (!response.success) {
@@ -354,11 +368,12 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                 return;
             }
 
-            const savedHash = response.hash ?? await computeSHA256(editContent);
+            const savedHash = response.hash ?? await computeSHA256Bytes(savedBytes);
             setFileState({
                 kind: 'loaded',
                 content: editContent,
                 originalHash: savedHash,
+                hasUtf8Bom: fileState.hasUtf8Bom,
             });
             setExternalChange(null);
             setShowConflictDiff(false);
@@ -438,7 +453,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                     >
                         <PierreDiffView
                             oldFile={{ name: fileName + ' (your changes)', contents: editContent }}
-                            newFile={{ name: fileName + ' (on device)', contents: externalChange }}
+                            newFile={{ name: fileName + ' (on device)', contents: externalChange.content }}
                             diffStyle="unified"
                             disableFileHeader={false}
                         />
@@ -480,6 +495,25 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                         {fileState.message}
                     </Text>
                 </View>
+            ) : hasSvgPreview && displayMode === 'preview' ? (
+                <ScrollView
+                    style={{ flex: 1 }}
+                    contentContainerStyle={styles.imagePreviewContent}
+                    maximumZoomScale={4}
+                    minimumZoomScale={1}
+                >
+                    <Image
+                        source={{
+                            uri: imageDataUri(
+                                filePath,
+                                encodeBytesToBase64(encodeEditableText(editContent, fileState.hasUtf8Bom)),
+                            ),
+                        }}
+                        style={[imagePreviewLayout, { maxWidth: layout.maxWidth }]}
+                        contentFit="contain"
+                        accessibilityLabel={t("uiCopy.previewOfValue", { value1: fileName })}
+                    />
+                </ScrollView>
             ) : isMarkdown && displayMode === 'preview' ? (
                 <ScrollView
                     style={{ flex: 1 }}
@@ -664,8 +698,8 @@ const EditorPreviewStyles = React.memo(function EditorPreviewStyles() {
 });
 
 /**
- * Lazy-loads the CodeEditor (web-only CodeMirror wrapper).
- * On native this renders the fallback stub.
+ * Lazy-loads the platform editor implementation without pulling CodeMirror
+ * into the native bundle.
  */
 const EditorView = React.memo(function EditorView({
     value,
@@ -682,8 +716,7 @@ const EditorView = React.memo(function EditorView({
     const [EditorComponent, setEditorComponent] = React.useState<React.ComponentType<any> | null>(null);
 
     React.useEffect(() => {
-        if (Platform.OS !== 'web') return;
-        // Dynamic import to keep native bundle clean
+        // Metro/Webpack resolves the native or web implementation here.
         import('@/components/CodeEditor').then((mod) => {
             setEditorComponent(() => mod.CodeEditor);
         });

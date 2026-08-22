@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { parseSessionFileLink, resolveSessionFilePath, splitSessionFileText } from './sessionFileLinks';
+import {
+    buildSessionFileGitDiffCommand,
+    parseSessionFileLink,
+    resolveSessionFilePath,
+    splitSessionFileText,
+} from './sessionFileLinks';
 
 describe('sessionFileLinks', () => {
     const sessionRoot = '/Users/kirilldubovitskiy/projects/happy';
@@ -60,18 +65,22 @@ describe('sessionFileLinks', () => {
     });
 
     it('splits absolute bare file refs with spaces into linked segments', () => {
+        const retinaFilePath = '/Users/kirilldubovitskiy/Library/Application Support/CleanShot/media/test/'
+            + 'CleanShot 2026-03-19 at 00.54.37'
+            + String.fromCharCode(64)
+            + '2x.png';
         const result = splitSessionFileText(
-            'Image: /Users/kirilldubovitskiy/Library/Application Support/CleanShot/media/test/CleanShot 2026-03-19 at 00.54.37@2x.png',
+            `Image: ${retinaFilePath}`,
             sessionRoot,
         );
 
         expect(result).toEqual([
             { text: 'Image: ', link: null },
             {
-                text: '/Users/kirilldubovitskiy/Library/Application Support/CleanShot/media/test/CleanShot 2026-03-19 at 00.54.37@2x.png',
+                text: retinaFilePath,
                 link: {
-                    path: '/Users/kirilldubovitskiy/Library/Application Support/CleanShot/media/test/CleanShot 2026-03-19 at 00.54.37@2x.png',
-                    absolutePath: '/Users/kirilldubovitskiy/Library/Application Support/CleanShot/media/test/CleanShot 2026-03-19 at 00.54.37@2x.png',
+                    path: retinaFilePath,
+                    absolutePath: retinaFilePath,
                     relativePath: null,
                     withinSessionRoot: false,
                     line: null,
@@ -108,5 +117,14 @@ describe('sessionFileLinks', () => {
             line: null,
             column: null,
         });
+    });
+
+    it('builds diffs only for shell-inert relative paths', () => {
+        expect(buildSessionFileGitDiffCommand('packages/happy app/.mcp.json')).toBe(
+            'git diff --no-ext-diff -- "packages/happy app/.mcp.json"',
+        );
+        expect(buildSessionFileGitDiffCommand('x"$(touch /tmp/hh-pwn)".db')).toBeNull();
+        expect(buildSessionFileGitDiffCommand('config/%TEMP%/value.txt')).toBeNull();
+        expect(buildSessionFileGitDiffCommand('../outside.txt')).toBeNull();
     });
 });

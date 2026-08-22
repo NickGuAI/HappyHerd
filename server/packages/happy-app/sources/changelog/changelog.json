@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 22 — Machine Workspace edits text files regardless of their names",
+      "summary": "Machine Workspace now opens and edits every regular UTF-8 text file the connected daemon user can access, including dotfiles and files whose extensions previously looked binary.",
+      "markdown": "- `.xxenv`, `.mcp.json`, extensionless configuration files, and UTF-8 text with arbitrary extensions follow the same read, edit, and save flow.\n- Native iOS and Android use a multiline editor instead of remaining on a loading indicator, while Web retains its code-aware editor.\n- Saves compare the file's exact bytes and preserve a UTF-8 byte-order mark; actual binary content, oversized files, and paths denied by the host operating system remain protected."
+    },
+    {
       "title": "August 22 — Commander profile pictures are configurable per machine",
       "summary": "Commander profile pictures are now an opt-in experimental feature with safe configuration on each HappyHerd machine.",
       "markdown": "- Enable Commander Profile Pictures in Settings → Features, then choose a PNG, JPEG, or WebP image up to 2 MiB for a listed Commander—no machine IDs or file paths need to be typed.\n- Replacements are uploaded in bounded chunks and published atomically only when the existing `avatar.png` is still the version that was selected, including repair of an invalid existing image.\n- Enabled conversation lists show the machine-scoped picture and reuse the existing activity pulse while work is running; disabling the feature restores the original unread, draft, and activity indicators.\n- Machines that need a newer replacement protocol show an upgrade message without changing the current image."
@@ -201,5 +206,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 22 — Commander profile pictures are configurable per machine"
+  "latestTitle": "August 22 — Machine Workspace edits text files regardless of their names"
 }

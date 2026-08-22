@@ -1,11 +1,9 @@
-/**
- * Native fallback for CodeEditor — should never be rendered on native.
- * The file edit feature is web-only. This stub prevents import errors.
- */
 import * as React from 'react';
-import { View, Text } from 'react-native';
+import { Platform, TextInput } from 'react-native';
+import { StyleSheet } from 'react-native-unistyles';
 
 import { t } from '@/text';
+
 interface CodeEditorProps {
     value: string;
     onChange: (value: string) => void;
@@ -14,10 +12,38 @@ interface CodeEditorProps {
     readOnly?: boolean;
 }
 
-export const CodeEditor = React.memo(function CodeEditor(_props: CodeEditorProps) {
+function NativeCodeEditor({
+    value,
+    onChange,
+    readOnly = false,
+}: CodeEditorProps) {
     return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Text>{t("uiCopy.editorNotAvailableOnThisPlatform")}</Text>
-        </View>
+        <TextInput
+            accessibilityLabel={t('files.editFile')}
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!readOnly}
+            multiline
+            onChangeText={readOnly ? undefined : onChange}
+            scrollEnabled
+            spellCheck={false}
+            style={styles.editor}
+            textAlignVertical="top"
+            value={value}
+        />
     );
-});
+}
+
+export const CodeEditor = React.memo(NativeCodeEditor);
+
+const styles = StyleSheet.create((theme) => ({
+    editor: {
+        flex: 1,
+        padding: 16,
+        color: theme.colors.text,
+        backgroundColor: 'transparent',
+        fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
+        fontSize: 14,
+        lineHeight: 21,
+    },
+}));
