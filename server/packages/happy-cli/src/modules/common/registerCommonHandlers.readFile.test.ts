@@ -87,17 +87,22 @@ describe('workspace file preview boundary', () => {
     it('reads and hash-safely writes absolute files through machine-scoped handlers', async () => {
         const root = await mkdtemp(join(tmpdir(), 'happyherd-machine-file-preview-'));
         cleanup.push(root);
-        const file = join(root, 'machine-note.md');
-        const original = Buffer.from('# Machine before');
-        const updated = Buffer.from('# Machine after');
-        await writeFile(file, original);
+        const envFile = join(root, '.xxenv');
+        const mcpFile = join(root, '.mcp.json');
+        const original = Buffer.from([0xef, 0xbb, 0xbf, ...Buffer.from('TOKEN=before\n')]);
+        const updated = Buffer.from([0xef, 0xbb, 0xbf, ...Buffer.from('TOKEN=after\n')]);
+        const mcpContent = Buffer.from('{"mcpServers":{"local":{"command":"λ"}}}\n');
+        await writeFile(envFile, original);
+        await writeFile(mcpFile, mcpContent);
 
         const handlers = machineHandlers();
-        const readResponse = await handlers.get('readFile')?.({ path: file });
-        expect(readResponse).toEqual({ success: true, content: original.toString('base64') });
+        const envReadResponse = await handlers.get('readFile')?.({ path: envFile });
+        expect(envReadResponse).toEqual({ success: true, content: original.toString('base64') });
+        const mcpReadResponse = await handlers.get('readFile')?.({ path: mcpFile });
+        expect(mcpReadResponse).toEqual({ success: true, content: mcpContent.toString('base64') });
 
         const writeResponse = await handlers.get('writeFile')?.({
-            path: file,
+            path: envFile,
             content: updated.toString('base64'),
             expectedHash: createHash('sha256').update(original).digest('hex'),
         });
@@ -105,6 +110,16 @@ describe('workspace file preview boundary', () => {
             success: true,
             hash: createHash('sha256').update(updated).digest('hex'),
         });
-        expect(await readFile(file, 'utf8')).toBe('# Machine after');
+        expect(await readFile(envFile)).toEqual(updated);
+
+        await writeFile(mcpFile, '{"changedExternally":true}\n');
+        const conflictResponse = await handlers.get('writeFile')?.({
+            path: mcpFile,
+            content: Buffer.from('{"staleEditor":true}\n').toString('base64'),
+            expectedHash: createHash('sha256').update(mcpContent).digest('hex'),
+        });
+        expect(conflictResponse?.success).toBe(false);
+        expect(conflictResponse?.error).toContain('hash mismatch');
+        expect(await readFile(mcpFile, 'utf8')).toBe('{"changedExternally":true}\n');
     });
 });

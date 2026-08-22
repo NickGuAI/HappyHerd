@@ -1,3 +1,11 @@
+# August 22 — Machine Workspace edits text files regardless of their names
+
+Machine Workspace now opens and edits every regular UTF-8 text file the connected daemon user can access, including dotfiles and files whose extensions previously looked binary.
+
+- `.xxenv`, `.mcp.json`, extensionless configuration files, and UTF-8 text with arbitrary extensions follow the same read, edit, and save flow.
+- Native iOS and Android use a multiline editor instead of remaining on a loading indicator, while Web retains its code-aware editor.
+- Saves compare the file's exact bytes and preserve a UTF-8 byte-order mark; actual binary content, oversized files, and paths denied by the host operating system remain protected.
+
 # August 22 — Commander profile pictures are configurable per machine
 
 Commander profile pictures are now an opt-in experimental feature with safe configuration on each HappyHerd machine.

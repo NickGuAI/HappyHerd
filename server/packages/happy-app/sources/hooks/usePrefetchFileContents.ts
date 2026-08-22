@@ -12,7 +12,7 @@
 import * as React from 'react';
 import { sessionReadFile, sessionBash } from '@/sync/ops';
 import { storage } from '@/sync/storage';
-import { resolveSessionFilePath } from '@/utils/sessionFileLinks';
+import { buildSessionFileGitDiffCommand, resolveSessionFilePath } from '@/utils/sessionFileLinks';
 import type { GitFileStatus, GitStatusFiles } from '@/sync/gitStatusFiles';
 
 const BINARY_EXTENSIONS = new Set([
@@ -48,14 +48,15 @@ async function prefetchFile(sessionId: string, sessionPath: string, file: GitFil
     const resolved = resolveSessionFilePath(file.fullPath, sessionPath);
     const filePath = resolved?.absolutePath ?? file.fullPath;
     const gitDiffPath = resolved?.withinSessionRoot ? resolved.relativePath : null;
+    const gitDiffCommand = gitDiffPath ? buildSessionFileGitDiffCommand(gitDiffPath) : null;
 
     let diff: string | null = null;
 
     // Fetch git diff
-    if (gitDiffPath && gitDiffPath !== '.') {
+    if (gitDiffCommand) {
         try {
             const diffResponse = await sessionBash(sessionId, {
-                command: `git diff --no-ext-diff -- "${gitDiffPath}"`,
+                command: gitDiffCommand,
                 cwd: sessionPath,
                 timeout: 5000,
             });

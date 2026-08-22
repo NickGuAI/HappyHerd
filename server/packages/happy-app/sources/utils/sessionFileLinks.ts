@@ -35,6 +35,24 @@ const EXTENSIONLESS_FILE_NAMES = new Set([
 const LEADING_WRAP = /^[([{<"'`]+/;
 const TRAILING_WRAP = /[)\]}>",;!?`]+$/;
 const APP_ROUTE_PREFIXES = ['/session/', '/text-selection', '/settings', '/auth'];
+const SAFE_GIT_DIFF_PATH = /^[A-Za-z0-9._/ -]+$/u;
+
+/**
+ * Build the legacy shell-backed diff command only for a conservative path
+ * alphabet that is inert in both POSIX and Windows double-quoted shells.
+ * Files with other valid names remain editable; they simply skip the
+ * best-effort diff until the RPC provides a structured argv operation.
+ */
+export function buildSessionFileGitDiffCommand(relativePath: string): string | null {
+    if (
+        relativePath === '.'
+        || !SAFE_GIT_DIFF_PATH.test(relativePath)
+        || relativePath.split('/').some((segment) => segment === '..')
+    ) {
+        return null;
+    }
+    return `git diff --no-ext-diff -- "${relativePath}"`;
+}
 
 function parseLineAndColumn(value: string): { path: string; line: number | null; column: number | null } {
     const trimmed = value.trim();

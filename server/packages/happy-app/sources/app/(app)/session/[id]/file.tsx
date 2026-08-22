@@ -15,11 +15,16 @@ import { useUnistyles, StyleSheet } from 'react-native-unistyles';
 import { layout } from '@/components/layout';
 import { t } from '@/text';
 import { FileIcon } from '@/components/FileIcon';
-import { resolveSessionFilePath } from '@/utils/sessionFileLinks';
+import { buildSessionFileGitDiffCommand, resolveSessionFilePath } from '@/utils/sessionFileLinks';
 import { MobileGlassSurface } from '@/components/MobileGlass';
 import {
     classifyFilePreview,
+    decodeEditableText,
+    encodeEditableText,
     imageDataUri,
+    imageMimeType,
+    isSvgDocument,
+    matchesRichPreviewContent,
     pdfDataUri,
     safeHtmlPreviewDocument,
     type FilePreviewKind,
@@ -34,6 +39,7 @@ interface FileContent {
     previewKind: FilePreviewKind;
     previewUri?: string;
     originalHash?: string | null;
+    hasUtf8Bom?: boolean;
 }
 
 function decodeBase64ToBytes(base64: string): Uint8Array {
@@ -45,12 +51,7 @@ function decodeBase64ToBytes(base64: string): Uint8Array {
     return bytes;
 }
 
-function decodeUtf8Bytes(bytes: Uint8Array): string {
-    return new TextDecoder().decode(bytes);
-}
-
-function encodeStringToBase64(value: string): string {
-    const bytes = new TextEncoder().encode(value);
+function encodeBytesToBase64(bytes: Uint8Array): string {
     let binary = '';
     for (let index = 0; index < bytes.length; index += 1) {
         binary += String.fromCharCode(bytes[index]);
@@ -65,11 +66,17 @@ async function computeSHA256Bytes(bytes: Uint8Array): Promise<string> {
     return Array.from(new Uint8Array(hashBuffer)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-async function readTextFile(sessionId: string, filePath: string): Promise<{ content: string; hash: string } | null> {
+async function readTextFile(sessionId: string, filePath: string): Promise<{
+    content: string;
+    hash: string;
+    hasUtf8Bom: boolean;
+} | null> {
     const response = await sessionReadFile(sessionId, filePath);
     if (!response.success || typeof response.content !== 'string') return null;
     const bytes = decodeBase64ToBytes(response.content);
-    return { content: decodeUtf8Bytes(bytes), hash: await computeSHA256Bytes(bytes) };
+    const decoded = decodeEditableText(bytes);
+    if (!decoded) return null;
+    return { ...decoded, hash: await computeSHA256Bytes(bytes) };
 }
 
 // Diff display component
@@ -168,7 +175,12 @@ export default React.memo(function FileScreen() {
     const [sourceMode, setSourceMode] = React.useState<'source' | 'preview'>('source');
     const [isEditing, setIsEditing] = React.useState(false);
     const [isSaving, setIsSaving] = React.useState(false);
-    const [externalChange, setExternalChange] = React.useState<{ content: string; hash: string } | null>(null);
+    const [reloadRevision, setReloadRevision] = React.useState(0);
+    const [externalChange, setExternalChange] = React.useState<{
+        content: string;
+        hash: string;
+        hasUtf8Bom: boolean;
+    } | null>(null);
     const scrollViewRef = React.useRef<ScrollView | null>(null);
     const allowDiscardRef = React.useRef(false);
 
@@ -251,37 +263,16 @@ export default React.memo(function FileScreen() {
                     return;
                 }
 
-                if (previewKind === 'image') {
-                    const response = await sessionReadFile(sessionId, filePath);
-                    if (!isCancelled) {
-                        if (response.success && typeof response.content === 'string') {
-                            setFileContent({ content: '', encoding: 'base64', isBinary: false, previewKind, previewUri: imageDataUri(filePath, response.content) });
-                        } else {
-                            setError(response.error || t('files.failedToRead'));
-                        }
-                    }
-                    return;
-                }
-
-                if (previewKind === 'pdf') {
-                    const response = await sessionReadFile(sessionId, filePath);
-                    if (!isCancelled) {
-                        if (response.success && typeof response.content === 'string') {
-                            setFileContent({ content: '', encoding: 'base64', isBinary: false, previewKind, previewUri: pdfDataUri(response.content) });
-                        } else {
-                            setError(response.error || t('files.failedToRead'));
-                        }
-                    }
-                    return;
-                }
-
                 let fetchedDiff: string | null = null;
+                const gitDiffCommand = gitDiffPath
+                    ? buildSessionFileGitDiffCommand(gitDiffPath)
+                    : null;
 
                 // Fetch git diff for the file (if in git repo)
-                if (sessionPath && sessionId && gitDiffPath && gitDiffPath !== '.') {
+                if (sessionPath && sessionId && gitDiffCommand) {
                     try {
                         const diffResponse = await sessionBash(sessionId, {
-                            command: `git diff --no-ext-diff -- "${gitDiffPath}"`,
+                            command: gitDiffCommand,
                             cwd: sessionPath,
                             timeout: 5000
                         });
@@ -300,38 +291,73 @@ export default React.memo(function FileScreen() {
                 if (!isCancelled) {
                     if (response.success && typeof response.content === 'string') {
                         let rawBytes: Uint8Array;
-                        let decodedContent: string;
+                        let decodedContent;
                         try {
                             rawBytes = decodeBase64ToBytes(response.content);
-                            decodedContent = decodeUtf8Bytes(rawBytes);
+                            decodedContent = decodeEditableText(rawBytes);
                         } catch (decodeError) {
                             setFileContent({ content: '', encoding: 'base64', isBinary: true, previewKind });
                             storage.getState().applyFileCache(sessionId!, filePath, '', fetchedDiff, true);
                             return;
                         }
 
-                        const hasNullBytes = rawBytes.some((byte) => byte === 0);
-                        const nonPrintableCount = decodedContent.split('').filter(char => {
-                            const code = char.charCodeAt(0);
-                            return code < 32 && code !== 9 && code !== 10 && code !== 13;
-                        }).length;
-                        const isBinary = hasNullBytes || (nonPrintableCount / decodedContent.length > 0.1);
+                        if (
+                            previewKind === 'image'
+                            && imageMimeType(filePath) !== 'image/svg+xml'
+                            && matchesRichPreviewContent(filePath, rawBytes)
+                        ) {
+                            setFileContent({
+                                content: '',
+                                encoding: 'base64',
+                                isBinary: false,
+                                previewKind,
+                                previewUri: imageDataUri(filePath, response.content),
+                            });
+                            return;
+                        }
+                        if (previewKind === 'pdf' && matchesRichPreviewContent(filePath, rawBytes)) {
+                            setFileContent({
+                                content: '',
+                                encoding: 'base64',
+                                isBinary: false,
+                                previewKind,
+                                previewUri: pdfDataUri(response.content),
+                            });
+                            return;
+                        }
 
-                        const content = isBinary ? '' : decodedContent;
+                        const isBinary = decodedContent === null;
+                        const content = decodedContent?.content ?? '';
                         const originalHash = await computeSHA256Bytes(rawBytes);
-                        setFileContent({ content, encoding: 'utf8', isBinary, previewKind, originalHash });
+                        setFileContent({
+                            content,
+                            encoding: 'utf8',
+                            isBinary,
+                            previewKind,
+                            originalHash,
+                            hasUtf8Bom: decodedContent?.hasUtf8Bom ?? false,
+                        });
                         setEditContent(content);
-                        setSourceMode(previewKind === 'html' || filePath.toLowerCase().endsWith('.md') ? 'preview' : 'source');
+                        setSourceMode(
+                            previewKind === 'html'
+                            || filePath.toLowerCase().endsWith('.md')
+                            || (
+                                imageMimeType(filePath) === 'image/svg+xml'
+                                && isSvgDocument(content)
+                            )
+                                ? 'preview'
+                                : 'source',
+                        );
                         setExternalChange(null);
                         storage.getState().applyFileCache(sessionId!, filePath, content, fetchedDiff, isBinary);
                     } else {
-                        setError(response.error || 'Failed to read file');
+                        setError(response.error || t('files.failedToRead'));
                     }
                 }
             } catch (error) {
                 console.error('Failed to load file:', error);
                 if (!isCancelled) {
-                    setError('Failed to load file');
+                    setError(t('files.failedToRead'));
                 }
             } finally {
                 if (!isCancelled) {
@@ -345,7 +371,7 @@ export default React.memo(function FileScreen() {
         return () => {
             isCancelled = true;
         };
-    }, [filePath, gitDiffPath, sessionId, sessionPath]);
+    }, [filePath, gitDiffPath, reloadRevision, sessionId, sessionPath]);
 
     const hasChanges = !!fileContent && !fileContent.isBinary && editContent !== fileContent.content;
     const canEdit = canWrite && typeof fileContent?.originalHash === 'string';
@@ -384,20 +410,22 @@ export default React.memo(function FileScreen() {
 
     const handleReloadExternal = React.useCallback(() => {
         if (!externalChange || !fileContent) return;
-        setFileContent({ ...fileContent, content: externalChange.content, originalHash: externalChange.hash });
-        setEditContent(externalChange.content);
         setExternalChange(null);
-        storage.getState().applyFileCache(sessionId!, filePath, externalChange.content, diffContent, false);
-    }, [diffContent, externalChange, fileContent, filePath, sessionId]);
+        setIsLoading(true);
+        // Re-enter the complete load path so an externally replaced image,
+        // PDF, or binary file cannot inherit the old editable-text state.
+        setReloadRevision((revision) => revision + 1);
+    }, [externalChange, fileContent]);
 
     const handleSave = React.useCallback(async () => {
         if (!sessionId || !fileContent || !canEdit || !hasChanges) return;
         setIsSaving(true);
         try {
+            const savedBytes = encodeEditableText(editContent, fileContent.hasUtf8Bom ?? false);
             const response = await sessionWriteFile(
                 sessionId,
                 filePath,
-                encodeStringToBase64(editContent),
+                encodeBytesToBase64(savedBytes),
                 fileContent.originalHash,
             );
             if (!response.success) {
@@ -410,7 +438,7 @@ export default React.memo(function FileScreen() {
                 }
                 return;
             }
-            const savedHash = response.hash ?? await computeSHA256Bytes(new TextEncoder().encode(editContent));
+            const savedHash = response.hash ?? await computeSHA256Bytes(savedBytes);
             const next = { ...fileContent, content: editContent, originalHash: savedHash };
             setFileContent(next);
             setExternalChange(null);
@@ -574,7 +602,10 @@ export default React.memo(function FileScreen() {
         );
     }
 
-    const hasSourcePreview = fileContent?.previewKind === 'html' || language === 'markdown';
+    const hasSvgPreview = fileContent?.previewKind === 'image'
+        && imageMimeType(filePath) === 'image/svg+xml'
+        && isSvgDocument(fileContent.content);
+    const hasSourcePreview = fileContent?.previewKind === 'html' || language === 'markdown' || hasSvgPreview;
 
     return (
         <View style={styles.container}>
@@ -713,6 +744,20 @@ export default React.memo(function FileScreen() {
                 >
                     <DiffDisplay diffContent={diffContent} />
                 </ScrollView>
+            ) : sourceMode === 'preview' && hasSvgPreview ? (
+                <View style={styles.imageWrap}>
+                    <Image
+                        source={{
+                            uri: imageDataUri(
+                                filePath,
+                                encodeBytesToBase64(encodeEditableText(editContent, fileContent.hasUtf8Bom ?? false)),
+                            ),
+                        }}
+                        style={styles.imagePreview}
+                        contentFit="contain"
+                        accessibilityLabel={t("uiCopy.previewOfValue", { value1: fileName })}
+                    />
+                </View>
             ) : sourceMode === 'preview' && fileContent?.previewKind === 'html' ? (
                 <View style={styles.documentPreview}>
                     <FileDocumentPreview
