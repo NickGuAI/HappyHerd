@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "44086d312650fd2d00748484d62abfcd6b2bbc57dfebbddeb066e50deb09ad1c",
+  "sourceFingerprint": "f637ee41944e93b639359cda4854037da628306e1cf4d3f70f17aee5f90762b0",
   "routeCount": 36,
-  "surfaceCount": 228,
+  "surfaceCount": 229,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -701,6 +701,8 @@
       "path": "/settings/features",
       "owner": "sources/app/(app)/settings/features.tsx",
       "translationKeys": [
+        "happyHerd.features.commanderProfilePictures",
+        "happyHerd.features.commanderProfilePicturesSubtitle",
         "happyHerd.features.fileDiffsSidebar",
         "happyHerd.features.fileDiffsSidebarSubtitle",
         "happyHerd.features.interface",
@@ -1871,6 +1873,8 @@
         "FeaturesSettingsScreen"
       ],
       "translationKeys": [
+        "happyHerd.features.commanderProfilePictures",
+        "happyHerd.features.commanderProfilePicturesSubtitle",
         "happyHerd.features.fileDiffsSidebar",
         "happyHerd.features.fileDiffsSidebarSubtitle",
         "happyHerd.features.interface",
@@ -2586,6 +2590,38 @@
       ],
       "translationKeys": [],
       "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/CommanderAvatarSettings.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "CommanderAvatarSettings"
+      ],
+      "translationKeys": [
+        "common.error",
+        "common.success",
+        "happyHerd.commanderAvatars.description",
+        "happyHerd.commanderAvatars.empty",
+        "happyHerd.commanderAvatars.invalidFormat",
+        "happyHerd.commanderAvatars.loadFailed",
+        "happyHerd.commanderAvatars.loading",
+        "happyHerd.commanderAvatars.machineOffline",
+        "happyHerd.commanderAvatars.noCommanders",
+        "happyHerd.commanderAvatars.noMachines",
+        "happyHerd.commanderAvatars.runtimeUnsupported",
+        "happyHerd.commanderAvatars.stale",
+        "happyHerd.commanderAvatars.title",
+        "happyHerd.commanderAvatars.tooLarge",
+        "happyHerd.commanderAvatars.updated",
+        "happyHerd.commanderAvatars.uploadFailed"
+      ],
+      "states": [
+        "empty",
+        "error",
+        "loading"
+      ],
       "hardcodedCopy": []
     },
     {
@@ -4094,7 +4130,8 @@
       "kind": "component",
       "route": null,
       "exports": [
-        "StatusDot"
+        "StatusDot",
+        "StatusPulse"
       ],
       "translationKeys": [],
       "states": [],

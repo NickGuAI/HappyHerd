@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 22 — Commander profile pictures are configurable per machine",
+      "summary": "Commander profile pictures are now an opt-in experimental feature with safe configuration on each HappyHerd machine.",
+      "markdown": "- Enable Commander Profile Pictures in Settings → Features, then choose a PNG, JPEG, or WebP image up to 2 MiB for a listed Commander—no machine IDs or file paths need to be typed.\n- Replacements are uploaded in bounded chunks and published atomically only when the existing `avatar.png` is still the version that was selected, including repair of an invalid existing image.\n- Enabled conversation lists show the machine-scoped picture and reuse the existing activity pulse while work is running; disabling the feature restores the original unread, draft, and activity indicators.\n- Machines that need a newer replacement protocol show an upgrade message without changing the current image."
+    },
+    {
       "title": "August 22 — Machine switching now lives inside each automation project",
       "summary": "The Automations page now follows the Project → Machine → Automation hierarchy without duplicating machine controls.",
       "markdown": "- Each project contains its own machine selector and shows automation cards only for that project's selected machine.\n- Project selections remain independent, so switching machines in one project does not change another project.\n- Creating an automation exposes its target machine in the form, while editing stays pinned to the machine that owns the automation."
@@ -196,5 +201,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 22 — Machine switching now lives inside each automation project"
+  "latestTitle": "August 22 — Commander profile pictures are configurable per machine"
 }

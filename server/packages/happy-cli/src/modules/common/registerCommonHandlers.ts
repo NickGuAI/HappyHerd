@@ -1,7 +1,7 @@
 import { logger } from '@/ui/logger';
 import { exec, ExecOptions } from 'child_process';
 import { promisify } from 'util';
-import { link, lstat, mkdir, open, readFile, writeFile, readdir, stat, unlink, type FileHandle } from 'fs/promises';
+import { link, lstat, mkdir, open, readFile, writeFile, readdir, rename, stat, unlink, type FileHandle } from 'fs/promises';
 import { createHash, randomUUID } from 'crypto';
 import { basename, join, resolve } from 'path';
 import {
@@ -9,12 +9,15 @@ import {
     isSafeWorkspacePathSegment,
     MAX_WORKSPACE_UPLOAD_BYTES,
     WorkspaceCreateDirectoryRequestSchema,
+    WorkspaceFileHashRequestSchema,
     WorkspaceUploadAbortRequestSchema,
     WorkspaceUploadChunkRequestSchema,
     WorkspaceUploadFinishRequestSchema,
     WorkspaceUploadStartRequestSchema,
     type WorkspaceCreateDirectoryRequest,
     type WorkspaceCreateDirectoryResponse,
+    type WorkspaceFileHashRequest,
+    type WorkspaceFileHashResponse,
     type WorkspaceUploadAbortRequest,
     type WorkspaceUploadAbortResponse,
     type WorkspaceUploadChunkRequest,
@@ -217,6 +220,7 @@ type PendingWorkspaceUpload = {
     uploadId: string;
     temporaryPath: string;
     targetPath: string;
+    expectedHash?: string;
     expectedSize: number;
     received: number;
     hash: ReturnType<typeof createHash>;
@@ -242,11 +246,26 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
             : validatePath(targetPath, workingDirectory);
 
     const pendingWorkspaceUploads = new Map<string, PendingWorkspaceUpload>();
+    const pendingWorkspaceUploadTargets = new Set<string>();
+
+    const regularFileHash = async (filePath: string): Promise<string | null> => {
+        try {
+            const fileInfo = await lstat(filePath);
+            if (!fileInfo.isFile() || fileInfo.size > MAX_WORKSPACE_UPLOAD_BYTES) return null;
+            const content = await readFile(filePath);
+            if (content.byteLength !== fileInfo.size) return null;
+            return createHash('sha256').update(content).digest('hex');
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+            throw error;
+        }
+    };
 
     const cleanupWorkspaceUpload = async (upload: PendingWorkspaceUpload): Promise<void> => {
         if (pendingWorkspaceUploads.get(upload.uploadId) === upload) {
             pendingWorkspaceUploads.delete(upload.uploadId);
         }
+        pendingWorkspaceUploadTargets.delete(upload.targetPath);
         if (upload.timer) clearTimeout(upload.timer);
         if (!upload.closed) {
             upload.closed = true;
@@ -442,6 +461,76 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
         }
     });
 
+    rpcHandlerManager.registerHandler<WorkspaceFileHashRequest, WorkspaceFileHashResponse>(
+        'hashFile',
+        async (rawData) => {
+            const parsed = WorkspaceFileHashRequestSchema.safeParse(rawData);
+            if (!parsed.success) {
+                return { success: false, code: 'invalid-path', error: 'Invalid file hash request' };
+            }
+            const validation = checkPath(parsed.data.path);
+            if (!validation.valid) {
+                return { success: false, code: 'invalid-path', error: validation.error };
+            }
+            const filePath = validation.resolvedPath!;
+            let handle: FileHandle | undefined;
+            let foundFile = false;
+            try {
+                const pathInfo = await lstat(filePath);
+                foundFile = true;
+                if (!pathInfo.isFile()) {
+                    return { success: false, code: 'not-regular', error: 'File hash target is not a regular file' };
+                }
+                if (pathInfo.size > parsed.data.maxBytes) {
+                    return { success: false, code: 'too-large', error: 'File exceeds the requested hash limit' };
+                }
+
+                handle = await open(filePath, 'r');
+                const openedInfo = await handle.stat();
+                const currentPathInfo = await lstat(filePath);
+                if (
+                    !openedInfo.isFile()
+                    || !currentPathInfo.isFile()
+                    || openedInfo.dev !== currentPathInfo.dev
+                    || openedInfo.ino !== currentPathInfo.ino
+                ) {
+                    return { success: false, code: 'not-regular', error: 'File hash target changed or is not regular' };
+                }
+                if (openedInfo.size > parsed.data.maxBytes) {
+                    return { success: false, code: 'too-large', error: 'File exceeds the requested hash limit' };
+                }
+
+                const content = await handle.readFile();
+                if (content.byteLength > parsed.data.maxBytes) {
+                    return { success: false, code: 'too-large', error: 'File exceeds the requested hash limit' };
+                }
+                const finalInfo = await handle.stat();
+                if (finalInfo.size !== content.byteLength) {
+                    return { success: false, code: 'read-failed', error: 'File changed while its hash was read' };
+                }
+                return {
+                    success: true,
+                    exists: true,
+                    size: content.byteLength,
+                    hash: createHash('sha256').update(content).digest('hex'),
+                };
+            } catch (error) {
+                const nodeError = error as NodeJS.ErrnoException;
+                if (nodeError.code === 'ENOENT' && !foundFile) {
+                    return { success: true, exists: false };
+                }
+                logger.debug('Failed to hash file:', error);
+                return {
+                    success: false,
+                    code: 'read-failed',
+                    error: error instanceof Error ? error.message : 'Failed to hash file',
+                };
+            } finally {
+                await handle?.close().catch(() => undefined);
+            }
+        },
+    );
+
     rpcHandlerManager.registerHandler<WorkspaceUploadStartRequest, WorkspaceUploadStartResponse>(
         'uploadFileStart',
         async (rawData) => {
@@ -470,19 +559,32 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
             if (!targetValidation.valid) {
                 return { success: false, code: 'write-failed', error: targetValidation.error };
             }
+            const targetPath = targetValidation.resolvedPath!;
+            if (pendingWorkspaceUploadTargets.has(targetPath)) {
+                return { success: false, code: 'conflict', error: 'An upload for this file is already in progress' };
+            }
+            pendingWorkspaceUploadTargets.add(targetPath);
 
             let temporaryPath: string | undefined;
             let handle: FileHandle | undefined;
+            let uploadRegistered = false;
             try {
                 const directoryInfo = await stat(directoryPath);
                 if (!directoryInfo.isDirectory()) {
                     return { success: false, code: 'not-directory', error: 'Upload destination is not a directory' };
                 }
-                try {
-                    await lstat(targetValidation.resolvedPath!);
-                    return { success: false, code: 'conflict', error: 'A file with this name already exists' };
-                } catch (error) {
-                    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+                const currentHash = await regularFileHash(targetPath);
+                if (data.expectedHash) {
+                    if (currentHash !== data.expectedHash) {
+                        return { success: false, code: 'conflict', error: 'The existing file changed before replacement' };
+                    }
+                } else {
+                    try {
+                        await lstat(targetPath);
+                        return { success: false, code: 'conflict', error: 'A file with this name already exists' };
+                    } catch (error) {
+                        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+                    }
                 }
 
                 const uploadId = randomUUID();
@@ -491,7 +593,8 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
                 const upload: PendingWorkspaceUpload = {
                     uploadId,
                     temporaryPath,
-                    targetPath: targetValidation.resolvedPath!,
+                    targetPath,
+                    ...(data.expectedHash ? { expectedHash: data.expectedHash } : {}),
                     expectedSize: data.size,
                     received: 0,
                     hash: createHash('sha256'),
@@ -501,6 +604,7 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
                 };
                 pendingWorkspaceUploads.set(uploadId, upload);
                 refreshWorkspaceUploadTimeout(upload);
+                uploadRegistered = true;
                 return { success: true, uploadId };
             } catch (error) {
                 await handle?.close().catch(() => undefined);
@@ -515,6 +619,8 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
                     code: 'write-failed',
                     error: error instanceof Error ? error.message : 'Failed to start file upload',
                 };
+            } finally {
+                if (!uploadRegistered) pendingWorkspaceUploadTargets.delete(targetPath);
             }
         },
     );
@@ -589,7 +695,6 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
             upload.busy = true;
             if (upload.timer) clearTimeout(upload.timer);
             pendingWorkspaceUploads.delete(upload.uploadId);
-
             if (upload.received !== upload.expectedSize) {
                 await cleanupWorkspaceUpload(upload);
                 return { success: false, code: 'write-failed', error: 'Upload is incomplete' };
@@ -599,9 +704,20 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
                 await upload.handle.sync();
                 await upload.handle.close();
                 upload.closed = true;
-                // A same-directory hard link publishes the fully written inode
-                // without replacing an existing destination.
-                await link(upload.temporaryPath, upload.targetPath);
+                if (upload.expectedHash) {
+                    const currentHash = await regularFileHash(upload.targetPath);
+                    if (currentHash !== upload.expectedHash) {
+                        return { success: false, code: 'conflict', error: 'The existing file changed before replacement' };
+                    }
+                    // The complete same-directory temporary file replaces the
+                    // verified destination atomically. Any validation or write
+                    // failure above leaves the old file untouched.
+                    await rename(upload.temporaryPath, upload.targetPath);
+                } else {
+                    // A same-directory hard link publishes the fully written inode
+                    // without replacing an existing destination.
+                    await link(upload.temporaryPath, upload.targetPath);
+                }
                 return {
                     success: true,
                     path: upload.targetPath,

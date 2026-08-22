@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ViewStyle } from 'react-native';
+import { type StyleProp, ViewStyle } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming } from 'react-native-reanimated';
 
 export interface StatusDotProps {
@@ -9,7 +9,15 @@ export interface StatusDotProps {
     style?: ViewStyle;
 }
 
-export const StatusDot = React.memo(({ color, isPulsing, size = 6, style }: StatusDotProps) => {
+export const StatusPulse = React.memo(({
+    children,
+    isPulsing,
+    style,
+}: {
+    children?: React.ReactNode;
+    isPulsing?: boolean;
+    style?: StyleProp<ViewStyle>;
+}) => {
     const opacity = useSharedValue(1);
 
     React.useEffect(() => {
@@ -30,6 +38,15 @@ export const StatusDot = React.memo(({ color, isPulsing, size = 6, style }: Stat
         };
     });
 
+    return (
+        <Animated.View style={[style, animatedStyle]}>
+            {children}
+        </Animated.View>
+    );
+});
+
+export const StatusDot = React.memo(({ color, isPulsing, size = 6, style }: StatusDotProps) => {
+
     const baseStyle: ViewStyle = {
         width: size,
         height: size,
@@ -37,13 +54,5 @@ export const StatusDot = React.memo(({ color, isPulsing, size = 6, style }: Stat
         backgroundColor: color,
     };
 
-    return (
-        <Animated.View
-            style={[
-                baseStyle,
-                animatedStyle,
-                style
-            ]}
-        />
-    );
+    return <StatusPulse isPulsing={isPulsing} style={[baseStyle, style]} />;
 });

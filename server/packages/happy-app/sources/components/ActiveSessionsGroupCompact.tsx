@@ -8,7 +8,7 @@ import { type SessionState, formatPathRelativeToHome, vibingMessages, formatLast
 import { Avatar } from './Avatar';
 import { Typography } from '@/constants/Typography';
 import { StatusDot } from './StatusDot';
-import { useAllMachines, useSessionGitStatus } from '@/sync/storage';
+import { useAllMachines, useSessionGitStatus, useSetting } from '@/sync/storage';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
@@ -24,6 +24,7 @@ import { SessionShortcutHintBadge } from './ShortcutHints';
 import { buildActiveSessionDisplayGroups } from '@/utils/sessionDisplayOrder';
 import { ProviderIcon } from './ProviderIcon';
 import { CommanderSessionAvatar } from './CommanderSessionAvatar';
+import { resolveCompactSessionLeadingIndicatorKind } from '@/utils/compactSessionLeadingIndicator';
 
 const STATUS_CONFIG: Record<SessionState, { color: string; dotColor: string; isPulsing: boolean; isConnected: boolean }> = {
     disconnected: { color: '#999', dotColor: '#999', isPulsing: false, isConnected: false },
@@ -227,6 +228,7 @@ export const CompactSessionRow = React.memo(({ session, selected, showBorder }: 
     const styles = stylesheet;
     const { theme } = useUnistyles();
     const baseStatus = STATUS_CONFIG[session.state];
+    const commanderProfilePictures = useSetting('commanderProfilePictures');
     // Override to solid blue when session has unread results
     const status = session.hasUnread
         ? { ...baseStatus, color: '#007AFF', dotColor: '#007AFF', isPulsing: false, isConnected: baseStatus.isConnected }
@@ -271,18 +273,25 @@ export const CompactSessionRow = React.memo(({ session, selected, showBorder }: 
 
     const renderLeadingIndicator = () => {
         let indicator: React.ReactNode = null;
+        const kind = resolveCompactSessionLeadingIndicatorKind({
+            commanderId: session.commanderId,
+            commanderProfilePictures,
+            hasDraft: session.hasDraft,
+            hasUnread: session.hasUnread,
+            state: session.state,
+        });
 
-        if (session.commanderId) {
+        if (kind === 'commander-avatar' && session.commanderId) {
             indicator = (
                 <CommanderSessionAvatar
                     machineId={session.machineId}
                     commanderId={session.commanderId}
-                    refreshKey={session.state}
+                    isPulsing={baseStatus.isPulsing}
                 />
             );
-        } else if (session.hasUnread) {
+        } else if (kind === 'unread') {
             indicator = <StatusDot color={status.dotColor} isPulsing={false} />;
-        } else if (session.state === 'waiting' && session.hasDraft) {
+        } else if (kind === 'draft') {
             indicator = (
                 <Ionicons
                     name="create-outline"
@@ -290,9 +299,9 @@ export const CompactSessionRow = React.memo(({ session, selected, showBorder }: 
                     color={theme.colors.textSecondary}
                 />
             );
-        } else if (session.state === 'permission_required' || session.state === 'thinking') {
+        } else if (kind === 'activity') {
             indicator = <StatusDot color={status.dotColor} isPulsing={status.isPulsing} />;
-        } else if (session.state === 'waiting') {
+        } else if (kind === 'waiting') {
             indicator = <StatusDot color={theme.colors.textSecondary} isPulsing={false} />;
         }
 

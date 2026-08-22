@@ -11,6 +11,10 @@ vi.mock('./Avatar', async () => {
     const ReactModule = await import('react');
     return { Avatar: (props: any) => ReactModule.createElement('Avatar', props) };
 });
+vi.mock('./StatusDot', async () => {
+    const ReactModule = await import('react');
+    return { StatusPulse: (props: any) => ReactModule.createElement('StatusPulse', props) };
+});
 
 import { CommanderSessionAvatar } from './CommanderSessionAvatar';
 
@@ -33,8 +37,11 @@ describe('CommanderSessionAvatar', () => {
             renderer = create(React.createElement(CommanderSessionAvatar, {
                 machineId: 'machine-one',
                 commanderId: 'athena',
+                isPulsing: true,
             }));
         });
+
+        expect(renderer.root.findByType('StatusPulse' as any).props.isPulsing).toBe(true);
 
         expect(renderer.root.findByType('Avatar' as any).props).toMatchObject({
             id: 'commander:machine-one:athena',

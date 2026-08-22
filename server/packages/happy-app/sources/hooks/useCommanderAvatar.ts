@@ -34,6 +34,23 @@ const defaultDependencies: CommanderAvatarDependencies = {
 
 const commanderLists = new Map<string, Promise<HappyHerdCommanderListResponse>>();
 const avatarImages = new Map<string, Promise<string | null>>();
+const avatarCacheVersions = new Map<string, number>();
+const avatarCacheListeners = new Set<() => void>();
+
+function avatarIdentity(machineId: string, commanderId: string): string {
+    return `${machineId}\u0000${commanderId}`;
+}
+
+export function invalidateCommanderAvatarCache(machineId: string, commanderId: string): void {
+    commanderLists.delete(machineId);
+    const identity = avatarIdentity(machineId, commanderId);
+    const imagePrefix = `${identity}\u0000`;
+    for (const cacheKey of avatarImages.keys()) {
+        if (cacheKey.startsWith(imagePrefix)) avatarImages.delete(cacheKey);
+    }
+    avatarCacheVersions.set(identity, (avatarCacheVersions.get(identity) ?? 0) + 1);
+    avatarCacheListeners.forEach((listener) => listener());
+}
 
 function commanderList(
     machineId: string,
@@ -114,14 +131,25 @@ export async function loadCommanderAvatar(
 export function resetCommanderAvatarCacheForTests(): void {
     commanderLists.clear();
     avatarImages.clear();
+    avatarCacheVersions.clear();
+    avatarCacheListeners.forEach((listener) => listener());
 }
 
 export function useCommanderAvatar(
     machineId: string | null,
     commanderId: string | null,
-    refreshKey?: string,
 ): string | null {
     const [imageUrl, setImageUrl] = React.useState<string | null>(null);
+    const identity = machineId && commanderId ? avatarIdentity(machineId, commanderId) : null;
+    const subscribe = React.useCallback((listener: () => void) => {
+        avatarCacheListeners.add(listener);
+        return () => avatarCacheListeners.delete(listener);
+    }, []);
+    const getSnapshot = React.useCallback(
+        () => identity ? (avatarCacheVersions.get(identity) ?? 0) : 0,
+        [identity],
+    );
+    const cacheVersion = React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
     React.useEffect(() => {
         let active = true;
@@ -137,7 +165,7 @@ export function useCommanderAvatar(
         return () => {
             active = false;
         };
-    }, [commanderId, machineId, refreshKey]);
+    }, [cacheVersion, commanderId, machineId]);
 
     return imageUrl;
 }

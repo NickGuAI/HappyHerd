@@ -11,7 +11,11 @@ vi.mock('expo-crypto', () => ({
     digest: vi.fn(),
 }));
 
-import { loadCommanderAvatar, resetCommanderAvatarCacheForTests } from './useCommanderAvatar';
+import {
+    invalidateCommanderAvatarCache,
+    loadCommanderAvatar,
+    resetCommanderAvatarCacheForTests,
+} from './useCommanderAvatar';
 
 const png = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
@@ -117,6 +121,43 @@ describe('Commander avatar loading', () => {
 
         expect(listCommanders).toHaveBeenCalledTimes(2);
         expect(readFile).toHaveBeenCalledTimes(2);
+    });
+
+    it('invalidates only the replaced machine and Commander cache', async () => {
+        const updatedPng = Buffer.from(png);
+        updatedPng[45] ^= 0x01;
+        let athenaContent = png;
+        const listCommanders = vi.fn(async (machineId: string): Promise<HappyHerdCommanderListResponse> => ({
+            ...response(machineId, athenaContent),
+            commanders: [
+                response(machineId, athenaContent).commanders[0],
+                {
+                    ...response(machineId, png).commanders[0],
+                    id: 'gaia',
+                    name: 'Gaia',
+                    avatar: {
+                        ...response(machineId, png).commanders[0].avatar!,
+                        path: `/commanders/${machineId}/gaia-avatar.png`,
+                    },
+                },
+            ],
+        }));
+        const readFile = vi.fn(async (_machineId: string, path: string) => ({
+            success: true,
+            content: (path.includes('gaia') ? png : athenaContent).toString('base64'),
+        }));
+        const dependencies = { listCommanders, readFile, sha256 };
+
+        const originalAthena = await loadCommanderAvatar('machine-one', 'athena', dependencies);
+        const originalGaia = await loadCommanderAvatar('machine-one', 'gaia', dependencies);
+        athenaContent = updatedPng;
+        invalidateCommanderAvatarCache('machine-one', 'athena');
+
+        const refreshedAthena = await loadCommanderAvatar('machine-one', 'athena', dependencies);
+        const cachedGaia = await loadCommanderAvatar('machine-one', 'gaia', dependencies);
+        expect(refreshedAthena).not.toBe(originalAthena);
+        expect(cachedGaia).toBe(originalGaia);
+        expect(readFile.mock.calls.filter(([, path]) => path.includes('gaia'))).toHaveLength(1);
     });
 
     it('rejects a signature-only image even when its descriptor matches', async () => {

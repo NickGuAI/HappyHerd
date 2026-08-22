@@ -205,6 +205,7 @@ describe('settings', () => {
                 groupToolCalls: false,
                 compactToolCalls: true,
                 expImageUpload: false,
+                commanderProfilePictures: false,
                 voiceInputEnabled: false,
                 machineWorkspace: false,
                 reviewPromptAnswered: false,

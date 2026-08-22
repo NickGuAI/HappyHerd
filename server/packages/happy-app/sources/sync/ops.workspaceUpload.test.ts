@@ -88,4 +88,56 @@ describe('machine workspace upload transport', () => {
         })).resolves.toEqual({ success: false, code: 'write-failed', error: 'disk full' });
         expect(machineRPC).toHaveBeenLastCalledWith('machine-1', 'uploadFileAbort', { uploadId });
     });
+
+    it('forwards the current hash when replacing an existing file', async () => {
+        const uploadId = '33333333-3333-4333-8333-333333333333';
+        const content = Buffer.from('replacement').toString('base64');
+        const expectedHash = 'a'.repeat(64);
+        machineRPC
+            .mockResolvedValueOnce({ success: true, uploadId })
+            .mockResolvedValueOnce({ success: true, received: Buffer.from('replacement').byteLength })
+            .mockResolvedValueOnce({
+                success: true,
+                path: '/tmp/project/avatar.png',
+                size: Buffer.from('replacement').byteLength,
+                hash: createHash('sha256').update('replacement').digest('hex'),
+            });
+
+        const { machineUploadFile } = await import('./ops');
+        await expect(machineUploadFile('machine-1', {
+            directory: '/tmp/project',
+            fileName: 'avatar.png',
+            content,
+            expectedHash,
+        })).resolves.toMatchObject({ success: true });
+
+        expect(machineRPC).toHaveBeenNthCalledWith(1, 'machine-1', 'uploadFileStart', {
+            directory: '/tmp/project',
+            fileName: 'avatar.png',
+            size: Buffer.from('replacement').byteLength,
+            expectedHash,
+        });
+    });
+
+    it('preflights a machine file through the content-free hash RPC and marks old daemons unavailable', async () => {
+        const expected = {
+            success: true,
+            exists: true,
+            size: 128,
+            hash: 'a'.repeat(64),
+        };
+        machineRPC.mockResolvedValueOnce(expected);
+
+        const { machineHashFile } = await import('./ops');
+        await expect(machineHashFile('machine-1', '/tmp/avatar.png', 2 * 1024 * 1024))
+            .resolves.toEqual(expected);
+        expect(machineRPC).toHaveBeenCalledWith('machine-1', 'hashFile', {
+            path: '/tmp/avatar.png',
+            maxBytes: 2 * 1024 * 1024,
+        });
+
+        machineRPC.mockRejectedValueOnce(new Error('RPC method not found'));
+        await expect(machineHashFile('machine-1', '/tmp/avatar.png', 2 * 1024 * 1024))
+            .resolves.toMatchObject({ success: false, code: 'unavailable' });
+    });
 });

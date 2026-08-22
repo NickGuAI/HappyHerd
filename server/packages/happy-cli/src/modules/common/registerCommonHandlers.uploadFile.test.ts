@@ -1,4 +1,4 @@
-import { chmod, mkdtemp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, mkdir, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -24,13 +24,14 @@ describe('machine workspace upload', () => {
 
     async function uploadFile(
         handlers: Map<string, (params: any) => Promise<any>>,
-        request: { directory: string; fileName: string; content: Buffer },
+        request: { directory: string; fileName: string; content: Buffer; expectedHash?: string },
         chunkBytes = 96 * 1024,
     ) {
         const started = await handlers.get('uploadFileStart')!({
             directory: request.directory,
             fileName: request.fileName,
             size: request.content.byteLength,
+            ...(request.expectedHash ? { expectedHash: request.expectedHash } : {}),
         });
         if (!started.success) return started;
 
@@ -93,6 +94,120 @@ describe('machine workspace upload', () => {
         const handlers = machineHandlers();
         await uploadFile(handlers, { directory: join(root, 'folder'), fileName: 'same.txt', content: Buffer.from('new') });
         expect((await readdir(join(root, 'folder'))).filter((name) => name.includes('happyherd-upload'))).toEqual([]);
+    });
+
+    it('returns only bounded regular-file identity and never follows a symbolic link', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'happyherd-hash-file-'));
+        cleanup.push(root);
+        const content = Buffer.from('avatar bytes');
+        const target = join(root, 'avatar.png');
+        const linkPath = join(root, 'linked-avatar.png');
+        await writeFile(target, content);
+        await symlink(target, linkPath);
+        const hashFile = machineHandlers().get('hashFile')!;
+
+        const response = await hashFile({ path: target, maxBytes: content.byteLength });
+        expect(response).toEqual({
+            success: true,
+            exists: true,
+            size: content.byteLength,
+            hash: createHash('sha256').update(content).digest('hex'),
+        });
+        expect(response).not.toHaveProperty('content');
+        await expect(hashFile({ path: join(root, 'missing.png'), maxBytes: 32 }))
+            .resolves.toEqual({ success: true, exists: false });
+        await expect(hashFile({ path: target, maxBytes: content.byteLength - 1 }))
+            .resolves.toMatchObject({ success: false, code: 'too-large' });
+        await expect(hashFile({ path: linkPath, maxBytes: content.byteLength }))
+            .resolves.toMatchObject({ success: false, code: 'not-regular' });
+    });
+
+    it('atomically replaces only the exact regular file version requested', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'happyherd-upload-replace-'));
+        cleanup.push(root);
+        const target = join(root, 'avatar.png');
+        const original = Buffer.from('original avatar');
+        const replacement = Buffer.from('replacement avatar');
+        await writeFile(target, original);
+        const handlers = machineHandlers();
+
+        const replaced = await uploadFile(handlers, {
+            directory: root,
+            fileName: 'avatar.png',
+            content: replacement,
+            expectedHash: createHash('sha256').update(original).digest('hex'),
+        });
+        expect(replaced).toMatchObject({
+            success: true,
+            path: target,
+            hash: createHash('sha256').update(replacement).digest('hex'),
+        });
+        expect(await readFile(target)).toEqual(replacement);
+
+        const stale = await uploadFile(handlers, {
+            directory: root,
+            fileName: 'avatar.png',
+            content: Buffer.from('must not publish'),
+            expectedHash: createHash('sha256').update(original).digest('hex'),
+        });
+        expect(stale).toMatchObject({ success: false, code: 'conflict' });
+        expect(await readFile(target)).toEqual(replacement);
+        expect((await readdir(root)).filter((name) => name.includes('happyherd-upload'))).toEqual([]);
+    });
+
+    it('serializes concurrent uploads by exact target path', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'happyherd-upload-serialize-'));
+        cleanup.push(root);
+        const target = join(root, 'avatar.png');
+        const original = Buffer.from('original avatar');
+        const replacement = Buffer.from('first replacement');
+        const expectedHash = createHash('sha256').update(original).digest('hex');
+        await writeFile(target, original);
+        const handlers = machineHandlers();
+        const start = handlers.get('uploadFileStart')!;
+
+        const [first, second] = await Promise.all([
+            start({ directory: root, fileName: 'avatar.png', size: replacement.byteLength, expectedHash }),
+            start({ directory: root, fileName: 'avatar.png', size: replacement.byteLength, expectedHash }),
+        ]);
+        expect(first).toMatchObject({ success: true });
+        expect(second).toMatchObject({ success: false, code: 'conflict' });
+
+        const chunk = await handlers.get('uploadFileChunk')!({
+            uploadId: first.uploadId,
+            offset: 0,
+            content: replacement.toString('base64'),
+        });
+        expect(chunk).toEqual({ success: true, received: replacement.byteLength });
+        await expect(handlers.get('uploadFileFinish')!({ uploadId: first.uploadId }))
+            .resolves.toMatchObject({ success: true });
+        expect(await readFile(target)).toEqual(replacement);
+
+        await expect(start({
+            directory: root,
+            fileName: 'avatar.png',
+            size: 1,
+            expectedHash,
+        })).resolves.toMatchObject({ success: false, code: 'conflict' });
+    });
+
+    it('refuses optimistic replacement through a symbolic link', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'happyherd-upload-replace-link-'));
+        cleanup.push(root);
+        const outside = join(root, 'outside.png');
+        const target = join(root, 'avatar.png');
+        const original = Buffer.from('outside avatar');
+        await writeFile(outside, original);
+        await symlink(outside, target);
+
+        const response = await uploadFile(machineHandlers(), {
+            directory: root,
+            fileName: 'avatar.png',
+            content: Buffer.from('replacement'),
+            expectedHash: createHash('sha256').update(original).digest('hex'),
+        });
+        expect(response).toMatchObject({ success: false, code: 'conflict' });
+        expect(await readFile(outside)).toEqual(original);
     });
 
     it('preserves literal special-character names without creating a plus directory', async () => {
