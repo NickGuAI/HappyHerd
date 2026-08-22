@@ -1,3 +1,12 @@
+# August 22 — Independent component deployment
+
+HappyHerd operators can now update the component that changed without rebuilding or synchronizing the whole product.
+
+- The self-host server and bundled Web UI publish ordinary GHCR tags and deploy with one command plus a `/health` check.
+- The Happy CLI and host daemon install independently and retain Happy's native detached daemon lifecycle; server restarts do not own or interrupt Claude Code or Codex provider processes.
+- Mobile, governed-agent, and public-launcher releases remain independent lanes and run only when their own source changes.
+- Cross-host SHA locks, digest-only activation, generated release trees and receipts, deterministic all-component archives, and automatic rollback have been removed; an operator can redeploy any older server tag manually.
+
 # August 22 — Automations refresh only when their configuration can change
 
 The Automations page now stays stable between meaningful machine or configuration changes.

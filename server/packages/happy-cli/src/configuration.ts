@@ -9,13 +9,9 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import packageJson from '../package.json'
-import { resolveReleaseSha, validateReleaseSha } from './releaseIdentity'
 
-export function runtimeCliVersion(packageVersion: string, releaseSha?: string): string {
-  const normalizedSha = releaseSha?.trim()
-  if (!normalizedSha) return packageVersion
-  validateReleaseSha(normalizedSha, 'HappyHerd release identity')
-  return `${packageVersion}+happyherd.${normalizedSha}`
+export function runtimeCliVersion(packageVersion: string): string {
+  return packageVersion
 }
 
 class Configuration {
@@ -31,7 +27,6 @@ class Configuration {
   public readonly daemonStateFile: string
   public readonly daemonLockFile: string
   public readonly sessionsFile: string
-  public readonly releaseSha: string | undefined
   public readonly currentCliVersion: string
 
   public readonly isExperimentalEnabled: boolean
@@ -75,8 +70,7 @@ class Configuration {
     this.isExperimentalEnabled = ['true', '1', 'yes'].includes(process.env.HAPPY_EXPERIMENTAL?.toLowerCase() || '');
     this.disableCaffeinate = ['true', '1', 'yes'].includes(process.env.HAPPY_DISABLE_CAFFEINATE?.toLowerCase() || '');
 
-    this.releaseSha = resolveReleaseSha({ environmentSha: process.env.HAPPYHERD_RELEASE_SHA })
-    this.currentCliVersion = runtimeCliVersion(packageJson.version, this.releaseSha)
+    this.currentCliVersion = runtimeCliVersion(packageJson.version)
 
     // Visual indicator on CLI startup (only if not daemon process to avoid log clutter)
     const variant = process.env.HAPPY_VARIANT || 'stable'

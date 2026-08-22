@@ -8,7 +8,9 @@ BRIDGE_USER=happyherd-agent-bridge
 AGENT_USER=happyherd-agent-runtime
 BRIDGE_ROOT=/var/lib/happyherd-agent-bridge
 AGENT_ROOT=/var/lib/happyherd-agent-runtime
-RELEASE_ROOT="${HAPPYHERD_AGENT_RELEASE:-/opt/happyherd/current}"
+DAEMON_ROOT="${HAPPYHERD_CLI_ROOT:-/usr/local/lib/happyherd-cli}"
+AGENT_INSTALL_ROOT="${HAPPYHERD_AGENT_ROOT:-/usr/local/lib/happyherd-agent}"
+SUPPORT_ROOT="${HAPPYHERD_AGENT_SUPPORT_ROOT:-/usr/local/lib/happyherd-agent-support}"
 
 die() {
     printf 'error: %s\n' "$*" >&2
@@ -100,7 +102,7 @@ fi
 [[ "$(id -u)" -eq 0 ]] || die 'runtime validation must run as root'
 command -v bwrap >/dev/null 2>&1 || die 'bubblewrap is required for the agent Codex sandbox'
 command -v socat >/dev/null 2>&1 || die 'socat is required for sandbox network mediation'
-[[ -x "$RELEASE_ROOT/daemon/bin/rg" ]] || die 'release-bundled ripgrep is required by the agent Codex sandbox runtime'
+[[ -x "$DAEMON_ROOT/tools/unpacked/rg" ]] || die 'Happy CLI bundled ripgrep is required by the agent Codex sandbox runtime'
 for user_name in "$BRIDGE_USER" "$AGENT_USER"; do
     id "$user_name" >/dev/null 2>&1 || die "service user is missing: $user_name"
 done
@@ -147,27 +149,27 @@ done
 if ! runuser -u "$AGENT_USER" -- env -i \
     HOME="$AGENT_ROOT" \
     CODEX_HOME="$AGENT_ROOT/codex-home" \
-    PATH="$RELEASE_ROOT/daemon/bin:$AGENT_ROOT/.local/bin:/usr/local/bin:/usr/bin:/bin" \
+    PATH="$DAEMON_ROOT/bin:$DAEMON_ROOT/tools/unpacked:$AGENT_ROOT/.local/bin:/usr/local/bin:/usr/bin:/bin" \
     SHELL=/bin/bash \
     codex --version >/dev/null 2>&1; then
     die 'dedicated Codex executable is missing or unusable'
 fi
 if ! runuser -u "$AGENT_USER" -- env -i \
     HOME="$AGENT_ROOT" \
-    PATH="$RELEASE_ROOT/daemon/bin:/usr/local/bin:/usr/bin:/bin" \
+    PATH="$DAEMON_ROOT/bin:$DAEMON_ROOT/tools/unpacked:/usr/local/bin:/usr/bin:/bin" \
     rg --version >/dev/null 2>&1; then
-    die 'release-bundled ripgrep is unusable by the dedicated agent'
+    die 'Happy CLI bundled ripgrep is unusable by the dedicated agent'
 fi
 
 export HAPPYHERD_AGENT_VALIDATION_AGENT_KEY="$HAPPY_HOME_DIR/agent.key"
 export HAPPYHERD_AGENT_VALIDATION_DAEMON_KEY="$AGENT_ROOT/happy-home/access.key"
-export HAPPYHERD_AGENT_VALIDATION_RELEASE_ROOT="$RELEASE_ROOT"
+export HAPPYHERD_AGENT_VALIDATION_DAEMON_ROOT="$DAEMON_ROOT"
 node <<'NODE'
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
-const releaseRoot = process.env.HAPPYHERD_AGENT_VALIDATION_RELEASE_ROOT;
-const tweetnacl = require(path.join(releaseRoot, 'daemon/node_modules/tweetnacl'));
+const daemonRoot = process.env.HAPPYHERD_AGENT_VALIDATION_DAEMON_ROOT;
+const tweetnacl = require(path.join(daemonRoot, 'node_modules/tweetnacl'));
 
 const decode32 = (value, label) => {
   if (typeof value !== 'string') throw new Error(`${label} is missing`);
@@ -199,7 +201,8 @@ if (!crypto.timingSafeEqual(agentPublicKey, daemonPublicKey)) {
   throw new Error('bridge and daemon are not linked to the same dedicated HappyHerd account');
 }
 NODE
-unset HAPPYHERD_AGENT_VALIDATION_AGENT_KEY HAPPYHERD_AGENT_VALIDATION_DAEMON_KEY HAPPYHERD_AGENT_VALIDATION_RELEASE_ROOT
+unset HAPPYHERD_AGENT_VALIDATION_AGENT_KEY HAPPYHERD_AGENT_VALIDATION_DAEMON_KEY \
+    HAPPYHERD_AGENT_VALIDATION_DAEMON_ROOT
 
 for path in \
     "$AGENT_ROOT/happy-home/AGENTS.md" \
@@ -272,10 +275,9 @@ if (
 NODE
 unset HAPPYHERD_AGENT_VALIDATION_SETTINGS HAPPYHERD_AGENT_VALIDATION_MACHINE_ID HAPPYHERD_AGENT_VALIDATION_WORKSPACE
 
-[[ -f "$RELEASE_ROOT/happyherd-agent/dist/index.mjs" ]] || die 'installed bridge release is missing'
-[[ -x "$RELEASE_ROOT/daemon/bin/happy.mjs" ]] || die 'installed daemon release is missing'
-[[ -x "$RELEASE_ROOT/daemon/bin/happyherd-agent-codex-policy.mjs" ]] || die 'agent Codex policy hook is missing'
-[[ -f "$RELEASE_ROOT/build-manifest.json" ]] || die 'installed release manifest is missing'
+[[ -f "$AGENT_INSTALL_ROOT/dist/index.mjs" ]] || die 'installed bridge package is missing'
+[[ -x "$DAEMON_ROOT/bin/happy.mjs" ]] || die 'installed Happy CLI is missing'
+[[ -x "$DAEMON_ROOT/bin/happyherd-agent-codex-policy.mjs" ]] || die 'agent Codex policy hook is missing'
 
 daemon_state="$AGENT_ROOT/happy-home/daemon.state.json"
 [[ -f "$daemon_state" ]] || die 'dedicated HappyHerd daemon state is missing'
@@ -291,22 +293,10 @@ const health = JSON.parse(process.env.HAPPYHERD_AGENT_DAEMON_HEALTH);
 if (!health || !Array.isArray(health.children)) process.exit(1);
 NODE
 unset daemon_health HAPPYHERD_AGENT_DAEMON_HEALTH
-node - "$RELEASE_ROOT/build-manifest.json" "$daemon_state" <<'NODE'
-const fs = require('node:fs');
-const manifest = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
-const state = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
-const sourceSha = manifest.source?.happyHerdSha;
-if (
-  !/^[0-9a-f]{40}$/.test(sourceSha ?? '')
-  || manifest.source?.originMainSha !== sourceSha
-  || typeof state.startedWithCliVersion !== 'string'
-  || !state.startedWithCliVersion.endsWith(`+happyherd.${sourceSha}`)
-) process.exit(1);
-NODE
 
 runuser -u "$AGENT_USER" -- env \
-    PATH="$RELEASE_ROOT/daemon/bin:/usr/local/bin:/usr/bin:/bin" \
-    HAPPYHERD_AGENT_RELEASE="$RELEASE_ROOT" \
-    "$RELEASE_ROOT/scripts/test-happyherd-agent-sandbox.sh" runtime
+    PATH="$DAEMON_ROOT/bin:$DAEMON_ROOT/tools/unpacked:/usr/local/bin:/usr/bin:/bin" \
+    HAPPYHERD_CLI_ROOT="$DAEMON_ROOT" \
+    "$SUPPORT_ROOT/scripts/test-happyherd-agent-sandbox.sh" runtime
 
 printf 'HappyHerd Agent runtime verified.\n'

@@ -1,0 +1,83 @@
+name: HappyHerd server image
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/server-image.yml
+      - branding/hervald-logo-mark-black.png
+      - scripts/build-server-image.sh
+      - server/Dockerfile
+      - server/package.json
+      - server/pnpm-lock.yaml
+      - server/pnpm-workspace.yaml
+      - server/patches/**
+      - server/scripts/**
+      - server/packages/happy-app/**
+      - server/packages/happy-cli/package.json
+      - server/packages/happy-cli/scripts/bundle-webapp.cjs
+      - server/packages/happy-server/**
+      - server/packages/happy-server-self-host/**
+      - server/packages/happy-wire/**
+  pull_request:
+    paths:
+      - .github/workflows/server-image.yml
+      - branding/hervald-logo-mark-black.png
+      - scripts/build-server-image.sh
+      - server/Dockerfile
+      - server/package.json
+      - server/pnpm-lock.yaml
+      - server/pnpm-workspace.yaml
+      - server/patches/**
+      - server/scripts/**
+      - server/packages/happy-app/**
+      - server/packages/happy-cli/package.json
+      - server/packages/happy-cli/scripts/bundle-webapp.cjs
+      - server/packages/happy-server/**
+      - server/packages/happy-server-self-host/**
+      - server/packages/happy-wire/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: happyherd-server-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build server + Web image
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      HAPPYHERD_SOURCE_URL: ${{ github.server_url }}/${{ github.repository }}
+      HAPPYHERD_REPOSITORY_DISPLAY: ${{ github.repository }}
+      HAPPYHERD_REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+      HAPPYHERD_ISSUE_URL: ${{ github.server_url }}/${{ github.repository }}/issues
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build pull-request image
+        if: github.event_name == 'pull_request'
+        run: scripts/build-server-image.sh --image local/happyherd:ci
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish normal server tags
+        if: github.event_name != 'pull_request'
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          sha_image="ghcr.io/${owner}/happyherd:sha-${GITHUB_SHA}"
+          main_image="ghcr.io/${owner}/happyherd:main"
+          scripts/build-server-image.sh --image "$sha_image" --push
+          docker tag "$sha_image" "$main_image"
+          docker push "$main_image"

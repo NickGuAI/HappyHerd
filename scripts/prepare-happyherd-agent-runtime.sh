@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DAEMON_ROOT="${HAPPYHERD_CLI_ROOT:-/usr/local/lib/happyherd-cli}"
 BRIDGE_USER=happyherd-agent-bridge
 AGENT_USER=happyherd-agent-runtime
 CONFIG_ROOT=/etc/happyherd-agent
@@ -26,7 +27,7 @@ if [[ "${#missing_sandbox_dependencies[@]}" -gt 0 ]]; then
 fi
 command -v bwrap >/dev/null 2>&1 || die 'bubblewrap installation did not provide bwrap'
 command -v socat >/dev/null 2>&1 || die 'socat installation did not complete'
-[[ -x "$ROOT/daemon/bin/rg" ]] || die 'release-bundled ripgrep is missing or not executable'
+[[ -x "$DAEMON_ROOT/tools/unpacked/rg" ]] || die 'Happy CLI bundled ripgrep is missing or not executable'
 
 ensure_system_user() {
     local user_name="$1"

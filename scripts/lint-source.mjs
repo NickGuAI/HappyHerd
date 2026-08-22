@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { extname, resolve } from 'node:path';
 
 const repoRoot = resolve(import.meta.dirname, '..');
@@ -55,7 +55,11 @@ const failures = [];
 
 for (const relativePath of [...changed].sort()) {
   if (!lintableExtensions.has(extname(relativePath))) continue;
-  const contents = readFileSync(resolve(repoRoot, relativePath), 'utf8');
+  const absolutePath = resolve(repoRoot, relativePath);
+  // Deleted files can legitimately appear in the comparison baseline. They
+  // have no current contents to lint.
+  if (!existsSync(absolutePath)) continue;
+  const contents = readFileSync(absolutePath, 'utf8');
   if (conflictMarker.test(contents)) {
     failures.push(`${relativePath}: unresolved merge-conflict marker`);
   }

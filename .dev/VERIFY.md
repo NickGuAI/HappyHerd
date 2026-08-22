@@ -60,7 +60,7 @@ Commands in this table run from `server/` unless they start with `scripts/` or
 | HappyHerd launcher | `pnpm --filter @happyherd/cli typecheck`; `pnpm --filter @happyherd/cli test` |
 | Agent runtime | `pnpm --filter happy-agent test`; `pnpm --filter @happyherd/happyherd-agent test` |
 | Server | `pnpm --filter ./packages/happy-server typecheck`; `test`; `build` |
-| Repository or release shell | Nearest `scripts/test-*-contract.sh`; `shellcheck -x` on changed shell files |
+| Repository or deployment shell | `scripts/test-component-deployment-contract.sh`; nearest other `scripts/test-*-contract.sh`; `shellcheck -x` on changed shell files |
 | Product identity | `node scripts/verify-product-identity.mjs` |
 | Public boundary | `node scripts/test-public-boundary.mjs`; `node scripts/verify-public-boundary.mjs` |
 | Lineage | `scripts/verify-lineage.sh` |
@@ -95,7 +95,8 @@ pnpm --filter ./packages/happy-server build
 ## Full local acceptance
 
 The contract suite requires a clean committed tree, pnpm 10.11.0, ShellCheck,
-the immutable tags, and the exact trusted `upstream` remote:
+the recorded upstream lineage tag, and the exact trusted `upstream` remote. It
+is an integration gate; it does not build or activate a lockstep release:
 
 ```bash
 scripts/contract-suite.sh

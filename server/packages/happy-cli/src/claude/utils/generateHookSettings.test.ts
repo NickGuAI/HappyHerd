@@ -9,7 +9,7 @@ vi.mock('@/ui/logger', () => ({
 }));
 
 vi.mock('@/projectPath', () => ({
-    projectPath: () => '/opt/happyherd/current',
+    projectPath: () => '/workspace/happyherd',
 }));
 
 import { cleanupHookSettingsFile, generateHookSettingsFile } from './generateHookSettings';

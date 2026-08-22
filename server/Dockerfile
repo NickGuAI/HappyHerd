@@ -1,10 +1,9 @@
 # Standalone happy-server: single container, no external dependencies
 # Uses PGlite (embedded Postgres), local filesystem storage, no Redis
 
-# Stage 1: install dependencies. Every base is pinned to an immutable manifest
-# digest so rebuilding a source revision cannot silently change the toolchain.
-FROM oven/bun:1.3.11@sha256:0733e50325078969732ebe3b15ce4c4be5082f18c4ac1a0f0ca4839c2e4e42a7 AS bun-runtime
-FROM node:20@sha256:8f693eaa7e0a8e71560c9a82b55fd54c2ae920a2ba5d2cde28bac7d1c01c9ba5 AS deps
+# Stage 1: install the dependencies needed by the self-host server and Web app.
+FROM oven/bun:1.3.11 AS bun-runtime
+FROM node:20 AS deps
 
 COPY --from=bun-runtime /usr/local/bin/bun /usr/local/bin/bun
 
@@ -67,21 +66,19 @@ RUN pnpm --filter happy-server-self-host --fail-if-no-match build
 RUN pnpm --filter happy-server-self-host --fail-if-no-match bundle:webapp
 
 # Stage 3: runtime
-FROM node:20-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS runner
+FROM node:20-slim AS runner
 
 ARG HAPPYHERD_SOURCE_SHA=unknown
 ARG HAPPYHERD_SOURCE_URL=https://example.com/happyherd
 ARG HAPPYHERD_CREATED=unknown
 ARG HAPPYHERD_VERSION=dev
-ARG HAPPYHERD_BRAND_SHA256=unknown
 
 LABEL org.opencontainers.image.title="HappyHerd" \
       org.opencontainers.image.description="HappyHerd self-host server and branded Web client" \
       org.opencontainers.image.source="$HAPPYHERD_SOURCE_URL" \
       org.opencontainers.image.revision="$HAPPYHERD_SOURCE_SHA" \
       org.opencontainers.image.created="$HAPPYHERD_CREATED" \
-      org.opencontainers.image.version="$HAPPYHERD_VERSION" \
-      org.happyherd.brand.sha256="$HAPPYHERD_BRAND_SHA256"
+      org.opencontainers.image.version="$HAPPYHERD_VERSION"
 
 WORKDIR /repo/packages/happy-server-self-host
 

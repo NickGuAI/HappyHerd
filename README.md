@@ -15,8 +15,8 @@ Every pull request runs the
 [quality gates](.github/workflows/quality-gates.yml)—Clean install, Lint,
 Typecheck, Unit tests, and Production build—and the independent
 [Contract suite](.github/workflows/contract-suite.yml). These checks cover the
-reproducible install, source and localization contracts, production packages,
-and HappyHerd's maintained patch boundary.
+source and localization contracts, production packages, component deployment,
+the public launcher, and HappyHerd's maintained patch boundary.
 
 ## License and support
 
@@ -30,8 +30,29 @@ upstream Happy. If HappyHerd is useful to you, you can
 - `branding/` — HappyHerd-owned brand assets.
 - `deploy/` — generic, secret-free deployment templates.
 - `examples/` — explicitly named organization integrations.
-- `docs/` — lineage, build provenance, release, and rollback contracts.
-- `scripts/` — reproducible verification, upstream-sync, and deployment tools.
+- `docs/` — lineage, component deployment, runtime, and public-release contracts.
+- `scripts/` — verification, upstream-sync, component build, and deployment tools.
+
+## Self-host deployment
+
+The self-host server intentionally includes the Web bundle, matching upstream
+Happy. It is built and deployed independently of the CLI/daemon, mobile app,
+and governed agent:
+
+```sh
+scripts/build-server-image.sh --image ghcr.io/example/happyherd:main --push
+sudo scripts/deploy-server.sh ghcr.io/example/happyherd:main \
+  /etc/happyherd/runtime.env
+```
+
+The deployment command pulls the chosen image, restarts the central server,
+and verifies `/health`. Rollback is the same command with an older tag. Install
+or upgrade the host CLI separately with `sudo scripts/install-host-cli.sh`;
+the Linux boot adapter delegates daemon lifetime to the native Happy CLI.
+
+See [docs/deployment.md](docs/deployment.md) for the complete component map and
+[docs/runtime-isolation.md](docs/runtime-isolation.md) for state and credential
+boundaries.
 
 ## Install and connect
 
@@ -122,5 +143,4 @@ for the wire contract and
 [docs/public-launcher-release.md](docs/public-launcher-release.md) for release
 and installer verification.
 
-See [docs/runtime-isolation.md](docs/runtime-isolation.md) for deployment
-boundaries and [docs/lineage.md](docs/lineage.md) for upstream provenance.
+See [docs/lineage.md](docs/lineage.md) for upstream provenance.

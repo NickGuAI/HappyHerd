@@ -21,7 +21,7 @@ afterEach(async () => {
 });
 
 describe('top-level happy --version', () => {
-    function runVersion(environmentSha?: string) {
+    function runVersion() {
         const happyHome = path.join(root, '.happyherd');
         const emptyBin = path.join(root, 'empty-bin');
         const env: NodeJS.ProcessEnv = {
@@ -33,9 +33,6 @@ describe('top-level happy --version', () => {
             HOME: path.join(root, 'home'),
             PATH: emptyBin,
         };
-        if (environmentSha) env.HAPPYHERD_RELEASE_SHA = environmentSha;
-        else delete env.HAPPYHERD_RELEASE_SHA;
-
         return { happyHome, result: spawnSync(
             process.execPath,
             [
@@ -67,17 +64,4 @@ describe('top-level happy --version', () => {
         expect(existsSync(path.join(happyHome, 'daemon.state.json'))).toBe(false);
     });
 
-    it('reports the exact baked release identity without creating runtime state', async () => {
-        await mkdir(path.join(root, 'empty-bin'));
-        const releaseSha = 'a'.repeat(40);
-        const { happyHome, result } = runVersion(releaseSha);
-
-        expect(result.error).toBeUndefined();
-        expect(result.status).toBe(0);
-        expect(result.stdout.trim()).toBe(
-            `happy version: ${packageJson.version}+happyherd.${releaseSha}`,
-        );
-        expect(result.stderr).toBe('');
-        expect(existsSync(happyHome)).toBe(false);
-    });
 });

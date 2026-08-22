@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/runtime-config.sh
-source "$ROOT/scripts/lib/runtime-config.sh"
+source "$SCRIPT_DIR/lib/runtime-config.sh"
 
 ENV_FILE="${1:-/etc/happyherd/runtime.env}"
 [[ "$(id -u)" -eq 0 ]] || {
@@ -22,5 +22,4 @@ if [[ ! -f "$HAPPYHERD_MASTER_SECRET_FILE" ]]; then
 fi
 chmod 0600 "$HAPPYHERD_MASTER_SECRET_FILE"
 
-"$ROOT/scripts/validate-runtime-isolation.sh" "$ENV_FILE" runtime
 printf 'HappyHerd runtime directories and secret are ready.\n'
