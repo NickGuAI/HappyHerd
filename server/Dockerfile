@@ -33,7 +33,11 @@ COPY packages/happy-server-self-host/scripts packages/happy-server-self-host/scr
 COPY packages/happy-cli/scripts packages/happy-cli/scripts
 COPY packages/happy-cli/tools packages/happy-cli/tools
 
-RUN SKIP_HAPPY_WIRE_BUILD=1 pnpm install --frozen-lockfile
+RUN SKIP_HAPPY_WIRE_BUILD=1 pnpm \
+    --filter happy-server-self-host... \
+    --filter happy-server... \
+    --filter happy-app... \
+    install --frozen-lockfile
 
 # Stage 2: build the API and the branded Web client served by that API.
 FROM deps AS builder
@@ -58,6 +62,7 @@ COPY packages/happy-server ./packages/happy-server
 COPY packages/happy-server-self-host ./packages/happy-server-self-host
 
 RUN pnpm --filter @slopus/happy-wire --fail-if-no-match build
+RUN pnpm --filter happy-server --fail-if-no-match generate
 RUN pnpm --filter happy-server-self-host --fail-if-no-match build
 RUN pnpm --filter happy-server-self-host --fail-if-no-match bundle:webapp
 

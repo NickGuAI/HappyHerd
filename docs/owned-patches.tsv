@@ -49,3 +49,4 @@ COMMANDER_AVATAR	accepted	feat(sessions): show Commander avatars	server/packages
 AUTOMATION_PROJECTS	accepted	feat(automations): organize schedules by tags	server/packages/happy-wire/src/automation.test.ts
 MESSAGE_QUEUE_VIEW	accepted	feat(chat): show queued messages separately	server/packages/happy-cli/src/utils/MessageQueue2.test.ts
 WORKSPACE_CONTEXT	accepted	feat(workspace): complete file and folder context	server/packages/happy-wire/src/workspaceUpload.test.ts
+RELEASE_IMAGE	accepted	fix(release): scope server image dependency installation	scripts/test-release-image-contract.sh
