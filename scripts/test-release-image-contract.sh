@@ -19,6 +19,16 @@ grep -Fq 'COPY packages/happy-app ./packages/happy-app' "$DOCKERFILE" || \
     fail 'branded app source is absent from the image build'
 grep -Fq 'COPY packages/happy-server-self-host/scripts packages/happy-server-self-host/scripts' "$DOCKERFILE" || \
     fail 'self-host install scripts are absent from the dependency stage'
+
+grep -Fq -- '--filter happy-server-self-host...' "$DOCKERFILE" || \
+    fail 'dependency install is not scoped to the self-host server graph'
+grep -Fq -- '--filter happy-server...' "$DOCKERFILE" || \
+    fail 'dependency install omits the API server graph'
+grep -Fq -- '--filter happy-app...' "$DOCKERFILE" || \
+    fail 'dependency install omits the bundled Web application graph'
+grep -Fq -- 'pnpm --filter happy-server --fail-if-no-match generate' "$DOCKERFILE" || \
+    fail 'Docker build does not generate Prisma from the copied API schema'
+
 grep -Fq 'bundle:webapp' "$DOCKERFILE" || fail 'Web bundle is not built into the server image'
 grep -Fq 'happy-server-self-host --fail-if-no-match build' "$DOCKERFILE" || \
     fail 'self-host package is not compiled into a standalone runtime'
