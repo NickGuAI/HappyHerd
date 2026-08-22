@@ -1215,6 +1215,7 @@
       "commander": "Commander identity",
       "tags": "Project tags",
       "tagsHint": "Enter one project tag per line.",
+      "tagGuide": "To tag an automation, expand it, choose Edit, enter one project tag per line, then save. Multiple tags place it in each project.",
       "tagsRequiresUpgrade": "Update HappyHerd on this machine to edit tags.",
       "untagged": "Untagged",
       "machineLoadFailed": "Could not load {name}: {message}",

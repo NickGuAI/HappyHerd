@@ -302,6 +302,7 @@ export type TranslationKey =
     | "happyHerd.automations.statusActive"
     | "happyHerd.automations.statusPaused"
     | "happyHerd.automations.subtitle"
+    | "happyHerd.automations.tagGuide"
     | "happyHerd.automations.tags"
     | "happyHerd.automations.tagsHint"
     | "happyHerd.automations.tagsRequiresUpgrade"

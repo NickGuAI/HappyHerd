@@ -50,3 +50,4 @@ AUTOMATION_PROJECTS	accepted	feat(automations): organize schedules by tags	serve
 MESSAGE_QUEUE_VIEW	accepted	feat(chat): show queued messages separately	server/packages/happy-cli/src/utils/MessageQueue2.test.ts
 WORKSPACE_CONTEXT	accepted	feat(workspace): complete file and folder context	server/packages/happy-wire/src/workspaceUpload.test.ts
 RELEASE_IMAGE	accepted	fix(release): scope server image dependency installation	scripts/test-release-image-contract.sh
+AUTOMATION_REFRESH	accepted	fix(automations): stop heartbeat-driven reloads	server/packages/happy-app/sources/components/AutomationsScreen.test.ts

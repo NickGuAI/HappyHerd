@@ -1,3 +1,11 @@
+# August 22 — Automations refresh only when their configuration can change
+
+The Automations page now stays stable between meaningful machine or configuration changes.
+
+- Routine machine heartbeats keep online status current without repeatedly reloading every connected machine's automation and Commander configuration.
+- Automations reload when the page regains focus, a machine joins or leaves, daemon capabilities change, or an automation action completes.
+- An always-visible guide explains how to expand an automation, edit its project tags one per line, and place one automation in multiple project groups.
+
 # August 21 — Files and folders as message context
 
 Machine Workspace now provides a complete create, upload, and context flow for both new and current conversations.

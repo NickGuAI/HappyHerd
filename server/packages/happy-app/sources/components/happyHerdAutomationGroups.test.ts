@@ -5,6 +5,7 @@ import type { Machine } from '@/sync/storageTypes';
 import {
     groupHappyHerdAutomationsByProject,
     happyHerdAutomationProjectKey,
+    happyHerdAutomationReloadKey,
     happyHerdAutomationTagInput,
     loadHappyHerdAutomationMachines,
 } from './happyHerdAutomationGroups';
@@ -46,6 +47,58 @@ function automation(
 }
 
 describe('HappyHerd automation machine loading', () => {
+    it('ignores heartbeat churn while tracking meaningful machine topology changes', () => {
+        const original = {
+            ...machine('machine-a', 'Alpha'),
+            seq: 1,
+            active: true,
+            activeAt: 100,
+            updatedAt: 100,
+            metadataVersion: 2,
+            daemonStateVersion: 3,
+        } as Machine;
+        const heartbeat = {
+            ...original,
+            seq: 2,
+            activeAt: 200,
+            updatedAt: 200,
+        };
+        const activeBeta = {
+            ...machine('machine-b', 'Beta'),
+            active: true,
+            metadataVersion: 1,
+            daemonStateVersion: 1,
+        } as Machine;
+        const reordered = [
+            {
+                ...machine('machine-b', 'Beta'),
+                active: false,
+                metadataVersion: 1,
+                daemonStateVersion: 1,
+            } as Machine,
+            heartbeat,
+        ];
+
+        expect(happyHerdAutomationReloadKey([original])).toBe(
+            happyHerdAutomationReloadKey([heartbeat]),
+        );
+        expect(happyHerdAutomationReloadKey([original])).toBe(
+            happyHerdAutomationReloadKey(reordered),
+        );
+        expect(happyHerdAutomationReloadKey([original, activeBeta])).toBe(
+            happyHerdAutomationReloadKey([activeBeta, heartbeat]),
+        );
+        expect(happyHerdAutomationReloadKey([original])).not.toBe(
+            happyHerdAutomationReloadKey([{ ...heartbeat, active: false }]),
+        );
+        expect(happyHerdAutomationReloadKey([original])).not.toBe(
+            happyHerdAutomationReloadKey([{ ...heartbeat, metadataVersion: 3 }]),
+        );
+        expect(happyHerdAutomationReloadKey([original])).not.toBe(
+            happyHerdAutomationReloadKey([{ ...heartbeat, daemonStateVersion: 4 }]),
+        );
+    });
+
     it('omits tag mutations for legacy daemons and sends normalized lines to v2 daemons', () => {
         expect(happyHerdAutomationTagInput(' Project Beacon, Operations', 1)).toEqual({});
         expect(happyHerdAutomationTagInput(' Project Beacon, Operations \n Reliability ', 2)).toEqual({

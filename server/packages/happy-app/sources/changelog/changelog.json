@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 22 — Automations refresh only when their configuration can change",
+      "summary": "The Automations page now stays stable between meaningful machine or configuration changes.",
+      "markdown": "- Routine machine heartbeats keep online status current without repeatedly reloading every connected machine's automation and Commander configuration.\n- Automations reload when the page regains focus, a machine joins or leaves, daemon capabilities change, or an automation action completes.\n- An always-visible guide explains how to expand an automation, edit its project tags one per line, and place one automation in multiple project groups."
+    },
+    {
       "title": "August 21 — Files and folders as message context",
       "summary": "Machine Workspace now provides a complete create, upload, and context flow for both new and current conversations.",
       "markdown": "- Create one safe child folder in the directory you are browsing, then navigate into it immediately.\n- Upload selection failures are reported, attachment limits are enforced before writing, in-flight batches stay pinned to their original machine and directory, and names containing spaces, `+`, `%`, `#`, or Unicode remain exact.\n- Select files or folders as context from Workspace or New Session; active Chat keeps their file/folder identity visible in the composer.\n- Text files are embedded within bounded untrusted-data markers, binary files remain exact host-path references, and folders contribute a deterministic bounded one-level listing."
@@ -181,5 +186,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 21 — Files and folders as message context"
+  "latestTitle": "August 22 — Automations refresh only when their configuration can change"
 }
