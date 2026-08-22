@@ -92,7 +92,9 @@ ENV PRISMA_QUERY_ENGINE_LIBRARY=/repo/node_modules/.prisma/client/libquery_engin
 COPY --from=builder /repo/node_modules /repo/node_modules
 COPY --from=builder /repo/packages/happy-server-self-host /repo/packages/happy-server-self-host
 
-VOLUME /data
+# Persistent storage is mounted explicitly by the deployment environment at
+# /data. Do not declare a Docker VOLUME here: managed builders such as Railway
+# reject image-owned volumes, while Docker operators already pass `-v ...:/data`.
 EXPOSE 3005
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \

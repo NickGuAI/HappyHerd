@@ -54,3 +54,4 @@ COMPONENT_DEPLOYMENT	accepted	refactor(release): restore component-native deploy
 AUTOMATION_REFRESH	accepted	fix(automations): stop heartbeat-driven reloads	server/packages/happy-app/sources/components/AutomationsScreen.test.ts
 COMPONENT_DEPLOYMENT	accepted	fix(daemon): render Linux bootstrap user (#116)	scripts/test-component-deployment-contract.sh
 AUTOMATION_PROJECT_SELECTOR	accepted	fix(automations): move machine selection into projects	server/packages/happy-app/sources/components/AutomationsScreen.test.ts
+COMPONENT_DEPLOYMENT	accepted	fix(deploy): use platform-managed server volume	scripts/test-component-deployment-contract.sh
