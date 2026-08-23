@@ -53,6 +53,7 @@ type WorkspaceLinkViewerState =
 
 export type WorkspaceLinkViewerProps = {
     reference: WorkspaceLinkRouteParams;
+    headerTopInset?: number;
     onBack?: () => void;
     onFeedbackSent: (receipt: SendMessageReceipt) => void;
 };
@@ -84,6 +85,7 @@ function errorCopy(kind: WorkspaceLinkErrorKind): { title: string; description: 
 
 export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
     reference,
+    headerTopInset = 0,
     onBack,
     onFeedbackSent,
 }: WorkspaceLinkViewerProps) {
@@ -305,7 +307,14 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
 
     return (
         <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
-            <View style={[styles.header, { borderBottomColor: theme.colors.divider }]}>
+            <View style={[
+                styles.header,
+                {
+                    borderBottomColor: theme.colors.divider,
+                    minHeight: 64 + headerTopInset,
+                    paddingTop: headerTopInset,
+                },
+            ]}>
                 {onBack ? (
                     <Pressable
                         accessibilityRole="button"

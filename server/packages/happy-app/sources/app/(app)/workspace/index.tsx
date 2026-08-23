@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import { FileContentPanel } from '@/components/FileViewPanel';
@@ -54,6 +55,7 @@ import { MachineFileUploadStatus } from '@/components/MachineFileUploadStatus';
 import { WorkspaceLinkViewer } from '@/components/WorkspaceLinkViewer';
 import { workspaceLinkViewerKey } from '@/components/WorkspaceLinkViewerModel';
 import type { WorkspaceLinkRouteParams } from '@/utils/markdownWorkspaceLink';
+import { dismissWorkspaceLinkToOrigin } from '@/-session/workspaceLinkNavigation';
 
 function param(value: string | string[] | undefined): string | undefined {
     return Array.isArray(value) ? value[0] : value;
@@ -111,6 +113,7 @@ function WorkspaceLinkRouteScreen({ params }: {
     };
 }) {
     const router = useRouter();
+    const safeArea = useSafeAreaInsets();
     const originSessionId = param(params.originSessionId);
     const machineId = param(params.machineId);
     const absolutePath = param(params.absolutePath);
@@ -144,14 +147,13 @@ function WorkspaceLinkRouteScreen({ params }: {
             <WorkspaceLinkViewer
                 key={workspaceLinkViewerKey(reference)}
                 reference={reference}
+                headerTopInset={safeArea.top}
                 onBack={() => router.back()}
-                onFeedbackSent={(receipt) => router.replace({
-                    pathname: '/session/[id]',
-                    params: {
-                        id: reference.originSessionId,
-                        focusMessageId: receipt.localId,
-                    },
-                })}
+                onFeedbackSent={(receipt) => dismissWorkspaceLinkToOrigin(
+                    router,
+                    reference.originSessionId,
+                    receipt.localId,
+                )}
             />
         </View>
     );

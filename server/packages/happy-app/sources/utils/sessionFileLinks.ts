@@ -114,6 +114,14 @@ function decodeFileUrl(value: string): string {
     }
 }
 
+function decodeMarkdownPath(value: string): string {
+    try {
+        return decodeURIComponent(value);
+    } catch {
+        return value;
+    }
+}
+
 function inferHomeDirectory(sessionRoot: string | null | undefined): string | null {
     if (!sessionRoot) {
         return null;
@@ -307,13 +315,18 @@ export function parseExplicitSessionFileLink(
     }
 
     const parsedUrl = parseLineAndColumn(trimmedUrl);
-    if (!WINDOWS_ABSOLUTE_PATH.test(parsedUrl.path) && URL_SCHEME.test(parsedUrl.path)) {
+    const decodedPath = decodeMarkdownPath(parsedUrl.path);
+    if (
+        decodedPath.startsWith('#')
+        || decodedPath.startsWith('?')
+        || (!WINDOWS_ABSOLUTE_PATH.test(decodedPath) && URL_SCHEME.test(decodedPath))
+    ) {
         return null;
     }
     const parsedLabel = options?.label ? parseLineAndColumn(options.label) : null;
 
     return buildLink(
-        parsedUrl.path,
+        decodedPath,
         parsedUrl.line ?? parsedLabel?.line ?? null,
         parsedUrl.column ?? parsedLabel?.column ?? null,
         options?.sessionRoot,

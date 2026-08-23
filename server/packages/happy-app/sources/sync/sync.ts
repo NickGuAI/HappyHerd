@@ -80,7 +80,6 @@ import { appendPendingQueueMessageId, removeQueueMessageIds } from './queueState
 import {
     buildAtomicLocalMessageBatch,
     commitAtomicLocalMessageBatch,
-    dispatchPreparedOutbox,
     hasCompleteRequiredAttachmentBatch,
     prepareEveryAttachment,
 } from './sendMessageLocalBatch';
@@ -978,12 +977,11 @@ class Sync {
         storage.getState().markSessionMessageSent(sessionId);
 
         this.maybeStartBackgroundSendWatchdog();
-        const sendSync = this.getSendSync(sessionId);
-        await dispatchPreparedOutbox({
-            returnAfterLocalAcceptance: requireAllAttachments,
-            invalidate: () => sendSync.invalidate(),
-            invalidateAndAwait: () => sendSync.invalidateAndAwait(),
-        });
+        // Do not release strict Viewer feedback until the complete batch has
+        // reached the server. The outbox is memory-backed, so local enqueue
+        // alone is not a durable success boundary and must not clear the
+        // Viewer draft or navigate away.
+        await this.getSendSync(sessionId).invalidateAndAwait();
         return { localId };
     }
 

@@ -54,15 +54,3 @@ export function commitAtomicLocalMessageBatch(args: {
     }
     args.appendOutbox(args.batch.outbox);
 }
-
-export async function dispatchPreparedOutbox(args: {
-    returnAfterLocalAcceptance: boolean;
-    invalidate: () => void;
-    invalidateAndAwait: () => Promise<void>;
-}): Promise<void> {
-    if (args.returnAfterLocalAcceptance) {
-        args.invalidate();
-        return;
-    }
-    await args.invalidateAndAwait();
-}

@@ -57,6 +57,24 @@ describe('sessionFileLinks', () => {
             });
         });
 
+        it('decodes percent-encoded Markdown paths before resolving them', () => {
+            expect(parseExplicitSessionFileLink('docs/My%20File-%E6%96%B9%E6%A1%88.md:17:2', { sessionRoot })).toEqual({
+                path: 'docs/My File-方案.md',
+                absolutePath: '/Users/kirilldubovitskiy/projects/happy/docs/My File-方案.md',
+                relativePath: 'docs/My File-方案.md',
+                withinSessionRoot: true,
+                line: 17,
+                column: 2,
+            });
+        });
+
+        it('preserves malformed percent encodings instead of throwing', () => {
+            expect(parseExplicitSessionFileLink('docs/bad%2name.md', { sessionRoot })).toMatchObject({
+                path: 'docs/bad%2name.md',
+                absolutePath: '/Users/kirilldubovitskiy/projects/happy/docs/bad%2name.md',
+            });
+        });
+
         it('normalizes absolute targets without imposing a session-root scope gate', () => {
             expect(parseExplicitSessionFileLink('/tmp/other/../notes.md:41:7', { sessionRoot })).toEqual({
                 path: '/tmp/notes.md',
@@ -110,9 +128,11 @@ describe('sessionFileLinks', () => {
 
         it('rejects external schemes and page-local targets', () => {
             expect(parseExplicitSessionFileLink('https://openai.com', { sessionRoot })).toBeNull();
+            expect(parseExplicitSessionFileLink('https%3A%2F%2Fopenai.com', { sessionRoot })).toBeNull();
             expect(parseExplicitSessionFileLink('mailto:test@example.com', { sessionRoot })).toBeNull();
             expect(parseExplicitSessionFileLink('data:text/plain,hello', { sessionRoot })).toBeNull();
             expect(parseExplicitSessionFileLink('#details', { sessionRoot })).toBeNull();
+            expect(parseExplicitSessionFileLink('%23details', { sessionRoot })).toBeNull();
             expect(parseExplicitSessionFileLink('?tab=details', { sessionRoot })).toBeNull();
         });
     });

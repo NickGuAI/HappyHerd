@@ -59,3 +59,4 @@ COMMANDER_AVATAR	accepted	feat(commanders): configure profile pictures	server/pa
 WORKSPACE_FILE_EDIT	accepted	fix(workspace): edit text files regardless of name	server/packages/happy-app/sources/utils/filePreview.test.ts
 WORKSPACE_LINKS	accepted	feat(workspace): open live links with viewer feedback	server/packages/happy-app/sources/components/WorkspaceLinkViewer.native.test.ts
 WORKSPACE_LINKS	accepted	fix(workspace): preserve viewer feedback intent	server/packages/happy-app/sources/components/WorkspaceLinkViewer.native.test.ts
+WORKSPACE_LINKS	accepted	fix(workspace): complete live link handoff	server/packages/happy-app/sources/components/WorkspaceLinkViewer.native.test.ts

@@ -3,7 +3,6 @@ import type { NormalizedMessage } from './typesRaw';
 import {
     buildAtomicLocalMessageBatch,
     commitAtomicLocalMessageBatch,
-    dispatchPreparedOutbox,
     hasCompleteRequiredAttachmentBatch,
     prepareEveryAttachment,
 } from './sendMessageLocalBatch';
@@ -63,20 +62,6 @@ describe('atomic local message batches', () => {
         ]);
     });
 
-    it('returns strict sends after scheduling the complete local outbox', async () => {
-        const invalidate = vi.fn();
-        const invalidateAndAwait = vi.fn();
-
-        await dispatchPreparedOutbox({
-            returnAfterLocalAcceptance: true,
-            invalidate,
-            invalidateAndAwait,
-        });
-
-        expect(invalidate).toHaveBeenCalledOnce();
-        expect(invalidateAndAwait).not.toHaveBeenCalled();
-    });
-
     it('does not append the outbox when the complete optimistic enqueue is rejected', () => {
         const batch = buildAtomicLocalMessageBatch([prepared('file-1')], prepared('text-1'));
         const enqueueOptimistic = vi.fn(() => {
@@ -94,17 +79,4 @@ describe('atomic local message batches', () => {
         expect(appendOutbox).not.toHaveBeenCalled();
     });
 
-    it('preserves the existing awaited delivery behavior for ordinary Chat sends', async () => {
-        const invalidate = vi.fn();
-        const invalidateAndAwait = vi.fn().mockResolvedValue(undefined);
-
-        await dispatchPreparedOutbox({
-            returnAfterLocalAcceptance: false,
-            invalidate,
-            invalidateAndAwait,
-        });
-
-        expect(invalidate).not.toHaveBeenCalled();
-        expect(invalidateAndAwait).toHaveBeenCalledOnce();
-    });
 });

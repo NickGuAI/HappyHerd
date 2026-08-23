@@ -354,6 +354,36 @@ describe('WorkspaceLinkViewer', () => {
         act(() => renderer.unmount());
     });
 
+    it('applies a top safe-area inset only when the full-screen route provides one', async () => {
+        mocks.getTree.mockResolvedValue({
+            success: true,
+            tree: { type: 'directory', name: 'work', path: '/work', children: [] },
+        });
+        let renderer!: ReactTestRenderer;
+        await act(async () => {
+            renderer = create(React.createElement(WorkspaceLinkViewer, {
+                reference,
+                headerTopInset: 47,
+                onFeedbackSent: vi.fn(),
+            }));
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        const insetLayout = renderer.root.findAllByType('View' as any)
+            .flatMap((node: any) => Array.isArray(node.props.style) ? node.props.style : [node.props.style])
+            .find((style: any) => style?.paddingTop === 47);
+        expect(insetLayout).toMatchObject({ minHeight: 111, paddingTop: 47 });
+        act(() => renderer.unmount());
+
+        const sidePanelRenderer = await renderViewer();
+        const sidePanelLayout = sidePanelRenderer.root.findAllByType('View' as any)
+            .flatMap((node: any) => Array.isArray(node.props.style) ? node.props.style : [node.props.style])
+            .find((style: any) => style?.paddingTop === 0 && style?.minHeight === 64);
+        expect(sidePanelLayout).toBeDefined();
+        act(() => sidePanelRenderer.unmount());
+    });
+
     it('describes an unknown linked-target read failure as a file or folder error', async () => {
         mocks.getTree.mockResolvedValue({ success: false, error: 'EIO: read failed' });
         const renderer = await renderViewer();
