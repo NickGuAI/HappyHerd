@@ -1,3 +1,5 @@
+import { normalizeMarkdownLinkDestination } from '@/utils/markdownLinkDestination';
+
 const HTTP_URL_PATTERN = /^https?:\/\//i;
 const SCHEME_RELATIVE_HTTP_URL_PATTERN = /^\/\/[^/\s]/;
 
@@ -6,8 +8,8 @@ export function isHttpMarkdownLink(url: string): boolean {
 }
 
 export function normalizeExternalMarkdownLink(url: string): string | null {
-    const trimmed = url.trim();
-    if (HTTP_URL_PATTERN.test(trimmed)) return trimmed;
-    if (SCHEME_RELATIVE_HTTP_URL_PATTERN.test(trimmed)) return `https:${trimmed}`;
+    const destination = normalizeMarkdownLinkDestination(url);
+    if (HTTP_URL_PATTERN.test(destination)) return destination;
+    if (SCHEME_RELATIVE_HTTP_URL_PATTERN.test(destination)) return `https:${destination}`;
     return null;
 }

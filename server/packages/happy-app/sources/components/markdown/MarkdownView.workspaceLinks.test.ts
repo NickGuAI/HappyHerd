@@ -142,12 +142,16 @@ describe('MarkdownView workspace-link opt-in', () => {
         });
     });
 
-    it('opens a scheme-relative web link as HTTPS instead of a machine path', () => {
+    it.each([
+        ['[web](//example.com/docs)', 'https://example.com/docs'],
+        ['[web](//example.com/docs "Docs")', 'https://example.com/docs'],
+        ['[web](<//example.com/docs>)', 'https://example.com/docs'],
+    ])('opens %s as an external HTTPS link instead of a machine path', (markdown, expectedUrl) => {
         mocks.renderedText.length = 0;
         mocks.resolveWorkspaceLink.mockClear();
         mocks.openExternalUrl.mockClear();
         renderToStaticMarkup(React.createElement(MarkdownView, {
-            markdown: '[web](//example.com/docs)',
+            markdown,
             sessionId: 'session-one',
             enableWorkspaceLinks: true,
         }));
@@ -155,7 +159,7 @@ describe('MarkdownView workspace-link opt-in', () => {
         const web = findText('web');
         expect(web?.accessibilityRole).toBe('link');
         web?.onPress();
-        expect(mocks.openExternalUrl).toHaveBeenCalledWith('https://example.com/docs');
+        expect(mocks.openExternalUrl).toHaveBeenCalledWith(expectedUrl);
         expect(mocks.resolveWorkspaceLink).not.toHaveBeenCalled();
     });
 });

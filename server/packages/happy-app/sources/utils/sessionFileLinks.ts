@@ -1,3 +1,5 @@
+import { normalizeMarkdownLinkDestination } from './markdownLinkDestination';
+
 export type SessionFileLink = {
     path: string;
     absolutePath: string;
@@ -120,21 +122,6 @@ function decodeMarkdownPath(value: string): string {
     } catch {
         return value;
     }
-}
-
-function stripMarkdownLinkTitle(value: string): string {
-    const trimmed = value.trim();
-    const titledTarget = trimmed.match(
-        /^(.*\S)\s+(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\((?:[^()\\]|\\.)*\))$/s,
-    );
-    return titledTarget?.[1] ?? trimmed;
-}
-
-function unwrapMarkdownLinkDestination(value: string): string {
-    const trimmed = value.trim();
-    return trimmed.startsWith('<') && trimmed.endsWith('>')
-        ? trimmed.slice(1, -1)
-        : trimmed;
 }
 
 function stripMarkdownUrlSuffix(value: string): string {
@@ -330,7 +317,7 @@ export function parseExplicitSessionFileLink(
     options?: { label?: string | null; sessionRoot?: string | null },
 ): SessionFileLink | null {
     const trimmedUrl = stripMarkdownUrlSuffix(
-        unwrapMarkdownLinkDestination(stripMarkdownLinkTitle(url)),
+        normalizeMarkdownLinkDestination(url),
     );
     if (
         !trimmedUrl
@@ -343,9 +330,7 @@ export function parseExplicitSessionFileLink(
     const parsedUrl = parseLineAndColumn(trimmedUrl);
     const decodedPath = decodeMarkdownPath(parsedUrl.path);
     if (
-        decodedPath.startsWith('#')
-        || decodedPath.startsWith('?')
-        || (!WINDOWS_ABSOLUTE_PATH.test(decodedPath) && URL_SCHEME.test(decodedPath))
+        !WINDOWS_ABSOLUTE_PATH.test(decodedPath) && URL_SCHEME.test(decodedPath)
     ) {
         return null;
     }

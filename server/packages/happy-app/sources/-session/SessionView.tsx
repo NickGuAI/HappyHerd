@@ -94,11 +94,10 @@ import {
 } from '@/sync/workspaceContext';
 import { buildWorkspaceAttachmentParams } from '@/utils/machineWorkspace';
 import { projectSessionQueue } from '@/sync/queueProjection';
-import { WorkspaceLinkViewer } from '@/components/WorkspaceLinkViewer';
+import { WorkspaceLinkSidePanel } from '@/components/WorkspaceLinkSidePanel';
 import {
     resolveActiveWorkspaceLinkPresentation,
     resolveWorkspaceLinkPresentation,
-    workspaceLinkViewerKey,
 } from '@/components/WorkspaceLinkViewerModel';
 import {
     preventWorkspaceLinkDismissWhileSending,
@@ -620,28 +619,18 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                 )}
             </View>
             {showWorkspaceLinkPanel && workspaceLinkRoute ? (
-                <View
-                    style={{
-                        width: Math.min(Math.max(Math.floor(windowWidth * 0.42), 360), 620),
-                        minWidth: 0,
-                        alignSelf: 'stretch',
-                        borderLeftWidth: StyleSheet.hairlineWidth,
-                        borderLeftColor: theme.colors.divider,
+                <WorkspaceLinkSidePanel
+                    reference={workspaceLinkRoute.params}
+                    windowWidth={windowWidth}
+                    onBack={() => setWorkspaceLinkRoute(null)}
+                    onFeedbackSendingChange={(sending) => {
+                        workspaceLinkFeedbackSendingRef.current = sending;
                     }}
-                >
-                    <WorkspaceLinkViewer
-                        key={workspaceLinkViewerKey(workspaceLinkRoute.params)}
-                        reference={workspaceLinkRoute.params}
-                        onBack={() => setWorkspaceLinkRoute(null)}
-                        onFeedbackSendingChange={(sending) => {
-                            workspaceLinkFeedbackSendingRef.current = sending;
-                        }}
-                        onFeedbackSent={(receipt) => {
-                            setWorkspaceLinkRoute(null);
-                            setFocusMessageId(receipt.localId);
-                        }}
-                    />
-                </View>
+                    onFeedbackSent={(receipt) => {
+                        setWorkspaceLinkRoute(null);
+                        setFocusMessageId(receipt.localId);
+                    }}
+                />
             ) : (
                 <Animated.View style={[{ minWidth: 0, alignSelf: 'stretch' }, animatedSidebarStyle]}>
                     <View style={{ width: sidebarWidth, flex: 1 }}>

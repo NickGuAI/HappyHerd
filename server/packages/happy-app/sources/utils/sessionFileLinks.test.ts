@@ -184,14 +184,24 @@ describe('sessionFileLinks', () => {
                 });
         });
 
-        it('rejects external schemes and page-local targets', () => {
+        it('rejects external schemes and raw page-local targets', () => {
             expect(parseExplicitSessionFileLink('https://openai.com', { sessionRoot })).toBeNull();
             expect(parseExplicitSessionFileLink('https%3A%2F%2Fopenai.com', { sessionRoot })).toBeNull();
             expect(parseExplicitSessionFileLink('mailto:test@example.com', { sessionRoot })).toBeNull();
             expect(parseExplicitSessionFileLink('data:text/plain,hello', { sessionRoot })).toBeNull();
             expect(parseExplicitSessionFileLink('#details', { sessionRoot })).toBeNull();
-            expect(parseExplicitSessionFileLink('%23details', { sessionRoot })).toBeNull();
             expect(parseExplicitSessionFileLink('?tab=details', { sessionRoot })).toBeNull();
+        });
+
+        it('preserves encoded leading query and fragment characters as filenames', () => {
+            expect(parseExplicitSessionFileLink('%23details', { sessionRoot })).toMatchObject({
+                path: '#details',
+                absolutePath: '/Users/kirilldubovitskiy/projects/happy/#details',
+            });
+            expect(parseExplicitSessionFileLink('%3Ftab', { sessionRoot })).toMatchObject({
+                path: '?tab',
+                absolutePath: '/Users/kirilldubovitskiy/projects/happy/?tab',
+            });
         });
     });
 

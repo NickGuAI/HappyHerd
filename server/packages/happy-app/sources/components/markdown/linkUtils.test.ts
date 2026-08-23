@@ -17,6 +17,9 @@ describe('isHttpMarkdownLink', () => {
 
     it('normalizes scheme-relative web links without claiming local paths', () => {
         expect(normalizeExternalMarkdownLink('//example.com/docs')).toBe('https://example.com/docs');
+        expect(normalizeExternalMarkdownLink('//example.com/docs "Docs"')).toBe('https://example.com/docs');
+        expect(normalizeExternalMarkdownLink('<//example.com/docs>')).toBe('https://example.com/docs');
+        expect(normalizeExternalMarkdownLink('<https://example.com/docs> "Docs"')).toBe('https://example.com/docs');
         expect(normalizeExternalMarkdownLink(' HTTPS://example.com/docs ')).toBe('HTTPS://example.com/docs');
         expect(normalizeExternalMarkdownLink('///workspace/file.ts')).toBeNull();
         expect(normalizeExternalMarkdownLink('/workspace/file.ts')).toBeNull();
