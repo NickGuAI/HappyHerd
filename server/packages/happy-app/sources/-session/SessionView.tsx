@@ -95,6 +95,7 @@ import { buildWorkspaceAttachmentParams } from '@/utils/machineWorkspace';
 import { projectSessionQueue } from '@/sync/queueProjection';
 import { WorkspaceLinkViewer } from '@/components/WorkspaceLinkViewer';
 import {
+    resolveActiveWorkspaceLinkPresentation,
     resolveWorkspaceLinkPresentation,
     workspaceLinkViewerKey,
 } from '@/components/WorkspaceLinkViewerModel';
@@ -129,6 +130,10 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         runningOnMac: isRunningOnMac(),
     });
     const [workspaceLinkRoute, setWorkspaceLinkRoute] = React.useState<WorkspaceLinkRoute | null>(null);
+    const activeWorkspaceLinkPresentation = resolveActiveWorkspaceLinkPresentation(
+        workspaceLinkPresentation,
+        workspaceLinkRoute !== null,
+    );
     const workspaceLinkFeedbackSendingRef = React.useRef(false);
     const [focusMessageId, setFocusMessageId] = React.useState<string | undefined>(props.focusMessageId);
 
@@ -151,13 +156,6 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     }, [props.focusMessageId]);
 
     React.useEffect(() => {
-        if (!workspaceLinkRoute || workspaceLinkPresentation !== 'full-screen') return;
-        const route = workspaceLinkRoute;
-        setWorkspaceLinkRoute(null);
-        router.push(route);
-    }, [router, workspaceLinkPresentation, workspaceLinkRoute]);
-
-    React.useEffect(() => {
         setHeaderBackdropVisible(false);
     }, [sessionId]);
 
@@ -168,7 +166,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         && (!session || (rigCanBrowseFiles(session.metadata) && rigCanUseShell(session.metadata)))
         && isDataReady && !!session;
 
-    const showWorkspaceLinkPanel = workspaceLinkPresentation === 'side-panel' && workspaceLinkRoute !== null;
+    const showWorkspaceLinkPanel = activeWorkspaceLinkPresentation === 'side-panel' && workspaceLinkRoute !== null;
     const showSidebar = canShowSidebar && !zenMode && !showWorkspaceLinkPanel;
 
     // Match left sidebar width: 30% of window, clamped to 250–360px
@@ -545,7 +543,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
 
     const sessionContent = (
         <WorkspaceLinkPressContext.Provider
-            value={workspaceLinkPresentation === 'side-panel' ? handleWorkspaceLinkPress : undefined}
+            value={activeWorkspaceLinkPresentation === 'side-panel' ? handleWorkspaceLinkPress : undefined}
         >
             {mainContent}
         </WorkspaceLinkPressContext.Provider>

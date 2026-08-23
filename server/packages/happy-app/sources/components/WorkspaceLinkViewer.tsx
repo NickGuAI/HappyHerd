@@ -103,6 +103,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
     const [headerRightSlot, setHeaderRightSlot] = React.useState<React.ReactNode>(null);
     const [feedbackSending, setFeedbackSending] = React.useState(false);
     const activeFilePathRef = React.useRef<string | null>(null);
+    const activeFileReadGenerationRef = React.useRef(0);
 
     const handleFeedbackSendingChange = React.useCallback((sending: boolean) => {
         setFeedbackSending(sending);
@@ -111,6 +112,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
 
     const loadDirectory = React.useCallback(async (directoryPath: string, selectedFile: string | null = null) => {
         activeFilePathRef.current = selectedFile;
+        activeFileReadGenerationRef.current += 1;
         setHeaderRightSlot(null);
         setState({ status: 'loading' });
         const response = await machineGetDirectoryTree(reference.machineId, directoryPath, 1);
@@ -147,6 +149,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
     React.useEffect(() => {
         let cancelled = false;
         activeFilePathRef.current = null;
+        activeFileReadGenerationRef.current += 1;
         setHeaderRightSlot(null);
 
         if (!isDataReady) {
@@ -180,6 +183,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
             );
             if (target.kind === 'directory') {
                 activeFilePathRef.current = null;
+                activeFileReadGenerationRef.current += 1;
                 setState({
                     status: 'ready',
                     directoryPath: target.absolutePath,
@@ -198,6 +202,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
             const parentTree = parentResponse.tree;
             if (!parentResponse.success || !parentTree || parentTree.type !== 'directory') {
                 activeFilePathRef.current = target.absolutePath;
+                activeFileReadGenerationRef.current += 1;
                 setState({
                     status: 'ready',
                     directoryPath: target.directoryPath,
@@ -212,6 +217,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
                 return;
             }
             activeFilePathRef.current = target.absolutePath;
+            activeFileReadGenerationRef.current += 1;
             setState({
                 status: 'ready',
                 directoryPath: parentTree.path,
@@ -245,8 +251,13 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
     }, [loadDirectory, state]);
 
     const readFile = React.useCallback(async (path: string) => {
+        const readGeneration = ++activeFileReadGenerationRef.current;
         const response = await machineReadFile(reference.machineId, path);
-        if (!response.success && activeFilePathRef.current === path) {
+        if (
+            !response.success
+            && activeFilePathRef.current === path
+            && activeFileReadGenerationRef.current === readGeneration
+        ) {
             setHeaderRightSlot(null);
             setState({
                 status: 'error',
@@ -268,6 +279,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
 
     const selectFile = React.useCallback((path: string) => {
         activeFilePathRef.current = path;
+        activeFileReadGenerationRef.current += 1;
         setHeaderRightSlot(null);
         setState((current) => current.status === 'ready'
             ? { ...current, selectedFile: path }
@@ -276,6 +288,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
 
     const showDirectory = React.useCallback(() => {
         activeFilePathRef.current = null;
+        activeFileReadGenerationRef.current += 1;
         setHeaderRightSlot(null);
         setState((current) => current.status === 'ready'
             ? { ...current, selectedFile: null }

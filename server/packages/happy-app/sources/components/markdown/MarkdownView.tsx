@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { MermaidRenderer } from './MermaidRenderer';
 import { t } from '@/text';
-import { isHttpMarkdownLink } from './linkUtils';
+import { normalizeExternalMarkdownLink } from './linkUtils';
 import { openExternalUrl } from '@/utils/openExternalUrl';
 import {
     resolveMarkdownWorkspaceLinkRoute,
@@ -62,8 +62,9 @@ export const MarkdownView = React.memo((props: MarkdownViewProps) => {
     const workspaceLinkPress = props.onWorkspaceLinkPress ?? contextWorkspaceLinkPress;
 
     const resolveLinkTarget = React.useCallback((url: string, label: string): MarkdownLinkTarget | null => {
-        if (isHttpMarkdownLink(url)) {
-            return { kind: 'external', url };
+        const externalUrl = normalizeExternalMarkdownLink(url);
+        if (externalUrl) {
+            return { kind: 'external', url: externalUrl };
         }
 
         if (!props.enableWorkspaceLinks) {

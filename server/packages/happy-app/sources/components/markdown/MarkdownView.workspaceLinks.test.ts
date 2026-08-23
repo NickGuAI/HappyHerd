@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
             absolutePath: '/workspace/README.md',
         },
     })),
+    openExternalUrl: vi.fn(),
 }));
 
 vi.mock('react-native', async () => {
@@ -98,7 +99,7 @@ vi.mock('./MermaidRenderer', async () => {
     return { MermaidRenderer: (props: any) => ReactModule.createElement('MermaidRenderer', props) };
 });
 vi.mock('@/text', () => ({ t: (key: string) => key }));
-vi.mock('@/utils/openExternalUrl', () => ({ openExternalUrl: vi.fn() }));
+vi.mock('@/utils/openExternalUrl', () => ({ openExternalUrl: mocks.openExternalUrl }));
 vi.mock('@/utils/markdownWorkspaceLink', () => ({
     resolveMarkdownWorkspaceLinkRoute: mocks.resolveWorkspaceLink,
 }));
@@ -139,5 +140,22 @@ describe('MarkdownView workspace-link opt-in', () => {
             originSessionId: 'session-one',
             metadata: { machineId: 'machine-one', path: '/workspace' },
         });
+    });
+
+    it('opens a scheme-relative web link as HTTPS instead of a machine path', () => {
+        mocks.renderedText.length = 0;
+        mocks.resolveWorkspaceLink.mockClear();
+        mocks.openExternalUrl.mockClear();
+        renderToStaticMarkup(React.createElement(MarkdownView, {
+            markdown: '[web](//example.com/docs)',
+            sessionId: 'session-one',
+            enableWorkspaceLinks: true,
+        }));
+
+        const web = findText('web');
+        expect(web?.accessibilityRole).toBe('link');
+        web?.onPress();
+        expect(mocks.openExternalUrl).toHaveBeenCalledWith('https://example.com/docs');
+        expect(mocks.resolveWorkspaceLink).not.toHaveBeenCalled();
     });
 });

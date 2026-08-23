@@ -16,10 +16,61 @@ export function hasCompleteRequiredAttachmentBatch(args: {
         || args.requestedCount === args.effectiveCount;
 }
 
-export function hasServerAcceptanceBarrier(
-    messages: readonly { retainUntilServerAccepted?: boolean }[],
-): boolean {
-    return messages.some((message) => message.retainUntilServerAccepted === true);
+export type OutboxBatchPolicy = 'background-fail-fast' | 'retain-until-server-accepted';
+
+export type OutboxBatchRecord = {
+    batchId: string;
+    batchPolicy: OutboxBatchPolicy;
+};
+
+type OutboxLocalRecord = {
+    localId: string;
+};
+
+export function partitionOutboxByBatchPolicy<T extends OutboxBatchRecord>(
+    messages: readonly T[],
+): { failFast: T[]; retained: T[] } {
+    const retainedBatchIds = new Set(
+        messages
+            .filter((message) => message.batchPolicy === 'retain-until-server-accepted')
+            .map((message) => message.batchId),
+    );
+    const failFast: T[] = [];
+    const retained: T[] = [];
+    for (const message of messages) {
+        (retainedBatchIds.has(message.batchId) ? retained : failFast).push(message);
+    }
+    return { failFast, retained };
+}
+
+export function removeOutboxBatchesInPlace<T extends OutboxBatchRecord>(
+    messages: T[],
+    batchIds: ReadonlySet<string>,
+): void {
+    messages.splice(
+        0,
+        messages.length,
+        ...messages.filter((message) => !batchIds.has(message.batchId)),
+    );
+}
+
+export function removeOutboxRecordsInPlace<T extends OutboxLocalRecord>(
+    messages: T[],
+    localIds: ReadonlySet<string>,
+): void {
+    messages.splice(
+        0,
+        messages.length,
+        ...messages.filter((message) => !localIds.has(message.localId)),
+    );
+}
+
+export function isTerminalOutboxRejectionStatus(status: number): boolean {
+    return status >= 400
+        && status < 500
+        && status !== 408
+        && status !== 425
+        && status !== 429;
 }
 
 export async function prepareEveryAttachment<TAttachment, TPrepared>(

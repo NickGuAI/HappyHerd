@@ -150,6 +150,24 @@ describe('sessionFileLinks', () => {
             });
         });
 
+        it('removes raw query and fragment syntax before path decoding without losing coordinates', () => {
+            expect(parseExplicitSessionFileLink('docs/README.md:44:2?view=source#install', { sessionRoot }))
+                .toMatchObject({
+                    path: 'docs/README.md',
+                    absolutePath: '/Users/kirilldubovitskiy/projects/happy/docs/README.md',
+                    line: 44,
+                    column: 2,
+                });
+        });
+
+        it('preserves percent-encoded query and fragment characters inside filenames', () => {
+            expect(parseExplicitSessionFileLink('docs/README%23draft%3Fcopy.md', { sessionRoot }))
+                .toMatchObject({
+                    path: 'docs/README#draft?copy.md',
+                    absolutePath: '/Users/kirilldubovitskiy/projects/happy/docs/README#draft?copy.md',
+                });
+        });
+
         it('rejects external schemes and page-local targets', () => {
             expect(parseExplicitSessionFileLink('https://openai.com', { sessionRoot })).toBeNull();
             expect(parseExplicitSessionFileLink('https%3A%2F%2Fopenai.com', { sessionRoot })).toBeNull();

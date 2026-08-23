@@ -365,6 +365,47 @@ describe('WorkspaceLinkViewer', () => {
         act(() => renderer.unmount());
     });
 
+    it('ignores an older failure after reopening the same file and completing a newer read', async () => {
+        mocks.getTree.mockResolvedValue({
+            success: true,
+            tree: {
+                type: 'directory',
+                name: 'report.md',
+                path: '/work/report.md',
+                children: [{ type: 'file', name: 'notes.txt', path: '/work/report.md/notes.txt' }],
+            },
+        });
+        const pendingReads: Array<{
+            resolve: (response: { success: boolean; content?: string; error?: string }) => void;
+        }> = [];
+        mocks.readFile.mockImplementation(() => new Promise((resolve) => {
+            pendingReads.push({ resolve });
+        }));
+        const renderer = await renderViewer();
+
+        act(() => renderer.root.findByProps({ accessibilityLabel: 'common.fileViewer: notes.txt' }).props.onPress());
+        const firstRead = renderer.root.findByType('FileContentPanel' as any).props
+            .readFile('/work/report.md/notes.txt');
+        act(() => renderer.root.findByProps({ accessibilityLabel: 'workspace.mobileBackToFiles' }).props.onPress());
+        act(() => renderer.root.findByProps({ accessibilityLabel: 'common.fileViewer: notes.txt' }).props.onPress());
+        const secondRead = renderer.root.findByType('FileContentPanel' as any).props
+            .readFile('/work/report.md/notes.txt');
+
+        await act(async () => {
+            pendingReads[1]!.resolve({ success: true, content: 'bmV3' });
+            await secondRead;
+            pendingReads[0]!.resolve({ success: false, error: 'EIO: stale read failed' });
+            await firstRead;
+        });
+
+        expect(renderer.root.findByType('FileContentPanel' as any).props.filePath)
+            .toBe('/work/report.md/notes.txt');
+        const text = renderer.root.findAllByType('Text' as any).map((node: any) => node.props.children);
+        expect(text).not.toContain('workspace.linkReadErrorTitle');
+        expect(text).not.toContain('EIO: stale read failed');
+        act(() => renderer.unmount());
+    });
+
     it('blocks the Viewer Back control while strict feedback is pending', async () => {
         mocks.getTree.mockResolvedValue({
             success: true,

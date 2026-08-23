@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
     classifyWorkspaceLinkTree,
     findPinnedWorkspaceLinkMachine,
+    resolveActiveWorkspaceLinkPresentation,
     resolveWorkspaceLinkPresentation,
     workspaceLinkViewerKey,
 } from './WorkspaceLinkViewerModel';
@@ -13,6 +14,12 @@ describe('WorkspaceLinkViewer model', () => {
         expect(resolveWorkspaceLinkPresentation({ width: 899, platform: 'web', runningOnMac: false })).toBe('full-screen');
         expect(resolveWorkspaceLinkPresentation({ width: 1200, platform: 'ios', runningOnMac: false })).toBe('full-screen');
         expect(resolveWorkspaceLinkPresentation({ width: 900, platform: 'ios', runningOnMac: true })).toBe('side-panel');
+    });
+
+    it('keeps an open desktop Viewer mounted when the viewport crosses the mobile breakpoint', () => {
+        expect(resolveActiveWorkspaceLinkPresentation('full-screen', true)).toBe('side-panel');
+        expect(resolveActiveWorkspaceLinkPresentation('full-screen', false)).toBe('full-screen');
+        expect(resolveActiveWorkspaceLinkPresentation('side-panel', true)).toBe('side-panel');
     });
 
     it('pins the requested machine and never falls back to another online machine', () => {

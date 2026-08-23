@@ -4,8 +4,10 @@ import {
     buildAtomicLocalMessageBatch,
     commitAtomicLocalMessageBatch,
     hasCompleteRequiredAttachmentBatch,
-    hasServerAcceptanceBarrier,
+    isTerminalOutboxRejectionStatus,
+    partitionOutboxByBatchPolicy,
     prepareEveryAttachment,
+    removeOutboxRecordsInPlace,
 } from './sendMessageLocalBatch';
 
 function prepared(localId: string): {
@@ -45,15 +47,51 @@ describe('atomic local message batches', () => {
         expect(prepare).toHaveBeenCalledTimes(2);
     });
 
-    it('protects a strict batch from background fail-fast cleanup until server acceptance', () => {
-        expect(hasServerAcceptanceBarrier([
-            { retainUntilServerAccepted: true },
-        ])).toBe(true);
-        expect(hasServerAcceptanceBarrier([
-            {},
-            { retainUntilServerAccepted: true },
-        ])).toBe(true);
-        expect(hasServerAcceptanceBarrier([{}, {}])).toBe(false);
+    it('partitions background cleanup by batch when strict and ordinary sends share a session', () => {
+        const strictAttachment = {
+            localId: 'strict-attachment',
+            batchId: 'strict-text',
+            batchPolicy: 'background-fail-fast' as const,
+        };
+        const strictText = {
+            localId: 'strict-text',
+            batchId: 'strict-text',
+            batchPolicy: 'retain-until-server-accepted' as const,
+        };
+        const ordinaryText = {
+            localId: 'ordinary-text',
+            batchId: 'ordinary-text',
+            batchPolicy: 'background-fail-fast' as const,
+        };
+
+        expect(partitionOutboxByBatchPolicy([
+            strictAttachment,
+            strictText,
+            ordinaryText,
+        ])).toEqual({
+            failFast: [ordinaryText],
+            retained: [strictAttachment, strictText],
+        });
+    });
+
+    it('classifies only non-retryable client responses as terminal outbox rejection', () => {
+        expect(isTerminalOutboxRejectionStatus(400)).toBe(true);
+        expect(isTerminalOutboxRejectionStatus(404)).toBe(true);
+        expect(isTerminalOutboxRejectionStatus(422)).toBe(true);
+        expect(isTerminalOutboxRejectionStatus(408)).toBe(false);
+        expect(isTerminalOutboxRejectionStatus(425)).toBe(false);
+        expect(isTerminalOutboxRejectionStatus(429)).toBe(false);
+        expect(isTerminalOutboxRejectionStatus(500)).toBe(false);
+    });
+
+    it('removes only records accepted from a snapshot after mixed-session cleanup reorders pending work', () => {
+        const strictAccepted = { localId: 'strict-a', batchId: 'strict-a', batchPolicy: 'retain-until-server-accepted' as const };
+        const laterStrict = { localId: 'strict-c', batchId: 'strict-c', batchPolicy: 'retain-until-server-accepted' as const };
+        const pending = [strictAccepted, laterStrict];
+
+        removeOutboxRecordsInPlace(pending, new Set(['strict-a', 'ordinary-b']));
+
+        expect(pending).toEqual([laterStrict]);
     });
 
     it('assembles every file and the owning text as one ordered optimistic/outbox batch', () => {

@@ -45,6 +45,13 @@ export function resolveWorkspaceLinkPresentation(input: {
         : 'full-screen';
 }
 
+export function resolveActiveWorkspaceLinkPresentation(
+    requested: WorkspaceLinkPresentation,
+    hasOpenSidePanel: boolean,
+): WorkspaceLinkPresentation {
+    return hasOpenSidePanel ? 'side-panel' : requested;
+}
+
 export function findPinnedWorkspaceLinkMachine<T extends { id: string }>(
     machines: readonly T[],
     machineId: string,
