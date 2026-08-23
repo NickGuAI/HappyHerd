@@ -194,6 +194,45 @@ describe('sessionFileLinks', () => {
                 });
         });
 
+        it('preserves decoded backslashes as filename data on POSIX machines', () => {
+            expect(parseExplicitSessionFileLink('notes%5Cfinal.md', {
+                sessionRoot: '/srv/projects/happy',
+                platform: 'linux',
+            })).toEqual({
+                path: 'notes\\final.md',
+                absolutePath: '/srv/projects/happy/notes\\final.md',
+                relativePath: 'notes\\final.md',
+                withinSessionRoot: true,
+                line: null,
+                column: null,
+            });
+            expect(parseExplicitSessionFileLink('dir%5C..%5Cfile.md', {
+                sessionRoot: '/srv/projects/happy',
+                platform: 'darwin',
+            })).toMatchObject({
+                path: 'dir\\..\\file.md',
+                absolutePath: '/srv/projects/happy/dir\\..\\file.md',
+            });
+            expect(parseExplicitSessionFileLink('C%3A/docs%5Cnotes.md', {
+                sessionRoot: '/srv/projects/happy',
+                platform: 'linux',
+            })).toMatchObject({
+                path: 'C:/docs\\notes.md',
+                absolutePath: '/srv/projects/happy/C:/docs\\notes.md',
+            });
+        });
+
+        it('continues to treat decoded backslashes as separators on Windows machines', () => {
+            expect(parseExplicitSessionFileLink('notes%5Cfinal.md', {
+                sessionRoot: 'C:\\srv\\happy',
+                platform: 'win32',
+            })).toMatchObject({
+                path: 'notes/final.md',
+                absolutePath: 'C:/srv/happy/notes/final.md',
+                relativePath: 'notes/final.md',
+            });
+        });
+
         it('rejects external schemes and raw page-local targets', () => {
             expect(parseExplicitSessionFileLink('https://openai.com', { sessionRoot })).toBeNull();
             expect(parseExplicitSessionFileLink('https%3A%2F%2Fopenai.com', { sessionRoot })).toBeNull();

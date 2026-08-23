@@ -63,9 +63,12 @@ function machineName(machine: Machine | null, machineId: string): string {
     return machine?.metadata?.displayName || machine?.metadata?.host || machineId;
 }
 
-function pathName(path: string): string {
-    const normalized = path.replace(/[\\/]+$/, '');
-    return normalized.split(/[\\/]/).pop() || path;
+function pathName(path: string, platform?: string): string {
+    const usesWindowsSeparators = platform == null || platform === 'win32';
+    const normalized = usesWindowsSeparators
+        ? path.replace(/[\\/]+$/, '')
+        : path.replace(/\/+$/, '');
+    return (usesWindowsSeparators ? normalized.split(/[\\/]/) : normalized.split('/')).pop() || path;
 }
 
 function errorCopy(kind: WorkspaceLinkErrorKind): { title: string; description: string } {
@@ -104,6 +107,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
     const [feedbackSending, setFeedbackSending] = React.useState(false);
     const activeFilePathRef = React.useRef<string | null>(null);
     const activeFileReadGenerationRef = React.useRef(0);
+    const activeDirectoryReadGenerationRef = React.useRef(0);
 
     const handleFeedbackSendingChange = React.useCallback((sending: boolean) => {
         setFeedbackSending(sending);
@@ -111,11 +115,26 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
     }, [onFeedbackSendingChange]);
 
     const loadDirectory = React.useCallback(async (directoryPath: string, selectedFile: string | null = null) => {
+        const directoryReadGeneration = ++activeDirectoryReadGenerationRef.current;
         activeFilePathRef.current = selectedFile;
         activeFileReadGenerationRef.current += 1;
         setHeaderRightSlot(null);
         setState({ status: 'loading' });
-        const response = await machineGetDirectoryTree(reference.machineId, directoryPath, 1);
+        let response: Awaited<ReturnType<typeof machineGetDirectoryTree>>;
+        try {
+            response = await machineGetDirectoryTree(reference.machineId, directoryPath, 1);
+        } catch (error: unknown) {
+            if (activeDirectoryReadGenerationRef.current !== directoryReadGeneration) return;
+            const detail = error instanceof Error ? error.message : String(error);
+            setState({
+                status: 'error',
+                kind: classifyWorkspaceDirectoryError(detail, machine ? isMachineOnline(machine) : false),
+                detail,
+                retryTarget: { kind: 'directory', directoryPath },
+            });
+            return;
+        }
+        if (activeDirectoryReadGenerationRef.current !== directoryReadGeneration) return;
         if (!response.success || !response.tree) {
             setState({
                 status: 'error',
@@ -148,26 +167,33 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
 
     React.useEffect(() => {
         let cancelled = false;
+        const directoryReadGeneration = ++activeDirectoryReadGenerationRef.current;
+        const isCurrentDirectoryRead = () => !cancelled
+            && activeDirectoryReadGenerationRef.current === directoryReadGeneration;
+        const cancelDirectoryRead = () => {
+            cancelled = true;
+            activeDirectoryReadGenerationRef.current += 1;
+        };
         activeFilePathRef.current = null;
         activeFileReadGenerationRef.current += 1;
         setHeaderRightSlot(null);
 
         if (!isDataReady) {
             setState({ status: 'loading' });
-            return () => { cancelled = true; };
+            return cancelDirectoryRead;
         }
         if (!machine) {
             setState({ status: 'error', kind: 'machine-missing', retryTarget: { kind: 'reference' } });
-            return () => { cancelled = true; };
+            return cancelDirectoryRead;
         }
         if (!isMachineOnline(machine)) {
             setState({ status: 'error', kind: 'offline', retryTarget: { kind: 'reference' } });
-            return () => { cancelled = true; };
+            return cancelDirectoryRead;
         }
 
         setState({ status: 'loading' });
         void machineGetDirectoryTree(reference.machineId, reference.absolutePath, 1).then(async (response) => {
-            if (cancelled) return;
+            if (!isCurrentDirectoryRead()) return;
             if (!response.success || !response.tree) {
                 setState({
                     status: 'error',
@@ -198,7 +224,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
                 target.directoryPath,
                 1,
             );
-            if (cancelled) return;
+            if (!isCurrentDirectoryRead()) return;
             const parentTree = parentResponse.tree;
             if (!parentResponse.success || !parentTree || parentTree.type !== 'directory') {
                 activeFilePathRef.current = target.absolutePath;
@@ -208,7 +234,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
                     directoryPath: target.directoryPath,
                     tree: {
                         type: 'directory',
-                        name: pathName(target.directoryPath),
+                        name: pathName(target.directoryPath, machine.metadata?.platform),
                         path: target.directoryPath,
                         children: [response.tree],
                     },
@@ -225,7 +251,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
                 selectedFile: target.absolutePath,
             });
         }).catch((error: unknown) => {
-            if (cancelled) return;
+            if (!isCurrentDirectoryRead()) return;
             const detail = error instanceof Error ? error.message : String(error);
             setState({
                 status: 'error',
@@ -235,7 +261,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
             });
         });
 
-        return () => { cancelled = true; };
+        return cancelDirectoryRead;
     }, [isDataReady, machine?.active, machine?.id, reference.absolutePath, reference.machineId, revision]);
 
     const retry = React.useCallback(() => {
@@ -364,7 +390,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
                 ) : null}
                 <View style={styles.headerCopy}>
                     <Text style={[styles.title, { color: theme.colors.text }]} numberOfLines={1}>
-                        {pathName(reference.absolutePath)}
+                        {pathName(reference.absolutePath, machine?.metadata?.platform)}
                     </Text>
                     <Text style={[styles.machine, { color: theme.colors.textSecondary }]} numberOfLines={1}>
                         {machineName(machine, reference.machineId)}

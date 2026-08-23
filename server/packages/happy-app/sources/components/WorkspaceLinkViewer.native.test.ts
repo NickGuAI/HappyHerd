@@ -201,6 +201,43 @@ describe('WorkspaceLinkViewer', () => {
         act(() => renderer.unmount());
     });
 
+    it('preserves a POSIX filename backslash in the selected path and header', async () => {
+        const posixReference = { ...reference, absolutePath: '/work/notes\\final.md' };
+        mocks.getTree.mockImplementation(async (_machineId: string, path: string) => {
+            if (path === posixReference.absolutePath) {
+                return {
+                    success: true,
+                    tree: { type: 'file', name: 'notes\\final.md', path },
+                };
+            }
+            return {
+                success: true,
+                tree: {
+                    type: 'directory',
+                    name: 'work',
+                    path: '/work',
+                    children: [{ type: 'file', name: 'notes\\final.md', path: posixReference.absolutePath }],
+                },
+            };
+        });
+        let renderer!: ReactTestRenderer;
+        await act(async () => {
+            renderer = create(React.createElement(WorkspaceLinkViewer, {
+                reference: posixReference,
+                onFeedbackSent: vi.fn(),
+            }));
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        expect(renderer.root.findByType('FileContentPanel' as any).props.filePath)
+            .toBe('/work/notes\\final.md');
+        const text = renderer.root.findAllByType('Text' as any).map((node: any) => node.props.children);
+        expect(text).toContain('notes\\final.md');
+        expect(text).not.toContain('final.md');
+        act(() => renderer.unmount());
+    });
+
     it('keeps the exact folder navigable and opens child files without changing the feedback reference', async () => {
         mocks.getTree.mockImplementation(async (_machineId: string, path: string) => {
             if (path === '/work/report.md') {
@@ -249,6 +286,115 @@ describe('WorkspaceLinkViewer', () => {
         expect(mocks.getTree).toHaveBeenLastCalledWith('owner-machine', '/work/report.md/nested', 1);
         text = renderer.root.findAllByType('Text' as any).map((node: any) => node.props.children);
         expect(text).toContain('deep.txt');
+        act(() => renderer.unmount());
+    });
+
+    it('ignores an older directory response after a newer navigation wins', async () => {
+        let finishFirst!: (response: any) => void;
+        let finishSecond!: (response: any) => void;
+        mocks.getTree.mockImplementation((_machineId: string, path: string) => {
+            if (path === '/work/report.md') {
+                return Promise.resolve({
+                    success: true,
+                    tree: {
+                        type: 'directory',
+                        name: 'report.md',
+                        path,
+                        children: [
+                            { type: 'directory', name: 'first', path: `${path}/first` },
+                            { type: 'directory', name: 'second', path: `${path}/second` },
+                        ],
+                    },
+                });
+            }
+            return new Promise((resolve) => {
+                if (path.endsWith('/first')) finishFirst = resolve;
+                if (path.endsWith('/second')) finishSecond = resolve;
+            });
+        });
+        const renderer = await renderViewer();
+        const directoryRows = renderer.root.findAllByType('Pressable' as any)
+            .filter((node: any) => node.props.accessibilityLabel === 'uiCopy.openFolderValue');
+        expect(directoryRows).toHaveLength(2);
+
+        act(() => {
+            directoryRows[0]!.props.onPress();
+            directoryRows[1]!.props.onPress();
+        });
+        await act(async () => {
+            finishSecond({
+                success: true,
+                tree: {
+                    type: 'directory',
+                    name: 'second',
+                    path: '/work/report.md/second',
+                    children: [{ type: 'file', name: 'newer.txt', path: '/work/report.md/second/newer.txt' }],
+                },
+            });
+            await Promise.resolve();
+        });
+        await act(async () => {
+            finishFirst({
+                success: true,
+                tree: {
+                    type: 'directory',
+                    name: 'first',
+                    path: '/work/report.md/first',
+                    children: [{ type: 'file', name: 'stale.txt', path: '/work/report.md/first/stale.txt' }],
+                },
+            });
+            await Promise.resolve();
+        });
+
+        const text = renderer.root.findAllByType('Text' as any).map((node: any) => node.props.children);
+        expect(text).toContain('/work/report.md/second');
+        expect(text).toContain('newer.txt');
+        expect(text).not.toContain('stale.txt');
+        act(() => renderer.unmount());
+    });
+
+    it('keeps the offline state when a superseded directory read returns late', async () => {
+        let finishChild!: (response: any) => void;
+        mocks.getTree.mockImplementation((_machineId: string, path: string) => {
+            if (path === '/work/report.md') {
+                return Promise.resolve({
+                    success: true,
+                    tree: {
+                        type: 'directory',
+                        name: 'report.md',
+                        path,
+                        children: [{ type: 'directory', name: 'child', path: `${path}/child` }],
+                    },
+                });
+            }
+            return new Promise((resolve) => { finishChild = resolve; });
+        });
+        const renderer = await renderViewer();
+        act(() => renderer.root.findByProps({ accessibilityLabel: 'uiCopy.openFolderValue' }).props.onPress());
+
+        mocks.machines = [{
+            id: 'owner-machine',
+            active: false,
+            metadata: { displayName: 'Owner Machine', platform: 'linux' },
+        }];
+        await act(async () => {
+            renderer.update(React.createElement(WorkspaceLinkViewer, {
+                reference,
+                onFeedbackSent: vi.fn(),
+            }));
+            await Promise.resolve();
+        });
+        await act(async () => {
+            finishChild({
+                success: false,
+                error: 'EIO: stale directory read failed',
+            });
+            await Promise.resolve();
+        });
+
+        const text = renderer.root.findAllByType('Text' as any).map((node: any) => node.props.children);
+        expect(text).toContain('workspace.offlineTitle');
+        expect(text).not.toContain('EIO: stale directory read failed');
         act(() => renderer.unmount());
     });
 

@@ -8,6 +8,7 @@ describe('markdownWorkspaceLink', () => {
     const metadata = {
         machineId: 'machine-origin',
         path: '/srv/projects/happy',
+        os: 'linux',
     };
 
     it('builds typed route params without encoding special path names', () => {
@@ -83,6 +84,22 @@ describe('markdownWorkspaceLink', () => {
                 absolutePath: '/srv/projects/happy/notes:final.md',
                 line: '17',
                 column: '2',
+            },
+        });
+    });
+
+    it('preserves a percent-encoded POSIX filename backslash from session OS provenance', () => {
+        expect(resolveMarkdownWorkspaceLinkRoute({
+            url: 'notes%5Cfinal.md',
+            originSessionId: 'session-origin',
+            metadata,
+        })).toEqual({
+            pathname: '/workspace',
+            params: {
+                mode: 'link',
+                originSessionId: 'session-origin',
+                machineId: 'machine-origin',
+                absolutePath: '/srv/projects/happy/notes\\final.md',
             },
         });
     });
