@@ -130,6 +130,13 @@ function stripMarkdownLinkTitle(value: string): string {
     return titledTarget?.[1] ?? trimmed;
 }
 
+function unwrapMarkdownLinkDestination(value: string): string {
+    const trimmed = value.trim();
+    return trimmed.startsWith('<') && trimmed.endsWith('>')
+        ? trimmed.slice(1, -1)
+        : trimmed;
+}
+
 function stripMarkdownUrlSuffix(value: string): string {
     const query = value.indexOf('?');
     const fragment = value.indexOf('#');
@@ -322,7 +329,9 @@ export function parseExplicitSessionFileLink(
     url: string,
     options?: { label?: string | null; sessionRoot?: string | null },
 ): SessionFileLink | null {
-    const trimmedUrl = stripMarkdownUrlSuffix(stripMarkdownLinkTitle(url));
+    const trimmedUrl = stripMarkdownUrlSuffix(
+        unwrapMarkdownLinkDestination(stripMarkdownLinkTitle(url)),
+    );
     if (
         !trimmedUrl
         || trimmedUrl.startsWith('#')

@@ -19,6 +19,7 @@ import {
     countNewConversationMessages,
     getConversationMessageIds,
     planMessageFocusScrollRetry,
+    refreshMessageFocusScrollRetryState,
     resolveMessageFocusTarget,
     shouldFollowLatestForMessageFocus,
     type MessageFocusScrollRetryState,
@@ -371,9 +372,15 @@ const ChatListInternal = React.memo((props: {
             focusScrollRetryTimerRef.current = null;
             const latest = focusScrollRetryRef.current;
             if (!latest || latest.messageId !== plan.nextState.messageId || !latest.didRetry) return;
+            const refreshed = refreshMessageFocusScrollRetryState(
+                latest,
+                resolveMessageFocusTarget(displayItemsRef.current, latest.messageId).index,
+            );
+            if (!refreshed) return;
+            focusScrollRetryRef.current = refreshed;
             try {
                 flatListRef.current?.scrollToIndex({
-                    index: latest.index,
+                    index: refreshed.index,
                     animated: true,
                     viewPosition: 0.5,
                 });

@@ -168,6 +168,22 @@ describe('sessionFileLinks', () => {
                 });
         });
 
+        it('unwraps angle-bracket Markdown destinations before resolving paths with spaces', () => {
+            expect(parseExplicitSessionFileLink('<docs/My File.md#install> "Project docs"', { sessionRoot }))
+                .toMatchObject({
+                    path: 'docs/My File.md',
+                    absolutePath: '/Users/kirilldubovitskiy/projects/happy/docs/My File.md',
+                });
+        });
+
+        it('preserves percent-encoded angle brackets that belong to a filename', () => {
+            expect(parseExplicitSessionFileLink('docs/%3Cdraft%3E.md', { sessionRoot }))
+                .toMatchObject({
+                    path: 'docs/<draft>.md',
+                    absolutePath: '/Users/kirilldubovitskiy/projects/happy/docs/<draft>.md',
+                });
+        });
+
         it('rejects external schemes and page-local targets', () => {
             expect(parseExplicitSessionFileLink('https://openai.com', { sessionRoot })).toBeNull();
             expect(parseExplicitSessionFileLink('https%3A%2F%2Fopenai.com', { sessionRoot })).toBeNull();

@@ -52,6 +52,7 @@ import { isVersionSupported, MINIMUM_CLI_VERSION } from '@/utils/versionUtils';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import * as React from 'react';
 import { useMemo } from 'react';
 import { ActivityIndicator, Platform, Pressable, Text, View, useWindowDimensions } from 'react-native';
@@ -99,12 +100,16 @@ import {
     resolveWorkspaceLinkPresentation,
     workspaceLinkViewerKey,
 } from '@/components/WorkspaceLinkViewerModel';
-import { WorkspaceLinkPressContext } from './workspaceLinkNavigation';
+import {
+    preventWorkspaceLinkDismissWhileSending,
+    WorkspaceLinkPressContext,
+} from './workspaceLinkNavigation';
 import type { WorkspaceLinkRoute } from '@/utils/markdownWorkspaceLink';
 
 export const SessionView = React.memo((props: { id: string; focusMessageId?: string }) => {
     const sessionId = props.id;
     const router = useRouter();
+    const navigation = useNavigation();
     const session = useSession(sessionId);
     const isDataReady = useIsDataReady();
     const { theme } = useUnistyles();
@@ -150,6 +155,10 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         workspaceLinkFeedbackSendingRef.current = false;
         setWorkspaceLinkRoute(null);
     }, [sessionId]);
+
+    React.useEffect(() => navigation.addListener('beforeRemove', (event) => {
+        preventWorkspaceLinkDismissWhileSending(workspaceLinkFeedbackSendingRef.current, event);
+    }), [navigation]);
 
     React.useEffect(() => {
         setFocusMessageId(props.focusMessageId);

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     countNewConversationMessages,
     planMessageFocusScrollRetry,
+    refreshMessageFocusScrollRetryState,
     resolveMessageFocusTarget,
     shouldFollowLatestForMessageFocus,
 } from './chatLatestNavigation';
@@ -121,5 +122,22 @@ describe('planMessageFocusScrollRetry', () => {
             averageItemLength: 84,
             currentTargetIndex: 3,
         })).toBeNull();
+    });
+
+    it('re-resolves the exact target after concurrent output shifts the delayed retry index', () => {
+        expect(refreshMessageFocusScrollRetryState({
+            messageId: 'receipt',
+            index: 14,
+            didRetry: true,
+        }, 17)).toEqual({
+            messageId: 'receipt',
+            index: 17,
+            didRetry: true,
+        });
+        expect(refreshMessageFocusScrollRetryState({
+            messageId: 'receipt',
+            index: 14,
+            didRetry: true,
+        }, null)).toBeNull();
     });
 });

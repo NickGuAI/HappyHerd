@@ -25,6 +25,14 @@ export type MessageFocusScrollRetryPlan = {
     retryIndex: number;
 };
 
+export function refreshMessageFocusScrollRetryState(
+    state: MessageFocusScrollRetryState | null,
+    currentTargetIndex: number | null,
+): MessageFocusScrollRetryState | null {
+    if (!state?.didRetry || currentTargetIndex === null) return null;
+    return { ...state, index: currentTargetIndex };
+}
+
 export function planMessageFocusScrollRetry(input: {
     state: MessageFocusScrollRetryState | null;
     failedIndex: number;
