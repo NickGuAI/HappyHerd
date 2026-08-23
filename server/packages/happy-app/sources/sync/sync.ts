@@ -949,12 +949,13 @@ class Sync {
         };
         const encryptedRawRecord = await encryption.encryptRawRecord(content);
 
-        // Attachment preparation and record encryption yield to remote
-        // updates. Do not let a stale continuation recreate an outbox for a
-        // session that was deleted or replaced while those awaits ran. From
-        // this check through outbox commit and strict tracker registration,
-        // the synchronous block cannot interleave with delete-session.
+        // Strict Viewer feedback stages every record in memory, but its
+        // preparation awaits can interleave with remote session deletion or
+        // replacement. Revalidate the destination before that strict batch's
+        // first outbox mutation. Ordinary Chat keeps its existing partial
+        // attachment delivery behavior and is intentionally unaffected.
         if (!canCommitPreparedMessage({
+            requireAllAttachments,
             sessionExists: Boolean(storage.getState().sessions[sessionId]),
             preparedEncryption: encryption,
             currentEncryption: this.encryption.getSessionEncryption(sessionId),

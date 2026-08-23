@@ -24,29 +24,39 @@ function prepared(localId: string): {
 }
 
 describe('atomic local message batches', () => {
-    it('rejects a prepared message when its destination disappears or is replaced', () => {
+    it('rejects only strict prepared batches when their destination disappears or is replaced', () => {
         const preparedEncryption = {};
 
         expect(canCommitPreparedMessage({
+            requireAllAttachments: true,
             sessionExists: true,
             preparedEncryption,
             currentEncryption: preparedEncryption,
         })).toBe(true);
         expect(canCommitPreparedMessage({
+            requireAllAttachments: true,
             sessionExists: false,
             preparedEncryption,
             currentEncryption: preparedEncryption,
         })).toBe(false);
         expect(canCommitPreparedMessage({
+            requireAllAttachments: true,
             sessionExists: true,
             preparedEncryption,
             currentEncryption: {},
         })).toBe(false);
         expect(canCommitPreparedMessage({
+            requireAllAttachments: true,
             sessionExists: true,
             preparedEncryption,
             currentEncryption: null,
         })).toBe(false);
+        expect(canCommitPreparedMessage({
+            requireAllAttachments: false,
+            sessionExists: false,
+            preparedEncryption,
+            currentEncryption: null,
+        })).toBe(true);
     });
 
     it('rejects capability or policy filtering only for all-required sends', () => {
