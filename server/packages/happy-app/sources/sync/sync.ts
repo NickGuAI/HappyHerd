@@ -81,6 +81,7 @@ import {
     buildAtomicLocalMessageBatch,
     commitAtomicLocalMessageBatch,
     hasCompleteRequiredAttachmentBatch,
+    hasServerAcceptanceBarrier,
     prepareEveryAttachment,
 } from './sendMessageLocalBatch';
 
@@ -109,6 +110,8 @@ type V3PostSessionMessagesResponse = {
 type OutboxMessage = {
     localId: string;
     content: string;
+    /** Keep strict Viewer feedback pending until the server accepts its batch. */
+    retainUntilServerAccepted?: boolean;
 };
 
 export type SendMessageOptions = {
@@ -207,13 +210,17 @@ class Sync {
 
             if (nextAppState === 'active') {
                 const shouldFailAfterResume = this.backgroundSendStartedAt !== null
-                    && this.hasPendingOutboxMessages()
+                    && this.hasBackgroundFailFastOutboxMessages()
                     && (Date.now() - this.backgroundSendStartedAt) >= Sync.BACKGROUND_SEND_TIMEOUT_MS;
                 void this.cancelBackgroundSendTimeoutNotification();
                 this.clearBackgroundSendWatchdog();
                 if (shouldFailAfterResume) {
-                    void this.notifyMessageSendFailed();
-                    this.failPendingOutboxMessages('Message failed to send in background after 30s. Please retry.');
+                    const failedCount = this.failPendingOutboxMessages(
+                        'Message failed to send in background after 30s. Please retry.',
+                    );
+                    if (failedCount > 0) {
+                        void this.notifyMessageSendFailed();
+                    }
                 }
                 log.log('📱 App became active');
                 this.purchasesSync.invalidate();
@@ -439,11 +446,20 @@ class Sync {
         return false;
     }
 
+    private hasBackgroundFailFastOutboxMessages() {
+        for (const messages of this.pendingOutbox.values()) {
+            if (messages.length > 0 && !hasServerAcceptanceBarrier(messages)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private maybeStartBackgroundSendWatchdog() {
         if (Platform.OS === 'web' || this.appState === 'active') {
             return;
         }
-        if (!this.hasPendingOutboxMessages() || this.backgroundSendTimeout) {
+        if (!this.hasBackgroundFailFastOutboxMessages() || this.backgroundSendTimeout) {
             return;
         }
 
@@ -516,16 +532,20 @@ class Sync {
         }
     }
 
-    private failPendingOutboxMessages(reasonText: string) {
-        for (const controller of this.sendAbortControllers.values()) {
+    private failPendingOutboxMessages(reasonText: string): number {
+        for (const [sessionId, controller] of this.sendAbortControllers) {
+            const pending = this.pendingOutbox.get(sessionId);
+            if (pending && hasServerAcceptanceBarrier(pending)) {
+                continue;
+            }
             controller.abort();
+            this.sendAbortControllers.delete(sessionId);
         }
-        this.sendAbortControllers.clear();
 
         const now = Date.now();
         const failedMessageIdsBySession = new Map<string, string[]>();
         for (const [sessionId, pending] of this.pendingOutbox) {
-            if (pending.length === 0) {
+            if (pending.length === 0 || hasServerAcceptanceBarrier(pending)) {
                 continue;
             }
             failedMessageIdsBySession.set(sessionId, pending.map((message) => message.localId));
@@ -560,18 +580,23 @@ class Sync {
                 }
             }]);
         }
+        return failedMessageIdsBySession.size;
     }
 
     private async handleBackgroundSendTimeout() {
-        if (!this.hasPendingOutboxMessages()) {
+        if (!this.hasBackgroundFailFastOutboxMessages()) {
             await this.cancelBackgroundSendTimeoutNotification();
             this.backgroundSendStartedAt = null;
             return;
         }
 
         await this.cancelBackgroundSendTimeoutNotification();
-        await this.notifyMessageSendFailed();
-        this.failPendingOutboxMessages('Message failed to send in background after 30s. Please retry.');
+        const failedCount = this.failPendingOutboxMessages(
+            'Message failed to send in background after 30s. Please retry.',
+        );
+        if (failedCount > 0) {
+            await this.notifyMessageSendFailed();
+        }
         this.backgroundSendStartedAt = null;
     }
 
@@ -936,7 +961,10 @@ class Sync {
                 commitAtomicLocalMessageBatch({
                     batch,
                     enqueueOptimistic: (messages) => this.enqueueMessages(sessionId, messages),
-                    appendOutbox: (messages) => pending.push(...messages),
+                    appendOutbox: (messages) => pending.push(...messages.map((message) => ({
+                        ...message,
+                        retainUntilServerAccepted: true,
+                    }))),
                 });
             } else {
                 for (const attachment of preparedAttachments) {

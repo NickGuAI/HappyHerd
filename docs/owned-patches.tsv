@@ -60,3 +60,4 @@ WORKSPACE_FILE_EDIT	accepted	fix(workspace): edit text files regardless of name	
 WORKSPACE_LINKS	accepted	feat(workspace): open live links with viewer feedback	server/packages/happy-app/sources/components/WorkspaceLinkViewer.native.test.ts
 WORKSPACE_LINKS	accepted	fix(workspace): preserve viewer feedback intent	server/packages/happy-app/sources/components/WorkspaceLinkViewer.native.test.ts
 WORKSPACE_LINKS	accepted	fix(workspace): complete live link handoff	server/packages/happy-app/sources/components/WorkspaceLinkViewer.native.test.ts
+WORKSPACE_LINKS	accepted	fix(workspace): retain strict feedback until delivery	server/packages/happy-app/sources/sync/sendMessageLocalBatch.test.ts

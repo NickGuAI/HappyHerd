@@ -16,6 +16,12 @@ export function hasCompleteRequiredAttachmentBatch(args: {
         || args.requestedCount === args.effectiveCount;
 }
 
+export function hasServerAcceptanceBarrier(
+    messages: readonly { retainUntilServerAccepted?: boolean }[],
+): boolean {
+    return messages.some((message) => message.retainUntilServerAccepted === true);
+}
+
 export async function prepareEveryAttachment<TAttachment, TPrepared>(
     attachments: TAttachment[],
     prepare: (attachment: TAttachment) => Promise<TPrepared>,

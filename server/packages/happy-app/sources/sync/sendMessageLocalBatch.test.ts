@@ -4,6 +4,7 @@ import {
     buildAtomicLocalMessageBatch,
     commitAtomicLocalMessageBatch,
     hasCompleteRequiredAttachmentBatch,
+    hasServerAcceptanceBarrier,
     prepareEveryAttachment,
 } from './sendMessageLocalBatch';
 
@@ -44,6 +45,17 @@ describe('atomic local message batches', () => {
         expect(prepare).toHaveBeenCalledTimes(2);
     });
 
+    it('protects a strict batch from background fail-fast cleanup until server acceptance', () => {
+        expect(hasServerAcceptanceBarrier([
+            { retainUntilServerAccepted: true },
+        ])).toBe(true);
+        expect(hasServerAcceptanceBarrier([
+            {},
+            { retainUntilServerAccepted: true },
+        ])).toBe(true);
+        expect(hasServerAcceptanceBarrier([{}, {}])).toBe(false);
+    });
+
     it('assembles every file and the owning text as one ordered optimistic/outbox batch', () => {
         const result = buildAtomicLocalMessageBatch(
             [prepared('file-1'), prepared('file-2')],
@@ -78,5 +90,4 @@ describe('atomic local message batches', () => {
         expect(enqueueOptimistic).toHaveBeenCalledWith(batch.normalized);
         expect(appendOutbox).not.toHaveBeenCalled();
     });
-
 });
