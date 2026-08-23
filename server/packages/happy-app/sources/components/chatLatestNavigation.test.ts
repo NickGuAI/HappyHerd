@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     countNewConversationMessages,
+    getChatListMaintainVisibleContentPosition,
     planMessageFocusScrollRetry,
     refreshMessageFocusScrollRetryState,
     resolveMessageFocusTarget,
@@ -92,6 +93,21 @@ describe('shouldFollowLatestForMessageFocus', () => {
             index: null,
             newerConversationCount: 0,
         })).toBe(true);
+    });
+});
+
+describe('getChatListMaintainVisibleContentPosition', () => {
+    it('disables native follow-latest without removing the visible-row anchor during exact focus', () => {
+        const config = getChatListMaintainVisibleContentPosition(true);
+        expect(config).toEqual({ minIndexForVisible: 1 });
+        expect('autoscrollToTopThreshold' in config).toBe(false);
+    });
+
+    it('restores native follow-latest after the exact focus is released', () => {
+        expect(getChatListMaintainVisibleContentPosition(false)).toEqual({
+            minIndexForVisible: 1,
+            autoscrollToTopThreshold: 50,
+        });
     });
 });
 

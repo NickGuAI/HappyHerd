@@ -17,6 +17,7 @@ import { resolveControlMode } from '@/sync/controlHandoff';
 import { usesControlledSessionUi } from '@/sync/rig';
 import {
     countNewConversationMessages,
+    getChatListMaintainVisibleContentPosition,
     getConversationMessageIds,
     planMessageFocusScrollRetry,
     refreshMessageFocusScrollRetryState,
@@ -115,6 +116,7 @@ const ChatListInternal = React.memo((props: {
     const [showScrollButton, setShowScrollButton] = React.useState(false);
     const [newMessageCount, setNewMessageCount] = React.useState(0);
     const [handoffListRevision, setHandoffListRevision] = React.useState(0);
+    const [releasedFocusRequestKey, setReleasedFocusRequestKey] = React.useState<string | null>(null);
     // Tracks whether the scroll-button is currently shown, so we only call
     // setShowScrollButton when the threshold is actually crossed instead of
     // on every scroll frame (60Hz). Without this guard, the entire list
@@ -122,6 +124,7 @@ const ChatListInternal = React.memo((props: {
     const showScrollButtonRef = React.useRef(false);
     const newMessageCountRef = React.useRef(0);
     const isFollowingLatestRef = React.useRef(true);
+    const exactMessageFocusAnchoredRef = React.useRef(false);
     const headerBackdropVisibleRef = React.useRef(false);
     const bottomDockVisibleRef = React.useRef(true);
     // Native auto-stick-to-bottom also emits scroll events. Only a drag that
@@ -135,6 +138,25 @@ const ChatListInternal = React.memo((props: {
     const session = useSession(props.sessionId);
     const controlMode = resolveControlMode(usesControlledSessionUi(session?.metadata) ? session?.agentState?.controlledByUser : false);
     const previousControlModeRef = React.useRef(controlMode);
+    const focusRequestKey = props.focusMessageId
+        ? `${props.sessionId}\u0000${props.focusMessageId}`
+        : null;
+
+    const cancelFocusScrollRetry = useCallback(() => {
+        focusScrollRetryRef.current = null;
+        if (focusScrollRetryTimerRef.current) {
+            clearTimeout(focusScrollRetryTimerRef.current);
+            focusScrollRetryTimerRef.current = null;
+        }
+    }, []);
+
+    const releaseExactMessageFocus = useCallback(() => {
+        exactMessageFocusAnchoredRef.current = false;
+        cancelFocusScrollRetry();
+        if (focusRequestKey) {
+            setReleasedFocusRequestKey(focusRequestKey);
+        }
+    }, [cancelFocusScrollRetry, focusRequestKey]);
 
     React.useEffect(() => {
         if (previousControlModeRef.current === controlMode) {
@@ -163,6 +185,19 @@ const ChatListInternal = React.memo((props: {
         [collapseCurrentTurn],
     );
     const displayItems = useGroupedMessages(props.messages, groupToolCalls, groupingOptions);
+    const exactMessageFocusTarget = React.useMemo(
+        () => props.focusMessageId
+            ? resolveMessageFocusTarget(displayItems, props.focusMessageId)
+            : null,
+        [displayItems, props.focusMessageId],
+    );
+    const exactMessageFocusAnchored = focusRequestKey !== null
+        && releasedFocusRequestKey !== focusRequestKey
+        && exactMessageFocusTarget !== null
+        && exactMessageFocusTarget.index !== null;
+    // Scroll callbacks must observe the render's native-prop decision
+    // synchronously, before the focus effect performs the actual scroll.
+    exactMessageFocusAnchoredRef.current = exactMessageFocusAnchored;
 
     const conversationMessageIds = React.useMemo(
         () => getConversationMessageIds(props.messages),
@@ -189,15 +224,12 @@ const ChatListInternal = React.memo((props: {
     React.useEffect(() => {
         previousConversationMessageIdsRef.current = conversationMessageIds;
         focusedMessageIdRef.current = null;
-        focusScrollRetryRef.current = null;
-        if (focusScrollRetryTimerRef.current) {
-            clearTimeout(focusScrollRetryTimerRef.current);
-            focusScrollRetryTimerRef.current = null;
-        }
+        cancelFocusScrollRetry();
         isFollowingLatestRef.current = true;
+        setReleasedFocusRequestKey(null);
         newMessageCountRef.current = 0;
         setNewMessageCount(0);
-    }, [props.sessionId]);
+    }, [cancelFocusScrollRetry, props.sessionId]);
 
     // Tracks which groups are explicitly collapsed. Groups start collapsed;
     // pending approval groups are the only ones we auto-expand.
@@ -399,8 +431,17 @@ const ChatListInternal = React.memo((props: {
     }, []);
 
     React.useEffect(() => {
-        if (!props.focusMessageId || focusedMessageIdRef.current === props.focusMessageId) return;
-        const target = resolveMessageFocusTarget(displayItems, props.focusMessageId);
+        if (!props.focusMessageId) {
+            focusedMessageIdRef.current = null;
+            cancelFocusScrollRetry();
+            setReleasedFocusRequestKey(null);
+            return;
+        }
+        if (focusRequestKey === releasedFocusRequestKey) return;
+        if (focusedMessageIdRef.current === props.focusMessageId) return;
+        cancelFocusScrollRetry();
+        const target = exactMessageFocusTarget;
+        if (!target) return;
         if (target.index === null) {
             isFollowingLatestRef.current = true;
             newMessageCountRef.current = 0;
@@ -444,7 +485,16 @@ const ChatListInternal = React.memo((props: {
                     : 0,
             });
         }
-    }, [displayItems, handleFocusScrollToIndexFailed, props.focusMessageId, setBottomDockVisibility]);
+    }, [
+        cancelFocusScrollRetry,
+        displayItems.length,
+        exactMessageFocusTarget,
+        focusRequestKey,
+        handleFocusScrollToIndexFailed,
+        props.focusMessageId,
+        releasedFocusRequestKey,
+        setBottomDockVisibility,
+    ]);
 
     const updateBottomDockVisibility = useCallback((offsetY: number) => {
         // Treat this as a user-scroll state. Hysteresis avoids toggling while
@@ -504,14 +554,13 @@ const ChatListInternal = React.memo((props: {
 
     // In inverted FlatList, offset 0 = latest messages (visual bottom).
     // Offset increases as user scrolls up to see older messages.
-    // Auto-stick-to-bottom on new messages is handled natively by FlatList's
-    // maintainVisibleContentPosition.autoscrollToBottomThreshold — no JS-side
-    // scrollToOffset is needed (and running both produces a fight that drags
-    // the user's viewport when reading older messages mid-stream).
+    // Auto-stick-to-bottom on new messages is handled natively while following
+    // latest — no JS-side scrollToOffset is needed (and running both produces
+    // a fight that drags the user's viewport when reading older messages).
     const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
         const offsetY = e.nativeEvent.contentOffset.y;
         scrollMetricsRef.current.offsetY = offsetY;
-        isFollowingLatestRef.current = offsetY <= 50;
+        isFollowingLatestRef.current = !exactMessageFocusAnchoredRef.current && offsetY <= 50;
         if (isFollowingLatestRef.current && newMessageCountRef.current > 0) {
             newMessageCountRef.current = 0;
             setNewMessageCount(0);
@@ -520,7 +569,7 @@ const ChatListInternal = React.memo((props: {
         if (isUserScrollingRef.current) {
             updateBottomDockVisibility(offsetY);
         }
-        const next = offsetY > SCROLL_THRESHOLD;
+        const next = exactMessageFocusAnchoredRef.current || offsetY > SCROLL_THRESHOLD;
         if (next !== showScrollButtonRef.current) {
             showScrollButtonRef.current = next;
             setShowScrollButton(next);
@@ -528,8 +577,11 @@ const ChatListInternal = React.memo((props: {
     }, [updateBottomDockVisibility, updateHeaderBackdropVisibility]);
 
     const handleScrollBeginDrag = useCallback(() => {
+        // A drag hands viewport ownership back to the user. Native follow-latest
+        // may resume according to the resulting offset after this interaction.
+        releaseExactMessageFocus();
         isUserScrollingRef.current = true;
-    }, []);
+    }, [releaseExactMessageFocus]);
 
     const handleScrollEndDrag = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
         if (!isUserScrollingRef.current) {
@@ -553,11 +605,20 @@ const ChatListInternal = React.memo((props: {
         // This is an explicit "go to latest" action, so its animated native
         // scroll should restore the dock even though it is not a drag.
         setBottomDockVisibility(true);
+        releaseExactMessageFocus();
         isFollowingLatestRef.current = true;
         newMessageCountRef.current = 0;
         setNewMessageCount(0);
         flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-    }, [setBottomDockVisibility]);
+    }, [releaseExactMessageFocus, setBottomDockVisibility]);
+
+    // Anchor on the second-newest message (index 1), not the newest token slot.
+    // In an inverted list autoscrollToTopThreshold means follow the visual
+    // bottom; the helper omits only that threshold during exact receipt focus.
+    const maintainVisibleContentPosition = React.useMemo(
+        () => getChatListMaintainVisibleContentPosition(exactMessageFocusAnchored),
+        [exactMessageFocusAnchored],
+    );
 
     // In an inverted FlatList, `onEndReached` fires when the user scrolls
     // past the visual top — i.e. when they want to see older history.
@@ -594,20 +655,7 @@ const ChatListInternal = React.memo((props: {
                 data={displayItems}
                 inverted={true}
                 keyExtractor={keyExtractor}
-                maintainVisibleContentPosition={{
-                    // Anchor on the second-newest message (index 1), not the
-                    // newest. The newest slot (index 0) gets a brand-new item
-                    // each agent token, which would otherwise destabilise the
-                    // anchor and drag the viewport up.
-                    //
-                    // autoscrollToTopThreshold: for INVERTED lists this is
-                    // actually the auto-stick-to-visual-bottom threshold —
-                    // contentOffset 0 is at the visual bottom in an inverted
-                    // list, and this prop sticks the viewport to offset 0
-                    // when the user is within N units of it.
-                    minIndexForVisible: 1,
-                    autoscrollToTopThreshold: 50,
-                }}
+                maintainVisibleContentPosition={maintainVisibleContentPosition}
                 keyboardShouldPersistTaps="handled"
                 keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'none'}
                 // Inverted list: paddingTop renders at the visual bottom.

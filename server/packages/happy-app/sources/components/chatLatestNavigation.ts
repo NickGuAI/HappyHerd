@@ -13,6 +13,18 @@ export function shouldFollowLatestForMessageFocus(target: MessageFocusTarget): b
     return target.index === null;
 }
 
+export function getChatListMaintainVisibleContentPosition(
+    exactMessageFocusAnchored: boolean,
+): { minIndexForVisible: number; autoscrollToTopThreshold?: number } {
+    // In an inverted list this threshold means “follow the visual bottom.”
+    // Omit it while an explicit receipt is anchored, including when that row
+    // is currently index 0, so a concurrent row cannot replace the receipt as
+    // the effective focus. Keep the visible-content anchor itself enabled.
+    return exactMessageFocusAnchored
+        ? { minIndexForVisible: 1 }
+        : { minIndexForVisible: 1, autoscrollToTopThreshold: 50 };
+}
+
 export type MessageFocusScrollRetryState = {
     messageId: string;
     index: number;
