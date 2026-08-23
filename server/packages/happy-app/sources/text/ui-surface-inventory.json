@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "e181782c7510c2cae824f8c7fb7ff3c66617a0913796578c32bf91f9259bd6d1",
+  "sourceFingerprint": "cc5defdeb888c49711eb3f47a4839df9fd50757f9be05a034c4da76363b43028",
   "routeCount": 36,
   "surfaceCount": 232,
   "hardcodedCopyCount": 0,
@@ -5107,6 +5107,7 @@
       ],
       "translationKeys": [
         "common.ok",
+        "happyHerd.composer.sendFailedBody",
         "imageUpload.notSupportedMessage",
         "imageUpload.notSupportedTitle",
         "imageUpload.uploadFailedMessage",

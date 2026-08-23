@@ -99,4 +99,36 @@ describe('strict outbox batch lifecycle', () => {
         await strictSend;
         expect(released).toBe(true);
     });
+
+    it('rejects a deleted session strict batch without disturbing other sessions', async () => {
+        const tracker = new StrictOutboxBatchTracker<string>();
+        const applyOptimistic = vi.fn();
+        const deletedSessionOutbox: PendingRecord[] = [
+            { localId: 'strict-file', batchId: 'strict-text', batchPolicy: 'retain-until-server-accepted' },
+            { localId: 'strict-text', batchId: 'strict-text', batchPolicy: 'retain-until-server-accepted' },
+            { localId: 'ordinary-text', batchId: 'ordinary-text', batchPolicy: 'background-fail-fast' },
+        ];
+        const deletedSessionSend = tracker.register('strict-text', ['file', 'text']);
+        const otherSessionSend = tracker.register('other-session', ['other']);
+
+        const { retained } = partitionOutboxByBatchPolicy(deletedSessionOutbox);
+        for (const batchId of new Set(retained.map((message) => message.batchId))) {
+            tracker.settle(batchId, {
+                error: new Error('origin session deleted'),
+                applyOptimistic,
+            });
+        }
+        deletedSessionOutbox.splice(0, deletedSessionOutbox.length);
+
+        await expect(deletedSessionSend).rejects.toThrow('origin session deleted');
+        expect(applyOptimistic).not.toHaveBeenCalled();
+
+        tracker.settle('other-session', { applyOptimistic });
+        await expect(otherSessionSend).resolves.toBeUndefined();
+        expect(applyOptimistic).toHaveBeenCalledWith(['other']);
+
+        const retry = tracker.register('strict-text', ['retry']);
+        tracker.settle('strict-text', { applyOptimistic });
+        await expect(retry).resolves.toBeUndefined();
+    });
 });

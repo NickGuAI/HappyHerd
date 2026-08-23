@@ -2611,7 +2611,18 @@ class Sync {
             // Clear any cached git status
             gitStatusSync.clearForSession(sessionId);
             this.messagesSync.delete(sessionId);
+            const pending = this.pendingOutbox.get(sessionId);
+            if (pending) {
+                this.settleStrictOutboxBatches(
+                    sessionId,
+                    pending,
+                    new Error(t('happyHerd.composer.sendFailedBody')),
+                );
+            }
+            this.sendSync.get(sessionId)?.stop();
             this.sendSync.delete(sessionId);
+            this.sendAbortControllers.get(sessionId)?.abort();
+            this.sendAbortControllers.delete(sessionId);
             this.pendingOutbox.delete(sessionId);
             this.sessionLastSeq.delete(sessionId);
             this.sessionOldestSeq.delete(sessionId);

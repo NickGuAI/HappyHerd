@@ -11,6 +11,10 @@ export function parentHostPath(path: string, platform: string | undefined): stri
         const normalized = path.replace(/\//g, '\\').replace(/\\+$/, '');
         const driveRoot = normalized.match(/^([a-zA-Z]:)$/)?.[1];
         if (driveRoot) return `${driveRoot}\\`;
+        if (normalized.startsWith('\\\\')) {
+            const uncParts = normalized.slice(2).split('\\').filter(Boolean);
+            if (uncParts.length <= 2) return normalized;
+        }
         const index = normalized.lastIndexOf('\\');
         if (index <= 2) return normalized.slice(0, 2) + '\\';
         return normalized.slice(0, index);

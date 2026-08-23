@@ -66,3 +66,4 @@ WORKSPACE_LINKS	accepted	fix(workspace): enforce live viewer delivery boundaries
 WORKSPACE_LINKS	accepted	fix(workspace): preserve linked feedback navigation	server/packages/happy-app/sources/components/chatLatestNavigation.test.ts
 WORKSPACE_LINKS	accepted	fix(workspace): complete link parsing and layout continuity	server/packages/happy-app/sources/components/WorkspaceLinkSidePanel.native.test.ts
 WORKSPACE_LINKS	accepted	fix(workspace): block native viewer dismissal	server/packages/happy-app/sources/-session/workspaceLinkNavigation.test.ts
+WORKSPACE_LINKS	accepted	fix(workspace): close final delivery edge cases	server/packages/happy-app/sources/sync/strictOutboxBatchTracker.test.ts

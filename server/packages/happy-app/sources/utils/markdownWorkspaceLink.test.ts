@@ -69,6 +69,24 @@ describe('markdownWorkspaceLink', () => {
         });
     });
 
+    it('routes percent-encoded filename colons on the originating machine', () => {
+        expect(resolveMarkdownWorkspaceLinkRoute({
+            url: 'notes%3Afinal.md:17:2',
+            originSessionId: 'session-origin',
+            metadata,
+        })).toEqual({
+            pathname: '/workspace',
+            params: {
+                mode: 'link',
+                originSessionId: 'session-origin',
+                machineId: 'machine-origin',
+                absolutePath: '/srv/projects/happy/notes:final.md',
+                line: '17',
+                column: '2',
+            },
+        });
+    });
+
     it('leaves HTTP links to the external-link handler', () => {
         expect(resolveMarkdownWorkspaceLinkRoute({
             url: 'https://example.com/docs',

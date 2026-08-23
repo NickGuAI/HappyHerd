@@ -184,11 +184,22 @@ describe('sessionFileLinks', () => {
                 });
         });
 
+        it('preserves a percent-encoded colon that belongs to a local filename', () => {
+            expect(parseExplicitSessionFileLink('notes%3Afinal.md:17:2', { sessionRoot }))
+                .toMatchObject({
+                    path: 'notes:final.md',
+                    absolutePath: '/Users/kirilldubovitskiy/projects/happy/notes:final.md',
+                    line: 17,
+                    column: 2,
+                });
+        });
+
         it('rejects external schemes and raw page-local targets', () => {
             expect(parseExplicitSessionFileLink('https://openai.com', { sessionRoot })).toBeNull();
             expect(parseExplicitSessionFileLink('https%3A%2F%2Fopenai.com', { sessionRoot })).toBeNull();
             expect(parseExplicitSessionFileLink('mailto:test@example.com', { sessionRoot })).toBeNull();
             expect(parseExplicitSessionFileLink('data:text/plain,hello', { sessionRoot })).toBeNull();
+            expect(parseExplicitSessionFileLink('notes:final.md', { sessionRoot })).toBeNull();
             expect(parseExplicitSessionFileLink('#details', { sessionRoot })).toBeNull();
             expect(parseExplicitSessionFileLink('?tab=details', { sessionRoot })).toBeNull();
         });

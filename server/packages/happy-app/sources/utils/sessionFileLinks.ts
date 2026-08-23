@@ -17,6 +17,7 @@ export type SessionFileTextSegment = {
 const WINDOWS_ABSOLUTE_PATH = /^(?:[A-Za-z]:[\\/]|\\\\)/;
 const POSIX_ABSOLUTE_PATH = /^\//;
 const URL_SCHEME = /^[A-Za-z][A-Za-z0-9+.-]*:/;
+const HTTP_URL_WITH_AUTHORITY = /^https?:\/\//i;
 const FILE_URL_PREFIX = /^file:\/\//i;
 const RELATIVE_PREFIX = /^(?:\.{1,2}[\\/]|~[\\/])/;
 const HAS_PATH_SEPARATOR = /[\\/]/;
@@ -330,7 +331,11 @@ export function parseExplicitSessionFileLink(
     const parsedUrl = parseLineAndColumn(trimmedUrl);
     const decodedPath = decodeMarkdownPath(parsedUrl.path);
     if (
-        !WINDOWS_ABSOLUTE_PATH.test(decodedPath) && URL_SCHEME.test(decodedPath)
+        !WINDOWS_ABSOLUTE_PATH.test(decodedPath)
+        && (
+            URL_SCHEME.test(parsedUrl.path)
+            || HTTP_URL_WITH_AUTHORITY.test(decodedPath)
+        )
     ) {
         return null;
     }
