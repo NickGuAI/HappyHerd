@@ -56,6 +56,7 @@ export type WorkspaceLinkViewerProps = {
     headerTopInset?: number;
     onBack?: () => void;
     onFeedbackSent: (receipt: SendMessageReceipt) => void;
+    onFeedbackSendingChange?: (sending: boolean) => void;
 };
 
 function machineName(machine: Machine | null, machineId: string): string {
@@ -88,6 +89,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
     headerTopInset = 0,
     onBack,
     onFeedbackSent,
+    onFeedbackSendingChange,
 }: WorkspaceLinkViewerProps) {
     const { theme } = useUnistyles();
     const isDataReady = useIsDataReady();
@@ -99,8 +101,16 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
     const [revision, setRevision] = React.useState(0);
     const [state, setState] = React.useState<WorkspaceLinkViewerState>({ status: 'loading' });
     const [headerRightSlot, setHeaderRightSlot] = React.useState<React.ReactNode>(null);
+    const [feedbackSending, setFeedbackSending] = React.useState(false);
+    const activeFilePathRef = React.useRef<string | null>(null);
+
+    const handleFeedbackSendingChange = React.useCallback((sending: boolean) => {
+        setFeedbackSending(sending);
+        onFeedbackSendingChange?.(sending);
+    }, [onFeedbackSendingChange]);
 
     const loadDirectory = React.useCallback(async (directoryPath: string, selectedFile: string | null = null) => {
+        activeFilePathRef.current = selectedFile;
         setHeaderRightSlot(null);
         setState({ status: 'loading' });
         const response = await machineGetDirectoryTree(reference.machineId, directoryPath, 1);
@@ -136,6 +146,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
 
     React.useEffect(() => {
         let cancelled = false;
+        activeFilePathRef.current = null;
         setHeaderRightSlot(null);
 
         if (!isDataReady) {
@@ -168,6 +179,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
                 (path) => parentHostPath(path, machine.metadata?.platform),
             );
             if (target.kind === 'directory') {
+                activeFilePathRef.current = null;
                 setState({
                     status: 'ready',
                     directoryPath: target.absolutePath,
@@ -185,6 +197,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
             if (cancelled) return;
             const parentTree = parentResponse.tree;
             if (!parentResponse.success || !parentTree || parentTree.type !== 'directory') {
+                activeFilePathRef.current = target.absolutePath;
                 setState({
                     status: 'ready',
                     directoryPath: target.directoryPath,
@@ -198,6 +211,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
                 });
                 return;
             }
+            activeFilePathRef.current = target.absolutePath;
             setState({
                 status: 'ready',
                 directoryPath: parentTree.path,
@@ -232,7 +246,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
 
     const readFile = React.useCallback(async (path: string) => {
         const response = await machineReadFile(reference.machineId, path);
-        if (!response.success) {
+        if (!response.success && activeFilePathRef.current === path) {
             setHeaderRightSlot(null);
             setState({
                 status: 'error',
@@ -253,6 +267,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
     }, [loadDirectory]);
 
     const selectFile = React.useCallback((path: string) => {
+        activeFilePathRef.current = path;
         setHeaderRightSlot(null);
         setState((current) => current.status === 'ready'
             ? { ...current, selectedFile: path }
@@ -260,6 +275,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
     }, []);
 
     const showDirectory = React.useCallback(() => {
+        activeFilePathRef.current = null;
         setHeaderRightSlot(null);
         setState((current) => current.status === 'ready'
             ? { ...current, selectedFile: null }
@@ -301,6 +317,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
                 machineLabel={machineName(machine, reference.machineId)}
                 absolutePath={reference.absolutePath}
                 onSent={onFeedbackSent}
+                onSendingChange={handleFeedbackSendingChange}
             />
         </View>
     );
@@ -319,8 +336,14 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
                     <Pressable
                         accessibilityRole="button"
                         accessibilityLabel={t('common.back')}
-                        onPress={onBack}
-                        style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+                        accessibilityState={{ disabled: feedbackSending }}
+                        disabled={feedbackSending}
+                        onPress={feedbackSending ? undefined : onBack}
+                        style={({ pressed }) => [
+                            styles.backButton,
+                            feedbackSending && styles.disabled,
+                            pressed && styles.pressed,
+                        ]}
                     >
                         <Ionicons name="chevron-back" size={20} color={theme.colors.text} />
                         <Text style={{ color: theme.colors.text, ...Typography.default() }}>{t('common.back')}</Text>
@@ -527,6 +550,7 @@ const styles = StyleSheet.create((theme) => ({
         paddingRight: 4,
     },
     pressed: { opacity: 0.7 },
+    disabled: { opacity: 0.45 },
     headerCopy: { flex: 1, minWidth: 0 },
     title: { fontSize: 14, ...Typography.default('semiBold') },
     machine: { fontSize: 11, ...Typography.default() },

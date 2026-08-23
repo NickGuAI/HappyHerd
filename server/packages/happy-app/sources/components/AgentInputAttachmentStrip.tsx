@@ -17,9 +17,10 @@ const BORDER_RADIUS = 8;
 interface AgentInputAttachmentStripProps {
     images: AttachmentPreview[];
     onRemove: (id: string) => void;
+    disabled?: boolean;
 }
 
-export function AgentInputAttachmentStrip({ images, onRemove }: AgentInputAttachmentStripProps) {
+export function AgentInputAttachmentStrip({ images, onRemove, disabled = false }: AgentInputAttachmentStripProps) {
     const { theme } = useUnistyles();
 
     if (images.length === 0) return null;
@@ -37,6 +38,7 @@ export function AgentInputAttachmentStrip({ images, onRemove }: AgentInputAttach
                     key={img.id}
                     image={img}
                     onRemove={onRemove}
+                    disabled={disabled}
                     theme={theme}
                 />
             ))}
@@ -47,10 +49,12 @@ export function AgentInputAttachmentStrip({ images, onRemove }: AgentInputAttach
 function AttachmentThumbnail({
     image,
     onRemove,
+    disabled,
     theme,
 }: {
     image: AttachmentPreview;
     onRemove: (id: string) => void;
+    disabled: boolean;
     theme: any;
 }) {
     // Build placeholder from thumbhash if available
@@ -75,10 +79,15 @@ function AttachmentThumbnail({
             {/* Remove button */}
             <Pressable
                 onPress={() => onRemove(image.id)}
+                disabled={disabled}
+                accessibilityState={{ disabled }}
                 hitSlop={4}
                 style={(p) => [
                     styles.removeButton,
-                    { backgroundColor: theme.colors.surfaceHigh, opacity: p.pressed ? 0.7 : 1 }
+                    {
+                        backgroundColor: theme.colors.surfaceHigh,
+                        opacity: disabled ? 0.45 : p.pressed ? 0.7 : 1,
+                    }
                 ]}
             >
                 <Ionicons name="close" size={10} color={theme.colors.text} />

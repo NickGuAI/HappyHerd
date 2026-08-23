@@ -33,6 +33,7 @@ export type MarkdownViewProps = {
     markdown: string;
     onOptionPress?: (option: Option) => void;
     sessionId?: string;
+    enableWorkspaceLinks?: boolean;
     onWorkspaceLinkPress?: (route: WorkspaceLinkRoute) => void;
 };
 
@@ -65,6 +66,10 @@ export const MarkdownView = React.memo((props: MarkdownViewProps) => {
             return { kind: 'external', url };
         }
 
+        if (!props.enableWorkspaceLinks) {
+            return null;
+        }
+
         const route = resolveMarkdownWorkspaceLinkRoute({
             url,
             label,
@@ -72,7 +77,7 @@ export const MarkdownView = React.memo((props: MarkdownViewProps) => {
             metadata: session?.metadata,
         });
         return route ? { kind: 'workspace', route } : null;
-    }, [props.sessionId, session?.metadata]);
+    }, [props.enableWorkspaceLinks, props.sessionId, session?.metadata]);
 
     const handleLinkPress = React.useCallback((target: MarkdownLinkTarget) => {
         if (target.kind === 'external') {

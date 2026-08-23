@@ -120,4 +120,16 @@ describe('parseMarkdown', () => {
             ],
         }]);
     });
+
+    it('keeps a parenthesized Markdown link title inside the destination', () => {
+        const blocks = parseMarkdown('[the report](docs/My Report.md:12:3 (Project docs)) next');
+
+        expect(blocks).toEqual([{
+            type: 'text',
+            content: [
+                { styles: [], text: 'the report', url: 'docs/My Report.md:12:3 (Project docs)' },
+                { styles: [], text: ' next', url: null },
+            ],
+        }]);
+    });
 });

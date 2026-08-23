@@ -126,6 +126,30 @@ describe('sessionFileLinks', () => {
             });
         });
 
+        it.each([
+            ['docs/My Report.md:31:4 "Project docs"', 31, 4],
+            ["docs/My Report.md:32:5 'Project docs'", 32, 5],
+            ['docs/My Report.md:33:6 (Project docs)', 33, 6],
+        ])('strips a valid Markdown title from %s without losing path spaces or coordinates', (target, line, column) => {
+            expect(parseExplicitSessionFileLink(target, { sessionRoot })).toEqual({
+                path: 'docs/My Report.md',
+                absolutePath: '/Users/kirilldubovitskiy/projects/happy/docs/My Report.md',
+                relativePath: 'docs/My Report.md',
+                withinSessionRoot: true,
+                line,
+                column,
+            });
+        });
+
+        it('keeps an invalid unterminated Markdown title as part of the path', () => {
+            expect(parseExplicitSessionFileLink('docs/My Report.md "Project docs', { sessionRoot })).toMatchObject({
+                path: 'docs/My Report.md "Project docs',
+                absolutePath: '/Users/kirilldubovitskiy/projects/happy/docs/My Report.md "Project docs',
+                line: null,
+                column: null,
+            });
+        });
+
         it('rejects external schemes and page-local targets', () => {
             expect(parseExplicitSessionFileLink('https://openai.com', { sessionRoot })).toBeNull();
             expect(parseExplicitSessionFileLink('https%3A%2F%2Fopenai.com', { sessionRoot })).toBeNull();

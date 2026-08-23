@@ -122,6 +122,14 @@ function decodeMarkdownPath(value: string): string {
     }
 }
 
+function stripMarkdownLinkTitle(value: string): string {
+    const trimmed = value.trim();
+    const titledTarget = trimmed.match(
+        /^(.*\S)\s+(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\((?:[^()\\]|\\.)*\))$/s,
+    );
+    return titledTarget?.[1] ?? trimmed;
+}
+
 function inferHomeDirectory(sessionRoot: string | null | undefined): string | null {
     if (!sessionRoot) {
         return null;
@@ -305,7 +313,7 @@ export function parseExplicitSessionFileLink(
     url: string,
     options?: { label?: string | null; sessionRoot?: string | null },
 ): SessionFileLink | null {
-    const trimmedUrl = url.trim();
+    const trimmedUrl = stripMarkdownLinkTitle(url);
     if (
         !trimmedUrl
         || trimmedUrl.startsWith('#')

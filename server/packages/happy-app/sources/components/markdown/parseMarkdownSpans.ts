@@ -1,7 +1,7 @@
 import type { MarkdownSpan } from "./parseMarkdown";
 
 // Updated pattern to handle nested markdown and asterisks
-const pattern = /(\*\*(.*?)(?:\*\*|$))|(\*(.*?)(?:\*|$))|(\[([^\]]+)\](?:\(([^)]+)\))?)|(`(.*?)(?:`|$))|(~~(.*?)(?:~~|$))/g;
+const pattern = /(\*\*(.*?)(?:\*\*|$))|(\*(.*?)(?:\*|$))|(\[([^\]]+)\](?:\(((?:[^()]|\([^)]*\))+)\))?)|(`(.*?)(?:`|$))|(~~(.*?)(?:~~|$))/g;
 
 function pushTextWithAutoLinks(spans: MarkdownSpan[], text: string, styles: MarkdownSpan['styles']) {
     const urlPattern = /https?:\/\/[^\s<]+/g;

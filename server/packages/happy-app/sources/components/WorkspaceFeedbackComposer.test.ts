@@ -62,7 +62,7 @@ vi.mock('react-native-unistyles', () => {
 vi.mock('./AgentInputAttachmentStrip', async () => {
     const ReactModule = await import('react');
     return {
-        AgentInputAttachmentStrip: (props: { images: AttachmentPreview[] }) => (
+        AgentInputAttachmentStrip: (props: { images: AttachmentPreview[]; disabled?: boolean }) => (
             props.images.length > 0
                 ? ReactModule.createElement('AttachmentStrip', props)
                 : null
@@ -259,6 +259,39 @@ describe('WorkspaceFeedbackComposer', () => {
         act(() => renderer.unmount());
     });
 
+    it('freezes every draft mutation while strict feedback awaits server acceptance', async () => {
+        testState.initialImages = [image];
+        let accept!: (receipt: { localId: string }) => void;
+        const lifecycle: string[] = [];
+        const sendMessage = vi.fn().mockImplementation(() => new Promise((resolve) => {
+            accept = resolve;
+        }));
+        const renderer = await renderComposer({
+            sendMessage,
+            onSendingChange: (sending) => lifecycle.push(`sending:${sending}`),
+            onSent: () => lifecycle.push('sent'),
+        });
+
+        act(() => renderer.root.findByType('MultiTextInput' as any).props.onChangeText('Keep this exact draft.'));
+        await act(async () => {
+            button(renderer, 'happyHerd.composer.send')!.props.onPress();
+            await Promise.resolve();
+        });
+
+        expect(renderer.root.findByType('MultiTextInput' as any).props.editable).toBe(false);
+        expect(renderer.root.findByType('AttachmentStrip' as any).props.disabled).toBe(true);
+        expect(button(renderer, 'happyHerd.composer.addPhotos')!.props.disabled).toBe(true);
+        expect(lifecycle).toEqual(['sending:true']);
+
+        await act(async () => {
+            accept({ localId: 'feedback-local-id' });
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+        expect(lifecycle).toEqual(['sending:true', 'sending:false', 'sent']);
+        act(() => renderer.unmount());
+    });
+
     it('sends text and images strictly, clears only after acceptance, and includes mobile safe area', async () => {
         testState.pickedImages = [image];
         const sendMessage = vi.fn().mockResolvedValue({ localId: 'feedback-local-id' });
@@ -297,7 +330,8 @@ describe('WorkspaceFeedbackComposer', () => {
         testState.pickedImages = [image];
         const sendMessage = vi.fn().mockRejectedValue(new Error('upload failed'));
         const onSent = vi.fn();
-        const renderer = await renderComposer({ sendMessage, onSent });
+        const onSendingChange = vi.fn();
+        const renderer = await renderComposer({ sendMessage, onSent, onSendingChange });
 
         act(() => button(renderer, 'happyHerd.composer.addPhoto')!.props.onPress());
         await act(async () => {
@@ -312,6 +346,7 @@ describe('WorkspaceFeedbackComposer', () => {
             node.props.children === 'happyHerd.composer.sendFailedBody'
         ))).toBe(true);
         expect(onSent).not.toHaveBeenCalled();
+        expect(onSendingChange.mock.calls).toEqual([[true], [false]]);
         act(() => renderer.unmount());
     });
 });

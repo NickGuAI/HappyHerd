@@ -129,9 +129,11 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         runningOnMac: isRunningOnMac(),
     });
     const [workspaceLinkRoute, setWorkspaceLinkRoute] = React.useState<WorkspaceLinkRoute | null>(null);
+    const workspaceLinkFeedbackSendingRef = React.useRef(false);
     const [focusMessageId, setFocusMessageId] = React.useState<string | undefined>(props.focusMessageId);
 
     const handleWorkspaceLinkPress = React.useCallback((route: WorkspaceLinkRoute) => {
+        if (workspaceLinkFeedbackSendingRef.current) return;
         if (route.params.originSessionId !== sessionId) {
             router.push(route);
             return;
@@ -140,6 +142,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     }, [router, sessionId]);
 
     React.useEffect(() => {
+        workspaceLinkFeedbackSendingRef.current = false;
         setWorkspaceLinkRoute(null);
     }, [sessionId]);
 
@@ -623,6 +626,9 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                         key={workspaceLinkViewerKey(workspaceLinkRoute.params)}
                         reference={workspaceLinkRoute.params}
                         onBack={() => setWorkspaceLinkRoute(null)}
+                        onFeedbackSendingChange={(sending) => {
+                            workspaceLinkFeedbackSendingRef.current = sending;
+                        }}
                         onFeedbackSent={(receipt) => {
                             setWorkspaceLinkRoute(null);
                             setFocusMessageId(receipt.localId);

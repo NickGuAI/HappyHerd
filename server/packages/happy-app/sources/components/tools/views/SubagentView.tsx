@@ -68,7 +68,7 @@ export const SubagentView = React.memo<ToolViewProps>(({ tool, messages, session
                             return (
                                 <View key={message.id} style={message.isThinking ? styles.reasoning : styles.output}>
                                     {message.isThinking ? <Text style={styles.traceLabel}>{t("uiCopy.reasoning")}</Text> : null}
-                                    <MarkdownView markdown={message.text} sessionId={sessionId} />
+                                    <MarkdownView markdown={message.text} sessionId={sessionId} enableWorkspaceLinks />
                                 </View>
                             );
                         }

@@ -14,7 +14,7 @@ export const ExitPlanToolView = React.memo<ToolViewProps>(({ tool, sessionId }) 
     return (
         <ToolSectionView>
             <View style={{ paddingHorizontal: 8, marginTop: -10 }}>
-                <MarkdownView markdown={plan} sessionId={sessionId} />
+                <MarkdownView markdown={plan} sessionId={sessionId} enableWorkspaceLinks />
             </View>
         </ToolSectionView>
     );

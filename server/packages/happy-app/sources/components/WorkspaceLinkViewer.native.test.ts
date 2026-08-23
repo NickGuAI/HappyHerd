@@ -332,6 +332,73 @@ describe('WorkspaceLinkViewer', () => {
         act(() => renderer.unmount());
     });
 
+    it('ignores a late child read failure after returning to the directory', async () => {
+        mocks.getTree.mockResolvedValue({
+            success: true,
+            tree: {
+                type: 'directory',
+                name: 'report.md',
+                path: '/work/report.md',
+                children: [{ type: 'file', name: 'notes.txt', path: '/work/report.md/notes.txt' }],
+            },
+        });
+        let finishRead!: (response: { success: false; error: string }) => void;
+        mocks.readFile.mockImplementation(() => new Promise((resolve) => {
+            finishRead = resolve;
+        }));
+        const renderer = await renderViewer();
+
+        act(() => renderer.root.findByProps({ accessibilityLabel: 'common.fileViewer: notes.txt' }).props.onPress());
+        const pendingRead = renderer.root.findByType('FileContentPanel' as any).props
+            .readFile('/work/report.md/notes.txt');
+        act(() => renderer.root.findByProps({ accessibilityLabel: 'workspace.mobileBackToFiles' }).props.onPress());
+        await act(async () => {
+            finishRead({ success: false, error: 'EIO: abandoned read failed' });
+            await pendingRead;
+        });
+
+        expect(renderer.root.findAllByType('FileContentPanel' as any)).toHaveLength(0);
+        const text = renderer.root.findAllByType('Text' as any).map((node: any) => node.props.children);
+        expect(text).toContain('notes.txt');
+        expect(text).not.toContain('workspace.linkReadErrorTitle');
+        expect(text).not.toContain('EIO: abandoned read failed');
+        act(() => renderer.unmount());
+    });
+
+    it('blocks the Viewer Back control while strict feedback is pending', async () => {
+        mocks.getTree.mockResolvedValue({
+            success: true,
+            tree: { type: 'directory', name: 'work', path: '/work', children: [] },
+        });
+        const onBack = vi.fn();
+        const onFeedbackSendingChange = vi.fn();
+        let renderer!: ReactTestRenderer;
+        await act(async () => {
+            renderer = create(React.createElement(WorkspaceLinkViewer, {
+                reference,
+                onBack,
+                onFeedbackSent: vi.fn(),
+                onFeedbackSendingChange,
+            }));
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        act(() => renderer.root.findByType('WorkspaceFeedbackComposer' as any).props.onSendingChange(true));
+        let back = renderer.root.findByProps({ accessibilityLabel: 'common.back' });
+        expect(back.props.disabled).toBe(true);
+        expect(back.props.accessibilityState).toEqual({ disabled: true });
+        expect(back.props.onPress).toBeUndefined();
+        expect(onFeedbackSendingChange).toHaveBeenLastCalledWith(true);
+
+        act(() => renderer.root.findByType('WorkspaceFeedbackComposer' as any).props.onSendingChange(false));
+        back = renderer.root.findByProps({ accessibilityLabel: 'common.back' });
+        expect(back.props.disabled).toBe(false);
+        act(() => back.props.onPress());
+        expect(onBack).toHaveBeenCalledOnce();
+        act(() => renderer.unmount());
+    });
+
     it('remounts feedback state when the owning workspace reference changes', async () => {
         mocks.getTree.mockResolvedValue({
             success: true,

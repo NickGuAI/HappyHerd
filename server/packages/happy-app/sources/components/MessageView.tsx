@@ -122,7 +122,7 @@ function UserTextBlock(props: {
     return (
       <View style={styles.userMessageContainer}>
         <View style={[styles.userMessageBubble, styles.userMessageBubbleSolid, bubbleStyle, styles.goalMessageBubble]}>
-          <MarkdownView markdown={parsed.goal} onOptionPress={handleOptionPress} sessionId={props.sessionId} />
+          <MarkdownView markdown={parsed.goal} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks />
         </View>
         <View style={styles.goalSentRow}>
           <Ionicons name="locate-outline" size={16} color={styles.goalSentText.color} />
@@ -136,7 +136,7 @@ function UserTextBlock(props: {
       <View style={styles.userMessageContainer}>
         {parsed.args ? (
           <View style={[styles.userMessageBubble, styles.userMessageBubbleSolid, bubbleStyle, styles.commandMessageBubble]}>
-            <MarkdownView markdown={parsed.args} onOptionPress={handleOptionPress} sessionId={props.sessionId} />
+            <MarkdownView markdown={parsed.args} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks />
           </View>
         ) : null}
         <View style={[styles.commandChip, styles.userMessageBubbleSolid, bubbleStyle]}>
@@ -151,7 +151,7 @@ function UserTextBlock(props: {
       {/* Text owns long-press so native selection / Markdown Copy v2 can work
           without also opening the rewind picker. Rewind remains in session actions. */}
       <View style={[styles.userMessageBubble, styles.userMessageBubbleSolid, bubbleStyle]}>
-        <MarkdownView markdown={parsed.text} onOptionPress={handleOptionPress} sessionId={props.sessionId} />
+        <MarkdownView markdown={parsed.text} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks />
       </View>
     </View>
   );
@@ -172,7 +172,7 @@ function AgentTextBlock(props: {
 
   return (
     <View style={styles.agentMessageContainer}>
-      <MarkdownView markdown={props.message.text} onOptionPress={handleOptionPress} sessionId={props.sessionId} />
+      <MarkdownView markdown={props.message.text} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks />
     </View>
   );
 }

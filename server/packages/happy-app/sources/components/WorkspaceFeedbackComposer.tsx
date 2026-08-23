@@ -24,6 +24,7 @@ export type WorkspaceFeedbackComposerProps = {
     machineLabel?: string | null;
     absolutePath: string;
     onSent: (receipt: SendMessageReceipt) => void;
+    onSendingChange?: (sending: boolean) => void;
     /** Test seam; production callers use the synchronized outbox singleton. */
     sendMessage?: WorkspaceFeedbackSender;
 };
@@ -46,6 +47,10 @@ export function WorkspaceFeedbackComposer(props: WorkspaceFeedbackComposerProps)
         setDraft((current) => appendTranscript(current, transcript));
     }, []);
     const dictation = useVoiceDictation(handleTranscript);
+    const updateSending = React.useCallback((sending: boolean) => {
+        setIsSending(sending);
+        props.onSendingChange?.(sending);
+    }, [props.onSendingChange]);
 
     const hasComposerContent = draft.trim().length > 0 || imagePicker.selectedImages.length > 0;
     const dictatedPrimaryAction = dictation.phase === 'recording'
@@ -69,7 +74,7 @@ export function WorkspaceFeedbackComposer(props: WorkspaceFeedbackComposerProps)
             || dictation.phase === 'recording'
             || dictation.phase === 'transcribing'
         ) return;
-        setIsSending(true);
+        updateSending(true);
         setSendError(null);
         const reference: WorkspaceFeedbackReference = {
             machineId: props.machineId,
@@ -79,24 +84,29 @@ export function WorkspaceFeedbackComposer(props: WorkspaceFeedbackComposerProps)
         const sender: WorkspaceFeedbackSender = props.sendMessage
             ?? ((sessionId, text, options) => sync.sendMessage(sessionId, text, options));
 
+        let receipt: SendMessageReceipt;
         try {
-            const receipt = await submitWorkspaceFeedback({
+            receipt = await submitWorkspaceFeedback({
                 originSessionId: props.originSessionId,
                 reference,
                 feedback: draft,
                 attachments: imagePicker.selectedImages,
                 sendMessage: sender,
             });
-            setDraft('');
-            imagePicker.clearImages();
-            props.onSent(receipt);
         } catch {
             // The draft and picker state deliberately remain untouched so the
             // same complete feedback can be retried from the Viewer.
             setSendError(t('happyHerd.composer.sendFailedBody'));
-        } finally {
-            setIsSending(false);
+            updateSending(false);
+            return;
         }
+        setDraft('');
+        imagePicker.clearImages();
+        // Release route-dismissal guards synchronously before the accepted
+        // send returns to Chat. React state itself may not commit until after
+        // the navigation event is dispatched.
+        updateSending(false);
+        props.onSent(receipt);
     }, [
         dictation.phase,
         draft,
@@ -104,6 +114,7 @@ export function WorkspaceFeedbackComposer(props: WorkspaceFeedbackComposerProps)
         imagePicker,
         isSending,
         props,
+        updateSending,
     ]);
 
     const handlePrimaryPress = React.useCallback(() => {
@@ -139,6 +150,7 @@ export function WorkspaceFeedbackComposer(props: WorkspaceFeedbackComposerProps)
             <AgentInputAttachmentStrip
                 images={imagePicker.selectedImages}
                 onRemove={imagePicker.removeImage}
+                disabled={isSending}
             />
             {(sendError || dictation.error) && (
                 <Text accessibilityRole="alert" style={[styles.error, { color: theme.colors.textDestructive }]}>
