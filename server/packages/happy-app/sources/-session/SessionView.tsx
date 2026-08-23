@@ -93,8 +93,19 @@ import {
 } from '@/sync/workspaceContext';
 import { buildWorkspaceAttachmentParams } from '@/utils/machineWorkspace';
 import { projectSessionQueue } from '@/sync/queueProjection';
+import { WorkspaceLinkSidePanel } from '@/components/WorkspaceLinkSidePanel';
+import {
+    resolveActiveWorkspaceLinkPresentation,
+    resolveWorkspaceLinkPresentation,
+} from '@/components/WorkspaceLinkViewerModel';
+import {
+    openWorkspaceLinkFromSession,
+    useWorkspaceLinkDismissGuard,
+    WorkspaceLinkPressContext,
+} from './workspaceLinkNavigation';
+import type { WorkspaceLinkRoute } from '@/utils/markdownWorkspaceLink';
 
-export const SessionView = React.memo((props: { id: string }) => {
+export const SessionView = React.memo((props: { id: string; focusMessageId?: string }) => {
     const sessionId = props.id;
     const router = useRouter();
     const session = useSession(sessionId);
@@ -116,6 +127,31 @@ export const SessionView = React.memo((props: { id: string }) => {
     const fileDiffsSidebarEnabled = useSetting('fileDiffsSidebar');
     const zenMode = useLocalSetting('zenMode');
     const [headerBackdropVisible, setHeaderBackdropVisible] = React.useState(false);
+    const workspaceLinkPresentation = resolveWorkspaceLinkPresentation({
+        width: windowWidth,
+        platform: Platform.OS,
+        runningOnMac: isRunningOnMac(),
+    });
+    const [workspaceLinkRoute, setWorkspaceLinkRoute] = React.useState<WorkspaceLinkRoute | null>(null);
+    const activeWorkspaceLinkPresentation = resolveActiveWorkspaceLinkPresentation(
+        workspaceLinkPresentation,
+        workspaceLinkRoute !== null,
+    );
+    const {
+        sendingRef: workspaceLinkFeedbackSendingRef,
+        onSendingChange: onWorkspaceLinkFeedbackSendingChange,
+        reset: resetWorkspaceLinkDismissGuard,
+    } = useWorkspaceLinkDismissGuard();
+    const [focusMessageId, setFocusMessageId] = React.useState<string | undefined>(props.focusMessageId);
+
+    React.useEffect(() => {
+        resetWorkspaceLinkDismissGuard();
+        setWorkspaceLinkRoute(null);
+    }, [resetWorkspaceLinkDismissGuard, sessionId]);
+
+    React.useEffect(() => {
+        setFocusMessageId(props.focusMessageId);
+    }, [props.focusMessageId]);
 
     React.useEffect(() => {
         setHeaderBackdropVisible(false);
@@ -128,7 +164,8 @@ export const SessionView = React.memo((props: { id: string }) => {
         && (!session || (rigCanBrowseFiles(session.metadata) && rigCanUseShell(session.metadata)))
         && isDataReady && !!session;
 
-    const showSidebar = canShowSidebar && !zenMode;
+    const showWorkspaceLinkPanel = activeWorkspaceLinkPresentation === 'side-panel' && workspaceLinkRoute !== null;
+    const showSidebar = canShowSidebar && !zenMode && !showWorkspaceLinkPanel;
 
     // Match left sidebar width: 30% of window, clamped to 250–360px
     const sidebarWidth = Math.min(Math.max(Math.floor(windowWidth * 0.3), 250), 360);
@@ -321,6 +358,17 @@ export const SessionView = React.memo((props: { id: string }) => {
         });
     }, [fileViewDirty, fileViewPath]);
 
+    const handleWorkspaceLinkPress = React.useCallback((route: WorkspaceLinkRoute) => {
+        openWorkspaceLinkFromSession({
+            route,
+            sessionId,
+            feedbackSending: workspaceLinkFeedbackSendingRef.current,
+            withFileDiscardConfirmation,
+            pushRoute: (nextRoute) => router.push(nextRoute),
+            showSidePanel: setWorkspaceLinkRoute,
+        });
+    }, [router, sessionId, withFileDiscardConfirmation]);
+
     const handleSidebarFilePress = React.useCallback((file: GitFileStatus) => {
         if (file.status === 'deleted') return;
         withFileDiscardConfirmation(() => pushOverlayNow({ kind: 'diff', file: file.fullPath }));
@@ -465,6 +513,7 @@ export const SessionView = React.memo((props: { id: string }) => {
                         key={sessionId}
                         sessionId={sessionId}
                         session={session}
+                        focusMessageId={focusMessageId}
                         onHeaderBackdropVisibilityChange={contentRunsUnderHeader
                             ? setHeaderBackdropVisible
                             : undefined}
@@ -501,8 +550,16 @@ export const SessionView = React.memo((props: { id: string }) => {
         </>
     );
 
-    if (!canShowSidebar) {
-        return mainContent;
+    const sessionContent = (
+        <WorkspaceLinkPressContext.Provider
+            value={activeWorkspaceLinkPresentation === 'side-panel' ? handleWorkspaceLinkPress : undefined}
+        >
+            {mainContent}
+        </WorkspaceLinkPressContext.Provider>
+    );
+
+    if (!canShowSidebar && !showWorkspaceLinkPanel) {
+        return sessionContent;
     }
 
     // Desktop layout: chat + animated sidebar at the same level (full height).
@@ -521,8 +578,8 @@ export const SessionView = React.memo((props: { id: string }) => {
                     ...(Platform.OS === 'web' ? { contain: 'layout style paint' as any } : {}),
                 }}
             >
-                {mainContent}
-                {diffViewOpen && canShowSidebar && (
+                {sessionContent}
+                {diffViewOpen && canShowSidebar && !showWorkspaceLinkPanel && (
                     <View
                         pointerEvents="box-none"
                         style={{
@@ -541,7 +598,7 @@ export const SessionView = React.memo((props: { id: string }) => {
                         />
                     </View>
                 )}
-                {fileViewPath && canShowSidebar && (
+                {fileViewPath && canShowSidebar && !showWorkspaceLinkPanel && (
                     <View
                         pointerEvents="box-none"
                         style={{
@@ -562,29 +619,42 @@ export const SessionView = React.memo((props: { id: string }) => {
                     </View>
                 )}
             </View>
-            <Animated.View style={[{ minWidth: 0, alignSelf: 'stretch' }, animatedSidebarStyle]}>
-                <View style={{ width: sidebarWidth, flex: 1 }}>
-                    <FilesSidebar
-                        sessionId={sessionId}
-                        selectedPath={sidebarPanelActive === 'changes' ? scrollToFile : sidebarPanelActive === 'allFiles' ? fileViewPath : null}
-                        onFilePress={handleSidebarFilePress}
-                        openPanels={sidebarPanelsOpen}
-                        activePanel={sidebarPanelActive}
-                        onOpenPanel={openSidebarPanel}
-                        onSelectPanel={selectSidebarPanel}
-                        onClosePanel={closeSidebarPanel}
-                        onAllFilesFilePress={handleAllFilesFilePress}
-                        onAllFilesFileAttach={handleAllFilesFileAttach}
-                        sideChats={sideChats}
-                        activeSideChatId={activeSideChatId}
-                        onSelectSideChat={setActiveSideChatId}
-                        onCloseSideChat={closeSideChat}
-                        onCreateSideChat={createSideChat}
-                        canCreateSideChat={!!sideChatForkSource}
-                        creatingSideChat={creatingSideChat}
-                    />
-                </View>
-            </Animated.View>
+            {showWorkspaceLinkPanel && workspaceLinkRoute ? (
+                <WorkspaceLinkSidePanel
+                    reference={workspaceLinkRoute.params}
+                    windowWidth={windowWidth}
+                    onBack={() => setWorkspaceLinkRoute(null)}
+                    onFeedbackSendingChange={onWorkspaceLinkFeedbackSendingChange}
+                    onFeedbackSent={(receipt) => {
+                        setWorkspaceLinkRoute(null);
+                        setFocusMessageId(receipt.localId);
+                    }}
+                />
+            ) : (
+                <Animated.View style={[{ minWidth: 0, alignSelf: 'stretch' }, animatedSidebarStyle]}>
+                    <View style={{ width: sidebarWidth, flex: 1 }}>
+                        <FilesSidebar
+                            sessionId={sessionId}
+                            selectedPath={sidebarPanelActive === 'changes' ? scrollToFile : sidebarPanelActive === 'allFiles' ? fileViewPath : null}
+                            onFilePress={handleSidebarFilePress}
+                            openPanels={sidebarPanelsOpen}
+                            activePanel={sidebarPanelActive}
+                            onOpenPanel={openSidebarPanel}
+                            onSelectPanel={selectSidebarPanel}
+                            onClosePanel={closeSidebarPanel}
+                            onAllFilesFilePress={handleAllFilesFilePress}
+                            onAllFilesFileAttach={handleAllFilesFileAttach}
+                            sideChats={sideChats}
+                            activeSideChatId={activeSideChatId}
+                            onSelectSideChat={setActiveSideChatId}
+                            onCloseSideChat={closeSideChat}
+                            onCreateSideChat={createSideChat}
+                            canCreateSideChat={!!sideChatForkSource}
+                            creatingSideChat={creatingSideChat}
+                        />
+                    </View>
+                </Animated.View>
+            )}
         </View>
     );
 });
@@ -670,11 +740,13 @@ const ChatComposer = React.memo(function ChatComposer(props: ChatComposerProps) 
 export function SessionViewLoaded({
     sessionId,
     session,
+    focusMessageId,
     embedded = false,
     onHeaderBackdropVisibilityChange,
 }: {
     sessionId: string;
     session: Session;
+    focusMessageId?: string;
     embedded?: boolean;
     onHeaderBackdropVisibilityChange?: (visible: boolean) => void;
 }) {
@@ -1089,6 +1161,7 @@ export function SessionViewLoaded({
                 {messages.length > 0 && (
                     <ChatList
                         session={session}
+                        focusMessageId={focusMessageId}
                         topContentInset={chatListTopContentInset}
                         bottomContentInset={usesFloatingMobileDock ? bottomDockInset : undefined}
                         headerOverlayHeight={safeArea.top + MOBILE_GLASS_HEADER_HEIGHT}

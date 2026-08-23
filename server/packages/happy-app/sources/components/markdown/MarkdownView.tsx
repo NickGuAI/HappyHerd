@@ -10,25 +10,43 @@ import { Text } from '../StyledText';
 import { Typography } from '@/constants/Typography';
 import { SimpleSyntaxHighlighter } from '../SimpleSyntaxHighlighter';
 import { Modal } from '@/modal';
-import { useLocalSetting } from '@/sync/storage';
+import { useLocalSetting, useSession } from '@/sync/storage';
 import { storeTempText } from '@/sync/persistence';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { MermaidRenderer } from './MermaidRenderer';
 import { t } from '@/text';
-import { isHttpMarkdownLink } from './linkUtils';
+import { normalizeExternalMarkdownLink } from './linkUtils';
 import { openExternalUrl } from '@/utils/openExternalUrl';
+import {
+    resolveMarkdownWorkspaceLinkRoute,
+    type WorkspaceLinkRoute,
+} from '@/utils/markdownWorkspaceLink';
+import { useWorkspaceLinkPress } from '@/-session/workspaceLinkNavigation';
 
 // Option type for callback
 export type Option = {
     title: string;
 };
 
-export const MarkdownView = React.memo((props: { 
+export type MarkdownViewProps = {
     markdown: string;
     onOptionPress?: (option: Option) => void;
     sessionId?: string;
-}) => {
+    enableWorkspaceLinks?: boolean;
+    onWorkspaceLinkPress?: (route: WorkspaceLinkRoute) => void;
+};
+
+type MarkdownLinkTarget =
+    | Readonly<{ kind: 'external'; url: string }>
+    | Readonly<{ kind: 'workspace'; route: WorkspaceLinkRoute }>;
+
+type MarkdownLinkHandlers = {
+    resolveLinkTarget: (url: string, label: string) => MarkdownLinkTarget | null;
+    onLinkPress: (target: MarkdownLinkTarget) => void;
+};
+
+export const MarkdownView = React.memo((props: MarkdownViewProps) => {
     const blocks = React.useMemo(() => parseMarkdown(props.markdown), [props.markdown]);
     
     // Backwards compatibility: The original version just returned the view, wrapping the list of blocks.
@@ -39,14 +57,47 @@ export const MarkdownView = React.memo((props: {
     const markdownCopyV2 = useLocalSetting('markdownCopyV2');
     const selectable = Platform.OS === 'web' || !markdownCopyV2;
     const router = useRouter();
+    const session = useSession(props.sessionId ?? '');
+    const contextWorkspaceLinkPress = useWorkspaceLinkPress();
+    const workspaceLinkPress = props.onWorkspaceLinkPress ?? contextWorkspaceLinkPress;
 
-    const handleLinkPress = React.useCallback((url: string) => {
-        if (!isHttpMarkdownLink(url)) {
+    const resolveLinkTarget = React.useCallback((url: string, label: string): MarkdownLinkTarget | null => {
+        const externalUrl = normalizeExternalMarkdownLink(url);
+        if (externalUrl) {
+            return { kind: 'external', url: externalUrl };
+        }
+
+        if (!props.enableWorkspaceLinks) {
+            return null;
+        }
+
+        const route = resolveMarkdownWorkspaceLinkRoute({
+            url,
+            label,
+            originSessionId: props.sessionId,
+            metadata: session?.metadata,
+        });
+        return route ? { kind: 'workspace', route } : null;
+    }, [props.enableWorkspaceLinks, props.sessionId, session?.metadata]);
+
+    const handleLinkPress = React.useCallback((target: MarkdownLinkTarget) => {
+        if (target.kind === 'external') {
+            void openExternalUrl(target.url);
             return;
         }
 
-        void openExternalUrl(url);
-    }, []);
+        if (workspaceLinkPress) {
+            workspaceLinkPress(target.route);
+            return;
+        }
+
+        router.push(target.route);
+    }, [router, workspaceLinkPress]);
+
+    const linkHandlers = React.useMemo<MarkdownLinkHandlers>(() => ({
+        resolveLinkTarget,
+        onLinkPress: handleLinkPress,
+    }), [handleLinkPress, resolveLinkTarget]);
 
     const handleLongPress = React.useCallback(() => {
         try {
@@ -62,19 +113,19 @@ export const MarkdownView = React.memo((props: {
             <View style={{ width: '100%' }}>
                 {blocks.map((block, index) => {
                     if (block.type === 'text') {
-                        return <RenderTextBlock spans={block.content} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} onLinkPress={handleLinkPress} />;
+                        return <RenderTextBlock spans={block.content} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} linkHandlers={linkHandlers} />;
                     } else if (block.type === 'header') {
-                        return <RenderHeaderBlock level={block.level} spans={block.content} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} onLinkPress={handleLinkPress} />;
+                        return <RenderHeaderBlock level={block.level} spans={block.content} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} linkHandlers={linkHandlers} />;
                     } else if (block.type === 'horizontal-rule') {
                         return <View style={style.horizontalRule} key={index} />;
                     } else if (block.type === 'list') {
-                        return <RenderListBlock items={block.items} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} onLinkPress={handleLinkPress} />;
+                        return <RenderListBlock items={block.items} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} linkHandlers={linkHandlers} />;
                     } else if (block.type === 'numbered-list') {
-                        return <RenderNumberedListBlock items={block.items} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} onLinkPress={handleLinkPress} />;
+                        return <RenderNumberedListBlock items={block.items} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} linkHandlers={linkHandlers} />;
                     } else if (block.type === 'task-list') {
-                        return <RenderTaskListBlock items={block.items} key={index} selectable={selectable} onLinkPress={handleLinkPress} />;
+                        return <RenderTaskListBlock items={block.items} key={index} selectable={selectable} linkHandlers={linkHandlers} />;
                     } else if (block.type === 'quote') {
-                        return <RenderQuoteBlock spans={block.content} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} onLinkPress={handleLinkPress} />;
+                        return <RenderQuoteBlock spans={block.content} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} linkHandlers={linkHandlers} />;
                     } else if (block.type === 'code-block') {
                         return <RenderCodeBlock content={block.content} language={block.language} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} />;
                     } else if (block.type === 'mermaid') {
@@ -82,7 +133,7 @@ export const MarkdownView = React.memo((props: {
                     } else if (block.type === 'options') {
                         return <RenderOptionsBlock items={block.items} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} onOptionPress={props.onOptionPress} />;
                     } else if (block.type === 'table') {
-                        return <RenderTableBlock headers={block.headers} rows={block.rows} onLinkPress={handleLinkPress} selectable={selectable} key={index} first={index === 0} last={index === blocks.length - 1} />;
+                        return <RenderTableBlock headers={block.headers} rows={block.rows} linkHandlers={linkHandlers} selectable={selectable} key={index} first={index === 0} last={index === blocks.length - 1} />;
                     } else if (block.type === 'image') {
                         return <RenderImageBlock url={block.url} alt={block.alt} key={index} first={index === 0} last={index === blocks.length - 1} />;
                     } else {
@@ -119,54 +170,57 @@ export const MarkdownView = React.memo((props: {
     );
 });
 
-type RenderSpanProps = {
+type RenderSpanProps = MarkdownLinkHandlers & {
     spans: MarkdownSpan[];
     baseStyle?: any;
     selectable: boolean;
-    onLinkPress: (url: string) => void;
 };
 
-function RenderTextBlock(props: { spans: MarkdownSpan[], first: boolean, last: boolean, selectable: boolean, onLinkPress: (url: string) => void }) {
-    return <Text selectable={props.selectable} style={[style.text, props.first && style.first, props.last && style.last]}><RenderSpans spans={props.spans} baseStyle={style.text} selectable={props.selectable} onLinkPress={props.onLinkPress} /></Text>;
+type MarkdownBlockLinkProps = {
+    linkHandlers: MarkdownLinkHandlers;
+};
+
+function RenderTextBlock(props: { spans: MarkdownSpan[], first: boolean, last: boolean, selectable: boolean } & MarkdownBlockLinkProps) {
+    return <Text selectable={props.selectable} style={[style.text, props.first && style.first, props.last && style.last]}><RenderSpans spans={props.spans} baseStyle={style.text} selectable={props.selectable} {...props.linkHandlers} /></Text>;
 }
 
-function RenderHeaderBlock(props: { level: 1 | 2 | 3 | 4 | 5 | 6, spans: MarkdownSpan[], first: boolean, last: boolean, selectable: boolean, onLinkPress: (url: string) => void }) {
+function RenderHeaderBlock(props: { level: 1 | 2 | 3 | 4 | 5 | 6, spans: MarkdownSpan[], first: boolean, last: boolean, selectable: boolean } & MarkdownBlockLinkProps) {
     const s = (style as any)[`header${props.level}`];
     const headerStyle = [style.header, s, props.first && style.first, props.last && style.last];
-    return <Text selectable={props.selectable} style={headerStyle}><RenderSpans spans={props.spans} baseStyle={headerStyle} selectable={props.selectable} onLinkPress={props.onLinkPress} /></Text>;
+    return <Text selectable={props.selectable} style={headerStyle}><RenderSpans spans={props.spans} baseStyle={headerStyle} selectable={props.selectable} {...props.linkHandlers} /></Text>;
 }
 
 const BULLETS = ['•', '◦', '▪'] as const;
 
-function RenderListBlock(props: { items: { depth: number, spans: MarkdownSpan[] }[], first: boolean, last: boolean, selectable: boolean, onLinkPress: (url: string) => void }) {
+function RenderListBlock(props: { items: { depth: number, spans: MarkdownSpan[] }[], first: boolean, last: boolean, selectable: boolean } & MarkdownBlockLinkProps) {
     const listStyle = [style.text, style.list];
     return (
         <View style={{ flexDirection: 'column', marginBottom: 8, gap: 6 }}>
             {props.items.map((item, index) => (
                 <View key={index} style={{ flexDirection: 'row', alignItems: 'flex-start', paddingLeft: item.depth * 16 }}>
                     <Text selectable={false} style={[listStyle, { marginRight: 8, marginTop: 1 }]}>{BULLETS[Math.min(item.depth, BULLETS.length - 1)]}</Text>
-                    <Text selectable={props.selectable} style={[listStyle, { flex: 1 }]}><RenderSpans spans={item.spans} baseStyle={listStyle} selectable={props.selectable} onLinkPress={props.onLinkPress} /></Text>
+                    <Text selectable={props.selectable} style={[listStyle, { flex: 1 }]}><RenderSpans spans={item.spans} baseStyle={listStyle} selectable={props.selectable} {...props.linkHandlers} /></Text>
                 </View>
             ))}
         </View>
     );
 }
 
-function RenderNumberedListBlock(props: { items: { number: number, depth: number, spans: MarkdownSpan[] }[], first: boolean, last: boolean, selectable: boolean, onLinkPress: (url: string) => void }) {
+function RenderNumberedListBlock(props: { items: { number: number, depth: number, spans: MarkdownSpan[] }[], first: boolean, last: boolean, selectable: boolean } & MarkdownBlockLinkProps) {
     const listStyle = [style.text, style.list];
     return (
         <View style={{ flexDirection: 'column', marginBottom: 8, gap: 6 }}>
             {props.items.map((item, index) => (
                 <View key={index} style={{ flexDirection: 'row', alignItems: 'flex-start', paddingLeft: item.depth * 16 }}>
                     <Text selectable={false} style={[listStyle, { marginRight: 8, marginTop: 1 }]}>{item.number}.</Text>
-                    <Text selectable={props.selectable} style={[listStyle, { flex: 1 }]}><RenderSpans spans={item.spans} baseStyle={listStyle} selectable={props.selectable} onLinkPress={props.onLinkPress} /></Text>
+                    <Text selectable={props.selectable} style={[listStyle, { flex: 1 }]}><RenderSpans spans={item.spans} baseStyle={listStyle} selectable={props.selectable} {...props.linkHandlers} /></Text>
                 </View>
             ))}
         </View>
     );
 }
 
-function RenderTaskListBlock(props: { items: { checked: boolean, depth: number, spans: MarkdownSpan[] }[], selectable: boolean, onLinkPress: (url: string) => void }) {
+function RenderTaskListBlock(props: { items: { checked: boolean, depth: number, spans: MarkdownSpan[] }[], selectable: boolean } & MarkdownBlockLinkProps) {
     const listStyle = [style.text, style.list];
     return (
         <View style={style.taskList}>
@@ -184,7 +238,7 @@ function RenderTaskListBlock(props: { items: { checked: boolean, depth: number, 
                         color={item.checked ? style.taskListChecked.color : style.taskListUnchecked.color}
                     />
                     <Text selectable={props.selectable} style={[listStyle, style.taskListText]}>
-                        <RenderSpans spans={item.spans} baseStyle={listStyle} selectable={props.selectable} onLinkPress={props.onLinkPress} />
+                        <RenderSpans spans={item.spans} baseStyle={listStyle} selectable={props.selectable} {...props.linkHandlers} />
                     </Text>
                 </View>
             ))}
@@ -192,11 +246,11 @@ function RenderTaskListBlock(props: { items: { checked: boolean, depth: number, 
     );
 }
 
-function RenderQuoteBlock(props: { spans: MarkdownSpan[], first: boolean, last: boolean, selectable: boolean, onLinkPress: (url: string) => void }) {
+function RenderQuoteBlock(props: { spans: MarkdownSpan[], first: boolean, last: boolean, selectable: boolean } & MarkdownBlockLinkProps) {
     return (
         <View style={[style.quote, props.first && style.first, props.last && style.last]}>
             <Text selectable={props.selectable} style={style.quoteText}>
-                <RenderSpans spans={props.spans} baseStyle={style.quoteText} selectable={props.selectable} onLinkPress={props.onLinkPress} />
+                <RenderSpans spans={props.spans} baseStyle={style.quoteText} selectable={props.selectable} {...props.linkHandlers} />
             </Text>
         </View>
     );
@@ -376,16 +430,16 @@ function RenderSpans(props: RenderSpanProps) {
     return (<>
         {props.spans.map((span, index) => {
             if (span.url) {
-                const isExternalLink = isHttpMarkdownLink(span.url);
+                const linkTarget = props.resolveLinkTarget(span.url, span.text);
                 return (
                     <Text
                         key={index}
                         selectable={props.selectable}
-                        accessibilityRole={isExternalLink ? 'link' : undefined}
-                        style={[props.baseStyle, isExternalLink && style.link, span.styles.map(s => style[s])]}
-                        {...(isExternalLink && Platform.OS === 'web' ? { onClick: () => props.onLinkPress(span.url!) } as any : {})}
-                        onPress={isExternalLink && Platform.OS !== 'web'
-                            ? () => props.onLinkPress(span.url!)
+                        accessibilityRole={linkTarget ? 'link' : undefined}
+                        style={[props.baseStyle, linkTarget && style.link, span.styles.map(s => style[s])]}
+                        {...(linkTarget && Platform.OS === 'web' ? { onClick: () => props.onLinkPress(linkTarget) } as any : {})}
+                        onPress={linkTarget && Platform.OS !== 'web'
+                            ? () => props.onLinkPress(linkTarget)
                             : undefined}
                     >
                         {span.text}
@@ -422,11 +476,10 @@ const TABLE_CELL_H_PADDING = 24;
 function RenderTableBlock(props: {
     headers: MarkdownSpan[][],
     rows: MarkdownSpan[][][],
-    onLinkPress: (url: string) => void,
     selectable: boolean,
     first: boolean,
     last: boolean
-}) {
+} & MarkdownBlockLinkProps) {
     const columnCount = props.headers.length;
     const rowCount = props.rows.length;
     const isLastCol = (colIndex: number) => colIndex === columnCount - 1;
@@ -460,7 +513,7 @@ function RenderTableBlock(props: {
                                 style={[style.tableCell, style.tableHeaderCell, { width: columnWidths[colIndex] }, !isLastCol(colIndex) && style.tableCellBorderRight]}
                             >
                                 <Text style={style.tableHeaderText}>
-                                    <RenderSpans spans={header} baseStyle={style.tableHeaderText} onLinkPress={props.onLinkPress} selectable={props.selectable} />
+                                    <RenderSpans spans={header} baseStyle={style.tableHeaderText} selectable={props.selectable} {...props.linkHandlers} />
                                 </Text>
                             </View>
                         ))}
@@ -477,7 +530,7 @@ function RenderTableBlock(props: {
                                     style={[style.tableCell, { width: columnWidths[colIndex] }, !isLastCol(colIndex) && style.tableCellBorderRight]}
                                 >
                                     <Text style={style.tableCellText}>
-                                        <RenderSpans spans={row[colIndex] ?? []} baseStyle={style.tableCellText} onLinkPress={props.onLinkPress} selectable={props.selectable} />
+                                        <RenderSpans spans={row[colIndex] ?? []} baseStyle={style.tableCellText} selectable={props.selectable} {...props.linkHandlers} />
                                     </Text>
                                 </View>
                             ))}

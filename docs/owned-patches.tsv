@@ -57,3 +57,19 @@ AUTOMATION_PROJECT_SELECTOR	accepted	fix(automations): move machine selection in
 COMPONENT_DEPLOYMENT	accepted	fix(deploy): use platform-managed server volume	scripts/test-component-deployment-contract.sh
 COMMANDER_AVATAR	accepted	feat(commanders): configure profile pictures	server/packages/happy-app/sources/utils/commanderAvatarUpload.test.ts
 WORKSPACE_FILE_EDIT	accepted	fix(workspace): edit text files regardless of name	server/packages/happy-app/sources/utils/filePreview.test.ts
+WORKSPACE_LINKS	accepted	feat(workspace): open live links with viewer feedback	server/packages/happy-app/sources/components/WorkspaceLinkViewer.native.test.ts
+WORKSPACE_LINKS	accepted	fix(workspace): preserve viewer feedback intent	server/packages/happy-app/sources/components/WorkspaceLinkViewer.native.test.ts
+WORKSPACE_LINKS	accepted	fix(workspace): complete live link handoff	server/packages/happy-app/sources/components/WorkspaceLinkViewer.native.test.ts
+WORKSPACE_LINKS	accepted	fix(workspace): retain strict feedback until delivery	server/packages/happy-app/sources/sync/sendMessageLocalBatch.test.ts
+WORKSPACE_LINKS	accepted	fix(workspace): preserve live viewer context	server/packages/happy-app/sources/components/WorkspaceLinkViewer.native.test.ts
+WORKSPACE_LINKS	accepted	fix(workspace): enforce live viewer delivery boundaries	server/packages/happy-app/sources/sync/strictOutboxBatchTracker.test.ts
+WORKSPACE_LINKS	accepted	fix(workspace): preserve linked feedback navigation	server/packages/happy-app/sources/components/chatLatestNavigation.test.ts
+WORKSPACE_LINKS	accepted	fix(workspace): complete link parsing and layout continuity	server/packages/happy-app/sources/components/WorkspaceLinkSidePanel.native.test.ts
+WORKSPACE_LINKS	accepted	fix(workspace): block native viewer dismissal	server/packages/happy-app/sources/-session/workspaceLinkNavigation.test.ts
+WORKSPACE_LINKS	accepted	fix(workspace): close final delivery edge cases	server/packages/happy-app/sources/sync/strictOutboxBatchTracker.test.ts
+WORKSPACE_LINKS	accepted	fix(workspace): reject stale feedback preparation	server/packages/happy-app/sources/sync/sendMessageLocalBatch.test.ts
+WORKSPACE_LINKS	accepted	fix(workspace): preserve ordinary attachment delivery	server/packages/happy-app/sources/sync/sendMessageLocalBatch.test.ts
+WORKSPACE_LINKS	accepted	fix(workspace): preserve exact live navigation	server/packages/happy-app/sources/components/WorkspaceLinkViewer.native.test.ts
+WORKSPACE_LINKS	accepted	fix(workspace): pin exact feedback focus	server/packages/happy-app/sources/components/ChatList.native.test.ts
+WORKSPACE_LINKS	accepted	fix(workspace): close exact-link review gaps	server/packages/happy-app/sources/components/ChatList.native.test.ts
+WORKSPACE_LINKS	accepted	fix(workspace): preserve live link context and state	server/packages/happy-app/sources/components/WorkspaceLinkViewer.native.test.ts

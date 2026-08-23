@@ -77,6 +77,19 @@ import {
     type VisibleSessionReconciliationTrigger,
 } from './visibleSessionReconciliation';
 import { appendPendingQueueMessageId, removeQueueMessageIds } from './queueState';
+import {
+    buildAtomicLocalMessageBatch,
+    canCommitPreparedMessage,
+    commitAtomicLocalMessageBatch,
+    hasCompleteRequiredAttachmentBatch,
+    isTerminalOutboxRejectionStatus,
+    partitionOutboxByBatchPolicy,
+    prepareEveryAttachment,
+    removeOutboxBatchesInPlace,
+    removeOutboxRecordsInPlace,
+    type OutboxBatchPolicy,
+} from './sendMessageLocalBatch';
+import { StrictOutboxBatchTracker } from './strictOutboxBatchTracker';
 
 type V3GetSessionMessagesResponse = {
     messages: ApiMessage[];
@@ -103,15 +116,27 @@ type V3PostSessionMessagesResponse = {
 type OutboxMessage = {
     localId: string;
     content: string;
+    batchId: string;
+    batchPolicy: OutboxBatchPolicy;
 };
 
-type SendMessageOptions = {
+export type SendMessageOptions = {
     displayText?: string;
     source?: MessageSentSource;
     /** Optional image attachments to send before the text message. */
     attachments?: AttachmentPreview[];
+    /**
+     * Require every requested attachment to be accepted, uploaded, encrypted,
+     * and prepared before any optimistic message or outbox record is written.
+     */
+    requireAllAttachments?: boolean;
     /** Explicitly retain this message for the provider's next-turn queue. */
     deliveryMode?: 'queue';
+};
+
+export type SendMessageReceipt = {
+    /** Local ID of the text record that owns this send. */
+    localId: string;
 };
 
 class Sync {
@@ -125,6 +150,7 @@ class Sync {
     private messagesSync = new Map<string, InvalidateSync>();
     private sendSync = new Map<string, InvalidateSync>();
     private sendAbortControllers = new Map<string, AbortController>();
+    private strictOutboxBatches = new StrictOutboxBatchTracker<NormalizedMessage>();
     private sessionLastSeq = new Map<string, number>();
     // Lowest seq value we have already fetched and applied for a session.
     // Used as the cursor for backward pagination when the user scrolls up to
@@ -191,13 +217,17 @@ class Sync {
 
             if (nextAppState === 'active') {
                 const shouldFailAfterResume = this.backgroundSendStartedAt !== null
-                    && this.hasPendingOutboxMessages()
+                    && this.hasBackgroundFailFastOutboxMessages()
                     && (Date.now() - this.backgroundSendStartedAt) >= Sync.BACKGROUND_SEND_TIMEOUT_MS;
                 void this.cancelBackgroundSendTimeoutNotification();
                 this.clearBackgroundSendWatchdog();
                 if (shouldFailAfterResume) {
-                    void this.notifyMessageSendFailed();
-                    this.failPendingOutboxMessages('Message failed to send in background after 30s. Please retry.');
+                    const failedCount = this.failPendingOutboxMessages(
+                        'Message failed to send in background after 30s. Please retry.',
+                    );
+                    if (failedCount > 0) {
+                        void this.notifyMessageSendFailed();
+                    }
                 }
                 log.log('📱 App became active');
                 this.purchasesSync.invalidate();
@@ -362,6 +392,23 @@ class Sync {
         return sync;
     }
 
+    private settleStrictOutboxBatches(
+        sessionId: string,
+        messages: readonly OutboxMessage[],
+        error?: Error,
+    ): void {
+        const { retained } = partitionOutboxByBatchPolicy(messages);
+        const batchIds = new Set(retained.map((message) => message.batchId));
+        for (const batchId of batchIds) {
+            this.strictOutboxBatches.settle(batchId, {
+                error,
+                applyOptimistic: (optimistic) => {
+                    this.enqueueMessages(sessionId, [...optimistic]);
+                },
+            });
+        }
+    }
+
     private enqueueMessages(sessionId: string, messages: NormalizedMessage[]) {
         if (messages.length === 0) {
             return;
@@ -423,11 +470,20 @@ class Sync {
         return false;
     }
 
+    private hasBackgroundFailFastOutboxMessages() {
+        for (const messages of this.pendingOutbox.values()) {
+            if (partitionOutboxByBatchPolicy(messages).failFast.length > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private maybeStartBackgroundSendWatchdog() {
         if (Platform.OS === 'web' || this.appState === 'active') {
             return;
         }
-        if (!this.hasPendingOutboxMessages() || this.backgroundSendTimeout) {
+        if (!this.hasBackgroundFailFastOutboxMessages() || this.backgroundSendTimeout) {
             return;
         }
 
@@ -500,21 +556,28 @@ class Sync {
         }
     }
 
-    private failPendingOutboxMessages(reasonText: string) {
-        for (const controller of this.sendAbortControllers.values()) {
+    private failPendingOutboxMessages(reasonText: string): number {
+        for (const [sessionId, controller] of this.sendAbortControllers) {
+            const pending = this.pendingOutbox.get(sessionId);
+            if (!pending || partitionOutboxByBatchPolicy(pending).failFast.length === 0) {
+                continue;
+            }
             controller.abort();
+            this.sendAbortControllers.delete(sessionId);
         }
-        this.sendAbortControllers.clear();
 
         const now = Date.now();
         const failedMessageIdsBySession = new Map<string, string[]>();
         for (const [sessionId, pending] of this.pendingOutbox) {
-            if (pending.length === 0) {
+            const { failFast, retained } = partitionOutboxByBatchPolicy(pending);
+            if (failFast.length === 0) {
                 continue;
             }
-            failedMessageIdsBySession.set(sessionId, pending.map((message) => message.localId));
-            pending.length = 0;
-            this.pendingOutbox.delete(sessionId);
+            failedMessageIdsBySession.set(sessionId, failFast.map((message) => message.localId));
+            pending.splice(0, pending.length, ...retained);
+            if (pending.length === 0) {
+                this.pendingOutbox.delete(sessionId);
+            }
         }
 
         for (const [sessionId, failedMessageIds] of failedMessageIdsBySession) {
@@ -544,35 +607,49 @@ class Sync {
                 }
             }]);
         }
+        return failedMessageIdsBySession.size;
     }
 
     private async handleBackgroundSendTimeout() {
-        if (!this.hasPendingOutboxMessages()) {
+        if (!this.hasBackgroundFailFastOutboxMessages()) {
             await this.cancelBackgroundSendTimeoutNotification();
             this.backgroundSendStartedAt = null;
             return;
         }
 
         await this.cancelBackgroundSendTimeoutNotification();
-        await this.notifyMessageSendFailed();
-        this.failPendingOutboxMessages('Message failed to send in background after 30s. Please retry.');
+        const failedCount = this.failPendingOutboxMessages(
+            'Message failed to send in background after 30s. Please retry.',
+        );
+        if (failedCount > 0) {
+            await this.notifyMessageSendFailed();
+        }
         this.backgroundSendStartedAt = null;
     }
 
     /**
      * Upload image attachments for a session: read bytes → encrypt → upload to server.
      * Returns UploadedAttachment records to embed as file events before the text message.
-     * Failures are logged and skipped rather than aborting the whole message send.
+     * Ordinary Chat sends log and skip failures; strict callers fail fast.
      */
     private async uploadAttachmentsForSession(
         sessionId: string,
         attachments: AttachmentPreview[],
+        requireAllAttachments = false,
     ): Promise<{ uploaded: UploadedAttachment[]; failed: number }> {
-        if (!this.credentials) return { uploaded: [], failed: attachments.length };
+        if (!this.credentials) {
+            if (requireAllAttachments) {
+                throw new Error(t('imageUpload.uploadFailedMessage', { count: attachments.length }));
+            }
+            return { uploaded: [], failed: attachments.length };
+        }
 
         const blobKey = this.encryption.getSessionBlobKey(sessionId);
         if (!blobKey) {
             console.error(`[attachments] No blob key for session ${sessionId}`);
+            if (requireAllAttachments) {
+                throw new Error(t('imageUpload.uploadFailedMessage', { count: attachments.length }));
+            }
             return { uploaded: [], failed: attachments.length };
         }
 
@@ -619,6 +696,9 @@ class Sync {
                     });
                 }
                 failed++;
+                if (requireAllAttachments) {
+                    throw new Error(t('imageUpload.uploadFailedMessage', { count: 1 }));
+                }
                 // Skip this attachment; do not abort the whole message send.
             }
         }
@@ -626,7 +706,17 @@ class Sync {
         return { uploaded, failed };
     }
 
-    async sendMessage(sessionId: string, text: string, options?: SendMessageOptions) {
+    async sendMessage(
+        sessionId: string,
+        text: string,
+        options: SendMessageOptions & { requireAllAttachments: true },
+    ): Promise<SendMessageReceipt>;
+    async sendMessage(
+        sessionId: string,
+        text: string,
+        options?: SendMessageOptions,
+    ): Promise<SendMessageReceipt | undefined>;
+    async sendMessage(sessionId: string, text: string, options?: SendMessageOptions): Promise<SendMessageReceipt | undefined> {
 
         // Get encryption — may not be ready yet if sessions are still syncing
         let encryption = this.encryption.getSessionEncryption(sessionId);
@@ -665,7 +755,13 @@ class Sync {
             ? getMachineAdvertisedEffortLevels(machine?.metadata, agentKey, selectedModel)
             : undefined;
         const modeMeta = resolveMessageModeMeta(session, settings, { availableEfforts });
-        const { displayText, source = 'chat', attachments, deliveryMode } = options ?? {};
+        const {
+            displayText,
+            source = 'chat',
+            attachments,
+            requireAllAttachments = false,
+            deliveryMode,
+        } = options ?? {};
 
         const rigAttachmentPolicy = isRigMetadataV1(session.metadata)
             ? session.metadata?.capabilities?.attachments
@@ -686,6 +782,14 @@ class Sync {
         const rejectedByRigPolicy = isRigMetadataV1(session.metadata)
             && (attachments?.length ?? 0) > (effectiveAttachments?.length ?? 0);
 
+        if (!hasCompleteRequiredAttachmentBatch({
+            requireAllAttachments,
+            requestedCount: attachments?.length ?? 0,
+            effectiveCount: effectiveAttachments?.length ?? 0,
+        })) {
+            throw new Error(t('imageUpload.notSupportedMessage'));
+        }
+
         if (attachmentPlan.shouldShowUnsupportedAlert || rejectedByRigPolicy) {
             Modal.alert(
                 t('imageUpload.notSupportedTitle'),
@@ -700,17 +804,26 @@ class Sync {
         // One persisted local ID owns the queued text plus any attachment
         // records that precede it in the immutable message log.
         const localId = randomUUID();
-        const preparedQueuedAttachments: Array<{
+        const preparedAttachments: Array<{
             localId: string;
             content: string;
             normalized: NormalizedMessage | null;
         }> = [];
 
-        // Upload attachments and queue file events before the text message.
+        // Upload attachments and prepare their file events before the text message.
+        // Strict sends retain every prepared record in memory until the text
+        // record has also encrypted successfully.
         if (effectiveAttachments && effectiveAttachments.length > 0) {
-            const { uploaded, failed } = await this.uploadAttachmentsForSession(sessionId, effectiveAttachments);
+            const { uploaded, failed } = await this.uploadAttachmentsForSession(
+                sessionId,
+                effectiveAttachments,
+                requireAllAttachments,
+            );
 
             if (failed > 0) {
+                if (requireAllAttachments) {
+                    throw new Error(t('imageUpload.uploadFailedMessage', { count: failed }));
+                }
                 Modal.alert(
                     t('imageUpload.uploadFailedTitle'),
                     t('imageUpload.uploadFailedMessage', { count: failed }),
@@ -720,12 +833,12 @@ class Sync {
 
             if (uploaded.length > 0) {
                 let pending: OutboxMessage[] | null = null;
-                if (deliveryMode !== 'queue') {
+                if (deliveryMode !== 'queue' && !requireAllAttachments) {
                     pending = this.pendingOutbox.get(sessionId) ?? [];
                     this.pendingOutbox.set(sessionId, pending);
                 }
 
-                for (const att of uploaded) {
+                const prepareAttachment = async (att: UploadedAttachment) => {
                     const fileRecord: RawRecord = {
                         role: 'session',
                         content: {
@@ -767,17 +880,32 @@ class Sync {
                     const encryptedFileRecord = await encryption.encryptRawRecord(fileRecord);
                     const fileLocalId = randomUUID();
                     const fileNormalized = normalizeRawMessage(fileLocalId, fileLocalId, Date.now(), fileRecord);
-                    if (deliveryMode === 'queue') {
-                        preparedQueuedAttachments.push({
+                    return {
+                        localId: fileLocalId,
+                        content: encryptedFileRecord,
+                        normalized: fileNormalized,
+                    };
+                };
+
+                if (requireAllAttachments) {
+                    preparedAttachments.push(...await prepareEveryAttachment(uploaded, prepareAttachment));
+                } else {
+                    for (const att of uploaded) {
+                        const prepared = await prepareAttachment(att);
+                        if (deliveryMode === 'queue') {
+                            preparedAttachments.push(prepared);
+                            continue;
+                        }
+                        const { normalized, localId: fileLocalId, content: encryptedFileRecord } = prepared;
+                        if (normalized) {
+                            this.enqueueMessages(sessionId, [normalized]);
+                        }
+                        pending!.push({
                             localId: fileLocalId,
                             content: encryptedFileRecord,
-                            normalized: fileNormalized,
+                            batchId: localId,
+                            batchPolicy: 'background-fail-fast',
                         });
-                    } else {
-                        if (fileNormalized) {
-                            this.enqueueMessages(sessionId, [fileNormalized]);
-                        }
-                        pending!.push({ localId: fileLocalId, content: encryptedFileRecord });
                     }
                 }
             }
@@ -821,6 +949,20 @@ class Sync {
         };
         const encryptedRawRecord = await encryption.encryptRawRecord(content);
 
+        // Strict Viewer feedback stages every record in memory, but its
+        // preparation awaits can interleave with remote session deletion or
+        // replacement. Revalidate the destination before that strict batch's
+        // first outbox mutation. Ordinary Chat keeps its existing partial
+        // attachment delivery behavior and is intentionally unaffected.
+        if (!canCommitPreparedMessage({
+            requireAllAttachments,
+            sessionExists: Boolean(storage.getState().sessions[sessionId]),
+            preparedEncryption: encryption,
+            currentEncryption: this.encryption.getSessionEncryption(sessionId),
+        })) {
+            throw new Error(t('happyHerd.composer.sendFailedBody'));
+        }
+
         // Queue-aware runtimes publish an empty snapshot at startup. Wait
         // until every queued record has encrypted successfully before adding
         // the optimistic ID, so a preparation failure cannot leave a ghost
@@ -855,20 +997,47 @@ class Sync {
         // fails; network failures keep the outbox pending for its normal retry.
         const createdAt = Date.now();
         const normalizedMessage = normalizeRawMessage(localId, localId, createdAt, content);
+        let strictOptimisticBatch: NormalizedMessage[] = [];
         try {
-            for (const attachment of preparedQueuedAttachments) {
-                if (attachment.normalized) {
-                    this.enqueueMessages(sessionId, [attachment.normalized]);
+            if (requireAllAttachments) {
+                const batch = buildAtomicLocalMessageBatch(preparedAttachments, {
+                    localId,
+                    content: encryptedRawRecord,
+                    normalized: normalizedMessage,
+                });
+                commitAtomicLocalMessageBatch({
+                    batch,
+                    enqueueOptimistic: (messages) => {
+                        strictOptimisticBatch = messages;
+                    },
+                    appendOutbox: (messages) => pending.push(...messages.map((message) => ({
+                        ...message,
+                        batchId: localId,
+                        batchPolicy: 'retain-until-server-accepted' as const,
+                    }))),
+                });
+            } else {
+                for (const attachment of preparedAttachments) {
+                    if (attachment.normalized) {
+                        this.enqueueMessages(sessionId, [attachment.normalized]);
+                    }
+                    pending.push({
+                        localId: attachment.localId,
+                        content: attachment.content,
+                        batchId: localId,
+                        batchPolicy: 'background-fail-fast',
+                    });
                 }
-                pending.push({ localId: attachment.localId, content: attachment.content });
+                if (normalizedMessage) {
+                    this.enqueueMessages(sessionId, [normalizedMessage]);
+                }
+                pending.push({
+                    localId,
+                    content: encryptedRawRecord,
+                    batchId: localId,
+                    batchPolicy: 'background-fail-fast',
+                });
             }
-            if (normalizedMessage) {
-                this.enqueueMessages(sessionId, [normalizedMessage]);
-            }
-            pending.push({
-                localId,
-                content: encryptedRawRecord
-            });
         } catch (error) {
             if (optimisticQueueInserted) {
                 const latestSession = storage.getState().sessions[sessionId];
@@ -893,7 +1062,18 @@ class Sync {
         storage.getState().markSessionMessageSent(sessionId);
 
         this.maybeStartBackgroundSendWatchdog();
-        await this.getSendSync(sessionId).invalidateAndAwait();
+        // Do not release strict Viewer feedback until the complete batch has
+        // reached the server. The outbox is memory-backed, so local enqueue
+        // alone is not a durable success boundary and must not clear the
+        // Viewer draft or navigate away.
+        if (requireAllAttachments) {
+            const acceptance = this.strictOutboxBatches.register(localId, strictOptimisticBatch);
+            this.getSendSync(sessionId).invalidate();
+            await acceptance;
+        } else {
+            await this.getSendSync(sessionId).invalidateAndAwait();
+        }
+        return { localId };
     }
 
     /** Server sent us settings — merge any pending local changes on top, then apply as one update. */
@@ -2003,20 +2183,38 @@ class Sync {
                 signal: controller.signal
             });
             if (!response.ok) {
-                throw new Error(`Failed to send messages for ${sessionId}: ${response.status}`);
-            }
-
-            const data = await response.json() as V3PostSessionMessagesResponse;
-            pending.splice(0, batch.length);
-            if (Array.isArray(data.messages) && data.messages.length > 0) {
-                const currentLastSeq = this.sessionLastSeq.get(sessionId) ?? 0;
-                let maxSeq = currentLastSeq;
-                for (const message of data.messages) {
-                    if (message.seq > maxSeq) {
-                        maxSeq = message.seq;
-                    }
+                const error = new Error(`Failed to send messages for ${sessionId}: ${response.status}`);
+                if (!isTerminalOutboxRejectionStatus(response.status)) {
+                    throw error;
                 }
-                this.sessionLastSeq.set(sessionId, maxSeq);
+
+                const { failFast, retained } = partitionOutboxByBatchPolicy(batch);
+                if (retained.length === 0) {
+                    throw error;
+                }
+                const rejectedBatchIds = new Set(retained.map((message) => message.batchId));
+                removeOutboxBatchesInPlace(pending, rejectedBatchIds);
+                this.settleStrictOutboxBatches(sessionId, retained, error);
+                if (failFast.length > 0) {
+                    throw error;
+                }
+            } else {
+                const data = await response.json() as V3PostSessionMessagesResponse;
+                removeOutboxRecordsInPlace(
+                    pending,
+                    new Set(batch.map((message) => message.localId)),
+                );
+                this.settleStrictOutboxBatches(sessionId, batch);
+                if (Array.isArray(data.messages) && data.messages.length > 0) {
+                    const currentLastSeq = this.sessionLastSeq.get(sessionId) ?? 0;
+                    let maxSeq = currentLastSeq;
+                    for (const message of data.messages) {
+                        if (message.seq > maxSeq) {
+                            maxSeq = message.seq;
+                        }
+                    }
+                    this.sessionLastSeq.set(sessionId, maxSeq);
+                }
             }
         } catch (error) {
             this.maybeStartBackgroundSendWatchdog();
@@ -2428,7 +2626,18 @@ class Sync {
             // Clear any cached git status
             gitStatusSync.clearForSession(sessionId);
             this.messagesSync.delete(sessionId);
+            const pending = this.pendingOutbox.get(sessionId);
+            if (pending) {
+                this.settleStrictOutboxBatches(
+                    sessionId,
+                    pending,
+                    new Error(t('happyHerd.composer.sendFailedBody')),
+                );
+            }
+            this.sendSync.get(sessionId)?.stop();
             this.sendSync.delete(sessionId);
+            this.sendAbortControllers.get(sessionId)?.abort();
+            this.sendAbortControllers.delete(sessionId);
             this.pendingOutbox.delete(sessionId);
             this.sessionLastSeq.delete(sessionId);
             this.sessionOldestSeq.delete(sessionId);

@@ -16,6 +16,12 @@ describe('MachinePathBrowser host paths', () => {
         expect(parentHostPath('C:\\Users', 'win32')).toBe('C:\\');
     });
 
+    it('stops UNC navigation at the share root', () => {
+        expect(parentHostPath('\\\\server\\share\\folder', 'win32')).toBe('\\\\server\\share');
+        expect(parentHostPath('\\\\server\\share', 'win32')).toBe('\\\\server\\share');
+        expect(parentHostPath('\\\\server\\share\\', 'win32')).toBe('\\\\server\\share');
+    });
+
     it('joins child names with the host platform separator', () => {
         expect(joinHostPath('/home/example-user', 'App', 'linux')).toBe('/home/example-user/App');
         expect(joinHostPath('/', 'tmp', 'linux')).toBe('/tmp');

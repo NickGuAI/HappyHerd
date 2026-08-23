@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "bddbfc76935ef30c35b581b989b3c0fd8c3d30e683663c1054d8b182c20e33ab",
+  "sourceFingerprint": "b5fefb0e6f86a82ac0c85225d965b480f538b9f53de4cde0064834c7135d4a59",
   "routeCount": 36,
-  "surfaceCount": 229,
+  "surfaceCount": 232,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -4693,6 +4693,66 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/WorkspaceFeedbackComposer.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "WorkspaceFeedbackComposer"
+      ],
+      "translationKeys": [
+        "happyHerd.composer.addPhoto",
+        "happyHerd.composer.addPhotos",
+        "happyHerd.composer.finishVoice",
+        "happyHerd.composer.retryVoice",
+        "happyHerd.composer.send",
+        "happyHerd.composer.sendFailedBody",
+        "happyHerd.composer.startVoice",
+        "review.feedbackPrompt"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/WorkspaceLinkSidePanel.tsx",
+      "kind": "panel",
+      "route": null,
+      "exports": [
+        "WorkspaceLinkSidePanel"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/WorkspaceLinkViewer.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "WorkspaceLinkViewer"
+      ],
+      "translationKeys": [
+        "common.back",
+        "common.fileViewer",
+        "common.retry",
+        "errors.tryAgain",
+        "uiCopy.machineNotFound",
+        "uiCopy.openFolderValue",
+        "workspace.emptyFolder",
+        "workspace.linkMachineMissingDescription",
+        "workspace.linkPathMissingDescription",
+        "workspace.linkReadErrorTitle",
+        "workspace.missingPathTitle",
+        "workspace.mobileBackToFiles",
+        "workspace.offlineDescription",
+        "workspace.offlineTitle",
+        "workspace.parent",
+        "workspace.permissionDeniedDescription",
+        "workspace.permissionDeniedTitle"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/hooks/useConnectAccount.ts",
       "kind": "ui-module",
       "route": null,
@@ -5047,6 +5107,7 @@
       ],
       "translationKeys": [
         "common.ok",
+        "happyHerd.composer.sendFailedBody",
         "imageUpload.notSupportedMessage",
         "imageUpload.notSupportedTitle",
         "imageUpload.uploadFailedMessage",

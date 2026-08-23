@@ -1,3 +1,5 @@
+import { normalizeMarkdownLinkDestination } from './markdownLinkDestination';
+
 export type SessionFileLink = {
     path: string;
     absolutePath: string;
@@ -12,9 +14,10 @@ export type SessionFileTextSegment = {
     link: SessionFileLink | null;
 };
 
-const WINDOWS_ABSOLUTE_PATH = /^[A-Za-z]:[\\/]/;
+const WINDOWS_ABSOLUTE_PATH = /^(?:[A-Za-z]:[\\/]|\\\\)/;
 const POSIX_ABSOLUTE_PATH = /^\//;
 const URL_SCHEME = /^[A-Za-z][A-Za-z0-9+.-]*:/;
+const HTTP_URL_WITH_AUTHORITY = /^https?:\/\//i;
 const FILE_URL_PREFIX = /^file:\/\//i;
 const RELATIVE_PREFIX = /^(?:\.{1,2}[\\/]|~[\\/])/;
 const HAS_PATH_SEPARATOR = /[\\/]/;
@@ -114,31 +117,75 @@ function decodeFileUrl(value: string): string {
     }
 }
 
-function inferHomeDirectory(sessionRoot: string | null | undefined): string | null {
+function decodeMarkdownPath(value: string): string {
+    try {
+        return decodeURIComponent(value);
+    } catch {
+        return value;
+    }
+}
+
+function stripMarkdownUrlSuffix(value: string): string {
+    const query = value.indexOf('?');
+    const fragment = value.indexOf('#');
+    const suffix = [query, fragment]
+        .filter((index) => index >= 0)
+        .reduce((first, index) => Math.min(first, index), value.length);
+    return value.slice(0, suffix);
+}
+
+function usesWindowsPathSyntax(platform: string | null | undefined): boolean {
+    return platform == null || platform === 'win32';
+}
+
+function isWindowsAbsolutePath(value: string, platform?: string | null): boolean {
+    return usesWindowsPathSyntax(platform) && WINDOWS_ABSOLUTE_PATH.test(value);
+}
+
+function inferHomeDirectory(
+    sessionRoot: string | null | undefined,
+    platform?: string | null,
+): string | null {
     if (!sessionRoot) {
         return null;
     }
-    const normalizedRoot = normalizePath(sessionRoot);
+    const normalizedRoot = normalizePath(sessionRoot, platform);
     const match = normalizedRoot.match(/^([A-Za-z]:\/Users\/[^/]+|\/Users\/[^/]+|\/home\/[^/]+)/);
     return match?.[1] ?? null;
 }
 
-function expandHomePath(value: string, sessionRoot: string | null | undefined): string {
-    if (!value.startsWith('~/')) {
+function expandHomePath(
+    value: string,
+    sessionRoot: string | null | undefined,
+    platform?: string | null,
+    homeDir?: string | null,
+): string {
+    const hasPosixHomePrefix = value.startsWith('~/');
+    const hasWindowsHomePrefix = platform === 'win32' && value.startsWith('~\\');
+    if (!hasPosixHomePrefix && !hasWindowsHomePrefix) {
         return value;
     }
-    const home = inferHomeDirectory(sessionRoot);
+    const home = homeDir?.trim()
+        ? normalizePath(homeDir, platform)
+        : inferHomeDirectory(sessionRoot, platform);
     if (!home) {
         return value;
     }
     return `${home}/${value.slice(2)}`;
 }
 
-function normalizePath(value: string): string {
-    const withForwardSlashes = value.replace(/\\/g, '/');
-    const isWindowsAbsolute = /^[A-Za-z]:\//.test(withForwardSlashes);
-    const isPosixAbsolute = withForwardSlashes.startsWith('/');
-    const prefix = isWindowsAbsolute ? `${withForwardSlashes.slice(0, 2)}/` : isPosixAbsolute ? '/' : '';
+function normalizePath(value: string, platform?: string | null): string {
+    const windowsPathSyntax = usesWindowsPathSyntax(platform);
+    const withForwardSlashes = windowsPathSyntax
+        ? value.replace(/\\/g, '/')
+        : value;
+    const isWindowsAbsolute = windowsPathSyntax && /^[A-Za-z]:\//.test(withForwardSlashes);
+    const isWindowsUncAbsolute = windowsPathSyntax && withForwardSlashes.startsWith('//');
+    const isPosixAbsolute = !isWindowsUncAbsolute && withForwardSlashes.startsWith('/');
+    const prefix = isWindowsAbsolute
+        ? `${withForwardSlashes.slice(0, 2)}/`
+        : isWindowsUncAbsolute ? '//' : isPosixAbsolute ? '/' : '';
+    const protectedRootDepth = isWindowsUncAbsolute ? 2 : 0;
     const rawRemainder = isWindowsAbsolute ? withForwardSlashes.slice(3) : isPosixAbsolute ? withForwardSlashes.replace(/^\/+/, '') : withForwardSlashes;
 
     const parts = rawRemainder.split('/');
@@ -149,7 +196,10 @@ function normalizePath(value: string): string {
             continue;
         }
         if (part === '..') {
-            if (normalizedParts.length > 0 && normalizedParts[normalizedParts.length - 1] !== '..') {
+            if (
+                normalizedParts.length > protectedRootDepth
+                && normalizedParts[normalizedParts.length - 1] !== '..'
+            ) {
                 normalizedParts.pop();
             } else if (!prefix) {
                 normalizedParts.push(part);
@@ -168,35 +218,48 @@ function normalizePath(value: string): string {
     return `${prefix}${normalizedParts.join('/')}`;
 }
 
-function resolvePath(path: string, sessionRoot: string | null | undefined): string | null {
-    const expandedPath = expandHomePath(decodeFileUrl(path), sessionRoot);
+function resolvePath(
+    path: string,
+    sessionRoot: string | null | undefined,
+    platform?: string | null,
+    homeDir?: string | null,
+): string | null {
+    const expandedPath = expandHomePath(decodeFileUrl(path), sessionRoot, platform, homeDir);
     if (!expandedPath) {
         return null;
     }
-    if (WINDOWS_ABSOLUTE_PATH.test(expandedPath) || POSIX_ABSOLUTE_PATH.test(expandedPath)) {
-        return normalizePath(expandedPath);
+    if (isWindowsAbsolutePath(expandedPath, platform) || POSIX_ABSOLUTE_PATH.test(expandedPath)) {
+        return normalizePath(expandedPath, platform);
     }
     if (!sessionRoot) {
         return null;
     }
-    return normalizePath(`${normalizePath(sessionRoot)}/${expandedPath}`);
+    return normalizePath(`${normalizePath(sessionRoot, platform)}/${expandedPath}`, platform);
 }
 
-function isWithinRoot(path: string, root: string | null | undefined): boolean {
+function isWithinRoot(
+    path: string,
+    root: string | null | undefined,
+    platform?: string | null,
+): boolean {
     if (!root) {
         return false;
     }
-    const normalizedPath = normalizePath(path);
-    const normalizedRoot = normalizePath(root);
+    const normalizedPath = normalizePath(path, platform);
+    const normalizedRoot = normalizePath(root, platform);
     return normalizedPath === normalizedRoot || normalizedPath.startsWith(`${normalizedRoot}/`);
 }
 
-function getRelativePath(path: string, root: string | null | undefined): string | null {
-    if (!isWithinRoot(path, root) || !root) {
+function getRelativePath(
+    path: string,
+    root: string | null | undefined,
+    platform?: string | null,
+): string | null {
+    if (!isWithinRoot(path, root, platform) || !root) {
         return null;
     }
-    const normalizedPath = normalizePath(path);
-    const normalizedRoot = normalizePath(root);
+    const normalizedPath = normalizePath(path, platform);
+    const normalizedRoot = normalizePath(root, platform);
     if (normalizedPath === normalizedRoot) {
         return '.';
     }
@@ -258,16 +321,23 @@ function looksLikePath(value: string): boolean {
     return looksLikeBareFileName(trimmed);
 }
 
-function buildLink(path: string, line: number | null, column: number | null, sessionRoot: string | null | undefined): SessionFileLink | null {
-    const absolutePath = resolvePath(path, sessionRoot);
+function buildLink(
+    path: string,
+    line: number | null,
+    column: number | null,
+    sessionRoot: string | null | undefined,
+    platform?: string | null,
+    homeDir?: string | null,
+): SessionFileLink | null {
+    const absolutePath = resolvePath(path, sessionRoot, platform, homeDir);
     if (!absolutePath) {
         return null;
     }
     return {
-        path: normalizePath(path),
+        path: normalizePath(path, platform),
         absolutePath,
-        relativePath: getRelativePath(absolutePath, sessionRoot),
-        withinSessionRoot: isWithinRoot(absolutePath, sessionRoot),
+        relativePath: getRelativePath(absolutePath, sessionRoot, platform),
+        withinSessionRoot: isWithinRoot(absolutePath, sessionRoot, platform),
         line,
         column,
     };
@@ -276,6 +346,57 @@ function buildLink(path: string, line: number | null, column: number | null, ses
 export function resolveSessionFilePath(path: string, sessionRoot?: string | null): SessionFileLink | null {
     const parsed = parseLineAndColumn(path);
     return buildLink(parsed.path, parsed.line, parsed.column, sessionRoot);
+}
+
+/**
+ * Resolve an explicit Markdown link target as a path on the originating
+ * session's machine.
+ *
+ * Explicit links do not need the file-looking heuristics used when scanning
+ * prose. This intentionally allows directory names such as `[docs](docs)`
+ * while continuing to reject URL schemes and page-local navigation.
+ */
+export function parseExplicitSessionFileLink(
+    url: string,
+    options?: {
+        label?: string | null;
+        sessionRoot?: string | null;
+        platform?: string | null;
+        homeDir?: string | null;
+    },
+): SessionFileLink | null {
+    const trimmedUrl = stripMarkdownUrlSuffix(
+        normalizeMarkdownLinkDestination(url),
+    );
+    if (
+        !trimmedUrl
+        || trimmedUrl.startsWith('#')
+        || trimmedUrl.startsWith('?')
+    ) {
+        return null;
+    }
+
+    const parsedUrl = parseLineAndColumn(trimmedUrl);
+    const decodedPath = decodeMarkdownPath(parsedUrl.path);
+    if (
+        !isWindowsAbsolutePath(decodedPath, options?.platform)
+        && (
+            URL_SCHEME.test(parsedUrl.path)
+            || HTTP_URL_WITH_AUTHORITY.test(decodedPath)
+        )
+    ) {
+        return null;
+    }
+    const parsedLabel = options?.label ? parseLineAndColumn(options.label) : null;
+
+    return buildLink(
+        decodedPath,
+        parsedUrl.line ?? parsedLabel?.line ?? null,
+        parsedUrl.column ?? parsedLabel?.column ?? null,
+        options?.sessionRoot,
+        options?.platform,
+        options?.homeDir,
+    );
 }
 
 export function parseSessionFileLink(
