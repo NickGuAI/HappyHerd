@@ -79,6 +79,7 @@ import {
 import { appendPendingQueueMessageId, removeQueueMessageIds } from './queueState';
 import {
     buildAtomicLocalMessageBatch,
+    canCommitPreparedMessage,
     commitAtomicLocalMessageBatch,
     hasCompleteRequiredAttachmentBatch,
     isTerminalOutboxRejectionStatus,
@@ -947,6 +948,19 @@ class Sync {
             }
         };
         const encryptedRawRecord = await encryption.encryptRawRecord(content);
+
+        // Attachment preparation and record encryption yield to remote
+        // updates. Do not let a stale continuation recreate an outbox for a
+        // session that was deleted or replaced while those awaits ran. From
+        // this check through outbox commit and strict tracker registration,
+        // the synchronous block cannot interleave with delete-session.
+        if (!canCommitPreparedMessage({
+            sessionExists: Boolean(storage.getState().sessions[sessionId]),
+            preparedEncryption: encryption,
+            currentEncryption: this.encryption.getSessionEncryption(sessionId),
+        })) {
+            throw new Error(t('happyHerd.composer.sendFailedBody'));
+        }
 
         // Queue-aware runtimes publish an empty snapshot at startup. Wait
         // until every queued record has encrypted successfully before adding

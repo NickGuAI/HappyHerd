@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { NormalizedMessage } from './typesRaw';
 import {
     buildAtomicLocalMessageBatch,
+    canCommitPreparedMessage,
     commitAtomicLocalMessageBatch,
     hasCompleteRequiredAttachmentBatch,
     isTerminalOutboxRejectionStatus,
@@ -23,6 +24,31 @@ function prepared(localId: string): {
 }
 
 describe('atomic local message batches', () => {
+    it('rejects a prepared message when its destination disappears or is replaced', () => {
+        const preparedEncryption = {};
+
+        expect(canCommitPreparedMessage({
+            sessionExists: true,
+            preparedEncryption,
+            currentEncryption: preparedEncryption,
+        })).toBe(true);
+        expect(canCommitPreparedMessage({
+            sessionExists: false,
+            preparedEncryption,
+            currentEncryption: preparedEncryption,
+        })).toBe(false);
+        expect(canCommitPreparedMessage({
+            sessionExists: true,
+            preparedEncryption,
+            currentEncryption: {},
+        })).toBe(false);
+        expect(canCommitPreparedMessage({
+            sessionExists: true,
+            preparedEncryption,
+            currentEncryption: null,
+        })).toBe(false);
+    });
+
     it('rejects capability or policy filtering only for all-required sends', () => {
         expect(hasCompleteRequiredAttachmentBatch({
             requireAllAttachments: true,

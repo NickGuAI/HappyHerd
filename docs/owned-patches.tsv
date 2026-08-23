@@ -67,3 +67,4 @@ WORKSPACE_LINKS	accepted	fix(workspace): preserve linked feedback navigation	ser
 WORKSPACE_LINKS	accepted	fix(workspace): complete link parsing and layout continuity	server/packages/happy-app/sources/components/WorkspaceLinkSidePanel.native.test.ts
 WORKSPACE_LINKS	accepted	fix(workspace): block native viewer dismissal	server/packages/happy-app/sources/-session/workspaceLinkNavigation.test.ts
 WORKSPACE_LINKS	accepted	fix(workspace): close final delivery edge cases	server/packages/happy-app/sources/sync/strictOutboxBatchTracker.test.ts
+WORKSPACE_LINKS	accepted	fix(workspace): reject stale feedback preparation	server/packages/happy-app/sources/sync/sendMessageLocalBatch.test.ts

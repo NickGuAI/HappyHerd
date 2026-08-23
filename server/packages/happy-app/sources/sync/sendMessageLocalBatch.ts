@@ -16,6 +16,15 @@ export function hasCompleteRequiredAttachmentBatch(args: {
         || args.requestedCount === args.effectiveCount;
 }
 
+export function canCommitPreparedMessage<TEncryption>(args: {
+    sessionExists: boolean;
+    preparedEncryption: TEncryption;
+    currentEncryption: TEncryption | null;
+}): boolean {
+    return args.sessionExists
+        && args.currentEncryption === args.preparedEncryption;
+}
+
 export type OutboxBatchPolicy = 'background-fail-fast' | 'retain-until-server-accepted';
 
 export type OutboxBatchRecord = {
