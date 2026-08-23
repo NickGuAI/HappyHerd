@@ -41,6 +41,7 @@ export function WorkspaceFeedbackComposer(props: WorkspaceFeedbackComposerProps)
     const [draft, setDraft] = React.useState('');
     const [isSending, setIsSending] = React.useState(false);
     const [sendError, setSendError] = React.useState<string | null>(null);
+    const [acceptedReceipt, setAcceptedReceipt] = React.useState<SendMessageReceipt | null>(null);
     const imagePicker = useImagePicker();
     const voiceAvailability = useVoiceInputAvailability();
     const handleTranscript = React.useCallback((transcript: string) => {
@@ -51,6 +52,12 @@ export function WorkspaceFeedbackComposer(props: WorkspaceFeedbackComposerProps)
         setIsSending(sending);
         props.onSendingChange?.(sending);
     }, [props.onSendingChange]);
+
+    React.useEffect(() => {
+        if (!acceptedReceipt || isSending) return;
+        setAcceptedReceipt(null);
+        props.onSent(acceptedReceipt);
+    }, [acceptedReceipt, isSending, props.onSent]);
 
     const hasComposerContent = draft.trim().length > 0 || imagePicker.selectedImages.length > 0;
     const dictatedPrimaryAction = dictation.phase === 'recording'
@@ -102,11 +109,10 @@ export function WorkspaceFeedbackComposer(props: WorkspaceFeedbackComposerProps)
         }
         setDraft('');
         imagePicker.clearImages();
-        // Release route-dismissal guards synchronously before the accepted
-        // send returns to Chat. React state itself may not commit until after
-        // the navigation event is dispatched.
+        // Let the route owner commit usePreventRemove(false) before the effect
+        // above dispatches navigation back to Chat.
         updateSending(false);
-        props.onSent(receipt);
+        setAcceptedReceipt(receipt);
     }, [
         dictation.phase,
         draft,

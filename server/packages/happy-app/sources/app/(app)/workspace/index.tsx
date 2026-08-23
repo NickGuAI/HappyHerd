@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
@@ -58,7 +57,7 @@ import { workspaceLinkViewerKey } from '@/components/WorkspaceLinkViewerModel';
 import type { WorkspaceLinkRouteParams } from '@/utils/markdownWorkspaceLink';
 import {
     dismissWorkspaceLinkToOrigin,
-    preventWorkspaceLinkDismissWhileSending,
+    useWorkspaceLinkDismissGuard,
 } from '@/-session/workspaceLinkNavigation';
 
 function param(value: string | string[] | undefined): string | undefined {
@@ -117,9 +116,8 @@ function WorkspaceLinkRouteScreen({ params }: {
     };
 }) {
     const router = useRouter();
-    const navigation = useNavigation();
     const safeArea = useSafeAreaInsets();
-    const feedbackSendingRef = React.useRef(false);
+    const { onSendingChange: onFeedbackSendingChange } = useWorkspaceLinkDismissGuard();
     const originSessionId = param(params.originSessionId);
     const machineId = param(params.machineId);
     const absolutePath = param(params.absolutePath);
@@ -138,10 +136,6 @@ function WorkspaceLinkRouteScreen({ params }: {
             : null
     ), [absolutePath, column, line, machineId, originSessionId]);
 
-    React.useEffect(() => navigation.addListener('beforeRemove', (event) => {
-        preventWorkspaceLinkDismissWhileSending(feedbackSendingRef.current, event);
-    }), [navigation]);
-
     if (!reference) {
         return (
             <View style={styles.screen}>
@@ -159,9 +153,7 @@ function WorkspaceLinkRouteScreen({ params }: {
                 reference={reference}
                 headerTopInset={safeArea.top}
                 onBack={() => router.back()}
-                onFeedbackSendingChange={(sending) => {
-                    feedbackSendingRef.current = sending;
-                }}
+                onFeedbackSendingChange={onFeedbackSendingChange}
                 onFeedbackSent={(receipt) => dismissWorkspaceLinkToOrigin(
                     router,
                     reference.originSessionId,

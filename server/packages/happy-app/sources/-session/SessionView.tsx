@@ -52,7 +52,6 @@ import { isVersionSupported, MINIMUM_CLI_VERSION } from '@/utils/versionUtils';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useNavigation } from '@react-navigation/native';
 import * as React from 'react';
 import { useMemo } from 'react';
 import { ActivityIndicator, Platform, Pressable, Text, View, useWindowDimensions } from 'react-native';
@@ -100,7 +99,7 @@ import {
     resolveWorkspaceLinkPresentation,
 } from '@/components/WorkspaceLinkViewerModel';
 import {
-    preventWorkspaceLinkDismissWhileSending,
+    useWorkspaceLinkDismissGuard,
     WorkspaceLinkPressContext,
 } from './workspaceLinkNavigation';
 import type { WorkspaceLinkRoute } from '@/utils/markdownWorkspaceLink';
@@ -108,7 +107,6 @@ import type { WorkspaceLinkRoute } from '@/utils/markdownWorkspaceLink';
 export const SessionView = React.memo((props: { id: string; focusMessageId?: string }) => {
     const sessionId = props.id;
     const router = useRouter();
-    const navigation = useNavigation();
     const session = useSession(sessionId);
     const isDataReady = useIsDataReady();
     const { theme } = useUnistyles();
@@ -138,7 +136,11 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         workspaceLinkPresentation,
         workspaceLinkRoute !== null,
     );
-    const workspaceLinkFeedbackSendingRef = React.useRef(false);
+    const {
+        sendingRef: workspaceLinkFeedbackSendingRef,
+        onSendingChange: onWorkspaceLinkFeedbackSendingChange,
+        reset: resetWorkspaceLinkDismissGuard,
+    } = useWorkspaceLinkDismissGuard();
     const [focusMessageId, setFocusMessageId] = React.useState<string | undefined>(props.focusMessageId);
 
     const handleWorkspaceLinkPress = React.useCallback((route: WorkspaceLinkRoute) => {
@@ -151,13 +153,9 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     }, [router, sessionId]);
 
     React.useEffect(() => {
-        workspaceLinkFeedbackSendingRef.current = false;
+        resetWorkspaceLinkDismissGuard();
         setWorkspaceLinkRoute(null);
-    }, [sessionId]);
-
-    React.useEffect(() => navigation.addListener('beforeRemove', (event) => {
-        preventWorkspaceLinkDismissWhileSending(workspaceLinkFeedbackSendingRef.current, event);
-    }), [navigation]);
+    }, [resetWorkspaceLinkDismissGuard, sessionId]);
 
     React.useEffect(() => {
         setFocusMessageId(props.focusMessageId);
@@ -623,9 +621,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                     reference={workspaceLinkRoute.params}
                     windowWidth={windowWidth}
                     onBack={() => setWorkspaceLinkRoute(null)}
-                    onFeedbackSendingChange={(sending) => {
-                        workspaceLinkFeedbackSendingRef.current = sending;
-                    }}
+                    onFeedbackSendingChange={onWorkspaceLinkFeedbackSendingChange}
                     onFeedbackSent={(receipt) => {
                         setWorkspaceLinkRoute(null);
                         setFocusMessageId(receipt.localId);
