@@ -104,6 +104,26 @@ describe('markdownWorkspaceLink', () => {
         });
     });
 
+    it('expands a Windows backslash home target on the exact originating machine', () => {
+        expect(resolveMarkdownWorkspaceLinkRoute({
+            url: '~\\Documents\\notes.txt',
+            originSessionId: 'session-origin',
+            metadata: {
+                machineId: 'windows-origin',
+                path: 'C:\\Users\\alice\\project',
+                os: 'win32',
+            },
+        })).toEqual({
+            pathname: '/workspace',
+            params: {
+                mode: 'link',
+                originSessionId: 'session-origin',
+                machineId: 'windows-origin',
+                absolutePath: 'C:/Users/alice/Documents/notes.txt',
+            },
+        });
+    });
+
     it('leaves HTTP links to the external-link handler', () => {
         expect(resolveMarkdownWorkspaceLinkRoute({
             url: 'https://example.com/docs',

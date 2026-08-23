@@ -93,10 +93,11 @@ describe('WorkspaceLinkSidePanel', () => {
         act(() => {
             renderer.update(React.createElement(WorkspaceLinkSidePanel, {
                 ...baseProps,
-                windowWidth: 800,
+                windowWidth: 320,
             }));
         });
         const resizedViewer = renderer.root.findByType('WorkspaceLinkViewer' as any);
+        expect(renderer.root.findByType('View' as any).props.style.width).toBe(320);
         expect(mocks.mounts).toBe(1);
         expect(resizedViewer.props.draft).toBe('keep this feedback');
         expect(resizedViewer.props.error).toBeNull();

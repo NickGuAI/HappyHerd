@@ -111,6 +111,7 @@ const ChatListInternal = React.memo((props: {
     const { theme } = useUnistyles();
     const flatListRef = React.useRef<FlatList>(null);
     const focusedMessageIdRef = React.useRef<string | null>(null);
+    const focusedListRevisionRef = React.useRef<number | null>(null);
     const focusScrollRetryRef = React.useRef<MessageFocusScrollRetryState | null>(null);
     const focusScrollRetryTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
     const [showScrollButton, setShowScrollButton] = React.useState(false);
@@ -166,12 +167,13 @@ const ChatListInternal = React.memo((props: {
         if (Platform.OS !== 'web') {
             return;
         }
-        if (showScrollButtonRef.current) {
+        cancelFocusScrollRetry();
+        if (!exactMessageFocusAnchoredRef.current && showScrollButtonRef.current) {
             showScrollButtonRef.current = false;
             setShowScrollButton(false);
         }
         setHandoffListRevision((revision) => revision + 1);
-    }, [controlMode]);
+    }, [cancelFocusScrollRetry, controlMode]);
 
     // Collapse agent work between a user prompt and the final answer.
     // Nested tool groups remain expandable inside the work block.
@@ -224,6 +226,7 @@ const ChatListInternal = React.memo((props: {
     React.useEffect(() => {
         previousConversationMessageIdsRef.current = conversationMessageIds;
         focusedMessageIdRef.current = null;
+        focusedListRevisionRef.current = null;
         cancelFocusScrollRetry();
         isFollowingLatestRef.current = true;
         setReleasedFocusRequestKey(null);
@@ -433,12 +436,16 @@ const ChatListInternal = React.memo((props: {
     React.useEffect(() => {
         if (!props.focusMessageId) {
             focusedMessageIdRef.current = null;
+            focusedListRevisionRef.current = null;
             cancelFocusScrollRetry();
             setReleasedFocusRequestKey(null);
             return;
         }
         if (focusRequestKey === releasedFocusRequestKey) return;
-        if (focusedMessageIdRef.current === props.focusMessageId) return;
+        if (
+            focusedMessageIdRef.current === props.focusMessageId
+            && focusedListRevisionRef.current === handoffListRevision
+        ) return;
         cancelFocusScrollRetry();
         const target = exactMessageFocusTarget;
         if (!target) return;
@@ -457,6 +464,7 @@ const ChatListInternal = React.memo((props: {
         }
 
         focusedMessageIdRef.current = props.focusMessageId;
+        focusedListRevisionRef.current = handoffListRevision;
         focusScrollRetryRef.current = {
             messageId: props.focusMessageId,
             index: target.index,
@@ -490,6 +498,7 @@ const ChatListInternal = React.memo((props: {
         displayItems.length,
         exactMessageFocusTarget,
         focusRequestKey,
+        handoffListRevision,
         handleFocusScrollToIndexFailed,
         props.focusMessageId,
         releasedFocusRequestKey,

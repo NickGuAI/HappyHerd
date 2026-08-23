@@ -19,7 +19,7 @@ export function getChatListMaintainVisibleContentPosition(
     // In an inverted list this threshold means “follow the visual bottom.”
     // Omit it while an explicit receipt is anchored, including when that row
     // is currently index 0, so a concurrent row cannot replace the receipt as
-    // the effective focus. Keep the visible-content anchor itself enabled.
+    // the effective focus. Keep the stable post-token row as native anchor.
     return exactMessageFocusAnchored
         ? { minIndexForVisible: 1 }
         : { minIndexForVisible: 1, autoscrollToTopThreshold: 50 };

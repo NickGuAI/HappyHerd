@@ -6,25 +6,39 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 const mocks = vi.hoisted(() => ({
     messages: [] as any[],
     session: null as any,
+    platformOS: 'ios',
+    controlMode: 'agent',
     scrollToIndex: vi.fn(),
     scrollToOffset: vi.fn(),
+    listInstances: [] as Array<{
+        scrollToIndex: ReturnType<typeof vi.fn>;
+        scrollToOffset: ReturnType<typeof vi.fn>;
+    }>,
 }));
 
 vi.mock('react-native', async () => {
     const ReactModule = await import('react');
     const host = (name: string) => (props: any) => ReactModule.createElement(name, props, props.children);
     const FlatList = ReactModule.forwardRef((props: any, ref: any) => {
-        ReactModule.useImperativeHandle(ref, () => ({
-            scrollToIndex: mocks.scrollToIndex,
-            scrollToOffset: mocks.scrollToOffset,
-        }));
+        const instanceRef = ReactModule.useRef<{
+            scrollToIndex: ReturnType<typeof vi.fn>;
+            scrollToOffset: ReturnType<typeof vi.fn>;
+        } | null>(null);
+        if (!instanceRef.current) {
+            instanceRef.current = {
+                scrollToIndex: vi.fn((...args: any[]) => mocks.scrollToIndex(...args)),
+                scrollToOffset: vi.fn((...args: any[]) => mocks.scrollToOffset(...args)),
+            };
+            mocks.listInstances.push(instanceRef.current);
+        }
+        ReactModule.useImperativeHandle(ref, () => instanceRef.current);
         return ReactModule.createElement('FlatList', props);
     });
     return {
         ActivityIndicator: host('ActivityIndicator'),
         AppState: { addEventListener: () => ({ remove: vi.fn() }) },
         FlatList,
-        Platform: { OS: 'ios' },
+        Platform: { get OS() { return mocks.platformOS; } },
         Pressable: host('Pressable'),
         Text: host('Text'),
         View: host('View'),
@@ -60,7 +74,7 @@ vi.mock('@/sync/storage', () => ({
     useSetting: () => false,
 }));
 vi.mock('@/sync/sync', () => ({ sync: { loadOlderMessages: vi.fn() } }));
-vi.mock('@/sync/controlHandoff', () => ({ resolveControlMode: () => 'agent' }));
+vi.mock('@/sync/controlHandoff', () => ({ resolveControlMode: () => mocks.controlMode }));
 vi.mock('@/sync/rig', () => ({ usesControlledSessionUi: () => false }));
 vi.mock('@/sync/queueProjection', () => ({
     projectSessionQueue: (messages: any[]) => ({ transcriptMessages: messages }),
@@ -100,6 +114,8 @@ afterEach(() => vi.useRealTimers());
 
 beforeEach(() => {
     mocks.messages = [];
+    mocks.platformOS = 'ios';
+    mocks.controlMode = 'agent';
     mocks.session = {
         id: 'origin-session',
         active: true,
@@ -109,6 +125,7 @@ beforeEach(() => {
     };
     mocks.scrollToIndex.mockReset();
     mocks.scrollToOffset.mockReset();
+    mocks.listInstances = [];
 });
 
 function userMessage(id: string, localId: string | null = null) {
@@ -230,6 +247,48 @@ describe('ChatList exact feedback focus', () => {
             animated: true,
             viewPosition: 0.5,
         });
+        act(() => renderer.unmount());
+    });
+
+    it('reapplies exact focus after a web control handoff remounts the native list', async () => {
+        mocks.platformOS = 'web';
+        mocks.messages = [userMessage('feedback-persisted-id', 'feedback-local-id')];
+        const renderer = await renderChat();
+        expect(mocks.listInstances).toHaveLength(1);
+        expect(mocks.listInstances[0].scrollToIndex).toHaveBeenCalledTimes(1);
+
+        mocks.controlMode = 'user';
+        mocks.session = { ...mocks.session, metadata: { handoffRevision: 1 } };
+        mocks.messages = [
+            agentMessage('agent-newer'),
+            ...mocks.messages,
+        ];
+        await act(async () => {
+            renderer.update(chat(mocks.session));
+            await Promise.resolve();
+        });
+
+        expect(mocks.listInstances).toHaveLength(2);
+        expect(mocks.listInstances[0].scrollToIndex).toHaveBeenCalledTimes(1);
+        expect(mocks.listInstances[1].scrollToIndex).toHaveBeenCalledTimes(1);
+        expect(mocks.listInstances[1].scrollToIndex).toHaveBeenLastCalledWith({
+            index: 1,
+            animated: true,
+            viewPosition: 0.5,
+        });
+        expect(renderer.root.findByType('FlatList' as any).props.maintainVisibleContentPosition)
+            .toEqual({ minIndexForVisible: 1 });
+
+        act(() => renderer.root.findByType('FlatList' as any).props.onScrollBeginDrag());
+        mocks.controlMode = 'agent';
+        mocks.session = { ...mocks.session, metadata: { handoffRevision: 2 } };
+        mocks.messages = [agentMessage('agent-even-newer'), ...mocks.messages];
+        await act(async () => {
+            renderer.update(chat(mocks.session));
+            await Promise.resolve();
+        });
+        expect(mocks.listInstances).toHaveLength(3);
+        expect(mocks.listInstances[2].scrollToIndex).not.toHaveBeenCalled();
         act(() => renderer.unmount());
     });
 

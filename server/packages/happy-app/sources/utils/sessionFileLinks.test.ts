@@ -233,6 +233,25 @@ describe('sessionFileLinks', () => {
             });
         });
 
+        it('expands a backslash home prefix only on the recorded Windows platform', () => {
+            expect(parseExplicitSessionFileLink('~\\Documents\\notes.txt', {
+                sessionRoot: 'C:\\Users\\alice\\project',
+                platform: 'win32',
+            })).toMatchObject({
+                path: '~/Documents/notes.txt',
+                absolutePath: 'C:/Users/alice/Documents/notes.txt',
+                relativePath: null,
+            });
+            expect(parseExplicitSessionFileLink('~\\Documents\\notes.txt', {
+                sessionRoot: '/srv/project',
+                platform: 'linux',
+            })).toMatchObject({
+                path: '~\\Documents\\notes.txt',
+                absolutePath: '/srv/project/~\\Documents\\notes.txt',
+                relativePath: '~\\Documents\\notes.txt',
+            });
+        });
+
         it('rejects external schemes and raw page-local targets', () => {
             expect(parseExplicitSessionFileLink('https://openai.com', { sessionRoot })).toBeNull();
             expect(parseExplicitSessionFileLink('https%3A%2F%2Fopenai.com', { sessionRoot })).toBeNull();

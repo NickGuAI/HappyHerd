@@ -24,10 +24,11 @@ export function WorkspaceLinkSidePanel({
     onFeedbackSent,
 }: WorkspaceLinkSidePanelProps) {
     const { theme } = useUnistyles();
+    const preferredWidth = Math.min(Math.max(Math.floor(windowWidth * 0.42), 360), 620);
     return (
         <View
             style={{
-                width: Math.min(Math.max(Math.floor(windowWidth * 0.42), 360), 620),
+                width: Math.min(Math.max(windowWidth, 0), preferredWidth),
                 minWidth: 0,
                 alignSelf: 'stretch',
                 borderLeftWidth: StyleSheet.hairlineWidth,

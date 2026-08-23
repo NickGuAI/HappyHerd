@@ -159,7 +159,9 @@ function expandHomePath(
     sessionRoot: string | null | undefined,
     platform?: string | null,
 ): string {
-    if (!value.startsWith('~/')) {
+    const hasPosixHomePrefix = value.startsWith('~/');
+    const hasWindowsHomePrefix = platform === 'win32' && value.startsWith('~\\');
+    if (!hasPosixHomePrefix && !hasWindowsHomePrefix) {
         return value;
     }
     const home = inferHomeDirectory(sessionRoot, platform);
