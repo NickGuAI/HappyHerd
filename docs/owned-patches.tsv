@@ -72,3 +72,4 @@ WORKSPACE_LINKS	accepted	fix(workspace): preserve ordinary attachment delivery	s
 WORKSPACE_LINKS	accepted	fix(workspace): preserve exact live navigation	server/packages/happy-app/sources/components/WorkspaceLinkViewer.native.test.ts
 WORKSPACE_LINKS	accepted	fix(workspace): pin exact feedback focus	server/packages/happy-app/sources/components/ChatList.native.test.ts
 WORKSPACE_LINKS	accepted	fix(workspace): close exact-link review gaps	server/packages/happy-app/sources/components/ChatList.native.test.ts
+WORKSPACE_LINKS	accepted	fix(workspace): preserve live link context and state	server/packages/happy-app/sources/components/WorkspaceLinkViewer.native.test.ts

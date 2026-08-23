@@ -101,6 +101,8 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
         () => findPinnedWorkspaceLinkMachine(machines, reference.machineId),
         [machines, reference.machineId],
     );
+    const machineOnline = machine ? isMachineOnline(machine) : false;
+    const machinePlatform = machine?.metadata?.platform;
     const [revision, setRevision] = React.useState(0);
     const [state, setState] = React.useState<WorkspaceLinkViewerState>({ status: 'loading' });
     const [headerRightSlot, setHeaderRightSlot] = React.useState<React.ReactNode>(null);
@@ -287,17 +289,17 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
             setHeaderRightSlot(null);
             setState({
                 status: 'error',
-                kind: classifyWorkspaceDirectoryError(response.error, machine ? isMachineOnline(machine) : false),
+                kind: classifyWorkspaceDirectoryError(response.error, machineOnline),
                 detail: response.error,
                 retryTarget: {
                     kind: 'file',
-                    directoryPath: parentHostPath(path, machine?.metadata?.platform),
+                    directoryPath: parentHostPath(path, machinePlatform),
                     filePath: path,
                 },
             });
         }
         return response;
-    }, [machine, reference.machineId]);
+    }, [machineOnline, machinePlatform, reference.machineId]);
 
     const openDirectory = React.useCallback((path: string) => {
         void loadDirectory(path);

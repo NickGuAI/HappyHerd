@@ -110,7 +110,8 @@ describe('markdownWorkspaceLink', () => {
             originSessionId: 'session-origin',
             metadata: {
                 machineId: 'windows-origin',
-                path: 'C:\\Users\\alice\\project',
+                path: 'D:\\work\\project',
+                homeDir: 'D:\\Profiles\\alice',
                 os: 'win32',
             },
         })).toEqual({
@@ -119,7 +120,28 @@ describe('markdownWorkspaceLink', () => {
                 mode: 'link',
                 originSessionId: 'session-origin',
                 machineId: 'windows-origin',
-                absolutePath: 'C:/Users/alice/Documents/notes.txt',
+                absolutePath: 'D:/Profiles/alice/Documents/notes.txt',
+            },
+        });
+    });
+
+    it('expands a POSIX home target from a recorded custom home directory', () => {
+        expect(resolveMarkdownWorkspaceLinkRoute({
+            url: '~/notes.md',
+            originSessionId: 'session-origin',
+            metadata: {
+                machineId: 'root-origin',
+                path: '/srv/agent-home/project',
+                homeDir: '/srv/agent-home',
+                os: 'linux',
+            },
+        })).toEqual({
+            pathname: '/workspace',
+            params: {
+                mode: 'link',
+                originSessionId: 'session-origin',
+                machineId: 'root-origin',
+                absolutePath: '/srv/agent-home/notes.md',
             },
         });
     });

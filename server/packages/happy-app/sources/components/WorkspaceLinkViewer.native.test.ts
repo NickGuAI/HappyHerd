@@ -4,7 +4,12 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-    machines: [] as Array<{ id: string; active: boolean; metadata?: Record<string, string> }>,
+    machines: [] as Array<{
+        id: string;
+        active: boolean;
+        activeAt?: number;
+        metadata?: Record<string, string>;
+    }>,
     dataReady: true,
     getTree: vi.fn(),
     readFile: vi.fn(),
@@ -198,6 +203,30 @@ describe('WorkspaceLinkViewer', () => {
             machineLabel: 'Owner Machine',
             absolutePath: '/work/report.md',
         });
+        act(() => renderer.unmount());
+    });
+
+    it('keeps the file reader stable across heartbeat-only machine replacements', async () => {
+        mockExactFileAndParent();
+        mocks.readFile.mockResolvedValue({ success: true, content: 'cmVwb3J0' });
+        const renderer = await renderViewer();
+        const initialReadFile = renderer.root.findByType('FileContentPanel' as any).props.readFile;
+
+        mocks.machines = [{
+            id: 'owner-machine',
+            active: true,
+            activeAt: 20_000,
+            metadata: { displayName: 'Owner Machine', platform: 'linux' },
+        }];
+        await act(async () => {
+            renderer.update(React.createElement(WorkspaceLinkViewer, {
+                reference,
+                onFeedbackSent: vi.fn(),
+            }));
+            await Promise.resolve();
+        });
+
+        expect(renderer.root.findByType('FileContentPanel' as any).props.readFile).toBe(initialReadFile);
         act(() => renderer.unmount());
     });
 

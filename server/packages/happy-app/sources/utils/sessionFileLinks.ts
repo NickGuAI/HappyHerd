@@ -158,13 +158,16 @@ function expandHomePath(
     value: string,
     sessionRoot: string | null | undefined,
     platform?: string | null,
+    homeDir?: string | null,
 ): string {
     const hasPosixHomePrefix = value.startsWith('~/');
     const hasWindowsHomePrefix = platform === 'win32' && value.startsWith('~\\');
     if (!hasPosixHomePrefix && !hasWindowsHomePrefix) {
         return value;
     }
-    const home = inferHomeDirectory(sessionRoot, platform);
+    const home = homeDir?.trim()
+        ? normalizePath(homeDir, platform)
+        : inferHomeDirectory(sessionRoot, platform);
     if (!home) {
         return value;
     }
@@ -219,8 +222,9 @@ function resolvePath(
     path: string,
     sessionRoot: string | null | undefined,
     platform?: string | null,
+    homeDir?: string | null,
 ): string | null {
-    const expandedPath = expandHomePath(decodeFileUrl(path), sessionRoot, platform);
+    const expandedPath = expandHomePath(decodeFileUrl(path), sessionRoot, platform, homeDir);
     if (!expandedPath) {
         return null;
     }
@@ -323,8 +327,9 @@ function buildLink(
     column: number | null,
     sessionRoot: string | null | undefined,
     platform?: string | null,
+    homeDir?: string | null,
 ): SessionFileLink | null {
-    const absolutePath = resolvePath(path, sessionRoot, platform);
+    const absolutePath = resolvePath(path, sessionRoot, platform, homeDir);
     if (!absolutePath) {
         return null;
     }
@@ -353,7 +358,12 @@ export function resolveSessionFilePath(path: string, sessionRoot?: string | null
  */
 export function parseExplicitSessionFileLink(
     url: string,
-    options?: { label?: string | null; sessionRoot?: string | null; platform?: string | null },
+    options?: {
+        label?: string | null;
+        sessionRoot?: string | null;
+        platform?: string | null;
+        homeDir?: string | null;
+    },
 ): SessionFileLink | null {
     const trimmedUrl = stripMarkdownUrlSuffix(
         normalizeMarkdownLinkDestination(url),
@@ -385,6 +395,7 @@ export function parseExplicitSessionFileLink(
         parsedUrl.column ?? parsedLabel?.column ?? null,
         options?.sessionRoot,
         options?.platform,
+        options?.homeDir,
     );
 }
 

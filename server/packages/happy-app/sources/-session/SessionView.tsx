@@ -99,6 +99,7 @@ import {
     resolveWorkspaceLinkPresentation,
 } from '@/components/WorkspaceLinkViewerModel';
 import {
+    openWorkspaceLinkFromSession,
     useWorkspaceLinkDismissGuard,
     WorkspaceLinkPressContext,
 } from './workspaceLinkNavigation';
@@ -142,15 +143,6 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         reset: resetWorkspaceLinkDismissGuard,
     } = useWorkspaceLinkDismissGuard();
     const [focusMessageId, setFocusMessageId] = React.useState<string | undefined>(props.focusMessageId);
-
-    const handleWorkspaceLinkPress = React.useCallback((route: WorkspaceLinkRoute) => {
-        if (workspaceLinkFeedbackSendingRef.current) return;
-        if (route.params.originSessionId !== sessionId) {
-            router.push(route);
-            return;
-        }
-        setWorkspaceLinkRoute(route);
-    }, [router, sessionId]);
 
     React.useEffect(() => {
         resetWorkspaceLinkDismissGuard();
@@ -365,6 +357,17 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             action();
         });
     }, [fileViewDirty, fileViewPath]);
+
+    const handleWorkspaceLinkPress = React.useCallback((route: WorkspaceLinkRoute) => {
+        openWorkspaceLinkFromSession({
+            route,
+            sessionId,
+            feedbackSending: workspaceLinkFeedbackSendingRef.current,
+            withFileDiscardConfirmation,
+            pushRoute: (nextRoute) => router.push(nextRoute),
+            showSidePanel: setWorkspaceLinkRoute,
+        });
+    }, [router, sessionId, withFileDiscardConfirmation]);
 
     const handleSidebarFilePress = React.useCallback((file: GitFileStatus) => {
         if (file.status === 'deleted') return;

@@ -43,7 +43,7 @@ type ResolveMarkdownWorkspaceLinkRouteInput = Readonly<{
     url: string;
     label?: string | null;
     originSessionId?: string | null;
-    metadata?: Pick<Metadata, 'machineId' | 'path' | 'os'> | null;
+    metadata?: Pick<Metadata, 'machineId' | 'path' | 'os' | 'homeDir'> | null;
 }>;
 
 /**
@@ -67,6 +67,7 @@ export function resolveMarkdownWorkspaceLinkRoute(
         label: input.label,
         sessionRoot: metadata.path,
         platform: metadata.os,
+        homeDir: metadata.homeDir,
     });
     if (!fileLink) {
         return null;

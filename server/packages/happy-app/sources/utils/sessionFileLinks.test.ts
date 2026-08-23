@@ -244,11 +244,24 @@ describe('sessionFileLinks', () => {
             });
             expect(parseExplicitSessionFileLink('~\\Documents\\notes.txt', {
                 sessionRoot: '/srv/project',
+                homeDir: '/srv/agent-home',
                 platform: 'linux',
             })).toMatchObject({
                 path: '~\\Documents\\notes.txt',
                 absolutePath: '/srv/project/~\\Documents\\notes.txt',
                 relativePath: '~\\Documents\\notes.txt',
+            });
+        });
+
+        it('prefers the recorded home directory over a home inferred from the session root', () => {
+            expect(parseExplicitSessionFileLink('~/notes.md', {
+                sessionRoot: '/srv/build/project',
+                homeDir: '/srv/agent-home',
+                platform: 'linux',
+            })).toMatchObject({
+                path: '~/notes.md',
+                absolutePath: '/srv/agent-home/notes.md',
+                relativePath: null,
             });
         });
 
