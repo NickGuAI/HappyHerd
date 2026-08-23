@@ -20,6 +20,7 @@ import {
     getConversationMessageIds,
     planMessageFocusScrollRetry,
     resolveMessageFocusTarget,
+    shouldFollowLatestForMessageFocus,
     type MessageFocusScrollRetryState,
 } from './chatLatestNavigation';
 import { t } from '@/text';
@@ -413,7 +414,7 @@ const ChatListInternal = React.memo((props: {
             index: target.index,
             didRetry: false,
         };
-        const followingLatest = target.index === 0;
+        const followingLatest = shouldFollowLatestForMessageFocus(target);
         isFollowingLatestRef.current = followingLatest;
         newMessageCountRef.current = target.newerConversationCount;
         setNewMessageCount(target.newerConversationCount);

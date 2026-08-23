@@ -52,6 +52,7 @@ import { resolveAbsolutePath } from '@/utils/pathUtils';
 import { useMachineFileUpload } from '@/hooks/useMachineFileUpload';
 import { MachineFileUploadStatus } from '@/components/MachineFileUploadStatus';
 import { WorkspaceLinkViewer } from '@/components/WorkspaceLinkViewer';
+import { workspaceLinkViewerKey } from '@/components/WorkspaceLinkViewerModel';
 import type { WorkspaceLinkRouteParams } from '@/utils/markdownWorkspaceLink';
 
 function param(value: string | string[] | undefined): string | undefined {
@@ -141,6 +142,7 @@ function WorkspaceLinkRouteScreen({ params }: {
         <View style={styles.screen}>
             <Stack.Screen options={{ headerShown: false }} />
             <WorkspaceLinkViewer
+                key={workspaceLinkViewerKey(reference)}
                 reference={reference}
                 onBack={() => router.back()}
                 onFeedbackSent={(receipt) => router.replace({

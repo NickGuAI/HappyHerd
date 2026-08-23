@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
     dataReady: true,
     getTree: vi.fn(),
     readFile: vi.fn(),
+    composerMounted: vi.fn(),
 }));
 
 vi.mock('react-native', async () => {
@@ -50,7 +51,13 @@ vi.mock('@/components/StyledText', async () => {
 vi.mock('@/components/WorkspaceFeedbackComposer', async () => {
     const ReactModule = await import('react');
     return {
-        WorkspaceFeedbackComposer: (props: any) => ReactModule.createElement('WorkspaceFeedbackComposer', props),
+        WorkspaceFeedbackComposer: (props: any) => {
+            ReactModule.useState(() => {
+                mocks.composerMounted(props.absolutePath);
+                return null;
+            });
+            return ReactModule.createElement('WorkspaceFeedbackComposer', props);
+        },
     };
 });
 vi.mock('@/constants/Typography', () => ({
@@ -104,6 +111,7 @@ beforeEach(() => {
     mocks.dataReady = true;
     mocks.getTree.mockReset();
     mocks.readFile.mockReset();
+    mocks.composerMounted.mockReset();
 });
 
 const reference = {
@@ -265,7 +273,7 @@ describe('WorkspaceLinkViewer', () => {
         act(() => renderer.unmount());
     });
 
-    it('keeps read failures in the Viewer and reclassifies the same target on retry', async () => {
+    it('keeps read failures in the Viewer and retries the same target', async () => {
         mockExactFileAndParent();
         mocks.readFile.mockResolvedValue({ success: false, error: 'ENOENT: no such file' });
         const renderer = await renderViewer();
@@ -286,10 +294,63 @@ describe('WorkspaceLinkViewer', () => {
             await Promise.resolve();
             await Promise.resolve();
         });
-        expect(mocks.getTree).toHaveBeenCalledTimes(4);
-        expect(mocks.getTree).toHaveBeenNthCalledWith(3, 'owner-machine', '/work/report.md', 1);
-        expect(mocks.getTree).toHaveBeenNthCalledWith(4, 'owner-machine', '/work', 1);
+        expect(mocks.getTree).toHaveBeenCalledTimes(3);
+        expect(mocks.getTree).toHaveBeenNthCalledWith(3, 'owner-machine', '/work', 1);
         expect(renderer.root.findAllByType('FileContentPanel' as any)).toHaveLength(1);
+        act(() => renderer.unmount());
+    });
+
+    it('retries a failed child file instead of returning to the original folder', async () => {
+        mocks.getTree.mockResolvedValue({
+            success: true,
+            tree: {
+                type: 'directory',
+                name: 'report.md',
+                path: '/work/report.md',
+                children: [{ type: 'file', name: 'notes.txt', path: '/work/report.md/notes.txt' }],
+            },
+        });
+        mocks.readFile.mockResolvedValue({ success: false, error: 'EIO: temporary read failure' });
+        const renderer = await renderViewer();
+
+        act(() => renderer.root.findByProps({ accessibilityLabel: 'common.fileViewer: notes.txt' }).props.onPress());
+        const childPanel = renderer.root.findByType('FileContentPanel' as any);
+        await act(async () => {
+            await childPanel.props.readFile('/work/report.md/notes.txt');
+        });
+
+        const retry = renderer.root.findByType('Pressable' as any);
+        await act(async () => {
+            retry.props.onPress();
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        expect(mocks.getTree).toHaveBeenLastCalledWith('owner-machine', '/work/report.md', 1);
+        expect(renderer.root.findByType('FileContentPanel' as any).props.filePath)
+            .toBe('/work/report.md/notes.txt');
+        act(() => renderer.unmount());
+    });
+
+    it('remounts feedback state when the owning workspace reference changes', async () => {
+        mocks.getTree.mockResolvedValue({
+            success: true,
+            tree: { type: 'directory', name: 'work', path: '/work', children: [] },
+        });
+        const renderer = await renderViewer();
+        expect(mocks.composerMounted).toHaveBeenCalledWith('/work/report.md');
+
+        await act(async () => {
+            renderer.update(React.createElement(WorkspaceLinkViewer, {
+                reference: { ...reference, absolutePath: '/work/other.md' },
+                onFeedbackSent: vi.fn(),
+            }));
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        expect(mocks.composerMounted).toHaveBeenCalledTimes(2);
+        expect(mocks.composerMounted).toHaveBeenLastCalledWith('/work/other.md');
         act(() => renderer.unmount());
     });
 

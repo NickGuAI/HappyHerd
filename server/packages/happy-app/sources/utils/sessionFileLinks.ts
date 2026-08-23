@@ -12,7 +12,7 @@ export type SessionFileTextSegment = {
     link: SessionFileLink | null;
 };
 
-const WINDOWS_ABSOLUTE_PATH = /^[A-Za-z]:[\\/]/;
+const WINDOWS_ABSOLUTE_PATH = /^(?:[A-Za-z]:[\\/]|\\\\)/;
 const POSIX_ABSOLUTE_PATH = /^\//;
 const URL_SCHEME = /^[A-Za-z][A-Za-z0-9+.-]*:/;
 const FILE_URL_PREFIX = /^file:\/\//i;
@@ -137,8 +137,12 @@ function expandHomePath(value: string, sessionRoot: string | null | undefined): 
 function normalizePath(value: string): string {
     const withForwardSlashes = value.replace(/\\/g, '/');
     const isWindowsAbsolute = /^[A-Za-z]:\//.test(withForwardSlashes);
-    const isPosixAbsolute = withForwardSlashes.startsWith('/');
-    const prefix = isWindowsAbsolute ? `${withForwardSlashes.slice(0, 2)}/` : isPosixAbsolute ? '/' : '';
+    const isWindowsUncAbsolute = withForwardSlashes.startsWith('//');
+    const isPosixAbsolute = !isWindowsUncAbsolute && withForwardSlashes.startsWith('/');
+    const prefix = isWindowsAbsolute
+        ? `${withForwardSlashes.slice(0, 2)}/`
+        : isWindowsUncAbsolute ? '//' : isPosixAbsolute ? '/' : '';
+    const protectedRootDepth = isWindowsUncAbsolute ? 2 : 0;
     const rawRemainder = isWindowsAbsolute ? withForwardSlashes.slice(3) : isPosixAbsolute ? withForwardSlashes.replace(/^\/+/, '') : withForwardSlashes;
 
     const parts = rawRemainder.split('/');
@@ -149,7 +153,10 @@ function normalizePath(value: string): string {
             continue;
         }
         if (part === '..') {
-            if (normalizedParts.length > 0 && normalizedParts[normalizedParts.length - 1] !== '..') {
+            if (
+                normalizedParts.length > protectedRootDepth
+                && normalizedParts[normalizedParts.length - 1] !== '..'
+            ) {
                 normalizedParts.pop();
             } else if (!prefix) {
                 normalizedParts.push(part);

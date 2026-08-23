@@ -25,10 +25,16 @@ import type { SendMessageReceipt } from '@/sync/sync';
 import {
     classifyWorkspaceLinkTree,
     findPinnedWorkspaceLinkMachine,
+    workspaceLinkViewerKey,
     type WorkspaceLinkTarget,
 } from './WorkspaceLinkViewerModel';
 
 type WorkspaceLinkErrorKind = WorkspaceDirectoryErrorKind | 'machine-missing';
+
+type WorkspaceLinkRetryTarget =
+    | { kind: 'reference' }
+    | { kind: 'directory'; directoryPath: string }
+    | { kind: 'file'; directoryPath: string; filePath: string };
 
 type WorkspaceLinkViewerState =
     | { status: 'loading' }
@@ -42,6 +48,7 @@ type WorkspaceLinkViewerState =
         status: 'error';
         kind: WorkspaceLinkErrorKind;
         detail?: string;
+        retryTarget: WorkspaceLinkRetryTarget;
     };
 
 export type WorkspaceLinkViewerProps = {
@@ -100,6 +107,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
                 status: 'error',
                 kind: classifyWorkspaceDirectoryError(response.error, machine ? isMachineOnline(machine) : false),
                 detail: response.error,
+                retryTarget: { kind: 'directory', directoryPath },
             });
             return;
         }
@@ -112,6 +120,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
                 status: 'error',
                 kind: 'missing',
                 detail: directoryPath,
+                retryTarget: { kind: 'directory', directoryPath },
             });
             return;
         }
@@ -132,11 +141,11 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
             return () => { cancelled = true; };
         }
         if (!machine) {
-            setState({ status: 'error', kind: 'machine-missing' });
+            setState({ status: 'error', kind: 'machine-missing', retryTarget: { kind: 'reference' } });
             return () => { cancelled = true; };
         }
         if (!isMachineOnline(machine)) {
-            setState({ status: 'error', kind: 'offline' });
+            setState({ status: 'error', kind: 'offline', retryTarget: { kind: 'reference' } });
             return () => { cancelled = true; };
         }
 
@@ -148,6 +157,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
                     status: 'error',
                     kind: classifyWorkspaceDirectoryError(response.error, true),
                     detail: response.error,
+                    retryTarget: { kind: 'reference' },
                 });
                 return;
             }
@@ -199,6 +209,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
                 status: 'error',
                 kind: classifyWorkspaceDirectoryError(detail, true),
                 detail,
+                retryTarget: { kind: 'reference' },
             });
         });
 
@@ -206,8 +217,16 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
     }, [isDataReady, machine?.active, machine?.id, reference.absolutePath, reference.machineId, revision]);
 
     const retry = React.useCallback(() => {
+        if (state.status === 'error' && state.retryTarget.kind === 'directory') {
+            void loadDirectory(state.retryTarget.directoryPath);
+            return;
+        }
+        if (state.status === 'error' && state.retryTarget.kind === 'file') {
+            void loadDirectory(state.retryTarget.directoryPath, state.retryTarget.filePath);
+            return;
+        }
         setRevision((current) => current + 1);
-    }, []);
+    }, [loadDirectory, state]);
 
     const readFile = React.useCallback(async (path: string) => {
         const response = await machineReadFile(reference.machineId, path);
@@ -217,6 +236,11 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
                 status: 'error',
                 kind: classifyWorkspaceDirectoryError(response.error, machine ? isMachineOnline(machine) : false),
                 detail: response.error,
+                retryTarget: {
+                    kind: 'file',
+                    directoryPath: parentHostPath(path, machine?.metadata?.platform),
+                    filePath: path,
+                },
             });
         }
         return response;
@@ -269,6 +293,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
     const feedbackComposer = (
         <View style={styles.footer}>
             <WorkspaceFeedbackComposer
+                key={workspaceLinkViewerKey(reference)}
                 originSessionId={reference.originSessionId}
                 machineId={reference.machineId}
                 machineLabel={machineName(machine, reference.machineId)}

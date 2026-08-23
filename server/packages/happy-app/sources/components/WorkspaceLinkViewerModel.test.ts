@@ -4,6 +4,7 @@ import {
     classifyWorkspaceLinkTree,
     findPinnedWorkspaceLinkMachine,
     resolveWorkspaceLinkPresentation,
+    workspaceLinkViewerKey,
 } from './WorkspaceLinkViewerModel';
 
 describe('WorkspaceLinkViewer model', () => {
@@ -22,6 +23,25 @@ describe('WorkspaceLinkViewer model', () => {
 
         expect(findPinnedWorkspaceLinkMachine(machines, 'owner')).toEqual(machines[1]);
         expect(findPinnedWorkspaceLinkMachine(machines, 'missing')).toBeNull();
+    });
+
+    it('gives every owning reference an isolated Viewer instance', () => {
+        const base = {
+            originSessionId: 'session-a',
+            machineId: 'machine-a',
+            absolutePath: '/work/report.md',
+            line: '12',
+            column: '3',
+        };
+
+        expect(workspaceLinkViewerKey(base)).not.toBe(workspaceLinkViewerKey({
+            ...base,
+            absolutePath: '/work/other.md',
+        }));
+        expect(workspaceLinkViewerKey(base)).not.toBe(workspaceLinkViewerKey({
+            ...base,
+            line: '13',
+        }));
     });
 
     it('opens a directory at its exact path', () => {

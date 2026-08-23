@@ -6,6 +6,13 @@ export type MessageFocusTarget = {
     newerConversationCount: number;
 };
 
+export function shouldFollowLatestForMessageFocus(target: MessageFocusTarget): boolean {
+    // A resolved explicit focus is an anchor, including when the requested
+    // message happens to be newest at the instant it is focused. Otherwise a
+    // concurrent row can pull the inverted list away from that receipt.
+    return target.index === null;
+}
+
 export type MessageFocusScrollRetryState = {
     messageId: string;
     index: number;

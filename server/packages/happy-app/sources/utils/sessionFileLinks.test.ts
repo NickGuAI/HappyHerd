@@ -68,6 +68,27 @@ describe('sessionFileLinks', () => {
             });
         });
 
+        it('treats UNC targets as absolute and preserves their coordinates', () => {
+            expect(parseExplicitSessionFileLink('\\\\server\\share\\folder\\file.ts:27:4', { sessionRoot })).toEqual({
+                path: '//server/share/folder/file.ts',
+                absolutePath: '//server/share/folder/file.ts',
+                relativePath: null,
+                withinSessionRoot: false,
+                line: 27,
+                column: 4,
+            });
+        });
+
+        it('does not normalize a UNC path above its server and share root', () => {
+            expect(parseExplicitSessionFileLink('\\\\server\\share\\..\\file.ts', { sessionRoot }))
+                .toMatchObject({
+                    path: '//server/share/file.ts',
+                    absolutePath: '//server/share/file.ts',
+                    relativePath: null,
+                    withinSessionRoot: false,
+                });
+        });
+
         it('preserves line and column from the target or its label', () => {
             expect(parseExplicitSessionFileLink('src/index.ts:12:3', { sessionRoot })).toMatchObject({
                 line: 12,

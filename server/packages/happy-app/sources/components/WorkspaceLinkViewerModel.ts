@@ -4,6 +4,22 @@ export const WORKSPACE_LINK_DESKTOP_MIN_WIDTH = 900;
 
 export type WorkspaceLinkPresentation = 'side-panel' | 'full-screen';
 
+export function workspaceLinkViewerKey(reference: {
+    originSessionId: string;
+    machineId: string;
+    absolutePath: string;
+    line?: string | null;
+    column?: string | null;
+}): string {
+    return JSON.stringify([
+        reference.originSessionId,
+        reference.machineId,
+        reference.absolutePath,
+        reference.line ?? null,
+        reference.column ?? null,
+    ]);
+}
+
 export type WorkspaceLinkTarget =
     | {
         kind: 'file';

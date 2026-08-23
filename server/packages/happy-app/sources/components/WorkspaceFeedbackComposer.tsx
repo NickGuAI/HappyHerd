@@ -50,7 +50,7 @@ export function WorkspaceFeedbackComposer(props: WorkspaceFeedbackComposerProps)
     const hasComposerContent = draft.trim().length > 0 || imagePicker.selectedImages.length > 0;
     const dictatedPrimaryAction = dictation.phase === 'recording'
         ? 'finish'
-        : dictation.phase === 'error' && dictation.canRetry ? 'retry' : null;
+        : dictation.phase === 'error' && dictation.canRetry && !hasComposerContent ? 'retry' : null;
     const primaryAction = dictatedPrimaryAction
         ? 'voice'
         : resolveAgentInputPrimaryAction({
@@ -68,7 +68,6 @@ export function WorkspaceFeedbackComposer(props: WorkspaceFeedbackComposerProps)
             || isSending
             || dictation.phase === 'recording'
             || dictation.phase === 'transcribing'
-            || (dictation.phase === 'error' && dictation.canRetry)
         ) return;
         setIsSending(true);
         setSendError(null);

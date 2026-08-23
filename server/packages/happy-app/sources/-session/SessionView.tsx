@@ -94,7 +94,10 @@ import {
 import { buildWorkspaceAttachmentParams } from '@/utils/machineWorkspace';
 import { projectSessionQueue } from '@/sync/queueProjection';
 import { WorkspaceLinkViewer } from '@/components/WorkspaceLinkViewer';
-import { resolveWorkspaceLinkPresentation } from '@/components/WorkspaceLinkViewerModel';
+import {
+    resolveWorkspaceLinkPresentation,
+    workspaceLinkViewerKey,
+} from '@/components/WorkspaceLinkViewerModel';
 import { WorkspaceLinkPressContext } from './workspaceLinkNavigation';
 import type { WorkspaceLinkRoute } from '@/utils/markdownWorkspaceLink';
 
@@ -617,6 +620,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                     }}
                 >
                     <WorkspaceLinkViewer
+                        key={workspaceLinkViewerKey(workspaceLinkRoute.params)}
                         reference={workspaceLinkRoute.params}
                         onBack={() => setWorkspaceLinkRoute(null)}
                         onFeedbackSent={(receipt) => {

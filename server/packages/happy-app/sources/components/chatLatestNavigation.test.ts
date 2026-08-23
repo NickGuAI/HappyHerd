@@ -3,6 +3,7 @@ import {
     countNewConversationMessages,
     planMessageFocusScrollRetry,
     resolveMessageFocusTarget,
+    shouldFollowLatestForMessageFocus,
 } from './chatLatestNavigation';
 
 describe('countNewConversationMessages', () => {
@@ -74,6 +75,22 @@ describe('resolveMessageFocusTarget', () => {
             index: 1,
             newerConversationCount: 1,
         });
+    });
+});
+
+describe('shouldFollowLatestForMessageFocus', () => {
+    it('anchors an explicit focus even when that message is currently newest', () => {
+        expect(shouldFollowLatestForMessageFocus({
+            index: 0,
+            newerConversationCount: 0,
+        })).toBe(false);
+    });
+
+    it('follows latest only while the requested optimistic message is absent', () => {
+        expect(shouldFollowLatestForMessageFocus({
+            index: null,
+            newerConversationCount: 0,
+        })).toBe(true);
     });
 });
 

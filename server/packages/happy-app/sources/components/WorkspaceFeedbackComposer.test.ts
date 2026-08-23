@@ -231,19 +231,23 @@ describe('WorkspaceFeedbackComposer', () => {
         act(() => renderer.unmount());
     });
 
-    it('keeps Retry on the primary control when a retryable error has an image draft', async () => {
+    it('sends an image draft instead of retrying a failed transcription', async () => {
         testState.dictationPhase = 'error';
         testState.canRetry = true;
         testState.initialImages = [image];
-        const sendMessage = vi.fn();
+        const sendMessage = vi.fn().mockResolvedValue({ localId: 'feedback-local-id' });
         const renderer = await renderComposer({ sendMessage });
 
-        const retry = button(renderer, 'happyHerd.composer.retryVoice');
-        expect(retry).toBeDefined();
-        expect(button(renderer, 'happyHerd.composer.send')).toBeUndefined();
-        act(() => retry!.props.onPress());
-        expect(testState.retryVoice).toHaveBeenCalledOnce();
-        expect(sendMessage).not.toHaveBeenCalled();
+        expect(button(renderer, 'happyHerd.composer.retryVoice')).toBeUndefined();
+        const send = button(renderer, 'happyHerd.composer.send');
+        expect(send).toBeDefined();
+        await act(async () => {
+            send!.props.onPress();
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+        expect(testState.retryVoice).not.toHaveBeenCalled();
+        expect(sendMessage).toHaveBeenCalledOnce();
         act(() => renderer.unmount());
     });
 
