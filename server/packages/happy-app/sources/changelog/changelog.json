@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 23 — Conversation links open the live machine Workspace",
+      "summary": "Explicit Markdown links to files and folders now open their live path on the machine that owns the conversation.",
+      "markdown": "- Relative links resolve from the conversation's working directory, while absolute paths and line or column hints stay attached to the originating machine and session.\n- Wide desktop layouts keep the conversation beside the Viewer; smaller layouts open the same machine-bound view full screen, with clear offline, missing-path, permission, and read-error states.\n- Text, dictated transcripts, and image feedback from the Viewer return to the originating conversation as one ordered message without exposing file contents in the transcript."
+    },
+    {
       "title": "August 22 — Machine Workspace edits text files regardless of their names",
       "summary": "Machine Workspace now opens and edits every regular UTF-8 text file the connected daemon user can access, including dotfiles and files whose extensions previously looked binary.",
       "markdown": "- `.xxenv`, `.mcp.json`, extensionless configuration files, and UTF-8 text with arbitrary extensions follow the same read, edit, and save flow.\n- Native iOS and Android use a multiline editor instead of remaining on a loading indicator, while Web retains its code-aware editor.\n- Saves compare the file's exact bytes and preserve a UTF-8 byte-order mark; actual binary content, oversized files, and paths denied by the host operating system remain protected."
@@ -206,5 +211,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 22 — Machine Workspace edits text files regardless of their names"
+  "latestTitle": "August 23 — Conversation links open the live machine Workspace"
 }

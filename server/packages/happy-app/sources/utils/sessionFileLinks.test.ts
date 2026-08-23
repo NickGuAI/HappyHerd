@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     buildSessionFileGitDiffCommand,
+    parseExplicitSessionFileLink,
     parseSessionFileLink,
     resolveSessionFilePath,
     splitSessionFileText,
@@ -42,6 +43,57 @@ describe('sessionFileLinks', () => {
     it('rejects external urls', () => {
         expect(parseSessionFileLink('https://openai.com', { sessionRoot })).toBeNull();
         expect(parseSessionFileLink('mailto:test@example.com', { sessionRoot })).toBeNull();
+    });
+
+    describe('explicit Markdown targets', () => {
+        it('resolves relative files and folder-looking targets against the session root', () => {
+            expect(parseExplicitSessionFileLink('./packages/../docs', { sessionRoot })).toEqual({
+                path: 'docs',
+                absolutePath: '/Users/kirilldubovitskiy/projects/happy/docs',
+                relativePath: 'docs',
+                withinSessionRoot: true,
+                line: null,
+                column: null,
+            });
+        });
+
+        it('normalizes absolute targets without imposing a session-root scope gate', () => {
+            expect(parseExplicitSessionFileLink('/tmp/other/../notes.md:41:7', { sessionRoot })).toEqual({
+                path: '/tmp/notes.md',
+                absolutePath: '/tmp/notes.md',
+                relativePath: null,
+                withinSessionRoot: false,
+                line: 41,
+                column: 7,
+            });
+        });
+
+        it('preserves line and column from the target or its label', () => {
+            expect(parseExplicitSessionFileLink('src/index.ts:12:3', { sessionRoot })).toMatchObject({
+                line: 12,
+                column: 3,
+            });
+            expect(parseExplicitSessionFileLink('README.md:18', { sessionRoot })).toMatchObject({
+                absolutePath: '/Users/kirilldubovitskiy/projects/happy/README.md',
+                line: 18,
+                column: null,
+            });
+            expect(parseExplicitSessionFileLink('src/index.ts', {
+                label: 'src/index.ts:24:9',
+                sessionRoot,
+            })).toMatchObject({
+                line: 24,
+                column: 9,
+            });
+        });
+
+        it('rejects external schemes and page-local targets', () => {
+            expect(parseExplicitSessionFileLink('https://openai.com', { sessionRoot })).toBeNull();
+            expect(parseExplicitSessionFileLink('mailto:test@example.com', { sessionRoot })).toBeNull();
+            expect(parseExplicitSessionFileLink('data:text/plain,hello', { sessionRoot })).toBeNull();
+            expect(parseExplicitSessionFileLink('#details', { sessionRoot })).toBeNull();
+            expect(parseExplicitSessionFileLink('?tab=details', { sessionRoot })).toBeNull();
+        });
     });
 
     it('splits bare text into plain and linked segments', () => {

@@ -57,3 +57,4 @@ AUTOMATION_PROJECT_SELECTOR	accepted	fix(automations): move machine selection in
 COMPONENT_DEPLOYMENT	accepted	fix(deploy): use platform-managed server volume	scripts/test-component-deployment-contract.sh
 COMMANDER_AVATAR	accepted	feat(commanders): configure profile pictures	server/packages/happy-app/sources/utils/commanderAvatarUpload.test.ts
 WORKSPACE_FILE_EDIT	accepted	fix(workspace): edit text files regardless of name	server/packages/happy-app/sources/utils/filePreview.test.ts
+WORKSPACE_LINKS	accepted	feat(workspace): open live links with viewer feedback	server/packages/happy-app/sources/components/WorkspaceLinkViewer.native.test.ts

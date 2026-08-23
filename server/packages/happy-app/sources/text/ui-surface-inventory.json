@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "bddbfc76935ef30c35b581b989b3c0fd8c3d30e683663c1054d8b182c20e33ab",
+  "sourceFingerprint": "cd5dafd318d30b8a7de7f2049f754aa9bb381e4b38cbc2cd650df38b79e3c6f5",
   "routeCount": 36,
-  "surfaceCount": 229,
+  "surfaceCount": 231,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -4688,6 +4688,55 @@
       ],
       "translationKeys": [
         "uiCopy.removeValueFromMessageContext"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/WorkspaceFeedbackComposer.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "WorkspaceFeedbackComposer"
+      ],
+      "translationKeys": [
+        "happyHerd.composer.addPhoto",
+        "happyHerd.composer.addPhotos",
+        "happyHerd.composer.finishVoice",
+        "happyHerd.composer.retryVoice",
+        "happyHerd.composer.send",
+        "happyHerd.composer.sendFailedBody",
+        "happyHerd.composer.startVoice",
+        "review.feedbackPrompt"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/WorkspaceLinkViewer.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "WorkspaceLinkViewer"
+      ],
+      "translationKeys": [
+        "common.back",
+        "common.fileViewer",
+        "common.retry",
+        "errors.tryAgain",
+        "uiCopy.machineNotFound",
+        "uiCopy.openFolderValue",
+        "workspace.emptyFolder",
+        "workspace.linkMachineMissingDescription",
+        "workspace.linkPathMissingDescription",
+        "workspace.linkReadErrorTitle",
+        "workspace.missingPathTitle",
+        "workspace.mobileBackToFiles",
+        "workspace.offlineDescription",
+        "workspace.offlineTitle",
+        "workspace.parent",
+        "workspace.permissionDeniedDescription",
+        "workspace.permissionDeniedTitle"
       ],
       "states": [],
       "hardcodedCopy": []

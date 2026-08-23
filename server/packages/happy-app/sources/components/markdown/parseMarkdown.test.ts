@@ -107,4 +107,17 @@ describe('parseMarkdown', () => {
             { styles: [], text: ' for more.', url: null },
         ]);
     });
+
+    it('only gives local paths a target when the author used explicit Markdown link syntax', () => {
+        const blocks = parseMarkdown('Open packages/happy-app/README.md or [the app readme](packages/happy-app/README.md).');
+
+        expect(blocks).toEqual([{
+            type: 'text',
+            content: [
+                { styles: [], text: 'Open packages/happy-app/README.md or ', url: null },
+                { styles: [], text: 'the app readme', url: 'packages/happy-app/README.md' },
+                { styles: [], text: '.', url: null },
+            ],
+        }]);
+    });
 });

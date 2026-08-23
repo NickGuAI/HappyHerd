@@ -15,7 +15,13 @@ import { Octicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { resolveControlMode } from '@/sync/controlHandoff';
 import { usesControlledSessionUi } from '@/sync/rig';
-import { countNewConversationMessages, getConversationMessageIds } from './chatLatestNavigation';
+import {
+    countNewConversationMessages,
+    getConversationMessageIds,
+    planMessageFocusScrollRetry,
+    resolveMessageFocusTarget,
+    type MessageFocusScrollRetryState,
+} from './chatLatestNavigation';
 import { t } from '@/text';
 import { projectSessionQueue } from '@/sync/queueProjection';
 
@@ -25,6 +31,7 @@ const DOCK_DETAILS_HIDE_OFFSET = 48;
 
 export const ChatList = React.memo((props: {
     session: Session;
+    focusMessageId?: string;
     topContentInset?: number;
     bottomContentInset?: number;
     headerOverlayHeight?: number;
@@ -41,6 +48,7 @@ export const ChatList = React.memo((props: {
             metadata={props.session.metadata}
             sessionId={props.session.id}
             messages={queueProjection.transcriptMessages}
+            focusMessageId={props.focusMessageId}
             hasMoreOlder={hasMoreOlder}
             isLoadingOlder={isLoadingOlder}
             topContentInset={props.topContentInset}
@@ -88,6 +96,7 @@ const ChatListInternal = React.memo((props: {
     metadata: Metadata | null,
     sessionId: string,
     messages: Message[],
+    focusMessageId?: string,
     hasMoreOlder: boolean,
     isLoadingOlder: boolean,
     topContentInset?: number,
@@ -98,6 +107,9 @@ const ChatListInternal = React.memo((props: {
 }) => {
     const { theme } = useUnistyles();
     const flatListRef = React.useRef<FlatList>(null);
+    const focusedMessageIdRef = React.useRef<string | null>(null);
+    const focusScrollRetryRef = React.useRef<MessageFocusScrollRetryState | null>(null);
+    const focusScrollRetryTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
     const [showScrollButton, setShowScrollButton] = React.useState(false);
     const [newMessageCount, setNewMessageCount] = React.useState(0);
     const [handoffListRevision, setHandoffListRevision] = React.useState(0);
@@ -149,6 +161,7 @@ const ChatListInternal = React.memo((props: {
         [collapseCurrentTurn],
     );
     const displayItems = useGroupedMessages(props.messages, groupToolCalls, groupingOptions);
+
     const conversationMessageIds = React.useMemo(
         () => getConversationMessageIds(props.messages),
         [props.messages],
@@ -173,6 +186,12 @@ const ChatListInternal = React.memo((props: {
 
     React.useEffect(() => {
         previousConversationMessageIdsRef.current = conversationMessageIds;
+        focusedMessageIdRef.current = null;
+        focusScrollRetryRef.current = null;
+        if (focusScrollRetryTimerRef.current) {
+            clearTimeout(focusScrollRetryTimerRef.current);
+            focusScrollRetryTimerRef.current = null;
+        }
         isFollowingLatestRef.current = true;
         newMessageCountRef.current = 0;
         setNewMessageCount(0);
@@ -324,6 +343,100 @@ const ChatListInternal = React.memo((props: {
         bottomDockVisibleRef.current = visible;
         props.onBottomDockVisibilityChange(visible);
     }, [props.onBottomDockVisibilityChange]);
+
+    const handleFocusScrollToIndexFailed = React.useCallback((info: {
+        index: number;
+        highestMeasuredFrameIndex: number;
+        averageItemLength: number;
+    }) => {
+        const pending = focusScrollRetryRef.current;
+        const currentTargetIndex = pending
+            ? resolveMessageFocusTarget(displayItemsRef.current, pending.messageId).index
+            : null;
+        const plan = planMessageFocusScrollRetry({
+            state: pending,
+            failedIndex: info.index,
+            averageItemLength: info.averageItemLength,
+            currentTargetIndex,
+        });
+        if (!plan) return;
+
+        focusScrollRetryRef.current = plan.nextState;
+        flatListRef.current?.scrollToOffset({ offset: plan.offset, animated: false });
+        if (focusScrollRetryTimerRef.current) {
+            clearTimeout(focusScrollRetryTimerRef.current);
+        }
+        focusScrollRetryTimerRef.current = setTimeout(() => {
+            focusScrollRetryTimerRef.current = null;
+            const latest = focusScrollRetryRef.current;
+            if (!latest || latest.messageId !== plan.nextState.messageId || !latest.didRetry) return;
+            try {
+                flatListRef.current?.scrollToIndex({
+                    index: latest.index,
+                    animated: true,
+                    viewPosition: 0.5,
+                });
+            } catch {
+                // One exact retry is the bounded recovery contract. Preserve
+                // the requested focus state if the native list still cannot
+                // measure the row; do not redirect the user to latest.
+            }
+        }, 50);
+    }, []);
+
+    React.useEffect(() => () => {
+        if (focusScrollRetryTimerRef.current) {
+            clearTimeout(focusScrollRetryTimerRef.current);
+        }
+    }, []);
+
+    React.useEffect(() => {
+        if (!props.focusMessageId || focusedMessageIdRef.current === props.focusMessageId) return;
+        const target = resolveMessageFocusTarget(displayItems, props.focusMessageId);
+        if (target.index === null) {
+            isFollowingLatestRef.current = true;
+            newMessageCountRef.current = 0;
+            setNewMessageCount(0);
+            showScrollButtonRef.current = false;
+            setShowScrollButton(false);
+            setBottomDockVisibility(true);
+            flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+            // The optimistic record can arrive one store update after the
+            // route mounts. Keep the receipt ID pending so this effect retries
+            // exact-index focus when that record becomes visible.
+            return;
+        }
+
+        focusedMessageIdRef.current = props.focusMessageId;
+        focusScrollRetryRef.current = {
+            messageId: props.focusMessageId,
+            index: target.index,
+            didRetry: false,
+        };
+        const followingLatest = target.index === 0;
+        isFollowingLatestRef.current = followingLatest;
+        newMessageCountRef.current = target.newerConversationCount;
+        setNewMessageCount(target.newerConversationCount);
+        showScrollButtonRef.current = !followingLatest;
+        setShowScrollButton(!followingLatest);
+        setBottomDockVisibility(followingLatest);
+
+        try {
+            flatListRef.current?.scrollToIndex({
+                index: target.index,
+                animated: true,
+                viewPosition: 0.5,
+            });
+        } catch {
+            handleFocusScrollToIndexFailed({
+                index: target.index,
+                highestMeasuredFrameIndex: -1,
+                averageItemLength: displayItems.length > 0
+                    ? scrollMetricsRef.current.contentHeight / displayItems.length
+                    : 0,
+            });
+        }
+    }, [displayItems, handleFocusScrollToIndexFailed, props.focusMessageId, setBottomDockVisibility]);
 
     const updateBottomDockVisibility = useCallback((offsetY: number) => {
         // Treat this as a user-scroll state. Hysteresis avoids toggling while
@@ -494,6 +607,7 @@ const ChatListInternal = React.memo((props: {
                 // the floating composer instead of stopping underneath it.
                 contentContainerStyle={{ paddingTop: 8 + (props.bottomContentInset ?? 0) }}
                 renderItem={renderItem}
+                onScrollToIndexFailed={handleFocusScrollToIndexFailed}
                 onScroll={handleScroll}
                 onScrollBeginDrag={handleScrollBeginDrag}
                 onScrollEndDrag={handleScrollEndDrag}

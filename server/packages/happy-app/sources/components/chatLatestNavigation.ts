@@ -1,4 +1,72 @@
 import type { Message } from '@/sync/typesMessage';
+import type { DisplayItem } from '@/hooks/useGroupedMessages';
+
+export type MessageFocusTarget = {
+    index: number | null;
+    newerConversationCount: number;
+};
+
+export type MessageFocusScrollRetryState = {
+    messageId: string;
+    index: number;
+    didRetry: boolean;
+};
+
+export type MessageFocusScrollRetryPlan = {
+    nextState: MessageFocusScrollRetryState;
+    offset: number;
+    retryIndex: number;
+};
+
+export function planMessageFocusScrollRetry(input: {
+    state: MessageFocusScrollRetryState | null;
+    failedIndex: number;
+    averageItemLength: number;
+    currentTargetIndex: number | null;
+}): MessageFocusScrollRetryPlan | null {
+    if (!input.state || input.state.didRetry || input.state.index !== input.failedIndex) {
+        return null;
+    }
+    const retryIndex = input.currentTargetIndex ?? input.state.index;
+    return {
+        nextState: {
+            ...input.state,
+            index: retryIndex,
+            didRetry: true,
+        },
+        offset: Math.max(0, input.averageItemLength) * retryIndex,
+        retryIndex,
+    };
+}
+
+function displayItemMatchesMessage(item: DisplayItem, messageId: string): boolean {
+    return item.type === 'message' && (
+        item.message.id === messageId
+        || ('localId' in item.message && item.message.localId === messageId)
+    );
+}
+
+function isVisibleConversationItem(item: DisplayItem): boolean {
+    if (item.type !== 'message') return false;
+    if (item.message.kind === 'user-text') return true;
+    return item.message.kind === 'agent-text'
+        && !item.message.isThinking
+        && item.message.text.trim().length > 0;
+}
+
+export function resolveMessageFocusTarget(
+    displayItems: readonly DisplayItem[],
+    messageId: string,
+): MessageFocusTarget {
+    const index = displayItems.findIndex((item) => displayItemMatchesMessage(item, messageId));
+    if (index < 0) {
+        return { index: null, newerConversationCount: 0 };
+    }
+    return {
+        index,
+        newerConversationCount: displayItems.slice(0, index).filter(isVisibleConversationItem).length,
+    };
+}
 
 export function getConversationMessageIds(messages: readonly Message[]): string[] {
     return messages.flatMap((message) => {

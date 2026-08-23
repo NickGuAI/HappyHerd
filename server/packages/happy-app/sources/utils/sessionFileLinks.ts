@@ -278,6 +278,41 @@ export function resolveSessionFilePath(path: string, sessionRoot?: string | null
     return buildLink(parsed.path, parsed.line, parsed.column, sessionRoot);
 }
 
+/**
+ * Resolve an explicit Markdown link target as a path on the originating
+ * session's machine.
+ *
+ * Explicit links do not need the file-looking heuristics used when scanning
+ * prose. This intentionally allows directory names such as `[docs](docs)`
+ * while continuing to reject URL schemes and page-local navigation.
+ */
+export function parseExplicitSessionFileLink(
+    url: string,
+    options?: { label?: string | null; sessionRoot?: string | null },
+): SessionFileLink | null {
+    const trimmedUrl = url.trim();
+    if (
+        !trimmedUrl
+        || trimmedUrl.startsWith('#')
+        || trimmedUrl.startsWith('?')
+    ) {
+        return null;
+    }
+
+    const parsedUrl = parseLineAndColumn(trimmedUrl);
+    if (!WINDOWS_ABSOLUTE_PATH.test(parsedUrl.path) && URL_SCHEME.test(parsedUrl.path)) {
+        return null;
+    }
+    const parsedLabel = options?.label ? parseLineAndColumn(options.label) : null;
+
+    return buildLink(
+        parsedUrl.path,
+        parsedUrl.line ?? parsedLabel?.line ?? null,
+        parsedUrl.column ?? parsedLabel?.column ?? null,
+        options?.sessionRoot,
+    );
+}
+
 export function parseSessionFileLink(
     url: string,
     options?: { label?: string | null; sessionRoot?: string | null; bareText?: boolean }

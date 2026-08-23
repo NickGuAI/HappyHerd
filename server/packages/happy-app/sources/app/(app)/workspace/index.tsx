@@ -51,6 +51,8 @@ import { formatPathRelativeToHome } from '@/utils/sessionUtils';
 import { resolveAbsolutePath } from '@/utils/pathUtils';
 import { useMachineFileUpload } from '@/hooks/useMachineFileUpload';
 import { MachineFileUploadStatus } from '@/components/MachineFileUploadStatus';
+import { WorkspaceLinkViewer } from '@/components/WorkspaceLinkViewer';
+import type { WorkspaceLinkRouteParams } from '@/utils/markdownWorkspaceLink';
 
 function param(value: string | string[] | undefined): string | undefined {
     return Array.isArray(value) ? value[0] : value;
@@ -81,6 +83,79 @@ function errorCopy(kind: WorkspaceDirectoryErrorKind): { title: string; descript
 }
 
 export default function MachineWorkspaceScreen() {
+    const params = useLocalSearchParams<{
+        mode?: string | string[];
+        sessionId?: string | string[];
+        machineId?: string | string[];
+        path?: string | string[];
+        originSessionId?: string | string[];
+        absolutePath?: string | string[];
+        line?: string | string[];
+        column?: string | string[];
+    }>();
+    if (param(params.mode) === 'link') {
+        return <WorkspaceLinkRouteScreen params={params} />;
+    }
+    return <MachineWorkspaceBrowserScreen />;
+}
+
+function WorkspaceLinkRouteScreen({ params }: {
+    params: {
+        mode?: string | string[];
+        originSessionId?: string | string[];
+        machineId?: string | string[];
+        absolutePath?: string | string[];
+        line?: string | string[];
+        column?: string | string[];
+    };
+}) {
+    const router = useRouter();
+    const originSessionId = param(params.originSessionId);
+    const machineId = param(params.machineId);
+    const absolutePath = param(params.absolutePath);
+    const line = param(params.line);
+    const column = param(params.column);
+    const reference = React.useMemo<WorkspaceLinkRouteParams | null>(() => (
+        originSessionId && machineId && absolutePath
+            ? {
+                mode: 'link',
+                originSessionId,
+                machineId,
+                absolutePath,
+                ...(line ? { line } : {}),
+                ...(column ? { column } : {}),
+            }
+            : null
+    ), [absolutePath, column, line, machineId, originSessionId]);
+
+    if (!reference) {
+        return (
+            <View style={styles.screen}>
+                <Stack.Screen options={{ headerShown: true, title: t('common.fileViewer') }} />
+                <EmptyState icon="warning-outline" title={t('workspace.readErrorTitle')} description={t('errors.tryAgain')} />
+            </View>
+        );
+    }
+
+    return (
+        <View style={styles.screen}>
+            <Stack.Screen options={{ headerShown: false }} />
+            <WorkspaceLinkViewer
+                reference={reference}
+                onBack={() => router.back()}
+                onFeedbackSent={(receipt) => router.replace({
+                    pathname: '/session/[id]',
+                    params: {
+                        id: reference.originSessionId,
+                        focusMessageId: receipt.localId,
+                    },
+                })}
+            />
+        </View>
+    );
+}
+
+function MachineWorkspaceBrowserScreen() {
     const router = useRouter();
     const params = useLocalSearchParams<{
         mode?: string | string[];

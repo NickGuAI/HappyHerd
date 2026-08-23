@@ -1,3 +1,11 @@
+# August 23 — Conversation links open the live machine Workspace
+
+Explicit Markdown links to files and folders now open their live path on the machine that owns the conversation.
+
+- Relative links resolve from the conversation's working directory, while absolute paths and line or column hints stay attached to the originating machine and session.
+- Wide desktop layouts keep the conversation beside the Viewer; smaller layouts open the same machine-bound view full screen, with clear offline, missing-path, permission, and read-error states.
+- Text, dictated transcripts, and image feedback from the Viewer return to the originating conversation as one ordered message without exposing file contents in the transcript.
+
 # August 22 — Machine Workspace edits text files regardless of their names
 
 Machine Workspace now opens and edits every regular UTF-8 text file the connected daemon user can access, including dotfiles and files whose extensions previously looked binary.
