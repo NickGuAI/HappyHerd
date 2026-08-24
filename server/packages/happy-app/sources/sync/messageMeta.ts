@@ -3,6 +3,7 @@ import type { Settings } from './settings';
 import {
     getAgentDefaultOverride,
     resolveSupportedAgentEffortLevel,
+    retirePermissionMode,
 } from './agentDefaults';
 import type { PermissionModeKey } from '@/components/PermissionModeSelector';
 import {
@@ -61,16 +62,27 @@ export function resolveMessageModeMeta(
 
     const agentOverrides = getAgentDefaultOverride(settings?.agentDefaultOverrides, session.metadata?.flavor);
     const meta: MessageModeMeta = {};
+    const flavor = session.metadata?.flavor;
 
+    let permissionMode: string | null | undefined;
     if (session.permissionMode !== null && session.permissionMode !== undefined) {
-        meta.permissionMode = session.permissionMode;
+        // A session picked before a mode was retired still carries the old key,
+        // and the CLI rejects the whole message envelope on an unknown one.
+        permissionMode = retirePermissionMode(session.permissionMode);
     } else if (agentOverrides.permissionMode !== undefined) {
-        meta.permissionMode = agentOverrides.permissionMode;
+        permissionMode = agentOverrides.permissionMode;
+    }
+    // Claude's `default` is ambient: omitting it lets the SDK apply the
+    // process/user configuration. Codex's `default` is a concrete ask-first
+    // execution policy and must stay on the wire.
+    if (permissionMode && !(flavor === 'claude' && permissionMode === 'default')) {
+        meta.permissionMode = permissionMode;
     }
 
     const modelMode = session.modelMode ?? agentOverrides.modelMode;
-    if (modelMode !== undefined) {
-        meta.model = modelMode === 'default' ? null : modelMode;
+    // `default` is a product sentinel, not a provider model identifier.
+    if (modelMode !== undefined && modelMode !== 'default') {
+        meta.model = modelMode;
     }
 
     const configuredEffort = session.effortLevel ?? agentOverrides.effortLevel;

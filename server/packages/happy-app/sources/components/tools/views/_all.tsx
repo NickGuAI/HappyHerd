@@ -15,6 +15,7 @@ import { CodexBashView } from './CodexBashView';
 import { CodexPatchView } from './CodexPatchView';
 import { CodexDiffView } from './CodexDiffView';
 import { AskUserQuestionView } from './AskUserQuestionView';
+import { RequestUserInputView } from './RequestUserInputView';
 import { GeminiEditView } from './GeminiEditView';
 import { GeminiExecuteView } from './GeminiExecuteView';
 import { FileView } from './FileView';
@@ -46,6 +47,7 @@ export const toolViewRegistry: Record<string, ToolViewComponent> = {
     Task: TaskView,
     Agent: TaskView,
     AskUserQuestion: AskUserQuestionView,
+    request_user_input: RequestUserInputView,
     // Gemini tools (lowercase)
     edit: GeminiEditView,
     execute: GeminiExecuteView,
@@ -87,6 +89,7 @@ export { ExitPlanToolView } from './ExitPlanToolView';
 export { MultiEditView } from './MultiEditView';
 export { TaskView } from './TaskView';
 export { AskUserQuestionView } from './AskUserQuestionView';
+export { RequestUserInputView } from './RequestUserInputView';
 export { GeminiEditView } from './GeminiEditView';
 export { GeminiExecuteView } from './GeminiExecuteView';
 export { FileView } from './FileView';

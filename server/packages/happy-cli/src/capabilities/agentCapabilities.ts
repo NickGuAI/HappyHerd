@@ -24,6 +24,7 @@ const CODEX_MODEL_DEFAULTS = [
 ];
 const CODEX_PERMISSION_MODES = [
     ['default', 'ask first'],
+    ['auto', 'auto'],
     ['read-only', 'read only'],
     ['safe-yolo', 'workspace write'],
     ['yolo', 'full access'],
@@ -97,7 +98,7 @@ export function buildClaudeCapabilityCatalog(
         : uniqueOptions(['low', 'medium', 'high', 'xhigh', 'max']);
     const permissions = parsed.permissionModes.length > 0
         ? parsed.permissionModes
-        : uniqueOptions(['acceptEdits', 'auto', 'bypassPermissions', 'dontAsk', 'plan']);
+        : uniqueOptions(['acceptEdits', 'auto', 'bypassPermissions', 'plan']);
 
     return {
         detectedAt,
@@ -112,10 +113,14 @@ export function buildClaudeCapabilityCatalog(
             ...uniqueOptions([...HAPPYHERD_CLAUDE_MODEL_SLUGS]),
         ],
         effortLevels: efforts,
-        // `manual` is a CLI-only value not accepted by the embedded Agent SDK.
+        // `manual` is CLI-only and `dontAsk` is retired by the embedded SDK.
         permissionModes: [
             option('default', 'default', null),
-            ...permissions.filter((entry) => entry.code !== 'manual' && entry.code !== 'default'),
+            ...permissions.filter((entry) => (
+                entry.code !== 'manual'
+                && entry.code !== 'dontAsk'
+                && entry.code !== 'default'
+            )),
         ],
     };
 }

@@ -40,6 +40,9 @@ describe('isReasoningEffort', () => {
         expect(resolveCodexReasoningEffort('max', 'gpt-test', [
             model(['low', 'high', 'max']),
         ])).toBe('max');
+        expect(resolveCodexReasoningEffort('max', 'gpt-test', [
+            model(['low', 'max', 'ultra']),
+        ])).toBe('ultra');
         expect(resolveCodexReasoningEffort('high', 'gpt-test', [
             model(['low', 'high', 'xhigh']),
         ])).toBe('high');

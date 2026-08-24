@@ -30,6 +30,11 @@ type MobileGlassSurfaceProps = ViewProps & {
 const AnimatedGlassView = Animated.createAnimatedComponent(GlassView);
 const AnimatedBlurView = Animated.createAnimatedComponent(BlurView);
 
+// Header chrome is the only consumer of the static material. Letting more blur
+// through, and painting less flat tint over it, is what makes these controls
+// read as glass rather than as filled circles.
+const STATIC_MATERIAL_BLUR_CAP = 44;
+
 /**
  * Performance-aware material surface. Interactive controls and explicit
  * `nativeEffect` surfaces use Liquid Glass/material blur; `material="static"`
@@ -39,7 +44,10 @@ const AnimatedBlurView = Animated.createAnimatedComponent(BlurView);
  * Content surfaces remain opaque so glass stays a distinct functional layer.
  */
 export function MobileGlassSurface(props: MobileGlassSurfaceProps) {
-    if (props.interactive && Platform.OS !== 'web' && !isRunningOnMac()) {
+    // Scaling a native static GlassView during a press or native-stack push
+    // produces a large refractive blob on iOS 26. Static chrome uses stable
+    // material blur and lets its surrounding Pressable own the interaction.
+    if (props.interactive && props.material !== 'static' && Platform.OS !== 'web' && !isRunningOnMac()) {
         return <InteractiveMobileGlassSurface {...props} />;
     }
     return <MobileGlassSurfaceBase {...props} />;
@@ -107,7 +115,7 @@ function MobileGlassSurfaceBase({
     ...props
 }: MobileGlassSurfaceProps & { animated?: boolean }) {
     const { theme } = useUnistyles();
-    const usesStaticMaterial = nativeEffect && material !== 'liquid';
+    const usesStaticMaterial = nativeEffect && material === 'static';
     const usesFrostedMaterial = nativeEffect && material === 'frosted';
 
     if (!enabled || Platform.OS === 'web' || isRunningOnMac()) {
@@ -140,15 +148,16 @@ function MobileGlassSurfaceBase({
         );
     }
 
-    const surfaceOverlay = usesStaticMaterial ? (
+    const surfaceOverlay = usesStaticMaterial || usesFrostedMaterial ? (
         <View
             pointerEvents="none"
             style={[
                 RNStyleSheet.absoluteFill,
                 {
                     backgroundColor: theme.dark
-                        ? usesFrostedMaterial ? 'rgba(20, 20, 22, 0.82)' : 'rgba(44, 44, 47, 0.62)'
-                        : usesFrostedMaterial ? 'rgba(255, 255, 255, 0.82)' : 'rgba(255, 255, 255, 0.66)',
+                        ? usesFrostedMaterial ? 'rgba(20, 20, 22, 0.82)' : 'rgba(44, 44, 47, 0.40)'
+                        : usesFrostedMaterial ? 'rgba(255, 255, 255, 0.82)' : 'rgba(0, 0, 0, 0.024)',
+                    borderRadius: usesStaticMaterial ? 999 : undefined,
                 },
             ]}
         />
@@ -165,7 +174,36 @@ function MobileGlassSurfaceBase({
         />
     );
 
-    if (Platform.OS === 'ios' && isGlassEffectAPIAvailable() && !usesStaticMaterial) {
+    // Header controls need two separate layers: an unclipped shell for the
+    // material shadow, and a clipped glass view for the live backdrop. Putting
+    // both jobs on one `overflow: hidden` view is why the old controls looked
+    // flat even though they technically contained a blur.
+    if (Platform.OS === 'ios' && usesStaticMaterial) {
+        const staticMaterial = (
+            <BlurView
+                pointerEvents="none"
+                intensity={Math.min(intensity, STATIC_MATERIAL_BLUR_CAP)}
+                tint={theme.dark ? 'systemUltraThinMaterialDark' : 'systemUltraThinMaterialLight'}
+                style={styles.staticMaterialClip}
+            >
+                {surfaceOverlay}
+            </BlurView>
+        );
+
+        return animated ? (
+            <Animated.View {...props} style={[style, styles.staticMaterialShell]}>
+                {staticMaterial}
+                {children}
+            </Animated.View>
+        ) : (
+            <View {...props} style={[style, styles.staticMaterialShell]}>
+                {staticMaterial}
+                {children}
+            </View>
+        );
+    }
+
+    if (Platform.OS === 'ios' && isGlassEffectAPIAvailable() && material === 'liquid') {
         return animated ? (
             <AnimatedGlassView
                 {...props}
@@ -197,7 +235,7 @@ function MobileGlassSurfaceBase({
         return animated ? (
             <AnimatedBlurView
                 {...props}
-                intensity={Math.min(intensity, usesFrostedMaterial ? 42 : usesStaticMaterial ? 18 : 36)}
+                intensity={Math.min(intensity, usesFrostedMaterial ? 42 : usesStaticMaterial ? STATIC_MATERIAL_BLUR_CAP : 36)}
                 tint={theme.dark ? 'systemUltraThinMaterialDark' : 'systemUltraThinMaterialLight'}
                 style={style}
             >
@@ -207,7 +245,7 @@ function MobileGlassSurfaceBase({
         ) : (
             <BlurView
                 {...props}
-                intensity={Math.min(intensity, usesFrostedMaterial ? 42 : usesStaticMaterial ? 18 : 36)}
+                intensity={Math.min(intensity, usesFrostedMaterial ? 42 : usesStaticMaterial ? STATIC_MATERIAL_BLUR_CAP : 36)}
                 tint={theme.dark ? 'systemUltraThinMaterialDark' : 'systemUltraThinMaterialLight'}
                 style={style}
             >
@@ -271,6 +309,14 @@ export function MobileGlassBackdrop({ enabled = Platform.OS !== 'web' && !isRunn
 }
 
 const styles = RNStyleSheet.create({
+    staticMaterialShell: {
+        overflow: 'visible',
+    },
+    staticMaterialClip: {
+        ...RNStyleSheet.absoluteFillObject,
+        borderRadius: 999,
+        overflow: 'hidden',
+    },
     glow: {
         position: 'absolute',
         borderRadius: 999,

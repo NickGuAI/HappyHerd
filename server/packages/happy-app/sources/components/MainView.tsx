@@ -7,13 +7,11 @@ import {
     Platform,
     Keyboard,
     TextInput,
-    NativeScrollEvent,
-    NativeSyntheticEvent,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import { useFriendRequests, useSocketStatus, useRealtimeStatus, useSetting, useSettingMutable } from '@/sync/storage';
-import { useHasArchivedSessions, useVisibleSessionListViewData } from '@/hooks/useVisibleSessionListViewData';
+import { useFriendRequests, useSocketStatus, useRealtimeStatus, useSetting } from '@/sync/storage';
+import { useVisibleSessionListViewData } from '@/hooks/useVisibleSessionListViewData';
 import { useIsTablet } from '@/utils/responsive';
 import { useRouter } from 'expo-router';
 import { EmptySessionsTablet } from './EmptySessionsTablet';
@@ -35,6 +33,7 @@ import { trackFriendsSearch } from '@/track';
 import { MOBILE_GLASS_HEADER_HEIGHT } from './navigation/headerMetrics';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
 import { useStartSessionFromDraft } from '@/hooks/useStartSessionFromDraft';
+import { shouldShowHomeConnectionStatus } from './homeConnectionStatus';
 
 interface MainViewProps {
     variant: 'phone' | 'sidebar';
@@ -113,7 +112,7 @@ const styles = StyleSheet.create((theme) => ({
     },
     titleContainer: {
         flex: 1,
-        alignItems: Platform.OS === 'web' ? 'center' : 'flex-start',
+        alignItems: 'center',
         justifyContent: Platform.OS === 'web' ? 'flex-start' : 'center',
     },
     titleText: {
@@ -141,22 +140,15 @@ const styles = StyleSheet.create((theme) => ({
         justifyContent: 'center',
         backgroundColor: 'transparent',
     },
-    headerActions: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
     headerActionButton: {
         width: 44,
         height: 44,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    headerActionButtonActive: {
-        width: 36,
-        height: 36,
-        marginHorizontal: 4,
-        borderRadius: 12,
-        backgroundColor: theme.colors.surfaceSelected,
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     headerSearch: {
         width: '100%',
@@ -233,7 +225,7 @@ const HeaderTitle = React.memo(({ activeTab }: { activeTab: ActiveTabType }) => 
             <Text style={styles.titleText}>
                 {t(TAB_TITLES[activeTab])}
             </Text>
-            {connectionStatus.text && (
+            {shouldShowHomeConnectionStatus(socketStatus.status) && connectionStatus.text && (
                 <View style={styles.statusContainer}>
                     <StatusDot
                         color={connectionStatus.color}
@@ -282,16 +274,10 @@ const HeaderRight = React.memo(({
     activeTab,
     searchActive,
     onSearchPress,
-    hasArchivedSessions,
-    hideArchivedSessions,
-    onArchiveVisibilityPress,
 }: {
     activeTab: ActiveTabType;
     searchActive: boolean;
     onSearchPress: () => void;
-    hasArchivedSessions: boolean;
-    hideArchivedSessions: boolean;
-    onArchiveVisibilityPress: () => void;
 }) => {
     const router = useRouter();
     const { theme } = useUnistyles();
@@ -330,26 +316,6 @@ const HeaderRight = React.memo(({
                             color={theme.colors.header.tint}
                         />
                     </Pressable>
-                    {hasArchivedSessions && !searchActive && (
-                        <Pressable
-                            onPress={onArchiveVisibilityPress}
-                            accessibilityLabel={hideArchivedSessions
-                                ? t('sidebar.showArchived')
-                                : t('sidebar.hideArchived')}
-                            accessibilityRole="button"
-                            accessibilityState={{ selected: !hideArchivedSessions }}
-                            style={[
-                                styles.headerActionButton,
-                                !hideArchivedSessions && styles.headerActionButtonActive,
-                            ]}
-                        >
-                            <Ionicons
-                                name={hideArchivedSessions ? 'archive-outline' : 'archive'}
-                                size={20}
-                                color={theme.colors.header.tint}
-                            />
-                        </Pressable>
-                    )}
                     <Pressable
                         onPress={() => router.push('/settings')}
                         accessibilityLabel={t('settings.title')}
@@ -381,26 +347,6 @@ const HeaderRight = React.memo(({
                 >
                     <Ionicons name="time-outline" size={22} color={theme.colors.header.tint} />
                 </Pressable>
-                {hasArchivedSessions && (
-                    <Pressable
-                        onPress={onArchiveVisibilityPress}
-                        accessibilityLabel={hideArchivedSessions
-                            ? t('sidebar.showArchived')
-                            : t('sidebar.hideArchived')}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: !hideArchivedSessions }}
-                        style={[
-                            styles.headerButton,
-                            !hideArchivedSessions && styles.headerActionButtonActive,
-                        ]}
-                    >
-                        <Ionicons
-                            name={hideArchivedSessions ? 'archive-outline' : 'archive'}
-                            size={19}
-                            color={theme.colors.header.tint}
-                        />
-                    </Pressable>
-                )}
                 <Pressable
                     onPress={() => router.navigate('/new')}
                     hitSlop={15}
@@ -448,16 +394,17 @@ const HeaderRight = React.memo(({
 export const MainView = React.memo(({ variant }: MainViewProps) => {
     const { theme } = useUnistyles();
     const sessionListViewData = useVisibleSessionListViewData();
-    const hasArchivedSessions = useHasArchivedSessions();
-    // Stored under its original `hideInactiveSessions` key — synced settings
-    // have no rename migration — but it hides archived sessions only.
-    const [hideArchivedSessions, setHideArchivedSessions] = useSettingMutable('hideInactiveSessions');
     const isTablet = useIsTablet();
     const router = useRouter();
     const friendRequests = useFriendRequests();
     const realtimeStatus = useRealtimeStatus();
     const safeArea = useSafeAreaInsets();
-    const { isStarting: isStartingHomeSession, startSession: startHomeSession } = useStartSessionFromDraft();
+    const {
+        isStarting: isStartingHomeSession,
+        phase: homeSessionPhase,
+        startSession: startHomeSession,
+        cancelStart: cancelHomeSession,
+    } = useStartSessionFromDraft();
 
     // Tab state management
     // NOTE: Zen tab removed - the feature never got to a useful state
@@ -465,15 +412,13 @@ export const MainView = React.memo(({ variant }: MainViewProps) => {
     const [searchQuery, setSearchQuery] = React.useState('');
     const [searchActive, setSearchActive] = React.useState(false);
     const [homePrompt, setHomePrompt] = React.useState('');
-    const [headerBackdropVisible, setHeaderBackdropVisible] = React.useState(false);
-    const headerBackdropVisibleRef = React.useRef(false);
     const showHeaderRight = activeTab !== 'settings' || isUsingCustomServer();
-    const topContentInset = Platform.OS === 'web'
+    const topChromeInset = Platform.OS === 'web'
         ? 0
         : safeArea.top
             + MOBILE_GLASS_HEADER_HEIGHT
-            + (realtimeStatus !== 'disconnected' ? 32 : 0)
-            + 12;
+            + (realtimeStatus !== 'disconnected' ? 32 : 0);
+    const topContentInset = topChromeInset + (Platform.OS === 'web' ? 0 : 12);
     const bottomContentInset = Platform.OS === 'web'
         ? 0
         : searchActive ? 16 : MOBILE_HOME_DOCK_CONTENT_INSET;
@@ -485,7 +430,8 @@ export const MainView = React.memo(({ variant }: MainViewProps) => {
             return false;
         }
         useNewSessionDraft.getState().setInput(prompt);
-        Keyboard.dismiss();
+        // The keyboard stays up: the dock reports what is happening above the
+        // composer and closes itself once the session is open.
         const started = await startHomeSession();
         if (started) setHomePrompt('');
         return started;
@@ -501,26 +447,11 @@ export const MainView = React.memo(({ variant }: MainViewProps) => {
         });
     }, []);
 
-    const handleArchiveVisibilityPress = React.useCallback(() => {
-        setHideArchivedSessions(!hideArchivedSessions);
-    }, [hideArchivedSessions, setHideArchivedSessions]);
-
     const handleTabPress = React.useCallback((tab: ActiveTabType) => {
         // This callback is intentionally independent of activeTab. Gesture
         // worklets can outlive the render that created them, so comparing with a
         // captured tab here can discard a newer tap or drag commit.
-        headerBackdropVisibleRef.current = false;
-        setHeaderBackdropVisible(false);
         setActiveTab((currentTab) => currentTab === tab ? currentTab : tab);
-    }, []);
-
-    const handleContentScroll = React.useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-        const nextVisible = event.nativeEvent.contentOffset.y > 12;
-        if (nextVisible === headerBackdropVisibleRef.current) {
-            return;
-        }
-        headerBackdropVisibleRef.current = nextVisible;
-        setHeaderBackdropVisible(nextVisible);
     }, []);
 
     const renderWebTabContent = () => {
@@ -528,10 +459,10 @@ export const MainView = React.memo(({ variant }: MainViewProps) => {
             case 'inbox':
                 return <InboxView />;
             case 'settings':
-                return <SettingsViewWrapper topContentInset={topContentInset} bottomContentInset={bottomContentInset} onScroll={handleContentScroll} />;
+                return <SettingsViewWrapper topContentInset={topContentInset} bottomContentInset={bottomContentInset} />;
             case 'sessions':
             default:
-                return <SessionsListWrapper topContentInset={topContentInset} onScroll={handleContentScroll} />;
+                return <SessionsListWrapper topContentInset={topContentInset} searchQuery={searchQuery} />;
         }
     };
 
@@ -587,19 +518,16 @@ export const MainView = React.memo(({ variant }: MainViewProps) => {
                         activeTab={activeTab}
                         searchActive={searchActive}
                         onSearchPress={handleSearchPress}
-                        hasArchivedSessions={hasArchivedSessions}
-                        hideArchivedSessions={hideArchivedSessions}
-                        onArchiveVisibilityPress={handleArchiveVisibilityPress}
                     />
                 ) : undefined}
                 headerLeft={() => <HeaderLogo />}
                 headerLeftGlass={Platform.OS !== 'web'}
-                headerBackdropVisible={headerBackdropVisible}
                 headerBackdropAlwaysVisible={Platform.OS !== 'web'}
-                headerBackdropVariant="strong"
+                headerBackdropVariant="home"
                 headerShadowVisible={false}
                 headerTransparent={true}
                 mobileTitleSurface="plain"
+                mobileTitleAlignment="center"
             />
             {realtimeStatus !== 'disconnected' && (
                 <VoiceAssistantStatusBar variant="full" />
@@ -615,8 +543,8 @@ export const MainView = React.memo(({ variant }: MainViewProps) => {
                     <View style={styles.phoneSceneStack}>
                         <SessionsListWrapper
                             topContentInset={topContentInset}
+                            scrollIndicatorTopInset={topChromeInset}
                             bottomContentInset={bottomContentInset}
-                            onScroll={handleContentScroll}
                             searchQuery={searchQuery}
                         />
                     </View>
@@ -637,6 +565,8 @@ export const MainView = React.memo(({ variant }: MainViewProps) => {
                             onPromptChange={setHomePrompt}
                             onSubmit={handleHomePromptSubmit}
                             isSubmitting={isStartingHomeSession}
+                            submitPhase={homeSessionPhase}
+                            onSubmitCancel={cancelHomeSession}
                             showBottomBackdrop={sessionListViewData !== null && sessionListViewData.length > 0}
                         />
                     )}

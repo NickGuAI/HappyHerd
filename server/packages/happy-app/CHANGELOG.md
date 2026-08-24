@@ -1,3 +1,14 @@
+# August 24 — Back to basics
+
+Your sessions in one flat, colorful list — plus polish everywhere.
+
+- **One list** — every session in a single colorful column, active ones on top, project and worktree on each row. Archive is a tap away.
+- **Android** — model, effort, and permission pickers are readable again.
+- **Composer** — pick your agent and permission mode right where you type. Modes are one clear word, Auto first.
+- **Copy** — tap the icon next to an agent reply to copy it; long-press your own message.
+- **Gemini 3.6 Flash** — new in the Antigravity model picker.
+- Thank you to the community who merged fixes and improvements for this update: [@chphch](https://github.com/chphch), [@abhisheksoni27](https://github.com/abhisheksoni27), [@charliezong18](https://github.com/charliezong18)
+
 # August 23 — Conversation links open the live machine Workspace
 
 Explicit Markdown links to files and folders now open their live path on the machine that owns the conversation.

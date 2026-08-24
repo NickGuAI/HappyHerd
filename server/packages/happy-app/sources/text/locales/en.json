@@ -57,6 +57,7 @@
     "offline": "offline",
     "lastSeen": "last seen {time}",
     "permissionRequired": "permission required",
+    "inputRequired": "waiting for your answer",
     "activeNow": "Active now",
     "unknown": "unknown",
     "unread": "new results"
@@ -211,6 +212,10 @@
     },
     "alwaysShowContextSize": "Always Show Context Size",
     "alwaysShowContextSizeDescription": "Display context usage even when not near limit",
+    "showHarnessIconInSessionHeader": "Show Harness Icon in Session Header",
+    "showHarnessIconInSessionHeaderDescription": "Display the harness icon in the session header",
+    "showHarnessIconsInSessionList": "Show Harness Icons in Session List",
+    "showHarnessIconsInSessionListDescription": "Display harness icons on session-list avatars",
     "avatarStyle": "Avatar Style",
     "avatarStyleDescription": "Choose session avatar appearance",
     "avatarOptions": {
@@ -366,12 +371,29 @@
     "failedToRejectRequest": "Failed to reject friend request",
     "failedToRemoveFriend": "Failed to remove friend",
     "searchFailed": "Search failed. Please try again.",
-    "failedToSendRequest": "Failed to send friend request"
+    "failedToSendRequest": "Failed to send friend request",
+    "sessionNotFinishedSyncing": "The message was not sent: this session has not finished syncing. Please try again."
   },
   "newSession": {
     "title": "Start New Session",
     "machineOffline": "Machine is offline",
-    "switchMachinesHint": "• Switch machines by clicking on the machine above"
+    "switchMachinesHint": "• Switch machines by clicking on the machine above",
+    "workspace": "Workspace",
+    "noWorkspace": "no workspace",
+    "newWorkspace": "new workspace",
+    "happyAgentUnsupported": "This machine cannot start Happy agent sessions",
+    "interruptPressStop": "To interrupt press stop"
+  },
+  "agentDefaults": {
+    "customCodexModelTitle": "Custom Codex model",
+    "customCodexModelDescription": "Enter an exact model ID. Availability depends on your Codex account or API configuration.",
+    "modelIdPlaceholder": "model-id",
+    "customModel": "Custom model…",
+    "exactModelId": "Enter an exact model ID"
+  },
+  "modelMode": {
+    "unavailableSelectedDaemon": "Unavailable on the selected daemon",
+    "savedModelUnavailableDaemon": "Saved model · unavailable on this daemon"
   },
   "sessionHistory": {
     "title": "Session History",

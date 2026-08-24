@@ -147,6 +147,7 @@ describe('terminal tool display helpers', () => {
         expect(shouldUseCompactToolRow(tool('file', {}), true)).toBe(false);
         expect(shouldUseCompactToolRow(tool('AskUserQuestion', {}), true)).toBe(false);
         expect(shouldUseCompactToolRow(tool('Subagent', {}), true)).toBe(false);
+        expect(shouldUseCompactToolRow(tool('request_user_input', {}), true)).toBe(false);
 
         const pendingPlan = tool('ExitPlanMode', {});
         pendingPlan.permission = {

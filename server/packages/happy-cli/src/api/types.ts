@@ -24,15 +24,20 @@ export type {
  * Permission mode type - includes both Claude and Codex modes
  * Must match MessageMetaSchema.permissionMode enum values
  *
- * Claude modes: default, acceptEdits, auto, dontAsk, bypassPermissions, plan
+ * Shared: auto — the harness reviews each call itself
+ * Claude modes: default, acceptEdits, bypassPermissions, plan
  * Codex modes: read-only, safe-yolo, yolo
+ *
+ * `auto` is the one mode both harnesses implement natively: Claude ships it
+ * in the Agent SDK's own PermissionMode union, and Codex spells it as the
+ * `on-request` approval policy inside the workspace sandbox.
  *
  * When calling Claude SDK, Codex modes are mapped at the SDK boundary:
  * - yolo → bypassPermissions
  * - safe-yolo → default
  * - read-only → default
  */
-export type PermissionMode = 'default' | 'acceptEdits' | 'auto' | 'dontAsk' | 'bypassPermissions' | 'plan' | 'read-only' | 'safe-yolo' | 'yolo'
+export type PermissionMode = 'auto' | 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'read-only' | 'safe-yolo' | 'yolo'
 
 /**
  * Usage data type from Claude
@@ -165,6 +170,8 @@ export const MachineMetadataSchema = z.object({
     codex: z.boolean(),
     gemini: z.boolean(),
     openclaw: z.boolean(),
+    // Optional so metadata written by a CLI predating agy detection still
+    // matches this shape. detectCLIAvailability always reports it.
     agy: z.boolean().optional(),
     detectedAt: z.number(),
   }).optional(),
@@ -216,23 +223,14 @@ export type Machine = {
  */
 export const MessageMetaSchema = z.object({
   sentFrom: z.string().optional(), // Source identifier
-  permissionMode: z.enum([
-    'default',
-    'acceptEdits',
-    'auto',
-    'dontAsk',
-    'bypassPermissions',
-    'plan',
-    'read-only',
-    'safe-yolo',
-    'yolo',
-  ]).optional(), // Provider-advertised permission mode for this message
+  permissionMode: z.enum(['auto', 'default', 'acceptEdits', 'bypassPermissions', 'plan', 'read-only', 'safe-yolo', 'yolo']).optional(), // Permission mode for this message
   model: z.string().nullable().optional(), // Model name for this message (null = reset)
   fallbackModel: z.string().nullable().optional(), // Fallback model for this message (null = reset)
   customSystemPrompt: z.string().nullable().optional(), // Custom system prompt for this message (null = reset)
   appendSystemPrompt: z.string().nullable().optional(), // Append to system prompt for this message (null = reset)
   allowedTools: z.array(z.string()).nullable().optional(), // Allowed tools for this message (null = reset)
   disallowedTools: z.array(z.string()).nullable().optional(), // Disallowed tools for this message (null = reset)
+  effort: z.string().nullable().optional(), // Provider-advertised effort for this message; the selected daemon/model catalog is authoritative.
   deliveryMode: z.enum(['queue']).optional(), // Explicitly bypass active-turn steering and use the provider queue
   queueMessageId: z.string().trim().min(1).optional(), // Parent local ID for queued attachment records
 })

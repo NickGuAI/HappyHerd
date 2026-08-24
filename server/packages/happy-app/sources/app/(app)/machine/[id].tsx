@@ -1,22 +1,22 @@
-import React, { useState, useMemo, useCallback, useRef } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, RefreshControl, Platform, Pressable, TextInput } from 'react-native';
+import React, { useState, useMemo, useRef } from 'react';
+import { View, Text, ActivityIndicator, RefreshControl, Pressable, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Item } from '@/components/Item';
 import { ItemGroup } from '@/components/ItemGroup';
 import { ItemList } from '@/components/ItemList';
 import { Typography } from '@/constants/Typography';
-import { useSessions, useAllMachines, useMachine, useSetting } from '@/sync/storage';
+import { useSessions, useMachine, useSetting } from '@/sync/storage';
 import { Ionicons, Octicons } from '@expo/vector-icons';
 import type { Session } from '@/sync/storageTypes';
-import { machineStopDaemon, machineUpdateMetadata, machineDelete } from '@/sync/ops';
+import { machineStopDaemon, machineUpdateMetadata, machineDelete, machineSpawnNewSession } from '@/sync/ops';
 import { Modal } from '@/modal';
 import { formatPathRelativeToHome, getSessionName, getSessionSubtitle } from '@/utils/sessionUtils';
 import { isMachineOnline } from '@/utils/machineUtils';
 import { sync } from '@/sync/sync';
-import { useUnistyles, StyleSheet } from 'react-native-unistyles';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
-import { machineSpawnNewSession } from '@/sync/ops';
+import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
 import { resolveAbsolutePath } from '@/utils/pathUtils';
 import { MultiTextInput, type MultiTextInputHandle } from '@/components/MultiTextInput';
 
@@ -56,7 +56,6 @@ const styles = StyleSheet.create((theme) => ({
         backgroundColor: theme.colors.button.primary.background,
     },
     inlineSendInactive: {
-        // Use a darker neutral in light theme to avoid blending into input
         backgroundColor: Platform.select({
             ios: theme.colors.permissionButton?.inactive?.background ?? theme.colors.surfaceHigh,
             android: theme.colors.permissionButton?.inactive?.background ?? theme.colors.surfaceHigh,
@@ -81,7 +80,6 @@ export default function MachineDetailScreen() {
     const [isSpawning, setIsSpawning] = useState(false);
     const inputRef = useRef<MultiTextInputHandle>(null);
     const [showAllPaths, setShowAllPaths] = useState(false);
-    // Variant D only
 
     const machineSessions = useMemo(() => {
         if (!sessions || !machineId) return [];
@@ -101,32 +99,15 @@ export default function MachineDetailScreen() {
 
     const recentPaths = useMemo(() => {
         const paths = new Set<string>();
-        machineSessions.forEach(session => {
-            if (session.metadata?.path) {
-                paths.add(session.metadata.path);
-            }
+        machineSessions.forEach((session) => {
+            if (session.metadata?.path) paths.add(session.metadata.path);
         });
         return Array.from(paths).sort();
     }, [machineSessions]);
 
-    const pathsToShow = useMemo(() => {
-        if (showAllPaths) return recentPaths;
-        return recentPaths.slice(0, 5);
-    }, [recentPaths, showAllPaths]);
-
-    // Determine daemon status from metadata
-    const daemonStatus = useMemo(() => {
-        if (!machine) return 'unknown';
-
-        // Check metadata for daemon status
-        const metadata = machine.metadata as any;
-        if (metadata?.daemonLastKnownStatus === 'shutting-down') {
-            return 'stopped';
-        }
-
-        // Use machine online status as proxy for daemon status
-        return isMachineOnline(machine) ? 'likely alive' : 'stopped';
-    }, [machine]);
+    const pathsToShow = useMemo(() => (
+        showAllPaths ? recentPaths : recentPaths.slice(0, 5)
+    ), [recentPaths, showAllPaths]);
 
     const handleStopDaemon = async () => {
         // Show confirmation modal using alert with buttons
@@ -158,8 +139,6 @@ export default function MachineDetailScreen() {
             ]
         );
     };
-
-    // inline control below
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
@@ -277,11 +256,6 @@ export default function MachineDetailScreen() {
         }
     };
 
-    const pastUsedRelativePath = useCallback((session: Session) => {
-        if (!session.metadata) return 'unknown path';
-        return formatPathRelativeToHome(session.metadata.path, session.metadata.homeDir);
-    }, []);
-
     if (!machine) {
         return (
             <>
@@ -292,7 +266,7 @@ export default function MachineDetailScreen() {
                         headerBackTitle: t('machine.back')
                     }}
                 />
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.groupped.background }}>
                     <Text style={[Typography.default(), { fontSize: 16, color: '#666' }]}>
                         {t("uiCopy.machineNotFound")}
                     </Text>
@@ -303,44 +277,15 @@ export default function MachineDetailScreen() {
 
     const metadata = machine.metadata;
     const machineName = metadata?.displayName || metadata?.host || 'unknown machine';
-
-    const spawnButtonDisabled = !customPath.trim() || isSpawning || !isMachineOnline(machine!);
+    const machineOnline = isMachineOnline(machine);
+    const spawnButtonDisabled = !customPath.trim() || isSpawning || !machineOnline;
 
     return (
         <>
             <Stack.Screen
                 options={{
                     headerShown: true,
-                    headerTitle: () => (
-                        <View style={{ alignItems: 'center' }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Ionicons
-                                    name="desktop-outline"
-                                    size={18}
-                                    color={theme.colors.header.tint}
-                                    style={{ marginRight: 6 }}
-                                />
-                                <Text style={[Typography.default('semiBold'), { fontSize: 17, color: theme.colors.header.tint }]}>
-                                    {machineName}
-                                </Text>
-                            </View>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-                                <View style={{
-                                    width: 6,
-                                    height: 6,
-                                    borderRadius: 3,
-                                    backgroundColor: isMachineOnline(machine) ? '#34C759' : '#999',
-                                    marginRight: 4
-                                }} />
-                                <Text style={[Typography.default(), {
-                                    fontSize: 12,
-                                    color: isMachineOnline(machine) ? '#34C759' : '#999'
-                                }]}>
-                                    {isMachineOnline(machine) ? t('status.online') : t('status.offline')}
-                                </Text>
-                            </View>
-                        </View>
-                    ),
+                    headerTitle: machineName,
                     headerRight: () => (
                         <Pressable
                             onPress={handleRenameMachine}
@@ -361,6 +306,9 @@ export default function MachineDetailScreen() {
                 }}
             />
             <ItemList
+                containerStyle={{
+                    paddingTop: Platform.OS === 'ios' ? MOBILE_GLASS_HEADER_HEIGHT : 0,
+                }}
                 refreshControl={
                     <RefreshControl
                         refreshing={isRefreshing}
@@ -474,24 +422,23 @@ export default function MachineDetailScreen() {
                         />
                     </ItemGroup>
                 )}
-
                 {/* Daemon */}
-                <ItemGroup title={t('machine.daemon')}>
+                <ItemGroup>
                         <Item
                             title={t('machine.status')}
-                            detail={daemonStatus}
+                            detail={machineOnline ? t('status.online') : t('status.offline')}
                             detailStyle={{
-                                color: daemonStatus === 'likely alive' ? '#34C759' : '#FF9500'
+                                color: machineOnline ? '#34C759' : theme.colors.textSecondary
                             }}
                             showChevron={false}
                         />
                         <Item
                             title={t('machine.stopDaemon')}
-                            titleStyle={{ 
-                                color: daemonStatus === 'stopped' ? '#999' : '#FF9500' 
+                            titleStyle={{
+                                color: machineOnline ? '#FF9500' : theme.colors.textSecondary
                             }}
-                            onPress={daemonStatus === 'stopped' ? undefined : handleStopDaemon}
-                            disabled={isStoppingDaemon || daemonStatus === 'stopped'}
+                            onPress={machineOnline ? handleStopDaemon : undefined}
+                            disabled={isStoppingDaemon || !machineOnline}
                             rightElement={
                                 isStoppingDaemon ? (
                                     <ActivityIndicator size="small" color={theme.colors.textSecondary} />
@@ -499,7 +446,7 @@ export default function MachineDetailScreen() {
                                     <Ionicons 
                                         name="stop-circle" 
                                         size={20} 
-                                        color={daemonStatus === 'stopped' ? '#999' : '#FF9500'} 
+                                        color={machineOnline ? '#FF9500' : theme.colors.textSecondary}
                                     />
                                 )
                             }
@@ -599,7 +546,7 @@ export default function MachineDetailScreen() {
                     </ItemGroup>
                 )}
 
-                {/* Previous Sessions (debug view) */}
+                {/* Recent sessions */}
                 {previousSessions.length > 0 && (
                     <ItemGroup title={t("uiCopy.previousSessionsUpTo5MostRecent")}>
                         {previousSessions.map(session => (

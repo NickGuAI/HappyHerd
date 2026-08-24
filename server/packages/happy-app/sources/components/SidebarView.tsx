@@ -93,7 +93,6 @@ export const SidebarView = React.memo(() => {
     const handleArchiveVisibility = React.useCallback(() => {
         setHideArchivedSessions(!hideArchivedSessions);
     }, [hideArchivedSessions, setHideArchivedSessions]);
-
     return (
         <View style={[styles.container, { paddingTop: safeArea.top + headerHeight }]}>
             <View style={styles.topControls}>

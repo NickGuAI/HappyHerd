@@ -18,13 +18,13 @@ describe('agent defaults', () => {
         }, 'claude').modelMode).toBe('claude-opus-5');
     });
 
-    it('defaults fresh Codex users to max when the selected model supports it', () => {
+    it('defaults fresh Codex users to the highest advertised effort', () => {
         expect(resolveAgentDefaultConfig(undefined, 'codex').effortLevel).toBe('max');
         expect(resolveAgentDefaultEffortLevel(undefined, 'codex', [
             { key: 'low' },
             { key: 'max' },
             { key: 'ultra' },
-        ])).toBe('max');
+        ])).toBe('ultra');
     });
 
     it('falls back to the highest advertised effort when max is unsupported', () => {

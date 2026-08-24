@@ -7,26 +7,34 @@ import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
 import { useSessionPendingCommunications } from '@/sync/storage';
-import type { PendingAgentCommunication } from '@/sync/agentCommunications';
+import {
+    shouldUseAgentQuestionFallback,
+    type PendingAgentCommunication,
+} from '@/sync/agentCommunications';
 import { sessionCancelCommunication } from '@/sync/ops';
 import { AgentQuestionModal } from './AgentQuestionModal';
 
 /**
- * Sits above the composer whenever the agent is waiting on the user. It stays
- * pinned rather than living in the transcript so a request cannot scroll out of
- * sight while the agent is blocked on it.
+ * Fallback UI above the composer when a request cannot render in the transcript
+ * (for example, a text-only form or a communication kind this build does not
+ * understand).
  *
  * A form opens the full-screen answer sheet. A communication of a kind this
  * build does not implement says so and offers to dismiss it, so the session is
  * never stuck on something this client cannot render.
  */
 export function AgentQuestionBanner({ sessionId }: { sessionId: string }) {
-    const styles = stylesheet;
-    const { theme } = useUnistyles();
     const pendingCommunications = useSessionPendingCommunications(sessionId);
     const [openId, setOpenId] = React.useState<string | null>(null);
 
-    const pending = pendingCommunications[0];
+    // Choice forms belong exclusively to the transcript renderer. Communication
+    // state can arrive one render before its request_user_input tool message; if
+    // the fallback also claimed that intermediate frame, the legacy form flashed
+    // before being replaced by the inline card. Keep the banner/modal solely for
+    // forms the inline renderer cannot display and unsupported communication kinds.
+    const pending = pendingCommunications.find(communication => (
+        shouldUseAgentQuestionFallback(communication)
+    ));
     const open = pending?.kind === 'form' && openId === pending.id;
 
     // Drop the modal as soon as its request is gone, so an answer from another

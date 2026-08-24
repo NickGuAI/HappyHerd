@@ -114,7 +114,7 @@ function isAuthoritativeCodexLifecycle(message: Record<string, unknown>): boolea
     return true;
 }
 
-const DEFAULT_CODEX_MODEL = 'gpt-5.5';
+const DEFAULT_CODEX_MODEL = 'gpt-5.6-sol';
 const DEFAULT_CODEX_PERMISSION_MODE: PermissionMode = 'yolo';
 
 /**
@@ -371,11 +371,11 @@ export async function runCodex(opts: {
     // could escalate sandbox scope (issue #1092).
     const VALID_REMOTE_PERMISSION_MODES: readonly PermissionMode[] = [
         'default',
+        'auto',
         'read-only',
         'safe-yolo',
         'yolo',
     ];
-
     const handleUserMessage = createSerialAsyncHandler<UserMessage>(async (message) => {
         const queueMessageId = message.meta?.deliveryMode === 'queue'
             ? message.localKey ?? message.meta.queueMessageId

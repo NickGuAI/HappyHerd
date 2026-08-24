@@ -291,7 +291,8 @@ function ToolGroupMessageRow(props: {
     }
 
     const shouldRenderFullTool = props.message.tool.permission?.status === 'pending'
-        || props.message.tool.name === 'AskUserQuestion';
+        || props.message.tool.name === 'AskUserQuestion'
+        || props.message.tool.name === 'request_user_input';
     if (shouldRenderFullTool) {
         return (
             <MessageView

@@ -580,6 +580,10 @@ export class ApiMachineClient {
         const prev = this.lastKnownCLIAvailability;
         const newResumeSupport = detectResumeSupport();
         const prevResume = this.lastKnownResumeSupport;
+        // Every detected CLI has to be compared here. A key left out is never
+        // republished after startup, so installing or removing that agent goes
+        // unnoticed for the life of the daemon — and the app hides agents it is
+        // not told about.
         const cliAvailabilityChanged = !prev
             || prev.claude !== newAvailability.claude
             || prev.codex !== newAvailability.codex

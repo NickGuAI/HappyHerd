@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "b5fefb0e6f86a82ac0c85225d965b480f538b9f53de4cde0064834c7135d4a59",
+  "sourceFingerprint": "bb114ac5498f8db61f7c9ba33332b0701a80c3d4dddfb8e269540624fed0a268",
   "routeCount": 36,
-  "surfaceCount": 232,
+  "surfaceCount": 240,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -199,7 +199,6 @@
         "machine.cliInstalled",
         "machine.cliNotFound",
         "machine.cliVersion",
-        "machine.daemon",
         "machine.daemonStateVersion",
         "machine.dangerZone",
         "machine.delete",
@@ -277,18 +276,19 @@
         "happyHerd.composer.startVoice",
         "machine.machineGroup",
         "machine.offlineHelp",
+        "newSession.happyAgentUnsupported",
         "newSession.machineOffline",
+        "newSession.newWorkspace",
+        "newSession.noWorkspace",
         "newSession.switchMachinesHint",
         "newSession.title",
+        "newSession.workspace",
         "settings.title",
         "status.lastSeen",
         "status.online",
         "uiCopy.agent",
         "uiCopy.agentValue",
-        "uiCopy.agy",
         "uiCopy.askValue",
-        "uiCopy.claudeCode",
-        "uiCopy.codex",
         "uiCopy.createDirectory",
         "uiCopy.done",
         "uiCopy.effort",
@@ -301,11 +301,9 @@
         "uiCopy.noRecentProjectsYet",
         "uiCopy.noResults",
         "uiCopy.noWorktree",
-        "uiCopy.openclaw",
         "uiCopy.permissions",
         "uiCopy.pleaseSelectAMachine",
         "uiCopy.project",
-        "uiCopy.rig",
         "uiCopy.rigCreatedTheSessionButItIsStillSyncingWithHappy",
         "uiCopy.search",
         "uiCopy.searchAgents",
@@ -615,6 +613,11 @@
       "path": "/settings/agents",
       "owner": "sources/app/(app)/settings/agents.tsx",
       "translationKeys": [
+        "agentDefaults.customCodexModelDescription",
+        "agentDefaults.customCodexModelTitle",
+        "agentDefaults.customModel",
+        "agentDefaults.exactModelId",
+        "agentDefaults.modelIdPlaceholder",
         "uiCopy.agentDefaults",
         "uiCopy.clearOverrides",
         "uiCopy.effort",
@@ -631,34 +634,21 @@
         "settings.appearance",
         "settingsAppearance.alwaysShowContextSize",
         "settingsAppearance.alwaysShowContextSizeDescription",
-        "settingsAppearance.avatarOptions.brutalist",
-        "settingsAppearance.avatarOptions.gradient",
-        "settingsAppearance.avatarOptions.pixelated",
-        "settingsAppearance.avatarStyle",
-        "settingsAppearance.avatarStyleDescription",
         "settingsAppearance.chat",
         "settingsAppearance.chatDescription",
         "settingsAppearance.compactToolCalls",
         "settingsAppearance.compactToolCallsDescription",
-        "settingsAppearance.diffStyle",
-        "settingsAppearance.diffStyleDescription",
-        "settingsAppearance.diffStyleOptions.split",
-        "settingsAppearance.diffStyleOptions.unified",
         "settingsAppearance.display",
         "settingsAppearance.displayDescription",
-        "settingsAppearance.expandTodoLists",
-        "settingsAppearance.expandTodoListsDescription",
-        "settingsAppearance.inlineToolCalls",
-        "settingsAppearance.inlineToolCallsDescription",
         "settingsAppearance.sessionStatusBar",
         "settingsAppearance.sessionStatusBarDescription",
         "settingsAppearance.sessionStatusDisplayOptions.above",
         "settingsAppearance.sessionStatusDisplayOptions.below",
         "settingsAppearance.sessionStatusDisplayOptions.hidden",
-        "settingsAppearance.showFlavorIcons",
-        "settingsAppearance.showFlavorIconsDescription",
-        "settingsAppearance.showLineNumbersInDiffs",
-        "settingsAppearance.showLineNumbersInDiffsDescription",
+        "settingsAppearance.showHarnessIconInSessionHeader",
+        "settingsAppearance.showHarnessIconInSessionHeaderDescription",
+        "settingsAppearance.showHarnessIconsInSessionList",
+        "settingsAppearance.showHarnessIconsInSessionListDescription",
         "settingsAppearance.showLineNumbersInToolViews",
         "settingsAppearance.showLineNumbersInToolViewsDescription",
         "settingsAppearance.theme",
@@ -679,8 +669,6 @@
         "settingsAppearance.userMessageBubbleColorOptions.purple",
         "settingsAppearance.userMessageBubbleColorOptions.rose",
         "settingsAppearance.userMessageBubbleColorOptions.sand",
-        "settingsAppearance.wrapLinesInDiffs",
-        "settingsAppearance.wrapLinesInDiffsDescription",
         "settingsLanguage.automatic",
         "settingsLanguage.currentLanguage",
         "settingsLanguage.description",
@@ -707,16 +695,11 @@
         "happyHerd.features.fileDiffsSidebarSubtitle",
         "happyHerd.features.interface",
         "happyHerd.features.interfaceFooter",
-        "happyHerd.features.sortRecent",
-        "happyHerd.features.sortRecentSubtitle",
         "happyHerd.features.voiceInput",
         "happyHerd.features.voiceInputSubtitle",
-        "settingsFeatures.analyticsDisabled",
-        "settingsFeatures.analyticsEnabled",
         "settingsFeatures.commandPalette",
         "settingsFeatures.commandPaletteDisabled",
         "settingsFeatures.commandPaletteEnabled",
-        "settingsFeatures.disableAnalytics",
         "settingsFeatures.enterToSend",
         "settingsFeatures.enterToSendDisabled",
         "settingsFeatures.enterToSendEnabled",
@@ -733,8 +716,6 @@
         "settingsFeatures.imageUploadSubtitle",
         "settingsFeatures.markdownCopyV2",
         "settingsFeatures.markdownCopyV2Subtitle",
-        "settingsFeatures.privacy",
-        "settingsFeatures.privacyDescription",
         "settingsFeatures.webFeatures",
         "settingsFeatures.webFeaturesDescription",
         "workspace.featureSubtitle",
@@ -1043,6 +1024,7 @@
         "common.home",
         "common.message",
         "friends.addFriend",
+        "machine.back",
         "navigation.connectTerminal",
         "navigation.friends",
         "navigation.linkNewDevice",
@@ -1308,7 +1290,6 @@
         "machine.cliInstalled",
         "machine.cliNotFound",
         "machine.cliVersion",
-        "machine.daemon",
         "machine.daemonStateVersion",
         "machine.dangerZone",
         "machine.delete",
@@ -1389,18 +1370,19 @@
         "happyHerd.composer.startVoice",
         "machine.machineGroup",
         "machine.offlineHelp",
+        "newSession.happyAgentUnsupported",
         "newSession.machineOffline",
+        "newSession.newWorkspace",
+        "newSession.noWorkspace",
         "newSession.switchMachinesHint",
         "newSession.title",
+        "newSession.workspace",
         "settings.title",
         "status.lastSeen",
         "status.online",
         "uiCopy.agent",
         "uiCopy.agentValue",
-        "uiCopy.agy",
         "uiCopy.askValue",
-        "uiCopy.claudeCode",
-        "uiCopy.codex",
         "uiCopy.createDirectory",
         "uiCopy.done",
         "uiCopy.effort",
@@ -1413,11 +1395,9 @@
         "uiCopy.noRecentProjectsYet",
         "uiCopy.noResults",
         "uiCopy.noWorktree",
-        "uiCopy.openclaw",
         "uiCopy.permissions",
         "uiCopy.pleaseSelectAMachine",
         "uiCopy.project",
-        "uiCopy.rig",
         "uiCopy.rigCreatedTheSessionButItIsStillSyncingWithHappy",
         "uiCopy.search",
         "uiCopy.searchAgents",
@@ -1772,6 +1752,11 @@
         "AgentDefaultsSettingsScreen"
       ],
       "translationKeys": [
+        "agentDefaults.customCodexModelDescription",
+        "agentDefaults.customCodexModelTitle",
+        "agentDefaults.customModel",
+        "agentDefaults.exactModelId",
+        "agentDefaults.modelIdPlaceholder",
         "uiCopy.agentDefaults",
         "uiCopy.clearOverrides",
         "uiCopy.effort",
@@ -1793,34 +1778,21 @@
         "settings.appearance",
         "settingsAppearance.alwaysShowContextSize",
         "settingsAppearance.alwaysShowContextSizeDescription",
-        "settingsAppearance.avatarOptions.brutalist",
-        "settingsAppearance.avatarOptions.gradient",
-        "settingsAppearance.avatarOptions.pixelated",
-        "settingsAppearance.avatarStyle",
-        "settingsAppearance.avatarStyleDescription",
         "settingsAppearance.chat",
         "settingsAppearance.chatDescription",
         "settingsAppearance.compactToolCalls",
         "settingsAppearance.compactToolCallsDescription",
-        "settingsAppearance.diffStyle",
-        "settingsAppearance.diffStyleDescription",
-        "settingsAppearance.diffStyleOptions.split",
-        "settingsAppearance.diffStyleOptions.unified",
         "settingsAppearance.display",
         "settingsAppearance.displayDescription",
-        "settingsAppearance.expandTodoLists",
-        "settingsAppearance.expandTodoListsDescription",
-        "settingsAppearance.inlineToolCalls",
-        "settingsAppearance.inlineToolCallsDescription",
         "settingsAppearance.sessionStatusBar",
         "settingsAppearance.sessionStatusBarDescription",
         "settingsAppearance.sessionStatusDisplayOptions.above",
         "settingsAppearance.sessionStatusDisplayOptions.below",
         "settingsAppearance.sessionStatusDisplayOptions.hidden",
-        "settingsAppearance.showFlavorIcons",
-        "settingsAppearance.showFlavorIconsDescription",
-        "settingsAppearance.showLineNumbersInDiffs",
-        "settingsAppearance.showLineNumbersInDiffsDescription",
+        "settingsAppearance.showHarnessIconInSessionHeader",
+        "settingsAppearance.showHarnessIconInSessionHeaderDescription",
+        "settingsAppearance.showHarnessIconsInSessionList",
+        "settingsAppearance.showHarnessIconsInSessionListDescription",
         "settingsAppearance.showLineNumbersInToolViews",
         "settingsAppearance.showLineNumbersInToolViewsDescription",
         "settingsAppearance.theme",
@@ -1841,8 +1813,6 @@
         "settingsAppearance.userMessageBubbleColorOptions.purple",
         "settingsAppearance.userMessageBubbleColorOptions.rose",
         "settingsAppearance.userMessageBubbleColorOptions.sand",
-        "settingsAppearance.wrapLinesInDiffs",
-        "settingsAppearance.wrapLinesInDiffsDescription",
         "settingsLanguage.automatic",
         "settingsLanguage.currentLanguage",
         "settingsLanguage.description",
@@ -1879,16 +1849,11 @@
         "happyHerd.features.fileDiffsSidebarSubtitle",
         "happyHerd.features.interface",
         "happyHerd.features.interfaceFooter",
-        "happyHerd.features.sortRecent",
-        "happyHerd.features.sortRecentSubtitle",
         "happyHerd.features.voiceInput",
         "happyHerd.features.voiceInputSubtitle",
-        "settingsFeatures.analyticsDisabled",
-        "settingsFeatures.analyticsEnabled",
         "settingsFeatures.commandPalette",
         "settingsFeatures.commandPaletteDisabled",
         "settingsFeatures.commandPaletteEnabled",
-        "settingsFeatures.disableAnalytics",
         "settingsFeatures.enterToSend",
         "settingsFeatures.enterToSendDisabled",
         "settingsFeatures.enterToSendEnabled",
@@ -1905,8 +1870,6 @@
         "settingsFeatures.imageUploadSubtitle",
         "settingsFeatures.markdownCopyV2",
         "settingsFeatures.markdownCopyV2Subtitle",
-        "settingsFeatures.privacy",
-        "settingsFeatures.privacyDescription",
         "settingsFeatures.webFeatures",
         "settingsFeatures.webFeaturesDescription",
         "workspace.featureSubtitle",
@@ -1919,7 +1882,9 @@
       "owner": "sources/app/(app)/settings/index.tsx",
       "kind": "route",
       "route": "/settings",
-      "exports": [],
+      "exports": [
+        "SettingsScreen"
+      ],
       "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
@@ -2446,6 +2411,7 @@
         "AnimatedBlurBackdrop",
         "AnimatedClickAwayBackdrop",
         "AnimatedCollapsible",
+        "AnimatedFade",
         "AnimatedPopup",
         "LocalBlurHalo"
       ],
@@ -3042,6 +3008,24 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/FlatSessionRow.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "FlatSessionRow",
+        "flatListBackgroundColor"
+      ],
+      "translationKeys": [
+        "sessionInfo.archiveSession",
+        "sessionInfo.failedToArchiveSession",
+        "status.inputRequired",
+        "status.permissionRequired",
+        "status.unread"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/FloatingOverlay.tsx",
       "kind": "component",
       "route": null,
@@ -3111,11 +3095,13 @@
         "agentInput.effort.title",
         "agentInput.model.title",
         "agentInput.permissionMode.title",
+        "common.cancel",
         "common.ok",
         "happyHerd.composer.send",
+        "happyHerd.composer.stop",
         "machine.machineGroup",
         "machineLauncher.enterCustomPath",
-        "settings.title",
+        "newSession.interruptPressStop",
         "status.lastSeen",
         "status.online",
         "uiCopy.addImage",
@@ -3131,7 +3117,8 @@
         "uiCopy.project_olvgym",
         "uiCopy.selectAConnectedRigMachine",
         "uiCopy.worktree",
-        "uiCopy.worktree_sdajyg"
+        "uiCopy.worktree_sdajyg",
+        "workspace.title"
       ],
       "states": [],
       "hardcodedCopy": []
@@ -3239,6 +3226,19 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/LongPressCopyable.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "LongPressCopyable"
+      ],
+      "translationKeys": [
+        "common.copy"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/MachineFileUploadStatus.tsx",
       "kind": "component",
       "route": null,
@@ -3323,8 +3323,6 @@
       "translationKeys": [
         "happyHerd.automations.title",
         "settings.title",
-        "sidebar.hideArchived",
-        "sidebar.showArchived",
         "status.connected",
         "status.connecting",
         "status.disconnected",
@@ -3386,6 +3384,8 @@
         "MessageView"
       ],
       "translationKeys": [
+        "common.copied",
+        "common.copy",
         "message.sentAsGoal",
         "message.switchedToMode",
         "message.unknownEvent",
@@ -3443,27 +3443,28 @@
         "getSessionAvailablePermissionModes",
         "getSessionEffortLevelsForModel",
         "getSupportsWorktree",
+        "hasMachineCapabilityCatalog",
+        "includeConfiguredModel",
         "mapMetadataOptions",
         "resolveCurrentOption"
       ],
       "translationKeys": [
-        "agentInput.codexPermissionMode.default",
+        "agentInput.codexPermissionMode.autoDescription",
         "agentInput.codexPermissionMode.defaultDescription",
-        "agentInput.codexPermissionMode.readOnly",
         "agentInput.codexPermissionMode.readOnlyDescription",
-        "agentInput.codexPermissionMode.safeYolo",
         "agentInput.codexPermissionMode.safeYoloDescription",
-        "agentInput.codexPermissionMode.yolo",
         "agentInput.codexPermissionMode.yoloDescription",
-        "agentInput.geminiPermissionMode.autoEdit",
         "agentInput.geminiPermissionMode.default",
-        "agentInput.geminiPermissionMode.plan",
         "agentInput.geminiPermissionMode.yolo",
         "agentInput.permissionMode.acceptEdits",
+        "agentInput.permissionMode.agyDefault",
+        "agentInput.permissionMode.auto",
         "agentInput.permissionMode.bypassPermissions",
         "agentInput.permissionMode.default",
-        "agentInput.permissionMode.dontAsk",
+        "agentInput.permissionMode.openclawInert",
         "agentInput.permissionMode.plan",
+        "modelMode.savedModelUnavailableDaemon",
+        "modelMode.unavailableSelectedDaemon",
         "uiCopy.fastEfficient",
         "uiCopy.fastest",
         "uiCopy.latestFast",
@@ -3595,7 +3596,8 @@
       "route": null,
       "exports": [
         "Header",
-        "createHeader"
+        "createHeader",
+        "createPlainHeader"
       ],
       "translationKeys": [],
       "states": [],
@@ -3606,6 +3608,8 @@
       "kind": "component",
       "route": null,
       "exports": [
+        "MOBILE_HEADER_EDGE_RAMP_POINTS",
+        "MOBILE_HOME_SCRIM_OVERLAY_OPACITY",
         "MOBILE_STRONG_HEADER_SCRIM_RESTING_OPACITY",
         "MOBILE_STRONG_HEADER_SCRIM_UNDERLAP_OPACITY",
         "MobileHeaderScrim"
@@ -3703,7 +3707,9 @@
       "exports": [
         "ProjectGroup"
       ],
-      "translationKeys": [],
+      "translationKeys": [
+        "sidebar.newSession"
+      ],
       "states": [],
       "hardcodedCopy": []
     },
@@ -3764,6 +3770,17 @@
       "translationKeys": [
         "uiCopy.valueQueued"
       ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/RigGitLineChanges.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "RigGitLineChanges"
+      ],
+      "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
     },
@@ -3869,12 +3886,15 @@
       ],
       "translationKeys": [
         "sessionHistory.empty",
+        "sidebar.hideArchived",
         "sidebar.sessionsTitle",
+        "sidebar.showArchived",
+        "status.inputRequired",
         "status.lastSeen",
         "status.online",
         "status.permissionRequired",
-        "status.unread",
-        "uiCopy.rig"
+        "status.unknown",
+        "status.unread"
       ],
       "states": [
         "empty"
@@ -4005,6 +4025,28 @@
       "route": null,
       "exports": [
         "Shaker"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/ShimmerText.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ShimmerText"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/ShimmerText.web.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ShimmerText"
       ],
       "translationKeys": [],
       "states": [],
@@ -4353,9 +4395,7 @@
       "exports": [
         "AskUserQuestionView"
       ],
-      "translationKeys": [
-        "tools.askUserQuestion.submit"
-      ],
+      "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
     },
@@ -4486,6 +4526,19 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/tools/views/InlineQuestionForm.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "InlineQuestionForm"
+      ],
+      "translationKeys": [
+        "tools.askUserQuestion.submit"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/tools/views/MultiEditView.tsx",
       "kind": "component",
       "route": null,
@@ -4507,6 +4560,17 @@
         "tools.multiEdit.editNumber",
         "tools.multiEdit.replaceAll"
       ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/tools/views/RequestUserInputView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "RequestUserInputView"
+      ],
+      "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
     },
@@ -5078,6 +5142,67 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/sync/storage.ts",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "storage",
+        "useAcceptedFriends",
+        "useAllArtifacts",
+        "useAllMachines",
+        "useAllSessions",
+        "useArtifact",
+        "useArtifacts",
+        "useArtifactsCount",
+        "useDraftArtifacts",
+        "useEntitlement",
+        "useFeedItems",
+        "useFeedLoaded",
+        "useFriend",
+        "useFriendRequests",
+        "useFriends",
+        "useFriendsLoaded",
+        "useIsDataReady",
+        "useIsSessionUnread",
+        "useLocalSetting",
+        "useLocalSettingMutable",
+        "useLocalSettings",
+        "useMachine",
+        "useMessage",
+        "useProfile",
+        "useProjects",
+        "useRealtimeMode",
+        "useRealtimeStatus",
+        "useRequestedFriends",
+        "useSession",
+        "useSessionAgentFormCommunication",
+        "useSessionFileCache",
+        "useSessionGitStatus",
+        "useSessionGitStatusFiles",
+        "useSessionListViewData",
+        "useSessionMessages",
+        "useSessionPendingCommunications",
+        "useSessionProjectAvatar",
+        "useSessionProjectFiles",
+        "useSessionUsage",
+        "useSessions",
+        "useSetting",
+        "useSettingMutable",
+        "useSettings",
+        "useSideChatSessions",
+        "useSocketStatus",
+        "useUser",
+        "useVoiceSessionGeneration"
+      ],
+      "translationKeys": [
+        "sessionHistory.daysAgo",
+        "sessionHistory.today",
+        "sessionHistory.yesterday"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/sync/suggestionCommands.ts",
       "kind": "component",
       "route": null,
@@ -5106,7 +5231,9 @@
         "syncRestore"
       ],
       "translationKeys": [
+        "common.error",
         "common.ok",
+        "errors.sessionNotFinishedSyncing",
         "happyHerd.composer.sendFailedBody",
         "imageUpload.notSupportedMessage",
         "imageUpload.notSupportedTitle",
@@ -5117,7 +5244,9 @@
         "uiCopy.messageNotSent",
         "uiCopy.paywallUnavailable"
       ],
-      "states": [],
+      "states": [
+        "error"
+      ],
       "hardcodedCopy": []
     },
     {
@@ -5196,6 +5325,7 @@
         "session.newChat",
         "sessionHistory.daysAgo",
         "status.activeNow",
+        "status.inputRequired",
         "status.lastSeen",
         "status.online",
         "status.permissionRequired",
@@ -5217,6 +5347,7 @@
         "getToolActivityLabel",
         "getToolSummaryCategory",
         "getToolSummaryDetail",
+        "isInteractiveQuestionToolName",
         "isTerminalToolName",
         "resolveToolDisplayRuntimeState",
         "shouldRenderToolCardHeader",

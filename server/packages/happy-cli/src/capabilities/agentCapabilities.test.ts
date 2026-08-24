@@ -39,6 +39,13 @@ describe('agent capability discovery', () => {
             'claude-haiku-4-5',
         ]);
         expect(catalog.models.map((model) => model.value)).not.toContain(expect.stringContaining('full name'));
+        expect(catalog.permissionModes.map((mode) => mode.code)).toEqual([
+            'default',
+            'acceptEdits',
+            'auto',
+            'bypassPermissions',
+            'plan',
+        ]);
     });
 
     it('accepts a new Codex model without a Web release', async () => {
@@ -98,6 +105,13 @@ describe('agent capability discovery', () => {
             'high',
             'xhigh',
             'max',
+        ]);
+        expect(capabilities.codex.permissionModes.map((mode) => mode.code)).toEqual([
+            'default',
+            'auto',
+            'read-only',
+            'safe-yolo',
+            'yolo',
         ]);
     });
 });

@@ -27,16 +27,20 @@ import {
 } from './chatLatestNavigation';
 import { t } from '@/text';
 import { projectSessionQueue } from '@/sync/queueProjection';
+import { buildAgentTurnCopyTextByMessageId } from '@/utils/agentTurnCopy';
 
 const SCROLL_THRESHOLD = 300;
 const DOCK_DETAILS_SHOW_OFFSET = 16;
 const DOCK_DETAILS_HIDE_OFFSET = 48;
+const SCROLL_BUTTON_DOCK_GAP = 8;
 
 export const ChatList = React.memo((props: {
     session: Session;
     focusMessageId?: string;
     topContentInset?: number;
     bottomContentInset?: number;
+    /** Distance from the screen bottom to the composer. Independent of status-chrome fade. */
+    scrollButtonInset?: number;
     headerOverlayHeight?: number;
     onHeaderBackdropVisibilityChange?: (visible: boolean) => void;
     onBottomDockVisibilityChange?: (visible: boolean) => void;
@@ -56,6 +60,7 @@ export const ChatList = React.memo((props: {
             isLoadingOlder={isLoadingOlder}
             topContentInset={props.topContentInset}
             bottomContentInset={props.bottomContentInset}
+            scrollButtonInset={props.scrollButtonInset}
             headerOverlayHeight={props.headerOverlayHeight}
             onHeaderBackdropVisibilityChange={props.onHeaderBackdropVisibilityChange}
             onBottomDockVisibilityChange={props.onBottomDockVisibilityChange}
@@ -104,6 +109,7 @@ const ChatListInternal = React.memo((props: {
     isLoadingOlder: boolean,
     topContentInset?: number,
     bottomContentInset?: number,
+    scrollButtonInset?: number,
     headerOverlayHeight?: number,
     onHeaderBackdropVisibilityChange?: (visible: boolean) => void,
     onBottomDockVisibilityChange?: (visible: boolean) => void,
@@ -128,9 +134,6 @@ const ChatListInternal = React.memo((props: {
     const exactMessageFocusAnchoredRef = React.useRef(false);
     const headerBackdropVisibleRef = React.useRef(false);
     const bottomDockVisibleRef = React.useRef(true);
-    // Native auto-stick-to-bottom also emits scroll events. Only a drag that
-    // began with the user may change the auxiliary dock's visibility.
-    const isUserScrollingRef = React.useRef(false);
     const scrollMetricsRef = React.useRef({
         offsetY: 0,
         contentHeight: 0,
@@ -233,6 +236,11 @@ const ChatListInternal = React.memo((props: {
         newMessageCountRef.current = 0;
         setNewMessageCount(0);
     }, [cancelFocusScrollRetry, props.sessionId]);
+
+    const agentCopyTextByMessageId = React.useMemo(
+        () => buildAgentTurnCopyTextByMessageId(props.messages, { currentTurnComplete: collapseCurrentTurn }),
+        [collapseCurrentTurn, props.messages],
+    );
 
     // Tracks which groups are explicitly collapsed. Groups start collapsed;
     // pending approval groups are the only ones we auto-expand.
@@ -506,8 +514,8 @@ const ChatListInternal = React.memo((props: {
     ]);
 
     const updateBottomDockVisibility = useCallback((offsetY: number) => {
-        // Treat this as a user-scroll state. Hysteresis avoids toggling while
-        // the list is resting or bouncing very near the newest message.
+        // Hysteresis avoids toggling while the list is resting or bouncing
+        // very near the newest message.
         const nextVisible = bottomDockVisibleRef.current
             ? offsetY <= DOCK_DETAILS_HIDE_OFFSET
             : offsetY <= DOCK_DETAILS_SHOW_OFFSET;
@@ -515,7 +523,6 @@ const ChatListInternal = React.memo((props: {
     }, [setBottomDockVisibility]);
 
     React.useEffect(() => {
-        isUserScrollingRef.current = false;
         setBottomDockVisibility(true);
     }, [props.sessionId, setBottomDockVisibility]);
 
@@ -557,9 +564,10 @@ const ChatListInternal = React.memo((props: {
                 message={item.message}
                 metadata={props.metadata}
                 sessionId={props.sessionId}
+                copyText={agentCopyTextByMessageId.get(item.message.id)}
             />
         );
-    }, [props.metadata, props.sessionId, collapsedGroups, handleToggleGroup, session?.active]);
+    }, [agentCopyTextByMessageId, props.metadata, props.sessionId, collapsedGroups, handleToggleGroup, session?.active, session?.activeAt]);
 
     // In inverted FlatList, offset 0 = latest messages (visual bottom).
     // Offset increases as user scrolls up to see older messages.
@@ -575,9 +583,7 @@ const ChatListInternal = React.memo((props: {
             setNewMessageCount(0);
         }
         updateHeaderBackdropVisibility();
-        if (isUserScrollingRef.current) {
-            updateBottomDockVisibility(offsetY);
-        }
+        updateBottomDockVisibility(offsetY);
         const next = exactMessageFocusAnchoredRef.current || offsetY > SCROLL_THRESHOLD;
         if (next !== showScrollButtonRef.current) {
             showScrollButtonRef.current = next;
@@ -589,26 +595,7 @@ const ChatListInternal = React.memo((props: {
         // A drag hands viewport ownership back to the user. Native follow-latest
         // may resume according to the resulting offset after this interaction.
         releaseExactMessageFocus();
-        isUserScrollingRef.current = true;
     }, [releaseExactMessageFocus]);
-
-    const handleScrollEndDrag = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-        if (!isUserScrollingRef.current) {
-            return;
-        }
-        updateBottomDockVisibility(e.nativeEvent.contentOffset.y);
-        if (Math.abs(e.nativeEvent.velocity?.y ?? 0) < 0.1) {
-            isUserScrollingRef.current = false;
-        }
-    }, [updateBottomDockVisibility]);
-
-    const handleMomentumScrollEnd = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-        if (!isUserScrollingRef.current) {
-            return;
-        }
-        updateBottomDockVisibility(e.nativeEvent.contentOffset.y);
-        isUserScrollingRef.current = false;
-    }, [updateBottomDockVisibility]);
 
     const scrollToBottom = useCallback(() => {
         // This is an explicit "go to latest" action, so its animated native
@@ -675,8 +662,6 @@ const ChatListInternal = React.memo((props: {
                 onScrollToIndexFailed={handleFocusScrollToIndexFailed}
                 onScroll={handleScroll}
                 onScrollBeginDrag={handleScrollBeginDrag}
-                onScrollEndDrag={handleScrollEndDrag}
-                onMomentumScrollEnd={handleMomentumScrollEnd}
                 scrollEventThrottle={16}
                 onLayout={(event) => {
                     scrollMetricsRef.current.viewportHeight = event.nativeEvent.layout.height;
@@ -699,7 +684,7 @@ const ChatListInternal = React.memo((props: {
             {(showScrollButton || newMessageCount > 0) && (
                 <View style={[
                     styles.scrollButtonContainer,
-                    { bottom: 12 + (props.bottomContentInset ?? 0) },
+                    { bottom: SCROLL_BUTTON_DOCK_GAP + (props.scrollButtonInset ?? props.bottomContentInset ?? 0) },
                 ]}>
                     <Pressable
                         style={({ pressed }) => [
@@ -732,7 +717,7 @@ const styles = StyleSheet.create((theme) => ({
         position: 'absolute',
         left: 0,
         right: 0,
-        bottom: 12,
+        bottom: SCROLL_BUTTON_DOCK_GAP,
         alignItems: 'center',
         justifyContent: 'center',
         pointerEvents: 'box-none',

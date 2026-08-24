@@ -6,6 +6,9 @@ import { AvatarGradient } from "./AvatarGradient";
 import { AvatarBrutalist } from "./AvatarBrutalist";
 import { useSetting } from '@/sync/storage';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
+import { resolveAvatarHarness, type AvatarHarnessIcon } from '@/utils/avatarHarness';
+
+export type AvatarBadgeLocation = 'sessionHeader' | 'sessionList' | 'none';
 
 interface AvatarProps {
     id: string;
@@ -15,25 +18,25 @@ interface AvatarProps {
     monochrome?: boolean;
     flavor?: string | null;
     clientId?: string | null;
+    /** Where this avatar is rendered; omitted avatars never get a harness badge. */
+    badgeLocation?: AvatarBadgeLocation;
     imageUrl?: string | null;
     thumbhash?: string | null;
     onImageError?: () => void;
 }
 
-const flavorIcons = {
+const harnessIcons: Record<AvatarHarnessIcon, number> = {
     claude: require('@/assets/images/icon-claude.png'),
     codex: require('@/assets/images/icon-gpt.png'),
-    gemini: require('@/assets/images/icon-gemini.png'),
-    openclaw: require('@/assets/images/icon-openclaw.png'),
-    rig: require('@/assets/images/icon-rig.png'),
     agy: require('@/assets/images/icon-agy.png'),
+    rig: require('@/assets/images/logo-black.png'),
 };
 
 const styles = StyleSheet.create((theme) => ({
     container: {
         position: 'relative',
     },
-    flavorIcon: {
+    harnessIcon: {
         position: 'absolute',
         bottom: -2,
         right: -2,
@@ -46,20 +49,22 @@ const styles = StyleSheet.create((theme) => ({
         shadowRadius: 2,
         elevation: 3,
     },
-    rigFlavorIcon: {
-        backgroundColor: 'transparent',
-        padding: 0,
-        shadowOpacity: 0,
-        shadowRadius: 0,
-        elevation: 0,
-    },
 }));
 
 export const Avatar = React.memo((props: AvatarProps) => {
-    const { flavor, clientId, size = 48, imageUrl, thumbhash, onImageError, ...avatarProps } = props;
-    const avatarStyle = useSetting('avatarStyle');
+    const { flavor, clientId, badgeLocation = 'none', size = 48, imageUrl, thumbhash, onImageError, ...avatarProps } = props;
+    // Brutalist is the product default now. Keep the renderer branches below
+    // so another style can be restored without rebuilding the avatar variants.
+    const avatarStyle: string = 'brutalist';
     const showFlavorIcons = useSetting('showFlavorIcons');
+    const showHarnessIconInSessionHeader = useSetting('showHarnessIconInSessionHeader');
     const { theme } = useUnistyles();
+    const showHarnessIcon = badgeLocation === 'sessionHeader'
+        ? showHarnessIconInSessionHeader
+        : badgeLocation === 'sessionList'
+            ? showFlavorIcons
+            : false;
+    const effectiveHarness = resolveAvatarHarness(flavor, clientId);
 
     // Render custom image if provided
     if (imageUrl) {
@@ -67,6 +72,7 @@ export const Avatar = React.memo((props: AvatarProps) => {
             <Image
                 source={{ uri: imageUrl, thumbhash: thumbhash || undefined }}
                 placeholder={thumbhash ? { thumbhash: thumbhash } : undefined}
+                cachePolicy={imageUrl.startsWith('data:') ? 'memory' : 'disk'}
                 contentFit="cover"
                 onError={onImageError}
                 style={{
@@ -77,31 +83,32 @@ export const Avatar = React.memo((props: AvatarProps) => {
             />
         );
 
-        // Add flavor icon overlay if enabled
-        if (showFlavorIcons && (flavor || clientId === 'rig')) {
-            const effectiveFlavor = clientId === 'rig' ? 'rig' : (flavor || 'claude');
-            const flavorIcon = flavorIcons[effectiveFlavor as keyof typeof flavorIcons] || flavorIcons.claude;
+        // Add harness icon overlay if enabled
+        if (showHarnessIcon && effectiveHarness) {
+            const harnessIcon = harnessIcons[effectiveHarness];
             const circleSize = Math.round(size * 0.35);
-            const iconSize = effectiveFlavor === 'codex'
+            const iconSize = effectiveHarness === 'codex'
                 ? Math.round(size * 0.25)
-                : effectiveFlavor === 'claude'
+                : effectiveHarness === 'claude'
                     ? Math.round(size * 0.28)
-                    : Math.round(size * 0.35);
+                    : effectiveHarness === 'rig'
+                        ? Math.round(size * 0.29)
+                        : Math.round(size * 0.35);
 
             return (
                 <View style={[styles.container, { width: size, height: size }]}>
                     {imageElement}
-                    <View style={[styles.flavorIcon, effectiveFlavor === 'rig' && styles.rigFlavorIcon, {
+                    <View style={[styles.harnessIcon, {
                         width: circleSize,
                         height: circleSize,
                         alignItems: 'center',
                         justifyContent: 'center'
                     }]}>
                         <Image
-                            source={flavorIcon}
+                            source={harnessIcon}
                             style={{ width: iconSize, height: iconSize }}
                             contentFit="contain"
-                            tintColor={effectiveFlavor === 'codex' ? theme.colors.text : undefined}
+                            tintColor={effectiveHarness === 'codex' || effectiveHarness === 'rig' ? theme.colors.text : undefined}
                         />
                     </View>
                 </View>
@@ -122,40 +129,42 @@ export const Avatar = React.memo((props: AvatarProps) => {
         AvatarComponent = AvatarGradient;
     }
 
-    // Determine flavor icon for generated avatars
-    const effectiveFlavor = clientId === 'rig' ? 'rig' : (flavor || 'claude');
-    const flavorIcon = flavorIcons[effectiveFlavor as keyof typeof flavorIcons] || flavorIcons.claude;
+    // Determine harness icon for generated avatars
+    const harnessIcon = effectiveHarness ? harnessIcons[effectiveHarness] : null;
     // Make icons smaller while keeping same circle size
     // Claude slightly bigger than codex
     const circleSize = Math.round(size * 0.35);
-    const iconSize = effectiveFlavor === 'codex'
+    const iconSize = effectiveHarness === 'codex'
         ? Math.round(size * 0.25)
-        : effectiveFlavor === 'claude'
+        : effectiveHarness === 'claude'
             ? Math.round(size * 0.28)
-            : Math.round(size * 0.35);
+            : effectiveHarness === 'rig'
+                ? Math.round(size * 0.29)
+                : Math.round(size * 0.35);
 
-    // Only wrap in container if showing flavor icons and flavor was provided
-    if (showFlavorIcons && (flavor !== null || clientId === 'rig')) {
+    // Only wrap in a container when this caller explicitly opts into a badge
+    // location and the session has an identifiable harness.
+    if (showHarnessIcon && effectiveHarness && harnessIcon) {
         return (
             <View style={[styles.container, { width: size, height: size }]}>
                 <AvatarComponent {...avatarProps} size={size} />
-                <View style={[styles.flavorIcon, effectiveFlavor === 'rig' && styles.rigFlavorIcon, {
+                <View style={[styles.harnessIcon, {
                     width: circleSize,
                     height: circleSize,
                     alignItems: 'center',
                     justifyContent: 'center'
                 }]}>
                     <Image
-                        source={flavorIcon}
+                        source={harnessIcon}
                         style={{ width: iconSize, height: iconSize }}
                         contentFit="contain"
-                        tintColor={effectiveFlavor === 'codex' ? theme.colors.text : undefined}
+                        tintColor={effectiveHarness === 'codex' || effectiveHarness === 'rig' ? theme.colors.text : undefined}
                     />
                 </View>
             </View>
         );
     }
 
-    // Return avatar without wrapper when not showing flavor icons
+    // Return avatar without wrapper when not showing harness icons
     return <AvatarComponent {...avatarProps} size={size} />;
 });

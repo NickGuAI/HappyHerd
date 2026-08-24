@@ -11,6 +11,9 @@ import { Image } from 'expo-image';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
 import { ShortcutHintBadge, useShortcutHints } from './ShortcutHints';
+import { shouldShowHomeConnectionStatus } from './homeConnectionStatus';
+
+const HEADER_LOGO_SIZE = 19;
 
 const stylesheet = StyleSheet.create((theme, runtime) => ({
     headerButton: {
@@ -103,6 +106,8 @@ export const HomeHeader = React.memo(() => {
             headerLeftGlass={Platform.OS !== 'web'}
             headerShadowVisible={false}
             headerTransparent={true}
+            mobileTitleSurface="plain"
+            mobileTitleAlignment="center"
         />
     );
 
@@ -124,6 +129,7 @@ export const HomeHeaderNotAuth = React.memo(() => {
             headerShadowVisible={false}
             headerBackgroundColor={theme.colors.groupped.background}
             mobileTitleSurface="plain"
+            mobileTitleAlignment="center"
         />
     )
 });
@@ -174,7 +180,7 @@ function HeaderLeft() {
             <Image
                 source={require('@/assets/images/logo-black.png')}
                 contentFit="contain"
-                style={[{ width: 24, height: 24 }]}
+                style={{ width: HEADER_LOGO_SIZE, height: HEADER_LOGO_SIZE }}
                 tintColor={theme.colors.header.tint}
             />
         </View>
@@ -229,7 +235,8 @@ function HeaderTitleWithSubtitle({ subtitle }: { subtitle?: string }) {
 
     const hasCustomSubtitle = !!subtitle;
     const connectionStatus = getConnectionStatus();
-    const showConnectionStatus = !hasCustomSubtitle && connectionStatus.text;
+    const showConnectionStatus = shouldShowHomeConnectionStatus(socketStatus.status, hasCustomSubtitle)
+        && connectionStatus.text;
 
     return (
         <View style={styles.titleContainer}>

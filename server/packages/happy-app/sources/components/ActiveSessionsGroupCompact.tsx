@@ -25,12 +25,14 @@ import { buildActiveSessionDisplayGroups } from '@/utils/sessionDisplayOrder';
 import { ProviderIcon } from './ProviderIcon';
 import { CommanderSessionAvatar } from './CommanderSessionAvatar';
 import { resolveCompactSessionLeadingIndicatorKind } from '@/utils/compactSessionLeadingIndicator';
+import { RigGitLineChanges } from './RigGitLineChanges';
 
 const STATUS_CONFIG: Record<SessionState, { color: string; dotColor: string; isPulsing: boolean; isConnected: boolean }> = {
     disconnected: { color: '#999', dotColor: '#999', isPulsing: false, isConnected: false },
     thinking: { color: '#007AFF', dotColor: '#007AFF', isPulsing: true, isConnected: true },
     waiting: { color: '#34C759', dotColor: '#34C759', isPulsing: false, isConnected: true },
     permission_required: { color: '#FF9500', dotColor: '#FF9500', isPulsing: true, isConnected: true },
+    input_required: { color: '#FF9500', dotColor: '#FF9500', isPulsing: true, isConnected: true },
 };
 
 interface ActiveSessionsGroupProps {
@@ -102,7 +104,7 @@ const SectionHeader = React.memo(({ session, displayPath }: { session: SessionRo
         >
             {/* Avatar — vertically centered */}
             <View style={styles.sectionHeaderAvatar}>
-                <Avatar id={session.avatarId} size={24} flavor={null} />
+                <Avatar id={session.avatarId} size={24} flavor={null} imageUrl={session.projectAvatarUri} thumbhash={session.projectAvatarThumbhash} />
             </View>
 
             {/* Path + branch */}
@@ -229,8 +231,9 @@ export const CompactSessionRow = React.memo(({ session, selected, showBorder }: 
     const { theme } = useUnistyles();
     const baseStatus = STATUS_CONFIG[session.state];
     const commanderProfilePictures = useSetting('commanderProfilePictures');
-    // Override to solid blue when session has unread results
-    const status = session.hasUnread
+    const needsUserAction = session.state === 'permission_required' || session.state === 'input_required';
+    // User action stays orange and pulsing even when the request also marked the session unread.
+    const status = session.hasUnread && !needsUserAction
         ? { ...baseStatus, color: '#007AFF', dotColor: '#007AFF', isPulsing: false, isConnected: baseStatus.isConnected }
         : baseStatus;
     const navigateToSession = useNavigateToSession();
@@ -289,6 +292,8 @@ export const CompactSessionRow = React.memo(({ session, selected, showBorder }: 
                     isPulsing={baseStatus.isPulsing}
                 />
             );
+        } else if (needsUserAction) {
+            indicator = <StatusDot color={status.dotColor} isPulsing={status.isPulsing} />;
         } else if (kind === 'unread') {
             indicator = <StatusDot color={status.dotColor} isPulsing={false} />;
         } else if (kind === 'draft') {
@@ -340,12 +345,24 @@ export const CompactSessionRow = React.memo(({ session, selected, showBorder }: 
                         style={styles.sessionShortcutBadge}
                     />
                 </View>
-                {session.identityLine && (
+                {(session.identityLine || session.gitChangedFiles !== null) && (
                     <View style={styles.sessionIdentityRow}>
-                        <ProviderIcon kind={session.providerKind} size={11} />
-                        <Text style={styles.sessionIdentity} numberOfLines={1}>
-                            {session.identityLine}{session.modelName ? ` · ${session.modelName}` : ''}{session.activitySummary ? ` · ${session.activitySummary}` : ''}
-                        </Text>
+                        {session.identityLine && (
+                            <>
+                                <ProviderIcon kind={session.providerKind} size={11} />
+                                <Text style={styles.sessionIdentity} numberOfLines={1}>
+                                    {session.identityLine}{session.modelName ? ` · ${session.modelName}` : ''}{session.activitySummary ? ` · ${session.activitySummary}` : ''}
+                                </Text>
+                            </>
+                        )}
+                        {session.gitChangedFiles !== null && (
+                            <RigGitLineChanges
+                                changedFiles={session.gitChangedFiles}
+                                countsExact={session.gitCountsExact}
+                                deletions={session.gitDeletions ?? 0}
+                                insertions={session.gitInsertions ?? 0}
+                            />
+                        )}
                     </View>
                 )}
             </View>
@@ -534,6 +551,8 @@ const stylesheet = StyleSheet.create((theme) => ({
         fontSize: 11,
         color: theme.colors.textSecondary,
         ...Typography.default('regular'),
+        flex: 1,
+        minWidth: 0,
         flexShrink: 1,
     },
     sessionIdentityRow: {
