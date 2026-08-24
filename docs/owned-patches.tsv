@@ -77,3 +77,4 @@ SESSION_DECISION_INBOX	accepted	feat(sessions): make Home a flat decision inbox	
 EXACT_DAEMON_ROUTING	accepted	fix(sessions): pin new work to the exact daemon	server/packages/happy-app/sources/utils/newSessionPickerItems.test.ts
 UPSTREAM_SYNC_AUTOMATION	accepted	ci(upstream): add daily reviewed sync	scripts/test-daily-upstream-sync-contract.sh
 COMMANDER_STATUS_AVATAR	accepted	feat(sessions): add Commander status avatars	server/packages/happy-app/sources/utils/sessionStatusAvatar.test.ts
+UPSTREAM_SYNC_EVIDENCE	accepted	docs(upstream): record audited sync evidence	docs/upstream-sync-2026-08-24.md
