@@ -75,7 +75,19 @@ export const useNewSessionDraft = create<NewSessionDraftState>()((set, get) => (
 
     setInput: (input) => { set({ input }); persist(get()); },
     setAttachments: (attachments) => { set({ attachments }); },
-    setMachineId: (id) => { set({ selectedMachineId: id, selectedPath: null, selectedCommanderId: null, worktreeKey: null }); persist(get()); },
+    setMachineId: (id) => {
+        set({
+            selectedMachineId: id,
+            selectedPath: null,
+            selectedCommanderId: null,
+            permissionMode: null,
+            modelMode: null,
+            effortLevel: null,
+            sessionType: 'simple',
+            worktreeKey: null,
+        });
+        persist(get());
+    },
     setPath: (path) => { set({ selectedPath: path, worktreeKey: null }); persist(get()); },
     setCommanderId: (id) => { set({ selectedCommanderId: id, worktreeKey: null }); persist(get()); },
     setAgentType: (agent) => { set({ agentType: agent }); persist(get()); },

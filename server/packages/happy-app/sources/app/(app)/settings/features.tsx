@@ -10,7 +10,6 @@ import { CommanderAvatarSettings } from '@/components/CommanderAvatarSettings';
 
 export default function FeaturesSettingsScreen() {
     const [experiments, setExperiments] = useSettingMutable('experiments');
-    const [analyticsOptOut, setAnalyticsOptOut] = useSettingMutable('analyticsOptOut');
     const [agentInputEnterToSend, setAgentInputEnterToSend] = useSettingMutable('agentInputEnterToSend');
     const [commandPaletteEnabled, setCommandPaletteEnabled] = useLocalSettingMutable('commandPaletteEnabled');
     const [markdownCopyV2, setMarkdownCopyV2] = useLocalSettingMutable('markdownCopyV2');
@@ -19,9 +18,7 @@ export default function FeaturesSettingsScreen() {
     const [machineWorkspace, setMachineWorkspace] = useSettingMutable('machineWorkspace');
     const [groupToolCalls, setGroupToolCalls] = useSettingMutable('groupToolCalls');
     const [expImageUpload, setExpImageUpload] = useSettingMutable('expImageUpload');
-    const [commanderProfilePictures, setCommanderProfilePictures] = useSettingMutable('commanderProfilePictures');
     const [voiceInputEnabled, setVoiceInputEnabled] = useSettingMutable('voiceInputEnabled');
-    const [sortSessionsByActivity, setSortSessionsByActivity] = useSettingMutable('sortSessionsByActivity');
 
     return (
         <ItemList style={{ paddingTop: 0 }}>
@@ -62,18 +59,6 @@ export default function FeaturesSettingsScreen() {
                         <Switch
                             value={groupToolCalls}
                             onValueChange={setGroupToolCalls}
-                        />
-                    }
-                    showChevron={false}
-                />
-                <Item
-                    title={t('happyHerd.features.sortRecent')}
-                    subtitle={t('happyHerd.features.sortRecentSubtitle')}
-                    icon={<Ionicons name="swap-vertical-outline" size={29} color="#FF9500" />}
-                    rightElement={
-                        <Switch
-                            value={sortSessionsByActivity}
-                            onValueChange={setSortSessionsByActivity}
                         />
                     }
                     showChevron={false}
@@ -134,18 +119,6 @@ export default function FeaturesSettingsScreen() {
                     showChevron={false}
                 />
                 <Item
-                    title={t('happyHerd.features.commanderProfilePictures')}
-                    subtitle={t('happyHerd.features.commanderProfilePicturesSubtitle')}
-                    icon={<Ionicons name="people-circle-outline" size={29} color="#007AFF" />}
-                    rightElement={
-                        <Switch
-                            value={commanderProfilePictures}
-                            onValueChange={setCommanderProfilePictures}
-                        />
-                    }
-                    showChevron={false}
-                />
-                <Item
                     title={t('happyHerd.features.voiceInput')}
                     subtitle={t('happyHerd.features.voiceInputSubtitle')}
                     icon={<Ionicons name="mic-outline" size={29} color="#111111" />}
@@ -159,27 +132,7 @@ export default function FeaturesSettingsScreen() {
                 />
             </ItemGroup>
 
-            {commanderProfilePictures && <CommanderAvatarSettings />}
-
-            {/* Privacy */}
-            <ItemGroup
-                title={t('settingsFeatures.privacy')}
-                footer={t('settingsFeatures.privacyDescription')}
-            >
-                <Item
-                    title={t('settingsFeatures.disableAnalytics')}
-                    subtitle={analyticsOptOut ? t('settingsFeatures.analyticsDisabled') : t('settingsFeatures.analyticsEnabled')}
-                    icon={<Ionicons name="analytics-outline" size={29} color="#FF3B30" />}
-                    rightElement={
-                        <Switch
-                            value={analyticsOptOut}
-                            onValueChange={setAnalyticsOptOut}
-                        />
-                    }
-                    showChevron={false}
-                />
-            </ItemGroup>
-
+            <CommanderAvatarSettings />
             {/* Web-only Features */}
             {Platform.OS === 'web' && (
                 <ItemGroup 

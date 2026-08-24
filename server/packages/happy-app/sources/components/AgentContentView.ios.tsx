@@ -39,8 +39,8 @@ export const AgentContentView: React.FC<AgentContentViewProps> = React.memo(({
     }, []);
 
     React.useEffect(() => {
-        onDockInsetChange?.(floatingDock ? dockHeight : 0);
-    }, [dockHeight, floatingDock, onDockInsetChange]);
+        onDockInsetChange?.(floatingDock ? dockHeight + safeArea.bottom : 0);
+    }, [dockHeight, floatingDock, onDockInsetChange, safeArea.bottom]);
 
     useKeyboardHandler({
         onEnd(e) {
@@ -80,7 +80,7 @@ export const AgentContentView: React.FC<AgentContentViewProps> = React.memo(({
                                 top: safeArea.top + headerHeight,
                                 left: 0,
                                 right: 0,
-                                bottom: dockHeight,
+                                bottom: dockHeight + safeArea.bottom,
                             },
                             animatePlaceholderdStyle,
                         ]}
@@ -100,7 +100,7 @@ export const AgentContentView: React.FC<AgentContentViewProps> = React.memo(({
                                 left: 0,
                                 right: 0,
                                 bottom: 0,
-                                height: dockHeight + 28,
+                                height: dockHeight + safeArea.bottom + 28,
                                 zIndex: 1,
                             },
                             animatedInputStyle,
@@ -119,12 +119,13 @@ export const AgentContentView: React.FC<AgentContentViewProps> = React.memo(({
                 )}
                 <Animated.View
                     onLayout={handleDockLayout}
+                    pointerEvents="box-none"
                     style={[
                         {
                             position: 'absolute',
                             left: 0,
                             right: 0,
-                            bottom: 0,
+                            bottom: safeArea.bottom,
                             zIndex: 2,
                         },
                         animatedInputStyle,

@@ -23,13 +23,6 @@ import * as React from 'react';
 import { MobileGlassSurface } from '@/components/MobileGlass';
 import { AnimatedCollapsible } from '@/components/AnimatedOverlay';
 
-// Define known avatar styles for this version of the app
-type KnownAvatarStyle = 'pixelated' | 'gradient' | 'brutalist';
-
-const isKnownAvatarStyle = (style: string): style is KnownAvatarStyle => {
-    return style === 'pixelated' || style === 'gradient' || style === 'brutalist';
-};
-
 const getUserMessageBubbleColorLabel = (color: UserMessageBubbleColor): string => {
     switch (color) {
         case 'blue':
@@ -205,15 +198,10 @@ function BubbleColorOption(props: {
 export default function AppearanceSettingsScreen() {
     const { theme } = useUnistyles();
     const router = useRouter();
-    const [viewInline, setViewInline] = useSettingMutable('viewInline');
-    const [expandTodos, setExpandTodos] = useSettingMutable('expandTodos');
-    const [showLineNumbers, setShowLineNumbers] = useSettingMutable('showLineNumbers');
     const [showLineNumbersInToolViews, setShowLineNumbersInToolViews] = useSettingMutable('showLineNumbersInToolViews');
-    const [wrapLinesInDiffs, setWrapLinesInDiffs] = useSettingMutable('wrapLinesInDiffs');
-    const [diffStyle, setDiffStyle] = useSettingMutable('diffStyle');
     const [alwaysShowContextSize, setAlwaysShowContextSize] = useSettingMutable('alwaysShowContextSize');
-    const [avatarStyle, setAvatarStyle] = useSettingMutable('avatarStyle');
     const [showFlavorIcons, setShowFlavorIcons] = useSettingMutable('showFlavorIcons');
+    const [showHarnessIconInSessionHeader, setShowHarnessIconInSessionHeader] = useSettingMutable('showHarnessIconInSessionHeader');
     const [compactToolCalls, setCompactToolCalls] = useSettingMutable('compactToolCalls');
     const [userMessageBubbleColor, setUserMessageBubbleColor] = useSettingMutable('userMessageBubbleColor');
     const [sessionStatusBarDisplay, setSessionStatusBarDisplay] = useSettingMutable('sessionStatusBarDisplay');
@@ -223,8 +211,6 @@ export default function AppearanceSettingsScreen() {
     const [statusPlacementDropdownOpen, setStatusPlacementDropdownOpen] = React.useState(false);
     const [bubbleColorDropdownOpen, setBubbleColorDropdownOpen] = React.useState(false);
     
-    // Ensure we have a valid style for display, defaulting to gradient for unknown values
-    const displayStyle: KnownAvatarStyle = isKnownAvatarStyle(avatarStyle) ? avatarStyle : 'gradient';
     const displayBubbleColor = normalizeUserMessageBubbleColor(userMessageBubbleColor);
     const displayBubblePalette = resolveUserMessageBubbleColor(displayBubbleColor, theme.dark);
     const displayBubbleColorLabel = getUserMessageBubbleColorLabel(displayBubbleColor);
@@ -261,6 +247,13 @@ export default function AppearanceSettingsScreen() {
                         
                         // Update the setting
                         setThemePreference(nextTheme);
+
+                        // Keep the NATIVE appearance in step: SwiftUI menus,
+                        // the keyboard, and native context menus follow UIKit,
+                        // not unistyles (see unistyles.ts).
+                        if (Platform.OS !== 'web') {
+                            Appearance.setColorScheme(nextTheme === 'adaptive' ? 'unspecified' : nextTheme);
+                        }
                         
                         // Apply the theme change immediately
                         if (nextTheme === 'adaptive') {
@@ -400,39 +393,6 @@ export default function AppearanceSettingsScreen() {
                     }
                 />
                 <Item
-                    title={t('settingsAppearance.inlineToolCalls')}
-                    subtitle={t('settingsAppearance.inlineToolCallsDescription')}
-                    icon={<Ionicons name="code-slash-outline" size={29} color="#5856D6" />}
-                    rightElement={
-                        <Switch
-                            value={viewInline}
-                            onValueChange={setViewInline}
-                        />
-                    }
-                />
-                <Item
-                    title={t('settingsAppearance.expandTodoLists')}
-                    subtitle={t('settingsAppearance.expandTodoListsDescription')}
-                    icon={<Ionicons name="checkmark-done-outline" size={29} color="#5856D6" />}
-                    rightElement={
-                        <Switch
-                            value={expandTodos}
-                            onValueChange={setExpandTodos}
-                        />
-                    }
-                />
-                <Item
-                    title={t('settingsAppearance.showLineNumbersInDiffs')}
-                    subtitle={t('settingsAppearance.showLineNumbersInDiffsDescription')}
-                    icon={<Ionicons name="list-outline" size={29} color="#5856D6" />}
-                    rightElement={
-                        <Switch
-                            value={showLineNumbers}
-                            onValueChange={setShowLineNumbers}
-                        />
-                    }
-                />
-                <Item
                     title={t('settingsAppearance.showLineNumbersInToolViews')}
                     subtitle={t('settingsAppearance.showLineNumbersInToolViewsDescription')}
                     icon={<Ionicons name="code-working-outline" size={29} color="#5856D6" />}
@@ -442,24 +402,6 @@ export default function AppearanceSettingsScreen() {
                             onValueChange={setShowLineNumbersInToolViews}
                         />
                     }
-                />
-                <Item
-                    title={t('settingsAppearance.wrapLinesInDiffs')}
-                    subtitle={t('settingsAppearance.wrapLinesInDiffsDescription')}
-                    icon={<Ionicons name="return-down-forward-outline" size={29} color="#5856D6" />}
-                    rightElement={
-                        <Switch
-                            value={wrapLinesInDiffs}
-                            onValueChange={setWrapLinesInDiffs}
-                        />
-                    }
-                />
-                <Item
-                    title={t('settingsAppearance.diffStyle')}
-                    subtitle={t('settingsAppearance.diffStyleDescription')}
-                    icon={<Ionicons name="git-compare-outline" size={29} color="#5856D6" />}
-                    detail={diffStyle === 'split' ? t('settingsAppearance.diffStyleOptions.split') : t('settingsAppearance.diffStyleOptions.unified')}
-                    onPress={() => setDiffStyle(diffStyle === 'unified' ? 'split' : 'unified')}
                 />
                 <Item
                     title={t('settingsAppearance.alwaysShowContextSize')}
@@ -473,20 +415,19 @@ export default function AppearanceSettingsScreen() {
                     }
                 />
                 <Item
-                    title={t('settingsAppearance.avatarStyle')}
-                    subtitle={t('settingsAppearance.avatarStyleDescription')}
-                    icon={<Ionicons name="person-circle-outline" size={29} color="#5856D6" />}
-                    detail={displayStyle === 'pixelated' ? t('settingsAppearance.avatarOptions.pixelated') : displayStyle === 'brutalist' ? t('settingsAppearance.avatarOptions.brutalist') : t('settingsAppearance.avatarOptions.gradient')}
-                    onPress={() => {
-                        const currentIndex = displayStyle === 'pixelated' ? 0 : displayStyle === 'gradient' ? 1 : 2;
-                        const nextIndex = (currentIndex + 1) % 3;
-                        const nextStyle = nextIndex === 0 ? 'pixelated' : nextIndex === 1 ? 'gradient' : 'brutalist';
-                        setAvatarStyle(nextStyle);
-                    }}
+                    title={t('settingsAppearance.showHarnessIconInSessionHeader')}
+                    subtitle={t('settingsAppearance.showHarnessIconInSessionHeaderDescription')}
+                    icon={<Ionicons name="apps-outline" size={29} color="#5856D6" />}
+                    rightElement={
+                        <Switch
+                            value={showHarnessIconInSessionHeader}
+                            onValueChange={setShowHarnessIconInSessionHeader}
+                        />
+                    }
                 />
                 <Item
-                    title={t('settingsAppearance.showFlavorIcons')}
-                    subtitle={t('settingsAppearance.showFlavorIconsDescription')}
+                    title={t('settingsAppearance.showHarnessIconsInSessionList')}
+                    subtitle={t('settingsAppearance.showHarnessIconsInSessionListDescription')}
                     icon={<Ionicons name="apps-outline" size={29} color="#5856D6" />}
                     rightElement={
                         <Switch

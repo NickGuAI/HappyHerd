@@ -73,3 +73,13 @@ WORKSPACE_LINKS	accepted	fix(workspace): preserve exact live navigation	server/p
 WORKSPACE_LINKS	accepted	fix(workspace): pin exact feedback focus	server/packages/happy-app/sources/components/ChatList.native.test.ts
 WORKSPACE_LINKS	accepted	fix(workspace): close exact-link review gaps	server/packages/happy-app/sources/components/ChatList.native.test.ts
 WORKSPACE_LINKS	accepted	fix(workspace): preserve live link context and state	server/packages/happy-app/sources/components/WorkspaceLinkViewer.native.test.ts
+SESSION_DECISION_INBOX	accepted	feat(sessions): make Home a flat decision inbox	server/packages/happy-app/sources/utils/flatSessionList.test.ts
+EXACT_DAEMON_ROUTING	accepted	fix(sessions): pin new work to the exact daemon	server/packages/happy-app/sources/utils/newSessionPickerItems.test.ts
+UPSTREAM_SYNC_AUTOMATION	accepted	ci(upstream): add daily reviewed sync	scripts/test-daily-upstream-sync-contract.sh
+COMMANDER_STATUS_AVATAR	accepted	feat(sessions): add Commander status avatars	server/packages/happy-app/sources/utils/sessionStatusAvatar.test.ts
+UPSTREAM_SYNC_EVIDENCE	accepted	docs(upstream): record audited sync evidence	docs/upstream-sync-2026-08-24.md
+PUBLIC_TEST_FIXTURES	accepted	test(public): generalize imported home-path fixtures	scripts/verify-public-boundary.mjs
+PUBLIC_LAUNCHER_CONTRACT	accepted	test(release): decouple launcher and runtime versions	scripts/test-public-launcher-release-contract.sh
+EXACT_DAEMON_ROUTING	accepted	fix(app): inject model catalog translations	server/packages/happy-app/sources/components/modelModeOptions.test.ts
+UI_SURFACE_INVENTORY	accepted	chore(app): refresh UI surface inventory	server/packages/happy-app/scripts/generate-ui-surface-inventory.mjs
+UPSTREAM_SYNC_REVIEW	accepted	fix(sync): close exact-head review gaps	scripts/test-daily-upstream-sync-contract.sh

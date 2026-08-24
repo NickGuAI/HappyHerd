@@ -457,6 +457,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                     // Create a new tool message for the permission request
                     let mid = allocateId();
                     let toolCall: ToolCall = {
+                        callId: joinId,
                         name: request.tool,
                         state: 'running' as const,
                         input: request.arguments,
@@ -619,6 +620,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                     // Create a new message for completed permission without tool
                     let mid = allocateId();
                     let toolCall: ToolCall = {
+                        callId: joinId,
                         name: completed.tool,
                         state: completed.status === 'approved' ? 'completed' : 'error',
                         input: completed.arguments,
@@ -767,6 +769,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         const message = state.messages.get(existingMessageId);
                         if (message?.tool) {
                             message.realID = msg.id;
+                            message.tool.callId = c.id;
                             message.tool.input = mergeToolInputs(message.tool.input, c.input);
                             message.tool.description = c.description;
                             message.tool.startedAt = msg.createdAt;
@@ -787,6 +790,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         const permission = state.permissions.get(c.id);
 
                         let toolCall: ToolCall = {
+                            callId: c.id,
                             name: c.name,
                             state: 'running' as const,
                             input: permission ? mergeToolInputs(permission.arguments, c.input) : c.input,
@@ -977,6 +981,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
 
                     let mid = allocateId();
                     let toolCall: ToolCall = {
+                        callId: c.id,
                         name: c.name,
                         state: 'running' as const,
                         input: c.input,

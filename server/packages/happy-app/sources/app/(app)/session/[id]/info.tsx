@@ -1,13 +1,13 @@
 import React, { useCallback } from 'react';
 import { View, Text, Animated, Platform } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography } from '@/constants/Typography';
 import { Item } from '@/components/Item';
 import { ItemGroup } from '@/components/ItemGroup';
 import { ItemList } from '@/components/ItemList';
 import { Avatar } from '@/components/Avatar';
-import { useSession, useIsDataReady } from '@/sync/storage';
+import { useSession, useIsDataReady, useSessionProjectAvatar } from '@/sync/storage';
 import { getSessionName, useSessionStatus, formatOSPlatform, formatPathRelativeToHome, getSessionAvatarId, getResumeCommand } from '@/utils/sessionUtils';
 import * as Clipboard from 'expo-clipboard';
 import { Modal } from '@/modal';
@@ -25,6 +25,7 @@ import { copySessionMetadataToClipboard, copySessionMetadataAndLogsToClipboard }
 import { HappyError } from '@/utils/errors';
 import { MobileGlassSurface } from '@/components/MobileGlass';
 import { getRigIdentity, isRigMetadata } from '@/sync/rig';
+import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
 
 const DEFAULT_RIG_NAME = 'Rig';
 
@@ -130,6 +131,7 @@ function formatDangerouslySkipPermissionsMetadata(
 function SessionInfoContent({ session }: { session: Session }) {
     const { theme } = useUnistyles();
     const router = useRouter();
+    const projectAvatar = useSessionProjectAvatar(session.id);
     const devModeEnabled = __DEV__;
     const sessionName = getSessionName(session);
     const sessionStatus = useSessionStatus(session);
@@ -234,7 +236,11 @@ function SessionInfoContent({ session }: { session: Session }) {
 
     return (
         <>
-            <ItemList>
+            <ItemList
+                containerStyle={{
+                    paddingTop: Platform.OS === 'ios' ? MOBILE_GLASS_HEADER_HEIGHT : 0,
+                }}
+            >
                 {/* Session Header */}
                 <View style={{ maxWidth: layout.maxWidth, alignSelf: 'center', width: '100%' }}>
                     <MobileGlassSurface
@@ -261,7 +267,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                             shadowRadius: 24,
                         }}
                     >
-                        <Avatar id={getSessionAvatarId(session)} size={80} monochrome={!sessionStatus.isConnected} flavor={session.metadata?.flavor} clientId={session.metadata?.client?.id} />
+                        <Avatar id={getSessionAvatarId(session)} size={80} monochrome={!sessionStatus.isConnected} flavor={session.metadata?.flavor} clientId={session.metadata?.client?.id} imageUrl={projectAvatar?.uri} thumbhash={projectAvatar?.thumbhash} />
                         <Text style={{
                             fontSize: 20,
                             fontWeight: '600',
@@ -675,30 +681,47 @@ export default React.memo(() => {
     const { id } = useLocalSearchParams<{ id: string }>();
     const session = useSession(id);
     const isDataReady = useIsDataReady();
+    const screenTitle = session
+        ? getSessionName(session)
+        : isDataReady
+            ? t('errors.sessionDeleted')
+            : '';
+    const screenOptions = <Stack.Screen options={{ headerTitle: screenTitle }} />;
 
     // Handle three states: loading, deleted, and exists
     if (!isDataReady) {
         // Still loading data
         return (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="hourglass-outline" size={48} color={theme.colors.textSecondary} />
-                <Text style={{ color: theme.colors.textSecondary, fontSize: 17, marginTop: 16, ...Typography.default('semiBold') }}>{t('common.loading')}</Text>
-            </View>
+            <>
+                {screenOptions}
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.groupped.background }}>
+                    <Ionicons name="hourglass-outline" size={48} color={theme.colors.textSecondary} />
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 17, marginTop: 16, ...Typography.default('semiBold') }}>{t('common.loading')}</Text>
+                </View>
+            </>
         );
     }
 
     if (!session) {
         // Session has been deleted or doesn't exist
         return (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="trash-outline" size={48} color={theme.colors.textSecondary} />
-                <Text style={{ color: theme.colors.text, fontSize: 20, marginTop: 16, ...Typography.default('semiBold') }}>{t('errors.sessionDeleted')}</Text>
-                <Text style={{ color: theme.colors.textSecondary, fontSize: 15, marginTop: 8, textAlign: 'center', paddingHorizontal: 32, ...Typography.default() }}>{t('errors.sessionDeletedDescription')}</Text>
-            </View>
+            <>
+                {screenOptions}
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.groupped.background }}>
+                    <Ionicons name="trash-outline" size={48} color={theme.colors.textSecondary} />
+                    <Text style={{ color: theme.colors.text, fontSize: 20, marginTop: 16, ...Typography.default('semiBold') }}>{t('errors.sessionDeleted')}</Text>
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 15, marginTop: 8, textAlign: 'center', paddingHorizontal: 32, ...Typography.default() }}>{t('errors.sessionDeletedDescription')}</Text>
+                </View>
+            </>
         );
     }
 
-    return <SessionInfoContent session={session} />;
+    return (
+        <>
+            {screenOptions}
+            <SessionInfoContent session={session} />
+        </>
+    );
 });
 
 function CopyableItem({ title, subtitle, icon, copyText }: { title: string; subtitle: string; icon: React.ReactNode; copyText: string }) {

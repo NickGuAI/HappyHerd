@@ -206,6 +206,7 @@ export function CommanderAvatarSettings() {
                                                 <CommanderSessionAvatar
                                                     machineId={machine.id}
                                                     commanderId={commander.id}
+                                                    commanderName={commander.name}
                                                     size={29}
                                                 />
                                             )}

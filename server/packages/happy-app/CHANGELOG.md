@@ -1,3 +1,24 @@
+# August 24 — HappyHerd decision inbox
+
+Home now keeps every conversation in one machine-exact decision inbox, with the Commander avatar itself carrying session state.
+
+- **One decision inbox** — sessions are ordered by real activity across projects, with search, worktree, exact daemon, activity time, Git changes, drafts, unread work, and action requests visible in one flat list; Archive remains separate.
+- **Commander status avatars** — the Commander picture (or provider identity and initials fallback) is wrapped by one accessible status ring for action required, unread, thinking, waiting, disconnected, or idle state.
+- **Exact daemon ownership** — model, permission, effort, path, and launch choices stay bound to the selected daemon registration; stale choices remain visible only for recovery and never route to another daemon.
+- **Provider-native controls** — Codex keeps Yolo as HappyHerd's default while supporting Auto, current 5.6 models, model-advertised effort levels, and provider-specific Default forwarding.
+- **Upstream improvements** — question cards, copy actions, composer controls, reconnect refresh, first-message recovery, Markdown fixes, and current deployment documentation arrive without weakening Workspace Links or queued-message ownership.
+
+# August 24 — Back to basics
+
+Your sessions in one flat, colorful list — plus polish everywhere.
+
+- **One list** — every session in a single colorful column, active ones on top, project and worktree on each row. Archive is a tap away.
+- **Android** — model, effort, and permission pickers are readable again.
+- **Composer** — pick your agent and permission mode right where you type. Modes are one clear word, Auto first.
+- **Copy** — tap the icon next to an agent reply to copy it; long-press your own message.
+- **Gemini 3.6 Flash** — new in the Antigravity model picker.
+- Thank you to the community who merged fixes and improvements for this update: [@chphch](https://github.com/chphch), [@abhisheksoni27](https://github.com/abhisheksoni27), [@charliezong18](https://github.com/charliezong18)
+
 # August 23 — Conversation links open the live machine Workspace
 
 Explicit Markdown links to files and folders now open their live path on the machine that owns the conversation.

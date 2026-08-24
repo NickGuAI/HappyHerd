@@ -31,8 +31,9 @@ const styles = StyleSheet.create({
         position: 'relative',
         width: '100%',
     },
-    // The React Native row is kept for layout only: it gives the container its
-    // height and width while SwiftUI draws everything that is visible.
+    // React Native keeps the row's layout bounds while SwiftUI draws the
+    // visible trigger. iOS 26 can then morph that real native label into the
+    // menu platter instead of lensing a separate RN row underneath it.
     trigger: {
         width: '100%',
         minWidth: 0,
@@ -50,11 +51,19 @@ export function NativeOptionsPicker({
     options,
     selectedKey,
     onSelect,
+    onMenuOpen,
     children,
+    tintColor,
 }: NativeOptionsPickerProps) {
     const { theme } = useUnistyles();
     return (
-        <View style={styles.container}>
+        <View
+            style={styles.container}
+            onStartShouldSetResponderCapture={() => {
+                onMenuOpen?.();
+                return false;
+            }}
+        >
             <View
                 pointerEvents="none"
                 accessible={false}
@@ -67,14 +76,20 @@ export function NativeOptionsPicker({
             {/* The host must not perform keyboard avoidance: it is pinned over a
                 control React Native already positions, so SwiftUI keyboard
                 avoidance would drag the trigger off it. */}
-            <Host ignoreSafeArea="keyboard" style={styles.host}>
+            <Host
+                // Same remount-on-theme-change as NativeSettingsMenu: SwiftUI
+                // hosts keep the old tint when the app theme flips at runtime.
+                key={theme.dark ? 'dark' : 'light'}
+                ignoreSafeArea="keyboard"
+                style={styles.host}
+            >
                 <Menu
                     // The tint is what colors the label, so it has to follow the
                     // theme: SwiftUI draws the visible row here, and a fixed
                     // white would render it invisible in light mode.
                     // No glass capsule: the plain style leaves the system less
                     // chrome to morph when the menu opens.
-                    modifiers={[tint(theme.colors.text), buttonStyle('plain')]}
+                    modifiers={[tint(tintColor ?? theme.colors.text), buttonStyle('plain')]}
                     label={(
                         // The whole row is the label, so every part of it opens
                         // the menu: the icon, the value, and the space between.
@@ -86,8 +101,19 @@ export function NativeOptionsPicker({
                                 accessibilityLabel(`${title}: ${triggerLabel}`),
                             ]}
                         >
+                            {/* SF Symbols are not a fixed-width set: `folder` is
+                                far wider than `arrow.triangle.branch`, so laying
+                                them out at their intrinsic size starts each
+                                row's label at a different x and the column of
+                                icons reads as ragged. A fixed square per symbol,
+                                centred, makes the icons share one axis and the
+                                labels share one left edge. */}
                             {triggerSystemImage ? (
-                                <Image systemName={systemImage(triggerSystemImage)} size={18} />
+                                <Image
+                                    systemName={systemImage(triggerSystemImage)}
+                                    size={18}
+                                    modifiers={[frame({ width: 24, height: 24, alignment: 'center' })]}
+                                />
                             ) : null}
                             <Text>{triggerLabel}</Text>
                             <Spacer minLength={8} />

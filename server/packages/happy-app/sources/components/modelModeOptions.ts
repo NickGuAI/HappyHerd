@@ -1,6 +1,7 @@
 import type { AgentCapabilityCatalog, MachineMetadata, Metadata } from '@/sync/storageTypes';
 import { HAPPYHERD_CLAUDE_MODEL_SLUGS } from '@slopus/happy-wire';
 import { hackModes } from '@/sync/modeHacks';
+import { sortPermissionModes } from '@/utils/permissionModeLabels';
 import { getCodeAgentDefaults } from '@/sync/agentDefaults';
 import {
     getRigCurrentModel,
@@ -16,6 +17,7 @@ export type ModeOption = {
     description?: string | null;
     semanticKind?: string | null;
     disabled?: boolean;
+    unavailable?: boolean;
 };
 
 export type PermissionMode = ModeOption;
@@ -28,7 +30,7 @@ export type ModelMode = ModeOption & {
     serviceTiers?: string[];
     thinkingLevels?: string[];
     defaultThinkingLevel?: string | null;
-    unavailable?: boolean;
+    isDefault?: boolean;
     effortLevels?: EffortLevel[];
 };
 
@@ -75,39 +77,67 @@ function getMachineCatalog(
     return metadata?.agentCapabilities?.[flavor] ?? null;
 }
 
+export function hasMachineCapabilityCatalog(
+    metadata: MachineMetadata | null | undefined,
+    flavor: AgentFlavor,
+): boolean {
+    return getMachineCatalog(metadata, flavor) !== null;
+}
+
+function includeUnavailableSelection<T extends ModeOption>(
+    options: T[],
+    selectedKey: string | null | undefined,
+    translate: Translate,
+): T[] {
+    if (!selectedKey || options.some((option) => option.key === selectedKey)) {
+        return options;
+    }
+    return [
+        {
+            key: selectedKey,
+            name: selectedKey,
+            description: translate('modelMode.unavailableSelectedDaemon'),
+            disabled: true,
+            unavailable: true,
+        } as unknown as T,
+        ...options,
+    ];
+}
+
 export function getMachineAdvertisedModels(
     metadata: MachineMetadata | null | undefined,
     flavor: AgentFlavor,
+    translate: Translate,
+    selectedKey?: string | null,
 ): ModelMode[] {
     const catalog = getMachineCatalog(metadata, flavor);
-    if (!catalog) {
-        return [{ key: 'default', name: 'default model', description: null }];
-    }
-    return catalog.models.map((model) => ({
+    if (!catalog) return [];
+    return includeUnavailableSelection(catalog.models.map((model) => ({
         key: model.code,
         name: model.value,
         description: model.description ?? null,
+        isDefault: model.isDefault,
         effortLevels: model.effortLevels?.map((effort) => ({
             key: effort.code,
             name: effort.value,
             description: effort.description ?? null,
         })),
-    }));
+    })), selectedKey, translate);
 }
 
 export function getMachineAdvertisedPermissionModes(
     metadata: MachineMetadata | null | undefined,
     flavor: AgentFlavor,
+    translate: Translate,
+    selectedKey?: string | null,
 ): PermissionMode[] {
     const catalog = getMachineCatalog(metadata, flavor);
-    if (!catalog) {
-        return [{ key: 'default', name: 'default', description: null }];
-    }
-    return catalog.permissionModes.map((mode) => ({
+    if (!catalog) return [];
+    return includeUnavailableSelection(catalog.permissionModes.map((mode) => ({
         key: mode.code,
         name: mode.value,
         description: mode.description ?? null,
-    }));
+    })), selectedKey, translate);
 }
 
 export function getMachineAdvertisedEffortLevels(
@@ -133,35 +163,67 @@ export function getMachineAdvertisedEffortLevels(
         description: effort.description ?? null,
     }));
 }
+// Mode names are deliberately untranslated single words, because the composer
+// chip that shows the current mode has room for one word — see
+// permissionModeLabels.ts. They are Happy's own vocabulary, not a quote of each
+// CLI's: Claude's UI calls our `default` "Manual". Every list below is ordered
+// by that file's ranking so the modes line up across harnesses, with one
+// documented exception at agy.
 
+// Auto leads because it is the everyday mode: the harness reviews its own calls
+// and stops only when it actually wants a human. Claude ships it in the Agent
+// SDK's PermissionMode union, and it is carried end to end — the CLI's
+// PermissionMode type, MessageMetaSchema, and the SDK adapter's QueryOptions.
+// `dontAsk` stays absent: that one really is missing from MessageMetaSchema, so
+// sending it fails UserMessageSchema.safeParse and drops the whole prompt.
 export function getClaudePermissionModes(translate: Translate): PermissionMode[] {
     return [
-        { key: 'default', name: translate('agentInput.permissionMode.default'), description: null },
-        { key: 'plan', name: translate('agentInput.permissionMode.plan'), description: null },
-        { key: 'dontAsk', name: translate('agentInput.permissionMode.dontAsk'), description: null },
-        { key: 'acceptEdits', name: translate('agentInput.permissionMode.acceptEdits'), description: null },
-        { key: 'bypassPermissions', name: translate('agentInput.permissionMode.bypassPermissions'), description: null },
+        { key: 'auto', name: 'Auto', description: translate('agentInput.permissionMode.auto') },
+        { key: 'acceptEdits', name: 'Edits', description: translate('agentInput.permissionMode.acceptEdits') },
+        { key: 'plan', name: 'Plan', description: translate('agentInput.permissionMode.plan') },
+        { key: 'bypassPermissions', name: 'Yolo', description: translate('agentInput.permissionMode.bypassPermissions') },
+        { key: 'default', name: 'Default', description: translate('agentInput.permissionMode.default') },
     ];
 }
 
+// Auto is Codex's own everyday preset, spelled `on-request` + workspace-write
+// by resolveCodexExecutionPolicy: Codex runs what it can and asks when it wants
+// more. `default` is Happy's stricter baseline — `untrusted` + workspace-write,
+// which stops for anything off the trusted list — and is named Default because
+// it is where you land having picked nothing. `safe-yolo` keeps the workspace
+// sandbox but stops asking, so it is the one named for the sandbox.
 export function getCodexPermissionModes(translate: Translate): PermissionMode[] {
     return [
-        { key: 'default', name: translate('agentInput.codexPermissionMode.default'), description: translate('agentInput.codexPermissionMode.defaultDescription') },
-        { key: 'read-only', name: translate('agentInput.codexPermissionMode.readOnly'), description: translate('agentInput.codexPermissionMode.readOnlyDescription') },
-        { key: 'safe-yolo', name: translate('agentInput.codexPermissionMode.safeYolo'), description: translate('agentInput.codexPermissionMode.safeYoloDescription') },
-        { key: 'yolo', name: translate('agentInput.codexPermissionMode.yolo'), description: translate('agentInput.codexPermissionMode.yoloDescription') },
+        { key: 'auto', name: 'Auto', description: translate('agentInput.codexPermissionMode.autoDescription') },
+        { key: 'safe-yolo', name: 'Workspace', description: translate('agentInput.codexPermissionMode.safeYoloDescription') },
+        { key: 'read-only', name: 'Read', description: translate('agentInput.codexPermissionMode.readOnlyDescription') },
+        { key: 'yolo', name: 'Yolo', description: translate('agentInput.codexPermissionMode.yoloDescription') },
+        { key: 'default', name: 'Default', description: translate('agentInput.codexPermissionMode.defaultDescription') },
     ];
 }
 
+// Only the keys runGemini actually honours (its validModes list). Gemini is
+// retired from the harness picker, but existing sessions still open this menu,
+// and the two modes that used to be here were both broken: `auto_edit` is not
+// in MessageMetaSchema at all, so picking it dropped the entire message, and
+// `plan` passed the schema only to be ignored by runGemini — which left the
+// session on whatever it had before, up to and including yolo.
 export function getGeminiPermissionModes(translate: Translate): PermissionMode[] {
     return [
-        { key: 'default', name: translate('agentInput.geminiPermissionMode.default'), description: null },
-        { key: 'auto_edit', name: translate('agentInput.geminiPermissionMode.autoEdit'), description: null },
-        { key: 'yolo', name: translate('agentInput.geminiPermissionMode.yolo'), description: null },
-        { key: 'plan', name: translate('agentInput.geminiPermissionMode.plan'), description: null },
+        { key: 'yolo', name: 'Yolo', description: translate('agentInput.geminiPermissionMode.yolo') },
+        { key: 'default', name: 'Default', description: translate('agentInput.geminiPermissionMode.default') },
     ];
 }
 
+// The current generation only. Older Claudes and the `default model` row are
+// deliberately absent: picking a model is the point of this menu, and every
+// entry here is a 5.
+//
+// Keys are full model IDs rather than the short aliases, because the aliases
+// do not all mean what the row says. `sonnet` still resolves to Sonnet 4.6 in
+// the CLI's alias table, and `opus-5` is not in that table at all (`claude
+// --model opus-5` errors on 2.1.199). Full IDs pass straight through to the
+// API, so they say exactly which model is meant.
 export function getClaudeModelModes(): ModelMode[] {
     return [
         { key: 'default', name: 'provider default', description: null },
@@ -175,17 +237,35 @@ export function getClaudeModelModes(): ModelMode[] {
 
 export function getCodexModelModes(): ModelMode[] {
     return [
-        { key: 'default', name: 'default model', description: null },
         { key: 'gpt-5.6-sol', name: 'gpt-5.6 sol', description: null },
         { key: 'gpt-5.6-terra', name: 'gpt-5.6 terra', description: null },
         { key: 'gpt-5.6-luna', name: 'gpt-5.6 luna', description: null },
-        { key: 'gpt-5.5', name: 'gpt-5.5', description: null },
-        { key: 'gpt-5.4', name: 'gpt-5.4', description: null },
-        { key: 'gpt-5.3-codex', name: 'gpt-5.3-codex', description: null },
-        { key: 'gpt-5.2-codex', name: 'gpt-5.2-codex', description: null },
-        { key: 'gpt-5.1-codex-max', name: 'gpt-5.1-codex-max', description: null },
-        { key: 'gpt-5.2', name: 'gpt-5.2', description: null },
-        { key: 'gpt-5.1-codex-mini', name: 'gpt-5.1-codex-mini', description: null },
+    ];
+}
+
+export function includeConfiguredModel(
+    flavor: AgentFlavor,
+    models: ModelMode[],
+    configuredModelKey: string | null | undefined,
+    translate: Translate,
+): ModelMode[] {
+    if (
+        flavor !== 'codex'
+        || !configuredModelKey
+        || configuredModelKey === 'default'
+        || models.some((model) => model.key === configuredModelKey)
+    ) {
+        return models;
+    }
+    return [
+        ...models,
+        {
+            key: configuredModelKey,
+            name: configuredModelKey,
+            description: translate('modelMode.savedModelUnavailableDaemon'),
+            unavailable: true,
+            disabled: true,
+        },
     ];
 }
 
@@ -193,19 +273,31 @@ export function getGeminiModelModes(translate: Translate): ModelMode[] {
     return getGeminiModelFallbacks(translate);
 }
 
+// runOpenClaw never reads permissionMode, so neither of these changes what
+// openclaw does. Both are kept so an existing session's saved mode still has a
+// row to select, but the descriptions say plainly that the choice is inert.
 export function getOpenClawPermissionModes(translate: Translate): PermissionMode[] {
     return [
-        { key: 'default', name: translate('agentInput.permissionMode.default'), description: null },
-        { key: 'bypassPermissions', name: translate('agentInput.permissionMode.bypassPermissions'), description: null },
+        { key: 'bypassPermissions', name: 'Yolo', description: translate('agentInput.permissionMode.openclawInert') },
+        { key: 'default', name: 'Default', description: translate('agentInput.permissionMode.openclawInert') },
     ];
 }
 
 // agy --print only distinguishes --sandbox (default) from --dangerously-skip-permissions,
-// so only these two modes are offered.
+// so only these two modes are offered. Default gets its own wording because agy
+// --print is one-shot and cannot prompt: it never asks, it just runs under agy's
+// own sandbox settings.
+//
+// The one place the shared ranking is deliberately ignored. Default sorts last
+// everywhere else because it means "ask me about everything", the choice you
+// make when none of the others fit. Here it means the opposite: it is agy's own
+// launch default, the only sandboxed option, and the one agentDefaults picks.
+// Ranking it below Yolo would put the escape hatch at the top of a two-item
+// list and read as the recommendation.
 export function getAgyPermissionModes(translate: Translate): PermissionMode[] {
     return [
-        { key: 'default', name: translate('agentInput.permissionMode.default'), description: null },
-        { key: 'bypassPermissions', name: translate('agentInput.permissionMode.bypassPermissions'), description: null },
+        { key: 'default', name: 'Default', description: translate('agentInput.permissionMode.agyDefault') },
+        { key: 'bypassPermissions', name: 'Yolo', description: translate('agentInput.permissionMode.bypassPermissions') },
     ];
 }
 
@@ -327,7 +419,12 @@ export function getAvailableModels(
         }
         return metadataModels;
     }
-    return getHardcodedModelModes(flavor, translate);
+    return includeConfiguredModel(
+        flavor,
+        getHardcodedModelModes(flavor, translate),
+        selectedKey,
+        translate,
+    );
 }
 
 export function getAvailablePermissionModes(
@@ -337,12 +434,12 @@ export function getAvailablePermissionModes(
     selectedKey?: string | null,
 ): PermissionMode[] {
     if (isRigMetadataV1(metadata)) {
-        const modes: PermissionMode[] = (metadata?.operatingModes ?? []).map((mode) => ({
+        const modes: PermissionMode[] = sortPermissionModes((metadata?.operatingModes ?? []).map((mode) => ({
             key: mode.code,
             name: mode.value,
             description: mode.description ?? null,
             semanticKind: mode.kind ?? null,
-        }));
+        })));
         const current = selectedKey
             ?? metadata?.currentOperatingModeCode
             ?? metadata?.permissionMode
@@ -364,7 +461,7 @@ export function getAvailablePermissionModes(
 
     const metadataModes = mapMetadataOptions(metadata?.operatingModes);
     if (metadataModes.length > 0) {
-        return hackModes(metadataModes);
+        return sortPermissionModes(hackModes(metadataModes));
     }
 
     return hackModes(getHardcodedPermissionModes(flavor, translate));
@@ -400,24 +497,41 @@ export function getDefaultPermissionModeKey(flavor: AgentFlavor): string {
 
 // Effort levels per agent type
 
-export function getClaudeEffortLevels(): EffortLevel[] {
-    return [
-        { key: 'low', name: 'low' },
-        { key: 'medium', name: 'medium' },
-        { key: 'high', name: 'high' },
-        { key: 'xhigh', name: 'xhigh' },
-        { key: 'max', name: 'max' },
-    ];
+function effortLevels(keys: readonly string[]): EffortLevel[] {
+    return keys.map((key) => ({ key, name: key }));
 }
 
-export function getCodexEffortLevels(): EffortLevel[] {
-    return [
-        { key: 'low', name: 'low' },
-        { key: 'medium', name: 'medium' },
-        { key: 'high', name: 'high' },
-        { key: 'xhigh', name: 'xhigh' },
-        { key: 'max', name: 'max' },
-    ];
+// The Claude Agent SDK's own EffortLevel union, in order
+// (node_modules/@anthropic-ai/claude-agent-sdk/sdk.d.ts:546). There is no
+// `off`: Claude's floor is `low`.
+const CLAUDE_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
+
+// Exactly what each model publishes in Codex's own registry, in its order
+// (codex-rs/models-manager/models.json, min client 0.144). This really is
+// per-model: sol and terra reach `ultra`, luna stops at `max`. `ultra` is
+// documented as maximum reasoning with automatic task delegation, so it is a
+// different kind of run rather than one more notch — but it is a level these
+// two models accept, so the picker offers it rather than deciding for you.
+const CODEX_EFFORTS_BY_MODEL: Record<string, readonly string[]> = {
+    'gpt-5.6-sol': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+    'gpt-5.6-terra': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+    'gpt-5.6-luna': ['low', 'medium', 'high', 'xhigh', 'max'],
+};
+const CODEX_EFFORTS_FALLBACK = ['low', 'medium', 'high', 'xhigh'] as const;
+
+export function getClaudeEffortLevels(): EffortLevel[] {
+    return effortLevels(CLAUDE_EFFORTS);
+}
+
+/**
+ * Codex efforts for one model. An unknown model — a workspace's own, or one
+ * newer than this table — gets the conservative set every gpt-5 accepts rather
+ * than a guess at the top of its range.
+ */
+export function getCodexEffortLevels(modelKey?: string | null): EffortLevel[] {
+    return effortLevels(
+        (modelKey ? CODEX_EFFORTS_BY_MODEL[modelKey] : undefined) ?? CODEX_EFFORTS_FALLBACK,
+    );
 }
 
 export function getHardcodedEffortLevels(flavor: AgentFlavor): EffortLevel[] {
@@ -448,7 +562,7 @@ export function getEffortLevelsForModel(
         return getClaudeEffortLevels();
     }
     if (flavor === 'codex') {
-        return getCodexEffortLevels();
+        return getCodexEffortLevels(modelKey);
     }
     return [];
 }
@@ -474,7 +588,7 @@ export function getSessionAvailableModels(
     selectedKey?: string | null,
 ): ModelMode[] {
     if (shouldUseMachineCapabilityCatalog(flavor, sessionMetadata, machineMetadata)) {
-        return getMachineAdvertisedModels(machineMetadata, flavor);
+        return getMachineAdvertisedModels(machineMetadata, flavor, translate, selectedKey);
     }
     return getAvailableModels(flavor, sessionMetadata, translate, selectedKey);
 }
@@ -487,7 +601,7 @@ export function getSessionAvailablePermissionModes(
     selectedKey?: string | null,
 ): PermissionMode[] {
     if (shouldUseMachineCapabilityCatalog(flavor, sessionMetadata, machineMetadata)) {
-        return getMachineAdvertisedPermissionModes(machineMetadata, flavor);
+        return getMachineAdvertisedPermissionModes(machineMetadata, flavor, translate, selectedKey);
     }
     return getAvailablePermissionModes(flavor, sessionMetadata, translate, selectedKey);
 }

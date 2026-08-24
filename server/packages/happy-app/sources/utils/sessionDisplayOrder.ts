@@ -1,4 +1,7 @@
 import type { SessionListViewItem, SessionRowData } from '@/sync/storage';
+import { buildFlatSessionRows, compareFlatSessionRows, toFlatSessionRow } from './flatSessionList';
+
+type SessionProjectListItem = Extract<SessionListViewItem, { type: 'project' }>;
 
 export interface SessionDisplayMachine {
     id: string;
@@ -17,6 +20,51 @@ export interface ActiveSessionDisplayMachineGroup {
     machineId: string;
     machineName: string;
     projects: Map<string, ActiveSessionDisplayProject>;
+}
+
+export interface SessionProjectDisplayMachineGroup {
+    machineId: string | null;
+    machineName: string;
+    projects: SessionProjectListItem[];
+}
+
+export interface ExactDaemonDisplayIdentity {
+    /** Human label published by this exact daemon registration. */
+    label: string;
+    /** Collision-safe prefix of the exact registration ID. */
+    shortId: string;
+}
+
+/**
+ * Builds display identity without ever resolving through a host, path, or
+ * sibling registration. Equal paths on different daemons therefore remain
+ * visibly distinct choices.
+ */
+export function buildExactDaemonDisplayIdentities(
+    machineIds: readonly string[],
+    machines: readonly SessionDisplayMachine[],
+): ReadonlyMap<string, ExactDaemonDisplayIdentity> {
+    const ids = Array.from(new Set(machineIds.filter(Boolean)));
+    const machinesById = new Map(machines.map((machine) => [machine.id, machine]));
+    const identities = new Map<string, ExactDaemonDisplayIdentity>();
+
+    for (const id of ids) {
+        let length = Math.min(8, id.length);
+        while (
+            length < id.length
+            && ids.some((other) => other !== id && other.startsWith(id.slice(0, length)))
+        ) {
+            length += 1;
+        }
+
+        const machine = machinesById.get(id);
+        identities.set(id, {
+            label: machine?.metadata?.displayName || machine?.metadata?.host || id,
+            shortId: id.slice(0, length),
+        });
+    }
+
+    return identities;
 }
 
 export function formatSessionDisplayPath(path: string, homeDir?: string): string {
@@ -73,39 +121,69 @@ export function buildActiveSessionDisplayGroups(
         });
     });
 
-    return Array.from(byMachine.values()).sort((a, b) =>
-        a.machineName.localeCompare(b.machineName)
-    );
+    return Array.from(byMachine.values()).sort((a, b) => (
+        Number(a.machineId === unknownText) - Number(b.machineId === unknownText)
+        || a.machineName.localeCompare(b.machineName)
+    ));
+}
+
+/**
+ * Restores the home list's original top-level hierarchy: machine first, then
+ * projects, with worktrees and sessions kept inside each project.
+ */
+export function buildSessionProjectDisplayGroups(
+    data: readonly SessionListViewItem[],
+    machines: readonly SessionDisplayMachine[],
+    unknownText: string,
+): SessionProjectDisplayMachineGroup[] {
+    const machinesMap = new Map(machines.map((machine) => [machine.id, machine]));
+    const byMachine = new Map<string | null, SessionProjectDisplayMachineGroup>();
+
+    data.forEach((item) => {
+        if (item.type !== 'project') return;
+
+        const machineId = item.project.machineId;
+        const machine = machineId ? machinesMap.get(machineId) : null;
+        const machineName = machine?.metadata?.displayName
+            || machine?.metadata?.host
+            || (machineId ?? `<${unknownText}>`);
+        let group = byMachine.get(machineId);
+        if (!group) {
+            group = { machineId, machineName, projects: [] };
+            byMachine.set(machineId, group);
+        }
+        group.projects.push(item);
+    });
+
+    byMachine.forEach((group) => {
+        group.projects.sort((a, b) => (
+            a.project.name.localeCompare(b.project.name)
+            || a.project.id.localeCompare(b.project.id)
+        ));
+    });
+
+    return Array.from(byMachine.values()).sort((a, b) => (
+        Number(a.machineId === null) - Number(b.machineId === null)
+        || a.machineName.localeCompare(b.machineName)
+    ));
 }
 
 export function getSessionShortcutIdsInDisplayOrder(
     data: readonly SessionListViewItem[] | null,
-    machines: readonly SessionDisplayMachine[],
-    unknownText: string,
+    _machines: readonly SessionDisplayMachine[],
+    _unknownText: string,
 ): string[] {
     if (!data) {
         return [];
     }
 
-    const sessionIds: string[] = [];
-    data.forEach((item) => {
-        if (item.type === 'active-sessions') {
-            const machineGroups = buildActiveSessionDisplayGroups(item.sessions, machines, unknownText);
-            machineGroups.forEach((machineGroup) => {
-                Array.from(machineGroup.projects.values())
-                    .sort((a, b) => a.displayPath.localeCompare(b.displayPath))
-                    .forEach((projectGroup) => {
-                        projectGroup.sessions.forEach((session) => sessionIds.push(session.id));
-                    });
-            });
-        } else if (item.type === 'project') {
-            item.project.workspaces.forEach((workspace) => {
-                workspace.sessions.forEach((session) => sessionIds.push(session.id));
-            });
-        } else if (item.type === 'session') {
-            sessionIds.push(item.session.id);
-        }
-    });
+    const primary = buildFlatSessionRows(data);
+    const archived = data
+        .filter((item): item is Extract<SessionListViewItem, { type: 'session' }> => item.type === 'session')
+        .map((item) => toFlatSessionRow(item.session))
+        .sort(compareFlatSessionRows);
 
-    return sessionIds.slice(0, 9);
+    return [...primary, ...archived]
+        .map((row) => row.session.id)
+        .slice(0, 9);
 }

@@ -42,7 +42,7 @@ const codeAgentDefaults: Record<AgentKey, AgentDefaultConfig> = {
     // Max is the configured default. The selected model's advertised
     // capabilities remain authoritative, so unsupported models fall back to
     // their highest available effort rather than receiving an invalid value.
-    codex: { permissionMode: 'yolo', modelMode: 'gpt-5.5', effortLevel: 'max' },
+    codex: { permissionMode: 'yolo', modelMode: 'gpt-5.6-sol', effortLevel: 'max' },
     gemini: { permissionMode: 'default', modelMode: 'gemini-2.5-pro', effortLevel: null },
     openclaw: { permissionMode: 'default', modelMode: 'default', effortLevel: null },
     agy: { permissionMode: 'default', modelMode: 'Gemini 3.1 Pro (High)', effortLevel: null },
@@ -59,11 +59,34 @@ export function getCodeAgentDefaults(flavor: string | null | undefined): AgentDe
     return codeAgentDefaults[normalizeAgentKey(flavor)];
 }
 
+/**
+ * Permission keys that were offered once and are no longer accepted, mapped to
+ * what they meant. `dontAsk` never passed the CLI's message schema, so it was
+ * already dropped on the wire; it is retired here so a saved copy cannot make
+ * the composer show one mode while sending another.
+ */
+const RETIRED_PERMISSION_MODES: Record<string, string> = {
+    dontAsk: 'acceptEdits',
+};
+
+/**
+ * Maps a stored permission mode onto one the CLI still accepts. Applies to
+ * flavor-based agents only: a harness that publishes its own catalog owns its
+ * codes, and none of them collide with a retired Claude key.
+ */
+export function retirePermissionMode<T extends string | null | undefined>(mode: T): T | string {
+    return mode ? RETIRED_PERMISSION_MODES[mode] ?? mode : mode;
+}
+
 export function getAgentDefaultOverride(
     overrides: AgentDefaultOverrides | null | undefined,
     flavor: string | null | undefined,
 ): AgentDefaultOverride {
-    return overrides?.[normalizeAgentKey(flavor)] ?? {};
+    const override = overrides?.[normalizeAgentKey(flavor)] ?? {};
+    const permissionMode = retirePermissionMode(override.permissionMode);
+    return permissionMode === override.permissionMode
+        ? override
+        : { ...override, permissionMode };
 }
 
 export function resolveAgentDefaultConfig(
@@ -113,15 +136,22 @@ export function resolveSupportedAgentEffortLevel(
     flavor: string | null | undefined,
     availableEfforts: ReadonlyArray<{ key: string }>,
 ): string | null {
-    if (configured && availableEfforts.some((effort) => effort.key === configured)) {
-        return configured;
-    }
-
     // The selected-model capability list is authoritative. Empty means the
     // model exposes no effort control, not that validation should be skipped.
     if (availableEfforts.length === 0) return null;
 
     const agent = normalizeAgentKey(flavor);
+    // `max` is HappyHerd's semantic maximum, not a request to prefer a
+    // provider token literally named "max" over a later/higher advertised
+    // value such as "ultra".
+    if (configured === 'max' && (agent === 'claude' || agent === 'codex')) {
+        return availableEfforts.at(-1)?.key ?? null;
+    }
+
+    if (configured && availableEfforts.some((effort) => effort.key === configured)) {
+        return configured;
+    }
+
     if (agent === 'claude' || agent === 'codex') {
         return availableEfforts.at(-1)?.key ?? null;
     }

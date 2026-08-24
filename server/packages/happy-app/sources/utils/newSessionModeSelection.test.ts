@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolvePermissionStyle, resolveSelectedOption } from './newSessionModeSelection';
+import {
+    resolvePermissionStyle,
+    resolveSelectedOption,
+    validateNewSessionLaunchSelection,
+} from './newSessionModeSelection';
 
 const modes = [
     { key: 'default', name: 'Default' },
@@ -31,5 +35,47 @@ describe('new session mode selection', () => {
         expect(resolvePermissionStyle({ key: 'yolo' })?.color).toBe('#F87171');
         expect(resolvePermissionStyle({ key: 'plan' })?.icon).toBe('pause');
         expect(resolvePermissionStyle({ key: 'read-only' })?.icon).toBe('pause');
+    });
+
+    it('blocks recovery-only full-screen selections from reaching session spawn', () => {
+        const base = {
+            agentAvailable: true,
+            permissionOptions: [{ key: 'yolo' }],
+            modelOptions: [{ key: 'gpt-5.6-sol' }],
+            effortOptions: [{ key: 'max' }],
+            permissionKey: 'yolo',
+            modelKey: 'gpt-5.6-sol',
+            effortKey: 'max',
+        };
+
+        expect(validateNewSessionLaunchSelection(base)).toBeNull();
+        expect(validateNewSessionLaunchSelection({
+            ...base,
+            agentAvailable: false,
+        })).toBe('agent-unavailable');
+        expect(validateNewSessionLaunchSelection({
+            ...base,
+            permissionOptions: [{ key: 'yolo', disabled: true }],
+        })).toBe('permission-unavailable');
+        expect(validateNewSessionLaunchSelection({
+            ...base,
+            modelOptions: [{ key: 'gpt-5.6-sol', unavailable: true }],
+        })).toBe('model-unavailable');
+        expect(validateNewSessionLaunchSelection({
+            ...base,
+            effortOptions: [],
+        })).toBe('effort-unavailable');
+    });
+
+    it('allows a dimension with no explicit selection', () => {
+        expect(validateNewSessionLaunchSelection({
+            agentAvailable: true,
+            permissionOptions: [],
+            modelOptions: [],
+            effortOptions: [],
+            permissionKey: null,
+            modelKey: null,
+            effortKey: null,
+        })).toBeNull();
     });
 });

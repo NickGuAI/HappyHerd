@@ -300,6 +300,8 @@ export type SandboxMode = "read-only" | "workspace-write" | "danger-full-access"
 // Codex advertises supported effort values per model through model/list. Keep
 // the transport type open so newly advertised values work without a CLI
 // release; the provider remains authoritative for model/effort compatibility.
+// Current Codex catalogs include `max` and `ultra`, but the open string is
+// deliberate so a later provider value is not dropped by an older daemon.
 export type ReasoningEffort = string;
 export type ReasoningSummary = "auto" | "concise" | "detailed" | "none";
 export type TurnAbortReason = "interrupted" | "replaced" | "review_ended";

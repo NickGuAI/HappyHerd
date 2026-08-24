@@ -1,6 +1,7 @@
 import * as React from 'react';
-import { ActivityIndicator, Keyboard, LayoutChangeEvent, Modal as RNModal, Platform, Pressable, Text, TextInput, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator, Keyboard, LayoutChangeEvent, Modal as RNModal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Ionicons, Octicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
@@ -8,16 +9,18 @@ import Animated, {
     Easing,
     Extrapolation,
     interpolate,
+    interpolateColor,
     runOnJS,
     useAnimatedStyle,
     useSharedValue,
+    withSequence,
     withTiming,
     type SharedValue,
 } from 'react-native-reanimated';
 import { MobileGlassSurface } from './MobileGlass';
 import { BubblePressable } from './BubblePressable';
 import { NativeOptionsPicker } from './NativeOptionsPicker';
-import { NativeSettingsMenu, type NativeSettingsMenuGroup } from './NativeSettingsMenu';
+import { NativeSettingsMenu, type NativeSettingsMenuGroup, type NativeSettingsMenuProps } from './NativeSettingsMenu';
 import { AgentInputAttachmentStrip } from './AgentInputAttachmentStrip';
 import { Typography } from '@/constants/Typography';
 import { layout } from './layout';
@@ -33,7 +36,9 @@ import { formatLastSeen, formatPathRelativeToHome } from '@/utils/sessionUtils';
 import { isMachineOnline } from '@/utils/machineUtils';
 import { resolveAbsolutePath } from '@/utils/pathUtils';
 import { listWorktrees } from '@/utils/worktree';
-import type { Machine, Session } from '@/sync/storageTypes';
+import { collectSessionPlaces, collectSessionWorkspaces } from '@/sync/agentSessionPlaces';
+import { getMachineName } from '@/sync/machineChoices';
+import type { Session } from '@/sync/storageTypes';
 import {
     getEffortLevelsForModel,
     getHardcodedModelModes,
@@ -48,12 +53,28 @@ import type { NewSessionAgentType } from '@/sync/persistence';
 import { useImagePicker } from '@/hooks/useImagePicker';
 import { Modal } from '@/modal';
 import { resolveMultiTextInputLayout } from './multiTextInputLayout';
-import { resolveCustomProjectPathSelection } from './homeDockInteraction';
-import { resolveMachineAgent } from '@/utils/newSessionAgentSelection';
-import { findConnectedRigMachine, getRigMachineSessionCreation } from '@/sync/rigSessionCreation';
+import {
+    isHomeDockOptionSelectable,
+    resolveCustomProjectPathSelection,
+    resolveHomeDockBackdropPressAction,
+    resolveHomeDockPickerBackAction,
+    shouldUseNativeHomeDockMenus,
+} from './homeDockInteraction';
+import { registerHomeDockFocusListener, useHomeDockFocusStore } from './homeDockFocus';
+import {
+    resolveNewSessionPrimaryAction,
+    resolveNewSessionProgressLabel,
+    type NewSessionStartPhase,
+} from './newSessionProgress';
+import { StatusDot } from './StatusDot';
+import { Shaker, type ShakeInstance } from './Shaker';
+import { hapticsError } from './haptics';
+import { HARNESS_ORDER, getHarnessName, isHarnessAvailable } from '@/utils/harnessCatalog';
+import { getPermissionModeMenuLabel, getPermissionModeShortLabel } from '@/utils/permissionModeLabels';
+import { getRigMachineSessionCreation } from '@/sync/rigSessionCreation';
 import {
     MobileHeaderScrim,
-    MOBILE_STRONG_HEADER_SCRIM_RESTING_OPACITY,
+    MOBILE_HOME_SCRIM_OVERLAY_OPACITY,
 } from './navigation/MobileHeaderScrim';
 import {
     MOBILE_COMPOSER_LAYOUT,
@@ -69,38 +90,47 @@ export const MOBILE_HOME_DOCK_CONTENT_INSET = 108;
 
 type EnvironmentSetting = 'machine' | 'project' | 'worktree';
 type AgentSetting = 'agent' | 'model' | 'permission' | 'effort';
+type PickerPage = EnvironmentSetting | AgentSetting;
 
 const CUSTOM_PROJECT_PATH_KEY = '__custom_project_path__';
 
-const AGENTS: Array<{ key: NewSessionAgentType; name: string }> = [
-    { key: 'rig', name: 'Rig' },
-    { key: 'claude', name: 'Claude Code' },
-    { key: 'codex', name: 'Codex' },
-    { key: 'openclaw', name: 'OpenClaw' },
-    { key: 'gemini', name: 'Gemini' },
-    { key: 'agy', name: 'Agy' },
-];
-
-const MOBILE_ICON_MENU_GEOMETRY = resolveMobileComposerMenuGeometry('icon');
 const MOBILE_MODEL_MENU_GEOMETRY = resolveMobileComposerMenuGeometry('model');
 const MOBILE_EFFORT_MENU_GEOMETRY = resolveMobileComposerMenuGeometry('effort');
+const MOBILE_PERMISSION_MENU_GEOMETRY = resolveMobileComposerMenuGeometry('permission');
 const MOBILE_ACTION_ROW_GEOMETRY = resolveMobileComposerActionRowGeometry();
 const MOBILE_ICON_ACTION_GEOMETRY = resolveMobileComposerActionGeometry('icon');
 const MOBILE_PRIMARY_ACTION_GEOMETRY = resolveMobileComposerActionGeometry('primary');
 const MOBILE_COLLAPSED_COMPOSER_GEOMETRY = resolveMobileCollapsedComposerGeometry();
+const MOBILE_HOME_DOCK_TOP_PADDING = 8;
+// Sits in the gap the focused dock already leaves above the composer, so it
+// costs no layout: showing it must not move the pickers or the composer.
+const START_PROGRESS_ROW_HEIGHT = 18;
+// Matches Shaker's own keyframes so a refused picker reads the same as every
+// other refusal in the app.
+const SHAKE_KEYFRAMES = [3, -3, 3, -3, 0];
 
 const styles = StyleSheet.create((theme) => ({
     keyboardFollower: {
         width: '100%',
     },
+    // Keep the content clear until the composer's midpoint. From there the
+    // bottom scrim begins feathering over content that scrolls beneath it;
+    // above that point the composer shadow provides the only separation.
     bottomBackdrop: {
         ...StyleSheet.absoluteFillObject,
-        top: -36,
-        opacity: MOBILE_STRONG_HEADER_SCRIM_RESTING_OPACITY,
+        top: MOBILE_HOME_DOCK_TOP_PADDING
+            + MOBILE_COLLAPSED_COMPOSER_GEOMETRY.shellHeight / 2,
     },
     safeArea: {
         paddingHorizontal: 16,
-        paddingTop: 8,
+        paddingTop: MOBILE_HOME_DOCK_TOP_PADDING,
+    },
+    // The focused composer replaces the resting one rather than covering it:
+    // the modal sits a safe-area inset higher, so leaving this on screen showed
+    // its send button peeking out below. `display` rather than `opacity` because
+    // an ancestor below full alpha kills the native blur underneath.
+    safeAreaBehindFocus: {
+        display: 'none',
     },
     composerSurface: {
         width: '100%',
@@ -118,6 +148,17 @@ const styles = StyleSheet.create((theme) => ({
             android: theme.colors.glass.backgroundStrong,
             default: theme.colors.glass.backgroundStrong,
         }),
+    },
+    composerShadow: {
+        width: '100%',
+        maxWidth: layout.maxWidth,
+        alignSelf: 'center',
+        borderRadius: MOBILE_COLLAPSED_COMPOSER_GEOMETRY.shellRadius,
+        shadowColor: theme.colors.shadow.color,
+        shadowOffset: { width: 0, height: theme.dark ? 6 : 2 },
+        shadowOpacity: theme.dark ? 0.22 : 0.08,
+        shadowRadius: theme.dark ? 16 : 8,
+        elevation: theme.dark ? 4 : 2,
     },
     composerContent: {
         flex: 1,
@@ -179,6 +220,17 @@ const styles = StyleSheet.create((theme) => ({
         borderRadius: MOBILE_COMPOSER_METRICS.shellRadius,
         overflow: 'hidden',
     },
+    focusedComposerShadow: {
+        width: '100%',
+        maxWidth: layout.maxWidth,
+        alignSelf: 'center',
+        borderRadius: MOBILE_COMPOSER_METRICS.shellRadius,
+        shadowColor: theme.colors.shadow.color,
+        shadowOffset: { width: 0, height: theme.dark ? 6 : 2 },
+        shadowOpacity: theme.dark ? 0.22 : 0.08,
+        shadowRadius: theme.dark ? 16 : 8,
+        elevation: theme.dark ? 4 : 2,
+    },
     focusedComposerAnchored: {
         position: 'absolute',
         left: 0,
@@ -228,12 +280,12 @@ const styles = StyleSheet.create((theme) => ({
         paddingBottom: MOBILE_COMPOSER_METRICS.inputPaddingBottom,
     },
     focusedComposerActions: MOBILE_ACTION_ROW_GEOMETRY,
-    nativeIconMenuFrame: MOBILE_ICON_MENU_GEOMETRY.frame,
-    nativeIconMenuContent: MOBILE_ICON_MENU_GEOMETRY.content,
     nativeModeMenu: MOBILE_MODEL_MENU_GEOMETRY.frame,
     focusedModeButton: MOBILE_MODEL_MENU_GEOMETRY.content,
     nativeEffortMenu: MOBILE_EFFORT_MENU_GEOMETRY.frame,
     focusedEffortButton: MOBILE_EFFORT_MENU_GEOMETRY.content,
+    nativePermissionMenu: MOBILE_PERMISSION_MENU_GEOMETRY.frame,
+    focusedPermissionButton: MOBILE_PERMISSION_MENU_GEOMETRY.content,
     focusedModeText: {
         flexShrink: 1,
         minWidth: 0,
@@ -254,6 +306,11 @@ const styles = StyleSheet.create((theme) => ({
     sendButtonActive: {
         backgroundColor: theme.dark ? '#F5F5F5' : theme.colors.button.primary.background,
     },
+    primaryActionFlash: {
+        ...StyleSheet.absoluteFillObject,
+        borderRadius: MOBILE_PRIMARY_ACTION_GEOMETRY.borderRadius,
+        backgroundColor: theme.dark ? '#4A4A4E' : '#FFFFFF',
+    },
     modalRoot: {
         flex: 1,
     },
@@ -264,8 +321,8 @@ const styles = StyleSheet.create((theme) => ({
         right: 0,
         bottom: 0,
     },
-    focusBackdrop: {
-        backgroundColor: 'rgba(0, 0, 0, 0.88)',
+    focusBackdropDim: {
+        backgroundColor: theme.dark ? 'rgba(0, 0, 0, 0.88)' : 'rgba(255, 255, 255, 0.88)',
     },
     focusDock: {
         position: 'absolute',
@@ -278,7 +335,9 @@ const styles = StyleSheet.create((theme) => ({
         maxWidth: layout.maxWidth,
         alignSelf: 'center',
         paddingHorizontal: 24,
-        paddingBottom: 10,
+        // Clears the status line that sits below it, which is placed out of
+        // layout: the pickers hold this gap open whether or not it is filled.
+        paddingBottom: START_PROGRESS_ROW_HEIGHT + 4,
         gap: 8,
     },
     focusConfigGroup: {
@@ -298,9 +357,16 @@ const styles = StyleSheet.create((theme) => ({
         paddingHorizontal: 6,
         borderRadius: 12,
     },
+    // One fixed square per icon, with the glyph centred inside it. The square is
+    // what the row lays out against, so the label after it starts at the same x
+    // on every row no matter which glyph is in the box or how wide it draws.
     focusConfigIcon: {
         width: 24,
+        height: 24,
         alignItems: 'center',
+        justifyContent: 'center',
+        flexGrow: 0,
+        flexShrink: 0,
     },
     focusConfigValue: {
         flex: 1,
@@ -312,6 +378,62 @@ const styles = StyleSheet.create((theme) => ({
     focusComposerArea: {
         paddingHorizontal: 16,
         paddingBottom: 8,
+    },
+    // A plain sheet of glass over the controls that are settled for this
+    // session. It blocks the touch — including the SwiftUI hosts the native
+    // menus mount, which nothing in React Native can disable — without tinting
+    // what is underneath, and turns the press into a shake.
+    pressBlocker: {
+        ...StyleSheet.absoluteFillObject,
+    },
+    composerPressBlocker: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top: 0,
+        // Stops at the action row's top edge so the row's own blocker can leave
+        // the send button, which is now Stop, reachable. Absolute children
+        // measure from the padding box, so the shell's bottom padding counts.
+        bottom: MOBILE_COMPOSER_METRICS.actionRowHeight + MOBILE_COMPOSER_METRICS.shellPaddingBottom,
+    },
+    // Reads like the session status row above the chat composer: one pulsing
+    // dot and one line saying what is happening now. Absolutely placed in the
+    // gap above the composer so that showing it moves nothing on the screen.
+    // Absolute children measure from the padding box, so the inset the composer
+    // gets from `focusComposerArea` is restated here to reach the same bounds.
+    startProgressRow: {
+        position: 'absolute',
+        left: 16,
+        right: 16,
+        top: -START_PROGRESS_ROW_HEIGHT,
+        height: START_PROGRESS_ROW_HEIGHT,
+        alignItems: 'center',
+    },
+    // Sits inside the composer's own width, then insets by the same 16 the
+    // session status bar uses inside its composer, so both screens hold their
+    // status line the same distance from the shell on either side.
+    startProgressContent: {
+        width: '100%',
+        maxWidth: layout.maxWidth,
+        height: '100%',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 16,
+    },
+    startProgressText: {
+        flexShrink: 1,
+        minWidth: 0,
+        color: theme.colors.textSecondary,
+        fontSize: 11,
+        ...Typography.default(),
+    },
+    startProgressHint: {
+        flexShrink: 0,
+        marginLeft: 'auto',
+        color: theme.colors.textSecondary,
+        fontSize: 11,
+        ...Typography.default(),
     },
     settingsPosition: {
         position: 'absolute',
@@ -374,6 +496,9 @@ const styles = StyleSheet.create((theme) => ({
     optionPressed: {
         backgroundColor: theme.colors.surfacePressedOverlay,
     },
+    optionDisabled: {
+        opacity: 0.45,
+    },
     optionCopy: {
         flex: 1,
         minWidth: 0,
@@ -404,19 +529,70 @@ function resolveOption(options: ModeOption[], preferred: Array<string | null | u
     return options[0] ?? null;
 }
 
-function getMachineName(machine: Machine): string {
-    return machine.metadata?.displayName || machine.metadata?.host || 'Unknown machine';
+function shakeOnce(value: SharedValue<number>) {
+    value.value = withSequence(
+        ...SHAKE_KEYFRAMES.map((offset) => withTiming(offset, { duration: 50 })),
+    );
 }
 
+/**
+ * One control that refuses its own presses while a session is being created.
+ *
+ * The refusal is per control rather than per region so only the thing actually
+ * touched shakes: the answer is about what was pressed. The blocker is a plain
+ * transparent sheet because a native menu mounts a SwiftUI host that no React
+ * Native `disabled` prop can reach, and it is a later sibling so it paints and
+ * hits over the control it covers.
+ */
+function RefusableControl({
+    refusing,
+    onRefuse,
+    children,
+}: {
+    refusing: boolean;
+    onRefuse: () => void;
+    children: React.ReactNode;
+}) {
+    const shake = useSharedValue(0);
+    const shakeStyle = useAnimatedStyle(() => ({
+        transform: [{ translateX: shake.value }],
+    }));
+    return (
+        <Animated.View style={shakeStyle}>
+            {children}
+            {refusing && (
+                <Pressable
+                    style={styles.pressBlocker}
+                    onPress={() => {
+                        shakeOnce(shake);
+                        onRefuse();
+                    }}
+                />
+            )}
+        </Animated.View>
+    );
+}
+
+/**
+ * One picker row, which also does its own refusing while a session is starting.
+ *
+ * The refusal reuses the row's own animated view rather than wrapping it, so
+ * nothing is added to the tree and the row's layout is untouched either way.
+ */
 function FocusConfigRevealRow({
     progress,
     index,
+    refusing,
+    onRefuse,
     children,
 }: {
     progress: SharedValue<number>;
     index: number;
+    refusing?: boolean;
+    onRefuse?: () => void;
     children: React.ReactNode;
 }) {
+    const shake = useSharedValue(0);
     const revealStyle = useAnimatedStyle(() => {
         const start = 0.18 + index * 0.09;
         const end = start + 0.28;
@@ -428,13 +604,25 @@ function FocusConfigRevealRow({
         );
         return {
             opacity: reveal,
-            transform: [{ translateY: 10 * (1 - reveal) }],
+            transform: [
+                { translateY: 10 * (1 - reveal) },
+                { translateX: shake.value },
+            ],
         };
     }, [index]);
 
     return (
         <Animated.View style={[styles.focusConfigRevealRow, revealStyle]}>
             {children}
+            {refusing && (
+                <Pressable
+                    style={styles.pressBlocker}
+                    onPress={() => {
+                        shakeOnce(shake);
+                        onRefuse?.();
+                    }}
+                />
+            )}
         </Animated.View>
     );
 }
@@ -444,12 +632,18 @@ export const HomeDock = React.memo(({
     onPromptChange,
     onSubmit,
     isSubmitting,
+    submitPhase,
+    onSubmitCancel,
     showBottomBackdrop = true,
 }: {
     prompt: string;
     onPromptChange: (prompt: string) => void;
     onSubmit: () => Promise<boolean>;
     isSubmitting: boolean;
+    /** Which step of session creation is running, shown above the composer. */
+    submitPhase?: NewSessionStartPhase | null;
+    /** Stops session creation, the way the session composer stops the agent. */
+    onSubmitCancel?: () => void;
     showBottomBackdrop?: boolean;
 }) => {
     const { theme } = useUnistyles();
@@ -459,11 +653,18 @@ export const HomeDock = React.memo(({
     const focusedInputRef = React.useRef<TextInput>(null);
     const mountedRef = React.useRef(true);
     const focusAnimationTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    const nativeMenuOpenRef = React.useRef(false);
     const focusPresentation = useSharedValue(0);
     const [isFocused, setIsFocused] = React.useState(false);
     const [focusModeVisible, setFocusModeVisible] = React.useState(false);
     const [focusedInputContentHeight, setFocusedInputContentHeight] = React.useState(0);
+    // Expo's Compose bridge can freeze a DropdownMenu trigger at 0x0 when it
+    // composes before React Native measures its child. Keep iOS/web unchanged,
+    // and use an in-modal React Native picker only on Android.
+    const useNativeMenus = shouldUseNativeHomeDockMenus(Platform.OS);
+    const [sheetPage, setSheetPage] = React.useState<PickerPage | null>(null);
     const expImageUpload = useSetting('expImageUpload');
+    const experiments = useSetting('experiments');
     const { selectedImages, pickImages, removeImage, clearImages } = useImagePicker();
     const agentType = useNewSessionDraft((state) => state.agentType);
     const selectedMachineId = useNewSessionDraft((state) => state.selectedMachineId);
@@ -493,13 +694,14 @@ export const HomeDock = React.memo(({
             .sort((left, right) => Number(isMachineOnline(right)) - Number(isMachineOnline(left)))
             .map((machine) => ({
                 key: machine.id,
-                name: getMachineName(machine),
+                name: `${getMachineName(machine)} · ${machine.id.slice(0, 8)}`,
                 description: isMachineOnline(machine)
                     ? t('status.online')
                     : t('status.lastSeen', { time: formatLastSeen(machine.activeAt, false) }),
             }))
     ), [machines]);
     const currentMachine = resolveOption(machineOptions, [selectedMachineId]);
+    const selectedHomeDir = selectedMachine?.metadata?.homeDir;
 
     React.useEffect(() => {
         if (!selectedMachineId && machineOptions[0]) {
@@ -507,64 +709,86 @@ export const HomeDock = React.memo(({
         }
     }, [machineOptions, selectedMachineId, setMachineId]);
 
+    const placeMachineIds = React.useMemo(
+        () => selectedMachineId ? [selectedMachineId] : [],
+        [selectedMachineId],
+    );
+    const sessionList = React.useMemo<Session[]>(
+        () => (sessions ?? []).filter((item): item is Session => typeof item !== 'string'),
+        [sessions],
+    );
+    const places = React.useMemo(
+        () => collectSessionPlaces({
+            machineIds: placeMachineIds,
+            selectedPath: selectedPath ?? '~',
+            sessions: sessionList,
+        }),
+        [placeMachineIds, selectedPath, sessionList],
+    );
     const projectOptions = React.useMemo<ModeOption[]>(() => {
-        const paths = new Set<string>();
-        paths.add(selectedPath ?? '~');
-
-        if (selectedMachineId && sessions) {
-            for (const item of sessions) {
-                if (typeof item === 'string') continue;
-                const session = item as Session;
-                if (session.metadata?.machineId === selectedMachineId && session.metadata.path) {
-                    paths.add(session.metadata.path);
-                }
-            }
-        }
-
-        const homeDir = selectedMachine?.metadata?.homeDir;
-        return Array.from(paths).map((path) => {
-            const name = formatPathRelativeToHome(path, homeDir);
+        const homeDir = selectedHomeDir;
+        return places.map((place) => {
+            const relative = formatPathRelativeToHome(place.path, homeDir);
+            // A project names itself; a bare directory is named by where it is.
+            const name = place.projectId ? place.name : relative;
             return {
-                key: path,
+                key: place.key,
                 name,
-                description: name === path ? undefined : path,
+                description: name === place.path ? undefined : relative,
             };
         });
-    }, [selectedMachine, selectedMachineId, selectedPath, sessions]);
+    }, [places, selectedHomeDir]);
+    const selectedProjectId = React.useMemo(
+        () => places.find((place) => place.path === selectedPath)?.projectId ?? null,
+        [places, selectedPath],
+    );
     const currentProject = resolveOption(projectOptions, [selectedPath, '~']);
-    const selectedRigCreation = React.useMemo(
-        () => getRigMachineSessionCreation(selectedMachine?.metadata),
-        [selectedMachine?.metadata],
+    const rigSelectionMachine = selectedMachine && isMachineOnline(selectedMachine)
+        ? selectedMachine
+        : null;
+    const rigSelectionCreation = React.useMemo(
+        () => getRigMachineSessionCreation(rigSelectionMachine?.metadata),
+        [rigSelectionMachine],
     );
-    const connectedRigMachine = React.useMemo(
-        () => findConnectedRigMachine(machines),
-        [machines],
-    );
-    const selectedRigIsConnected = selectedRigCreation !== null
-        && selectedMachine !== null
-        && isMachineOnline(selectedMachine);
-    const rigSelectionMachine = selectedRigIsConnected ? selectedMachine : connectedRigMachine;
-    const rigSelectionCreation = selectedRigIsConnected
-        ? selectedRigCreation
-        : getRigMachineSessionCreation(connectedRigMachine?.metadata);
     const rigCreation = agentType === 'rig' ? rigSelectionCreation : null;
-    const supportsWorktree = selectedMachine?.metadata?.rigOnly === true
-        ? selectedRigCreation?.supportsWorktrees ?? false
-        : rigCreation?.supportsWorktrees ?? getSupportsWorktree(agentType);
+    const supportsWorktree = rigCreation?.supportsWorktrees
+        ?? (agentType === 'rig' ? false : getSupportsWorktree(agentType));
     const selectedWorktreeKey = sessionType === 'worktree'
         ? worktreeKey ?? '__new__'
         : '__none__';
     const [existingWorktrees, setExistingWorktrees] = React.useState<ModeOption[]>([]);
+    const agentWorkspaces = React.useMemo(
+        () => collectSessionWorkspaces({
+            machineIds: placeMachineIds,
+            projectId: selectedProjectId,
+            sessions: sessionList,
+        }),
+        [placeMachineIds, selectedProjectId, sessionList],
+    );
 
     React.useEffect(() => {
-        const path = resolveAbsolutePath(selectedPath ?? '~', selectedMachine?.metadata?.homeDir);
-        if (!supportsWorktree || !selectedMachineId || !selectedMachine || !isMachineOnline(selectedMachine) || !path) {
+        const path = resolveAbsolutePath(selectedPath ?? '~', selectedHomeDir);
+
+        // A Happy Agent project keeps its own workspaces, each with a name somebody chose. Those
+        // are better than the branches git reports, so git is only asked when nothing knows better.
+        // Starting in one only needs its directory, so this does not wait on the worktree
+        // capability the daemon advertises for making new ones.
+        if (selectedProjectId) {
+            setExistingWorktrees(agentWorkspaces.map((workspace) => ({
+                key: workspace.key,
+                name: workspace.name,
+                description: workspace.path,
+            })));
+            return;
+        }
+
+        if (!supportsWorktree || !selectedMachine || !isMachineOnline(selectedMachine) || !path) {
             setExistingWorktrees([]);
             return;
         }
 
         let cancelled = false;
-        listWorktrees(selectedMachineId, path).then((worktrees) => {
+        listWorktrees(selectedMachine.id, path).then((worktrees) => {
             if (cancelled) return;
             setExistingWorktrees(worktrees.map((worktree) => ({
                 key: worktree.path,
@@ -575,26 +799,34 @@ export const HomeDock = React.memo(({
         return () => {
             cancelled = true;
         };
-    }, [selectedMachine, selectedMachineId, selectedPath, supportsWorktree]);
+    }, [agentWorkspaces, selectedHomeDir, selectedMachine, selectedPath, selectedProjectId, supportsWorktree]);
+
+    // Happy Agent calls these workspaces, and names them; git calls them worktrees.
+    const picksWorkspaces = selectedProjectId !== null;
 
     React.useEffect(() => {
-        if (!supportsWorktree && sessionType === 'worktree') {
+        if (!supportsWorktree && !picksWorkspaces && sessionType === 'worktree') {
             setSessionType('simple');
             setWorktreeKey(null);
         }
-    }, [sessionType, setSessionType, setWorktreeKey, supportsWorktree]);
+    }, [picksWorkspaces, sessionType, setSessionType, setWorktreeKey, supportsWorktree]);
 
     const worktreeOptions = React.useMemo<ModeOption[]>(() => {
-        if (!supportsWorktree) {
+        if (!supportsWorktree && !picksWorkspaces) {
             return [{
                 key: '__none__',
                 name: 'No worktree',
-                description: t("uiCopy.notSupportedByValue", { value1: AGENTS.find((agent) => agent.key === agentType)?.name ?? agentType }),
+                description: t("uiCopy.notSupportedByValue", { value1: getHarnessName(agentType) }),
             }];
         }
         const options: ModeOption[] = [
-            { key: '__none__', name: 'No worktree' },
-            { key: '__new__', name: 'Create new worktree' },
+            // Starting in no workspace means starting in the project's own
+            // checkout, which is a place with a name rather than an absence.
+            { key: '__none__', name: picksWorkspaces ? 'Main' : 'No worktree' },
+            // Making one is a separate ability from starting in one that already exists.
+            ...(supportsWorktree
+                ? [{ key: '__new__', name: picksWorkspaces ? 'Create New' : 'Create new worktree' }]
+                : []),
             ...existingWorktrees,
         ];
         if (
@@ -604,33 +836,34 @@ export const HomeDock = React.memo(({
             options.push({ key: worktreeKey, name: worktreeKey });
         }
         return options;
-    }, [agentType, existingWorktrees, supportsWorktree, worktreeKey]);
+    }, [agentType, existingWorktrees, picksWorkspaces, supportsWorktree, worktreeKey]);
     const currentWorktree = resolveOption(worktreeOptions, [selectedWorktreeKey]);
-    // Every agent stays listed so the picker always reads as a choice. The ones
-    // the selected machine has no CLI for are disabled rather than hidden, which
-    // otherwise leaves a single checked row that looks like it does nothing.
-    const availableAgents = React.useMemo<ModeOption[]>(() => {
-        const availability = selectedMachine?.metadata?.cliAvailability;
-        return AGENTS.map((agent) => {
-            const available = agent.key === 'rig'
-                ? rigSelectionMachine !== null
-                : !availability || availability[agent.key];
-            return available
+    // Common harnesses stay listed but disabled when unavailable, so the picker
+    // still reads as a choice. Antigravity is niche and stays entirely absent
+    // until this computer explicitly reports it installed.
+    const harnessKeys = React.useMemo<NewSessionAgentType[]>(() => (
+        (HARNESS_ORDER.includes(agentType) ? [...HARNESS_ORDER] : [agentType, ...HARNESS_ORDER])
+            .filter((key) => experiments || key !== 'rig')
+            .filter((key) => key !== 'agy' || selectedMachine?.metadata?.cliAvailability?.agy === true)
+    ), [agentType, experiments, selectedMachine?.metadata?.cliAvailability?.agy]);
+    const availableAgents = React.useMemo<ModeOption[]>(() => (
+        harnessKeys.map((key) => {
+            const agent = { key, name: getHarnessName(key) };
+            return isHarnessAvailable({
+                availability: selectedMachine?.metadata?.cliAvailability,
+                happyAgentAvailable: rigSelectionCreation !== null,
+                key,
+            })
                 ? agent
                 : {
                     ...agent,
                     disabled: true,
-                    description: agent.key === 'rig'
+                    description: key === 'rig'
                         ? t('uiCopy.selectAConnectedRigMachine')
                         : t('uiCopy.notInstalledOnThisMachine'),
                 };
-        });
-    }, [rigSelectionMachine, selectedMachine]);
-    const resolvedAgentType = agentType === 'rig' && !rigSelectionMachine
-        ? (availableAgents.find((agent) => !agent.disabled && agent.key !== 'rig')?.key as NewSessionAgentType | undefined) ?? agentType
-        : agentType === 'rig'
-            ? agentType
-            : resolveMachineAgent(agentType, selectedMachine?.metadata?.cliAvailability);
+        })
+    ), [harnessKeys, rigSelectionCreation, selectedMachine?.metadata?.cliAvailability]);
     const machineCatalog = agentType === 'rig'
         ? undefined
         : selectedMachine?.metadata?.agentCapabilities?.[agentType];
@@ -644,14 +877,14 @@ export const HomeDock = React.memo(({
     const permissionOptions = React.useMemo(
         () => rigCreation?.permissionModes
             ?? (machineCatalog
-                ? getMachineAdvertisedPermissionModes(selectedMachine?.metadata, agentType)
+                ? getMachineAdvertisedPermissionModes(selectedMachine?.metadata, agentType, t)
                 : getHardcodedPermissionModes(agentType, t)),
         [agentType, machineCatalog, rigCreation, selectedMachine?.metadata],
     );
     const modelOptions = React.useMemo(
         () => rigCreation?.models
             ?? (machineCatalog
-                ? getMachineAdvertisedModels(selectedMachine?.metadata, agentType)
+                ? getMachineAdvertisedModels(selectedMachine?.metadata, agentType, t)
                 : getHardcodedModelModes(agentType, t)),
         [agentType, machineCatalog, rigCreation, selectedMachine?.metadata],
     );
@@ -679,10 +912,63 @@ export const HomeDock = React.memo(({
             ));
         }
     }, [agentType, defaultOverrides, setDefaultOverrides, setEffortLevel]);
-    const currentAgent = availableAgents.find((agent) => agent.key === agentType) ?? availableAgents[0] ?? AGENTS[0];
+    const currentAgent = availableAgents.find((agent) => agent.key === agentType)
+        ?? availableAgents[0]
+        ?? { key: agentType, name: getHarnessName(agentType) };
+    const permissionLabel = getPermissionModeShortLabel(currentPermission);
+    const focusedPromptPlaceholder = t('uiCopy.askCodex');
     const canSubmit = !isSubmitting && (
         prompt.trim().length > 0 || (expImageUpload && selectedImages.length > 0)
     );
+    const startPhase = isSubmitting ? submitPhase ?? 'spawning' : null;
+    const startProgressLabel = resolveNewSessionProgressLabel({
+        phase: startPhase,
+        agentName: currentAgent.name,
+        picksWorkspaces,
+    });
+    const primaryAction = resolveNewSessionPrimaryAction({
+        canSubmit,
+        phase: startPhase,
+        canCancel: !!onSubmitCancel,
+    });
+    const primaryActionFilled = primaryAction === 'send' || primaryAction === 'stop';
+    const primaryActionIconColor = theme.dark ? '#111111' : theme.colors.button.primary.tint;
+    const composerShakerRef = React.useRef<ShakeInstance>(null);
+    // Anything refused points at the way out: the hint and the Stop button both
+    // flash, so the answer to "this is blocked" is "here is the thing that
+    // isn't". Two beats rather than one — a single fade is easy to miss on a
+    // button that is already solid black.
+    const refusalFlash = useSharedValue(0);
+    const refuse = React.useCallback(() => {
+        hapticsError();
+        refusalFlash.value = withSequence(
+            withTiming(1, { duration: 90 }),
+            withTiming(0, { duration: 130 }),
+            withTiming(1, { duration: 90 }),
+            withTiming(0, { duration: 340 }),
+        );
+    }, [refusalFlash]);
+    const refuseWithShake = React.useCallback((shaker: React.RefObject<ShakeInstance | null>) => {
+        refuse();
+        shaker.current?.shake();
+    }, [refuse]);
+    const startProgressHintStyle = useAnimatedStyle(() => ({
+        color: interpolateColor(
+            refusalFlash.value,
+            [0, 1],
+            [theme.colors.textSecondary, theme.colors.text],
+        ),
+    }));
+    const primaryActionFlashStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: 1 + refusalFlash.value * 0.1 }],
+    }));
+    // The button is already the darkest thing on screen, so its flash is the
+    // inverse of the hint's: a lighter wash over the fill, drawn under the glyph
+    // so the glyph stays readable through it. Painting over the fill rather than
+    // animating it keeps BubblePressable's own press scale untouched.
+    const primaryActionFlashOverlayStyle = useAnimatedStyle(() => ({
+        opacity: refusalFlash.value * 0.55,
+    }));
     const focusedInputLayout = resolveMultiTextInputLayout({
         contentHeight: focusedInputContentHeight,
         hasText: prompt.length > 0,
@@ -797,6 +1083,7 @@ export const HomeDock = React.memo(({
         if (focusAnimationTimerRef.current) {
             clearTimeout(focusAnimationTimerRef.current);
         }
+        nativeMenuOpenRef.current = false;
         focusPresentation.value = 0;
         setIsFocused(true);
         setFocusModeVisible(true);
@@ -809,9 +1096,23 @@ export const HomeDock = React.memo(({
         }, 16);
     }, [focusPresentation]);
 
+    // A "+" in the session list prefills the draft and then asks the dock to
+    // open. The last id seen is captured on mount so a remount after an earlier
+    // request does not re-open the composer on its own.
+    const focusRequestId = useHomeDockFocusStore((state) => state.requestId);
+    const servedFocusRequestRef = React.useRef(focusRequestId);
+    React.useEffect(() => registerHomeDockFocusListener(), []);
+    React.useEffect(() => {
+        if (focusRequestId === servedFocusRequestRef.current) return;
+        servedFocusRequestRef.current = focusRequestId;
+        openFocusMode();
+    }, [focusRequestId, openFocusMode]);
+
     const finishCloseFocusMode = React.useCallback(() => {
+        nativeMenuOpenRef.current = false;
         setIsFocused(false);
         setFocusModeVisible(false);
+        setSheetPage(null);
     }, []);
 
     const closeFocusMode = React.useCallback(() => {
@@ -832,6 +1133,26 @@ export const HomeDock = React.memo(({
         });
     }, [finishCloseFocusMode, focusPresentation]);
 
+    const closePicker = React.useCallback(() => {
+        setSheetPage(null);
+    }, []);
+
+    const handleFocusModeRequestClose = React.useCallback(() => {
+        const action = resolveHomeDockPickerBackAction({
+            hasPage: sheetPage !== null,
+            starting: isSubmitting,
+        });
+        if (action === 'refuse') {
+            refuse();
+            return;
+        }
+        if (action === 'close-picker') {
+            closePicker();
+            return;
+        }
+        closeFocusMode();
+    }, [closeFocusMode, closePicker, isSubmitting, refuse, sheetPage]);
+
     const selectAgent = React.useCallback((agent: NewSessionAgentType) => {
         const nextRigCreation = agent === 'rig' ? rigSelectionCreation : null;
         const nextDefaults = nextRigCreation
@@ -844,7 +1165,7 @@ export const HomeDock = React.memo(({
         const nextCatalog = selectedMachine?.metadata?.agentCapabilities?.[agent];
         const nextModels = nextRigCreation?.models
             ?? (nextCatalog
-                ? getMachineAdvertisedModels(selectedMachine?.metadata, agent)
+                ? getMachineAdvertisedModels(selectedMachine?.metadata, agent, t)
                 : getHardcodedModelModes(agent, t));
         const nextModel = resolveOption(nextModels, [nextDefaults.modelMode]);
         const nextEfforts = nextRigCreation
@@ -854,26 +1175,11 @@ export const HomeDock = React.memo(({
                 : getEffortLevelsForModel(agent, nextModel?.key ?? 'default');
         const nextEffort = nextRigCreation?.defaultEffortForModel(nextModel?.key)
             ?? resolveAgentDefaultEffortLevel(defaultOverrides, agent, nextEfforts);
-        if (agent === 'rig' && rigSelectionMachine && rigSelectionMachine.id !== selectedMachineId) {
-            setMachineId(rigSelectionMachine.id);
-        }
         setAgentType(agent);
         setPermissionMode(nextDefaults.permissionMode);
         setModelMode(nextDefaults.modelMode);
         if (nextEffort) setEffortLevel(nextEffort);
-    }, [defaultOverrides, rigSelectionCreation, rigSelectionMachine, selectedMachine?.metadata, selectedMachineId, setAgentType, setEffortLevel, setMachineId, setModelMode, setPermissionMode]);
-
-    React.useEffect(() => {
-        if (agentType === 'rig' && rigSelectionMachine && rigSelectionMachine.id !== selectedMachineId) {
-            setMachineId(rigSelectionMachine.id);
-        }
-    }, [agentType, rigSelectionMachine, selectedMachineId, setMachineId]);
-
-    React.useEffect(() => {
-        if (resolvedAgentType !== agentType) {
-            selectAgent(resolvedAgentType);
-        }
-    }, [agentType, resolvedAgentType, selectAgent]);
+    }, [defaultOverrides, rigSelectionCreation, selectedMachine?.metadata, setAgentType, setEffortLevel, setModelMode, setPermissionMode]);
 
     type SettingsRow = {
         page: string;
@@ -882,15 +1188,23 @@ export const HomeDock = React.memo(({
         icon: React.ComponentProps<typeof Ionicons>['name'];
     };
 
+    // The rows stacked above the focused composer. The harness sits with
+    // machine/project/worktree because all four say where and with what the
+    // session runs, and all four are settled before anything is typed.
     const environmentRows: SettingsRow[] = [
         { page: 'machine', label: t("uiCopy.machine"), value: currentMachine?.name ?? 'Select machine', icon: 'desktop-outline' },
         { page: 'project', label: t("uiCopy.project_olvgym"), value: currentProject?.name ?? '~', icon: 'folder-outline' },
-        { page: 'worktree', label: t("uiCopy.worktree_sdajyg"), value: currentWorktree?.name ?? 'No worktree', icon: 'git-branch-outline' },
+        {
+            page: 'worktree',
+            label: picksWorkspaces ? t('workspace.title') : t("uiCopy.worktree_sdajyg"),
+            value: currentWorktree?.name ?? (picksWorkspaces ? 'Main' : 'No worktree'),
+            icon: 'git-branch-outline',
+        },
+        { page: 'agent', label: t("uiCopy.agent_1wzwjl"), value: currentAgent.name, icon: 'hardware-chip-outline' },
     ];
     const agentRows: SettingsRow[] = [
-        { page: 'agent', label: t("uiCopy.agent_1wzwjl"), value: currentAgent.name, icon: 'hardware-chip-outline' },
         ...(currentModel ? [{ page: 'model', label: t('agentInput.model.title'), value: currentModel.name, icon: 'cube-outline' as const }] : []),
-        ...(currentPermission ? [{ page: 'permission', label: t('agentInput.permissionMode.title'), value: currentPermission.name, icon: 'shield-outline' as const }] : []),
+        ...(currentPermission ? [{ page: 'permission', label: t('agentInput.permissionMode.title'), value: permissionLabel ?? currentPermission.name, icon: 'shield-outline' as const }] : []),
         ...(currentEffort ? [{ page: 'effort', label: t('agentInput.effort.title'), value: currentEffort.name, icon: 'speedometer-outline' as const }] : []),
     ];
 
@@ -985,66 +1299,250 @@ export const HomeDock = React.memo(({
             }[row.page],
             options: config.options.map((option) => ({
                 key: option.key,
-                label: option.name,
+                // The permission menu spells the mode out; only its chip is
+                // short on space. Model and effort read fine on their own.
+                label: row.page === 'permission' ? getPermissionModeMenuLabel(option) : option.name,
                 disabled: option.disabled,
             })),
             selectedKey: config.selectedKey,
             onSelect: config.onSelect,
         };
     });
-    const gearSettingsGroups = agentSettingsGroups.filter((group) => (
-        group.key === 'agent' || group.key === 'permission'
-    ));
     const modelSettingsGroup = agentSettingsGroups.find((group) => group.key === 'model');
     const effortSettingsGroup = agentSettingsGroups.find((group) => group.key === 'effort');
+    const permissionSettingsGroup = agentSettingsGroups.find((group) => group.key === 'permission');
 
-    const renderNativePicker = (row: SettingsRow, config: PickerConfig, compact: boolean) => (
-        <NativeOptionsPicker
-            key={row.page}
-            title={config.title}
-            triggerLabel={row.value}
-            systemImage={{
-                machine: 'desktopcomputer',
-                project: 'folder',
-                worktree: 'arrow.triangle.branch',
-                agent: 'cpu',
-                model: 'cube',
-                permission: 'shield',
-                effort: 'bolt',
-            }[row.page]}
-            options={config.options.map((option) => ({ key: option.key, label: option.name }))}
-            selectedKey={config.selectedKey}
-            onSelect={config.onSelect}
-        >
-            <View style={compact ? styles.focusConfigRow : styles.option}>
-                <View style={styles.focusConfigIcon}>
-                    <Ionicons
-                        name={row.icon}
-                        size={compact ? 21 : 18}
-                        color={theme.colors.text}
-                    />
-                </View>
-                {compact ? (
-                    <Text style={styles.focusConfigValue} numberOfLines={1}>{row.value}</Text>
-                ) : (
-                    <View style={styles.optionCopy}>
-                        <Text style={styles.optionLabel}>{row.label}</Text>
-                        <Text style={styles.optionValue} numberOfLines={1}>{row.value}</Text>
-                    </View>
-                )}
-            </View>
-        </NativeOptionsPicker>
+    const getPickerConfig = (page: PickerPage): PickerConfig => (
+        page === 'machine' || page === 'project' || page === 'worktree'
+            ? getEnvironmentPickerConfig(page)
+            : getAgentPickerConfig(page)
     );
+    const sheetVisible = !useNativeMenus && sheetPage !== null;
+    const markNativeMenuOpen = React.useCallback(() => {
+        nativeMenuOpenRef.current = true;
+    }, []);
+    const handleFocusBackdropPress = React.useCallback(() => {
+        const action = resolveHomeDockBackdropPressAction({
+            nativeMenuOpen: useNativeMenus && nativeMenuOpenRef.current,
+            pickerVisible: sheetVisible,
+            starting: isSubmitting,
+        });
+        nativeMenuOpenRef.current = false;
+        if (action === 'dismiss-menu') {
+            return;
+        }
+        if (action === 'refuse') {
+            refuse();
+            return;
+        }
+        if (action === 'close-picker') {
+            closePicker();
+            return;
+        }
+        closeFocusMode();
+    }, [closeFocusMode, closePicker, isSubmitting, refuse, sheetVisible, useNativeMenus]);
+
+    // Stop is about this screen, not about the machine. It gives the composer
+    // back immediately and lets the kill run unwatched, because a Stop that
+    // waits on the thing that is already not answering is not a way out.
+    const handleStopPress = React.useCallback(() => {
+        onSubmitCancel?.();
+        closeFocusMode();
+    }, [closeFocusMode, onSubmitCancel]);
+
+    const renderPickerRowContent = (row: SettingsRow, compact: boolean) => (
+        <View style={compact ? styles.focusConfigRow : styles.option}>
+            <View style={styles.focusConfigIcon}>
+                <Ionicons
+                    name={row.icon}
+                    size={compact ? 21 : 18}
+                    color={theme.colors.text}
+                />
+            </View>
+            {compact ? (
+                <Text style={styles.focusConfigValue} numberOfLines={1}>{row.value}</Text>
+            ) : (
+                <View style={styles.optionCopy}>
+                    <Text style={styles.optionLabel}>{row.label}</Text>
+                    <Text style={styles.optionValue} numberOfLines={1}>{row.value}</Text>
+                </View>
+            )}
+        </View>
+    );
+
+    const renderPickerRow = (row: SettingsRow, config: PickerConfig, compact: boolean) => {
+        if (!useNativeMenus) {
+            return (
+                <Pressable
+                    key={row.page}
+                    onPress={() => setSheetPage(row.page as PickerPage)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${row.label}: ${row.value}`}
+                >
+                    {renderPickerRowContent(row, compact)}
+                </Pressable>
+            );
+        }
+        return (
+            <NativeOptionsPicker
+                key={row.page}
+                title={config.title}
+                tintColor={compact ? theme.colors.text : undefined}
+                triggerLabel={row.value}
+                systemImage={{
+                    machine: 'desktopcomputer',
+                    project: 'folder',
+                    worktree: 'arrow.triangle.branch',
+                    agent: 'cpu',
+                    model: 'cube',
+                    permission: 'shield',
+                    effort: 'bolt',
+                }[row.page]}
+                options={config.options.map((option) => ({ key: option.key, label: option.name }))}
+                selectedKey={config.selectedKey}
+                onMenuOpen={markNativeMenuOpen}
+                onSelect={(key) => {
+                    nativeMenuOpenRef.current = false;
+                    config.onSelect(key);
+                }}
+            >
+                {renderPickerRowContent(row, compact)}
+            </NativeOptionsPicker>
+        );
+    };
 
     const renderEnvironmentPickers = () => environmentRows.map((row, index) => (
         <FocusConfigRevealRow
             key={row.page}
             progress={focusPresentation}
             index={index}
+            refusing={isSubmitting}
+            onRefuse={refuse}
         >
-            {renderNativePicker(row, getEnvironmentPickerConfig(row.page as EnvironmentSetting), true)}
+            {renderPickerRow(row, getPickerConfig(row.page as PickerPage), true)}
         </FocusConfigRevealRow>
     ));
+
+    const renderMenuControl = ({
+        page,
+        groups,
+        flat,
+        style,
+        accessibilityLabel,
+        triggerSystemImage,
+        triggerLabel,
+        triggerAlignment,
+        children,
+    }: {
+        page: PickerPage;
+        groups: NativeSettingsMenuGroup[];
+        flat?: boolean;
+        style: NativeSettingsMenuProps['style'];
+        accessibilityLabel: string;
+        triggerSystemImage?: NativeSettingsMenuProps['triggerSystemImage'];
+        triggerLabel?: NativeSettingsMenuProps['triggerLabel'];
+        triggerAlignment?: NativeSettingsMenuProps['triggerAlignment'];
+        children: React.ReactNode;
+    }) => (
+        <RefusableControl refusing={isSubmitting} onRefuse={refuse}>
+            {!useNativeMenus ? (
+                <Pressable
+                    onPress={() => setSheetPage(page)}
+                    style={style}
+                    accessibilityRole="button"
+                    accessibilityLabel={accessibilityLabel}
+                >
+                    {children}
+                </Pressable>
+            ) : (
+                <NativeSettingsMenu
+                    accessibilityLabel={accessibilityLabel}
+                    groups={groups.map((group) => ({
+                        ...group,
+                        onSelect: (key) => {
+                            nativeMenuOpenRef.current = false;
+                            group.onSelect(key);
+                        },
+                    }))}
+                    onMenuOpen={markNativeMenuOpen}
+                    flat={flat}
+                    style={style}
+                    triggerSystemImage={triggerSystemImage}
+                    triggerLabel={triggerLabel}
+                    triggerAlignment={triggerAlignment}
+                >
+                    {children}
+                </NativeSettingsMenu>
+            )}
+        </RefusableControl>
+    );
+
+    // Only reached with a page selected: `sheetVisible` gates the whole sheet.
+    const renderSettingsSheet = (page: PickerPage) => {
+        const config = getPickerConfig(page);
+        return (
+            <View style={styles.settingsStack}>
+                <MobileGlassSurface
+                    nativeEffect
+                    intensity={78}
+                    glassEffectStyle="regular"
+                    style={styles.settingsSurface}
+                >
+                    <View style={styles.settingsHeader}>
+                        <Pressable
+                            onPress={closePicker}
+                            style={styles.backButton}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('common.cancel')}
+                        >
+                            <Ionicons name="close" size={20} color={theme.colors.text} />
+                        </Pressable>
+                        <Text style={styles.settingsTitle} numberOfLines={1}>
+                            {config.title}
+                        </Text>
+                    </View>
+                    <ScrollView style={styles.optionList} keyboardShouldPersistTaps="always">
+                        {config.options.map((option) => {
+                            const selectable = isHomeDockOptionSelectable(option.disabled);
+                            const selected = option.key === config.selectedKey;
+                            return (
+                                <Pressable
+                                    key={option.key}
+                                    disabled={!selectable}
+                                    onPress={() => {
+                                        if (!selectable) return;
+                                        config.onSelect(option.key);
+                                        closePicker();
+                                    }}
+                                    style={({ pressed }) => [
+                                        styles.option,
+                                        !selectable && styles.optionDisabled,
+                                        pressed && selectable && styles.optionPressed,
+                                    ]}
+                                    accessibilityRole="button"
+                                    accessibilityState={{ disabled: !selectable, selected }}
+                                >
+                                    <View style={styles.focusConfigIcon}>
+                                        {selected && (
+                                            <Ionicons name="checkmark" size={16} color={theme.colors.text} />
+                                        )}
+                                    </View>
+                                    <View style={styles.optionCopy}>
+                                        <Text style={styles.optionValue} numberOfLines={1}>{option.name}</Text>
+                                        {!!option.description && (
+                                            <Text style={styles.optionDescription} numberOfLines={2}>
+                                                {option.description}
+                                            </Text>
+                                        )}
+                                    </View>
+                                </Pressable>
+                            );
+                        })}
+                    </ScrollView>
+                </MobileGlassSurface>
+            </View>
+        );
+    };
 
     const renderComposer = ({
         ref,
@@ -1059,59 +1557,61 @@ export const HomeDock = React.memo(({
         onSend: () => void;
         activateOnPress?: () => void;
     }) => (
-        <MobileGlassSurface
-            nativeEffect
-            material="frosted"
-            intensity={92}
-            style={styles.composerSurface}
-        >
-            <View style={styles.composerContent}>
-                {activateOnPress ? (
-                    <Pressable onPress={activateOnPress} style={styles.inputEntry}>
-                        <Text
-                            style={[styles.inputEntryText, !prompt && styles.inputEntryPlaceholder]}
-                            numberOfLines={1}
-                        >
-                            {prompt || 'Plan, ask, build…'}
-                        </Text>
-                    </Pressable>
-                ) : (
-                    <TextInput
-                        ref={ref}
-                        value={prompt}
-                        onChangeText={onPromptChange}
-                        onSubmitEditing={() => canSubmit && onSend()}
-                        onFocus={onFocus}
-                        onBlur={onBlur}
-                        placeholder={t("uiCopy.planAskBuild")}
-                        placeholderTextColor={theme.colors.textSecondary}
-                        selectionColor={theme.colors.text}
-                        returnKeyType="send"
-                        autoCorrect
-                        style={styles.input}
-                    />
-                )}
-                <BubblePressable
-                    onPress={onSend}
-                    disabled={!canSubmit}
-                    style={[styles.sendButton, canSubmit && styles.sendButtonActive]}
-                    accessibilityRole="button"
-                    accessibilityLabel={t("happyHerd.composer.send")}
-                >
-                    {isSubmitting ? (
-                        <ActivityIndicator size="small" color={theme.colors.textSecondary} />
+        <View style={styles.composerShadow}>
+            <MobileGlassSurface
+                nativeEffect
+                material="frosted"
+                intensity={92}
+                style={styles.composerSurface}
+            >
+                <View style={styles.composerContent}>
+                    {activateOnPress ? (
+                        <Pressable onPress={activateOnPress} style={styles.inputEntry}>
+                            <Text
+                                style={[styles.inputEntryText, !prompt && styles.inputEntryPlaceholder]}
+                                numberOfLines={1}
+                            >
+                                {prompt || t("uiCopy.planAskBuild")}
+                            </Text>
+                        </Pressable>
                     ) : (
-                        <Ionicons
-                            name="arrow-up"
-                            size={16}
-                            color={canSubmit
-                                ? theme.dark ? '#111111' : theme.colors.button.primary.tint
-                                : theme.colors.textSecondary}
+                        <TextInput
+                            ref={ref}
+                            value={prompt}
+                            onChangeText={onPromptChange}
+                            onSubmitEditing={() => canSubmit && onSend()}
+                            onFocus={onFocus}
+                            onBlur={onBlur}
+                        placeholder={t("uiCopy.planAskBuild")}
+                            placeholderTextColor={theme.colors.textSecondary}
+                            selectionColor={theme.colors.text}
+                            returnKeyType="send"
+                            autoCorrect
+                            style={styles.input}
                         />
                     )}
-                </BubblePressable>
-            </View>
-        </MobileGlassSurface>
+                    <BubblePressable
+                        onPress={onSend}
+                        disabled={!canSubmit}
+                        style={[styles.sendButton, canSubmit && styles.sendButtonActive]}
+                        accessibilityRole="button"
+                        accessibilityLabel={t("happyHerd.composer.send")}
+                    >
+                        {isSubmitting ? (
+                            <ActivityIndicator size="small" color={theme.colors.textSecondary} />
+                        ) : (
+                            <Ionicons
+                                name="arrow-up"
+                                size={16}
+                                color={canSubmit
+                                    ? theme.dark ? '#111111' : theme.colors.button.primary.tint
+                                    : theme.colors.textSecondary}
+                            />
+                        )}
+                    </BubblePressable>
+                </View>
+            </MobileGlassSurface>
+        </View>
     );
 
     const submit = async () => {
@@ -1122,25 +1622,31 @@ export const HomeDock = React.memo(({
         return started;
     };
 
+    // The dock, the keyboard, and the scrim all stay put until the session
+    // exists. Closing first left the session list with a spinner nowhere near
+    // the composer, and a failure landed on a screen that had already moved on.
     const submitFromFocusMode = () => {
         if (!canSubmit) return;
-        setFocusModeVisible(false);
-        setIsFocused(false);
-        void submit();
+        closePicker();
+        void (async () => {
+            const started = await submit();
+            if (started) closeFocusMode();
+        })();
     };
 
     const renderFocusedComposer = () => (
-        <Animated.View style={[styles.focusedComposerAnimationShell, focusedComposerAnimationStyle]}>
-            <MobileGlassSurface
-                nativeEffect
-                material="frosted"
-                intensity={92}
-                style={[
-                    styles.focusedComposerSurface,
-                    styles.focusedComposerAnchored,
-                    { height: focusedComposerHeight },
-                ]}
-            >
+        <Shaker ref={composerShakerRef} style={styles.focusedComposerShadow}>
+            <Animated.View style={[styles.focusedComposerAnimationShell, focusedComposerAnimationStyle]}>
+                <MobileGlassSurface
+                    nativeEffect
+                    material="frosted"
+                    intensity={92}
+                    style={[
+                        styles.focusedComposerSurface,
+                        styles.focusedComposerAnchored,
+                        { height: focusedComposerHeight },
+                    ]}
+                >
                 <View style={styles.focusedComposerContent}>
                     {expImageUpload && selectedImages.length > 0 && (
                         <Animated.View style={focusedInputRevealStyle}>
@@ -1163,9 +1669,20 @@ export const HomeDock = React.memo(({
                         <TextInput
                             ref={focusedInputRef}
                             value={prompt}
-                            onChangeText={onPromptChange}
+                            // `editable={false}` would take the keyboard down
+                            // with it, and the keyboard is the thing this whole
+                            // flow keeps up. The input is controlled, so
+                            // refusing the change is what locks it: the value
+                            // never moves off the prompt being sent.
+                            onChangeText={(next) => {
+                                if (isSubmitting) {
+                                    refuseWithShake(composerShakerRef);
+                                    return;
+                                }
+                                onPromptChange(next);
+                            }}
                             onFocus={() => setIsFocused(true)}
-                            placeholder={t("uiCopy.askCodex")}
+                            placeholder={focusedPromptPlaceholder}
                             placeholderTextColor={theme.colors.textSecondary}
                             selectionColor={theme.colors.text}
                             autoCorrect
@@ -1174,49 +1691,76 @@ export const HomeDock = React.memo(({
                             style={[styles.focusedInput, { height: focusedInputLayout.height }]}
                         />
                     </Animated.View>
+                    {/* Painted over the attachments and the input, and stopping
+                        short of the action row. The controls keep their normal
+                        appearance; only the touch is refused. */}
+                    {isSubmitting && (
+                        <Pressable
+                            style={styles.composerPressBlocker}
+                            onPress={() => refuseWithShake(composerShakerRef)}
+                        />
+                    )}
                     <Animated.View style={[styles.focusedComposerActions, focusedActionsRevealStyle]}>
                         {expImageUpload && (
-                            <BubblePressable
-                                onPress={() => void pickImages()}
-                                style={styles.sideButton}
-                                accessibilityRole="button"
-                                accessibilityLabel={t("uiCopy.addImage")}
-                            >
-                                <Ionicons
-                                    name="add"
-                                    size={MOBILE_COMPOSER_METRICS.addIconSize}
-                                    color={theme.colors.text}
-                                />
-                            </BubblePressable>
+                            <RefusableControl refusing={isSubmitting} onRefuse={refuse}>
+                                <BubblePressable
+                                    onPress={() => void pickImages()}
+                                    style={styles.sideButton}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t("uiCopy.addImage")}
+                                >
+                                    <Ionicons
+                                        name="add"
+                                        size={MOBILE_COMPOSER_METRICS.addIconSize}
+                                        color={theme.colors.text}
+                                    />
+                                </BubblePressable>
+                            </RefusableControl>
                         )}
-                        <NativeSettingsMenu
-                            accessibilityLabel={t('settings.title')}
-                            groups={gearSettingsGroups}
-                            triggerSystemImage="gearshape"
-                            style={styles.nativeIconMenuFrame}
-                        >
-                            <View style={styles.nativeIconMenuContent}>
-                                <Ionicons name="settings-outline" size={20} color={theme.colors.text} />
-                            </View>
-                        </NativeSettingsMenu>
+                        {/* The permission mode reads out in words instead of
+                            hiding behind a gear: it is the one setting here that
+                            changes what the agent is allowed to do to your
+                            machine, so it is worth the width. */}
+                        {permissionSettingsGroup && permissionLabel && renderMenuControl({
+                            page: 'permission',
+                            groups: [permissionSettingsGroup],
+                            flat: true,
+                            style: styles.nativePermissionMenu,
+                            accessibilityLabel: t('agentInput.permissionMode.title'),
+                            triggerLabel: permissionLabel,
+                            // Centered to agree with the React Native chip this
+                            // stands in for on iOS: the frame is sized by that
+                            // chip, so a leading trigger would print the word
+                            // flush left while the chip reserves padding.
+                            triggerAlignment: 'center',
+                            children: (
+                                <View style={styles.focusedPermissionButton}>
+                                    <Text style={styles.focusedModeText} numberOfLines={1}>
+                                        {permissionLabel}
+                                    </Text>
+                                </View>
+                            ),
+                        })}
                         {/* Pushes model/effort right so the pair sits against the
                             send button instead of drifting when a label changes. */}
                         <View style={{ flex: 1 }} />
                         {modelSettingsGroup ? (
-                            <NativeSettingsMenu
-                                accessibilityLabel={t('agentInput.model.title')}
-                                groups={[modelSettingsGroup]}
-                                flat
-                                triggerLabel={currentModel?.name ?? currentAgent.name}
-                                triggerAlignment="trailing"
-                                style={styles.nativeModeMenu}
-                            >
-                                <View style={styles.focusedModeButton}>
-                                    <Text style={styles.focusedModeText} numberOfLines={1}>
-                                        {currentModel?.name ?? currentAgent.name}
-                                    </Text>
-                                </View>
-                            </NativeSettingsMenu>
+                            renderMenuControl({
+                                page: 'model',
+                                groups: [modelSettingsGroup],
+                                flat: true,
+                                style: styles.nativeModeMenu,
+                                accessibilityLabel: t('agentInput.model.title'),
+                                triggerLabel: currentModel?.name ?? currentAgent.name,
+                                triggerAlignment: 'trailing',
+                                children: (
+                                    <View style={styles.focusedModeButton}>
+                                        <Text style={styles.focusedModeText} numberOfLines={1}>
+                                            {currentModel?.name ?? currentAgent.name}
+                                        </Text>
+                                    </View>
+                                ),
+                            })
                         ) : (
                             <View style={styles.nativeModeMenu}>
                                 <View style={styles.focusedModeButton}>
@@ -1232,45 +1776,65 @@ export const HomeDock = React.memo(({
                         {effortSettingsGroup && (
                             <Text style={styles.focusedModeSeparator}>·</Text>
                         )}
-                        {effortSettingsGroup && (
-                            <NativeSettingsMenu
-                                accessibilityLabel={t('agentInput.effort.title')}
-                                groups={[effortSettingsGroup]}
-                                flat
-                                triggerLabel={currentEffort?.name ?? t('agentInput.effort.title')}
-                                triggerAlignment="leading"
-                                style={styles.nativeEffortMenu}
-                            >
+                        {effortSettingsGroup && renderMenuControl({
+                            page: 'effort',
+                            groups: [effortSettingsGroup],
+                            flat: true,
+                            style: styles.nativeEffortMenu,
+                            accessibilityLabel: t('agentInput.effort.title'),
+                            triggerLabel: currentEffort?.name ?? t('agentInput.effort.title'),
+                            triggerAlignment: 'leading',
+                            children: (
                                 <View style={styles.focusedEffortButton}>
                                     <Text style={styles.focusedModeText} numberOfLines={1}>
                                         {currentEffort?.name ?? t('agentInput.effort.title')}
                                     </Text>
                                 </View>
-                            </NativeSettingsMenu>
-                        )}
-                        <BubblePressable
-                            onPress={submitFromFocusMode}
-                            disabled={!canSubmit}
-                            style={[styles.sendButton, canSubmit && styles.sendButtonActive]}
-                            accessibilityRole="button"
-                            accessibilityLabel={t("happyHerd.composer.send")}
-                        >
-                        {isSubmitting ? (
-                            <ActivityIndicator size="small" color={theme.colors.textSecondary} />
-                        ) : (
-                            <Ionicons
-                                name="arrow-up"
-                                size={16}
-                                color={canSubmit
-                                    ? theme.dark ? '#111111' : theme.colors.button.primary.tint
-                                    : theme.colors.textSecondary}
-                            />
-                        )}
-                        </BubblePressable>
+                            ),
+                        })}
+                        {/* Nothing covers this row as a whole: each control
+                            beside Stop refuses its own presses, which leaves
+                            Stop itself reachable without having to be painted
+                            over a blocker. */}
+                        {/* One button, read the same way as the session
+                            composer's: it sends, and while the session is being
+                            created it stops. */}
+                        <Animated.View style={primaryActionFlashStyle}>
+                            <BubblePressable
+                                onPress={primaryAction === 'stop' ? handleStopPress : submitFromFocusMode}
+                                disabled={primaryAction !== 'send' && primaryAction !== 'stop'}
+                                style={[styles.sendButton, primaryActionFilled && styles.sendButtonActive]}
+                                accessibilityRole="button"
+                                accessibilityLabel={primaryAction === 'stop'
+                                    ? t("happyHerd.composer.stop")
+                                    : t("happyHerd.composer.send")}
+                            >
+                                {primaryAction === 'stop' && (
+                                    <Animated.View
+                                        pointerEvents="none"
+                                        style={[styles.primaryActionFlash, primaryActionFlashOverlayStyle]}
+                                    />
+                                )}
+                                {primaryAction === 'busy' ? (
+                                    <ActivityIndicator size="small" color={theme.colors.textSecondary} />
+                                ) : primaryAction === 'stop' ? (
+                                    <Octicons name="stop" size={16} color={primaryActionIconColor} />
+                                ) : (
+                                    <Ionicons
+                                        name="arrow-up"
+                                        size={16}
+                                        color={primaryAction === 'send'
+                                            ? primaryActionIconColor
+                                            : theme.colors.textSecondary}
+                                    />
+                                )}
+                            </BubblePressable>
+                        </Animated.View>
                     </Animated.View>
                 </View>
-            </MobileGlassSurface>
-        </Animated.View>
+                </MobileGlassSurface>
+            </Animated.View>
+        </Shaker>
     );
 
     return (
@@ -1281,14 +1845,19 @@ export const HomeDock = React.memo(({
             >
                 {showBottomBackdrop && (
                     <View pointerEvents="none" style={styles.bottomBackdrop}>
-                        <MobileHeaderScrim variant="strong" edge="bottom" />
+                        <MobileHeaderScrim
+                            variant="strong"
+                            edge="bottom"
+                            overlayOpacity={MOBILE_HOME_SCRIM_OVERLAY_OPACITY}
+                        />
                     </View>
                 )}
                 <View
-                    pointerEvents="box-none"
+                    pointerEvents={focusModeVisible ? 'none' : 'box-none'}
                     style={[
                         styles.safeArea,
                         { paddingBottom: isFocused ? 8 : Math.max(10, safeArea.bottom) },
+                        focusModeVisible && styles.safeAreaBehindFocus,
                     ]}
                 >
                     {renderComposer({
@@ -1307,16 +1876,28 @@ export const HomeDock = React.memo(({
                 visible={focusModeVisible}
                 transparent
                 animationType="none"
-                onRequestClose={closeFocusMode}
+                onRequestClose={handleFocusModeRequestClose}
             >
                 <View style={styles.modalRoot}>
                     <Animated.View
                         pointerEvents="box-none"
-                        style={[styles.modalBackdrop, styles.focusBackdrop, focusBackdropStyle]}
+                        style={[styles.modalBackdrop, focusBackdropStyle]}
                     >
+                        <BlurView
+                            blurMethod={Platform.OS === 'android' ? 'dimezisBlurViewSdk31Plus' : undefined}
+                            blurReductionFactor={2}
+                            intensity={8}
+                            pointerEvents="none"
+                            tint={theme.dark ? 'systemUltraThinMaterialDark' : 'systemUltraThinMaterialLight'}
+                            style={styles.modalBackdrop}
+                        />
+                        <View
+                            pointerEvents="none"
+                            style={[styles.modalBackdrop, styles.focusBackdropDim]}
+                        />
                         <Pressable
                             style={styles.modalBackdrop}
-                            onPress={closeFocusMode}
+                            onPress={handleFocusBackdropPress}
                         />
                     </Animated.View>
                     {/* No back affordance here on purpose: tapping the backdrop
@@ -1325,14 +1906,41 @@ export const HomeDock = React.memo(({
 
                     <Animated.View style={[styles.focusDock, keyboardStyle]}>
                         <View style={styles.focusConfig}>
-                            <View style={styles.focusConfigGroup}>
-                                {renderEnvironmentPickers()}
-                            </View>
+                            {sheetVisible && sheetPage ? renderSettingsSheet(sheetPage) : (
+                                <View style={styles.focusConfigGroup}>
+                                    {renderEnvironmentPickers()}
+                                </View>
+                            )}
+                            {/* The sheet is a single surface rather than a row
+                                of controls, so its refusal is the whole sheet. */}
+                            {isSubmitting && sheetVisible && sheetPage && (
+                                <Pressable style={styles.pressBlocker} onPress={refuse} />
+                            )}
                         </View>
                         <View style={[
                             styles.focusComposerArea,
                             { paddingBottom: safeArea.bottom + 8 },
                         ]}>
+                            {/* Absolutely placed in the gap the dock already
+                                leaves, so it appears without moving anything. */}
+                            {startProgressLabel && (
+                                <View pointerEvents="none" style={styles.startProgressRow}>
+                                    <View style={styles.startProgressContent}>
+                                        <StatusDot color={theme.colors.status.connecting} isPulsing size={6} />
+                                        <Text style={styles.startProgressText} numberOfLines={1}>
+                                            {startProgressLabel}
+                                        </Text>
+                                        {primaryAction === 'stop' && (
+                                            <Animated.Text
+                                                style={[styles.startProgressHint, startProgressHintStyle]}
+                                                numberOfLines={1}
+                                            >
+                                                {t('newSession.interruptPressStop')}
+                                            </Animated.Text>
+                                        )}
+                                    </View>
+                                </View>
+                            )}
                             {renderFocusedComposer()}
                         </View>
                     </Animated.View>

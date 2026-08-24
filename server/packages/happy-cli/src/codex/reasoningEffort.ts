@@ -27,9 +27,7 @@ export function resolveCodexReasoningEffort(
     const supported = selected.supportedReasoningEfforts
         .map((candidate) => candidate.reasoningEffort)
         .filter(isReasoningEffort);
-    return supported.includes(DEFAULT_CODEX_REASONING_EFFORT)
-        ? DEFAULT_CODEX_REASONING_EFFORT
-        : supported.at(-1) ?? requestedEffort;
+    return supported.at(-1) ?? requestedEffort;
 }
 
 /**

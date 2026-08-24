@@ -57,6 +57,7 @@
     "offline": "离线",
     "lastSeen": "最后活跃时间 {time}",
     "permissionRequired": "需要权限",
+    "inputRequired": "等待你的回答",
     "activeNow": "当前活跃",
     "unknown": "未知",
     "unread": "新结果"
@@ -211,6 +212,10 @@
     },
     "alwaysShowContextSize": "始终显示上下文大小",
     "alwaysShowContextSizeDescription": "即使未接近限制时也显示上下文使用情况",
+    "showHarnessIconInSessionHeader": "在会话标题中显示 harness 图标",
+    "showHarnessIconInSessionHeaderDescription": "在会话标题中显示 harness 图标",
+    "showHarnessIconsInSessionList": "在会话列表中显示 harness 图标",
+    "showHarnessIconsInSessionListDescription": "在会话列表的头像上显示 harness 图标",
     "avatarStyle": "头像风格",
     "avatarStyleDescription": "选择会话头像外观",
     "avatarOptions": {
@@ -296,12 +301,29 @@
     "failedToRejectRequest": "拒绝好友请求失败",
     "failedToRemoveFriend": "删除好友失败",
     "searchFailed": "搜索失败。请重试。",
-    "failedToSendRequest": "发送好友请求失败"
+    "failedToSendRequest": "发送好友请求失败",
+    "sessionNotFinishedSyncing": "消息未发送：此会话尚未完成同步。请重试。"
   },
   "newSession": {
     "title": "开始新会话",
     "machineOffline": "设备离线",
-    "switchMachinesHint": "• 点击上方的设备来切换设备"
+    "switchMachinesHint": "• 点击上方的设备来切换设备",
+    "workspace": "工作区",
+    "noWorkspace": "无工作区",
+    "newWorkspace": "新建工作区",
+    "happyAgentUnsupported": "此机器无法启动 Happy Agent 会话",
+    "interruptPressStop": "如需中断，请按“停止”"
+  },
+  "agentDefaults": {
+    "customCodexModelTitle": "自定义 Codex 模型",
+    "customCodexModelDescription": "输入准确的模型 ID。可用性取决于您的 Codex 账户或 API 配置。",
+    "modelIdPlaceholder": "模型 ID",
+    "customModel": "自定义模型…",
+    "exactModelId": "输入准确的模型 ID"
+  },
+  "modelMode": {
+    "unavailableSelectedDaemon": "在所选守护进程上不可用",
+    "savedModelUnavailableDaemon": "已保存的模型 · 在此守护进程上不可用"
   },
   "sessionHistory": {
     "title": "会话历史",
@@ -1188,8 +1210,6 @@
       "sortRecentSubtitle": "按最近活动而不是创建时间排列会话",
       "resumeSession": "恢复会话",
       "resumeSessionSubtitle": "通过机器守护进程恢复断开的 Claude Code 和 Codex 会话",
-      "commanderProfilePictures": "Commander 头像",
-      "commanderProfilePicturesSubtitle": "在会话列表中显示 Commander 头像，并在工作进行时显示呼吸效果",
       "voiceInput": "语音输入",
       "voiceInputSubtitle": "配置安全密钥后显示 OpenAI 语音转写控件"
     },
@@ -1208,6 +1228,14 @@
       "invalidFormat": "请选择完整的 PNG、JPEG 或 WebP 图片。",
       "stale": "机器上的头像已更改。请重新打开“功能”页面后再试。",
       "runtimeUnsupported": "请先更新此机器上的 HappyHerd，再替换 Commander 头像。"
+    },
+    "sessionStatusAvatar": {
+      "actionRequired": "需要操作",
+      "unread": "有未读结果",
+      "thinking": "思考中",
+      "waiting": "等待中",
+      "disconnected": "已断开连接",
+      "idle": "空闲"
     },
     "automations": {
       "title": "自动化",

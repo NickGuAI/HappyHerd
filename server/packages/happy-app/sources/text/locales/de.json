@@ -57,6 +57,7 @@
     "offline": "getrennt",
     "lastSeen": "zuletzt gesehen {time}",
     "permissionRequired": "Genehmigung erforderlich",
+    "inputRequired": "Wartet auf deine Antwort",
     "activeNow": "Jetzt aktiv",
     "unknown": "unbekannt",
     "unread": "neue Ergebnisse"
@@ -211,6 +212,10 @@
     },
     "alwaysShowContextSize": "Kontextgröße immer anzeigen",
     "alwaysShowContextSizeDescription": "Kontextnutzung anzeigen, auch wenn sie nicht in der Nähe des Grenzwerts liegt",
+    "showHarnessIconInSessionHeader": "Harness-Symbol in der Sitzungsüberschrift anzeigen",
+    "showHarnessIconInSessionHeaderDescription": "Zeigt das Harness-Symbol in der Sitzungsüberschrift an",
+    "showHarnessIconsInSessionList": "Harness-Symbole in der Sitzungsliste anzeigen",
+    "showHarnessIconsInSessionListDescription": "Zeigt Harness-Symbole auf Avataren in der Sitzungsliste an",
     "avatarStyle": "Avatar-Stil",
     "avatarStyleDescription": "Wählen Sie das Erscheinungsbild des Sitzungs-Avatars",
     "avatarOptions": {
@@ -366,12 +371,29 @@
     "failedToRejectRequest": "Freundschaftsanfrage konnte nicht abgelehnt werden",
     "failedToRemoveFriend": "Freund konnte nicht entfernt werden",
     "searchFailed": "Die Suche ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
-    "failedToSendRequest": "Freundschaftsanfrage konnte nicht gesendet werden"
+    "failedToSendRequest": "Freundschaftsanfrage konnte nicht gesendet werden",
+    "sessionNotFinishedSyncing": "Die Nachricht wurde nicht gesendet: Diese Sitzung ist noch nicht vollständig synchronisiert. Bitte versuchen Sie es erneut."
   },
   "newSession": {
     "title": "Neue Sitzung starten",
     "machineOffline": "Maschine ist offline",
-    "switchMachinesHint": "• Wechseln Sie die Maschine, indem Sie oben auf die Maschine klicken"
+    "switchMachinesHint": "• Wechseln Sie die Maschine, indem Sie oben auf die Maschine klicken",
+    "workspace": "Arbeitsbereich",
+    "noWorkspace": "kein Arbeitsbereich",
+    "newWorkspace": "neuer Arbeitsbereich",
+    "happyAgentUnsupported": "Dieser Rechner kann keine Happy-Agent-Sitzungen starten",
+    "interruptPressStop": "Zum Unterbrechen „Stoppen“ drücken"
+  },
+  "agentDefaults": {
+    "customCodexModelTitle": "Benutzerdefiniertes Codex-Modell",
+    "customCodexModelDescription": "Geben Sie eine exakte Modell-ID ein. Die Verfügbarkeit hängt von Ihrem Codex-Konto oder Ihrer API-Konfiguration ab.",
+    "modelIdPlaceholder": "Modell-ID",
+    "customModel": "Benutzerdefiniertes Modell…",
+    "exactModelId": "Exakte Modell-ID eingeben"
+  },
+  "modelMode": {
+    "unavailableSelectedDaemon": "Auf dem ausgewählten Daemon nicht verfügbar",
+    "savedModelUnavailableDaemon": "Gespeichertes Modell · auf diesem Daemon nicht verfügbar"
   },
   "sessionHistory": {
     "title": "Sitzungsverlauf",
@@ -1188,8 +1210,6 @@
       "sortRecentSubtitle": "Sitzungen nach letzter Aktivität statt Erstellungsdatum sortieren",
       "resumeSession": "Sitzung fortsetzen",
       "resumeSessionSubtitle": "Getrennte Claude Code- und Codex-Sitzungen über den Rechner-Daemon fortsetzen",
-      "commanderProfilePictures": "Commander-Profilbilder",
-      "commanderProfilePicturesSubtitle": "Commander-Bilder in Gesprächslisten anzeigen und bei aktiver Arbeit pulsieren lassen",
       "voiceInput": "Spracheingabe",
       "voiceInputSubtitle": "OpenAI-Transkription anzeigen, wenn ein sicherer Schlüssel eingerichtet ist"
     },
@@ -1208,6 +1228,14 @@
       "invalidFormat": "Wähle ein vollständiges PNG-, JPEG- oder WebP-Bild.",
       "stale": "Das Profilbild wurde auf dem Rechner geändert. Öffne „Funktionen“ erneut und versuche es noch einmal.",
       "runtimeUnsupported": "Aktualisiere HappyHerd auf diesem Rechner, bevor du sein Commander-Profilbild ersetzt."
+    },
+    "sessionStatusAvatar": {
+      "actionRequired": "Aktion erforderlich",
+      "unread": "Ungelesene Ergebnisse",
+      "thinking": "Denkt nach",
+      "waiting": "Wartet",
+      "disconnected": "Getrennt",
+      "idle": "Inaktiv"
     },
     "automations": {
       "title": "Automatisierungen",

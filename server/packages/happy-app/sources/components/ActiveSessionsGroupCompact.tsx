@@ -4,11 +4,10 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { Text } from '@/components/StyledText';
 import { SessionRowData } from '@/sync/storage';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { type SessionState, formatPathRelativeToHome, vibingMessages, formatLastSeen } from '@/utils/sessionUtils';
+import { formatPathRelativeToHome } from '@/utils/sessionUtils';
 import { Avatar } from './Avatar';
 import { Typography } from '@/constants/Typography';
-import { StatusDot } from './StatusDot';
-import { useAllMachines, useSessionGitStatus, useSetting } from '@/sync/storage';
+import { useAllMachines, useSessionGitStatus } from '@/sync/storage';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
@@ -23,15 +22,8 @@ import { useRouter } from 'expo-router';
 import { SessionShortcutHintBadge } from './ShortcutHints';
 import { buildActiveSessionDisplayGroups } from '@/utils/sessionDisplayOrder';
 import { ProviderIcon } from './ProviderIcon';
-import { CommanderSessionAvatar } from './CommanderSessionAvatar';
-import { resolveCompactSessionLeadingIndicatorKind } from '@/utils/compactSessionLeadingIndicator';
-
-const STATUS_CONFIG: Record<SessionState, { color: string; dotColor: string; isPulsing: boolean; isConnected: boolean }> = {
-    disconnected: { color: '#999', dotColor: '#999', isPulsing: false, isConnected: false },
-    thinking: { color: '#007AFF', dotColor: '#007AFF', isPulsing: true, isConnected: true },
-    waiting: { color: '#34C759', dotColor: '#34C759', isPulsing: false, isConnected: true },
-    permission_required: { color: '#FF9500', dotColor: '#FF9500', isPulsing: true, isConnected: true },
-};
+import { RigGitLineChanges } from './RigGitLineChanges';
+import { SessionStatusAvatar } from './SessionStatusAvatar';
 
 interface ActiveSessionsGroupProps {
     sessions: SessionRowData[];
@@ -102,7 +94,7 @@ const SectionHeader = React.memo(({ session, displayPath }: { session: SessionRo
         >
             {/* Avatar — vertically centered */}
             <View style={styles.sectionHeaderAvatar}>
-                <Avatar id={session.avatarId} size={24} flavor={null} />
+                <Avatar id={session.avatarId} size={24} flavor={null} imageUrl={session.projectAvatarUri} thumbhash={session.projectAvatarThumbhash} />
             </View>
 
             {/* Path + branch */}
@@ -223,16 +215,10 @@ export function ActiveSessionsGroupCompact({ sessions, selectedSessionId }: Acti
     );
 }
 
-// Compact session row with status dot indicator
+// Compact session row with the same status-avatar contract as the flat inbox.
 export const CompactSessionRow = React.memo(({ session, selected, showBorder }: { session: SessionRowData; selected?: boolean; showBorder?: boolean }) => {
     const styles = stylesheet;
-    const { theme } = useUnistyles();
-    const baseStatus = STATUS_CONFIG[session.state];
-    const commanderProfilePictures = useSetting('commanderProfilePictures');
-    // Override to solid blue when session has unread results
-    const status = session.hasUnread
-        ? { ...baseStatus, color: '#007AFF', dotColor: '#007AFF', isPulsing: false, isConnected: baseStatus.isConnected }
-        : baseStatus;
+    const connected = !session.machineOffline && session.state !== 'disconnected';
     const navigateToSession = useNavigateToSession();
     const swipeableRef = React.useRef<Swipeable | null>(null);
     const swipeEnabled = Platform.OS !== 'web';
@@ -272,42 +258,23 @@ export const CompactSessionRow = React.memo(({ session, selected, showBorder }: 
     };
 
     const renderLeadingIndicator = () => {
-        let indicator: React.ReactNode = null;
-        const kind = resolveCompactSessionLeadingIndicatorKind({
-            commanderId: session.commanderId,
-            commanderProfilePictures,
-            hasDraft: session.hasDraft,
-            hasUnread: session.hasUnread,
-            state: session.state,
-        });
-
-        if (kind === 'commander-avatar' && session.commanderId) {
-            indicator = (
-                <CommanderSessionAvatar
-                    machineId={session.machineId}
-                    commanderId={session.commanderId}
-                    isPulsing={baseStatus.isPulsing}
-                />
-            );
-        } else if (kind === 'unread') {
-            indicator = <StatusDot color={status.dotColor} isPulsing={false} />;
-        } else if (kind === 'draft') {
-            indicator = (
-                <Ionicons
-                    name="create-outline"
-                    size={14}
-                    color={theme.colors.textSecondary}
-                />
-            );
-        } else if (kind === 'activity') {
-            indicator = <StatusDot color={status.dotColor} isPulsing={status.isPulsing} />;
-        } else if (kind === 'waiting') {
-            indicator = <StatusDot color={theme.colors.textSecondary} isPulsing={false} />;
-        }
-
         return (
             <View style={styles.leadingIndicatorSlot}>
-                {indicator}
+                <SessionStatusAvatar
+                    active={session.active}
+                    clientId={session.clientId}
+                    commanderId={session.commanderId}
+                    commanderName={session.commanderName}
+                    flavor={session.flavor}
+                    hasDraft={session.hasDraft}
+                    hasUnread={session.hasUnread}
+                    machineId={session.machineId}
+                    machineOffline={session.machineOffline}
+                    providerKind={session.providerKind}
+                    providerLabel={session.identityLine}
+                    size={28}
+                    state={session.state}
+                />
             </View>
         );
     };
@@ -329,7 +296,7 @@ export const CompactSessionRow = React.memo(({ session, selected, showBorder }: 
                     <Text
                         style={[
                             styles.sessionTitle,
-                            status.isConnected ? styles.sessionTitleConnected : styles.sessionTitleDisconnected
+                            connected ? styles.sessionTitleConnected : styles.sessionTitleDisconnected
                         ]}
                         numberOfLines={2}
                     >
@@ -340,12 +307,24 @@ export const CompactSessionRow = React.memo(({ session, selected, showBorder }: 
                         style={styles.sessionShortcutBadge}
                     />
                 </View>
-                {session.identityLine && (
+                {(session.identityLine || session.gitChangedFiles !== null) && (
                     <View style={styles.sessionIdentityRow}>
-                        <ProviderIcon kind={session.providerKind} size={11} />
-                        <Text style={styles.sessionIdentity} numberOfLines={1}>
-                            {session.identityLine}{session.modelName ? ` · ${session.modelName}` : ''}{session.activitySummary ? ` · ${session.activitySummary}` : ''}
-                        </Text>
+                        {session.identityLine && (
+                            <>
+                                <ProviderIcon kind={session.providerKind} size={11} />
+                                <Text style={styles.sessionIdentity} numberOfLines={1}>
+                                    {session.identityLine}{session.modelName ? ` · ${session.modelName}` : ''}{session.activitySummary ? ` · ${session.activitySummary}` : ''}
+                                </Text>
+                            </>
+                        )}
+                        {session.gitChangedFiles !== null && (
+                            <RigGitLineChanges
+                                changedFiles={session.gitChangedFiles}
+                                countsExact={session.gitCountsExact}
+                                deletions={session.gitDeletions ?? 0}
+                                insertions={session.gitInsertions ?? 0}
+                            />
+                        )}
                     </View>
                 )}
             </View>
@@ -534,10 +513,12 @@ const stylesheet = StyleSheet.create((theme) => ({
         fontSize: 11,
         color: theme.colors.textSecondary,
         ...Typography.default('regular'),
+        flex: 1,
+        minWidth: 0,
         flexShrink: 1,
     },
     sessionIdentityRow: {
-        marginLeft: 24,
+        marginLeft: 36,
         marginTop: 2,
         flexDirection: 'row',
         alignItems: 'center',
@@ -546,8 +527,8 @@ const stylesheet = StyleSheet.create((theme) => ({
     leadingIndicatorSlot: {
         alignItems: 'center',
         justifyContent: 'center',
-        width: 16,
-        height: 16,
+        width: 28,
+        height: 28,
         marginRight: 8,
     },
     swipeAction: {

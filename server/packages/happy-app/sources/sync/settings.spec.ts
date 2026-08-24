@@ -195,12 +195,13 @@ describe('settings', () => {
                 agentInputEnterToSend: true,
                 avatarStyle: 'brutalist',
                 showFlavorIcons: false,
+                showHarnessIconInSessionHeader: true,
                 userMessageBubbleColor: 'gray',
                 sessionStatusBarDisplay: 'hidden',
                 usageLimitShowRemaining: false,
                 hideInactiveSessions: false,
-                sortSessionsByActivity: false,
-                expResumeSession: false,
+                sortSessionsByActivity: true,
+                expResumeSession: true,
                 fileDiffsSidebar: false,
                 groupToolCalls: false,
                 compactToolCalls: true,
@@ -221,6 +222,13 @@ describe('settings', () => {
                 lastUsedModelMode: null,
                 agentDefaultOverrides: {},
                 dismissedCLIWarnings: { perMachine: {}, global: {} },
+            });
+        });
+
+        it('keeps the legacy list setting while defaulting the header setting on', () => {
+            expect(settingsParse({ showFlavorIcons: true })).toMatchObject({
+                showFlavorIcons: true,
+                showHarnessIconInSessionHeader: true,
             });
         });
 

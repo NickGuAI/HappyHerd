@@ -1,6 +1,6 @@
 {
   "name": "happy",
-  "version": "1.2.1-beta.1",
+  "version": "1.2.1-beta.2",
   "description": "Mobile and Web client for Claude Code and Codex",
   "author": "Kirill Dubovitskiy",
   "license": "MIT",
@@ -100,6 +100,7 @@
     "@noble/ed25519": "^3.0.0",
     "@noble/hashes": "^2.0.1",
     "@paralleldrive/cuid2": "^2.2.2",
+    "@slopus/happy-terminal": "^0.3.3",
     "@stablelib/base64": "^2.0.1",
     "@stablelib/hex": "^2.0.1",
     "@types/cross-spawn": "^6.0.6",

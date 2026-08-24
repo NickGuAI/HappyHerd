@@ -4,7 +4,7 @@ import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 import { Modal } from '@/modal';
 import { machineResumeSession, sessionArchive, sessionKill, sessionSetAgentModes, forkAndSpawn, type ForkSource } from '@/sync/ops';
 import { maybeCleanupWorktree } from '@/hooks/useWorktreeCleanup';
-import { storage, useLocalSetting, useMachine } from '@/sync/storage';
+import { storage, useLocalSetting, useMachine, useSetting } from '@/sync/storage';
 import { Session } from '@/sync/storageTypes';
 import { sync } from '@/sync/sync';
 import { resolveMessageModeMeta } from '@/sync/messageMeta';
@@ -49,17 +49,26 @@ export function useSessionQuickActions(
     const machineId = session.metadata?.machineId ?? '';
     const machine = useMachine(machineId);
     const devModeEnabled = useLocalSetting('devModeEnabled');
+    const continuationExperimentsEnabled = useSetting('expResumeSession');
     const resumeAvailability = React.useMemo(
         () => {
             const availability = getResumeAvailability(session, machine, sessionStatus.isConnected);
+            // Older daemons do not publish resumeSupport and do not implement
+            // the RPC. Keep resume capability-driven instead of showing an
+            // action that can only fail.
+            if (availability.canResume && machine?.metadata?.resumeSupport?.rpcAvailable !== true) {
+                return { ...availability, canResume: false, canShowResume: false, subtitle: '', message: '' };
+            }
             const message = availability.messageKey ? t(availability.messageKey) : '';
             return { ...availability, subtitle: message, message };
         },
         [machine, session, sessionStatus.isConnected],
     );
 
-    // Fork eligibility is separate from resume because fork works on both
-    // active and inactive provider sessions.
+    // Fork eligibility — separate from resume because fork works on both
+    // active AND inactive provider sessions. Fork/duplicate still use the
+    // legacy rollout flag because resumeSupport does not prove that the daemon
+    // implements the newer fork RPC.
     const forkSource = React.useMemo(() => getSessionForkSource(session), [
         session.id,
         session.metadata?.flavor,
@@ -69,10 +78,11 @@ export function useSessionQuickActions(
         session.metadata?.codexThreadId,
     ]);
     const canFork = Boolean(
-        !isRigMetadata(session.metadata)
+        continuationExperimentsEnabled
+        && !isRigMetadata(session.metadata)
         && forkSource
         && machine
-        && isMachineOnline(machine),
+        && isMachineOnline(machine)
     );
 
     const openDetails = React.useCallback(() => {
