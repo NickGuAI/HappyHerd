@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { SessionListViewItem, SessionRowData } from '@/sync/storage';
 import {
     buildActiveSessionDisplayGroups,
+    buildExactDaemonDisplayIdentities,
     buildSessionProjectDisplayGroups,
     getSessionShortcutIdsInDisplayOrder,
 } from './sessionDisplayOrder';
@@ -30,10 +31,13 @@ function session(
         state: 'waiting',
         createdAt,
         lastActivityAt: createdAt,
+        updateSequence: 0,
         hasDraft: false,
         active: true,
         archived: false,
         machineId,
+        daemonLabel: machineId,
+        daemonShortId: machineId.slice(0, 8),
         commanderId: null,
         commanderName: null,
         machineOffline: false,
@@ -55,6 +59,30 @@ const machines = [
 ];
 
 describe('session display order', () => {
+    it('keeps the exact daemon label and extends colliding short IDs until unique', () => {
+        const identities = buildExactDaemonDisplayIdentities([
+            'daemon-123456-alpha',
+            'daemon-123456-beta',
+            'orphan-9',
+        ], [
+            { id: 'daemon-123456-alpha', metadata: { displayName: 'Mac mini' } },
+            { id: 'daemon-123456-beta', metadata: { host: 'athena.internal' } },
+        ]);
+
+        expect(identities.get('daemon-123456-alpha')).toEqual({
+            label: 'Mac mini',
+            shortId: 'daemon-123456-a',
+        });
+        expect(identities.get('daemon-123456-beta')).toEqual({
+            label: 'athena.internal',
+            shortId: 'daemon-123456-b',
+        });
+        expect(identities.get('orphan-9')).toEqual({
+            label: 'orphan-9',
+            shortId: 'orphan-9',
+        });
+    });
+
     it('matches the sidebar machine, project, and session ordering', () => {
         const groups = buildActiveSessionDisplayGroups([
             session('zulu', 'machine-z', '/project-b'),
@@ -72,8 +100,8 @@ describe('session display order', () => {
 
     it('numbers the first nine session rows from top to bottom', () => {
         const activeSessions = [
-            session('zulu', 'machine-z', '/project'),
-            session('alpha', 'machine-a', '/project'),
+            session('zulu-recent', 'machine-z', '/project', 20),
+            session('alpha-old', 'machine-a', '/project', 10),
         ];
         const inactiveSessions = Array.from({ length: 9 }, (_, index) => ({
             type: 'session' as const,
@@ -85,8 +113,8 @@ describe('session display order', () => {
         ];
 
         expect(getSessionShortcutIdsInDisplayOrder(data, machines, 'Unknown')).toEqual([
-            'alpha',
-            'zulu',
+            'zulu-recent',
+            'alpha-old',
             'inactive-0',
             'inactive-1',
             'inactive-2',

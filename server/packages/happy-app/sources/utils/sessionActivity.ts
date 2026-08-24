@@ -16,3 +16,14 @@ export function getSessionActivityAt(session: Session): number {
         ?? session.lastMessageSentAt
         ?? session.createdAt;
 }
+
+/**
+ * Stable ordering for session data before it is projected into display rows.
+ * `seq` is the persisted server update sequence and therefore gives every
+ * client the same answer when two activity timestamps are equal.
+ */
+export function compareSessionsByActivity(a: Session, b: Session): number {
+    return getSessionActivityAt(b) - getSessionActivityAt(a)
+        || b.seq - a.seq
+        || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+}

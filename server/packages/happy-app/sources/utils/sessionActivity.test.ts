@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getSessionActivityAt } from './sessionActivity';
+import { compareSessionsByActivity, getSessionActivityAt } from './sessionActivity';
 import type { Session } from '@/sync/storageTypes';
 
 function session(overrides: Partial<Session> = {}): Session {
@@ -51,5 +51,26 @@ describe('getSessionActivityAt', () => {
             lastMessageSentAt: 800,
         }));
         expect(value).toBe(200);
+    });
+});
+
+describe('compareSessionsByActivity', () => {
+    it('orders by real activity before connectivity or background updatedAt', () => {
+        const rows = [
+            session({ id: 'connected-old', active: true, updatedAt: 999, lastMessageSentAt: 200 }),
+            session({ id: 'disconnected-new', active: false, updatedAt: 1, lastMessageSentAt: 300 }),
+        ].sort(compareSessionsByActivity);
+
+        expect(rows.map((item) => item.id)).toEqual(['disconnected-new', 'connected-old']);
+    });
+
+    it('uses persisted update sequence and exact id as deterministic ties', () => {
+        const rows = [
+            session({ id: 'z', seq: 8, lastMessageSentAt: 300 }),
+            session({ id: 'a', seq: 8, lastMessageSentAt: 300 }),
+            session({ id: 'new-update', seq: 9, lastMessageSentAt: 300 }),
+        ].sort(compareSessionsByActivity);
+
+        expect(rows.map((item) => item.id)).toEqual(['new-update', 'a', 'z']);
     });
 });

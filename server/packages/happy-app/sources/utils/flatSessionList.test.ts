@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildFlatSessionRows } from './flatSessionList';
+import { buildFlatSessionRows, sessionMatchesFlatListSearch } from './flatSessionList';
 import type { SessionListViewItem, SessionRowData } from '@/sync/storage';
 
 function row(overrides: Partial<SessionRowData> & { id: string }): SessionRowData {
@@ -20,10 +20,13 @@ function row(overrides: Partial<SessionRowData> & { id: string }): SessionRowDat
         state: 'waiting',
         createdAt: 0,
         lastActivityAt: 0,
+        updateSequence: 0,
         hasDraft: false,
         active: true,
         archived: false,
         machineId: 'machine',
+        daemonLabel: 'Machine',
+        daemonShortId: 'machine',
         commanderId: null,
         commanderName: null,
         machineOffline: false,
@@ -65,7 +68,7 @@ describe('buildFlatSessionRows', () => {
                 { id: '', name: null, sessions: [row({ id: 'primary' })] },
                 { id: '/wt/innsbruck', name: 'innsbruck', sessions: [row({ id: 'worktree' })] },
             ]),
-        ], { sortByActivity: true });
+        ]);
 
         expect(rows.map((r) => [r.session.id, r.projectName, r.workspaceName])).toEqual([
             ['primary', 'happy', null],
@@ -73,15 +76,29 @@ describe('buildFlatSessionRows', () => {
         ]);
     });
 
+    it('renders a compatibility Active row only once and keeps project identity', () => {
+        const duplicate = row({ id: 'same-session', path: '/fallback/path' });
+        const rows = buildFlatSessionRows([
+            { type: 'active-sessions', sessions: [duplicate] },
+            project('native-project', [{ id: 'native-worktree', name: 'feature', sessions: [duplicate] }]),
+        ]);
+
+        expect(rows).toHaveLength(1);
+        expect(rows[0]).toMatchObject({
+            projectName: 'native-project',
+            workspaceName: 'feature',
+        });
+    });
+
     it('falls back to the worktree path when the group has no name', () => {
         const rows = buildFlatSessionRows([
             project('happy', [{ id: '/wt/innsbruck', name: null, sessions: [row({ id: 'a' })] }]),
-        ], { sortByActivity: true });
+        ]);
 
         expect(rows[0].workspaceName).toBe('/wt/innsbruck');
     });
 
-    it('restores global recency across projects, active sessions first', () => {
+    it('restores global recency across projects without a connectivity partition', () => {
         const rows = buildFlatSessionRows([
             project('alpha', [{
                 id: '',
@@ -99,29 +116,34 @@ describe('buildFlatSessionRows', () => {
                     row({ id: 'beta-dead', lastActivityAt: 400, active: false }),
                 ],
             }]),
-        ], { sortByActivity: true });
+        ]);
 
         expect(rows.map((r) => r.session.id)).toEqual([
+            'beta-dead',
             'alpha-new',
             'beta-mid',
             'alpha-old',
-            'beta-dead',
         ]);
     });
 
-    it('sorts on creation date when activity sorting is off', () => {
+    it('breaks activity ties by update sequence and then stable session id', () => {
         const rows = buildFlatSessionRows([
             project('alpha', [{
                 id: '',
                 name: null,
                 sessions: [
-                    row({ id: 'older-but-active-recently', createdAt: 1, lastActivityAt: 900 }),
-                    row({ id: 'newer', createdAt: 5, lastActivityAt: 5 }),
+                    row({ id: 'z-stable', lastActivityAt: 900, updateSequence: 4 }),
+                    row({ id: 'a-stable', lastActivityAt: 900, updateSequence: 4 }),
+                    row({ id: 'newer-update', lastActivityAt: 900, updateSequence: 5 }),
                 ],
             }]),
-        ], { sortByActivity: false });
+        ]);
 
-        expect(rows.map((r) => r.session.id)).toEqual(['newer', 'older-but-active-recently']);
+        expect(rows.map((r) => r.session.id)).toEqual([
+            'newer-update',
+            'a-stable',
+            'z-stable',
+        ]);
     });
 
     it('ignores archived rows and headings, which stay a separate tail', () => {
@@ -130,8 +152,36 @@ describe('buildFlatSessionRows', () => {
             { type: 'session', session: row({ id: 'archived', archived: true }) },
             { type: 'projects-header', source: 'happy' },
             project('alpha', [{ id: '', name: null, sessions: [row({ id: 'live' })] }]),
-        ], { sortByActivity: true });
+        ]);
 
         expect(rows.map((r) => r.session.id)).toEqual(['live']);
+    });
+});
+
+describe('sessionMatchesFlatListSearch', () => {
+    const searchable = row({
+        id: 'session-id',
+        name: 'Planning',
+        subtitle: 'Waiting on Nick',
+        path: '/srv/HappyHerd',
+        machineId: 'daemon-a1b2c3d4',
+        flavor: 'codex',
+        projectName: 'Not searchable project',
+        workspaceName: 'not-searchable-worktree',
+    });
+
+    it.each([
+        'planning',
+        'waiting on',
+        '/srv/happyherd',
+        'a1b2c3',
+        'codex',
+    ])('matches the retained search field %s', (query) => {
+        expect(sessionMatchesFlatListSearch(searchable, query)).toBe(true);
+    });
+
+    it('does not expand search into project or worktree filters', () => {
+        expect(sessionMatchesFlatListSearch(searchable, 'not searchable')).toBe(false);
+        expect(sessionMatchesFlatListSearch(searchable, 'not-searchable')).toBe(false);
     });
 });

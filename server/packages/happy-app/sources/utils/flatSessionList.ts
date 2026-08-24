@@ -14,6 +14,38 @@ export interface FlatSessionRowData {
 }
 
 /**
+ * The five fields the existing Home search owns. Project/worktree labels are
+ * deliberately absent: D4 keeps search as a small free-text affordance rather
+ * than turning the flat inbox into a second filtering product.
+ */
+export function sessionMatchesFlatListSearch(
+    session: SessionRowData,
+    normalizedQuery: string,
+): boolean {
+    return [
+        session.name,
+        session.subtitle,
+        session.path,
+        session.machineId,
+        session.flavor,
+    ].some((value) => value?.toLocaleLowerCase().includes(normalizedQuery));
+}
+
+/**
+ * Deterministic inbox order: visible user activity first, then the server's
+ * monotonically increasing session update sequence, then the stable session
+ * identifier. Connectivity is presentation state, not a competing sort mode.
+ */
+export function compareFlatSessionRows(
+    a: FlatSessionRowData,
+    b: FlatSessionRowData,
+): number {
+    return b.session.lastActivityAt - a.session.lastActivityAt
+        || b.session.updateSequence - a.session.updateSequence
+        || (a.session.id < b.session.id ? -1 : a.session.id > b.session.id ? 1 : 0);
+}
+
+/**
  * Flattens the project cards into one chronological list.
  *
  * Grouping by project is what loses the global ordering: sessions are sorted
@@ -26,21 +58,26 @@ export interface FlatSessionRowData {
  */
 export function buildFlatSessionRows(
     items: readonly SessionListViewItem[],
-    options: { sortByActivity: boolean },
 ): FlatSessionRowData[] {
-    const rows: FlatSessionRowData[] = [];
+    const rowsBySessionId = new Map<string, FlatSessionRowData>();
 
     for (const item of items) {
         if (item.type === 'active-sessions') {
             for (const session of item.sessions) {
-                rows.push(toFlatSessionRow(session));
+                if (!rowsBySessionId.has(session.id)) {
+                    rowsBySessionId.set(session.id, toFlatSessionRow(session));
+                }
             }
             continue;
         }
         if (item.type !== 'project') continue;
         for (const workspace of item.project.workspaces) {
             for (const session of workspace.sessions) {
-                rows.push({
+                // A compatibility payload can still contain the former
+                // compact Active block as well as its project row. The
+                // project projection wins because it carries native project
+                // and worktree labels, but the session renders only once.
+                rowsBySessionId.set(session.id, {
                     session,
                     projectName: item.project.name,
                     workspaceName: workspace.name ?? (workspace.id || null),
@@ -49,14 +86,7 @@ export function buildFlatSessionRows(
         }
     }
 
-    const sortKey = options.sortByActivity
-        ? (row: FlatSessionRowData) => row.session.lastActivityAt
-        : (row: FlatSessionRowData) => row.session.createdAt;
-
-    return rows.sort((a, b) => {
-        const activeDelta = Number(b.session.active) - Number(a.session.active);
-        return activeDelta !== 0 ? activeDelta : sortKey(b) - sortKey(a);
-    });
+    return Array.from(rowsBySessionId.values()).sort(compareFlatSessionRows);
 }
 
 /**

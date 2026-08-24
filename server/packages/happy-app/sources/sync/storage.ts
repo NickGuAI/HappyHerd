@@ -17,7 +17,11 @@ import { NormalizedMessage } from "./typesRaw";
 import { isMachineOnline } from '@/utils/machineUtils';
 import { getSessionName, getSessionSubtitle, getSessionAvatarId } from '@/utils/sessionUtils';
 import { resolveSessionState, type SessionState } from './sessionState';
-import { getSessionActivityAt } from '@/utils/sessionActivity';
+import { compareSessionsByActivity, getSessionActivityAt } from '@/utils/sessionActivity';
+import {
+    buildExactDaemonDisplayIdentities,
+    type ExactDaemonDisplayIdentity,
+} from '@/utils/sessionDisplayOrder';
 import { applySettings, Settings } from "./settings";
 import { LocalSettings, applyLocalSettings } from "./localSettings";
 import { Purchases, customerInfoToPurchases } from "./purchases";
@@ -132,12 +136,20 @@ export interface SessionRowData {
     // Last meaningful message, falling back to this device's sent-message
     // record and then creation — see getSessionActivityAt. Grouping the list by
     // project loses the global ordering the sessions were sorted into, so the
-    // flat list re-sorts on these two keys instead.
+    // flat list re-sorts on activity plus the deterministic keys below.
     lastActivityAt: number;
+    // Persisted server update sequence. This is the deterministic second sort
+    // key when two sessions report the same meaningful-activity timestamp.
+    updateSequence: number;
     hasDraft: boolean;
     active: boolean;
     archived: boolean;
     machineId: string | null;
+    // Display identity of the exact daemon registration named by machineId.
+    // These fields never resolve through another registration with the same
+    // host or path.
+    daemonLabel: string | null;
+    daemonShortId: string | null;
     commanderId: string | null;
     commanderName: string | null;
     // True only when the machine this session runs on is known to be offline.
@@ -167,6 +179,7 @@ function buildSessionRowData(
     unreadSessionIds?: Set<string>,
     machines?: Record<string, Machine>,
     projects: Record<string, Project> = {},
+    daemonIdentities: ReadonlyMap<string, ExactDaemonDisplayIdentity> = new Map(),
 ): SessionRowData {
     const isOnline = session.presence === "online";
     const state = resolveSessionState({
@@ -180,6 +193,7 @@ function buildSessionRowData(
     const rigGit = getRigGitSummary(session.metadata);
     const machineId = session.metadata?.machineId ?? null;
     const machine = machineId ? machines?.[machineId] : undefined;
+    const daemonIdentity = machineId ? daemonIdentities.get(machineId) : undefined;
     const projectId = getSessionProjectId(session);
     const linkedProject = projectId ? projects[projectId] : undefined;
     const metadataProject = session.metadata?.project;
@@ -204,11 +218,14 @@ function buildSessionRowData(
         state,
         createdAt: session.createdAt,
         lastActivityAt: getSessionActivityAt(session),
+        updateSequence: session.seq,
         ...(!session.active && { activeAt: session.activeAt }),
         hasDraft: !!session.draft,
         active: session.active,
         archived: isSessionArchived(session),
         machineId,
+        daemonLabel: daemonIdentity?.label ?? (machineId || null),
+        daemonShortId: daemonIdentity?.shortId ?? (machineId || null),
         commanderId: session.metadata?.commanderId ?? null,
         commanderName: session.metadata?.commanderName ?? null,
         machineOffline: machine ? !isMachineOnline(machine) : false,
@@ -371,17 +388,27 @@ function buildSessionListViewData(
     // bumps on every background agent update, which would make the list jump while
     // several sessions stream at once.
     const sortKey = getSessionActivityAt;
-    const sortProjectSessions = (items: Session[]) => items.sort((a, b) => {
-        const activeDelta = Number(isSessionActive(b)) - Number(isSessionActive(a));
-        return activeDelta !== 0 ? activeDelta : sortKey(b) - sortKey(a);
-    });
+    const sortProjectSessions = (items: Session[]) => items.sort(compareSessionsByActivity);
     sortProjectSessions(rigProjectSessions);
     sortProjectSessions(rigPathSessions);
     sortProjectSessions(happySessions);
-    archivedSessions.sort((a, b) => sortKey(b) - sortKey(a));
+    archivedSessions.sort(compareSessionsByActivity);
 
     const listData: SessionListViewItem[] = [];
-    const toRow = (session: Session) => buildSessionRowData(session, unreadSessionIds, machines, projects);
+    const referencedMachineIds = Object.values(sessions)
+        .map((session) => session.metadata?.machineId)
+        .filter((machineId): machineId is string => !!machineId);
+    const daemonIdentities = buildExactDaemonDisplayIdentities(
+        [...Object.keys(machines), ...referencedMachineIds],
+        Object.values(machines),
+    );
+    const toRow = (session: Session) => buildSessionRowData(
+        session,
+        unreadSessionIds,
+        machines,
+        projects,
+        daemonIdentities,
+    );
 
     const rigProjects = [
         ...buildProjectGroups(rigProjectSessions, toRow, isSessionActive),
