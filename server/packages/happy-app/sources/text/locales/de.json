@@ -1210,8 +1210,6 @@
       "sortRecentSubtitle": "Sitzungen nach letzter Aktivität statt Erstellungsdatum sortieren",
       "resumeSession": "Sitzung fortsetzen",
       "resumeSessionSubtitle": "Getrennte Claude Code- und Codex-Sitzungen über den Rechner-Daemon fortsetzen",
-      "commanderProfilePictures": "Commander-Profilbilder",
-      "commanderProfilePicturesSubtitle": "Commander-Bilder in Gesprächslisten anzeigen und bei aktiver Arbeit pulsieren lassen",
       "voiceInput": "Spracheingabe",
       "voiceInputSubtitle": "OpenAI-Transkription anzeigen, wenn ein sicherer Schlüssel eingerichtet ist"
     },
@@ -1230,6 +1228,14 @@
       "invalidFormat": "Wähle ein vollständiges PNG-, JPEG- oder WebP-Bild.",
       "stale": "Das Profilbild wurde auf dem Rechner geändert. Öffne „Funktionen“ erneut und versuche es noch einmal.",
       "runtimeUnsupported": "Aktualisiere HappyHerd auf diesem Rechner, bevor du sein Commander-Profilbild ersetzt."
+    },
+    "sessionStatusAvatar": {
+      "actionRequired": "Aktion erforderlich",
+      "unread": "Ungelesene Ergebnisse",
+      "thinking": "Denkt nach",
+      "waiting": "Wartet",
+      "disconnected": "Getrennt",
+      "idle": "Inaktiv"
     },
     "automations": {
       "title": "Automatisierungen",

@@ -5,8 +5,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
-import { Avatar } from './Avatar';
-import { StatusDot } from './StatusDot';
 import { SessionActionsAnchor, SessionActionsPopover } from './SessionActionsPopover';
 import { SessionShortcutHintBadge } from './ShortcutHints';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
@@ -19,17 +17,15 @@ import { formatSessionListTimestamp } from '@/utils/sessionListTimestamp';
 import type { Theme } from '@/theme';
 import { t } from '@/text';
 import { RigGitLineChanges } from './RigGitLineChanges';
-import { ShimmerText } from './ShimmerText';
-import { resolveFlatSessionRowPresentation } from '@/utils/flatSessionRowPresentation';
+import { SessionStatusAvatar } from './SessionStatusAvatar';
 
 // Roughly three quarters of the row, the proportion a chat list uses: the row
 // is 10 + 61 + 10, so 60 leaves an even 10 either side of the avatar.
 const AVATAR_SIZE = 60;
 const ROW_PADDING_LEFT = 16;
 const AVATAR_GAP = 12;
-const TOP_RIGHT_DOT_SIZE = 20;
 const TOP_RIGHT_SLOT_WIDTH = 56;
-const UNREAD_DOT_CLEAR_GRACE_MS = 350;
+const UNREAD_RING_CLEAR_GRACE_MS = 350;
 
 /**
  * The single colour the flat list paints, rows and page alike, so nothing reads
@@ -47,11 +43,11 @@ export function flatListBackgroundColor(theme: Theme): string {
  * with a hairline under it, so the list reads as one continuous column rather
  * than a stack of project cards.
  */
-export const FlatSessionRow = React.memo(({ row, selected, showBorder, archived }: {
+export const FlatSessionRow = React.memo(({ row, selected, showBorder }: {
     row: FlatSessionRowData;
     selected?: boolean;
     showBorder?: boolean;
-    /** Retired work: the same row, faded back and drained of avatar colour. */
+    /** Archive uses the same deterministic row presentation as Home. */
     archived?: boolean;
 }) => {
     const { session, projectName, workspaceName } = row;
@@ -65,38 +61,23 @@ export const FlatSessionRow = React.memo(({ row, selected, showBorder, archived 
     // Greying out is about the machine, not the session's own socket. A session
     // idle since yesterday on a machine that is still up is ordinary work you
     // can pick back up, and drawing it as dead makes a healthy list look like a
-    // graveyard. Only retired work, or work whose machine is actually gone,
-    // fades.
-    const faded = !!archived || session.machineOffline;
+    // graveyard. Only a disconnected session or dead owning daemon fades.
+    const faded = session.machineOffline || session.state === 'disconnected';
 
     // SessionView clears the real unread state as soon as the destination
-    // mounts. Keep only the row's visual badge around long enough for the
-    // navigation transition to cover it, instead of briefly exposing the
-    // timestamp underneath. Read semantics remain immediate.
-    const [showUnreadDot, setShowUnreadDot] = React.useState(session.hasUnread);
+    // mounts. Keep only the row's unread ring around long enough for the
+    // navigation transition to cover it. Read semantics remain immediate.
+    const [showUnreadRing, setShowUnreadRing] = React.useState(session.hasUnread);
     React.useEffect(() => {
         if (session.hasUnread) {
-            setShowUnreadDot(true);
+            setShowUnreadRing(true);
             return;
         }
-        if (!showUnreadDot) return;
+        if (!showUnreadRing) return;
 
-        const timeout = setTimeout(() => setShowUnreadDot(false), UNREAD_DOT_CLEAR_GRACE_MS);
+        const timeout = setTimeout(() => setShowUnreadRing(false), UNREAD_RING_CLEAR_GRACE_MS);
         return () => clearTimeout(timeout);
-    }, [session.hasUnread, showUnreadDot]);
-
-    const presentation = resolveFlatSessionRowPresentation({
-        state: session.state,
-        hasUnread: showUnreadDot,
-        faded,
-    });
-    const topRightAccessibilityLabel = presentation.topRight.type === 'dot'
-        ? session.state === 'input_required'
-            ? t('status.inputRequired')
-            : session.state === 'permission_required'
-                ? t('status.permissionRequired')
-                : t('status.unread')
-        : undefined;
+    }, [session.hasUnread, showUnreadRing]);
 
     // The same `lastActivityAt` the flat list sorts on, so the stamps run in
     // the order the rows do.
@@ -144,64 +125,69 @@ export const FlatSessionRow = React.memo(({ row, selected, showBorder, archived 
             onPress={handlePress}
             {...menuProps}
         >
-            <View style={[styles.avatar, faded && styles.avatarFaded]}>
-                <Avatar
-                    id={session.avatarId}
-                    size={AVATAR_SIZE}
-                    monochrome={faded}
-                    flavor={session.flavor}
+            <View style={styles.avatar}>
+                <SessionStatusAvatar
+                    active={session.active}
                     clientId={session.clientId}
-                    imageUrl={session.projectAvatarUri}
-                    thumbhash={session.projectAvatarThumbhash}
-                    badgeLocation="sessionList"
+                    commanderId={session.commanderId}
+                    commanderName={session.commanderName}
+                    flavor={session.flavor}
+                    hasDraft={session.hasDraft}
+                    hasUnread={showUnreadRing}
+                    machineId={session.machineId}
+                    machineOffline={session.machineOffline}
+                    providerKind={session.providerKind}
+                    providerLabel={session.identityLine}
+                    size={AVATAR_SIZE}
+                    state={session.state}
                 />
             </View>
 
             <View style={[styles.content, faded && styles.contentFaded]}>
                 <View style={styles.titleRow}>
                     <View style={styles.titleContainer}>
-                        {presentation.shimmerTitle ? (
-                            <ShimmerText
-                                text={session.name}
-                                style={styles.title}
-                                baseColor={theme.colors.textSecondary}
-                                highlightColor={theme.colors.text}
-                            />
-                        ) : (
-                            <Text
-                                style={[
-                                    styles.title,
-                                    faded ? styles.titleDisconnected : styles.titleConnected,
-                                ]}
-                                numberOfLines={1}
-                            >
-                                {session.name}
-                            </Text>
-                        )}
+                        <Text
+                            style={[
+                                styles.title,
+                                faded ? styles.titleDisconnected : styles.titleConnected,
+                            ]}
+                            numberOfLines={1}
+                        >
+                            {session.name}
+                        </Text>
                     </View>
                     <SessionShortcutHintBadge sessionId={session.id} style={styles.shortcutBadge} />
-                    <View
-                        style={styles.topRightStatus}
-                        accessible={topRightAccessibilityLabel !== undefined}
-                        accessibilityRole={topRightAccessibilityLabel ? 'text' : undefined}
-                        accessibilityLabel={topRightAccessibilityLabel}
-                    >
-                        {presentation.topRight.type === 'dot' ? (
-                            <StatusDot
-                                color={presentation.topRight.color}
-                                size={TOP_RIGHT_DOT_SIZE}
-                            />
-                        ) : (
-                            <Text style={styles.timestamp} numberOfLines={1}>
-                                {timestamp}
-                            </Text>
-                        )}
+                    <View style={styles.topRightStatus}>
+                        <Text style={styles.timestamp} numberOfLines={1}>
+                            {timestamp}
+                        </Text>
                     </View>
                 </View>
 
-                <Text style={styles.project} numberOfLines={1}>
-                    {projectName}
-                </Text>
+                <View style={styles.projectRow}>
+                    <Text style={styles.project} numberOfLines={1}>
+                        {projectName}
+                    </Text>
+                    {(session.daemonLabel || session.daemonShortId) && (
+                        <View style={styles.daemonIdentity}>
+                            <Ionicons
+                                name="desktop-outline"
+                                size={12}
+                                color={theme.colors.textSecondary}
+                            />
+                            {session.daemonLabel && session.daemonLabel !== session.daemonShortId && (
+                                <Text style={styles.daemonLabel} numberOfLines={1}>
+                                    {session.daemonLabel}
+                                </Text>
+                            )}
+                            {session.daemonShortId && (
+                                <Text style={styles.daemonShortId} numberOfLines={1}>
+                                    {session.daemonShortId}
+                                </Text>
+                            )}
+                        </View>
+                    )}
+                </View>
 
                 <View style={styles.workspaceRow}>
                     <View style={styles.workspaceLocation}>
@@ -219,13 +205,6 @@ export const FlatSessionRow = React.memo(({ row, selected, showBorder, archived 
                         )}
                     </View>
                     <View style={styles.workspaceMeta}>
-                        {session.hasDraft && (
-                            <Ionicons
-                                name="create-outline"
-                                size={13}
-                                color={theme.colors.textSecondary}
-                            />
-                        )}
                         {session.gitChangedFiles !== null && (
                             <RigGitLineChanges
                                 changedFiles={session.gitChangedFiles}
@@ -297,11 +276,6 @@ const stylesheet = StyleSheet.create((theme) => ({
         height: AVATAR_SIZE,
         marginRight: AVATAR_GAP,
     },
-    // Faded rows keep the exact geometry of live ones and differ only by being
-    // pulled back, so the list stays one column rather than two designs.
-    avatarFaded: {
-        opacity: 0.5,
-    },
     contentFaded: {
         opacity: 0.6,
     },
@@ -353,10 +327,41 @@ const stylesheet = StyleSheet.create((theme) => ({
         ...Typography.default('regular'),
     },
     project: {
+        flex: 1,
+        minWidth: 0,
         fontSize: 15,
         lineHeight: 20,
         color: theme.colors.textSecondary,
         ...Typography.default('regular'),
+    },
+    projectRow: {
+        alignItems: 'center',
+        flexDirection: 'row',
+        gap: 8,
+        minWidth: 0,
+    },
+    daemonIdentity: {
+        alignItems: 'center',
+        flexDirection: 'row',
+        flexShrink: 1,
+        gap: 3,
+        maxWidth: '58%',
+        minWidth: 0,
+    },
+    daemonLabel: {
+        color: theme.colors.textSecondary,
+        flexShrink: 1,
+        fontSize: 12,
+        lineHeight: 20,
+        minWidth: 0,
+        ...Typography.default('regular'),
+    },
+    daemonShortId: {
+        color: theme.colors.textSecondary,
+        flexShrink: 0,
+        fontSize: 12,
+        lineHeight: 20,
+        ...Typography.default('semiBold'),
     },
     workspaceRow: {
         flexDirection: 'row',

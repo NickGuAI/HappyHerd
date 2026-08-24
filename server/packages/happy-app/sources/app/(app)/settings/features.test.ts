@@ -1,9 +1,9 @@
 import * as React from 'react';
 // @ts-expect-error react-test-renderer has no declarations in this workspace.
 import { act, create } from 'react-test-renderer';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const settingState = vi.hoisted(() => ({ commanderProfilePictures: false }));
+const settingReads = vi.hoisted(() => [] as string[]);
 
 vi.mock('react-native', () => ({ Platform: { OS: 'web' } }));
 vi.mock('@expo/vector-icons', async () => {
@@ -33,10 +33,10 @@ vi.mock('@/components/CommanderAvatarSettings', async () => {
     };
 });
 vi.mock('@/sync/storage', () => ({
-    useSettingMutable: (key: string) => [
-        key === 'commanderProfilePictures' ? settingState.commanderProfilePictures : false,
-        vi.fn(),
-    ],
+    useSettingMutable: (key: string) => {
+        settingReads.push(key);
+        return [false, vi.fn()];
+    },
     useLocalSettingMutable: () => [false, vi.fn()],
 }));
 vi.mock('@/text', () => ({ t: (key: string) => key }));
@@ -54,21 +54,19 @@ beforeAll(() => {
 });
 
 afterAll(() => vi.restoreAllMocks());
+beforeEach(() => settingReads.splice(0));
 
-describe('Commander profile picture feature gate', () => {
-    it('keeps machine and file selection UI unmounted until the account-synced switch is enabled', () => {
-        settingState.commanderProfilePictures = false;
+describe('Commander profile picture management', () => {
+    it('is directly available and never reads or renders the retired visibility gate', () => {
         let renderer!: ReturnType<typeof create>;
         act(() => {
             renderer = create(React.createElement(FeaturesSettingsScreen));
         });
 
-        expect(renderer.root.findAllByType('CommanderAvatarSettings' as any)).toHaveLength(0);
-
-        settingState.commanderProfilePictures = true;
-        act(() => {
-            renderer.update(React.createElement(FeaturesSettingsScreen));
-        });
         expect(renderer.root.findAllByType('CommanderAvatarSettings' as any)).toHaveLength(1);
+        expect(settingReads).not.toContain('commanderProfilePictures');
+        expect(renderer.root.findAllByType('Item' as any)
+            .map((item: any) => item.props.title))
+            .not.toContain('happyHerd.features.commanderProfilePictures');
     });
 });

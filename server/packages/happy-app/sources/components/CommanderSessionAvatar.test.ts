@@ -7,14 +7,23 @@ vi.mock('@/hooks/useCommanderAvatar', () => ({
     useCommanderAvatar: () => 'data:image/png;base64,avatar',
 }));
 
-vi.mock('./Avatar', async () => {
+vi.mock('react-native', async () => {
     const ReactModule = await import('react');
-    return { Avatar: (props: any) => ReactModule.createElement('Avatar', props) };
+    return { View: (props: any) => ReactModule.createElement('View', props, props.children) };
 });
-vi.mock('./StatusDot', async () => {
+vi.mock('expo-image', async () => {
     const ReactModule = await import('react');
-    return { StatusPulse: (props: any) => ReactModule.createElement('StatusPulse', props) };
+    return { Image: (props: any) => ReactModule.createElement('Image', props) };
 });
+vi.mock('react-native-unistyles', () => ({
+    StyleSheet: { create: (factory: any) => factory({}) },
+    useUnistyles: () => ({ theme: { colors: { surfaceHighest: '#eee', text: '#111' } } }),
+}));
+vi.mock('@/components/StyledText', async () => {
+    const ReactModule = await import('react');
+    return { Text: (props: any) => ReactModule.createElement('Text', props, props.children) };
+});
+vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}) } }));
 
 import { CommanderSessionAvatar } from './CommanderSessionAvatar';
 
@@ -31,33 +40,29 @@ beforeAll(() => {
 afterAll(() => vi.restoreAllMocks());
 
 describe('CommanderSessionAvatar', () => {
-    it('renders the machine-scoped Commander image in the compact leading slot', () => {
+    it('renders the machine-scoped Commander image and falls back to initials', () => {
         let renderer!: ReturnType<typeof create>;
         act(() => {
             renderer = create(React.createElement(CommanderSessionAvatar, {
                 machineId: 'machine-one',
                 commanderId: 'athena',
-                isPulsing: true,
+                commanderName: 'Athena Prime',
+                size: 40,
             }));
         });
 
-        expect(renderer.root.findByType('StatusPulse' as any).props.isPulsing).toBe(true);
-
-        expect(renderer.root.findByType('Avatar' as any).props).toMatchObject({
-            id: 'commander:machine-one:athena',
-            imageUrl: 'data:image/png;base64,avatar',
-            flavor: null,
-            size: 16,
+        expect(renderer.root.findByType('Image' as any).props).toMatchObject({
+            source: { uri: 'data:image/png;base64,avatar' },
+            cachePolicy: 'memory',
+            accessibilityLabel: 'Athena Prime',
+            accessibilityRole: 'image',
         });
 
         act(() => {
-            renderer.root.findByType('Avatar' as any).props.onImageError();
+            renderer.root.findByType('Image' as any).props.onError();
         });
-        expect(renderer.root.findByType('Avatar' as any).props).toMatchObject({
-            id: 'commander:machine-one:athena',
-            imageUrl: null,
-            flavor: null,
-            size: 16,
-        });
+        expect(renderer.root.findAllByType('Image' as any)).toHaveLength(0);
+        expect(renderer.root.findByType('Text' as any).props.children).toBe('AP');
+        expect(renderer.root.findByType('View' as any).props.accessibilityLabel).toBe('Athena Prime');
     });
 });

@@ -1,3 +1,13 @@
+# August 24 — HappyHerd decision inbox
+
+Home now keeps every conversation in one machine-exact decision inbox, with the Commander avatar itself carrying session state.
+
+- **One decision inbox** — sessions are ordered by real activity across projects, with search, worktree, exact daemon, activity time, Git changes, drafts, unread work, and action requests visible in one flat list; Archive remains separate.
+- **Commander status avatars** — the Commander picture (or provider identity and initials fallback) is wrapped by one accessible status ring for action required, unread, thinking, waiting, disconnected, or idle state.
+- **Exact daemon ownership** — model, permission, effort, path, and launch choices stay bound to the selected daemon registration; stale choices remain visible only for recovery and never route to another daemon.
+- **Provider-native controls** — Codex keeps Yolo as HappyHerd's default while supporting Auto, current 5.6 models, model-advertised effort levels, and provider-specific Default forwarding.
+- **Upstream improvements** — question cards, copy actions, composer controls, reconnect refresh, first-message recovery, Markdown fixes, and current deployment documentation arrive without weakening Workspace Links or queued-message ownership.
+
 # August 24 — Back to basics
 
 Your sessions in one flat, colorful list — plus polish everywhere.

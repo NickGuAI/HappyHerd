@@ -1210,8 +1210,6 @@
       "sortRecentSubtitle": "按最近活动而不是创建时间排列会话",
       "resumeSession": "恢复会话",
       "resumeSessionSubtitle": "通过机器守护进程恢复断开的 Claude Code 和 Codex 会话",
-      "commanderProfilePictures": "Commander 头像",
-      "commanderProfilePicturesSubtitle": "在会话列表中显示 Commander 头像，并在工作进行时显示呼吸效果",
       "voiceInput": "语音输入",
       "voiceInputSubtitle": "配置安全密钥后显示 OpenAI 语音转写控件"
     },
@@ -1230,6 +1228,14 @@
       "invalidFormat": "请选择完整的 PNG、JPEG 或 WebP 图片。",
       "stale": "机器上的头像已更改。请重新打开“功能”页面后再试。",
       "runtimeUnsupported": "请先更新此机器上的 HappyHerd，再替换 Commander 头像。"
+    },
+    "sessionStatusAvatar": {
+      "actionRequired": "需要操作",
+      "unread": "有未读结果",
+      "thinking": "思考中",
+      "waiting": "等待中",
+      "disconnected": "已断开连接",
+      "idle": "空闲"
     },
     "automations": {
       "title": "自动化",

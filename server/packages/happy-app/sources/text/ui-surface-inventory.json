@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "bb114ac5498f8db61f7c9ba33332b0701a80c3d4dddfb8e269540624fed0a268",
+  "sourceFingerprint": "2186ef9ab8e37a275fbd473763a8200dee39e11ca4f05d4d09ee3df5323432b7",
   "routeCount": 36,
-  "surfaceCount": 240,
+  "surfaceCount": 242,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -301,6 +301,7 @@
         "uiCopy.noRecentProjectsYet",
         "uiCopy.noResults",
         "uiCopy.noWorktree",
+        "uiCopy.notInstalledOnThisMachine",
         "uiCopy.permissions",
         "uiCopy.pleaseSelectAMachine",
         "uiCopy.project",
@@ -313,6 +314,7 @@
         "uiCopy.searchModels",
         "uiCopy.searchPermissions",
         "uiCopy.searchWorktrees",
+        "uiCopy.selectAConnectedRigMachine",
         "uiCopy.theDirectoryValueDoesNotExistWouldYouLikeTo",
         "uiCopy.useGlobalAgentsMdOnly",
         "uiCopy.usingCustomPathAbove",
@@ -689,8 +691,6 @@
       "path": "/settings/features",
       "owner": "sources/app/(app)/settings/features.tsx",
       "translationKeys": [
-        "happyHerd.features.commanderProfilePictures",
-        "happyHerd.features.commanderProfilePicturesSubtitle",
         "happyHerd.features.fileDiffsSidebar",
         "happyHerd.features.fileDiffsSidebarSubtitle",
         "happyHerd.features.interface",
@@ -1395,6 +1395,7 @@
         "uiCopy.noRecentProjectsYet",
         "uiCopy.noResults",
         "uiCopy.noWorktree",
+        "uiCopy.notInstalledOnThisMachine",
         "uiCopy.permissions",
         "uiCopy.pleaseSelectAMachine",
         "uiCopy.project",
@@ -1407,6 +1408,7 @@
         "uiCopy.searchModels",
         "uiCopy.searchPermissions",
         "uiCopy.searchWorktrees",
+        "uiCopy.selectAConnectedRigMachine",
         "uiCopy.theDirectoryValueDoesNotExistWouldYouLikeTo",
         "uiCopy.useGlobalAgentsMdOnly",
         "uiCopy.usingCustomPathAbove",
@@ -1843,8 +1845,6 @@
         "FeaturesSettingsScreen"
       ],
       "translationKeys": [
-        "happyHerd.features.commanderProfilePictures",
-        "happyHerd.features.commanderProfilePicturesSubtitle",
         "happyHerd.features.fileDiffsSidebar",
         "happyHerd.features.fileDiffsSidebarSubtitle",
         "happyHerd.features.interface",
@@ -3017,10 +3017,7 @@
       ],
       "translationKeys": [
         "sessionInfo.archiveSession",
-        "sessionInfo.failedToArchiveSession",
-        "status.inputRequired",
-        "status.permissionRequired",
-        "status.unread"
+        "sessionInfo.failedToArchiveSession"
       ],
       "states": [],
       "hardcodedCopy": []
@@ -3069,6 +3066,17 @@
         "happyHerd.automations.resume",
         "happyHerd.automations.runNow"
       ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/HarnessBadgeIcon.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HarnessBadgeIcon"
+      ],
+      "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
     },
@@ -3887,14 +3895,7 @@
       "translationKeys": [
         "sessionHistory.empty",
         "sidebar.hideArchived",
-        "sidebar.sessionsTitle",
-        "sidebar.showArchived",
-        "status.inputRequired",
-        "status.lastSeen",
-        "status.online",
-        "status.permissionRequired",
-        "status.unknown",
-        "status.unread"
+        "sidebar.showArchived"
       ],
       "states": [
         "empty"
@@ -3909,6 +3910,25 @@
         "SessionsListWrapper"
       ],
       "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/SessionStatusAvatar.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "SessionStatusAvatar"
+      ],
+      "translationKeys": [
+        "happyHerd.sessionStatusAvatar.actionRequired",
+        "happyHerd.sessionStatusAvatar.disconnected",
+        "happyHerd.sessionStatusAvatar.idle",
+        "happyHerd.sessionStatusAvatar.thinking",
+        "happyHerd.sessionStatusAvatar.unread",
+        "happyHerd.sessionStatusAvatar.waiting",
+        "status.unknown"
+      ],
       "states": [],
       "hardcodedCopy": []
     },
