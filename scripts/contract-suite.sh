@@ -50,6 +50,7 @@ node "$repo_root/scripts/verify-community-contract.mjs"
 "$repo_root/scripts/test-happyherd-agent-runtime.sh"
 "$repo_root/scripts/test-happyherd-agent-sandbox.sh" source
 "$repo_root/scripts/test-upstream-sync-provenance.sh"
+"$repo_root/scripts/test-daily-upstream-sync-contract.sh"
 "$repo_root/scripts/test-owned-merge-provenance.sh"
 shellcheck -x "$repo_root"/scripts/*.sh "$repo_root"/scripts/lib/*.sh \
   "$repo_root/installers/install.sh.template"
