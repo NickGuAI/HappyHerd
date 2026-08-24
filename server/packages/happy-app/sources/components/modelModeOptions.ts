@@ -17,6 +17,7 @@ export type ModeOption = {
     description?: string | null;
     semanticKind?: string | null;
     disabled?: boolean;
+    unavailable?: boolean;
 };
 
 export type PermissionMode = ModeOption;
@@ -30,7 +31,6 @@ export type ModelMode = ModeOption & {
     thinkingLevels?: string[];
     defaultThinkingLevel?: string | null;
     isDefault?: boolean;
-    unavailable?: boolean;
     effortLevels?: EffortLevel[];
 };
 

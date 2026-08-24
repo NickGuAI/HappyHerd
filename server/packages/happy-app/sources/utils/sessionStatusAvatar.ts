@@ -29,12 +29,18 @@ export function resolveSessionStatusAvatar(options: {
     machineOffline?: boolean;
     state: SessionState;
 }): SessionStatusAvatarPresentation {
+    // Connectivity is a treatment of the center identity, not another entry in
+    // the ring precedence. Keep it resolved independently so a higher-priority
+    // action, unread, or thinking ring cannot make an unavailable daemon look
+    // fully present.
+    const faded = Boolean(options.machineOffline || options.state === 'disconnected');
+
     if (options.state === 'permission_required' || options.state === 'input_required') {
         return {
             state: 'action-required',
             ringWidth: 3,
             pulsing: true,
-            faded: false,
+            faded,
         };
     }
 
@@ -43,7 +49,7 @@ export function resolveSessionStatusAvatar(options: {
             state: 'unread',
             ringWidth: 3,
             pulsing: false,
-            faded: false,
+            faded,
         };
     }
 
@@ -52,7 +58,7 @@ export function resolveSessionStatusAvatar(options: {
             state: 'thinking',
             ringWidth: 3,
             pulsing: true,
-            faded: false,
+            faded,
         };
     }
 
@@ -61,7 +67,7 @@ export function resolveSessionStatusAvatar(options: {
             state: 'disconnected',
             ringWidth: 2,
             pulsing: false,
-            faded: true,
+            faded,
         };
     }
 
@@ -70,7 +76,7 @@ export function resolveSessionStatusAvatar(options: {
             state: 'waiting',
             ringWidth: 2,
             pulsing: false,
-            faded: false,
+            faded,
         };
     }
 
@@ -78,7 +84,7 @@ export function resolveSessionStatusAvatar(options: {
         state: 'idle',
         ringWidth: 2,
         pulsing: false,
-        faded: false,
+        faded,
     };
 }
 

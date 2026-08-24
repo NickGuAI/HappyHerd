@@ -97,7 +97,11 @@ import {
     completeSpawnRequest,
     resolveSpawnRequestId,
 } from '@/sync/spawnRequestId';
-import { resolvePermissionStyle, resolveSelectedOption } from '@/utils/newSessionModeSelection';
+import {
+    resolvePermissionStyle,
+    resolveSelectedOption,
+    validateNewSessionLaunchSelection,
+} from '@/utils/newSessionModeSelection';
 import { MobileGlassSurface } from '@/components/MobileGlass';
 import { getNativeGlassInteractivity } from '@/components/glassInteractionPolicy';
 import { BubblePressable } from '@/components/BubblePressable';
@@ -1426,11 +1430,24 @@ function NewSessionScreen() {
     // nullable — the composer hides the picker instead of rendering a pick.
     const currentPermission = resolveSelectedOption(permissionModes, permissionIndex);
     const currentEffort = resolveSelectedOption(effortLevels, effortIndex);
+    const selectedAgentAvailable = availableAgents.some((candidate) => (
+        candidate.key === selectedAgent && candidate.disabled !== true
+    ));
+    const currentLaunchSelectionError = validateNewSessionLaunchSelection({
+        agentAvailable: selectedAgentAvailable,
+        permissionOptions: permissionModes,
+        modelOptions: modelModes,
+        effortOptions: effortLevels,
+        permissionKey: currentPermission?.key,
+        modelKey: currentModel?.key,
+        effortKey: currentEffort?.key,
+    });
     const selectEffortByKey = React.useCallback((key: string) => {
         const next = effortLevels.findIndex((level) => level.key === key);
-        if (next < 0) return;
+        const nextEffort = effortLevels[next];
+        if (next < 0 || nextEffort?.disabled || nextEffort?.unavailable) return;
 
-        const effortKey = effortLevels[next]?.key ?? key;
+        const effortKey = nextEffort.key;
         setEffortIndex(next);
         draft.setEffortLevel(effortKey);
         if (selectedAgent === 'codex') {
@@ -1609,9 +1626,10 @@ function NewSessionScreen() {
                 break;
             case 'model': {
                 const next = modelModes.findIndex((mode) => mode.key === key);
-                if (next >= 0) {
+                const nextModel = modelModes[next];
+                if (next >= 0 && !nextModel?.disabled && !nextModel?.unavailable) {
                     setModelIndex(next);
-                    draft.setModelMode(modelModes[next]?.key ?? 'default');
+                    draft.setModelMode(nextModel.key);
                 }
                 break;
             }
@@ -1621,9 +1639,10 @@ function NewSessionScreen() {
             }
             case 'permission': {
                 const next = permissionModes.findIndex((mode) => mode.key === key);
-                if (next >= 0) {
+                const nextPermission = permissionModes[next];
+                if (next >= 0 && !nextPermission?.disabled && !nextPermission?.unavailable) {
                     setPermissionIndex(next);
-                    draft.setPermissionMode(permissionModes[next]?.key ?? 'default');
+                    draft.setPermissionMode(nextPermission.key);
                 }
                 break;
             }
@@ -1652,9 +1671,10 @@ function NewSessionScreen() {
         switch (composerSettingsPage) {
             case 'model': {
                 const next = modelModes.findIndex((mode) => mode.key === key);
-                if (next >= 0) {
+                const nextModel = modelModes[next];
+                if (next >= 0 && !nextModel?.disabled && !nextModel?.unavailable) {
                     setModelIndex(next);
-                    draft.setModelMode(modelModes[next]?.key ?? 'default');
+                    draft.setModelMode(nextModel.key);
                 }
                 break;
             }
@@ -1664,9 +1684,10 @@ function NewSessionScreen() {
             }
             case 'permission': {
                 const next = permissionModes.findIndex((mode) => mode.key === key);
-                if (next >= 0) {
+                const nextPermission = permissionModes[next];
+                if (next >= 0 && !nextPermission?.disabled && !nextPermission?.unavailable) {
                     setPermissionIndex(next);
-                    draft.setPermissionMode(permissionModes[next]?.key ?? 'default');
+                    draft.setPermissionMode(nextPermission.key);
                 }
                 break;
             }
@@ -1683,20 +1704,90 @@ function NewSessionScreen() {
             Modal.alert(t('common.error'), t("uiCopy.pleaseSelectAMachine"));
             return;
         }
-        if (!isMachineOnline(selectedMachine)) {
+        const targetMachineId = selectedMachineId;
+        const agentType = selectedAgent;
+        const permissionKey = currentPermission?.key ?? null;
+        const selectedModelKey = currentModel?.key ?? null;
+        const effortKey = currentEffort?.key ?? null;
+
+        // Re-read the exact daemon at submission time. The picker can retain a
+        // disabled recovery row, and capabilities can change after render or
+        // while an awaited worktree operation is running; neither may turn a
+        // stale selection into a launch or route it to another daemon.
+        const resolveLatestLaunchContext = () => {
+            const machine = storage.getState().machines[targetMachineId];
+            if (!machine || !isMachineOnline(machine)) {
+                return { status: 'offline' as const };
+            }
+
+            const latestRigCreation = agentType === 'rig'
+                ? getRigMachineSessionCreation(machine.metadata)
+                : null;
+            const availability = machine.metadata?.cliAvailability;
+            const agentAvailable = agentType === 'rig'
+                ? latestRigCreation !== null
+                : agentType === 'agy'
+                    ? availability?.agy === true
+                    : !availability || availability[agentType] === true;
+            const machineCatalog = machine.metadata?.agentCapabilities?.[agentType];
+            const latestPermissionModes = latestRigCreation?.permissionModes
+                ?? (machineCatalog
+                    ? getMachineAdvertisedPermissionModes(machine.metadata, agentType, t, permissionKey)
+                    : getHardcodedPermissionModes(agentType, t));
+            const latestModelModes = latestRigCreation?.models
+                ?? (machineCatalog
+                    ? getMachineAdvertisedModels(machine.metadata, agentType, t, selectedModelKey)
+                    : includeConfiguredModel(
+                        agentType,
+                        getHardcodedModelModes(agentType, t),
+                        selectedModelKey ?? effectiveAgentDefaults.modelMode,
+                        t,
+                    ));
+            const effortModelKey = selectedModelKey ?? 'default';
+            const latestEffortLevels = latestRigCreation
+                ? latestRigCreation.effortsForModel(selectedModelKey ?? undefined).map((key) => ({ key, name: key }))
+                : machineCatalog
+                    ? getMachineAdvertisedEffortLevels(machine.metadata, agentType, effortModelKey)
+                    : getEffortLevelsForModel(agentType, effortModelKey);
+            const selectionError = validateNewSessionLaunchSelection({
+                agentAvailable,
+                permissionOptions: latestPermissionModes,
+                modelOptions: latestModelModes,
+                effortOptions: latestEffortLevels,
+                permissionKey,
+                modelKey: selectedModelKey,
+                effortKey,
+            });
+            if (selectionError) {
+                return {
+                    status: 'unavailable' as const,
+                    rigUnavailable: agentType === 'rig' && latestRigCreation === null,
+                };
+            }
+            return {
+                status: 'ready' as const,
+                machine,
+                rigCreation: latestRigCreation,
+            };
+        };
+
+        const initialContext = resolveLatestLaunchContext();
+        if (initialContext.status === 'offline') {
             Modal.alert(t('common.error'), t("newSession.machineOffline"));
             return;
         }
-        const machine = selectedMachine;
-        const agentType = selectedAgent;
-        const spawnRigCreation = agentType === 'rig'
-            ? getRigMachineSessionCreation(machine.metadata)
-            : null;
-        if (agentType === 'rig' && !spawnRigCreation) {
-            Modal.alert(t('common.error'), t('newSession.happyAgentUnsupported'));
+        if (initialContext.status === 'unavailable') {
+            Modal.alert(
+                t('common.error'),
+                initialContext.rigUnavailable
+                    ? t('newSession.happyAgentUnsupported')
+                    : t("uiCopy.theSelectedAgentConfigurationIsUnavailable"),
+            );
             return;
         }
-        const agentSupportsWorktree = spawnRigCreation?.supportsWorktrees
+        const machine = initialContext.machine;
+        const initialRigCreation = initialContext.rigCreation;
+        const agentSupportsWorktree = initialRigCreation?.supportsWorktrees
             ?? (agentType === 'rig' ? false : getSupportsWorktree(agentType));
         const requestedWorktree = canPickWorktree ? worktreeKey : '__none__';
         const worktreeSelection = !agentSupportsWorktree && requestedWorktree === '__new__'
@@ -1707,7 +1798,6 @@ function NewSessionScreen() {
         try {
             const pathToUse = trimPathInput(selectedPath) || '~';
             const absolutePath = resolveAbsolutePath(pathToUse, machine.metadata?.homeDir);
-            const permissionKey = currentPermission?.key ?? null;
             // Same key for every retry of this request (directory approval,
             // pending polling, or the user pressing Start again) so Rig dedupes
             // instead of spawning a second session. Built from what the user
@@ -1738,10 +1828,26 @@ function NewSessionScreen() {
                 spawnDirectory = worktreeSelection;
             }
 
+            const spawnContext = resolveLatestLaunchContext();
+            if (spawnContext.status === 'offline') {
+                Modal.alert(t('common.error'), t("newSession.machineOffline"));
+                return;
+            }
+            if (spawnContext.status === 'unavailable') {
+                Modal.alert(
+                    t('common.error'),
+                    spawnContext.rigUnavailable
+                        ? t('newSession.happyAgentUnsupported')
+                        : t("uiCopy.theSelectedAgentConfigurationIsUnavailable"),
+                );
+                return;
+            }
+            const spawnMachine = spawnContext.machine;
+            const spawnRigCreation = spawnContext.rigCreation;
             const spawnOptions = spawnRigCreation
                 ? {
-                    machineId: machine.id,
-                    ...buildRigSpawnConfiguration(machine.metadata, {
+                    machineId: spawnMachine.id,
+                    ...buildRigSpawnConfiguration(spawnMachine.metadata, {
                         directory: spawnDirectory,
                         clientRequestId,
                         approvedNewDirectoryCreation,
@@ -1751,7 +1857,7 @@ function NewSessionScreen() {
                     }),
                 }
                 : {
-                    machineId: machine.id,
+                    machineId: spawnMachine.id,
                     directory: spawnDirectory,
                     approvedNewDirectoryCreation,
                     agent: agentType,
@@ -1886,9 +1992,13 @@ function NewSessionScreen() {
         } finally {
             if (isMountedRef.current) setIsSpawning(false);
         }
-    }, [selectedMachineId, selectedMachine, selectedPath, selectedCommanderId, selectedAgent, router, navigateToSession, currentPermission?.key, currentModelKey, currentEffort?.key, effectiveAgentDefaults.permissionMode, effectiveAgentDefaults.modelMode, effectiveEffortDefault, worktreeKey, rigCreation, supportsWorktree, workspaceEntries]);
+    }, [selectedMachineId, selectedMachine, selectedPath, selectedCommanderId, selectedAgent, router, navigateToSession, currentPermission?.key, currentModel?.key, currentModelKey, currentEffort?.key, effectiveAgentDefaults.permissionMode, effectiveAgentDefaults.modelMode, effectiveEffortDefault, canPickWorktree, worktreeKey, workspaceEntries]);
 
-    const canSend = selectedMachineId && selectedMachine && isMachineOnline(selectedMachine) && !isSpawning;
+    const canSend = selectedMachineId
+        && selectedMachine
+        && isMachineOnline(selectedMachine)
+        && currentLaunchSelectionError === null
+        && !isSpawning;
     React.useEffect(() => {
         if (
             autoSubmit !== '1'

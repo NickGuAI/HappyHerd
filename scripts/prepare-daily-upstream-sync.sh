@@ -67,15 +67,30 @@ write_manifest() {
   )
 }
 
+conflict_type_for_status() {
+  case "$1" in
+    DD) printf 'both deleted (DD)\n' ;;
+    AU) printf 'HappyHerd added, Happy deleted (AU)\n' ;;
+    UD) printf 'HappyHerd modified, Happy deleted (UD)\n' ;;
+    UA) printf 'HappyHerd deleted, Happy added (UA)\n' ;;
+    DU) printf 'HappyHerd deleted, Happy modified (DU)\n' ;;
+    AA) printf 'both added (AA)\n' ;;
+    UU) printf 'both modified (UU)\n' ;;
+    *) printf 'unclassified Git conflict (%s)\n' "$1" ;;
+  esac
+}
+
 write_conflict_map() {
   local path status base_blob ours_blob theirs_blob stage_record stage blob
+  local conflict_type affected_function invariant happy_behavior happyherd_behavior
+  local required_decision
   local conflict_count=0
 
   git -C "$repo_root" status --porcelain=v1 -z --untracked-files=no \
     > "$output_dir/conflict-status.zlist"
   git -C "$repo_root" ls-files --unmerged -z > "$output_dir/conflict-stages.zlist"
 
-  printf 'status\tpath\tbase_blob\tours_blob\ttheirs_blob\n' \
+  printf 'path\tconflict type\taffected function\tinvariant\tHappy behavior\tHappyHerd behavior\tselected/required decision\n' \
     > "$output_dir/conflict-map.tsv"
 
   while IFS= read -r -d '' path; do
@@ -97,9 +112,16 @@ write_conflict_map() {
       esac
     done < <(git -C "$repo_root" ls-files --unmerged -- "$path" | cut -f1)
 
-    printf '%s\t' "$status" >> "$output_dir/conflict-map.tsv"
-    printf '%q\t%s\t%s\t%s\n' \
-      "$path" "$base_blob" "$ours_blob" "$theirs_blob" \
+    conflict_type="$(conflict_type_for_status "$status")"
+    affected_function="UNRESOLVED - operator must inspect the conflicting hunks"
+    invariant="UNRESOLVED - operator must identify the affected product invariant"
+    happy_behavior="UNRESOLVED - inspect Happy stage blob $theirs_blob"
+    happyherd_behavior="UNRESOLVED - inspect HappyHerd stage blob $ours_blob (base $base_blob)"
+    required_decision="OPERATOR REQUIRED - select Happy behavior, HappyHerd behavior, or an explicit reconciliation before creating a pull request"
+
+    printf '%q\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+      "$path" "$conflict_type" "$affected_function" "$invariant" \
+      "$happy_behavior" "$happyherd_behavior" "$required_decision" \
       >> "$output_dir/conflict-map.tsv"
     conflict_count=$((conflict_count + 1))
   done < <(git -C "$repo_root" diff --name-only --diff-filter=U -z | sort -z)

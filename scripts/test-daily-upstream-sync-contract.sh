@@ -159,8 +159,23 @@ cat > "$work_dir/bin/gh" <<'GH_STUB'
 set -euo pipefail
 printf '%q ' "$@" >> "${GH_LOG:?}"
 printf '\n' >> "$GH_LOG"
-case "${1:-} ${2:-}" in
-  "auth setup-git"|"pr list"|"issue list") exit 0 ;;
+command="${1:-} ${2:-}"
+if [[ "$command" == "issue create" && -n "${GH_CAPTURE_ISSUE_BODY:-}" ]]; then
+  while [[ "$#" -gt 0 ]]; do
+    if [[ "$1" == "--body-file" ]]; then
+      cp "$2" "$GH_CAPTURE_ISSUE_BODY"
+      break
+    fi
+    shift
+  done
+fi
+case "$command" in
+  "auth setup-git"|"issue list") exit 0 ;;
+  "pr list")
+    if [[ -n "${GH_OPEN_PR_RECORD:-}" ]]; then
+      printf '%s\n' "$GH_OPEN_PR_RECORD"
+    fi
+    ;;
   "pr create") printf 'https://github.example/example/HappyHerd/pull/123\n' ;;
   "pr edit"|"issue edit"|"issue reopen"|"issue comment") exit 0 ;;
   "pr view") printf 'https://github.example/example/HappyHerd/pull/123\n' ;;
@@ -197,6 +212,70 @@ if grep -Fq 'issue create' "$clean_gh_log"; then
   fail "clean publisher created a conflict issue"
 fi
 
+git --git-dir="$origin_repo" update-ref \
+  refs/heads/automation/upstream-sync "$base_sha"
+deferred_branch_before="$(
+  git --git-dir="$origin_repo" rev-parse refs/heads/automation/upstream-sync
+)"
+deferred_gh_log="$work_dir/deferred-gh.log"
+: > "$deferred_gh_log"
+deferred_output="$(
+  PATH="$work_dir/bin:$PATH" \
+  GH_LOG="$deferred_gh_log" \
+  GH_OPEN_PR_RECORD=$'77\tmain\thttps://github.example/example/HappyHerd/pull/77' \
+  GH_TOKEN=fixture-token \
+  GITHUB_REPOSITORY=example/HappyHerd \
+  GITHUB_SERVER_URL=https://github.example \
+  GITHUB_RUN_ID=125 \
+  GITHUB_RUN_ATTEMPT=1 \
+  HAPPYHERD_SYNC_ARTIFACT_URL=https://github.example/example/HappyHerd/actions/runs/125/artifacts/458 \
+  HAPPYHERD_SYNC_ARTIFACT_DIGEST=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc \
+  HAPPYHERD_SYNC_ORIGIN_URL="$origin_repo" \
+  HAPPYHERD_SYNC_UPSTREAM_URL="$upstream_repo" \
+  HAPPYHERD_SYNC_EXPECTED_BASE="$base_sha" \
+  HAPPYHERD_SYNC_EXPECTED_UPSTREAM="$upstream_next" \
+  HAPPYHERD_SYNC_EXPECTED_OUTCOME=clean \
+    "$work_dir/clean-publish/scripts/publish-daily-upstream-sync.sh" \
+    "$work_dir/clean-evidence"
+)"
+deferred_branch_after="$(
+  git --git-dir="$origin_repo" rev-parse refs/heads/automation/upstream-sync
+)"
+[[ "$deferred_branch_after" == "$deferred_branch_before" ]] ||
+  fail "open-PR deferral rewrote the fixed sync branch"
+[[ "$deferred_output" == *"deferred; open sync PR #77 to main remains unchanged"* ]] ||
+  fail "open-PR outcome was not reported as deferred: $deferred_output"
+grep -Fq 'pr list' "$deferred_gh_log" ||
+  fail "publisher did not check for an open sync PR"
+if grep -Eq 'auth setup-git|pr create|pr edit|pr view' "$deferred_gh_log"; then
+  fail "open-PR deferral performed a publication write"
+fi
+
+wrong_base_gh_log="$work_dir/wrong-base-gh.log"
+: > "$wrong_base_gh_log"
+if PATH="$work_dir/bin:$PATH" \
+  GH_LOG="$wrong_base_gh_log" \
+  GH_OPEN_PR_RECORD=$'78\tdev\thttps://github.example/example/HappyHerd/pull/78' \
+  GH_TOKEN=fixture-token \
+  GITHUB_REPOSITORY=example/HappyHerd \
+  GITHUB_SERVER_URL=https://github.example \
+  GITHUB_RUN_ID=126 \
+  GITHUB_RUN_ATTEMPT=1 \
+  HAPPYHERD_SYNC_ARTIFACT_URL=https://github.example/example/HappyHerd/actions/runs/126/artifacts/459 \
+  HAPPYHERD_SYNC_ARTIFACT_DIGEST=dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd \
+  HAPPYHERD_SYNC_ORIGIN_URL="$origin_repo" \
+  HAPPYHERD_SYNC_UPSTREAM_URL="$upstream_repo" \
+  HAPPYHERD_SYNC_EXPECTED_BASE="$base_sha" \
+  HAPPYHERD_SYNC_EXPECTED_UPSTREAM="$upstream_next" \
+  HAPPYHERD_SYNC_EXPECTED_OUTCOME=clean \
+    "$work_dir/clean-publish/scripts/publish-daily-upstream-sync.sh" \
+    "$work_dir/clean-evidence" >/dev/null 2>&1; then
+  fail "publisher accepted a fixed-branch pull request whose base is not main"
+fi
+if grep -Eq 'auth setup-git|pr create|pr edit|pr view' "$wrong_base_gh_log"; then
+  fail "wrong-base rejection performed a publication write"
+fi
+
 printf 'owned change\n' > "$distribution_repo/server/app.txt"
 git -C "$distribution_repo" add server/app.txt
 git -C "$distribution_repo" commit --quiet -m "test: create owned conflict"
@@ -211,6 +290,20 @@ HAPPYHERD_SYNC_EXPECTED_BASE="$conflict_base" \
   "$work_dir/conflict-evidence" >/dev/null
 [[ "$(metadata_value "$work_dir/conflict-evidence" outcome)" == "conflict" ]] ||
   fail "divergent upstream did not produce conflict evidence"
+expected_conflict_header=$'path\tconflict type\taffected function\tinvariant\tHappy behavior\tHappyHerd behavior\tselected/required decision'
+[[ "$(head -n 1 "$work_dir/conflict-evidence/conflict-map.tsv")" == \
+   "$expected_conflict_header" ]] ||
+  fail "generated conflict report is missing the complete decision schema"
+awk -F '\t' '
+  NR == 1 { next }
+  NF != 7 { exit 1 }
+  $1 == "" || $2 == "" || $3 == "" || $4 == "" ||
+    $5 == "" || $6 == "" || $7 == "" { exit 1 }
+  $3 !~ /^UNRESOLVED - / || $4 !~ /^UNRESOLVED - / ||
+    $5 !~ /^UNRESOLVED - / || $6 !~ /^UNRESOLVED - / ||
+    $7 !~ /^OPERATOR REQUIRED - / { exit 1 }
+' "$work_dir/conflict-evidence/conflict-map.tsv" ||
+  fail "generated conflict report contains an incomplete decision row"
 
 git clone --quiet "$origin_repo" "$work_dir/conflict-verify"
 HAPPYHERD_SYNC_ORIGIN_URL="$origin_repo" \
@@ -223,10 +316,12 @@ HAPPYHERD_SYNC_EXPECTED_OUTCOME=conflict \
 
 git clone --quiet "$origin_repo" "$work_dir/conflict-publish"
 conflict_gh_log="$work_dir/conflict-gh.log"
+published_conflict_body="$work_dir/published-conflict-body.md"
 : > "$conflict_gh_log"
 branch_before_conflict="$(git --git-dir="$origin_repo" rev-parse refs/heads/automation/upstream-sync)"
 PATH="$work_dir/bin:$PATH" \
 GH_LOG="$conflict_gh_log" \
+GH_CAPTURE_ISSUE_BODY="$published_conflict_body" \
 GH_TOKEN=fixture-token \
 GITHUB_REPOSITORY=example/HappyHerd \
 GITHUB_SERVER_URL=https://github.example \
@@ -246,8 +341,14 @@ branch_after_conflict="$(git --git-dir="$origin_repo" rev-parse refs/heads/autom
   fail "conflict publisher changed the sync branch"
 grep -Fq 'issue create' "$conflict_gh_log" ||
   fail "conflict publisher did not create the canonical issue"
+[[ -f "$published_conflict_body" ]] ||
+  fail "conflict publisher did not send a report body"
+grep -Fq "$expected_conflict_header" "$published_conflict_body" ||
+  fail "published conflict report omitted the complete decision schema"
+grep -Fq 'OPERATOR REQUIRED - ' "$published_conflict_body" ||
+  fail "published conflict report omitted the required operator decision"
 if grep -Fq 'pr create' "$conflict_gh_log"; then
   fail "conflict publisher created a fake PR"
 fi
 
-echo "daily-upstream-sync contract: ok (noop, clean PR, tamper rejection, conflict issue)"
+echo "daily-upstream-sync contract: ok (noop, clean PR, open-PR deferral, tamper rejection, full conflict issue)"

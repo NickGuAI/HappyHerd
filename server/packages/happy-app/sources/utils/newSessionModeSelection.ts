@@ -12,6 +12,60 @@ import type { PermissionMode } from '@/components/modelModeOptions';
 
 export type PermissionStyle = { color: string; icon: 'play-forward' | 'pause' };
 
+type LaunchOption = {
+    key: string;
+    disabled?: boolean;
+    unavailable?: boolean;
+};
+
+export type NewSessionLaunchSelectionError =
+    | 'agent-unavailable'
+    | 'permission-unavailable'
+    | 'model-unavailable'
+    | 'effort-unavailable';
+
+/**
+ * Submission guard for the full New Session screen.
+ *
+ * Recovery-only rows deliberately remain visible, but neither a restored
+ * draft nor a capability update may turn one into a launchable selection.
+ * Null keys are valid: a provider can expose no explicit override for a
+ * dimension (most notably an empty effort catalog).
+ */
+export function validateNewSessionLaunchSelection({
+    agentAvailable,
+    permissionOptions,
+    modelOptions,
+    effortOptions,
+    permissionKey,
+    modelKey,
+    effortKey,
+}: {
+    agentAvailable: boolean;
+    permissionOptions: readonly LaunchOption[];
+    modelOptions: readonly LaunchOption[];
+    effortOptions: readonly LaunchOption[];
+    permissionKey: string | null | undefined;
+    modelKey: string | null | undefined;
+    effortKey: string | null | undefined;
+}): NewSessionLaunchSelectionError | null {
+    if (!agentAvailable) return 'agent-unavailable';
+
+    const unavailable = (
+        options: readonly LaunchOption[],
+        key: string | null | undefined,
+    ) => {
+        if (!key) return false;
+        const option = options.find((candidate) => candidate.key === key);
+        return !option || option.disabled === true || option.unavailable === true;
+    };
+
+    if (unavailable(permissionOptions, permissionKey)) return 'permission-unavailable';
+    if (unavailable(modelOptions, modelKey)) return 'model-unavailable';
+    if (unavailable(effortOptions, effortKey)) return 'effort-unavailable';
+    return null;
+}
+
 /** The current option of an index-driven picker, or null when none is offered. */
 export function resolveSelectedOption<T>(options: readonly T[], index: number): T | null {
     return options[index] ?? options[0] ?? null;

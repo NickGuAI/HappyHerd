@@ -122,10 +122,20 @@ if [[ "$outcome" == "conflict" ]]; then
   [[ -s "$evidence_dir/conflict-status.zlist" ]] || fail "conflict status evidence is empty"
   [[ -s "$evidence_dir/conflict-stages.zlist" ]] || fail "conflict stage evidence is empty"
   conflict_header="$(head -n 1 "$evidence_dir/conflict-map.tsv")"
-  [[ "$conflict_header" == $'status\tpath\tbase_blob\tours_blob\ttheirs_blob' ]] ||
+  [[ "$conflict_header" == $'path\tconflict type\taffected function\tinvariant\tHappy behavior\tHappyHerd behavior\tselected/required decision' ]] ||
     fail "conflict map header is invalid"
   [[ "$(wc -l < "$evidence_dir/conflict-map.tsv")" -gt 1 ]] ||
     fail "conflict map contains no paths"
+  awk -F '\t' '
+    NR == 1 { next }
+    NF != 7 { exit 1 }
+    $1 == "" || $2 == "" || $3 == "" || $4 == "" ||
+      $5 == "" || $6 == "" || $7 == "" { exit 1 }
+    $3 !~ /^UNRESOLVED - / || $4 !~ /^UNRESOLVED - / ||
+      $5 !~ /^UNRESOLVED - / || $6 !~ /^UNRESOLVED - / ||
+      $7 !~ /^OPERATOR REQUIRED - / { exit 1 }
+  ' "$evidence_dir/conflict-map.tsv" ||
+    fail "conflict map does not satisfy the seven-field decision contract"
   echo "daily-upstream-sync verify: conflict evidence is valid"
   exit 0
 fi

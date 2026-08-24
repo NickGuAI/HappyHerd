@@ -109,9 +109,14 @@ describe('SessionStatusAvatar', () => {
         const outer = renderer.root.findAllByType('View' as any)
             .find((node: any) => node.props.accessibilityRole === 'image');
         expect(outer?.props).toMatchObject({
-            accessibilityLabel: 'Athena, happyHerd.sessionStatusAvatar.actionRequired',
+            accessibilityLabel: 'Athena, machine.machineId: machine-one, happyHerd.sessionStatusAvatar.actionRequired',
             accessibilityState: { busy: true },
         });
+
+        const fadedIdentity = renderer.root.findAllByType('View' as any)
+            .map((node: any) => flattenedStyle(node.props.style))
+            .find((style: Record<string, unknown>) => style.opacity === 0.55);
+        expect(fadedIdentity).toBeTruthy();
 
         const pulse = renderer.root.findByType('StatusPulse' as any);
         expect(pulse.props.isPulsing).toBe(true);
@@ -152,7 +157,7 @@ describe('SessionStatusAvatar', () => {
         const outer = renderer.root.findAllByType('View' as any)
             .find((node: any) => node.props.accessibilityRole === 'image');
         expect(outer?.props).toMatchObject({
-            accessibilityLabel: 'Claude, happyHerd.sessionStatusAvatar.thinking',
+            accessibilityLabel: 'Claude, machine.machineId: machine-one, happyHerd.sessionStatusAvatar.thinking',
             accessibilityState: { busy: true },
         });
         expect(renderer.root.findByType('ProviderIcon' as any).props.kind).toBe('claude');

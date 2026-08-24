@@ -25,10 +25,20 @@ describe('new session picker items', () => {
     it('maps model, effort, and permission options with descriptions', () => {
         expect(getModePickerItems([
             { key: 'default', name: 'default model', description: null },
-            { key: 'opus', name: 'opus 4.7', description: 'larger context' },
+            {
+                key: 'opus',
+                name: 'opus 4.7',
+                description: 'larger context',
+                unavailable: true,
+            },
         ])).toEqual([
             { key: 'default', label: 'default model' },
-            { key: 'opus', label: 'opus 4.7', subtitle: 'larger context' },
+            {
+                key: 'opus',
+                label: 'opus 4.7',
+                subtitle: 'larger context',
+                disabled: true,
+            },
         ]);
     });
 });

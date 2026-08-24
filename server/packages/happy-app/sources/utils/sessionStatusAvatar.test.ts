@@ -9,14 +9,14 @@ describe('resolveSessionStatusAvatar', () => {
             hasUnread: true,
             machineOffline: true,
             state: 'input_required',
-        })).toEqual({ state: 'action-required', ringWidth: 3, pulsing: true, faded: false });
+        })).toEqual({ state: 'action-required', ringWidth: 3, pulsing: true, faded: true });
 
         expect(resolveSessionStatusAvatar({
             active: true,
             hasUnread: true,
             machineOffline: true,
             state: 'thinking',
-        })).toEqual({ state: 'unread', ringWidth: 3, pulsing: false, faded: false });
+        })).toEqual({ state: 'unread', ringWidth: 3, pulsing: false, faded: true });
 
         expect(resolveSessionStatusAvatar({
             active: true,

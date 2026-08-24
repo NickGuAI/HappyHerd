@@ -135,6 +135,18 @@ if [[ "$outcome" == "conflict" ]]; then
   exit 0
 fi
 
+mapfile -t pr_records < <(
+  gh pr list --repo "$repository" --state open --head "$sync_branch" \
+    --json number,baseRefName,url --jq '.[] | [.number, .baseRefName, .url] | @tsv'
+)
+[[ "${#pr_records[@]}" -le 1 ]] || fail "multiple open PRs use the fixed sync branch"
+if [[ "${#pr_records[@]}" -eq 1 ]]; then
+  IFS=$'\t' read -r pr_number pr_base pr_url <<< "${pr_records[0]}"
+  [[ "$pr_base" == "main" ]] || fail "fixed sync branch has an open PR to $pr_base"
+  echo "daily-upstream-sync publish: deferred; open sync PR #$pr_number to $pr_base remains unchanged at $pr_url"
+  exit 0
+fi
+
 git -C "$repo_root" remote set-url origin "$origin_url"
 gh auth setup-git
 
@@ -170,21 +182,7 @@ The branch contains one non-squashed subtree merge with the frozen upstream comm
 GitHub places pull-request workflows created or synchronized by \`GITHUB_TOKEN\` into an approval-required state. A repository writer must select **Approve workflows to run**, then review the required checks and merge normally.
 EOF
 
-mapfile -t pr_records < <(
-  gh pr list --repo "$repository" --state open --head "$sync_branch" \
-    --json number,baseRefName --jq '.[] | [.number, .baseRefName] | @tsv'
-)
-[[ "${#pr_records[@]}" -le 1 ]] || fail "multiple open PRs use the fixed sync branch"
-
-if [[ "${#pr_records[@]}" -eq 0 ]]; then
-  pr_url="$(gh pr create --repo "$repository" --base main --head "$sync_branch" \
-    --title "$pr_title" --body-file "$work_dir/pr-body.md")"
-else
-  IFS=$'\t' read -r pr_number pr_base <<< "${pr_records[0]}"
-  [[ "$pr_base" == "main" ]] || fail "fixed sync branch has an open PR to $pr_base"
-  gh pr edit "$pr_number" --repo "$repository" \
-    --title "$pr_title" --body-file "$work_dir/pr-body.md"
-  pr_url="$(gh pr view "$pr_number" --repo "$repository" --json url --jq .url)"
-fi
+pr_url="$(gh pr create --repo "$repository" --base main --head "$sync_branch" \
+  --title "$pr_title" --body-file "$work_dir/pr-body.md")"
 
 echo "daily-upstream-sync publish: clean candidate published at $pr_url"

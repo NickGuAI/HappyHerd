@@ -93,7 +93,14 @@ export function SessionStatusAvatar({
         ? commanderName?.trim() || commanderId
         : fallbackProviderLabel;
     const harness = resolveAvatarHarness(flavor, clientId);
-    const accessibilityLabel = `${identityLabel}, ${statusLabel(presentation.state)}`;
+    const daemonIdentityLabel = machineId?.trim()
+        ? `${t('machine.machineId')}: ${machineId.trim()}`
+        : null;
+    const accessibilityLabel = [
+        identityLabel,
+        daemonIdentityLabel,
+        statusLabel(presentation.state),
+    ].filter(Boolean).join(', ');
 
     const identity = commanderId ? (
         <CommanderSessionAvatar
@@ -213,7 +220,7 @@ const styles = StyleSheet.create(() => ({
         justifyContent: 'center',
     },
     identityFaded: {
-        opacity: 0.45,
+        opacity: 0.55,
     },
     ring: {
         position: 'absolute',

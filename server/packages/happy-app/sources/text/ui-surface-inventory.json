@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "5a08cea43432ef65d2964176e7bef8fdce9561984728d781104da2cd50ad5cfe",
+  "sourceFingerprint": "200eade1d94ead5067b54cc97f89c5f7c51c236bf68b59c059cea47abe8c0311",
   "routeCount": 36,
   "surfaceCount": 242,
   "hardcodedCopyCount": 0,
@@ -316,6 +316,7 @@
         "uiCopy.searchWorktrees",
         "uiCopy.selectAConnectedRigMachine",
         "uiCopy.theDirectoryValueDoesNotExistWouldYouLikeTo",
+        "uiCopy.theSelectedAgentConfigurationIsUnavailable",
         "uiCopy.useGlobalAgentsMdOnly",
         "uiCopy.usingCustomPathAbove",
         "uiCopy.whatWouldYouLikeToWorkOn",
@@ -1410,6 +1411,7 @@
         "uiCopy.searchWorktrees",
         "uiCopy.selectAConnectedRigMachine",
         "uiCopy.theDirectoryValueDoesNotExistWouldYouLikeTo",
+        "uiCopy.theSelectedAgentConfigurationIsUnavailable",
         "uiCopy.useGlobalAgentsMdOnly",
         "uiCopy.usingCustomPathAbove",
         "uiCopy.whatWouldYouLikeToWorkOn",
@@ -3927,6 +3929,7 @@
         "happyHerd.sessionStatusAvatar.thinking",
         "happyHerd.sessionStatusAvatar.unread",
         "happyHerd.sessionStatusAvatar.waiting",
+        "machine.machineId",
         "status.unknown"
       ],
       "states": [],

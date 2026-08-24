@@ -1,9 +1,9 @@
 # Daily Happy upstream sync
 
 `.github/workflows/upstream-sync.yml` checks Happy's public `main` once a day
-and turns one frozen comparison into either one reviewed pull request, one
-conflict issue, or a no-op. It never auto-merges and it never changes the
-frozen commits while a run is active.
+and turns one frozen comparison into either one reviewed pull request, a
+deferred clean candidate, one conflict issue, or a no-op. It never auto-merges
+and it never changes the frozen commits while a run is active.
 
 ```text
 09:17 UTC / manual dispatch
@@ -29,10 +29,10 @@ frozen commits while a run is active.
 ║ Fresh trusted-base checkout; verify hashes + topology       ║
 ║ Never check out or execute imported upstream content        ║
 ╚══════════════════════════════════════════════════════════════╝
-          │ clean             │ conflict             │ no-op
-          ▼                   ▼                      ▼
- automation/upstream-sync   one canonical issue     no write
- + one open reviewed PR     + evidence artifact
+          │ clean, no PR       │ clean, PR open      │ conflict       │ no-op
+          ▼                    ▼                     ▼                ▼
+ automation/upstream-sync   deferred; no write     canonical issue   no write
+ + one reviewed PR          existing PR unchanged  + evidence
 ```
 
 ## Frozen-run contract
@@ -57,14 +57,20 @@ repository contract suite, localization/type checks, and production builds.
 Only a passing result reaches publication. The publication job verifies the
 artifact's per-file SHA-256 manifest, exact Git bundle ref, two-parent topology,
 commit identity, and `server/`-only diff without checking out the result. It
-then updates `automation/upstream-sync` with a lease and creates or updates its
-single open pull request. Review and merge remain human actions.
+first checks for an open pull request from `automation/upstream-sync`. If one
+exists, the run reports a deferred outcome without changing its branch, title,
+body, or commits. Otherwise it updates the fixed branch with a lease and
+creates one pull request. Review and merge remain human actions.
 
 For a conflict, publication does not push a result and does not create a pull
 request. It opens or updates the one issue titled
 `[upstream sync] Happy main conflict requires reconciliation`. The issue holds
-the complete human-readable path/blob map (split across comments only if the
-GitHub body limit requires it) and links the 90-day evidence artifact. That
+the complete human-readable decision map: path, conflict type, affected
+function, invariant, Happy behavior, HappyHerd behavior, and the selected or
+required decision. Semantics that automation cannot establish are explicitly
+marked `UNRESOLVED` and `OPERATOR REQUIRED`; they are never represented as a
+blob-only behavioral conclusion. The map is split across comments only if the
+GitHub body limit requires it and links the 90-day evidence artifact. That
 artifact also contains byte-exact NUL-delimited Git status and stage records,
 the merge log, frozen metadata, and hashes.
 

@@ -9,6 +9,8 @@ type ModePickerSource = {
     key: string;
     name: string;
     description?: string | null;
+    disabled?: boolean;
+    unavailable?: boolean;
 };
 
 export type NewSessionPickerItem = {
@@ -33,5 +35,6 @@ export function getModePickerItems(options: ModePickerSource[]): NewSessionPicke
         key: option.key,
         label: option.name,
         ...(option.description ? { subtitle: option.description } : {}),
+        ...(option.disabled || option.unavailable ? { disabled: true } : {}),
     }));
 }
