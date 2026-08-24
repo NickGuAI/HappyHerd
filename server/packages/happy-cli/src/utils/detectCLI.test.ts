@@ -10,7 +10,7 @@ vi.mock('child_process', () => ({ execSync: vi.fn() }));
 vi.mock('fs', () => ({ existsSync: vi.fn() }));
 vi.mock('os', () => ({
   default: {
-    homedir: vi.fn(() => '/home/person'),
+    homedir: vi.fn(() => '/home/example-user'),
     platform: vi.fn(() => 'darwin'),
   },
 }));
@@ -37,7 +37,7 @@ describe('CLI availability detection', () => {
   it('reports Antigravity only when its executable resolver finds an installation', () => {
     expect(detectCLIAvailability().agy).toBe(false);
 
-    mockedFindAgyBin.mockReturnValue('/home/person/.local/bin/agy');
+    mockedFindAgyBin.mockReturnValue('/home/example-user/.local/bin/agy');
 
     expect(detectCLIAvailability().agy).toBe(true);
   });

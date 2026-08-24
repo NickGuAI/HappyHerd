@@ -78,3 +78,4 @@ EXACT_DAEMON_ROUTING	accepted	fix(sessions): pin new work to the exact daemon	se
 UPSTREAM_SYNC_AUTOMATION	accepted	ci(upstream): add daily reviewed sync	scripts/test-daily-upstream-sync-contract.sh
 COMMANDER_STATUS_AVATAR	accepted	feat(sessions): add Commander status avatars	server/packages/happy-app/sources/utils/sessionStatusAvatar.test.ts
 UPSTREAM_SYNC_EVIDENCE	accepted	docs(upstream): record audited sync evidence	docs/upstream-sync-2026-08-24.md
+PUBLIC_TEST_FIXTURES	accepted	test(public): generalize imported home-path fixtures	scripts/verify-public-boundary.mjs

@@ -22,13 +22,13 @@ describe('where a Happy Agent session may be started', () => {
         const places = collectSessionPlaces({
             machineIds: [RIG, CLI],
             sessions: [
-                session({ machineId: CLI, path: '/home/steve/projects/happy' }),
-                session({ machineId: RIG, path: '/home/steve/projects/rig' }),
+                session({ machineId: CLI, path: '/home/example-user/projects/happy' }),
+                session({ machineId: RIG, path: '/home/example-user/projects/rig' }),
             ],
         });
         expect(places.map((p) => p.path).sort()).toEqual([
-            '/home/steve/projects/happy',
-            '/home/steve/projects/rig',
+            '/home/example-user/projects/happy',
+            '/home/example-user/projects/rig',
         ]);
     });
 
@@ -36,10 +36,10 @@ describe('where a Happy Agent session may be started', () => {
         const places = collectSessionPlaces({
             machineIds: [RIG, CLI],
             sessions: [
-                session({ machineId: CLI, path: '/home/steve/projects/rig' }),
+                session({ machineId: CLI, path: '/home/example-user/projects/rig' }),
                 session({
                     machineId: RIG,
-                    path: '/home/steve/projects/rig',
+                    path: '/home/example-user/projects/rig',
                     project: { id: 'project-7', kind: 'regular', name: 'rig' },
                 }),
             ],
@@ -54,10 +54,10 @@ describe('where a Happy Agent session may be started', () => {
             sessions: [
                 session({
                     machineId: RIG,
-                    path: '/home/steve/projects/rig',
+                    path: '/home/example-user/projects/rig',
                     project: { id: 'project-7', kind: 'regular', name: 'rig' },
                 }),
-                session({ machineId: CLI, path: '/home/steve/projects/rig' }),
+                session({ machineId: CLI, path: '/home/example-user/projects/rig' }),
             ],
         });
         expect(places[0]).toMatchObject({ name: 'rig', projectId: 'project-7' });
@@ -67,17 +67,17 @@ describe('where a Happy Agent session may be started', () => {
         const places = collectSessionPlaces({
             machineIds: [RIG],
             sessions: [
-                session({ machineId: RIG, path: '/home/steve/old', lifecycleState: 'archived' }),
-                session({ machineId: RIG, path: '/home/steve/live' }),
+                session({ machineId: RIG, path: '/home/example-user/old', lifecycleState: 'archived' }),
+                session({ machineId: RIG, path: '/home/example-user/live' }),
             ],
         });
-        expect(places.map((p) => p.path)).toEqual(['/home/steve/live']);
+        expect(places.map((p) => p.path)).toEqual(['/home/example-user/live']);
     });
 
     it('ignores machines that are not part of this computer', () => {
         const places = collectSessionPlaces({
             machineIds: [RIG],
-            sessions: [session({ machineId: 'someone-elses-laptop', path: '/home/steve/x' })],
+            sessions: [session({ machineId: 'someone-elses-laptop', path: '/home/example-user/x' })],
         });
         expect(places).toEqual([]);
     });
@@ -97,7 +97,7 @@ describe('where a Happy Agent session may be started', () => {
             sessions: [
                 session({
                     machineId: RIG,
-                    path: '/home/steve/projects/rig/.worktrees/retry',
+                    path: '/home/example-user/projects/rig/.worktrees/retry',
                     project: { id: 'project-7', kind: 'regular', name: 'rig' },
                     workspace: { id: 'w1', kind: 'worktree', name: 'Retry policy' },
                 }),
@@ -111,20 +111,20 @@ describe('which workspaces a project offers', () => {
     const sessions = [
         session({
             machineId: RIG,
-            path: '/home/steve/rig/.worktrees/retry',
+            path: '/home/example-user/rig/.worktrees/retry',
             project: { id: 'project-7', kind: 'regular', name: 'rig' },
             workspace: { id: 'w1', kind: 'worktree', name: 'Retry policy rewrite' },
         }),
         session({
             machineId: RIG,
-            path: '/home/steve/rig/.worktrees/old',
+            path: '/home/example-user/rig/.worktrees/old',
             lifecycleState: 'archived',
             project: { id: 'project-7', kind: 'regular', name: 'rig' },
             workspace: { id: 'w2', kind: 'worktree', name: 'Put away' },
         }),
         session({
             machineId: RIG,
-            path: '/home/steve/other/.worktrees/x',
+            path: '/home/example-user/other/.worktrees/x',
             project: { id: 'project-9', kind: 'regular', name: 'other' },
             workspace: { id: 'w3', kind: 'worktree', name: 'Elsewhere' },
         }),
@@ -137,7 +137,7 @@ describe('which workspaces a project offers', () => {
             sessions,
         });
         expect(found.map((w) => w.name)).toEqual(['Retry policy rewrite']);
-        expect(found[0].path).toBe('/home/steve/rig/.worktrees/retry');
+        expect(found[0].path).toBe('/home/example-user/rig/.worktrees/retry');
     });
 
     it('offers nothing when no project is chosen', () => {
