@@ -877,14 +877,14 @@ export const HomeDock = React.memo(({
     const permissionOptions = React.useMemo(
         () => rigCreation?.permissionModes
             ?? (machineCatalog
-                ? getMachineAdvertisedPermissionModes(selectedMachine?.metadata, agentType)
+                ? getMachineAdvertisedPermissionModes(selectedMachine?.metadata, agentType, t)
                 : getHardcodedPermissionModes(agentType, t)),
         [agentType, machineCatalog, rigCreation, selectedMachine?.metadata],
     );
     const modelOptions = React.useMemo(
         () => rigCreation?.models
             ?? (machineCatalog
-                ? getMachineAdvertisedModels(selectedMachine?.metadata, agentType)
+                ? getMachineAdvertisedModels(selectedMachine?.metadata, agentType, t)
                 : getHardcodedModelModes(agentType, t)),
         [agentType, machineCatalog, rigCreation, selectedMachine?.metadata],
     );
@@ -1165,7 +1165,7 @@ export const HomeDock = React.memo(({
         const nextCatalog = selectedMachine?.metadata?.agentCapabilities?.[agent];
         const nextModels = nextRigCreation?.models
             ?? (nextCatalog
-                ? getMachineAdvertisedModels(selectedMachine?.metadata, agent)
+                ? getMachineAdvertisedModels(selectedMachine?.metadata, agent, t)
                 : getHardcodedModelModes(agent, t));
         const nextModel = resolveOption(nextModels, [nextDefaults.modelMode]);
         const nextEfforts = nextRigCreation

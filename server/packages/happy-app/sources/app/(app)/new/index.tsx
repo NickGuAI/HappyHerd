@@ -1277,7 +1277,7 @@ function NewSessionScreen() {
     const permissionModes = React.useMemo<PermissionMode[]>(
         () => rigCreation?.permissionModes
             ?? (selectedMachine?.metadata?.agentCapabilities?.[selectedAgent]
-                ? getMachineAdvertisedPermissionModes(selectedMachine.metadata, selectedAgent, draft.permissionMode)
+                ? getMachineAdvertisedPermissionModes(selectedMachine.metadata, selectedAgent, t, draft.permissionMode)
                 : getHardcodedPermissionModes(selectedAgent, t)),
         [selectedAgent, selectedMachine?.metadata, rigCreation, draft.permissionMode],
     );
@@ -1291,11 +1291,12 @@ function NewSessionScreen() {
     const modelModes = React.useMemo<ModelMode[]>(
         () => rigCreation?.models
             ?? (selectedMachine?.metadata?.agentCapabilities?.[selectedAgent]
-                ? getMachineAdvertisedModels(selectedMachine.metadata, selectedAgent, draft.modelMode)
+                ? getMachineAdvertisedModels(selectedMachine.metadata, selectedAgent, t, draft.modelMode)
                 : includeConfiguredModel(
                     selectedAgent,
                     getHardcodedModelModes(selectedAgent, t),
                     draft.modelMode ?? effectiveAgentDefaults.modelMode,
+                    t,
                 )),
         [selectedAgent, selectedMachine?.metadata, rigCreation, draft.modelMode, effectiveAgentDefaults.modelMode],
     );

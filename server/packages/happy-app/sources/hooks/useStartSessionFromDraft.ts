@@ -172,15 +172,16 @@ export function useStartSessionFromDraft() {
             : resolveAgentDefaultConfig(defaultOverrides, agentType);
         const permissionOptions = rigCreation?.permissionModes
             ?? (machineCatalog
-                ? getMachineAdvertisedPermissionModes(machine.metadata, agentType, draft.permissionMode)
+                ? getMachineAdvertisedPermissionModes(machine.metadata, agentType, t, draft.permissionMode)
                 : getHardcodedPermissionModes(agentType, t));
         const modelOptions = rigCreation?.models
             ?? (machineCatalog
-                ? getMachineAdvertisedModels(machine.metadata, agentType, draft.modelMode)
+                ? getMachineAdvertisedModels(machine.metadata, agentType, t, draft.modelMode)
                 : includeConfiguredModel(
                     agentType,
                     getHardcodedModelModes(agentType, t),
                     draft.modelMode ?? defaults.modelMode,
+                    t,
                 ));
         const permission = resolveOption<{ key: string }>(
             permissionOptions,

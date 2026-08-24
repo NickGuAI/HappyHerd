@@ -3,7 +3,6 @@ import { HAPPYHERD_CLAUDE_MODEL_SLUGS } from '@slopus/happy-wire';
 import { hackModes } from '@/sync/modeHacks';
 import { sortPermissionModes } from '@/utils/permissionModeLabels';
 import { getCodeAgentDefaults } from '@/sync/agentDefaults';
-import { t } from '@/text';
 import {
     getRigCurrentModel,
     getRigModels,
@@ -88,6 +87,7 @@ export function hasMachineCapabilityCatalog(
 function includeUnavailableSelection<T extends ModeOption>(
     options: T[],
     selectedKey: string | null | undefined,
+    translate: Translate,
 ): T[] {
     if (!selectedKey || options.some((option) => option.key === selectedKey)) {
         return options;
@@ -96,7 +96,7 @@ function includeUnavailableSelection<T extends ModeOption>(
         {
             key: selectedKey,
             name: selectedKey,
-            description: t('modelMode.unavailableSelectedDaemon'),
+            description: translate('modelMode.unavailableSelectedDaemon'),
             disabled: true,
             unavailable: true,
         } as unknown as T,
@@ -107,6 +107,7 @@ function includeUnavailableSelection<T extends ModeOption>(
 export function getMachineAdvertisedModels(
     metadata: MachineMetadata | null | undefined,
     flavor: AgentFlavor,
+    translate: Translate,
     selectedKey?: string | null,
 ): ModelMode[] {
     const catalog = getMachineCatalog(metadata, flavor);
@@ -121,12 +122,13 @@ export function getMachineAdvertisedModels(
             name: effort.value,
             description: effort.description ?? null,
         })),
-    })), selectedKey);
+    })), selectedKey, translate);
 }
 
 export function getMachineAdvertisedPermissionModes(
     metadata: MachineMetadata | null | undefined,
     flavor: AgentFlavor,
+    translate: Translate,
     selectedKey?: string | null,
 ): PermissionMode[] {
     const catalog = getMachineCatalog(metadata, flavor);
@@ -135,7 +137,7 @@ export function getMachineAdvertisedPermissionModes(
         key: mode.code,
         name: mode.value,
         description: mode.description ?? null,
-    })), selectedKey);
+    })), selectedKey, translate);
 }
 
 export function getMachineAdvertisedEffortLevels(
@@ -245,6 +247,7 @@ export function includeConfiguredModel(
     flavor: AgentFlavor,
     models: ModelMode[],
     configuredModelKey: string | null | undefined,
+    translate: Translate,
 ): ModelMode[] {
     if (
         flavor !== 'codex'
@@ -259,7 +262,7 @@ export function includeConfiguredModel(
         {
             key: configuredModelKey,
             name: configuredModelKey,
-            description: t('modelMode.savedModelUnavailableDaemon'),
+            description: translate('modelMode.savedModelUnavailableDaemon'),
             unavailable: true,
             disabled: true,
         },
@@ -420,6 +423,7 @@ export function getAvailableModels(
         flavor,
         getHardcodedModelModes(flavor, translate),
         selectedKey,
+        translate,
     );
 }
 
@@ -584,7 +588,7 @@ export function getSessionAvailableModels(
     selectedKey?: string | null,
 ): ModelMode[] {
     if (shouldUseMachineCapabilityCatalog(flavor, sessionMetadata, machineMetadata)) {
-        return getMachineAdvertisedModels(machineMetadata, flavor, selectedKey);
+        return getMachineAdvertisedModels(machineMetadata, flavor, translate, selectedKey);
     }
     return getAvailableModels(flavor, sessionMetadata, translate, selectedKey);
 }
@@ -597,7 +601,7 @@ export function getSessionAvailablePermissionModes(
     selectedKey?: string | null,
 ): PermissionMode[] {
     if (shouldUseMachineCapabilityCatalog(flavor, sessionMetadata, machineMetadata)) {
-        return getMachineAdvertisedPermissionModes(machineMetadata, flavor, selectedKey);
+        return getMachineAdvertisedPermissionModes(machineMetadata, flavor, translate, selectedKey);
     }
     return getAvailablePermissionModes(flavor, sessionMetadata, translate, selectedKey);
 }

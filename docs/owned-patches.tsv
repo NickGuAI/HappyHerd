@@ -80,3 +80,4 @@ COMMANDER_STATUS_AVATAR	accepted	feat(sessions): add Commander status avatars	se
 UPSTREAM_SYNC_EVIDENCE	accepted	docs(upstream): record audited sync evidence	docs/upstream-sync-2026-08-24.md
 PUBLIC_TEST_FIXTURES	accepted	test(public): generalize imported home-path fixtures	scripts/verify-public-boundary.mjs
 PUBLIC_LAUNCHER_CONTRACT	accepted	test(release): decouple launcher and runtime versions	scripts/test-public-launcher-release-contract.sh
+EXACT_DAEMON_ROUTING	accepted	fix(app): inject model catalog translations	server/packages/happy-app/sources/components/modelModeOptions.test.ts

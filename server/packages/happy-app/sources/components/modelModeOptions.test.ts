@@ -51,13 +51,19 @@ describe('modelModeOptions', () => {
             },
         } as any;
 
-        expect(getMachineAdvertisedModels(machineMetadata, 'codex').map((model) => model.key)).toEqual([
+        expect(getMachineAdvertisedModels(machineMetadata, 'codex', translate).map((model) => model.key)).toEqual([
             'default',
             'gpt-machine-only',
         ]);
-        expect(getMachineAdvertisedPermissionModes(machineMetadata, 'codex').map((mode) => mode.key)).toEqual([
+        expect(getMachineAdvertisedPermissionModes(machineMetadata, 'codex', translate).map((mode) => mode.key)).toEqual([
             'read-only',
         ]);
+        expect(getMachineAdvertisedModels(machineMetadata, 'codex', translate, 'stale-model')[0]).toMatchObject({
+            key: 'stale-model',
+            description: 'tr:modelMode.unavailableSelectedDaemon',
+            unavailable: true,
+            disabled: true,
+        });
         expect(getMachineAdvertisedEffortLevels(machineMetadata, 'codex', 'gpt-machine-only').map((mode) => mode.key)).toEqual([
             'ultra',
         ]);
@@ -170,14 +176,14 @@ describe('modelModeOptions', () => {
             machineMetadata,
             translate,
             'gpt-machine-only',
-        )).toEqual(getMachineAdvertisedModels(machineMetadata, 'codex'));
+        )).toEqual(getMachineAdvertisedModels(machineMetadata, 'codex', translate));
         expect(getSessionAvailablePermissionModes(
             'codex',
             sessionMetadata,
             machineMetadata,
             translate,
             'read-only',
-        )).toEqual(getMachineAdvertisedPermissionModes(machineMetadata, 'codex'));
+        )).toEqual(getMachineAdvertisedPermissionModes(machineMetadata, 'codex', translate));
 
         const effortLevels = getSessionEffortLevelsForModel(
             'codex',
@@ -297,7 +303,7 @@ describe('modelModeOptions', () => {
 
     it('shows a configured custom codex model only as an unavailable recovery value', () => {
         const models = getCodexModelModes();
-        const withCustom = includeConfiguredModel('codex', models, 'my-workspace-model');
+        const withCustom = includeConfiguredModel('codex', models, 'my-workspace-model', translate);
 
         expect(withCustom.map((model) => model.key)).toEqual([
             'gpt-5.6-sol',
@@ -305,9 +311,13 @@ describe('modelModeOptions', () => {
             'gpt-5.6-luna',
             'my-workspace-model',
         ]);
-        expect(withCustom.at(-1)).toMatchObject({ unavailable: true, disabled: true });
+        expect(withCustom.at(-1)).toMatchObject({
+            description: 'tr:modelMode.savedModelUnavailableDaemon',
+            unavailable: true,
+            disabled: true,
+        });
         expect(models).toHaveLength(3);
-        expect(includeConfiguredModel('claude', models, 'my-workspace-model')).toBe(models);
+        expect(includeConfiguredModel('claude', models, 'my-workspace-model', translate)).toBe(models);
     });
 
     it('offers every codex model the levels its own registry publishes', () => {
