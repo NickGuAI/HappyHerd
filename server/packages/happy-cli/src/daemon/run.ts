@@ -1195,14 +1195,15 @@ export async function startDaemon(): Promise<void> {
           { startedBy: 'daemon', claudeStartingMode: 'remote' },
         );
 
-        if (options?.model) {
-          launch.args.push('--model', options.model);
-        }
-        // Same as spawnSession: ambient 'default' must not override whatever
-        // the harness is already configured to do.
-        if (options?.permissionMode && options.permissionMode !== 'default') {
-          launch.args.push('--permission-mode', options.permissionMode);
-        }
+        const resumeAgent = metadata.flavor === 'codex' || metadata.codexThreadId
+          ? 'codex'
+          : 'claude';
+        appendDaemonSpawnModeArgs(launch.args, {
+          directory: launch.cwd,
+          agent: resumeAgent,
+          modelMode: options?.model,
+          permissionMode: options?.permissionMode,
+        }, resumeAgent);
 
         await fs.access(launch.cwd);
         const resumedContextBundle = await prepareCommanderContext(metadata.commanderId, launch.cwd);

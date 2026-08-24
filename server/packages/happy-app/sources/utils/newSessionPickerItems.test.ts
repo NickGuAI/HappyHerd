@@ -5,10 +5,20 @@ describe('new session picker items', () => {
     it('maps agents to picker item labels', () => {
         expect(getAgentPickerItems([
             { key: 'claude', label: 'claude code' },
-            { key: 'codex', label: 'codex' },
+            {
+                key: 'codex',
+                label: 'codex',
+                description: 'not installed on this daemon',
+                disabled: true,
+            },
         ])).toEqual([
             { key: 'claude', label: 'claude code' },
-            { key: 'codex', label: 'codex' },
+            {
+                key: 'codex',
+                label: 'codex',
+                subtitle: 'not installed on this daemon',
+                disabled: true,
+            },
         ]);
     });
 

@@ -864,9 +864,6 @@ export const HomeDock = React.memo(({
                 };
         })
     ), [harnessKeys, rigSelectionCreation, selectedMachine?.metadata?.cliAvailability]);
-    const resolvedAgentType = availableAgents.some((agent) => agent.key === agentType && !agent.disabled)
-        ? agentType
-        : (availableAgents.find((agent) => !agent.disabled)?.key as NewSessionAgentType | undefined) ?? agentType;
     const machineCatalog = agentType === 'rig'
         ? undefined
         : selectedMachine?.metadata?.agentCapabilities?.[agentType];
@@ -1183,12 +1180,6 @@ export const HomeDock = React.memo(({
         setModelMode(nextDefaults.modelMode);
         if (nextEffort) setEffortLevel(nextEffort);
     }, [defaultOverrides, rigSelectionCreation, selectedMachine?.metadata, setAgentType, setEffortLevel, setModelMode, setPermissionMode]);
-
-    React.useEffect(() => {
-        if (resolvedAgentType !== agentType) {
-            selectAgent(resolvedAgentType);
-        }
-    }, [agentType, resolvedAgentType, selectAgent]);
 
     type SettingsRow = {
         page: string;

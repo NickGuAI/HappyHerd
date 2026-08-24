@@ -338,17 +338,21 @@ function PickerContent({
     const renderOption = (item: PickerItem) => {
         const isSelected = item.key === selectedKey;
         const isAction = item.kind === 'action';
+        const disabled = item.disabled === true;
         return (
             <BubblePressable
                 key={item.key}
                 scaleFeedback={false}
+                disabled={disabled}
                 accessibilityRole={isAction ? 'button' : 'radio'}
-                accessibilityState={isAction ? undefined : { selected: isSelected }}
+                accessibilityState={isAction
+                    ? { disabled }
+                    : { disabled, selected: isSelected }}
                 style={(p) => [
                     pickerStyles.option,
                     embedded && pickerStyles.embeddedOption,
                     p.pressed && pickerStyles.optionPressed,
-                    item.dimmed && { opacity: 0.45 },
+                    (item.dimmed || disabled) && { opacity: 0.45 },
                 ]}
                 onPress={() => onSelect(item.key)}
             >
@@ -1242,14 +1246,32 @@ function NewSessionScreen() {
 
     // Filter against this exact daemon. Antigravity requires an explicit
     // availability advertisement; older daemons retain Claude/Codex fallback.
-    const availableAgents = React.useMemo(() => {
+    const availableAgents = React.useMemo<Array<{
+        key: AgentKey;
+        label: string;
+        description?: string;
+        disabled?: boolean;
+    }>>(() => {
         const availability = selectedMachine?.metadata?.cliAvailability;
-        return ALL_AGENTS.filter((agent) => agent.key === 'rig'
-            ? selectedRigCreation !== null
-            : agent.key === 'agy'
-                ? availability?.agy === true
-                : !availability || availability[agent.key] === true);
-    }, [selectedMachine?.metadata?.cliAvailability, selectedRigCreation]);
+        return ALL_AGENTS.flatMap((agent) => {
+            const available = agent.key === 'rig'
+                ? selectedRigCreation !== null
+                : agent.key === 'agy'
+                    ? availability?.agy === true
+                    : !availability || availability[agent.key] === true;
+            if (available) return [agent];
+            // Keep only the saved unavailable harness as a disabled recovery
+            // row. It stays visible without becoming launchable on this daemon.
+            if (agent.key !== selectedAgent) return [];
+            return [{
+                ...agent,
+                disabled: true,
+                description: agent.key === 'rig'
+                    ? t('uiCopy.selectAConnectedRigMachine')
+                    : t('uiCopy.notInstalledOnThisMachine'),
+            }];
+        });
+    }, [selectedAgent, selectedMachine?.metadata?.cliAvailability, selectedRigCreation]);
 
     // Derive options from agent type
     const permissionModes = React.useMemo<PermissionMode[]>(
@@ -1578,7 +1600,9 @@ function NewSessionScreen() {
                 break;
             }
             case 'agent':
-                if (availableAgents.some((candidate) => candidate.key === key)) {
+                if (availableAgents.some((candidate) => (
+                    candidate.key === key && !candidate.disabled
+                ))) {
                     setSelectedAgent(key as NewSessionAgentType);
                 }
                 break;
