@@ -7,6 +7,7 @@ fixture="$(mktemp -d "${TMPDIR:-/tmp}/happyherd-public-release.XXXXXX")"
 trap 'rm -rf "$fixture"' EXIT
 
 version='1.2.1-beta.1'
+happy_version="$(node -p 'require(process.argv[1]).version' "$root/server/packages/happy-cli/package.json")"
 source_sha='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 published_at='2026-08-17T00:00:00Z'
 workflow="$root/.github/workflows/public-launcher-release.yml"
@@ -404,7 +405,7 @@ test ! -e "$payload/node_modules/@anthropic-ai/claude-agent-sdk-linux-x64-musl"
 test ! -e "$payload/node_modules/@napi-rs/keyring-linux-x64-musl"
 test ! -e "$payload/node_modules/happy/tools/archives"
 test ! -e "$payload/node_modules/.pnpm-workspace-state.json"
-grep -Fq '"happy": "1.2.1-beta.1"' "$payload/package.json"
+grep -Fq "\"happy\": \"$happy_version\"" "$payload/package.json"
 mkdir -p "$fixture/python/bin"
 cat > "$fixture/python/bin/python3" <<'SH'
 #!/bin/sh
