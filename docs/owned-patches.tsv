@@ -107,3 +107,4 @@ RUNTIME_CONTRACT	accepted	feat(grok): add ACP-backed GrokBuild sessions	server/p
 PUBLIC_RELEASE	accepted	docs(release): record AgentWork delivery	server/packages/happy-app/CHANGELOG.md
 SESSION_UI_STATE	accepted	test(app): stabilize session info archive coverage	server/packages/happy-app/sources/app/(app)/session/[id]/info.archive.test.ts
 RUNTIME_CONTRACT	accepted	fix(grok): isolate capability probe failures	server/packages/happy-cli/src/capabilities/agentCapabilities.test.ts
+SESSION_HEARTBEAT	accepted	fix(heartbeat): preserve readiness and status semantics	server/packages/happy-cli/src/automations/service.test.ts

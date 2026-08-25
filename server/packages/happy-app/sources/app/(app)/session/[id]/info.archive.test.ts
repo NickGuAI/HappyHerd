@@ -9,6 +9,22 @@ const mocks = vi.hoisted(() => {
         back: vi.fn(),
         kill: vi.fn(),
         cleanup: vi.fn(async () => {}),
+        controlHeartbeat: vi.fn(),
+        session: {
+            id: 'session-1',
+            seq: 1,
+            createdAt: 1,
+            updatedAt: 2,
+            active: true,
+            activeAt: 2,
+            metadata: null,
+            metadataVersion: 0,
+            agentState: null,
+            agentStateVersion: 0,
+            thinking: false,
+            thinkingAt: 0,
+            presence: 'online',
+        } as any,
     };
 });
 
@@ -20,6 +36,9 @@ vi.mock('react-native', async () => {
     return {
         View: (props: any) => ReactModule.createElement('View', props, props.children),
         Text: (props: any) => ReactModule.createElement('Text', props, props.children),
+        Pressable: (props: any) => ReactModule.createElement('Pressable', props, props.children),
+        TextInput: (props: any) => ReactModule.createElement('TextInput', props),
+        ActivityIndicator: (props: any) => ReactModule.createElement('ActivityIndicator', props),
         Animated: {
             Value: AnimatedValue,
             View: (props: any) => ReactModule.createElement('AnimatedView', props, props.children),
@@ -56,8 +75,12 @@ vi.mock('react-native-unistyles', () => ({
                     shadow: 'shadow',
                 },
                 surface: 'surface',
+                surfaceHigh: 'surface-high',
                 text: 'text',
                 textSecondary: 'secondary',
+                textLink: 'link',
+                textDestructive: 'destructive',
+                divider: 'divider',
             },
         },
     }),
@@ -92,21 +115,7 @@ vi.mock('@/components/navigation/headerMetrics', () => ({ MOBILE_GLASS_HEADER_HE
 vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}) } }));
 vi.mock('@/sync/storage', () => ({
     useIsDataReady: () => true,
-    useSession: () => ({
-        id: 'session-1',
-        seq: 1,
-        createdAt: 1,
-        updatedAt: 2,
-        active: true,
-        activeAt: 2,
-        metadata: null,
-        metadataVersion: 0,
-        agentState: null,
-        agentStateVersion: 0,
-        thinking: false,
-        thinkingAt: 0,
-        presence: 'online',
-    }),
+    useSession: () => mocks.session,
     useSessionProjectAvatar: () => null,
 }));
 vi.mock('@/utils/sessionUtils', () => ({
@@ -126,6 +135,7 @@ vi.mock('@/utils/sessionUtils', () => ({
 vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn() }));
 vi.mock('@/modal', () => ({ Modal: { alert: vi.fn() } }));
 vi.mock('@/sync/ops', () => ({
+    machineControlHeartbeat: mocks.controlHeartbeat,
     sessionArchive: vi.fn(async () => ({ success: true })),
     sessionDelete: vi.fn(async () => ({ success: true })),
     sessionKill: mocks.kill,
@@ -149,7 +159,11 @@ vi.mock('@/utils/copySessionMetadataToClipboard', () => ({
 vi.mock('@/utils/versionUtils', () => ({ MINIMUM_CLI_VERSION: '0', isVersionSupported: () => true }));
 vi.mock('@/utils/errors', () => ({ HappyError: class HappyError extends Error {} }));
 vi.mock('@/sync/rig', () => ({ getRigIdentity: () => null, isRigMetadata: () => false }));
-vi.mock('@/text', () => ({ t: (key: string) => key }));
+vi.mock('@/text', () => ({
+    t: (key: string, params?: Record<string, string | number>) => (
+        `${key}${params ? `:${JSON.stringify(params)}` : ''}`
+    ),
+}));
 
 import SessionInfoScreen from './info';
 
@@ -164,7 +178,10 @@ beforeAll(() => {
 });
 
 afterAll(() => vi.restoreAllMocks());
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.session.metadata = null;
+});
 
 describe('Session info archive action', () => {
     it('shows loading immediately while the daemon archive request is pending', async () => {
@@ -197,6 +214,57 @@ describe('Session info archive action', () => {
         });
 
         expect(mocks.back).toHaveBeenCalledTimes(2);
+        act(() => renderer.unmount());
+    });
+});
+
+describe('Session info heartbeat status', () => {
+    it('renders the backend delivery, queue, last-fire, next-due, and instruction fields without polling', async () => {
+        mocks.session.metadata = {
+            machineId: 'machine-one',
+            flavor: 'codex',
+            codexThreadId: 'thread-one',
+            path: '/srv/app',
+        };
+        mocks.controlHeartbeat.mockResolvedValue({
+            heartbeat: {
+                status: 'active',
+                instruction: 'Continue the current task if it remains unfinished and actionable.',
+                intervalSeconds: 3_600,
+                nextDueAt: '2026-08-25T00:45:00.000Z',
+            },
+            currentRun: { status: 'running', sessionId: null },
+            lastRun: {
+                status: 'completed',
+                sessionId: 'session-1',
+                startedAt: '2026-08-25T00:00:05.000Z',
+            },
+            deliveryState: 'queued',
+            queuedAhead: 2,
+            observedAt: '2026-08-25T00:15:00.000Z',
+        });
+
+        let renderer!: ReturnType<typeof create>;
+        await act(async () => {
+            renderer = create(React.createElement(SessionInfoScreen));
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        expect(mocks.controlHeartbeat).toHaveBeenCalledTimes(1);
+        expect(mocks.controlHeartbeat).toHaveBeenCalledWith('machine-one', {
+            action: 'status',
+            targetSessionId: 'session-1',
+        });
+        const heartbeatItem = renderer.root.findAllByType('Item' as any)
+            .find((item: any) => String(item.props.title).startsWith('happyHerd.heartbeat.confirmation'))!;
+        expect(heartbeatItem.props.subtitle).toContain('happyHerd.heartbeat.currentStatus');
+        expect(heartbeatItem.props.subtitle).toContain('happyHerd.heartbeat.queuedAhead:{"count":2}');
+        expect(heartbeatItem.props.subtitle).toContain('happyHerd.heartbeat.lastDelivery');
+        expect(heartbeatItem.props.subtitle).toContain('happyHerd.heartbeat.nextDue');
+        expect(heartbeatItem.props.subtitle).toContain('happyHerd.heartbeat.instructionStatus');
+        expect(mocks.controlHeartbeat).toHaveBeenCalledTimes(1);
+
         act(() => renderer.unmount());
     });
 });

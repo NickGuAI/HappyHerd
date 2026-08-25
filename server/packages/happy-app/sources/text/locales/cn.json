@@ -1304,6 +1304,15 @@
       "unavailable": "心跳当前不可用。",
       "notConfigured": "尚未配置心跳",
       "confirmation": "♥ 心跳 · 每 {cadence} · {state}",
+      "currentStatus": "当前：{state}",
+      "queuedAhead": "队列前方还有 {count} 项",
+      "lastDelivery": "上次投递：{time} · {status}",
+      "lastDeliveryNone": "上次投递：尚无",
+      "nextDue": "下次触发：{time} · {countdown}",
+      "nextDueNone": "下次触发：尚未安排",
+      "countdownIn": "{duration} 后",
+      "dueNow": "现在到期",
+      "instructionStatus": "指令：{instruction}",
       "active": "已启用",
       "paused": "已暂停",
       "every": "每隔",
@@ -1323,6 +1332,7 @@
         "persisted": "已持久化",
         "queued": "已排队",
         "running": "运行中",
+        "completed": "已完成",
         "failed": "失败"
       }
     },

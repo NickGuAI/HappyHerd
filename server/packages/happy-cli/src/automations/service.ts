@@ -535,8 +535,10 @@ export class HappyHerdAutomationService {
     }
 
     if (!target.running) {
-      if (run.message === HEARTBEAT_WAITING_DAEMON) {
-        await this.failHeartbeat(heartbeat, run, 'Heartbeat target did not remain running after one exact-session resume.', now);
+      if (run.attempt >= 2) {
+        if (run.message !== HEARTBEAT_WAITING_DAEMON) {
+          await this.store.appendRun({ ...run, message: HEARTBEAT_WAITING_DAEMON });
+        }
         return;
       }
       const waiting = { ...run, attempt: Math.max(run.attempt, 2), message: HEARTBEAT_WAITING_DAEMON };
@@ -576,9 +578,7 @@ export class HappyHerdAutomationService {
 
     // Runtime registration alone is insufficient: wait for its durable queue snapshot.
     if (!queue) {
-      if (run.message === HEARTBEAT_WAITING_QUEUE || run.message === HEARTBEAT_WAITING_DAEMON) {
-        await this.failHeartbeat(heartbeat, run, 'Heartbeat target did not publish a queue snapshot after one wait interval.', now);
-      } else {
+      if (run.message !== HEARTBEAT_WAITING_QUEUE) {
         await this.store.appendRun({ ...run, message: HEARTBEAT_WAITING_QUEUE });
       }
       return;

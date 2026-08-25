@@ -15,7 +15,7 @@ vi.mock('@/sync/storage', () => ({
 
 import { storage } from '@/sync/storage';
 import { getAllCommands } from '@/sync/suggestionCommands';
-import { HEARTBEAT_COMMAND } from './heartbeatCommand';
+import { HEARTBEAT_COMMAND, formatHeartbeatControlResult } from './heartbeatCommand';
 
 const translate = (key: any, params?: Record<string, string | number>) => (
     params?.usage ? `${String(key)}:${params.usage}` : String(key)
@@ -77,6 +77,71 @@ describe('HappyHerd heartbeat command descriptor', () => {
             metadata: resumableCodex, hasAttachments: false, hasWorkspaceContext: false,
             translate, control,
         })).rejects.toThrow('offline');
+    });
+
+    it('formats current queue state, last actual delivery, next countdown, and instruction', () => {
+        const statusTranslate = (key: any, params?: Record<string, string | number>) => (
+            `${String(key)}${params ? `:${JSON.stringify(params)}` : ''}`
+        );
+        const message = formatHeartbeatControlResult({
+            heartbeat: {
+                schemaVersion: 3,
+                runtimeOwner: 'happyherd',
+                id: '11111111-1111-4111-8111-111111111111',
+                machineId: 'machine-one',
+                name: 'Session heartbeat',
+                kind: 'heartbeat',
+                instruction: 'Continue the current task if it remains unfinished and actionable.',
+                schedule: null,
+                timezone: 'UTC',
+                workspace: '/srv/app',
+                rail: 'codex',
+                commanderId: null,
+                status: 'active',
+                maxRetries: 0,
+                tags: [],
+                targetSessionId: 'session-one',
+                intervalSeconds: 3_600,
+                nextDueAt: '2026-08-25T00:45:00.000Z',
+                createdAt: '2026-08-24T00:00:00.000Z',
+                updatedAt: '2026-08-25T00:00:00.000Z',
+                lastScheduledAt: '2026-08-25T00:00:00.000Z',
+                lastRunAt: '2026-08-25T00:00:00.000Z',
+            },
+            currentRun: {
+                id: '22222222-2222-4222-8222-222222222222',
+                automationId: '11111111-1111-4111-8111-111111111111',
+                source: 'schedule',
+                scheduledFor: '2026-08-25T00:15:00.000Z',
+                startedAt: '2026-08-25T00:15:00.000Z',
+                finishedAt: null,
+                status: 'running',
+                attempt: 1,
+                sessionId: null,
+                message: 'Heartbeat is queued in the target session.',
+            },
+            lastRun: {
+                id: '33333333-3333-4333-8333-333333333333',
+                automationId: '11111111-1111-4111-8111-111111111111',
+                source: 'schedule',
+                scheduledFor: '2026-08-25T00:00:00.000Z',
+                startedAt: '2026-08-25T00:00:05.000Z',
+                finishedAt: '2026-08-25T00:05:00.000Z',
+                status: 'completed',
+                attempt: 1,
+                sessionId: 'session-one',
+                message: null,
+            },
+            deliveryState: 'queued',
+            queuedAhead: 2,
+            observedAt: '2026-08-25T00:15:00.000Z',
+        }, statusTranslate);
+
+        expect(message).toContain('happyHerd.heartbeat.delivery.queued');
+        expect(message).toContain('happyHerd.heartbeat.queuedAhead:{"count":2}');
+        expect(message).toContain('happyHerd.heartbeat.delivery.completed');
+        expect(message).toContain('30m');
+        expect(message).toContain('happyHerd.heartbeat.standardContinuation');
     });
 
     it('reserves collisions only for resumable Claude/Codex sessions', async () => {

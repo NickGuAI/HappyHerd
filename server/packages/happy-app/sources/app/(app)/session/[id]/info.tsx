@@ -31,7 +31,7 @@ import {
     HAPPYHERD_HEARTBEAT_STANDARD_INSTRUCTION,
     type HappyHerdHeartbeatControlResponse,
 } from '@slopus/happy-wire';
-import { formatHeartbeatControlResult } from '@/utils/heartbeatCommand';
+import { formatHeartbeatStatusPresentation } from '@/utils/heartbeatCommand';
 
 const DEFAULT_RIG_NAME = 'Rig';
 
@@ -154,6 +154,9 @@ function SessionInfoContent({ session }: { session: Session }) {
     const [heartbeatInterval, setHeartbeatInterval] = React.useState('30');
     const [heartbeatUnit, setHeartbeatUnit] = React.useState<'s' | 'm' | 'h' | 'd'>('m');
     const [heartbeatInstruction, setHeartbeatInstruction] = React.useState('');
+    const heartbeatPresentation = heartbeatResponse
+        ? formatHeartbeatStatusPresentation(heartbeatResponse, (key, params) => (t as any)(key, params))
+        : null;
     const {
         canShowResume,
         canFork,
@@ -455,12 +458,10 @@ function SessionInfoContent({ session }: { session: Session }) {
                 {heartbeatSupported && (
                     <ItemGroup title={t('happyHerd.heartbeat.title')}>
                         <Item
-                            title={heartbeatResponse?.heartbeat
-                                ? formatHeartbeatControlResult(heartbeatResponse, (key, params) => (t as any)(key, params))
+                            title={heartbeatPresentation
+                                ? heartbeatPresentation.summary
                                 : t('happyHerd.heartbeat.notConfigured')}
-                            subtitle={heartbeatResponse?.heartbeat?.instruction === HAPPYHERD_HEARTBEAT_STANDARD_INSTRUCTION
-                                ? t('happyHerd.heartbeat.standardContinuation')
-                                : heartbeatResponse?.heartbeat?.instruction}
+                            subtitle={heartbeatPresentation?.details.join('\n')}
                             icon={<Ionicons name="heart-outline" size={29} color="#FF3B30" />}
                             showChevron={false}
                         />

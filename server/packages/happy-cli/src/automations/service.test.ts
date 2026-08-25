@@ -175,7 +175,7 @@ describe('HappyHerdAutomationService', () => {
     expect((await service.history(heartbeat.id)).runs[0]).toMatchObject({ status: 'completed' });
   });
 
-  it.each(['due', 'pending', 'current'] as const)('exact-resumes a stopped target with a %s ID once, then fails closed', async (queueState) => {
+  it.each(['due', 'pending', 'current'] as const)('exact-resumes a stopped target with a %s ID once and waits for runtime readiness', async (queueState) => {
     let target = { session: heartbeatTarget(), running: true };
     const postMessage = vi.fn().mockResolvedValue(undefined);
     const resumeTarget = vi.fn().mockResolvedValue({ type: 'success', sessionId: target.session.id });
@@ -203,12 +203,29 @@ describe('HappyHerdAutomationService', () => {
     };
 
     await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:00:30.000Z'));
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:01:00.000Z'));
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:01:30.000Z'));
     expect(resumeTarget).toHaveBeenCalledTimes(1);
     expect(resumeTarget).toHaveBeenCalledWith(target.session.id, { replayQueueMessageId: run.id });
-    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:01:00.000Z'));
+    expect((await service.history(heartbeat.id)).runs[0]).toMatchObject({ status: 'running' });
+    expect((await service.list()).automations[0]).toMatchObject({ status: 'active' });
+
+    target = { running: true, session: heartbeatTarget(null) };
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:02:00.000Z'));
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:02:30.000Z'));
     expect(resumeTarget).toHaveBeenCalledTimes(1);
-    expect((await service.history(heartbeat.id)).runs[0]).toMatchObject({ status: 'failed' });
-    expect((await service.list()).automations[0]).toMatchObject({ status: 'paused', nextDueAt: null });
+    expect((await service.controlHeartbeat({ action: 'status', targetSessionId: target.session.id })).deliveryState)
+      .toBe('waiting-daemon');
+
+    target = { running: true, session: heartbeatTarget() };
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:03:00.000Z'));
+    expect(postMessage).toHaveBeenCalledTimes(queueState === 'due' ? 1 : 2);
+    expect(postMessage.mock.calls.at(-1)?.[1].localId).toBe(run.id);
+    if (queueState !== 'due') {
+      expect(postMessage.mock.calls[0][1].text).toBe(postMessage.mock.calls[1][1].text);
+    }
+    expect((await service.history(heartbeat.id)).runs[0]).toMatchObject({ status: 'running' });
+    expect((await service.list()).automations[0]).toMatchObject({ status: 'active' });
   });
 
   it('allows one same-ID persistence retry and then records a material failure', async () => {

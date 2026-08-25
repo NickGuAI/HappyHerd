@@ -370,6 +370,9 @@ export type TranslationKey =
     | "happyHerd.heartbeat.clear"
     | "happyHerd.heartbeat.commandDescription"
     | "happyHerd.heartbeat.confirmation"
+    | "happyHerd.heartbeat.countdownIn"
+    | "happyHerd.heartbeat.currentStatus"
+    | "happyHerd.heartbeat.delivery.completed"
     | "happyHerd.heartbeat.delivery.due"
     | "happyHerd.heartbeat.delivery.failed"
     | "happyHerd.heartbeat.delivery.idle"
@@ -377,15 +380,22 @@ export type TranslationKey =
     | "happyHerd.heartbeat.delivery.queued"
     | "happyHerd.heartbeat.delivery.running"
     | "happyHerd.heartbeat.delivery.waiting-daemon"
+    | "happyHerd.heartbeat.dueNow"
     | "happyHerd.heartbeat.every"
     | "happyHerd.heartbeat.instructionPlaceholder"
+    | "happyHerd.heartbeat.instructionStatus"
     | "happyHerd.heartbeat.interval"
+    | "happyHerd.heartbeat.lastDelivery"
+    | "happyHerd.heartbeat.lastDeliveryNone"
     | "happyHerd.heartbeat.machineUnavailable"
     | "happyHerd.heartbeat.minimum"
+    | "happyHerd.heartbeat.nextDue"
+    | "happyHerd.heartbeat.nextDueNone"
     | "happyHerd.heartbeat.notConfigured"
     | "happyHerd.heartbeat.openTarget"
     | "happyHerd.heartbeat.pause"
     | "happyHerd.heartbeat.paused"
+    | "happyHerd.heartbeat.queuedAhead"
     | "happyHerd.heartbeat.resume"
     | "happyHerd.heartbeat.standardContinuation"
     | "happyHerd.heartbeat.textOnly"
@@ -1289,6 +1299,12 @@ export interface TranslationParamsByKey {
     "happyHerd.automations.openSession": { id: string };
     "happyHerd.commanderAvatars.updated": { name: string };
     "happyHerd.heartbeat.confirmation": { cadence: string; state: string };
+    "happyHerd.heartbeat.countdownIn": { duration: string };
+    "happyHerd.heartbeat.currentStatus": { state: string };
+    "happyHerd.heartbeat.instructionStatus": { instruction: string };
+    "happyHerd.heartbeat.lastDelivery": { status: string; time: string };
+    "happyHerd.heartbeat.nextDue": { countdown: string; time: string };
+    "happyHerd.heartbeat.queuedAhead": { count: number };
     "happyHerd.heartbeat.usage": { usage: string };
     "imageUpload.fileTooLargeMessage": { maxMb: number; name: string };
     "imageUpload.limitMessage": { max: number };

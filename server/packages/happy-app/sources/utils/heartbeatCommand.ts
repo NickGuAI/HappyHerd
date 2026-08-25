@@ -1,6 +1,7 @@
-import type {
-    HappyHerdHeartbeatControlInput,
-    HappyHerdHeartbeatControlResponse,
+import {
+    HAPPYHERD_HEARTBEAT_STANDARD_INSTRUCTION,
+    type HappyHerdHeartbeatControlInput,
+    type HappyHerdHeartbeatControlResponse,
 } from '@slopus/happy-wire';
 
 type Translate = (key: any, params?: Record<string, string | number>) => string;
@@ -80,21 +81,88 @@ function compactInterval(intervalSeconds: number): string {
     return `${intervalSeconds}s`;
 }
 
-export function formatHeartbeatControlResult(
-    response: HappyHerdHeartbeatControlResponse,
+function compactCountdown(seconds: number): string {
+    if (seconds >= 86_400) return `${Math.ceil(seconds / 86_400)}d`;
+    if (seconds >= 3_600) return `${Math.ceil(seconds / 3_600)}h`;
+    if (seconds >= 60) return `${Math.ceil(seconds / 60)}m`;
+    return `${seconds}s`;
+}
+
+function heartbeatRunStatus(
+    status: 'started' | 'completed' | 'failed',
     translate: Translate,
 ): string {
-    if (!response.heartbeat) return translate('happyHerd.heartbeat.notConfigured');
+    return translate(`happyHerd.heartbeat.delivery.${status === 'started' ? 'running' : status}`);
+}
+
+export interface HeartbeatStatusPresentation {
+    summary: string;
+    details: string[];
+}
+
+export function formatHeartbeatStatusPresentation(
+    response: HappyHerdHeartbeatControlResponse,
+    translate: Translate,
+): HeartbeatStatusPresentation {
+    if (!response.heartbeat) {
+        return { summary: translate('happyHerd.heartbeat.notConfigured'), details: [] };
+    }
     const heartbeat = response.heartbeat;
     const state = heartbeat.status === 'paused'
         ? translate('happyHerd.heartbeat.paused')
         : response.deliveryState
             ? translate(`happyHerd.heartbeat.delivery.${response.deliveryState}`)
             : translate('happyHerd.heartbeat.active');
-    return translate('happyHerd.heartbeat.confirmation', {
-        cadence: compactInterval(heartbeat.intervalSeconds),
-        state,
-    });
+    const deliveredRun = response.currentRun?.status === 'started' && response.currentRun.sessionId
+        ? response.currentRun
+        : response.lastRun?.sessionId
+            ? response.lastRun
+            : null;
+    const lastDelivery = deliveredRun
+        ? translate('happyHerd.heartbeat.lastDelivery', {
+            time: new Date(deliveredRun.startedAt).toLocaleString(),
+            status: heartbeatRunStatus(deliveredRun.status as 'started' | 'completed' | 'failed', translate),
+        })
+        : translate('happyHerd.heartbeat.lastDeliveryNone');
+    let nextDue = translate('happyHerd.heartbeat.nextDueNone');
+    if (heartbeat.nextDueAt) {
+        const remainingSeconds = Math.max(0, Math.ceil(
+            (Date.parse(heartbeat.nextDueAt) - Date.parse(response.observedAt)) / 1_000,
+        ));
+        const countdown = remainingSeconds === 0
+            ? translate('happyHerd.heartbeat.dueNow')
+            : translate('happyHerd.heartbeat.countdownIn', { duration: compactCountdown(remainingSeconds) });
+        nextDue = translate('happyHerd.heartbeat.nextDue', {
+            time: new Date(heartbeat.nextDueAt).toLocaleString(),
+            countdown,
+        });
+    }
+    const instruction = heartbeat.instruction === HAPPYHERD_HEARTBEAT_STANDARD_INSTRUCTION
+        ? translate('happyHerd.heartbeat.standardContinuation')
+        : heartbeat.instruction;
+    return {
+        summary: translate('happyHerd.heartbeat.confirmation', {
+            cadence: compactInterval(heartbeat.intervalSeconds),
+            state,
+        }),
+        details: [
+            translate('happyHerd.heartbeat.currentStatus', { state }),
+            ...(response.deliveryState === 'queued' && response.queuedAhead !== null
+                ? [translate('happyHerd.heartbeat.queuedAhead', { count: response.queuedAhead })]
+                : []),
+            lastDelivery,
+            nextDue,
+            translate('happyHerd.heartbeat.instructionStatus', { instruction }),
+        ],
+    };
+}
+
+export function formatHeartbeatControlResult(
+    response: HappyHerdHeartbeatControlResponse,
+    translate: Translate,
+): string {
+    const presentation = formatHeartbeatStatusPresentation(response, translate);
+    return [presentation.summary, ...presentation.details].join('\n');
 }
 
 async function dispatchHeartbeatCommand(input: {

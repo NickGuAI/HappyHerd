@@ -1304,6 +1304,15 @@
       "unavailable": "Heartbeat ist nicht verfügbar.",
       "notConfigured": "Kein Heartbeat konfiguriert",
       "confirmation": "♥ Heartbeat · alle {cadence} · {state}",
+      "currentStatus": "Aktuell: {state}",
+      "queuedAhead": "Eingereiht mit {count} davor",
+      "lastDelivery": "Letzte Zustellung: {time} · {status}",
+      "lastDeliveryNone": "Letzte Zustellung: noch keine",
+      "nextDue": "Nächste Fälligkeit: {time} · {countdown}",
+      "nextDueNone": "Nächste Fälligkeit: nicht geplant",
+      "countdownIn": "noch {duration}",
+      "dueNow": "jetzt fällig",
+      "instructionStatus": "Anweisung: {instruction}",
       "active": "Aktiv",
       "paused": "Pausiert",
       "every": "Alle",
@@ -1323,6 +1332,7 @@
         "persisted": "Gespeichert",
         "queued": "Eingereiht",
         "running": "Läuft",
+        "completed": "Abgeschlossen",
         "failed": "Fehlgeschlagen"
       }
     },
