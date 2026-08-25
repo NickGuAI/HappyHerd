@@ -12,6 +12,7 @@ describe('HappyHerd automation session bootstrap', () => {
     delete process.env.HAPPYHERD_AUTOMATION_ID;
     delete process.env.HAPPYHERD_AUTOMATION_RUN_ID;
     delete process.env.HAPPYHERD_AUTOMATION_KIND;
+    delete process.env.HAPPYHERD_AUTOMATION_TIMEOUT_MINUTES;
     delete process.env.HAPPYHERD_AUTOMATION_BOOTSTRAP_PATH;
     delete process.env.HAPPYHERD_AUTOMATION_BOOTSTRAP_HASH;
     delete process.env.HAPPY_HOME_DIR;
@@ -28,6 +29,7 @@ describe('HappyHerd automation session bootstrap', () => {
       runId,
       kind: 'heartbeat',
       instruction: 'Check the live task list.',
+      timeoutMinutes: 360,
     });
     Object.assign(process.env, module.automationBootstrapEnvironment(reference));
     await expect(module.readAutomationBootstrapFromEnvironment()).resolves.toMatchObject({
@@ -35,12 +37,27 @@ describe('HappyHerd automation session bootstrap', () => {
       runId,
       kind: 'heartbeat',
       instruction: 'Check the live task list.',
+      timeoutMinutes: 360,
     });
     expect(module.automationMetadataFromEnvironment()).toEqual({
       automationId: reference.automationId,
       automationRunId: runId,
       automationKind: 'heartbeat',
+      automationTimeoutMinutes: 360,
     });
+  });
+
+  it('defaults legacy bootstrap snapshots to the 60-minute deadline', async () => {
+    process.env.HAPPY_HOME_DIR = await mkdtemp(path.join(os.tmpdir(), 'happyherd-bootstrap-'));
+    const module = await import('./sessionBootstrap');
+    const reference = await module.prepareAutomationBootstrap({
+      schemaVersion: 1,
+      automationId: crypto.randomUUID(),
+      runId: crypto.randomUUID(),
+      kind: 'scheduled',
+      instruction: 'Use the default deadline.',
+    });
+    expect(reference.timeoutMinutes).toBe(60);
   });
 
   it('rejects a bootstrap changed after the daemon signed it', async () => {

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { CronExpressionParser } from 'cron-parser';
 import cron, { type ScheduledTask } from 'node-cron';
 import {
+  HAPPYHERD_AUTOMATION_DEFAULT_TIMEOUT_MINUTES,
   HappyHerdAutomationCreateInputSchema,
   HappyHerdAutomationTerminalRunStatusSchema,
   HappyHerdAutomationUpdateInputSchema,
@@ -23,8 +24,6 @@ import { HappyHerdAutomationStore } from './store';
 
 const SCHEDULER_HEARTBEAT_MS = 30_000;
 const MAX_OFFLINE_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1_000;
-export const HAPPYHERD_AUTOMATION_RUN_TIMEOUT_MS = 60 * 60 * 1_000;
-
 type AutomationSpawnSessionOptions = Omit<SpawnSessionOptions, 'automation'> & {
   automation: NonNullable<SpawnSessionOptions['automation']> & { runId: string };
 };
@@ -229,6 +228,7 @@ export class HappyHerdAutomationService {
               runId,
               kind: automation.kind,
               instruction: automation.instruction,
+              timeoutMinutes: automation.timeoutMinutes ?? HAPPYHERD_AUTOMATION_DEFAULT_TIMEOUT_MINUTES,
             },
           });
         } catch (error) {

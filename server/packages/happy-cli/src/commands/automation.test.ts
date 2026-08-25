@@ -46,6 +46,27 @@ describe('handleAutomationCommand tags', () => {
     });
   });
 
+  it('forwards a validated per-automation timeout', async () => {
+    await handleAutomationCommand([
+      'update', 'automation-id', '--timeout-minutes', '360',
+    ]);
+
+    expect(mocks.daemonAutomationAction).toHaveBeenCalledWith('update', {
+      id: 'automation-id',
+      input: { timeoutMinutes: 360 },
+    });
+  });
+
+  it('rejects malformed or out-of-range timeouts before daemon mutation', async () => {
+    await expect(handleAutomationCommand([
+      'update', 'automation-id', '--timeout-minutes', '1.5',
+    ])).rejects.toThrow(/whole-number/);
+    await expect(handleAutomationCommand([
+      'update', 'automation-id', '--timeout-minutes', '0',
+    ])).rejects.toThrow(/between 1 and 1440/);
+    expect(mocks.daemonAutomationAction).not.toHaveBeenCalled();
+  });
+
   it('clears tags explicitly on update and otherwise omits the field', async () => {
     await handleAutomationCommand(['update', 'automation-id', '--clear-tags']);
     expect(mocks.daemonAutomationAction).toHaveBeenNthCalledWith(1, 'update', {

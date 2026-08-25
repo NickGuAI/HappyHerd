@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  HAPPYHERD_AUTOMATION_DEFAULT_TIMEOUT_MINUTES,
+  HAPPYHERD_AUTOMATION_MAX_TIMEOUT_MINUTES,
   HAPPYHERD_AUTOMATION_MAX_TAG_LENGTH,
   HAPPYHERD_AUTOMATION_MAX_TAGS,
   HappyHerdAutomationCreateInputSchema,
@@ -93,8 +95,20 @@ describe('HappyHerd automation wire contract', () => {
       maxRetries: 0,
     };
     expect(HappyHerdAutomationCreateInputSchema.parse(createInput).tags).toEqual([]);
+    expect(HappyHerdAutomationCreateInputSchema.parse(createInput).timeoutMinutes).toBeUndefined();
+    expect(HappyHerdAutomationCreateInputSchema.parse({
+      ...createInput,
+      timeoutMinutes: 6 * HAPPYHERD_AUTOMATION_DEFAULT_TIMEOUT_MINUTES,
+    }).timeoutMinutes).toBe(360);
     expect(HappyHerdAutomationUpdateInputSchema.parse({ name: 'Renamed' })).toEqual({ name: 'Renamed' });
+    expect(HappyHerdAutomationUpdateInputSchema.parse({ timeoutMinutes: 360 })).toEqual({ timeoutMinutes: 360 });
     expect(HappyHerdAutomationUpdateInputSchema.parse({ tags: [' z ', 'a'] }).tags).toEqual(['a', 'z']);
+    for (const timeoutMinutes of [0, 1.5, HAPPYHERD_AUTOMATION_MAX_TIMEOUT_MINUTES + 1]) {
+      expect(() => HappyHerdAutomationCreateInputSchema.parse({
+        ...createInput,
+        timeoutMinutes,
+      })).toThrow();
+    }
     expect(HappyHerdAutomationListResponseSchema.parse({ automations: [] })).toEqual({
       definitionSchemaVersion: 1,
       automations: [],
