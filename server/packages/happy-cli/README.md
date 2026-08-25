@@ -34,12 +34,20 @@ This will:
 happy codex
 happy agy        # Antigravity CLI (Gemini's successor)
 happy gemini     # deprecated — use `happy agy`
+happy grok       # GrokBuild through its official ACP stdio interface
 happy openclaw
 
 # or any ACP-compatible CLI
 happy acp opencode
 happy acp -- custom-agent --flag
 ```
+
+`happy grok` uses the installed official GrokBuild CLI. Authenticate that CLI
+with `grok login` before starting; Happy does not add another login or credential
+store. Model, reasoning-effort, and permission choices come from GrokBuild's
+live ACP catalog. Resume loads the same ACP conversation on its original online
+machine. The current GrokBuild integration does not expose image or audio
+attachments or session fork.
 
 > **Note on agy permissions:** the agy backend runs `agy --print`, which is
 > one-shot and has no interactive approval surface — tool calls proceed
@@ -111,6 +119,7 @@ happy connect status
 | `happy codex` | Start Codex mode |
 | `happy agy` | Start agy (Antigravity CLI) session |
 | `happy gemini` | Start Gemini CLI session (**deprecated** — use `happy agy`) |
+| `happy grok` | Start GrokBuild through its official ACP interface |
 | `happy openclaw` | Start OpenClaw session |
 | `happy acp` | Start any ACP-compatible agent |
 | `happy resume <id>` | Resume a previous session |
@@ -174,6 +183,7 @@ yarn workspace happy cli --help
 - For Codex: `codex` CLI installed & logged in
 - For agy: install the Antigravity CLI (`agy`) and log in
 - For Gemini (**deprecated** — use agy): `npm install -g @google/gemini-cli` + `happy connect gemini`
+- For GrokBuild: install the official `grok` CLI and authenticate it with `grok login`
 
 ## License
 

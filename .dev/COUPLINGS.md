@@ -59,6 +59,38 @@ happy-app sync/ops
 RPC method strings and payloads are shared runtime contracts. Search both ends
 and any server relay before modifying them.
 
+### GrokBuild ACP sessions
+
+```text
+happy-app agent selection + live machine catalog
+  → happy-cli daemon spawn/resume
+  → `happy grok`
+  → existing `agent/acp` runner
+  → official GrokBuild CLI over ACP stdio
+```
+
+GrokBuild authentication remains owned by the installed provider CLI. Model,
+reasoning-effort, permission, and resume capabilities come from its live ACP
+responses; resume stays on the original machine. App attachment and fork
+surfaces must follow advertised ACP capabilities rather than another provider
+fallback.
+
+### Session heartbeat delivery
+
+```text
+Session Info or `/heartbeat`
+  → `happyherd-heartbeat-control` machine RPC
+  → automation store/service cadence and occurrence state
+  → encrypted session message with one stable queue identity
+  → isolated entry in the existing MessageQueue2 FIFO
+  → exact Claude or Codex provider conversation
+```
+
+The automation plane owns heartbeat configuration, cadence, coalescing, and
+history. The session message log and runtime queue remain the authorities for
+content, ordering, acceptance, and provider-turn lifecycle; a heartbeat never
+creates a second transport or a fresh session.
+
 ### Governed agent
 
 ```text
@@ -87,6 +119,7 @@ those boundaries.
 | App local persistence | `happy-app/sources/sync/persistence.ts` | MMKV/local cache is device state, not cross-client authority |
 | App credentials | `happy-app/sources/auth/tokenStorage.ts` | SecureStore/native and browser storage implementations differ |
 | Maintained CLI machine/session runtime | `happy-cli/src/configuration.ts` and `persistence.ts` | Defaults beneath `~/.happyherd`; do not mix with other package defaults |
+| Session heartbeat configuration and history | `happy-cli/src/automations/{store,service}.ts` | Stores cadence and one occurrence reference; the target session log and MessageQueue2 own message content and FIFO state |
 | Commander identity and AgentContext | Human-authored Markdown/JSONL beneath the HappyHerd home | Human knowledge remains reviewable files; runtime state does not own it |
 | Issuer credentials and verified Skill receipts | Launcher broker/OS secret store and launcher registry | Credentials never become agent-session state or receipt content |
 | Governed Discord settlement and surface bindings | `happyherd-agent` `BridgeStore` | Dedicated bridge state; not server message authority |

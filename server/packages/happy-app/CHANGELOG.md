@@ -1,3 +1,11 @@
+# August 25 — GrokBuild, session heartbeats, and completion-owned automations
+
+- Automations no longer impose a run deadline: the provider owns completion, while historical timed-out runs remain visible as failed history.
+- Private, bounded `/automations` profiling separates route, RPC, daemon, and render time without recording user content or claiming a performance fix before production evidence exists.
+- `happyherd` forwards native Happy commands while its governed commands keep precedence.
+- GrokBuild sessions use the existing ACP runtime, with models, reasoning effort, permissions, and original-machine resume driven by the connected provider.
+- One exact-session heartbeat can return a recurring instruction to the same resumable Claude or Codex conversation through the existing queued-message path.
+
 # August 25 — Machine status stays steady and Archive responds immediately
 
 - A page-load machine snapshot can no longer overwrite newer live presence, so sessions do not blink offline before the daemon's next heartbeat.
@@ -8,12 +16,6 @@
 - Recent and older sessions retain their reconnect records across daemon restarts and CLI updates instead of expiring after 14 days.
 - Codex resumes the original thread from the provider state home that created it, even when the replacement daemon starts with a different home.
 - An already-pruned local record can be rebuilt from its original local legacy key while preserving the same Happy session and machine.
-
-# August 25 — Long-running automations keep their workers contained
-
-- Automation operators can set a validated per-schedule deadline from one minute through 24 hours; existing schedules retain the 60-minute default.
-- Automations whose providers must govern completion can be created or updated with `--no-timeout`, while ordinary and older schedules keep the 60-minute default.
-- On Unix hosts, a timed-out detached provider is terminated with its whole process group before the run is closed, so nested workers are not orphaned.
 
 # August 24 — HappyHerd decision inbox
 

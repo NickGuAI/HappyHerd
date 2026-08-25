@@ -98,3 +98,10 @@ AUTOMATION_NO_TIMEOUT	accepted	feat: support unbounded automation runs	server/pa
 SESSION_UI_STATE	accepted	fix(app): prevent machine blink and show archive progress	server/packages/happy-app/sources/sync/machinePresence.test.ts
 AUTOMATIONS_PROFILING	accepted	feat(metrics): profile automations page latency	docs/automations-profiling.md
 SESSION_HEARTBEAT	accepted	feat(automations): support resumable session heartbeats	server/packages/happy-cli/src/automations/service.test.ts
+AUTOMATION_NO_TIMEOUT	accepted	fix(automations): remove run deadlines (6a8db5ad)	server/packages/happy-cli/src/codex/runCodex.automation.test.ts
+PUBLIC_LAUNCHER_CONTRACT	accepted	feat(cli): forward native Happy commands	server/packages/happyherd-cli/src/cli.test.ts
+PUBLIC_LAUNCHER_CONTRACT	accepted	fix(cli): retain governed version precedence	server/packages/happyherd-cli/src/cli.test.ts
+AUTOMATION_NO_TIMEOUT	accepted	fix(automations): preserve legacy timed-out history	server/packages/happy-cli/src/automations/store.test.ts
+AUTOMATIONS_PROFILING	accepted	fix(metrics): bound external label values	server/packages/happy-server/sources/app/monitoring/metrics2.test.ts
+RUNTIME_CONTRACT	accepted	feat(grok): add ACP-backed GrokBuild sessions	server/packages/happy-cli/src/agent/acp/acpAgentConfig.test.ts
+PUBLIC_RELEASE	accepted	docs(release): record AgentWork delivery	server/packages/happy-app/CHANGELOG.md
