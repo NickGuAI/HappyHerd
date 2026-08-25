@@ -34,6 +34,47 @@ const RPC_PRESENCE_FETCH_TIMEOUT_MS = 500;
 const RPC_RECONNECT_GRACE_MS = 15_000;
 const RPC_RECONNECT_POLL_MS = 200;
 
+const SUPPORTED_RPC_METRIC_METHODS = new Set([
+    'abort',
+    'bash',
+    'claude-duplicate-session',
+    'claude-fork-session',
+    'claude-list-rewind-points',
+    'codex-duplicate-thread',
+    'codex-fork-thread',
+    'codex-list-rewind-points',
+    'createDirectory',
+    'difftastic',
+    'getDirectoryTree',
+    'goal-action',
+    'happyherd-automations-create',
+    'happyherd-automations-delete',
+    'happyherd-automations-history',
+    'happyherd-automations-list',
+    'happyherd-automations-pause',
+    'happyherd-automations-resume',
+    'happyherd-automations-run-now',
+    'happyherd-automations-update',
+    'happyherd-list-commanders',
+    'hashFile',
+    'killSession',
+    'listDirectory',
+    'openclaw-retry-pairing',
+    'permission',
+    'readFile',
+    'resume-happy-session',
+    'ripgrep',
+    'spawn-happy-session',
+    'stop-daemon',
+    'stop-session',
+    'switch',
+    'uploadFileAbort',
+    'uploadFileChunk',
+    'uploadFileFinish',
+    'uploadFileStart',
+    'writeFile',
+]);
+
 const rpcCallCounter = new Counter({
     name: 'rpc_calls_total',
     help: 'Total RPC calls by method and outcome',
@@ -69,13 +110,14 @@ function rpcRoom(userId: string, method: string): string {
 }
 
 /**
- * Strip the scope prefix (machineId/sessionId) from a prefixed method name
- * to get the base method for metrics labels. Wire format: "cm9xyz123:bash" -> "bash".
- * Falls back to "unknown" if no colon separator found.
+ * Strip the scope prefix (machineId/sessionId), then keep only supported
+ * method names in metrics labels. Wire format: "cm9xyz123:bash" -> "bash".
+ * Unsupported names are grouped under "other".
  */
 function baseMethodName(prefixedMethod: string): string {
     const lastColon = prefixedMethod.lastIndexOf(':');
-    return lastColon >= 0 ? prefixedMethod.substring(lastColon + 1) : prefixedMethod;
+    const method = lastColon >= 0 ? prefixedMethod.substring(lastColon + 1) : prefixedMethod;
+    return SUPPORTED_RPC_METRIC_METHODS.has(method) ? method : 'other';
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
