@@ -1,16 +1,7 @@
-import { access, readdir } from 'node:fs/promises';
+import { readdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
 import type { Metadata } from '@/api/types';
-
-async function pathExists(path: string): Promise<boolean> {
-    try {
-        await access(path);
-        return true;
-    } catch {
-        return false;
-    }
-}
 
 async function codexHomeContainsThread(codexHome: string, threadId: string): Promise<boolean> {
     const rolloutSuffix = `-${threadId}.jsonl`;
@@ -45,10 +36,7 @@ export async function resolveCodexHomeForResume(
 ): Promise<string | undefined> {
     const savedCodexHome = metadata.codexHome?.trim();
     if (savedCodexHome) {
-        const resolved = resolve(savedCodexHome);
-        if (await pathExists(resolved)) {
-            return resolved;
-        }
+        return resolve(savedCodexHome);
     }
 
     const threadId = metadata.codexThreadId?.trim();

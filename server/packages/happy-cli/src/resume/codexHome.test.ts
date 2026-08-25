@@ -33,11 +33,10 @@ describe('resolveCodexHomeForResume', () => {
         })).resolves.toBe(originalCodexHome);
     });
 
-    it('preserves the exact persisted Codex home', async () => {
+    it('preserves the exact persisted Codex home even when it is currently unavailable', async () => {
         const homeDir = await mkdtemp(join(tmpdir(), 'happy-codex-home-'));
         testRoots.push(homeDir);
         const runtimeCodexHome = join(homeDir, 'runtime-codex-home');
-        await mkdir(runtimeCodexHome);
 
         await expect(resolveCodexHomeForResume({
             homeDir,
