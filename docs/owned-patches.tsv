@@ -105,3 +105,4 @@ AUTOMATION_NO_TIMEOUT	accepted	fix(automations): preserve legacy timed-out histo
 AUTOMATIONS_PROFILING	accepted	fix(metrics): bound external label values	server/packages/happy-server/sources/app/monitoring/metrics2.test.ts
 RUNTIME_CONTRACT	accepted	feat(grok): add ACP-backed GrokBuild sessions	server/packages/happy-cli/src/agent/acp/acpAgentConfig.test.ts
 PUBLIC_RELEASE	accepted	docs(release): record AgentWork delivery	server/packages/happy-app/CHANGELOG.md
+SESSION_UI_STATE	accepted	test(app): stabilize session info archive coverage	server/packages/happy-app/sources/app/(app)/session/[id]/info.archive.test.ts

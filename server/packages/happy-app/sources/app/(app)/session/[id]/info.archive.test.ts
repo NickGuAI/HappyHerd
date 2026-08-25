@@ -86,6 +86,7 @@ vi.mock('@/components/MobileGlass', async () => {
     const ReactModule = await import('react');
     return { MobileGlassSurface: (props: any) => ReactModule.createElement('MobileGlassSurface', props, props.children) };
 });
+vi.mock('@/components/ProviderIcon', () => ({ ProviderIcon: 'ProviderIcon' }));
 vi.mock('@/components/layout', () => ({ layout: { maxWidth: 1000 } }));
 vi.mock('@/components/navigation/headerMetrics', () => ({ MOBILE_GLASS_HEADER_HEIGHT: 0 }));
 vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}) } }));
