@@ -23,6 +23,9 @@ const ACTIVE_RUN_STATUSES = new Set<HappyHerdAutomationRun['status']>(['running'
 function normalizeStoredRun(value: unknown): unknown {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
   const run = value as Record<string, unknown>;
+  if (run.status === 'timed-out') {
+    return { ...run, status: 'failed' };
+  }
   // Before the one-shot terminal contract, `started` meant only that the daemon
   // accepted the provider and was incorrectly written with a finishedAt.
   // Treat those rows as active until process reconciliation proves otherwise.

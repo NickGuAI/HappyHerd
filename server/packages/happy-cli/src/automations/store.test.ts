@@ -153,6 +153,39 @@ describe('HappyHerdAutomationStore', () => {
     });
   });
 
+  it('preserves legacy timed-out history as failed runs', async () => {
+    const store = new HappyHerdAutomationStore();
+    const automation = await store.create('machine-one', input());
+    const now = new Date().toISOString();
+    const legacyRun = {
+      id: crypto.randomUUID(),
+      automationId: automation.id,
+      source: 'schedule',
+      scheduledFor: now,
+      startedAt: now,
+      finishedAt: now,
+      status: 'timed-out',
+      attempt: 1,
+      sessionId: 'legacy-session',
+      message: 'Provider exceeded the removed automation deadline.',
+    };
+    const runFile = path.join(
+      root,
+      '.happyherd',
+      'agentcontext',
+      'automations',
+      'happyherd',
+      automation.id,
+      'runs.json',
+    );
+    await writeFile(runFile, JSON.stringify([legacyRun]));
+
+    expect(await store.history(automation.id)).toEqual([{
+      ...legacyRun,
+      status: 'failed',
+    }]);
+  });
+
   it('lists only manifests from its native namespace', async () => {
     const parentRoot = path.join(root, '.happyherd', 'agentcontext', 'automations');
     await mkdir(parentRoot, { recursive: true });
