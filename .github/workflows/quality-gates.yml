@@ -119,6 +119,9 @@ jobs:
       - name: Install frozen dependencies
         working-directory: server
         run: pnpm install --frozen-lockfile
+      - name: Enforce session continuity across daemon restarts
+        working-directory: server
+        run: pnpm --filter happy --fail-if-no-match test:session-continuity
       - name: Run unit suites
         working-directory: server
         run: |

@@ -8,7 +8,8 @@ import { buildSessionChildEnvironment, sanitizeSessionEnvironment } from '@/daem
 import { contextEnvironment, prepareCommanderContext } from '@/agentContext/commanderContext';
 
 import { LocalResumeSessionError, resolveLocalReconnectableSession } from './localResumeStore';
-import { resolveHappySession, type ReconnectableHappySession, type ResumableHappySession } from './resolveHappySession';
+import { resolveReconnectableSession, type ReconnectableHappySession, type ResumableHappySession } from './resolveHappySession';
+import { resolveCodexHomeForResume } from './codexHome';
 
 export type ResumeLaunch = {
     cwd: string;
@@ -108,8 +109,10 @@ export function formatResumeHelp(): string {
 
 async function buildReconnectEnv(session: ReconnectableHappySession): Promise<NodeJS.ProcessEnv> {
     const contextBundle = await prepareCommanderContext(session.metadata.commanderId, session.metadata.path);
+    const codexHome = await resolveCodexHomeForResume(session.metadata);
     return buildSessionChildEnvironment(process.env, {
         ...contextEnvironment(contextBundle),
+        ...(codexHome ? { CODEX_HOME: codexHome } : {}),
         HAPPY_RECONNECT_SESSION_ID: session.id,
         HAPPY_RECONNECT_ENCRYPTION_KEY: encodeBase64(session.encryptionKey),
         HAPPY_RECONNECT_ENCRYPTION_VARIANT: session.encryptionVariant,
@@ -138,11 +141,11 @@ function spawnResumeChild(launch: ResumeLaunch, env: NodeJS.ProcessEnv = sanitiz
     });
 }
 
-async function resolveLegacySessionIfAvailable(sessionId: string): Promise<ResumableHappySession | null> {
+async function resolveLegacySessionIfAvailable(sessionId: string): Promise<ReconnectableHappySession | null> {
     if (!hasLocalHappyAgentAuth()) {
         return null;
     }
-    return resolveHappySession(sessionId);
+    return resolveReconnectableSession(sessionId);
 }
 
 export async function handleResumeCommand(args: string[]): Promise<void> {
@@ -187,7 +190,7 @@ export async function handleResumeCommand(args: string[]): Promise<void> {
         throw new Error(`Saved session path does not exist: ${launch.cwd}`);
     }
 
-    const exitCode = await spawnResumeChild(launch);
+    const exitCode = await spawnResumeChild(launch, await buildReconnectEnv(session));
     if (typeof exitCode === 'number' && exitCode !== 0) {
         process.exit(exitCode);
     }

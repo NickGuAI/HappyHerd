@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SandboxConfig } from '@/persistence';
 import { createSessionMetadata } from './createSessionMetadata';
 
@@ -30,6 +30,26 @@ describe('createSessionMetadata', () => {
     beforeEach(() => {
         mockedExecSync.mockReset();
         mockedExecSync.mockReturnValue('main\n');
+    });
+
+    afterEach(() => {
+        vi.unstubAllEnvs();
+    });
+
+    it('records the Codex provider home only for Codex sessions', () => {
+        vi.stubEnv('CODEX_HOME', '/tmp/original-codex-home');
+
+        const codex = createSessionMetadata({
+            flavor: 'codex',
+            machineId: 'machine-codex-home',
+        });
+        const claude = createSessionMetadata({
+            flavor: 'claude',
+            machineId: 'machine-claude-home',
+        });
+
+        expect(codex.metadata.codexHome).toBe('/tmp/original-codex-home');
+        expect(claude.metadata.codexHome).toBeUndefined();
     });
 
     it('sets metadata.sandbox to the config when enabled', () => {

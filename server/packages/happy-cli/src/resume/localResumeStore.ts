@@ -1,12 +1,13 @@
 import axios, { AxiosError } from 'axios';
 
-import { decodeBase64, decrypt } from '@/api/encryption';
+import { decodeBase64, decrypt, encodeBase64 } from '@/api/encryption';
 import type { Metadata } from '@/api/types';
 import { configuration } from '@/configuration';
-import { readCredentials, readPersistedSessions, type PersistedSession } from '@/persistence';
+import { persistSession, readCredentials, readPersistedSessions, type PersistedSession } from '@/persistence';
 
 import {
     parseResumableMetadata,
+    resolveReconnectableSession,
     resolveSessionRecordByPrefix,
     type ReconnectableHappySession,
 } from './resolveHappySession';
@@ -24,6 +25,11 @@ export class LocalResumeSessionError extends Error {
         this.name = 'LocalResumeSessionError';
     }
 }
+
+export type BackfilledReconnectableSession = {
+    session: ReconnectableHappySession;
+    persisted: PersistedSession;
+};
 
 function needsFreshMetadata(metadata: Metadata): boolean {
     if (metadata.flavor === 'codex') {
@@ -112,4 +118,40 @@ export async function resolveLocalReconnectableSession(sessionId: string): Promi
         encryptionKey,
         encryptionVariant: matched.encryptionVariant,
     };
+}
+
+export async function backfillReconnectableSessionForMachine(
+    sessionId: string,
+    machineId: string,
+): Promise<BackfilledReconnectableSession> {
+    const session = await resolveReconnectableSession(sessionId);
+    if (!session.metadata.machineId) {
+        throw new LocalResumeSessionError(
+            `Cannot recover Happy session "${session.id}" because it does not identify its originating machine.`,
+            'unavailable',
+        );
+    }
+    if (session.metadata.machineId !== machineId) {
+        throw new LocalResumeSessionError(
+            `Cannot recover Happy session "${session.id}" because it belongs to another machine.`,
+            'unavailable',
+        );
+    }
+
+    const persisted: PersistedSession = {
+        encryptionKey: encodeBase64(session.encryptionKey),
+        encryptionVariant: session.encryptionVariant,
+        seq: session.seq,
+        metadataVersion: session.metadataVersion,
+        agentStateVersion: session.agentStateVersion,
+        metadata: session.metadata,
+        savedAt: Date.now(),
+    };
+    if (!persistSession(session.id, persisted)) {
+        throw new LocalResumeSessionError(
+            `Cannot recover Happy session "${session.id}" because its reconnect record could not be persisted.`,
+            'unavailable',
+        );
+    }
+    return { session, persisted };
 }

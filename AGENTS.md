@@ -20,6 +20,10 @@ range-diff.
   databases, logs, or CLI homes.
 - Each roadmap item lands as a topical commit and must carry acceptance
   evidence before its TickTick checklist item is completed.
+- Existing sessions are durable user state: service updates and daemon restarts
+  must preserve their Happy ID, original machine/path, encryption, provider
+  session/thread and state home, prior context, and ability to accept the next
+  turn regardless of age.
 - Do not add a HappyHerd-only guard, gate, approval flow, version or source
   lock, fail-closed refusal, automatic rollback, process supervisor, or
   isolation layer without explicit human approval recorded in the owning

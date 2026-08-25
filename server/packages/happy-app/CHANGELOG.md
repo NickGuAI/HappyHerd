@@ -1,3 +1,9 @@
+# August 25 — Existing sessions keep their context after updates
+
+- Recent and older sessions retain their reconnect records across daemon restarts and CLI updates instead of expiring after 14 days.
+- Codex resumes the original thread from the provider state home that created it, even when the replacement daemon starts with a different home.
+- An already-pruned local record can be rebuilt from its original local legacy key while preserving the same Happy session and machine.
+
 # August 25 — Long-running automations keep their workers contained
 
 - Automation operators can set a validated per-schedule deadline from one minute through 24 hours; existing schedules retain the 60-minute default.

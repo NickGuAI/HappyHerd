@@ -2,7 +2,14 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { acquireDaemonLock, releaseDaemonLock, SandboxConfigSchema } from './persistence';
+import {
+    acquireDaemonLock,
+    persistSession,
+    readPersistedSessions,
+    releaseDaemonLock,
+    SandboxConfigSchema,
+    type PersistedSession,
+} from './persistence';
 
 const mockConfiguration = vi.hoisted(() => ({
     daemonLockFile: '',
@@ -132,5 +139,54 @@ describe('acquireDaemonLock', () => {
 
         expect(lockHandle).toBeNull();
         expect(readFileSync(mockConfiguration.daemonLockFile, 'utf-8')).toBe(String(process.pid));
+    });
+});
+
+describe('session persistence', () => {
+    let testDir: string;
+
+    const sessionRecord = (savedAt: number, threadId: string): PersistedSession => ({
+        encryptionKey: 'AQIDBA==',
+        encryptionVariant: 'dataKey',
+        seq: 12,
+        metadataVersion: 3,
+        agentStateVersion: 4,
+        metadata: {
+            path: '/tmp/repo',
+            flavor: 'codex',
+            codexThreadId: threadId,
+            host: 'localhost',
+            homeDir: '/tmp',
+            happyHomeDir: '/tmp/.happy',
+            happyLibDir: '/tmp/happy',
+            happyToolsDir: '/tmp/happy/tools',
+        },
+        savedAt,
+    });
+
+    beforeEach(() => {
+        testDir = mkdtempSync(join(tmpdir(), 'happy-persisted-sessions-'));
+        mockConfiguration.sessionsFile = join(testDir, 'sessions.json');
+    });
+
+    afterEach(() => {
+        rmSync(testDir, { recursive: true, force: true });
+    });
+
+    it('reloads recent and older-than-14-day sessions after an update rewrite', () => {
+        const recent = sessionRecord(Date.now(), 'thread-recent');
+        const historical = sessionRecord(Date.now() - 45 * 24 * 60 * 60 * 1000, 'thread-historical');
+        writeFileSync(mockConfiguration.sessionsFile, JSON.stringify({
+            sessions: { recent, historical },
+        }), 'utf-8');
+
+        const registeredAfterUpdate = sessionRecord(Date.now(), 'thread-new');
+        persistSession('registered-after-update', registeredAfterUpdate);
+
+        expect(readPersistedSessions()).toEqual({
+            recent,
+            historical,
+            'registered-after-update': registeredAfterUpdate,
+        });
     });
 });

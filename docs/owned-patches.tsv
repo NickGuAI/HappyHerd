@@ -1,4 +1,5 @@
 # gate	state	subject	evidence
+SESSION_CONTINUITY	accepted	fix(sessions): preserve session continuity across restarts	server/packages/happy-cli/src/persistence.test.ts
 AUTOMATION_TIMEOUT	accepted	fix(automations): make run deadlines configurable	server/packages/happy-cli/src/daemon/run.automation.test.ts
 AGENT_CONTEXT_AUTHORITY	accepted	fix(context): make AgentContext standalone	server/packages/happy-cli/src/agentContext/commanderContext.test.ts
 PUBLIC_BOUNDARY	accepted	feat(agent): make governed runtime organization-neutral	scripts/verify-public-boundary.mjs
