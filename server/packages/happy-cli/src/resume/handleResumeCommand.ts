@@ -2,17 +2,11 @@ import { existsSync } from 'node:fs';
 
 import type { Metadata } from '@/api/types';
 import { encodeBase64 } from '@/api/encryption';
-import { hasLocalHappyAgentAuth } from '@/resume/localHappyAgentAuth';
 import { spawnHappyCLI } from '@/utils/spawnHappyCLI';
 import { buildSessionChildEnvironment, sanitizeSessionEnvironment } from '@/daemon/sessionEnvironment';
 import { contextEnvironment, prepareCommanderContext } from '@/agentContext/commanderContext';
-import { readCredentials, readSettings } from '@/persistence';
 
-import {
-    backfillReconnectableSessionForMachine,
-    LocalResumeSessionError,
-    resolveLocalReconnectableSession,
-} from './localResumeStore';
+import { LocalResumeSessionError, resolveLocalReconnectableSession } from './localResumeStore';
 import { type ReconnectableHappySession, type ResumableHappySession } from './resolveHappySession';
 import { resolveCodexHomeForResume } from './codexHome';
 
@@ -146,21 +140,6 @@ function spawnResumeChild(launch: ResumeLaunch, env: NodeJS.ProcessEnv = sanitiz
     });
 }
 
-async function resolveLegacySessionIfAvailable(sessionId: string): Promise<ReconnectableHappySession | null> {
-    const accessCredentials = await readCredentials();
-    if (accessCredentials?.encryption.type !== 'legacy' && !hasLocalHappyAgentAuth()) {
-        return null;
-    }
-    const settings = await readSettings();
-    if (!settings.machineId) {
-        throw new LocalResumeSessionError(
-            `Cannot recover Happy session "${sessionId}" because this machine does not have an assigned machine ID.`,
-            'unavailable',
-        );
-    }
-    return (await backfillReconnectableSessionForMachine(sessionId, settings.machineId)).session;
-}
-
 export async function handleResumeCommand(args: string[]): Promise<void> {
     const parsed = parseResumeCommandArgs(args);
     if (parsed.showHelp) {
@@ -193,18 +172,5 @@ export async function handleResumeCommand(args: string[]): Promise<void> {
         return;
     }
 
-    const session = await resolveLegacySessionIfAvailable(parsed.sessionId);
-    if (!session) {
-        throw localError;
-    }
-    const launch = buildResumeLaunch(session);
-
-    if (!existsSync(launch.cwd)) {
-        throw new Error(`Saved session path does not exist: ${launch.cwd}`);
-    }
-
-    const exitCode = await spawnResumeChild(launch, await buildReconnectEnv(session));
-    if (typeof exitCode === 'number' && exitCode !== 0) {
-        process.exit(exitCode);
-    }
+    throw localError;
 }
