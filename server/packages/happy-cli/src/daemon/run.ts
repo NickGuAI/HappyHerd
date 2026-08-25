@@ -5,7 +5,9 @@ import axios from 'axios';
 import { randomUUID } from 'node:crypto';
 import psList from 'ps-list';
 import {
+  HAPPYHERD_AUTOMATION_DEFAULT_TIMEOUT_MINUTES,
   HappyHerdAutomationProviderOutcomeSchema,
+  HappyHerdAutomationTimeoutMinutesSchema,
   type HappyHerdAutomationProviderOutcome,
   type HappyHerdAutomationRun,
 } from '@slopus/happy-wire';
@@ -42,10 +44,7 @@ import {
   wrapTmuxCommandWithSessionEnvironmentSanitizer,
 } from './sessionEnvironment';
 import { contextEnvironment, prepareCommanderContext } from '@/agentContext/commanderContext';
-import {
-  HAPPYHERD_AUTOMATION_RUN_TIMEOUT_MS,
-  HappyHerdAutomationService,
-} from '@/automations/service';
+import { HappyHerdAutomationService } from '@/automations/service';
 import { automationBootstrapEnvironment, prepareAutomationBootstrap } from '@/automations/sessionBootstrap';
 import { appendDaemonSpawnModeArgs } from './spawnModeArgs';
 import { SessionProcessLifecycle } from './sessionProcessLifecycle';
@@ -130,6 +129,7 @@ export async function terminateAutomationProviderBeforeTimeoutConfirmation(
   dependencies: {
     signal?: (pid: number, signal: NodeJS.Signals) => void;
     waitForExit?: (pid: number, timeoutMs: number) => Promise<boolean>;
+    platform?: NodeJS.Platform;
   } = {},
 ): Promise<boolean> {
   const signal = dependencies.signal ?? ((targetPid, targetSignal) => process.kill(targetPid, targetSignal));
@@ -141,18 +141,34 @@ export async function terminateAutomationProviderBeforeTimeoutConfirmation(
     return hasProviderProcessExited(targetPid);
   });
 
+  let targetPid = (dependencies.platform ?? process.platform) === 'win32' ? pid : -pid;
   try {
-    signal(pid, 'SIGTERM');
+    signal(targetPid, 'SIGTERM');
   } catch {
-    return waitForExit(pid, 0);
+    if (targetPid === pid) return waitForExit(pid, 0);
+    targetPid = pid;
+    try {
+      signal(targetPid, 'SIGTERM');
+    } catch {
+      return waitForExit(targetPid, 0);
+    }
   }
-  if (await waitForExit(pid, AUTOMATION_TERMINATION_GRACE_MS)) return true;
+  if (await waitForExit(targetPid, AUTOMATION_TERMINATION_GRACE_MS)) return true;
   try {
-    signal(pid, 'SIGKILL');
+    signal(targetPid, 'SIGKILL');
   } catch {
-    return waitForExit(pid, 0);
+    return waitForExit(targetPid, 0);
   }
-  return waitForExit(pid, AUTOMATION_TERMINATION_GRACE_MS);
+  return waitForExit(targetPid, AUTOMATION_TERMINATION_GRACE_MS);
+}
+
+export function automationRunTimeoutMinutes(metadata: Metadata | undefined): number {
+  const parsed = HappyHerdAutomationTimeoutMinutesSchema.safeParse(metadata?.automationTimeoutMinutes);
+  return parsed.success ? parsed.data : HAPPYHERD_AUTOMATION_DEFAULT_TIMEOUT_MINUTES;
+}
+
+export function automationRunDeadlineAt(run: HappyHerdAutomationRun, metadata: Metadata | undefined): number {
+  return Date.parse(run.startedAt) + automationRunTimeoutMinutes(metadata) * 60_000;
 }
 
 export function automationProviderCommandMatches(
@@ -354,21 +370,25 @@ export async function startDaemon(): Promise<void> {
     const automationTimeoutsInProgress = new Set<string>();
     let automationReconcileRunning = false;
 
-    const onChildExited = async (pid: number): Promise<void> => {
+    const onChildExited = async (
+      pid: number,
+      forcedStatus: 'timed-out' | null = null,
+    ): Promise<void> => {
       if (!hasProviderProcessExited(pid)) {
         logger.debug(`[DAEMON RUN] PID ${pid} has not been confirmed exited; keeping it active`);
         return;
       }
       const session = pidToTrackedSession.get(pid);
       if (!session) return;
+      if (forcedStatus === null
+        && session.automationRunId
+        && automationTimeoutsInProgress.has(session.automationRunId)) {
+        logger.debug(`[AUTOMATIONS] Waiting for process-group termination before closing run ${session.automationRunId}`);
+        return;
+      }
       const exitedBeforeWebhook = !session.happySessionId;
       try {
-        await finalizeExitedAutomationSession(
-          session,
-          session.automationRunId && automationTimeoutsInProgress.has(session.automationRunId)
-            ? 'timed-out'
-            : null,
-        );
+        await finalizeExitedAutomationSession(session, forcedStatus);
       } catch (error) {
         logger.warn(`[AUTOMATIONS] Failed to reconcile exited provider PID ${pid}; the run remains active`, error);
       } finally {
@@ -566,6 +586,7 @@ export async function startDaemon(): Promise<void> {
             runId: options.automation.runId,
             kind: options.automation.kind,
             instruction: options.automation.instruction,
+            timeoutMinutes: options.automation.timeoutMinutes,
           })
           : null;
         let extraEnv: Record<string, string> = {
@@ -1007,12 +1028,13 @@ export async function startDaemon(): Promise<void> {
       }
 
       if (forcedStatus === 'timed-out') {
+        const timeoutMinutes = automationRunTimeoutMinutes(localMetadata);
         await automations.confirmRunTermination({
           automationId: run.automationId,
           runId: run.id,
           sessionId: run.sessionId!,
           status: 'timed-out',
-          message: 'Provider exceeded the 60-minute automation deadline and was terminated.',
+          message: `Provider exceeded the ${timeoutMinutes}-minute automation deadline and was terminated.`,
         });
         clearAutomationDeadline(run.id);
         return;
@@ -1082,21 +1104,23 @@ export async function startDaemon(): Promise<void> {
       }
 
       automationTimeoutsInProgress.add(run.id);
+      let terminated = false;
       try {
         logger.warn(`[AUTOMATIONS] Terminating timed-out run ${run.id}, PID ${session.pid}`);
         if (!await terminateAutomationProviderBeforeTimeoutConfirmation(session.pid)) {
           logger.warn(`[AUTOMATIONS] PID ${session.pid} remains live after timeout termination; run ${run.id} stays active`);
           return;
         }
-        await onChildExited(session.pid);
+        terminated = true;
       } finally {
         automationTimeoutsInProgress.delete(run.id);
       }
+      if (terminated) await onChildExited(session.pid, 'timed-out');
     };
 
-    const armAutomationDeadline = (run: HappyHerdAutomationRun): void => {
+    const armAutomationDeadline = (run: HappyHerdAutomationRun, session: AutomationTrackedSession): void => {
       if (automationDeadlineTimers.has(run.id)) return;
-      const deadlineAt = Date.parse(run.startedAt) + HAPPYHERD_AUTOMATION_RUN_TIMEOUT_MS;
+      const deadlineAt = automationRunDeadlineAt(run, session.happySessionMetadataFromLocalWebhook);
       const timer = setTimeout(() => {
         automationDeadlineTimers.delete(run.id);
         void terminateTimedOutAutomation(run.id).catch((error) => {
@@ -1144,7 +1168,7 @@ export async function startDaemon(): Promise<void> {
             await finalizeExitedAutomationSession(session, null);
             continue;
           }
-          armAutomationDeadline(run);
+          armAutomationDeadline(run, session);
         }
       } finally {
         automationReconcileRunning = false;

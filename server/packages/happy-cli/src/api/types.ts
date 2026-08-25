@@ -390,6 +390,7 @@ export type Metadata = {
   automationId?: string
   automationRunId?: string
   automationKind?: 'scheduled' | 'heartbeat' | 'memory-maintenance'
+  automationTimeoutMinutes?: number
   /** Provider-written only after the one-shot root and child work is terminal. */
   automationProviderOutcome?: HappyHerdAutomationProviderOutcome
 };

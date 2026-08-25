@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 25 — Long-running automations keep their workers contained",
+      "summary": "",
+      "markdown": "- Automation operators can set a validated per-schedule deadline from one minute through 24 hours; existing schedules retain the 60-minute default.\n- On Unix hosts, a timed-out detached provider is terminated with its whole process group before the run is closed, so nested workers are not orphaned."
+    },
+    {
       "title": "August 24 — HappyHerd decision inbox",
       "summary": "Home now keeps every conversation in one machine-exact decision inbox, with the Commander avatar itself carrying session state.",
       "markdown": "- **One decision inbox** — sessions are ordered by real activity across projects, with search, worktree, exact daemon, activity time, Git changes, drafts, unread work, and action requests visible in one flat list; Archive remains separate.\n- **Commander status avatars** — the Commander picture (or provider identity and initials fallback) is wrapped by one accessible status ring for action required, unread, thinking, waiting, disconnected, or idle state.\n- **Exact daemon ownership** — model, permission, effort, path, and launch choices stay bound to the selected daemon registration; stale choices remain visible only for recovery and never route to another daemon.\n- **Provider-native controls** — Codex keeps Yolo as HappyHerd's default while supporting Auto, current 5.6 models, model-advertised effort levels, and provider-specific Default forwarding.\n- **Upstream improvements** — question cards, copy actions, composer controls, reconnect refresh, first-message recovery, Markdown fixes, and current deployment documentation arrive without weakening Workspace Links or queued-message ownership."
@@ -221,5 +226,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 24 — HappyHerd decision inbox"
+  "latestTitle": "August 25 — Long-running automations keep their workers contained"
 }

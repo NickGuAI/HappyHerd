@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Metadata } from '@/api/types';
 import type { HappyHerdAutomationRun } from '@slopus/happy-wire';
 import {
+  automationRunDeadlineAt,
+  automationRunTimeoutMinutes,
   automationSessionMatchesRun,
   automationProviderCommandMatches,
   automationWebhookMatchesTrackedSession,
@@ -123,13 +125,41 @@ describe('daemon automation lifecycle guardrails', () => {
     await expect(terminateAutomationProviderBeforeTimeoutConfirmation(42, {
       signal,
       waitForExit,
+      platform: 'linux',
     })).resolves.toBe(true);
-    expect(signal.mock.calls).toEqual([[42, 'SIGTERM'], [42, 'SIGKILL']]);
+    expect(signal.mock.calls).toEqual([[-42, 'SIGTERM'], [-42, 'SIGKILL']]);
+    expect(waitForExit.mock.calls).toEqual([[-42, 5_000], [-42, 5_000]]);
 
     await expect(terminateAutomationProviderBeforeTimeoutConfirmation(42, {
       signal: vi.fn(),
       waitForExit: vi.fn().mockResolvedValue(false),
+      platform: 'linux',
     })).resolves.toBe(false);
+  });
+
+  it('falls back to the parent PID when Unix process-group signalling is unavailable', async () => {
+    const signal = vi.fn((targetPid: number) => {
+      if (targetPid < 0) throw Object.assign(new Error('missing group'), { code: 'ESRCH' });
+    });
+    const waitForExit = vi.fn().mockResolvedValue(true);
+    await expect(terminateAutomationProviderBeforeTimeoutConfirmation(42, {
+      signal,
+      waitForExit,
+      platform: 'linux',
+    })).resolves.toBe(true);
+    expect(signal.mock.calls).toEqual([[-42, 'SIGTERM'], [42, 'SIGTERM']]);
+    expect(waitForExit).toHaveBeenCalledWith(42, 5_000);
+  });
+
+  it('uses the snapshotted timeout and preserves the 60-minute default', () => {
+    const run = activeRun();
+    const startedAt = Date.parse(run.startedAt);
+    expect(automationRunTimeoutMinutes(automationMetadata())).toBe(60);
+    expect(automationRunDeadlineAt(run, automationMetadata())).toBe(startedAt + 60 * 60_000);
+    const custom = automationMetadata({ automationTimeoutMinutes: 360 });
+    expect(automationRunTimeoutMinutes(custom)).toBe(360);
+    expect(automationRunDeadlineAt(run, custom)).toBe(startedAt + 360 * 60_000);
+    expect(automationRunTimeoutMinutes(automationMetadata({ automationTimeoutMinutes: 0 }))).toBe(60);
   });
 
   it('matches only the expected daemon-started Happy provider command', () => {
