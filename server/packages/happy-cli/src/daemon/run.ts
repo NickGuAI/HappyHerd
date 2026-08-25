@@ -162,13 +162,27 @@ export async function terminateAutomationProviderBeforeTimeoutConfirmation(
   return waitForExit(targetPid, AUTOMATION_TERMINATION_GRACE_MS);
 }
 
-export function automationRunTimeoutMinutes(metadata: Metadata | undefined): number {
+export function automationRunTimeoutMinutes(metadata: Metadata | undefined): number | null {
+  if (metadata?.automationTimeoutMinutes === null) return null;
   const parsed = HappyHerdAutomationTimeoutMinutesSchema.safeParse(metadata?.automationTimeoutMinutes);
   return parsed.success ? parsed.data : HAPPYHERD_AUTOMATION_DEFAULT_TIMEOUT_MINUTES;
 }
 
-export function automationRunDeadlineAt(run: HappyHerdAutomationRun, metadata: Metadata | undefined): number {
-  return Date.parse(run.startedAt) + automationRunTimeoutMinutes(metadata) * 60_000;
+export function automationRunDeadlineAt(run: HappyHerdAutomationRun, metadata: Metadata | undefined): number | null {
+  const timeoutMinutes = automationRunTimeoutMinutes(metadata);
+  return timeoutMinutes === null ? null : Date.parse(run.startedAt) + timeoutMinutes * 60_000;
+}
+
+export function scheduleAutomationRunDeadline(
+  run: HappyHerdAutomationRun,
+  metadata: Metadata | undefined,
+  onDeadline: () => void,
+): ReturnType<typeof setTimeout> | null {
+  const deadlineAt = automationRunDeadlineAt(run, metadata);
+  if (deadlineAt === null) return null;
+  const timer = setTimeout(onDeadline, Math.max(0, deadlineAt - Date.now()));
+  timer.unref?.();
+  return timer;
 }
 
 export function automationProviderCommandMatches(
@@ -1029,6 +1043,10 @@ export async function startDaemon(): Promise<void> {
 
       if (forcedStatus === 'timed-out') {
         const timeoutMinutes = automationRunTimeoutMinutes(localMetadata);
+        if (timeoutMinutes === null) {
+          logger.warn(`[AUTOMATIONS] Refusing to close unbounded run ${run.id} as timed-out`);
+          return;
+        }
         await automations.confirmRunTermination({
           automationId: run.automationId,
           runId: run.id,
@@ -1120,15 +1138,13 @@ export async function startDaemon(): Promise<void> {
 
     const armAutomationDeadline = (run: HappyHerdAutomationRun, session: AutomationTrackedSession): void => {
       if (automationDeadlineTimers.has(run.id)) return;
-      const deadlineAt = automationRunDeadlineAt(run, session.happySessionMetadataFromLocalWebhook);
-      const timer = setTimeout(() => {
+      const timer = scheduleAutomationRunDeadline(run, session.happySessionMetadataFromLocalWebhook, () => {
         automationDeadlineTimers.delete(run.id);
         void terminateTimedOutAutomation(run.id).catch((error) => {
           logger.warn(`[AUTOMATIONS] Failed to enforce deadline for run ${run.id}`, error);
         });
-      }, Math.max(0, deadlineAt - Date.now()));
-      timer.unref?.();
-      automationDeadlineTimers.set(run.id, timer);
+      });
+      if (timer) automationDeadlineTimers.set(run.id, timer);
     };
 
     async function reconcileAutomationRuns(): Promise<void> {

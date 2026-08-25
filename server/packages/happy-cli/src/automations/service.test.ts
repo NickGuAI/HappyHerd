@@ -100,6 +100,17 @@ describe('HappyHerdAutomationService', () => {
     }));
   });
 
+  it('snapshots an explicit unbounded timeout into the daemon spawn contract', async () => {
+    const spawn = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'session-one' });
+    service = new HappyHerdAutomationService('machine-one', spawn);
+    await service.start();
+    const created = await service.create({ ...input(), timeoutMinutes: null });
+    await service.runNow(created.id);
+    expect(spawn).toHaveBeenCalledWith(expect.objectContaining({
+      automation: expect.objectContaining({ timeoutMinutes: null }),
+    }));
+  });
+
   it('does not execute missed runs automatically after downtime', async () => {
     const spawn = vi.fn();
     service = new HappyHerdAutomationService('machine-one', spawn);

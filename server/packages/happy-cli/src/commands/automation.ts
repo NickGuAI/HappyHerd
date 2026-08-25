@@ -80,6 +80,14 @@ function timeoutMinutesFlag(flags: Flags): number | undefined {
   return parsed.data;
 }
 
+function timeoutFlag(flags: Flags): number | null | undefined {
+  const noTimeout = booleanFlag(flags, 'no-timeout');
+  if (noTimeout && flags['timeout-minutes'] !== undefined) {
+    throw new Error('--timeout-minutes and --no-timeout cannot be combined');
+  }
+  return noTimeout ? null : timeoutMinutesFlag(flags);
+}
+
 function inputFromFlags(flags: Flags, partial: false): HappyHerdAutomationCreateInput;
 function inputFromFlags(flags: Flags, partial: true): HappyHerdAutomationUpdateInput;
 function inputFromFlags(flags: Flags, partial: boolean): HappyHerdAutomationCreateInput | HappyHerdAutomationUpdateInput {
@@ -93,7 +101,7 @@ function inputFromFlags(flags: Flags, partial: boolean): HappyHerdAutomationCrea
   const commander = stringFlag(flags, 'commander');
   const status = stringFlag(flags, 'status');
   const maxRetriesRaw = stringFlag(flags, 'max-retries');
-  const timeoutMinutes = timeoutMinutesFlag(flags);
+  const timeoutMinutes = timeoutFlag(flags);
   const tags = repeatedStringFlag(flags, 'tag');
   const clearTags = booleanFlag(flags, 'clear-tags');
   if (tags.length > 0 && clearTags) {
@@ -126,14 +134,15 @@ Usage:
   happy automation create --name NAME --kind scheduled|heartbeat|memory-maintenance \\
     --instruction TEXT --schedule CRON --timezone IANA --workspace PATH \\
     --rail claude|codex [--commander ID|none] [--status active|paused] [--max-retries N] \\
-    [--timeout-minutes N] [--tag VALUE ...]
+    [--timeout-minutes N | --no-timeout] [--tag VALUE ...]
   happy automation update ID [the same optional flags] [--clear-tags]
   happy automation pause|resume|run-now|delete|history ID [--json]
 
 Definitions are stored below the configured HAPPY_HOME_DIR at
 agentcontext/automations/happyherd and
 executed by this machine's HappyHerd daemon. Only manifests in this namespace
-are managed.
+are managed. --no-timeout lets the provider run until it completes or the
+session is otherwise stopped.
 `);
 }
 

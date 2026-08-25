@@ -60,6 +60,37 @@ describe('HappyHerd automation session bootstrap', () => {
     expect(reference.timeoutMinutes).toBe(60);
   });
 
+  it('round-trips an explicit unbounded timeout through signed bootstrap metadata', async () => {
+    process.env.HAPPY_HOME_DIR = await mkdtemp(path.join(os.tmpdir(), 'happyherd-bootstrap-'));
+    const module = await import('./sessionBootstrap');
+    const runId = crypto.randomUUID();
+    const reference = await module.prepareAutomationBootstrap({
+      schemaVersion: 1,
+      automationId: crypto.randomUUID(),
+      runId,
+      kind: 'memory-maintenance',
+      instruction: 'Distill durable memory until the provider completes.',
+      timeoutMinutes: null,
+    });
+    const environment = module.automationBootstrapEnvironment(reference);
+    expect(environment.HAPPYHERD_AUTOMATION_TIMEOUT_MINUTES).toBe('unbounded');
+    Object.assign(process.env, environment);
+
+    await expect(module.readAutomationBootstrapFromEnvironment()).resolves.toMatchObject({
+      automationId: reference.automationId,
+      runId,
+      timeoutMinutes: null,
+    });
+    expect(module.automationMetadataFromEnvironment()).toMatchObject({
+      automationId: reference.automationId,
+      automationRunId: runId,
+      automationTimeoutMinutes: null,
+    });
+
+    delete process.env.HAPPYHERD_AUTOMATION_TIMEOUT_MINUTES;
+    await expect(module.readAutomationBootstrapFromEnvironment()).rejects.toThrow(/timeout reference is incomplete/);
+  });
+
   it('rejects a bootstrap changed after the daemon signed it', async () => {
     process.env.HAPPY_HOME_DIR = await mkdtemp(path.join(os.tmpdir(), 'happyherd-bootstrap-'));
     const module = await import('./sessionBootstrap');

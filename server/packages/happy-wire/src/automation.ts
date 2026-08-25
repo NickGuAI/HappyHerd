@@ -22,6 +22,9 @@ export const HappyHerdAutomationTimeoutMinutesSchema = z.number()
   .min(HAPPYHERD_AUTOMATION_MIN_TIMEOUT_MINUTES)
   .max(HAPPYHERD_AUTOMATION_MAX_TIMEOUT_MINUTES);
 
+/** Undefined retains the legacy default; null explicitly leaves completion to the provider. */
+export const HappyHerdAutomationTimeoutSchema = HappyHerdAutomationTimeoutMinutesSchema.nullable();
+
 export const HappyHerdAutomationTagSchema = z.string()
   .trim()
   .min(1)
@@ -60,7 +63,7 @@ const HappyHerdAutomationDefinitionFieldsSchema = z.object({
   commanderId: z.string().trim().min(1).nullable(),
   status: HappyHerdAutomationStatusSchema,
   maxRetries: z.number().int().min(0).max(5),
-  timeoutMinutes: HappyHerdAutomationTimeoutMinutesSchema.optional(),
+  timeoutMinutes: HappyHerdAutomationTimeoutSchema.optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
   lastScheduledAt: z.string().datetime().nullable(),
@@ -100,7 +103,7 @@ const HappyHerdAutomationMutableFieldsSchema = z.object({
   commanderId: z.string().trim().min(1).nullable(),
   status: HappyHerdAutomationStatusSchema,
   maxRetries: z.number().int().min(0).max(5),
-  timeoutMinutes: HappyHerdAutomationTimeoutMinutesSchema.optional(),
+  timeoutMinutes: HappyHerdAutomationTimeoutSchema.optional(),
   tags: HappyHerdAutomationTagsSchema,
 }).strict();
 

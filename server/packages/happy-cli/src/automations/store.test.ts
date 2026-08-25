@@ -181,15 +181,16 @@ describe('HappyHerdAutomationStore', () => {
     const { tags: _tags, schemaVersion: _schemaVersion, ...fields } = JSON.parse(await readFile(manifest, 'utf8'));
     await writeFile(manifest, JSON.stringify({ schemaVersion: 1, ...fields }));
 
-    expect((await store.list('machine-one')).automations).toEqual([
-      expect.objectContaining({ id: automation.id, schemaVersion: 2, tags: [] }),
-    ]);
+    const [legacy] = (await store.list('machine-one')).automations;
+    expect(legacy).toMatchObject({ id: automation.id, schemaVersion: 2, tags: [] });
+    expect(legacy?.timeoutMinutes).toBeUndefined();
 
     await store.recordSchedule(automation.id, '2026-08-21T08:00:00.000Z');
     expect(JSON.parse(await readFile(manifest, 'utf8'))).toMatchObject({
       schemaVersion: 2,
       tags: [],
     });
+    expect(JSON.parse(await readFile(manifest, 'utf8'))).not.toHaveProperty('timeoutMinutes');
 
     await store.update(automation.id, { tags: [' Zeta ', 'Alpha'] });
     expect(JSON.parse(await readFile(manifest, 'utf8'))).toMatchObject({
@@ -202,6 +203,31 @@ describe('HappyHerdAutomationStore', () => {
       schemaVersion: 2,
       tags: [],
     });
+  });
+
+  it('round-trips an explicit unbounded timeout without conflating it with omission', async () => {
+    const store = new HappyHerdAutomationStore();
+    const automation = await store.create('machine-one', { ...input(), timeoutMinutes: null });
+    const manifest = path.join(
+      root,
+      '.happyherd',
+      'agentcontext',
+      'automations',
+      'happyherd',
+      automation.id,
+      'manifest.json',
+    );
+
+    expect(automation.timeoutMinutes).toBeNull();
+    expect(JSON.parse(await readFile(manifest, 'utf8'))).toHaveProperty('timeoutMinutes', null);
+    await store.update(automation.id, { name: 'Renamed cleanup' });
+    expect((await store.get(automation.id)).timeoutMinutes).toBeNull();
+    expect(JSON.parse(await readFile(manifest, 'utf8'))).toHaveProperty('timeoutMinutes', null);
+
+    await store.update(automation.id, { timeoutMinutes: 360 });
+    expect((await store.get(automation.id)).timeoutMinutes).toBe(360);
+    await store.update(automation.id, { timeoutMinutes: null });
+    expect((await store.get(automation.id)).timeoutMinutes).toBeNull();
   });
 
   it('rejects tags that collide after trimming', async () => {
