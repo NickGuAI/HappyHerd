@@ -2,11 +2,8 @@ import fs from 'fs/promises';
 import os from 'os';
 import * as tmp from 'tmp';
 import { randomUUID } from 'node:crypto';
-import psList from 'ps-list';
 import {
-  HAPPYHERD_AUTOMATION_DEFAULT_TIMEOUT_MINUTES,
   HappyHerdAutomationProviderOutcomeSchema,
-  HappyHerdAutomationTimeoutMinutesSchema,
   type HappyHerdAutomationProviderOutcome,
   type HappyHerdAutomationRun,
 } from '@slopus/happy-wire';
@@ -57,9 +54,6 @@ type AutomationTrackedSession = TrackedSession & {
   automationId?: string;
   automationRunId?: string;
 };
-
-const AUTOMATION_TERMINATION_GRACE_MS = 5_000;
-const AUTOMATION_TERMINATION_POLL_MS = 100;
 
 function trackedSessionWithAutomationProvenance(
   session: TrackedSession,
@@ -124,79 +118,6 @@ export function resolveExitedAutomationProviderOutcome(
     status: 'failed',
     message: 'Provider exited before recording an exact one-shot outcome.',
   };
-}
-
-export async function terminateAutomationProviderBeforeTimeoutConfirmation(
-  pid: number,
-  dependencies: {
-    signal?: (pid: number, signal: NodeJS.Signals) => void;
-    waitForExit?: (pid: number, timeoutMs: number) => Promise<boolean>;
-    platform?: NodeJS.Platform;
-  } = {},
-): Promise<boolean> {
-  const signal = dependencies.signal ?? ((targetPid, targetSignal) => process.kill(targetPid, targetSignal));
-  const waitForExit = dependencies.waitForExit ?? (async (targetPid, timeoutMs) => {
-    const deadline = Date.now() + timeoutMs;
-    while (!hasProviderProcessExited(targetPid) && Date.now() < deadline) {
-      await new Promise((resolve) => setTimeout(resolve, AUTOMATION_TERMINATION_POLL_MS));
-    }
-    return hasProviderProcessExited(targetPid);
-  });
-
-  let targetPid = (dependencies.platform ?? process.platform) === 'win32' ? pid : -pid;
-  try {
-    signal(targetPid, 'SIGTERM');
-  } catch {
-    if (targetPid === pid) return waitForExit(pid, 0);
-    targetPid = pid;
-    try {
-      signal(targetPid, 'SIGTERM');
-    } catch {
-      return waitForExit(targetPid, 0);
-    }
-  }
-  if (await waitForExit(targetPid, AUTOMATION_TERMINATION_GRACE_MS)) return true;
-  try {
-    signal(targetPid, 'SIGKILL');
-  } catch {
-    return waitForExit(targetPid, 0);
-  }
-  return waitForExit(targetPid, AUTOMATION_TERMINATION_GRACE_MS);
-}
-
-export function automationRunTimeoutMinutes(metadata: Metadata | undefined): number | null {
-  if (metadata?.automationTimeoutMinutes === null) return null;
-  const parsed = HappyHerdAutomationTimeoutMinutesSchema.safeParse(metadata?.automationTimeoutMinutes);
-  return parsed.success ? parsed.data : HAPPYHERD_AUTOMATION_DEFAULT_TIMEOUT_MINUTES;
-}
-
-export function automationRunDeadlineAt(run: HappyHerdAutomationRun, metadata: Metadata | undefined): number | null {
-  const timeoutMinutes = automationRunTimeoutMinutes(metadata);
-  return timeoutMinutes === null ? null : Date.parse(run.startedAt) + timeoutMinutes * 60_000;
-}
-
-export function scheduleAutomationRunDeadline(
-  run: HappyHerdAutomationRun,
-  metadata: Metadata | undefined,
-  onDeadline: () => void,
-): ReturnType<typeof setTimeout> | null {
-  const deadlineAt = automationRunDeadlineAt(run, metadata);
-  if (deadlineAt === null) return null;
-  const timer = setTimeout(onDeadline, Math.max(0, deadlineAt - Date.now()));
-  timer.unref?.();
-  return timer;
-}
-
-export function automationProviderCommandMatches(
-  command: string | undefined,
-  rail: Metadata['flavor'],
-  cliEntrypoint: string,
-): boolean {
-  if (!command || (rail !== 'claude' && rail !== 'codex')) return false;
-  return command.includes(cliEntrypoint)
-    && new RegExp(`(?:^|\\s)${rail}(?:\\s|$)`).test(command)
-    && /--happy-starting-mode(?:=|\s+)remote(?:\s|$)/.test(command)
-    && /--started-by(?:=|\s+)daemon(?:\s|$)/.test(command);
 }
 
 /** Shell-escape a string for safe interpolation into tmux commands. */
@@ -382,29 +303,18 @@ export async function startDaemon(): Promise<void> {
       log: (message) => logger.debug(`[DAEMON RUN] ${message}`),
     });
     let automations: HappyHerdAutomationService | null = null;
-    const automationDeadlineTimers = new Map<string, ReturnType<typeof setTimeout>>();
-    const automationTimeoutsInProgress = new Set<string>();
     let automationReconcileRunning = false;
 
-    const onChildExited = async (
-      pid: number,
-      forcedStatus: 'timed-out' | null = null,
-    ): Promise<void> => {
+    const onChildExited = async (pid: number): Promise<void> => {
       if (!hasProviderProcessExited(pid)) {
         logger.debug(`[DAEMON RUN] PID ${pid} has not been confirmed exited; keeping it active`);
         return;
       }
       const session = pidToTrackedSession.get(pid);
       if (!session) return;
-      if (forcedStatus === null
-        && session.automationRunId
-        && automationTimeoutsInProgress.has(session.automationRunId)) {
-        logger.debug(`[AUTOMATIONS] Waiting for process-group termination before closing run ${session.automationRunId}`);
-        return;
-      }
       const exitedBeforeWebhook = !session.happySessionId;
       try {
-        await finalizeExitedAutomationSession(session, forcedStatus);
+        await finalizeExitedAutomationSession(session);
       } catch (error) {
         logger.warn(`[AUTOMATIONS] Failed to reconcile exited provider PID ${pid}; the run remains active`, error);
       } finally {
@@ -602,7 +512,6 @@ export async function startDaemon(): Promise<void> {
             runId: options.automation.runId,
             kind: options.automation.kind,
             instruction: options.automation.instruction,
-            timeoutMinutes: options.automation.timeoutMinutes,
           })
           : null;
         let extraEnv: Record<string, string> = {
@@ -970,7 +879,7 @@ export async function startDaemon(): Promise<void> {
           if (automation) {
             setTimeout(() => {
               void reconcileAutomationRuns().catch((error) => {
-                logger.warn('[AUTOMATIONS] Failed to arm new automation deadline', error);
+                logger.warn('[AUTOMATIONS] Failed to reconcile new automation run', error);
               });
             }, 0).unref?.();
           }
@@ -1000,20 +909,7 @@ export async function startDaemon(): Promise<void> {
       }
     };
 
-    const clearAutomationDeadline = (runId: string): void => {
-      const timer = automationDeadlineTimers.get(runId);
-      if (timer) clearTimeout(timer);
-      automationDeadlineTimers.delete(runId);
-    };
-
-    const clearAllAutomationDeadlines = (): void => {
-      for (const runId of [...automationDeadlineTimers.keys()]) clearAutomationDeadline(runId);
-    };
-
-    async function finalizeExitedAutomationSession(
-      session: AutomationTrackedSession,
-      forcedStatus: 'timed-out' | null,
-    ): Promise<void> {
+    async function finalizeExitedAutomationSession(session: AutomationTrackedSession): Promise<void> {
       if (!automations || !session.automationId || !session.automationRunId) return;
       if (!session.happySessionId) {
         await automations.confirmRunDidNotStart({
@@ -1021,7 +917,6 @@ export async function startDaemon(): Promise<void> {
           runId: session.automationRunId,
           message: `Provider PID ${session.pid} exited before registering a Happy session.`,
         });
-        clearAutomationDeadline(session.automationRunId);
         return;
       }
       const run = (await automations.listActiveRuns()).find((candidate) => (
@@ -1029,32 +924,12 @@ export async function startDaemon(): Promise<void> {
         && candidate.id === session.automationRunId
         && candidate.sessionId === session.happySessionId
       ));
-      if (!run) {
-        clearAutomationDeadline(session.automationRunId);
-        return;
-      }
+      if (!run) return;
       if (!hasProviderProcessExited(session.pid)) return;
 
       const localMetadata = session.happySessionMetadataFromLocalWebhook;
       if (!automationSessionMatchesRun(run, session, localMetadata)) {
         logger.warn(`[AUTOMATIONS] Refusing to close run ${run.id}: tracked session provenance does not match`);
-        return;
-      }
-
-      if (forcedStatus === 'timed-out') {
-        const timeoutMinutes = automationRunTimeoutMinutes(localMetadata);
-        if (timeoutMinutes === null) {
-          logger.warn(`[AUTOMATIONS] Refusing to close unbounded run ${run.id} as timed-out`);
-          return;
-        }
-        await automations.confirmRunTermination({
-          automationId: run.automationId,
-          runId: run.id,
-          sessionId: run.sessionId!,
-          status: 'timed-out',
-          message: `Provider exceeded the ${timeoutMinutes}-minute automation deadline and was terminated.`,
-        });
-        clearAutomationDeadline(run.id);
         return;
       }
 
@@ -1066,7 +941,6 @@ export async function startDaemon(): Promise<void> {
           status: 'failed',
           message: 'Provider exited without the encryption metadata required to read its one-shot outcome.',
         });
-        clearAutomationDeadline(run.id);
         return;
       }
       const freshMetadata = await fetchServerSessionMetadata(
@@ -1087,7 +961,6 @@ export async function startDaemon(): Promise<void> {
         status: outcome.status,
         message: outcome.message,
       });
-      clearAutomationDeadline(run.id);
     }
 
     const findExactTrackedAutomationSession = (
@@ -1095,67 +968,11 @@ export async function startDaemon(): Promise<void> {
     ): AutomationTrackedSession | undefined => [...pidToTrackedSession.values()]
       .find((session) => automationSessionMatchesRun(run, session));
 
-    const terminateTimedOutAutomation = async (runId: string): Promise<void> => {
-      if (!automations || automationTimeoutsInProgress.has(runId)) return;
-      const run = (await automations.listActiveRuns()).find((candidate) => candidate.id === runId);
-      if (!run || run.status !== 'started') {
-        clearAutomationDeadline(runId);
-        return;
-      }
-      const session = findExactTrackedAutomationSession(run);
-      if (!session) {
-        logger.warn(`[AUTOMATIONS] Refusing to terminate run ${run.id}: no exact live provider provenance`);
-        return;
-      }
-      if (hasProviderProcessExited(session.pid)) {
-        await onChildExited(session.pid);
-        return;
-      }
-      const liveProcess = (await psList()).find((candidate) => candidate.pid === session.pid);
-      if (!automationProviderCommandMatches(
-        liveProcess?.cmd,
-        session.happySessionMetadataFromLocalWebhook?.flavor,
-        join(projectPath(), 'dist', 'index.mjs'),
-      )) {
-        logger.warn(`[AUTOMATIONS] Refusing to terminate run ${run.id}: PID ${session.pid} is not the exact Happy provider process`);
-        return;
-      }
-
-      automationTimeoutsInProgress.add(run.id);
-      let terminated = false;
-      try {
-        logger.warn(`[AUTOMATIONS] Terminating timed-out run ${run.id}, PID ${session.pid}`);
-        if (!await terminateAutomationProviderBeforeTimeoutConfirmation(session.pid)) {
-          logger.warn(`[AUTOMATIONS] PID ${session.pid} remains live after timeout termination; run ${run.id} stays active`);
-          return;
-        }
-        terminated = true;
-      } finally {
-        automationTimeoutsInProgress.delete(run.id);
-      }
-      if (terminated) await onChildExited(session.pid, 'timed-out');
-    };
-
-    const armAutomationDeadline = (run: HappyHerdAutomationRun, session: AutomationTrackedSession): void => {
-      if (automationDeadlineTimers.has(run.id)) return;
-      const timer = scheduleAutomationRunDeadline(run, session.happySessionMetadataFromLocalWebhook, () => {
-        automationDeadlineTimers.delete(run.id);
-        void terminateTimedOutAutomation(run.id).catch((error) => {
-          logger.warn(`[AUTOMATIONS] Failed to enforce deadline for run ${run.id}`, error);
-        });
-      });
-      if (timer) automationDeadlineTimers.set(run.id, timer);
-    };
-
     async function reconcileAutomationRuns(): Promise<void> {
       if (!automations || automationReconcileRunning) return;
       automationReconcileRunning = true;
       try {
         const activeRuns = await automations.listActiveRuns();
-        const activeIds = new Set(activeRuns.map((run) => run.id));
-        for (const runId of automationDeadlineTimers.keys()) {
-          if (!activeIds.has(runId)) clearAutomationDeadline(runId);
-        }
 
         for (const run of activeRuns) {
           if (run.status !== 'started' || !run.sessionId) continue;
@@ -1171,9 +988,9 @@ export async function startDaemon(): Promise<void> {
                 && automationSessionMatchesRun(run, candidate, metadata)) {
                 if (hasProviderProcessExited(pid)) {
                   // Persisted metadata is sufficient to reconcile a process
-                  // already proven gone. A live process must re-register with
-                  // this daemon (or arrive through handoff) before we may arm a
-                  // destructive deadline; this prevents stale-PID reuse.
+                  // already proven gone. A live process re-registers with this
+                  // daemon (or arrives through handoff) before normal exit
+                  // reconciliation can use it.
                   session = candidate;
                 }
               }
@@ -1181,10 +998,8 @@ export async function startDaemon(): Promise<void> {
           }
           if (!session) continue;
           if (hasProviderProcessExited(session.pid)) {
-            await finalizeExitedAutomationSession(session, null);
-            continue;
+            await finalizeExitedAutomationSession(session);
           }
-          armAutomationDeadline(run, session);
         }
       } finally {
         automationReconcileRunning = false;
@@ -1470,7 +1285,6 @@ export async function startDaemon(): Promise<void> {
         // `happy daemon start` reads our still-present daemon.state.json, sees
         // isDaemonRunningCurrentlyInstalledHappyVersion() === true, and exits —
         // leaving nothing running once we also exit.
-        clearAllAutomationDeadlines();
         await automations.stop();
         apiMachine.shutdown();
         await stopControlServer();
@@ -1542,7 +1356,6 @@ export async function startDaemon(): Promise<void> {
       // Give time for metadata update to send
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      clearAllAutomationDeadlines();
       await automations.stop();
       apiMachine.shutdown();
       await stopControlServer();

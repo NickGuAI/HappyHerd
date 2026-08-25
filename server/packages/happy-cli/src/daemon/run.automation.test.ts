@@ -1,17 +1,12 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import type { Metadata } from '@/api/types';
 import type { HappyHerdAutomationRun } from '@slopus/happy-wire';
 import {
-  automationRunDeadlineAt,
-  automationRunTimeoutMinutes,
-  scheduleAutomationRunDeadline,
   automationSessionMatchesRun,
-  automationProviderCommandMatches,
   automationWebhookMatchesTrackedSession,
   exactAutomationProviderOutcome,
   resolveExitedAutomationProviderOutcome,
-  terminateAutomationProviderBeforeTimeoutConfirmation,
 } from './run';
 
 const automationId = '11111111-1111-4111-8111-111111111111';
@@ -118,98 +113,4 @@ describe('daemon automation lifecycle guardrails', () => {
     });
   });
 
-  it('sends SIGTERM before SIGKILL and reports success only after confirmed exit', async () => {
-    const signal = vi.fn();
-    const waitForExit = vi.fn()
-      .mockResolvedValueOnce(false)
-      .mockResolvedValueOnce(true);
-    await expect(terminateAutomationProviderBeforeTimeoutConfirmation(42, {
-      signal,
-      waitForExit,
-      platform: 'linux',
-    })).resolves.toBe(true);
-    expect(signal.mock.calls).toEqual([[-42, 'SIGTERM'], [-42, 'SIGKILL']]);
-    expect(waitForExit.mock.calls).toEqual([[-42, 5_000], [-42, 5_000]]);
-
-    await expect(terminateAutomationProviderBeforeTimeoutConfirmation(42, {
-      signal: vi.fn(),
-      waitForExit: vi.fn().mockResolvedValue(false),
-      platform: 'linux',
-    })).resolves.toBe(false);
-  });
-
-  it('falls back to the parent PID when Unix process-group signalling is unavailable', async () => {
-    const signal = vi.fn((targetPid: number) => {
-      if (targetPid < 0) throw Object.assign(new Error('missing group'), { code: 'ESRCH' });
-    });
-    const waitForExit = vi.fn().mockResolvedValue(true);
-    await expect(terminateAutomationProviderBeforeTimeoutConfirmation(42, {
-      signal,
-      waitForExit,
-      platform: 'linux',
-    })).resolves.toBe(true);
-    expect(signal.mock.calls).toEqual([[-42, 'SIGTERM'], [42, 'SIGTERM']]);
-    expect(waitForExit).toHaveBeenCalledWith(42, 5_000);
-  });
-
-  it('uses the snapshotted timeout, preserves the 60-minute default, and keeps null unbounded', () => {
-    const run = activeRun();
-    const startedAt = Date.parse(run.startedAt);
-    expect(automationRunTimeoutMinutes(automationMetadata())).toBe(60);
-    expect(automationRunDeadlineAt(run, automationMetadata())).toBe(startedAt + 60 * 60_000);
-    const custom = automationMetadata({ automationTimeoutMinutes: 360 });
-    expect(automationRunTimeoutMinutes(custom)).toBe(360);
-    expect(automationRunDeadlineAt(run, custom)).toBe(startedAt + 360 * 60_000);
-    expect(automationRunTimeoutMinutes(automationMetadata({ automationTimeoutMinutes: 0 }))).toBe(60);
-    const unbounded = automationMetadata({ automationTimeoutMinutes: null });
-    expect(automationRunTimeoutMinutes(unbounded)).toBeNull();
-    expect(automationRunDeadlineAt(run, unbounded)).toBeNull();
-    expect(resolveExitedAutomationProviderOutcome(run, trackedSession(unbounded), unbounded)).toMatchObject({
-      status: 'completed',
-      message: null,
-    });
-  });
-
-  it('does not arm an unbounded deadline and lets bounded deadline cleanup cancel firing', () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(Date.parse(activeRun().startedAt));
-    try {
-      const onDeadline = vi.fn();
-      expect(scheduleAutomationRunDeadline(
-        activeRun(),
-        automationMetadata({ automationTimeoutMinutes: null }),
-        onDeadline,
-      )).toBeNull();
-      vi.advanceTimersByTime(7 * 24 * 60 * 60_000);
-      expect(onDeadline).not.toHaveBeenCalled();
-
-      vi.setSystemTime(Date.parse(activeRun().startedAt));
-      const timer = scheduleAutomationRunDeadline(
-        activeRun(),
-        automationMetadata({ automationTimeoutMinutes: 1 }),
-        onDeadline,
-      );
-      expect(timer).not.toBeNull();
-      clearTimeout(timer!);
-      vi.advanceTimersByTime(60_000);
-      expect(onDeadline).not.toHaveBeenCalled();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('matches only the expected daemon-started Happy provider command', () => {
-    const entrypoint = '/srv/happy/dist/index.mjs';
-    expect(automationProviderCommandMatches(
-      `node ${entrypoint} codex --happy-starting-mode remote --started-by daemon --effort max`,
-      'codex',
-      entrypoint,
-    )).toBe(true);
-    expect(automationProviderCommandMatches(
-      `node ${entrypoint} claude --happy-starting-mode remote --started-by terminal`,
-      'claude',
-      entrypoint,
-    )).toBe(false);
-    expect(automationProviderCommandMatches('node unrelated.js codex --started-by daemon', 'codex', entrypoint)).toBe(false);
-  });
 });

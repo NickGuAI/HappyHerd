@@ -13,7 +13,6 @@ const bootstrap = {
   runId: '22222222-2222-4222-8222-222222222222',
   kind: 'scheduled' as const,
   instruction: 'ship it',
-  timeoutMinutes: 60,
 };
 
 describe('automation provider outcome', () => {

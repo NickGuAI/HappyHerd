@@ -159,7 +159,6 @@ export interface SpawnSessionOptions {
         runId: string;
         kind: 'scheduled' | 'heartbeat' | 'memory-maintenance';
         instruction: string;
-        timeoutMinutes: number | null;
     };
     environmentVariables?: Record<string, string>;
     /** Strict, session-scoped governed-agent values supplied only over encrypted machine RPC. */

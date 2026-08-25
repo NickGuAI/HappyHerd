@@ -1,8 +1,5 @@
 import chalk from 'chalk';
 import {
-  HAPPYHERD_AUTOMATION_MAX_TIMEOUT_MINUTES,
-  HAPPYHERD_AUTOMATION_MIN_TIMEOUT_MINUTES,
-  HappyHerdAutomationTimeoutMinutesSchema,
   type HappyHerdAutomationCreateInput,
   type HappyHerdAutomationUpdateInput,
 } from '@slopus/happy-wire';
@@ -65,29 +62,6 @@ function stringFlag(flags: Flags, name: string, required = false): string | unde
   return undefined;
 }
 
-function timeoutMinutesFlag(flags: Flags): number | undefined {
-  const value = flags['timeout-minutes'];
-  if (value === undefined) return undefined;
-  if (typeof value !== 'string' || !/^\d+$/.test(value.trim())) {
-    throw new Error('--timeout-minutes requires a whole-number value');
-  }
-  const parsed = HappyHerdAutomationTimeoutMinutesSchema.safeParse(Number(value));
-  if (!parsed.success) {
-    throw new Error(
-      `--timeout-minutes must be between ${HAPPYHERD_AUTOMATION_MIN_TIMEOUT_MINUTES} and ${HAPPYHERD_AUTOMATION_MAX_TIMEOUT_MINUTES}`,
-    );
-  }
-  return parsed.data;
-}
-
-function timeoutFlag(flags: Flags): number | null | undefined {
-  const noTimeout = booleanFlag(flags, 'no-timeout');
-  if (noTimeout && flags['timeout-minutes'] !== undefined) {
-    throw new Error('--timeout-minutes and --no-timeout cannot be combined');
-  }
-  return noTimeout ? null : timeoutMinutesFlag(flags);
-}
-
 function inputFromFlags(flags: Flags, partial: false): HappyHerdAutomationCreateInput;
 function inputFromFlags(flags: Flags, partial: true): HappyHerdAutomationUpdateInput;
 function inputFromFlags(flags: Flags, partial: boolean): HappyHerdAutomationCreateInput | HappyHerdAutomationUpdateInput {
@@ -101,7 +75,6 @@ function inputFromFlags(flags: Flags, partial: boolean): HappyHerdAutomationCrea
   const commander = stringFlag(flags, 'commander');
   const status = stringFlag(flags, 'status');
   const maxRetriesRaw = stringFlag(flags, 'max-retries');
-  const timeoutMinutes = timeoutFlag(flags);
   const tags = repeatedStringFlag(flags, 'tag');
   const clearTags = booleanFlag(flags, 'clear-tags');
   if (tags.length > 0 && clearTags) {
@@ -120,7 +93,6 @@ function inputFromFlags(flags: Flags, partial: boolean): HappyHerdAutomationCrea
     ...(maxRetriesRaw !== undefined
       ? { maxRetries: Number.parseInt(maxRetriesRaw, 10) }
       : (!partial ? { maxRetries: 0 } : {})),
-    ...(timeoutMinutes !== undefined ? { timeoutMinutes } : {}),
     ...(tags.length > 0 ? { tags } : clearTags ? { tags: [] } : {}),
   } as HappyHerdAutomationCreateInput | HappyHerdAutomationUpdateInput;
 }
@@ -134,15 +106,14 @@ Usage:
   happy automation create --name NAME --kind scheduled|heartbeat|memory-maintenance \\
     --instruction TEXT --schedule CRON --timezone IANA --workspace PATH \\
     --rail claude|codex [--commander ID|none] [--status active|paused] [--max-retries N] \\
-    [--timeout-minutes N | --no-timeout] [--tag VALUE ...]
+    [--tag VALUE ...]
   happy automation update ID [the same optional flags] [--clear-tags]
   happy automation pause|resume|run-now|delete|history ID [--json]
 
 Definitions are stored below the configured HAPPY_HOME_DIR at
 agentcontext/automations/happyherd and
 executed by this machine's HappyHerd daemon. Only manifests in this namespace
-are managed. --no-timeout lets the provider run until it completes or the
-session is otherwise stopped.
+are managed. Each run completes when its provider reports a terminal outcome.
 `);
 }
 

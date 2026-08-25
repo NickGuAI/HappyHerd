@@ -588,6 +588,7 @@ export async function runCodex(opts: {
     // Turn cancellation uses client.interruptTurn() — no AbortController hack needed.
     let abortController = new AbortController();
     let shouldExit = false;
+    let automationTerminalStatus: 'completed' | 'failed' | null = null;
 
     const finishAutomationSession = async (
         status: 'completed' | 'failed',
@@ -601,6 +602,7 @@ export async function runCodex(opts: {
             status,
             message,
         );
+        automationTerminalStatus = status;
         shouldExit = true;
     };
 
@@ -1369,5 +1371,8 @@ export async function runCodex(opts: {
 
         logActiveHandles('cleanup-end');
         logger.debug('[codex]: Final cleanup completed');
+        if (automationTerminalStatus) {
+            process.exit(automationTerminalStatus === 'completed' ? 0 : 1);
+        }
     }
 }

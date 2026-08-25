@@ -4,27 +4,15 @@ export const HappyHerdAutomationRailSchema = z.enum(['claude', 'codex']);
 export const HappyHerdAutomationKindSchema = z.enum(['scheduled', 'heartbeat', 'memory-maintenance']);
 export const HappyHerdAutomationStatusSchema = z.enum(['active', 'paused']);
 export const HappyHerdAutomationTerminalRunStatusSchema = z.enum([
-  'completed', 'failed', 'timed-out',
+  'completed', 'failed',
 ]);
 export const HappyHerdAutomationRunStatusSchema = z.enum([
-  'running', 'started', 'completed', 'failed', 'timed-out', 'skipped', 'missed',
+  'running', 'started', 'completed', 'failed', 'skipped', 'missed',
 ]);
 
 export const HAPPYHERD_AUTOMATION_DEFINITION_SCHEMA_VERSION = 2 as const;
 export const HAPPYHERD_AUTOMATION_MAX_TAGS = 20;
 export const HAPPYHERD_AUTOMATION_MAX_TAG_LENGTH = 80;
-export const HAPPYHERD_AUTOMATION_DEFAULT_TIMEOUT_MINUTES = 60;
-export const HAPPYHERD_AUTOMATION_MIN_TIMEOUT_MINUTES = 1;
-export const HAPPYHERD_AUTOMATION_MAX_TIMEOUT_MINUTES = 24 * 60;
-
-export const HappyHerdAutomationTimeoutMinutesSchema = z.number()
-  .int()
-  .min(HAPPYHERD_AUTOMATION_MIN_TIMEOUT_MINUTES)
-  .max(HAPPYHERD_AUTOMATION_MAX_TIMEOUT_MINUTES);
-
-/** Undefined retains the legacy default; null explicitly leaves completion to the provider. */
-export const HappyHerdAutomationTimeoutSchema = HappyHerdAutomationTimeoutMinutesSchema.nullable();
-
 export const HappyHerdAutomationTagSchema = z.string()
   .trim()
   .min(1)
@@ -63,7 +51,6 @@ const HappyHerdAutomationDefinitionFieldsSchema = z.object({
   commanderId: z.string().trim().min(1).nullable(),
   status: HappyHerdAutomationStatusSchema,
   maxRetries: z.number().int().min(0).max(5),
-  timeoutMinutes: HappyHerdAutomationTimeoutSchema.optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
   lastScheduledAt: z.string().datetime().nullable(),
@@ -103,7 +90,6 @@ const HappyHerdAutomationMutableFieldsSchema = z.object({
   commanderId: z.string().trim().min(1).nullable(),
   status: HappyHerdAutomationStatusSchema,
   maxRetries: z.number().int().min(0).max(5),
-  timeoutMinutes: HappyHerdAutomationTimeoutSchema.optional(),
   tags: HappyHerdAutomationTagsSchema,
 }).strict();
 
@@ -150,7 +136,7 @@ export const HappyHerdAutomationRunSchema = z.object({
     });
   }
   if (
-    (run.status === 'started' || run.status === 'completed' || run.status === 'timed-out')
+    (run.status === 'started' || run.status === 'completed')
     && run.sessionId === null
   ) {
     context.addIssue({

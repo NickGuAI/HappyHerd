@@ -106,7 +106,6 @@ describe('sessionEnvironment', () => {
             HAPPYHERD_AUTOMATION_ID: 'new-automation',
             HAPPYHERD_AUTOMATION_RUN_ID: 'new-run',
             HAPPYHERD_AUTOMATION_KIND: 'heartbeat',
-            HAPPYHERD_AUTOMATION_TIMEOUT_MINUTES: '360',
             HAPPYHERD_AUTOMATION_BOOTSTRAP_PATH: '/tmp/bootstrap.json',
             HAPPYHERD_AUTOMATION_BOOTSTRAP_HASH: 'abc123',
         });
@@ -115,12 +114,10 @@ describe('sessionEnvironment', () => {
             HAPPYHERD_AUTOMATION_ID: 'new-automation',
             HAPPYHERD_AUTOMATION_RUN_ID: 'new-run',
             HAPPYHERD_AUTOMATION_KIND: 'heartbeat',
-            HAPPYHERD_AUTOMATION_TIMEOUT_MINUTES: '360',
         });
         const unrelated = buildSessionChildEnvironment(childEnv);
         expect(unrelated).not.toHaveProperty('HAPPYHERD_AUTOMATION_ID');
         expect(unrelated).not.toHaveProperty('HAPPYHERD_AUTOMATION_RUN_ID');
-        expect(unrelated).not.toHaveProperty('HAPPYHERD_AUTOMATION_TIMEOUT_MINUTES');
         expect(unrelated).not.toHaveProperty('HAPPYHERD_AUTOMATION_BOOTSTRAP_PATH');
     });
 

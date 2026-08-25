@@ -67,7 +67,7 @@ function assertValidRunTransition(
   const allowed = current.status === 'running'
     ? next.status === 'started' || next.status === 'failed'
     : current.status === 'started'
-      ? next.status === 'completed' || next.status === 'failed' || next.status === 'timed-out'
+      ? next.status === 'completed' || next.status === 'failed'
       : false;
   if (!allowed) {
     throw new Error(`Automation run ${current.id} cannot transition from ${current.status} to ${next.status}`);
@@ -107,6 +107,24 @@ async function readJson(filePath: string): Promise<unknown> {
   return JSON.parse(await readFile(filePath, 'utf8'));
 }
 
+async function readStoredAutomation(id: string): Promise<HappyHerdAutomation> {
+  const raw = await readJson(manifestPath(id));
+  const hasLegacyTimeout = Boolean(
+    raw
+    && typeof raw === 'object'
+    && !Array.isArray(raw)
+    && Object.prototype.hasOwnProperty.call(raw, 'timeoutMinutes'),
+  );
+  if (hasLegacyTimeout) {
+    delete (raw as Record<string, unknown>).timeoutMinutes;
+  }
+  const automation = HappyHerdAutomationSchema.parse(raw);
+  if (hasLegacyTimeout) {
+    await writeJsonAtomic(manifestPath(id), automation);
+  }
+  return automation;
+}
+
 function validateSchedule(input: { schedule: string; timezone: string }): void {
   assertValidCron(input.schedule);
   assertValidTimezone(input.timezone);
@@ -134,7 +152,7 @@ export class HappyHerdAutomationStore {
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
       try {
-        const automation = HappyHerdAutomationSchema.parse(await readJson(manifestPath(entry.name)));
+        const automation = await readStoredAutomation(entry.name);
         if (automation.machineId === machineId) automations.push(automation);
       } catch {
         // Invalid artifacts are isolated in place and never scheduled. They
@@ -151,7 +169,7 @@ export class HappyHerdAutomationStore {
   async get(id: string): Promise<HappyHerdAutomation> {
     assertUuid(id);
     try {
-      return HappyHerdAutomationSchema.parse(await readJson(manifestPath(id)));
+      return await readStoredAutomation(id);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw new Error(`Automation ${id} was not found`);
       throw error;

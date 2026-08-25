@@ -5,7 +5,6 @@ import path from 'node:path';
 import { CronExpressionParser } from 'cron-parser';
 import cron, { type ScheduledTask } from 'node-cron';
 import {
-  HAPPYHERD_AUTOMATION_DEFAULT_TIMEOUT_MINUTES,
   HappyHerdAutomationCreateInputSchema,
   HappyHerdAutomationTerminalRunStatusSchema,
   HappyHerdAutomationUpdateInputSchema,
@@ -228,9 +227,6 @@ export class HappyHerdAutomationService {
               runId,
               kind: automation.kind,
               instruction: automation.instruction,
-              timeoutMinutes: automation.timeoutMinutes === undefined
-                ? HAPPYHERD_AUTOMATION_DEFAULT_TIMEOUT_MINUTES
-                : automation.timeoutMinutes,
             },
           });
         } catch (error) {

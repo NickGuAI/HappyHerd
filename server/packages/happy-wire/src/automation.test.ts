@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  HAPPYHERD_AUTOMATION_DEFAULT_TIMEOUT_MINUTES,
-  HAPPYHERD_AUTOMATION_MAX_TIMEOUT_MINUTES,
   HAPPYHERD_AUTOMATION_MAX_TAG_LENGTH,
   HAPPYHERD_AUTOMATION_MAX_TAGS,
   HappyHerdAutomationCreateInputSchema,
@@ -95,27 +93,8 @@ describe('HappyHerd automation wire contract', () => {
       maxRetries: 0,
     };
     expect(HappyHerdAutomationCreateInputSchema.parse(createInput).tags).toEqual([]);
-    expect(HappyHerdAutomationCreateInputSchema.parse(createInput).timeoutMinutes).toBeUndefined();
-    expect(HappyHerdAutomationCreateInputSchema.parse({
-      ...createInput,
-      timeoutMinutes: 6 * HAPPYHERD_AUTOMATION_DEFAULT_TIMEOUT_MINUTES,
-    }).timeoutMinutes).toBe(360);
-    const unbounded = HappyHerdAutomationCreateInputSchema.parse({
-      ...createInput,
-      timeoutMinutes: null,
-    });
-    expect(unbounded.timeoutMinutes).toBeNull();
-    expect(JSON.parse(JSON.stringify(unbounded)).timeoutMinutes).toBeNull();
     expect(HappyHerdAutomationUpdateInputSchema.parse({ name: 'Renamed' })).toEqual({ name: 'Renamed' });
-    expect(HappyHerdAutomationUpdateInputSchema.parse({ timeoutMinutes: 360 })).toEqual({ timeoutMinutes: 360 });
-    expect(HappyHerdAutomationUpdateInputSchema.parse({ timeoutMinutes: null })).toEqual({ timeoutMinutes: null });
     expect(HappyHerdAutomationUpdateInputSchema.parse({ tags: [' z ', 'a'] }).tags).toEqual(['a', 'z']);
-    for (const timeoutMinutes of [0, 1.5, HAPPYHERD_AUTOMATION_MAX_TIMEOUT_MINUTES + 1]) {
-      expect(() => HappyHerdAutomationCreateInputSchema.parse({
-        ...createInput,
-        timeoutMinutes,
-      })).toThrow();
-    }
     expect(HappyHerdAutomationListResponseSchema.parse({ automations: [] })).toEqual({
       definitionSchemaVersion: 1,
       automations: [],
@@ -162,20 +141,18 @@ describe('HappyHerd automation wire contract', () => {
       sessionId: 'session-one',
       message: null,
     }).status).toBe('completed');
-    for (const status of ['failed', 'timed-out'] as const) {
-      expect(HappyHerdAutomationRunSchema.parse({
-        id: crypto.randomUUID(),
-        automationId: id,
-        source: 'manual',
-        scheduledFor: '2026-08-03T00:00:00.000Z',
-        startedAt: '2026-08-03T00:00:01.000Z',
-        finishedAt: '2026-08-03T00:05:00.000Z',
-        status,
-        attempt: 1,
-        sessionId: 'session-one',
-        message: null,
-      }).status).toBe(status);
-    }
+    expect(HappyHerdAutomationRunSchema.parse({
+      id: crypto.randomUUID(),
+      automationId: id,
+      source: 'manual',
+      scheduledFor: '2026-08-03T00:00:00.000Z',
+      startedAt: '2026-08-03T00:00:01.000Z',
+      finishedAt: '2026-08-03T00:05:00.000Z',
+      status: 'failed',
+      attempt: 1,
+      sessionId: 'session-one',
+      message: null,
+    }).status).toBe('failed');
     expect(() => HappyHerdAutomationRunSchema.parse({
       id: crypto.randomUUID(),
       automationId: id,
@@ -215,7 +192,7 @@ describe('HappyHerd automation wire contract', () => {
       schemaVersion: 1,
       automationId: id,
       runId: crypto.randomUUID(),
-      status: 'timed-out',
+      status: 'cancelled',
       finishedAt: '2026-08-03T00:05:00.000Z',
       message: null,
     })).toThrow();

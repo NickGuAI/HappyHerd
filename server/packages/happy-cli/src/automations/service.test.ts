@@ -83,32 +83,9 @@ describe('HappyHerdAutomationService', () => {
         runId: run.id,
         kind: 'scheduled',
         instruction: 'Review the task list.',
-        timeoutMinutes: 60,
       }),
     }));
     expect((await service.history(created.id)).runs[0]).toMatchObject({ status: 'started' });
-  });
-
-  it('snapshots a custom timeout into the daemon spawn contract', async () => {
-    const spawn = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'session-one' });
-    service = new HappyHerdAutomationService('machine-one', spawn);
-    await service.start();
-    const created = await service.create({ ...input(), timeoutMinutes: 360 });
-    await service.runNow(created.id);
-    expect(spawn).toHaveBeenCalledWith(expect.objectContaining({
-      automation: expect.objectContaining({ timeoutMinutes: 360 }),
-    }));
-  });
-
-  it('snapshots an explicit unbounded timeout into the daemon spawn contract', async () => {
-    const spawn = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'session-one' });
-    service = new HappyHerdAutomationService('machine-one', spawn);
-    await service.start();
-    const created = await service.create({ ...input(), timeoutMinutes: null });
-    await service.runNow(created.id);
-    expect(spawn).toHaveBeenCalledWith(expect.objectContaining({
-      automation: expect.objectContaining({ timeoutMinutes: null }),
-    }));
   });
 
   it('does not execute missed runs automatically after downtime', async () => {
