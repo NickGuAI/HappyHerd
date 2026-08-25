@@ -6,6 +6,7 @@ import type { SessionEncryptionData } from './types';
 const mocks = vi.hoisted(() => ({
   backfillReconnectableSessionForMachine: vi.fn(),
   controlHandlers: undefined as unknown,
+  hasProviderProcessExited: vi.fn(() => false),
   persistSession: vi.fn(() => true),
   readPersistedSessions: vi.fn(() => ({})),
   rpcHandlers: undefined as unknown,
@@ -118,7 +119,7 @@ vi.mock('@/automations/service', () => ({
 }));
 
 vi.mock('@/daemon/processStatus', () => ({
-  hasProviderProcessExited: vi.fn(() => true),
+  hasProviderProcessExited: mocks.hasProviderProcessExited,
 }));
 
 vi.mock('@/daemon/happyTerminalBoot', () => ({
@@ -174,7 +175,7 @@ describe('daemon session continuity', () => {
     vi.restoreAllMocks();
   });
 
-  it('backfills a missing local record and spawns the same Happy session with its reconnect state', async () => {
+  it('backfills a missing local record despite a reused stale metadata PID and spawns the same Happy session', async () => {
     const resolvedSessionId = 'csynthetic000000000000001';
     const encryptionKey = new Uint8Array([1, 2, 3, 4]);
     const codexHome = '/unavailable/provider-home';
@@ -184,7 +185,7 @@ describe('daemon session continuity', () => {
       codexThreadId: 'thread-legacy',
       codexHome,
       host: 'test-host',
-      hostPid: 4321,
+      hostPid: 9876,
       machineId: 'machine-1',
       homeDir: '/home/test',
       happyHomeDir: '/home/test/.happy',
@@ -230,10 +231,11 @@ describe('daemon session continuity', () => {
 
     const resume = rpc.resumeSession(resolvedSessionId);
     await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
-    control.onHappySessionWebhook(resolvedSessionId, metadata, encryption);
+    control.onHappySessionWebhook(resolvedSessionId, { ...metadata, hostPid: 4321 }, encryption);
 
     await expect(resume).resolves.toEqual({ type: 'success', sessionId: resolvedSessionId });
     expect(mocks.backfillReconnectableSessionForMachine).toHaveBeenCalledWith(resolvedSessionId, 'machine-1');
+    expect(mocks.hasProviderProcessExited).not.toHaveBeenCalled();
 
     const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
       string[],

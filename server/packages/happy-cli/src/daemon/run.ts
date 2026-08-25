@@ -1218,11 +1218,6 @@ export async function startDaemon(): Promise<void> {
         if (!tracked.encryption) {
           return { type: 'error', errorMessage: `Session ${resolvedSessionId} has no stored encryption data. Cannot resume.` };
         }
-        const priorPid = tracked.happySessionMetadataFromLocalWebhook.hostPid;
-        if (priorPid && !hasProviderProcessExited(priorPid)) {
-          return { type: 'error', errorMessage: `Session ${resolvedSessionId} still has a live provider process. Wait for it to register with this daemon before resuming.` };
-        }
-
         // Webhook metadata may be stale (missing claudeSessionId/codexThreadId set after startup).
         // Fetch fresh metadata from server if needed.
         let metadata = tracked.happySessionMetadataFromLocalWebhook;
