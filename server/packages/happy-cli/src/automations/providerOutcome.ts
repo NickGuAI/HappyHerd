@@ -1,9 +1,12 @@
 import {
   HappyHerdAutomationProviderOutcomeSchema,
+  HappyHerdHeartbeatDeliveryReceiptSchema,
   type HappyHerdAutomationProviderOutcome,
+  type HappyHerdHeartbeatDeliveryReceipt,
+  type HappyHerdHeartbeatMessageMarker,
 } from '@slopus/happy-wire';
 
-import type { AgentGoalStatus, Metadata } from '@/api/types';
+import type { AgentGoalStatus, AgentState, Metadata } from '@/api/types';
 import type { HappyHerdAutomationBootstrap } from './sessionBootstrap';
 
 const MAX_OUTCOME_MESSAGE_LENGTH = 10_000;
@@ -11,6 +14,10 @@ const MAX_OUTCOME_MESSAGE_LENGTH = 10_000;
 export interface AutomationOutcomeSession {
   updateMetadata: (handler: (metadata: Metadata) => Metadata) => Promise<void>;
   flush: () => Promise<void>;
+}
+
+export interface HeartbeatDeliverySession {
+  updateAgentState: (handler: (state: AgentState) => AgentState) => Promise<void>;
 }
 
 export class AutomationGoalTerminalGate {
@@ -74,4 +81,28 @@ export async function persistAutomationProviderOutcome(
   }));
   await session.flush();
   return outcome;
+}
+
+export async function persistHeartbeatDeliveryReceipt(
+  session: HeartbeatDeliverySession,
+  marker: HappyHerdHeartbeatMessageMarker,
+  status: HappyHerdHeartbeatDeliveryReceipt['status'],
+  message?: string | null,
+  observedAt = new Date().toISOString(),
+): Promise<HappyHerdHeartbeatDeliveryReceipt> {
+  let receipt!: HappyHerdHeartbeatDeliveryReceipt;
+  await session.updateAgentState((state) => {
+    const previous = state.heartbeatDelivery?.occurrenceId === marker.occurrenceId
+      ? state.heartbeatDelivery
+      : null;
+    receipt = HappyHerdHeartbeatDeliveryReceiptSchema.parse({
+      ...marker,
+      status,
+      startedAt: previous?.startedAt ?? observedAt,
+      finishedAt: status === 'started' ? null : observedAt,
+      message: status === 'started' ? null : boundedMessage(message),
+    });
+    return { ...state, heartbeatDelivery: receipt };
+  });
+  return receipt;
 }

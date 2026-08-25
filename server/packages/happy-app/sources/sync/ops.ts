@@ -29,6 +29,8 @@ import type {
     HappyHerdAutomationListResponse,
     HappyHerdAutomationRun,
     HappyHerdAutomationUpdateInput,
+    HappyHerdHeartbeatControlInput,
+    HappyHerdHeartbeatControlResponse,
     HappyHerdCommanderListResponse,
     WorkspaceFileHashRequest,
     WorkspaceFileHashResponse,
@@ -429,6 +431,13 @@ export async function machineAutomationHistory(
     id: string,
 ): Promise<HappyHerdAutomationHistoryResponse> {
     return machineAutomationRPC(machineId, 'happyherd-automations-history', { id });
+}
+
+export async function machineControlHeartbeat(
+    machineId: string,
+    input: HappyHerdHeartbeatControlInput,
+): Promise<HappyHerdHeartbeatControlResponse> {
+    return machineAutomationRPC(machineId, 'happyherd-heartbeat-control', input);
 }
 
 /**

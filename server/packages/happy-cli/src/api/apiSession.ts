@@ -1013,9 +1013,9 @@ export class ApiSessionClient extends EventEmitter {
      * Update session agent state
      * @param handler - Handler function that returns the updated agent state
      */
-    updateAgentState(handler: (metadata: AgentState) => AgentState) {
+    updateAgentState(handler: (metadata: AgentState) => AgentState): Promise<void> {
         logger.debugLargeJson('Updating agent state', this.agentState);
-        this.agentStateLock.inLock(async () => {
+        return this.agentStateLock.inLock(async () => {
             await backoff(async () => {
                 let updated = handler(this.agentState || {});
                 const answer = await this.socket.emitWithAck('update-state', { sid: this.sessionId, expectedVersion: this.agentStateVersion, agentState: updated ? encodeBase64(encrypt(this.encryptionKey, this.encryptionVariant, updated)) : null });

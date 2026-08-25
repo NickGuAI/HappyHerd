@@ -1295,6 +1295,37 @@
       "commanderValue": "Commander {id}",
       "attempt": "attempt {count}"
     },
+    "heartbeat": {
+      "title": "Heartbeat",
+      "commandDescription": "Configure this session's recurring heartbeat",
+      "usage": "Use {usage}, or status, pause, resume, or clear.",
+      "textOnly": "Heartbeat commands are text-only. Remove attachments and workspace context first.",
+      "machineUnavailable": "The owning machine is unavailable.",
+      "unavailable": "Heartbeat is unavailable.",
+      "notConfigured": "No heartbeat configured",
+      "confirmation": "♥ Heartbeat · every {cadence} · {state}",
+      "active": "Active",
+      "paused": "Paused",
+      "every": "Every",
+      "interval": "Heartbeat interval",
+      "minimum": "The minimum heartbeat interval is 60 seconds.",
+      "instructionPlaceholder": "Recurring instruction (optional)",
+      "standardContinuation": "Standard continuation",
+      "pause": "Pause",
+      "resume": "Resume",
+      "clear": "Clear",
+      "automation": "Automation",
+      "openTarget": "Open target session",
+      "delivery": {
+        "idle": "Idle",
+        "due": "Due",
+        "waiting-daemon": "Waiting for daemon",
+        "persisted": "Persisted",
+        "queued": "Queued",
+        "running": "Running",
+        "failed": "Failed"
+      }
+    },
     "voice": {
       "signIn": "Sign in before using voice input",
       "startFailed": "Could not start recording",

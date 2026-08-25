@@ -1295,6 +1295,37 @@
       "commanderValue": "Kommandant {id}",
       "attempt": "Versuch {count}"
     },
+    "heartbeat": {
+      "title": "Herzschlag",
+      "commandDescription": "Wiederkehrenden Heartbeat dieser Sitzung konfigurieren",
+      "usage": "Verwende {usage} oder status, pause, resume bzw. clear.",
+      "textOnly": "Heartbeat-Befehle sind nur als Text möglich. Entferne zuerst Anhänge und Arbeitsbereichskontext.",
+      "machineUnavailable": "Der zugehörige Rechner ist nicht verfügbar.",
+      "unavailable": "Heartbeat ist nicht verfügbar.",
+      "notConfigured": "Kein Heartbeat konfiguriert",
+      "confirmation": "♥ Heartbeat · alle {cadence} · {state}",
+      "active": "Aktiv",
+      "paused": "Pausiert",
+      "every": "Alle",
+      "interval": "Heartbeat-Intervall",
+      "minimum": "Das minimale Heartbeat-Intervall beträgt 60 Sekunden.",
+      "instructionPlaceholder": "Wiederkehrende Anweisung (optional)",
+      "standardContinuation": "Standardfortsetzung",
+      "pause": "Pausieren",
+      "resume": "Fortsetzen",
+      "clear": "Löschen",
+      "automation": "Automatisierung",
+      "openTarget": "Zielsitzung öffnen",
+      "delivery": {
+        "idle": "Inaktiv",
+        "due": "Fällig",
+        "waiting-daemon": "Wartet auf Daemon",
+        "persisted": "Gespeichert",
+        "queued": "Eingereiht",
+        "running": "Läuft",
+        "failed": "Fehlgeschlagen"
+      }
+    },
     "voice": {
       "signIn": "Vor der Spracheingabe anmelden",
       "startFailed": "Aufnahme konnte nicht gestartet werden",

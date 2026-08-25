@@ -5,7 +5,9 @@ import path from 'node:path';
 import { CronExpressionParser } from 'cron-parser';
 import cron, { type ScheduledTask } from 'node-cron';
 import {
+  HAPPYHERD_HEARTBEAT_STANDARD_INSTRUCTION,
   HappyHerdAutomationCreateInputSchema,
+  HappyHerdHeartbeatControlInputSchema,
   HappyHerdAutomationTerminalRunStatusSchema,
   HappyHerdAutomationUpdateInputSchema,
   type HappyHerdAutomation,
@@ -15,7 +17,11 @@ import {
   type HappyHerdAutomationRun,
   type HappyHerdAutomationTerminalRunStatus,
   type HappyHerdAutomationUpdateInput,
+  type HappyHerdHeartbeatAutomation,
+  type HappyHerdHeartbeatControlInput,
+  type HappyHerdHeartbeatControlResponse,
 } from '@slopus/happy-wire';
+import type { Session } from '@/api/types';
 import type { SpawnSessionOptions, SpawnSessionResult } from '@/modules/common/registerCommonHandlers';
 import { logger } from '@/ui/logger';
 import { agentContextRoot, listCommanders } from '@/agentContext/commanderContext';
@@ -23,6 +29,13 @@ import { HappyHerdAutomationStore } from './store';
 
 const SCHEDULER_HEARTBEAT_MS = 30_000;
 const MAX_OFFLINE_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1_000;
+const HEARTBEAT_DUE = 'Heartbeat is due.';
+const HEARTBEAT_WAITING_DAEMON = 'Heartbeat is waiting for the target session runtime.';
+const HEARTBEAT_WAITING_QUEUE = 'Heartbeat is waiting for the resumed runtime queue snapshot.';
+const HEARTBEAT_PERSISTED = 'Heartbeat message is persisted; waiting for runtime queue acknowledgement.';
+const HEARTBEAT_PERSISTED_RETRY = 'Heartbeat message was retried with the same ID; waiting for runtime queue acknowledgement.';
+const HEARTBEAT_QUEUED = 'Heartbeat is queued in the target session.';
+const HEARTBEAT_DELIVERY_RETRY = 'Heartbeat delivery acknowledgement was ambiguous; one retry remains.';
 type AutomationSpawnSessionOptions = Omit<SpawnSessionOptions, 'automation'> & {
   automation: NonNullable<SpawnSessionOptions['automation']> & { runId: string };
 };
@@ -45,6 +58,22 @@ export interface HappyHerdAutomationStartedConfirmation {
   automationId: string;
   runId: string;
   sessionId: string;
+}
+
+export interface HappyHerdHeartbeatTarget {
+  session: Session;
+  running: boolean;
+}
+
+export interface HappyHerdHeartbeatDependencies {
+  loadTarget: (sessionId: string) => Promise<HappyHerdHeartbeatTarget>;
+  postMessage: (target: Session, input: {
+    localId: string;
+    text: string;
+    displayText: string;
+    automationId: string;
+  }) => Promise<void>;
+  resumeTarget: (sessionId: string, options?: { replayQueueMessageId?: string }) => Promise<SpawnSessionResult>;
 }
 
 interface SchedulerState {
@@ -78,6 +107,7 @@ async function readSchedulerState(): Promise<SchedulerState | null> {
 }
 
 function latestOccurrenceBetween(automation: HappyHerdAutomation, from: Date, until: Date): Date | null {
+  if (automation.kind === 'heartbeat') return null;
   const boundedFrom = new Date(Math.max(from.getTime(), until.getTime() - MAX_OFFLINE_LOOKBACK_MS));
   try {
     const expression = CronExpressionParser.parse(automation.schedule, {
@@ -98,16 +128,77 @@ function latestOccurrenceBetween(automation: HappyHerdAutomation, from: Date, un
   }
 }
 
+export function formatHeartbeatInterval(intervalSeconds: number): string {
+  if (intervalSeconds % 86_400 === 0) return `${intervalSeconds / 86_400}d`;
+  if (intervalSeconds % 3_600 === 0) return `${intervalSeconds / 3_600}h`;
+  if (intervalSeconds % 60 === 0) return `${intervalSeconds / 60}m`;
+  return `${intervalSeconds}s`;
+}
+
+function heartbeatPrompt(automation: HappyHerdHeartbeatAutomation, metadata: Session['metadata']): string {
+  const interval = formatHeartbeatInterval(automation.intervalSeconds);
+  const commander = metadata.commanderId
+    ? `${metadata.commanderName ?? 'none'} (${metadata.commanderId})`
+    : 'none';
+  const contextLines = [
+    `- Session: ${automation.targetSessionId}`,
+    `- Commander: ${commander}`,
+    ...(metadata.commanderId ? [
+      `- Commander definition: ${metadata.commanderPath ?? 'none'}`,
+      `- Commander AgentContext: ${metadata.commanderAgentContextPath ?? 'none'}`,
+    ] : []),
+    `- Global AgentContext: ${metadata.globalAgentContextPath ?? 'none'}`,
+    `- Closest project guidance: ${metadata.projectGuidancePath ?? 'none'}`,
+  ];
+  const refreshLines = metadata.commanderId
+    ? [
+      '- COMMANDER.md for identity and scope',
+      '- memory/1-working-memory.md for current state',
+      '- relevant sections of memory/2-long-term-memory.md for durable constraints',
+      '- memory/0-observations.jsonl only when dated prior-run evidence is needed',
+      '- the closest project guide before changing project files',
+    ]
+    : ['- the closest project guide before changing project files'];
+  return `[Heartbeat — recurring instruction, every ${interval}]
+
+Session context:
+${contextLines.join('\n')}
+
+Refresh only what the active task needs:
+${refreshLines.join('\n')}
+
+Recurring instruction:
+${automation.instruction}
+
+Continue meaningful unfinished work from this session's existing conversation,
+goal or plan, and workspace artifacts. Preserve accepted scope and completed
+work. Do not restart completed work, create a new task, or broaden authority.
+
+If nothing meaningful and authorized can be done, the task is complete, or
+progress requires user input or an external-state change, say so briefly and
+stop. Do not invent work.`;
+}
+
+function heartbeatDisplayText(automation: HappyHerdHeartbeatAutomation): string {
+  const instruction = automation.instruction === HAPPYHERD_HEARTBEAT_STANDARD_INSTRUCTION
+    ? 'Standard continuation'
+    : automation.instruction;
+  const compact = instruction.length > 80 ? `${instruction.slice(0, 79)}…` : instruction;
+  return `♥ Heartbeat · every ${formatHeartbeatInterval(automation.intervalSeconds)} · ${compact}`;
+}
+
 export class HappyHerdAutomationService {
   private readonly store = new HappyHerdAutomationStore();
   private readonly tasks = new Map<string, ScheduledTask>();
   private readonly inFlight = new Set<string>();
+  private heartbeatMutationTail: Promise<void> = Promise.resolve();
   private heartbeat: ReturnType<typeof setInterval> | null = null;
   private started = false;
 
   constructor(
     private readonly machineId: string,
     private readonly spawnSession: (options: AutomationSpawnSessionOptions) => Promise<SpawnSessionResult>,
+    private readonly heartbeatDependencies?: HappyHerdHeartbeatDependencies,
   ) {}
 
   async start(): Promise<void> {
@@ -135,18 +226,31 @@ export class HappyHerdAutomationService {
     this.tasks.clear();
     if (this.heartbeat) clearInterval(this.heartbeat);
     this.heartbeat = null;
-    await this.writeHeartbeat(new Date());
+    await writeJsonAtomic(schedulerStatePath(), { schemaVersion: 1, lastSeenAt: new Date().toISOString() });
     this.started = false;
+  }
+
+  private async serializeHeartbeatMutation<T>(operation: () => Promise<T>): Promise<T> {
+    const previous = this.heartbeatMutationTail;
+    let release!: () => void;
+    this.heartbeatMutationTail = new Promise<void>((resolve) => { release = resolve; });
+    await previous;
+    try {
+      return await operation();
+    } finally {
+      release();
+    }
   }
 
   private async writeHeartbeat(now: Date): Promise<void> {
     await writeJsonAtomic(schedulerStatePath(), { schemaVersion: 1, lastSeenAt: now.toISOString() });
+    await this.reconcileHeartbeats(now);
   }
 
   private async recordOfflineWindows(from: Date, until: Date): Promise<void> {
     if (until.getTime() - from.getTime() <= SCHEDULER_HEARTBEAT_MS * 2) return;
     const { automations } = await this.store.list(this.machineId);
-    for (const automation of automations.filter((candidate) => candidate.status === 'active')) {
+    for (const automation of automations.filter((candidate) => candidate.status === 'active' && candidate.kind !== 'heartbeat')) {
       const missedAt = latestOccurrenceBetween(automation, from, until);
       if (!missedAt) continue;
       await this.store.appendRun({
@@ -169,7 +273,7 @@ export class HappyHerdAutomationService {
     this.tasks.clear();
     const { automations } = await this.store.list(this.machineId);
     for (const automation of automations) {
-      if (automation.status !== 'active') continue;
+      if (automation.status !== 'active' || automation.kind === 'heartbeat') continue;
       try {
         const task = cron.schedule(automation.schedule, () => {
           void this.execute(automation.id, 'schedule', new Date()).catch((error) => {
@@ -186,6 +290,7 @@ export class HappyHerdAutomationService {
   private async execute(id: string, source: 'schedule' | 'manual', scheduledFor: Date): Promise<HappyHerdAutomationRun> {
     const automation = await this.store.get(id);
     if (automation.machineId !== this.machineId) throw new Error('Automation belongs to another machine');
+    if (automation.kind === 'heartbeat') throw new Error('Session heartbeats run only through their target session queue');
 
     if (this.inFlight.has(id)) {
       return this.recordSkipped(id, source, scheduledFor);
@@ -313,6 +418,335 @@ export class HappyHerdAutomationService {
     };
     await this.store.appendRun(skipped);
     return skipped;
+  }
+
+  private assertHeartbeatTarget(
+    heartbeat: Pick<HappyHerdHeartbeatAutomation, 'rail' | 'targetSessionId'>,
+    target: HappyHerdHeartbeatTarget,
+  ): void {
+    if (target.session.id !== heartbeat.targetSessionId) {
+      throw new Error(`Heartbeat resolved the wrong target session ${target.session.id}`);
+    }
+    if (target.session.metadata.machineId && target.session.metadata.machineId !== this.machineId) {
+      throw new Error('Heartbeat target belongs to another machine');
+    }
+    const flavor = target.session.metadata.flavor ?? 'claude';
+    if (flavor !== 'claude' && flavor !== 'codex') {
+      throw new Error(`Heartbeat target provider "${flavor}" is not supported`);
+    }
+    if (heartbeat.rail !== flavor) {
+      throw new Error(`Heartbeat target provider changed from ${heartbeat.rail} to ${flavor}`);
+    }
+    if (flavor === 'claude' && !target.session.metadata.claudeSessionId) {
+      throw new Error('Heartbeat target is not a resumable Claude session');
+    }
+    if (flavor === 'codex' && !target.session.metadata.codexThreadId) {
+      throw new Error('Heartbeat target is not a resumable Codex session');
+    }
+  }
+
+  private async failHeartbeat(
+    heartbeat: HappyHerdHeartbeatAutomation,
+    run: HappyHerdAutomationRun,
+    message: string,
+    now = new Date(),
+  ): Promise<void> {
+    await this.store.appendRun({
+      ...run,
+      status: 'failed',
+      finishedAt: now.toISOString(),
+      message,
+    });
+    await this.store.updateHeartbeat(heartbeat.id, { status: 'paused', nextDueAt: null });
+  }
+
+  private async markHeartbeatStarted(
+    heartbeat: HappyHerdHeartbeatAutomation,
+    run: HappyHerdAutomationRun,
+    startedAt: string,
+  ): Promise<HappyHerdAutomationRun> {
+    const started: HappyHerdAutomationRun = run.status === 'started'
+      ? run
+      : {
+        ...run,
+        status: 'started',
+        startedAt,
+        finishedAt: null,
+        sessionId: heartbeat.targetSessionId,
+        message: 'Heartbeat started in the target provider runtime.',
+      };
+    if (run.status !== 'started') await this.store.appendRun(started);
+    await this.store.updateHeartbeat(heartbeat.id, {
+      lastRunAt: startedAt,
+      nextDueAt: heartbeat.status === 'paused'
+        ? null
+        : new Date(Date.parse(startedAt) + heartbeat.intervalSeconds * 1_000).toISOString(),
+    });
+    return started;
+  }
+
+  private async reconcileHeartbeat(heartbeat: HappyHerdHeartbeatAutomation, now: Date): Promise<void> {
+    if (!this.heartbeatDependencies) return;
+    let run = await this.store.activeRun(heartbeat.id);
+    if (!run) {
+      if (heartbeat.status !== 'active' || !heartbeat.nextDueAt || Date.parse(heartbeat.nextDueAt) > now.getTime()) return;
+      run = {
+        id: randomUUID(),
+        automationId: heartbeat.id,
+        source: 'schedule',
+        scheduledFor: heartbeat.nextDueAt,
+        startedAt: now.toISOString(),
+        finishedAt: null,
+        status: 'running',
+        attempt: 1,
+        sessionId: null,
+        message: HEARTBEAT_DUE,
+      };
+      await this.store.recordSchedule(heartbeat.id, heartbeat.nextDueAt);
+      await this.store.appendRun(run);
+    }
+
+    let target: HappyHerdHeartbeatTarget;
+    try {
+      target = await this.heartbeatDependencies.loadTarget(heartbeat.targetSessionId);
+      this.assertHeartbeatTarget(heartbeat, target);
+    } catch (error) {
+      await this.failHeartbeat(
+        heartbeat,
+        run,
+        error instanceof Error ? error.message : String(error),
+        now,
+      );
+      return;
+    }
+
+    const queue = target.session.agentState?.messageQueue;
+    const receipt = target.session.agentState?.heartbeatDelivery;
+    const receiptMatches = receipt?.automationId === heartbeat.id && receipt.occurrenceId === run.id;
+    if (receiptMatches && receipt.status !== 'started') {
+      run = await this.markHeartbeatStarted(heartbeat, run, receipt.startedAt);
+      await this.store.appendRun({
+        ...run,
+        status: receipt.status === 'completed' ? 'completed' : 'failed',
+        finishedAt: receipt.finishedAt,
+        message: receipt.message,
+      });
+      return;
+    }
+
+    if (!target.running) {
+      if (run.message === HEARTBEAT_WAITING_DAEMON) {
+        await this.failHeartbeat(heartbeat, run, 'Heartbeat target did not remain running after one exact-session resume.', now);
+        return;
+      }
+      const waiting = { ...run, attempt: Math.max(run.attempt, 2), message: HEARTBEAT_WAITING_DAEMON };
+      await this.store.appendRun(waiting);
+      const result = await this.heartbeatDependencies.resumeTarget(heartbeat.targetSessionId, {
+        replayQueueMessageId: run.id,
+      });
+      if (result.type !== 'success' || result.sessionId !== heartbeat.targetSessionId) {
+        const message = result.type === 'error'
+          ? result.errorMessage
+          : result.type === 'requestToApproveDirectoryCreation'
+            ? `Heartbeat target workspace does not exist: ${result.directory}`
+            : `Heartbeat resume returned the wrong session ${result.sessionId}`;
+        await this.failHeartbeat(heartbeat, waiting, message, now);
+      }
+      return;
+    }
+
+    if (receiptMatches) {
+      await this.markHeartbeatStarted(heartbeat, run, receipt.startedAt);
+      return;
+    }
+
+    if (queue?.currentMessageIds.includes(run.id)) {
+      // Queue-current is useful presentation state, but the provider-owned
+      // receipt is the sole authority for actual fire time and cadence.
+      return;
+    }
+    if (queue?.pendingMessageIds.includes(run.id)) {
+      if (run.status === 'running' && run.message !== HEARTBEAT_QUEUED) {
+        await this.store.appendRun({ ...run, message: HEARTBEAT_QUEUED });
+      }
+      return;
+    }
+    // Losing sight of an ID after runtime acceptance is not a provider result.
+    if (run.status === 'started' || run.message === HEARTBEAT_QUEUED) return;
+
+    // Runtime registration alone is insufficient: wait for its durable queue snapshot.
+    if (!queue) {
+      if (run.message === HEARTBEAT_WAITING_QUEUE || run.message === HEARTBEAT_WAITING_DAEMON) {
+        await this.failHeartbeat(heartbeat, run, 'Heartbeat target did not publish a queue snapshot after one wait interval.', now);
+      } else {
+        await this.store.appendRun({ ...run, message: HEARTBEAT_WAITING_QUEUE });
+      }
+      return;
+    }
+
+    if (run.message === HEARTBEAT_PERSISTED_RETRY) {
+      await this.failHeartbeat(heartbeat, run, 'Heartbeat was not accepted by the runtime after one same-ID retry.', now);
+      return;
+    }
+
+    try {
+      await this.heartbeatDependencies.postMessage(target.session, {
+        localId: run.id,
+        text: heartbeatPrompt(heartbeat, target.session.metadata),
+        displayText: heartbeatDisplayText(heartbeat),
+        automationId: heartbeat.id,
+      });
+      await this.store.appendRun({
+        ...run,
+        message: run.message === HEARTBEAT_PERSISTED || run.message === HEARTBEAT_DELIVERY_RETRY
+          ? HEARTBEAT_PERSISTED_RETRY
+          : HEARTBEAT_PERSISTED,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (run.message === HEARTBEAT_DELIVERY_RETRY) {
+        await this.failHeartbeat(heartbeat, run, `Heartbeat delivery failed after one retry: ${message}`, now);
+      } else {
+        await this.store.appendRun({ ...run, message: HEARTBEAT_DELIVERY_RETRY });
+      }
+    }
+  }
+
+  private async reconcileHeartbeats(now: Date): Promise<void> {
+    if (!this.heartbeatDependencies) return;
+    await this.serializeHeartbeatMutation(async () => {
+      const { automations } = await this.store.list(this.machineId);
+      for (const heartbeat of automations.filter((candidate): candidate is HappyHerdHeartbeatAutomation => candidate.kind === 'heartbeat')) {
+        if (heartbeat.status !== 'active' && !(await this.store.activeRun(heartbeat.id))) continue;
+        try {
+          await this.reconcileHeartbeat(heartbeat, now);
+        } catch (error) {
+          logger.warn(`[AUTOMATIONS] Failed to reconcile session heartbeat ${heartbeat.id}`, error);
+        }
+      }
+    });
+  }
+
+  private async discardUnacceptedHeartbeatRun(heartbeat: HappyHerdHeartbeatAutomation): Promise<void> {
+    const run = await this.store.activeRun(heartbeat.id);
+    if (!run || run.status !== 'running') return;
+    if (run.message === HEARTBEAT_PERSISTED || run.message === HEARTBEAT_PERSISTED_RETRY || run.message === HEARTBEAT_QUEUED) return;
+    try {
+      const target = await this.heartbeatDependencies?.loadTarget(heartbeat.targetSessionId);
+      const queue = target?.session.agentState?.messageQueue;
+      if (queue?.pendingMessageIds.includes(run.id) || queue?.currentMessageIds.includes(run.id)) return;
+    } catch {
+      // A merely due occurrence has not entered the runtime queue and is safe to remove.
+    }
+    await this.store.discardUnacceptedRun(heartbeat.id, run.id);
+  }
+
+  private async heartbeatStatus(targetSessionId: string, now = new Date()): Promise<HappyHerdHeartbeatControlResponse> {
+    const heartbeat = await this.store.heartbeatForSession(this.machineId, targetSessionId);
+    if (!heartbeat) {
+      return {
+        heartbeat: null,
+        currentRun: null,
+        lastRun: null,
+        deliveryState: null,
+        queuedAhead: null,
+        observedAt: now.toISOString(),
+      };
+    }
+    const history = await this.store.history(heartbeat.id);
+    const currentRun = history.find((run) => run.status === 'running' || run.status === 'started') ?? null;
+    let deliveryState: HappyHerdHeartbeatControlResponse['deliveryState'] = currentRun
+      ? currentRun.status === 'started'
+        ? 'running'
+        : currentRun.message === HEARTBEAT_WAITING_DAEMON || currentRun.message === HEARTBEAT_WAITING_QUEUE
+          ? 'waiting-daemon'
+          : currentRun.message === HEARTBEAT_PERSISTED || currentRun.message === HEARTBEAT_PERSISTED_RETRY
+            ? 'persisted'
+            : currentRun.message === HEARTBEAT_QUEUED
+              ? 'queued'
+              : 'due'
+      : history[0]?.status === 'failed'
+        ? 'failed'
+        : 'idle';
+    let queuedAhead: number | null = null;
+    if (currentRun && this.heartbeatDependencies) {
+      try {
+        const target = await this.heartbeatDependencies.loadTarget(targetSessionId);
+        const pending = target.session.agentState?.messageQueue?.pendingMessageIds ?? [];
+        const index = pending.indexOf(currentRun.id);
+        if (index >= 0) {
+          deliveryState = 'queued';
+          queuedAhead = index;
+        } else if (target.session.agentState?.messageQueue?.currentMessageIds.includes(currentRun.id)) {
+          deliveryState = 'running';
+          queuedAhead = 0;
+        }
+      } catch {
+        // Durable automation state still provides status while the target is unavailable.
+      }
+    }
+    return {
+      heartbeat,
+      currentRun,
+      lastRun: history.find((run) => run.status !== 'running' && run.status !== 'started') ?? null,
+      deliveryState,
+      queuedAhead,
+      observedAt: now.toISOString(),
+    };
+  }
+
+  async controlHeartbeat(raw: HappyHerdHeartbeatControlInput): Promise<HappyHerdHeartbeatControlResponse> {
+    if (!this.heartbeatDependencies) throw new Error('Session heartbeat delivery is unavailable');
+    const input = HappyHerdHeartbeatControlInputSchema.parse(raw);
+    const now = new Date();
+    return this.serializeHeartbeatMutation(async () => {
+      if (input.action === 'status') return this.heartbeatStatus(input.targetSessionId, now);
+
+      const existing = await this.store.heartbeatForSession(this.machineId, input.targetSessionId);
+      if (input.action === 'set') {
+        const target = await this.heartbeatDependencies!.loadTarget(input.targetSessionId);
+        const flavor = target.session.metadata.flavor ?? 'claude';
+        if (flavor !== 'claude' && flavor !== 'codex') {
+          throw new Error(`Heartbeat target provider "${flavor}" is not supported`);
+        }
+        const provisional: Pick<HappyHerdHeartbeatAutomation, 'targetSessionId' | 'rail'> = {
+          targetSessionId: input.targetSessionId,
+          rail: flavor,
+        };
+        this.assertHeartbeatTarget(provisional, target);
+        if (existing) {
+          await this.discardUnacceptedHeartbeatRun(existing);
+          if (await this.store.activeRun(existing.id)) {
+            throw new Error('Heartbeat cannot be changed while its current occurrence is in progress');
+          }
+        }
+        await this.store.upsertHeartbeat(this.machineId, {
+          targetSessionId: input.targetSessionId,
+          name: 'Session heartbeat',
+          instruction: input.instruction ?? HAPPYHERD_HEARTBEAT_STANDARD_INSTRUCTION,
+          intervalSeconds: input.intervalSeconds,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+          workspace: target.session.metadata.path,
+          rail: flavor,
+          commanderId: target.session.metadata.commanderId ?? null,
+        }, now);
+        return this.heartbeatStatus(input.targetSessionId, now);
+      }
+      if (!existing) throw new Error('No heartbeat is configured for this session');
+      if (input.action === 'pause') {
+        await this.discardUnacceptedHeartbeatRun(existing);
+        await this.store.updateHeartbeat(existing.id, { status: 'paused', nextDueAt: null });
+      } else if (input.action === 'resume') {
+        await this.store.updateHeartbeat(existing.id, {
+          status: 'active',
+          nextDueAt: new Date(now.getTime() + existing.intervalSeconds * 1_000).toISOString(),
+        });
+      } else {
+        await this.discardUnacceptedHeartbeatRun(existing);
+        await this.store.delete(existing.id);
+      }
+      return this.heartbeatStatus(input.targetSessionId, now);
+    });
   }
 
   async list(): Promise<HappyHerdAutomationListResponse> {

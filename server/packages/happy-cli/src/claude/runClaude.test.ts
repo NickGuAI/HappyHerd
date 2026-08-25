@@ -282,6 +282,7 @@ describe('runClaude remote JSONL scanner', () => {
         delete process.env.HAPPY_RECONNECT_SEQ;
         delete process.env.HAPPY_RECONNECT_METADATA_VERSION;
         delete process.env.HAPPY_RECONNECT_AGENT_STATE_VERSION;
+        delete process.env.HAPPY_RECONNECT_QUEUE_MESSAGE_ID;
         delete process.env.HAPPY_FORKED_FROM_SESSION_ID;
         delete process.env.HAPPY_FORKED_FROM_MESSAGE_ID;
         delete process.env.HAPPY_FORK_CLAUDE_SESSION_ID;
@@ -336,6 +337,7 @@ describe('runClaude remote JSONL scanner', () => {
         process.env.HAPPY_RECONNECT_SEQ = '42';
         process.env.HAPPY_RECONNECT_METADATA_VERSION = '7';
         process.env.HAPPY_RECONNECT_AGENT_STATE_VERSION = '8';
+        process.env.HAPPY_RECONNECT_QUEUE_MESSAGE_ID = 'heartbeat-occurrence';
         const harness = await startRemoteRunClaudeHarness({
             reconnectAgentState: {
                 messageQueue: {
@@ -347,7 +349,7 @@ describe('runClaude remote JSONL scanner', () => {
 
         expect(harness.api.refreshSessionForReconnect).toHaveBeenCalledTimes(1);
         expect(harness.sessionClient.skipExistingMessages).toHaveBeenCalledWith(
-            ['queue-interrupted', 'queue-pending'],
+            ['queue-interrupted', 'queue-pending', 'heartbeat-occurrence'],
             42,
         );
         const initialQueueUpdater = harness.updateAgentState.mock.calls
@@ -355,7 +357,7 @@ describe('runClaude remote JSONL scanner', () => {
             .find((updater) => typeof updater === 'function');
         expect(initialQueueUpdater?.({})).toMatchObject({
             messageQueue: {
-                pendingMessageIds: ['queue-interrupted', 'queue-pending'],
+                pendingMessageIds: ['queue-interrupted', 'queue-pending', 'heartbeat-occurrence'],
                 currentMessageIds: [],
             },
         });

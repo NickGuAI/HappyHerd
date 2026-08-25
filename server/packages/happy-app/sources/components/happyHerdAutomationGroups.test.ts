@@ -24,7 +24,7 @@ function automation(
     createdAt = '2026-08-20T00:00:00.000Z',
 ): HappyHerdAutomation {
     return {
-        schemaVersion: 2,
+        schemaVersion: 3,
         runtimeOwner: 'happyherd',
         id,
         machineId,
@@ -149,7 +149,7 @@ describe('HappyHerd automation machine loading', () => {
         expect(result.failures).toEqual([]);
         expect(result.collections[0]).toMatchObject({
             definitionSchemaVersion: 1,
-            automations: [{ schemaVersion: 2, tags: [] }],
+            automations: [{ schemaVersion: 3, tags: [] }],
         });
     });
 });

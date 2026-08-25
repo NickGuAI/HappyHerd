@@ -10,7 +10,7 @@ import {
 
 import { ApiClient } from '@/api/api';
 import { TrackedSession, SessionEncryptionData } from './types';
-import { MachineMetadata, DaemonState, Metadata } from '@/api/types';
+import { MachineMetadata, DaemonState, Metadata, type Session } from '@/api/types';
 import { SpawnSessionOptions, SpawnSessionResult } from '@/modules/common/registerCommonHandlers';
 import { logger } from '@/ui/logger';
 import { authAndSetupMachineIfNeeded } from '@/ui/auth';
@@ -1020,6 +1020,7 @@ export async function startDaemon(): Promise<void> {
       model?: string;
       permissionMode?: string;
       agentRuntimeContext?: unknown;
+      replayQueueMessageId?: string;
     }): Promise<SpawnSessionResult> => {
       try {
         const liveSession = [...pidToTrackedSession.values()].find((session) => session.happySessionId === happySessionId);
@@ -1094,6 +1095,9 @@ export async function startDaemon(): Promise<void> {
             HAPPY_RECONNECT_SEQ: String(tracked.encryption.seq),
             HAPPY_RECONNECT_METADATA_VERSION: String(tracked.encryption.metadataVersion),
             HAPPY_RECONNECT_AGENT_STATE_VERSION: String(tracked.encryption.agentStateVersion),
+            ...(options?.replayQueueMessageId
+              ? { HAPPY_RECONNECT_QUEUE_MESSAGE_ID: options.replayQueueMessageId }
+              : {}),
           }),
         });
       } catch (error) {
@@ -1170,7 +1174,38 @@ export async function startDaemon(): Promise<void> {
       return false;
     };
 
-    automations = new HappyHerdAutomationService(machineId, spawnSession);
+    const loadHeartbeatTarget = async (happySessionId: string) => {
+      let tracked = findTrackedSessionById(happySessionId);
+      if (!tracked) {
+        const recovered = await backfillReconnectableSessionForMachine(happySessionId, machineId);
+        persisted[recovered.session.id] = recovered.persisted;
+        tracked = persistedSession(recovered.session.id);
+      }
+      if (!tracked?.happySessionMetadataFromLocalWebhook || !tracked.encryption) {
+        throw new Error(`Session ${happySessionId} is missing resumable local metadata`);
+      }
+      const local: Session = {
+        id: happySessionId,
+        seq: tracked.encryption.seq,
+        encryptionKey: tracked.encryption.encryptionKey,
+        encryptionVariant: tracked.encryption.encryptionVariant,
+        metadata: tracked.happySessionMetadataFromLocalWebhook,
+        metadataVersion: tracked.encryption.metadataVersion,
+        agentState: null,
+        agentStateVersion: tracked.encryption.agentStateVersion,
+      };
+      const inspected = await api.inspectSessionForHeartbeat(local);
+      const live = [...pidToTrackedSession.values()].find((candidate) => (
+        candidate.happySessionId === happySessionId && !hasProviderProcessExited(candidate.pid)
+      ));
+      return { session: inspected.session, running: Boolean(live) };
+    };
+
+    automations = new HappyHerdAutomationService(machineId, spawnSession, {
+      loadTarget: loadHeartbeatTarget,
+      postMessage: (target, input) => api.postHeartbeatMessage(target, input),
+      resumeTarget: resumeSession,
+    });
     await automations.start();
     await reconcileAutomationRuns();
 

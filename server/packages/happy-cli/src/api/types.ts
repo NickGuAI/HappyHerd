@@ -1,5 +1,12 @@
 import { z } from 'zod'
-import type { AgentMessageQueueState, HappyHerdAutomationProviderOutcome, Update, UpdateMachineBody } from '@slopus/happy-wire';
+import {
+  HappyHerdHeartbeatMessageMarkerSchema,
+  type AgentMessageQueueState,
+  type HappyHerdAutomationProviderOutcome,
+  type HappyHerdHeartbeatDeliveryReceipt,
+  type Update,
+  type UpdateMachineBody,
+} from '@slopus/happy-wire';
 import { UsageSchema } from '@/claude/types'
 import type { SandboxConfig } from '@/persistence'
 
@@ -240,8 +247,10 @@ export const MessageMetaSchema = z.object({
   allowedTools: z.array(z.string()).nullable().optional(), // Allowed tools for this message (null = reset)
   disallowedTools: z.array(z.string()).nullable().optional(), // Disallowed tools for this message (null = reset)
   effort: z.string().nullable().optional(), // Provider-advertised effort for this message; the selected daemon/model catalog is authoritative.
+  displayText: z.string().optional(), // Compact user-visible text when the encrypted provider prompt is longer.
   deliveryMode: z.enum(['queue']).optional(), // Explicitly bypass active-turn steering and use the provider queue
   queueMessageId: z.string().trim().min(1).optional(), // Parent local ID for queued attachment records
+  heartbeat: HappyHerdHeartbeatMessageMarkerSchema.optional(), // Typed session-heartbeat routing; prompt text is never inspected.
 })
 
 export type MessageMeta = z.infer<typeof MessageMetaSchema>
@@ -476,6 +485,8 @@ export type AgentState = {
   usageLimits?: UsageLimits
   /** Ordered IDs for the runtime-owned explicit user-message queue. */
   messageQueue?: AgentMessageQueueState
+  /** Latest provider-owned lifecycle receipt for this session's heartbeat turn. */
+  heartbeatDelivery?: HappyHerdHeartbeatDeliveryReceipt
   requests?: {
     [id: string]: {
       tool: string,

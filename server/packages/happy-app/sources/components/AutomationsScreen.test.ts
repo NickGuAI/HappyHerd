@@ -183,7 +183,7 @@ function automation(
     tags: string[],
 ): HappyHerdAutomation {
     return {
-        schemaVersion: 2,
+        schemaVersion: 3,
         runtimeOwner: 'happyherd',
         id,
         machineId,

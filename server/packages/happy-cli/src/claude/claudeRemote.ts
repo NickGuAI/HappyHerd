@@ -35,7 +35,7 @@ export async function claudeRemote(opts: {
 
     // Dynamic parameters
     nextMessage: () => Promise<{ message: MessageParam['content'], mode: EnhancedMode } | null>,
-    onReady: () => void,
+    onReady: () => void | Promise<void>,
     isAborted: (toolCallId: string) => boolean,
 
     // Callbacks
@@ -108,7 +108,7 @@ export async function claudeRemote(opts: {
         if (opts.onSessionReset) {
             opts.onSessionReset();
         }
-        opts.onReady();
+        await opts.onReady();
         return;
     }
 
@@ -348,7 +348,7 @@ export async function claudeRemote(opts: {
                 }
 
                 // Send ready event
-                opts.onReady();
+                await opts.onReady();
 
                 // Wait for next user message without blocking the message loop.
                 // Background task messages (task_started, task_progress, task_notification)

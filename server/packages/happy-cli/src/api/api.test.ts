@@ -31,7 +31,7 @@ vi.mock('./encryption', () => ({
     decodeBase64: vi.fn((data: string) => data),
     encodeBase64: vi.fn((data: any) => data),
     decrypt: mockDecrypt,
-    encrypt: vi.fn((data: any) => data)
+    encrypt: vi.fn((_: unknown, __: unknown, data: any) => data)
 }));
 
 // Mock configuration
@@ -327,6 +327,57 @@ describe('Api server error handling', () => {
                 agentState: {},
                 agentStateVersion: 0,
             })).rejects.toThrow('Cannot refresh Happy session missing-session for reconnect');
+        });
+    });
+
+    describe('postHeartbeatMessage', () => {
+        it('posts one encrypted v3 queue record with the stable occurrence id and marker', async () => {
+            mockPost.mockResolvedValue({ data: {} });
+            const encryptionKey = new Uint8Array(32);
+
+            await api.postHeartbeatMessage({
+                id: 'session/one',
+                seq: 4,
+                encryptionKey,
+                encryptionVariant: 'legacy',
+                metadata: testMetadata,
+                metadataVersion: 2,
+                agentState: {},
+                agentStateVersion: 3,
+            }, {
+                localId: 'occurrence-one',
+                text: 'heartbeat prompt',
+                displayText: 'Heartbeat',
+                automationId: '11111111-1111-4111-8111-111111111111',
+            });
+
+            expect(mockPost).toHaveBeenCalledWith(
+                'https://api.example.com/v3/sessions/session%2Fone/messages',
+                {
+                    messages: [{
+                        localId: 'occurrence-one',
+                        content: {
+                            role: 'user',
+                            content: { type: 'text', text: 'heartbeat prompt' },
+                            meta: {
+                                sentFrom: 'happyherd-heartbeat',
+                                displayText: 'Heartbeat',
+                                deliveryMode: 'queue',
+                                queueMessageId: 'occurrence-one',
+                                heartbeat: {
+                                    schemaVersion: 1,
+                                    automationId: '11111111-1111-4111-8111-111111111111',
+                                    occurrenceId: 'occurrence-one',
+                                },
+                            },
+                        },
+                    }],
+                },
+                expect.objectContaining({
+                    headers: expect.objectContaining({ Authorization: 'Bearer fake-token' }),
+                    timeout: 60000,
+                }),
+            );
         });
     });
 

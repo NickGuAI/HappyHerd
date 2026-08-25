@@ -5,6 +5,7 @@
 
 import Fuse from 'fuse.js';
 import { storage } from './storage';
+import { HEARTBEAT_COMMAND } from '@/utils/heartbeatCommand';
 
 export interface CommandItem {
     command: string;        // The command without slash (e.g., "compact")
@@ -50,11 +51,12 @@ export const IGNORED_COMMANDS = [
     "hooks",
     "export",
     "logout",
-    "login"
+    "login",
 ];
 
 // Default commands always available
-const getDefaultCommands = (translate: Translate): CommandItem[] => [
+const getDefaultCommands = (translate: Translate, heartbeatAvailable = false): CommandItem[] => [
+    ...(heartbeatAvailable ? HEARTBEAT_COMMAND.suggestions(translate) : []),
     { command: 'compact', description: translate('uiCopy.compactTheConversationHistory') },
     { command: 'clear', description: translate('uiCopy.clearTheConversation') },
     { command: 'goal', description: translate('uiCopy.setASessionGoal') },
@@ -90,7 +92,8 @@ function getCommandsFromSession(sessionId: string, translate: Translate): Comman
         return getDefaultCommands(translate);
     }
 
-    const commands: CommandItem[] = getDefaultCommands(translate);
+    const heartbeatAvailable = HEARTBEAT_COMMAND.isAvailable(session.metadata);
+    const commands: CommandItem[] = getDefaultCommands(translate, heartbeatAvailable);
 
     const metadataCommands = [
         ...(session.metadata.slashCommands ?? []),
@@ -98,14 +101,19 @@ function getCommandsFromSession(sessionId: string, translate: Translate): Comman
     ];
 
     for (const cmd of metadataCommands) {
+        const command = cmd.replace(/^\/+/, '');
+        const normalized = command.toLowerCase();
         // Skip if in ignore list
-        if (IGNORED_COMMANDS.includes(cmd)) continue;
+        const reservedHeartbeat = [HEARTBEAT_COMMAND.name, ...HEARTBEAT_COMMAND.aliases]
+            .some((reserved) => reserved.toLowerCase() === normalized);
+        if (IGNORED_COMMANDS.some((ignored) => ignored.toLowerCase() === normalized)
+            || (heartbeatAvailable && reservedHeartbeat)) continue;
 
         // Check if it's already in default commands or slash commands
-        if (!commands.find(c => c.command === cmd)) {
+        if (!commands.find(c => c.command.toLowerCase() === normalized)) {
             commands.push({
-                command: cmd,
-                description: COMMAND_DESCRIPTIONS[cmd]  // Optional description
+                command,
+                description: COMMAND_DESCRIPTIONS[normalized]  // Optional description
             });
         }
     }

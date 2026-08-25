@@ -1295,6 +1295,37 @@
       "commanderValue": "指挥官 {id}",
       "attempt": "第 {count} 次尝试"
     },
+    "heartbeat": {
+      "title": "心跳",
+      "commandDescription": "配置此会话的周期心跳",
+      "usage": "使用 {usage}，或 status、pause、resume、clear。",
+      "textOnly": "心跳命令仅支持文本。请先移除附件和工作区上下文。",
+      "machineUnavailable": "所属机器当前不可用。",
+      "unavailable": "心跳当前不可用。",
+      "notConfigured": "尚未配置心跳",
+      "confirmation": "♥ 心跳 · 每 {cadence} · {state}",
+      "active": "已启用",
+      "paused": "已暂停",
+      "every": "每隔",
+      "interval": "心跳间隔",
+      "minimum": "心跳最短间隔为 60 秒。",
+      "instructionPlaceholder": "周期指令（可选）",
+      "standardContinuation": "标准继续指令",
+      "pause": "暂停",
+      "resume": "恢复",
+      "clear": "清除",
+      "automation": "自动化",
+      "openTarget": "打开目标会话",
+      "delivery": {
+        "idle": "空闲",
+        "due": "已到期",
+        "waiting-daemon": "等待守护进程",
+        "persisted": "已持久化",
+        "queued": "已排队",
+        "running": "运行中",
+        "failed": "失败"
+      }
+    },
     "voice": {
       "signIn": "请先登录再使用语音输入",
       "startFailed": "无法开始录音",

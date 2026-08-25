@@ -27,7 +27,7 @@ import { useDraft } from '@/hooks/useDraft';
 import { useImagePicker } from '@/hooks/useImagePicker';
 import { Modal } from '@/modal';
 import { gitStatusSync } from '@/sync/gitStatusSync';
-import { sessionAbort, sessionCancelCommunication, sessionGoalAction, sessionSetAgentModes, spawnSideChat, sessionKill, sessionArchive } from '@/sync/ops';
+import { machineControlHeartbeat, sessionAbort, sessionCancelCommunication, sessionGoalAction, sessionSetAgentModes, spawnSideChat, sessionKill, sessionArchive } from '@/sync/ops';
 import { storage, useIsDataReady, useLocalSetting, useMachine, useRealtimeStatus, useSessionGitStatus, useSessionMessages, useSessionPendingCommunications, useSessionUsage, useSetting, useSettingMutable, useSideChatSessions } from '@/sync/storage';
 import { useSession } from '@/sync/storage';
 import { getSessionForkSource } from '@/utils/sessionFork';
@@ -105,6 +105,7 @@ import {
 } from './workspaceLinkNavigation';
 import type { WorkspaceLinkRoute } from '@/utils/markdownWorkspaceLink';
 import { AnimatedFade } from '@/components/AnimatedOverlay';
+import { HEARTBEAT_COMMAND } from '@/utils/heartbeatCommand';
 
 export const SessionView = React.memo((props: { id: string; focusMessageId?: string }) => {
     const sessionId = props.id;
@@ -1033,6 +1034,26 @@ export function SessionViewLoaded({
             return;
         }
         try {
+            const heartbeatCommand = await HEARTBEAT_COMMAND.dispatch({
+                text: liveMessage,
+                machineId: machineId ?? '',
+                sessionId,
+                metadata: session.metadata,
+                hasAttachments: selectedImages.length > 0,
+                hasWorkspaceContext: selectedContextEntries.length > 0,
+                translate: (key, params) => (t as any)(key, params),
+                control: async (targetMachineId, action) => {
+                    if (!targetMachineId) throw new Error(t('happyHerd.heartbeat.machineUnavailable'));
+                    return machineControlHeartbeat(targetMachineId, action);
+                },
+            });
+            if (heartbeatCommand.handled) {
+                if (heartbeatCommand.clearComposer) composerHandleRef.current?.clearMessage();
+                if (heartbeatCommand.message) {
+                    Modal.alert(t('happyHerd.heartbeat.title'), heartbeatCommand.message);
+                }
+                return;
+            }
             const contextMessage = await buildWorkspaceContextMessage(sessionId, liveMessage, selectedContextEntries);
             const attachments = expImageUpload && canUseAttachments ? selectedImages : undefined;
             const communicationsToDismiss = deliveryMode ? [] : [...pendingCommunications];
@@ -1060,7 +1081,7 @@ export function SessionViewLoaded({
                 error instanceof Error ? error.message : t('happyHerd.composer.sendFailedBody'),
             );
         }
-    }, [sessionId, expImageUpload, canUseAttachments, selectedImages, selectedContextEntries, clearImages, pendingCommunications]);
+    }, [sessionId, machineId, expImageUpload, canUseAttachments, selectedImages, selectedContextEntries, clearImages, pendingCommunications]);
     const handleSend = React.useCallback(() => sendComposerMessage(), [sendComposerMessage]);
     const handleQueueMessage = React.useCallback(() => sendComposerMessage('queue'), [sendComposerMessage]);
 

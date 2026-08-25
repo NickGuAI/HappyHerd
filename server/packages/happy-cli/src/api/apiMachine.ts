@@ -100,6 +100,7 @@ type MachineRpcHandlers = {
         model?: string;
         permissionMode?: string;
         agentRuntimeContext?: unknown;
+        replayQueueMessageId?: string;
     }) => Promise<SpawnSessionResult>;
     stopSession: (sessionId: string) => boolean;
     requestShutdown: () => void;
@@ -223,6 +224,7 @@ export class ApiMachineClient {
             });
             this.rpcHandlerManager.registerHandler('happyherd-automations-run-now', async (params: any) => automations.runNow(requireNonEmptyString(params?.id, 'id')));
             this.rpcHandlerManager.registerHandler('happyherd-automations-history', async (params: any) => automations.history(requireNonEmptyString(params?.id, 'id')));
+            this.rpcHandlerManager.registerHandler('happyherd-heartbeat-control', async (params: any) => automations.controlHeartbeat(params));
         }
 
         this.syncResumeSessionRpcRegistration();

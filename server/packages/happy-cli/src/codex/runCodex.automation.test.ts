@@ -76,6 +76,7 @@ vi.mock('@/api/api', () => ({
                 agentState: state,
                 agentStateVersion: 0,
             })),
+            refreshSessionForReconnect: vi.fn(async (session) => session),
             push: vi.fn(() => ({ sendSessionNotification: vi.fn() })),
         })),
     },
@@ -219,6 +220,10 @@ describe('runCodex automation process lifecycle', () => {
     afterEach(() => {
         vi.restoreAllMocks();
         mocks.events.length = 0;
+        delete process.env.HAPPY_RECONNECT_SESSION_ID;
+        delete process.env.HAPPY_RECONNECT_ENCRYPTION_KEY;
+        delete process.env.HAPPY_RECONNECT_ENCRYPTION_VARIANT;
+        delete process.env.HAPPY_RECONNECT_QUEUE_MESSAGE_ID;
     });
 
     it('persists completion, finalizes the session, then exits with the terminal status', async () => {
@@ -248,5 +253,23 @@ describe('runCodex automation process lifecycle', () => {
             'mcp-stop',
             'exit:0',
         ]);
+    });
+
+    it('replays the requested heartbeat occurrence when resuming the exact Codex session', async () => {
+        vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+        process.env.HAPPY_RECONNECT_SESSION_ID = 'session-one';
+        process.env.HAPPY_RECONNECT_ENCRYPTION_KEY = Buffer.alloc(32).toString('base64');
+        process.env.HAPPY_RECONNECT_ENCRYPTION_VARIANT = 'dataKey';
+        process.env.HAPPY_RECONNECT_QUEUE_MESSAGE_ID = 'heartbeat-occurrence';
+
+        await runCodex({
+            credentials: { token: 'test-token' } as never,
+            startedBy: 'daemon',
+        });
+
+        expect(mocks.session.skipExistingMessages).toHaveBeenCalledWith(
+            ['heartbeat-occurrence'],
+            0,
+        );
     });
 });

@@ -123,6 +123,9 @@ function emptyDraft(homeDir?: string): Draft {
 }
 
 function draftFromAutomation(automation: HappyHerdAutomation): Draft {
+    if (automation.kind === 'heartbeat') {
+        throw new Error('Session heartbeats are configured from their target session');
+    }
     return {
         name: automation.name,
         kind: automation.kind,
@@ -383,12 +386,16 @@ export default function AutomationsScreen() {
     }, []);
 
     const openEdit = React.useCallback((automation: HappyHerdAutomation) => {
+        if (automation.kind === 'heartbeat') {
+            navigateToSession(automation.targetSessionId);
+            return;
+        }
         setMachineId(automation.machineId);
         setEditingId(automation.id);
         setEditingMachineId(automation.machineId);
         setDraft(draftFromAutomation(automation));
         setFormVisible(true);
-    }, []);
+    }, [navigateToSession]);
 
     const save = React.useCallback(async () => {
         const targetMachineId = editingMachineId ?? machineId;
@@ -565,7 +572,7 @@ export default function AutomationsScreen() {
                     <Field label={t('happyHerd.automations.instruction')} value={draft.instruction} multiline onChangeText={(instruction) => setDraft((current) => ({ ...current, instruction }))} />
                     <Text style={styles.label}>{t('happyHerd.automations.kind')}</Text>
                     <View style={styles.choices}>
-                        {(['scheduled', 'heartbeat', 'memory-maintenance'] as const).map((kind) => (
+                        {(['scheduled', 'memory-maintenance'] as const).map((kind) => (
                             <Choice key={kind} value={kind} selected={draft.kind === kind} onSelect={(next) => setDraft((current) => ({ ...current, kind: next }))} />
                         ))}
                     </View>

@@ -365,6 +365,33 @@ export type TranslationKey =
     | "happyHerd.features.sortRecentSubtitle"
     | "happyHerd.features.voiceInput"
     | "happyHerd.features.voiceInputSubtitle"
+    | "happyHerd.heartbeat.active"
+    | "happyHerd.heartbeat.automation"
+    | "happyHerd.heartbeat.clear"
+    | "happyHerd.heartbeat.commandDescription"
+    | "happyHerd.heartbeat.confirmation"
+    | "happyHerd.heartbeat.delivery.due"
+    | "happyHerd.heartbeat.delivery.failed"
+    | "happyHerd.heartbeat.delivery.idle"
+    | "happyHerd.heartbeat.delivery.persisted"
+    | "happyHerd.heartbeat.delivery.queued"
+    | "happyHerd.heartbeat.delivery.running"
+    | "happyHerd.heartbeat.delivery.waiting-daemon"
+    | "happyHerd.heartbeat.every"
+    | "happyHerd.heartbeat.instructionPlaceholder"
+    | "happyHerd.heartbeat.interval"
+    | "happyHerd.heartbeat.machineUnavailable"
+    | "happyHerd.heartbeat.minimum"
+    | "happyHerd.heartbeat.notConfigured"
+    | "happyHerd.heartbeat.openTarget"
+    | "happyHerd.heartbeat.pause"
+    | "happyHerd.heartbeat.paused"
+    | "happyHerd.heartbeat.resume"
+    | "happyHerd.heartbeat.standardContinuation"
+    | "happyHerd.heartbeat.textOnly"
+    | "happyHerd.heartbeat.title"
+    | "happyHerd.heartbeat.unavailable"
+    | "happyHerd.heartbeat.usage"
     | "happyHerd.sessionStatusAvatar.actionRequired"
     | "happyHerd.sessionStatusAvatar.disconnected"
     | "happyHerd.sessionStatusAvatar.idle"
@@ -1261,6 +1288,8 @@ export interface TranslationParamsByKey {
     "happyHerd.automations.machineLoadFailed": { message: string; name: string };
     "happyHerd.automations.openSession": { id: string };
     "happyHerd.commanderAvatars.updated": { name: string };
+    "happyHerd.heartbeat.confirmation": { cadence: string; state: string };
+    "happyHerd.heartbeat.usage": { usage: string };
     "imageUpload.fileTooLargeMessage": { maxMb: number; name: string };
     "imageUpload.limitMessage": { max: number };
     "imageUpload.uploadFailedMessage": { count: number };

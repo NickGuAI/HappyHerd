@@ -14,7 +14,7 @@ type HappyHerdAutomationReloadMachine = Pick<
 >;
 
 type RuntimeListResponse = {
-    definitionSchemaVersion?: 1 | 2;
+    definitionSchemaVersion?: 1 | 2 | 3;
     automations: unknown[];
 };
 
@@ -22,7 +22,7 @@ export type HappyHerdAutomationMachineCollection<
     TMachine extends HappyHerdAutomationMachine = HappyHerdAutomationMachine,
 > = {
     machine: TMachine;
-    definitionSchemaVersion: 1 | 2;
+    definitionSchemaVersion: 1 | 2 | 3;
     automations: HappyHerdAutomation[];
 };
 
@@ -50,7 +50,7 @@ export function happyHerdAutomationMachineName(machine: HappyHerdAutomationMachi
 
 export function happyHerdAutomationTagInput(
     tags: string,
-    definitionSchemaVersion: 1 | 2,
+    definitionSchemaVersion: 1 | 2 | 3,
 ): Partial<Pick<HappyHerdAutomationCreateInput, 'tags'>> {
     if (definitionSchemaVersion < 2) return {};
     return {
@@ -108,7 +108,11 @@ export async function loadHappyHerdAutomationMachines<
         try {
             collections.push({
                 machine,
-                definitionSchemaVersion: result.value.definitionSchemaVersion === 2 ? 2 : 1,
+                definitionSchemaVersion: result.value.definitionSchemaVersion === 3
+                    ? 3
+                    : result.value.definitionSchemaVersion === 2
+                        ? 2
+                        : 1,
                 automations: result.value.automations.map(normalizeRuntimeAutomation),
             });
         } catch (error) {

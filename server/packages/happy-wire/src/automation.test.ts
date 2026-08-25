@@ -14,7 +14,7 @@ import {
 const id = '8f0a5dd0-b7c0-4b60-a747-675b49ccfdc8';
 
 describe('HappyHerd automation wire contract', () => {
-  it('normalizes strict v1 definitions to v2 with no tags', () => {
+  it('normalizes strict v1 definitions to v3 with no tags', () => {
     const definition = {
       schemaVersion: 1 as const,
       runtimeOwner: 'happyherd' as const,
@@ -37,7 +37,7 @@ describe('HappyHerd automation wire contract', () => {
     };
     expect(HappyHerdAutomationSchema.parse(definition)).toEqual({
       ...definition,
-      schemaVersion: 2,
+      schemaVersion: 3,
       tags: [],
     });
     expect(() => HappyHerdAutomationSchema.parse({ ...definition, providerTransport: 'unsupported' })).toThrow();
@@ -82,7 +82,7 @@ describe('HappyHerd automation wire contract', () => {
   it('defaults create tags, keeps update tags optional, and advertises list capability safely', () => {
     const createInput = {
       name: 'Heartbeat',
-      kind: 'heartbeat' as const,
+      kind: 'scheduled' as const,
       instruction: 'Check status.',
       schedule: '*/15 * * * *',
       timezone: 'UTC',
@@ -100,20 +100,67 @@ describe('HappyHerd automation wire contract', () => {
       automations: [],
     });
     expect(HappyHerdAutomationListResponseSchema.parse({
-      definitionSchemaVersion: 2,
+      definitionSchemaVersion: 3,
       automations: [],
-    }).definitionSchemaVersion).toBe(2);
+    }).definitionSchemaVersion).toBe(3);
   });
 
   it('requires an explicit rail, workspace, timezone, and paused/active state', () => {
     expect(() => HappyHerdAutomationCreateInputSchema.parse({
       name: 'Incomplete',
-      kind: 'heartbeat',
+      kind: 'scheduled',
       instruction: 'Check status.',
       schedule: '*/15 * * * *',
       commanderId: null,
       maxRetries: 0,
     })).toThrow();
+  });
+
+  it('reserves v3 heartbeat for one immutable session while preserving legacy cron behavior', () => {
+    const legacy = {
+      schemaVersion: 2 as const,
+      runtimeOwner: 'happyherd' as const,
+      id,
+      machineId: 'machine-one',
+      name: 'Legacy heartbeat label',
+      kind: 'heartbeat' as const,
+      instruction: 'Run a fresh check.',
+      schedule: '0 * * * *',
+      timezone: 'UTC',
+      workspace: '/srv/app',
+      rail: 'codex' as const,
+      commanderId: null,
+      status: 'active' as const,
+      maxRetries: 1,
+      tags: [],
+      createdAt: '2026-08-03T00:00:00.000Z',
+      updatedAt: '2026-08-03T00:00:00.000Z',
+      lastScheduledAt: null,
+      lastRunAt: null,
+    };
+    expect(HappyHerdAutomationSchema.parse(legacy)).toMatchObject({
+      schemaVersion: 3,
+      kind: 'scheduled',
+      schedule: '0 * * * *',
+    });
+    expect(HappyHerdAutomationSchema.parse({
+      ...legacy,
+      schemaVersion: 3,
+      kind: 'heartbeat',
+      schedule: null,
+      targetSessionId: 'session-one',
+      intervalSeconds: 2_700,
+      nextDueAt: '2026-08-03T00:45:00.000Z',
+      maxRetries: 0,
+    })).toMatchObject({
+      kind: 'heartbeat',
+      targetSessionId: 'session-one',
+      intervalSeconds: 2_700,
+    });
+    expect(HappyHerdAutomationCreateInputSchema.safeParse({
+      ...legacy,
+      kind: 'heartbeat',
+    }).success).toBe(false);
   });
 
   it('records linked session starts as active until a terminal confirmation', () => {

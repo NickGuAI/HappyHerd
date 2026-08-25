@@ -4,6 +4,7 @@ import path from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { HappyHerdAutomationService } from './service';
+import type { Session } from '@/api/types';
 
 let root: string;
 let service: HappyHerdAutomationService | null = null;
@@ -53,7 +54,218 @@ function input() {
   };
 }
 
+function heartbeatTarget(agentState: Session['agentState'] = {
+  messageQueue: { pendingMessageIds: [], currentMessageIds: [] },
+}): Session {
+  return {
+    id: 'session-heartbeat',
+    seq: 1,
+    encryptionKey: new Uint8Array(32),
+    encryptionVariant: 'legacy',
+    metadata: {
+      path: path.join(root, 'workspace'),
+      host: 'test-host',
+      homeDir: root,
+      happyHomeDir: path.join(root, '.happy'),
+      happyLibDir: path.join(root, '.happy', 'lib'),
+      happyToolsDir: path.join(root, '.happy', 'tools'),
+      machineId: 'machine-one',
+      flavor: 'codex',
+      codexThreadId: 'thread-one',
+      commanderId: 'commander-one',
+      commanderName: 'Athena',
+      commanderPath: '/context/COMMANDER.md',
+      commanderAgentContextPath: '/context/commander',
+      globalAgentContextPath: '/context/global',
+      projectGuidancePath: '/workspace/AGENTS.md',
+    },
+    metadataVersion: 1,
+    agentState,
+    agentStateVersion: 1,
+  };
+}
+
 describe('HappyHerdAutomationService', () => {
+  it('delivers one exact queued turn and anchors cadence only to the provider receipt', async () => {
+    let target = { session: heartbeatTarget(), running: true };
+    const postMessage = vi.fn().mockResolvedValue(undefined);
+    const resumeTarget = vi.fn();
+    service = new HappyHerdAutomationService('machine-one', vi.fn(), {
+      loadTarget: vi.fn(async () => target),
+      postMessage,
+      resumeTarget,
+    });
+    const configured = await service.controlHeartbeat({
+      action: 'set',
+      targetSessionId: target.session.id,
+      intervalSeconds: 2_700,
+      instruction: 'Check the deployment.',
+    });
+    const heartbeat = configured.heartbeat!;
+    const dueAt = '2026-08-25T00:00:00.000Z';
+    await (service as any).store.updateHeartbeat(heartbeat.id, { nextDueAt: dueAt });
+
+    await (service as any).reconcileHeartbeats(new Date(dueAt));
+    const [persisted] = (await service.history(heartbeat.id)).runs;
+    expect(postMessage).toHaveBeenCalledTimes(1);
+    expect(postMessage).toHaveBeenCalledWith(target.session, expect.objectContaining({
+      localId: persisted.id,
+      automationId: heartbeat.id,
+      displayText: expect.stringContaining('every 45m'),
+      text: expect.stringContaining('Recurring instruction:\nCheck the deployment.'),
+    }));
+    expect(postMessage.mock.calls[0][1].text).toContain('- Commander definition: /context/COMMANDER.md');
+    expect(resumeTarget).not.toHaveBeenCalled();
+
+    target = {
+      ...target,
+      session: heartbeatTarget({
+        messageQueue: { pendingMessageIds: [persisted.id], currentMessageIds: [] },
+      }),
+    };
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:00:30.000Z'));
+    expect(postMessage).toHaveBeenCalledTimes(1);
+    expect((await service.controlHeartbeat({ action: 'status', targetSessionId: target.session.id })).deliveryState).toBe('queued');
+
+    target = {
+      ...target,
+      session: heartbeatTarget({
+        messageQueue: { pendingMessageIds: [], currentMessageIds: [persisted.id] },
+      }),
+    };
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:01:00.000Z'));
+    expect((await service.history(heartbeat.id)).runs[0].status).toBe('running');
+
+    const firedAt = '2026-08-25T00:01:05.000Z';
+    target = {
+      ...target,
+      session: heartbeatTarget({
+        messageQueue: { pendingMessageIds: [], currentMessageIds: [persisted.id] },
+        heartbeatDelivery: {
+          schemaVersion: 1,
+          automationId: heartbeat.id,
+          occurrenceId: persisted.id,
+          status: 'started',
+          startedAt: firedAt,
+          finishedAt: null,
+          message: null,
+        },
+      }),
+    };
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:01:30.000Z'));
+    expect((await service.history(heartbeat.id)).runs[0]).toMatchObject({ status: 'started', startedAt: firedAt });
+    expect((await service.list()).automations[0]).toMatchObject({ nextDueAt: '2026-08-25T00:46:05.000Z' });
+
+    target = {
+      ...target,
+      session: heartbeatTarget({
+        messageQueue: { pendingMessageIds: [], currentMessageIds: [] },
+        heartbeatDelivery: {
+          schemaVersion: 1,
+          automationId: heartbeat.id,
+          occurrenceId: persisted.id,
+          status: 'completed',
+          startedAt: firedAt,
+          finishedAt: '2026-08-25T00:02:00.000Z',
+          message: null,
+        },
+      }),
+    };
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:02:30.000Z'));
+    expect((await service.history(heartbeat.id)).runs[0]).toMatchObject({ status: 'completed' });
+  });
+
+  it.each(['due', 'pending', 'current'] as const)('exact-resumes a stopped target with a %s ID once, then fails closed', async (queueState) => {
+    let target = { session: heartbeatTarget(), running: true };
+    const postMessage = vi.fn().mockResolvedValue(undefined);
+    const resumeTarget = vi.fn().mockResolvedValue({ type: 'success', sessionId: target.session.id });
+    service = new HappyHerdAutomationService('machine-one', vi.fn(), {
+      loadTarget: vi.fn(async () => target),
+      postMessage,
+      resumeTarget,
+    });
+    const heartbeat = (await service.controlHeartbeat({
+      action: 'set', targetSessionId: target.session.id, intervalSeconds: 60, instruction: null,
+    })).heartbeat!;
+    await (service as any).store.updateHeartbeat(heartbeat.id, { nextDueAt: '2026-08-25T00:00:00.000Z' });
+    if (queueState === 'due') target = { ...target, running: false };
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:00:00.000Z'));
+    const run = (await service.history(heartbeat.id)).runs[0];
+    target = {
+      running: false,
+      session: heartbeatTarget({
+        messageQueue: queueState === 'pending'
+          ? { pendingMessageIds: [run.id], currentMessageIds: [] }
+          : queueState === 'current'
+            ? { pendingMessageIds: [], currentMessageIds: [run.id] }
+            : { pendingMessageIds: [], currentMessageIds: [] },
+      }),
+    };
+
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:00:30.000Z'));
+    expect(resumeTarget).toHaveBeenCalledTimes(1);
+    expect(resumeTarget).toHaveBeenCalledWith(target.session.id, { replayQueueMessageId: run.id });
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:01:00.000Z'));
+    expect(resumeTarget).toHaveBeenCalledTimes(1);
+    expect((await service.history(heartbeat.id)).runs[0]).toMatchObject({ status: 'failed' });
+    expect((await service.list()).automations[0]).toMatchObject({ status: 'paused', nextDueAt: null });
+  });
+
+  it('allows one same-ID persistence retry and then records a material failure', async () => {
+    const target = { session: heartbeatTarget(), running: true };
+    const postMessage = vi.fn().mockResolvedValue(undefined);
+    service = new HappyHerdAutomationService('machine-one', vi.fn(), {
+      loadTarget: vi.fn(async () => target),
+      postMessage,
+      resumeTarget: vi.fn(),
+    });
+    const heartbeat = (await service.controlHeartbeat({
+      action: 'set', targetSessionId: target.session.id, intervalSeconds: 60, instruction: null,
+    })).heartbeat!;
+    await (service as any).store.updateHeartbeat(heartbeat.id, { nextDueAt: '2026-08-25T00:00:00.000Z' });
+
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:00:00.000Z'));
+    await expect(service.controlHeartbeat({
+      action: 'set', targetSessionId: target.session.id, intervalSeconds: 120, instruction: 'Changed.',
+    })).rejects.toThrow('current occurrence is in progress');
+    expect((await service.list()).automations[0]).toMatchObject({
+      id: heartbeat.id,
+      intervalSeconds: 60,
+      instruction: heartbeat.instruction,
+    });
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:00:30.000Z'));
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:01:00.000Z'));
+    expect(postMessage).toHaveBeenCalledTimes(2);
+    expect(postMessage.mock.calls[0][1].localId).toBe(postMessage.mock.calls[1][1].localId);
+    expect(postMessage.mock.calls[0][1].text).toBe(postMessage.mock.calls[1][1].text);
+    expect((await service.history(heartbeat.id)).runs[0]).toMatchObject({ status: 'failed' });
+  });
+
+  it('serializes control before delivery and replaces only an unaccepted due occurrence', async () => {
+    const target = { session: heartbeatTarget(null), running: true };
+    const postMessage = vi.fn();
+    service = new HappyHerdAutomationService('machine-one', vi.fn(), {
+      loadTarget: vi.fn(async () => target),
+      postMessage,
+      resumeTarget: vi.fn(),
+    });
+    const first = (await service.controlHeartbeat({
+      action: 'set', targetSessionId: target.session.id, intervalSeconds: 60, instruction: 'Old.',
+    })).heartbeat!;
+    await (service as any).store.updateHeartbeat(first.id, { nextDueAt: '2026-08-25T00:00:00.000Z' });
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:00:00.000Z'));
+    expect((await service.history(first.id)).runs).toHaveLength(1);
+
+    const replaced = await service.controlHeartbeat({
+      action: 'set', targetSessionId: target.session.id, intervalSeconds: 120, instruction: 'New.',
+    });
+    expect((await service.history(first.id)).runs).toHaveLength(0);
+    expect(replaced.heartbeat).toMatchObject({ id: first.id, intervalSeconds: 120, instruction: 'New.' });
+    await service.controlHeartbeat({ action: 'pause', targetSessionId: target.session.id });
+    await (service as any).reconcileHeartbeats(new Date('2026-08-25T00:03:00.000Z'));
+    expect(postMessage).not.toHaveBeenCalled();
+  });
+
   it('creates, pauses, resumes, and deletes durable definitions', async () => {
     service = new HappyHerdAutomationService('machine-one', vi.fn());
     await service.start();

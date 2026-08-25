@@ -88,6 +88,14 @@ export function HappyHerdAutomationCard({
                             ? ` · ${t('happyHerd.automations.commanderValue', { id: presentation.details.commanderId })}`
                             : ''}
                     </Text>
+                    {presentation.details.targetSessionId && (
+                        <Pressable
+                            style={[styles.action, { alignSelf: 'flex-start', borderColor: theme.colors.divider }]}
+                            onPress={() => onOpenSession(presentation.details!.targetSessionId!)}
+                        >
+                            <Text>{t('happyHerd.heartbeat.openTarget')}</Text>
+                        </Pressable>
+                    )}
                     {presentation.details.tags.length > 0 && (
                         <View style={styles.tags}>
                             {presentation.details.tags.map((tag) => (
@@ -96,21 +104,21 @@ export function HappyHerdAutomationCard({
                         </View>
                     )}
                     <View style={styles.actions}>
-                        <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={onToggleStatus}>
+                        {automation.kind !== 'heartbeat' && <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={onToggleStatus}>
                             <Text>{presentation.active ? t('happyHerd.automations.pause') : t('happyHerd.automations.resume')}</Text>
-                        </Pressable>
-                        <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={onRunNow}>
+                        </Pressable>}
+                        {automation.kind !== 'heartbeat' && <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={onRunNow}>
                             <Text>{t('happyHerd.automations.runNow')}</Text>
-                        </Pressable>
+                        </Pressable>}
                         <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={onToggleHistory}>
                             <Text>{t('happyHerd.automations.history')}</Text>
                         </Pressable>
-                        <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={onEdit}>
+                        {automation.kind !== 'heartbeat' && <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={onEdit}>
                             <Text>{t('happyHerd.automations.editAction')}</Text>
-                        </Pressable>
-                        <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={onDelete}>
+                        </Pressable>}
+                        {automation.kind !== 'heartbeat' && <Pressable style={[styles.action, { borderColor: theme.colors.divider }]} onPress={onDelete}>
                             <Text style={{ color: theme.colors.status.disconnected }}>{t('happyHerd.automations.delete')}</Text>
-                        </Pressable>
+                        </Pressable>}
                     </View>
                     {history && (
                         <View style={[styles.history, { borderTopColor: theme.colors.divider }]}>

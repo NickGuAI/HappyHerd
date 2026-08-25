@@ -76,6 +76,7 @@ import { readAutomationBootstrapFromEnvironment } from '@/automations/sessionBoo
 import {
     AutomationGoalTerminalGate,
     persistAutomationProviderOutcome,
+    persistHeartbeatDeliveryReceipt,
 } from '@/automations/providerOutcome';
 import { buildHappyHerdAgentMcpServerConfig, readHappyHerdAgentSessionEnvironment } from './agentMcpConfig';
 
@@ -272,7 +273,12 @@ export async function runCodex(opts: {
     });
     session = initialSession;
     const reconnectQueueMessageIds = reconnectSessionId && response
-        ? queueMessageIdsForResume(response.agentState?.messageQueue)
+        ? Array.from(new Set([
+            ...queueMessageIdsForResume(response.agentState?.messageQueue),
+            ...(process.env.HAPPY_RECONNECT_QUEUE_MESSAGE_ID
+                ? [process.env.HAPPY_RECONNECT_QUEUE_MESSAGE_ID]
+                : []),
+        ]))
         : [];
 
     // On reconnect, un-archive the session and skip replaying old messages.
@@ -451,6 +457,22 @@ export async function runCodex(opts: {
             appendSystemPrompt: messageAppendSystemPrompt,
             effort: messageEffort,
         };
+
+        const heartbeat = message.meta?.heartbeat;
+        if (heartbeat) {
+            if (queueMessageId !== heartbeat.occurrenceId) {
+                logger.warn('[HEARTBEAT] Ignoring heartbeat marker whose queue identity does not match its occurrence');
+                return;
+            }
+            messageQueue.pushIsolated(
+                message.content.text,
+                { ...enhancedMode, heartbeat },
+                attachmentsForThisMessage,
+                queueMessageId,
+            );
+            logger.debug(`[HEARTBEAT] Queued isolated Codex occurrence ${heartbeat.occurrenceId}`);
+            return;
+        }
 
         const activeTurnId = client?.activeTurnId ?? null;
         if (shouldSteerCodexUserInput(message.content.text, activeTurnId, message.meta?.deliveryMode)) {
@@ -1151,6 +1173,9 @@ export async function runCodex(opts: {
             }
 
             messageQueue.markBatchStarted(message.queueMessageIds);
+            if (message.mode.heartbeat) {
+                await persistHeartbeatDeliveryReceipt(session, message.mode.heartbeat, 'started');
+            }
 
             if (isCodexClearText(message.message)) {
                 logger.debug('[Codex] Handling /clear command - resetting Codex thread state');
@@ -1192,6 +1217,7 @@ export async function runCodex(opts: {
             }
 
             let automationCaughtFailure: string | null = null;
+            let heartbeatFailure: string | null = null;
             try {
                 // Map permission mode to approval policy and sandbox.
                 // With app-server, these are per-turn — no restart needed on mode change.
@@ -1278,6 +1304,7 @@ export async function runCodex(opts: {
                     // Turn was aborted (user abort or permission cancel).
                     // UI handling already done by the event handler (turn_aborted).
                     logger.debug('[Codex] Turn aborted');
+                    heartbeatFailure = 'Codex heartbeat turn was aborted.';
                     if (automationBootstrap && !automationTerminalEvent) {
                         automationTerminalEvent = {
                             status: 'failed',
@@ -1291,6 +1318,7 @@ export async function runCodex(opts: {
                 messageBuffer.addMessage('Process exited unexpectedly', 'status');
                 session.sendSessionEvent({ type: 'message', message: 'Process exited unexpectedly' });
                 automationCaughtFailure = error instanceof Error ? error.message : String(error);
+                heartbeatFailure = automationCaughtFailure;
             } finally {
                 // Reset permission handler, reasoning processor, and diff processor
                 permissionHandler.reset();
@@ -1299,6 +1327,14 @@ export async function runCodex(opts: {
                 activeTurnPermissionMode = undefined;
                 thinking = false;
                 session.keepAlive(thinking, 'remote');
+                if (message.mode.heartbeat) {
+                    await persistHeartbeatDeliveryReceipt(
+                        session,
+                        message.mode.heartbeat,
+                        heartbeatFailure ? 'failed' : 'completed',
+                        heartbeatFailure,
+                    );
+                }
                 messageQueue.completeCurrentBatch(message.queueMessageIds);
                 emitReadyIfIdle({
                     pending,
