@@ -1,7 +1,6 @@
 import fs from 'fs/promises';
 import os from 'os';
 import * as tmp from 'tmp';
-import axios from 'axios';
 import { randomUUID } from 'node:crypto';
 import psList from 'ps-list';
 import {
@@ -52,6 +51,7 @@ import { appendDaemonSpawnModeArgs } from './spawnModeArgs';
 import { SessionProcessLifecycle } from './sessionProcessLifecycle';
 import { hasProviderProcessExited } from './processStatus';
 import { startHappyTerminalDaemon } from './happyTerminalBoot';
+import { loadSessionRecords } from '@/api/sessionLookup';
 
 type AutomationTrackedSession = TrackedSession & {
   automationId?: string;
@@ -987,12 +987,10 @@ export async function startDaemon(): Promise<void> {
 
     const fetchServerSessionMetadata = async (sessionId: string, encryptionKey: Uint8Array, encryptionVariant: 'legacy' | 'dataKey'): Promise<Metadata | null> => {
       try {
-        const response = await axios.get(`${configuration.serverUrl}/v1/sessions`, {
-          headers: { Authorization: `Bearer ${credentials.token}` },
+        const [matched] = await loadSessionRecords(credentials.token, {
+          exactId: sessionId,
           timeout: 10_000,
         });
-        const sessions = (response.data as { sessions: { id: string; metadata: string }[] }).sessions;
-        const matched = sessions.find(s => s.id === sessionId);
         if (!matched) return null;
         const decrypted = decrypt(encryptionKey, encryptionVariant, decodeBase64(matched.metadata));
         return decrypted as Metadata | null;

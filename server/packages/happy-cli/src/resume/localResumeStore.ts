@@ -1,8 +1,9 @@
-import axios, { AxiosError } from 'axios';
+import { AxiosError } from 'axios';
 
 import { decodeBase64, decrypt, encodeBase64 } from '@/api/encryption';
 import type { Metadata } from '@/api/types';
 import { configuration } from '@/configuration';
+import { loadSessionRecords } from '@/api/sessionLookup';
 import { persistSession, readCredentials, readPersistedSessions, type PersistedSession } from '@/persistence';
 
 import {
@@ -52,15 +53,10 @@ async function fetchServerMetadata(
     }
 
     try {
-        const response = await axios.get(`${configuration.serverUrl}/v1/sessions`, {
-            headers: {
-                Authorization: `Bearer ${credentials.token}`,
-                'X-Happy-Client': `cli-coding-session/${configuration.currentCliVersion}`,
-            },
+        const [matched] = await loadSessionRecords(credentials.token, {
+            exactId: sessionId,
             timeout: 10_000,
         });
-        const sessions = (response.data as { sessions?: Array<{ id: string; metadata: string }> }).sessions ?? [];
-        const matched = sessions.find((session) => session.id === sessionId);
         if (!matched) {
             return null;
         }

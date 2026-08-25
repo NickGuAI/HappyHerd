@@ -37,7 +37,8 @@ vi.mock('./encryption', () => ({
 // Mock configuration
 vi.mock('@/configuration', () => ({
     configuration: {
-        serverUrl: 'https://api.example.com'
+        serverUrl: 'https://api.example.com',
+        currentCliVersion: '1.0.0',
     }
 }));
 
@@ -241,20 +242,28 @@ describe('Api server error handling', () => {
     });
 
     describe('refreshSessionForReconnect', () => {
-        it('refreshes queue-owning AgentState and merges current process metadata', async () => {
+        it('refreshes queue-owning AgentState beyond the first cursor page and merges current process metadata', async () => {
             const encryptionKey = new Uint8Array(32);
-            mockGet.mockResolvedValue({
-                data: {
-                    sessions: [{
-                        id: 'session-1',
-                        seq: 42,
-                        metadata: 'encrypted-metadata',
-                        metadataVersion: 7,
-                        agentState: 'encrypted-agent-state',
-                        agentStateVersion: 9,
-                    }],
-                },
-            });
+            mockGet
+                .mockResolvedValueOnce({
+                    data: {
+                        sessions: [{ id: 'newer-session' }],
+                        nextCursor: 'cursor_v1_newer-session',
+                    },
+                })
+                .mockResolvedValueOnce({
+                    data: {
+                        sessions: [{
+                            id: 'session-1',
+                            seq: 42,
+                            metadata: 'encrypted-metadata',
+                            metadataVersion: 7,
+                            agentState: 'encrypted-agent-state',
+                            agentStateVersion: 9,
+                        }],
+                        nextCursor: null,
+                    },
+                });
             mockDecrypt
                 .mockReturnValueOnce({ ...testMetadata, claudeSessionId: 'claude-1', hostPid: 1 })
                 .mockReturnValueOnce({
@@ -291,9 +300,18 @@ describe('Api server error handling', () => {
                 },
                 agentStateVersion: 9,
             });
-            expect(mockGet).toHaveBeenCalledWith(
-                expect.stringMatching(/\/v1\/sessions$/),
-                expect.objectContaining({ timeout: 60000 }),
+            expect(mockGet).toHaveBeenNthCalledWith(
+                1,
+                expect.stringMatching(/\/v2\/sessions$/),
+                expect.objectContaining({ params: { limit: 200 }, timeout: 60000 }),
+            );
+            expect(mockGet).toHaveBeenNthCalledWith(
+                2,
+                expect.stringMatching(/\/v2\/sessions$/),
+                expect.objectContaining({
+                    params: { limit: 200, cursor: 'cursor_v1_newer-session' },
+                    timeout: 60000,
+                }),
             );
         });
 

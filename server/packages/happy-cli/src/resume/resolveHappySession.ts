@@ -1,10 +1,10 @@
-import axios, { AxiosError } from 'axios';
+import { AxiosError } from 'axios';
 import tweetnacl from 'tweetnacl';
 import { z } from 'zod';
 
 import { decodeBase64, decryptLegacy, decryptWithDataKey } from '@/api/encryption';
+import { loadSessionRecords, type SessionListRecord } from '@/api/sessionLookup';
 import type { Metadata } from '@/api/types';
-import { configuration } from '@/configuration';
 import {
     getLocalHappyAgentCredentialPath,
     readLocalHappyAgentCredentials,
@@ -17,17 +17,6 @@ export const ResumableMetadataSchema = z.object({
     claudeSessionId: z.string().optional(),
     codexThreadId: z.string().optional(),
 }).passthrough();
-
-type RawSession = {
-    id: string;
-    active: boolean;
-    metadata: string;
-    metadataVersion: number;
-    agentState: string | null;
-    agentStateVersion: number;
-    seq: number;
-    dataEncryptionKey: string | null;
-};
 
 type RecordEncryption = {
     key: Uint8Array;
@@ -96,7 +85,7 @@ function readAgentCredentials() {
     return credentials;
 }
 
-function resolveSessionEncryption(session: RawSession, credentials: LocalHappyAgentCredentials): RecordEncryption {
+function resolveSessionEncryption(session: SessionListRecord, credentials: LocalHappyAgentCredentials): RecordEncryption {
     if (session.dataEncryptionKey) {
         const encrypted = decodeBase64(session.dataEncryptionKey);
         const sessionKey = decryptBoxBundle(encrypted.slice(1), credentials.contentKeyPair.secretKey);
@@ -115,7 +104,7 @@ function resolveSessionEncryption(session: RawSession, credentials: LocalHappyAg
     };
 }
 
-function decryptSessionMetadata(session: RawSession, credentials: LocalHappyAgentCredentials): Metadata {
+function decryptSessionMetadata(session: SessionListRecord, credentials: LocalHappyAgentCredentials): Metadata {
     const encryption = resolveSessionEncryption(session, credentials);
     const encryptedMetadata = decodeBase64(session.metadata);
     const metadata = encryption.variant === 'dataKey'
@@ -129,15 +118,9 @@ function decryptSessionMetadata(session: RawSession, credentials: LocalHappyAgen
     return parseResumableMetadata(session.id, metadata);
 }
 
-async function fetchSessions(credentials: LocalHappyAgentCredentials): Promise<RawSession[]> {
+async function fetchSessions(credentials: LocalHappyAgentCredentials): Promise<SessionListRecord[]> {
     try {
-        const response = await axios.get(`${configuration.serverUrl}/v1/sessions`, {
-            headers: {
-                Authorization: `Bearer ${credentials.token}`,
-                'X-Happy-Client': `cli-coding-session/${configuration.currentCliVersion}`,
-            },
-        });
-        return (response.data as { sessions: RawSession[] }).sessions;
+        return await loadSessionRecords(credentials.token);
     } catch (error) {
         if (error instanceof AxiosError) {
             if (error.response?.status === 401) {

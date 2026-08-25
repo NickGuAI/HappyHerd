@@ -9,6 +9,7 @@ import { configuration } from '@/configuration';
 import chalk from 'chalk';
 import { Credentials } from '@/persistence';
 import { connectionState, isNetworkError } from '@/utils/serverConnectionErrors';
+import { loadSessionRecords } from './sessionLookup';
 
 export class ApiClient {
 
@@ -145,24 +146,10 @@ export class ApiClient {
    * delivered.
    */
   async refreshSessionForReconnect(session: Session): Promise<Session> {
-    const response = await axios.get<{
-      sessions?: Array<{
-        id: string,
-        seq: number,
-        metadata: string,
-        metadataVersion: number,
-        agentState: string | null,
-        agentStateVersion: number,
-      }>
-    }>(`${configuration.serverUrl}/v1/sessions`, {
-      headers: {
-        'Authorization': `Bearer ${this.credential.token}`,
-        'X-Happy-Client': `cli-coding-session/${configuration.currentCliVersion}`
-      },
-      timeout: 60000
+    const [raw] = await loadSessionRecords(this.credential.token, {
+      exactId: session.id,
+      timeout: 60000,
     });
-
-    const raw = response.data.sessions?.find((candidate) => candidate.id === session.id);
     if (!raw) {
       throw new Error(`Cannot refresh Happy session ${session.id} for reconnect`);
     }
