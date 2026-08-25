@@ -51,6 +51,17 @@ describe('happyherd command surface', () => {
     expect(output).toEqual(['happyherd version: 1.2.1-beta.1']);
   });
 
+  it('rejects surplus version arguments without falling through to native Happy', async () => {
+    const errors: string[] = [];
+    expect(await runCli(['--version', 'unexpected'], { stderr: (line) => errors.push(line) })).toBe(1);
+    expect(await runCli(['-v', 'unexpected'], { stderr: (line) => errors.push(line) })).toBe(1);
+    expect(errors).toEqual([
+      'error: --version accepts no arguments',
+      'error: -v accepts no arguments',
+    ]);
+    expect(runHappy).not.toHaveBeenCalled();
+  });
+
   it('routes connect, disconnect, install, and run only through the broker client', async () => {
     const calls: string[] = [];
     const fake = broker({

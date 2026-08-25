@@ -79,7 +79,8 @@ export async function runCli(args: string[], dependencies: CliDependencies = {})
       output(HELP);
       return 0;
     }
-    if (args.length === 1 && (args[0] === '--version' || args[0] === '-v')) {
+    if (args[0] === '--version' || args[0] === '-v') {
+      if (args.length !== 1) throw new Error(`${args[0]} accepts no arguments`);
       output(`happyherd version: ${identity.version}`);
       return 0;
     }
