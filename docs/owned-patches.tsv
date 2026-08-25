@@ -96,3 +96,4 @@ UI_SURFACE_INVENTORY	accepted	chore(app): refresh UI surface inventory	server/pa
 UPSTREAM_SYNC_REVIEW	accepted	fix(sync): close exact-head review gaps	scripts/test-daily-upstream-sync-contract.sh
 AUTOMATION_NO_TIMEOUT	accepted	feat: support unbounded automation runs	server/packages/happy-cli/src/daemon/run.automation.test.ts
 SESSION_UI_STATE	accepted	fix(app): prevent machine blink and show archive progress	server/packages/happy-app/sources/sync/machinePresence.test.ts
+AUTOMATIONS_PROFILING	accepted	feat(metrics): profile automations page latency	docs/automations-profiling.md

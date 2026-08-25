@@ -29,6 +29,23 @@ describe('ProductionLogWindow', () => {
         window.recordRequest({ method: 'GET', route: '/health', statusCode: 503, durationMs: 50 });
         expect(window.flush(30_000)).toContain('requests=1 2xx=0 4xx=0 5xx=1');
     });
+
+    it('names the slowest automation RPC with bounded outcome and latency evidence', () => {
+        const window = new ProductionLogWindow(0);
+        window.recordRpc({ method: 'happyherd-automations-list', result: 'success', durationMs: 20 });
+        window.recordRpc({ method: 'happyherd-automations-list', result: 'timeout', durationMs: 30_000 });
+        window.recordRpc({ method: 'happyherd-list-commanders', result: 'success', durationMs: 10 });
+        window.recordRpc({ method: 'user-supplied-method', result: 'timeout', durationMs: 60_000 });
+
+        const message = window.flush(30_000);
+
+        expect(message).toContain('rpcCalls=3 rpcErrors=1 rpcTimeouts=1');
+        expect(message).toContain('rpcSlowest=happyherd-automations-list');
+        expect(message).toContain('rpcSlowestCalls=2 rpcSlowestOk=1 rpcSlowestErrors=1 rpcSlowestTimeouts=1');
+        expect(message).toContain('rpcSlowestP50=20ms rpcSlowestP95=30000ms rpcSlowestMax=30000ms');
+        expect(message).not.toContain('user-supplied-method');
+        expect(window.flush(60_000)).toBeNull();
+    });
 });
 
 describe('isTransactionTimeout', () => {

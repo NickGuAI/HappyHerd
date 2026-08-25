@@ -13,6 +13,9 @@ const testState = vi.hoisted(() => ({
     listCommanders: vi.fn(),
     createAutomation: vi.fn(),
     updateAutomation: vi.fn(),
+    profileRpc: vi.fn(),
+    profileStart: vi.fn(),
+    recordProfile: vi.fn(),
 }));
 
 vi.mock('react-native', async () => {
@@ -110,6 +113,11 @@ vi.mock('@/sync/storage', () => ({
 
 vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}) } }));
 vi.mock('@/hooks/useNavigateToSession', () => ({ useNavigateToSession: () => vi.fn() }));
+vi.mock('@/utils/automationProfiling', () => ({
+    automationProfileStart: testState.profileStart,
+    profileAutomationRpc: testState.profileRpc,
+    recordAutomationProfile: testState.recordProfile,
+}));
 
 const translations: Record<string, string> = {
     'happyHerd.automations.new': 'New',
@@ -148,6 +156,9 @@ beforeEach(() => {
     testState.listCommanders.mockReset().mockResolvedValue({ commanders: [] });
     testState.createAutomation.mockReset().mockResolvedValue(undefined);
     testState.updateAutomation.mockReset().mockResolvedValue(undefined);
+    testState.profileRpc.mockReset().mockImplementation(async (_method, operation) => operation());
+    testState.profileStart.mockReset().mockReturnValue(10);
+    testState.recordProfile.mockReset();
 });
 
 function machine(id: string, activeAt: number): Machine {
@@ -251,6 +262,12 @@ describe('AutomationsScreen refresh behavior', () => {
         expect(testState.listAutomations).toHaveBeenLastCalledWith('machine-a');
         expect(testState.listCommanders).toHaveBeenCalledTimes(1);
         expect(testState.listCommanders).toHaveBeenLastCalledWith('machine-a');
+        expect(testState.profileRpc.mock.calls.map(([method]) => method)).toEqual([
+            'happyherd-automations-list',
+            'happyherd-list-commanders',
+        ]);
+        expect(testState.recordProfile).toHaveBeenCalledWith('render', 'commit', 'success', 10);
+        expect(testState.recordProfile).toHaveBeenCalledWith('route', 'total', 'success', 10);
 
         testState.machines = [{ ...original, activeAt: 200, updatedAt: 200 }];
         await updateScreen(renderer);

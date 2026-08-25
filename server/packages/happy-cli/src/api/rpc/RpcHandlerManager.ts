@@ -13,6 +13,23 @@ import {
 } from './types';
 import { Socket } from 'socket.io-client';
 
+const AUTOMATIONS_PROFILE_METHODS = new Set([
+    'happyherd-list-commanders',
+    'happyherd-automations-list',
+    'happyherd-automations-create',
+    'happyherd-automations-update',
+    'happyherd-automations-pause',
+    'happyherd-automations-resume',
+    'happyherd-automations-delete',
+    'happyherd-automations-run-now',
+    'happyherd-automations-history',
+]);
+
+function automationProfileMethod(prefixedMethod: string): string | null {
+    const method = prefixedMethod.slice(prefixedMethod.lastIndexOf(':') + 1);
+    return AUTOMATIONS_PROFILE_METHODS.has(method) ? method : null;
+}
+
 export class RpcHandlerManager {
     private handlers: RpcHandlerMap = new Map();
     private readonly scopePrefix: string;
@@ -64,6 +81,9 @@ export class RpcHandlerManager {
     async handleRequest(
         request: RpcRequest,
     ): Promise<any> {
+        const profileMethod = automationProfileMethod(request.method);
+        const profileStartedAt = profileMethod ? Date.now() : 0;
+        let profileOutcome: 'success' | 'error' = 'error';
         try {
             const handler = this.handlers.get(request.method);
 
@@ -85,6 +105,7 @@ export class RpcHandlerManager {
             // Encrypt and return the response
             const encryptedResponse = encodeBase64(encrypt(this.encryptionKey, this.encryptionVariant, result));
             this.logger('[RPC] Sending encrypted response', { method: request.method, responseLength: encryptedResponse.length });
+            profileOutcome = 'success';
             return encryptedResponse;
         } catch (error) {
             this.logger('[RPC] [ERROR] Error handling request', { error });
@@ -92,6 +113,12 @@ export class RpcHandlerManager {
                 error: error instanceof Error ? error.message : 'Unknown error'
             };
             return encodeBase64(encrypt(this.encryptionKey, this.encryptionVariant, errorResponse));
+        } finally {
+            if (profileMethod) {
+                this.logger(
+                    `[AUTOMATIONS_PROFILE] method=${profileMethod} outcome=${profileOutcome} daemon_ms=${Math.max(0, Date.now() - profileStartedAt)}`,
+                );
+            }
         }
     }
 

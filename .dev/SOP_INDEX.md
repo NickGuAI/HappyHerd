@@ -17,6 +17,7 @@ component deployment does not impose that source-state gate.
 | CLI command reference | `server/packages/happyherd-cli/README.md`, `server/packages/happy-cli/README.md` | `happyherd --help`, `happy --help` |
 | Troubleshooting and diagnostics | CLI README files, `docs/runtime-isolation.md` | `happyherd doctor`, `happy doctor`, `scripts/health-happyherd-agent.sh` |
 | Component-native deployment | `docs/deployment.md`, `docs/runtime-isolation.md` | `scripts/build-server-image.sh`, `scripts/deploy-server.sh`, `scripts/install-host-cli.sh`, `scripts/install-linux-daemon-bootstrap.sh`, `scripts/install-agent-runtime.sh` |
+| `/automations` production profiling | `docs/automations-profiling.md` | Browser Performance API, private container metrics, retained server and daemon logs |
 | Issuer, device flow, Skills, and credential boundary | `docs/issuer-protocol.md` | HappyHerd CLI tests and public-launcher contract |
 | AgentContext ownership | `docs/agentcontext-authority.md` | CLI Commander/context tests |
 | Upstream server deployment reference | `server/docs/deployment.md` | package scripts under `server/packages/happy-server` |

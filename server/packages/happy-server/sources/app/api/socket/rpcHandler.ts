@@ -3,6 +3,7 @@ import { Server, Socket } from "socket.io";
 import type { RemoteSocket } from "socket.io";
 import type { DefaultEventsMap } from "socket.io/dist/typed-events";
 import { Counter, Histogram, register } from 'prom-client';
+import { recordProductionRpc } from '@/app/monitoring/productionLogSummary';
 
 // RPC routing uses Socket.IO rooms. A daemon registering method M for user U
 // joins room `rpc:U:M`. Callers look the daemon up cross-replica via
@@ -162,10 +163,12 @@ export function rpcHandler(userId: string, socket: Socket, io: Server) {
         const { method, params } = data ?? {};
 
         const finish = (result: string) => {
-            const durationSec = (Date.now() - startTime) / 1000;
+            const durationMs = Date.now() - startTime;
+            const durationSec = durationMs / 1000;
             const m = baseMethodName(method || 'unknown');
             rpcCallCounter.inc({ method: m, result });
             rpcCallDuration.observe({ method: m, result }, durationSec);
+            recordProductionRpc({ method: m, result, durationMs });
         };
 
         try {
