@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -33,14 +33,11 @@ describe('resolveCodexHomeForResume', () => {
         })).resolves.toBe(originalCodexHome);
     });
 
-    it('resolves a persisted runtime home to the provider state it links', async () => {
+    it('preserves the exact persisted Codex home', async () => {
         const homeDir = await mkdtemp(join(tmpdir(), 'happy-codex-home-'));
         testRoots.push(homeDir);
         const runtimeCodexHome = join(homeDir, 'runtime-codex-home');
-        const originalCodexHome = join(homeDir, 'original-codex-home');
-        await mkdir(join(originalCodexHome, 'sessions'), { recursive: true });
         await mkdir(runtimeCodexHome);
-        await symlink(join(originalCodexHome, 'sessions'), join(runtimeCodexHome, 'sessions'));
 
         await expect(resolveCodexHomeForResume({
             homeDir,
@@ -49,6 +46,6 @@ describe('resolveCodexHomeForResume', () => {
         }, {
             HOME: homeDir,
             CODEX_HOME: join(homeDir, 'current-codex-home'),
-        })).resolves.toBe(originalCodexHome);
+        })).resolves.toBe(runtimeCodexHome);
     });
 });

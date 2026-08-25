@@ -1,5 +1,5 @@
-import { access, readdir, realpath } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { access, readdir } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 
 import type { Metadata } from '@/api/types';
 
@@ -9,14 +9,6 @@ async function pathExists(path: string): Promise<boolean> {
         return true;
     } catch {
         return false;
-    }
-}
-
-async function providerStateHome(codexHome: string): Promise<string> {
-    try {
-        return dirname(await realpath(join(codexHome, 'sessions')));
-    } catch {
-        return codexHome;
     }
 }
 
@@ -55,7 +47,7 @@ export async function resolveCodexHomeForResume(
     if (savedCodexHome) {
         const resolved = resolve(savedCodexHome);
         if (await pathExists(resolved)) {
-            return providerStateHome(resolved);
+            return resolved;
         }
     }
 
@@ -69,7 +61,7 @@ export async function resolveCodexHomeForResume(
     const candidates = [currentCodexHome, ...await legacyCodexHomes(metadata.homeDir)];
     for (const candidate of candidates) {
         if (await codexHomeContainsThread(candidate, threadId)) {
-            return providerStateHome(candidate);
+            return candidate;
         }
     }
     return undefined;
