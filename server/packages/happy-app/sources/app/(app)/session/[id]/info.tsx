@@ -427,6 +427,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                         subtitle={t('sessionInfo.archiveSessionSubtitle')}
                         icon={<Ionicons name="archive-outline" size={29} color="#FF3B30" />}
                         onPress={handleArchiveSession}
+                        loading={archivingSession}
                     />
                     <Item
                         title={t('sessionInfo.deleteSession')}

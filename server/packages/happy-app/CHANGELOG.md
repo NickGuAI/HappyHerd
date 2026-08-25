@@ -1,3 +1,8 @@
+# August 25 — Machine status stays steady and Archive responds immediately
+
+- A page-load machine snapshot can no longer overwrite newer live presence, so sessions do not blink offline before the daemon's next heartbeat.
+- Archive on Session Info shows progress immediately and blocks repeat taps while the existing archive request finishes.
+
 # August 25 — Existing sessions keep their context after updates
 
 - Recent and older sessions retain their reconnect records across daemon restarts and CLI updates instead of expiring after 14 days.

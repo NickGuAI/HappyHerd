@@ -40,6 +40,7 @@ import { FeedItem } from "./feedTypes";
 import { getRigActivityIndicators, getRigGitSummary, getRigIdentity, isRigMetadata } from './rig';
 import { indexSessionsById } from './sessionIdentity';
 import { filterSessionsForTopLevelLists } from './sessionListVisibility';
+import { mergeMachineSnapshot } from './machinePresence';
 import { t } from '@/text';
 import type { Project } from './projectTypes';
 import { getSessionProjectId, isHappyAgentSession } from './projectTypes';
@@ -1203,10 +1204,7 @@ export const storage = create<StorageState>()((set, get) => {
 
             if (replace) {
                 // Replace entire machine state (used by fetchMachines)
-                mergedMachines = {};
-                machines.forEach(machine => {
-                    mergedMachines[machine.id] = machine;
-                });
+                mergedMachines = mergeMachineSnapshot(state.machines, machines);
             } else {
                 // Merge individual updates (used by update-machine)
                 mergedMachines = { ...state.machines };

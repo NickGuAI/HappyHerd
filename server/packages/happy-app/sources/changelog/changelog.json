@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 25 — Machine status stays steady and Archive responds immediately",
+      "summary": "",
+      "markdown": "- A page-load machine snapshot can no longer overwrite newer live presence, so sessions do not blink offline before the daemon's next heartbeat.\n- Archive on Session Info shows progress immediately and blocks repeat taps while the existing archive request finishes."
+    },
+    {
       "title": "August 25 — Existing sessions keep their context after updates",
       "summary": "",
       "markdown": "- Recent and older sessions retain their reconnect records across daemon restarts and CLI updates instead of expiring after 14 days.\n- Codex resumes the original thread from the provider state home that created it, even when the replacement daemon starts with a different home.\n- An already-pruned local record can be rebuilt from its original local legacy key while preserving the same Happy session and machine."
@@ -231,5 +236,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 25 — Existing sessions keep their context after updates"
+  "latestTitle": "August 25 — Machine status stays steady and Archive responds immediately"
 }
