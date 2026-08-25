@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
     axiosGet: vi.fn(),
     decryptLegacy: vi.fn(),
+    readCredentials: vi.fn(),
+    readLocalHappyAgentCredentials: vi.fn(),
 }));
 
 vi.mock('axios', () => ({
@@ -23,22 +25,32 @@ vi.mock('@/configuration', () => ({
     },
 }));
 
-vi.mock('./localHappyAgentAuth', () => ({
-    getLocalHappyAgentCredentialPath: vi.fn(() => '/tmp/agent.key'),
-    readLocalHappyAgentCredentials: vi.fn(() => ({
-        token: 'legacy-token',
-        secret: new Uint8Array([1, 2, 3, 4]),
-        contentKeyPair: {
-            publicKey: new Uint8Array(32),
-            secretKey: new Uint8Array(32),
-        },
-    })),
+vi.mock('@/persistence', () => ({
+    readCredentials: mocks.readCredentials,
 }));
+
+vi.mock('./localHappyAgentAuth', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('./localHappyAgentAuth')>();
+    return {
+        ...actual,
+        getLocalHappyAgentCredentialPath: vi.fn(() => '/tmp/agent.key'),
+        readLocalHappyAgentCredentials: mocks.readLocalHappyAgentCredentials,
+    };
+});
 
 import { resolveReconnectableSession, resolveSessionRecordByPrefix } from './resolveHappySession';
 
 beforeEach(() => {
     vi.clearAllMocks();
+    mocks.readCredentials.mockResolvedValue(null);
+    mocks.readLocalHappyAgentCredentials.mockReturnValue({
+        token: 'agent-token',
+        secret: new Uint8Array([1, 2, 3, 4]),
+        contentKeyPair: {
+            publicKey: new Uint8Array(32),
+            secretKey: new Uint8Array(32),
+        },
+    });
 });
 
 describe('resolveSessionRecordByPrefix', () => {
@@ -73,7 +85,13 @@ describe('resolveSessionRecordByPrefix', () => {
 });
 
 describe('resolveReconnectableSession', () => {
-    it('finds a legacy session prefix beyond the first cursor page', async () => {
+    it('recovers a pruned legacy session beyond the first cursor page from access.key without agent.key', async () => {
+        const accessSecret = new Uint8Array([9, 8, 7, 6]);
+        mocks.readCredentials.mockResolvedValue({
+            token: 'access-token',
+            encryption: { type: 'legacy', secret: accessSecret },
+        });
+        mocks.readLocalHappyAgentCredentials.mockReturnValue(null);
         mocks.axiosGet
             .mockResolvedValueOnce({
                 data: {
@@ -102,13 +120,16 @@ describe('resolveReconnectableSession', () => {
             codexThreadId: 'thread-legacy',
         });
 
-        await expect(resolveReconnectableSession('cmt6he5kr')).resolves.toMatchObject({
+        const recovered = await resolveReconnectableSession('cmt6he5kr');
+        expect(recovered).toMatchObject({
             id: 'cmt6he5kr13j6pd0wyib3azp1',
             seq: 42,
             metadataVersion: 7,
             agentStateVersion: 9,
             encryptionVariant: 'legacy',
         });
+        expect(recovered.encryptionKey).toEqual(accessSecret);
+        expect(mocks.readLocalHappyAgentCredentials).not.toHaveBeenCalled();
         expect(mocks.axiosGet).toHaveBeenNthCalledWith(
             1,
             'https://api.example.test/v2/sessions',

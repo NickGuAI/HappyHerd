@@ -5,7 +5,9 @@ import { z } from 'zod';
 import { decodeBase64, decryptLegacy, decryptWithDataKey } from '@/api/encryption';
 import { loadSessionRecords, type SessionListRecord } from '@/api/sessionLookup';
 import type { Metadata } from '@/api/types';
+import { readCredentials } from '@/persistence';
 import {
+    createLegacyRecoveryCredentials,
     getLocalHappyAgentCredentialPath,
     readLocalHappyAgentCredentials,
     type LocalHappyAgentCredentials,
@@ -74,7 +76,15 @@ function decryptBoxBundle(bundle: Uint8Array, recipientSecretKey: Uint8Array): U
     return decrypted ? new Uint8Array(decrypted) : null;
 }
 
-function readAgentCredentials() {
+async function readRecoveryCredentials(): Promise<LocalHappyAgentCredentials> {
+    const accessCredentials = await readCredentials();
+    if (accessCredentials?.encryption.type === 'legacy') {
+        return createLegacyRecoveryCredentials(
+            accessCredentials.token,
+            accessCredentials.encryption.secret,
+        );
+    }
+
     const credentialPath = getLocalHappyAgentCredentialPath();
     const credentials = readLocalHappyAgentCredentials();
     if (!credentials) {
@@ -133,7 +143,7 @@ async function fetchSessions(credentials: LocalHappyAgentCredentials): Promise<S
 }
 
 export async function resolveHappySession(sessionId: string): Promise<ResumableHappySession> {
-    const credentials = readAgentCredentials();
+    const credentials = await readRecoveryCredentials();
     const sessions = await fetchSessions(credentials);
     const matched = resolveSessionRecordByPrefix(sessions, sessionId);
     return {
@@ -144,7 +154,7 @@ export async function resolveHappySession(sessionId: string): Promise<ResumableH
 }
 
 export async function resolveReconnectableSession(sessionId: string): Promise<ReconnectableHappySession> {
-    const credentials = readAgentCredentials();
+    const credentials = await readRecoveryCredentials();
     const sessions = await fetchSessions(credentials);
     const matched = resolveSessionRecordByPrefix(sessions, sessionId);
     const encryption = resolveSessionEncryption(matched, credentials);

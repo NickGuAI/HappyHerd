@@ -6,6 +6,7 @@ import { hasLocalHappyAgentAuth } from '@/resume/localHappyAgentAuth';
 import { spawnHappyCLI } from '@/utils/spawnHappyCLI';
 import { buildSessionChildEnvironment, sanitizeSessionEnvironment } from '@/daemon/sessionEnvironment';
 import { contextEnvironment, prepareCommanderContext } from '@/agentContext/commanderContext';
+import { readCredentials } from '@/persistence';
 
 import { LocalResumeSessionError, resolveLocalReconnectableSession } from './localResumeStore';
 import { resolveReconnectableSession, type ReconnectableHappySession, type ResumableHappySession } from './resolveHappySession';
@@ -142,7 +143,8 @@ function spawnResumeChild(launch: ResumeLaunch, env: NodeJS.ProcessEnv = sanitiz
 }
 
 async function resolveLegacySessionIfAvailable(sessionId: string): Promise<ReconnectableHappySession | null> {
-    if (!hasLocalHappyAgentAuth()) {
+    const accessCredentials = await readCredentials();
+    if (accessCredentials?.encryption.type !== 'legacy' && !hasLocalHappyAgentAuth()) {
         return null;
     }
     return resolveReconnectableSession(sessionId);

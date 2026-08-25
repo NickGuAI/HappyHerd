@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
     mockSpawnHappyCLI: vi.fn(),
     mockResolveLocalReconnectableSession: vi.fn(),
     mockHasLocalHappyAgentAuth: vi.fn(),
+    mockReadCredentials: vi.fn(),
     mockResolveReconnectableSession: vi.fn(),
     mockPrepareCommanderContext: vi.fn(),
 }));
@@ -49,6 +50,10 @@ vi.mock('./localResumeStore', () => {
 
 vi.mock('@/resume/localHappyAgentAuth', () => ({
     hasLocalHappyAgentAuth: mocks.mockHasLocalHappyAgentAuth,
+}));
+
+vi.mock('@/persistence', () => ({
+    readCredentials: mocks.mockReadCredentials,
 }));
 
 vi.mock('./resolveHappySession', async () => {
@@ -113,6 +118,7 @@ beforeEach(() => {
         new LocalResumeSessionError('no local session', 'not_found'),
     );
     mocks.mockHasLocalHappyAgentAuth.mockReturnValue(false);
+    mocks.mockReadCredentials.mockResolvedValue(null);
 });
 
 afterEach(() => {
@@ -265,8 +271,14 @@ describe('handleResumeCommand', () => {
         expect((thrown as Error).message).not.toContain('happy-agent auth login');
     });
 
-    it('falls back to legacy account credentials only when agent.key is already present', async () => {
-        mocks.mockHasLocalHappyAgentAuth.mockReturnValue(true);
+    it('falls back to a legacy access.key when agent.key is absent', async () => {
+        mocks.mockReadCredentials.mockResolvedValue({
+            token: 'legacy-token',
+            encryption: {
+                type: 'legacy',
+                secret: new Uint8Array([9, 8, 7, 6]),
+            },
+        });
         mocks.mockResolveReconnectableSession.mockResolvedValue({
             id: 'legacy-session',
             active: false,
@@ -294,6 +306,7 @@ describe('handleResumeCommand', () => {
 
         await handleResumeCommand(['legacy-session']);
 
+        expect(mocks.mockHasLocalHappyAgentAuth).not.toHaveBeenCalled();
         expect(mocks.mockResolveReconnectableSession).toHaveBeenCalledWith('legacy-session');
         expect(mocks.mockSpawnHappyCLI.mock.calls[0][0]).toEqual([
             'codex',
