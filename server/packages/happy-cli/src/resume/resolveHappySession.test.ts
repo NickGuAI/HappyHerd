@@ -85,7 +85,8 @@ describe('resolveSessionRecordByPrefix', () => {
 });
 
 describe('resolveReconnectableSession', () => {
-    it('recovers a pruned legacy session beyond the first cursor page from access.key without agent.key', async () => {
+    it('recovers an exact pruned legacy session beyond the first cursor page from access.key without agent.key', async () => {
+        const sessionId = 'csynthetic000000000000001';
         const accessSecret = new Uint8Array([9, 8, 7, 6]);
         mocks.readCredentials.mockResolvedValue({
             token: 'access-token',
@@ -102,7 +103,7 @@ describe('resolveReconnectableSession', () => {
             .mockResolvedValueOnce({
                 data: {
                     sessions: [{
-                        id: 'cmt6he5kr13j6pd0wyib3azp1',
+                        id: sessionId,
                         active: false,
                         metadata: 'encrypted-metadata',
                         metadataVersion: 7,
@@ -120,9 +121,9 @@ describe('resolveReconnectableSession', () => {
             codexThreadId: 'thread-legacy',
         });
 
-        const recovered = await resolveReconnectableSession('cmt6he5kr');
+        const recovered = await resolveReconnectableSession(sessionId);
         expect(recovered).toMatchObject({
-            id: 'cmt6he5kr13j6pd0wyib3azp1',
+            id: sessionId,
             seq: 42,
             metadataVersion: 7,
             agentStateVersion: 9,

@@ -76,15 +76,7 @@ function decryptBoxBundle(bundle: Uint8Array, recipientSecretKey: Uint8Array): U
     return decrypted ? new Uint8Array(decrypted) : null;
 }
 
-async function readRecoveryCredentials(): Promise<LocalHappyAgentCredentials> {
-    const accessCredentials = await readCredentials();
-    if (accessCredentials?.encryption.type === 'legacy') {
-        return createLegacyRecoveryCredentials(
-            accessCredentials.token,
-            accessCredentials.encryption.secret,
-        );
-    }
-
+function readAgentCredentials(): LocalHappyAgentCredentials {
     const credentialPath = getLocalHappyAgentCredentialPath();
     const credentials = readLocalHappyAgentCredentials();
     if (!credentials) {
@@ -93,6 +85,18 @@ async function readRecoveryCredentials(): Promise<LocalHappyAgentCredentials> {
         );
     }
     return credentials;
+}
+
+async function readReconnectableCredentials(): Promise<LocalHappyAgentCredentials> {
+    const accessCredentials = await readCredentials();
+    if (accessCredentials?.encryption.type === 'legacy') {
+        return createLegacyRecoveryCredentials(
+            accessCredentials.token,
+            accessCredentials.encryption.secret,
+        );
+    }
+
+    return readAgentCredentials();
 }
 
 function resolveSessionEncryption(session: SessionListRecord, credentials: LocalHappyAgentCredentials): RecordEncryption {
@@ -143,7 +147,7 @@ async function fetchSessions(credentials: LocalHappyAgentCredentials): Promise<S
 }
 
 export async function resolveHappySession(sessionId: string): Promise<ResumableHappySession> {
-    const credentials = await readRecoveryCredentials();
+    const credentials = readAgentCredentials();
     const sessions = await fetchSessions(credentials);
     const matched = resolveSessionRecordByPrefix(sessions, sessionId);
     return {
@@ -154,9 +158,14 @@ export async function resolveHappySession(sessionId: string): Promise<ResumableH
 }
 
 export async function resolveReconnectableSession(sessionId: string): Promise<ReconnectableHappySession> {
-    const credentials = await readRecoveryCredentials();
-    const sessions = await fetchSessions(credentials);
-    const matched = resolveSessionRecordByPrefix(sessions, sessionId);
+    if (!sessionId.trim()) {
+        throw new Error('Happy session ID is required: happy resume <session-id>');
+    }
+    const credentials = await readReconnectableCredentials();
+    const [matched] = await loadSessionRecords(credentials.token, { exactId: sessionId });
+    if (!matched) {
+        throw new Error(`No Happy session found matching "${sessionId}"`);
+    }
     const encryption = resolveSessionEncryption(matched, credentials);
     return {
         id: matched.id,

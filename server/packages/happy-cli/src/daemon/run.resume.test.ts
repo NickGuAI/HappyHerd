@@ -175,7 +175,7 @@ describe('daemon session continuity', () => {
   });
 
   it('backfills a missing local record and spawns the same Happy session with its reconnect state', async () => {
-    const resolvedSessionId = 'cmt6he5kr13j6pd0wyib3azp1';
+    const resolvedSessionId = 'csynthetic000000000000001';
     const encryptionKey = new Uint8Array([1, 2, 3, 4]);
     const codexHome = '/unavailable/provider-home';
     const metadata: Metadata = {
@@ -228,12 +228,12 @@ describe('daemon session continuity', () => {
     const control = mocks.controlHandlers as CapturedControlHandlers;
     expect(mocks.readPersistedSessions).toHaveReturnedWith({});
 
-    const resume = rpc.resumeSession('cmt6he5kr');
+    const resume = rpc.resumeSession(resolvedSessionId);
     await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
     control.onHappySessionWebhook(resolvedSessionId, metadata, encryption);
 
     await expect(resume).resolves.toEqual({ type: 'success', sessionId: resolvedSessionId });
-    expect(mocks.backfillReconnectableSessionForMachine).toHaveBeenCalledWith('cmt6he5kr', 'machine-1');
+    expect(mocks.backfillReconnectableSessionForMachine).toHaveBeenCalledWith(resolvedSessionId, 'machine-1');
 
     const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
       string[],

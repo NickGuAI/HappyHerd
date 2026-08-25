@@ -7,6 +7,7 @@ SESSION_CONTINUITY	accepted	fix(sessions): use legacy access key for recovery	se
 SESSION_CONTINUITY	accepted	fix(sessions): backfill historical resumes before launch	server/packages/happy-cli/src/resume/handleResumeCommand.test.ts
 SESSION_CONTINUITY	accepted	revert(sessions): keep terminal resume local-only	server/packages/happy-cli/src/resume/handleResumeCommand.test.ts
 SESSION_CONTINUITY	accepted	fix(sessions): restore legacy terminal resume fallback	server/packages/happy-cli/src/resume/handleResumeCommand.test.ts
+SESSION_CONTINUITY	accepted	fix(sessions): narrow historical recovery scope	server/packages/happy-cli/src/resume/resolveHappySession.test.ts
 AUTOMATION_TIMEOUT	accepted	fix(automations): make run deadlines configurable	server/packages/happy-cli/src/daemon/run.automation.test.ts
 AGENT_CONTEXT_AUTHORITY	accepted	fix(context): make AgentContext standalone	server/packages/happy-cli/src/agentContext/commanderContext.test.ts
 PUBLIC_BOUNDARY	accepted	feat(agent): make governed runtime organization-neutral	scripts/verify-public-boundary.mjs
