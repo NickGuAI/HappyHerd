@@ -4,6 +4,7 @@ SESSION_CONTINUITY	accepted	fix(sessions): preserve exact Codex home on resume	s
 SESSION_CONTINUITY	accepted	fix(sessions): honor persisted Codex resume state	server/packages/happy-cli/src/daemon/run.resume.test.ts
 SESSION_CONTINUITY	accepted	fix(sessions): recover historical resume state	server/packages/happy-cli/src/resume/resolveHappySession.test.ts
 SESSION_CONTINUITY	accepted	fix(sessions): use legacy access key for recovery	server/packages/happy-cli/src/resume/resolveHappySession.test.ts
+SESSION_CONTINUITY	accepted	fix(sessions): backfill historical resumes before launch	server/packages/happy-cli/src/resume/handleResumeCommand.test.ts
 AUTOMATION_TIMEOUT	accepted	fix(automations): make run deadlines configurable	server/packages/happy-cli/src/daemon/run.automation.test.ts
 AGENT_CONTEXT_AUTHORITY	accepted	fix(context): make AgentContext standalone	server/packages/happy-cli/src/agentContext/commanderContext.test.ts
 PUBLIC_BOUNDARY	accepted	feat(agent): make governed runtime organization-neutral	scripts/verify-public-boundary.mjs

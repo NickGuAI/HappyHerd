@@ -6,10 +6,14 @@ import { hasLocalHappyAgentAuth } from '@/resume/localHappyAgentAuth';
 import { spawnHappyCLI } from '@/utils/spawnHappyCLI';
 import { buildSessionChildEnvironment, sanitizeSessionEnvironment } from '@/daemon/sessionEnvironment';
 import { contextEnvironment, prepareCommanderContext } from '@/agentContext/commanderContext';
-import { readCredentials } from '@/persistence';
+import { readCredentials, readSettings } from '@/persistence';
 
-import { LocalResumeSessionError, resolveLocalReconnectableSession } from './localResumeStore';
-import { resolveReconnectableSession, type ReconnectableHappySession, type ResumableHappySession } from './resolveHappySession';
+import {
+    backfillReconnectableSessionForMachine,
+    LocalResumeSessionError,
+    resolveLocalReconnectableSession,
+} from './localResumeStore';
+import { type ReconnectableHappySession, type ResumableHappySession } from './resolveHappySession';
 import { resolveCodexHomeForResume } from './codexHome';
 
 export type ResumeLaunch = {
@@ -147,7 +151,14 @@ async function resolveLegacySessionIfAvailable(sessionId: string): Promise<Recon
     if (accessCredentials?.encryption.type !== 'legacy' && !hasLocalHappyAgentAuth()) {
         return null;
     }
-    return resolveReconnectableSession(sessionId);
+    const settings = await readSettings();
+    if (!settings.machineId) {
+        throw new LocalResumeSessionError(
+            `Cannot recover Happy session "${sessionId}" because this machine does not have an assigned machine ID.`,
+            'unavailable',
+        );
+    }
+    return (await backfillReconnectableSessionForMachine(sessionId, settings.machineId)).session;
 }
 
 export async function handleResumeCommand(args: string[]): Promise<void> {

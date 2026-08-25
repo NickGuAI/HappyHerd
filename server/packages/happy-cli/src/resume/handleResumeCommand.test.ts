@@ -5,9 +5,10 @@ const mocks = vi.hoisted(() => ({
     mockExistsSync: vi.fn(),
     mockSpawnHappyCLI: vi.fn(),
     mockResolveLocalReconnectableSession: vi.fn(),
+    mockBackfillReconnectableSessionForMachine: vi.fn(),
     mockHasLocalHappyAgentAuth: vi.fn(),
     mockReadCredentials: vi.fn(),
-    mockResolveReconnectableSession: vi.fn(),
+    mockReadSettings: vi.fn(),
     mockPrepareCommanderContext: vi.fn(),
 }));
 
@@ -44,6 +45,7 @@ vi.mock('./localResumeStore', () => {
 
     return {
         LocalResumeSessionError: MockLocalResumeSessionError,
+        backfillReconnectableSessionForMachine: mocks.mockBackfillReconnectableSessionForMachine,
         resolveLocalReconnectableSession: mocks.mockResolveLocalReconnectableSession,
     };
 });
@@ -54,15 +56,8 @@ vi.mock('@/resume/localHappyAgentAuth', () => ({
 
 vi.mock('@/persistence', () => ({
     readCredentials: mocks.mockReadCredentials,
+    readSettings: mocks.mockReadSettings,
 }));
-
-vi.mock('./resolveHappySession', async () => {
-    const actual = await vi.importActual<typeof import('./resolveHappySession')>('./resolveHappySession');
-    return {
-        ...actual,
-        resolveReconnectableSession: mocks.mockResolveReconnectableSession,
-    };
-});
 
 import { spawnHappyCLI } from '@/utils/spawnHappyCLI';
 
@@ -119,6 +114,7 @@ beforeEach(() => {
     );
     mocks.mockHasLocalHappyAgentAuth.mockReturnValue(false);
     mocks.mockReadCredentials.mockResolvedValue(null);
+    mocks.mockReadSettings.mockResolvedValue({ machineId: 'machine-1' });
 });
 
 afterEach(() => {
@@ -224,7 +220,7 @@ describe('handleResumeCommand', () => {
         await handleResumeCommand(['session-1']);
 
         expect(mocks.mockHasLocalHappyAgentAuth).not.toHaveBeenCalled();
-        expect(mocks.mockResolveReconnectableSession).not.toHaveBeenCalled();
+        expect(mocks.mockBackfillReconnectableSessionForMachine).not.toHaveBeenCalled();
         expect(spawnHappyCLI).toHaveBeenCalledOnce();
         const [spawnArgs, spawnOptions] = mocks.mockSpawnHappyCLI.mock.calls[0];
         expect(spawnArgs).toEqual(['codex', '--resume', session.metadata.codexThreadId]);
@@ -279,7 +275,7 @@ describe('handleResumeCommand', () => {
                 secret: new Uint8Array([9, 8, 7, 6]),
             },
         });
-        mocks.mockResolveReconnectableSession.mockResolvedValue({
+        const session: ReconnectableHappySession = {
             id: 'legacy-session',
             active: false,
             metadata: {
@@ -288,6 +284,7 @@ describe('handleResumeCommand', () => {
                 codexThreadId: '019ccca5-726b-7c61-b914-16de27dfab6e',
                 codexHome: '/tmp',
                 host: 'localhost',
+                machineId: 'machine-1',
                 homeDir: '/tmp',
                 happyHomeDir: '/tmp/.happy',
                 happyLibDir: '/tmp/happy',
@@ -298,6 +295,10 @@ describe('handleResumeCommand', () => {
             agentStateVersion: 9,
             encryptionKey: new Uint8Array([1, 2, 3, 4]),
             encryptionVariant: 'dataKey',
+        };
+        mocks.mockBackfillReconnectableSessionForMachine.mockResolvedValue({
+            session,
+            persisted: {},
         });
         vi.stubEnv('CODEX_HOME', '/var/tmp');
         for (const key of SESSION_SCOPED_ENV_KEYS) {
@@ -307,7 +308,10 @@ describe('handleResumeCommand', () => {
         await handleResumeCommand(['legacy-session']);
 
         expect(mocks.mockHasLocalHappyAgentAuth).not.toHaveBeenCalled();
-        expect(mocks.mockResolveReconnectableSession).toHaveBeenCalledWith('legacy-session');
+        expect(mocks.mockBackfillReconnectableSessionForMachine).toHaveBeenCalledWith(
+            'legacy-session',
+            'machine-1',
+        );
         expect(mocks.mockSpawnHappyCLI.mock.calls[0][0]).toEqual([
             'codex',
             '--resume',
@@ -318,5 +322,27 @@ describe('handleResumeCommand', () => {
         expect(spawnedEnv.HAPPY_RECONNECT_SESSION_ID).toBe('legacy-session');
         expect(spawnedEnv.HAPPY_RECONNECT_ENCRYPTION_KEY).toBe('AQIDBA==');
         expect(spawnedEnv.HAPPY_FORK_CODEX_THREAD_ID).toBeUndefined();
+    });
+
+    it('does not spawn when historical recovery fails its machine-bound backfill', async () => {
+        mocks.mockReadCredentials.mockResolvedValue({
+            token: 'legacy-token',
+            encryption: {
+                type: 'legacy',
+                secret: new Uint8Array([9, 8, 7, 6]),
+            },
+        });
+        mocks.mockBackfillReconnectableSessionForMachine.mockRejectedValue(
+            new LocalResumeSessionError('belongs to another machine', 'unavailable'),
+        );
+
+        await expect(handleResumeCommand(['legacy-session']))
+            .rejects.toThrow('belongs to another machine');
+
+        expect(mocks.mockBackfillReconnectableSessionForMachine).toHaveBeenCalledWith(
+            'legacy-session',
+            'machine-1',
+        );
+        expect(mocks.mockSpawnHappyCLI).not.toHaveBeenCalled();
     });
 });
