@@ -67,4 +67,27 @@ describe('agent defaults', () => {
         expect(resolveAgentDefaultEffortLevel(overrides, 'codex', [])).toBeNull();
         expect(resolveAgentDefaultConfig(overrides, 'codex').effortLevel).toBe('xhigh');
     });
+
+    it('keeps GrokBuild defaults neutral and isolated from Claude', () => {
+        expect(resolveAgentDefaultConfig(undefined, 'grok')).toEqual({
+            permissionMode: 'default',
+            modelMode: 'default',
+            effortLevel: null,
+        });
+
+        const overrides = setAgentDefaultOverride({}, 'grok', 'modelMode', 'grok-runtime-model');
+        expect(resolveAgentDefaultConfig(overrides, 'grok').modelMode).toBe('grok-runtime-model');
+        expect(resolveAgentDefaultConfig(overrides, 'claude').modelMode).toBe('claude-opus-5');
+    });
+
+    it('only forwards a saved GrokBuild effort while ACP advertises it', () => {
+        const overrides = setAgentDefaultOverride({}, 'grok', 'effortLevel', 'thorough');
+        expect(resolveAgentDefaultEffortLevel(overrides, 'grok', [
+            { key: 'fast' },
+            { key: 'thorough' },
+        ])).toBe('thorough');
+        expect(resolveAgentDefaultEffortLevel(overrides, 'grok', [
+            { key: 'fast' },
+        ])).toBeNull();
+    });
 });

@@ -98,7 +98,7 @@ function applyConfigCategory(
     } else if (kind === 'mode') {
       delete metadata.operatingModes;
       delete metadata.currentOperatingModeCode;
-    } else if (kind === 'thought_level') {
+    } else {
       delete metadata.thoughtLevels;
       delete metadata.currentThoughtLevelCode;
     }
@@ -122,6 +122,51 @@ function applyConfigCategory(
 
   metadata.thoughtLevels = values;
   metadata.currentThoughtLevelCode = currentCode;
+}
+
+/** Read provider-advertised reasoning choices from ModelInfo._meta. */
+function applyModelReasoningMetadata(metadata: Metadata, models: SessionModelState): void {
+  const currentModel = models.availableModels.find((model) => model.modelId === models.currentModelId);
+  const modelMeta = isRecord(currentModel?._meta) ? currentModel._meta : null;
+  const rawEfforts = modelMeta && Array.isArray(modelMeta.reasoningEfforts)
+    ? modelMeta.reasoningEfforts
+    : null;
+  if (!rawEfforts) {
+    delete metadata.thoughtLevels;
+    delete metadata.currentThoughtLevelCode;
+    return;
+  }
+
+  const efforts = rawEfforts.flatMap((raw): MetadataOption[] => {
+    if (!isRecord(raw)) return [];
+    if (typeof raw.id !== 'string') return [];
+    return [{
+      code: raw.id,
+      value: typeof raw.label === 'string'
+        ? raw.label
+        : raw.id,
+      ...(typeof raw.description === 'string' ? { description: raw.description } : {}),
+    }];
+  });
+  if (efforts.length === 0) {
+    delete metadata.thoughtLevels;
+    delete metadata.currentThoughtLevelCode;
+    return;
+  }
+
+  metadata.thoughtLevels = efforts;
+  const explicitCurrent = typeof modelMeta?.reasoningEffort === 'string'
+    ? modelMeta.reasoningEffort
+    : null;
+  const advertisedDefault = rawEfforts.find((raw) => isRecord(raw) && raw.default === true);
+  const defaultCode = isRecord(advertisedDefault)
+    ? typeof advertisedDefault.id === 'string'
+      ? advertisedDefault.id
+      : null
+    : null;
+  const currentCode = explicitCurrent ?? defaultCode;
+  if (currentCode) metadata.currentThoughtLevelCode = currentCode;
+  else delete metadata.currentThoughtLevelCode;
 }
 
 export function extractConfigOptionsFromPayload(payload: unknown): SessionConfigOption[] | null {
@@ -170,11 +215,17 @@ export function extractCurrentModeIdFromPayload(payload: unknown): string | null
   return payload.currentModeId;
 }
 
-export function mergeAcpSessionConfigIntoMetadata(metadata: Metadata, snapshot: AcpSessionConfigSnapshot): Metadata {
+export function mergeAcpSessionConfigIntoMetadata(
+  metadata: Metadata,
+  snapshot: AcpSessionConfigSnapshot,
+  agentName?: string,
+): Metadata {
   const next: Metadata = { ...metadata };
+  const includeGrokReasoningMetadata = agentName === 'grok';
 
   let hasModeFromConfig = false;
   let hasModelFromConfig = false;
+  let hasThoughtLevelFromConfig = false;
 
   if (Array.isArray(snapshot.configOptions)) {
     const filtered = snapshot.configOptions.filter(
@@ -187,6 +238,7 @@ export function mergeAcpSessionConfigIntoMetadata(metadata: Metadata, snapshot: 
 
     hasModeFromConfig = modeOption !== null;
     hasModelFromConfig = modelOption !== null;
+    hasThoughtLevelFromConfig = thoughtLevelOption !== null;
 
     applyConfigCategory(next, modeOption, 'mode');
     applyConfigCategory(next, modelOption, 'model');
@@ -194,12 +246,30 @@ export function mergeAcpSessionConfigIntoMetadata(metadata: Metadata, snapshot: 
   }
 
   if (!hasModelFromConfig && snapshot.models) {
-    next.models = snapshot.models.availableModels.map((model) => ({
-      code: model.modelId,
-      value: model.name,
-      ...(model.description !== undefined ? { description: model.description } : {}),
-    }));
+    next.models = snapshot.models.availableModels.map((model) => {
+      const modelMeta = isRecord(model._meta) ? model._meta : null;
+      const rawEfforts = includeGrokReasoningMetadata && modelMeta && Array.isArray(modelMeta.reasoningEfforts)
+        ? modelMeta.reasoningEfforts
+        : [];
+      const thinkingLevels = rawEfforts.flatMap((raw) => (
+        isRecord(raw) && typeof raw.id === 'string' ? [raw.id] : []
+      ));
+      const advertisedDefault = rawEfforts.find((raw) => isRecord(raw) && raw.default === true);
+      const defaultThinkingLevel = isRecord(advertisedDefault) && typeof advertisedDefault.id === 'string'
+        ? advertisedDefault.id
+        : undefined;
+      return {
+        code: model.modelId,
+        value: model.name,
+        ...(model.description !== undefined ? { description: model.description } : {}),
+        ...(thinkingLevels.length > 0 ? { thinkingLevels } : {}),
+        ...(defaultThinkingLevel ? { defaultThinkingLevel } : {}),
+      };
+    });
     next.currentModelCode = snapshot.models.currentModelId;
+    if (includeGrokReasoningMetadata && !hasThoughtLevelFromConfig) {
+      applyModelReasoningMetadata(next, snapshot.models);
+    }
   }
 
   if (!hasModeFromConfig && snapshot.modes) {

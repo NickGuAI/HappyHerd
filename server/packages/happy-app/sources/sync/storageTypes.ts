@@ -139,6 +139,13 @@ export const MetadataSchema = z.object({
     machineId: z.string().optional(),
     claudeSessionId: z.string().optional(), // Claude Code session ID
     codexThreadId: z.string().optional(), // Codex app-server thread ID
+    acpSessionId: z.string().optional(), // Generic ACP provider session ID
+    acpCapabilities: z.object({
+        loadSession: z.boolean(),
+        prompt: z.object({
+            image: z.boolean(),
+        }),
+    }).optional(),
     tools: z.array(z.string()).optional(),
     slashCommands: z.array(z.string()).optional(),
     mcpServers: z.array(z.object({ name: z.string(), status: z.string() })).optional(),
@@ -451,6 +458,7 @@ export const AgentCapabilityOptionSchema = z.object({
     code: z.string(),
     value: z.string(),
     description: z.string().nullable().optional(),
+    isDefault: z.boolean().optional(),
 });
 
 export const AgentModelCapabilitySchema = AgentCapabilityOptionSchema.extend({
@@ -469,6 +477,12 @@ export const AgentCapabilityCatalogSchema = z.object({
     models: z.array(AgentModelCapabilitySchema),
     effortLevels: z.array(AgentCapabilityOptionSchema),
     permissionModes: z.array(AgentCapabilityOptionSchema),
+    acp: z.object({
+        loadSession: z.boolean(),
+        prompt: z.object({
+            image: z.boolean(),
+        }),
+    }).optional(),
 });
 
 export type AgentCapabilityCatalog = z.infer<typeof AgentCapabilityCatalogSchema>;
@@ -493,6 +507,7 @@ export const MachineMetadataSchema = z.object({
         codex: z.boolean(),
         gemini: z.boolean(),
         openclaw: z.boolean(),
+        grok: z.boolean().optional(), // optional: older CLIs don't report GrokBuild
         agy: z.boolean().optional(), // optional: older CLIs don't report agy
         rig: z.boolean().optional(), // Rig runs its own Happy-connected daemon
         detectedAt: z.number(),
@@ -570,6 +585,7 @@ export const MachineMetadataSchema = z.object({
         detectedAt: z.number().optional(),
     }).passthrough().optional().catch(undefined),
     agentCapabilities: z.record(z.string(), AgentCapabilityCatalogSchema).optional(),
+    grokCapabilityError: z.string().optional(),
 }).passthrough();
 
 export type MachineMetadata = z.infer<typeof MachineMetadataSchema>;

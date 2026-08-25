@@ -1,4 +1,7 @@
 export type ImageAttachmentFlavor = string | null | undefined;
+export type AcpPromptCapabilities = {
+    prompt?: { image?: boolean | null } | null;
+} | null | undefined;
 
 export type ImageAttachmentSendPlan = {
     supportsAttachments: boolean;
@@ -7,7 +10,13 @@ export type ImageAttachmentSendPlan = {
     shouldSendText: boolean;
 };
 
-export function supportsImageAttachmentsForFlavor(flavor: ImageAttachmentFlavor): boolean {
+export function supportsImageAttachmentsForFlavor(
+    flavor: ImageAttachmentFlavor,
+    acpCapabilities?: AcpPromptCapabilities,
+): boolean {
+    if (flavor === 'grok') {
+        return acpCapabilities?.prompt?.image === true;
+    }
     return !flavor || flavor === 'claude' || flavor === 'codex';
 }
 
@@ -16,9 +25,11 @@ export function getImageAttachmentSendPlan(opts: {
     text: string;
     attachmentCount: number;
     supportsAttachments?: boolean;
+    acpCapabilities?: AcpPromptCapabilities;
 }): ImageAttachmentSendPlan {
     const hasAttachments = opts.attachmentCount > 0;
-    const supportsAttachments = opts.supportsAttachments ?? supportsImageAttachmentsForFlavor(opts.flavor);
+    const supportsAttachments = opts.supportsAttachments
+        ?? supportsImageAttachmentsForFlavor(opts.flavor, opts.acpCapabilities);
     const shouldShowUnsupportedAlert = hasAttachments && !supportsAttachments;
 
     return {

@@ -417,7 +417,7 @@
     "resumeSessionMachineOffline": "此设备已离线。仅当设备在线时才能恢复。",
     "resumeSessionNeedsHappyAgent": "此设备暂时无法恢复会话。请运行 `happy-agent auth login` 启用该功能。",
     "resumeSessionMissingMachine": "此会话缺少设备元数据，因此无法恢复。",
-    "resumeSessionMissingBackendId": "此会话没有可恢复的 Claude 或 Codex 标识符。",
+    "resumeSessionMissingBackendId": "此会话没有可恢复的提供商会话标识符。",
     "resumeSessionUnexpectedDirectoryPrompt": "恢复操作无法创建目录。请从原始路径手动启动会话。",
     "killSessionSubtitle": "立即终止会话",
     "archiveSessionSubtitle": "归档此会话并停止它",
@@ -488,6 +488,7 @@
     "agent": {
       "claude": "Claude",
       "codex": "Codex",
+      "grok": "GrokBuild 智能体",
       "gemini": "Gemini",
       "openclaw": "OpenClaw"
     },
@@ -989,6 +990,11 @@
     "permissions": {
       "yesForSession": "是，并且本次会话不再询问",
       "stopAndExplain": "停止，并说明该做什么"
+    }
+  },
+  "grok": {
+    "permissions": {
+      "noProvideFeedback": "否，请提供反馈"
     }
   },
   "claude": {

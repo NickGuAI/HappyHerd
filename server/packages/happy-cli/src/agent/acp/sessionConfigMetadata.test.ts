@@ -91,7 +91,6 @@ describe('sessionConfigMetadata', () => {
       { code: 'claude-opus', value: 'Claude Opus', description: 'High reasoning quality' },
     ]);
     expect(next.currentModelCode).toBe('claude-sonnet');
-
     expect(next.thoughtLevels).toEqual([
       { code: 'low', value: 'Low' },
       { code: 'medium', value: 'Medium' },
@@ -166,6 +165,37 @@ describe('sessionConfigMetadata', () => {
     expect(next.currentOperatingModeCode).toBe('code');
     expect(next.models).toEqual([{ code: 'new-model', value: 'New Model' }]);
     expect(next.currentModelCode).toBe('new-model');
+  });
+
+  it('uses GrokBuild runtime model reasoning metadata', () => {
+    const next = mergeAcpSessionConfigIntoMetadata(createBaseMetadata(), {
+      models: {
+        currentModelId: 'runtime-model',
+        availableModels: [{
+          modelId: 'runtime-model',
+          name: 'Runtime Model',
+          _meta: {
+            reasoningEffort: 'balanced',
+            reasoningEfforts: [
+              { id: 'deep', label: 'Deep', description: 'Thorough', default: false },
+              { id: 'balanced', label: 'Balanced', description: 'Normal', default: true },
+            ],
+          },
+        }],
+      },
+    }, 'grok');
+
+    expect(next.thoughtLevels).toEqual([
+      { code: 'deep', value: 'Deep', description: 'Thorough' },
+      { code: 'balanced', value: 'Balanced', description: 'Normal' },
+    ]);
+    expect(next.currentThoughtLevelCode).toBe('balanced');
+    expect(next.models).toEqual([{
+      code: 'runtime-model',
+      value: 'Runtime Model',
+      thinkingLevels: ['deep', 'balanced'],
+      defaultThinkingLevel: 'balanced',
+    }]);
   });
 
   it('extracts configOptions payload from either array or wrapped object', () => {

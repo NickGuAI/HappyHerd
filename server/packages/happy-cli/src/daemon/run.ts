@@ -125,6 +125,28 @@ function shellescape(s: string): string {
     return "'" + s.replace(/'/g, "'\\''") + "'";
 }
 
+export type DaemonAgentCommand = 'claude' | 'codex' | 'gemini' | 'grok' | 'openclaw' | 'agy';
+
+/** Resolve only explicitly supported daemon providers; unknown values never fall through to Claude. */
+export function resolveDaemonAgentCommand(agent: SpawnSessionOptions['agent']): DaemonAgentCommand | null {
+  if (agent === undefined) return 'claude';
+  return agent === 'claude'
+    || agent === 'codex'
+    || agent === 'gemini'
+    || agent === 'grok'
+    || agent === 'openclaw'
+    || agent === 'agy'
+    ? agent
+    : null;
+}
+
+export function resolveDaemonResumeAgent(metadata: Metadata): 'claude' | 'codex' | 'grok' | null {
+  if (metadata.flavor === 'grok') return 'grok';
+  if (metadata.flavor === 'codex' || metadata.codexThreadId) return 'codex';
+  if (metadata.flavor === 'claude' || metadata.claudeSessionId) return 'claude';
+  return null;
+}
+
 // Prepare initial metadata
 // Suffix host with `-dev` for the HAPPY_VARIANT=dev variant so the dev daemon
 // is visually distinct from the stable one in the machine list (they otherwise
@@ -500,7 +522,7 @@ export async function startDaemon(): Promise<void> {
 
             // Set the environment variable for Codex
             authEnv.CODEX_HOME = codexHomeDir.name;
-          } else { // Assuming claude
+          } else if (options.agent !== 'grok') { // Existing non-Grok providers retain their current token behavior.
             authEnv.CLAUDE_CODE_OAUTH_TOKEN = options.token;
           }
         }
@@ -608,8 +630,13 @@ export async function startDaemon(): Promise<void> {
 
           // Construct command for the CLI
           const cliPath = join(projectPath(), 'dist', 'index.mjs');
-          // Determine agent command - support claude, codex, gemini, openclaw, and agy
-          const agent = options.agent === 'gemini' ? 'gemini' : (options.agent === 'codex' ? 'codex' : (options.agent === 'openclaw' ? 'openclaw' : (options.agent === 'agy' ? 'agy' : 'claude')));
+          const agent = resolveDaemonAgentCommand(options.agent);
+          if (!agent) {
+            return {
+              type: 'error',
+              errorMessage: `Unsupported agent type: '${options.agent}'. Please update your CLI to the latest version.`,
+            };
+          }
           const resumeId = agent === 'claude'
             ? options.resumeClaudeSessionId
             : (agent === 'codex' ? options.resumeCodexThreadId : undefined);
@@ -707,29 +734,12 @@ export async function startDaemon(): Promise<void> {
           logger.debug(`[DAEMON RUN] Using regular process spawning`);
 
           // Construct arguments for the CLI - support claude, codex, and gemini
-          let agentCommand: string;
-          switch (options.agent) {
-            case 'claude':
-            case undefined:
-              agentCommand = 'claude';
-              break;
-            case 'codex':
-              agentCommand = 'codex';
-              break;
-            case 'gemini':
-              agentCommand = 'gemini';
-              break;
-            case 'openclaw':
-              agentCommand = 'openclaw';
-              break;
-            case 'agy':
-              agentCommand = 'agy';
-              break;
-            default:
-              return {
-                type: 'error',
-                errorMessage: `Unsupported agent type: '${options.agent}'. Please update your CLI to the latest version.`
-              };
+          const agentCommand = resolveDaemonAgentCommand(options.agent);
+          if (!agentCommand) {
+            return {
+              type: 'error',
+              errorMessage: `Unsupported agent type: '${options.agent}'. Please update your CLI to the latest version.`,
+            };
           }
           const args = [
             agentCommand,
@@ -1037,7 +1047,8 @@ export async function startDaemon(): Promise<void> {
         // Fetch fresh metadata from server if needed.
         let metadata = tracked.happySessionMetadataFromLocalWebhook;
         const needsFetch = (!metadata.claudeSessionId && (!metadata.flavor || metadata.flavor === 'claude'))
-          || (!metadata.codexThreadId && metadata.flavor === 'codex');
+          || (!metadata.codexThreadId && metadata.flavor === 'codex')
+          || (!metadata.acpSessionId && metadata.flavor === 'grok');
         if (needsFetch) {
           logger.debug(`[DAEMON RUN] Session ${resolvedSessionId} missing agent session ID in webhook metadata, fetching from server`);
           const serverMetadata = await fetchServerSessionMetadata(resolvedSessionId, tracked.encryption.encryptionKey, tracked.encryption.encryptionVariant);
@@ -1052,9 +1063,10 @@ export async function startDaemon(): Promise<void> {
           { startedBy: 'daemon', claudeStartingMode: 'remote' },
         );
 
-        const resumeAgent = metadata.flavor === 'codex' || metadata.codexThreadId
-          ? 'codex'
-          : 'claude';
+        const resumeAgent = resolveDaemonResumeAgent(metadata);
+        if (!resumeAgent) {
+          throw new Error(`Session ${resolvedSessionId} uses unsupported flavor "${metadata.flavor ?? 'unknown'}".`);
+        }
         const codexHome = resumeAgent === 'codex'
           ? await resolveCodexHomeForResume(metadata, ambientEnvironment)
           : undefined;

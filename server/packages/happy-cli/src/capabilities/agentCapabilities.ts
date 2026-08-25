@@ -6,6 +6,10 @@ import { CodexAppServerClient } from '@/codex/codexAppServerClient';
 import type { ModelListEntry } from '@/codex/codexAppServerTypes';
 import type { CLIAvailability } from '@/utils/detectCLI';
 import { logger } from '@/ui/logger';
+import { AcpBackend } from '@/agent/acp/AcpBackend';
+import { DefaultTransport } from '@/agent/transport';
+import { KNOWN_ACP_AGENTS, sanitizeGrokChildEnvironment } from '@/agent/acp/acpAgentConfig';
+import type { InitializeResponse } from '@agentclientprotocol/sdk';
 
 type CapabilityOption = AgentCapabilityCatalog['models'][number];
 type CapabilityMap = Record<string, AgentCapabilityCatalog>;
@@ -40,8 +44,13 @@ const AGY_MODELS = [
     'GPT-OSS 120B (Medium)',
 ];
 
-function option(code: string, value = code, description?: string | null): CapabilityOption {
-    return { code, value, ...(description !== undefined ? { description } : {}) };
+function option(code: string, value = code, description?: string | null, isDefault?: boolean): CapabilityOption {
+    return {
+        code,
+        value,
+        ...(description !== undefined ? { description } : {}),
+        ...(isDefault !== undefined ? { isDefault } : {}),
+    };
 }
 
 function uniqueOptions(values: string[]): CapabilityOption[] {
@@ -165,6 +174,139 @@ function mapCodexModels(models: ModelListEntry[]): AgentCapabilityCatalog['model
         }));
 }
 
+type GrokReasoningEffort = {
+    id?: unknown;
+    label?: unknown;
+    description?: unknown;
+    default?: unknown;
+};
+
+type GrokRuntimeModel = {
+    modelId?: unknown;
+    name?: unknown;
+    description?: unknown;
+    _meta?: {
+        reasoningEfforts?: unknown;
+    } | null;
+};
+
+type GrokRuntimeModelState = {
+    currentModelId?: unknown;
+    availableModels?: unknown;
+};
+
+function runtimeObject(value: unknown): Record<string, unknown> | null {
+    return value && typeof value === 'object' && !Array.isArray(value)
+        ? value as Record<string, unknown>
+        : null;
+}
+
+/** Build GrokBuild choices solely from the ACP initialize response. */
+export function buildGrokAcpCapabilityCatalog(
+    initialize: InitializeResponse,
+    detectedAt = Date.now(),
+): AgentCapabilityCatalog {
+    const meta = runtimeObject(initialize._meta);
+    const modelState = runtimeObject(meta?.modelState) as GrokRuntimeModelState | null;
+    const currentModelId = typeof modelState?.currentModelId === 'string'
+        ? modelState.currentModelId
+        : null;
+    const runtimeModels = Array.isArray(modelState?.availableModels)
+        ? modelState.availableModels as GrokRuntimeModel[]
+        : [];
+
+    const models = runtimeModels.flatMap((model) => {
+        if (typeof model.modelId !== 'string' || model.modelId.length === 0) return [];
+        const efforts = Array.isArray(model._meta?.reasoningEfforts)
+            ? (model._meta.reasoningEfforts as GrokReasoningEffort[]).flatMap((effort) => {
+                if (typeof effort.id !== 'string') return [];
+                const label = typeof effort.label === 'string'
+                    ? effort.label
+                    : effort.id;
+                return [option(
+                    effort.id,
+                    label,
+                    typeof effort.description === 'string' ? effort.description : null,
+                    effort.default === true,
+                )];
+            })
+            : [];
+        return [{
+            code: model.modelId,
+            value: typeof model.name === 'string' ? model.name : model.modelId,
+            description: typeof model.description === 'string' ? model.description : null,
+            effortLevels: efforts,
+            isDefault: model.modelId === currentModelId,
+        }];
+    });
+
+    if (models.length === 0 || !currentModelId || !models.some((model) => model.code === currentModelId)) {
+        throw new Error('Grok ACP initialize response did not advertise a valid current model catalog');
+    }
+
+    const effortByCode = new Map<string, CapabilityOption>();
+    for (const model of models) {
+        for (const effort of model.effortLevels ?? []) {
+            if (!effortByCode.has(effort.code)) effortByCode.set(effort.code, effort);
+        }
+    }
+
+    const capabilities = initialize.agentCapabilities;
+    const prompt = capabilities?.promptCapabilities;
+    const providerVersion = typeof meta?.agentVersion === 'string'
+        ? meta.agentVersion
+        : undefined;
+
+    return {
+        detectedAt,
+        providerVersion,
+        sources: {
+            models: 'acp:initialize:_meta.modelState',
+            effortLevels: 'acp:initialize:_meta.modelState',
+            // ACP permission option kinds are authoritative at request time.
+            permissionModes: 'acp-v1:requestPermission',
+        },
+        models,
+        effortLevels: [...effortByCode.values()],
+        // Generic ACP has no global permission-mode catalog. This is the one
+        // protocol-backed ambient choice; concrete allow/reject options still
+        // come from every requestPermission call.
+        permissionModes: [option('default', 'ask first', null, true)],
+        acp: {
+            loadSession: capabilities?.loadSession === true,
+            prompt: {
+                image: prompt?.image === true,
+            },
+        },
+    };
+}
+
+async function readGrokAcpInitialize(): Promise<InitializeResponse> {
+    const config = KNOWN_ACP_AGENTS.grok;
+    let initialize: InitializeResponse | null = null;
+    const backend = new AcpBackend({
+        agentName: 'grok',
+        cwd: process.cwd(),
+        command: config.command,
+        args: config.args,
+        transportHandler: new DefaultTransport('grok'),
+        initializeOnly: true,
+        processEnv: sanitizeGrokChildEnvironment(process.env),
+    });
+    backend.onMessage((message) => {
+        if (message.type === 'event' && message.name === 'initialize_response') {
+            initialize = message.payload as InitializeResponse;
+        }
+    });
+    try {
+        await backend.startSession();
+        if (!initialize) throw new Error('Grok ACP initialize response was not received');
+        return initialize;
+    } finally {
+        await backend.dispose();
+    }
+}
+
 export function buildBaselineAgentCapabilities(availability: CLIAvailability): CapabilityMap {
     const detectedAt = Date.now();
     const result: CapabilityMap = {};
@@ -210,34 +352,48 @@ async function readCodexModels(): Promise<ModelListEntry[]> {
 
 export async function detectAgentCapabilities(
     availability: CLIAvailability,
-    opts?: { loadCodexModels?: () => Promise<ModelListEntry[]> },
+    opts?: {
+        loadCodexModels?: () => Promise<ModelListEntry[]>;
+        loadGrokInitialize?: () => Promise<InitializeResponse>;
+    },
 ): Promise<CapabilityMap> {
     const catalogs = buildBaselineAgentCapabilities(availability);
-    if (!availability.codex || !catalogs.codex) {
-        return catalogs;
+
+    if (availability.codex && catalogs.codex) {
+        try {
+            const models = await (opts?.loadCodexModels ?? readCodexModels)();
+            const mappedModels = mapCodexModels(models);
+            if (mappedModels.length > 0) {
+                const effortLevels = uniqueOptions(mappedModels.flatMap((model) => (
+                    model.effortLevels?.map((effort) => effort.code) ?? []
+                )));
+                catalogs.codex = {
+                    ...catalogs.codex,
+                    detectedAt: Date.now(),
+                    sources: {
+                        ...catalogs.codex.sources,
+                        models: 'codex-app-server:model/list',
+                        effortLevels: 'codex-app-server:model/list',
+                    },
+                    models: [option('default', 'default model', null), ...mappedModels],
+                    effortLevels: effortLevels.length > 0 ? effortLevels : catalogs.codex.effortLevels,
+                };
+            }
+        } catch (error) {
+            logger.debug('[CAPABILITIES] Codex model/list failed; using daemon catalog', error);
+        }
     }
 
-    try {
-        const models = await (opts?.loadCodexModels ?? readCodexModels)();
-        const mappedModels = mapCodexModels(models);
-        if (mappedModels.length > 0) {
-            const effortLevels = uniqueOptions(mappedModels.flatMap((model) => (
-                model.effortLevels?.map((effort) => effort.code) ?? []
-            )));
-            catalogs.codex = {
-                ...catalogs.codex,
-                detectedAt: Date.now(),
-                sources: {
-                    ...catalogs.codex.sources,
-                    models: 'codex-app-server:model/list',
-                    effortLevels: 'codex-app-server:model/list',
-                },
-                models: [option('default', 'default model', null), ...mappedModels],
-                effortLevels: effortLevels.length > 0 ? effortLevels : catalogs.codex.effortLevels,
-            };
+    if (availability.grok) {
+        try {
+            const initialize = await (opts?.loadGrokInitialize ?? readGrokAcpInitialize)();
+            catalogs.grok = buildGrokAcpCapabilityCatalog(initialize);
+        } catch (error) {
+            const detail = error instanceof Error ? error.message : String(error);
+            throw new Error(
+                `GrokBuild is installed but ACP capability discovery failed: ${detail}. Run \`grok login\`, then verify \`grok --no-auto-update agent stdio\` starts.`,
+            );
         }
-    } catch (error) {
-        logger.debug('[CAPABILITIES] Codex model/list failed; using daemon catalog', error);
     }
 
     return catalogs;

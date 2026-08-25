@@ -487,7 +487,7 @@
     "resumeSessionMachineOffline": "Diese Maschine ist offline. Der Lebenslauf ist nur verfügbar, solange er online ist.",
     "resumeSessionNeedsHappyAgent": "„Lebenslauf“ ist auf diesem Computer nicht verfügbar. Führen Sie „happy-agent auth login“ aus, um es zu aktivieren.",
     "resumeSessionMissingMachine": "Dieser Sitzung fehlen die Maschinenmetadaten und sie kann daher nicht fortgesetzt werden.",
-    "resumeSessionMissingBackendId": "Diese Sitzung verfügt nicht über eine fortsetzbare Claude- oder Codex-ID.",
+    "resumeSessionMissingBackendId": "Diese Sitzung verfügt nicht über eine fortsetzbare Anbieter-ID.",
     "resumeSessionUnexpectedDirectoryPrompt": "Lebenslauf kann keine Verzeichnisse erstellen. Starten Sie die Sitzung manuell von ihrem ursprünglichen Pfad aus.",
     "killSessionSubtitle": "Beenden Sie die Sitzung sofort",
     "archiveSessionSubtitle": "Archivieren Sie diese Sitzung und beenden Sie sie",
@@ -558,6 +558,7 @@
     "agent": {
       "claude": "Claude",
       "codex": "Codex",
+      "grok": "GrokBuild-Agent",
       "gemini": "Gemini",
       "openclaw": "OpenClaw"
     },
@@ -1059,6 +1060,11 @@
     "permissions": {
       "yesForSession": "Ja, und bitten Sie nicht um eine Sitzung",
       "stopAndExplain": "Halten Sie inne und erklären Sie, was zu tun ist"
+    }
+  },
+  "grok": {
+    "permissions": {
+      "noProvideFeedback": "Nein, und Feedback geben"
     }
   },
   "claude": {

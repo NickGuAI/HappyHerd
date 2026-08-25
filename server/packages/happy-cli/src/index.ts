@@ -384,40 +384,27 @@ Conversation history is preserved on the server, but in-flight tool calls are in
       process.exit(1)
     }
     return;
-  } else if (subcommand === 'acp') {
+  } else if (subcommand === 'acp' || subcommand === 'grok') {
     try {
-      const { runAcp, resolveAcpAgentConfig } = await import('@/agent/acp');
-
-      let startedBy: 'daemon' | 'terminal' | undefined = undefined;
-      let verbose = false;
-      const acpArgs: string[] = [];
-      let customCommandMode = false;
-      for (let i = 1; i < args.length; i++) {
-        if (!customCommandMode && args[i] === '--started-by') {
-          startedBy = args[++i] as 'daemon' | 'terminal';
-          continue;
-        }
-        if (!customCommandMode && args[i] === '--verbose') {
-          verbose = true;
-          continue;
-        }
-        if (args[i] === '--') {
-          customCommandMode = true;
-        }
-        acpArgs.push(args[i]);
-      }
-
-      const resolved = resolveAcpAgentConfig(acpArgs);
+      const { runAcp, resolveAcpLaunchConfig } = await import('@/agent/acp');
+      const resolved = resolveAcpLaunchConfig(
+        args.slice(1),
+        subcommand === 'grok' ? 'grok' : undefined,
+      );
       const { credentials } = await authAndSetupMachineIfNeeded();
       await ensureDaemonRunning()
 
       await runAcp({
         credentials,
-        startedBy,
-        verbose,
+        startedBy: resolved.startedBy,
+        verbose: resolved.verbose,
         agentName: resolved.agentName,
         command: resolved.command,
         args: resolved.args,
+        permissionMode: resolved.permissionMode,
+        model: resolved.model,
+        effort: resolved.effort,
+        resumeSessionId: resolved.resumeSessionId,
       });
     } catch (error) {
       console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
@@ -744,6 +731,7 @@ ${chalk.bold('Usage:')}
   happy codex             Start Codex mode
   happy gemini            Start Gemini mode (ACP) [deprecated — use agy]
   happy agy               Start agy (Antigravity CLI) mode
+  happy grok              Start GrokBuild through ACP
   happy acp               Start a generic ACP-compatible agent
   happy connect           Connect AI vendor API keys
   happy sandbox           Configure and manage OS-level sandboxing
@@ -764,6 +752,7 @@ ${chalk.bold('Examples:')}
   happy --claude-env ANTHROPIC_BASE_URL=http://127.0.0.1:3456
                            Use a custom API endpoint (e.g., claude-code-router)
   happy acp gemini         Start Gemini via generic ACP runner
+  happy grok               Start GrokBuild with its fixed ACP stdio command
   happy acp -- opencode --acp
                            Start a custom ACP command
   happy acp opencode --verbose

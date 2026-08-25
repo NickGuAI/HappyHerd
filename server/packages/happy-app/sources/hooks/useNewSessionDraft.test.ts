@@ -5,7 +5,7 @@ type Draft = {
     selectedMachineId: string | null;
     selectedPath: string | null;
     selectedCommanderId: string | null;
-    agentType: 'claude' | 'codex' | 'gemini' | 'openclaw' | 'agy' | 'rig';
+    agentType: 'claude' | 'codex' | 'grok' | 'gemini' | 'openclaw' | 'agy' | 'rig';
     permissionMode: string | null;
     modelMode: string | null;
     effortLevel: string | null;
@@ -80,6 +80,31 @@ describe('useNewSessionDraft', () => {
 
         expect(useNewSessionDraft.getState().effortLevel).toBe('high');
         expect(mockPersistence.saved.at(-1)).toMatchObject({ effortLevel: 'high' });
+    });
+
+    it('clears provider-specific selections when switching to GrokBuild', async () => {
+        mockPersistence.draft = persistedDraft({
+            agentType: 'claude',
+            permissionMode: 'default',
+            modelMode: 'default',
+            effortLevel: 'high',
+        });
+        const { useNewSessionDraft } = await import('./useNewSessionDraft');
+
+        useNewSessionDraft.getState().setAgentType('grok');
+
+        expect(useNewSessionDraft.getState()).toMatchObject({
+            agentType: 'grok',
+            permissionMode: null,
+            modelMode: null,
+            effortLevel: null,
+        });
+        expect(mockPersistence.saved.at(-1)).toMatchObject({
+            agentType: 'grok',
+            permissionMode: null,
+            modelMode: null,
+            effortLevel: null,
+        });
     });
 
     it('resets the Commander identity when the machine changes', async () => {

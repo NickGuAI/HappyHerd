@@ -12,7 +12,21 @@ vi.mock('react-native-mmkv', () => ({
     },
 }));
 
-const { loadPendingSettings, savePendingSettings } = await import('./persistence');
+const { loadNewSessionDraft, loadPendingSettings, savePendingSettings } = await import('./persistence');
+
+describe('loadNewSessionDraft', () => {
+    beforeEach(() => store.clear());
+
+    it('preserves a GrokBuild harness selection', () => {
+        store.set('new-session-draft-v1', JSON.stringify({
+            agentType: 'grok',
+            input: '',
+            updatedAt: 123,
+        }));
+
+        expect(loadNewSessionDraft()?.agentType).toBe('grok');
+    });
+});
 
 describe('loadPendingSettings', () => {
     beforeEach(() => store.clear());

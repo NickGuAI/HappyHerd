@@ -33,9 +33,9 @@ interface NewSessionDraftState {
     setPath: (path: string | null) => void;
     setCommanderId: (id: string | null) => void;
     setAgentType: (agent: NewSessionAgentType) => void;
-    setPermissionMode: (mode: PermissionModeKey) => void;
-    setModelMode: (mode: string) => void;
-    setEffortLevel: (level: string) => void;
+    setPermissionMode: (mode: PermissionModeKey | null) => void;
+    setModelMode: (mode: string | null) => void;
+    setEffortLevel: (level: string | null) => void;
     setSessionType: (type: NewSessionSessionType) => void;
     setWorktreeKey: (key: string | null) => void;
 }
@@ -90,7 +90,19 @@ export const useNewSessionDraft = create<NewSessionDraftState>()((set, get) => (
     },
     setPath: (path) => { set({ selectedPath: path, worktreeKey: null }); persist(get()); },
     setCommanderId: (id) => { set({ selectedCommanderId: id, worktreeKey: null }); persist(get()); },
-    setAgentType: (agent) => { set({ agentType: agent }); persist(get()); },
+    setAgentType: (agent) => {
+        const previousAgent = get().agentType;
+        const resetGrokSelection = previousAgent !== agent && (previousAgent === 'grok' || agent === 'grok');
+        set(resetGrokSelection
+            ? {
+                agentType: agent,
+                permissionMode: null,
+                modelMode: null,
+                effortLevel: null,
+            }
+            : { agentType: agent });
+        persist(get());
+    },
     setPermissionMode: (mode) => { set({ permissionMode: mode }); persist(get()); },
     setModelMode: (mode) => { set({ modelMode: mode }); persist(get()); },
     setEffortLevel: (level) => { set({ effortLevel: level }); persist(get()); },

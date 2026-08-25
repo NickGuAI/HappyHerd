@@ -17,6 +17,7 @@ import { resolveAbsolutePath } from '@/utils/pathUtils';
 import { createWorktree } from '@/utils/worktree';
 import {
     getEffortLevelsForModel,
+    getAdvertisedDefaultOptionKey,
     getHardcodedModelModes,
     getHardcodedPermissionModes,
     getMachineAdvertisedEffortLevels,
@@ -38,6 +39,7 @@ import {
     resolveSpawnRequestId,
 } from '@/sync/spawnRequestId';
 import type { NewSessionStartPhase } from '@/components/newSessionProgress';
+import { supportsImageAttachmentsForFlavor } from '@/sync/attachmentSupport';
 
 const MAX_RIG_PENDING_RESULTS = 3;
 
@@ -151,8 +153,8 @@ export function useStartSessionFromDraft() {
             ? getRigMachineSessionCreation(machine.metadata)
             : null;
         const availability = machine.metadata?.cliAvailability;
-        const agentUnavailable = agentType === 'agy'
-            ? availability?.agy !== true
+        const agentUnavailable = agentType === 'agy' || agentType === 'grok'
+            ? availability?.[agentType] !== true
             : Boolean(availability && availability[agentType] !== true);
         if (agentType !== 'rig' && agentUnavailable) {
             Modal.alert(t('common.error'), t("uiCopy.theSelectedAgentConfigurationIsUnavailable"));
@@ -163,6 +165,14 @@ export function useStartSessionFromDraft() {
             return false;
         }
         const machineCatalog = machine.metadata?.agentCapabilities?.[agentType];
+        if (agentType === 'grok' && !machineCatalog) {
+            Modal.alert(
+                t('common.error'),
+                machine.metadata?.grokCapabilityError
+                    ?? t("uiCopy.theSelectedAgentConfigurationIsUnavailable"),
+            );
+            return false;
+        }
         const defaults = rigCreation
             ? {
                 permissionMode: rigCreation.defaultPermissionMode ?? '',
@@ -185,11 +195,15 @@ export function useStartSessionFromDraft() {
                 ));
         const permission = resolveOption<{ key: string }>(
             permissionOptions,
-            [draft.permissionMode, defaults.permissionMode],
+            agentType === 'grok'
+                ? [draft.permissionMode ?? defaults.permissionMode, getAdvertisedDefaultOptionKey(permissionOptions)]
+                : [draft.permissionMode, defaults.permissionMode],
         );
         const model = resolveOption<{ key: string }>(
             modelOptions,
-            [draft.modelMode, defaults.modelMode],
+            agentType === 'grok'
+                ? [draft.modelMode ?? defaults.modelMode, getAdvertisedDefaultOptionKey(modelOptions)]
+                : [draft.modelMode, defaults.modelMode],
         );
         const effortOptions = rigCreation
             ? rigCreation.effortsForModel(model?.key).map((key) => ({ key, name: key }))
@@ -200,7 +214,9 @@ export function useStartSessionFromDraft() {
             ?? resolveAgentDefaultEffortLevel(defaultOverrides, agentType, effortOptions);
         const effort = resolveOption<{ key: string }>(
             effortOptions,
-            [draft.effortLevel, effectiveEffortDefault],
+            agentType === 'grok'
+                ? [draft.effortLevel ?? effectiveEffortDefault, getAdvertisedDefaultOptionKey(effortOptions)]
+                : [draft.effortLevel, effectiveEffortDefault],
         );
         if (!permission || !model || ('disabled' in permission && permission.disabled) || ('disabled' in model && model.disabled)) {
             Modal.alert(t('common.error'), t("uiCopy.theSelectedAgentConfigurationIsUnavailable"));
@@ -208,7 +224,9 @@ export function useStartSessionFromDraft() {
         }
 
         const prompt = draft.input.trim();
-        const attachments = draft.attachments;
+        const attachments = supportsImageAttachmentsForFlavor(agentType, machineCatalog?.acp)
+            ? draft.attachments
+            : [];
         const selectedPath = draft.selectedPath?.trim() || '~';
         const absolutePath = resolveAbsolutePath(selectedPath, machine.metadata?.homeDir);
         const requestedWorktree = draft.sessionType === 'worktree'
@@ -298,7 +316,7 @@ export function useStartSessionFromDraft() {
                         agent: agentType,
                         // Claude's Default is ambient; Codex's Default is a
                         // concrete ask-first execution policy.
-                        permissionMode: agentType === 'codex' || permission.key !== 'default'
+                        permissionMode: agentType === 'codex' || agentType === 'grok' || permission.key !== 'default'
                             ? permission.key
                             : undefined,
                         modelMode: model.key !== 'default' ? model.key : undefined,

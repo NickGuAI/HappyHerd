@@ -133,6 +133,7 @@ export const AgentCapabilityOptionSchema = z.object({
   code: z.string(),
   value: z.string(),
   description: z.string().nullable().optional(),
+  isDefault: z.boolean().optional(),
 })
 
 export const AgentModelCapabilitySchema = AgentCapabilityOptionSchema.extend({
@@ -151,6 +152,12 @@ export const AgentCapabilityCatalogSchema = z.object({
   models: z.array(AgentModelCapabilitySchema),
   effortLevels: z.array(AgentCapabilityOptionSchema),
   permissionModes: z.array(AgentCapabilityOptionSchema),
+  acp: z.object({
+    loadSession: z.boolean(),
+    prompt: z.object({
+      image: z.boolean(),
+    }),
+  }).optional(),
 })
 
 export type AgentCapabilityCatalog = z.infer<typeof AgentCapabilityCatalogSchema>
@@ -169,6 +176,7 @@ export const MachineMetadataSchema = z.object({
     claude: z.boolean(),
     codex: z.boolean(),
     gemini: z.boolean(),
+    grok: z.boolean().optional(),
     openclaw: z.boolean(),
     // Optional so metadata written by a CLI predating agy detection still
     // matches this shape. detectCLIAvailability always reports it.
@@ -183,6 +191,7 @@ export const MachineMetadataSchema = z.object({
     detectedAt: z.number(),
   }).optional(),
   agentCapabilities: z.record(z.string(), AgentCapabilityCatalogSchema).optional(),
+  grokCapabilityError: z.string().optional(),
 })
 
 export type MachineMetadata = z.infer<typeof MachineMetadataSchema>
@@ -323,7 +332,13 @@ export type Metadata = {
    * ACP session config option value (normalized for UI metadata consumers).
    */
   // `code` = protocol value ID, `value` = human label
-  models?: Array<{ code: string; value: string; description?: string | null }>,
+  models?: Array<{
+    code: string;
+    value: string;
+    description?: string | null;
+    thinkingLevels?: string[];
+    defaultThinkingLevel?: string;
+  }>,
   currentModelCode?: string,
   operatingModes?: Array<{ code: string; value: string; description?: string | null }>,
   currentOperatingModeCode?: string,
@@ -342,6 +357,11 @@ export type Metadata = {
   gitBranch?: string,
   claudeSessionId?: string, // Claude Code session ID
   codexThreadId?: string, // Codex app-server thread ID
+  acpSessionId?: string, // Generic ACP provider session ID (for session/load resume)
+  acpCapabilities?: {
+    loadSession: boolean,
+    prompt: { image: boolean },
+  },
   codexHome?: string, // CODEX_HOME used to create codexThreadId
   tools?: string[],
   slashCommands?: string[],

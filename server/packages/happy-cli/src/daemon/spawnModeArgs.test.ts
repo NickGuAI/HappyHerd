@@ -64,4 +64,23 @@ describe('daemon spawn mode arguments', () => {
             'ultra',
         ]);
     });
+
+    it('forwards machine-advertised Grok selections to the Happy command', () => {
+        const args = ['grok'];
+
+        appendDaemonSpawnModeArgs(args, {
+            directory: '/workspace',
+            agent: 'grok',
+            permissionMode: 'default',
+            modelMode: 'runtime-model-id',
+            effortLevel: 'runtime-effort-id',
+        }, 'grok');
+
+        expect(args).toEqual([
+            'grok',
+            '--permission-mode', 'default',
+            '--model', 'runtime-model-id',
+            '--effort', 'runtime-effort-id',
+        ]);
+    });
 });

@@ -192,6 +192,15 @@ function buildSessionRowData(
     const rigIdentity = getRigIdentity(session.metadata);
     const rigActivity = getRigActivityIndicators(session.metadata);
     const rigGit = getRigGitSummary(session.metadata);
+    const isGrok = session.metadata?.flavor === 'grok';
+    const grokProviderName = isGrok
+        ? session.metadata?.provider?.name ?? t('agentInput.agent.grok')
+        : null;
+    const grokModelName = isGrok
+        ? session.metadata?.models?.find((model) => model.code === session.metadata?.currentModelCode)?.value
+            ?? session.metadata?.currentModelCode
+            ?? null
+        : null;
     const machineId = session.metadata?.machineId ?? null;
     const machine = machineId ? machines?.[machineId] : undefined;
     const daemonIdentity = machineId ? daemonIdentities.get(machineId) : undefined;
@@ -206,9 +215,11 @@ function buildSessionRowData(
         avatarId: getSessionAvatarId(session),
         flavor: session.metadata?.flavor ?? null,
         clientId: session.metadata?.client?.id ?? null,
-        identityLine: rigIdentity ? `${rigIdentity.clientName} · ${rigIdentity.providerName}` : null,
-        providerKind: session.metadata?.provider?.kind ?? null,
-        modelName: rigIdentity?.modelName ?? null,
+        identityLine: rigIdentity
+            ? `${rigIdentity.clientName} · ${rigIdentity.providerName}`
+            : grokProviderName,
+        providerKind: session.metadata?.provider?.kind ?? (isGrok ? 'grok' : null),
+        modelName: rigIdentity?.modelName ?? grokModelName,
         activitySummary: rigActivity.length > 0
             ? rigActivity.map((item) => `${item.count}${item.queued ? `+${item.queued}` : ''} ${item.key}`).join(' · ')
             : null,

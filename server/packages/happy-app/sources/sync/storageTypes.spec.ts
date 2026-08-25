@@ -23,6 +23,23 @@ describe('MetadataSchema', () => {
         expect(metadata.archiveReason).toBe('User terminated');
     });
 
+    it('preserves generic ACP provider resume metadata', () => {
+        const metadata = MetadataSchema.parse({
+            path: '/tmp/project',
+            host: 'local-machine',
+            flavor: 'grok',
+            acpSessionId: 'grok-session-1',
+            acpCapabilities: {
+                loadSession: true,
+                prompt: { image: true },
+            },
+        });
+
+        expect(metadata.acpSessionId).toBe('grok-session-1');
+        expect(metadata.acpCapabilities?.loadSession).toBe(true);
+        expect(metadata.acpCapabilities?.prompt.image).toBe(true);
+    });
+
     it('parses the additive Rig v1 extension and tolerates future fields', () => {
         const metadata = MetadataSchema.parse({
             ...rigMetadataFixture,
@@ -37,6 +54,48 @@ describe('MetadataSchema', () => {
 });
 
 describe('MachineMetadataSchema', () => {
+    it('preserves ACP capabilities and a provider-advertised default effort', () => {
+        const metadata = MachineMetadataSchema.parse({
+            host: 'workstation',
+            platform: 'linux',
+            happyCliVersion: '1.2.1',
+            happyHomeDir: '/srv/agent-home/project/.happy',
+            homeDir: '/srv/agent-home/project',
+            grokCapabilityError: 'Run `grok login`.',
+            agentCapabilities: {
+                grok: {
+                    detectedAt: 123,
+                    sources: {
+                        models: 'acp-session-update',
+                        effortLevels: 'acp-session-update',
+                        permissionModes: 'acp-session-update',
+                    },
+                    models: [{
+                        code: 'grok-code-fast-1',
+                        value: 'Grok Code Fast 1',
+                        effortLevels: [
+                            { code: 'low', value: 'Low' },
+                            { code: 'high', value: 'High', isDefault: true },
+                        ],
+                    }],
+                    effortLevels: [
+                        { code: 'low', value: 'Low' },
+                        { code: 'high', value: 'High', isDefault: true },
+                    ],
+                    permissionModes: [],
+                    acp: {
+                        loadSession: true,
+                        prompt: { image: true },
+                    },
+                },
+            },
+        });
+
+        expect(metadata.agentCapabilities?.grok.acp?.loadSession).toBe(true);
+        expect(metadata.agentCapabilities?.grok.effortLevels[1].isDefault).toBe(true);
+        expect(metadata.grokCapabilityError).toBe('Run `grok login`.');
+    });
+
     it('preserves the Rig creation catalog and future machine fields', () => {
         const metadata = MachineMetadataSchema.parse({
             host: 'workstation',
@@ -53,6 +112,7 @@ describe('MachineMetadataSchema', () => {
                 codex: false,
                 gemini: false,
                 openclaw: false,
+                grok: true,
                 agy: false,
                 rig: true,
                 detectedAt: 123,
@@ -93,6 +153,7 @@ describe('MachineMetadataSchema', () => {
         });
 
         expect(metadata.cliAvailability?.rig).toBe(true);
+        expect(metadata.cliAvailability?.grok).toBe(true);
         expect(metadata.defaults?.providerId).toBe('codex');
         expect(metadata.models?.[0]?.thinkingLevels).toEqual(['low', 'high']);
         expect((metadata as any).futureRigMachineField).toEqual({ enabled: true });

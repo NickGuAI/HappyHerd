@@ -161,14 +161,14 @@ export function machineChoiceAgentAvailable(
 /**
  * Whether the Home picker should contain this harness at all.
  *
- * Common harnesses stay visible but disabled when unavailable. Antigravity and
- * Happy Agent stay absent until this computer reports them available.
+ * Common harnesses stay visible but disabled when unavailable. GrokBuild,
+ * Antigravity, and Happy Agent stay absent until this computer reports them available.
  */
 export function machineChoiceAgentVisible(
     choice: MachineChoice | null,
     agent: NewSessionAgentType,
 ): boolean {
-    return (agent !== 'agy' && agent !== 'rig') || machineChoiceAgentAvailable(choice, agent);
+    return (agent !== 'grok' && agent !== 'agy' && agent !== 'rig') || machineChoiceAgentAvailable(choice, agent);
 }
 
 /**

@@ -26,6 +26,7 @@ import { HappyError } from '@/utils/errors';
 import { MobileGlassSurface } from '@/components/MobileGlass';
 import { getRigIdentity, isRigMetadata } from '@/sync/rig';
 import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
+import { ProviderIcon } from '@/components/ProviderIcon';
 
 const DEFAULT_RIG_NAME = 'Rig';
 
@@ -487,15 +488,22 @@ function SessionInfoContent({ session }: { session: Session }) {
                                 if (flavor === 'gpt' || flavor === 'openai') return 'Codex';
                                 if (flavor === 'gemini') return 'Gemini';
                                 if (flavor === 'openclaw') return 'OpenClaw';
+                                if (flavor === 'grok') return t('agentInput.agent.grok');
                                 return flavor;
                             })()}
-                            icon={<Ionicons name="sparkles-outline" size={29} color="#5856D6" />}
+                            icon={session.metadata.flavor === 'grok'
+                                ? <ProviderIcon kind="grok" size={29} />
+                                : <Ionicons name="sparkles-outline" size={29} color="#5856D6" />}
                             showChevron={false}
                         />
-                        {getRigIdentity(session.metadata)?.modelName && (
+                        {(getRigIdentity(session.metadata)?.modelName || (
+                            session.metadata.flavor === 'grok' && session.metadata.currentModelCode
+                        )) && (
                             <Item
                                 title={t("uiCopy.model")}
-                                subtitle={getRigIdentity(session.metadata)!.modelName!}
+                                subtitle={getRigIdentity(session.metadata)?.modelName
+                                    ?? session.metadata?.models?.find((model) => model.code === session.metadata?.currentModelCode)?.value
+                                    ?? session.metadata?.currentModelCode}
                                 icon={<Ionicons name="hardware-chip-outline" size={29} color="#5856D6" />}
                                 showChevron={false}
                             />

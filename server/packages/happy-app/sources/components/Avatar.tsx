@@ -5,8 +5,9 @@ import { AvatarSkia } from "./AvatarSkia";
 import { AvatarGradient } from "./AvatarGradient";
 import { AvatarBrutalist } from "./AvatarBrutalist";
 import { useSetting } from '@/sync/storage';
-import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import { resolveAvatarHarness, type AvatarHarnessIcon } from '@/utils/avatarHarness';
+import { StyleSheet } from 'react-native-unistyles';
+import { resolveAvatarHarness } from '@/utils/avatarHarness';
+import { HarnessBadgeIcon } from './HarnessBadgeIcon';
 
 export type AvatarBadgeLocation = 'sessionHeader' | 'sessionList' | 'none';
 
@@ -24,13 +25,6 @@ interface AvatarProps {
     thumbhash?: string | null;
     onImageError?: () => void;
 }
-
-const harnessIcons: Record<AvatarHarnessIcon, number> = {
-    claude: require('@/assets/images/icon-claude.png'),
-    codex: require('@/assets/images/icon-gpt.png'),
-    agy: require('@/assets/images/icon-agy.png'),
-    rig: require('@/assets/images/logo-black.png'),
-};
 
 const styles = StyleSheet.create((theme) => ({
     container: {
@@ -58,7 +52,6 @@ export const Avatar = React.memo((props: AvatarProps) => {
     const avatarStyle: string = 'brutalist';
     const showFlavorIcons = useSetting('showFlavorIcons');
     const showHarnessIconInSessionHeader = useSetting('showHarnessIconInSessionHeader');
-    const { theme } = useUnistyles();
     const showHarnessIcon = badgeLocation === 'sessionHeader'
         ? showHarnessIconInSessionHeader
         : badgeLocation === 'sessionList'
@@ -85,7 +78,6 @@ export const Avatar = React.memo((props: AvatarProps) => {
 
         // Add harness icon overlay if enabled
         if (showHarnessIcon && effectiveHarness) {
-            const harnessIcon = harnessIcons[effectiveHarness];
             const circleSize = Math.round(size * 0.35);
             const iconSize = effectiveHarness === 'codex'
                 ? Math.round(size * 0.25)
@@ -104,12 +96,7 @@ export const Avatar = React.memo((props: AvatarProps) => {
                         alignItems: 'center',
                         justifyContent: 'center'
                     }]}>
-                        <Image
-                            source={harnessIcon}
-                            style={{ width: iconSize, height: iconSize }}
-                            contentFit="contain"
-                            tintColor={effectiveHarness === 'codex' || effectiveHarness === 'rig' ? theme.colors.text : undefined}
-                        />
+                        <HarnessBadgeIcon harness={effectiveHarness} size={iconSize} />
                     </View>
                 </View>
             );
@@ -130,7 +117,6 @@ export const Avatar = React.memo((props: AvatarProps) => {
     }
 
     // Determine harness icon for generated avatars
-    const harnessIcon = effectiveHarness ? harnessIcons[effectiveHarness] : null;
     // Make icons smaller while keeping same circle size
     // Claude slightly bigger than codex
     const circleSize = Math.round(size * 0.35);
@@ -144,7 +130,7 @@ export const Avatar = React.memo((props: AvatarProps) => {
 
     // Only wrap in a container when this caller explicitly opts into a badge
     // location and the session has an identifiable harness.
-    if (showHarnessIcon && effectiveHarness && harnessIcon) {
+    if (showHarnessIcon && effectiveHarness) {
         return (
             <View style={[styles.container, { width: size, height: size }]}>
                 <AvatarComponent {...avatarProps} size={size} />
@@ -154,12 +140,7 @@ export const Avatar = React.memo((props: AvatarProps) => {
                     alignItems: 'center',
                     justifyContent: 'center'
                 }]}>
-                    <Image
-                        source={harnessIcon}
-                        style={{ width: iconSize, height: iconSize }}
-                        contentFit="contain"
-                        tintColor={effectiveHarness === 'codex' || effectiveHarness === 'rig' ? theme.colors.text : undefined}
-                    />
+                    <HarnessBadgeIcon harness={effectiveHarness} size={iconSize} />
                 </View>
             </View>
         );

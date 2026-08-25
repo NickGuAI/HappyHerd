@@ -487,7 +487,7 @@
     "resumeSessionMachineOffline": "This machine is offline. Resume is only available while it is online.",
     "resumeSessionNeedsHappyAgent": "Resume is unavailable on this machine. Run `happy-agent auth login` to enable it.",
     "resumeSessionMissingMachine": "This session is missing its machine metadata, so it cannot be resumed.",
-    "resumeSessionMissingBackendId": "This session does not have a resumable Claude or Codex identifier.",
+    "resumeSessionMissingBackendId": "This session does not have a resumable provider identifier.",
     "resumeSessionUnexpectedDirectoryPrompt": "Resume cannot create directories. Start the session manually from its original path.",
     "killSessionSubtitle": "Immediately terminate the session",
     "archiveSessionSubtitle": "Archive this session and stop it",
@@ -558,6 +558,7 @@
     "agent": {
       "claude": "Claude",
       "codex": "Codex",
+      "grok": "GrokBuild",
       "gemini": "Gemini",
       "openclaw": "OpenClaw"
     },
@@ -1059,6 +1060,11 @@
     "permissions": {
       "yesForSession": "Yes, and don't ask for a session",
       "stopAndExplain": "Stop, and explain what to do"
+    }
+  },
+  "grok": {
+    "permissions": {
+      "noProvideFeedback": "No, and provide feedback"
     }
   },
   "claude": {

@@ -4,10 +4,14 @@ import type { Machine } from './types';
 
 const {
     mockIo,
-    mockShouldReconnect
+    mockShouldReconnect,
+    mockDetectCLIAvailability,
+    mockDetectAgentCapabilities,
 } = vi.hoisted(() => ({
     mockIo: vi.fn(),
-    mockShouldReconnect: vi.fn(() => true)
+    mockShouldReconnect: vi.fn(() => true),
+    mockDetectCLIAvailability: vi.fn(),
+    mockDetectAgentCapabilities: vi.fn(),
 }));
 
 vi.mock('socket.io-client', () => ({
@@ -44,12 +48,12 @@ vi.mock('@/api/rpc/RpcHandlerManager', () => ({
 }));
 
 vi.mock('@/utils/detectCLI', () => ({
-    detectCLIAvailability: vi.fn(() => ({
-        claude: false,
-        codex: false,
-        gemini: false,
-        openclaw: false
-    }))
+    detectCLIAvailability: mockDetectCLIAvailability,
+}));
+
+vi.mock('@/capabilities/agentCapabilities', () => ({
+    detectAgentCapabilities: mockDetectAgentCapabilities,
+    capabilityFingerprint: (capabilities: unknown) => JSON.stringify(capabilities),
 }));
 
 vi.mock('@/resume/localHappyAgentAuth', () => ({
@@ -99,6 +103,16 @@ describe('ApiMachineClient socket reconnection', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockShouldReconnect.mockReturnValue(true);
+        mockDetectCLIAvailability.mockReturnValue({
+            claude: false,
+            codex: false,
+            gemini: false,
+            grok: false,
+            openclaw: false,
+            agy: false,
+            detectedAt: 1,
+        });
+        mockDetectAgentCapabilities.mockResolvedValue({});
         socketHandlers = {};
         mockSocket = {
             connected: false,
@@ -173,6 +187,48 @@ describe('ApiMachineClient socket reconnection', () => {
         aliveCalls = mockSocket.emit.mock.calls.filter(([event]: [string]) => event === 'machine-alive');
         expect(aliveCalls).toHaveLength(2);
 
+        client.shutdown();
+    });
+
+    it('publishes an actionable Grok capability error without retaining its stale catalog', async () => {
+        const availability = {
+            claude: false,
+            codex: false,
+            gemini: false,
+            grok: true,
+            openclaw: false,
+            agy: false,
+            detectedAt: 2,
+        };
+        const grokCatalog = {
+            detectedAt: 1,
+            sources: { models: 'acp', effortLevels: 'acp', permissionModes: 'acp' },
+            models: [],
+            effortLevels: [],
+            permissionModes: [],
+        };
+        const machine = makeMachine();
+        machine.metadata = {
+            ...machine.metadata,
+            cliAvailability: availability,
+            agentCapabilities: { grok: grokCatalog },
+        };
+        mockDetectCLIAvailability.mockReturnValue(availability);
+        mockDetectAgentCapabilities.mockRejectedValueOnce(new Error(
+            'GrokBuild is installed but ACP capability discovery failed: not authenticated. Run `grok login`.',
+        ));
+        mockSocket.emitWithAck.mockImplementation(async (_event: string, payload: { metadata: string }) => ({
+            result: 'success',
+            metadata: payload.metadata,
+            version: machine.metadataVersion + 1,
+        }));
+
+        const client = new ApiMachineClient('fake-token', machine);
+        client.connect();
+        await (client as any).refreshAgentCapabilities(true);
+
+        expect(machine.metadata?.grokCapabilityError).toContain('Run `grok login`.');
+        expect(machine.metadata?.agentCapabilities?.grok).toBeUndefined();
         client.shutdown();
     });
 });

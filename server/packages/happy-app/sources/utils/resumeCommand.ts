@@ -4,8 +4,12 @@ export type ResumeCommandMetadata = {
     flavor?: string | null;
     claudeSessionId?: string | null;
     codexThreadId?: string | null;
+    acpSessionId?: string | null;
     client?: { id?: string | null } | null;
     capabilities?: { resume?: boolean | null } | null;
+    acpCapabilities?: {
+        loadSession: boolean;
+    } | null;
 };
 
 export type ResumeCommandBlock = {
@@ -29,8 +33,14 @@ function buildResumeInvocation(metadata: ResumeCommandMetadata): string | null {
     if (metadata.client?.id === 'rig' || metadata.capabilities?.resume === false) {
         return null;
     }
+    if (metadata.flavor === 'grok' && metadata.acpCapabilities?.loadSession !== true) {
+        return null;
+    }
     if ((metadata.flavor === 'codex' || metadata.flavor === 'openai' || metadata.flavor === 'gpt') && metadata.codexThreadId) {
         return `happy codex --resume ${metadata.codexThreadId}`;
+    }
+    if (metadata.flavor === 'grok' && metadata.acpSessionId) {
+        return `happy grok --resume ${metadata.acpSessionId}`;
     }
     if (metadata.claudeSessionId) {
         return `happy claude --resume ${metadata.claudeSessionId}`;

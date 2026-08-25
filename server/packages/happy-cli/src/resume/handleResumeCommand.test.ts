@@ -182,6 +182,26 @@ describe('buildResumeLaunch', () => {
         });
     });
 
+    it('builds a GrokBuild resume command from the provider ACP session ID', () => {
+        expect(buildResumeLaunch({
+            id: 'session-grok',
+            active: false,
+            metadata: {
+                path: '/tmp/repo',
+                flavor: 'grok',
+                acpSessionId: 'grok-provider-session',
+                host: 'localhost',
+                homeDir: '/tmp',
+                happyHomeDir: '/tmp/.happy',
+                happyLibDir: '/tmp/happy',
+                happyToolsDir: '/tmp/happy/tools',
+            },
+        }, { startedBy: 'daemon' })).toEqual({
+            cwd: '/tmp/repo',
+            args: ['grok', '--started-by', 'daemon', '--resume', 'grok-provider-session'],
+        });
+    });
+
     it('rejects unsupported flavors', () => {
         expect(() => buildResumeLaunch({
             id: 'session-3',
@@ -196,6 +216,23 @@ describe('buildResumeLaunch', () => {
                 happyToolsDir: '/tmp/happy/tools',
             },
         })).toThrow('Happy session session-3 uses unsupported flavor "gemini".');
+    });
+
+    it('does not reinterpret another ACP flavor as GrokBuild', () => {
+        expect(() => buildResumeLaunch({
+            id: 'session-acp',
+            active: false,
+            metadata: {
+                path: '/tmp/repo',
+                flavor: 'acp',
+                acpSessionId: 'another-provider-session',
+                host: 'localhost',
+                homeDir: '/tmp',
+                happyHomeDir: '/tmp/.happy',
+                happyLibDir: '/tmp/happy',
+                happyToolsDir: '/tmp/happy/tools',
+            },
+        })).toThrow('Happy session session-acp uses unsupported flavor "acp".');
     });
 });
 

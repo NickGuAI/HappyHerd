@@ -21,6 +21,9 @@ const mocks = vi.hoisted(() => ({
     alert: vi.fn(),
     confirm: vi.fn(),
     delay: vi.fn(),
+    getMachineAdvertisedPermissionModes: vi.fn(),
+    getMachineAdvertisedModels: vi.fn(),
+    getMachineAdvertisedEffortLevels: vi.fn(),
     uuidCount: 0,
 }));
 
@@ -107,9 +110,12 @@ vi.mock('@/components/modelModeOptions', () => ({
     getEffortLevelsForModel: () => [
         { key: 'medium', name: 'Medium' },
     ],
-    getMachineAdvertisedPermissionModes: vi.fn(),
-    getMachineAdvertisedModels: vi.fn(),
-    getMachineAdvertisedEffortLevels: vi.fn(),
+    getMachineAdvertisedPermissionModes: mocks.getMachineAdvertisedPermissionModes,
+    getMachineAdvertisedModels: mocks.getMachineAdvertisedModels,
+    getMachineAdvertisedEffortLevels: mocks.getMachineAdvertisedEffortLevels,
+    getAdvertisedDefaultOptionKey: (options: Array<{ key: string; isDefault?: boolean }>) => (
+        options.find((option) => option.isDefault)?.key ?? null
+    ),
     includeConfiguredModel: (
         flavor: string,
         models: Array<{ key: string; name: string }>,
@@ -202,6 +208,9 @@ describe('useStartSessionFromDraft', () => {
         mocks.machineStopSession.mockResolvedValue({ success: true });
         mocks.sessionKill.mockResolvedValue({ success: true });
         mocks.sessionArchive.mockResolvedValue({ success: true });
+        mocks.getMachineAdvertisedPermissionModes.mockReturnValue([]);
+        mocks.getMachineAdvertisedModels.mockReturnValue([]);
+        mocks.getMachineAdvertisedEffortLevels.mockReturnValue([]);
     });
 
     it('creates and opens the session directly from the home draft', async () => {
@@ -277,6 +286,96 @@ describe('useStartSessionFromDraft', () => {
 
         await expect(startSession()).resolves.toBe(false);
         expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
+    });
+
+    it('starts GrokBuild only from the selected machine ACP catalog', async () => {
+        mocks.machines = [{
+            id: 'machine-1',
+            online: true,
+            metadata: {
+                homeDir: '/Users/dev',
+                cliAvailability: {
+                    claude: false,
+                    codex: false,
+                    grok: true,
+                    gemini: false,
+                    openclaw: false,
+                    detectedAt: 1,
+                },
+                agentCapabilities: {
+                    grok: {
+                        detectedAt: 1,
+                        sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'provider' },
+                        models: [],
+                        effortLevels: [],
+                        permissionModes: [],
+                        acp: {
+                            loadSession: true,
+                            prompt: { image: false },
+                        },
+                    },
+                },
+            },
+        }];
+        mocks.draft = createDraft({ agentType: 'grok' });
+        mocks.getMachineAdvertisedPermissionModes.mockReturnValue([
+            { key: 'ask-first', name: 'Ask first', isDefault: true },
+        ]);
+        mocks.getMachineAdvertisedModels.mockReturnValue([
+            { key: 'grok-fast', name: 'Grok Fast' },
+            { key: 'grok-build', name: 'Grok Build', isDefault: true },
+        ]);
+        mocks.getMachineAdvertisedEffortLevels.mockReturnValue([
+            { key: 'quick', name: 'Quick' },
+            { key: 'deep', name: 'Deep', isDefault: true },
+        ]);
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith({
+            machineId: 'machine-1',
+            directory: '/absolute/project',
+            approvedNewDirectoryCreation: false,
+            agent: 'grok',
+            permissionMode: 'ask-first',
+            modelMode: 'grok-build',
+            effortLevel: 'deep',
+        });
+        expect(mocks.sendMessage).toHaveBeenCalledWith(
+            'session-1',
+            'Start the implementation',
+            { source: 'new_session', attachments: [] },
+        );
+    });
+
+    it('does not start GrokBuild without an advertised ACP catalog', async () => {
+        mocks.machines = [{
+            id: 'machine-1',
+            online: true,
+            metadata: {
+                homeDir: '/Users/dev',
+                grokCapabilityError: 'GrokBuild capability discovery failed. Run `grok login`.',
+                cliAvailability: {
+                    claude: false,
+                    codex: false,
+                    grok: true,
+                    gemini: false,
+                    openclaw: false,
+                    detectedAt: 1,
+                },
+            },
+        }];
+        mocks.draft = createDraft({ agentType: 'grok' });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(false);
+        expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
+        expect(mocks.alert).toHaveBeenCalledWith(
+            'common.error',
+            'GrokBuild capability discovery failed. Run `grok login`.',
+        );
     });
 
     it('retries creation after the user approves a new directory', async () => {

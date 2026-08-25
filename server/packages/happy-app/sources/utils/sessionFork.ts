@@ -29,6 +29,12 @@ export function getSessionForkSource(session: Session): ForkSource | null {
         return null;
     }
 
+    // Generic ACP sessions can resume, but the protocol exposes no fork
+    // operation. Never interpret a future ACP identifier as a Claude fork.
+    if (session.metadata?.flavor === 'grok') {
+        return null;
+    }
+
     if (session.metadata?.flavor === 'codex') {
         const codexThreadId = session.metadata?.codexThreadId;
         if (!nonEmpty(codexThreadId)) {

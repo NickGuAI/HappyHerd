@@ -92,6 +92,7 @@ import {
 } from '@/sync/workspaceContext';
 import { buildWorkspaceAttachmentParams } from '@/utils/machineWorkspace';
 import { projectSessionQueue } from '@/sync/queueProjection';
+import { supportsImageAttachmentsForFlavor } from '@/sync/attachmentSupport';
 import { WorkspaceLinkSidePanel } from '@/components/WorkspaceLinkSidePanel';
 import {
     resolveActiveWorkspaceLinkPresentation,
@@ -819,38 +820,55 @@ export function SessionViewLoaded({
     const shouldShowCliWarning = isCliOutdated && !isAcknowledged;
     const flavor = session.metadata?.flavor;
     const isRig = isRigMetadata(session.metadata);
+    const isGrok = flavor === 'grok';
     const availableModels = React.useMemo(() => (
-        getSessionAvailableModels(flavor, session.metadata, sessionMachine?.metadata, t, session.modelMode)
-    ), [flavor, session.metadata, session.modelMode, sessionMachine?.metadata]);
+        getSessionAvailableModels(
+            flavor,
+            session.metadata,
+            sessionMachine?.metadata,
+            t,
+            session.modelMode ?? (isGrok ? session.metadata?.currentModelCode : undefined),
+        )
+    ), [flavor, isGrok, session.metadata, session.modelMode, sessionMachine?.metadata]);
     const availableModes = React.useMemo(() => (
-        getSessionAvailablePermissionModes(flavor, session.metadata, sessionMachine?.metadata, t, session.permissionMode)
-    ), [flavor, session.metadata, session.permissionMode, sessionMachine?.metadata]);
+        getSessionAvailablePermissionModes(
+            flavor,
+            session.metadata,
+            sessionMachine?.metadata,
+            t,
+            session.permissionMode ?? (isGrok ? session.metadata?.currentOperatingModeCode : undefined),
+        )
+    ), [flavor, isGrok, session.metadata, session.permissionMode, sessionMachine?.metadata]);
     const [agentDefaultOverrides, setAgentDefaultOverrides] = useSettingMutable('agentDefaultOverrides');
     const effectiveAgentDefaults = React.useMemo(() => (
         resolveAgentDefaultConfig(agentDefaultOverrides, flavor)
     ), [agentDefaultOverrides, flavor]);
 
     const permissionMode = React.useMemo<PermissionMode | null>(() => (
-        resolveCurrentOption(availableModes, [
-            session.permissionMode,
-            ...(isRig ? [
+        resolveCurrentOption(availableModes, isGrok
+            ? [session.permissionMode, session.metadata?.currentOperatingModeCode]
+            : [
+                session.permissionMode,
+                ...(isRig ? [
                 session.metadata?.currentOperatingModeCode,
                 session.metadata?.permissionMode,
                 session.metadata?.session?.permissionMode,
-            ] : [
-                effectiveAgentDefaults.permissionMode,
-                session.metadata?.currentOperatingModeCode,
-            ]),
-        ])
-    ), [availableModes, session.permissionMode, effectiveAgentDefaults.permissionMode, session.metadata?.currentOperatingModeCode, session.metadata?.permissionMode, session.metadata?.session?.permissionMode, isRig]);
+                ] : [
+                    effectiveAgentDefaults.permissionMode,
+                    session.metadata?.currentOperatingModeCode,
+                ]),
+            ])
+    ), [availableModes, session.permissionMode, effectiveAgentDefaults.permissionMode, session.metadata?.currentOperatingModeCode, session.metadata?.permissionMode, session.metadata?.session?.permissionMode, isGrok, isRig]);
 
     const modelMode = React.useMemo<ModelMode | null>(() => (
-        resolveCurrentOption(availableModels, [
-            session.modelMode,
-            isRig ? getRigCurrentModelOptionKey(session.metadata) : effectiveAgentDefaults.modelMode,
-            isRig ? undefined : session.metadata?.currentModelCode,
-        ])
-    ), [availableModels, session.modelMode, effectiveAgentDefaults.modelMode, session.metadata, isRig]);
+        resolveCurrentOption(availableModels, isGrok
+            ? [session.modelMode, session.metadata?.currentModelCode]
+            : [
+                session.modelMode,
+                isRig ? getRigCurrentModelOptionKey(session.metadata) : effectiveAgentDefaults.modelMode,
+                isRig ? undefined : session.metadata?.currentModelCode,
+            ])
+    ), [availableModels, session.modelMode, effectiveAgentDefaults.modelMode, session.metadata, isGrok, isRig]);
 
     // Effort level state
     const modelKey = modelMode?.key ?? 'default';
@@ -861,11 +879,13 @@ export function SessionViewLoaded({
         resolveAgentDefaultEffortLevel(agentDefaultOverrides, flavor, availableEffortLevels)
     ), [agentDefaultOverrides, flavor, availableEffortLevels]);
     const effortLevel = React.useMemo<EffortLevel | null>(() => (
-        resolveCurrentOption(availableEffortLevels, [
-            session.effortLevel,
-            isRig ? getRigReasoningSelection(session.metadata, modelKey) : effectiveEffortDefault,
-        ])
-    ), [availableEffortLevels, session.effortLevel, effectiveEffortDefault, session.metadata, modelKey, isRig]);
+        resolveCurrentOption(availableEffortLevels, isGrok
+            ? [session.effortLevel, session.metadata?.currentThoughtLevelCode]
+            : [
+                session.effortLevel,
+                isRig ? getRigReasoningSelection(session.metadata, modelKey) : effectiveEffortDefault,
+            ])
+    ), [availableEffortLevels, session.effortLevel, effectiveEffortDefault, session.metadata, modelKey, isGrok, isRig]);
 
     // Adopt an explicit effort already stored on an existing Codex session
     // when upgrading from builds that had no synchronized effort preference.
@@ -917,7 +937,8 @@ export function SessionViewLoaded({
     // Image attachment state (expImageUpload feature flag)
     const expImageUpload = useSetting('expImageUpload');
     const { selectedImages, pickImages, removeImage, clearImages, addImages } = useImagePicker();
-    const canUseAttachments = rigCanUseAttachments(session.metadata);
+    const canUseAttachments = rigCanUseAttachments(session.metadata)
+        && supportsImageAttachmentsForFlavor(flavor, session.metadata?.acpCapabilities);
     React.useEffect(() => {
         if (!canUseAttachments && selectedImages.length > 0) {
             clearImages();
@@ -1008,12 +1029,12 @@ export function SessionViewLoaded({
     // this input in its existing provider queue rather than steer it now.
     const sendComposerMessage = React.useCallback(async (deliveryMode?: 'queue') => {
         const liveMessage = composerHandleRef.current?.getMessage() ?? '';
-        if (!liveMessage.trim() && !(expImageUpload && selectedImages.length > 0) && selectedContextEntries.length === 0) {
+        if (!liveMessage.trim() && !(expImageUpload && canUseAttachments && selectedImages.length > 0) && selectedContextEntries.length === 0) {
             return;
         }
         try {
             const contextMessage = await buildWorkspaceContextMessage(sessionId, liveMessage, selectedContextEntries);
-            const attachments = expImageUpload ? selectedImages : undefined;
+            const attachments = expImageUpload && canUseAttachments ? selectedImages : undefined;
             const communicationsToDismiss = deliveryMode ? [] : [...pendingCommunications];
             await sync.sendMessage(sessionId, contextMessage.promptText, {
                 source: 'chat',
@@ -1023,7 +1044,7 @@ export function SessionViewLoaded({
                 awaitDelivery: communicationsToDismiss.length > 0,
             });
             composerHandleRef.current?.clearMessage();
-            if (expImageUpload) clearImages();
+            if (expImageUpload && canUseAttachments) clearImages();
             clearWorkspaceContextFiles(sessionId);
             const dismissals = await Promise.allSettled(communicationsToDismiss.map((communication) => (
                 sessionCancelCommunication(sessionId, communication.id, communication.kind)
@@ -1039,7 +1060,7 @@ export function SessionViewLoaded({
                 error instanceof Error ? error.message : t('happyHerd.composer.sendFailedBody'),
             );
         }
-    }, [sessionId, expImageUpload, selectedImages, selectedContextEntries, clearImages, pendingCommunications]);
+    }, [sessionId, expImageUpload, canUseAttachments, selectedImages, selectedContextEntries, clearImages, pendingCommunications]);
     const handleSend = React.useCallback(() => sendComposerMessage(), [sendComposerMessage]);
     const handleQueueMessage = React.useCallback(() => sendComposerMessage('queue'), [sendComposerMessage]);
 

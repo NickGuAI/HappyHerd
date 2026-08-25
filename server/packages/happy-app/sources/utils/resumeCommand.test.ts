@@ -42,6 +42,34 @@ describe('buildResumeCommand', () => {
             flavor: 'claude',
         })).toBeNull();
     });
+
+    it('builds the generic ACP GrokBuild resume command', () => {
+        expect(buildResumeCommand({
+            path: '/tmp/grok project',
+            flavor: 'grok',
+            acpSessionId: 'grok-session-1',
+            acpCapabilities: {
+                loadSession: true,
+            },
+        })).toBe("cd '/tmp/grok project' && happy grok --resume grok-session-1");
+    });
+
+    it('does not advertise GrokBuild resume when ACP rejects it', () => {
+        expect(buildResumeCommand({
+            flavor: 'grok',
+            acpSessionId: 'grok-session-1',
+            acpCapabilities: {
+                loadSession: false,
+            },
+        })).toBeNull();
+    });
+
+    it('does not advertise GrokBuild resume without ACP capability metadata', () => {
+        expect(buildResumeCommand({
+            flavor: 'grok',
+            acpSessionId: 'grok-session-1',
+        })).toBeNull();
+    });
 });
 
 describe('buildResumeCommandBlock', () => {

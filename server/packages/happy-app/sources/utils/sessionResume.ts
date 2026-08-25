@@ -21,6 +21,9 @@ export function getResumeAvailability(
     if (isRigMetadata(session.metadata) || session.metadata?.capabilities?.resume === false) {
         return { canResume: false, canShowResume: false, messageKey: null };
     }
+    if (session.metadata?.flavor === 'grok' && session.metadata?.acpCapabilities?.loadSession !== true) {
+        return { canResume: false, canShowResume: false, messageKey: null };
+    }
     if (isConnected) {
         return { canResume: false, canShowResume: false, messageKey: null };
     }
@@ -30,7 +33,11 @@ export function getResumeAvailability(
         return { canResume: false, canShowResume: true, messageKey: 'sessionInfo.resumeSessionMissingMachine' };
     }
 
-    const hasBackendResumeId = Boolean(session.metadata?.claudeSessionId || session.metadata?.codexThreadId);
+    const hasBackendResumeId = Boolean(
+        session.metadata?.claudeSessionId
+        || session.metadata?.codexThreadId
+        || (session.metadata?.flavor === 'grok' && session.metadata?.acpSessionId),
+    );
     if (!hasBackendResumeId) {
         return { canResume: false, canShowResume: true, messageKey: 'sessionInfo.resumeSessionMissingBackendId' };
     }

@@ -49,4 +49,16 @@ describe('getSessionForkSource', () => {
             },
         } as any)).toBeNull();
     });
+
+    it('keeps GrokBuild fork hidden even when an ACP session id is present', () => {
+        expect(getSessionForkSource({
+            id: 'happy-grok',
+            metadata: {
+                flavor: 'grok',
+                machineId: 'machine-1',
+                path: '/tmp/project',
+                acpSessionId: 'grok-acp-session',
+            },
+        } as any)).toBeNull();
+    });
 });

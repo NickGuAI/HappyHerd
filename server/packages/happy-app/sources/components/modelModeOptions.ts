@@ -18,6 +18,7 @@ export type ModeOption = {
     semanticKind?: string | null;
     disabled?: boolean;
     unavailable?: boolean;
+    isDefault?: boolean;
 };
 
 export type PermissionMode = ModeOption;
@@ -112,17 +113,23 @@ export function getMachineAdvertisedModels(
 ): ModelMode[] {
     const catalog = getMachineCatalog(metadata, flavor);
     if (!catalog) return [];
-    return includeUnavailableSelection(catalog.models.map((model) => ({
-        key: model.code,
-        name: model.value,
-        description: model.description ?? null,
-        isDefault: model.isDefault,
-        effortLevels: model.effortLevels?.map((effort) => ({
+    return includeUnavailableSelection(catalog.models.map((model) => {
+        const effortLevels = model.effortLevels?.map((effort) => ({
             key: effort.code,
             name: effort.value,
             description: effort.description ?? null,
-        })),
-    })), selectedKey, translate);
+            isDefault: effort.isDefault,
+        }));
+        return {
+            key: model.code,
+            name: model.value,
+            description: model.description ?? null,
+            isDefault: model.isDefault,
+            effortLevels,
+            thinkingLevels: effortLevels?.map((effort) => effort.key),
+            defaultThinkingLevel: effortLevels?.find((effort) => effort.isDefault)?.key ?? null,
+        };
+    }), selectedKey, translate);
 }
 
 export function getMachineAdvertisedPermissionModes(
@@ -137,6 +144,7 @@ export function getMachineAdvertisedPermissionModes(
         key: mode.code,
         name: mode.value,
         description: mode.description ?? null,
+        isDefault: mode.isDefault,
     })), selectedKey, translate);
 }
 
@@ -161,7 +169,14 @@ export function getMachineAdvertisedEffortLevels(
         key: effort.code,
         name: effort.value,
         description: effort.description ?? null,
+        isDefault: effort.isDefault,
     }));
+}
+
+export function getAdvertisedDefaultOptionKey(
+    options: ReadonlyArray<{ key: string; isDefault?: boolean }>,
+): string | null {
+    return options.find((option) => option.isDefault)?.key ?? null;
 }
 // Mode names are deliberately untranslated single words, because the composer
 // chip that shows the current mode has room for one word — see
@@ -302,6 +317,9 @@ export function getAgyPermissionModes(translate: Translate): PermissionMode[] {
 }
 
 export function getHardcodedPermissionModes(flavor: AgentFlavor, translate: Translate): PermissionMode[] {
+    if (flavor === 'grok') {
+        return [];
+    }
     if (flavor === 'codex') {
         return getCodexPermissionModes(translate);
     }
@@ -341,6 +359,9 @@ export function getAgyModelModes(): ModelMode[] {
 }
 
 export function getHardcodedModelModes(flavor: AgentFlavor, translate: Translate): ModelMode[] {
+    if (flavor === 'grok') {
+        return [];
+    }
     if (flavor === 'codex') {
         return getCodexModelModes();
     }
@@ -412,12 +433,22 @@ export function getAvailableModels(
         }
         return models;
     }
-    const metadataModels = mapMetadataOptions(metadata?.models);
+    const metadataModels = flavor === 'grok'
+        ? (metadata?.models ?? []).map((model) => ({
+            key: model.code,
+            name: model.value,
+            description: model.description ?? null,
+            thinkingLevels: model.thinkingLevels,
+            defaultThinkingLevel: model.defaultThinkingLevel ?? null,
+        }))
+        : mapMetadataOptions(metadata?.models);
     if (metadataModels.length > 0) {
         if (flavor === 'codex' && !metadataModels.some((model) => model.key === 'default')) {
             return [{ key: 'default', name: 'default model', description: null }, ...metadataModels];
         }
-        return metadataModels;
+        return flavor === 'grok'
+            ? includeUnavailableSelection(metadataModels, selectedKey, translate)
+            : metadataModels;
     }
     return includeConfiguredModel(
         flavor,
@@ -461,7 +492,10 @@ export function getAvailablePermissionModes(
 
     const metadataModes = mapMetadataOptions(metadata?.operatingModes);
     if (metadataModes.length > 0) {
-        return sortPermissionModes(hackModes(metadataModes));
+        const modes = sortPermissionModes(hackModes(metadataModes));
+        return flavor === 'grok'
+            ? includeUnavailableSelection(modes, selectedKey, translate)
+            : modes;
     }
 
     return hackModes(getHardcodedPermissionModes(flavor, translate));
@@ -556,6 +590,13 @@ export function getEffortLevelsForModel(
             name: level,
         }));
     }
+    if (flavor === 'grok') {
+        const selectedModel = metadata?.models?.find((model) => model.code === modelKey);
+        if (selectedModel?.thinkingLevels !== undefined) {
+            return effortLevels(selectedModel.thinkingLevels);
+        }
+        return mapMetadataOptions(metadata?.thoughtLevels);
+    }
     // Legacy/offline sessions use flavor fallbacks. Connected sessions use
     // the selected machine's model-specific provider catalog below.
     if (flavor === 'claude') {
@@ -571,8 +612,11 @@ function shouldUseMachineCapabilityCatalog(
     flavor: AgentFlavor,
     sessionMetadata: Metadata | null | undefined,
     machineMetadata: MachineMetadata | null | undefined,
+    hasRuntimeCatalog: boolean,
 ): boolean {
-    return !isRigMetadataV1(sessionMetadata) && getMachineCatalog(machineMetadata, flavor) !== null;
+    return !isRigMetadataV1(sessionMetadata)
+        && !(flavor === 'grok' && hasRuntimeCatalog)
+        && getMachineCatalog(machineMetadata, flavor) !== null;
 }
 
 /**
@@ -587,7 +631,12 @@ export function getSessionAvailableModels(
     translate: Translate,
     selectedKey?: string | null,
 ): ModelMode[] {
-    if (shouldUseMachineCapabilityCatalog(flavor, sessionMetadata, machineMetadata)) {
+    if (shouldUseMachineCapabilityCatalog(
+        flavor,
+        sessionMetadata,
+        machineMetadata,
+        sessionMetadata?.models !== undefined,
+    )) {
         return getMachineAdvertisedModels(machineMetadata, flavor, translate, selectedKey);
     }
     return getAvailableModels(flavor, sessionMetadata, translate, selectedKey);
@@ -600,7 +649,12 @@ export function getSessionAvailablePermissionModes(
     translate: Translate,
     selectedKey?: string | null,
 ): PermissionMode[] {
-    if (shouldUseMachineCapabilityCatalog(flavor, sessionMetadata, machineMetadata)) {
+    if (shouldUseMachineCapabilityCatalog(
+        flavor,
+        sessionMetadata,
+        machineMetadata,
+        sessionMetadata?.operatingModes !== undefined,
+    )) {
         return getMachineAdvertisedPermissionModes(machineMetadata, flavor, translate, selectedKey);
     }
     return getAvailablePermissionModes(flavor, sessionMetadata, translate, selectedKey);
@@ -612,7 +666,15 @@ export function getSessionEffortLevelsForModel(
     sessionMetadata: Metadata | null | undefined,
     machineMetadata: MachineMetadata | null | undefined,
 ): EffortLevel[] {
-    if (shouldUseMachineCapabilityCatalog(flavor, sessionMetadata, machineMetadata)) {
+    const runtimeModelEfforts = sessionMetadata?.models
+        ?.find((model) => model.code === modelKey)
+        ?.thinkingLevels;
+    if (shouldUseMachineCapabilityCatalog(
+        flavor,
+        sessionMetadata,
+        machineMetadata,
+        runtimeModelEfforts !== undefined || sessionMetadata?.thoughtLevels !== undefined,
+    )) {
         return getMachineAdvertisedEffortLevels(machineMetadata, flavor, modelKey);
     }
     return getEffortLevelsForModel(flavor, modelKey, sessionMetadata);

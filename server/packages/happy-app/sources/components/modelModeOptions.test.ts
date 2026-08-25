@@ -14,6 +14,9 @@ import {
     getDefaultModelKey,
     getEffortLevelsForModel,
     getDefaultPermissionModeKey,
+    getAdvertisedDefaultOptionKey,
+    getHardcodedModelModes,
+    getHardcodedPermissionModes,
     getMachineAdvertisedEffortLevels,
     getMachineAdvertisedModels,
     getMachineAdvertisedPermissionModes,
@@ -67,6 +70,154 @@ describe('modelModeOptions', () => {
         expect(getMachineAdvertisedEffortLevels(machineMetadata, 'codex', 'gpt-machine-only').map((mode) => mode.key)).toEqual([
             'ultra',
         ]);
+    });
+
+    it('uses only ACP-advertised GrokBuild options and their defaults', () => {
+        const machineMetadata = {
+            cliAvailability: {
+                claude: false,
+                codex: false,
+                gemini: false,
+                openclaw: false,
+                grok: true,
+                detectedAt: 1,
+            },
+            agentCapabilities: {
+                grok: {
+                    detectedAt: 1,
+                    sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'provider' },
+                    models: [
+                        {
+                            code: 'grok-fast',
+                            value: 'Grok Fast',
+                            effortLevels: [{ code: 'quick', value: 'Quick' }],
+                        },
+                        {
+                            code: 'grok-build',
+                            value: 'Grok Build',
+                            isDefault: true,
+                            effortLevels: [
+                                { code: 'quick', value: 'Quick' },
+                                { code: 'deep', value: 'Deep', isDefault: true },
+                            ],
+                        },
+                    ],
+                    effortLevels: [],
+                    permissionModes: [
+                        { code: 'ask-first', value: 'Ask first', isDefault: true },
+                        { code: 'auto', value: 'Automatic' },
+                    ],
+                },
+            },
+        } as any;
+
+        const models = getMachineAdvertisedModels(machineMetadata, 'grok', translate);
+        const modes = getMachineAdvertisedPermissionModes(machineMetadata, 'grok', translate);
+        const efforts = getMachineAdvertisedEffortLevels(machineMetadata, 'grok', 'grok-build');
+        expect(models.map((option) => option.key)).toEqual(['grok-fast', 'grok-build']);
+        expect(modes.map((option) => option.key)).toEqual(['ask-first', 'auto']);
+        expect(efforts.map((option) => option.key)).toEqual(['quick', 'deep']);
+        expect(getAdvertisedDefaultOptionKey(models)).toBe('grok-build');
+        expect(getAdvertisedDefaultOptionKey(modes)).toBe('ask-first');
+        expect(getAdvertisedDefaultOptionKey(efforts)).toBe('deep');
+        expect(getHardcodedModelModes('grok', translate)).toEqual([]);
+        expect(getHardcodedPermissionModes('grok', translate)).toEqual([]);
+    });
+
+    it('uses GrokBuild ACP session updates when the machine catalog is unavailable', () => {
+        const metadata = {
+            flavor: 'grok',
+            models: [{
+                code: 'grok-runtime',
+                value: 'Grok Runtime',
+                thinkingLevels: ['quick', 'deep'],
+            }],
+            currentModelCode: 'grok-runtime',
+            operatingModes: [{ code: 'ask-first', value: 'Ask first' }],
+            currentOperatingModeCode: 'ask-first',
+            thoughtLevels: [
+                { code: 'quick', value: 'Quick' },
+                { code: 'deep', value: 'Deep' },
+            ],
+            currentThoughtLevelCode: 'deep',
+        } as any;
+
+        expect(getAvailableModels('grok', metadata, translate).map((option) => option.key))
+            .toEqual(['grok-runtime']);
+        expect(getAvailablePermissionModes('grok', metadata, translate).map((option) => option.key))
+            .toEqual(['ask-first']);
+        expect(getEffortLevelsForModel('grok', 'grok-runtime', metadata).map((option) => option.key))
+            .toEqual(['quick', 'deep']);
+    });
+
+    it('prefers live GrokBuild ACP session updates over the machine initialize catalog', () => {
+        const machineMetadata = {
+            agentCapabilities: {
+                grok: {
+                    detectedAt: 1,
+                    sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'provider' },
+                    models: [{
+                        code: 'initialize-model',
+                        value: 'Initialize Model',
+                        effortLevels: [{ code: 'initialize-effort', value: 'Initialize Effort' }],
+                    }],
+                    effortLevels: [{ code: 'initialize-effort', value: 'Initialize Effort' }],
+                    permissionModes: [{ code: 'initialize-mode', value: 'Initialize Mode' }],
+                },
+            },
+        } as any;
+        const sessionMetadata = {
+            flavor: 'grok',
+            models: [{ code: 'runtime-model', value: 'Runtime Model', thinkingLevels: ['runtime-effort'] }],
+            currentModelCode: 'runtime-model',
+            operatingModes: [{ code: 'runtime-mode', value: 'Runtime Mode' }],
+            currentOperatingModeCode: 'runtime-mode',
+            thoughtLevels: [{ code: 'runtime-effort', value: 'Runtime Effort' }],
+            currentThoughtLevelCode: 'runtime-effort',
+        } as any;
+
+        expect(getSessionAvailableModels(
+            'grok', sessionMetadata, machineMetadata, translate, 'runtime-model',
+        ).map((option) => option.key)).toEqual(['runtime-model']);
+        expect(getSessionAvailablePermissionModes(
+            'grok', sessionMetadata, machineMetadata, translate, 'runtime-mode',
+        ).map((option) => option.key)).toEqual(['runtime-mode']);
+        expect(getSessionEffortLevelsForModel(
+            'grok', 'runtime-model', sessionMetadata, machineMetadata,
+        ).map((option) => option.key)).toEqual(['runtime-effort']);
+    });
+
+    it('applies partial GrokBuild runtime updates per capability dimension', () => {
+        const machineMetadata = {
+            agentCapabilities: {
+                grok: {
+                    detectedAt: 1,
+                    sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'provider' },
+                    models: [{
+                        code: 'machine-model',
+                        value: 'Machine Model',
+                        effortLevels: [{ code: 'machine-effort', value: 'Machine Effort' }],
+                    }],
+                    effortLevels: [{ code: 'machine-effort', value: 'Machine Effort' }],
+                    permissionModes: [{ code: 'machine-mode', value: 'Machine Mode' }],
+                },
+            },
+        } as any;
+        const sessionMetadata = {
+            flavor: 'grok',
+            operatingModes: [{ code: 'runtime-mode', value: 'Runtime Mode' }],
+            currentOperatingModeCode: 'runtime-mode',
+        } as any;
+
+        expect(getSessionAvailableModels(
+            'grok', sessionMetadata, machineMetadata, translate, 'machine-model',
+        ).map((option) => option.key)).toEqual(['machine-model']);
+        expect(getSessionAvailablePermissionModes(
+            'grok', sessionMetadata, machineMetadata, translate, 'runtime-mode',
+        ).map((option) => option.key)).toEqual(['runtime-mode']);
+        expect(getSessionEffortLevelsForModel(
+            'grok', 'machine-model', sessionMetadata, machineMetadata,
+        ).map((option) => option.key)).toEqual(['machine-effort']);
     });
 
     it('resolves the default model effort from the provider-designated default model', () => {

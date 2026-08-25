@@ -88,6 +88,8 @@ export interface AcpAgentConfig extends AgentBackendConfig {
  */
 export interface StartSessionResult {
   sessionId: SessionId;
+  /** Provider-owned resumable session identifier, when different from the local handle. */
+  providerSessionId?: string;
 }
 
 /**

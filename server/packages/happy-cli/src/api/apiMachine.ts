@@ -153,6 +153,7 @@ export class ApiMachineClient {
             ? {
                 ...this.machine.metadata.cliAvailability,
                 agy: this.machine.metadata.cliAvailability.agy ?? false,
+                grok: this.machine.metadata.cliAvailability.grok ?? false,
             }
             : null;
         this.lastKnownResumeSupport = this.machine.metadata?.resumeSupport ?? null;
@@ -588,6 +589,7 @@ export class ApiMachineClient {
             || prev.claude !== newAvailability.claude
             || prev.codex !== newAvailability.codex
             || prev.gemini !== newAvailability.gemini
+            || prev.grok !== newAvailability.grok
             || prev.openclaw !== newAvailability.openclaw
             || prev.agy !== newAvailability.agy;
         const resumeSupportChanged = !prevResume
@@ -621,10 +623,28 @@ export class ApiMachineClient {
 
         this.capabilitiesRefreshInFlight = (async () => {
             const availability = detectCLIAvailability();
-            const capabilities = await detectAgentCapabilities(availability);
+            let capabilities: Awaited<ReturnType<typeof detectAgentCapabilities>>;
+            try {
+                capabilities = await detectAgentCapabilities(availability);
+            } catch (error) {
+                const detail = error instanceof Error ? error.message : String(error);
+                this.lastCapabilitiesRefreshAt = Date.now();
+                await this.updateMachineMetadata((metadata) => {
+                    const current = metadata || {} as MachineMetadata;
+                    const { grok: _staleGrok, ...remainingCapabilities } = current.agentCapabilities ?? {};
+                    this.lastKnownCapabilitiesFingerprint = capabilityFingerprint(remainingCapabilities);
+                    return {
+                        ...current,
+                        cliAvailability: availability,
+                        agentCapabilities: remainingCapabilities,
+                        grokCapabilityError: detail,
+                    };
+                });
+                return;
+            }
             const fingerprint = capabilityFingerprint(capabilities);
             this.lastCapabilitiesRefreshAt = Date.now();
-            if (fingerprint === this.lastKnownCapabilitiesFingerprint) {
+            if (fingerprint === this.lastKnownCapabilitiesFingerprint && !this.machine.metadata?.grokCapabilityError) {
                 return;
             }
 
@@ -632,6 +652,7 @@ export class ApiMachineClient {
                 ...(metadata || {} as MachineMetadata),
                 cliAvailability: availability,
                 agentCapabilities: capabilities,
+                grokCapabilityError: undefined,
             }));
             this.lastKnownCapabilitiesFingerprint = fingerprint;
         })().catch((error) => {
