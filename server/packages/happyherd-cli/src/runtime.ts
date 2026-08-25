@@ -40,6 +40,10 @@ export function runHappy(args: string[], stdio: 'inherit' | 'pipe' = 'inherit'):
     env,
   });
   if (result.error) throw new Error(`Happy runtime could not start: ${result.error.message}`);
+  if (result.signal) {
+    process.kill(process.pid, result.signal);
+    return 1;
+  }
   return result.status ?? 1;
 }
 

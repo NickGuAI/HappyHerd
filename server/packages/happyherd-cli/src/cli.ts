@@ -9,7 +9,7 @@ import {
 } from './broker';
 import { currentTarget, runDoctor } from './doctor';
 import { checkUpgrade } from './release';
-import { launchAgent } from './runtime';
+import { launchAgent, runHappy } from './runtime';
 import { normalizeIssuer } from './contracts';
 import { packageIdentity } from './version';
 
@@ -36,7 +36,10 @@ Usage:
 
 Issuer credentials stay inside the OS-separated HappyHerd broker. The launcher
 never reads or exports them. Never paste a credential into chat, a URL, or a
-command-line argument.`;
+command-line argument.
+
+The governed commands above keep HappyHerd semantics. Every other invocation
+is forwarded unchanged to the bundled native Happy CLI.`;
 
 function option(args: string[], name: string): string | undefined {
   const index = args.indexOf(name);
@@ -195,7 +198,7 @@ export async function runCli(args: string[], dependencies: CliDependencies = {})
       }
       return 0;
     }
-    throw new Error(`unknown command: ${command}`);
+    return runHappy(args);
   } catch (error) {
     errorOutput(`error: ${error instanceof Error ? error.message : String(error)}`);
     return 1;
