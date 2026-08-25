@@ -5,6 +5,8 @@ const mocks = vi.hoisted(() => ({
     mockExistsSync: vi.fn(),
     mockSpawnHappyCLI: vi.fn(),
     mockResolveLocalReconnectableSession: vi.fn(),
+    mockHasLocalHappyAgentAuth: vi.fn(),
+    mockResolveHappySession: vi.fn(),
     mockPrepareCommanderContext: vi.fn(),
 }));
 
@@ -42,6 +44,18 @@ vi.mock('./localResumeStore', () => {
     return {
         LocalResumeSessionError: MockLocalResumeSessionError,
         resolveLocalReconnectableSession: mocks.mockResolveLocalReconnectableSession,
+    };
+});
+
+vi.mock('@/resume/localHappyAgentAuth', () => ({
+    hasLocalHappyAgentAuth: mocks.mockHasLocalHappyAgentAuth,
+}));
+
+vi.mock('./resolveHappySession', async () => {
+    const actual = await vi.importActual<typeof import('./resolveHappySession')>('./resolveHappySession');
+    return {
+        ...actual,
+        resolveHappySession: mocks.mockResolveHappySession,
     };
 });
 
@@ -98,6 +112,7 @@ beforeEach(() => {
     mocks.mockResolveLocalReconnectableSession.mockRejectedValue(
         new LocalResumeSessionError('no local session', 'not_found'),
     );
+    mocks.mockHasLocalHappyAgentAuth.mockReturnValue(false);
 });
 
 afterEach(() => {
@@ -202,6 +217,8 @@ describe('handleResumeCommand', () => {
 
         await handleResumeCommand(['session-1']);
 
+        expect(mocks.mockHasLocalHappyAgentAuth).not.toHaveBeenCalled();
+        expect(mocks.mockResolveHappySession).not.toHaveBeenCalled();
         expect(spawnHappyCLI).toHaveBeenCalledOnce();
         const [spawnArgs, spawnOptions] = mocks.mockSpawnHappyCLI.mock.calls[0];
         expect(spawnArgs).toEqual(['codex', '--resume', session.metadata.codexThreadId]);
@@ -227,7 +244,7 @@ describe('handleResumeCommand', () => {
         expect(spawnedEnv).not.toHaveProperty('CODEX_THREAD_ID');
     });
 
-    it('does not suggest happy-agent auth login when no local resume data exists', async () => {
+    it('does not suggest happy-agent auth login when no local resume data or agent.key exists', async () => {
         mocks.mockResolveLocalReconnectableSession.mockRejectedValue(
             new LocalResumeSessionError(
                 'Cannot resume Happy session "missing" on this machine: no local session encryption data found at /tmp/.happy/sessions.json.',
@@ -245,5 +262,42 @@ describe('handleResumeCommand', () => {
         expect((thrown as Error).message).toContain('no local session encryption data found');
         expect((thrown as Error).message).not.toContain('happy-agent auth login');
         expect(mocks.mockSpawnHappyCLI).not.toHaveBeenCalled();
+    });
+
+    it('falls back to legacy provider resume only when agent.key is already present', async () => {
+        mocks.mockHasLocalHappyAgentAuth.mockReturnValue(true);
+        mocks.mockResolveHappySession.mockResolvedValue({
+            id: 'legacy-session',
+            active: false,
+            metadata: {
+                path: '/tmp/repo',
+                flavor: 'claude',
+                claudeSessionId: '93a9705e-bc6a-406d-8dce-8acc014dedbd',
+                host: 'localhost',
+                homeDir: '/tmp',
+                happyHomeDir: '/tmp/.happy',
+                happyLibDir: '/tmp/happy',
+                happyToolsDir: '/tmp/happy/tools',
+            },
+        });
+        for (const key of SESSION_SCOPED_ENV_KEYS) {
+            vi.stubEnv(key, `stale-${key}`);
+        }
+
+        await handleResumeCommand(['legacy-session']);
+
+        expect(mocks.mockResolveHappySession).toHaveBeenCalledWith('legacy-session');
+        expect(spawnHappyCLI).toHaveBeenCalledWith(
+            ['claude', '--resume', '93a9705e-bc6a-406d-8dce-8acc014dedbd'],
+            expect.objectContaining({
+                cwd: '/tmp/repo',
+                env: expect.any(Object),
+                stdio: 'inherit',
+            }),
+        );
+        const spawnedEnv = mocks.mockSpawnHappyCLI.mock.calls[0][1].env;
+        for (const key of SESSION_SCOPED_ENV_KEYS) {
+            expect(spawnedEnv).not.toHaveProperty(key);
+        }
     });
 });

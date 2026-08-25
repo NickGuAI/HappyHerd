@@ -2,12 +2,13 @@ import { existsSync } from 'node:fs';
 
 import type { Metadata } from '@/api/types';
 import { encodeBase64 } from '@/api/encryption';
+import { hasLocalHappyAgentAuth } from '@/resume/localHappyAgentAuth';
 import { spawnHappyCLI } from '@/utils/spawnHappyCLI';
 import { buildSessionChildEnvironment, sanitizeSessionEnvironment } from '@/daemon/sessionEnvironment';
 import { contextEnvironment, prepareCommanderContext } from '@/agentContext/commanderContext';
 
 import { LocalResumeSessionError, resolveLocalReconnectableSession } from './localResumeStore';
-import { type ReconnectableHappySession, type ResumableHappySession } from './resolveHappySession';
+import { resolveHappySession, type ReconnectableHappySession, type ResumableHappySession } from './resolveHappySession';
 import { resolveCodexHomeForResume } from './codexHome';
 
 export type ResumeLaunch = {
@@ -140,6 +141,13 @@ function spawnResumeChild(launch: ResumeLaunch, env: NodeJS.ProcessEnv = sanitiz
     });
 }
 
+async function resolveLegacySessionIfAvailable(sessionId: string): Promise<ResumableHappySession | null> {
+    if (!hasLocalHappyAgentAuth()) {
+        return null;
+    }
+    return resolveHappySession(sessionId);
+}
+
 export async function handleResumeCommand(args: string[]): Promise<void> {
     const parsed = parseResumeCommandArgs(args);
     if (parsed.showHelp) {
@@ -172,5 +180,18 @@ export async function handleResumeCommand(args: string[]): Promise<void> {
         return;
     }
 
-    throw localError;
+    const session = await resolveLegacySessionIfAvailable(parsed.sessionId);
+    if (!session) {
+        throw localError;
+    }
+    const launch = buildResumeLaunch(session);
+
+    if (!existsSync(launch.cwd)) {
+        throw new Error(`Saved session path does not exist: ${launch.cwd}`);
+    }
+
+    const exitCode = await spawnResumeChild(launch);
+    if (typeof exitCode === 'number' && exitCode !== 0) {
+        process.exit(exitCode);
+    }
 }
