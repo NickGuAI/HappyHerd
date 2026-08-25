@@ -15,7 +15,7 @@ vi.mock('@/daemon/ensureDaemonRunning', () => ({
 
 import { handleAutomationCommand } from './automation';
 
-describe('handleAutomationCommand tags', () => {
+describe('handleAutomationCommand', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.ensureDaemonRunning.mockResolvedValue(undefined);
@@ -55,6 +55,44 @@ describe('handleAutomationCommand tags', () => {
       id: 'automation-id',
       input: { timeoutMinutes: 360 },
     });
+  });
+
+  it('forwards an explicit unbounded timeout on create and update', async () => {
+    await handleAutomationCommand([
+      'create',
+      '--name', 'Memory cleanup',
+      '--kind', 'memory-maintenance',
+      '--instruction', 'Distill all durable memory.',
+      '--schedule', '0 4 * * 0',
+      '--timezone', 'UTC',
+      '--workspace', '/srv/app',
+      '--rail', 'codex',
+      '--no-timeout',
+    ]);
+    expect(mocks.daemonAutomationAction).toHaveBeenNthCalledWith(1, 'create', {
+      input: expect.objectContaining({ timeoutMinutes: null }),
+    });
+
+    await handleAutomationCommand(['update', 'automation-id', '--no-timeout']);
+    expect(mocks.daemonAutomationAction).toHaveBeenNthCalledWith(2, 'update', {
+      id: 'automation-id',
+      input: { timeoutMinutes: null },
+    });
+  });
+
+  it('rejects conflicting timeout modes before daemon mutation', async () => {
+    await expect(handleAutomationCommand([
+      'update', 'automation-id', '--timeout-minutes', '360', '--no-timeout',
+    ])).rejects.toThrow('--timeout-minutes and --no-timeout cannot be combined');
+    await expect(handleAutomationCommand([
+      'update', 'automation-id', '--no-timeout', 'true',
+    ])).rejects.toThrow('--no-timeout does not accept a value');
+    expect(mocks.daemonAutomationAction).not.toHaveBeenCalled();
+  });
+
+  it('documents the mutually exclusive timeout controls', async () => {
+    await handleAutomationCommand(['--help']);
+    expect(console.log).toHaveBeenCalledWith(expect.stringContaining('[--timeout-minutes N | --no-timeout]'));
   });
 
   it('rejects malformed or out-of-range timeouts before daemon mutation', async () => {

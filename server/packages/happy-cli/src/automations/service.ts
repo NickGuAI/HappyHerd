@@ -228,7 +228,9 @@ export class HappyHerdAutomationService {
               runId,
               kind: automation.kind,
               instruction: automation.instruction,
-              timeoutMinutes: automation.timeoutMinutes ?? HAPPYHERD_AUTOMATION_DEFAULT_TIMEOUT_MINUTES,
+              timeoutMinutes: automation.timeoutMinutes === undefined
+                ? HAPPYHERD_AUTOMATION_DEFAULT_TIMEOUT_MINUTES
+                : automation.timeoutMinutes,
             },
           });
         } catch (error) {

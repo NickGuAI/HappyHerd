@@ -1,6 +1,7 @@
 # August 25 — Long-running automations keep their workers contained
 
 - Automation operators can set a validated per-schedule deadline from one minute through 24 hours; existing schedules retain the 60-minute default.
+- Automations whose providers must govern completion can be created or updated with `--no-timeout`, while ordinary and older schedules keep the 60-minute default.
 - On Unix hosts, a timed-out detached provider is terminated with its whole process group before the run is closed, so nested workers are not orphaned.
 
 # August 24 — HappyHerd decision inbox

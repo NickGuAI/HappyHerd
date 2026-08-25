@@ -5,6 +5,7 @@ import type { HappyHerdAutomationRun } from '@slopus/happy-wire';
 import {
   automationRunDeadlineAt,
   automationRunTimeoutMinutes,
+  scheduleAutomationRunDeadline,
   automationSessionMatchesRun,
   automationProviderCommandMatches,
   automationWebhookMatchesTrackedSession,
@@ -151,7 +152,7 @@ describe('daemon automation lifecycle guardrails', () => {
     expect(waitForExit).toHaveBeenCalledWith(42, 5_000);
   });
 
-  it('uses the snapshotted timeout and preserves the 60-minute default', () => {
+  it('uses the snapshotted timeout, preserves the 60-minute default, and keeps null unbounded', () => {
     const run = activeRun();
     const startedAt = Date.parse(run.startedAt);
     expect(automationRunTimeoutMinutes(automationMetadata())).toBe(60);
@@ -160,6 +161,41 @@ describe('daemon automation lifecycle guardrails', () => {
     expect(automationRunTimeoutMinutes(custom)).toBe(360);
     expect(automationRunDeadlineAt(run, custom)).toBe(startedAt + 360 * 60_000);
     expect(automationRunTimeoutMinutes(automationMetadata({ automationTimeoutMinutes: 0 }))).toBe(60);
+    const unbounded = automationMetadata({ automationTimeoutMinutes: null });
+    expect(automationRunTimeoutMinutes(unbounded)).toBeNull();
+    expect(automationRunDeadlineAt(run, unbounded)).toBeNull();
+    expect(resolveExitedAutomationProviderOutcome(run, trackedSession(unbounded), unbounded)).toMatchObject({
+      status: 'completed',
+      message: null,
+    });
+  });
+
+  it('does not arm an unbounded deadline and lets bounded deadline cleanup cancel firing', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.parse(activeRun().startedAt));
+    try {
+      const onDeadline = vi.fn();
+      expect(scheduleAutomationRunDeadline(
+        activeRun(),
+        automationMetadata({ automationTimeoutMinutes: null }),
+        onDeadline,
+      )).toBeNull();
+      vi.advanceTimersByTime(7 * 24 * 60 * 60_000);
+      expect(onDeadline).not.toHaveBeenCalled();
+
+      vi.setSystemTime(Date.parse(activeRun().startedAt));
+      const timer = scheduleAutomationRunDeadline(
+        activeRun(),
+        automationMetadata({ automationTimeoutMinutes: 1 }),
+        onDeadline,
+      );
+      expect(timer).not.toBeNull();
+      clearTimeout(timer!);
+      vi.advanceTimersByTime(60_000);
+      expect(onDeadline).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('matches only the expected daemon-started Happy provider command', () => {

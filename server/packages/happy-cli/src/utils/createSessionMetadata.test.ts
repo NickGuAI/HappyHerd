@@ -141,6 +141,7 @@ describe('createSessionMetadata', () => {
         process.env.HAPPYHERD_AUTOMATION_ID = automationId;
         process.env.HAPPYHERD_AUTOMATION_RUN_ID = runId;
         process.env.HAPPYHERD_AUTOMATION_KIND = 'heartbeat';
+        process.env.HAPPYHERD_AUTOMATION_TIMEOUT_MINUTES = 'unbounded';
         try {
             const automated = createSessionMetadata({
                 flavor: 'codex',
@@ -151,11 +152,13 @@ describe('createSessionMetadata', () => {
                 automationId,
                 automationRunId: runId,
                 automationKind: 'heartbeat',
+                automationTimeoutMinutes: null,
             });
         } finally {
             delete process.env.HAPPYHERD_AUTOMATION_ID;
             delete process.env.HAPPYHERD_AUTOMATION_RUN_ID;
             delete process.env.HAPPYHERD_AUTOMATION_KIND;
+            delete process.env.HAPPYHERD_AUTOMATION_TIMEOUT_MINUTES;
         }
 
         const ordinary = createSessionMetadata({

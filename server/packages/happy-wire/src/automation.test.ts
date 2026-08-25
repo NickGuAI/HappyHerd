@@ -100,8 +100,15 @@ describe('HappyHerd automation wire contract', () => {
       ...createInput,
       timeoutMinutes: 6 * HAPPYHERD_AUTOMATION_DEFAULT_TIMEOUT_MINUTES,
     }).timeoutMinutes).toBe(360);
+    const unbounded = HappyHerdAutomationCreateInputSchema.parse({
+      ...createInput,
+      timeoutMinutes: null,
+    });
+    expect(unbounded.timeoutMinutes).toBeNull();
+    expect(JSON.parse(JSON.stringify(unbounded)).timeoutMinutes).toBeNull();
     expect(HappyHerdAutomationUpdateInputSchema.parse({ name: 'Renamed' })).toEqual({ name: 'Renamed' });
     expect(HappyHerdAutomationUpdateInputSchema.parse({ timeoutMinutes: 360 })).toEqual({ timeoutMinutes: 360 });
+    expect(HappyHerdAutomationUpdateInputSchema.parse({ timeoutMinutes: null })).toEqual({ timeoutMinutes: null });
     expect(HappyHerdAutomationUpdateInputSchema.parse({ tags: [' z ', 'a'] }).tags).toEqual(['a', 'z']);
     for (const timeoutMinutes of [0, 1.5, HAPPYHERD_AUTOMATION_MAX_TIMEOUT_MINUTES + 1]) {
       expect(() => HappyHerdAutomationCreateInputSchema.parse({

@@ -390,7 +390,8 @@ export type Metadata = {
   automationId?: string
   automationRunId?: string
   automationKind?: 'scheduled' | 'heartbeat' | 'memory-maintenance'
-  automationTimeoutMinutes?: number
+  /** Undefined uses the legacy 60-minute default; null means no deadline. */
+  automationTimeoutMinutes?: number | null
   /** Provider-written only after the one-shot root and child work is terminal. */
   automationProviderOutcome?: HappyHerdAutomationProviderOutcome
 };
