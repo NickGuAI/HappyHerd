@@ -13,6 +13,10 @@ import type { InitializeResponse } from '@agentclientprotocol/sdk';
 
 type CapabilityOption = AgentCapabilityCatalog['models'][number];
 type CapabilityMap = Record<string, AgentCapabilityCatalog>;
+type CapabilityDiscoveryResult = {
+    capabilities: CapabilityMap;
+    grokCapabilityError?: string;
+};
 
 const CODEX_MODEL_DEFAULTS = [
     'gpt-5.6-sol',
@@ -356,8 +360,9 @@ export async function detectAgentCapabilities(
         loadCodexModels?: () => Promise<ModelListEntry[]>;
         loadGrokInitialize?: () => Promise<InitializeResponse>;
     },
-): Promise<CapabilityMap> {
+): Promise<CapabilityDiscoveryResult> {
     const catalogs = buildBaselineAgentCapabilities(availability);
+    let grokCapabilityError: string | undefined;
 
     if (availability.codex && catalogs.codex) {
         try {
@@ -390,13 +395,14 @@ export async function detectAgentCapabilities(
             catalogs.grok = buildGrokAcpCapabilityCatalog(initialize);
         } catch (error) {
             const detail = error instanceof Error ? error.message : String(error);
-            throw new Error(
-                `GrokBuild is installed but ACP capability discovery failed: ${detail}. Run \`grok login\`, then verify \`grok --no-auto-update agent stdio\` starts.`,
-            );
+            grokCapabilityError = `GrokBuild is installed but ACP capability discovery failed: ${detail}. Run \`grok login\`, then verify \`grok --no-auto-update agent stdio\` starts.`;
         }
     }
 
-    return catalogs;
+    return {
+        capabilities: catalogs,
+        ...(grokCapabilityError ? { grokCapabilityError } : {}),
+    };
 }
 
 export function capabilityFingerprint(capabilities: CapabilityMap): string {

@@ -112,7 +112,7 @@ describe('ApiMachineClient socket reconnection', () => {
             agy: false,
             detectedAt: 1,
         });
-        mockDetectAgentCapabilities.mockResolvedValue({});
+        mockDetectAgentCapabilities.mockResolvedValue({ capabilities: {} });
         socketHandlers = {};
         mockSocket = {
             connected: false,
@@ -190,33 +190,40 @@ describe('ApiMachineClient socket reconnection', () => {
         client.shutdown();
     });
 
-    it('publishes an actionable Grok capability error without retaining its stale catalog', async () => {
+    it('publishes the Grok error while retaining this run\'s fresh Codex catalog', async () => {
         const availability = {
             claude: false,
-            codex: false,
+            codex: true,
             gemini: false,
             grok: true,
             openclaw: false,
             agy: false,
             detectedAt: 2,
         };
-        const grokCatalog = {
+        const staleCatalog = {
             detectedAt: 1,
-            sources: { models: 'acp', effortLevels: 'acp', permissionModes: 'acp' },
+            sources: { models: 'stale', effortLevels: 'stale', permissionModes: 'stale' },
             models: [],
             effortLevels: [],
             permissionModes: [],
+        };
+        const freshCodexCatalog = {
+            ...staleCatalog,
+            detectedAt: 2,
+            sources: { ...staleCatalog.sources, models: 'codex-app-server:model/list' },
+            models: [{ code: 'gpt-fresh-codex', value: 'GPT Fresh Codex' }],
         };
         const machine = makeMachine();
         machine.metadata = {
             ...machine.metadata,
             cliAvailability: availability,
-            agentCapabilities: { grok: grokCatalog },
+            agentCapabilities: { codex: staleCatalog, grok: staleCatalog },
         };
         mockDetectCLIAvailability.mockReturnValue(availability);
-        mockDetectAgentCapabilities.mockRejectedValueOnce(new Error(
-            'GrokBuild is installed but ACP capability discovery failed: not authenticated. Run `grok login`.',
-        ));
+        mockDetectAgentCapabilities.mockResolvedValueOnce({
+            capabilities: { codex: freshCodexCatalog },
+            grokCapabilityError: 'GrokBuild is installed but ACP capability discovery failed: not authenticated. Run `grok login`.',
+        });
         mockSocket.emitWithAck.mockImplementation(async (_event: string, payload: { metadata: string }) => ({
             result: 'success',
             metadata: payload.metadata,
@@ -229,6 +236,7 @@ describe('ApiMachineClient socket reconnection', () => {
 
         expect(machine.metadata?.grokCapabilityError).toContain('Run `grok login`.');
         expect(machine.metadata?.agentCapabilities?.grok).toBeUndefined();
+        expect(machine.metadata?.agentCapabilities?.codex.models[0]?.code).toBe('gpt-fresh-codex');
         client.shutdown();
     });
 });

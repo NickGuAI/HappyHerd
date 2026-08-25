@@ -49,7 +49,7 @@ describe('agent capability discovery', () => {
     });
 
     it('accepts a new Codex model without a Web release', async () => {
-        const capabilities = await detectAgentCapabilities({
+        const { capabilities } = await detectAgentCapabilities({
             claude: false,
             codex: true,
             gemini: false,
@@ -85,7 +85,7 @@ describe('agent capability discovery', () => {
     });
 
     it('uses only app-server-compatible effort fallbacks when live Codex discovery is unavailable', async () => {
-        const capabilities = await detectAgentCapabilities({
+        const { capabilities } = await detectAgentCapabilities({
             claude: false,
             codex: true,
             gemini: false,
@@ -151,7 +151,7 @@ describe('agent capability discovery', () => {
         } as const;
 
         const catalog = buildGrokAcpCapabilityCatalog(initialize, 123);
-        const capabilities = await detectAgentCapabilities({
+        const { capabilities } = await detectAgentCapabilities({
             claude: false,
             codex: false,
             gemini: false,
@@ -182,16 +182,36 @@ describe('agent capability discovery', () => {
         expect(capabilities.grok.models[0].code).toBe('runtime-current');
     });
 
-    it('fails closed when an installed GrokBuild cannot publish its ACP catalog', async () => {
-        await expect(detectAgentCapabilities({
+    it('keeps the fresh Codex catalog when the installed GrokBuild probe fails', async () => {
+        const discovery = await detectAgentCapabilities({
             claude: false,
-            codex: false,
+            codex: true,
             gemini: false,
             grok: true,
             openclaw: false,
             agy: false,
             detectedAt: 1,
-        }, { loadGrokInitialize: async () => { throw new Error('not authenticated'); } }))
-            .rejects.toThrow('GrokBuild is installed but ACP capability discovery failed: not authenticated');
+        }, {
+            loadCodexModels: async () => [{
+                id: 'fresh-id',
+                model: 'gpt-fresh-codex',
+                displayName: 'GPT Fresh Codex',
+                description: 'Fresh from this discovery run',
+                hidden: false,
+                supportedReasoningEfforts: [
+                    { reasoningEffort: 'medium', description: 'Balanced' },
+                ],
+                defaultReasoningEffort: 'medium',
+                isDefault: true,
+            }],
+            loadGrokInitialize: async () => { throw new Error('not authenticated'); },
+        });
+
+        expect(discovery.capabilities.codex.sources.models).toBe('codex-app-server:model/list');
+        expect(discovery.capabilities.codex.models.map((model) => model.code)).toContain('gpt-fresh-codex');
+        expect(discovery.capabilities.grok).toBeUndefined();
+        expect(discovery.grokCapabilityError).toContain(
+            'GrokBuild is installed but ACP capability discovery failed: not authenticated',
+        );
     });
 });

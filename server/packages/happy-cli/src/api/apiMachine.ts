@@ -625,28 +625,14 @@ export class ApiMachineClient {
 
         this.capabilitiesRefreshInFlight = (async () => {
             const availability = detectCLIAvailability();
-            let capabilities: Awaited<ReturnType<typeof detectAgentCapabilities>>;
-            try {
-                capabilities = await detectAgentCapabilities(availability);
-            } catch (error) {
-                const detail = error instanceof Error ? error.message : String(error);
-                this.lastCapabilitiesRefreshAt = Date.now();
-                await this.updateMachineMetadata((metadata) => {
-                    const current = metadata || {} as MachineMetadata;
-                    const { grok: _staleGrok, ...remainingCapabilities } = current.agentCapabilities ?? {};
-                    this.lastKnownCapabilitiesFingerprint = capabilityFingerprint(remainingCapabilities);
-                    return {
-                        ...current,
-                        cliAvailability: availability,
-                        agentCapabilities: remainingCapabilities,
-                        grokCapabilityError: detail,
-                    };
-                });
-                return;
-            }
+            const discovery = await detectAgentCapabilities(availability);
+            const capabilities = discovery.capabilities;
             const fingerprint = capabilityFingerprint(capabilities);
             this.lastCapabilitiesRefreshAt = Date.now();
-            if (fingerprint === this.lastKnownCapabilitiesFingerprint && !this.machine.metadata?.grokCapabilityError) {
+            if (
+                fingerprint === this.lastKnownCapabilitiesFingerprint
+                && discovery.grokCapabilityError === this.machine.metadata?.grokCapabilityError
+            ) {
                 return;
             }
 
@@ -654,7 +640,7 @@ export class ApiMachineClient {
                 ...(metadata || {} as MachineMetadata),
                 cliAvailability: availability,
                 agentCapabilities: capabilities,
-                grokCapabilityError: undefined,
+                grokCapabilityError: discovery.grokCapabilityError,
             }));
             this.lastKnownCapabilitiesFingerprint = fingerprint;
         })().catch((error) => {
