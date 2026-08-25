@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { View, Text, Animated, Platform } from 'react-native';
+import { View, Text, Animated, Platform, Pressable, TextInput, ActivityIndicator } from 'react-native';
 import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Typography } from '@/constants/Typography';
@@ -11,7 +11,7 @@ import { useSession, useIsDataReady, useSessionProjectAvatar } from '@/sync/stor
 import { getSessionName, useSessionStatus, formatOSPlatform, formatPathRelativeToHome, getSessionAvatarId, getResumeCommand } from '@/utils/sessionUtils';
 import * as Clipboard from 'expo-clipboard';
 import { Modal } from '@/modal';
-import { sessionArchive, sessionKill, sessionDelete } from '@/sync/ops';
+import { machineControlHeartbeat, sessionArchive, sessionKill, sessionDelete } from '@/sync/ops';
 import { maybeCleanupWorktree } from '@/hooks/useWorktreeCleanup';
 import { useUnistyles } from 'react-native-unistyles';
 import { layout } from '@/components/layout';
@@ -26,6 +26,12 @@ import { HappyError } from '@/utils/errors';
 import { MobileGlassSurface } from '@/components/MobileGlass';
 import { getRigIdentity, isRigMetadata } from '@/sync/rig';
 import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
+import { ProviderIcon } from '@/components/ProviderIcon';
+import {
+    HAPPYHERD_HEARTBEAT_STANDARD_INSTRUCTION,
+    type HappyHerdHeartbeatControlResponse,
+} from '@slopus/happy-wire';
+import { formatHeartbeatStatusPresentation } from '@/utils/heartbeatCommand';
 
 const DEFAULT_RIG_NAME = 'Rig';
 
@@ -135,6 +141,22 @@ function SessionInfoContent({ session }: { session: Session }) {
     const devModeEnabled = __DEV__;
     const sessionName = getSessionName(session);
     const sessionStatus = useSessionStatus(session);
+    const heartbeatSupported = Boolean(
+        session.metadata?.machineId
+        && ((session.metadata.flavor ?? 'claude') === 'claude' || session.metadata.flavor === 'codex')
+        && ((session.metadata.flavor ?? 'claude') === 'codex'
+            ? session.metadata.codexThreadId
+            : session.metadata.claudeSessionId),
+    );
+    const [heartbeatResponse, setHeartbeatResponse] = React.useState<HappyHerdHeartbeatControlResponse | null>(null);
+    const [heartbeatBusy, setHeartbeatBusy] = React.useState(false);
+    const [heartbeatError, setHeartbeatError] = React.useState<string | null>(null);
+    const [heartbeatInterval, setHeartbeatInterval] = React.useState('30');
+    const [heartbeatUnit, setHeartbeatUnit] = React.useState<'s' | 'm' | 'h' | 'd'>('m');
+    const [heartbeatInstruction, setHeartbeatInstruction] = React.useState('');
+    const heartbeatPresentation = heartbeatResponse
+        ? formatHeartbeatStatusPresentation(heartbeatResponse, (key, params) => (t as any)(key, params))
+        : null;
     const {
         canShowResume,
         canFork,
@@ -144,6 +166,60 @@ function SessionInfoContent({ session }: { session: Session }) {
         resumeSession,
         resumeSessionSubtitle,
     } = useSessionQuickActions(session);
+
+    const applyHeartbeatResponse = useCallback((response: HappyHerdHeartbeatControlResponse) => {
+        setHeartbeatResponse(response);
+        const definition = response.heartbeat;
+        if (!definition) return;
+        const unit: 's' | 'm' | 'h' | 'd' = definition.intervalSeconds % 86_400 === 0
+            ? 'd'
+            : definition.intervalSeconds % 3_600 === 0
+                ? 'h'
+                : definition.intervalSeconds % 60 === 0
+                    ? 'm'
+                    : 's';
+        const multiplier = unit === 'd' ? 86_400 : unit === 'h' ? 3_600 : unit === 'm' ? 60 : 1;
+        setHeartbeatInterval(String(definition.intervalSeconds / multiplier));
+        setHeartbeatUnit(unit);
+        setHeartbeatInstruction(definition.instruction === HAPPYHERD_HEARTBEAT_STANDARD_INSTRUCTION
+            ? ''
+            : definition.instruction);
+    }, []);
+
+    const runHeartbeatAction = useCallback(async (action: Parameters<typeof machineControlHeartbeat>[1]) => {
+        const machineId = session.metadata?.machineId;
+        if (!machineId) return;
+        setHeartbeatBusy(true);
+        setHeartbeatError(null);
+        try {
+            applyHeartbeatResponse(await machineControlHeartbeat(machineId, action));
+        } catch (error) {
+            setHeartbeatError(error instanceof Error ? error.message : t('happyHerd.heartbeat.unavailable'));
+        } finally {
+            setHeartbeatBusy(false);
+        }
+    }, [applyHeartbeatResponse, session.metadata?.machineId]);
+
+    React.useEffect(() => {
+        if (!heartbeatSupported || !session.metadata?.machineId) return;
+        void runHeartbeatAction({ action: 'status', targetSessionId: session.id });
+    }, [heartbeatSupported, runHeartbeatAction, session.id, session.metadata?.machineId]);
+
+    const saveHeartbeat = useCallback(() => {
+        const value = Number(heartbeatInterval);
+        const multiplier = heartbeatUnit === 'd' ? 86_400 : heartbeatUnit === 'h' ? 3_600 : heartbeatUnit === 'm' ? 60 : 1;
+        const intervalSeconds = value * multiplier;
+        if (!Number.isInteger(value) || value <= 0 || !Number.isSafeInteger(intervalSeconds) || intervalSeconds < 60) {
+            setHeartbeatError(t('happyHerd.heartbeat.minimum'));
+            return;
+        }
+        void runHeartbeatAction({
+            action: 'set',
+            targetSessionId: session.id,
+            intervalSeconds,
+            instruction: heartbeatInstruction.trim() || null,
+        });
+    }, [heartbeatInstruction, heartbeatInterval, heartbeatUnit, runHeartbeatAction, session.id]);
 
     // Check if CLI version is outdated
     const isCliOutdated = session.metadata?.version && !isVersionSupported(session.metadata.version, MINIMUM_CLI_VERSION);
@@ -379,6 +455,104 @@ function SessionInfoContent({ session }: { session: Session }) {
                     />
                 </ItemGroup>
 
+                {heartbeatSupported && (
+                    <ItemGroup title={t('happyHerd.heartbeat.title')}>
+                        <Item
+                            title={heartbeatPresentation
+                                ? heartbeatPresentation.summary
+                                : t('happyHerd.heartbeat.notConfigured')}
+                            subtitle={heartbeatPresentation?.details.join('\n')}
+                            icon={<Ionicons name="heart-outline" size={29} color="#FF3B30" />}
+                            showChevron={false}
+                        />
+                        <View style={{ paddingHorizontal: 16, paddingBottom: 16, gap: 12 }}>
+                            <Text style={{ color: theme.colors.textSecondary }}>{t('happyHerd.heartbeat.every')}</Text>
+                            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                                <TextInput
+                                    value={heartbeatInterval}
+                                    onChangeText={setHeartbeatInterval}
+                                    keyboardType="number-pad"
+                                    accessibilityLabel={t('happyHerd.heartbeat.interval')}
+                                    style={{
+                                        flex: 1,
+                                        minHeight: 42,
+                                        borderWidth: 1,
+                                        borderColor: theme.colors.divider,
+                                        borderRadius: 10,
+                                        color: theme.colors.text,
+                                        paddingHorizontal: 12,
+                                    }}
+                                />
+                                {(['s', 'm', 'h', 'd'] as const).map((unit) => (
+                                    <Pressable
+                                        key={unit}
+                                        onPress={() => setHeartbeatUnit(unit)}
+                                        style={{
+                                            paddingHorizontal: 12,
+                                            paddingVertical: 10,
+                                            borderRadius: 10,
+                                            backgroundColor: heartbeatUnit === unit ? theme.colors.textLink : theme.colors.surfaceHigh,
+                                        }}
+                                    >
+                                        <Text style={{ color: heartbeatUnit === unit ? theme.colors.surface : theme.colors.text }}>{unit}</Text>
+                                    </Pressable>
+                                ))}
+                            </View>
+                            <TextInput
+                                value={heartbeatInstruction}
+                                onChangeText={setHeartbeatInstruction}
+                                placeholder={t('happyHerd.heartbeat.instructionPlaceholder')}
+                                placeholderTextColor={theme.colors.textSecondary}
+                                multiline
+                                style={{
+                                    minHeight: 72,
+                                    borderWidth: 1,
+                                    borderColor: theme.colors.divider,
+                                    borderRadius: 10,
+                                    color: theme.colors.text,
+                                    padding: 12,
+                                }}
+                            />
+                            {heartbeatError && <Text style={{ color: theme.colors.textDestructive }}>{heartbeatError}</Text>}
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                                <Pressable onPress={saveHeartbeat} disabled={heartbeatBusy} style={{ padding: 10 }}>
+                                    {heartbeatBusy
+                                        ? <ActivityIndicator />
+                                        : <Text style={{ color: theme.colors.textLink }}>{t('common.save')}</Text>}
+                                </Pressable>
+                                {heartbeatResponse?.heartbeat && (
+                                    <Pressable
+                                        onPress={() => void runHeartbeatAction({
+                                            action: heartbeatResponse.heartbeat?.status === 'paused' ? 'resume' : 'pause',
+                                            targetSessionId: session.id,
+                                        })}
+                                        disabled={heartbeatBusy}
+                                        style={{ padding: 10 }}
+                                    >
+                                        <Text style={{ color: theme.colors.textLink }}>
+                                            {heartbeatResponse.heartbeat.status === 'paused'
+                                                ? t('happyHerd.heartbeat.resume')
+                                                : t('happyHerd.heartbeat.pause')}
+                                        </Text>
+                                    </Pressable>
+                                )}
+                                {heartbeatResponse?.heartbeat && (
+                                    <Pressable
+                                        onPress={() => void runHeartbeatAction({ action: 'clear', targetSessionId: session.id })}
+                                        disabled={heartbeatBusy}
+                                        style={{ padding: 10 }}
+                                    >
+                                        <Text style={{ color: theme.colors.textDestructive }}>{t('happyHerd.heartbeat.clear')}</Text>
+                                    </Pressable>
+                                )}
+                                <Pressable onPress={() => router.push('/automations')} style={{ padding: 10 }}>
+                                    <Text style={{ color: theme.colors.textLink }}>{t('happyHerd.heartbeat.automation')}</Text>
+                                </Pressable>
+                            </View>
+                        </View>
+                    </ItemGroup>
+                )}
+
                 {/* Quick Actions */}
                 <ItemGroup title={t('sessionInfo.quickActions')}>
                     {session.metadata?.machineId && (
@@ -427,6 +601,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                         subtitle={t('sessionInfo.archiveSessionSubtitle')}
                         icon={<Ionicons name="archive-outline" size={29} color="#FF3B30" />}
                         onPress={handleArchiveSession}
+                        loading={archivingSession}
                     />
                     <Item
                         title={t('sessionInfo.deleteSession')}
@@ -486,15 +661,22 @@ function SessionInfoContent({ session }: { session: Session }) {
                                 if (flavor === 'gpt' || flavor === 'openai') return 'Codex';
                                 if (flavor === 'gemini') return 'Gemini';
                                 if (flavor === 'openclaw') return 'OpenClaw';
+                                if (flavor === 'grok') return t('agentInput.agent.grok');
                                 return flavor;
                             })()}
-                            icon={<Ionicons name="sparkles-outline" size={29} color="#5856D6" />}
+                            icon={session.metadata.flavor === 'grok'
+                                ? <ProviderIcon kind="grok" size={29} />
+                                : <Ionicons name="sparkles-outline" size={29} color="#5856D6" />}
                             showChevron={false}
                         />
-                        {getRigIdentity(session.metadata)?.modelName && (
+                        {(getRigIdentity(session.metadata)?.modelName || (
+                            session.metadata.flavor === 'grok' && session.metadata.currentModelCode
+                        )) && (
                             <Item
                                 title={t("uiCopy.model")}
-                                subtitle={getRigIdentity(session.metadata)!.modelName!}
+                                subtitle={getRigIdentity(session.metadata)?.modelName
+                                    ?? session.metadata?.models?.find((model) => model.code === session.metadata?.currentModelCode)?.value
+                                    ?? session.metadata?.currentModelCode}
                                 icon={<Ionicons name="hardware-chip-outline" size={29} color="#5856D6" />}
                                 showChevron={false}
                             />

@@ -36,6 +36,7 @@ describe('happyHerdAutomationCardPresentation', () => {
             workspace: '/srv/workspace',
             commanderId: null,
             tags: ['Operations', 'Project Beacon'],
+            targetSessionId: null,
         });
     });
 });

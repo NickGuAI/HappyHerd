@@ -1,14 +1,19 @@
 {
   "entries": [
     {
+      "title": "August 25 — GrokBuild, session heartbeats, and completion-owned automations",
+      "summary": "",
+      "markdown": "- Automations no longer impose a run deadline: the provider owns completion, while historical timed-out runs remain visible as failed history.\n- Private, bounded `/automations` profiling separates route, RPC, daemon, and render time without recording user content or claiming a performance fix before production evidence exists.\n- `happyherd` forwards native Happy commands while its governed commands keep precedence.\n- GrokBuild sessions use the existing ACP runtime, with models, reasoning effort, permissions, and original-machine resume driven by the connected provider.\n- One exact-session heartbeat can return a recurring instruction to the same resumable Claude or Codex conversation through the existing queued-message path."
+    },
+    {
+      "title": "August 25 — Machine status stays steady and Archive responds immediately",
+      "summary": "",
+      "markdown": "- A page-load machine snapshot can no longer overwrite newer live presence, so sessions do not blink offline before the daemon's next heartbeat.\n- Archive on Session Info shows progress immediately and blocks repeat taps while the existing archive request finishes."
+    },
+    {
       "title": "August 25 — Existing sessions keep their context after updates",
       "summary": "",
       "markdown": "- Recent and older sessions retain their reconnect records across daemon restarts and CLI updates instead of expiring after 14 days.\n- Codex resumes the original thread from the provider state home that created it, even when the replacement daemon starts with a different home.\n- An already-pruned local record can be rebuilt from its original local legacy key while preserving the same Happy session and machine."
-    },
-    {
-      "title": "August 25 — Long-running automations keep their workers contained",
-      "summary": "",
-      "markdown": "- Automation operators can set a validated per-schedule deadline from one minute through 24 hours; existing schedules retain the 60-minute default.\n- Automations whose providers must govern completion can be created or updated with `--no-timeout`, while ordinary and older schedules keep the 60-minute default.\n- On Unix hosts, a timed-out detached provider is terminated with its whole process group before the run is closed, so nested workers are not orphaned."
     },
     {
       "title": "August 24 — HappyHerd decision inbox",
@@ -231,5 +236,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 25 — Existing sessions keep their context after updates"
+  "latestTitle": "August 25 — GrokBuild, session heartbeats, and completion-owned automations"
 }

@@ -41,4 +41,19 @@ describe('CLI availability detection', () => {
 
     expect(detectCLIAvailability().agy).toBe(true);
   });
+
+  it('detects the Grok CLI by its executable name', () => {
+    mockedExecSync.mockImplementation((command) => {
+      if (String(command).includes('command -v grok')) return Buffer.from('');
+      throw new Error('not installed');
+    });
+
+    const availability = detectCLIAvailability();
+
+    expect(availability.grok).toBe(true);
+    expect(mockedExecSync).toHaveBeenCalledWith(
+      'command -v grok >/dev/null 2>&1',
+      { stdio: 'ignore' },
+    );
+  });
 });

@@ -44,8 +44,8 @@ export function enableMonitoring(app: Fastify) {
     app.addHook('onResponse', async (request, reply) => {
         const duration = (Date.now() - (request.startTime || Date.now())) / 1000;
         const method = request.method;
-        // Use routeOptions.url for the route template, fallback to parsed URL path
-        const route = request.routeOptions?.url || request.url.split('?')[0] || 'unknown';
+        // Keep metrics bounded: unmatched paths do not have a route template.
+        const route = request.routeOptions?.url || 'other';
         const status = reply.statusCode.toString();
         const labels = getMetricsLabelsFromRequest(request);
 

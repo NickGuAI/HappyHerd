@@ -55,4 +55,80 @@ describe('getResumeAvailability', () => {
             canShowResume: false,
         });
     });
+
+    it('offers GrokBuild resume only with its stored ACP id on the original online machine', () => {
+        const session = resumableSession();
+        session.metadata = {
+            ...session.metadata,
+            flavor: 'grok',
+            codexThreadId: undefined,
+            acpSessionId: 'grok-acp-session',
+            acpCapabilities: {
+                loadSession: true,
+                prompt: { image: false },
+            },
+        } as Session['metadata'];
+
+        expect(getResumeAvailability(session, onlineMachine(), false)).toMatchObject({
+            canResume: true,
+            canShowResume: true,
+        });
+        expect(getResumeAvailability(session, null, false)).toMatchObject({
+            canResume: false,
+            messageKey: 'sessionInfo.resumeSessionSameMachineOnly',
+        });
+    });
+
+    it('hides GrokBuild resume when ACP loadSession is false', () => {
+        const session = resumableSession();
+        session.metadata = {
+            ...session.metadata,
+            flavor: 'grok',
+            codexThreadId: undefined,
+            acpSessionId: 'grok-acp-session',
+            acpCapabilities: {
+                loadSession: false,
+                prompt: { image: false },
+            },
+        } as Session['metadata'];
+
+        expect(getResumeAvailability(session, onlineMachine(), false)).toEqual({
+            canResume: false,
+            canShowResume: false,
+            messageKey: null,
+        });
+    });
+
+    it('hides GrokBuild resume when ACP capability metadata is absent', () => {
+        const session = resumableSession();
+        session.metadata = {
+            ...session.metadata,
+            flavor: 'grok',
+            codexThreadId: undefined,
+            acpSessionId: 'grok-acp-session',
+            acpCapabilities: undefined,
+        } as Session['metadata'];
+
+        expect(getResumeAvailability(session, onlineMachine(), false)).toEqual({
+            canResume: false,
+            canShowResume: false,
+            messageKey: null,
+        });
+    });
+
+    it('does not treat an ACP id as resumable for an unknown flavor', () => {
+        const session = resumableSession();
+        session.metadata = {
+            ...session.metadata,
+            flavor: 'future-acp-provider',
+            codexThreadId: undefined,
+            acpSessionId: 'future-acp-session',
+        } as Session['metadata'];
+
+        expect(getResumeAvailability(session, onlineMachine(), false)).toEqual({
+            canResume: false,
+            canShowResume: true,
+            messageKey: 'sessionInfo.resumeSessionMissingBackendId',
+        });
+    });
 });

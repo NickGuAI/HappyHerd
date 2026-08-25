@@ -50,13 +50,33 @@ import { isMachineOnline } from '@/utils/machineUtils';
 import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
+import {
+    automationProfileStart,
+    profileAutomationRpc,
+    recordAutomationProfile,
+} from '@/utils/automationProfiling';
 
 const automationMachineActions = createHappyHerdAutomationMachineActions({
-    pause: machinePauseAutomation,
-    resume: machineResumeAutomation,
-    runNow: machineRunAutomationNow,
-    history: machineAutomationHistory,
-    delete: machineDeleteAutomation,
+    pause: (machineId, automationId) => profileAutomationRpc(
+        'happyherd-automations-pause',
+        () => machinePauseAutomation(machineId, automationId),
+    ),
+    resume: (machineId, automationId) => profileAutomationRpc(
+        'happyherd-automations-resume',
+        () => machineResumeAutomation(machineId, automationId),
+    ),
+    runNow: (machineId, automationId) => profileAutomationRpc(
+        'happyherd-automations-run-now',
+        () => machineRunAutomationNow(machineId, automationId),
+    ),
+    history: (machineId, automationId) => profileAutomationRpc(
+        'happyherd-automations-history',
+        () => machineAutomationHistory(machineId, automationId),
+    ),
+    delete: (machineId, automationId) => profileAutomationRpc(
+        'happyherd-automations-delete',
+        () => machineDeleteAutomation(machineId, automationId),
+    ),
 });
 
 type Draft = {
@@ -103,6 +123,9 @@ function emptyDraft(homeDir?: string): Draft {
 }
 
 function draftFromAutomation(automation: HappyHerdAutomation): Draft {
+    if (automation.kind === 'heartbeat') {
+        throw new Error('Session heartbeats are configured from their target session');
+    }
     return {
         name: automation.name,
         kind: automation.kind,
@@ -241,6 +264,10 @@ export default function AutomationsScreen() {
     const [draft, setDraft] = React.useState<Draft>(() => emptyDraft());
     const [history, setHistory] = React.useState<Record<string, HappyHerdAutomationRun[]>>({});
     const [projectMachineIds, setProjectMachineIds] = React.useState<Record<string, string>>({});
+    const routeStartedAtRef = React.useRef<number | null>(null);
+    const initialDataReadyAtRef = React.useRef<number | null>(null);
+    const initialRenderProfiledRef = React.useRef(false);
+    if (routeStartedAtRef.current === null) routeStartedAtRef.current = automationProfileStart();
     const formMachineId = editingMachineId ?? machineId;
     const formMachine = machines.find((candidate) => candidate.id === formMachineId) ?? null;
     const formMachineExists = formMachine !== null;
@@ -273,13 +300,32 @@ export default function AutomationsScreen() {
     const refresh = React.useCallback(async () => {
         setLoading(true);
         try {
-            const result = await loadHappyHerdAutomationMachines(onlineMachinesRef.current, machineListAutomations);
+            const result = await loadHappyHerdAutomationMachines(
+                onlineMachinesRef.current,
+                (targetMachineId) => profileAutomationRpc(
+                    'happyherd-automations-list',
+                    () => machineListAutomations(targetMachineId),
+                ),
+            );
             setMachineCollections(result.collections);
             setMachineFailures(result.failures);
         } finally {
+            if (initialDataReadyAtRef.current === null) {
+                initialDataReadyAtRef.current = automationProfileStart();
+            }
             setLoading(false);
         }
     }, []);
+
+    React.useEffect(() => {
+        const dataReadyAt = initialDataReadyAtRef.current;
+        const routeStartedAt = routeStartedAtRef.current;
+        if (loading || initialRenderProfiledRef.current || dataReadyAt === null || routeStartedAt === null) return;
+
+        initialRenderProfiledRef.current = true;
+        recordAutomationProfile('render', 'commit', 'success', dataReadyAt);
+        recordAutomationProfile('route', 'total', 'success', routeStartedAt);
+    }, [loading, machineCollections, machineFailures]);
 
     useFocusEffect(
         React.useCallback(() => {
@@ -295,7 +341,10 @@ export default function AutomationsScreen() {
             return () => { cancelled = true; };
         }
         setError(null);
-        void machineListCommanders(formMachineId).then(
+        void profileAutomationRpc(
+            'happyherd-list-commanders',
+            () => machineListCommanders(formMachineId),
+        ).then(
             (result) => {
                 if (!cancelled) setCommanders(result.commanders);
             },
@@ -337,12 +386,16 @@ export default function AutomationsScreen() {
     }, []);
 
     const openEdit = React.useCallback((automation: HappyHerdAutomation) => {
+        if (automation.kind === 'heartbeat') {
+            navigateToSession(automation.targetSessionId);
+            return;
+        }
         setMachineId(automation.machineId);
         setEditingId(automation.id);
         setEditingMachineId(automation.machineId);
         setDraft(draftFromAutomation(automation));
         setFormVisible(true);
-    }, []);
+    }, [navigateToSession]);
 
     const save = React.useCallback(async () => {
         const targetMachineId = editingMachineId ?? machineId;
@@ -363,9 +416,15 @@ export default function AutomationsScreen() {
                 ...happyHerdAutomationTagInput(draft.tags, selectedDefinitionSchemaVersion),
             };
             if (editingId) {
-                await machineUpdateAutomation(targetMachineId, editingId, input);
+                await profileAutomationRpc(
+                    'happyherd-automations-update',
+                    () => machineUpdateAutomation(targetMachineId, editingId, input),
+                );
             } else {
-                await machineCreateAutomation(targetMachineId, input);
+                await profileAutomationRpc(
+                    'happyherd-automations-create',
+                    () => machineCreateAutomation(targetMachineId, input),
+                );
             }
             setFormVisible(false);
             setEditingId(null);
@@ -513,7 +572,7 @@ export default function AutomationsScreen() {
                     <Field label={t('happyHerd.automations.instruction')} value={draft.instruction} multiline onChangeText={(instruction) => setDraft((current) => ({ ...current, instruction }))} />
                     <Text style={styles.label}>{t('happyHerd.automations.kind')}</Text>
                     <View style={styles.choices}>
-                        {(['scheduled', 'heartbeat', 'memory-maintenance'] as const).map((kind) => (
+                        {(['scheduled', 'memory-maintenance'] as const).map((kind) => (
                             <Choice key={kind} value={kind} selected={draft.kind === kind} onSelect={(next) => setDraft((current) => ({ ...current, kind: next }))} />
                         ))}
                     </View>

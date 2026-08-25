@@ -17,6 +17,11 @@ describe('resolveMachineAgent', () => {
             claude: true,
             codex: true,
         })).toBe('codex');
+
+        expect(resolveMachineAgent('grok', {
+            claude: true,
+            grok: true,
+        })).toBe('grok');
     });
 
     it('selects Rig on a Rig-only machine', () => {

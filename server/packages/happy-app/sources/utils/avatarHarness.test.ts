@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { resolveAvatarHarness } from './avatarHarness';
 
 describe('resolveAvatarHarness', () => {
-    it('keeps the existing Claude, Codex, and Antigravity mappings', () => {
+    it('maps every active harness, including GrokBuild', () => {
         expect(resolveAvatarHarness('claude')).toBe('claude');
         expect(resolveAvatarHarness('codex')).toBe('codex');
+        expect(resolveAvatarHarness('grok')).toBe('grok');
         expect(resolveAvatarHarness('agy')).toBe('agy');
     });
 

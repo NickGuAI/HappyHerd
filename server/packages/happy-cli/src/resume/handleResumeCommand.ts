@@ -42,7 +42,10 @@ export function parseResumeCommandArgs(args: string[]): { showHelp: boolean; ses
     };
 }
 
-function resolveFlavor(metadata: Metadata): 'codex' | 'claude' | null {
+function resolveFlavor(metadata: Metadata): 'codex' | 'claude' | 'grok' | null {
+    if (metadata.flavor === 'grok') {
+        return 'grok';
+    }
     if (metadata.flavor === 'codex' || metadata.codexThreadId) {
         return 'codex';
     }
@@ -86,6 +89,18 @@ export function buildResumeLaunch(session: ResumableHappySession, options: Resum
             cwd: metadata.path,
             args,
         };
+    }
+
+    if (flavor === 'grok') {
+        if (!metadata.acpSessionId) {
+            throw new Error(`Happy session ${session.id} is missing its ACP session ID.`);
+        }
+        const args = ['grok'];
+        if (options.startedBy) {
+            args.push('--started-by', options.startedBy);
+        }
+        args.push('--resume', metadata.acpSessionId);
+        return { cwd: metadata.path, args };
     }
 
     throw new Error(`Happy session ${session.id} uses unsupported flavor "${metadata.flavor ?? 'unknown'}".`);

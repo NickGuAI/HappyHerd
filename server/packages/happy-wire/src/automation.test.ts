@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  HAPPYHERD_AUTOMATION_DEFAULT_TIMEOUT_MINUTES,
-  HAPPYHERD_AUTOMATION_MAX_TIMEOUT_MINUTES,
   HAPPYHERD_AUTOMATION_MAX_TAG_LENGTH,
   HAPPYHERD_AUTOMATION_MAX_TAGS,
   HappyHerdAutomationCreateInputSchema,
@@ -16,7 +14,7 @@ import {
 const id = '8f0a5dd0-b7c0-4b60-a747-675b49ccfdc8';
 
 describe('HappyHerd automation wire contract', () => {
-  it('normalizes strict v1 definitions to v2 with no tags', () => {
+  it('normalizes strict v1 definitions to v3 with no tags', () => {
     const definition = {
       schemaVersion: 1 as const,
       runtimeOwner: 'happyherd' as const,
@@ -39,7 +37,7 @@ describe('HappyHerd automation wire contract', () => {
     };
     expect(HappyHerdAutomationSchema.parse(definition)).toEqual({
       ...definition,
-      schemaVersion: 2,
+      schemaVersion: 3,
       tags: [],
     });
     expect(() => HappyHerdAutomationSchema.parse({ ...definition, providerTransport: 'unsupported' })).toThrow();
@@ -84,7 +82,7 @@ describe('HappyHerd automation wire contract', () => {
   it('defaults create tags, keeps update tags optional, and advertises list capability safely', () => {
     const createInput = {
       name: 'Heartbeat',
-      kind: 'heartbeat' as const,
+      kind: 'scheduled' as const,
       instruction: 'Check status.',
       schedule: '*/15 * * * *',
       timezone: 'UTC',
@@ -95,46 +93,74 @@ describe('HappyHerd automation wire contract', () => {
       maxRetries: 0,
     };
     expect(HappyHerdAutomationCreateInputSchema.parse(createInput).tags).toEqual([]);
-    expect(HappyHerdAutomationCreateInputSchema.parse(createInput).timeoutMinutes).toBeUndefined();
-    expect(HappyHerdAutomationCreateInputSchema.parse({
-      ...createInput,
-      timeoutMinutes: 6 * HAPPYHERD_AUTOMATION_DEFAULT_TIMEOUT_MINUTES,
-    }).timeoutMinutes).toBe(360);
-    const unbounded = HappyHerdAutomationCreateInputSchema.parse({
-      ...createInput,
-      timeoutMinutes: null,
-    });
-    expect(unbounded.timeoutMinutes).toBeNull();
-    expect(JSON.parse(JSON.stringify(unbounded)).timeoutMinutes).toBeNull();
     expect(HappyHerdAutomationUpdateInputSchema.parse({ name: 'Renamed' })).toEqual({ name: 'Renamed' });
-    expect(HappyHerdAutomationUpdateInputSchema.parse({ timeoutMinutes: 360 })).toEqual({ timeoutMinutes: 360 });
-    expect(HappyHerdAutomationUpdateInputSchema.parse({ timeoutMinutes: null })).toEqual({ timeoutMinutes: null });
     expect(HappyHerdAutomationUpdateInputSchema.parse({ tags: [' z ', 'a'] }).tags).toEqual(['a', 'z']);
-    for (const timeoutMinutes of [0, 1.5, HAPPYHERD_AUTOMATION_MAX_TIMEOUT_MINUTES + 1]) {
-      expect(() => HappyHerdAutomationCreateInputSchema.parse({
-        ...createInput,
-        timeoutMinutes,
-      })).toThrow();
-    }
     expect(HappyHerdAutomationListResponseSchema.parse({ automations: [] })).toEqual({
       definitionSchemaVersion: 1,
       automations: [],
     });
     expect(HappyHerdAutomationListResponseSchema.parse({
-      definitionSchemaVersion: 2,
+      definitionSchemaVersion: 3,
       automations: [],
-    }).definitionSchemaVersion).toBe(2);
+    }).definitionSchemaVersion).toBe(3);
   });
 
   it('requires an explicit rail, workspace, timezone, and paused/active state', () => {
     expect(() => HappyHerdAutomationCreateInputSchema.parse({
       name: 'Incomplete',
-      kind: 'heartbeat',
+      kind: 'scheduled',
       instruction: 'Check status.',
       schedule: '*/15 * * * *',
       commanderId: null,
       maxRetries: 0,
     })).toThrow();
+  });
+
+  it('reserves v3 heartbeat for one immutable session while preserving legacy cron behavior', () => {
+    const legacy = {
+      schemaVersion: 2 as const,
+      runtimeOwner: 'happyherd' as const,
+      id,
+      machineId: 'machine-one',
+      name: 'Legacy heartbeat label',
+      kind: 'heartbeat' as const,
+      instruction: 'Run a fresh check.',
+      schedule: '0 * * * *',
+      timezone: 'UTC',
+      workspace: '/srv/app',
+      rail: 'codex' as const,
+      commanderId: null,
+      status: 'active' as const,
+      maxRetries: 1,
+      tags: [],
+      createdAt: '2026-08-03T00:00:00.000Z',
+      updatedAt: '2026-08-03T00:00:00.000Z',
+      lastScheduledAt: null,
+      lastRunAt: null,
+    };
+    expect(HappyHerdAutomationSchema.parse(legacy)).toMatchObject({
+      schemaVersion: 3,
+      kind: 'scheduled',
+      schedule: '0 * * * *',
+    });
+    expect(HappyHerdAutomationSchema.parse({
+      ...legacy,
+      schemaVersion: 3,
+      kind: 'heartbeat',
+      schedule: null,
+      targetSessionId: 'session-one',
+      intervalSeconds: 2_700,
+      nextDueAt: '2026-08-03T00:45:00.000Z',
+      maxRetries: 0,
+    })).toMatchObject({
+      kind: 'heartbeat',
+      targetSessionId: 'session-one',
+      intervalSeconds: 2_700,
+    });
+    expect(HappyHerdAutomationCreateInputSchema.safeParse({
+      ...legacy,
+      kind: 'heartbeat',
+    }).success).toBe(false);
   });
 
   it('records linked session starts as active until a terminal confirmation', () => {
@@ -162,20 +188,18 @@ describe('HappyHerd automation wire contract', () => {
       sessionId: 'session-one',
       message: null,
     }).status).toBe('completed');
-    for (const status of ['failed', 'timed-out'] as const) {
-      expect(HappyHerdAutomationRunSchema.parse({
-        id: crypto.randomUUID(),
-        automationId: id,
-        source: 'manual',
-        scheduledFor: '2026-08-03T00:00:00.000Z',
-        startedAt: '2026-08-03T00:00:01.000Z',
-        finishedAt: '2026-08-03T00:05:00.000Z',
-        status,
-        attempt: 1,
-        sessionId: 'session-one',
-        message: null,
-      }).status).toBe(status);
-    }
+    expect(HappyHerdAutomationRunSchema.parse({
+      id: crypto.randomUUID(),
+      automationId: id,
+      source: 'manual',
+      scheduledFor: '2026-08-03T00:00:00.000Z',
+      startedAt: '2026-08-03T00:00:01.000Z',
+      finishedAt: '2026-08-03T00:05:00.000Z',
+      status: 'failed',
+      attempt: 1,
+      sessionId: 'session-one',
+      message: null,
+    }).status).toBe('failed');
     expect(() => HappyHerdAutomationRunSchema.parse({
       id: crypto.randomUUID(),
       automationId: id,
@@ -215,7 +239,7 @@ describe('HappyHerd automation wire contract', () => {
       schemaVersion: 1,
       automationId: id,
       runId: crypto.randomUUID(),
-      status: 'timed-out',
+      status: 'cancelled',
       finishedAt: '2026-08-03T00:05:00.000Z',
       message: null,
     })).toThrow();

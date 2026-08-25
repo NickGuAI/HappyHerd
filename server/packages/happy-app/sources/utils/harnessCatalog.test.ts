@@ -3,30 +3,33 @@ import { describe, expect, it } from 'vitest';
 import { HARNESS_NAMES, isRetiredHarness, listAvailableHarnesses } from './harnessCatalog';
 
 describe('harness catalog', () => {
-    it('names Happy and Antigravity by product, not by CLI id', () => {
+    it('uses product names for harnesses whose CLI ids differ', () => {
         expect(HARNESS_NAMES.rig).toBe('Happy');
         expect(HARNESS_NAMES.agy).toBe('Antigravity');
+        expect(HARNESS_NAMES.grok).toBe('GrokBuild');
     });
 
     it('retires Gemini and OpenClaw only', () => {
         expect(isRetiredHarness('gemini')).toBe(true);
         expect(isRetiredHarness('openclaw')).toBe(true);
         expect(isRetiredHarness('claude')).toBe(false);
+        expect(isRetiredHarness('grok')).toBe(false);
         // Antigravity is what Gemini's own error message redirects people to.
         expect(isRetiredHarness('agy')).toBe(false);
     });
 
     it('lists only installed harnesses, in pick order', () => {
         const harnesses = listAvailableHarnesses({
-            availability: { claude: true, codex: true, agy: true },
+            availability: { claude: true, codex: true, grok: true, agy: true },
             happyAgentAvailable: true,
             selected: 'claude',
         });
 
-        expect(harnesses.map((harness) => harness.key)).toEqual(['claude', 'codex', 'agy', 'rig']);
+        expect(harnesses.map((harness) => harness.key)).toEqual(['claude', 'codex', 'grok', 'agy', 'rig']);
         expect(harnesses.map((harness) => harness.name)).toEqual([
             'Claude Code',
             'Codex',
+            'GrokBuild',
             'Antigravity',
             'Happy',
         ]);
@@ -79,9 +82,9 @@ describe('harness catalog', () => {
         expect(harnesses.map((harness) => harness.key)).toEqual(['claude', 'codex']);
     });
 
-    it('never lists Antigravity without an explicit installation report', () => {
+    it('never lists GrokBuild or Antigravity without an explicit installation report', () => {
         expect(listAvailableHarnesses({
-            availability: { claude: true, agy: false },
+            availability: { claude: true, grok: false, agy: false },
             happyAgentAvailable: false,
             selected: 'agy',
         }).map((harness) => harness.key)).toEqual(['claude']);
@@ -89,7 +92,7 @@ describe('harness catalog', () => {
         expect(listAvailableHarnesses({
             availability: null,
             happyAgentAvailable: false,
-            selected: 'agy',
+            selected: 'grok',
         }).map((harness) => harness.key)).toEqual(['claude', 'codex']);
     });
 

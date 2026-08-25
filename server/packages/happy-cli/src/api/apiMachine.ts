@@ -100,6 +100,7 @@ type MachineRpcHandlers = {
         model?: string;
         permissionMode?: string;
         agentRuntimeContext?: unknown;
+        replayQueueMessageId?: string;
     }) => Promise<SpawnSessionResult>;
     stopSession: (sessionId: string) => boolean;
     requestShutdown: () => void;
@@ -153,6 +154,7 @@ export class ApiMachineClient {
             ? {
                 ...this.machine.metadata.cliAvailability,
                 agy: this.machine.metadata.cliAvailability.agy ?? false,
+                grok: this.machine.metadata.cliAvailability.grok ?? false,
             }
             : null;
         this.lastKnownResumeSupport = this.machine.metadata?.resumeSupport ?? null;
@@ -222,6 +224,7 @@ export class ApiMachineClient {
             });
             this.rpcHandlerManager.registerHandler('happyherd-automations-run-now', async (params: any) => automations.runNow(requireNonEmptyString(params?.id, 'id')));
             this.rpcHandlerManager.registerHandler('happyherd-automations-history', async (params: any) => automations.history(requireNonEmptyString(params?.id, 'id')));
+            this.rpcHandlerManager.registerHandler('happyherd-heartbeat-control', async (params: any) => automations.controlHeartbeat(params));
         }
 
         this.syncResumeSessionRpcRegistration();
@@ -588,6 +591,7 @@ export class ApiMachineClient {
             || prev.claude !== newAvailability.claude
             || prev.codex !== newAvailability.codex
             || prev.gemini !== newAvailability.gemini
+            || prev.grok !== newAvailability.grok
             || prev.openclaw !== newAvailability.openclaw
             || prev.agy !== newAvailability.agy;
         const resumeSupportChanged = !prevResume
@@ -621,10 +625,14 @@ export class ApiMachineClient {
 
         this.capabilitiesRefreshInFlight = (async () => {
             const availability = detectCLIAvailability();
-            const capabilities = await detectAgentCapabilities(availability);
+            const discovery = await detectAgentCapabilities(availability);
+            const capabilities = discovery.capabilities;
             const fingerprint = capabilityFingerprint(capabilities);
             this.lastCapabilitiesRefreshAt = Date.now();
-            if (fingerprint === this.lastKnownCapabilitiesFingerprint) {
+            if (
+                fingerprint === this.lastKnownCapabilitiesFingerprint
+                && discovery.grokCapabilityError === this.machine.metadata?.grokCapabilityError
+            ) {
                 return;
             }
 
@@ -632,6 +640,7 @@ export class ApiMachineClient {
                 ...(metadata || {} as MachineMetadata),
                 cliAvailability: availability,
                 agentCapabilities: capabilities,
+                grokCapabilityError: discovery.grokCapabilityError,
             }));
             this.lastKnownCapabilitiesFingerprint = fingerprint;
         })().catch((error) => {

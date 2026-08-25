@@ -4,7 +4,7 @@ import {
     normalizeHappyHerdClaudeModelSlug,
 } from '@slopus/happy-wire';
 
-export const agentKeys = ['claude', 'codex', 'gemini', 'openclaw', 'agy'] as const;
+export const agentKeys = ['claude', 'codex', 'grok', 'gemini', 'openclaw', 'agy'] as const;
 export type AgentKey = typeof agentKeys[number];
 
 export const AgentDefaultOverrideSchema = z.object({
@@ -16,6 +16,7 @@ export const AgentDefaultOverrideSchema = z.object({
 export const AgentDefaultOverridesSchema = z.object({
     claude: AgentDefaultOverrideSchema.optional(),
     codex: AgentDefaultOverrideSchema.optional(),
+    grok: AgentDefaultOverrideSchema.optional(),
     gemini: AgentDefaultOverrideSchema.optional(),
     openclaw: AgentDefaultOverrideSchema.optional(),
     agy: AgentDefaultOverrideSchema.optional(),
@@ -43,13 +44,17 @@ const codeAgentDefaults: Record<AgentKey, AgentDefaultConfig> = {
     // capabilities remain authoritative, so unsupported models fall back to
     // their highest available effort rather than receiving an invalid value.
     codex: { permissionMode: 'yolo', modelMode: 'gpt-5.6-sol', effortLevel: 'max' },
+    // GrokBuild publishes its real defaults and selectable values through ACP.
+    // These sentinels are deliberately neutral so an offline settings read can
+    // never smuggle a Claude or Codex catalog into a Grok session.
+    grok: { permissionMode: 'default', modelMode: 'default', effortLevel: null },
     gemini: { permissionMode: 'default', modelMode: 'gemini-2.5-pro', effortLevel: null },
     openclaw: { permissionMode: 'default', modelMode: 'default', effortLevel: null },
     agy: { permissionMode: 'default', modelMode: 'Gemini 3.1 Pro (High)', effortLevel: null },
 };
 
 export function normalizeAgentKey(flavor: string | null | undefined): AgentKey {
-    if (flavor === 'codex' || flavor === 'gemini' || flavor === 'openclaw' || flavor === 'agy') {
+    if (flavor === 'codex' || flavor === 'grok' || flavor === 'gemini' || flavor === 'openclaw' || flavor === 'agy') {
         return flavor;
     }
     return 'claude';

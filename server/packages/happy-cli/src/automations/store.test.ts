@@ -22,7 +22,7 @@ beforeEach(async () => {
 function input() {
   return {
     name: 'Heartbeat',
-    kind: 'heartbeat' as const,
+    kind: 'scheduled' as const,
     instruction: 'Check the active task list.',
     schedule: '*/15 * * * *',
     timezone: 'UTC',
@@ -35,12 +35,47 @@ function input() {
 }
 
 describe('HappyHerdAutomationStore', () => {
+  it('atomically keeps one interval heartbeat per target session', async () => {
+    const store = new HappyHerdAutomationStore();
+    const first = await store.upsertHeartbeat('machine-one', {
+      targetSessionId: 'session-one',
+      name: 'Session heartbeat',
+      instruction: 'Continue.',
+      intervalSeconds: 2_700,
+      timezone: 'UTC',
+      workspace: '/srv/app',
+      rail: 'codex',
+      commanderId: null,
+    }, new Date('2026-08-25T00:00:00.000Z'));
+    const replaced = await store.upsertHeartbeat('machine-one', {
+      targetSessionId: 'session-one',
+      name: 'Session heartbeat',
+      instruction: 'Check deployment.',
+      intervalSeconds: 5_400,
+      timezone: 'UTC',
+      workspace: '/srv/app',
+      rail: 'codex',
+      commanderId: null,
+    }, new Date('2026-08-25T00:10:00.000Z'));
+
+    expect(replaced).toMatchObject({
+      id: first.id,
+      kind: 'heartbeat',
+      schedule: null,
+      targetSessionId: 'session-one',
+      intervalSeconds: 5_400,
+      instruction: 'Check deployment.',
+      nextDueAt: '2026-08-25T01:40:00.000Z',
+    });
+    expect((await store.list('machine-one')).automations).toHaveLength(1);
+  });
+
   it('persists machine-scoped definitions and bounded history', async () => {
     const store = new HappyHerdAutomationStore();
     const automation = await store.create('machine-one', { ...input(), tags: [' Project Beacon ', 'Operations'] });
-    expect(automation).toMatchObject({ schemaVersion: 2, tags: ['Operations', 'Project Beacon'] });
+    expect(automation).toMatchObject({ schemaVersion: 3, tags: ['Operations', 'Project Beacon'] });
     expect(await store.list('machine-one')).toMatchObject({
-      definitionSchemaVersion: 2,
+      definitionSchemaVersion: 3,
       automations: [{ id: automation.id, tags: ['Operations', 'Project Beacon'] }],
     });
     expect((await store.list('machine-two')).automations).toHaveLength(0);
@@ -153,6 +188,39 @@ describe('HappyHerdAutomationStore', () => {
     });
   });
 
+  it('preserves legacy timed-out history as failed runs', async () => {
+    const store = new HappyHerdAutomationStore();
+    const automation = await store.create('machine-one', input());
+    const now = new Date().toISOString();
+    const legacyRun = {
+      id: crypto.randomUUID(),
+      automationId: automation.id,
+      source: 'schedule',
+      scheduledFor: now,
+      startedAt: now,
+      finishedAt: now,
+      status: 'timed-out',
+      attempt: 1,
+      sessionId: 'legacy-session',
+      message: 'Provider exceeded the removed automation deadline.',
+    };
+    const runFile = path.join(
+      root,
+      '.happyherd',
+      'agentcontext',
+      'automations',
+      'happyherd',
+      automation.id,
+      'runs.json',
+    );
+    await writeFile(runFile, JSON.stringify([legacyRun]));
+
+    expect(await store.history(automation.id)).toEqual([{
+      ...legacyRun,
+      status: 'failed',
+    }]);
+  });
+
   it('lists only manifests from its native namespace', async () => {
     const parentRoot = path.join(root, '.happyherd', 'agentcontext', 'automations');
     await mkdir(parentRoot, { recursive: true });
@@ -161,12 +229,12 @@ describe('HappyHerdAutomationStore', () => {
     await store.create('machine-one', input());
     const result = await store.list('machine-one');
     expect(result).toEqual({
-      definitionSchemaVersion: 2,
+      definitionSchemaVersion: 3,
       automations: [expect.objectContaining({ machineId: 'machine-one' })],
     });
   });
 
-  it('reads strict v1 manifests as untagged and writes v2 on mutation', async () => {
+  it('reads strict v1 manifests as untagged and writes v3 on mutation', async () => {
     const store = new HappyHerdAutomationStore();
     const automation = await store.create('machine-one', input());
     const manifest = path.join(
@@ -182,52 +250,68 @@ describe('HappyHerdAutomationStore', () => {
     await writeFile(manifest, JSON.stringify({ schemaVersion: 1, ...fields }));
 
     const [legacy] = (await store.list('machine-one')).automations;
-    expect(legacy).toMatchObject({ id: automation.id, schemaVersion: 2, tags: [] });
-    expect(legacy?.timeoutMinutes).toBeUndefined();
+    expect(legacy).toMatchObject({ id: automation.id, schemaVersion: 3, tags: [] });
 
     await store.recordSchedule(automation.id, '2026-08-21T08:00:00.000Z');
     expect(JSON.parse(await readFile(manifest, 'utf8'))).toMatchObject({
-      schemaVersion: 2,
+      schemaVersion: 3,
       tags: [],
     });
-    expect(JSON.parse(await readFile(manifest, 'utf8'))).not.toHaveProperty('timeoutMinutes');
 
     await store.update(automation.id, { tags: [' Zeta ', 'Alpha'] });
     expect(JSON.parse(await readFile(manifest, 'utf8'))).toMatchObject({
-      schemaVersion: 2,
+      schemaVersion: 3,
       tags: ['Alpha', 'Zeta'],
     });
 
     await store.update(automation.id, { tags: [] });
     expect(JSON.parse(await readFile(manifest, 'utf8'))).toMatchObject({
-      schemaVersion: 2,
+      schemaVersion: 3,
       tags: [],
     });
   });
 
-  it('round-trips an explicit unbounded timeout without conflating it with omission', async () => {
+  it('loads all 23 legacy definitions and clears their removed timeout field', async () => {
     const store = new HappyHerdAutomationStore();
-    const automation = await store.create('machine-one', { ...input(), timeoutMinutes: null });
-    const manifest = path.join(
-      root,
-      '.happyherd',
-      'agentcontext',
-      'automations',
-      'happyherd',
-      automation.id,
-      'manifest.json',
-    );
+    const automations = [];
+    for (let index = 0; index < 23; index += 1) {
+      automations.push(await store.create('machine-one', {
+        ...input(),
+        name: `Legacy automation ${index + 1}`,
+      }));
+    }
 
-    expect(automation.timeoutMinutes).toBeNull();
-    expect(JSON.parse(await readFile(manifest, 'utf8'))).toHaveProperty('timeoutMinutes', null);
-    await store.update(automation.id, { name: 'Renamed cleanup' });
-    expect((await store.get(automation.id)).timeoutMinutes).toBeNull();
-    expect(JSON.parse(await readFile(manifest, 'utf8'))).toHaveProperty('timeoutMinutes', null);
+    for (const [index, automation] of automations.entries()) {
+      const manifest = path.join(
+        root,
+        '.happyherd',
+        'agentcontext',
+        'automations',
+        'happyherd',
+        automation.id,
+        'manifest.json',
+      );
+      const definition = JSON.parse(await readFile(manifest, 'utf8'));
+      await writeFile(manifest, JSON.stringify({
+        ...definition,
+        timeoutMinutes: index % 2 === 0 ? 60 : null,
+      }));
+    }
 
-    await store.update(automation.id, { timeoutMinutes: 360 });
-    expect((await store.get(automation.id)).timeoutMinutes).toBe(360);
-    await store.update(automation.id, { timeoutMinutes: null });
-    expect((await store.get(automation.id)).timeoutMinutes).toBeNull();
+    const listed = await store.list('machine-one');
+    expect(listed.automations).toHaveLength(23);
+    for (const automation of automations) {
+      const manifest = path.join(
+        root,
+        '.happyherd',
+        'agentcontext',
+        'automations',
+        'happyherd',
+        automation.id,
+        'manifest.json',
+      );
+      expect(JSON.parse(await readFile(manifest, 'utf8'))).not.toHaveProperty('timeoutMinutes');
+    }
   });
 
   it('rejects tags that collide after trimming', async () => {

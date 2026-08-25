@@ -317,7 +317,12 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     // Create realtime session
     const session = api.sessionSyncClient(response);
     const reconnectQueueMessageIds = reconnectSessionId
-        ? queueMessageIdsForResume(response.agentState?.messageQueue)
+        ? Array.from(new Set([
+            ...queueMessageIdsForResume(response.agentState?.messageQueue),
+            ...(process.env.HAPPY_RECONNECT_QUEUE_MESSAGE_ID
+                ? [process.env.HAPPY_RECONNECT_QUEUE_MESSAGE_ID]
+                : []),
+        ]))
         : [];
 
     // On reconnect, un-archive the session and skip replaying old messages.
@@ -820,6 +825,22 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
             }
         } else {
             logger.debug(`[loop] User message received with no effort override, using current: ${currentEffort ?? 'default'}`);
+        }
+
+        const heartbeat = message.meta?.heartbeat;
+        if (heartbeat) {
+            if (queueMessageId !== heartbeat.occurrenceId) {
+                logger.warn('[HEARTBEAT] Ignoring heartbeat marker whose queue identity does not match its occurrence');
+                return;
+            }
+            messageQueue.pushIsolated(
+                message.content.text,
+                { ...currentEnhancedMode(), heartbeat },
+                attachmentsForThisMessage,
+                queueMessageId,
+            );
+            logger.debug(`[HEARTBEAT] Queued isolated Claude occurrence ${heartbeat.occurrenceId}`);
+            return;
         }
 
         // Check for special commands before processing

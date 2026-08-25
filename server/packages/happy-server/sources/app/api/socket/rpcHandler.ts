@@ -3,6 +3,7 @@ import { Server, Socket } from "socket.io";
 import type { RemoteSocket } from "socket.io";
 import type { DefaultEventsMap } from "socket.io/dist/typed-events";
 import { Counter, Histogram, register } from 'prom-client';
+import { recordProductionRpc } from '@/app/monitoring/productionLogSummary';
 
 // RPC routing uses Socket.IO rooms. A daemon registering method M for user U
 // joins room `rpc:U:M`. Callers look the daemon up cross-replica via
@@ -32,6 +33,47 @@ const RPC_PRESENCE_FETCH_TIMEOUT_MS = 500;
 // under load while still catching a daemon mid-reconnect.
 const RPC_RECONNECT_GRACE_MS = 15_000;
 const RPC_RECONNECT_POLL_MS = 200;
+
+const SUPPORTED_RPC_METRIC_METHODS = new Set([
+    'abort',
+    'bash',
+    'claude-duplicate-session',
+    'claude-fork-session',
+    'claude-list-rewind-points',
+    'codex-duplicate-thread',
+    'codex-fork-thread',
+    'codex-list-rewind-points',
+    'createDirectory',
+    'difftastic',
+    'getDirectoryTree',
+    'goal-action',
+    'happyherd-automations-create',
+    'happyherd-automations-delete',
+    'happyherd-automations-history',
+    'happyherd-automations-list',
+    'happyherd-automations-pause',
+    'happyherd-automations-resume',
+    'happyherd-automations-run-now',
+    'happyherd-automations-update',
+    'happyherd-list-commanders',
+    'hashFile',
+    'killSession',
+    'listDirectory',
+    'openclaw-retry-pairing',
+    'permission',
+    'readFile',
+    'resume-happy-session',
+    'ripgrep',
+    'spawn-happy-session',
+    'stop-daemon',
+    'stop-session',
+    'switch',
+    'uploadFileAbort',
+    'uploadFileChunk',
+    'uploadFileFinish',
+    'uploadFileStart',
+    'writeFile',
+]);
 
 const rpcCallCounter = new Counter({
     name: 'rpc_calls_total',
@@ -68,13 +110,14 @@ function rpcRoom(userId: string, method: string): string {
 }
 
 /**
- * Strip the scope prefix (machineId/sessionId) from a prefixed method name
- * to get the base method for metrics labels. Wire format: "cm9xyz123:bash" -> "bash".
- * Falls back to "unknown" if no colon separator found.
+ * Strip the scope prefix (machineId/sessionId), then keep only supported
+ * method names in metrics labels. Wire format: "cm9xyz123:bash" -> "bash".
+ * Unsupported names are grouped under "other".
  */
 function baseMethodName(prefixedMethod: string): string {
     const lastColon = prefixedMethod.lastIndexOf(':');
-    return lastColon >= 0 ? prefixedMethod.substring(lastColon + 1) : prefixedMethod;
+    const method = lastColon >= 0 ? prefixedMethod.substring(lastColon + 1) : prefixedMethod;
+    return SUPPORTED_RPC_METRIC_METHODS.has(method) ? method : 'other';
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -162,10 +205,12 @@ export function rpcHandler(userId: string, socket: Socket, io: Server) {
         const { method, params } = data ?? {};
 
         const finish = (result: string) => {
-            const durationSec = (Date.now() - startTime) / 1000;
+            const durationMs = Date.now() - startTime;
+            const durationSec = durationMs / 1000;
             const m = baseMethodName(method || 'unknown');
             rpcCallCounter.inc({ method: m, result });
             rpcCallDuration.observe({ method: m, result }, durationSec);
+            recordProductionRpc({ method: m, result, durationMs });
         };
 
         try {

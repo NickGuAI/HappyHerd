@@ -811,6 +811,7 @@ class Sync {
             flavor,
             text,
             attachmentCount: attachments?.length ?? 0,
+            acpCapabilities: session.metadata?.acpCapabilities,
             supportsAttachments: isRigMetadataV1(session.metadata)
                 ? rigCanUseAttachments(session.metadata)
                 : undefined,

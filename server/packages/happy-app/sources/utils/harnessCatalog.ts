@@ -8,6 +8,7 @@ import type { NewSessionAgentType } from '@/sync/persistence';
 export const HARNESS_NAMES: Record<NewSessionAgentType, string> = {
     claude: 'Claude Code',
     codex: 'Codex',
+    grok: 'GrokBuild',
     rig: 'Happy',
     agy: 'Antigravity',
     gemini: 'Gemini',
@@ -32,6 +33,7 @@ export const RETIRED_HARNESSES: ReadonlySet<NewSessionAgentType> = new Set([
 export const HARNESS_ORDER: readonly NewSessionAgentType[] = [
     'claude',
     'codex',
+    'grok',
     'agy',
     'rig',
 ];
@@ -62,9 +64,9 @@ export function isHarnessAvailable({
     key: NewSessionAgentType;
 }): boolean {
     if (key === 'rig') return happyAgentAvailable;
-    // Antigravity is niche enough that an old or incomplete capability report
-    // must not advertise it speculatively. Its daemon has to say it is installed.
-    if (key === 'agy') return availability?.agy === true;
+    // GrokBuild and Antigravity must not be advertised speculatively by an old
+    // or incomplete capability report. The daemon has to say they are installed.
+    if (key === 'grok' || key === 'agy') return availability?.[key] === true;
     return !availability || availability[key] === true;
 }
 
@@ -76,9 +78,9 @@ export function isHarnessAvailable({
  * cannot. Two things keep the list from ever being empty — the current
  * selection is usually included, and a machine that reports no capabilities at
  * all (an older daemon, or none selected yet) falls back to the familiar
- * catalog. Antigravity is the exception to both fallbacks: it is only listed
- * after an explicit installation report. A retired harness is also exempt from
- * the first rule, because keeping it listed would strand someone on it.
+ * catalog. GrokBuild and Antigravity are exceptions to both fallbacks: they are
+ * only listed after an explicit installation report. A retired harness is also
+ * exempt from the first rule, because keeping it listed would strand someone on it.
  */
 export function listAvailableHarnesses({
     availability,
@@ -90,10 +92,10 @@ export function listAvailableHarnesses({
     selected?: NewSessionAgentType | null;
 }): HarnessOption[] {
     const keys = HARNESS_ORDER.filter((key) => (
-        (key === selected && key !== 'agy')
+        (key === selected && key !== 'grok' && key !== 'agy')
         || isHarnessAvailable({ availability, happyAgentAvailable, key })
     ));
-    const fallback = HARNESS_ORDER.filter((key) => key !== 'agy');
+    const fallback = HARNESS_ORDER.filter((key) => key !== 'grok' && key !== 'agy');
     return (keys.length > 0 ? keys : fallback).map((key) => ({
         key,
         name: HARNESS_NAMES[key],

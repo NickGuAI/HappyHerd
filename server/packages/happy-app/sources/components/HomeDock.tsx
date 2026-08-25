@@ -41,6 +41,7 @@ import { getMachineName } from '@/sync/machineChoices';
 import type { Session } from '@/sync/storageTypes';
 import {
     getEffortLevelsForModel,
+    getAdvertisedDefaultOptionKey,
     getHardcodedModelModes,
     getHardcodedPermissionModes,
     getMachineAdvertisedEffortLevels,
@@ -72,6 +73,7 @@ import { hapticsError } from './haptics';
 import { HARNESS_ORDER, getHarnessName, isHarnessAvailable } from '@/utils/harnessCatalog';
 import { getPermissionModeMenuLabel, getPermissionModeShortLabel } from '@/utils/permissionModeLabels';
 import { getRigMachineSessionCreation } from '@/sync/rigSessionCreation';
+import { supportsImageAttachmentsForFlavor } from '@/sync/attachmentSupport';
 import {
     MobileHeaderScrim,
     MOBILE_HOME_SCRIM_OVERLAY_OPACITY,
@@ -844,8 +846,11 @@ export const HomeDock = React.memo(({
     const harnessKeys = React.useMemo<NewSessionAgentType[]>(() => (
         (HARNESS_ORDER.includes(agentType) ? [...HARNESS_ORDER] : [agentType, ...HARNESS_ORDER])
             .filter((key) => experiments || key !== 'rig')
-            .filter((key) => key !== 'agy' || selectedMachine?.metadata?.cliAvailability?.agy === true)
-    ), [agentType, experiments, selectedMachine?.metadata?.cliAvailability?.agy]);
+            .filter((key) => (
+                (key !== 'agy' && key !== 'grok')
+                || selectedMachine?.metadata?.cliAvailability?.[key] === true
+            ))
+    ), [agentType, experiments, selectedMachine?.metadata?.cliAvailability]);
     const availableAgents = React.useMemo<ModeOption[]>(() => (
         harnessKeys.map((key) => {
             const agent = { key, name: getHarnessName(key) };
@@ -864,9 +869,17 @@ export const HomeDock = React.memo(({
                 };
         })
     ), [harnessKeys, rigSelectionCreation, selectedMachine?.metadata?.cliAvailability]);
+    React.useEffect(() => {
+        if (agentType !== 'grok') return;
+        if (availableAgents.some((agent) => agent.key === agentType && !agent.disabled)) return;
+        const fallback = availableAgents.find((agent) => !agent.disabled);
+        if (fallback) setAgentType(fallback.key as NewSessionAgentType);
+    }, [agentType, availableAgents, setAgentType]);
     const machineCatalog = agentType === 'rig'
         ? undefined
         : selectedMachine?.metadata?.agentCapabilities?.[agentType];
+    const canUseImageAttachments = expImageUpload
+        && supportsImageAttachmentsForFlavor(agentType, machineCatalog?.acp);
     const defaults = React.useMemo(() => rigCreation
         ? {
             permissionMode: rigCreation.defaultPermissionMode ?? '',
@@ -888,8 +901,12 @@ export const HomeDock = React.memo(({
                 : getHardcodedModelModes(agentType, t)),
         [agentType, machineCatalog, rigCreation, selectedMachine?.metadata],
     );
-    const currentPermission = resolveOption(permissionOptions, [permissionMode, defaults.permissionMode]);
-    const currentModel = resolveOption(modelOptions, [modelMode, defaults.modelMode]);
+    const currentPermission = resolveOption(permissionOptions, agentType === 'grok'
+        ? [permissionMode ?? defaults.permissionMode, getAdvertisedDefaultOptionKey(permissionOptions)]
+        : [permissionMode, defaults.permissionMode]);
+    const currentModel = resolveOption(modelOptions, agentType === 'grok'
+        ? [modelMode ?? defaults.modelMode, getAdvertisedDefaultOptionKey(modelOptions)]
+        : [modelMode, defaults.modelMode]);
     const effortOptions = React.useMemo(
         () => rigCreation
             ? rigCreation.effortsForModel(currentModel?.key).map((key) => ({ key, name: key }))
@@ -900,25 +917,66 @@ export const HomeDock = React.memo(({
     );
     const effectiveEffortDefault = rigCreation?.defaultEffortForModel(currentModel?.key)
         ?? resolveAgentDefaultEffortLevel(defaultOverrides, agentType, effortOptions);
-    const currentEffort = resolveOption(effortOptions, [effortLevel, effectiveEffortDefault]);
+    const currentEffort = resolveOption(effortOptions, agentType === 'grok'
+        ? [effortLevel ?? effectiveEffortDefault, getAdvertisedDefaultOptionKey(effortOptions)]
+        : [effortLevel, effectiveEffortDefault]);
+    React.useEffect(() => {
+        if (agentType !== 'grok') return;
+        const nextPermission = currentPermission?.key ?? null;
+        if (permissionMode !== null && permissionMode !== nextPermission) setPermissionMode(nextPermission);
+    }, [agentType, currentPermission?.key, permissionMode, setPermissionMode]);
+    React.useEffect(() => {
+        if (agentType !== 'grok') return;
+        const nextModel = currentModel?.key ?? null;
+        if (modelMode !== null && modelMode !== nextModel) setModelMode(nextModel);
+    }, [agentType, currentModel?.key, modelMode, setModelMode]);
+    React.useEffect(() => {
+        if (agentType !== 'grok') return;
+        const nextEffort = currentEffort?.key ?? null;
+        if (effortLevel !== null && effortLevel !== nextEffort) setEffortLevel(nextEffort);
+    }, [agentType, currentEffort?.key, effortLevel, setEffortLevel]);
     const selectEffort = React.useCallback((key: string) => {
         setEffortLevel(key);
-        if (agentType === 'codex') {
+        if (agentType === 'codex' || agentType === 'grok') {
             setDefaultOverrides(setAgentDefaultOverride(
                 defaultOverrides,
-                'codex',
+                agentType,
                 'effortLevel',
                 key,
             ));
         }
     }, [agentType, defaultOverrides, setDefaultOverrides, setEffortLevel]);
+    const selectModel = React.useCallback((key: string) => {
+        setModelMode(key);
+        if (agentType === 'grok') {
+            setDefaultOverrides(setAgentDefaultOverride(
+                defaultOverrides,
+                'grok',
+                'modelMode',
+                key,
+            ));
+        }
+    }, [agentType, defaultOverrides, setDefaultOverrides, setModelMode]);
+    const selectPermission = React.useCallback((key: string) => {
+        setPermissionMode(key);
+        if (agentType === 'grok') {
+            setDefaultOverrides(setAgentDefaultOverride(
+                defaultOverrides,
+                'grok',
+                'permissionMode',
+                key,
+            ));
+        }
+    }, [agentType, defaultOverrides, setDefaultOverrides, setPermissionMode]);
     const currentAgent = availableAgents.find((agent) => agent.key === agentType)
         ?? availableAgents[0]
         ?? { key: agentType, name: getHarnessName(agentType) };
     const permissionLabel = getPermissionModeShortLabel(currentPermission);
-    const focusedPromptPlaceholder = t('uiCopy.askCodex');
+    const focusedPromptPlaceholder = agentType === 'grok'
+        ? t('uiCopy.askValue', { value1: currentAgent.name })
+        : t('uiCopy.askCodex');
     const canSubmit = !isSubmitting && (
-        prompt.trim().length > 0 || (expImageUpload && selectedImages.length > 0)
+        prompt.trim().length > 0 || (canUseImageAttachments && selectedImages.length > 0)
     );
     const startPhase = isSubmitting ? submitPhase ?? 'spawning' : null;
     const startProgressLabel = resolveNewSessionProgressLabel({
@@ -985,7 +1043,7 @@ export const HomeDock = React.memo(({
     );
     const focusedComposerHeight = resolveMobileComposerHeight(
         focusedInputLayout.height,
-        selectedImages.length > 0,
+        canUseImageAttachments && selectedImages.length > 0,
     );
     const handleFocusedInputMeasurement = React.useCallback((event: LayoutChangeEvent) => {
         const nextHeight = Math.ceil(event.nativeEvent.layout.height);
@@ -1073,11 +1131,11 @@ export const HomeDock = React.memo(({
     }, []);
 
     React.useEffect(() => {
-        if (!expImageUpload && selectedImages.length > 0) {
+        if (!canUseImageAttachments && selectedImages.length > 0) {
             clearImages();
             useNewSessionDraft.getState().setAttachments([]);
         }
-    }, [clearImages, expImageUpload, selectedImages.length]);
+    }, [canUseImageAttachments, clearImages, selectedImages.length]);
 
     const openFocusMode = React.useCallback(() => {
         if (focusAnimationTimerRef.current) {
@@ -1163,22 +1221,39 @@ export const HomeDock = React.memo(({
             }
             : resolveAgentDefaultConfig(defaultOverrides, agent);
         const nextCatalog = selectedMachine?.metadata?.agentCapabilities?.[agent];
+        const nextPermissions = nextRigCreation?.permissionModes
+            ?? (nextCatalog
+                ? getMachineAdvertisedPermissionModes(selectedMachine?.metadata, agent, t)
+                : getHardcodedPermissionModes(agent, t));
         const nextModels = nextRigCreation?.models
             ?? (nextCatalog
                 ? getMachineAdvertisedModels(selectedMachine?.metadata, agent, t)
                 : getHardcodedModelModes(agent, t));
-        const nextModel = resolveOption(nextModels, [nextDefaults.modelMode]);
+        const nextModel = resolveOption(nextModels, agent === 'grok'
+            ? [nextDefaults.modelMode, getAdvertisedDefaultOptionKey(nextModels)]
+            : [nextDefaults.modelMode]);
+        const nextPermission = resolveOption(nextPermissions, agent === 'grok'
+            ? [nextDefaults.permissionMode, getAdvertisedDefaultOptionKey(nextPermissions)]
+            : [nextDefaults.permissionMode]);
         const nextEfforts = nextRigCreation
             ? nextRigCreation.effortsForModel(nextModel?.key).map((key) => ({ key, name: key }))
             : nextCatalog
                 ? getMachineAdvertisedEffortLevels(selectedMachine?.metadata, agent, nextModel?.key ?? 'default')
                 : getEffortLevelsForModel(agent, nextModel?.key ?? 'default');
+        const configuredEffort = resolveAgentDefaultEffortLevel(defaultOverrides, agent, nextEfforts);
         const nextEffort = nextRigCreation?.defaultEffortForModel(nextModel?.key)
-            ?? resolveAgentDefaultEffortLevel(defaultOverrides, agent, nextEfforts);
+            ?? configuredEffort
+            ?? (agent === 'grok' ? getAdvertisedDefaultOptionKey(nextEfforts) : null);
         setAgentType(agent);
-        setPermissionMode(nextDefaults.permissionMode);
-        setModelMode(nextDefaults.modelMode);
-        if (nextEffort) setEffortLevel(nextEffort);
+        if (agent === 'grok') {
+            setPermissionMode(nextPermission?.key ?? null);
+            setModelMode(nextModel?.key ?? null);
+            setEffortLevel(nextEffort);
+        } else {
+            setPermissionMode(nextDefaults.permissionMode);
+            setModelMode(nextDefaults.modelMode);
+            if (nextEffort) setEffortLevel(nextEffort);
+        }
     }, [defaultOverrides, rigSelectionCreation, selectedMachine?.metadata, setAgentType, setEffortLevel, setModelMode, setPermissionMode]);
 
     type SettingsRow = {
@@ -1277,10 +1352,10 @@ export const HomeDock = React.memo(({
             return { title: t("uiCopy.agent"), options: availableAgents, selectedKey: agentType, onSelect: (key) => selectAgent(key as NewSessionAgentType) };
         }
         if (setting === 'model') {
-            return { title: t('agentInput.model.title'), options: modelOptions, selectedKey: currentModel?.key, onSelect: setModelMode };
+            return { title: t('agentInput.model.title'), options: modelOptions, selectedKey: currentModel?.key, onSelect: selectModel };
         }
         if (setting === 'permission') {
-            return { title: t('agentInput.permissionMode.title'), options: permissionOptions, selectedKey: currentPermission?.key, onSelect: setPermissionMode };
+            return { title: t('agentInput.permissionMode.title'), options: permissionOptions, selectedKey: currentPermission?.key, onSelect: selectPermission };
         }
         return { title: t('agentInput.effort.title'), options: effortOptions, selectedKey: currentEffort?.key, onSelect: selectEffort };
     };
@@ -1616,7 +1691,7 @@ export const HomeDock = React.memo(({
 
     const submit = async () => {
         if (!canSubmit) return false;
-        useNewSessionDraft.getState().setAttachments(expImageUpload ? selectedImages : []);
+        useNewSessionDraft.getState().setAttachments(canUseImageAttachments ? selectedImages : []);
         const started = await onSubmit();
         if (started) clearImages();
         return started;
@@ -1648,7 +1723,7 @@ export const HomeDock = React.memo(({
                     ]}
                 >
                 <View style={styles.focusedComposerContent}>
-                    {expImageUpload && selectedImages.length > 0 && (
+                    {canUseImageAttachments && selectedImages.length > 0 && (
                         <Animated.View style={focusedInputRevealStyle}>
                             <AgentInputAttachmentStrip images={selectedImages} onRemove={removeImage} />
                         </Animated.View>
@@ -1701,7 +1776,7 @@ export const HomeDock = React.memo(({
                         />
                     )}
                     <Animated.View style={[styles.focusedComposerActions, focusedActionsRevealStyle]}>
-                        {expImageUpload && (
+                        {canUseImageAttachments && (
                             <RefusableControl refusing={isSubmitting} onRefuse={refuse}>
                                 <BubblePressable
                                     onPress={() => void pickImages()}

@@ -1,4 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const runHappy = vi.hoisted(() => vi.fn());
+
+vi.mock('./runtime', async (importOriginal) => ({
+  ...await importOriginal<typeof import('./runtime')>(),
+  runHappy,
+}));
+
 import { runCli } from './cli';
 import type { BrokerClientInterface } from './broker';
 
@@ -15,7 +23,11 @@ function broker(overrides: Partial<BrokerClientInterface> = {}): BrokerClientInt
 }
 
 describe('happyherd command surface', () => {
-  it('exposes only broker-mediated end-user workflows', async () => {
+  beforeEach(() => {
+    runHappy.mockReset();
+  });
+
+  it('documents governed workflows and the native fallback', async () => {
     const output: string[] = [];
     expect(await runCli([], { brokerClient: broker(), stdout: (line) => output.push(line) })).toBe(0);
     const help = output.join('\n');
@@ -29,12 +41,25 @@ describe('happyherd command surface', () => {
     expect(help).not.toContain('broker-service');
     expect(help).not.toContain('--sha256');
     expect(help).not.toContain('--root');
+    expect(help).toContain('Every other invocation');
+    expect(help).toContain('forwarded unchanged to the bundled native Happy CLI');
   });
 
   it('reports the immutable launcher version without broker or network access', async () => {
     const output: string[] = [];
     expect(await runCli(['--version'], { stdout: (line) => output.push(line) })).toBe(0);
     expect(output).toEqual(['happyherd version: 1.2.1-beta.1']);
+  });
+
+  it('rejects surplus version arguments without falling through to native Happy', async () => {
+    const errors: string[] = [];
+    expect(await runCli(['--version', 'unexpected'], { stderr: (line) => errors.push(line) })).toBe(1);
+    expect(await runCli(['-v', 'unexpected'], { stderr: (line) => errors.push(line) })).toBe(1);
+    expect(errors).toEqual([
+      'error: --version accepts no arguments',
+      'error: -v accepts no arguments',
+    ]);
+    expect(runHappy).not.toHaveBeenCalled();
   });
 
   it('routes connect, disconnect, install, and run only through the broker client', async () => {
@@ -45,16 +70,30 @@ describe('happyherd command surface', () => {
       installSkills: async (issuer) => { calls.push(`install:${issuer}`); return { id: 'bundle', version: '1', skills: ['guide'], registry: 'ready' }; },
       runTool: async (issuer, skill, script, args) => { calls.push(`run:${issuer}:${skill}:${script}:${args.join(',')}`); return { status: 7, stdout: '', stderr: '' }; },
     });
-    expect(await runCli(['connect', 'https://issuer.example'], { brokerClient: fake })).toBe(0);
-    expect(await runCli(['disconnect', '--all'], { brokerClient: fake })).toBe(0);
-    expect(await runCli(['install-skills', '--issuer', 'https://issuer.example'], { brokerClient: fake })).toBe(0);
-    expect(await runCli(['run-tool', '--issuer', 'https://issuer.example', '--skill', 'guide', '--script', 'scripts/check.py', '--', 'x'], { brokerClient: fake })).toBe(7);
+    const dependencies = { brokerClient: fake };
+    expect(await runCli(['connect', 'https://issuer.example'], dependencies)).toBe(0);
+    expect(await runCli(['disconnect', '--all'], dependencies)).toBe(0);
+    expect(await runCli(['install-skills', '--issuer', 'https://issuer.example'], dependencies)).toBe(0);
+    expect(await runCli(['run-tool', '--issuer', 'https://issuer.example', '--skill', 'guide', '--script', 'scripts/check.py', '--', 'x'], dependencies)).toBe(7);
     expect(calls).toEqual([
       'connect:https://issuer.example',
       'disconnect:all',
       'install:https://issuer.example',
       'run:https://issuer.example:guide:scripts/check.py:x',
     ]);
+    expect(runHappy).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [['automation', 'list', '--json'], 23],
+    [['daemon', 'status'], 7],
+    [['--started-by', 'daemon', '--no-sandbox'], 19],
+  ] as const)('forwards an ungoverned invocation unchanged exactly once: %j', async (args, status) => {
+    runHappy.mockReturnValue(status);
+
+    expect(await runCli([...args])).toBe(status);
+    expect(runHappy).toHaveBeenCalledOnce();
+    expect(runHappy).toHaveBeenCalledWith([...args]);
   });
 
   it('streams device approval and a secret-free connected receipt as NDJSON', async () => {

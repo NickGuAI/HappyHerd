@@ -19,6 +19,16 @@ describe('supportsImageAttachmentsForFlavor', () => {
         expect(supportsImageAttachmentsForFlavor('openclaw')).toBe(false);
         expect(supportsImageAttachmentsForFlavor('custom-agent')).toBe(false);
     });
+
+    it('uses the ACP prompt capability for GrokBuild', () => {
+        expect(supportsImageAttachmentsForFlavor('grok')).toBe(false);
+        expect(supportsImageAttachmentsForFlavor('grok', {
+            prompt: { image: false },
+        })).toBe(false);
+        expect(supportsImageAttachmentsForFlavor('grok', {
+            prompt: { image: true },
+        })).toBe(true);
+    });
 });
 
 describe('getImageAttachmentSendPlan', () => {

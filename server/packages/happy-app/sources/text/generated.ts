@@ -9,6 +9,7 @@ export type TranslationKey =
     | "agentInput.agent.claude"
     | "agentInput.agent.codex"
     | "agentInput.agent.gemini"
+    | "agentInput.agent.grok"
     | "agentInput.agent.openclaw"
     | "agentInput.codexModel.gpt5CodexHigh"
     | "agentInput.codexModel.gpt5CodexLow"
@@ -274,6 +275,7 @@ export type TranslationKey =
     | "friends.status.requested"
     | "friends.title"
     | "friends.userNotFound"
+    | "grok.permissions.noProvideFeedback"
     | "happyHerd.automations.attempt"
     | "happyHerd.automations.collapseDetails"
     | "happyHerd.automations.commander"
@@ -363,6 +365,43 @@ export type TranslationKey =
     | "happyHerd.features.sortRecentSubtitle"
     | "happyHerd.features.voiceInput"
     | "happyHerd.features.voiceInputSubtitle"
+    | "happyHerd.heartbeat.active"
+    | "happyHerd.heartbeat.automation"
+    | "happyHerd.heartbeat.clear"
+    | "happyHerd.heartbeat.commandDescription"
+    | "happyHerd.heartbeat.confirmation"
+    | "happyHerd.heartbeat.countdownIn"
+    | "happyHerd.heartbeat.currentStatus"
+    | "happyHerd.heartbeat.delivery.completed"
+    | "happyHerd.heartbeat.delivery.due"
+    | "happyHerd.heartbeat.delivery.failed"
+    | "happyHerd.heartbeat.delivery.idle"
+    | "happyHerd.heartbeat.delivery.persisted"
+    | "happyHerd.heartbeat.delivery.queued"
+    | "happyHerd.heartbeat.delivery.running"
+    | "happyHerd.heartbeat.delivery.waiting-daemon"
+    | "happyHerd.heartbeat.dueNow"
+    | "happyHerd.heartbeat.every"
+    | "happyHerd.heartbeat.instructionPlaceholder"
+    | "happyHerd.heartbeat.instructionStatus"
+    | "happyHerd.heartbeat.interval"
+    | "happyHerd.heartbeat.lastDelivery"
+    | "happyHerd.heartbeat.lastDeliveryNone"
+    | "happyHerd.heartbeat.machineUnavailable"
+    | "happyHerd.heartbeat.minimum"
+    | "happyHerd.heartbeat.nextDue"
+    | "happyHerd.heartbeat.nextDueNone"
+    | "happyHerd.heartbeat.notConfigured"
+    | "happyHerd.heartbeat.openTarget"
+    | "happyHerd.heartbeat.pause"
+    | "happyHerd.heartbeat.paused"
+    | "happyHerd.heartbeat.queuedAhead"
+    | "happyHerd.heartbeat.resume"
+    | "happyHerd.heartbeat.standardContinuation"
+    | "happyHerd.heartbeat.textOnly"
+    | "happyHerd.heartbeat.title"
+    | "happyHerd.heartbeat.unavailable"
+    | "happyHerd.heartbeat.usage"
     | "happyHerd.sessionStatusAvatar.actionRequired"
     | "happyHerd.sessionStatusAvatar.disconnected"
     | "happyHerd.sessionStatusAvatar.idle"
@@ -1259,6 +1298,14 @@ export interface TranslationParamsByKey {
     "happyHerd.automations.machineLoadFailed": { message: string; name: string };
     "happyHerd.automations.openSession": { id: string };
     "happyHerd.commanderAvatars.updated": { name: string };
+    "happyHerd.heartbeat.confirmation": { cadence: string; state: string };
+    "happyHerd.heartbeat.countdownIn": { duration: string };
+    "happyHerd.heartbeat.currentStatus": { state: string };
+    "happyHerd.heartbeat.instructionStatus": { instruction: string };
+    "happyHerd.heartbeat.lastDelivery": { status: string; time: string };
+    "happyHerd.heartbeat.nextDue": { countdown: string; time: string };
+    "happyHerd.heartbeat.queuedAhead": { count: number };
+    "happyHerd.heartbeat.usage": { usage: string };
     "imageUpload.fileTooLargeMessage": { maxMb: number; name: string };
     "imageUpload.limitMessage": { max: number };
     "imageUpload.uploadFailedMessage": { count: number };

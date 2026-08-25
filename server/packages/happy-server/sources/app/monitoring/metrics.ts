@@ -34,7 +34,7 @@ export async function createMetricsServer() {
     return app;
 }
 
-export async function startMetricsServer(): Promise<void> {
+export async function startMetricsServer(options: { host?: string } = {}): Promise<void> {
     const enabled = process.env.METRICS_ENABLED !== 'false';
     if (!enabled) {
         log({ module: 'metrics' }, 'Metrics server disabled');
@@ -42,11 +42,12 @@ export async function startMetricsServer(): Promise<void> {
     }
 
     const port = process.env.METRICS_PORT ? parseInt(process.env.METRICS_PORT, 10) : 9090;
+    const host = options.host ?? '0.0.0.0';
     const app = await createMetricsServer();
 
     try {
-        await app.listen({ port, host: '0.0.0.0' });
-        log({ module: 'metrics' }, `Metrics server listening on port ${port}`);
+        await app.listen({ port, host });
+        log({ module: 'metrics' }, `Metrics server listening on ${host}:${port}`);
     } catch (error) {
         // Don't take the whole API down if the metrics port is taken — that's
         // a common dev situation (orphaned process, another tool on 9090,

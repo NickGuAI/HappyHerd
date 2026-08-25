@@ -8,8 +8,15 @@ import { Socket } from 'socket.io';
 // Global default labels — applied to ALL metrics at scrape time
 register.setDefaultLabels({ app: 'happy-server' });
 
-// Expected client_type values (trust whatever the client sends):
-// cli-coding-session, cli-daemon, cli-control-plane, ios, android, web, desktop
+const SUPPORTED_CLIENT_TYPES = new Set([
+    'cli-coding-session',
+    'cli-daemon',
+    'cli-control-plane',
+    'ios',
+    'android',
+    'web',
+    'desktop',
+]);
 
 interface ClientLabels {
     client: string;
@@ -19,7 +26,8 @@ interface ClientLabels {
 function parseClientLabels(raw: string | undefined | null): ClientLabels {
     if (!raw) return { client: 'unknown', client_type: 'unknown' };
     const type = raw.split('/')[0].toLowerCase();
-    return { client: raw, client_type: type };
+    const normalized = SUPPORTED_CLIENT_TYPES.has(type) ? type : 'other';
+    return { client: normalized, client_type: normalized };
 }
 
 /**

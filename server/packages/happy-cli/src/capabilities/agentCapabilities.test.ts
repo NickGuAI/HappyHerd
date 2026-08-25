@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildClaudeCapabilityCatalog, detectAgentCapabilities, parseClaudeHelp } from './agentCapabilities';
+import { buildClaudeCapabilityCatalog, buildGrokAcpCapabilityCatalog, detectAgentCapabilities, parseClaudeHelp } from './agentCapabilities';
 
 describe('agent capability discovery', () => {
     it('parses only structured Claude CLI choices and never help-text model prose', () => {
@@ -49,10 +49,11 @@ describe('agent capability discovery', () => {
     });
 
     it('accepts a new Codex model without a Web release', async () => {
-        const capabilities = await detectAgentCapabilities({
+        const { capabilities } = await detectAgentCapabilities({
             claude: false,
             codex: true,
             gemini: false,
+            grok: false,
             openclaw: false,
             agy: false,
             detectedAt: 1,
@@ -84,10 +85,11 @@ describe('agent capability discovery', () => {
     });
 
     it('uses only app-server-compatible effort fallbacks when live Codex discovery is unavailable', async () => {
-        const capabilities = await detectAgentCapabilities({
+        const { capabilities } = await detectAgentCapabilities({
             claude: false,
             codex: true,
             gemini: false,
+            grok: false,
             openclaw: false,
             agy: false,
             detectedAt: 1,
@@ -113,5 +115,103 @@ describe('agent capability discovery', () => {
             'safe-yolo',
             'yolo',
         ]);
+    });
+
+    it('derives GrokBuild models, efforts, defaults, and capabilities from ACP initialize', async () => {
+        const initialize = {
+            protocolVersion: 1,
+            agentCapabilities: {
+                loadSession: true,
+                promptCapabilities: { image: false, audio: false, embeddedContext: true },
+            },
+            _meta: {
+                agentVersion: '1.0.5',
+                modelState: {
+                    currentModelId: 'runtime-current',
+                    availableModels: [
+                        {
+                            modelId: 'runtime-current',
+                            name: 'Runtime Current',
+                            description: 'Advertised now',
+                            _meta: { reasoningEfforts: [
+                                { id: 'deep', value: 'deep', label: 'Deep', description: 'Thorough', default: false },
+                                { id: 'balanced', value: 'balanced', label: 'Balanced', description: 'Default', default: true },
+                            ] },
+                        },
+                        {
+                            modelId: 'runtime-fast',
+                            name: 'Runtime Fast',
+                            _meta: { reasoningEfforts: [
+                                { id: 'quick', value: 'quick', label: 'Quick', default: true },
+                            ] },
+                        },
+                    ],
+                },
+            },
+        } as const;
+
+        const catalog = buildGrokAcpCapabilityCatalog(initialize, 123);
+        const { capabilities } = await detectAgentCapabilities({
+            claude: false,
+            codex: false,
+            gemini: false,
+            grok: true,
+            openclaw: false,
+            agy: false,
+            detectedAt: 1,
+        }, { loadGrokInitialize: async () => initialize });
+
+        expect(catalog.providerVersion).toBe('1.0.5');
+        expect(catalog.models.map((model) => [model.code, model.isDefault])).toEqual([
+            ['runtime-current', true],
+            ['runtime-fast', false],
+        ]);
+        expect(catalog.models[0].effortLevels).toEqual([
+            expect.objectContaining({ code: 'deep', isDefault: false }),
+            expect.objectContaining({ code: 'balanced', isDefault: true }),
+        ]);
+        expect(catalog.effortLevels.map((effort) => effort.code)).toEqual(['deep', 'balanced', 'quick']);
+        expect(catalog.permissionModes).toEqual([
+            expect.objectContaining({ code: 'default', isDefault: true }),
+        ]);
+        expect(catalog.acp).toEqual({
+            loadSession: true,
+            prompt: { image: false },
+        });
+        expect(capabilities.grok.sources.models).toBe('acp:initialize:_meta.modelState');
+        expect(capabilities.grok.models[0].code).toBe('runtime-current');
+    });
+
+    it('keeps the fresh Codex catalog when the installed GrokBuild probe fails', async () => {
+        const discovery = await detectAgentCapabilities({
+            claude: false,
+            codex: true,
+            gemini: false,
+            grok: true,
+            openclaw: false,
+            agy: false,
+            detectedAt: 1,
+        }, {
+            loadCodexModels: async () => [{
+                id: 'fresh-id',
+                model: 'gpt-fresh-codex',
+                displayName: 'GPT Fresh Codex',
+                description: 'Fresh from this discovery run',
+                hidden: false,
+                supportedReasoningEfforts: [
+                    { reasoningEffort: 'medium', description: 'Balanced' },
+                ],
+                defaultReasoningEffort: 'medium',
+                isDefault: true,
+            }],
+            loadGrokInitialize: async () => { throw new Error('not authenticated'); },
+        });
+
+        expect(discovery.capabilities.codex.sources.models).toBe('codex-app-server:model/list');
+        expect(discovery.capabilities.codex.models.map((model) => model.code)).toContain('gpt-fresh-codex');
+        expect(discovery.capabilities.grok).toBeUndefined();
+        expect(discovery.grokCapabilityError).toContain(
+            'GrokBuild is installed but ACP capability discovery failed: not authenticated',
+        );
     });
 });

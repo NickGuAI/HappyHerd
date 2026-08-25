@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { logger } from '@/ui/logger'
-import type { AgentState, CreateSessionResponse, Metadata, Session, Machine, MachineMetadata, DaemonState } from '@/api/types'
+import type { AgentState, CreateSessionResponse, Metadata, Session, Machine, MachineMetadata, DaemonState, UserMessage } from '@/api/types'
 import { ApiSessionClient } from './apiSession';
 import { ApiMachineClient } from './apiMachine';
 import { decodeBase64, encodeBase64, getRandomBytes, encrypt, decrypt, libsodiumEncryptForPublicKey } from './encryption';
@@ -146,6 +146,10 @@ export class ApiClient {
    * delivered.
    */
   async refreshSessionForReconnect(session: Session): Promise<Session> {
+    return (await this.inspectSessionForHeartbeat(session)).session;
+  }
+
+  async inspectSessionForHeartbeat(session: Session): Promise<{ session: Session; active: boolean }> {
     const [raw] = await loadSessionRecords(this.credential.token, {
       exactId: session.id,
       timeout: 60000,
@@ -164,16 +168,59 @@ export class ApiClient {
       : null;
 
     return {
-      ...session,
-      seq: raw.seq,
-      metadata: {
-        ...persistedMetadata,
-        ...session.metadata,
+      active: raw.active,
+      session: {
+        ...session,
+        seq: raw.seq,
+        metadata: {
+          ...persistedMetadata,
+          ...session.metadata,
+        },
+        metadataVersion: raw.metadataVersion,
+        agentState: persistedAgentState,
+        agentStateVersion: raw.agentStateVersion,
       },
-      metadataVersion: raw.metadataVersion,
-      agentState: persistedAgentState,
-      agentStateVersion: raw.agentStateVersion,
     };
+  }
+
+  async postHeartbeatMessage(session: Session, input: {
+    localId: string;
+    text: string;
+    displayText: string;
+    automationId: string;
+  }): Promise<void> {
+    const content: UserMessage = {
+      role: 'user',
+      content: { type: 'text', text: input.text },
+      meta: {
+        sentFrom: 'happyherd-heartbeat',
+        displayText: input.displayText,
+        deliveryMode: 'queue',
+        queueMessageId: input.localId,
+        heartbeat: {
+          schemaVersion: 1,
+          automationId: input.automationId,
+          occurrenceId: input.localId,
+        },
+      },
+    };
+    await axios.post(
+      `${configuration.serverUrl}/v3/sessions/${encodeURIComponent(session.id)}/messages`,
+      {
+        messages: [{
+          content: encodeBase64(encrypt(session.encryptionKey, session.encryptionVariant, content)),
+          localId: input.localId,
+        }],
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${this.credential.token}`,
+          'Content-Type': 'application/json',
+          'X-Happy-Client': `cli-coding-session/${configuration.currentCliVersion}`,
+        },
+        timeout: 60000,
+      },
+    );
   }
 
   /**

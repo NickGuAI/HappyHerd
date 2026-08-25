@@ -18,6 +18,23 @@ type LaunchOption = {
     unavailable?: boolean;
 };
 
+export function findPreferredAvailableOptionIndex<T extends LaunchOption>(
+    options: readonly T[],
+    preferredKeys: Array<string | null | undefined>,
+): number {
+    for (const key of preferredKeys) {
+        if (!key) continue;
+        const index = options.findIndex((option) => (
+            option.key === key && option.disabled !== true && option.unavailable !== true
+        ));
+        if (index >= 0) return index;
+    }
+    const firstAvailable = options.findIndex((option) => (
+        option.disabled !== true && option.unavailable !== true
+    ));
+    return firstAvailable >= 0 ? firstAvailable : 0;
+}
+
 export type NewSessionLaunchSelectionError =
     | 'agent-unavailable'
     | 'permission-unavailable'

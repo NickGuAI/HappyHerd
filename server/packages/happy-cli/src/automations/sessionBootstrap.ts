@@ -2,12 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import {
-  HAPPYHERD_AUTOMATION_DEFAULT_TIMEOUT_MINUTES,
-  HappyHerdAutomationKindSchema,
-  HappyHerdAutomationTimeoutSchema,
-  HappyHerdAutomationTimeoutMinutesSchema,
-} from '@slopus/happy-wire';
+import { HappyHerdAutomationKindSchema } from '@slopus/happy-wire';
 import * as z from 'zod';
 
 import { configuration } from '@/configuration';
@@ -18,12 +13,7 @@ const BootstrapSchema = z.object({
   runId: z.string().uuid(),
   kind: HappyHerdAutomationKindSchema,
   instruction: z.string().trim().min(1).max(100_000),
-  timeoutMinutes: HappyHerdAutomationTimeoutSchema.default(
-    HAPPYHERD_AUTOMATION_DEFAULT_TIMEOUT_MINUTES,
-  ),
 }).strict();
-
-export const HAPPYHERD_AUTOMATION_UNBOUNDED_TIMEOUT_ENV_VALUE = 'unbounded';
 
 export type HappyHerdAutomationBootstrap = z.infer<typeof BootstrapSchema>;
 type HappyHerdAutomationBootstrapInput = z.input<typeof BootstrapSchema>;
@@ -32,7 +22,6 @@ export interface AutomationBootstrapReference {
   automationId: string;
   runId: string;
   kind: HappyHerdAutomationBootstrap['kind'];
-  timeoutMinutes: number | null;
   path: string;
   hash: string;
 }
@@ -65,7 +54,6 @@ export async function prepareAutomationBootstrap(
     automationId: bootstrap.automationId,
     runId: bootstrap.runId,
     kind: bootstrap.kind,
-    timeoutMinutes: bootstrap.timeoutMinutes,
     path: filePath,
     hash,
   };
@@ -76,9 +64,6 @@ export function automationBootstrapEnvironment(reference: AutomationBootstrapRef
     HAPPYHERD_AUTOMATION_ID: reference.automationId,
     HAPPYHERD_AUTOMATION_RUN_ID: reference.runId,
     HAPPYHERD_AUTOMATION_KIND: reference.kind,
-    HAPPYHERD_AUTOMATION_TIMEOUT_MINUTES: reference.timeoutMinutes === null
-      ? HAPPYHERD_AUTOMATION_UNBOUNDED_TIMEOUT_ENV_VALUE
-      : String(reference.timeoutMinutes),
     HAPPYHERD_AUTOMATION_BOOTSTRAP_PATH: reference.path,
     HAPPYHERD_AUTOMATION_BOOTSTRAP_HASH: reference.hash,
   };
@@ -102,24 +87,6 @@ export async function readAutomationBootstrapFromEnvironment(): Promise<HappyHer
   if (process.env.HAPPYHERD_AUTOMATION_KIND !== bootstrap.kind) {
     throw new Error('HappyHerd automation bootstrap kind does not match the session environment');
   }
-  const timeoutValue = process.env.HAPPYHERD_AUTOMATION_TIMEOUT_MINUTES;
-  if (timeoutValue !== undefined) {
-    const timeout = timeoutValue === HAPPYHERD_AUTOMATION_UNBOUNDED_TIMEOUT_ENV_VALUE
-      ? null
-      : /^\d+$/.test(timeoutValue)
-        ? HappyHerdAutomationTimeoutMinutesSchema.safeParse(Number(timeoutValue))
-        : { success: false as const };
-    const parsedTimeout = timeout === null
-      ? null
-      : timeout.success
-        ? timeout.data
-        : undefined;
-    if (parsedTimeout === undefined || parsedTimeout !== bootstrap.timeoutMinutes) {
-      throw new Error('HappyHerd automation bootstrap timeout does not match the session environment');
-    }
-  } else if (bootstrap.timeoutMinutes !== HAPPYHERD_AUTOMATION_DEFAULT_TIMEOUT_MINUTES) {
-    throw new Error('HappyHerd automation bootstrap timeout reference is incomplete');
-  }
   return bootstrap;
 }
 
@@ -127,25 +94,13 @@ export function automationMetadataFromEnvironment(): {
   automationId?: string;
   automationRunId?: string;
   automationKind?: HappyHerdAutomationBootstrap['kind'];
-  automationTimeoutMinutes?: number | null;
 } {
   const id = z.string().uuid().safeParse(process.env.HAPPYHERD_AUTOMATION_ID);
   const runId = z.string().uuid().safeParse(process.env.HAPPYHERD_AUTOMATION_RUN_ID);
   const kind = HappyHerdAutomationKindSchema.safeParse(process.env.HAPPYHERD_AUTOMATION_KIND);
-  const timeoutValue = process.env.HAPPYHERD_AUTOMATION_TIMEOUT_MINUTES;
-  const timeout = timeoutValue === HAPPYHERD_AUTOMATION_UNBOUNDED_TIMEOUT_ENV_VALUE
-    ? null
-    : timeoutValue && /^\d+$/.test(timeoutValue)
-      ? HappyHerdAutomationTimeoutMinutesSchema.safeParse(Number(timeoutValue))
-      : { success: false as const };
   return {
     ...(id.success ? { automationId: id.data } : {}),
     ...(runId.success ? { automationRunId: runId.data } : {}),
     ...(kind.success ? { automationKind: kind.data } : {}),
-    ...(timeout === null
-      ? { automationTimeoutMinutes: null }
-      : timeout.success
-        ? { automationTimeoutMinutes: timeout.data }
-        : {}),
   };
 }

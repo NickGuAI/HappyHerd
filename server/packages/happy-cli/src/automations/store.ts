@@ -10,6 +10,7 @@ import {
   HappyHerdAutomationUpdateInputSchema,
   type HappyHerdAutomation,
   type HappyHerdAutomationCreateInput,
+  type HappyHerdHeartbeatAutomation,
   type HappyHerdAutomationListResponse,
   type HappyHerdAutomationRun,
   type HappyHerdAutomationUpdateInput,
@@ -20,9 +21,23 @@ import { assertValidCron, assertValidTimezone } from './cronValidation';
 const HISTORY_CAP = 50;
 const ACTIVE_RUN_STATUSES = new Set<HappyHerdAutomationRun['status']>(['running', 'started']);
 
+export interface HappyHerdHeartbeatDefinitionInput {
+  targetSessionId: string;
+  name: string;
+  instruction: string;
+  intervalSeconds: number;
+  timezone: string;
+  workspace: string;
+  rail: 'claude' | 'codex';
+  commanderId: string | null;
+}
+
 function normalizeStoredRun(value: unknown): unknown {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
   const run = value as Record<string, unknown>;
+  if (run.status === 'timed-out') {
+    return { ...run, status: 'failed' };
+  }
   // Before the one-shot terminal contract, `started` meant only that the daemon
   // accepted the provider and was incorrectly written with a finishedAt.
   // Treat those rows as active until process reconciliation proves otherwise.
@@ -47,13 +62,16 @@ function assertValidRunTransition(
   current: HappyHerdAutomationRun,
   next: HappyHerdAutomationRun,
 ): void {
-  for (const field of ['automationId', 'source', 'scheduledFor', 'startedAt'] as const) {
+  for (const field of ['automationId', 'source', 'scheduledFor'] as const) {
     if (current[field] !== next[field]) {
       throw new Error(`Automation run ${current.id} cannot change ${field}`);
     }
   }
   if (next.attempt < current.attempt) {
     throw new Error(`Automation run ${current.id} cannot decrease its attempt`);
+  }
+  if (current.startedAt !== next.startedAt && !(current.status === 'running' && next.status === 'started')) {
+    throw new Error(`Automation run ${current.id} cannot change startedAt`);
   }
   if (current.sessionId !== null && current.sessionId !== next.sessionId) {
     throw new Error(`Automation run ${current.id} cannot change its linked session`);
@@ -67,7 +85,7 @@ function assertValidRunTransition(
   const allowed = current.status === 'running'
     ? next.status === 'started' || next.status === 'failed'
     : current.status === 'started'
-      ? next.status === 'completed' || next.status === 'failed' || next.status === 'timed-out'
+      ? next.status === 'completed' || next.status === 'failed'
       : false;
   if (!allowed) {
     throw new Error(`Automation run ${current.id} cannot transition from ${current.status} to ${next.status}`);
@@ -107,6 +125,24 @@ async function readJson(filePath: string): Promise<unknown> {
   return JSON.parse(await readFile(filePath, 'utf8'));
 }
 
+async function readStoredAutomation(id: string): Promise<HappyHerdAutomation> {
+  const raw = await readJson(manifestPath(id));
+  const hasLegacyTimeout = Boolean(
+    raw
+    && typeof raw === 'object'
+    && !Array.isArray(raw)
+    && Object.prototype.hasOwnProperty.call(raw, 'timeoutMinutes'),
+  );
+  if (hasLegacyTimeout) {
+    delete (raw as Record<string, unknown>).timeoutMinutes;
+  }
+  const automation = HappyHerdAutomationSchema.parse(raw);
+  if (hasLegacyTimeout) {
+    await writeJsonAtomic(manifestPath(id), automation);
+  }
+  return automation;
+}
+
 function validateSchedule(input: { schedule: string; timezone: string }): void {
   assertValidCron(input.schedule);
   assertValidTimezone(input.timezone);
@@ -134,7 +170,7 @@ export class HappyHerdAutomationStore {
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
       try {
-        const automation = HappyHerdAutomationSchema.parse(await readJson(manifestPath(entry.name)));
+        const automation = await readStoredAutomation(entry.name);
         if (automation.machineId === machineId) automations.push(automation);
       } catch {
         // Invalid artifacts are isolated in place and never scheduled. They
@@ -151,7 +187,7 @@ export class HappyHerdAutomationStore {
   async get(id: string): Promise<HappyHerdAutomation> {
     assertUuid(id);
     try {
-      return HappyHerdAutomationSchema.parse(await readJson(manifestPath(id)));
+      return await readStoredAutomation(id);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw new Error(`Automation ${id} was not found`);
       throw error;
@@ -180,9 +216,78 @@ export class HappyHerdAutomationStore {
     });
   }
 
+  async heartbeatForSession(machineId: string, targetSessionId: string): Promise<HappyHerdHeartbeatAutomation | null> {
+    const { automations } = await this.list(machineId);
+    return automations.find((automation): automation is HappyHerdHeartbeatAutomation => (
+      automation.kind === 'heartbeat' && automation.targetSessionId === targetSessionId
+    )) ?? null;
+  }
+
+  async upsertHeartbeat(
+    machineId: string,
+    raw: HappyHerdHeartbeatDefinitionInput,
+    now = new Date(),
+  ): Promise<HappyHerdHeartbeatAutomation> {
+    return this.serialize(async () => {
+      const targetSessionId = raw.targetSessionId.trim();
+      if (!targetSessionId) throw new Error('Heartbeat target session is required');
+      const existing = await this.heartbeatForSession(machineId, targetSessionId);
+      const timestamp = now.toISOString();
+      const heartbeat = HappyHerdAutomationSchema.parse({
+        schemaVersion: HAPPYHERD_AUTOMATION_DEFINITION_SCHEMA_VERSION,
+        runtimeOwner: 'happyherd',
+        id: existing?.id ?? randomUUID(),
+        machineId,
+        name: raw.name,
+        kind: 'heartbeat',
+        instruction: raw.instruction,
+        schedule: null,
+        timezone: raw.timezone,
+        workspace: raw.workspace,
+        rail: raw.rail,
+        commanderId: raw.commanderId,
+        status: 'active',
+        maxRetries: 0,
+        tags: existing?.tags ?? [],
+        targetSessionId,
+        intervalSeconds: raw.intervalSeconds,
+        nextDueAt: new Date(now.getTime() + raw.intervalSeconds * 1_000).toISOString(),
+        createdAt: existing?.createdAt ?? timestamp,
+        updatedAt: timestamp,
+        lastScheduledAt: existing?.lastScheduledAt ?? null,
+        lastRunAt: existing?.lastRunAt ?? null,
+      });
+      if (heartbeat.kind !== 'heartbeat') throw new Error('Heartbeat schema did not produce a heartbeat');
+      await writeJsonAtomic(manifestPath(heartbeat.id), heartbeat);
+      if (!existing) await writeJsonAtomic(runsPath(heartbeat.id), []);
+      return heartbeat;
+    });
+  }
+
+  async updateHeartbeat(
+    id: string,
+    patch: Partial<Pick<HappyHerdHeartbeatAutomation, 'status' | 'nextDueAt' | 'lastScheduledAt' | 'lastRunAt'>>,
+  ): Promise<HappyHerdHeartbeatAutomation> {
+    return this.serialize(async () => {
+      const current = await this.get(id);
+      if (current.kind !== 'heartbeat') throw new Error(`Automation ${id} is not a session heartbeat`);
+      const next = HappyHerdAutomationSchema.parse({
+        ...current,
+        ...patch,
+        id: current.id,
+        targetSessionId: current.targetSessionId,
+        updatedAt: new Date().toISOString(),
+      });
+      if (next.kind !== 'heartbeat') throw new Error('Heartbeat update changed automation kind');
+      await writeJsonAtomic(manifestPath(id), next);
+      return next;
+    });
+  }
+
   async update(id: string, raw: HappyHerdAutomationUpdateInput): Promise<HappyHerdAutomation> {
     return this.serialize(async () => {
       const current = await this.get(id);
+      if (current.kind === 'heartbeat') throw new Error(`Automation ${id} is a session heartbeat`);
       const patch = HappyHerdAutomationUpdateInputSchema.parse(raw);
       const next = HappyHerdAutomationSchema.parse({
         ...current,
@@ -194,6 +299,7 @@ export class HappyHerdAutomationStore {
         createdAt: current.createdAt,
         updatedAt: new Date().toISOString(),
       });
+      if (next.kind === 'heartbeat') throw new Error(`Automation ${id} is a session heartbeat`);
       validateSchedule(next);
       await writeJsonAtomic(manifestPath(id), next);
       return next;
@@ -263,6 +369,16 @@ export class HappyHerdAutomationStore {
       if (current) assertValidRunTransition(current, parsed);
       const next = [parsed, ...history.filter((entry) => entry.id !== parsed.id)];
       await writeJsonAtomic(runsPath(parsed.automationId), retainBoundedHistory(next));
+    });
+  }
+
+  async discardUnacceptedRun(automationId: string, runId: string): Promise<boolean> {
+    return this.serialize(async () => {
+      const history = await this.readRuns(automationId);
+      const current = history.find((entry) => entry.id === runId);
+      if (!current || current.status !== 'running' || current.sessionId !== null) return false;
+      await writeJsonAtomic(runsPath(automationId), history.filter((entry) => entry.id !== runId));
+      return true;
     });
   }
 }

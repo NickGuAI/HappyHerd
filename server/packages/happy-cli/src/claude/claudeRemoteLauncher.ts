@@ -19,6 +19,8 @@ import { getAskUserQuestionToolCallIds } from "./utils/questionNotification";
 import { launchFailureMessage } from "./utils/launchFailureMessage";
 import { cleanupStdinAfterInk } from "@/utils/terminalStdinCleanup";
 import type { MessageParam, ContentBlockParam } from '@anthropic-ai/sdk/resources';
+import type { HappyHerdHeartbeatMessageMarker } from '@slopus/happy-wire';
+import { persistHeartbeatDeliveryReceipt } from '@/automations/providerOutcome';
 
 interface PermissionsField {
     date: number;
@@ -140,6 +142,7 @@ export async function claudeRemoteLauncher(
     // Handle messages
     let ongoingToolCalls = new Map<string, { parentToolCallId: string | null }>();
     let notifiedQuestionToolCalls = new Set<string>();
+    let heartbeatProviderResult: { status: 'completed' | 'failed'; message: string | null } | null = null;
 
     function onMessage(message: SDKMessage) {
 
@@ -150,6 +153,10 @@ export async function claudeRemoteLauncher(
                 : ('errors' in message && Array.isArray(message.errors) && message.errors.length > 0
                     ? message.errors.join('; ')
                     : `Claude automation ended with ${message.subtype}.`);
+            heartbeatProviderResult = {
+                status: succeeded ? 'completed' : 'failed',
+                message: detail,
+            };
             opts.onProviderResult?.({
                 status: succeeded ? 'completed' : 'failed',
                 message: detail,
@@ -299,6 +306,21 @@ export async function claudeRemoteLauncher(
             mode: EnhancedMode;
             queueMessageIds: string[];
         } | null = null;
+        let activeHeartbeat: HappyHerdHeartbeatMessageMarker | null = null;
+        const markBatchStarted = async (batch: { mode: EnhancedMode; queueMessageIds: string[] }) => {
+            session.queue.markBatchStarted(batch.queueMessageIds);
+            activeHeartbeat = batch.mode.heartbeat ?? null;
+            heartbeatProviderResult = null;
+            if (activeHeartbeat) {
+                await persistHeartbeatDeliveryReceipt(session.client, activeHeartbeat, 'started');
+            }
+        };
+        const finishHeartbeat = async (status: 'completed' | 'failed', message: string | null) => {
+            if (!activeHeartbeat) return;
+            const marker = activeHeartbeat;
+            await persistHeartbeatDeliveryReceipt(session.client, marker, status, message);
+            activeHeartbeat = null;
+        };
 
         // Track session ID to detect when it actually changes
         // This prevents context loss when mode changes (permission mode, model, etc.)
@@ -345,7 +367,7 @@ export async function claudeRemoteLauncher(
                             let p = pending;
                             pending = null;
                             permissionHandler.handleModeChange(p.mode.permissionMode);
-                            session.queue.markBatchStarted(p.queueMessageIds);
+                            await markBatchStarted(p);
                             return p;
                         }
 
@@ -392,7 +414,7 @@ export async function claudeRemoteLauncher(
                                 }
                                 contentBlocks.push({ type: 'text' as const, text: msg.message });
                                 logger.debug(`[remote] Combined ${contentBlocks.length - 1} image(s) with text message`);
-                                session.queue.markBatchStarted(msg.queueMessageIds);
+                                await markBatchStarted(msg);
                                 return {
                                     message: contentBlocks,
                                     mode: msg.mode,
@@ -400,7 +422,7 @@ export async function claudeRemoteLauncher(
                                 };
                             }
 
-                            session.queue.markBatchStarted(msg.queueMessageIds);
+                            await markBatchStarted(msg);
                             return {
                                 message: msg.message,
                                 mode: msg.mode,
@@ -451,7 +473,12 @@ export async function claudeRemoteLauncher(
                         logger.debug('[remote]: Session reset');
                         session.clearSessionId();
                     },
-                    onReady: () => {
+                    onReady: async () => {
+                        const result = heartbeatProviderResult ?? {
+                            status: 'failed' as const,
+                            message: 'Claude heartbeat turn ended without a classified result.',
+                        };
+                        await finishHeartbeat(result.status, result.message);
                         session.client.closeClaudeSessionTurn('completed');
                         session.queue.completeCurrentBatch();
                         if (!pending && session.queue.size() === 0) {
@@ -477,6 +504,7 @@ export async function claudeRemoteLauncher(
                 session.consumeOneTimeFlags();
                 
                 if (!exitReason && abortController.signal.aborted) {
+                    await finishHeartbeat('failed', 'Claude heartbeat turn was aborted.');
                     session.client.closeClaudeSessionTurn('cancelled');
                     session.queue.completeCurrentBatch();
                     session.client.sendSessionEvent({ type: 'message', message: 'Aborted by user' });
@@ -484,6 +512,7 @@ export async function claudeRemoteLauncher(
             } catch (e) {
                 logger.debug('[remote]: launch error', e);
                 if (!exitReason) {
+                    await finishHeartbeat('failed', e instanceof Error ? e.message : String(e));
                     session.client.closeClaudeSessionTurn('failed');
                     session.queue.completeCurrentBatch();
                     session.client.sendSessionEvent({ type: 'message', message: launchFailureMessage(e) });
@@ -501,6 +530,7 @@ export async function claudeRemoteLauncher(
                 logger.debug('[remote]: launch finally');
                 // onReady owns the normal transition; this is the terminal
                 // safety net for launcher exits that never emitted ready.
+                await finishHeartbeat('failed', 'Claude heartbeat turn ended without a terminal result.');
                 session.queue.completeCurrentBatch();
 
                 // Terminate all ongoing tool calls

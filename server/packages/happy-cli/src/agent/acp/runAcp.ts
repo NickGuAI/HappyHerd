@@ -2,20 +2,21 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { ApiClient } from '@/api/api';
 import type { ApiSessionClient } from '@/api/apiSession';
+import type { Session as ApiSession, Metadata } from '@/api/types';
 import type { AgentMessage } from '@/agent/core';
 import { AcpBackend, type AcpPermissionHandler } from './AcpBackend';
 import { DefaultTransport } from '@/agent/transport';
 import { AcpSessionManager } from './AcpSessionManager';
 import type { SessionEnvelope } from '@slopus/happy-wire';
 import { logger } from '@/ui/logger';
-import { MessageQueue2 } from '@/utils/MessageQueue2';
+import { MessageQueue2, queueMessageIdsForResume } from '@/utils/MessageQueue2';
 import { hashObject } from '@/utils/deterministicJson';
 import { Credentials, readSettings } from '@/persistence';
 import { initialMachineMetadata } from '@/daemon/run';
 import { createSessionMetadata } from '@/utils/createSessionMetadata';
 import { setupOfflineReconnection } from '@/utils/setupOfflineReconnection';
 import { notifyDaemonSessionStarted } from '@/daemon/controlClient';
-import { encodeBase64 } from '@/api/encryption';
+import { decodeBase64, encodeBase64 } from '@/api/encryption';
 import { registerKillSessionHandler } from '@/claude/registerKillSessionHandler';
 import { startHappyServer } from '@/claude/utils/startHappyServer';
 import { projectPath } from '@/projectPath';
@@ -28,9 +29,9 @@ import {
   extractModelStateFromPayload,
   mergeAcpSessionConfigIntoMetadata,
 } from './sessionConfigMetadata';
-import type { SessionConfigOption, SessionModeState, SessionModelState } from '@agentclientprotocol/sdk';
+import { sanitizeGrokChildEnvironment } from './acpAgentConfig';
+import type { InitializeResponse, SessionConfigOption, SessionModeState, SessionModelState, StopReason } from '@agentclientprotocol/sdk';
 
-const TURN_TIMEOUT_MS = 5 * 60 * 1000;
 const ACP_EVENT_PREVIEW_CHARS = 240;
 const ACP_RAW_PREVIEW_CHARS = 2000;
 const ACP_COLOR_RESET = '\u001b[0m';
@@ -269,6 +270,7 @@ function formatEnvelopeForServerLog(agentName: string, envelope: SessionEnvelope
 type AcpSwitchMode = {
   permissionMode?: string;
   model?: string | null;
+  effort?: string | null;
 };
 
 type AcpSelectableOption = {
@@ -404,6 +406,31 @@ function resolveRequestedLegacyModelCode(models: SessionModelState, requested: s
   return null;
 }
 
+function readModelEffortState(
+  models: SessionModelState,
+  modelId: string,
+): { options: AcpSelectableOption[]; currentCode: string | null } {
+  const model = models.availableModels.find((candidate) => candidate.modelId === modelId);
+  const meta = isRecord(model?._meta) ? model._meta : null;
+  const rawOptions = meta && Array.isArray(meta.reasoningEfforts) ? meta.reasoningEfforts : [];
+  const options = rawOptions.flatMap((raw): AcpSelectableOption[] => {
+    if (!isRecord(raw) || typeof raw.id !== 'string') return [];
+    return [{
+      code: raw.id,
+      value: typeof raw.label === 'string' ? raw.label : raw.id,
+    }];
+  });
+  const advertisedDefault = rawOptions.find((raw) => isRecord(raw) && raw.default === true);
+  return {
+    options,
+    currentCode: typeof meta?.reasoningEffort === 'string'
+      ? meta.reasoningEffort
+      : isRecord(advertisedDefault) && typeof advertisedDefault.id === 'string'
+        ? advertisedDefault.id
+        : null,
+  };
+}
+
 class GenericAcpPermissionHandler extends BasePermissionHandler implements AcpPermissionHandler {
   private readonly logPrefix: string;
 
@@ -430,20 +457,34 @@ class GenericAcpPermissionHandler extends BasePermissionHandler implements AcpPe
   }
 }
 
-type PendingTurn = {
-  resolve: () => void;
-  reject: (err: Error) => void;
-  timeout: NodeJS.Timeout;
-};
-
-function resolveSessionFlavor(agentName: string): 'gemini' | 'opencode' | 'acp' {
+function resolveSessionFlavor(agentName: string): 'gemini' | 'grok' | 'opencode' | 'acp' {
   if (agentName === 'gemini') {
     return 'gemini';
   }
   if (agentName === 'opencode') {
     return 'opencode';
   }
+  if (agentName === 'grok') {
+    return 'grok';
+  }
   return 'acp';
+}
+
+function normalizeAcpCapabilities(initialize: InitializeResponse): NonNullable<Metadata['acpCapabilities']> {
+  const capabilities = initialize.agentCapabilities;
+  const prompt = capabilities?.promptCapabilities;
+  return {
+    loadSession: capabilities?.loadSession === true,
+    prompt: {
+      image: prompt?.image === true,
+    },
+  };
+}
+
+function turnStatusForStopReason(stopReason: StopReason): 'completed' | 'cancelled' | 'failed' {
+  if (stopReason === 'cancelled') return 'cancelled';
+  if (stopReason === 'refusal') return 'failed';
+  return 'completed';
 }
 
 export async function runAcp(opts: {
@@ -453,6 +494,10 @@ export async function runAcp(opts: {
   args: string[];
   startedBy?: 'daemon' | 'terminal';
   verbose?: boolean;
+  permissionMode?: string;
+  model?: string;
+  effort?: string;
+  resumeSessionId?: string;
 }): Promise<void> {
   const verbose = opts.verbose === true;
   const sessionTag = randomUUID();
@@ -475,7 +520,25 @@ export async function runAcp(opts: {
     startedBy: opts.startedBy,
     sandbox: settings.sandboxConfig,
   });
-  const response = await api.getOrCreateSession({ tag: sessionTag, metadata, state });
+  const reconnectSessionId = process.env.HAPPY_RECONNECT_SESSION_ID;
+  const reconnectKeyBase64 = process.env.HAPPY_RECONNECT_ENCRYPTION_KEY;
+  const reconnectVariant = process.env.HAPPY_RECONNECT_ENCRYPTION_VARIANT as 'legacy' | 'dataKey' | undefined;
+  let response: ApiSession | null;
+  if (reconnectSessionId && reconnectKeyBase64 && reconnectVariant) {
+    response = await api.refreshSessionForReconnect({
+      id: reconnectSessionId,
+      seq: Number.parseInt(process.env.HAPPY_RECONNECT_SEQ || '0', 10),
+      encryptionKey: decodeBase64(reconnectKeyBase64),
+      encryptionVariant: reconnectVariant,
+      metadata,
+      metadataVersion: Number.parseInt(process.env.HAPPY_RECONNECT_METADATA_VERSION || '0', 10),
+      agentState: state,
+      agentStateVersion: Number.parseInt(process.env.HAPPY_RECONNECT_AGENT_STATE_VERSION || '0', 10),
+    });
+    Object.assign(metadata, response.metadata);
+  } else {
+    response = await api.getOrCreateSession({ tag: sessionTag, metadata, state });
+  }
   if (response) {
     logAcp('muted', `Happy Session ID: ${response.id}`);
   }
@@ -497,9 +560,24 @@ export async function runAcp(opts: {
   });
   session = initialSession;
 
+  const reconnectQueueMessageIds = reconnectSessionId && response
+    ? queueMessageIdsForResume(response.agentState?.messageQueue)
+    : [];
+  if (reconnectSessionId) {
+    session.suppressNextArchiveSignal();
+    session.skipExistingMessages(reconnectQueueMessageIds, response?.seq ?? Number.MAX_SAFE_INTEGER);
+    session.updateMetadata((currentMetadata) => ({
+      ...currentMetadata,
+      lifecycleState: 'running',
+      lifecycleStateSince: Date.now(),
+      archivedBy: undefined,
+      archiveReason: undefined,
+    }));
+  }
+
   if (response) {
     try {
-      await notifyDaemonSessionStarted(response.id, metadata, {
+      await notifyDaemonSessionStarted(response.id, response.metadata, {
         encryptionKey: encodeBase64(response.encryptionKey),
         encryptionVariant: response.encryptionVariant,
         seq: response.seq,
@@ -518,8 +596,17 @@ export async function runAcp(opts: {
   permissionHandler.reset('Previous CLI process exited before responding');
   const sessionManager = new AcpSessionManager();
   const messageQueue = new MessageQueue2<AcpSwitchMode>((mode) => hashObject(mode));
-  let currentPermissionMode: string | undefined;
-  let currentModel: string | null | undefined;
+  messageQueue.restorePendingQueueMessageIds(reconnectQueueMessageIds);
+  messageQueue.setOnQueueStateChange((messageQueueState) => {
+    session.updateAgentState((currentState) => ({ ...currentState, messageQueue: messageQueueState }));
+  });
+  session.updateAgentState((currentState) => ({
+    ...currentState,
+    messageQueue: messageQueue.getQueueState(),
+  }));
+  let currentPermissionMode: string | undefined = opts.permissionMode;
+  let currentModel: string | null | undefined = opts.model;
+  let currentEffort: string | null | undefined = opts.effort;
   let modeSelector: AcpConfigSelector | null = null;
   let modelSelector: AcpConfigSelector | null = null;
   let legacyModes: SessionModeState | null = null;
@@ -527,6 +614,7 @@ export async function runAcp(opts: {
   let sawSlashCommands = false;
   let sawModes = false;
   let sawModels = false;
+  let runtimeAcpCapabilities = response?.metadata?.acpCapabilities;
 
   const happyServer = await startHappyServer(session);
   const mcpServers = {
@@ -545,36 +633,14 @@ export async function runAcp(opts: {
     permissionHandler,
     transportHandler: new DefaultTransport(opts.agentName),
     verbose,
+    loadSessionId: opts.resumeSessionId ?? response?.metadata?.acpSessionId,
+    processEnv: opts.agentName === 'grok' ? sanitizeGrokChildEnvironment(process.env) : undefined,
   });
 
   let thinking = false;
   let acpSessionId: string | null = null;
   let shouldExit = false;
   let abortController = new AbortController();
-  let pendingTurn: PendingTurn | null = null;
-
-  const clearPendingTurn = (error?: Error) => {
-    if (!pendingTurn) {
-      return;
-    }
-    clearTimeout(pendingTurn.timeout);
-    const current = pendingTurn;
-    pendingTurn = null;
-    if (error) {
-      current.reject(error);
-      return;
-    }
-    current.resolve();
-  };
-
-  const waitForTurnEnd = () => new Promise<void>((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      pendingTurn = null;
-      reject(new Error(`Timed out waiting for ${opts.agentName} to finish the turn`));
-    }, TURN_TIMEOUT_MS);
-    pendingTurn = { resolve, reject, timeout };
-  });
-
   const stopRunnerFromBackendStatus = (status: 'error' | 'stopped', detail?: string) => {
     const reason = detail
       ? `${opts.agentName} backend ${status}: ${detail}`
@@ -582,7 +648,6 @@ export async function runAcp(opts: {
     logger.debug(`[${opts.agentName}] ${reason}; stopping ACP runner`);
     shouldExit = true;
     messageQueue.close();
-    clearPendingTurn(new Error(reason));
   };
 
   const sendEnvelopes = (envelopes: SessionEnvelope[]) => {
@@ -641,12 +706,13 @@ export async function runAcp(opts: {
     }
   };
 
-  const switchModelIfRequested = async (requestedModel: string): Promise<void> => {
-    if (!requestedModel) {
-      return;
-    }
+  const switchModelAndEffortIfRequested = async (
+    requestedModel: string | null | undefined,
+    requestedEffort: string | null | undefined,
+  ): Promise<void> => {
+    if (!requestedModel && !requestedEffort) return;
 
-    if (modelSelector) {
+    if (requestedModel && modelSelector) {
       const resolved = resolveRequestedCode(modelSelector.options, requestedModel);
       if (!resolved) {
         logger.debug(`[${opts.agentName}] Ignoring unknown ACP model request: ${requestedModel}`);
@@ -660,27 +726,60 @@ export async function runAcp(opts: {
         modelSelector.currentCode = resolved;
         return;
       }
+      if (requestedEffort) {
+        logger.debug(`[${opts.agentName}] Ignoring effort request because this ACP provider did not advertise Grok model effort metadata`);
+      }
+      return;
     }
 
     if (!legacyModels) {
       return;
     }
 
-    const resolvedLegacyModel = resolveRequestedLegacyModelCode(legacyModels, requestedModel);
-    if (!resolvedLegacyModel) {
+    const resolvedLegacyModel = requestedModel
+      ? resolveRequestedLegacyModelCode(legacyModels, requestedModel)
+      : legacyModels.currentModelId;
+    if (!resolvedLegacyModel && requestedModel) {
       logger.debug(`[${opts.agentName}] Ignoring unknown ACP legacy model request: ${requestedModel}`);
       return;
     }
-    if (resolvedLegacyModel === legacyModels.currentModelId) {
+    if (!resolvedLegacyModel) {
+      logger.debug(`[${opts.agentName}] Ignoring effort request because the ACP session has no current model`);
       return;
     }
 
-    const switched = await backend.setSessionModel(resolvedLegacyModel);
+    const supportsGrokEffort = opts.agentName === 'grok';
+    const effortState = supportsGrokEffort
+      ? readModelEffortState(legacyModels, resolvedLegacyModel)
+      : { options: [], currentCode: null };
+    const resolvedEffort = supportsGrokEffort && requestedEffort
+      ? resolveRequestedCode(effortState.options, requestedEffort)
+      : null;
+    if (supportsGrokEffort && requestedEffort && !resolvedEffort) {
+      logger.debug(`[${opts.agentName}] Ignoring unknown ACP effort request: ${requestedEffort}`);
+    }
+
+    const modelChanged = resolvedLegacyModel !== legacyModels.currentModelId;
+    const effortChanged = resolvedEffort !== null && resolvedEffort !== effortState.currentCode;
+    if (!modelChanged && !effortChanged) return;
+
+    const switched = await backend.setSessionModel(
+      resolvedLegacyModel,
+      supportsGrokEffort ? resolvedEffort ?? undefined : undefined,
+    );
     if (switched) {
       legacyModels = {
         ...legacyModels,
         currentModelId: resolvedLegacyModel,
+        availableModels: legacyModels.availableModels.map((model) => (
+          model.modelId === resolvedLegacyModel && resolvedEffort && isRecord(model._meta)
+            ? { ...model, _meta: { ...model._meta, reasoningEffort: resolvedEffort } }
+            : model
+        )),
       };
+      session.updateMetadata((currentMetadata) => ({
+        ...mergeAcpSessionConfigIntoMetadata(currentMetadata, { models: legacyModels }, opts.agentName),
+      }));
     }
   };
 
@@ -743,7 +842,7 @@ export async function runAcp(opts: {
           }
         }
         session.updateMetadata((currentMetadata) =>
-          mergeAcpSessionConfigIntoMetadata(currentMetadata, { configOptions }),
+          mergeAcpSessionConfigIntoMetadata(currentMetadata, { configOptions }, opts.agentName),
         );
       }
     }
@@ -760,7 +859,7 @@ export async function runAcp(opts: {
           }
         }
         session.updateMetadata((currentMetadata) =>
-          mergeAcpSessionConfigIntoMetadata(currentMetadata, { modes }),
+          mergeAcpSessionConfigIntoMetadata(currentMetadata, { modes }, opts.agentName),
         );
       }
     }
@@ -777,9 +876,18 @@ export async function runAcp(opts: {
           }
         }
         session.updateMetadata((currentMetadata) =>
-          mergeAcpSessionConfigIntoMetadata(currentMetadata, { models }),
+          mergeAcpSessionConfigIntoMetadata(currentMetadata, { models }, opts.agentName),
         );
       }
+    }
+
+    if (msg.type === 'event' && msg.name === 'initialize_response') {
+      const initialize = msg.payload as InitializeResponse;
+      runtimeAcpCapabilities = normalizeAcpCapabilities(initialize);
+      session.updateMetadata((currentMetadata) => ({
+        ...currentMetadata,
+        acpCapabilities: runtimeAcpCapabilities,
+      }));
     }
 
     if (msg.type === 'event' && msg.name === 'current_mode_update') {
@@ -798,7 +906,7 @@ export async function runAcp(opts: {
           };
         }
         session.updateMetadata((currentMetadata) =>
-          mergeAcpSessionConfigIntoMetadata(currentMetadata, { currentModeId }),
+          mergeAcpSessionConfigIntoMetadata(currentMetadata, { currentModeId }, opts.agentName),
         );
       }
     }
@@ -811,9 +919,6 @@ export async function runAcp(opts: {
       if (thinking !== nextThinking) {
         thinking = nextThinking;
         session.keepAlive(thinking, 'remote');
-      }
-      if (msg.status === 'idle') {
-        clearPendingTurn();
       }
       if (msg.status === 'error' || msg.status === 'stopped') {
         stopRunnerFromBackendStatus(msg.status, msg.detail);
@@ -845,9 +950,15 @@ export async function runAcp(opts: {
       logger.debug(`[${opts.agentName}] Requested ACP model: ${currentModel ?? 'null'}`);
     }
 
+    if (message.meta && Object.prototype.hasOwnProperty.call(message.meta, 'effort')) {
+      currentEffort = message.meta.effort ?? null;
+      logger.debug(`[${opts.agentName}] Requested ACP effort: ${currentEffort ?? 'null'}`);
+    }
+
     messageQueue.push(message.content.text, {
       permissionMode: currentPermissionMode,
       model: currentModel,
+      effort: currentEffort,
     });
   });
   session.keepAlive(thinking, 'remote');
@@ -858,10 +969,10 @@ export async function runAcp(opts: {
 
   async function handleAbort() {
     try {
+      permissionHandler.abortAll();
       if (acpSessionId) {
         await backend.cancel(acpSessionId);
       }
-      permissionHandler.reset();
       abortController.abort();
     } catch (error) {
       logger.debug(`[${opts.agentName}] Abort failed:`, error);
@@ -874,13 +985,39 @@ export async function runAcp(opts: {
   registerKillSessionHandler(session.rpcHandlerManager, async () => {
     shouldExit = true;
     messageQueue.close();
-    clearPendingTurn(new Error('Session terminated'));
     await handleAbort();
   });
 
   try {
     const started = await backend.startSession();
     acpSessionId = started.sessionId;
+    if (started.providerSessionId) {
+      Object.assign(metadata, {
+        acpSessionId: started.providerSessionId,
+        ...(runtimeAcpCapabilities ? { acpCapabilities: runtimeAcpCapabilities } : {}),
+      });
+      session.updateMetadata((currentMetadata) => ({
+        ...currentMetadata,
+        acpSessionId: started.providerSessionId,
+        ...(runtimeAcpCapabilities ? { acpCapabilities: runtimeAcpCapabilities } : {}),
+      }));
+      if (response) {
+        try {
+          await notifyDaemonSessionStarted(response.id, {
+            ...response.metadata,
+            ...metadata,
+          }, {
+            encryptionKey: encodeBase64(response.encryptionKey),
+            encryptionVariant: response.encryptionVariant,
+            seq: response.seq,
+            metadataVersion: response.metadataVersion,
+            agentStateVersion: response.agentStateVersion,
+          });
+        } catch (error) {
+          logger.debug('[acp] Failed to refresh daemon session metadata:', error);
+        }
+      }
+    }
     if (verbose) {
       if (!sawSlashCommands) {
         logAcp('muted', `Outgoing slash commands from ${opts.agentName}: not reported yet`);
@@ -912,33 +1049,27 @@ export async function runAcp(opts: {
 
       logAcp('incoming', `Incoming prompt: ${formatUnknownForConsole(batch.message, ACP_EVENT_PREVIEW_CHARS)}`);
       sendEnvelopes(sessionManager.startTurn());
-      const turnEnded = waitForTurnEnd();
       try {
         if (typeof batch.mode.permissionMode === 'string' && batch.mode.permissionMode.length > 0) {
           await switchPermissionModeIfRequested(batch.mode.permissionMode);
         }
-        if (typeof batch.mode.model === 'string' && batch.mode.model.length > 0) {
-          await switchModelIfRequested(batch.mode.model);
-        }
-        await backend.sendPrompt(acpSessionId, batch.message);
-        await turnEnded;
-        sendEnvelopes(sessionManager.endTurn('completed'));
+        await switchModelAndEffortIfRequested(batch.mode.model, batch.mode.effort);
+        const promptResult = await backend.sendPromptAndGetResult(acpSessionId, batch.message);
+        sendEnvelopes(sessionManager.endTurn(turnStatusForStopReason(promptResult.stopReason)));
         session.sendSessionEvent({ type: 'ready' });
         if (verbose) {
-          logAcp('muted', `Outgoing prompt completion from ${opts.agentName}`);
+          logAcp('muted', `Outgoing prompt completion from ${opts.agentName}: stopReason=${promptResult.stopReason}`);
         }
       } catch (error) {
         sendEnvelopes(sessionManager.endTurn('failed'));
         session.sendSessionEvent({ type: 'ready' });
         logAcp('error', `Prompt error from ${opts.agentName}: ${error instanceof Error ? error.message : String(error)}`);
-        clearPendingTurn(error instanceof Error ? error : new Error(String(error)));
         throw error;
       }
     }
   } finally {
     clearInterval(keepAliveInterval);
     reconnectionHandle?.cancel();
-    clearPendingTurn(new Error('ACP runner shutting down'));
 
     try {
       permissionHandler.reset();

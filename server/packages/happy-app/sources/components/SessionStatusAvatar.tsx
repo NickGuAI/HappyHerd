@@ -81,7 +81,7 @@ export function SessionStatusAvatar({
     const badgeSize = Math.max(10, Math.round(size * 0.28));
     const badgeIconSize = Math.max(7, Math.round(badgeSize * 0.68));
     const providerIdentity = providerKind?.trim()
-        || (flavor === 'claude' || flavor === 'codex' ? flavor : null);
+        || (flavor === 'claude' || flavor === 'codex' || flavor === 'grok' ? flavor : null);
     const mappedProvider = getProviderIconKind(providerIdentity);
     const providerDisplayLabel = providerLabel?.split(/\s+·\s+/).at(-1)?.trim();
     const fallbackProviderLabel = providerDisplayLabel

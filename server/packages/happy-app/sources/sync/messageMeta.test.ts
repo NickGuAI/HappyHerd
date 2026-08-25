@@ -210,6 +210,29 @@ describe('resolveMessageModeMeta', () => {
         expect(meta).toEqual({});
     });
 
+    it('uses GrokBuild overrides without inheriting the Claude catalog', () => {
+        const meta = resolveMessageModeMeta({
+            permissionMode: null,
+            modelMode: null,
+            effortLevel: null,
+            metadata: { flavor: 'grok' },
+        } as any, {
+            agentDefaultOverrides: {
+                grok: {
+                    permissionMode: 'ask-first',
+                    modelMode: 'grok-runtime-model',
+                    effortLevel: 'thorough',
+                },
+            },
+        } as any, { availableEfforts: [{ key: 'thorough' }] });
+
+        expect(meta).toEqual({
+            permissionMode: 'ask-first',
+            model: 'grok-runtime-model',
+            effort: 'thorough',
+        });
+    });
+
     it('sends canonical Rig selection metadata using mode code rather than semantic kind', () => {
         const meta = resolveMessageModeMeta({
             permissionMode: 'auto',

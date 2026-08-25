@@ -55,6 +55,7 @@ describe('sessionEnvironment', () => {
             HAPPY_RECONNECT_SEQ: '12',
             HAPPY_RECONNECT_METADATA_VERSION: '13',
             HAPPY_RECONNECT_AGENT_STATE_VERSION: '14',
+            HAPPY_RECONNECT_QUEUE_MESSAGE_ID: 'heartbeat-occurrence',
         });
 
         expect(childEnv).toMatchObject({
@@ -64,6 +65,7 @@ describe('sessionEnvironment', () => {
             HAPPY_RECONNECT_SEQ: '12',
             HAPPY_RECONNECT_METADATA_VERSION: '13',
             HAPPY_RECONNECT_AGENT_STATE_VERSION: '14',
+            HAPPY_RECONNECT_QUEUE_MESSAGE_ID: 'heartbeat-occurrence',
         });
         expect(childEnv).not.toHaveProperty('HAPPY_FORK_CODEX_THREAD_ID');
         expect(childEnv).not.toHaveProperty('CODEX_THREAD_ID');
@@ -106,7 +108,6 @@ describe('sessionEnvironment', () => {
             HAPPYHERD_AUTOMATION_ID: 'new-automation',
             HAPPYHERD_AUTOMATION_RUN_ID: 'new-run',
             HAPPYHERD_AUTOMATION_KIND: 'heartbeat',
-            HAPPYHERD_AUTOMATION_TIMEOUT_MINUTES: '360',
             HAPPYHERD_AUTOMATION_BOOTSTRAP_PATH: '/tmp/bootstrap.json',
             HAPPYHERD_AUTOMATION_BOOTSTRAP_HASH: 'abc123',
         });
@@ -115,12 +116,10 @@ describe('sessionEnvironment', () => {
             HAPPYHERD_AUTOMATION_ID: 'new-automation',
             HAPPYHERD_AUTOMATION_RUN_ID: 'new-run',
             HAPPYHERD_AUTOMATION_KIND: 'heartbeat',
-            HAPPYHERD_AUTOMATION_TIMEOUT_MINUTES: '360',
         });
         const unrelated = buildSessionChildEnvironment(childEnv);
         expect(unrelated).not.toHaveProperty('HAPPYHERD_AUTOMATION_ID');
         expect(unrelated).not.toHaveProperty('HAPPYHERD_AUTOMATION_RUN_ID');
-        expect(unrelated).not.toHaveProperty('HAPPYHERD_AUTOMATION_TIMEOUT_MINUTES');
         expect(unrelated).not.toHaveProperty('HAPPYHERD_AUTOMATION_BOOTSTRAP_PATH');
     });
 

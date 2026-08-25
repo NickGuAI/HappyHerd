@@ -1,7 +1,7 @@
 # HappyHerd launcher
 
 `happyherd` is the organization-neutral local entry point for HappyHerd. It
-ships with the maintained Happy runtime and adds four end-user workflows:
+ships with the maintained Happy runtime and adds governed workflows:
 
 ```text
 happyherd doctor
@@ -10,6 +10,12 @@ happyherd install-skills --issuer https://issuer.example
 happyherd run-tool --issuer https://issuer.example --skill generic-guide --script scripts/check.py -- --read
 happyherd upgrade --manifest https://downloads.example/releases/release-manifest.json
 ```
+
+Those governed command names keep their HappyHerd behavior. Every other
+invocation is forwarded once and unchanged to the bundled native Happy CLI, so
+native commands such as `happy automation list --json` are also available as
+`happyherd automation list --json`. Native arguments and exit or signal status
+are preserved without maintaining a second command list in HappyHerd.
 
 `connect --json` is an NDJSON stream. It emits an `approval` record with
 `verificationUri` and `userCode` before polling, optional `pending` and

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    findPreferredAvailableOptionIndex,
     resolvePermissionStyle,
     resolveSelectedOption,
     validateNewSessionLaunchSelection,
@@ -12,6 +13,14 @@ const modes = [
 ];
 
 describe('new session mode selection', () => {
+    it('ignores a stale disabled draft and selects the advertised default', () => {
+        expect(findPreferredAvailableOptionIndex([
+            { key: 'stale', disabled: true, unavailable: true },
+            { key: 'runtime-fast' },
+            { key: 'runtime-default' },
+        ], ['stale', 'runtime-default'])).toBe(2);
+    });
+
     it('resolves the indexed option and falls back to the first one', () => {
         expect(resolveSelectedOption(modes, 1)).toEqual({ key: 'yolo', name: 'YOLO' });
         expect(resolveSelectedOption(modes, 7)).toEqual({ key: 'default', name: 'Default' });

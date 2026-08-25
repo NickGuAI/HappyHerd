@@ -29,6 +29,8 @@ import type {
     HappyHerdAutomationListResponse,
     HappyHerdAutomationRun,
     HappyHerdAutomationUpdateInput,
+    HappyHerdHeartbeatControlInput,
+    HappyHerdHeartbeatControlResponse,
     HappyHerdCommanderListResponse,
     WorkspaceFileHashRequest,
     WorkspaceFileHashResponse,
@@ -232,7 +234,7 @@ export interface SpawnSessionOptions {
     directory: string;
     approvedNewDirectoryCreation?: boolean;
     token?: string;
-    agent?: 'codex' | 'claude' | 'gemini' | 'openclaw' | 'agy' | 'rig';
+    agent?: 'codex' | 'claude' | 'grok' | 'gemini' | 'openclaw' | 'agy' | 'rig';
     permissionMode?: string;
     modelMode?: string;
     effortLevel?: string;
@@ -330,7 +332,7 @@ export async function machineSpawnNewSession(options: SpawnSessionOptions): Prom
             directory: string
             approvedNewDirectoryCreation?: boolean,
             token?: string,
-            agent?: 'codex' | 'claude' | 'gemini' | 'openclaw' | 'agy' | 'rig',
+            agent?: 'codex' | 'claude' | 'grok' | 'gemini' | 'openclaw' | 'agy' | 'rig',
             permissionMode?: string,
             modelMode?: string,
             effortLevel?: string,
@@ -429,6 +431,13 @@ export async function machineAutomationHistory(
     id: string,
 ): Promise<HappyHerdAutomationHistoryResponse> {
     return machineAutomationRPC(machineId, 'happyherd-automations-history', { id });
+}
+
+export async function machineControlHeartbeat(
+    machineId: string,
+    input: HappyHerdHeartbeatControlInput,
+): Promise<HappyHerdHeartbeatControlResponse> {
+    return machineAutomationRPC(machineId, 'happyherd-heartbeat-control', input);
 }
 
 /**

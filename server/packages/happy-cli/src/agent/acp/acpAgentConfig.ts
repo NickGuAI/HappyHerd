@@ -5,14 +5,116 @@ export type AcpAgentConfig = {
 
 export const KNOWN_ACP_AGENTS: Record<string, AcpAgentConfig> = {
   gemini: { command: 'gemini', args: ['--experimental-acp'] },
+  grok: { command: 'grok', args: ['--no-auto-update', 'agent', 'stdio'] },
   opencode: { command: 'opencode', args: ['acp'] },
 };
+
+const GROK_CHILD_ENV_KEYS = [
+  // Local-login discovery and the process essentials verified by the ACP probe.
+  'HOME', 'USERPROFILE', 'PATH', 'Path', 'LANG', 'LC_ALL', 'LC_CTYPE', 'TERM',
+  // Windows process essentials.
+  'COMSPEC', 'ComSpec', 'SYSTEMROOT', 'SystemRoot', 'WINDIR', 'APPDATA', 'LOCALAPPDATA',
+  // Grok's local-home override and direct API authentication input.
+  'GROK_HOME', 'XAI_API_KEY',
+] as const;
+
+/** Give Grok only its process essentials and documented authentication inputs. */
+export function sanitizeGrokChildEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const childEnv: NodeJS.ProcessEnv = {};
+  for (const key of GROK_CHILD_ENV_KEYS) {
+    if (env[key] !== undefined) childEnv[key] = env[key];
+  }
+  return childEnv;
+}
 
 export type ResolvedAcpAgentConfig = {
   agentName: string;
   command: string;
   args: string[];
 };
+
+export type AcpLaunchConfig = ResolvedAcpAgentConfig & {
+  startedBy?: 'daemon' | 'terminal';
+  verbose: boolean;
+  permissionMode?: string;
+  model?: string;
+  effort?: string;
+  resumeSessionId?: string;
+};
+
+/** Parse Happy-owned wrapper flags without leaking them into the ACP provider command. */
+export function resolveAcpLaunchConfig(
+  cliArgs: string[],
+  namedAgent?: keyof typeof KNOWN_ACP_AGENTS,
+): AcpLaunchConfig {
+  let startedBy: 'daemon' | 'terminal' | undefined;
+  let verbose = false;
+  let permissionMode: string | undefined;
+  let model: string | undefined;
+  let effort: string | undefined;
+  let resumeSessionId: string | undefined;
+  const providerArgs: string[] = namedAgent ? [namedAgent] : [];
+  let customCommandMode = false;
+
+  const takeValue = (index: number, flag: string): string => {
+    const value = cliArgs[index + 1];
+    if (!value) throw new Error(`Missing value for ${flag}`);
+    return value;
+  };
+
+  for (let i = 0; i < cliArgs.length; i++) {
+    const arg = cliArgs[i];
+    if (!customCommandMode && arg === '--started-by') {
+      startedBy = takeValue(i, arg) as 'daemon' | 'terminal';
+      i++;
+      continue;
+    }
+    if (!customCommandMode && arg === '--verbose') {
+      verbose = true;
+      continue;
+    }
+    if (!customCommandMode && arg === '--happy-starting-mode') {
+      takeValue(i, arg);
+      i++;
+      continue;
+    }
+    if (namedAgent === 'grok' && !customCommandMode && arg === '--permission-mode') {
+      permissionMode = takeValue(i, arg);
+      i++;
+      continue;
+    }
+    if (namedAgent === 'grok' && !customCommandMode && arg === '--model') {
+      model = takeValue(i, arg);
+      i++;
+      continue;
+    }
+    if (namedAgent === 'grok' && !customCommandMode && arg === '--effort') {
+      effort = takeValue(i, arg);
+      i++;
+      continue;
+    }
+    if (namedAgent === 'grok' && !customCommandMode && arg === '--resume') {
+      resumeSessionId = takeValue(i, arg);
+      i++;
+      continue;
+    }
+    if (arg === '--') customCommandMode = true;
+    if (namedAgent) {
+      throw new Error(`Unexpected argument for happy ${namedAgent}: ${arg}`);
+    }
+    providerArgs.push(arg);
+  }
+
+  return {
+    ...resolveAcpAgentConfig(providerArgs),
+    startedBy,
+    verbose,
+    permissionMode,
+    model,
+    effort,
+    resumeSessionId,
+  };
+}
 
 export function resolveAcpAgentConfig(cliArgs: string[]): ResolvedAcpAgentConfig {
   if (cliArgs.length === 0) {

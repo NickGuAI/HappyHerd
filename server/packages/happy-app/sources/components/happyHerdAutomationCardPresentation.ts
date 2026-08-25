@@ -4,10 +4,17 @@ export type HappyHerdAutomationCardPresentation = {
     name: string;
     active: boolean;
     statusKey: 'happyHerd.automations.statusActive' | 'happyHerd.automations.statusPaused';
-    details: null | Pick<
-        HappyHerdAutomation,
-        'schedule' | 'timezone' | 'kind' | 'instruction' | 'rail' | 'workspace' | 'commanderId' | 'tags'
-    >;
+    details: null | {
+        schedule: string;
+        timezone: string;
+        kind: HappyHerdAutomation['kind'];
+        instruction: string;
+        rail: HappyHerdAutomation['rail'];
+        workspace: string;
+        commanderId: string | null;
+        tags: string[];
+        targetSessionId: string | null;
+    };
 };
 
 export function happyHerdAutomationCardPresentation(
@@ -22,7 +29,9 @@ export function happyHerdAutomationCardPresentation(
             ? 'happyHerd.automations.statusActive'
             : 'happyHerd.automations.statusPaused',
         details: expanded ? {
-            schedule: automation.schedule,
+            schedule: automation.kind === 'heartbeat'
+                ? `every ${automation.intervalSeconds}s`
+                : automation.schedule,
             timezone: automation.timezone,
             kind: automation.kind,
             instruction: automation.instruction,
@@ -30,6 +39,7 @@ export function happyHerdAutomationCardPresentation(
             workspace: automation.workspace,
             commanderId: automation.commanderId,
             tags: automation.tags,
+            targetSessionId: automation.kind === 'heartbeat' ? automation.targetSessionId : null,
         } : null,
     };
 }

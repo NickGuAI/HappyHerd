@@ -42,6 +42,7 @@ type FieldConfig = {
 const agentLabels: Record<AgentKey, string> = {
     claude: getHarnessName('claude'),
     codex: getHarnessName('codex'),
+    grok: getHarnessName('grok'),
     gemini: getHarnessName('gemini'),
     openclaw: getHarnessName('openclaw'),
     agy: getHarnessName('agy'),
@@ -50,7 +51,13 @@ const agentLabels: Record<AgentKey, string> = {
 // A retired harness keeps its stored defaults — the schema still carries them,
 // and "Reset all" still clears them — but there is nothing to configure for an
 // agent you can no longer start a session with.
-const configurableAgentKeys = agentKeys.filter((agent) => !isRetiredHarness(agent));
+// GrokBuild catalogs are machine-owned ACP snapshots. Its selections are
+// remembered from the machine-backed New Session pickers, where they can be
+// validated before becoming defaults; a global static settings list would
+// necessarily invent or merge provider values.
+const configurableAgentKeys = agentKeys.filter((agent) => (
+    !isRetiredHarness(agent) && agent !== 'grok'
+));
 
 function optionName(options: ModeOption[], key: string | null | undefined): string {
     if (!key) return 'none';

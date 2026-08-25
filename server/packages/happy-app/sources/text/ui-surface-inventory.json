@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "200eade1d94ead5067b54cc97f89c5f7c51c236bf68b59c059cea47abe8c0311",
+  "sourceFingerprint": "cd0ef71806f0556d09ed80709a6cbbdf399f02f0103dd415ed046025ca9a779f",
   "routeCount": 36,
-  "surfaceCount": 242,
+  "surfaceCount": 243,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -441,14 +441,27 @@
       "path": "/session/[id]/info",
       "owner": "sources/app/(app)/session/[id]/info.tsx",
       "translationKeys": [
+        "agentInput.agent.grok",
         "common.cancel",
         "common.error",
         "common.loading",
         "common.no",
+        "common.save",
         "common.success",
         "common.yes",
         "errors.sessionDeleted",
         "errors.sessionDeletedDescription",
+        "happyHerd.heartbeat.automation",
+        "happyHerd.heartbeat.clear",
+        "happyHerd.heartbeat.every",
+        "happyHerd.heartbeat.instructionPlaceholder",
+        "happyHerd.heartbeat.interval",
+        "happyHerd.heartbeat.minimum",
+        "happyHerd.heartbeat.notConfigured",
+        "happyHerd.heartbeat.pause",
+        "happyHerd.heartbeat.resume",
+        "happyHerd.heartbeat.title",
+        "happyHerd.heartbeat.unavailable",
         "session.duplicateAction",
         "session.duplicateSubtitle",
         "session.forkAction",
@@ -517,7 +530,8 @@
       "states": [
         "error",
         "loading",
-        "offline"
+        "offline",
+        "unavailable"
       ]
     },
     {
@@ -978,6 +992,8 @@
         "errors.sessionDeletedDescription",
         "happyHerd.composer.sendFailedBody",
         "happyHerd.composer.sendFailedTitle",
+        "happyHerd.heartbeat.machineUnavailable",
+        "happyHerd.heartbeat.title",
         "session.inactiveArchived",
         "session.inputPlaceholder",
         "session.resumeFromTerminal",
@@ -1565,14 +1581,27 @@
       "route": "/session/[id]/info",
       "exports": [],
       "translationKeys": [
+        "agentInput.agent.grok",
         "common.cancel",
         "common.error",
         "common.loading",
         "common.no",
+        "common.save",
         "common.success",
         "common.yes",
         "errors.sessionDeleted",
         "errors.sessionDeletedDescription",
+        "happyHerd.heartbeat.automation",
+        "happyHerd.heartbeat.clear",
+        "happyHerd.heartbeat.every",
+        "happyHerd.heartbeat.instructionPlaceholder",
+        "happyHerd.heartbeat.interval",
+        "happyHerd.heartbeat.minimum",
+        "happyHerd.heartbeat.notConfigured",
+        "happyHerd.heartbeat.pause",
+        "happyHerd.heartbeat.resume",
+        "happyHerd.heartbeat.title",
+        "happyHerd.heartbeat.unavailable",
         "session.duplicateAction",
         "session.duplicateSubtitle",
         "session.forkAction",
@@ -1641,7 +1670,8 @@
       "states": [
         "error",
         "loading",
-        "offline"
+        "offline",
+        "unavailable"
       ],
       "hardcodedCopy": []
     },
@@ -2288,6 +2318,7 @@
         "agentInput.agent.claude",
         "agentInput.agent.codex",
         "agentInput.agent.gemini",
+        "agentInput.agent.grok",
         "agentInput.agent.openclaw",
         "agentInput.codexPermissionMode.title",
         "agentInput.context.remaining",
@@ -3066,7 +3097,8 @@
         "happyHerd.automations.openSession",
         "happyHerd.automations.pause",
         "happyHerd.automations.resume",
-        "happyHerd.automations.runNow"
+        "happyHerd.automations.runNow",
+        "happyHerd.heartbeat.openTarget"
       ],
       "states": [],
       "hardcodedCopy": []
@@ -3118,6 +3150,7 @@
         "uiCopy.agent",
         "uiCopy.agent_1wzwjl",
         "uiCopy.askCodex",
+        "uiCopy.askValue",
         "uiCopy.machine",
         "uiCopy.notInstalledOnThisMachine",
         "uiCopy.notSupportedByValue",
@@ -3423,6 +3456,7 @@
       "route": null,
       "exports": [
         "findOptionByKey",
+        "getAdvertisedDefaultOptionKey",
         "getAgyModelModes",
         "getAgyPermissionModes",
         "getAvailableModels",
@@ -4309,13 +4343,15 @@
         "PermissionFooter"
       ],
       "translationKeys": [
+        "agentInput.agent.grok",
         "claude.permissions.noTellClaude",
         "claude.permissions.yesAllowAllEdits",
         "claude.permissions.yesAllowEverything",
         "claude.permissions.yesForTool",
         "codex.permissions.stopAndExplain",
         "codex.permissions.yesForSession",
-        "common.yes"
+        "common.yes",
+        "grok.permissions.noProvideFeedback"
       ],
       "states": [],
       "hardcodedCopy": []
@@ -5218,6 +5254,7 @@
         "useVoiceSessionGeneration"
       ],
       "translationKeys": [
+        "agentInput.agent.grok",
         "sessionHistory.daysAgo",
         "sessionHistory.today",
         "sessionHistory.yesterday"
@@ -5289,6 +5326,36 @@
       "states": [
         "error"
       ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/utils/heartbeatCommand.ts",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HEARTBEAT_COMMAND",
+        "formatHeartbeatControlResult",
+        "formatHeartbeatStatusPresentation"
+      ],
+      "translationKeys": [
+        "happyHerd.heartbeat.active",
+        "happyHerd.heartbeat.confirmation",
+        "happyHerd.heartbeat.countdownIn",
+        "happyHerd.heartbeat.currentStatus",
+        "happyHerd.heartbeat.dueNow",
+        "happyHerd.heartbeat.instructionStatus",
+        "happyHerd.heartbeat.lastDelivery",
+        "happyHerd.heartbeat.lastDeliveryNone",
+        "happyHerd.heartbeat.nextDue",
+        "happyHerd.heartbeat.nextDueNone",
+        "happyHerd.heartbeat.notConfigured",
+        "happyHerd.heartbeat.paused",
+        "happyHerd.heartbeat.queuedAhead",
+        "happyHerd.heartbeat.standardContinuation",
+        "running",
+        "started"
+      ],
+      "states": [],
       "hardcodedCopy": []
     },
     {

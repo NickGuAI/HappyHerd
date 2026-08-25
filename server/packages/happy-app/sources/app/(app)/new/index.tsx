@@ -60,6 +60,7 @@ import {
     getHardcodedModelModes,
     getHardcodedPermissionModes,
     getEffortLevelsForModel,
+    getAdvertisedDefaultOptionKey,
     getMachineAdvertisedPermissionModes,
     getMachineAdvertisedModels,
     getMachineAdvertisedEffortLevels,
@@ -98,6 +99,7 @@ import {
     resolveSpawnRequestId,
 } from '@/sync/spawnRequestId';
 import {
+    findPreferredAvailableOptionIndex,
     resolvePermissionStyle,
     resolveSelectedOption,
     validateNewSessionLaunchSelection,
@@ -108,6 +110,7 @@ import { BubblePressable } from '@/components/BubblePressable';
 import { Header } from '@/components/navigation/Header';
 import { MachinePathBrowser, type FavoriteMachinePath } from '@/components/MachinePathBrowser';
 import { MachineFileUploadStatus } from '@/components/MachineFileUploadStatus';
+import { ProviderIcon } from '@/components/ProviderIcon';
 import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
 import {
     AnimatedClickAwayBackdrop,
@@ -116,6 +119,7 @@ import {
 } from '@/components/AnimatedOverlay';
 import type { HappyHerdCommanderSummary } from '@slopus/happy-wire';
 import { getHarnessName } from '@/utils/harnessCatalog';
+import { supportsImageAttachmentsForFlavor } from '@/sync/attachmentSupport';
 import {
     addWorkspaceContextEntry,
     buildWorkspaceContextMessage,
@@ -135,11 +139,25 @@ const agentIcons = {
 };
 
 type AgentKey = NewSessionAgentType;
+
+function AgentProviderIcon({ agent, size, tintColor }: { agent: AgentKey; size: number; tintColor: string }) {
+    if (agent === 'grok') {
+        return <ProviderIcon kind="grok" size={size} />;
+    }
+    return (
+        <RNImage
+            source={agentIcons[agent as keyof typeof agentIcons]}
+            style={{ width: size, height: size, tintColor }}
+            resizeMode="contain"
+        />
+    );
+}
 // Lowercased to match this screen's type, but the same names and pick order as
 // the Home composer's harness picker. Retired harnesses are absent from both.
 const ALL_AGENTS: { key: AgentKey; label: string }[] = [
     { key: 'claude', label: getHarnessName('claude').toLocaleLowerCase() },
     { key: 'codex', label: getHarnessName('codex').toLocaleLowerCase() },
+    { key: 'grok', label: getHarnessName('grok').toLocaleLowerCase() },
     { key: 'agy', label: getHarnessName('agy').toLocaleLowerCase() },
     { key: 'rig', label: getHarnessName('rig').toLocaleLowerCase() },
 ];
@@ -170,9 +188,7 @@ function findPreferredModeIndex<T extends { key: string }>(
     for (const key of preferredKeys) {
         if (!key) continue;
         const index = options.findIndex((option) => option.key === key);
-        if (index >= 0) {
-            return index;
-        }
+        if (index >= 0) return index;
     }
     return 0;
 }
@@ -1260,10 +1276,11 @@ function NewSessionScreen() {
         return ALL_AGENTS.flatMap((agent) => {
             const available = agent.key === 'rig'
                 ? selectedRigCreation !== null
-                : agent.key === 'agy'
-                    ? availability?.agy === true
+                : agent.key === 'agy' || agent.key === 'grok'
+                    ? availability?.[agent.key] === true
                     : !availability || availability[agent.key] === true;
             if (available) return [agent];
+            if (agent.key === 'grok') return [];
             // Keep only the saved unavailable harness as a disabled recovery
             // row. It stays visible without becoming launchable on this daemon.
             if (agent.key !== selectedAgent) return [];
@@ -1276,14 +1293,33 @@ function NewSessionScreen() {
             }];
         });
     }, [selectedAgent, selectedMachine?.metadata?.cliAvailability, selectedRigCreation]);
+    React.useEffect(() => {
+        if (selectedAgent !== 'grok') return;
+        if (availableAgents.some((candidate) => candidate.key === selectedAgent && !candidate.disabled)) return;
+        const fallback = availableAgents.find((candidate) => !candidate.disabled);
+        if (fallback) setSelectedAgent(fallback.key);
+    }, [availableAgents, selectedAgent, setSelectedAgent]);
+
+    // Derive options from the exact selected daemon. GrokBuild intentionally
+    // has no app-owned model, effort, or permission catalog.
+    const machineCatalog = selectedAgent === 'rig'
+        ? undefined
+        : selectedMachine?.metadata?.agentCapabilities?.[selectedAgent];
+    const canUseImageAttachments = expImageUpload
+        && supportsImageAttachmentsForFlavor(selectedAgent, machineCatalog?.acp);
+    React.useEffect(() => {
+        if (!canUseImageAttachments && imagePicker.selectedImages.length > 0) {
+            imagePicker.clearImages();
+        }
+    }, [canUseImageAttachments, imagePicker.clearImages, imagePicker.selectedImages.length]);
 
     // Derive options from agent type
     const permissionModes = React.useMemo<PermissionMode[]>(
         () => rigCreation?.permissionModes
-            ?? (selectedMachine?.metadata?.agentCapabilities?.[selectedAgent]
-                ? getMachineAdvertisedPermissionModes(selectedMachine.metadata, selectedAgent, t, draft.permissionMode)
+            ?? (machineCatalog
+                ? getMachineAdvertisedPermissionModes(selectedMachine?.metadata, selectedAgent, t, draft.permissionMode)
                 : getHardcodedPermissionModes(selectedAgent, t)),
-        [selectedAgent, selectedMachine?.metadata, rigCreation, draft.permissionMode],
+        [selectedAgent, selectedMachine?.metadata, machineCatalog, rigCreation, draft.permissionMode],
     );
     const effectiveAgentDefaults = React.useMemo(() => rigCreation
         ? {
@@ -1294,15 +1330,15 @@ function NewSessionScreen() {
         : resolveAgentDefaultConfig(agentDefaultOverrides, selectedAgent), [agentDefaultOverrides, selectedAgent, rigCreation]);
     const modelModes = React.useMemo<ModelMode[]>(
         () => rigCreation?.models
-            ?? (selectedMachine?.metadata?.agentCapabilities?.[selectedAgent]
-                ? getMachineAdvertisedModels(selectedMachine.metadata, selectedAgent, t, draft.modelMode)
+            ?? (machineCatalog
+                ? getMachineAdvertisedModels(selectedMachine?.metadata, selectedAgent, t, draft.modelMode)
                 : includeConfiguredModel(
                     selectedAgent,
                     getHardcodedModelModes(selectedAgent, t),
                     draft.modelMode ?? effectiveAgentDefaults.modelMode,
                     t,
                 )),
-        [selectedAgent, selectedMachine?.metadata, rigCreation, draft.modelMode, effectiveAgentDefaults.modelMode],
+        [selectedAgent, selectedMachine?.metadata, machineCatalog, rigCreation, draft.modelMode, effectiveAgentDefaults.modelMode],
     );
 
     const currentModel = resolveSelectedOption(modelModes, modelIndex);
@@ -1311,10 +1347,10 @@ function NewSessionScreen() {
     const effortLevels = React.useMemo<EffortLevel[]>(
         () => rigCreation
             ? rigCreation.effortsForModel(currentModelKey).map((key) => ({ key, name: key }))
-            : selectedMachine?.metadata?.agentCapabilities?.[selectedAgent]
-                ? getMachineAdvertisedEffortLevels(selectedMachine.metadata, selectedAgent, currentModelKey)
+            : machineCatalog
+                ? getMachineAdvertisedEffortLevels(selectedMachine?.metadata, selectedAgent, currentModelKey)
                 : getEffortLevelsForModel(selectedAgent, currentModelKey),
-        [selectedAgent, selectedMachine?.metadata, currentModelKey, rigCreation],
+        [selectedAgent, selectedMachine?.metadata, machineCatalog, currentModelKey, rigCreation],
     );
     const effectiveEffortDefault = rigCreation?.defaultEffortForModel(currentModelKey)
         ?? resolveAgentDefaultEffortLevel(agentDefaultOverrides, selectedAgent, effortLevels);
@@ -1324,15 +1360,29 @@ function NewSessionScreen() {
 
     // Reset indices when agent/default settings change.
     React.useEffect(() => {
-        setPermissionIndex(findPreferredModeIndex(permissionModes, [
-            draft.permissionMode,
-            effectiveAgentDefaults.permissionMode,
-        ]));
+        const nextPermissionIndex = selectedAgent === 'grok'
+            ? findPreferredAvailableOptionIndex(permissionModes, [
+                draft.permissionMode ?? effectiveAgentDefaults.permissionMode,
+                getAdvertisedDefaultOptionKey(permissionModes),
+            ])
+            : findPreferredModeIndex(permissionModes, [draft.permissionMode, effectiveAgentDefaults.permissionMode]);
+        setPermissionIndex(nextPermissionIndex);
+        const nextPermission = permissionModes[nextPermissionIndex]?.key ?? null;
+        if (selectedAgent === 'grok' && draft.permissionMode !== null && draft.permissionMode !== nextPermission) {
+            draft.setPermissionMode(nextPermission);
+        }
 
-        setModelIndex(findPreferredModeIndex(modelModes, [
-            draft.modelMode,
-            effectiveAgentDefaults.modelMode,
-        ]));
+        const nextModelIndex = selectedAgent === 'grok'
+            ? findPreferredAvailableOptionIndex(modelModes, [
+                draft.modelMode ?? effectiveAgentDefaults.modelMode,
+                getAdvertisedDefaultOptionKey(modelModes),
+            ])
+            : findPreferredModeIndex(modelModes, [draft.modelMode, effectiveAgentDefaults.modelMode]);
+        setModelIndex(nextModelIndex);
+        const nextModel = modelModes[nextModelIndex]?.key ?? null;
+        if (selectedAgent === 'grok' && draft.modelMode !== null && draft.modelMode !== nextModel) {
+            draft.setModelMode(nextModel);
+        }
 
         if (!canPickWorktree) setWorktreeKey('__none__');
     }, [
@@ -1344,19 +1394,30 @@ function NewSessionScreen() {
         draft.modelMode,
         effectiveAgentDefaults.permissionMode,
         effectiveAgentDefaults.modelMode,
+        selectedAgent,
+        draft.setPermissionMode,
+        draft.setModelMode,
     ]);
 
     // Reset effort when model changes
     React.useEffect(() => {
         if (effortLevels.length === 0) {
             setEffortIndex(0);
+            if (selectedAgent === 'grok' && draft.effortLevel !== null) draft.setEffortLevel(null);
             return;
         }
-        setEffortIndex(findPreferredModeIndex(effortLevels, [
-            draft.effortLevel,
-            effectiveEffortDefault,
-        ]));
-    }, [draft.effortLevel, effectiveEffortDefault, currentModelKey, effortLevels]);
+        const nextEffortIndex = selectedAgent === 'grok'
+            ? findPreferredAvailableOptionIndex(effortLevels, [
+                draft.effortLevel ?? effectiveEffortDefault,
+                getAdvertisedDefaultOptionKey(effortLevels),
+            ])
+            : findPreferredModeIndex(effortLevels, [draft.effortLevel, effectiveEffortDefault]);
+        setEffortIndex(nextEffortIndex);
+        const nextEffort = effortLevels[nextEffortIndex]?.key ?? null;
+        if (selectedAgent === 'grok' && draft.effortLevel !== null && draft.effortLevel !== nextEffort) {
+            draft.setEffortLevel(nextEffort);
+        }
+    }, [draft.effortLevel, draft.setEffortLevel, effectiveEffortDefault, currentModelKey, effortLevels, selectedAgent]);
 
     // The reference keeps the context controls visible while the keyboard is
     // open. Preserve that on mobile and let users collapse them explicitly.
@@ -1450,10 +1511,10 @@ function NewSessionScreen() {
         const effortKey = nextEffort.key;
         setEffortIndex(next);
         draft.setEffortLevel(effortKey);
-        if (selectedAgent === 'codex') {
+        if (selectedAgent === 'codex' || selectedAgent === 'grok') {
             setAgentDefaultOverrides(setAgentDefaultOverride(
                 agentDefaultOverrides,
-                'codex',
+                selectedAgent,
                 'effortLevel',
                 effortKey,
             ));
@@ -1630,6 +1691,14 @@ function NewSessionScreen() {
                 if (next >= 0 && !nextModel?.disabled && !nextModel?.unavailable) {
                     setModelIndex(next);
                     draft.setModelMode(nextModel.key);
+                    if (selectedAgent === 'grok') {
+                        setAgentDefaultOverrides(setAgentDefaultOverride(
+                            agentDefaultOverrides,
+                            'grok',
+                            'modelMode',
+                            nextModel.key,
+                        ));
+                    }
                 }
                 break;
             }
@@ -1643,6 +1712,14 @@ function NewSessionScreen() {
                 if (next >= 0 && !nextPermission?.disabled && !nextPermission?.unavailable) {
                     setPermissionIndex(next);
                     draft.setPermissionMode(nextPermission.key);
+                    if (selectedAgent === 'grok') {
+                        setAgentDefaultOverrides(setAgentDefaultOverride(
+                            agentDefaultOverrides,
+                            'grok',
+                            'permissionMode',
+                            nextPermission.key,
+                        ));
+                    }
                 }
                 break;
             }
@@ -1650,6 +1727,7 @@ function NewSessionScreen() {
         closePicker();
     }, [
         activePicker,
+        agentDefaultOverrides,
         applyCommanderOnboardingIntent,
         availableAgents,
         commanders,
@@ -1660,6 +1738,8 @@ function NewSessionScreen() {
         modelModes,
         permissionModes,
         selectEffortByKey,
+        selectedAgent,
+        setAgentDefaultOverrides,
         setSelectedAgent,
         setSelectedCommanderId,
         setSelectedMachineId,
@@ -1675,6 +1755,14 @@ function NewSessionScreen() {
                 if (next >= 0 && !nextModel?.disabled && !nextModel?.unavailable) {
                     setModelIndex(next);
                     draft.setModelMode(nextModel.key);
+                    if (selectedAgent === 'grok') {
+                        setAgentDefaultOverrides(setAgentDefaultOverride(
+                            agentDefaultOverrides,
+                            'grok',
+                            'modelMode',
+                            nextModel.key,
+                        ));
+                    }
                 }
                 break;
             }
@@ -1688,13 +1776,21 @@ function NewSessionScreen() {
                 if (next >= 0 && !nextPermission?.disabled && !nextPermission?.unavailable) {
                     setPermissionIndex(next);
                     draft.setPermissionMode(nextPermission.key);
+                    if (selectedAgent === 'grok') {
+                        setAgentDefaultOverrides(setAgentDefaultOverride(
+                            agentDefaultOverrides,
+                            'grok',
+                            'permissionMode',
+                            nextPermission.key,
+                        ));
+                    }
                 }
                 break;
             }
         }
         setNativePickerMeasuredHeight(null);
         setComposerSettingsPage(null);
-    }, [composerSettingsPage, draft.setModelMode, draft.setPermissionMode, modelModes, permissionModes, selectEffortByKey]);
+    }, [agentDefaultOverrides, composerSettingsPage, draft.setModelMode, draft.setPermissionMode, modelModes, permissionModes, selectEffortByKey, selectedAgent, setAgentDefaultOverrides]);
 
     // Spawn session handler
     const handleSend = React.useCallback(async (
@@ -1724,12 +1820,12 @@ function NewSessionScreen() {
                 ? getRigMachineSessionCreation(machine.metadata)
                 : null;
             const availability = machine.metadata?.cliAvailability;
+            const machineCatalog = machine.metadata?.agentCapabilities?.[agentType];
             const agentAvailable = agentType === 'rig'
                 ? latestRigCreation !== null
-                : agentType === 'agy'
-                    ? availability?.agy === true
+                : agentType === 'agy' || agentType === 'grok'
+                    ? availability?.[agentType] === true
                     : !availability || availability[agentType] === true;
-            const machineCatalog = machine.metadata?.agentCapabilities?.[agentType];
             const latestPermissionModes = latestRigCreation?.permissionModes
                 ?? (machineCatalog
                     ? getMachineAdvertisedPermissionModes(machine.metadata, agentType, t, permissionKey)
@@ -1762,6 +1858,9 @@ function NewSessionScreen() {
                 return {
                     status: 'unavailable' as const,
                     rigUnavailable: agentType === 'rig' && latestRigCreation === null,
+                    grokCapabilityError: agentType === 'grok'
+                        ? machine.metadata?.grokCapabilityError
+                        : undefined,
                 };
             }
             return {
@@ -1781,7 +1880,8 @@ function NewSessionScreen() {
                 t('common.error'),
                 initialContext.rigUnavailable
                     ? t('newSession.happyAgentUnsupported')
-                    : t("uiCopy.theSelectedAgentConfigurationIsUnavailable"),
+                    : initialContext.grokCapabilityError
+                        ?? t("uiCopy.theSelectedAgentConfigurationIsUnavailable"),
             );
             return;
         }
@@ -1838,7 +1938,8 @@ function NewSessionScreen() {
                     t('common.error'),
                     spawnContext.rigUnavailable
                         ? t('newSession.happyAgentUnsupported')
-                        : t("uiCopy.theSelectedAgentConfigurationIsUnavailable"),
+                        : spawnContext.grokCapabilityError
+                            ?? t("uiCopy.theSelectedAgentConfigurationIsUnavailable"),
                 );
                 return;
             }
@@ -1864,7 +1965,7 @@ function NewSessionScreen() {
                     // For codex, 'default' is a concrete ask-first mode (the codex
                     // launch default is yolo) — it must be forwarded. For other
                     // agents 'default' is the ambient no-override value.
-                    permissionMode: permissionKey && (agentType === 'codex' || permissionKey !== 'default')
+                    permissionMode: permissionKey && (agentType === 'codex' || agentType === 'grok' || permissionKey !== 'default')
                         ? permissionKey
                         : undefined,
                     modelMode: currentModelKey !== 'default' ? currentModelKey : undefined,
@@ -1922,7 +2023,10 @@ function NewSessionScreen() {
                     // accepted by the synchronized outbox.
                     const draftState = useNewSessionDraft.getState();
                     const trimmedPrompt = draftState.input.trim();
-                    const attachments = draftState.attachments;
+                    const attachments = supportsImageAttachmentsForFlavor(
+                        agentType,
+                        spawnMachine.metadata?.agentCapabilities?.[agentType]?.acp,
+                    ) ? draftState.attachments : [];
                     let initialPrompt = trimmedPrompt;
                     let initialDisplayText = trimmedPrompt;
 
@@ -2311,11 +2415,7 @@ function NewSessionScreen() {
                                             onPress={() => togglePicker('agent')}
                                             style={(p) => [styles.configInlineField, p.pressed && styles.configRowPressed]}
                                         >
-                                            <RNImage
-                                                source={agentIcons[agent.key]}
-                                                style={[styles.agentIcon, { tintColor: theme.colors.textSecondary }]}
-                                                resizeMode="contain"
-                                            />
+                                            <AgentProviderIcon agent={agent.key} size={15} tintColor={theme.colors.textSecondary} />
                                             <Text style={[styles.configLabel, styles.configInlineText]} numberOfLines={1}>
                                                 {agent.label}
                                             </Text>
@@ -2440,11 +2540,7 @@ function NewSessionScreen() {
                                         hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                                         style={(p) => [styles.collapsedIconButton, p.pressed && styles.configRowPressed]}
                                     >
-                                        <RNImage
-                                            source={agentIcons[agent.key]}
-                                            style={[styles.collapsedAgentIcon, { tintColor: theme.colors.textSecondary }]}
-                                            resizeMode="contain"
-                                        />
+                                        <AgentProviderIcon agent={agent.key} size={14} tintColor={theme.colors.textSecondary} />
                                     </BubblePressable>
 
                                     {showPermission && (
@@ -2527,7 +2623,7 @@ function NewSessionScreen() {
                 entries={workspaceEntries}
                 onRemove={(path) => setWorkspaceEntries((current) => current.filter((entry) => entry.path !== path))}
             />
-            {expImageUpload && imagePicker.selectedImages.length > 0 && (
+            {canUseImageAttachments && imagePicker.selectedImages.length > 0 && (
                 <AgentInputAttachmentStrip
                     images={imagePicker.selectedImages}
                     onRemove={imagePicker.removeImage}
@@ -2575,11 +2671,7 @@ function NewSessionScreen() {
                             accessibilityRole="button"
                             accessibilityLabel={t("uiCopy.agentValue", { value1: agent.label })}
                         >
-                            <RNImage
-                                source={agentIcons[agent.key]}
-                                style={[styles.collapsedAgentIcon, { tintColor: theme.colors.textSecondary }]}
-                                resizeMode="contain"
-                            />
+                            <AgentProviderIcon agent={agent.key} size={14} tintColor={theme.colors.textSecondary} />
                             <Text style={styles.composerAgentLabel} numberOfLines={1}>
                                 {agent.label}
                             </Text>
@@ -2607,7 +2699,7 @@ function NewSessionScreen() {
                         )}
                     </View>
                 )}
-                {expImageUpload && (
+                {canUseImageAttachments && (
                     <BubblePressable
                         onPress={() => void imagePicker.pickImages()}
                         hitSlop={6}

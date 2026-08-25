@@ -3,6 +3,7 @@ import { CHANGE_TITLE_INSTRUCTION } from '@/gemini/constants';
 import { hashObject } from '@/utils/deterministicJson';
 
 import type { ReasoningEffort } from './codexAppServerTypes';
+import type { HappyHerdHeartbeatMessageMarker } from '@slopus/happy-wire';
 
 export interface CodexEnhancedMode {
     permissionMode: PermissionMode;
@@ -11,6 +12,8 @@ export interface CodexEnhancedMode {
     appendSystemPrompt?: string;
     /** Reasoning effort passed through to Codex's sendTurnAndWait. */
     effort?: ReasoningEffort;
+    /** Queue-only marker carried with an isolated heartbeat turn. */
+    heartbeat?: HappyHerdHeartbeatMessageMarker;
 }
 
 export function hashCodexEnhancedMode(mode: CodexEnhancedMode): string {

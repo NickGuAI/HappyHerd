@@ -31,12 +31,13 @@ const mocks = vi.hoisted(() => {
     prompts: [] as Array<{ sessionId: string; prompt: string }>,
     setConfigOptionCalls: [] as Array<{ configId: string; value: string }>,
     setModeCalls: [] as string[],
-    setModelCalls: [] as string[],
+    setModelCalls: [] as Array<{ modelId: string; reasoningEffort?: string }>,
     startSessionMessages: [] as any[],
     startSessionCalls: 0,
     cancelCalls: [] as string[],
     disposeCalls: 0,
     constructorArgs: null as any,
+    stopReason: 'end_turn' as 'end_turn' | 'refusal' | 'cancelled',
   };
 
   return {
@@ -139,7 +140,7 @@ vi.mock('./AcpBackend', () => ({
           listener(message);
         }
       }
-      return { sessionId: 'acp-session-1' };
+      return { sessionId: 'acp-session-1', providerSessionId: 'provider-session-1' };
     }
 
     async sendPrompt(sessionId: string, prompt: string) {
@@ -153,6 +154,11 @@ vi.mock('./AcpBackend', () => ({
       }
     }
 
+    async sendPromptAndGetResult(sessionId: string, prompt: string) {
+      await this.sendPrompt(sessionId, prompt);
+      return { stopReason: mocks.backendState.stopReason };
+    }
+
     async setSessionConfigOption(configId: string, value: string) {
       mocks.backendState.setConfigOptionCalls.push({ configId, value });
       return true;
@@ -163,8 +169,8 @@ vi.mock('./AcpBackend', () => ({
       return true;
     }
 
-    async setSessionModel(modelId: string) {
-      mocks.backendState.setModelCalls.push(modelId);
+    async setSessionModel(modelId: string, reasoningEffort?: string) {
+      mocks.backendState.setModelCalls.push({ modelId, reasoningEffort });
       return true;
     }
 
@@ -205,6 +211,7 @@ describe('runAcp', () => {
     mocks.backendState.cancelCalls = [];
     mocks.backendState.disposeCalls = 0;
     mocks.backendState.constructorArgs = null;
+    mocks.backendState.stopReason = 'end_turn';
 
     mocks.mockApiCreate.mockResolvedValue({
       getOrCreateMachine: mocks.mockGetOrCreateMachine,
@@ -251,6 +258,9 @@ describe('runAcp', () => {
       sessionId: 'acp-session-1',
       prompt: 'Build a test plan',
     });
+    expect(mocks.mockSession.updateMetadata.mock.calls
+      .map(([update]) => update({}))
+      .some((metadata) => metadata.acpSessionId === 'provider-session-1')).toBe(true);
 
     const envelopeTypes = mocks.mockSession.sendSessionProtocolMessage.mock.calls.map(([envelope]) => envelope.ev.t);
     expect(envelopeTypes).toEqual(['turn-start', 'text', 'tool-call-start', 'tool-call-end', 'turn-end']);
@@ -587,6 +597,77 @@ describe('runAcp', () => {
     ]);
     expect(mocks.backendState.setModeCalls).toEqual([]);
     expect(mocks.backendState.setModelCalls).toEqual([]);
+  });
+
+  it('sets GrokBuild model and effort through the one observed session/set_model request', async () => {
+    mocks.backendState.startSessionMessages = [{
+      type: 'event',
+      name: 'models_update',
+      payload: {
+        currentModelId: 'grok-4.6',
+        availableModels: [{
+          modelId: 'grok-4.6',
+          name: 'Grok 4.6',
+          _meta: {
+            reasoningEffort: 'high',
+            reasoningEfforts: [
+              { id: 'high', label: 'High', default: true },
+              { id: 'low', label: 'Low', default: false },
+            ],
+          },
+        }],
+      },
+    }];
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'grok',
+      command: 'grok',
+      args: ['--no-auto-update', 'agent', 'stdio'],
+      model: 'grok-4.6',
+      effort: 'high',
+      permissionMode: 'default',
+    });
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+
+    mocks.getUserMessageHandler()!({
+      role: 'user',
+      content: { type: 'text', text: 'Use deeper reasoning' },
+      meta: { model: 'grok-4.6', effort: 'low' },
+    });
+    await vi.waitFor(() => expect(mocks.backendState.prompts).toHaveLength(1));
+    await mocks.getKillHandler()!();
+    await runPromise;
+
+    expect(mocks.backendState.constructorArgs).not.toHaveProperty('model');
+    expect(mocks.backendState.constructorArgs).not.toHaveProperty('effort');
+    expect(mocks.backendState.constructorArgs).not.toHaveProperty('permissionMode');
+    expect(mocks.backendState.setModelCalls).toEqual([{
+      modelId: 'grok-4.6',
+      reasoningEffort: 'low',
+    }]);
+  });
+
+  it('uses the ACP prompt stop reason as the authoritative turn outcome', async () => {
+    mocks.backendState.stopReason = 'refusal';
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'grok',
+      command: 'grok',
+      args: ['--no-auto-update', 'agent', 'stdio'],
+    });
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+    mocks.getUserMessageHandler()!({
+      role: 'user',
+      content: { type: 'text', text: 'A refused request' },
+    });
+    await vi.waitFor(() => expect(mocks.backendState.prompts).toHaveLength(1));
+    await mocks.getKillHandler()!();
+    await runPromise;
+
+    const turnEnd = mocks.mockSession.sendSessionProtocolMessage.mock.calls
+      .map(([envelope]) => envelope.ev)
+      .find((event) => event.t === 'turn-end');
+    expect(turnEnd).toEqual(expect.objectContaining({ status: 'failed' }));
   });
 
   it('ignores ACP model and permission mode requests when values do not match advertised options', async () => {

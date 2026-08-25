@@ -3,19 +3,20 @@ import { Image } from 'expo-image';
 import { useUnistyles } from 'react-native-unistyles';
 
 import type { AvatarHarnessIcon } from '@/utils/avatarHarness';
+import { ProviderIcon } from '@/components/ProviderIcon';
 
-const harnessImages: Record<AvatarHarnessIcon, number> = {
+const harnessImages: Record<Exclude<AvatarHarnessIcon, 'grok'>, number> = {
     claude: require('@/assets/images/icon-claude.png'),
     codex: require('@/assets/images/icon-gpt.png'),
     agy: require('@/assets/images/icon-agy.png'),
     rig: require('@/assets/images/logo-black.png'),
 };
 
-export function HarnessBadgeIcon({
+function RasterHarnessBadgeIcon({
     harness,
     size,
 }: {
-    harness: AvatarHarnessIcon;
+    harness: Exclude<AvatarHarnessIcon, 'grok'>;
     size: number;
 }) {
     const { theme } = useUnistyles();
@@ -28,4 +29,15 @@ export function HarnessBadgeIcon({
             tintColor={harness === 'codex' || harness === 'rig' ? theme.colors.text : undefined}
         />
     );
+}
+
+export function HarnessBadgeIcon({
+    harness,
+    size,
+}: {
+    harness: AvatarHarnessIcon;
+    size: number;
+}) {
+    if (harness === 'grok') return <ProviderIcon kind="grok" size={size} />;
+    return <RasterHarnessBadgeIcon harness={harness} size={size} />;
 }

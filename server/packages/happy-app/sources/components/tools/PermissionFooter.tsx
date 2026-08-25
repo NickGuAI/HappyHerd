@@ -15,9 +15,9 @@ import {
 } from 'react-native';
 import { sessionAllow, sessionDeny, sessionSetAgentModes } from '@/sync/ops';
 import { useUnistyles } from 'react-native-unistyles';
-import { storage } from '@/sync/storage';
 import { t } from '@/text';
 import { useIsTablet } from '@/utils/responsive';
+import { ProviderIcon } from '@/components/ProviderIcon';
 
 interface PermissionActionButtonProps {
     label: string;
@@ -138,6 +138,7 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
     
     // Check if this is a Codex session - check both metadata.flavor and tool name prefix
     const isCodex = metadata?.flavor === 'codex' || toolName.startsWith('Codex');
+    const isGrok = metadata?.flavor === 'grok';
 
     const handleApprove = async () => {
         if (permission.status !== 'pending' || loadingButton !== null || loadingAllEdits || loadingBypass || loadingForSession) return;
@@ -213,14 +214,20 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
 
         setLoadingButton('deny');
         try {
-            await sessionDeny(sessionId, permission.id);
+            await sessionDeny(
+                sessionId,
+                permission.id,
+                undefined,
+                undefined,
+                isGrok ? 'denied' : undefined,
+            );
         } catch (error) {
             console.error('Failed to deny permission:', error);
         } finally {
             setLoadingButton(null);
         }
     };
-    
+
     // Codex-specific handlers
     const handleCodexApprove = async () => {
         if (permission.status !== 'pending' || loadingButton !== null || loadingForSession) return;
@@ -306,6 +313,18 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
             flexDirection: 'column',
             gap: 7,
             alignItems: isTablet ? 'flex-end' : 'stretch',
+        },
+        providerHeader: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            alignSelf: isTablet ? 'flex-end' : 'flex-start',
+            gap: 6,
+            paddingHorizontal: 4,
+            paddingBottom: 7,
+        },
+        providerHeaderText: {
+            color: theme.colors.textSecondary,
+            fontSize: 13,
         },
         button: {
             paddingHorizontal: 10,
@@ -424,6 +443,59 @@ export const PermissionFooter: React.FC<PermissionFooterProps> = ({ permission, 
             numberOfLines={numberOfLines}
         />
     );
+
+    if (isGrok) {
+        return (
+            <View style={styles.container}>
+                <View style={styles.providerHeader}>
+                    <ProviderIcon kind="grok" size={15} />
+                    <Text style={styles.providerHeaderText}>{t('agentInput.agent.grok')}</Text>
+                </View>
+                <ScrollView
+                    style={styles.optionsScroll}
+                    contentContainerStyle={styles.buttonContainer}
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator={false}
+                >
+                    {renderPermissionButton({
+                        label: t('common.yes'),
+                        loading: loadingButton === 'allow',
+                        onPress: handleApprove,
+                        disabled: !isPending || loadingButton !== null,
+                        buttonStyle: [
+                            styles.button,
+                            isPending && styles.buttonAllow,
+                            isApproved && styles.buttonSelected,
+                            isDenied && styles.buttonInactive,
+                        ],
+                        textStyle: [
+                            styles.buttonText,
+                            isPending && styles.buttonTextAllow,
+                            isApproved && styles.buttonTextSelected,
+                        ],
+                    })}
+                    {renderPermissionButton({
+                        label: t('grok.permissions.noProvideFeedback'),
+                        loading: loadingButton === 'deny',
+                        onPress: handleDeny,
+                        disabled: !isPending || loadingButton !== null,
+                        buttonStyle: [
+                            styles.button,
+                            isPending && styles.buttonDeny,
+                            isDenied && styles.buttonSelected,
+                            isApproved && styles.buttonInactive,
+                        ],
+                        textStyle: [
+                            styles.buttonText,
+                            isPending && styles.buttonTextDeny,
+                            isDenied && styles.buttonTextSelected,
+                        ],
+                        numberOfLines: 2,
+                    })}
+                </ScrollView>
+            </View>
+        );
+    }
 
     // Render Codex buttons if this is a Codex session
     if (isCodex) {

@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { AgentGoalStatus, Metadata } from '@/api/types';
+import type { AgentGoalStatus, AgentState, Metadata } from '@/api/types';
 import {
   AutomationGoalTerminalGate,
   buildAutomationProviderOutcome,
   persistAutomationProviderOutcome,
+  persistHeartbeatDeliveryReceipt,
 } from './providerOutcome';
 
 const bootstrap = {
@@ -13,10 +14,32 @@ const bootstrap = {
   runId: '22222222-2222-4222-8222-222222222222',
   kind: 'scheduled' as const,
   instruction: 'ship it',
-  timeoutMinutes: 60,
 };
 
 describe('automation provider outcome', () => {
+  it('persists one provider-owned heartbeat start and terminal failure receipt', async () => {
+    let state: AgentState = {};
+    const session = {
+      updateAgentState: vi.fn(async (handler: (value: AgentState) => AgentState) => {
+        state = handler(state);
+      }),
+    };
+    const marker = {
+      schemaVersion: 1 as const,
+      automationId: '11111111-1111-4111-8111-111111111111',
+      occurrenceId: '22222222-2222-4222-8222-222222222222',
+    };
+    await persistHeartbeatDeliveryReceipt(session, marker, 'started', null, '2026-08-25T00:00:00.000Z');
+    await persistHeartbeatDeliveryReceipt(session, marker, 'failed', 'error_max_turns', '2026-08-25T00:01:00.000Z');
+    expect(state.heartbeatDelivery).toEqual({
+      ...marker,
+      status: 'failed',
+      startedAt: '2026-08-25T00:00:00.000Z',
+      finishedAt: '2026-08-25T00:01:00.000Z',
+      message: 'error_max_turns',
+    });
+  });
+
   it('binds a terminal outcome to one automation run', () => {
     expect(buildAutomationProviderOutcome(
       bootstrap,

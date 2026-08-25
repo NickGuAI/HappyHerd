@@ -144,7 +144,7 @@ export interface SpawnSessionOptions {
     directory: string;
     sessionId?: string;
     approvedNewDirectoryCreation?: boolean;
-    agent?: 'claude' | 'codex' | 'gemini' | 'openclaw' | 'agy';
+    agent?: 'claude' | 'codex' | 'gemini' | 'grok' | 'openclaw' | 'agy';
     permissionMode?: string;
     modelMode?: string;
     effortLevel?: string;
@@ -159,7 +159,6 @@ export interface SpawnSessionOptions {
         runId: string;
         kind: 'scheduled' | 'heartbeat' | 'memory-maintenance';
         instruction: string;
-        timeoutMinutes: number | null;
     };
     environmentVariables?: Record<string, string>;
     /** Strict, session-scoped governed-agent values supplied only over encrypted machine RPC. */

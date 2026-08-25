@@ -186,4 +186,26 @@ describe('SessionStatusAvatar', () => {
         expect(flattenedStyle(renderer.root.findByType('StatusPulse' as any).props.style))
             .toMatchObject({ borderColor: 'neutral', borderWidth: 2 });
     });
+
+    it('derives the GrokBuild provider icon from session flavor', () => {
+        let renderer!: ReturnType<typeof create>;
+        act(() => {
+            renderer = create(React.createElement(SessionStatusAvatar, {
+                active: true,
+                commanderId: null,
+                flavor: 'grok',
+                hasDraft: false,
+                hasUnread: false,
+                machineId: 'machine-one',
+                providerKind: null,
+                providerLabel: 'GrokBuild',
+                state: 'waiting',
+            }));
+        });
+
+        expect(renderer.root.findByType('ProviderIcon' as any).props.kind).toBe('grok');
+        const outer = renderer.root.findAllByType('View' as any)
+            .find((node: any) => node.props.accessibilityRole === 'image');
+        expect(outer?.props.accessibilityLabel).toContain('GrokBuild');
+    });
 });

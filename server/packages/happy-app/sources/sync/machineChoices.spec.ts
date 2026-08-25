@@ -29,7 +29,7 @@ const RIG = 'rig-machine';
 function cli(id = CLI, options?: { active?: boolean; activeAt?: number }) {
     return machine(id, {
         host: 'laptop.local',
-        cliAvailability: { claude: true, codex: true, gemini: false, openclaw: false },
+        cliAvailability: { claude: true, codex: true, gemini: false, openclaw: false, grok: false },
     }, options);
 }
 
@@ -137,13 +137,15 @@ describe('what a computer can actually run', () => {
         expect(machineChoiceAgentAvailable(choice, 'rig')).toBe(false);
     });
 
-    it('only shows Antigravity and Happy Agent when available on the machine', () => {
+    it('only shows detected-only harnesses and Happy Agent when available on the machine', () => {
         const absent = collectMachineChoices([cli()])[0];
-        const installed = collectMachineChoices([machine('agy-machine', {
+        const installed = collectMachineChoices([machine('detected-only-machine', {
             host: 'laptop.local',
-            cliAvailability: { claude: true, agy: true },
+            cliAvailability: { claude: true, grok: true, agy: true },
         })])[0];
 
+        expect(machineChoiceAgentVisible(absent, 'grok')).toBe(false);
+        expect(machineChoiceAgentVisible(installed, 'grok')).toBe(true);
         expect(machineChoiceAgentVisible(absent, 'agy')).toBe(false);
         expect(machineChoiceAgentVisible(installed, 'agy')).toBe(true);
         expect(machineChoiceAgentVisible(absent, 'claude')).toBe(true);
@@ -155,6 +157,7 @@ describe('what a computer can actually run', () => {
         expect(resolveChoiceAgent(rigOnly, 'claude')).toBe('rig');
         const cliOnly = collectMachineChoices([cli()])[0];
         expect(resolveChoiceAgent(cliOnly, 'rig')).toBe('claude');
+        expect(resolveChoiceAgent(cliOnly, 'grok')).toBe('claude');
         expect(resolveChoiceAgent(cliOnly, 'gemini')).toBe('claude');
     });
 

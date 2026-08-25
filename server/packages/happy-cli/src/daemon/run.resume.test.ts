@@ -87,7 +87,7 @@ vi.mock('@/utils/caffeinate', () => ({
 }));
 
 vi.mock('@/utils/detectCLI', () => ({
-  detectCLIAvailability: vi.fn(() => ({ claude: true, codex: true, gemini: false, opencode: false, openclaw: false, agy: false })),
+  detectCLIAvailability: vi.fn(() => ({ claude: true, codex: true, gemini: false, grok: false, opencode: false, openclaw: false, agy: false })),
 }));
 
 vi.mock('@/capabilities/agentCapabilities', () => ({
@@ -126,7 +126,7 @@ vi.mock('@/daemon/happyTerminalBoot', () => ({
   startHappyTerminalDaemon: vi.fn(),
 }));
 
-import { startDaemon } from './run';
+import { resolveDaemonAgentCommand, resolveDaemonResumeAgent, startDaemon } from './run';
 
 type CapturedRpcHandlers = {
   requestShutdown: () => void;
@@ -145,6 +145,13 @@ let daemonRun: Promise<void> | undefined;
 let originalCodexHome: string | undefined;
 
 describe('daemon session continuity', () => {
+  it('resolves GrokBuild for the shared tmux and direct-spawn command path', () => {
+    expect(resolveDaemonAgentCommand('grok')).toBe('grok');
+    expect(resolveDaemonResumeAgent({ flavor: 'grok' } as Metadata)).toBe('grok');
+    expect(resolveDaemonAgentCommand('future-provider' as any)).toBeNull();
+    expect(resolveDaemonResumeAgent({ flavor: 'future-provider' } as Metadata)).toBeNull();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     daemonRun = undefined;
