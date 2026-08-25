@@ -108,3 +108,4 @@ PUBLIC_RELEASE	accepted	docs(release): record AgentWork delivery	server/packages
 SESSION_UI_STATE	accepted	test(app): stabilize session info archive coverage	server/packages/happy-app/sources/app/(app)/session/[id]/info.archive.test.ts
 RUNTIME_CONTRACT	accepted	fix(grok): isolate capability probe failures	server/packages/happy-cli/src/capabilities/agentCapabilities.test.ts
 SESSION_HEARTBEAT	accepted	fix(heartbeat): preserve readiness and status semantics	server/packages/happy-cli/src/automations/service.test.ts
+UI_SURFACE_INVENTORY	accepted	chore(app): refresh heartbeat UI inventory	server/packages/happy-app/scripts/generate-ui-surface-inventory.mjs
