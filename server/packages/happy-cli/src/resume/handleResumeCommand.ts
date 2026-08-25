@@ -9,6 +9,7 @@ import { contextEnvironment, prepareCommanderContext } from '@/agentContext/comm
 
 import { LocalResumeSessionError, resolveLocalReconnectableSession } from './localResumeStore';
 import { resolveHappySession, type ReconnectableHappySession, type ResumableHappySession } from './resolveHappySession';
+import { resolveCodexHomeForResume } from './codexHome';
 
 export type ResumeLaunch = {
     cwd: string;
@@ -108,8 +109,10 @@ export function formatResumeHelp(): string {
 
 async function buildReconnectEnv(session: ReconnectableHappySession): Promise<NodeJS.ProcessEnv> {
     const contextBundle = await prepareCommanderContext(session.metadata.commanderId, session.metadata.path);
+    const codexHome = await resolveCodexHomeForResume(session.metadata);
     return buildSessionChildEnvironment(process.env, {
         ...contextEnvironment(contextBundle),
+        ...(codexHome ? { CODEX_HOME: codexHome } : {}),
         HAPPY_RECONNECT_SESSION_ID: session.id,
         HAPPY_RECONNECT_ENCRYPTION_KEY: encodeBase64(session.encryptionKey),
         HAPPY_RECONNECT_ENCRYPTION_VARIANT: session.encryptionVariant,

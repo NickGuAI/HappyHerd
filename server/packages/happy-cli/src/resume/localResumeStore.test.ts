@@ -3,11 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
     mockReadPersistedSessions: vi.fn(),
     mockReadCredentials: vi.fn(),
+    mockPersistSession: vi.fn(),
+    mockResolveReconnectableSession: vi.fn(),
 }));
 
 vi.mock('@/persistence', () => ({
     readPersistedSessions: mocks.mockReadPersistedSessions,
     readCredentials: mocks.mockReadCredentials,
+    persistSession: mocks.mockPersistSession,
 }));
 
 vi.mock('@/configuration', () => ({
@@ -18,7 +21,19 @@ vi.mock('@/configuration', () => ({
     },
 }));
 
-import { LocalResumeSessionError, resolveLocalReconnectableSession } from './localResumeStore';
+vi.mock('./resolveHappySession', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('./resolveHappySession')>();
+    return {
+        ...actual,
+        resolveReconnectableSession: mocks.mockResolveReconnectableSession,
+    };
+});
+
+import {
+    backfillReconnectableSessionForMachine,
+    LocalResumeSessionError,
+    resolveLocalReconnectableSession,
+} from './localResumeStore';
 
 describe('resolveLocalReconnectableSession', () => {
     beforeEach(() => {
@@ -73,5 +88,54 @@ describe('resolveLocalReconnectableSession', () => {
         expect(thrown).toBeInstanceOf(LocalResumeSessionError);
         expect((thrown as Error).message).toContain('/tmp/.happy/sessions.json');
         expect((thrown as Error).message).not.toContain('happy-agent auth login');
+    });
+});
+
+describe('backfillReconnectableSessionForMachine', () => {
+    const recoveredSession = {
+        id: 'session-legacy',
+        active: false,
+        metadata: {
+            path: '/tmp/repo',
+            flavor: 'codex',
+            codexThreadId: 'thread-legacy',
+            host: 'localhost',
+            machineId: 'machine-1',
+            homeDir: '/tmp',
+            happyHomeDir: '/tmp/.happy',
+            happyLibDir: '/tmp/happy',
+            happyToolsDir: '/tmp/happy/tools',
+        },
+        seq: 42,
+        metadataVersion: 7,
+        agentStateVersion: 9,
+        encryptionKey: new Uint8Array([1, 2, 3, 4]),
+        encryptionVariant: 'dataKey' as const,
+    };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mocks.mockPersistSession.mockReturnValue(true);
+        mocks.mockResolveReconnectableSession.mockResolvedValue(recoveredSession);
+    });
+
+    it('recovers an already-pruned session for its original machine', async () => {
+        const recovered = await backfillReconnectableSessionForMachine('session-legacy', 'machine-1');
+
+        expect(recovered.session).toBe(recoveredSession);
+        expect(mocks.mockPersistSession).toHaveBeenCalledWith('session-legacy', recovered.persisted);
+    });
+
+    it('does not recover a session onto another machine', async () => {
+        await expect(backfillReconnectableSessionForMachine('session-legacy', 'machine-2'))
+            .rejects.toThrow('belongs to another machine');
+        expect(mocks.mockPersistSession).not.toHaveBeenCalled();
+    });
+
+    it('does not claim recovery when the reconnect record cannot be persisted', async () => {
+        mocks.mockPersistSession.mockReturnValue(false);
+
+        await expect(backfillReconnectableSessionForMachine('session-legacy', 'machine-1'))
+            .rejects.toThrow('could not be persisted');
     });
 });

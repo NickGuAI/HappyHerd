@@ -63,6 +63,7 @@ import { spawnHappyCLI } from '@/utils/spawnHappyCLI';
 
 import { buildResumeLaunch, formatResumeHelp, handleResumeCommand, parseResumeCommandArgs } from './handleResumeCommand';
 import { LocalResumeSessionError } from './localResumeStore';
+import type { ReconnectableHappySession } from './resolveHappySession';
 
 function createChildProcess(exitCode: number | null = 0) {
     const handlers = new Map<string, (...args: any[]) => void>();
@@ -77,7 +78,7 @@ function createChildProcess(exitCode: number | null = 0) {
     };
 }
 
-function createReconnectableSession() {
+function createReconnectableSession(): ReconnectableHappySession {
     return {
         id: 'session-1',
         active: false,
@@ -205,9 +206,11 @@ describe('formatResumeHelp', () => {
 });
 
 describe('handleResumeCommand', () => {
-    it('resumes from local persisted encryption data without legacy agent.key auth', async () => {
+    it('resumes from local persisted encryption data', async () => {
         const session = createReconnectableSession();
+        session.metadata.codexHome = '/tmp';
         mocks.mockResolveLocalReconnectableSession.mockResolvedValue(session);
+        vi.stubEnv('CODEX_HOME', '/var/tmp');
         for (const key of SESSION_SCOPED_ENV_KEYS) {
             vi.stubEnv(key, `stale-${key}`);
         }
@@ -216,20 +219,25 @@ describe('handleResumeCommand', () => {
 
         expect(mocks.mockHasLocalHappyAgentAuth).not.toHaveBeenCalled();
         expect(mocks.mockResolveHappySession).not.toHaveBeenCalled();
-        expect(spawnHappyCLI).toHaveBeenCalledWith(['codex', '--resume', session.metadata.codexThreadId], {
-            cwd: '/tmp/repo',
-            stdio: 'inherit',
-            env: expect.objectContaining({
-                HAPPY_RECONNECT_SESSION_ID: 'session-1',
-                HAPPY_RECONNECT_ENCRYPTION_KEY: 'AQIDBA==',
-                HAPPY_RECONNECT_ENCRYPTION_VARIANT: 'dataKey',
-                HAPPY_RECONNECT_SEQ: '42',
-                HAPPY_RECONNECT_METADATA_VERSION: '7',
-                HAPPY_RECONNECT_AGENT_STATE_VERSION: '9',
-                HAPPYHERD_CONTEXT_BUNDLE_PATH: '/tmp/current-agentcontext.md',
-                HAPPYHERD_CONTEXT_HASH: 'current-context-hash',
-            }),
-        });
+        expect(spawnHappyCLI).toHaveBeenCalledOnce();
+        const [spawnArgs, spawnOptions] = mocks.mockSpawnHappyCLI.mock.calls[0];
+        expect(spawnArgs).toEqual(['codex', '--resume', session.metadata.codexThreadId]);
+        expect(spawnOptions.cwd).toBe('/tmp/repo');
+        expect(spawnOptions.stdio).toBe('inherit');
+        const expectedEnv = {
+            HAPPY_RECONNECT_SESSION_ID: 'session-1',
+            HAPPY_RECONNECT_ENCRYPTION_KEY: 'AQIDBA==',
+            HAPPY_RECONNECT_ENCRYPTION_VARIANT: 'dataKey',
+            HAPPY_RECONNECT_SEQ: '42',
+            HAPPY_RECONNECT_METADATA_VERSION: '7',
+            HAPPY_RECONNECT_AGENT_STATE_VERSION: '9',
+            HAPPYHERD_CONTEXT_BUNDLE_PATH: '/tmp/current-agentcontext.md',
+            HAPPYHERD_CONTEXT_HASH: 'current-context-hash',
+            CODEX_HOME: '/tmp',
+        };
+        for (const [key, value] of Object.entries(expectedEnv)) {
+            expect(spawnOptions.env[key]).toBe(value);
+        }
         const spawnedEnv = mocks.mockSpawnHappyCLI.mock.calls[0][1].env;
         expect(spawnedEnv).not.toHaveProperty('HAPPY_RECONNECT_CONTEXT_HASH');
         expect(spawnedEnv).not.toHaveProperty('HAPPY_FORK_CODEX_THREAD_ID');
@@ -243,8 +251,6 @@ describe('handleResumeCommand', () => {
                 'not_found',
             ),
         );
-        mocks.mockHasLocalHappyAgentAuth.mockReturnValue(false);
-
         let thrown: unknown;
         try {
             await handleResumeCommand(['missing']);
@@ -255,9 +261,10 @@ describe('handleResumeCommand', () => {
         expect(thrown).toBeInstanceOf(Error);
         expect((thrown as Error).message).toContain('no local session encryption data found');
         expect((thrown as Error).message).not.toContain('happy-agent auth login');
+        expect(mocks.mockSpawnHappyCLI).not.toHaveBeenCalled();
     });
 
-    it('falls back to legacy account credentials only when agent.key is already present', async () => {
+    it('falls back to legacy provider resume only when agent.key is already present', async () => {
         mocks.mockHasLocalHappyAgentAuth.mockReturnValue(true);
         mocks.mockResolveHappySession.mockResolvedValue({
             id: 'legacy-session',
@@ -280,11 +287,14 @@ describe('handleResumeCommand', () => {
         await handleResumeCommand(['legacy-session']);
 
         expect(mocks.mockResolveHappySession).toHaveBeenCalledWith('legacy-session');
-        expect(spawnHappyCLI).toHaveBeenCalledWith(['claude', '--resume', '93a9705e-bc6a-406d-8dce-8acc014dedbd'], expect.objectContaining({
-            cwd: '/tmp/repo',
-            env: expect.any(Object),
-            stdio: 'inherit',
-        }));
+        expect(spawnHappyCLI).toHaveBeenCalledWith(
+            ['claude', '--resume', '93a9705e-bc6a-406d-8dce-8acc014dedbd'],
+            expect.objectContaining({
+                cwd: '/tmp/repo',
+                env: expect.any(Object),
+                stdio: 'inherit',
+            }),
+        );
         const spawnedEnv = mocks.mockSpawnHappyCLI.mock.calls[0][1].env;
         for (const key of SESSION_SCOPED_ENV_KEYS) {
             expect(spawnedEnv).not.toHaveProperty(key);

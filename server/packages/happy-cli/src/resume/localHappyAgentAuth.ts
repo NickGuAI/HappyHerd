@@ -65,6 +65,14 @@ function deriveContentKeyPair(secret: Uint8Array): { publicKey: Uint8Array; secr
     };
 }
 
+export function createLegacyRecoveryCredentials(token: string, secret: Uint8Array): LocalHappyAgentCredentials {
+    return {
+        token,
+        secret,
+        contentKeyPair: deriveContentKeyPair(secret),
+    };
+}
+
 export function getLocalHappyAgentCredentialPath(happyHomeDir: string = configuration.happyHomeDir): string {
     return join(happyHomeDir, 'agent.key');
 }
@@ -80,11 +88,7 @@ export function readLocalHappyAgentCredentials(
     try {
         const parsed = AgentCredentialsSchema.parse(JSON.parse(readFileSync(credentialPath, 'utf8')));
         const secret = decodeBase64(parsed.secret);
-        return {
-            token: parsed.token,
-            secret,
-            contentKeyPair: deriveContentKeyPair(secret),
-        };
+        return createLegacyRecoveryCredentials(parsed.token, secret);
     } catch {
         return null;
     }

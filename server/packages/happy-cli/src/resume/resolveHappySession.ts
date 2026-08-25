@@ -1,11 +1,13 @@
-import axios, { AxiosError } from 'axios';
+import { AxiosError } from 'axios';
 import tweetnacl from 'tweetnacl';
 import { z } from 'zod';
 
 import { decodeBase64, decryptLegacy, decryptWithDataKey } from '@/api/encryption';
+import { loadSessionRecords, type SessionListRecord } from '@/api/sessionLookup';
 import type { Metadata } from '@/api/types';
-import { configuration } from '@/configuration';
+import { readCredentials } from '@/persistence';
 import {
+    createLegacyRecoveryCredentials,
     getLocalHappyAgentCredentialPath,
     readLocalHappyAgentCredentials,
     type LocalHappyAgentCredentials,
@@ -17,17 +19,6 @@ export const ResumableMetadataSchema = z.object({
     claudeSessionId: z.string().optional(),
     codexThreadId: z.string().optional(),
 }).passthrough();
-
-type RawSession = {
-    id: string;
-    active: boolean;
-    metadata: string;
-    metadataVersion: number;
-    agentState: string | null;
-    agentStateVersion: number;
-    seq: number;
-    dataEncryptionKey: string | null;
-};
 
 type RecordEncryption = {
     key: Uint8Array;
@@ -85,7 +76,7 @@ function decryptBoxBundle(bundle: Uint8Array, recipientSecretKey: Uint8Array): U
     return decrypted ? new Uint8Array(decrypted) : null;
 }
 
-function readAgentCredentials() {
+function readAgentCredentials(): LocalHappyAgentCredentials {
     const credentialPath = getLocalHappyAgentCredentialPath();
     const credentials = readLocalHappyAgentCredentials();
     if (!credentials) {
@@ -96,7 +87,19 @@ function readAgentCredentials() {
     return credentials;
 }
 
-function resolveSessionEncryption(session: RawSession, credentials: LocalHappyAgentCredentials): RecordEncryption {
+async function readReconnectableCredentials(): Promise<LocalHappyAgentCredentials> {
+    const accessCredentials = await readCredentials();
+    if (accessCredentials?.encryption.type === 'legacy') {
+        return createLegacyRecoveryCredentials(
+            accessCredentials.token,
+            accessCredentials.encryption.secret,
+        );
+    }
+
+    return readAgentCredentials();
+}
+
+function resolveSessionEncryption(session: SessionListRecord, credentials: LocalHappyAgentCredentials): RecordEncryption {
     if (session.dataEncryptionKey) {
         const encrypted = decodeBase64(session.dataEncryptionKey);
         const sessionKey = decryptBoxBundle(encrypted.slice(1), credentials.contentKeyPair.secretKey);
@@ -115,7 +118,7 @@ function resolveSessionEncryption(session: RawSession, credentials: LocalHappyAg
     };
 }
 
-function decryptSessionMetadata(session: RawSession, credentials: LocalHappyAgentCredentials): Metadata {
+function decryptSessionMetadata(session: SessionListRecord, credentials: LocalHappyAgentCredentials): Metadata {
     const encryption = resolveSessionEncryption(session, credentials);
     const encryptedMetadata = decodeBase64(session.metadata);
     const metadata = encryption.variant === 'dataKey'
@@ -129,15 +132,9 @@ function decryptSessionMetadata(session: RawSession, credentials: LocalHappyAgen
     return parseResumableMetadata(session.id, metadata);
 }
 
-async function fetchSessions(credentials: LocalHappyAgentCredentials): Promise<RawSession[]> {
+async function fetchSessions(credentials: LocalHappyAgentCredentials): Promise<SessionListRecord[]> {
     try {
-        const response = await axios.get(`${configuration.serverUrl}/v1/sessions`, {
-            headers: {
-                Authorization: `Bearer ${credentials.token}`,
-                'X-Happy-Client': `cli-coding-session/${configuration.currentCliVersion}`,
-            },
-        });
-        return (response.data as { sessions: RawSession[] }).sessions;
+        return await loadSessionRecords(credentials.token);
     } catch (error) {
         if (error instanceof AxiosError) {
             if (error.response?.status === 401) {
@@ -161,9 +158,14 @@ export async function resolveHappySession(sessionId: string): Promise<ResumableH
 }
 
 export async function resolveReconnectableSession(sessionId: string): Promise<ReconnectableHappySession> {
-    const credentials = readAgentCredentials();
-    const sessions = await fetchSessions(credentials);
-    const matched = resolveSessionRecordByPrefix(sessions, sessionId);
+    if (!sessionId.trim()) {
+        throw new Error('Happy session ID is required: happy resume <session-id>');
+    }
+    const credentials = await readReconnectableCredentials();
+    const [matched] = await loadSessionRecords(credentials.token, { exactId: sessionId });
+    if (!matched) {
+        throw new Error(`No Happy session found matching "${sessionId}"`);
+    }
     const encryption = resolveSessionEncryption(matched, credentials);
     return {
         id: matched.id,

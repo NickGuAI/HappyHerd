@@ -1,7 +1,6 @@
 import fs from 'fs/promises';
 import os from 'os';
 import * as tmp from 'tmp';
-import axios from 'axios';
 import { randomUUID } from 'node:crypto';
 import psList from 'ps-list';
 import {
@@ -35,7 +34,9 @@ import { expandEnvironmentVariables } from '@/utils/expandEnvVars';
 import { detectCLIAvailability } from '@/utils/detectCLI';
 import { buildBaselineAgentCapabilities } from '@/capabilities/agentCapabilities';
 import { buildResumeLaunch } from '@/resume/handleResumeCommand';
+import { resolveCodexHomeForResume } from '@/resume/codexHome';
 import { detectResumeSupport } from '@/resume/localHappyAgentAuth';
+import { backfillReconnectableSessionForMachine } from '@/resume/localResumeStore';
 import { encodeBase64, decodeBase64, decrypt } from '@/api/encryption';
 import {
   buildSessionChildEnvironment,
@@ -50,6 +51,7 @@ import { appendDaemonSpawnModeArgs } from './spawnModeArgs';
 import { SessionProcessLifecycle } from './sessionProcessLifecycle';
 import { hasProviderProcessExited } from './processStatus';
 import { startHappyTerminalDaemon } from './happyTerminalBoot';
+import { loadSessionRecords } from '@/api/sessionLookup';
 
 type AutomationTrackedSession = TrackedSession & {
   automationId?: string;
@@ -985,12 +987,10 @@ export async function startDaemon(): Promise<void> {
 
     const fetchServerSessionMetadata = async (sessionId: string, encryptionKey: Uint8Array, encryptionVariant: 'legacy' | 'dataKey'): Promise<Metadata | null> => {
       try {
-        const response = await axios.get(`${configuration.serverUrl}/v1/sessions`, {
-          headers: { Authorization: `Bearer ${credentials.token}` },
+        const [matched] = await loadSessionRecords(credentials.token, {
+          exactId: sessionId,
           timeout: 10_000,
         });
-        const sessions = (response.data as { sessions: { id: string; metadata: string }[] }).sessions;
-        const matched = sessions.find(s => s.id === sessionId);
         if (!matched) return null;
         const decrypted = decrypt(encryptionKey, encryptionVariant, decodeBase64(matched.metadata));
         return decrypted as Metadata | null;
@@ -1201,29 +1201,31 @@ export async function startDaemon(): Promise<void> {
         if (liveSession) {
           return { type: 'error', errorMessage: `Session ${happySessionId} is already running with PID ${liveSession.pid}.` };
         }
-        const tracked = findTrackedSessionById(happySessionId);
+        let resolvedSessionId = happySessionId;
+        let tracked = findTrackedSessionById(happySessionId);
         if (!tracked) {
-          return { type: 'error', errorMessage: `Session ${happySessionId} is not tracked by this daemon. It may have been started before the daemon or on another machine.` };
+          const recovered = await backfillReconnectableSessionForMachine(happySessionId, machineId);
+          resolvedSessionId = recovered.session.id;
+          persisted[resolvedSessionId] = recovered.persisted;
+          tracked = persistedSession(resolvedSessionId);
+          if (!tracked) {
+            throw new Error(`Recovered Happy session ${resolvedSessionId} could not be indexed.`);
+          }
         }
         if (!tracked.happySessionMetadataFromLocalWebhook) {
-          return { type: 'error', errorMessage: `Session ${happySessionId} has no metadata. Cannot resume.` };
+          return { type: 'error', errorMessage: `Session ${resolvedSessionId} has no metadata. Cannot resume.` };
         }
         if (!tracked.encryption) {
-          return { type: 'error', errorMessage: `Session ${happySessionId} has no stored encryption data. It was likely started before this feature was available. Restart the daemon and start a new session to enable resume.` };
+          return { type: 'error', errorMessage: `Session ${resolvedSessionId} has no stored encryption data. Cannot resume.` };
         }
-        const priorPid = tracked.happySessionMetadataFromLocalWebhook.hostPid;
-        if (priorPid && !hasProviderProcessExited(priorPid)) {
-          return { type: 'error', errorMessage: `Session ${happySessionId} still has a live provider process. Wait for it to register with this daemon before resuming.` };
-        }
-
         // Webhook metadata may be stale (missing claudeSessionId/codexThreadId set after startup).
         // Fetch fresh metadata from server if needed.
         let metadata = tracked.happySessionMetadataFromLocalWebhook;
         const needsFetch = (!metadata.claudeSessionId && (!metadata.flavor || metadata.flavor === 'claude'))
           || (!metadata.codexThreadId && metadata.flavor === 'codex');
         if (needsFetch) {
-          logger.debug(`[DAEMON RUN] Session ${happySessionId} missing agent session ID in webhook metadata, fetching from server`);
-          const serverMetadata = await fetchServerSessionMetadata(happySessionId, tracked.encryption.encryptionKey, tracked.encryption.encryptionVariant);
+          logger.debug(`[DAEMON RUN] Session ${resolvedSessionId} missing agent session ID in webhook metadata, fetching from server`);
+          const serverMetadata = await fetchServerSessionMetadata(resolvedSessionId, tracked.encryption.encryptionKey, tracked.encryption.encryptionVariant);
           if (serverMetadata) {
             metadata = serverMetadata;
             tracked.happySessionMetadataFromLocalWebhook = serverMetadata;
@@ -1231,13 +1233,16 @@ export async function startDaemon(): Promise<void> {
         }
 
         const launch = buildResumeLaunch(
-          { id: happySessionId, active: true, metadata },
+          { id: resolvedSessionId, active: true, metadata },
           { startedBy: 'daemon', claudeStartingMode: 'remote' },
         );
 
         const resumeAgent = metadata.flavor === 'codex' || metadata.codexThreadId
           ? 'codex'
           : 'claude';
+        const codexHome = resumeAgent === 'codex'
+          ? await resolveCodexHomeForResume(metadata, ambientEnvironment)
+          : undefined;
         appendDaemonSpawnModeArgs(launch.args, {
           directory: launch.cwd,
           agent: resumeAgent,
@@ -1255,7 +1260,8 @@ export async function startDaemon(): Promise<void> {
           env: buildSessionChildEnvironment(ambientEnvironment, {
             ...contextEnvironment(resumedContextBundle),
             ...agentRuntimeEnvironment,
-            HAPPY_RECONNECT_SESSION_ID: happySessionId,
+            ...(codexHome ? { CODEX_HOME: codexHome } : {}),
+            HAPPY_RECONNECT_SESSION_ID: resolvedSessionId,
             HAPPY_RECONNECT_ENCRYPTION_KEY: encodeBase64(tracked.encryption.encryptionKey),
             HAPPY_RECONNECT_ENCRYPTION_VARIANT: tracked.encryption.encryptionVariant,
             HAPPY_RECONNECT_SEQ: String(tracked.encryption.seq),

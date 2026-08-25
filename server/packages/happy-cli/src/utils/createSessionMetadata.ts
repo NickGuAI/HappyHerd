@@ -113,6 +113,9 @@ export function createSessionMetadata(opts: CreateSessionMetadataOptions): Sessi
         lifecycleState: 'running',
         lifecycleStateSince: Date.now(),
         flavor: opts.flavor,
+        ...(opts.flavor === 'codex'
+            ? { codexHome: resolve(process.env.CODEX_HOME?.trim() || resolve(os.homedir(), '.codex')) }
+            : {}),
         sandbox: opts.sandbox?.enabled ? opts.sandbox : null,
         dangerouslySkipPermissions: opts.dangerouslySkipPermissions ?? null,
         ...(gitBranch ? { gitBranch } : {}),
