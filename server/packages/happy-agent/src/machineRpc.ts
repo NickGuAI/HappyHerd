@@ -30,6 +30,10 @@ export type SpawnSessionOnMachineOptions = {
     effortLevel?: string;
     commanderId?: string;
     runtimeContext?: SpawnSessionRuntimeContext;
+    resumeClaudeSessionId?: string;
+    resumeCodexThreadId?: string;
+    parentSessionId?: string;
+    isSideChat?: boolean;
 };
 
 export type SpawnMachineSessionResult =
@@ -154,6 +158,10 @@ export async function spawnSessionOnMachine(
                 effortLevel: options.effortLevel,
                 commanderId: options.commanderId,
                 runtimeContext: normalizedRuntimeContext(options.runtimeContext),
+                resumeClaudeSessionId: options.resumeClaudeSessionId,
+                resumeCodexThreadId: options.resumeCodexThreadId,
+                parentSessionId: options.parentSessionId,
+                isSideChat: options.isSideChat,
             }),
         );
 
@@ -286,6 +294,71 @@ export async function resumeSessionOnMachine(
         }
 
         return decrypted as ResumeMachineSessionResult;
+    } finally {
+        socket.close();
+    }
+}
+
+function normalizeMachineRpcMethod(method: string): string {
+    const normalized = method.trim();
+    if (!/^[a-z0-9-]{1,128}$/.test(normalized)) {
+        throw new Error('Machine RPC method must contain only lowercase letters, numbers, and hyphens');
+    }
+    return normalized;
+}
+
+export async function callMachineRpc<TResult = unknown>(
+    config: Config,
+    machine: DecryptedMachine,
+    token: string,
+    method: string,
+    params: Record<string, unknown>,
+): Promise<TResult> {
+    const normalizedMethod = normalizeMachineRpcMethod(method);
+    const socket = io(config.serverUrl, {
+        auth: {
+            token,
+        },
+        path: '/v1/updates',
+        transports: ['websocket'],
+        autoConnect: false,
+        reconnection: false,
+    });
+
+    socket.connect();
+
+    try {
+        await waitForConnect(socket);
+        const encryptedParams = encodeBase64(
+            encrypt(machine.encryption.key, machine.encryption.variant, params),
+        );
+        const response = await socket.timeout(30_000).emitWithAck('rpc-call', {
+            method: `${machine.id}:${normalizedMethod}`,
+            params: encryptedParams,
+        }) as RpcAck;
+
+        if (!response.ok) {
+            throw new Error(normalizeRpcError(response.error, machine.id));
+        }
+        if (!response.result) {
+            throw new Error('RPC call returned no result');
+        }
+
+        const decrypted = decrypt(
+            machine.encryption.key,
+            machine.encryption.variant,
+            decodeBase64(response.result),
+        );
+        if (
+            decrypted != null
+            && typeof decrypted === 'object'
+            && !Array.isArray(decrypted)
+            && 'error' in decrypted
+            && typeof decrypted.error === 'string'
+        ) {
+            throw new Error(decrypted.error);
+        }
+        return decrypted as TResult;
     } finally {
         socket.close();
     }

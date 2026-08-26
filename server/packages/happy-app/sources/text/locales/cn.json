@@ -771,7 +771,7 @@
     "overwrite": "覆盖"
   },
   "sideChat": {
-    "panelTitle": "侧边聊天",
+    "panelTitle": "子工作会话",
     "emptyTitle": "开始侧边聊天",
     "emptySubtitle": "在一旁向智能体提问。它会继承此聊天的上下文，但保持独立——这里的任何操作都不会影响主对话。",
     "startButton": "开始侧边聊天",
@@ -781,7 +781,11 @@
     "expand": "全屏打开",
     "tabLabel": "侧边聊天 {index}",
     "newChat": "新建侧边聊天",
-    "close": "关闭侧边聊天"
+    "close": "关闭侧边聊天",
+    "collapse": "收起子工作会话",
+    "archiveFailed": "无法归档此子工作会话。标签页已恢复，您可以重试。",
+    "openCount": "打开子工作会话（{count}）",
+    "stopUnconfirmed": "子工作会话 {sessionId} 已归档，但 HappyHerd 无法确认其进程已停止。如果工作仍在继续，请检查所属机器。"
   },
   "settingsVoice": {
     "languageTitle": "语言",

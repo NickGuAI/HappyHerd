@@ -203,6 +203,38 @@ daemon catalog and share the same constant as the runtime launch path. Leaving
 an owned default unmarked turns an omitted request into a false receipt even
 when the provider process starts successfully.
 
+Coordinated child side chats extend that same exact-daemon boundary:
+
+```text
+happy session side-chat <parent-session-id>
+  → decrypt exact parent session metadata
+  → resolve its owning active machine and supported daemon protocol
+  → generic encrypted machine RPC
+       ├── Claude provider-native session fork
+       └── Codex provider-native thread fork
+  → confirmed spawn on the same machine and path
+       with fresh provider resume ID + parentSessionId + isSideChat
+  → hidden child metadata in synchronized session state
+  → exact-parent child selector
+       ├── wide Web/Mac collapsible sidebar
+       └── narrow/native full-screen panel
+```
+
+The parent session record owns the machine, path, provider, and provider-backend
+identity used for the fork; the command never substitutes another machine or
+provider. Provider-native fork RPCs must complete before child spawn, and the
+new backend ID—not the parent's ID—is the resume target. `parentSessionId` and
+`isSideChat` are persisted child lineage: top-level session selectors exclude
+those children while the parent view discovers every non-archived exact child,
+including children created by another CLI client. Side-chat presentation is
+independent of the default-off file-diff-sidebar setting. Collapsing either
+presentation changes only local view state; closing a child tab stops it and
+always archives the server session so it stays absent after reload. The
+encrypted archive acknowledgement uses Socket.IO's native timeout so a
+buffered mutation cannot apply after a reported failure. After a lost
+acknowledgement, the app refreshes and reads back the canonical lifecycle
+marker before it reports success or restores a retryable tab.
+
 ## Cross-cutting contracts
 
 ### UI, localization, inventory, and changelog

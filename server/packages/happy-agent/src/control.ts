@@ -16,6 +16,7 @@ import {
     type DecryptedSession,
 } from './api';
 import {
+    callMachineRpc as invokeMachineRpc,
     resumeSessionOnMachine,
     spawnSessionOnMachine as invokeSpawnSessionOnMachine,
     type SupportedAgent,
@@ -48,6 +49,10 @@ export type SpawnMachineSessionOptions = {
     effortLevel?: string;
     commanderId?: string;
     runtimeContext?: SpawnSessionRuntimeContext;
+    resumeClaudeSessionId?: string;
+    resumeCodexThreadId?: string;
+    parentSessionId?: string;
+    isSideChat?: boolean;
 };
 
 export type ConfirmedMachineSession = {
@@ -131,6 +136,20 @@ export class HappyControlClient {
         });
     }
 
+    callMachineRpc<TResult = unknown>(
+        machine: DecryptedMachine,
+        method: string,
+        params: Record<string, unknown>,
+    ): Promise<TResult> {
+        return invokeMachineRpc<TResult>(
+            this.config,
+            machine,
+            this.credentials.token,
+            method,
+            params,
+        );
+    }
+
     async waitForSession(sessionId: string, timeoutMs = 15_000): Promise<DecryptedSession> {
         const deadline = Date.now() + timeoutMs;
         let lastError: unknown;
@@ -209,6 +228,10 @@ export class HappyControlClient {
                 effortLevel: options.effortLevel,
                 commanderId: options.commanderId,
                 runtimeContext: options.runtimeContext,
+                resumeClaudeSessionId: options.resumeClaudeSessionId,
+                resumeCodexThreadId: options.resumeCodexThreadId,
+                parentSessionId: options.parentSessionId,
+                isSideChat: options.isSideChat,
             },
         );
 

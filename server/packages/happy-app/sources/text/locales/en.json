@@ -841,7 +841,7 @@
     "overwrite": "Overwrite"
   },
   "sideChat": {
-    "panelTitle": "Side chat",
+    "panelTitle": "Sub-workers",
     "emptyTitle": "Start a side chat",
     "emptySubtitle": "Ask the agent something on the side. It inherits this chat’s context but stays isolated — nothing here touches the main conversation.",
     "startButton": "Start side chat",
@@ -851,7 +851,11 @@
     "expand": "Open full screen",
     "tabLabel": "Side chat {index}",
     "newChat": "New side chat",
-    "close": "Close side chat"
+    "close": "Close side chat",
+    "collapse": "Collapse sub-workers",
+    "archiveFailed": "This sub-worker could not be archived. Its tab has been restored so you can try again.",
+    "openCount": "Open sub-workers ({count})",
+    "stopUnconfirmed": "Sub-worker {sessionId} was archived, but HappyHerd could not confirm its process stopped. Check the owning machine if work continues."
   },
   "settingsVoice": {
     "languageTitle": "Language",

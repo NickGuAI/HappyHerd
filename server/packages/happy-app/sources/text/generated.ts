@@ -813,15 +813,19 @@ export type TranslationKey =
     | "settingsVoice.usageLabel"
     | "settingsVoice.usageTitle"
     | "settingsVoice.usageUsed"
+    | "sideChat.archiveFailed"
     | "sideChat.close"
+    | "sideChat.collapse"
     | "sideChat.composerPlaceholder"
     | "sideChat.creating"
     | "sideChat.emptySubtitle"
     | "sideChat.emptyTitle"
     | "sideChat.expand"
     | "sideChat.newChat"
+    | "sideChat.openCount"
     | "sideChat.panelTitle"
     | "sideChat.startButton"
+    | "sideChat.stopUnconfirmed"
     | "sideChat.tabLabel"
     | "sideChat.unavailable"
     | "sidebar.hideArchived"
@@ -1326,6 +1330,8 @@ export interface TranslationParamsByKey {
     "settings.showOfflineMachines": { count: number };
     "settingsVoice.language.footer": { count: number };
     "settingsVoice.usageUsed": { limit: number; used: string | number };
+    "sideChat.openCount": { count: number };
+    "sideChat.stopUnconfirmed": { sessionId: string };
     "sideChat.tabLabel": { index: number };
     "status.lastSeen": { time: string };
     "time.daysAgo": { count: number };

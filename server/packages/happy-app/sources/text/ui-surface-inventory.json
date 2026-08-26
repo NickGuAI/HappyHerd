@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "1ecf4899df66ece8b369aad5d3aee172c0cdb86804dd71b39227db925f44174f",
+  "sourceFingerprint": "028dcbe68d12b7e7b6fd6618f31355d7ff7427243e74b12fb8843fa909957c24",
   "routeCount": 36,
   "surfaceCount": 243,
   "hardcodedCopyCount": 0,
@@ -991,6 +991,7 @@
       ],
       "translationKeys": [
         "common.cancel",
+        "common.error",
         "common.save",
         "components.agentGoalBar.currentGoal",
         "components.agentGoalBar.editGoal",
@@ -1005,6 +1006,8 @@
         "session.resumeFromTerminal",
         "sessionInfo.cliVersionOutdated",
         "sessionInfo.resumeSession",
+        "sideChat.archiveFailed",
+        "sideChat.stopUnconfirmed",
         "sideChat.unavailable",
         "uiCopy.discardUnsavedChanges",
         "uiCopy.thisFile",
@@ -1013,6 +1016,7 @@
         "uiCopy.yourEditsToValueHaveNotBeenSaved"
       ],
       "states": [
+        "error",
         "unavailable"
       ],
       "hardcodedCopy": []
@@ -4193,14 +4197,19 @@
       "kind": "panel",
       "route": null,
       "exports": [
+        "SideChatAccessButton",
+        "SideChatFullscreen",
         "SideChatPanel"
       ],
       "translationKeys": [
         "sideChat.close",
+        "sideChat.collapse",
         "sideChat.creating",
         "sideChat.emptySubtitle",
         "sideChat.emptyTitle",
         "sideChat.expand",
+        "sideChat.openCount",
+        "sideChat.panelTitle",
         "sideChat.startButton",
         "sideChat.tabLabel",
         "sideChat.unavailable"

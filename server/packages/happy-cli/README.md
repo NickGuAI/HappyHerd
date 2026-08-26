@@ -196,6 +196,7 @@ happy connect status
 | `happy grok` | Start GrokBuild through its official ACP interface |
 | `happy acp` | Start any ACP-compatible agent |
 | `happy resume <id>` | Resume a previous session |
+| `happy session side-chat <id>` | Create a Claude or Codex child side chat |
 | `happy notify` | Send push notification to your devices |
 | `happy doctor` | Diagnostics & troubleshooting |
 | `happy commander list` | List Commanders available on this machine |
