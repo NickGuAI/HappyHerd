@@ -72,13 +72,38 @@ run_case() {
   fi
   git -C "$case_dir" add docs/owned-patches.tsv server/app.txt
   git -C "$case_dir" commit --quiet -m "feat(test): add owned change"
-  git -C "$case_dir" switch main >/dev/null 2>&1
-  git -C "$case_dir" merge --no-ff --no-commit feat/owned >/dev/null 2>&1
-  if [[ "$variant" == "merge-only-change" ]]; then
-    printf 'not present on the reviewed branch\n' > "$case_dir/docs/merge-only.txt"
-    git -C "$case_dir" add docs/merge-only.txt
+
+  if [[ "$variant" == "nested-structural" ]]; then
+    git -C "$case_dir" switch -c integration main >/dev/null 2>&1
+    git -C "$case_dir" merge --no-ff --no-commit feat/owned >/dev/null 2>&1
+    git -C "$case_dir" commit --quiet \
+      -m "Merge pull request #1 from example-owner/feat/owned"
+
+    git -C "$case_dir" switch -c feat/second >/dev/null 2>&1
+    printf 'second owned change\n' > "$case_dir/server/second.txt"
+    printf 'TEST\tcode-ready\tfeat(test): add second owned change\tserver/second.txt\n' \
+      >> "$case_dir/docs/owned-patches.tsv"
+    git -C "$case_dir" add docs/owned-patches.tsv server/second.txt
+    git -C "$case_dir" commit --quiet -m "feat(test): add second owned change"
+
+    git -C "$case_dir" switch integration >/dev/null 2>&1
+    git -C "$case_dir" merge --no-ff --no-commit feat/second >/dev/null 2>&1
+    git -C "$case_dir" commit --quiet \
+      -m "Merge pull request #2 from example-owner/feat/second"
+    git -C "$case_dir" switch main >/dev/null 2>&1
+    git -C "$case_dir" merge --no-ff --no-commit integration >/dev/null 2>&1
+    git -C "$case_dir" commit --quiet \
+      -m "Merge pull request #3 from example-owner/integration"
+  else
+    git -C "$case_dir" switch main >/dev/null 2>&1
+    git -C "$case_dir" merge --no-ff --no-commit feat/owned >/dev/null 2>&1
+    if [[ "$variant" == "merge-only-change" ]]; then
+      printf 'not present on the reviewed branch\n' > "$case_dir/docs/merge-only.txt"
+      git -C "$case_dir" add docs/merge-only.txt
+    fi
+    git -C "$case_dir" commit --quiet \
+      -m "Merge pull request #1 from example-owner/feat/owned"
   fi
-  git -C "$case_dir" commit --quiet -m "Merge pull request #1 from example-owner/feat/owned"
 
   output="$(
     HAPPYHERD_ALLOW_REHEARSAL_SYNC=1 \
@@ -103,7 +128,8 @@ run_case() {
 
 run_case valid valid pass
 run_case nested-upstream nested-upstream pass
+run_case nested-structural nested-structural pass
 run_case unmanifested unmanifested "unmanifested patch"
 run_case merge-only-change merge-only-change "merge tree contains changes outside its branch patches"
 
-echo "owned-merge-provenance: ok (2 valid and 2 rejected fixtures)"
+echo "owned-merge-provenance: ok (3 valid and 2 rejected fixtures)"
