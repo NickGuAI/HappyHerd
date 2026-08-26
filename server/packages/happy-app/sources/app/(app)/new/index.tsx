@@ -71,7 +71,10 @@ import {
     type EffortLevel,
 } from '@/components/modelModeOptions';
 import { isRunningOnMac } from '@/utils/platform';
-import { getNewSessionSidebarLayout } from '@/utils/newSessionSidebarLayout';
+import {
+    getNewSessionCommanderPickerOptionListMaxHeight,
+    getNewSessionSidebarLayout,
+} from '@/utils/newSessionSidebarLayout';
 import { getAgentPickerItems, getModePickerItems, type NewSessionPickerItem } from '@/utils/newSessionPickerItems';
 import {
     getCommanderPickerFixedItems,
@@ -334,6 +337,7 @@ function PickerContent({
     searchPlaceholder,
     searchEnabled = true,
     embedded = false,
+    optionListMaxHeight,
 }: {
     title: string;
     fixedItems?: PickerItem[];
@@ -343,6 +347,7 @@ function PickerContent({
     searchPlaceholder?: string;
     searchEnabled?: boolean;
     embedded?: boolean;
+    optionListMaxHeight?: number;
 }) {
     const { theme } = useUnistyles();
     const [search, setSearch] = React.useState('');
@@ -420,7 +425,11 @@ function PickerContent({
             )}
 
             <ScrollView
-                style={[pickerStyles.optionList, embedded && pickerStyles.embeddedOptionList]}
+                style={[
+                    pickerStyles.optionList,
+                    embedded && pickerStyles.embeddedOptionList,
+                    optionListMaxHeight !== undefined && { maxHeight: optionListMaxHeight },
+                ]}
                 contentContainerStyle={embedded && pickerStyles.embeddedOptionListContent}
                 keyboardShouldPersistTaps="handled"
             >
@@ -2184,6 +2193,13 @@ function NewSessionScreen() {
                 {...pickerData}
                 onSelect={handlePickerSelect}
                 embedded={sidebarLayout.showSidebar}
+                optionListMaxHeight={type === 'commander'
+                    ? getNewSessionCommanderPickerOptionListMaxHeight({
+                        platform: Platform.OS,
+                        embedded: sidebarLayout.showSidebar,
+                        windowHeight,
+                    })
+                    : undefined}
             />
         ) : null;
 
@@ -2212,6 +2228,7 @@ function NewSessionScreen() {
         sidebarLayout.showSidebar,
         theme.colors.header.background,
         toggleFavoritePath,
+        windowHeight,
     ]);
 
     const nativePickerContent = activePicker === 'settings' ? (
