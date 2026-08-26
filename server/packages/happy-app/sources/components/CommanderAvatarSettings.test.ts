@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { MAX_HAPPYHERD_COMMANDER_AVATAR_BYTES } from '@slopus/happy-wire';
 // @ts-expect-error react-test-renderer has no declarations in this workspace.
 import { act, create } from 'react-test-renderer';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -135,7 +136,7 @@ describe('CommanderAvatarSettings', () => {
     it('rejects a known oversized selection before reading it into memory', async () => {
         mocks.pick.mockResolvedValueOnce({
             canceled: false,
-            assets: [{ uri: 'file:///too-large.png', size: 2 * 1024 * 1024 + 1 }],
+            assets: [{ uri: 'file:///too-large.png', size: MAX_HAPPYHERD_COMMANDER_AVATAR_BYTES + 1 }],
         } as any);
         let renderer!: ReturnType<typeof create>;
         await act(async () => {

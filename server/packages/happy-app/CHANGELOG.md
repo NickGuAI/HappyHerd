@@ -1,3 +1,7 @@
+# August 26 — Commander pictures appear after upload
+
+- Commander pictures up to 10 MiB now fit through the live machine connection after upload, so the session list shows the saved picture instead of falling back to initials.
+
 # August 26 — GrokBuild launch permissions
 
 - New GrokBuild sessions list all permission modes advertised by the installed CLI: `default`, `acceptEdits`, `auto`, `dontAsk`, `bypassPermissions`, and `plan`.

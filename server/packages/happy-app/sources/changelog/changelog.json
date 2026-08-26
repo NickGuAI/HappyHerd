@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 26 — Commander pictures appear after upload",
+      "summary": "",
+      "markdown": "- Commander pictures up to 10 MiB now fit through the live machine connection after upload, so the session list shows the saved picture instead of falling back to initials."
+    },
+    {
       "title": "August 26 — GrokBuild launch permissions",
       "summary": "",
       "markdown": "- New GrokBuild sessions list all permission modes advertised by the installed CLI: `default`, `acceptEdits`, `auto`, `dontAsk`, `bypassPermissions`, and `plan`.\n- Happy forwards the selected mode to GrokBuild's process launch without mixing it with ACP per-tool permissions, plan/build operating mode, or sandbox controls.\n- Active GrokBuild sessions no longer suggest that their launch permission can be switched mid-session."
@@ -241,5 +246,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 26 — GrokBuild launch permissions"
+  "latestTitle": "August 26 — Commander pictures appear after upload"
 }

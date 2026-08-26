@@ -1221,7 +1221,7 @@
     },
     "commanderAvatars": {
       "title": "Commander Profile Pictures",
-      "description": "Choose one picture per Commander on each machine. PNG, JPEG, or WebP up to 2 MiB.",
+      "description": "Choose one picture per Commander on each machine. PNG, JPEG, or WebP up to 10 MiB.",
       "noMachines": "No machines available",
       "machineOffline": "This machine is offline",
       "loading": "Loading Commanders…",
@@ -1230,7 +1230,7 @@
       "updated": "Updated {name}'s profile picture.",
       "uploadFailed": "Could not update the Commander profile picture.",
       "empty": "The selected file is empty.",
-      "tooLarge": "Choose a picture no larger than 2 MiB.",
+      "tooLarge": "Choose a picture no larger than 10 MiB.",
       "invalidFormat": "Choose a complete PNG, JPEG, or WebP image.",
       "stale": "The profile picture changed on the machine. Reopen Features and try again.",
       "runtimeUnsupported": "Update HappyHerd on this machine before replacing its Commander profile picture."

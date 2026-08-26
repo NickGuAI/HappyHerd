@@ -57,6 +57,7 @@ PUBLIC_BOUNDARY	accepted	fix(public-boundary): accept signed PR merges	scripts/t
 DEVELOPMENT_CONTEXT	accepted	docs(dev): add development context	.dev/README.md
 COMMUNITY_SURFACE	accepted	docs(project): publish community contracts	scripts/verify-community-contract.mjs
 COMMANDER_AVATAR	accepted	feat(sessions): show Commander avatars	server/packages/happy-cli/src/agentContext/commanderContext.test.ts
+COMMANDER_AVATAR	accepted	fix(app): display uploaded Commander avatars	server/packages/happy-server/sources/app/api/socket.test.ts
 AUTOMATION_PROJECTS	accepted	feat(automations): organize schedules by tags	server/packages/happy-wire/src/automation.test.ts
 MESSAGE_QUEUE_VIEW	accepted	feat(chat): show queued messages separately	server/packages/happy-cli/src/utils/MessageQueue2.test.ts
 WORKSPACE_CONTEXT	accepted	feat(workspace): complete file and folder context	server/packages/happy-wire/src/workspaceUpload.test.ts

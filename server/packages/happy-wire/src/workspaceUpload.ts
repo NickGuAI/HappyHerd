@@ -2,12 +2,7 @@ import * as z from 'zod';
 
 export const MAX_WORKSPACE_UPLOAD_BYTES = 20 * 1024 * 1024;
 export const MAX_WORKSPACE_UPLOAD_FILES = 10;
-/**
- * Base64 characters carried by one encrypted machine RPC. The RPC layer wraps
- * this JSON in authenticated encryption and base64 once more, so keeping the
- * plaintext chunk at 256 KiB leaves ample room below Engine.IO's default
- * 1,000,000-byte frame limit without raising that global limit.
- */
+/** Base64 characters carried by one encrypted machine RPC upload chunk. */
 export const MAX_WORKSPACE_UPLOAD_CHUNK_BASE64_LENGTH = 256 * 1024;
 const SHA256_HEX_PATTERN = /^[a-f0-9]{64}$/;
 

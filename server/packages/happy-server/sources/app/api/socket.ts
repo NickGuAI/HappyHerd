@@ -26,6 +26,7 @@ export function startSocket(app: Fastify) {
         transports: ['websocket', 'polling'],
         pingTimeout: 45000,
         pingInterval: 15000,
+        maxHttpBufferSize: 20 * 1024 * 1024,
         path: '/v1/updates',
         allowUpgrades: true,
         upgradeTimeout: 10000,
