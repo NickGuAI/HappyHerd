@@ -1,7 +1,7 @@
-import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { HappyHerdAutomationStore } from './store';
 
@@ -17,6 +17,10 @@ afterAll(() => {
 beforeEach(async () => {
   root = await mkdtemp(path.join(os.tmpdir(), 'happyherd-automation-'));
   process.env.HAPPY_HOME_DIR = path.join(root, '.happyherd');
+});
+
+afterEach(async () => {
+  await rm(root, { recursive: true, force: true });
 });
 
 function input() {
