@@ -4,6 +4,10 @@
  */
 
 import { io, Socket } from 'socket.io-client';
+import {
+    HappyHerdMachineSessionProviderSchema,
+    HappyHerdMachineSessionSettingsSchema,
+} from '@slopus/happy-wire';
 import { logger } from '@/ui/logger';
 import { configuration } from '@/configuration';
 import { MachineMetadata, DaemonState, Machine, Update, UpdateMachineBody } from './types';
@@ -34,6 +38,7 @@ import {
 } from '@/codex/codexThreadFork';
 import { listCommanders } from '@/agentContext/commanderContext';
 import type { HappyHerdAutomationService } from '@/automations/service';
+import { resolveEffectiveSessionSettings } from '@/capabilities/sessionLaunchSettings';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -192,12 +197,29 @@ export class ApiMachineClient {
                 throw new Error('Directory is required');
             }
 
-            const result = await spawnSession({ directory, sessionId, machineId, approvedNewDirectoryCreation, agent, permissionMode, modelMode, effortLevel, commanderId, environmentVariables, agentRuntimeContext: runtimeContext, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat });
+            const provider = HappyHerdMachineSessionProviderSchema.parse(agent ?? 'claude');
+            const effectiveSettings = resolveEffectiveSessionSettings(
+                this.machine.metadata,
+                this.machine.id,
+                {
+                    provider,
+                    ...(typeof modelMode === 'string' ? { model: modelMode } : {}),
+                    ...(typeof effortLevel === 'string' ? { effort: effortLevel } : {}),
+                    ...(typeof permissionMode === 'string' ? { permission: permissionMode } : {}),
+                },
+            );
+
+            const result = await spawnSession({ directory, sessionId, machineId, approvedNewDirectoryCreation, agent: provider, permissionMode, modelMode, effortLevel, effectiveSettings, commanderId, environmentVariables, agentRuntimeContext: runtimeContext, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat });
 
             switch (result.type) {
                 case 'success':
                     logger.debug(`[API MACHINE] Spawned session ${result.sessionId}`);
-                    return { type: 'success', sessionId: result.sessionId };
+                    if (!result.settings || JSON.stringify(
+                        HappyHerdMachineSessionSettingsSchema.parse(result.settings),
+                    ) !== JSON.stringify(effectiveSettings)) {
+                        throw new Error(`Session ${result.sessionId} did not confirm the target daemon's effective settings`);
+                    }
+                    return { type: 'success', sessionId: result.sessionId, settings: result.settings };
 
                 case 'requestToApproveDirectoryCreation':
                     logger.debug(`[API MACHINE] Requesting directory creation approval for: ${result.directory}`);

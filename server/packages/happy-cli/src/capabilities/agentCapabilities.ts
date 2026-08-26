@@ -4,12 +4,14 @@ import { HAPPYHERD_CLAUDE_MODEL_SLUGS } from '@slopus/happy-wire';
 import type { AgentCapabilityCatalog } from '@/api/types';
 import { CodexAppServerClient } from '@/codex/codexAppServerClient';
 import type { ModelListEntry } from '@/codex/codexAppServerTypes';
+import { DEFAULT_CODEX_MODEL, DEFAULT_CODEX_PERMISSION_MODE } from '@/codex/defaults';
+import { DEFAULT_CODEX_REASONING_EFFORT } from '@/codex/reasoningEffort';
 import type { CLIAvailability } from '@/utils/detectCLI';
 import { logger } from '@/ui/logger';
 import { AcpBackend } from '@/agent/acp/AcpBackend';
 import { DefaultTransport } from '@/agent/transport';
 import { KNOWN_ACP_AGENTS, sanitizeGrokChildEnvironment } from '@/agent/acp/acpAgentConfig';
-import { AGY_MODELS } from '@/agy/constants';
+import { AGY_MODELS, DEFAULT_AGY_MODEL } from '@/agy/constants';
 import type { InitializeResponse } from '@agentclientprotocol/sdk';
 
 type CapabilityOption = AgentCapabilityCatalog['models'][number];
@@ -171,7 +173,11 @@ function baselineClaudeCatalog(detectedAt: number): AgentCapabilityCatalog {
 }
 
 function baselineCodexCatalog(detectedAt: number): AgentCapabilityCatalog {
-    const efforts = uniqueOptions(['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']);
+    const efforts = uniqueOptions(['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
+        .map((effort) => ({
+            ...effort,
+            isDefault: effort.code === DEFAULT_CODEX_REASONING_EFFORT,
+        }));
     return {
         detectedAt,
         providerVersion: readVersion('codex'),
@@ -180,9 +186,20 @@ function baselineCodexCatalog(detectedAt: number): AgentCapabilityCatalog {
             effortLevels: 'daemon-defaults',
             permissionModes: 'happyherd-launch-profile',
         },
-        models: [option('default', 'default model', null), ...uniqueOptions(CODEX_MODEL_DEFAULTS)],
+        models: [
+            option('default', 'default model', null),
+            ...uniqueOptions(CODEX_MODEL_DEFAULTS).map((model) => ({
+                ...model,
+                isDefault: model.code === DEFAULT_CODEX_MODEL,
+            })),
+        ],
         effortLevels: efforts,
-        permissionModes: CODEX_PERMISSION_MODES.map(([code, label]) => option(code, label)),
+        permissionModes: CODEX_PERMISSION_MODES.map(([code, label]) => option(
+            code,
+            label,
+            undefined,
+            code === DEFAULT_CODEX_PERMISSION_MODE,
+        )),
     };
 }
 
@@ -193,10 +210,11 @@ function mapCodexModels(models: ModelListEntry[]): AgentCapabilityCatalog['model
             code: model.model,
             value: model.displayName || model.model,
             description: model.description || null,
-            effortLevels: model.supportedReasoningEfforts.map((effort) => option(
+            effortLevels: model.supportedReasoningEfforts.map((effort, index, efforts) => option(
                 effort.reasoningEffort,
                 effort.reasoningEffort,
                 effort.description || null,
+                index === efforts.length - 1,
             )),
             isDefault: model.isDefault,
         }));
@@ -359,7 +377,12 @@ export function buildBaselineAgentCapabilities(availability: CLIAvailability): C
             detectedAt,
             providerVersion: readVersion('agy'),
             sources: { models: 'daemon-defaults', effortLevels: 'model-name', permissionModes: 'happyherd-launch-profile' },
-            models: uniqueOptions(AGY_MODELS),
+            models: AGY_MODELS.map((model) => option(
+                model,
+                model,
+                undefined,
+                model === DEFAULT_AGY_MODEL,
+            )),
             effortLevels: [],
             permissionModes: [option('default'), option('bypassPermissions', 'bypass permissions')],
         };

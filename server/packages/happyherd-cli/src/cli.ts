@@ -39,7 +39,15 @@ never reads or exports them. Never paste a credential into chat, a URL, or a
 command-line argument.
 
 The governed commands above keep HappyHerd semantics. Every other invocation
-is forwarded unchanged to the bundled native Happy CLI.`;
+is forwarded unchanged to the bundled native Happy CLI.
+
+Native machine-session examples:
+  happyherd machine auth login
+  happyherd machine list --json
+  happyherd session create --machine ID_OR_HOST --path ABSOLUTE_PATH --provider codex --json
+
+Session creation supports native Happy CLI daemon machines; machine-list
+receipts identify unsupported machine kinds such as Rig.`;
 
 function option(args: string[], name: string): string | undefined {
   const index = args.indexOf(name);

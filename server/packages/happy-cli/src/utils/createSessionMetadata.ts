@@ -18,6 +18,7 @@ import type { SandboxConfig } from '@/persistence';
 import packageJson from '../../package.json';
 import { contextMetadataFromEnvironment } from '@/agentContext/commanderContext';
 import { automationMetadataFromEnvironment } from '@/automations/sessionBootstrap';
+import { machineSessionSettingsMetadataFromEnvironment } from '@/daemon/sessionLaunchSettings';
 
 /**
  * Backend flavor identifier for session metadata.
@@ -124,6 +125,7 @@ export function createSessionMetadata(opts: CreateSessionMetadataOptions): Sessi
         ...(opts.isSideChat ? { isSideChat: true } : {}),
         ...contextMetadataFromEnvironment(),
         ...automationMetadataFromEnvironment(),
+        ...machineSessionSettingsMetadataFromEnvironment(),
         ...(process.env.HAPPYHERD_AGENT_SURFACE_ID
             ? { happyHerdAgentSurfaceId: process.env.HAPPYHERD_AGENT_SURFACE_ID }
             : {}),

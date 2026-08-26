@@ -14,6 +14,10 @@ export type AuthRequestResponse = {
     response?: string; // base64-encoded encrypted account secret
 };
 
+export type AuthPresentationOptions = {
+    loginCommand?: string;
+};
+
 export async function authLogin(config: Config): Promise<void> {
     // 1. Generate ephemeral box keypair
     const seed = getRandomBytes(32);
@@ -94,15 +98,19 @@ export async function authLogout(config: Config): Promise<void> {
     console.log('- Credentials: Cleared');
 }
 
-export async function authStatus(config: Config): Promise<void> {
+export async function authStatus(
+    config: Config,
+    options: AuthPresentationOptions = {},
+): Promise<void> {
     const creds = readCredentials(config);
+    const loginCommand = options.loginCommand ?? 'happy-agent auth login';
     console.log('## Authentication');
     if (creds) {
         console.log('- Status: Authenticated');
         console.log(`- Public Key: \`${encodeBase64(creds.contentKeyPair.publicKey)}\``);
     } else {
         console.log('- Status: Not authenticated');
-        console.log('- Action: Run `happy-agent auth login` to authenticate.');
+        console.log(`- Action: Run \`${loginCommand}\` to authenticate.`);
     }
 }
 

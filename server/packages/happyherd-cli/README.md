@@ -17,6 +17,31 @@ native commands such as `happy automation list --json` are also available as
 `happyherd automation list --json`. Native arguments and exit or signal status
 are preserved without maintaining a second command list in HappyHerd.
 
+The maintained native machine-session commands are available through the same
+passthrough:
+
+```text
+happyherd machine auth login
+happyherd machine auth status
+happyherd machine auth logout
+happyherd machine list --json
+happyherd session create --machine workstation --path /srv/project --provider codex --model gpt-5.6 --effort high --permission plan --create-dir --json
+```
+
+The one-time account link is approved in the Happy app and stored only as
+`agent.key` in the configured HappyHerd home; native-session `access.key` and
+governed launcher credentials never grant machine control. The machine selector is an exact account machine ID or
+an unambiguous exact hostname. Session creation supports native Happy CLI daemon
+machines only; machine-list receipts label Rig and other unsupported entries
+without trying to adapt their different RPC contracts. Older native daemons
+remain visible but report `sessionCreateSupported: false` until they are
+upgraded and restarted to advertise the supported
+`machineSessionProtocolVersion`. The command checks that marker before sending
+a spawn RPC. Session paths are absolute on the selected machine. Omit
+`--create-dir` unless that machine may create the directory.
+Successful JSON creation receipts contain the settings validated by the target
+daemon and persisted on the tracked session, rather than echoing caller input.
+
 `connect --json` is an NDJSON stream. It emits an `approval` record with
 `verificationUri` and `userCode` before polling, optional `pending` and
 `connected` progress, then one secret-free `receipt`. This is the stable mode

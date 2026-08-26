@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 26 — Start sessions on a selected machine",
+      "summary": "",
+      "markdown": "- The native `happy` CLI can link account-wide machine control through the Happy app, list linked-account machines, and create a tracked session on an exact machine ID or unambiguous hostname.\n- Machine control uses only its dedicated `agent.key`; native-session credentials cannot silently authorize machine commands.\n- Remote session creation requires a target-machine absolute path, keeps directory creation opt-in, and validates provider, model, effort, and permission choices again on the target daemon immediately before launch; providers without a mode catalog can still launch with their defaults.\n- New daemons advertise target-confirmed session protocol support; the CLI rejects older targets before sending a spawn request, while retained legacy callers remain compatible with their original settings-free receipts.\n- Success receipts report the target-confirmed effective settings after the new session persists them, rather than echoing the caller's requested overrides.\n- Session creation is explicitly limited to native Happy CLI daemon machines; stable machine-list receipts identify Rig and other unsupported machine kinds instead of sending them an incompatible RPC.\n- `happyherd` exposes the maintained commands through its unchanged native-command passthrough, including stable JSON receipts for automation."
+    },
+    {
       "title": "August 26 — Agent Defaults cover every supported provider",
       "summary": "",
       "markdown": "- Agent Defaults now includes Claude Code, Codex, GrokBuild, Antigravity, and Happy, with each provider's preferences stored and cleared independently.\n- Agent Defaults now names and lets you change the exact machine supplying GrokBuild and Happy controls; unavailable providers show a clear machine-selection action instead of a blank card or borrowed choices.\n- New Session and Home clear provider-specific modes when switching providers, revalidate machine-owned defaults immediately before launch, and pass valid Happy defaults through its provider-native session request."
@@ -271,5 +276,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 26 — Agent Defaults cover every supported provider"
+  "latestTitle": "August 26 — Start sessions on a selected machine"
 }

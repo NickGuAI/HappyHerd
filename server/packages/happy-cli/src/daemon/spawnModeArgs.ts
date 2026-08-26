@@ -5,7 +5,7 @@ export function appendDaemonSpawnModeArgs(
     options: SpawnSessionOptions,
     agent: string,
 ): void {
-    if (agent !== 'claude' && agent !== 'codex' && agent !== 'grok') {
+    if (agent !== 'claude' && agent !== 'codex' && agent !== 'grok' && agent !== 'agy') {
         return;
     }
     // For Claude, `default` is the app's ambient no-override value. For Codex,
@@ -17,6 +17,9 @@ export function appendDaemonSpawnModeArgs(
         args.push('--model', options.modelMode);
     }
     if (options.effortLevel) {
+        if (agent === 'agy') {
+            return;
+        }
         args.push('--effort', options.effortLevel);
     }
 }

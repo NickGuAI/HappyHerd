@@ -1,4 +1,8 @@
 import type { Config } from './config';
+import {
+    HappyHerdMachineSessionSettingsSchema,
+    type HappyHerdMachineSessionSettings,
+} from '@slopus/happy-wire';
 import { loadConfig } from './config';
 import type { Credentials } from './credentials';
 import { requireCredentials } from './credentials';
@@ -13,7 +17,8 @@ import {
 } from './api';
 import {
     resumeSessionOnMachine,
-    spawnSessionOnMachine,
+    spawnSessionOnMachine as invokeSpawnSessionOnMachine,
+    type SupportedAgent,
     type SpawnSessionRuntimeContext,
 } from './machineRpc';
 import { SessionClient, type TurnResult } from './session';
@@ -32,6 +37,22 @@ export type SpawnCodexSessionOptions = {
     modelMode?: string;
     effortLevel?: string;
     runtimeContext?: SpawnSessionRuntimeContext;
+};
+
+export type SpawnMachineSessionOptions = {
+    directory: string;
+    approvedNewDirectoryCreation: boolean;
+    agent: SupportedAgent;
+    permissionMode?: string;
+    modelMode?: string;
+    effortLevel?: string;
+    commanderId?: string;
+    runtimeContext?: SpawnSessionRuntimeContext;
+};
+
+export type ConfirmedMachineSession = {
+    session: DecryptedSession;
+    settings: HappyHerdMachineSessionSettings;
 };
 
 export type SendTurnOptions = {
@@ -128,14 +149,61 @@ export class HappyControlClient {
 
     async spawnCodexSession(options: SpawnCodexSessionOptions): Promise<DecryptedSession> {
         const machine = await this.resolveMachine(options.machineId);
-        const result = await spawnSessionOnMachine(
+        return this.spawnSessionOnMachine(machine, {
+            directory: options.directory,
+            approvedNewDirectoryCreation: options.approvedNewDirectoryCreation ?? false,
+            agent: 'codex',
+            permissionMode: options.permissionMode,
+            modelMode: options.modelMode,
+            effortLevel: options.effortLevel,
+            commanderId: options.commanderId,
+            runtimeContext: options.runtimeContext,
+        });
+    }
+
+    async spawnSessionOnMachine(
+        machine: DecryptedMachine,
+        options: SpawnMachineSessionOptions,
+    ): Promise<DecryptedSession> {
+        const result = await this.requestMachineSession(machine, options);
+        return this.waitForSession(result.sessionId);
+    }
+
+    async spawnSessionOnMachineConfirmed(
+        machine: DecryptedMachine,
+        options: SpawnMachineSessionOptions,
+    ): Promise<ConfirmedMachineSession> {
+        const result = await this.requestMachineSession(machine, options);
+        const confirmedSettings = HappyHerdMachineSessionSettingsSchema.safeParse(result.settings);
+        if (!confirmedSettings.success) {
+            throw new Error(`Session ${result.sessionId} did not return confirmed machine-session settings`);
+        }
+        const session = await this.waitForSession(result.sessionId);
+        const metadata = session.metadata && typeof session.metadata === 'object' && !Array.isArray(session.metadata)
+            ? session.metadata as Record<string, unknown>
+            : null;
+        const persistedSettings = HappyHerdMachineSessionSettingsSchema.safeParse(metadata?.spawnSettings);
+        if (!persistedSettings.success) {
+            throw new Error(`Session ${result.sessionId} did not persist its confirmed machine-session settings`);
+        }
+        if (JSON.stringify(persistedSettings.data) !== JSON.stringify(confirmedSettings.data)) {
+            throw new Error(`Session ${result.sessionId} persisted settings that do not match the target daemon receipt`);
+        }
+        return { session, settings: confirmedSettings.data };
+    }
+
+    private async requestMachineSession(
+        machine: DecryptedMachine,
+        options: SpawnMachineSessionOptions,
+    ) {
+        const result = await invokeSpawnSessionOnMachine(
             this.config,
             machine,
             this.credentials.token,
             {
                 directory: options.directory,
                 approvedNewDirectoryCreation: options.approvedNewDirectoryCreation,
-                agent: 'codex',
+                agent: options.agent,
                 permissionMode: options.permissionMode,
                 modelMode: options.modelMode,
                 effortLevel: options.effortLevel,
@@ -150,7 +218,7 @@ export class HappyControlClient {
         if (result.type === 'error') {
             throw new Error(result.errorMessage);
         }
-        return this.waitForSession(result.sessionId);
+        return result;
     }
 
     async resumeSession(

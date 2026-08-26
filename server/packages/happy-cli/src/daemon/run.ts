@@ -11,6 +11,7 @@ import {
 import { ApiClient } from '@/api/api';
 import { TrackedSession, SessionEncryptionData } from './types';
 import { MachineMetadata, DaemonState, Metadata, type Session } from '@/api/types';
+import { HAPPYHERD_MACHINE_SESSION_PROTOCOL_VERSION } from '@slopus/happy-wire';
 import { SpawnSessionOptions, SpawnSessionResult } from '@/modules/common/registerCommonHandlers';
 import { logger } from '@/ui/logger';
 import { authAndSetupMachineIfNeeded } from '@/ui/auth';
@@ -49,6 +50,11 @@ import { SessionProcessLifecycle } from './sessionProcessLifecycle';
 import { hasProviderProcessExited } from './processStatus';
 import { startHappyTerminalDaemon } from './happyTerminalBoot';
 import { loadSessionRecords } from '@/api/sessionLookup';
+import {
+  machineSessionSettingsEnvironment,
+  persistedMachineSessionSettingsMatch,
+} from './sessionLaunchSettings';
+import type { HappyHerdMachineSessionSettings } from '@slopus/happy-wire';
 
 type AutomationTrackedSession = TrackedSession & {
   automationId?: string;
@@ -156,6 +162,7 @@ export const initialMachineMetadata: MachineMetadata = {
   host: os.hostname() + hostSuffix,
   platform: os.platform(),
   happyCliVersion: configuration.currentCliVersion,
+  machineSessionProtocolVersion: HAPPYHERD_MACHINE_SESSION_PROTOCOL_VERSION,
   homeDir: os.homedir(),
   happyHomeDir: configuration.happyHomeDir,
   happyLibDir: projectPath(),
@@ -541,6 +548,7 @@ export async function startDaemon(): Promise<void> {
           ...sanitizeSessionEnvironment(options.environmentVariables ?? {}),
           ...happyHerdAgentSessionRuntimeEnvironment(options.agentRuntimeContext),
           ...(automationBootstrap ? automationBootstrapEnvironment(automationBootstrap) : {}),
+          ...machineSessionSettingsEnvironment(options.effectiveSettings),
         };
         if (options.parentSessionId) {
           extraEnv.HAPPY_FORKED_FROM_SESSION_ID = options.parentSessionId;
@@ -716,9 +724,20 @@ export async function startDaemon(): Promise<void> {
               pidToAwaiter.set(tmuxResult.pid!, (completedSession) => {
                 clearTimeout(timeout);
                 logger.debug(`[DAEMON RUN] Session ${completedSession.happySessionId} fully spawned with webhook (tmux)`);
+                if (!persistedMachineSessionSettingsMatch(
+                  completedSession.happySessionMetadataFromLocalWebhook,
+                  options.effectiveSettings,
+                )) {
+                  resolve({
+                    type: 'error',
+                    errorMessage: `Session ${completedSession.happySessionId} did not persist the target daemon's effective settings`,
+                  });
+                  return;
+                }
                 resolve({
                   type: 'success',
-                  sessionId: completedSession.happySessionId!
+                  sessionId: completedSession.happySessionId!,
+                  ...(options.effectiveSettings ? { settings: options.effectiveSettings } : {}),
                 });
               });
             });
@@ -767,6 +786,7 @@ export async function startDaemon(): Promise<void> {
             automation: options.automation
               ? { id: options.automation.id, runId: options.automation.runId }
               : undefined,
+            settings: options.effectiveSettings,
           });
         }
 
@@ -792,6 +812,7 @@ export async function startDaemon(): Promise<void> {
       directoryCreated = false,
       message,
       automation,
+      settings,
     }: {
       args: string[];
       cwd: string;
@@ -799,6 +820,7 @@ export async function startDaemon(): Promise<void> {
       directoryCreated?: boolean;
       message?: string;
       automation?: { id: string; runId: string };
+      settings?: HappyHerdMachineSessionSettings;
     }): Promise<SpawnSessionResult> => {
       const happyProcess = spawnHappyCLI(args, {
         cwd,
@@ -881,9 +903,20 @@ export async function startDaemon(): Promise<void> {
           clearTimeout(timeout);
           pidToPreWebhookExitAwaiter.delete(happyProcess.pid!);
           logger.debug(`[DAEMON RUN] Session ${completedSession.happySessionId} fully spawned with webhook`);
+          if (!persistedMachineSessionSettingsMatch(
+            completedSession.happySessionMetadataFromLocalWebhook,
+            settings,
+          )) {
+            resolve({
+              type: 'error',
+              errorMessage: `Session ${completedSession.happySessionId} did not persist the target daemon's effective settings`,
+            });
+            return;
+          }
           resolve({
             type: 'success',
-            sessionId: completedSession.happySessionId!
+            sessionId: completedSession.happySessionId!,
+            ...(settings ? { settings } : {}),
           });
           if (automation) {
             setTimeout(() => {

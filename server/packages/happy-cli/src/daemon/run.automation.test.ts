@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Metadata } from '@/api/types';
-import type { HappyHerdAutomationRun } from '@slopus/happy-wire';
+import {
+  HAPPYHERD_MACHINE_SESSION_PROTOCOL_VERSION,
+  type HappyHerdAutomationRun,
+} from '@slopus/happy-wire';
 import {
   automationSessionMatchesRun,
   automationWebhookMatchesTrackedSession,
   exactAutomationProviderOutcome,
+  initialMachineMetadata,
   resolveExitedAutomationProviderOutcome,
 } from './run';
 
@@ -63,6 +67,11 @@ function trackedSession(metadata = automationMetadata()) {
 }
 
 describe('daemon automation lifecycle guardrails', () => {
+  it('advertises the target-confirmed machine-session protocol', () => {
+    expect(initialMachineMetadata.machineSessionProtocolVersion)
+      .toBe(HAPPYHERD_MACHINE_SESSION_PROTOCOL_VERSION);
+  });
+
   it('requires exact automation, run, session, PID, and daemon provenance', () => {
     const run = activeRun();
     const session = trackedSession();

@@ -132,6 +132,7 @@ jobs:
       - name: Build maintained runtime and launcher
         working-directory: server
         run: |
+          pnpm --filter happy-agent --fail-if-no-match build
           pnpm --filter happy --fail-if-no-match build
           pnpm --filter @happyherd/cli --fail-if-no-match build
 
