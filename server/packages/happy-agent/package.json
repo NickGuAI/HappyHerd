@@ -34,6 +34,16 @@
         "types": "./dist/control.d.mts",
         "default": "./dist/control.mjs"
       }
+    },
+    "./auth": {
+      "require": {
+        "types": "./dist/auth.d.cts",
+        "default": "./dist/auth.cjs"
+      },
+      "import": {
+        "types": "./dist/auth.d.mts",
+        "default": "./dist/auth.mjs"
+      }
     }
   },
   "files": [

@@ -161,6 +161,48 @@ Default state roots are intentionally not uniform: maintained CLI state uses
 Codium uses a platform-dependent `happy`/`Happy` directory. Never treat them as
 interchangeable stores.
 
+Native account-machine discovery and session creation cross one package edge:
+`happy-cli` owns the public commands, while the side-effect-free
+`happy-agent/control` and `happy-agent/auth` exports own account-machine
+decryption, encrypted machine RPC, and the app-approved account-link flow.
+`happy machine auth` stores its account-control key only at `agent.key` in the
+configured HappyHerd home; normal native auth remains in `access.key`, and
+HappyHerd issuer credentials remain unrelated. Do not copy or derive one from
+another. Because those package exports resolve through `happy-agent/dist`, the
+existing injected-package publish lifecycle builds that surface for clean
+workspace installs after its `happy-wire` dependency is available. Do not add a
+second root-postinstall build: it races pnpm's injected `happy-wire` packaging.
+The server image's filtered deps install also runs those injected-package
+lifecycles. Its deps stage must copy the full `happy-agent` and `happy-wire`
+package inputs before install—not only their manifests—so TypeScript sources
+and configuration, tests, and bins exist and source changes invalidate the
+cached install layer.
+The server-image workflow path filter must include both package trees.
+Release jobs that deliberately install with `--ignore-scripts` must instead
+build `happy-agent` explicitly before building `happy` and the launcher payload.
+Native `happy session create` accepts only Happy CLI daemon machines. Rig has a
+separate idempotent, provider-qualified RPC contract and must fail closed here
+unless that distinct contract is implemented end to end.
+Machine kind alone is not authorization to use the strict creation RPC. New
+daemons advertise `machineSessionProtocolVersion`; the command refreshes the
+target and requires the exact supported version before any side-effecting
+spawn. Missing or unknown versions remain discoverable but report
+`sessionCreateSupported: false`.
+The target daemon revalidates requested modes from its own current catalog,
+passes the resulting settings through a session-scoped environment handoff,
+and returns success only after the child session metadata persists the same
+settings. The requester reports that confirmation; it never reconstructs a
+success receipt from its earlier request.
+The retained `happy-agent` spawn APIs remain mixed-version compatible: they
+accept a legacy success receipt without settings and wait for the tracked
+session, including when existing callers pass model, effort, or permission
+options. Only the explicit confirmed API requires the receipt and persisted
+settings tuple; do not route legacy callers through that stricter method.
+Concrete provider defaults that Happy owns must be marked `isDefault` in the
+daemon catalog and share the same constant as the runtime launch path. Leaving
+an owned default unmarked turns an omitted request into a false receipt even
+when the provider process starts successfully.
+
 ## Cross-cutting contracts
 
 ### UI, localization, inventory, and changelog

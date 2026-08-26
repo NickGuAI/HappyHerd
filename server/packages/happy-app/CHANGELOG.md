@@ -1,3 +1,13 @@
+# August 26 — Start sessions on a selected machine
+
+- The native `happy` CLI can link account-wide machine control through the Happy app, list linked-account machines, and create a tracked session on an exact machine ID or unambiguous hostname.
+- Machine control uses only its dedicated `agent.key`; native-session credentials cannot silently authorize machine commands.
+- Remote session creation requires a target-machine absolute path, keeps directory creation opt-in, and validates provider, model, effort, and permission choices again on the target daemon immediately before launch; providers without a mode catalog can still launch with their defaults.
+- New daemons advertise target-confirmed session protocol support; the CLI rejects older targets before sending a spawn request, while retained legacy callers remain compatible with their original settings-free receipts.
+- Success receipts report the target-confirmed effective settings after the new session persists them, rather than echoing the caller's requested overrides.
+- Session creation is explicitly limited to native Happy CLI daemon machines; stable machine-list receipts identify Rig and other unsupported machine kinds instead of sending them an incompatible RPC.
+- `happyherd` exposes the maintained commands through its unchanged native-command passthrough, including stable JSON receipts for automation.
+
 # August 26 — Agent Defaults cover every supported provider
 
 - Agent Defaults now includes Claude Code, Codex, GrokBuild, Antigravity, and Happy, with each provider's preferences stored and cleared independently.

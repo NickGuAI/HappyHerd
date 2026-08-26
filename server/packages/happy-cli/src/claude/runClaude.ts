@@ -32,6 +32,7 @@ import {
     type ClaudeGoalStatusTranscriptEvent,
 } from '@/claude/claudeGoalStatus';
 import { Session } from './session';
+import { machineSessionSettingsMetadataFromEnvironment } from '@/daemon/sessionLaunchSettings';
 import { applySandboxPermissionPolicy, resolveInitialClaudePermissionMode, resolveRemoteClaudePermissionMode } from './utils/permissionMode';
 import { decodeBase64, encodeBase64 } from '@/api/encryption';
 import type { Session as ApiSession } from '@/api/types';
@@ -169,6 +170,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         ...(isSideChat ? { isSideChat: true } : {}),
         ...contextMetadataFromEnvironment(),
         ...automationMetadataFromEnvironment(),
+        ...machineSessionSettingsMetadataFromEnvironment(),
     };
 
     // Check for session reconnection env vars (set by daemon for resume-in-place)

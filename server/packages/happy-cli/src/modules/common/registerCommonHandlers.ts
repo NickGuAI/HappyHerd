@@ -27,6 +27,7 @@ import {
     type WorkspaceUploadStartRequest,
     type WorkspaceUploadStartResponse,
     type WorkspaceUploadResponse,
+    type HappyHerdMachineSessionSettings,
 } from '@slopus/happy-wire';
 import { run as runRipgrep } from '@/modules/ripgrep/index';
 import { run as runDifftastic } from '@/modules/difftastic/index';
@@ -154,6 +155,8 @@ export interface SpawnSessionOptions {
     permissionMode?: string;
     modelMode?: string;
     effortLevel?: string;
+    /** Target-daemon validated settings; remote callers cannot set this field directly. */
+    effectiveSettings?: HappyHerdMachineSessionSettings;
     /** Existing HappyHerd Commander identity to bind to this session. */
     commanderId?: string;
     /**
@@ -206,7 +209,7 @@ export interface SpawnSessionOptions {
 }
 
 export type SpawnSessionResult =
-    | { type: 'success'; sessionId: string }
+    | { type: 'success'; sessionId: string; settings?: HappyHerdMachineSessionSettings }
     | { type: 'requestToApproveDirectoryCreation'; directory: string }
     | {
         type: 'error';

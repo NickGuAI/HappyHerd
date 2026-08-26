@@ -1,9 +1,13 @@
 import { io, Socket } from 'socket.io-client';
+import {
+    HappyHerdMachineSessionSettingsSchema,
+    type HappyHerdMachineSessionSettings,
+} from '@slopus/happy-wire';
 import type { Config } from './config';
 import type { DecryptedMachine } from './api';
 import { decodeBase64, encodeBase64, encrypt, decrypt } from './encryption';
 
-export type SupportedAgent = 'claude' | 'codex' | 'gemini' | 'agy';
+export type SupportedAgent = 'claude' | 'codex' | 'gemini' | 'grok' | 'agy';
 
 export type SpawnSessionRuntimeContext = {
     surfaceId: string;
@@ -29,6 +33,11 @@ export type SpawnSessionOnMachineOptions = {
 };
 
 export type SpawnMachineSessionResult =
+    | { type: 'success'; sessionId: string; settings?: HappyHerdMachineSessionSettings }
+    | { type: 'requestToApproveDirectoryCreation'; directory: string }
+    | { type: 'error'; errorMessage: string };
+
+export type ResumeMachineSessionResult =
     | { type: 'success'; sessionId: string }
     | { type: 'requestToApproveDirectoryCreation'; directory: string }
     | { type: 'error'; errorMessage: string };
@@ -185,6 +194,25 @@ export async function spawnSessionOnMachine(
             throw new Error('RPC call returned unexpected data');
         }
 
+        if (decrypted.type === 'success') {
+            const response = decrypted as Record<string, unknown>;
+            const settings = HappyHerdMachineSessionSettingsSchema.safeParse(response.settings);
+            if (typeof response.sessionId !== 'string' || response.sessionId.length === 0) {
+                throw new Error('RPC call returned invalid session success data');
+            }
+            if (!settings.success) {
+                if (response.settings === undefined) {
+                    return { type: 'success', sessionId: response.sessionId };
+                }
+                throw new Error('Target daemon did not return confirmed machine-session settings');
+            }
+            return {
+                type: 'success',
+                sessionId: response.sessionId,
+                settings: settings.data,
+            };
+        }
+
         return decrypted as SpawnMachineSessionResult;
     } finally {
         socket.close();
@@ -197,7 +225,7 @@ export async function resumeSessionOnMachine(
     token: string,
     sessionId: string,
     runtimeContext?: SpawnSessionRuntimeContext,
-): Promise<SpawnMachineSessionResult> {
+): Promise<ResumeMachineSessionResult> {
     const socket = io(config.serverUrl, {
         auth: {
             token,
@@ -257,7 +285,7 @@ export async function resumeSessionOnMachine(
             throw new Error('RPC call returned unexpected data');
         }
 
-        return decrypted as SpawnMachineSessionResult;
+        return decrypted as ResumeMachineSessionResult;
     } finally {
         socket.close();
     }

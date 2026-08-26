@@ -27,12 +27,24 @@ class MockSocket extends EventEmitter {
 
     async emitWithAck(_event: string, payload: { method: string; params: string }) {
         this.rpcPayload = payload;
+        const result = rpcResultOverride ?? (payload.method.endsWith(':spawn-happy-session')
+            ? {
+                type: 'success',
+                sessionId: 'session-1',
+                settings: {
+                    provider: 'codex',
+                    model: 'gpt-5.6',
+                    effort: 'high',
+                    permission: 'default',
+                },
+            }
+            : { type: 'success', sessionId: 'session-1' });
         return {
             ok: true,
             result: encodeBase64(encrypt(
                 this.machine.encryption.key,
                 this.machine.encryption.variant,
-                { type: 'success', sessionId: 'session-1' },
+                result,
             )),
         };
     }
@@ -40,6 +52,7 @@ class MockSocket extends EventEmitter {
 
 let machine: DecryptedMachine;
 let socket: MockSocket;
+let rpcResultOverride: unknown;
 
 vi.mock('socket.io-client', () => ({
     io: vi.fn(() => {
@@ -71,6 +84,7 @@ describe('spawnSessionOnMachine', () => {
     const tools = [{ name: 'guide', family: 'guide', description: 'Governed guidance' }];
     beforeEach(() => {
         machine = makeMachine();
+        rpcResultOverride = undefined;
     });
 
     it('forwards Commander and bounded runtime context through encrypted RPC', async () => {
@@ -80,6 +94,7 @@ describe('spawnSessionOnMachine', () => {
             'account-token',
             {
                 directory: '/srv/happyherd-agent',
+                approvedNewDirectoryCreation: true,
                 agent: 'codex',
                 commanderId: 'team-agent',
                 permissionMode: 'default',
@@ -92,7 +107,16 @@ describe('spawnSessionOnMachine', () => {
                     tools,
                 },
             },
-        )).resolves.toEqual({ type: 'success', sessionId: 'session-1' });
+        )).resolves.toEqual({
+            type: 'success',
+            sessionId: 'session-1',
+            settings: {
+                provider: 'codex',
+                model: 'gpt-5.6',
+                effort: 'high',
+                permission: 'default',
+            },
+        });
 
         expect(socket.rpcPayload?.method).toBe('machine-1:spawn-happy-session');
         const params = decrypt(
@@ -103,6 +127,7 @@ describe('spawnSessionOnMachine', () => {
         expect(params).toEqual(expect.objectContaining({
             type: 'spawn-in-directory',
             directory: '/srv/happyherd-agent',
+            approvedNewDirectoryCreation: true,
             agent: 'codex',
             commanderId: 'team-agent',
             permissionMode: 'default',
@@ -115,6 +140,7 @@ describe('spawnSessionOnMachine', () => {
                 tools,
             },
         }));
+        expect(socket.rpcPayload?.params).not.toContain('account-token');
     });
 
     it('rejects unbounded runtime context instead of forwarding arbitrary environment', async () => {
@@ -133,6 +159,32 @@ describe('spawnSessionOnMachine', () => {
                 },
             },
         )).rejects.toThrow('capabilityId must be a non-empty string');
+    });
+
+    it('accepts a legacy success receipt for an omitted-settings caller', async () => {
+        rpcResultOverride = { type: 'success', sessionId: 'session-legacy' };
+        await expect(spawnSessionOnMachine(
+            { serverUrl: 'https://happy.example', homeDir: '/tmp/happy', credentialPath: '/tmp/key' },
+            machine,
+            'account-token',
+            { directory: '/srv/project', agent: 'codex' },
+        )).resolves.toEqual({ type: 'success', sessionId: 'session-legacy' });
+    });
+
+    it('accepts a legacy success receipt when the legacy caller passes optional settings', async () => {
+        rpcResultOverride = { type: 'success', sessionId: 'session-legacy' };
+        await expect(spawnSessionOnMachine(
+            { serverUrl: 'https://happy.example', homeDir: '/tmp/happy', credentialPath: '/tmp/key' },
+            machine,
+            'account-token',
+            {
+                directory: '/srv/project',
+                agent: 'codex',
+                modelMode: 'gpt-5.6',
+                effortLevel: 'high',
+                permissionMode: 'yolo',
+            },
+        )).resolves.toEqual({ type: 'success', sessionId: 'session-legacy' });
     });
 
     it('reinjects bounded runtime context when resuming a session', async () => {

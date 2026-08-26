@@ -90,4 +90,22 @@ describe('daemon spawn mode arguments', () => {
             '--effort', 'runtime-effort-id',
         ]);
     });
+
+    it('forwards Antigravity model and permission but not a separate effort', () => {
+        const args = ['agy'];
+
+        appendDaemonSpawnModeArgs(args, {
+            directory: '/workspace',
+            agent: 'agy',
+            permissionMode: 'bypassPermissions',
+            modelMode: 'Gemini 3.1 Pro (High)',
+            effortLevel: 'high',
+        }, 'agy');
+
+        expect(args).toEqual([
+            'agy',
+            '--permission-mode', 'bypassPermissions',
+            '--model', 'Gemini 3.1 Pro (High)',
+        ]);
+    });
 });
