@@ -30,6 +30,7 @@ import {
   type LocalHappyAgentCredentials,
 } from '@/resume/localHappyAgentAuth';
 import { handleSideChatCommand, sideChatHelp } from './sideChat';
+import { createDaemonSideChat } from '@/daemon/controlClient';
 
 const DAEMON_PROVIDERS = HAPPYHERD_MACHINE_SESSION_PROVIDERS;
 type Provider = HappyHerdMachineSessionProvider;
@@ -53,6 +54,7 @@ export type MachineCommandDependencies = {
     status: (config: AccountControlConfig) => Promise<void>;
   };
   output?: Output;
+  createLocalSideChat?: (parentSessionId: string) => Promise<{ sessionId: string }>;
 };
 
 type AccountControlConfig = {
@@ -467,35 +469,8 @@ export async function handleSessionCommand(
       outputFor(dependencies)(sideChatHelp());
       return;
     }
-    const client = await controlCall(() => clientFor(dependencies));
     await handleSideChatCommand(rest, {
-      resolveSession: (sessionId) => controlCall(() => client.resolveSession(sessionId)),
-      resolveMachine: async (machineId) => {
-        const machine = await controlCall(() => client.resolveMachine(machineId));
-        requireConfirmedMachineSessionTarget(machine);
-        return machine;
-      },
-      machineRpc: (machine, method, params) => (
-        controlCall(() => client.callMachineRpc(machine, method, params))
-      ),
-      createMachineSession: async ({ machine, ...options }) => {
-        const created = await controlCall(async () => {
-          try {
-            return await client.spawnSessionOnMachineConfirmed(machine, options);
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            const approvalPrefix = 'Directory creation requires approval:';
-            if (message.startsWith(approvalPrefix)) {
-              const directory = message.slice(approvalPrefix.length).trim();
-              throw new Error(
-                `Failed to create side chat because the existing parent directory unexpectedly requires creation approval: ${directory}`,
-              );
-            }
-            throw error;
-          }
-        });
-        return { type: 'success', sessionId: created.session.id };
-      },
+      createChild: dependencies?.createLocalSideChat ?? createDaemonSideChat,
       output: outputFor(dependencies),
     });
     return;

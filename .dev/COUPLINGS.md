@@ -207,12 +207,13 @@ Coordinated child side chats extend that same exact-daemon boundary:
 
 ```text
 happy session side-chat <parent-session-id>
-  → decrypt exact parent session metadata
-  → resolve its owning active machine and supported daemon protocol
-  → generic encrypted machine RPC
+  → authenticated loopback request to the running local daemon
+  → resolve exact parent from machine-local reconnect data
+  → require parent machine ID == this daemon machine ID
+  → daemon-owned provider fork
        ├── Claude provider-native session fork
        └── Codex provider-native thread fork
-  → confirmed spawn on the same machine and path
+  → daemon spawn on the same machine and path
        with fresh provider resume ID + parentSessionId + isSideChat
   → hidden child metadata in synchronized session state
   → exact-parent child selector
@@ -222,7 +223,14 @@ happy session side-chat <parent-session-id>
 
 The parent session record owns the machine, path, provider, and provider-backend
 identity used for the fork; the command never substitutes another machine or
-provider. Provider-native fork RPCs must complete before child spawn, and the
+provider. Side-chat creation is intentionally local-owner-only and does not
+load `agent.key`, list account machines, or fall back to the QR-based
+account-control flow. The loopback request accepts only the parent Happy
+session ID; the daemon re-resolves every launch value from its own persisted
+record, rejects a parent belonging to another machine, and coalesces concurrent
+requests for the same exact parent while fork-and-spawn is in flight.
+Provider-native fork
+operations must complete before child spawn, and the
 new backend ID—not the parent's ID—is the resume target. `parentSessionId` and
 `isSideChat` are persisted child lineage: top-level session selectors exclude
 those children while the parent view discovers every non-archived exact child,

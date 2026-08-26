@@ -17,6 +17,7 @@ export function startDaemonControlServer({
   getChildren,
   stopSession,
   spawnSession,
+  createSideChat,
   requestShutdown,
   onHappySessionWebhook,
   automations,
@@ -24,6 +25,7 @@ export function startDaemonControlServer({
   getChildren: () => TrackedSession[];
   stopSession: (sessionId: string) => boolean;
   spawnSession: (options: SpawnSessionOptions) => Promise<SpawnSessionResult>;
+  createSideChat: (parentSessionId: string) => Promise<{ sessionId: string }>;
   requestShutdown: () => void;
   onHappySessionWebhook: (sessionId: string, metadata: Metadata, encryption?: SessionEncryptionData) => void;
   automations: HappyHerdAutomationService;
@@ -229,6 +231,25 @@ export function startDaemonControlServer({
             success: false,
             error: result.errorMessage
           };
+      }
+    });
+
+    // Create a child side chat only from a parent owned by this daemon. The
+    // caller supplies no machine, path, provider, or backend ID overrides.
+    typed.post('/side-chat', {
+      schema: {
+        body: z.object({ parentSessionId: z.string().min(1) }),
+        response: {
+          200: z.object({ sessionId: z.string().min(1) }),
+          500: z.object({ error: z.string() }),
+        },
+      },
+    }, async (request, reply) => {
+      try {
+        return await createSideChat(request.body.parentSessionId);
+      } catch (error) {
+        reply.code(500);
+        return { error: error instanceof Error ? error.message : String(error) };
       }
     });
 

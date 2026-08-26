@@ -10,17 +10,7 @@ import {
 const parentId = 'happy-parent';
 const machine: ResolvedSideChatMachine = {
   id: 'machine-owner',
-  seq: 1,
-  createdAt: 1,
-  updatedAt: 1,
   active: true,
-  activeAt: 1,
-  metadata: {},
-  metadataVersion: 1,
-  daemonState: null,
-  daemonStateVersion: 1,
-  dataEncryptionKey: null,
-  encryption: { key: new Uint8Array(32), variant: 'dataKey' },
 };
 
 function dependencies(
@@ -222,20 +212,27 @@ describe('handleSideChatCommand', () => {
 
   it('prints a stable secret-free JSON result', async () => {
     const deps = dependencies();
-    await handleSideChatCommand([parentId, '--json'], deps);
+    await handleSideChatCommand([parentId, '--json'], {
+      createChild: (sessionId) => createChildSideChat(sessionId, deps),
+    });
 
     expect(console.log).toHaveBeenCalledWith('{"sessionId":"happy-child"}');
   });
 
   it('prints only the child session ID by default', async () => {
-    await handleSideChatCommand([parentId], dependencies());
+    const deps = dependencies();
+    await handleSideChatCommand([parentId], {
+      createChild: (sessionId) => createChildSideChat(sessionId, deps),
+    });
 
     expect(console.log).toHaveBeenCalledWith('happy-child');
   });
 
   it('shows help without resolving sessions or machines', async () => {
     const deps = dependencies();
-    await handleSideChatCommand(['--help'], deps);
+    await handleSideChatCommand(['--help'], {
+      createChild: (sessionId) => createChildSideChat(sessionId, deps),
+    });
 
     expect(console.log).toHaveBeenCalledOnce();
     expect(deps.resolveSession).not.toHaveBeenCalled();

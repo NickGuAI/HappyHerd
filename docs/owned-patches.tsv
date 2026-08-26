@@ -124,3 +124,5 @@ PROVIDER_DEFAULTS	accepted	fix(app): cover all provider defaults	server/packages
 CLI_MACHINE_SESSION	accepted	feat(cli): create sessions on selected machines	server/packages/happy-cli/src/commands/machine.test.ts
 SIDE_CHAT_CLI	accepted	feat(cli): create coordinated child side chats	server/packages/happy-cli/src/commands/sideChat.test.ts
 PATCH_DISCIPLINE	accepted	fix(ci): validate nested structural PR merges	scripts/test-owned-merge-provenance.sh
+SIDE_CHAT_LOCAL_AUTH	accepted	fix(cli): reuse local daemon auth for side chats	server/packages/happy-cli/src/commands/machine.test.ts
+SIDE_CHAT_LOCAL_AUTH_VERIFY	accepted	docs(cli): verify local side-chat authentication	.dev/VERIFY.md

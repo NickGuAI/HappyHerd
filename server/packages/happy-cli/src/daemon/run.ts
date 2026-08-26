@@ -34,7 +34,7 @@ import { buildBaselineAgentCapabilities } from '@/capabilities/agentCapabilities
 import { buildResumeLaunch } from '@/resume/handleResumeCommand';
 import { resolveCodexHomeForResume } from '@/resume/codexHome';
 import { detectResumeSupport } from '@/resume/localHappyAgentAuth';
-import { backfillReconnectableSessionForMachine } from '@/resume/localResumeStore';
+import { backfillReconnectableSessionForMachine, resolveLocalReconnectableSession } from '@/resume/localResumeStore';
 import { encodeBase64, decodeBase64, decrypt } from '@/api/encryption';
 import {
   buildSessionChildEnvironment,
@@ -55,6 +55,7 @@ import {
   persistedMachineSessionSettingsMatch,
 } from './sessionLaunchSettings';
 import type { HappyHerdMachineSessionSettings } from '@slopus/happy-wire';
+import { createChildSideChat } from '@/commands/sideChat';
 
 type AutomationTrackedSession = TrackedSession & {
   automationId?: string;
@@ -1241,11 +1242,16 @@ export async function startDaemon(): Promise<void> {
     await automations.start();
     await reconcileAutomationRuns();
 
+    let createLocalSideChat = async (_parentSessionId: string): Promise<{ sessionId: string }> => {
+      throw new Error('HappyHerd daemon is still starting; retry side-chat creation.');
+    };
+
     // Start control server
     const { port: controlPort, stop: stopControlServer } = await startDaemonControlServer({
       getChildren: getCurrentChildren,
       stopSession,
       spawnSession,
+      createSideChat: (parentSessionId) => createLocalSideChat(parentSessionId),
       requestShutdown: () => requestShutdown('happy-cli'),
       onHappySessionWebhook,
       automations,
@@ -1307,6 +1313,51 @@ export async function startDaemon(): Promise<void> {
       requestShutdown: () => requestShutdown('happy-app'),
       automations,
     });
+
+    const inFlightLocalSideChats = new Map<string, Promise<{ sessionId: string }>>();
+    createLocalSideChat = async (parentSessionId) => {
+      let parent: { id: string; metadata: Metadata };
+      try {
+        const session = await resolveLocalReconnectableSession(parentSessionId);
+        parent = { id: session.id, metadata: session.metadata };
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        throw new Error(`Side chats must be created on the parent session's owning machine: ${detail}`);
+      }
+
+      const existing = inFlightLocalSideChats.get(parent.id);
+      if (existing) return existing;
+
+      const creation = createChildSideChat(parent.id, {
+        resolveSession: async () => parent,
+        resolveMachine: async (requestedMachineId) => {
+          if (requestedMachineId !== machineId) {
+            throw new Error(
+              `Side chats must be created on the parent session's owning machine (${requestedMachineId}).`,
+            );
+          }
+          return { id: machineId, active: true };
+        },
+        machineRpc: async (_target, method, params) => {
+          if (method === 'claude-fork-session') {
+            return apiMachine.forkClaudeBackendSession(params.directory, params.claudeSessionId);
+          }
+          if (method === 'codex-fork-thread') {
+            return apiMachine.forkCodexBackendThread(params.directory, params.codexThreadId);
+          }
+          throw new Error(`Unsupported local side-chat RPC: ${method}`);
+        },
+        createMachineSession: async ({ machine: _target, ...options }) => spawnSession(options),
+      });
+      inFlightLocalSideChats.set(parent.id, creation);
+      try {
+        return await creation;
+      } finally {
+        if (inFlightLocalSideChats.get(parent.id) === creation) {
+          inFlightLocalSideChats.delete(parent.id);
+        }
+      }
+    };
 
     // Connect to server
     apiMachine.connect();

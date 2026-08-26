@@ -6,9 +6,14 @@ import type { SessionEncryptionData } from './types';
 const mocks = vi.hoisted(() => ({
   backfillReconnectableSessionForMachine: vi.fn(),
   controlHandlers: undefined as unknown,
+  forkCodexBackendThread: vi.fn(async () => ({
+    type: 'success',
+    newCodexThreadId: 'thread-child',
+  })),
   hasProviderProcessExited: vi.fn(() => false),
   persistSession: vi.fn(() => true),
   readPersistedSessions: vi.fn(() => ({})),
+  resolveLocalReconnectableSession: vi.fn(),
   rpcHandlers: undefined as unknown,
   spawnHappyCLI: vi.fn(),
 }));
@@ -20,6 +25,11 @@ vi.mock('@/api/api', () => ({
       getOrCreateMachine: vi.fn(async () => ({ id: 'machine-record' })),
       machineSyncClient: vi.fn(() => ({
         connect: vi.fn(),
+        forkClaudeBackendSession: vi.fn(async () => ({
+          type: 'success',
+          newClaudeSessionId: '22222222-2222-4222-8222-222222222222',
+        })),
+        forkCodexBackendThread: mocks.forkCodexBackendThread,
         setRPCHandlers: vi.fn((handlers: unknown) => {
           mocks.rpcHandlers = handlers;
         }),
@@ -55,6 +65,7 @@ vi.mock('@/daemon/controlServer', () => ({
 
 vi.mock('@/resume/localResumeStore', () => ({
   backfillReconnectableSessionForMachine: mocks.backfillReconnectableSessionForMachine,
+  resolveLocalReconnectableSession: mocks.resolveLocalReconnectableSession,
 }));
 
 vi.mock('@/utils/spawnHappyCLI', () => ({
@@ -139,6 +150,7 @@ type CapturedControlHandlers = {
     metadata: Metadata,
     encryption?: SessionEncryptionData,
   ) => void;
+  createSideChat: (parentSessionId: string) => Promise<{ sessionId: string }>;
 };
 
 let daemonRun: Promise<void> | undefined;
@@ -257,5 +269,55 @@ describe('daemon session continuity', () => {
     expect(spawnOptions.env.HAPPY_RECONNECT_SEQ).toBe(String(encryption.seq));
     expect(spawnOptions.env.HAPPY_RECONNECT_METADATA_VERSION).toBe(String(encryption.metadataVersion));
     expect(spawnOptions.env.HAPPY_RECONNECT_AGENT_STATE_VERSION).toBe(String(encryption.agentStateVersion));
+  });
+
+  it('creates a local Codex side chat without account-control credentials', async () => {
+    const parentMetadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'codex',
+      codexThreadId: 'thread-parent',
+      host: 'test-host',
+      hostPid: 9876,
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happy',
+      happyToolsDir: '/srv/happy/tools',
+    };
+    mocks.resolveLocalReconnectableSession.mockResolvedValue({
+      id: 'parent-session',
+      metadata: parentMetadata,
+    });
+    mocks.spawnHappyCLI.mockReturnValue({
+      pid: 5432,
+      kill: vi.fn(),
+      on: vi.fn(),
+    });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+
+    const sideChat = control.createSideChat('parent-session');
+    const concurrentSideChat = control.createSideChat('parent-session');
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    control.onHappySessionWebhook('child-session', {
+      ...parentMetadata,
+      hostPid: 5432,
+      codexThreadId: 'thread-child',
+      parentSessionId: 'parent-session',
+      isSideChat: true,
+    });
+
+    await expect(sideChat).resolves.toEqual({ sessionId: 'child-session' });
+    await expect(concurrentSideChat).resolves.toEqual({ sessionId: 'child-session' });
+    expect(mocks.resolveLocalReconnectableSession).toHaveBeenCalledWith('parent-session');
+    expect(mocks.forkCodexBackendThread).toHaveBeenCalledOnce();
+    const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
+      string[],
+      { cwd: string },
+    ];
+    expect(args).toEqual(expect.arrayContaining(['codex', '--resume', 'thread-child', '--started-by', 'daemon']));
+    expect(spawnOptions.cwd).toBe(parentMetadata.path);
   });
 });
