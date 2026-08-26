@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
     listSessions: vi.fn(),
     listActiveSessions: vi.fn(),
     getSessionMessages: vi.fn(),
+    invokeRpc: vi.fn(),
     invokeSpawn: vi.fn(),
     resume: vi.fn(),
 }));
@@ -21,6 +22,7 @@ vi.mock('./api', async (importOriginal) => ({
 
 vi.mock('./machineRpc', async (importOriginal) => ({
     ...(await importOriginal<typeof import('./machineRpc')>()),
+    callMachineRpc: mocks.invokeRpc,
     spawnSessionOnMachine: mocks.invokeSpawn,
     resumeSessionOnMachine: mocks.resume,
 }));
@@ -116,9 +118,70 @@ describe('HappyControlClient machine session creation', () => {
                 permissionMode: 'plan',
                 commanderId: undefined,
                 runtimeContext: undefined,
+                resumeClaudeSessionId: undefined,
+                resumeCodexThreadId: undefined,
+                parentSessionId: undefined,
+                isSideChat: undefined,
             },
         );
         expect(mocks.listSessions).toHaveBeenCalledTimes(1);
+    });
+
+    it('forwards encrypted machine RPC calls with account authority', async () => {
+        const target = machine();
+        mocks.invokeRpc.mockResolvedValueOnce({ type: 'success', newClaudeSessionId: 'claude-child' });
+        const client = new HappyControlClient({
+            config: { serverUrl: 'https://happy.example', homeDir: '/tmp/happy', credentialPath: '/tmp/key' },
+            credentials: {
+                token: 'account-token',
+                secret: new Uint8Array(32),
+                contentKeyPair: { publicKey: new Uint8Array(32), secretKey: new Uint8Array(32) },
+            },
+        });
+
+        await expect(client.callMachineRpc(target, 'claude-fork-session', {
+            directory: '/srv/project',
+            claudeSessionId: 'claude-parent',
+        })).resolves.toEqual({ type: 'success', newClaudeSessionId: 'claude-child' });
+        expect(mocks.invokeRpc).toHaveBeenCalledWith(
+            client.config,
+            target,
+            'account-token',
+            'claude-fork-session',
+            { directory: '/srv/project', claudeSessionId: 'claude-parent' },
+        );
+    });
+
+    it('forwards child lineage and provider resume IDs in the spawn payload', async () => {
+        const target = machine();
+        const client = new HappyControlClient({
+            config: { serverUrl: 'https://happy.example', homeDir: '/tmp/happy', credentialPath: '/tmp/key' },
+            credentials: {
+                token: 'account-token',
+                secret: new Uint8Array(32),
+                contentKeyPair: { publicKey: new Uint8Array(32), secretKey: new Uint8Array(32) },
+            },
+        });
+
+        await client.spawnSessionOnMachine(target, {
+            directory: '/srv/project',
+            approvedNewDirectoryCreation: false,
+            agent: 'codex',
+            resumeCodexThreadId: 'thread-child',
+            parentSessionId: 'session-parent',
+            isSideChat: true,
+        });
+
+        expect(mocks.invokeSpawn).toHaveBeenCalledWith(
+            client.config,
+            target,
+            'account-token',
+            expect.objectContaining({
+                resumeCodexThreadId: 'thread-child',
+                parentSessionId: 'session-parent',
+                isSideChat: true,
+            }),
+        );
     });
 
     it('preserves the Codex-specific compatibility method with safe directory defaults', async () => {

@@ -17,6 +17,9 @@ live source remain authoritative.
 
 - `server/` is imported from `https://github.com/slopus/happy.git` with full
   history. Do not squash upstream history.
+- Commanders and agents should prefer coordinated child side chats or
+  provider-native subagents for bounded execution. The parent remains
+  accountable for scope, integration, verification, and final delivery.
 - The Git remote named `upstream` always points to `slopus/happy`.
 - Do not copy changes from the dirty reference checkout at
   `App/external-projects/happy` without reviewing and recommitting them as an

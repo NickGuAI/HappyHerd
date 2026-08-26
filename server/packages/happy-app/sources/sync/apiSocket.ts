@@ -4,6 +4,7 @@ import Constants from 'expo-constants';
 import { TokenStorage } from '@/auth/tokenStorage';
 import { Encryption } from './encryption/encryption';
 import { storage } from './storage';
+import { emitWithNativeAckTimeout } from './socketAck';
 
 export function getHappyClientId(): string {
     let platform: string = Platform.OS; // 'ios' | 'android' | 'web'
@@ -240,11 +241,15 @@ class ApiSocket {
         return true;
     }
 
-    async emitWithAck<T = any>(event: string, data: any): Promise<T> {
-        if (!this.socket) {
+    async emitWithAck<T = any>(event: string, data: any, timeoutMs?: number): Promise<T> {
+        const socket = this.socket;
+        if (!socket) {
             throw new Error('Socket not connected');
         }
-        return await this.socket.emitWithAck(event, data);
+        if (timeoutMs !== undefined) {
+            return await emitWithNativeAckTimeout<T>(socket, event, data, timeoutMs);
+        }
+        return await socket.emitWithAck(event, data);
     }
 
     //

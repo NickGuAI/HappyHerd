@@ -105,6 +105,7 @@ describe('ApiMachineClient Codex fork RPCs', () => {
             agent: 'codex',
             resumeCodexThreadId: 'thread-forked',
             parentSessionId: 'happy-source',
+            isSideChat: true,
         });
 
         expect(result).toEqual({ type: 'success', sessionId: 'happy-forked', settings });
@@ -114,6 +115,7 @@ describe('ApiMachineClient Codex fork RPCs', () => {
             effectiveSettings: settings,
             resumeCodexThreadId: 'thread-forked',
             parentSessionId: 'happy-source',
+            isSideChat: true,
         }));
     });
 

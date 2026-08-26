@@ -1,3 +1,8 @@
+# August 26 — Child side chats from the command line
+
+- Commanders and agents can create a Claude or Codex side chat beneath an existing session while keeping the parent conversation unchanged.
+- Child conversations stay out of top-level lists and remain discoverable beneath their parent in the collapsible sub-worker view on wide, narrow, and mobile screens; unsupported providers and unavailable source metadata fail explicitly.
+
 # August 26 — Start sessions on a selected machine
 
 - The native `happy` CLI can link account-wide machine control through the Happy app, list linked-account machines, and create a tracked session on an exact machine ID or unambiguous hostname.

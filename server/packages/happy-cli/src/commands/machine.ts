@@ -29,6 +29,7 @@ import {
   readLocalHappyAgentCredentials,
   type LocalHappyAgentCredentials,
 } from '@/resume/localHappyAgentAuth';
+import { handleSideChatCommand, sideChatHelp } from './sideChat';
 
 const DAEMON_PROVIDERS = HAPPYHERD_MACHINE_SESSION_PROVIDERS;
 type Provider = HappyHerdMachineSessionProvider;
@@ -37,7 +38,11 @@ type Output = (value: string) => void;
 
 export type MachineControlClient = Pick<
   HappyControlClient,
-  'listMachines' | 'resolveMachine' | 'spawnSessionOnMachineConfirmed'
+  | 'listMachines'
+  | 'resolveMachine'
+  | 'resolveSession'
+  | 'callMachineRpc'
+  | 'spawnSessionOnMachineConfirmed'
 >;
 
 export type MachineCommandDependencies = {
@@ -105,6 +110,7 @@ function sessionHelp(): string {
 Usage:
   happy session create --machine ID_OR_HOST --path ABSOLUTE_PATH --provider PROVIDER \\
     [--model MODEL] [--effort EFFORT] [--permission MODE] [--create-dir] [--json]
+  happy session side-chat <parent-session-id> [--json]
 
 Happy CLI daemon providers: ${DAEMON_PROVIDERS.join(', ')}
 
@@ -245,6 +251,19 @@ function supportsConfirmedMachineSessions(metadata: MachineMetadata | null): boo
   return metadata?.machineSessionProtocolVersion === HAPPYHERD_MACHINE_SESSION_PROTOCOL_VERSION;
 }
 
+function requireConfirmedMachineSessionTarget(machine: DecryptedMachine): MachineMetadata {
+  const metadata = parseMetadata(machine);
+  if (!machine.active) {
+    throw new Error(`Machine ${machine.id} is offline`);
+  }
+  if (!supportsConfirmedMachineSessions(metadata)) {
+    throw new Error(
+      `Machine ${machine.id} does not advertise target-confirmed machine-session protocol version ${HAPPYHERD_MACHINE_SESSION_PROTOCOL_VERSION}; upgrade and restart its Happy CLI daemon`,
+    );
+  }
+  return metadata;
+}
+
 function safeCatalogs(metadata: MachineMetadata | null): Record<string, AgentCapabilityCatalog> {
   const catalogs: Record<string, AgentCapabilityCatalog> = {};
   for (const provider of Object.keys(metadata?.agentCapabilities ?? {}).sort()) {
@@ -305,15 +324,7 @@ export function validateSessionSettings(
   machine: DecryptedMachine,
   options: SessionCreateOptions,
 ): EffectiveSessionSettings {
-  const metadata = parseMetadata(machine);
-  if (!machine.active) {
-    throw new Error(`Machine ${machine.id} is offline`);
-  }
-  if (!supportsConfirmedMachineSessions(metadata)) {
-    throw new Error(
-      `Machine ${machine.id} does not advertise target-confirmed machine-session protocol version ${HAPPYHERD_MACHINE_SESSION_PROTOCOL_VERSION}; upgrade and restart its Happy CLI daemon`,
-    );
-  }
+  const metadata = requireConfirmedMachineSessionTarget(machine);
   if (!isAbsoluteForMachine(options.directory, metadata.platform)) {
     throw new Error(`--path must be an absolute ${metadata.platform} path`);
   }
@@ -449,6 +460,44 @@ export async function handleSessionCommand(
   const [action, ...rest] = args;
   if (!action || action === 'help' || action === '--help' || action === '-h') {
     outputFor(dependencies)(sessionHelp());
+    return;
+  }
+  if (action === 'side-chat') {
+    if (rest.length === 0 || rest.includes('--help') || rest.includes('-h')) {
+      outputFor(dependencies)(sideChatHelp());
+      return;
+    }
+    const client = await controlCall(() => clientFor(dependencies));
+    await handleSideChatCommand(rest, {
+      resolveSession: (sessionId) => controlCall(() => client.resolveSession(sessionId)),
+      resolveMachine: async (machineId) => {
+        const machine = await controlCall(() => client.resolveMachine(machineId));
+        requireConfirmedMachineSessionTarget(machine);
+        return machine;
+      },
+      machineRpc: (machine, method, params) => (
+        controlCall(() => client.callMachineRpc(machine, method, params))
+      ),
+      createMachineSession: async ({ machine, ...options }) => {
+        const created = await controlCall(async () => {
+          try {
+            return await client.spawnSessionOnMachineConfirmed(machine, options);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            const approvalPrefix = 'Directory creation requires approval:';
+            if (message.startsWith(approvalPrefix)) {
+              const directory = message.slice(approvalPrefix.length).trim();
+              throw new Error(
+                `Failed to create side chat because the existing parent directory unexpectedly requires creation approval: ${directory}`,
+              );
+            }
+            throw error;
+          }
+        });
+        return { type: 'success', sessionId: created.session.id };
+      },
+      output: outputFor(dependencies),
+    });
     return;
   }
   if (action !== 'create') throw new Error(`Unknown session command: ${action}`);

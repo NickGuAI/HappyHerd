@@ -61,7 +61,7 @@ vi.mock('socket.io-client', () => ({
     }),
 }));
 
-import { resumeSessionOnMachine, spawnSessionOnMachine } from './machineRpc';
+import { callMachineRpc, resumeSessionOnMachine, spawnSessionOnMachine } from './machineRpc';
 
 function makeMachine(): DecryptedMachine {
     return {
@@ -106,6 +106,9 @@ describe('spawnSessionOnMachine', () => {
                     brokerUrl: 'http://127.0.0.1:3210/mcp',
                     tools,
                 },
+                resumeCodexThreadId: 'thread-child',
+                parentSessionId: 'session-parent',
+                isSideChat: true,
             },
         )).resolves.toEqual({
             type: 'success',
@@ -139,8 +142,42 @@ describe('spawnSessionOnMachine', () => {
                 brokerUrl: 'http://127.0.0.1:3210/mcp',
                 tools,
             },
+            resumeCodexThreadId: 'thread-child',
+            parentSessionId: 'session-parent',
+            isSideChat: true,
         }));
         expect(socket.rpcPayload?.params).not.toContain('account-token');
+    });
+
+    it('forwards Claude resume and child-lineage fields through the spawn RPC', async () => {
+        rpcResultOverride = {
+            type: 'success',
+            sessionId: 'session-child',
+            settings: { provider: 'claude', model: 'default', effort: null, permission: 'default' },
+        };
+
+        await spawnSessionOnMachine(
+            { serverUrl: 'https://happy.example', homeDir: '/tmp/happy', credentialPath: '/tmp/key' },
+            machine,
+            'account-token',
+            {
+                directory: '/srv/project',
+                agent: 'claude',
+                resumeClaudeSessionId: 'claude-child',
+                parentSessionId: 'session-parent',
+                isSideChat: true,
+            },
+        );
+
+        expect(decrypt(
+            machine.encryption.key,
+            machine.encryption.variant,
+            decodeBase64(socket.rpcPayload!.params),
+        )).toEqual(expect.objectContaining({
+            resumeClaudeSessionId: 'claude-child',
+            parentSessionId: 'session-parent',
+            isSideChat: true,
+        }));
     });
 
     it('rejects unbounded runtime context instead of forwarding arbitrary environment', async () => {
@@ -216,5 +253,35 @@ describe('spawnSessionOnMachine', () => {
                 tools,
             },
         });
+    });
+
+    it('serializes provider fork calls through the owning machine encryption', async () => {
+        rpcResultOverride = { type: 'success', newCodexThreadId: 'thread-child' };
+
+        await expect(callMachineRpc(
+            { serverUrl: 'https://happy.example', homeDir: '/tmp/happy', credentialPath: '/tmp/key' },
+            machine,
+            'account-token-secret',
+            'codex-fork-thread',
+            { directory: '/srv/project', codexThreadId: 'thread-parent' },
+        )).resolves.toEqual({ type: 'success', newCodexThreadId: 'thread-child' });
+
+        expect(socket.rpcPayload?.method).toBe('machine-1:codex-fork-thread');
+        expect(decrypt(
+            machine.encryption.key,
+            machine.encryption.variant,
+            decodeBase64(socket.rpcPayload!.params),
+        )).toEqual({ directory: '/srv/project', codexThreadId: 'thread-parent' });
+        expect(socket.rpcPayload?.params).not.toContain('account-token-secret');
+    });
+
+    it('rejects method injection before connecting', async () => {
+        await expect(callMachineRpc(
+            { serverUrl: 'https://happy.example', homeDir: '/tmp/happy', credentialPath: '/tmp/key' },
+            machine,
+            'account-token',
+            'machine-other:codex-fork-thread',
+            {},
+        )).rejects.toThrow('Machine RPC method must contain only');
     });
 });

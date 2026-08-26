@@ -122,3 +122,4 @@ VOICE_UPGRADE_PROMPT_REMOVAL	accepted	chore(app): remove voice upgrade prompt	se
 WORKSPACE_LINKS	accepted	fix(app): render linked workspace images	server/packages/happy-app/sources/utils/markdownWorkspaceImage.test.ts
 PROVIDER_DEFAULTS	accepted	fix(app): cover all provider defaults	server/packages/happy-app/sources/sync/agentDefaults.test.ts
 CLI_MACHINE_SESSION	accepted	feat(cli): create sessions on selected machines	server/packages/happy-cli/src/commands/machine.test.ts
+SIDE_CHAT_CLI	accepted	feat(cli): create coordinated child side chats	server/packages/happy-cli/src/commands/sideChat.test.ts

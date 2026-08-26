@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { DecryptedMachine } from 'happy-agent/control';
+import type { DecryptedMachine, DecryptedSession } from 'happy-agent/control';
 import { authLogout, authStatus } from 'happy-agent/auth';
 import { HAPPYHERD_MACHINE_SESSION_PROTOCOL_VERSION } from '@slopus/happy-wire';
 
@@ -129,9 +129,34 @@ function sessionArgs(...extra: string[]): string[] {
   ];
 }
 
+function session(
+  id = 'parent-session',
+  metadataValue: Record<string, unknown> = {
+    flavor: 'claude',
+    machineId: 'machine-1',
+    path: '/srv/project',
+    claudeSessionId: '11111111-1111-4111-8111-111111111111',
+  },
+): DecryptedSession {
+  return {
+    id,
+    seq: 1,
+    createdAt: 1,
+    updatedAt: 2,
+    active: true,
+    activeAt: 3,
+    metadata: metadataValue,
+    agentState: null,
+    dataEncryptionKey: null,
+    encryption: { key: new Uint8Array(32).fill(5), variant: 'dataKey' },
+  };
+}
+
 function fakeClient(options: {
   listed?: DecryptedMachine[];
   refreshed?: DecryptedMachine;
+  parent?: DecryptedSession;
+  forkResult?: unknown;
   sessionId?: string;
   settings?: { provider: 'claude' | 'codex' | 'gemini' | 'grok' | 'agy'; model: string | null; effort: string | null; permission: string | null };
 } = {}) {
@@ -139,6 +164,11 @@ function fakeClient(options: {
   const refreshed = options.refreshed ?? listed[0];
   const listMachines = vi.fn(async () => listed);
   const resolveMachine = vi.fn(async (_machineId: string) => refreshed);
+  const resolveSession = vi.fn(async (_sessionId: string) => options.parent ?? session());
+  const callMachineRpc = vi.fn(async () => options.forkResult ?? ({
+    type: 'success',
+    newClaudeSessionId: '22222222-2222-4222-8222-222222222222',
+  }));
   const spawnSessionOnMachineConfirmed = vi.fn(async (
     _machine: DecryptedMachine,
     launch: Parameters<MachineControlClient['spawnSessionOnMachineConfirmed']>[1],
@@ -152,9 +182,17 @@ function fakeClient(options: {
     },
   }));
   return {
-    client: { listMachines, resolveMachine, spawnSessionOnMachineConfirmed } as unknown as MachineControlClient,
+    client: {
+      listMachines,
+      resolveMachine,
+      resolveSession,
+      callMachineRpc,
+      spawnSessionOnMachineConfirmed,
+    } as unknown as MachineControlClient,
     listMachines,
     resolveMachine,
+    resolveSession,
+    callMachineRpc,
     spawnSessionOnMachineConfirmed,
   };
 }
@@ -166,10 +204,12 @@ describe('machine and session command parsing', () => {
 
     await handleMachineCommand(['list', '--help'], { createClient, output });
     await handleSessionCommand(['create', '--help'], { createClient, output });
+    await handleSessionCommand(['side-chat', '--help'], { createClient, output });
 
     expect(createClient).not.toHaveBeenCalled();
     expect(output.mock.calls.join('\n')).toContain('happy machine list');
     expect(output.mock.calls.join('\n')).toContain('happy session create');
+    expect(output.mock.calls.join('\n')).toContain('happy session side-chat');
   });
 
   it('routes account-control auth through the configured HappyHerd home', async () => {
@@ -527,6 +567,81 @@ describe('remote tracked session creation', () => {
     })).rejects.toThrow('Rig machine; native happy session create supports Happy CLI daemon machines only');
     expect(fake.resolveMachine).toHaveBeenCalledWith('rig-machine');
     expect(fake.spawnSessionOnMachineConfirmed).not.toHaveBeenCalled();
+  });
+});
+
+describe('remote side-chat creation', () => {
+  it('routes the exact parent machine through native fork and confirmed child spawn', async () => {
+    const parent = session('parent-codex', {
+      flavor: 'codex',
+      machineId: 'machine-1',
+      path: '/srv/project',
+      codexThreadId: 'thread-parent',
+    });
+    const target = machine('machine-1');
+    const fake = fakeClient({
+      parent,
+      listed: [target],
+      refreshed: target,
+      forkResult: { type: 'success', newCodexThreadId: 'thread-child' },
+      sessionId: 'child-session',
+    });
+    const output = vi.fn();
+
+    await handleSessionCommand(['side-chat', 'parent-codex', '--json'], {
+      createClient: async () => fake.client,
+      output,
+    });
+
+    expect(fake.listMachines).not.toHaveBeenCalled();
+    expect(fake.resolveSession).toHaveBeenCalledWith('parent-codex');
+    expect(fake.resolveMachine).toHaveBeenCalledWith('machine-1');
+    expect(fake.callMachineRpc).toHaveBeenCalledWith(target, 'codex-fork-thread', {
+      directory: '/srv/project',
+      codexThreadId: 'thread-parent',
+    });
+    expect(fake.spawnSessionOnMachineConfirmed).toHaveBeenCalledWith(target, {
+      directory: '/srv/project',
+      approvedNewDirectoryCreation: false,
+      agent: 'codex',
+      resumeCodexThreadId: 'thread-child',
+      parentSessionId: 'parent-codex',
+      isSideChat: true,
+    });
+    expect(fake.callMachineRpc.mock.invocationCallOrder[0])
+      .toBeLessThan(fake.spawnSessionOnMachineConfirmed.mock.invocationCallOrder[0]);
+    expect(output).toHaveBeenCalledWith('{"sessionId":"child-session"}');
+  });
+
+  it('checks the target daemon protocol before creating a provider-native fork', async () => {
+    const unsupported = machine('machine-1', {
+      metadata: metadata({ machineSessionProtocolVersion: undefined }),
+    });
+    const fake = fakeClient({ refreshed: unsupported });
+
+    await expect(handleSessionCommand(['side-chat', 'parent-session'], {
+      createClient: async () => fake.client,
+      output: vi.fn(),
+    })).rejects.toThrow('does not advertise target-confirmed machine-session protocol version');
+
+    expect(fake.resolveSession).toHaveBeenCalledWith('parent-session');
+    expect(fake.resolveMachine).toHaveBeenCalledWith('machine-1');
+    expect(fake.callMachineRpc).not.toHaveBeenCalled();
+    expect(fake.spawnSessionOnMachineConfirmed).not.toHaveBeenCalled();
+  });
+
+  it('does not suggest directory creation for an existing parent path', async () => {
+    const fake = fakeClient();
+    fake.spawnSessionOnMachineConfirmed.mockRejectedValueOnce(
+      new Error('Directory creation requires approval: /srv/project'),
+    );
+
+    await expect(handleSessionCommand(['side-chat', 'parent-session'], {
+      createClient: async () => fake.client,
+      output: vi.fn(),
+    })).rejects.toThrow(
+      'existing parent directory unexpectedly requires creation approval: /srv/project',
+    );
   });
 });
 
