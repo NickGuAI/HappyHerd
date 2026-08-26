@@ -169,6 +169,31 @@ export class ApiMachineClient {
         registerCommonHandlers(this.rpcHandlerManager, null);
     }
 
+    async forkClaudeBackendSession(directory: string, claudeSessionId: string): Promise<{
+        type: 'success';
+        newClaudeSessionId: string;
+    }> {
+        if (!UUID_RE.test(claudeSessionId)) {
+            throw new Error('claudeSessionId must be a valid UUID');
+        }
+        try {
+            const newClaudeSessionId = await claudeForkSession(getProjectPath(directory), claudeSessionId);
+            return { type: 'success', newClaudeSessionId };
+        } catch (error) {
+            if (error instanceof ForkSourceMissingError) {
+                throw new Error('Claude session file not found on this machine');
+            }
+            throw error;
+        }
+    }
+
+    async forkCodexBackendThread(directory: string, codexThreadId: string): Promise<unknown> {
+        return withCodexAppServerClient((client) => forkCodexThread(client, {
+            threadId: codexThreadId,
+            cwd: directory,
+        }));
+    }
+
     setRPCHandlers({
         spawnSession,
         resumeSession,
@@ -283,15 +308,7 @@ export class ApiMachineClient {
             if (typeof claudeSessionId !== 'string' || !UUID_RE.test(claudeSessionId)) {
                 throw new Error('claudeSessionId must be a valid UUID');
             }
-            try {
-                const newClaudeSessionId = await claudeForkSession(getProjectPath(directory), claudeSessionId);
-                return { type: 'success', newClaudeSessionId };
-            } catch (error) {
-                if (error instanceof ForkSourceMissingError) {
-                    throw new Error('Claude session file not found on this machine');
-                }
-                throw error;
-            }
+            return this.forkClaudeBackendSession(directory, claudeSessionId);
         });
 
         // List user-text rewind points directly from the on-disk JSONL.
@@ -351,12 +368,7 @@ export class ApiMachineClient {
         this.rpcHandlerManager.registerHandler('codex-fork-thread', async (params: any) => {
             const directory = requireNonEmptyString(params?.directory, 'directory');
             const codexThreadId = requireNonEmptyString(params?.codexThreadId, 'codexThreadId');
-
-            const result = await withCodexAppServerClient((client) => forkCodexThread(client, {
-                threadId: codexThreadId,
-                cwd: directory,
-            }));
-            return result;
+            return this.forkCodexBackendThread(directory, codexThreadId);
         });
 
         this.rpcHandlerManager.registerHandler('codex-list-rewind-points', async (params: any) => {

@@ -1,11 +1,12 @@
-import type { DecryptedMachine } from 'happy-agent/control';
-
 type ParentSession = {
   id: string;
   metadata: unknown;
 };
 
-export type ResolvedSideChatMachine = DecryptedMachine;
+export type ResolvedSideChatMachine = {
+  id: string;
+  active: boolean;
+};
 
 type SpawnSideChatInput = {
   machine: ResolvedSideChatMachine;
@@ -32,6 +33,10 @@ export type SideChatCommandDependencies = {
     params: Record<string, string>,
   ) => Promise<unknown>;
   createMachineSession: (input: SpawnSideChatInput) => Promise<SpawnSideChatResult>;
+};
+
+export type SideChatHandlerDependencies = {
+  createChild: (parentSessionId: string) => Promise<CreateChildSideChatResult>;
   output?: (value: string) => void;
 };
 
@@ -174,13 +179,15 @@ Usage:
   happy session side-chat <parent-session-id> [--json]
 
 Creates a Claude or Codex child side chat from an existing Happy session.
+Run it on the parent session's owning machine; it reuses the local daemon and
+does not require account-control linking or QR approval.
 The child stays beneath its parent in the collapsible side-chat panel.
 `;
 }
 
 export async function handleSideChatCommand(
   args: string[],
-  dependencies: SideChatCommandDependencies,
+  dependencies: SideChatHandlerDependencies,
 ): Promise<void> {
   const output = dependencies.output ?? console.log;
   if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
@@ -198,6 +205,6 @@ export async function handleSideChatCommand(
     throw new Error('Usage: happy session side-chat <parent-session-id> [--json]');
   }
 
-  const result = await createChildSideChat(positional[0], dependencies);
+  const result = await dependencies.createChild(positional[0]);
   output(json ? JSON.stringify(result) : result.sessionId);
 }

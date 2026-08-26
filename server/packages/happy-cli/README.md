@@ -95,7 +95,10 @@ The daemon starts automatically when you run `happy`, so you usually don't need 
 Link account-wide machine control once from the Happy app. This key is stored
 as `agent.key` in the configured HappyHerd home and remains separate from the
 normal `access.key` used by native sessions. `access.key` never grants machine
-control, including for legacy native-session credentials:
+control of other machines, including for legacy native-session credentials.
+Creating a side chat is different: run that command on the parent session's
+owning machine and it reuses the already-authenticated local daemon, with no
+account-control link or QR approval:
 
 ```bash
 happy machine auth login
@@ -196,7 +199,7 @@ happy connect status
 | `happy grok` | Start GrokBuild through its official ACP interface |
 | `happy acp` | Start any ACP-compatible agent |
 | `happy resume <id>` | Resume a previous session |
-| `happy session side-chat <id>` | Create a Claude or Codex child side chat |
+| `happy session side-chat <id>` | Create a Claude or Codex child side chat on its local owning daemon |
 | `happy notify` | Send push notification to your devices |
 | `happy doctor` | Diagnostics & troubleshooting |
 | `happy commander list` | List Commanders available on this machine |

@@ -135,6 +135,17 @@ export async function spawnDaemonSession(directory: string, sessionId?: string):
   return result;
 }
 
+export async function createDaemonSideChat(parentSessionId: string): Promise<{ sessionId: string }> {
+  const result = await daemonPost('/side-chat', { parentSessionId }, 60_000);
+  if (result?.error) {
+    throw new Error(result.error);
+  }
+  if (typeof result?.sessionId !== 'string' || result.sessionId.length === 0) {
+    throw new Error('Daemon returned an invalid side-chat session ID');
+  }
+  return { sessionId: result.sessionId };
+}
+
 export async function daemonAutomationAction(
   action: 'list' | 'create' | 'update' | 'pause' | 'resume' | 'delete' | 'run-now' | 'history',
   options: { id?: string; input?: unknown } = {},

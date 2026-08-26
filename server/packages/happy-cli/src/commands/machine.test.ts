@@ -570,78 +570,36 @@ describe('remote tracked session creation', () => {
   });
 });
 
-describe('remote side-chat creation', () => {
-  it('routes the exact parent machine through native fork and confirmed child spawn', async () => {
-    const parent = session('parent-codex', {
-      flavor: 'codex',
-      machineId: 'machine-1',
-      path: '/srv/project',
-      codexThreadId: 'thread-parent',
-    });
-    const target = machine('machine-1');
-    const fake = fakeClient({
-      parent,
-      listed: [target],
-      refreshed: target,
-      forkResult: { type: 'success', newCodexThreadId: 'thread-child' },
-      sessionId: 'child-session',
-    });
+describe('local side-chat creation', () => {
+  it('uses the existing local daemon without loading account-control credentials', async () => {
+    const createClient = vi.fn(async () => fakeClient().client);
+    const createLocalSideChat = vi.fn(async () => ({ sessionId: 'child-session' }));
     const output = vi.fn();
 
     await handleSessionCommand(['side-chat', 'parent-codex', '--json'], {
-      createClient: async () => fake.client,
+      createClient,
+      createLocalSideChat,
       output,
     });
 
-    expect(fake.listMachines).not.toHaveBeenCalled();
-    expect(fake.resolveSession).toHaveBeenCalledWith('parent-codex');
-    expect(fake.resolveMachine).toHaveBeenCalledWith('machine-1');
-    expect(fake.callMachineRpc).toHaveBeenCalledWith(target, 'codex-fork-thread', {
-      directory: '/srv/project',
-      codexThreadId: 'thread-parent',
-    });
-    expect(fake.spawnSessionOnMachineConfirmed).toHaveBeenCalledWith(target, {
-      directory: '/srv/project',
-      approvedNewDirectoryCreation: false,
-      agent: 'codex',
-      resumeCodexThreadId: 'thread-child',
-      parentSessionId: 'parent-codex',
-      isSideChat: true,
-    });
-    expect(fake.callMachineRpc.mock.invocationCallOrder[0])
-      .toBeLessThan(fake.spawnSessionOnMachineConfirmed.mock.invocationCallOrder[0]);
+    expect(createLocalSideChat).toHaveBeenCalledWith('parent-codex');
+    expect(createClient).not.toHaveBeenCalled();
     expect(output).toHaveBeenCalledWith('{"sessionId":"child-session"}');
   });
 
-  it('checks the target daemon protocol before creating a provider-native fork', async () => {
-    const unsupported = machine('machine-1', {
-      metadata: metadata({ machineSessionProtocolVersion: undefined }),
+  it('does not fall back to account-control or a QR flow after a local failure', async () => {
+    const createClient = vi.fn(async () => fakeClient().client);
+    const createLocalSideChat = vi.fn(async () => {
+      throw new Error("Side chats must be created on the parent session's owning machine.");
     });
-    const fake = fakeClient({ refreshed: unsupported });
 
     await expect(handleSessionCommand(['side-chat', 'parent-session'], {
-      createClient: async () => fake.client,
+      createClient,
+      createLocalSideChat,
       output: vi.fn(),
-    })).rejects.toThrow('does not advertise target-confirmed machine-session protocol version');
+    })).rejects.toThrow("parent session's owning machine");
 
-    expect(fake.resolveSession).toHaveBeenCalledWith('parent-session');
-    expect(fake.resolveMachine).toHaveBeenCalledWith('machine-1');
-    expect(fake.callMachineRpc).not.toHaveBeenCalled();
-    expect(fake.spawnSessionOnMachineConfirmed).not.toHaveBeenCalled();
-  });
-
-  it('does not suggest directory creation for an existing parent path', async () => {
-    const fake = fakeClient();
-    fake.spawnSessionOnMachineConfirmed.mockRejectedValueOnce(
-      new Error('Directory creation requires approval: /srv/project'),
-    );
-
-    await expect(handleSessionCommand(['side-chat', 'parent-session'], {
-      createClient: async () => fake.client,
-      output: vi.fn(),
-    })).rejects.toThrow(
-      'existing parent directory unexpectedly requires creation approval: /srv/project',
-    );
+    expect(createClient).not.toHaveBeenCalled();
   });
 });
 
