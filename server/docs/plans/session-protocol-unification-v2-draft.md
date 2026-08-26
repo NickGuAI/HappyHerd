@@ -324,7 +324,7 @@ User opens session on phone, agent runs on CLI, user steers mid-turn, switches m
 
 ### CLI: Gemini migration
 
-`runGemini.ts` is the only runner still on `sendAgentMessage()`. Wire in `AcpSessionManager` (already works for the generic ACP runner and OpenClaw) and route all message dispatch through it.
+`runGemini.ts` is the only runner still on `sendAgentMessage()`. Wire in `AcpSessionManager` (already works for the generic ACP runner) and route all message dispatch through it.
 
 ### CLI: user text format
 

@@ -7,7 +7,7 @@ Give Codex image attachment parity with Claude in Happy sessions. A user should 
 ## Scope
 
 - Reuse the existing Happy attachment pipeline: encrypted blob upload, session `file` event, and inline image rendering in chat history.
-- Enable image attachments for Codex sessions in the app. Claude remains supported. Gemini and OpenClaw remain unsupported until their runners consume `file` events.
+- Enable image attachments for Codex sessions in the app. Claude remains supported. Gemini remains unsupported until its runner consumes `file` events.
 - Deliver images to Codex through `codex app-server` multimodal turn input.
 - Maintain a local Codex image cache for plaintext files handed to `localImage`, so Codex provider-history paths can survive fork and resume on the same machine.
 - Preserve existing end-to-end encryption boundaries. The server stores encrypted blobs and opaque refs only.
@@ -17,7 +17,7 @@ Give Codex image attachment parity with Claude in Happy sessions. A user should 
 
 - Add new server attachment APIs.
 - Support arbitrary non-image files in Codex turns.
-- Add image support for Gemini or OpenClaw.
+- Add image support for Gemini.
 - Rebuild Codex provider history as the source of truth for Happy attachments.
 - Store decrypted attachment bytes in Happy server storage or session metadata.
 - Recover provider-only image history across machines when the only remaining Codex record is a local filesystem path.
@@ -111,7 +111,7 @@ Fork backfill is required because the current Codex fork flow creates a new Happ
 Update the attachment support gate in `sync.sendMessage` so Codex is supported:
 
 - supported: no flavor, Claude, Codex
-- unsupported: Gemini, OpenClaw, unknown explicit non-supported flavors
+- unsupported: Gemini and unknown explicit non-supported flavors
 
 When attachments are rejected for an unsupported flavor, the app should send text only if `text.trim()` is non-empty. If the user attempted an image-only send to an unsupported agent, show the not-supported alert and enqueue no empty text message.
 
@@ -161,11 +161,11 @@ Logs must not include image bytes, base64 payloads, local cache paths, or presig
 
 Add focused coverage for:
 
-- app `sendMessage` treats Codex as attachment-supported and still rejects Gemini/OpenClaw
+- app `sendMessage` treats Codex as attachment-supported and still rejects Gemini
 - Codex runner file-event handling downloads, decrypts, and attaches images to the next user message
 - attachment ownership remains per-message and does not leak late downloads into the wrong Codex turn
 - image-only Codex messages produce a turn with image input items instead of being dropped
-- unsupported image-only sends for Gemini/OpenClaw show the unsupported alert and do not enqueue an empty text message
+- unsupported image-only sends for Gemini show the unsupported alert and do not enqueue an empty text message
 - `CodexAppServerClient.sendTurn` sends text-only input exactly as before when no attachments are supplied
 - `CodexAppServerClient.sendTurn` includes `localImage` items when supplied
 - unsupported image bytes are skipped without blocking text delivery

@@ -394,7 +394,7 @@ describe('Daemon Integration Tests', { timeout: 180_000 }, () => {
    */
   // Keep this skipped. It is destructive (modifies package.json, rebuilds dist, restarts daemon)
   // and it exercises a hand-rolled self-restart path we probably do not want long-term anyway.
-  // A native system daemon model (like OpenClaw's) would make upgrades and startup/start-at-login
+  // A native system daemon model would make upgrades and startup/start-at-login
   // the OS's job instead of something we hand-roll and test this way.
   it.skip('[skipped] should detect version mismatch and kill old daemon', { timeout: 100_000 }, async () => {
     // Read current package.json to get version

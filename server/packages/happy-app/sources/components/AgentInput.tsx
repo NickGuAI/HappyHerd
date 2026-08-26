@@ -105,7 +105,7 @@ interface AgentInputProps {
     sessionStatusModelLabel?: string | null;
     sessionStatusEffortLabel?: string | null;
     onFileViewerPress?: () => void;
-    agentType?: 'claude' | 'codex' | 'grok' | 'gemini' | 'openclaw' | 'agy';
+    agentType?: 'claude' | 'codex' | 'grok' | 'gemini' | 'agy';
     onAgentClick?: () => void;
     machineName?: string | null;
     onMachineClick?: () => void;
@@ -746,12 +746,11 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     const hasContextEntries = (props.selectedContextEntries?.length ?? 0) > 0;
     const hasComposerContent = hasText || hasImages || hasContextEntries;
 
-    // Check if this is a Codex, Gemini, or OpenClaw session
+    // Check if this is a Codex or Gemini session
     // Use metadata.flavor for existing sessions, agentType prop for new sessions
     const isRig = isRigMetadata(props.metadata);
     const isCodex = !isRig && (props.metadata?.flavor === 'codex' || props.agentType === 'codex');
     const isGemini = props.metadata?.flavor === 'gemini' || props.agentType === 'gemini';
-    const isOpenClaw = props.metadata?.flavor === 'openclaw' || props.agentType === 'openclaw';
     const displayPermissionMode = React.useMemo(() => (
         props.permissionMode ? hackMode(props.permissionMode) : null
     ), [props.permissionMode]);
@@ -1368,9 +1367,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                             ? t('agentInput.agent.codex')
                                             : props.agentType === 'grok'
                                                 ? t('agentInput.agent.grok')
-                                            : props.agentType === 'openclaw'
-                                                ? t('agentInput.agent.openclaw')
-                                                : t('agentInput.agent.gemini')}
+                                            : t('agentInput.agent.gemini')}
                                 </Text>
                             </Pressable>
                         )}

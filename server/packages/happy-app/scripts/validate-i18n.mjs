@@ -16,7 +16,6 @@ const protectedProductTokens = [
     'HappyHerd',
     'Claude Code',
     'OpenAI',
-    'OpenClaw',
     'Anthropic',
     'ElevenLabs',
     'Codex',

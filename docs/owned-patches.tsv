@@ -113,3 +113,4 @@ UI_SURFACE_INVENTORY	accepted	chore(app): refresh heartbeat UI inventory	server/
 RUNTIME_CONTRACT	accepted	feat(grok): expose native launch permission modes	server/packages/happy-cli/src/capabilities/agentCapabilities.test.ts
 AUTOMATIONS_PROFILING	accepted	fix(metrics): preserve production summary recording	server/packages/happy-server-self-host/scripts/build-runtime.cjs
 COMPONENT_DEPLOYMENT	accepted	fix(deploy): clean HappyHerd Docker artifacts	scripts/test-component-deployment-contract.sh
+RETIRED_AGENT_REMOVAL	accepted	refactor(agents): remove retired provider support	server/packages/happy-cli/src/index.ts

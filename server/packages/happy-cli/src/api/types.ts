@@ -184,7 +184,6 @@ export const MachineMetadataSchema = z.object({
     codex: z.boolean(),
     gemini: z.boolean(),
     grok: z.boolean().optional(),
-    openclaw: z.boolean(),
     // Optional so metadata written by a CLI predating agy detection still
     // matches this shape. detectCLIAvailability always reports it.
     agy: z.boolean().optional(),

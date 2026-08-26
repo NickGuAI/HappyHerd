@@ -592,7 +592,6 @@ export class ApiMachineClient {
             || prev.codex !== newAvailability.codex
             || prev.gemini !== newAvailability.gemini
             || prev.grok !== newAvailability.grok
-            || prev.openclaw !== newAvailability.openclaw
             || prev.agy !== newAvailability.agy;
         const resumeSupportChanged = !prevResume
             || prevResume.rpcAvailable !== newResumeSupport.rpcAvailable

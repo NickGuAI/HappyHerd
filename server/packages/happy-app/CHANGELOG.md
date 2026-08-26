@@ -1,3 +1,7 @@
+# August 26 — Retired agent integration removed
+
+- The retired agent integration has been removed from agent selection, settings, machine availability, session controls, and app assets.
+
 # August 26 — Commander pictures appear after upload
 
 - Commander pictures up to 10 MiB now fit through the live machine connection after upload, so the session list shows the saved picture instead of falling back to initials.
@@ -414,7 +418,6 @@ Completely new way to start sessions, plus worktree support and more agents.
 - New session composer — pick machine, worktree, draft persists.
 - Git worktree management from the app. Auto-cleanup on delete.
 - Auto plan mode when your agent enters planning.
-- OpenClaw as a selectable agent.
 - Session quick actions, resume, delete from info screen.
 - "Bypass" renamed to "yolo".
 

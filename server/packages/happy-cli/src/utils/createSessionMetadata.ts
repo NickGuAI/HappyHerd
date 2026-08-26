@@ -22,7 +22,7 @@ import { automationMetadataFromEnvironment } from '@/automations/sessionBootstra
 /**
  * Backend flavor identifier for session metadata.
  */
-export type BackendFlavor = 'claude' | 'codex' | 'gemini' | 'grok' | 'opencode' | 'openclaw' | 'agy' | 'acp';
+export type BackendFlavor = 'claude' | 'codex' | 'gemini' | 'grok' | 'opencode' | 'agy' | 'acp';
 
 /**
  * Options for creating session metadata.

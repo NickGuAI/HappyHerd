@@ -81,9 +81,8 @@ describe('supportsImageAttachmentsForFlavor', () => {
         expect(supportsImageAttachmentsForFlavor('codex')).toBe(true);
     });
 
-    it('rejects Gemini, OpenClaw, and unknown explicit flavors', () => {
+    it('rejects Gemini and unknown explicit flavors', () => {
         expect(supportsImageAttachmentsForFlavor('gemini')).toBe(false);
-        expect(supportsImageAttachmentsForFlavor('openclaw')).toBe(false);
         expect(supportsImageAttachmentsForFlavor('custom-agent')).toBe(false);
     });
 });
@@ -117,7 +116,7 @@ describe('getImageAttachmentSendPlan', () => {
 
     it('warns and sends nothing for unsupported image-only messages', () => {
         expect(getImageAttachmentSendPlan({
-            flavor: 'openclaw',
+            flavor: 'gemini',
             text: '   ',
             attachmentCount: 2,
         })).toEqual({
@@ -1922,7 +1921,7 @@ Expected:
 
 - [ ] **Step 6: Manual unsupported-agent smoke test**
 
-Open a Gemini or OpenClaw session with the image upload feature enabled. Send an image-only message.
+Open a Gemini session with the image upload feature enabled. Send an image-only message.
 
 Expected:
 - the app shows the unsupported image alert

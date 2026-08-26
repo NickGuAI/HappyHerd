@@ -288,16 +288,6 @@ export function getGeminiModelModes(translate: Translate): ModelMode[] {
     return getGeminiModelFallbacks(translate);
 }
 
-// runOpenClaw never reads permissionMode, so neither of these changes what
-// openclaw does. Both are kept so an existing session's saved mode still has a
-// row to select, but the descriptions say plainly that the choice is inert.
-export function getOpenClawPermissionModes(translate: Translate): PermissionMode[] {
-    return [
-        { key: 'bypassPermissions', name: 'Yolo', description: translate('agentInput.permissionMode.openclawInert') },
-        { key: 'default', name: 'Default', description: translate('agentInput.permissionMode.openclawInert') },
-    ];
-}
-
 // agy --print only distinguishes --sandbox (default) from --dangerously-skip-permissions,
 // so only these two modes are offered. Default gets its own wording because agy
 // --print is one-shot and cannot prompt: it never asks, it just runs under agy's
@@ -326,19 +316,10 @@ export function getHardcodedPermissionModes(flavor: AgentFlavor, translate: Tran
     if (flavor === 'gemini') {
         return getGeminiPermissionModes(translate);
     }
-    if (flavor === 'openclaw') {
-        return getOpenClawPermissionModes(translate);
-    }
     if (flavor === 'agy') {
         return getAgyPermissionModes(translate);
     }
     return getClaudePermissionModes(translate);
-}
-
-export function getOpenClawModelModes(): ModelMode[] {
-    return [
-        { key: 'default', name: 'default model', description: null },
-    ];
 }
 
 // Keys are the exact display names `agy --model` accepts (as printed by `agy models`).
@@ -367,9 +348,6 @@ export function getHardcodedModelModes(flavor: AgentFlavor, translate: Translate
     }
     if (flavor === 'gemini') {
         return getGeminiModelModes(translate);
-    }
-    if (flavor === 'openclaw') {
-        return getOpenClawModelModes();
     }
     if (flavor === 'agy') {
         return getAgyModelModes();
@@ -486,7 +464,7 @@ export function getAvailablePermissionModes(
         }
         return modes;
     }
-    if (flavor === 'claude' || flavor === 'codex' || flavor === 'openclaw' || flavor === 'agy') {
+    if (flavor === 'claude' || flavor === 'codex' || flavor === 'agy') {
         return hackModes(getHardcodedPermissionModes(flavor, translate));
     }
 
@@ -700,7 +678,6 @@ export function getDefaultEffortKeyForModel(flavor: AgentFlavor, modelKey: strin
     return getCodeAgentDefaults(flavor).effortLevel ?? levels[levels.length - 1].key;
 }
 
-export function getSupportsWorktree(flavor: AgentFlavor): boolean {
-    if (flavor === 'openclaw') return false;
+export function getSupportsWorktree(_flavor: AgentFlavor): boolean {
     return true;
 }

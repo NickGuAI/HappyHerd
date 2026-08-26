@@ -22,7 +22,6 @@ cliAvailability: z.object({
   claude: z.boolean(),
   codex: z.boolean(),
   gemini: z.boolean(),
-  openclaw: z.boolean(),
   detectedAt: z.number(),
 }).optional()
 ```
@@ -41,9 +40,9 @@ Add same `cliAvailability` optional field to the app's `MachineMetadataSchema`.
 
 Add a `detectCLIAvailability()` function that:
 - Checks `os.platform()` to pick POSIX vs Windows detection
-- **POSIX:** Uses `child_process.execSync` with `command -v claude`, `command -v codex`, `command -v gemini`, and the OpenClaw triple-check (command + config file + env var) — same logic as current `useCLIDetection.ts` lines 66-72
+- **POSIX:** Uses `child_process.execSync` with `command -v claude`, `command -v codex`, and `command -v gemini`
 - **Windows:** Uses PowerShell `Get-Command` checks — same logic as `useCLIDetection.ts` lines 74-81
-- Returns `{ claude: boolean, codex: boolean, gemini: boolean, openclaw: boolean, detectedAt: number }`
+- Returns `{ claude: boolean, codex: boolean, gemini: boolean, detectedAt: number }`
 - Wraps in try/catch — on failure, returns all `false` with current timestamp
 
 ### 1.4 Run detection at daemon boot

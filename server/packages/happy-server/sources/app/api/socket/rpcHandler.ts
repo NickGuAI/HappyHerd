@@ -59,7 +59,6 @@ const SUPPORTED_RPC_METRIC_METHODS = new Set([
     'hashFile',
     'killSession',
     'listDirectory',
-    'openclaw-retry-pairing',
     'permission',
     'readFile',
     'resume-happy-session',

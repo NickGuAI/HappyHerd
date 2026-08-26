@@ -506,7 +506,6 @@ export const MachineMetadataSchema = z.object({
         claude: z.boolean(),
         codex: z.boolean(),
         gemini: z.boolean(),
-        openclaw: z.boolean(),
         grok: z.boolean().optional(), // optional: older CLIs don't report GrokBuild
         agy: z.boolean().optional(), // optional: older CLIs don't report agy
         rig: z.boolean().optional(), // Rig runs its own Happy-connected daemon

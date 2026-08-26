@@ -97,7 +97,7 @@ Useful properties:
 - installs skills from GitHub, GitLab, git URLs, or local paths
 - supports project-local and global install scopes
 - recommends symlink-based installs as the default model
-- supports many agent runtimes, including Claude Code, Codex, OpenClaw, Cursor, Command Code, and others
+- supports many agent runtimes, including Claude Code, Codex, Cursor, Command Code, and others
 - treats skills as directories containing `SKILL.md`
 - supports selective install, listing, search, update, remove, and bootstrap commands
 

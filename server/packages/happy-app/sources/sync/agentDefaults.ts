@@ -4,7 +4,7 @@ import {
     normalizeHappyHerdClaudeModelSlug,
 } from '@slopus/happy-wire';
 
-export const agentKeys = ['claude', 'codex', 'grok', 'gemini', 'openclaw', 'agy'] as const;
+export const agentKeys = ['claude', 'codex', 'grok', 'gemini', 'agy'] as const;
 export type AgentKey = typeof agentKeys[number];
 
 export const AgentDefaultOverrideSchema = z.object({
@@ -18,7 +18,6 @@ export const AgentDefaultOverridesSchema = z.object({
     codex: AgentDefaultOverrideSchema.optional(),
     grok: AgentDefaultOverrideSchema.optional(),
     gemini: AgentDefaultOverrideSchema.optional(),
-    openclaw: AgentDefaultOverrideSchema.optional(),
     agy: AgentDefaultOverrideSchema.optional(),
 }).passthrough().default({});
 
@@ -50,12 +49,11 @@ const codeAgentDefaults: Record<AgentKey, AgentDefaultConfig> = {
     // never smuggle a Claude or Codex catalog into a Grok session.
     grok: { permissionMode: 'default', modelMode: 'default', effortLevel: null },
     gemini: { permissionMode: 'default', modelMode: 'gemini-2.5-pro', effortLevel: null },
-    openclaw: { permissionMode: 'default', modelMode: 'default', effortLevel: null },
     agy: { permissionMode: 'default', modelMode: 'Gemini 3.1 Pro (High)', effortLevel: null },
 };
 
 export function normalizeAgentKey(flavor: string | null | undefined): AgentKey {
-    if (flavor === 'codex' || flavor === 'grok' || flavor === 'gemini' || flavor === 'openclaw' || flavor === 'agy') {
+    if (flavor === 'codex' || flavor === 'grok' || flavor === 'gemini' || flavor === 'agy') {
         return flavor;
     }
     return 'claude';

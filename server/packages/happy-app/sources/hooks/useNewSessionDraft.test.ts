@@ -5,7 +5,7 @@ type Draft = {
     selectedMachineId: string | null;
     selectedPath: string | null;
     selectedCommanderId: string | null;
-    agentType: 'claude' | 'codex' | 'grok' | 'gemini' | 'openclaw' | 'agy' | 'rig';
+    agentType: 'claude' | 'codex' | 'grok' | 'gemini' | 'agy' | 'rig';
     permissionMode: string | null;
     modelMode: string | null;
     effortLevel: string | null;

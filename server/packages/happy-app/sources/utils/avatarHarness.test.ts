@@ -16,7 +16,6 @@ describe('resolveAvatarHarness', () => {
 
     it('does not badge retired or unknown flavors', () => {
         expect(resolveAvatarHarness('gemini')).toBeNull();
-        expect(resolveAvatarHarness('openclaw')).toBeNull();
         expect(resolveAvatarHarness('future-harness')).toBeNull();
         expect(resolveAvatarHarness(null)).toBeNull();
         expect(resolveAvatarHarness(undefined, 'other-client')).toBeNull();

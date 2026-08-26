@@ -489,8 +489,7 @@
       "claude": "Claude",
       "codex": "Codex",
       "grok": "GrokBuild 智能体",
-      "gemini": "Gemini",
-      "openclaw": "OpenClaw"
+      "gemini": "Gemini"
     },
     "model": {
       "title": "模型",
@@ -1368,7 +1367,6 @@
     "previousSessionsUpTo5MostRecent": "之前的会话（最多 5 个最近的会话）",
     "claudeCode": "claude code",
     "codex": "codex",
-    "openclaw": "openclaw",
     "agy": "agy",
     "noResults": "没有结果",
     "done": "完成",

@@ -389,7 +389,7 @@ The session protocol (`role: 'session'` envelopes in `happy-wire/src/sessionProt
 - Sample project / devx improvements
 - Growth tracks:
   - Linear integration
-  - more agents (`opencode`, `openclaw`, `conductor`)
+  - more agents (`opencode`, `conductor`)
   - Claude Code team of agents
   - software factory / `happy-agent`
 

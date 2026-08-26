@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 26 — Retired agent integration removed",
+      "summary": "",
+      "markdown": "- The retired agent integration has been removed from agent selection, settings, machine availability, session controls, and app assets."
+    },
+    {
       "title": "August 26 — Commander pictures appear after upload",
       "summary": "",
       "markdown": "- Commander pictures up to 10 MiB now fit through the live machine connection after upload, so the session list shows the saved picture instead of falling back to initials."
@@ -218,7 +223,7 @@
     {
       "title": "March 19 — New session screen, git worktrees, more agents",
       "summary": "Completely new way to start sessions, plus worktree support and more agents.",
-      "markdown": "- New session composer — pick machine, worktree, draft persists.\n- Git worktree management from the app. Auto-cleanup on delete.\n- Auto plan mode when your agent enters planning.\n- OpenClaw as a selectable agent.\n- Session quick actions, resume, delete from info screen.\n- \"Bypass\" renamed to \"yolo\"."
+      "markdown": "- New session composer — pick machine, worktree, draft persists.\n- Git worktree management from the app. Auto-cleanup on delete.\n- Auto plan mode when your agent enters planning.\n- Session quick actions, resume, delete from info screen.\n- \"Bypass\" renamed to \"yolo\"."
     },
     {
       "title": "December 22 — Agent updates, voice changes, tables",
@@ -246,5 +251,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 26 — Commander pictures appear after upload"
+  "latestTitle": "August 26 — Retired agent integration removed"
 }

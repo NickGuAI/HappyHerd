@@ -364,15 +364,6 @@ export function buildBaselineAgentCapabilities(availability: CLIAvailability): C
     if (availability.codex) {
         result.codex = baselineCodexCatalog(detectedAt);
     }
-    if (availability.openclaw) {
-        result.openclaw = {
-            detectedAt,
-            sources: { models: 'provider-default', effortLevels: 'provider-default', permissionModes: 'happyherd-launch-profile' },
-            models: [option('default', 'default model', null)],
-            effortLevels: [],
-            permissionModes: [option('default'), option('bypassPermissions', 'bypass permissions')],
-        };
-    }
     if (availability.agy) {
         result.agy = {
             detectedAt,

@@ -12,7 +12,6 @@ export const HARNESS_NAMES: Record<NewSessionAgentType, string> = {
     rig: 'Happy',
     agy: 'Antigravity',
     gemini: 'Gemini',
-    openclaw: 'OpenClaw',
 };
 
 /**
@@ -20,13 +19,10 @@ export const HARNESS_NAMES: Record<NewSessionAgentType, string> = {
  *
  * Gemini's CLI login is dead for individual accounts — it now refuses with
  * "This client is no longer supported […] migrate to the Antigravity suite",
- * which is the `agy` harness. OpenClaw is shelved for now. Both stay in
- * HARNESS_NAMES so an existing session still shows a real product name, and
- * neither is removed from the CLI, the wire, or the transcript renderers.
+ * which is the `agy` harness.
  */
 export const RETIRED_HARNESSES: ReadonlySet<NewSessionAgentType> = new Set([
     'gemini',
-    'openclaw',
 ]);
 
 /** Pick order for every harness list: the ones people reach for come first. */

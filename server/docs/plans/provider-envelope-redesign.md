@@ -794,7 +794,6 @@ Every provider adapter normalizes into this exact format at the CLI boundary:
 
 - Claude adapter → messages + parts
 - Codex adapter → messages + parts
-- OpenClaw adapter → messages + parts
 - ACP runner → messages + parts
 - Gemini adapter → messages + parts
 
@@ -838,7 +837,7 @@ Target: ACP runner or Codex (both have adapter boundaries and event streams).
 
 ### Phase 4: migrate remaining providers
 
-Claude, OpenClaw, Gemini.
+Claude and Gemini.
 
 ### Phase 5: delete legacy parsing
 
