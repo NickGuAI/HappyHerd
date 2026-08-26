@@ -1,3 +1,7 @@
+# August 26 — Voice settings use your OpenAI key
+
+- Voice settings no longer offers a voice upgrade; supported dictation transcription uses the configured OpenAI API key.
+
 # August 26 — Commander lists stay usable on narrow screens
 
 - Start New Session now keeps long Commander lists inside a bounded, scrollable picker on narrow Web screens, so search and selection stay usable and every Commander remains reachable.

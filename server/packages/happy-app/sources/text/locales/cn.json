@@ -813,9 +813,7 @@
     "usageFooter": "过去 30 天使用的语音时间。免费方案: 20 分钟。订阅用户: 5 小时。每月最多 100 次对话。",
     "usageLabel": "语音时间",
     "conversationsLabel": "对话",
-    "usageUsed": "已使用 {used}，共 {limit}",
-    "supportTitle": "升级语音",
-    "supportSubtitle": "获取更多语音时间并支持开发"
+    "usageUsed": "已使用 {used}，共 {limit}"
   },
   "settingsAccount": {
     "accountInformation": "账户信息",

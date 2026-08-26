@@ -806,8 +806,6 @@ export type TranslationKey =
     | "settingsVoice.preferredLanguageSubtitle"
     | "settingsVoice.promptGuideDescription"
     | "settingsVoice.promptGuideTitle"
-    | "settingsVoice.supportSubtitle"
-    | "settingsVoice.supportTitle"
     | "settingsVoice.usageFooter"
     | "settingsVoice.usageLabel"
     | "settingsVoice.usageTitle"

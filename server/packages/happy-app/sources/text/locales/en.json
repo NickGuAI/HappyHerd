@@ -883,9 +883,7 @@
     "usageFooter": "Voice time used in the last 30 days. Free tier: 20 min. Subscribed: 5 hours. Max 100 conversations per month.",
     "usageLabel": "Voice Time",
     "conversationsLabel": "Conversations",
-    "usageUsed": "{used} used of {limit}",
-    "supportTitle": "Upgrade Voice",
-    "supportSubtitle": "Get more voice time and support development"
+    "usageUsed": "{used} used of {limit}"
   },
   "settingsAccount": {
     "accountInformation": "Account Information",
