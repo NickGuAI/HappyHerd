@@ -883,9 +883,7 @@
     "usageFooter": "In den letzten 30 Tagen genutzte Sprachzeit. Kostenloses Kontingent: 20 Min. Abonniert: 5 Stunden. Maximal 100 Gespräche pro Monat.",
     "usageLabel": "Sprachzeit",
     "conversationsLabel": "Gespräche",
-    "usageUsed": "{used} verwendet von {limit}",
-    "supportTitle": "Stimme verbessern",
-    "supportSubtitle": "Erhalten Sie mehr Sprachzeit und unterstützen Sie die Entwicklung"
+    "usageUsed": "{used} verwendet von {limit}"
   },
   "settingsAccount": {
     "accountInformation": "Kontoinformationen",
