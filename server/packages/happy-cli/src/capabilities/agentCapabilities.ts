@@ -9,6 +9,7 @@ import { logger } from '@/ui/logger';
 import { AcpBackend } from '@/agent/acp/AcpBackend';
 import { DefaultTransport } from '@/agent/transport';
 import { KNOWN_ACP_AGENTS, sanitizeGrokChildEnvironment } from '@/agent/acp/acpAgentConfig';
+import { AGY_MODELS } from '@/agy/constants';
 import type { InitializeResponse } from '@agentclientprotocol/sdk';
 
 type CapabilityOption = AgentCapabilityCatalog['models'][number];
@@ -46,17 +47,6 @@ const CODEX_PERMISSION_MODES = [
     ['safe-yolo', 'workspace write'],
     ['yolo', 'full access'],
 ] as const;
-const AGY_MODELS = [
-    'Gemini 3.1 Pro (High)',
-    'Gemini 3.1 Pro (Low)',
-    'Gemini 3.5 Flash (High)',
-    'Gemini 3.5 Flash (Medium)',
-    'Gemini 3.5 Flash (Low)',
-    'Claude Opus 4.6 (Thinking)',
-    'Claude Sonnet 4.6 (Thinking)',
-    'GPT-OSS 120B (Medium)',
-];
-
 function option(code: string, value = code, description?: string | null, isDefault?: boolean): CapabilityOption {
     return {
         code,
@@ -66,7 +56,7 @@ function option(code: string, value = code, description?: string | null, isDefau
     };
 }
 
-function uniqueOptions(values: string[]): CapabilityOption[] {
+function uniqueOptions(values: readonly string[]): CapabilityOption[] {
     return [...new Set(values.filter(Boolean))].map((value) => option(value));
 }
 

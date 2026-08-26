@@ -33,6 +33,13 @@ import { rigMetadataFixture } from '@/sync/__testdata__/rigMetadata';
 const translate = (key: string) => `tr:${key}`;
 
 describe('modelModeOptions', () => {
+    it('does not give Rig or unknown providers Claude static options', () => {
+        expect(getHardcodedPermissionModes('rig', translate)).toEqual([]);
+        expect(getHardcodedModelModes('rig', translate)).toEqual([]);
+        expect(getHardcodedPermissionModes('future-provider', translate)).toEqual([]);
+        expect(getHardcodedModelModes('future-provider', translate)).toEqual([]);
+    });
+
     it('uses only the selected machine capability catalog', () => {
         const machineMetadata = {
             agentCapabilities: {

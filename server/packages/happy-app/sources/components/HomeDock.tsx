@@ -844,7 +844,7 @@ export const HomeDock = React.memo(({
     // still reads as a choice. Antigravity is niche and stays entirely absent
     // until this computer explicitly reports it installed.
     const harnessKeys = React.useMemo<NewSessionAgentType[]>(() => (
-        (HARNESS_ORDER.includes(agentType) ? [...HARNESS_ORDER] : [agentType, ...HARNESS_ORDER])
+        (HARNESS_ORDER.some((key) => key === agentType) ? [...HARNESS_ORDER] : [agentType, ...HARNESS_ORDER])
             .filter((key) => experiments || key !== 'rig')
             .filter((key) => (
                 (key !== 'agy' && key !== 'grok')
@@ -880,13 +880,10 @@ export const HomeDock = React.memo(({
         : selectedMachine?.metadata?.agentCapabilities?.[agentType];
     const canUseImageAttachments = expImageUpload
         && supportsImageAttachmentsForFlavor(agentType, machineCatalog?.acp);
-    const defaults = React.useMemo(() => rigCreation
-        ? {
-            permissionMode: rigCreation.defaultPermissionMode ?? '',
-            modelMode: rigCreation.defaultModelKey ?? '',
-            effortLevel: rigCreation.defaultEffortForModel(rigCreation.defaultModelKey),
-        }
-        : resolveAgentDefaultConfig(defaultOverrides, agentType), [agentType, defaultOverrides, rigCreation]);
+    const defaults = React.useMemo(
+        () => resolveAgentDefaultConfig(defaultOverrides, agentType),
+        [agentType, defaultOverrides],
+    );
     const permissionOptions = React.useMemo(
         () => rigCreation?.permissionModes
             ?? (machineCatalog
@@ -901,11 +898,17 @@ export const HomeDock = React.memo(({
                 : getHardcodedModelModes(agentType, t)),
         [agentType, machineCatalog, rigCreation, selectedMachine?.metadata],
     );
-    const currentPermission = resolveOption(permissionOptions, agentType === 'grok'
-        ? [permissionMode ?? defaults.permissionMode, getAdvertisedDefaultOptionKey(permissionOptions)]
+    const currentPermission = resolveOption(permissionOptions, agentType === 'grok' || agentType === 'rig'
+        ? [
+            permissionMode ?? defaults.permissionMode,
+            rigCreation?.defaultPermissionMode ?? getAdvertisedDefaultOptionKey(permissionOptions),
+        ]
         : [permissionMode, defaults.permissionMode]);
-    const currentModel = resolveOption(modelOptions, agentType === 'grok'
-        ? [modelMode ?? defaults.modelMode, getAdvertisedDefaultOptionKey(modelOptions)]
+    const currentModel = resolveOption(modelOptions, agentType === 'grok' || agentType === 'rig'
+        ? [
+            modelMode ?? defaults.modelMode,
+            rigCreation?.defaultModelKey ?? getAdvertisedDefaultOptionKey(modelOptions),
+        ]
         : [modelMode, defaults.modelMode]);
     const effortOptions = React.useMemo(
         () => rigCreation
@@ -915,29 +918,33 @@ export const HomeDock = React.memo(({
                 : getEffortLevelsForModel(agentType, currentModel?.key ?? 'default'),
         [agentType, currentModel?.key, machineCatalog, rigCreation, selectedMachine?.metadata],
     );
-    const effectiveEffortDefault = rigCreation?.defaultEffortForModel(currentModel?.key)
-        ?? resolveAgentDefaultEffortLevel(defaultOverrides, agentType, effortOptions);
-    const currentEffort = resolveOption(effortOptions, agentType === 'grok'
-        ? [effortLevel ?? effectiveEffortDefault, getAdvertisedDefaultOptionKey(effortOptions)]
+    const effectiveEffortDefault = resolveAgentDefaultEffortLevel(defaultOverrides, agentType, effortOptions)
+        ?? rigCreation?.defaultEffortForModel(currentModel?.key);
+    const currentEffort = resolveOption(effortOptions, agentType === 'grok' || agentType === 'rig'
+        ? [
+            effortLevel ?? effectiveEffortDefault,
+            rigCreation?.defaultEffortForModel(currentModel?.key)
+                ?? getAdvertisedDefaultOptionKey(effortOptions),
+        ]
         : [effortLevel, effectiveEffortDefault]);
     React.useEffect(() => {
-        if (agentType !== 'grok') return;
+        if (agentType !== 'grok' && agentType !== 'rig') return;
         const nextPermission = currentPermission?.key ?? null;
         if (permissionMode !== null && permissionMode !== nextPermission) setPermissionMode(nextPermission);
     }, [agentType, currentPermission?.key, permissionMode, setPermissionMode]);
     React.useEffect(() => {
-        if (agentType !== 'grok') return;
+        if (agentType !== 'grok' && agentType !== 'rig') return;
         const nextModel = currentModel?.key ?? null;
         if (modelMode !== null && modelMode !== nextModel) setModelMode(nextModel);
     }, [agentType, currentModel?.key, modelMode, setModelMode]);
     React.useEffect(() => {
-        if (agentType !== 'grok') return;
+        if (agentType !== 'grok' && agentType !== 'rig') return;
         const nextEffort = currentEffort?.key ?? null;
         if (effortLevel !== null && effortLevel !== nextEffort) setEffortLevel(nextEffort);
     }, [agentType, currentEffort?.key, effortLevel, setEffortLevel]);
     const selectEffort = React.useCallback((key: string) => {
         setEffortLevel(key);
-        if (agentType === 'codex' || agentType === 'grok') {
+        if (agentType === 'codex' || agentType === 'grok' || agentType === 'rig') {
             setDefaultOverrides(setAgentDefaultOverride(
                 defaultOverrides,
                 agentType,
@@ -948,10 +955,10 @@ export const HomeDock = React.memo(({
     }, [agentType, defaultOverrides, setDefaultOverrides, setEffortLevel]);
     const selectModel = React.useCallback((key: string) => {
         setModelMode(key);
-        if (agentType === 'grok') {
+        if (agentType === 'grok' || agentType === 'rig') {
             setDefaultOverrides(setAgentDefaultOverride(
                 defaultOverrides,
-                'grok',
+                agentType,
                 'modelMode',
                 key,
             ));
@@ -959,10 +966,10 @@ export const HomeDock = React.memo(({
     }, [agentType, defaultOverrides, setDefaultOverrides, setModelMode]);
     const selectPermission = React.useCallback((key: string) => {
         setPermissionMode(key);
-        if (agentType === 'grok') {
+        if (agentType === 'grok' || agentType === 'rig') {
             setDefaultOverrides(setAgentDefaultOverride(
                 defaultOverrides,
-                'grok',
+                agentType,
                 'permissionMode',
                 key,
             ));
@@ -1213,13 +1220,7 @@ export const HomeDock = React.memo(({
 
     const selectAgent = React.useCallback((agent: NewSessionAgentType) => {
         const nextRigCreation = agent === 'rig' ? rigSelectionCreation : null;
-        const nextDefaults = nextRigCreation
-            ? {
-                permissionMode: nextRigCreation.defaultPermissionMode ?? '',
-                modelMode: nextRigCreation.defaultModelKey ?? '',
-                effortLevel: nextRigCreation.defaultEffortForModel(nextRigCreation.defaultModelKey),
-            }
-            : resolveAgentDefaultConfig(defaultOverrides, agent);
+        const nextDefaults = resolveAgentDefaultConfig(defaultOverrides, agent);
         const nextCatalog = selectedMachine?.metadata?.agentCapabilities?.[agent];
         const nextPermissions = nextRigCreation?.permissionModes
             ?? (nextCatalog
@@ -1229,11 +1230,17 @@ export const HomeDock = React.memo(({
             ?? (nextCatalog
                 ? getMachineAdvertisedModels(selectedMachine?.metadata, agent, t)
                 : getHardcodedModelModes(agent, t));
-        const nextModel = resolveOption(nextModels, agent === 'grok'
-            ? [nextDefaults.modelMode, getAdvertisedDefaultOptionKey(nextModels)]
+        const nextModel = resolveOption(nextModels, agent === 'grok' || agent === 'rig'
+            ? [
+                nextDefaults.modelMode,
+                nextRigCreation?.defaultModelKey ?? getAdvertisedDefaultOptionKey(nextModels),
+            ]
             : [nextDefaults.modelMode]);
-        const nextPermission = resolveOption(nextPermissions, agent === 'grok'
-            ? [nextDefaults.permissionMode, getAdvertisedDefaultOptionKey(nextPermissions)]
+        const nextPermission = resolveOption(nextPermissions, agent === 'grok' || agent === 'rig'
+            ? [
+                nextDefaults.permissionMode,
+                nextRigCreation?.defaultPermissionMode ?? getAdvertisedDefaultOptionKey(nextPermissions),
+            ]
             : [nextDefaults.permissionMode]);
         const nextEfforts = nextRigCreation
             ? nextRigCreation.effortsForModel(nextModel?.key).map((key) => ({ key, name: key }))
@@ -1241,11 +1248,11 @@ export const HomeDock = React.memo(({
                 ? getMachineAdvertisedEffortLevels(selectedMachine?.metadata, agent, nextModel?.key ?? 'default')
                 : getEffortLevelsForModel(agent, nextModel?.key ?? 'default');
         const configuredEffort = resolveAgentDefaultEffortLevel(defaultOverrides, agent, nextEfforts);
-        const nextEffort = nextRigCreation?.defaultEffortForModel(nextModel?.key)
-            ?? configuredEffort
+        const nextEffort = configuredEffort
+            ?? nextRigCreation?.defaultEffortForModel(nextModel?.key)
             ?? (agent === 'grok' ? getAdvertisedDefaultOptionKey(nextEfforts) : null);
         setAgentType(agent);
-        if (agent === 'grok') {
+        if (agent === 'grok' || agent === 'rig') {
             setPermissionMode(nextPermission?.key ?? null);
             setModelMode(nextModel?.key ?? null);
             setEffortLevel(nextEffort);

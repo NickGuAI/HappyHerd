@@ -92,8 +92,7 @@ export const useNewSessionDraft = create<NewSessionDraftState>()((set, get) => (
     setCommanderId: (id) => { set({ selectedCommanderId: id, worktreeKey: null }); persist(get()); },
     setAgentType: (agent) => {
         const previousAgent = get().agentType;
-        const resetGrokSelection = previousAgent !== agent && (previousAgent === 'grok' || agent === 'grok');
-        set(resetGrokSelection
+        set(previousAgent !== agent
             ? {
                 agentType: agent,
                 permissionMode: null,

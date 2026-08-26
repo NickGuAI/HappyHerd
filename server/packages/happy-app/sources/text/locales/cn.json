@@ -315,11 +315,14 @@
     "interruptPressStop": "如需中断，请按“停止”"
   },
   "agentDefaults": {
-    "customCodexModelTitle": "自定义 Codex 模型",
-    "customCodexModelDescription": "输入准确的模型 ID。可用性取决于您的 Codex 账户或 API 配置。",
-    "modelIdPlaceholder": "模型 ID",
-    "customModel": "自定义模型…",
-    "exactModelId": "输入准确的模型 ID"
+    "capabilitySource": "功能来源设备",
+    "capabilitySourceDescription": "设备提供的默认选项仅使用此处所选设备公布的功能。",
+    "selectCapabilityMachine": "选择功能来源设备",
+    "noMachinesForCapabilities": "请连接设备以加载提供商功能。",
+    "capabilitiesFromMachine": "功能由 {machine} 提供。",
+    "providerUnavailable": "没有可配置的默认值",
+    "providerUnavailableOnMachine": "此提供商在 {machine} 上未公布可配置的默认值。请在上方选择其他设备。",
+    "selectMachineForProvider": "请在上方选择功能来源设备以加载此提供商的默认值。"
   },
   "modelMode": {
     "unavailableSelectedDaemon": "在所选守护进程上不可用",
@@ -1431,7 +1434,7 @@
     "onceThisDeviceIsRegisteredItWillAppearHere": "该设备注册后，它将出现在此处。",
     "agentDefaults": "代理默认值",
     "clearOverrides": "清除覆盖",
-    "returnEveryAgentToCodeDefaults": "将每个代理恢复为代码默认值",
+    "returnEveryAgentToCodeDefaults": "将每个代理恢复为其可用的默认值",
     "connect": "连接",
     "runTheFollowingCommandInYourTerminal": "在终端中运行以下命令：",
     "openaiApiKey": "OpenAI API 密钥",

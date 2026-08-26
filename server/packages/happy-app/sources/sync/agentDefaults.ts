@@ -3,9 +3,11 @@ import {
     HAPPYHERD_DEFAULT_CLAUDE_MODEL_SLUG,
     normalizeHappyHerdClaudeModelSlug,
 } from '@slopus/happy-wire';
+import { HARNESS_ORDER } from '@/utils/harnessCatalog';
 
-export const agentKeys = ['claude', 'codex', 'grok', 'gemini', 'agy'] as const;
+export const agentKeys = HARNESS_ORDER;
 export type AgentKey = typeof agentKeys[number];
+type StoredAgentKey = AgentKey | 'gemini';
 
 export const AgentDefaultOverrideSchema = z.object({
     permissionMode: z.string().optional(),
@@ -13,12 +15,16 @@ export const AgentDefaultOverrideSchema = z.object({
     effortLevel: z.string().optional(),
 }).passthrough();
 
+const activeAgentDefaultOverrideShape = Object.fromEntries(agentKeys.map((agent) => [
+    agent,
+    AgentDefaultOverrideSchema.optional(),
+])) as Record<AgentKey, z.ZodOptional<typeof AgentDefaultOverrideSchema>>;
+
 export const AgentDefaultOverridesSchema = z.object({
-    claude: AgentDefaultOverrideSchema.optional(),
-    codex: AgentDefaultOverrideSchema.optional(),
-    grok: AgentDefaultOverrideSchema.optional(),
+    ...activeAgentDefaultOverrideShape,
+    // Retired Gemini preferences remain parseable so synced settings are not
+    // destroyed merely because the provider left the launch registry.
     gemini: AgentDefaultOverrideSchema.optional(),
-    agy: AgentDefaultOverrideSchema.optional(),
 }).passthrough().default({});
 
 export type AgentDefaultOverride = z.infer<typeof AgentDefaultOverrideSchema>;
@@ -31,7 +37,13 @@ export type AgentDefaultConfig = {
     effortLevel: string | null;
 };
 
-const codeAgentDefaults: Record<AgentKey, AgentDefaultConfig> = {
+const emptyAgentDefaults: AgentDefaultConfig = {
+    permissionMode: '',
+    modelMode: '',
+    effortLevel: null,
+};
+
+const codeAgentDefaults: Record<StoredAgentKey, AgentDefaultConfig> = {
     // The Claude UI key for YOLO is `bypassPermissions`; the CLI also accepts
     // `yolo` and maps it to the Claude SDK's bypass mode.
     claude: {
@@ -45,22 +57,28 @@ const codeAgentDefaults: Record<AgentKey, AgentDefaultConfig> = {
     codex: { permissionMode: 'yolo', modelMode: 'gpt-5.6-sol', effortLevel: 'max' },
     // GrokBuild publishes its real defaults and selectable launch values
     // through the selected machine's capability catalog.
-    // These sentinels are deliberately neutral so an offline settings read can
+    // Empty defaults are deliberately neutral so an offline settings read can
     // never smuggle a Claude or Codex catalog into a Grok session.
-    grok: { permissionMode: 'default', modelMode: 'default', effortLevel: null },
+    grok: emptyAgentDefaults,
     gemini: { permissionMode: 'default', modelMode: 'gemini-2.5-pro', effortLevel: null },
     agy: { permissionMode: 'default', modelMode: 'Gemini 3.1 Pro (High)', effortLevel: null },
+    // Rig publishes all three dimensions through the exact selected machine.
+    // Empty values keep an offline settings read honest and cannot masquerade
+    // as Claude defaults.
+    rig: emptyAgentDefaults,
 };
 
-export function normalizeAgentKey(flavor: string | null | undefined): AgentKey {
-    if (flavor === 'codex' || flavor === 'grok' || flavor === 'gemini' || flavor === 'agy') {
+export function normalizeAgentKey(flavor: string | null | undefined): StoredAgentKey | null {
+    if (flavor === null || flavor === undefined || flavor === 'claude') return 'claude';
+    if (flavor === 'codex' || flavor === 'grok' || flavor === 'gemini' || flavor === 'agy' || flavor === 'rig') {
         return flavor;
     }
-    return 'claude';
+    return null;
 }
 
 export function getCodeAgentDefaults(flavor: string | null | undefined): AgentDefaultConfig {
-    return codeAgentDefaults[normalizeAgentKey(flavor)];
+    const agent = normalizeAgentKey(flavor);
+    return agent ? codeAgentDefaults[agent] : emptyAgentDefaults;
 }
 
 /**
@@ -87,10 +105,11 @@ export function getAgentDefaultOverride(
     flavor: string | null | undefined,
 ): AgentDefaultOverride {
     const agent = normalizeAgentKey(flavor);
+    if (!agent) return {};
     const override = overrides?.[agent] ?? {};
     // `dontAsk` is retired only for providers whose message protocol cannot
     // carry it. GrokBuild owns that exact launch token and must retain it.
-    const permissionMode = agent === 'grok'
+    const permissionMode = agent === 'grok' || agent === 'rig'
         ? override.permissionMode
         : retirePermissionMode(override.permissionMode);
     return permissionMode === override.permissionMode
@@ -191,6 +210,7 @@ export function setAgentDefaultOverride(
     value: string | null | undefined,
 ): AgentDefaultOverrides {
     const key = normalizeAgentKey(flavor);
+    if (!key) return { ...(overrides ?? {}) };
     const next: AgentDefaultOverrides = { ...(overrides ?? {}) };
     const current: AgentDefaultOverride = { ...(next[key] ?? {}) };
 

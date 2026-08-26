@@ -385,11 +385,14 @@
     "interruptPressStop": "Zum Unterbrechen „Stoppen“ drücken"
   },
   "agentDefaults": {
-    "customCodexModelTitle": "Benutzerdefiniertes Codex-Modell",
-    "customCodexModelDescription": "Geben Sie eine exakte Modell-ID ein. Die Verfügbarkeit hängt von Ihrem Codex-Konto oder Ihrer API-Konfiguration ab.",
-    "modelIdPlaceholder": "Modell-ID",
-    "customModel": "Benutzerdefiniertes Modell…",
-    "exactModelId": "Exakte Modell-ID eingeben"
+    "capabilitySource": "Quellrechner für Funktionen",
+    "capabilitySourceDescription": "Rechnergebundene Standardwerte verwenden ausschließlich die angekündigten Funktionen dieses exakten Rechners.",
+    "selectCapabilityMachine": "Quellrechner für Funktionen auswählen",
+    "noMachinesForCapabilities": "Verbinden Sie einen Rechner, um Anbieterfunktionen zu laden.",
+    "capabilitiesFromMachine": "Von {machine} angekündigte Funktionen.",
+    "providerUnavailable": "Keine konfigurierbaren Standardwerte",
+    "providerUnavailableOnMachine": "Dieser Anbieter kündigt auf {machine} keine konfigurierbaren Standardwerte an. Wählen Sie oben einen anderen Rechner aus.",
+    "selectMachineForProvider": "Wählen Sie oben einen Quellrechner aus, um die Standardwerte dieses Anbieters zu laden."
   },
   "modelMode": {
     "unavailableSelectedDaemon": "Auf dem ausgewählten Daemon nicht verfügbar",
@@ -1431,7 +1434,7 @@
     "onceThisDeviceIsRegisteredItWillAppearHere": "Sobald dieses Gerät registriert ist, wird es hier angezeigt.",
     "agentDefaults": "Agentenstandards",
     "clearOverrides": "Überschreibungen löschen",
-    "returnEveryAgentToCodeDefaults": "Setzen Sie jeden Agenten auf die Code-Standardeinstellungen zurück",
+    "returnEveryAgentToCodeDefaults": "Alle Agenten auf ihre verfügbaren Standardwerte zurücksetzen",
     "connect": "Verbinden",
     "runTheFollowingCommandInYourTerminal": "Führen Sie den folgenden Befehl in Ihrem Terminal aus:",
     "openaiApiKey": "OpenAI-API-Schlüssel",
