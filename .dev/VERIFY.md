@@ -95,6 +95,27 @@ pnpm --filter happy build
 pnpm --filter ./packages/happy-server build
 ```
 
+## Combined post-update runtime acceptance
+
+When an operator intentionally updates both the central server/Web component
+and a native CLI/daemon host, follow
+[`playbooks/post-update-restart.md`](playbooks/post-update-restart.md). Runtime
+acceptance is ordered and is separate from build or CI proof:
+
+1. deploy and restart the selected server image first;
+2. retain local/public `/health`, service start-time, configured-image, and OCI
+   revision read-backs;
+3. stop, upgrade, and start the daemon as the same host account with the same
+   Happy home and environment;
+4. compare exact pre/post session IDs and continue one historical session when
+   session or recovery behavior changed; and
+5. refresh the website and verify the existing machine name, online state, paths,
+   and provider catalogs.
+
+An online machine labeled `unknown machine` fails this acceptance. Do not
+delete or recreate it: verify the required decrypted metadata shape and use the
+authenticated versioned metadata-update owner described in the playbook.
+
 ## Full local acceptance
 
 The contract suite requires a clean committed tree, pnpm 10.11.0, ShellCheck,
