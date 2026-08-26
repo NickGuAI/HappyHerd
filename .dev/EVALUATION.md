@@ -141,3 +141,40 @@ than silently copying prior prose.
   human-reviewed external evidence, and these principles have no new CI
   enforcement. This focused refresh deliberately adds no workflow, script,
   runtime, automation, fallback, or safety mechanism.
+
+## Focused refresh — 2026-08-26: post-update restart
+
+- **Evidence inputs:** `docs/deployment.md`, `docs/runtime-isolation.md`,
+  `.github/workflows/server-image.yml`, `server/Dockerfile`,
+  `docs/public-launcher-release.md`,
+  `scripts/{build-server-image,deploy-server,install-server-service,install-host-cli,install-linux-daemon-bootstrap,start-host-daemon}.sh`,
+  native daemon command/help and continuity tests, app and CLI machine metadata
+  schemas, app machine decryption/update paths, and the server's
+  `machine-update-metadata` compare-and-swap handler.
+- **Observed operational fixture:** a combined main update first proved the
+  selected server image and both health endpoints, then reinstalled and
+  restarted the daemon without losing its retained sessions. The machine stayed
+  online but rendered as `unknown machine` because its decrypted payload held a
+  display name without the app schema's required host/runtime fields; repairing
+  the same versioned encrypted record and restarting the daemon restored the
+  complete machine/provider read-back without changing the machine ID.
+- **Read-only reviewer roles:** one operational reviewer checked every Linux and
+  macOS command, installed-support owner, and machine-metadata recovery claim;
+  one contrarian reviewer checked independent artifacts, server-first ordering,
+  cross-platform boundaries, and the absence of a new lockstep gate.
+- **Checks selected:** touched-link inspection, exact diff review,
+  `git diff --check`, `node scripts/lint-source.mjs`, Markdown link resolution,
+  `scripts/test-component-deployment-contract.sh`, and clean-tree
+  `scripts/verify-patch-discipline.sh` on the committed exact head.
+- **Verification result:** all selected checks passed; the link scan resolved
+  every relative Markdown target, and a separate touched-file scan covered the
+  new tracked playbook's final newline and trailing whitespace.
+- **Rejected assumptions:** a combined restart creates a global lockstep
+  release; a successful image workflow proves the service restarted; server
+  liveness proves daemon or machine-metadata health; and deleting/recreating an
+  unknown machine is an acceptable recovery step.
+- **Remaining gap:** the encrypted, versioned metadata update is owned by live
+  app/server code, but there is no public operator recovery command for an
+  already malformed machine payload. The playbook therefore keeps repair
+  maintainer-assisted and does not prescribe raw database edits, machine
+  deletion, an ad-hoc migration, or a new runtime guardrail.

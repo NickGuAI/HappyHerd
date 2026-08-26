@@ -273,6 +273,26 @@ agent, or public launcher does not rebuild or activate the others. Compatibility
 is enforced at wire/API boundaries and by component tests, not by requiring one
 Git SHA on every host.
 
+When an operator explicitly refreshes both server/Web and native daemons in one
+post-update operation, activation is ordered even though the artifacts remain
+independent:
+
+```text
+applicable server image → restart server → health/image read-back
+                                             ↓
+                                  upgrade/restart daemon
+                                             ↓
+                         session + machine/website read-back
+```
+
+The server restart is first so the updated API and Web bundle are active before
+the daemon reconnects and registers its runtime RPC/capability state. Existing
+stored machine metadata remains separately owned. This combined-operation order
+is not a global release bundle, shared-SHA gate, rollback controller, or a reason
+to restart an unchanged component. Follow the
+[post-update restart playbook](playbooks/post-update-restart.md) for the
+evidence and failure boundaries.
+
 ### Owned patches and upstream history
 
 Every ordinary owned commit after the baseline is a unique, conventional,

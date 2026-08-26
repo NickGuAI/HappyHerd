@@ -49,6 +49,7 @@ owning TickTick task → bounded change → exact-head review → PR → merge
 | Select cheap, targeted, full, and CI checks | [`VERIFY.md`](VERIFY.md) |
 | Find the canonical operational document or script | [`SOP_INDEX.md`](SOP_INDEX.md) |
 | Deliver through protected `main` and clean the branch | [`playbooks/development-lifecycle.md`](playbooks/development-lifecycle.md) |
+| Run a combined central-server and native-daemon update | [`playbooks/post-update-restart.md`](playbooks/post-update-restart.md) |
 | Audit how this context was derived | [`EVALUATION.md`](EVALUATION.md) |
 
 ## System at a glance
