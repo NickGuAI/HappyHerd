@@ -787,7 +787,7 @@ class Sync {
             ? currentState.machines[session.metadata.machineId]
             : null;
         const hasAuthoritativeEffortCatalog = Boolean(
-            machine?.metadata?.agentCapabilities?.[agentKey],
+            agentKey && machine?.metadata?.agentCapabilities?.[agentKey],
         );
         const selectedModel = session.modelMode
             ?? resolveAgentDefaultConfig(settings.agentDefaultOverrides, flavor).modelMode;

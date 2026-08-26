@@ -51,6 +51,7 @@ Commands in this table run from `server/` unless they start with `scripts/` or
 | Changed surface | Required targeted checks |
 |---|---|
 | App logic | `pnpm --filter happy-app typecheck`; `pnpm --filter happy-app test --run` |
+| Provider registry, Agent Defaults, or launch-mode propagation | Focus `sources/sync/agentDefaults.test.ts`, `sources/sync/settings.spec.ts`, `sources/app/(app)/settings/agents.test.ts`, `sources/app/(app)/new/index.launch.test.ts`, `sources/components/modelModeOptions.test.ts`, `sources/hooks/useNewSessionDraft.test.ts`, `sources/hooks/useStartSessionFromDraft.test.ts`, and `sources/utils/newSessionModeSelection.test.ts`; prove active-registry parity, every active provider group, explicit capability-source selection and unavailable states, selected exact-machine catalog ownership, independent provider keys, every cross-provider draft reset, empty unsupported dimensions, Rig spawn payloads in both launchers, and post-await GrokBuild/Rig revalidation; then run the full app checks |
 | UI, routes, or localized copy | App checks plus `pnpm --filter happy-app i18n:check` |
 | Catalog keys/placeholders | First `pnpm --filter happy-app i18n:generate`, review generated changes, then `i18n:check` |
 | Route or UI-owning module | First `pnpm --filter happy-app ui:inventory:generate`, review generated changes, then `i18n:check` |

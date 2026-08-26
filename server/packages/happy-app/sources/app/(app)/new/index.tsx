@@ -1329,13 +1329,10 @@ function NewSessionScreen() {
                 : getHardcodedPermissionModes(selectedAgent, t)),
         [selectedAgent, selectedMachine?.metadata, machineCatalog, rigCreation, draft.permissionMode],
     );
-    const effectiveAgentDefaults = React.useMemo(() => rigCreation
-        ? {
-            permissionMode: rigCreation.defaultPermissionMode ?? '',
-            modelMode: rigCreation.defaultModelKey ?? '',
-            effortLevel: rigCreation.defaultEffortForModel(rigCreation.defaultModelKey),
-        }
-        : resolveAgentDefaultConfig(agentDefaultOverrides, selectedAgent), [agentDefaultOverrides, selectedAgent, rigCreation]);
+    const effectiveAgentDefaults = React.useMemo(
+        () => resolveAgentDefaultConfig(agentDefaultOverrides, selectedAgent),
+        [agentDefaultOverrides, selectedAgent],
+    );
     const modelModes = React.useMemo<ModelMode[]>(
         () => rigCreation?.models
             ?? (machineCatalog
@@ -1360,35 +1357,38 @@ function NewSessionScreen() {
                 : getEffortLevelsForModel(selectedAgent, currentModelKey),
         [selectedAgent, selectedMachine?.metadata, machineCatalog, currentModelKey, rigCreation],
     );
-    const effectiveEffortDefault = rigCreation?.defaultEffortForModel(currentModelKey)
-        ?? resolveAgentDefaultEffortLevel(agentDefaultOverrides, selectedAgent, effortLevels);
+    const effectiveEffortDefault = resolveAgentDefaultEffortLevel(
+        agentDefaultOverrides,
+        selectedAgent,
+        effortLevels,
+    ) ?? rigCreation?.defaultEffortForModel(currentModelKey);
     const showModel = modelModes.length > 1;
     const showEffort = effortLevels.length > 0;
     const showPermission = permissionModes.length > 1;
 
     // Reset indices when agent/default settings change.
     React.useEffect(() => {
-        const nextPermissionIndex = selectedAgent === 'grok'
+        const nextPermissionIndex = selectedAgent === 'grok' || selectedAgent === 'rig'
             ? findPreferredAvailableOptionIndex(permissionModes, [
                 draft.permissionMode ?? effectiveAgentDefaults.permissionMode,
-                getAdvertisedDefaultOptionKey(permissionModes),
+                rigCreation?.defaultPermissionMode ?? getAdvertisedDefaultOptionKey(permissionModes),
             ])
             : findPreferredModeIndex(permissionModes, [draft.permissionMode, effectiveAgentDefaults.permissionMode]);
         setPermissionIndex(nextPermissionIndex);
         const nextPermission = permissionModes[nextPermissionIndex]?.key ?? null;
-        if (selectedAgent === 'grok' && draft.permissionMode !== null && draft.permissionMode !== nextPermission) {
+        if ((selectedAgent === 'grok' || selectedAgent === 'rig') && draft.permissionMode !== null && draft.permissionMode !== nextPermission) {
             draft.setPermissionMode(nextPermission);
         }
 
-        const nextModelIndex = selectedAgent === 'grok'
+        const nextModelIndex = selectedAgent === 'grok' || selectedAgent === 'rig'
             ? findPreferredAvailableOptionIndex(modelModes, [
                 draft.modelMode ?? effectiveAgentDefaults.modelMode,
-                getAdvertisedDefaultOptionKey(modelModes),
+                rigCreation?.defaultModelKey ?? getAdvertisedDefaultOptionKey(modelModes),
             ])
             : findPreferredModeIndex(modelModes, [draft.modelMode, effectiveAgentDefaults.modelMode]);
         setModelIndex(nextModelIndex);
         const nextModel = modelModes[nextModelIndex]?.key ?? null;
-        if (selectedAgent === 'grok' && draft.modelMode !== null && draft.modelMode !== nextModel) {
+        if ((selectedAgent === 'grok' || selectedAgent === 'rig') && draft.modelMode !== null && draft.modelMode !== nextModel) {
             draft.setModelMode(nextModel);
         }
 
@@ -1402,6 +1402,7 @@ function NewSessionScreen() {
         draft.modelMode,
         effectiveAgentDefaults.permissionMode,
         effectiveAgentDefaults.modelMode,
+        rigCreation,
         selectedAgent,
         draft.setPermissionMode,
         draft.setModelMode,
@@ -1411,21 +1412,22 @@ function NewSessionScreen() {
     React.useEffect(() => {
         if (effortLevels.length === 0) {
             setEffortIndex(0);
-            if (selectedAgent === 'grok' && draft.effortLevel !== null) draft.setEffortLevel(null);
+            if ((selectedAgent === 'grok' || selectedAgent === 'rig') && draft.effortLevel !== null) draft.setEffortLevel(null);
             return;
         }
-        const nextEffortIndex = selectedAgent === 'grok'
+        const nextEffortIndex = selectedAgent === 'grok' || selectedAgent === 'rig'
             ? findPreferredAvailableOptionIndex(effortLevels, [
                 draft.effortLevel ?? effectiveEffortDefault,
-                getAdvertisedDefaultOptionKey(effortLevels),
+                rigCreation?.defaultEffortForModel(currentModelKey)
+                    ?? getAdvertisedDefaultOptionKey(effortLevels),
             ])
             : findPreferredModeIndex(effortLevels, [draft.effortLevel, effectiveEffortDefault]);
         setEffortIndex(nextEffortIndex);
         const nextEffort = effortLevels[nextEffortIndex]?.key ?? null;
-        if (selectedAgent === 'grok' && draft.effortLevel !== null && draft.effortLevel !== nextEffort) {
+        if ((selectedAgent === 'grok' || selectedAgent === 'rig') && draft.effortLevel !== null && draft.effortLevel !== nextEffort) {
             draft.setEffortLevel(nextEffort);
         }
-    }, [draft.effortLevel, draft.setEffortLevel, effectiveEffortDefault, currentModelKey, effortLevels, selectedAgent]);
+    }, [draft.effortLevel, draft.setEffortLevel, effectiveEffortDefault, currentModelKey, effortLevels, rigCreation, selectedAgent]);
 
     // The reference keeps the context controls visible while the keyboard is
     // open. Preserve that on mobile and let users collapse them explicitly.
@@ -1503,7 +1505,7 @@ function NewSessionScreen() {
         candidate.key === selectedAgent && candidate.disabled !== true
     ));
     const currentLaunchSelectionError = validateNewSessionLaunchSelection({
-        agentAvailable: selectedAgentAvailable,
+        agentAvailable: selectedAgentAvailable && (selectedAgent !== 'grok' || Boolean(machineCatalog)),
         permissionOptions: permissionModes,
         modelOptions: modelModes,
         effortOptions: effortLevels,
@@ -1511,6 +1513,8 @@ function NewSessionScreen() {
         modelKey: currentModel?.key,
         effortKey: currentEffort?.key,
     });
+    const currentRigSelectionIncomplete = selectedAgent === 'rig'
+        && (!currentPermission || !currentModel || !currentEffort);
     const selectEffortByKey = React.useCallback((key: string) => {
         const next = effortLevels.findIndex((level) => level.key === key);
         const nextEffort = effortLevels[next];
@@ -1519,7 +1523,7 @@ function NewSessionScreen() {
         const effortKey = nextEffort.key;
         setEffortIndex(next);
         draft.setEffortLevel(effortKey);
-        if (selectedAgent === 'codex' || selectedAgent === 'grok') {
+        if (selectedAgent === 'codex' || selectedAgent === 'grok' || selectedAgent === 'rig') {
             setAgentDefaultOverrides(setAgentDefaultOverride(
                 agentDefaultOverrides,
                 selectedAgent,
@@ -1699,10 +1703,10 @@ function NewSessionScreen() {
                 if (next >= 0 && !nextModel?.disabled && !nextModel?.unavailable) {
                     setModelIndex(next);
                     draft.setModelMode(nextModel.key);
-                    if (selectedAgent === 'grok') {
+                    if (selectedAgent === 'grok' || selectedAgent === 'rig') {
                         setAgentDefaultOverrides(setAgentDefaultOverride(
                             agentDefaultOverrides,
-                            'grok',
+                            selectedAgent,
                             'modelMode',
                             nextModel.key,
                         ));
@@ -1720,10 +1724,10 @@ function NewSessionScreen() {
                 if (next >= 0 && !nextPermission?.disabled && !nextPermission?.unavailable) {
                     setPermissionIndex(next);
                     draft.setPermissionMode(nextPermission.key);
-                    if (selectedAgent === 'grok') {
+                    if (selectedAgent === 'grok' || selectedAgent === 'rig') {
                         setAgentDefaultOverrides(setAgentDefaultOverride(
                             agentDefaultOverrides,
-                            'grok',
+                            selectedAgent,
                             'permissionMode',
                             nextPermission.key,
                         ));
@@ -1763,10 +1767,10 @@ function NewSessionScreen() {
                 if (next >= 0 && !nextModel?.disabled && !nextModel?.unavailable) {
                     setModelIndex(next);
                     draft.setModelMode(nextModel.key);
-                    if (selectedAgent === 'grok') {
+                    if (selectedAgent === 'grok' || selectedAgent === 'rig') {
                         setAgentDefaultOverrides(setAgentDefaultOverride(
                             agentDefaultOverrides,
-                            'grok',
+                            selectedAgent,
                             'modelMode',
                             nextModel.key,
                         ));
@@ -1784,10 +1788,10 @@ function NewSessionScreen() {
                 if (next >= 0 && !nextPermission?.disabled && !nextPermission?.unavailable) {
                     setPermissionIndex(next);
                     draft.setPermissionMode(nextPermission.key);
-                    if (selectedAgent === 'grok') {
+                    if (selectedAgent === 'grok' || selectedAgent === 'rig') {
                         setAgentDefaultOverrides(setAgentDefaultOverride(
                             agentDefaultOverrides,
-                            'grok',
+                            selectedAgent,
                             'permissionMode',
                             nextPermission.key,
                         ));
@@ -1862,7 +1866,10 @@ function NewSessionScreen() {
                 modelKey: selectedModelKey,
                 effortKey,
             });
-            if (selectionError) {
+            const missingGrokCatalog = agentType === 'grok' && !machineCatalog;
+            const incompleteRigSelection = agentType === 'rig'
+                && (!permissionKey || !selectedModelKey || !effortKey);
+            if (missingGrokCatalog || selectionError || incompleteRigSelection) {
                 return {
                     status: 'unavailable' as const,
                     rigUnavailable: agentType === 'rig' && latestRigCreation === null,
@@ -1916,7 +1923,7 @@ function NewSessionScreen() {
                 agent: agentType,
                 directory: pathToUse,
                 worktree: worktreeSelection,
-                modelKey: currentModelKey,
+                modelKey: selectedModelKey,
                 permissionMode: permissionKey,
                 effort: currentEffort?.key ?? null,
             }));
@@ -1960,7 +1967,7 @@ function NewSessionScreen() {
                         directory: spawnDirectory,
                         clientRequestId,
                         approvedNewDirectoryCreation,
-                        modelKey: currentModelKey,
+                        modelKey: selectedModelKey,
                         permissionMode: permissionKey,
                         effort: currentEffort?.key,
                     }),
@@ -1976,7 +1983,7 @@ function NewSessionScreen() {
                     permissionMode: permissionKey && (agentType === 'codex' || agentType === 'grok' || permissionKey !== 'default')
                         ? permissionKey
                         : undefined,
-                    modelMode: currentModelKey !== 'default' ? currentModelKey : undefined,
+                    modelMode: selectedModelKey && selectedModelKey !== 'default' ? selectedModelKey : undefined,
                     effortLevel: currentEffort?.key,
                     commanderId: selectedCommanderId ?? undefined,
                 };
@@ -2007,9 +2014,10 @@ function NewSessionScreen() {
                         : permissionKey === effectiveAgentDefaults.permissionMode
                             ? null
                             : permissionKey;
-                    const modelOverride = currentModelKey === effectiveAgentDefaults.modelMode
+                    const modelOverride = selectedModelKey === null
+                        || selectedModelKey === effectiveAgentDefaults.modelMode
                         ? null
-                        : currentModelKey;
+                        : selectedModelKey;
                     const currentEffortKey = currentEffort?.key ?? null;
                     const effortOverride = currentEffortKey === effectiveEffortDefault
                         ? null
@@ -2111,6 +2119,7 @@ function NewSessionScreen() {
         && selectedMachine
         && isMachineOnline(selectedMachine)
         && currentLaunchSelectionError === null
+        && !currentRigSelectionIncomplete
         && !isSpawning;
     React.useEffect(() => {
         if (

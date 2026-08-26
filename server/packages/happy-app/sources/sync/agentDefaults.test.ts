@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    AgentDefaultOverridesSchema,
+    agentKeys,
+    getAgentDefaultOverride,
     resolveAgentDefaultConfig,
     resolveAgentDefaultEffortLevel,
     setAgentDefaultOverride,
 } from './agentDefaults';
+import { HARNESS_NAMES, HARNESS_ORDER, isRetiredHarness } from '@/utils/harnessCatalog';
 
 describe('agent defaults', () => {
     it('uses a canonical Claude model slug by default', () => {
@@ -70,8 +74,8 @@ describe('agent defaults', () => {
 
     it('keeps GrokBuild defaults neutral and isolated from Claude', () => {
         expect(resolveAgentDefaultConfig(undefined, 'grok')).toEqual({
-            permissionMode: 'default',
-            modelMode: 'default',
+            permissionMode: '',
+            modelMode: '',
             effortLevel: null,
         });
 
@@ -98,5 +102,56 @@ describe('agent defaults', () => {
         expect(resolveAgentDefaultEffortLevel(overrides, 'grok', [
             { key: 'fast' },
         ])).toBeNull();
+    });
+
+    it('wires every active harness into the defaults schema and registry', () => {
+        expect(agentKeys).toEqual(HARNESS_ORDER);
+        expect(new Set(agentKeys)).toEqual(new Set(
+            Object.keys(HARNESS_NAMES).filter((agent) => !isRetiredHarness(agent)),
+        ));
+
+        const values = Object.fromEntries(agentKeys.map((agent) => [
+            agent,
+            { modelMode: `${agent}-model` },
+        ]));
+        const parsed = AgentDefaultOverridesSchema.parse(values);
+
+        for (const agent of HARNESS_ORDER) {
+            expect(getAgentDefaultOverride(parsed, agent).modelMode).toBe(`${agent}-model`);
+        }
+    });
+
+    it('keeps Rig defaults byte-faithful and independent from Claude', () => {
+        let overrides = setAgentDefaultOverride({}, 'claude', 'modelMode', 'claude-model');
+        overrides = setAgentDefaultOverride(overrides, 'rig', 'modelMode', 'provider:model');
+        overrides = setAgentDefaultOverride(overrides, 'rig', 'permissionMode', 'dontAsk');
+
+        expect(resolveAgentDefaultConfig(overrides, 'rig')).toEqual({
+            permissionMode: 'dontAsk',
+            modelMode: 'provider:model',
+            effortLevel: null,
+        });
+        expect(resolveAgentDefaultConfig(overrides, 'claude').modelMode).toBe('claude-model');
+
+        overrides = setAgentDefaultOverride(overrides, 'rig', 'modelMode', null);
+        expect(getAgentDefaultOverride(overrides, 'rig').modelMode).toBeUndefined();
+        expect(resolveAgentDefaultConfig(overrides, 'claude').modelMode).toBe('claude-model');
+
+        overrides = setAgentDefaultOverride(overrides, 'rig', 'permissionMode', null);
+        expect(overrides.rig).toBeUndefined();
+        expect(overrides.claude).toEqual({ modelMode: 'claude-model' });
+    });
+
+    it('does not alias an unknown provider to Claude', () => {
+        const overrides = { claude: { modelMode: 'claude-model' } };
+
+        expect(resolveAgentDefaultConfig(overrides, 'future-provider')).toEqual({
+            permissionMode: '',
+            modelMode: '',
+            effortLevel: null,
+        });
+        expect(getAgentDefaultOverride(overrides, 'future-provider')).toEqual({});
+        expect(setAgentDefaultOverride(overrides, 'future-provider', 'modelMode', 'future-model'))
+            .toEqual(overrides);
     });
 });

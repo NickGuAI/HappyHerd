@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 26 — Agent Defaults cover every supported provider",
+      "summary": "",
+      "markdown": "- Agent Defaults now includes Claude Code, Codex, GrokBuild, Antigravity, and Happy, with each provider's preferences stored and cleared independently.\n- Agent Defaults now names and lets you change the exact machine supplying GrokBuild and Happy controls; unavailable providers show a clear machine-selection action instead of a blank card or borrowed choices.\n- New Session and Home clear provider-specific modes when switching providers, revalidate machine-owned defaults immediately before launch, and pass valid Happy defaults through its provider-native session request."
+    },
+    {
       "title": "August 26 — Workspace images render in agent responses",
       "summary": "",
       "markdown": "- Workspace-relative Markdown images in main-agent and subagent responses now render inline from the originating session's machine and remain openable in Workspace.\n- Missing provenance, unavailable or oversized files, traversal outside the originating workspace, unsafe schemes, and content that does not match its image type stay inert or show the existing image failure state."
@@ -266,5 +271,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 26 — Workspace images render in agent responses"
+  "latestTitle": "August 26 — Agent Defaults cover every supported provider"
 }

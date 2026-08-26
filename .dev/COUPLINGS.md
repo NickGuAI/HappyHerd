@@ -75,6 +75,37 @@ responses; resume stays on the original machine. App attachment and fork
 surfaces must follow advertised ACP capabilities rather than another provider
 fallback.
 
+### Provider defaults and session launch
+
+```text
+active non-retired HARNESS_ORDER
+  → Agent Defaults schema + settings groups
+  → explicit Agent Defaults capability-source selector
+      (initially prefers the New Session draft machine)
+  → selected daemon catalog or explicitly empty dimensions
+       ├── GrokBuild agentCapabilities
+       └── Rig sessionCreation metadata
+  → Full New Session + HomeDock draft + draft launcher
+  → exact-daemon catalog re-read and selection validation
+  → provider-native spawn payload
+```
+
+The active harness registry owns Defaults coverage; retired Gemini remains
+parseable only for old synchronized settings. Agent Defaults visibly names and
+lets the user change its exact capability-source daemon without mutating the
+New Session draft. GrokBuild and Rig own their permission, model, and per-model
+effort values through that daemon. Unsupported dimensions stay explicitly
+absent; an absent provider catalog renders a localized, actionable unavailable
+state instead of a blank group or borrowed choice. The separate exact
+launch-target daemon is re-read immediately before
+spawn, so a saved value from another capability source is revalidated there.
+An unknown provider never falls through to Claude. Any provider-registry change
+must update or automatically flow through the defaults schema, settings groups,
+draft reset boundary, all three launch surfaces, and the registry-parity proof.
+Every actual provider change clears the draft's permission, model, and effort
+fields before the destination provider's defaults are resolved; provider-local
+values must never survive a Claude ↔ Codex (or any other) switch.
+
 ### Session heartbeat delivery
 
 ```text

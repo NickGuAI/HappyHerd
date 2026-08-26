@@ -40,6 +40,11 @@ vi.mock('react', () => ({
 vi.mock('@/sync/storage', () => ({
     useAllMachines: () => mocks.machines,
     useSetting: (key: string) => key === 'experiments' ? mocks.experiments : mocks.defaultOverrides,
+    storage: {
+        getState: () => ({
+            machines: Object.fromEntries(mocks.machines.map((machine) => [machine.id, machine])),
+        }),
+    },
 }));
 
 vi.mock('@/sync/agentDefaults', () => ({
@@ -52,10 +57,14 @@ vi.mock('@/sync/agentDefaults', () => ({
         effortLevel: null,
     }),
     resolveAgentDefaultEffortLevel: (
-        _overrides: unknown,
-        _flavor: unknown,
+        overrides: Record<string, any>,
+        flavor: string,
         efforts: Array<{ key: string }>,
-    ) => efforts.at(-1)?.key ?? null,
+    ) => {
+        const configured = overrides?.[flavor]?.effortLevel;
+        if (configured && efforts.some((effort) => effort.key === configured)) return configured;
+        return flavor === 'claude' || flavor === 'codex' ? efforts.at(-1)?.key ?? null : null;
+    },
 }));
 
 vi.mock('@/sync/ops', () => ({
@@ -347,12 +356,47 @@ describe('useStartSessionFromDraft', () => {
         expect(mocks.sessionSetAgentModes).toHaveBeenCalledWith('session-1', {
             permissionMode: 'default',
             modelMode: 'grok-build',
+            effortLevel: 'deep',
         });
         expect(mocks.sendMessage).toHaveBeenCalledWith(
             'session-1',
             'Start the implementation',
             { source: 'new_session', attachments: [] },
         );
+    });
+
+    it('omits GrokBuild launch dimensions that the exact machine does not expose', async () => {
+        mocks.machines = [{
+            id: 'machine-1',
+            online: true,
+            metadata: {
+                homeDir: '/Users/dev',
+                cliAvailability: { grok: true, detectedAt: 1 },
+                agentCapabilities: {
+                    grok: {
+                        detectedAt: 1,
+                        sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'provider' },
+                        models: [],
+                        effortLevels: [],
+                        permissionModes: [],
+                    },
+                },
+            },
+        }];
+        mocks.draft = createDraft({ agentType: 'grok' });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith({
+            machineId: 'machine-1',
+            directory: '/absolute/project',
+            approvedNewDirectoryCreation: false,
+            agent: 'grok',
+            permissionMode: undefined,
+            modelMode: undefined,
+            effortLevel: undefined,
+        });
     });
 
     it('does not start GrokBuild without an advertised ACP catalog', async () => {
@@ -400,6 +444,52 @@ describe('useStartSessionFromDraft', () => {
             approvedNewDirectoryCreation: true,
         }));
         expect(mocks.navigateToSession).toHaveBeenCalledWith('session-2');
+    });
+
+    it('revalidates the exact GrokBuild catalog after directory approval', async () => {
+        mocks.machines = [{
+            id: 'machine-1',
+            online: true,
+            metadata: {
+                homeDir: '/Users/dev',
+                cliAvailability: { grok: true, detectedAt: 1 },
+                agentCapabilities: {
+                    grok: {
+                        detectedAt: 1,
+                        sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'provider' },
+                        models: [],
+                        effortLevels: [],
+                        permissionModes: [],
+                    },
+                },
+            },
+        }];
+        mocks.defaultOverrides = {
+            grok: { permissionMode: 'grok-mode', modelMode: 'grok-model', effortLevel: 'grok-effort' },
+        };
+        mocks.draft = createDraft({ agentType: 'grok' });
+        mocks.getMachineAdvertisedPermissionModes.mockReturnValue([{ key: 'grok-mode', name: 'Mode' }]);
+        mocks.getMachineAdvertisedModels.mockReturnValue([{ key: 'grok-model', name: 'Model' }]);
+        mocks.getMachineAdvertisedEffortLevels.mockReturnValue([{ key: 'grok-effort', name: 'Effort' }]);
+        mocks.machineSpawnNewSession.mockResolvedValueOnce({
+            type: 'requestToApproveDirectoryCreation',
+            directory: '/absolute/project',
+        });
+        mocks.confirm.mockImplementation(async () => {
+            mocks.getMachineAdvertisedModels.mockReturnValue([
+                { key: 'replacement-model', name: 'Replacement' },
+            ]);
+            return true;
+        });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(false);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledOnce();
+        expect(mocks.alert).toHaveBeenCalledWith(
+            'common.error',
+            'uiCopy.theSelectedAgentConfigurationIsUnavailable',
+        );
     });
 
     it('creates a Rig session from its machine catalog and retries pending idempotently', async () => {
@@ -469,6 +559,136 @@ describe('useStartSessionFromDraft', () => {
         expect(mocks.createWorktree).not.toHaveBeenCalled();
         expect(mocks.sessionSetAgentModes).not.toHaveBeenCalled();
         expect(mocks.navigateToSession).toHaveBeenCalledWith('rig-session-1');
+    });
+
+    it('honors synchronized Rig defaults in the native spawn payload', async () => {
+        mocks.machines = [createRigMachine({
+            models: [
+                {
+                    providerId: 'codex', id: 'model', name: 'Model', providerName: 'Codex',
+                    thinkingLevels: ['high'], defaultThinkingLevel: 'high',
+                },
+                {
+                    providerId: 'claude', id: 'alternate', name: 'Alternate', providerName: 'Claude',
+                    thinkingLevels: ['low', 'max'], defaultThinkingLevel: 'low',
+                },
+            ],
+            operatingModes: [
+                { code: 'auto', value: 'Auto', description: 'Automatic review', kind: 'safe-yolo' },
+                { code: 'careful', value: 'Careful', description: 'Ask first', kind: 'default' },
+            ],
+        })];
+        mocks.defaultOverrides = {
+            rig: {
+                permissionMode: 'careful',
+                modelMode: 'claude:alternate',
+                effortLevel: 'max',
+            },
+        };
+        mocks.draft = createDraft({ agentType: 'rig' });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            machineId: 'machine-1',
+            agent: 'rig',
+            providerId: 'claude',
+            modelId: 'alternate',
+            permissionMode: 'careful',
+            effort: 'max',
+        }));
+    });
+
+    it('revalidates a GrokBuild model against the exact machine after worktree creation', async () => {
+        let finishWorktree!: (result: any) => void;
+        mocks.machines = [{
+            id: 'machine-1',
+            online: true,
+            metadata: {
+                homeDir: '/Users/dev',
+                cliAvailability: { grok: true, detectedAt: 1 },
+                agentCapabilities: {
+                    grok: {
+                        detectedAt: 1,
+                        sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'provider' },
+                        models: [],
+                        effortLevels: [],
+                        permissionModes: [],
+                    },
+                },
+            },
+        }];
+        mocks.defaultOverrides = {
+            grok: { permissionMode: 'grok-mode', modelMode: 'grok-model', effortLevel: 'grok-effort' },
+        };
+        mocks.draft = createDraft({
+            agentType: 'grok',
+            sessionType: 'worktree',
+            worktreeKey: '__new__',
+        });
+        mocks.getMachineAdvertisedPermissionModes.mockReturnValue([{ key: 'grok-mode', name: 'Mode' }]);
+        mocks.getMachineAdvertisedModels.mockReturnValue([{ key: 'grok-model', name: 'Model' }]);
+        mocks.getMachineAdvertisedEffortLevels.mockReturnValue([{ key: 'grok-effort', name: 'Effort' }]);
+        mocks.createWorktree.mockReturnValue(new Promise((resolve) => { finishWorktree = resolve; }));
+
+        const { startSession } = useStartSessionFromDraft();
+        const starting = startSession();
+        expect(mocks.createWorktree).toHaveBeenCalledOnce();
+
+        mocks.getMachineAdvertisedModels.mockReturnValue([{ key: 'replacement-model', name: 'Replacement' }]);
+        finishWorktree({ success: true, worktreePath: '/worktree', branchName: 'branch' });
+
+        await expect(starting).resolves.toBe(false);
+        expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
+        expect(mocks.alert).toHaveBeenCalledWith(
+            'common.error',
+            'uiCopy.theSelectedAgentConfigurationIsUnavailable',
+        );
+    });
+
+    it('revalidates Rig defaults against the exact machine after worktree creation', async () => {
+        let finishWorktree!: (result: any) => void;
+        const machine = createRigMachine({
+            capabilities: { newSession: true, worktrees: true },
+            models: [
+                {
+                    providerId: 'codex', id: 'model', name: 'Model', providerName: 'Codex',
+                    thinkingLevels: ['high'], defaultThinkingLevel: 'high',
+                },
+                {
+                    providerId: 'claude', id: 'alternate', name: 'Alternate', providerName: 'Claude',
+                    thinkingLevels: ['max'], defaultThinkingLevel: 'max',
+                },
+            ],
+        });
+        mocks.machines = [machine];
+        mocks.defaultOverrides = {
+            rig: { permissionMode: 'auto', modelMode: 'claude:alternate', effortLevel: 'max' },
+        };
+        mocks.draft = createDraft({
+            agentType: 'rig',
+            sessionType: 'worktree',
+            worktreeKey: '__new__',
+        });
+        mocks.createWorktree.mockReturnValue(new Promise((resolve) => { finishWorktree = resolve; }));
+
+        const { startSession } = useStartSessionFromDraft();
+        const starting = startSession();
+        expect(mocks.createWorktree).toHaveBeenCalledOnce();
+
+        mocks.machines = [createRigMachine({
+            capabilities: { newSession: true, worktrees: true },
+            models: [machine.metadata.models[0]],
+        })];
+        finishWorktree({ success: true, worktreePath: '/worktree', branchName: 'branch' });
+
+        await expect(starting).resolves.toBe(false);
+        expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
+        expect(mocks.alert).toHaveBeenCalledWith(
+            'common.error',
+            'uiCopy.theSelectedAgentConfigurationIsUnavailable',
+        );
     });
 
     it('stops polling when a created Rig session remains pending', async () => {

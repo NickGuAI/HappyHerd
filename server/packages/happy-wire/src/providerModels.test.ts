@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    HAPPYHERD_AGY_MODEL_NAMES,
     HAPPYHERD_CLAUDE_MODEL_SLUGS,
     HAPPYHERD_DEFAULT_CLAUDE_MODEL_SLUG,
     normalizeHappyHerdClaudeModelSlug,
@@ -23,5 +24,21 @@ describe('HappyHerd provider model catalog', () => {
     it('normalizes persisted aliases without advertising them', () => {
         expect(normalizeHappyHerdClaudeModelSlug('opus')).toBe('claude-opus-5');
         expect(normalizeHappyHerdClaudeModelSlug('claude-opus-4-6')).toBe('claude-opus-4-6');
+    });
+
+    it('keeps every exact Antigravity model name in one launch-and-UI catalog', () => {
+        expect(HAPPYHERD_AGY_MODEL_NAMES).toEqual([
+            'Gemini 3.6 Flash (Medium)',
+            'Gemini 3.6 Flash (High)',
+            'Gemini 3.6 Flash (Low)',
+            'Gemini 3.5 Flash (Medium)',
+            'Gemini 3.5 Flash (High)',
+            'Gemini 3.5 Flash (Low)',
+            'Gemini 3.1 Pro (Low)',
+            'Gemini 3.1 Pro (High)',
+            'Claude Sonnet 4.6 (Thinking)',
+            'Claude Opus 4.6 (Thinking)',
+            'GPT-OSS 120B (Medium)',
+        ]);
     });
 });

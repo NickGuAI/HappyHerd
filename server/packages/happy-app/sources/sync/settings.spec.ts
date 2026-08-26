@@ -266,6 +266,22 @@ describe('settings', () => {
                 },
             });
         });
+
+        it('persists Claude and Rig overrides under independent provider keys', () => {
+            const payload = settingsToSyncPayload({
+                ...settingsDefaults,
+                agentDefaultOverrides: {
+                    claude: { modelMode: 'claude-opus-5' },
+                    rig: { modelMode: 'provider:model', permissionMode: 'rig-mode' },
+                },
+            });
+
+            expect(payload.agentDefaultOverrides).toEqual({
+                claude: { modelMode: 'claude-opus-5' },
+                rig: { modelMode: 'provider:model', permissionMode: 'rig-mode' },
+            });
+            expect(settingsParse(payload).agentDefaultOverrides).toEqual(payload.agentDefaultOverrides);
+        });
     });
 
     describe('forward/backward compatibility', () => {
