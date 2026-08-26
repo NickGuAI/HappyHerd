@@ -110,3 +110,4 @@ RUNTIME_CONTRACT	accepted	fix(grok): isolate capability probe failures	server/pa
 SESSION_HEARTBEAT	accepted	fix(heartbeat): preserve readiness and status semantics	server/packages/happy-cli/src/automations/service.test.ts
 UI_SURFACE_INVENTORY	accepted	chore(app): refresh heartbeat UI inventory	server/packages/happy-app/scripts/generate-ui-surface-inventory.mjs
 RUNTIME_CONTRACT	accepted	feat(grok): expose native launch permission modes	server/packages/happy-cli/src/capabilities/agentCapabilities.test.ts
+AUTOMATIONS_PROFILING	accepted	fix(metrics): preserve production summary recording	server/packages/happy-server-self-host/scripts/build-runtime.cjs
