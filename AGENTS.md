@@ -6,6 +6,13 @@ HappyHerd is a thin maintained distribution over upstream Happy. Preserve the
 upstream architecture and keep owned changes topical, reviewable, and easy to
 range-diff.
 
+## Development context
+
+When a project or repository contains `.dev/`, start at `.dev/README.md` and
+follow its navigation to load only the context relevant to the current task.
+Treat `.dev/` as source-derived guidance: the applicable `AGENTS.md` files and
+live source remain authoritative.
+
 ## Invariants
 
 - `server/` is imported from `https://github.com/slopus/happy.git` with full
