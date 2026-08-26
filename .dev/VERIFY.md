@@ -119,7 +119,7 @@ Also run `pnpm install --frozen-lockfile` followed by `git diff --exit-code` as
 shown above. There is no single local command that reproduces both root CI
 workflows.
 
-## Pull-request and permanent-main gates
+## Pull-request and post-merge proof planes
 
 A PR is ready to merge only after conversations are resolved and all required
 checks pass:
@@ -135,9 +135,20 @@ The root sources of truth are `.github/workflows/quality-gates.yml` and
 `.github/workflows/contract-suite.yml`. The latter deliberately skips
 `Real upstream rehearsal` on pull requests.
 
-A merge is fully verified only when the current pushed `main` SHA passes both
-main-push workflows, including the successful `Real upstream rehearsal` job.
-Only then may the exact merged PR head be deleted. See the
+After merge, evaluate two proof planes independently:
+
+- **Ordinary feature permanence:** the current pushed `main` SHA has a
+  successful Quality workflow, a successful `Contract suite` job, and both the
+  merged head and merge commit are ancestors of `origin/main`. This proves an
+  unrelated feature permanent and permits cleanup of its exact PR head.
+- **Upstream readiness:** the `Real upstream rehearsal` job succeeds.
+
+The aggregate contract workflow may be red solely because the rehearsal found
+a Git merge conflict. Once the job log establishes that conflict, retain the
+evidence and route it to the owning TickTick task for owner direction. It
+blocks upstream reconciliation and any resolution PR, but does not block
+cleanup of an otherwise verified unrelated feature. Any required-job failure
+outside this verified conflict case remains blocking. See the
 [development lifecycle](playbooks/development-lifecycle.md) for commands and
 race-safe deletion guards.
 
@@ -147,7 +158,9 @@ race-safe deletion guards.
 - focused behavior proof for the changed invariant;
 - generated-file diffs and changelog parser result when applicable;
 - all six required PR check conclusions;
-- merge SHA and successful main-push workflow links;
+- merge SHA, successful Quality and `Contract suite` job evidence;
+- `Real upstream rehearsal` conclusion and log, including retained conflict
+  evidence and owning-task routing when applicable;
 - merged head SHA, ancestry proof, and exact branch cleanup result.
 
 The public native-launcher matrix is separate: it runs for `happyherd-v*` tags

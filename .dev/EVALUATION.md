@@ -110,3 +110,27 @@ delivery route without relying on a directory name alone.
 Re-run the evidence scan and both fixture routes whenever an update trigger in
 `.dev/README.md` fires. Record disproven assumptions and remaining gaps rather
 than silently copying prior prose.
+
+## Focused refresh — 2026-08-26
+
+- **Evidence inputs:** the owner-approved prospective task contract;
+  `AGENTS.md`; the existing `.dev` context; root Quality and contract
+  workflows; patch-discipline source and ledger; and the retained main-push log
+  in which `Contract suite` passed while `Real upstream rehearsal` reported Git
+  merge conflicts.
+- **Read-only reviewer roles:** one contract reviewer compared the proposed
+  principles with the exact owner scope and provider/automation boundaries; a
+  second lifecycle-and-restraint reviewer checked proof-plane classification,
+  YAGNI, and the absence of new enforcement or runtime mechanisms.
+- **Checks selected:** exact diff and touched-link inspection,
+  `git diff --check`, `node scripts/lint-source.mjs`, and clean-tree
+  `scripts/verify-patch-discipline.sh` after commit.
+- **Rejected assumptions:** permission modes, models, and per-model effort need
+  not all be nonempty for every provider; the fallback limit is a prospective
+  owner gate rather than a claim about existing source or a retroactive cleanup
+  order; and a rehearsal merge conflict does not make an unrelated,
+  independently verified feature fail.
+- **Remaining gaps:** TickTick transitions and conflict classification remain
+  human-reviewed external evidence, and these principles have no new CI
+  enforcement. This focused refresh deliberately adds no workflow, script,
+  runtime, automation, fallback, or safety mechanism.
