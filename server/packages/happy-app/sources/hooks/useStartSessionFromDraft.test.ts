@@ -288,7 +288,7 @@ describe('useStartSessionFromDraft', () => {
         expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
     });
 
-    it('starts GrokBuild only from the selected machine ACP catalog', async () => {
+    it('starts GrokBuild only from the selected machine capability catalog', async () => {
         mocks.machines = [{
             id: 'machine-1',
             online: true,
@@ -319,7 +319,12 @@ describe('useStartSessionFromDraft', () => {
         }];
         mocks.draft = createDraft({ agentType: 'grok' });
         mocks.getMachineAdvertisedPermissionModes.mockReturnValue([
-            { key: 'ask-first', name: 'Ask first', isDefault: true },
+            { key: 'default', name: 'default', isDefault: true },
+            { key: 'acceptEdits', name: 'acceptEdits' },
+            { key: 'auto', name: 'auto' },
+            { key: 'dontAsk', name: 'dontAsk' },
+            { key: 'bypassPermissions', name: 'bypassPermissions' },
+            { key: 'plan', name: 'plan' },
         ]);
         mocks.getMachineAdvertisedModels.mockReturnValue([
             { key: 'grok-fast', name: 'Grok Fast' },
@@ -338,9 +343,13 @@ describe('useStartSessionFromDraft', () => {
             directory: '/absolute/project',
             approvedNewDirectoryCreation: false,
             agent: 'grok',
-            permissionMode: 'ask-first',
+            permissionMode: 'default',
             modelMode: 'grok-build',
             effortLevel: 'deep',
+        });
+        expect(mocks.sessionSetAgentModes).toHaveBeenCalledWith('session-1', {
+            permissionMode: 'default',
+            modelMode: 'grok-build',
         });
         expect(mocks.sendMessage).toHaveBeenCalledWith(
             'session-1',

@@ -65,20 +65,27 @@ describe('daemon spawn mode arguments', () => {
         ]);
     });
 
-    it('forwards machine-advertised Grok selections to the Happy command', () => {
+    it.each([
+        'default',
+        'acceptEdits',
+        'auto',
+        'dontAsk',
+        'bypassPermissions',
+        'plan',
+    ])('forwards machine-advertised Grok launch mode %s to the Happy command', (permissionMode) => {
         const args = ['grok'];
 
         appendDaemonSpawnModeArgs(args, {
             directory: '/workspace',
             agent: 'grok',
-            permissionMode: 'default',
+            permissionMode,
             modelMode: 'runtime-model-id',
             effortLevel: 'runtime-effort-id',
         }, 'grok');
 
         expect(args).toEqual([
             'grok',
-            '--permission-mode', 'default',
+            '--permission-mode', permissionMode,
             '--model', 'runtime-model-id',
             '--effort', 'runtime-effort-id',
         ]);

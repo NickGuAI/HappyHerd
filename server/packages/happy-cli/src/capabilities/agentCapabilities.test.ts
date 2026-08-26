@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildClaudeCapabilityCatalog, buildGrokAcpCapabilityCatalog, detectAgentCapabilities, parseClaudeHelp } from './agentCapabilities';
+import {
+    buildClaudeCapabilityCatalog,
+    buildGrokAcpCapabilityCatalog,
+    detectAgentCapabilities,
+    parseClaudeHelp,
+    parseGrokPermissionModeHelp,
+} from './agentCapabilities';
+
+const GROK_HELP = `
+      --permission-mode <MODE>
+          Permission mode
+
+          [possible values: default, acceptEdits, auto, dontAsk, bypassPermissions, plan]
+`;
 
 describe('agent capability discovery', () => {
     it('parses only structured Claude CLI choices and never help-text model prose', () => {
@@ -150,7 +163,8 @@ describe('agent capability discovery', () => {
             },
         } as const;
 
-        const catalog = buildGrokAcpCapabilityCatalog(initialize, 123);
+        const parsedModes = parseGrokPermissionModeHelp(GROK_HELP);
+        const catalog = buildGrokAcpCapabilityCatalog(initialize, GROK_HELP, 123);
         const { capabilities } = await detectAgentCapabilities({
             claude: false,
             codex: false,
@@ -159,7 +173,10 @@ describe('agent capability discovery', () => {
             openclaw: false,
             agy: false,
             detectedAt: 1,
-        }, { loadGrokInitialize: async () => initialize });
+        }, {
+            loadGrokInitialize: async () => initialize,
+            loadGrokHelp: () => GROK_HELP,
+        });
 
         expect(catalog.providerVersion).toBe('1.0.5');
         expect(catalog.models.map((model) => [model.code, model.isDefault])).toEqual([
@@ -171,15 +188,58 @@ describe('agent capability discovery', () => {
             expect.objectContaining({ code: 'balanced', isDefault: true }),
         ]);
         expect(catalog.effortLevels.map((effort) => effort.code)).toEqual(['deep', 'balanced', 'quick']);
-        expect(catalog.permissionModes).toEqual([
-            expect.objectContaining({ code: 'default', isDefault: true }),
+        expect(parsedModes.map((mode) => mode.code)).toEqual([
+            'default',
+            'acceptEdits',
+            'auto',
+            'dontAsk',
+            'bypassPermissions',
+            'plan',
         ]);
+        expect(catalog.permissionModes.map((mode) => [mode.code, mode.isDefault])).toEqual([
+            ['default', true],
+            ['acceptEdits', false],
+            ['auto', false],
+            ['dontAsk', false],
+            ['bypassPermissions', false],
+            ['plan', false],
+        ]);
+        expect(catalog.permissionModes.every((mode) => mode.description)).toBe(true);
+        expect(catalog.sources.permissionModes).toBe('grok-cli-help:--permission-mode');
         expect(catalog.acp).toEqual({
             loadSession: true,
             prompt: { image: false },
         });
         expect(capabilities.grok.sources.models).toBe('acp:initialize:_meta.modelState');
         expect(capabilities.grok.models[0].code).toBe('runtime-current');
+    });
+
+    it('falls back to exactly the GrokBuild default when help advertises no permission choices', () => {
+        const initialize = {
+            protocolVersion: 1,
+            agentCapabilities: {},
+            _meta: {
+                modelState: {
+                    currentModelId: 'runtime-current',
+                    availableModels: [{ modelId: 'runtime-current', name: 'Runtime Current' }],
+                },
+            },
+        } as const;
+
+        expect(parseGrokPermissionModeHelp(`
+  --permission-mode <MODE> Permission mode
+  --output <FORMAT>
+      [possible values: json, text]
+        `)).toEqual([]);
+        const catalog = buildGrokAcpCapabilityCatalog(
+            initialize,
+            '  --permission-mode <MODE> Permission mode',
+            123,
+        );
+        expect(catalog.permissionModes).toEqual([
+            expect.objectContaining({ code: 'default', value: 'default', isDefault: true }),
+        ]);
+        expect(catalog.sources.permissionModes).toBe('provider-default');
     });
 
     it('keeps the fresh Codex catalog when the installed GrokBuild probe fails', async () => {
@@ -205,6 +265,7 @@ describe('agent capability discovery', () => {
                 isDefault: true,
             }],
             loadGrokInitialize: async () => { throw new Error('not authenticated'); },
+            loadGrokHelp: () => GROK_HELP,
         });
 
         expect(discovery.capabilities.codex.sources.models).toBe('codex-app-server:model/list');

@@ -385,7 +385,12 @@ export function useStartSessionFromDraft() {
 
             if (!rigCreation) {
                 const modesPatch: SessionAgentModesPatch = {};
-                if (permission.key !== defaults.permissionMode) modesPatch.permissionMode = permission.key;
+                // GrokBuild permission is launch-only, so every session keeps
+                // the exact policy its process started with even if the saved
+                // New Session default changes later.
+                if (agentType === 'grok' || permission.key !== defaults.permissionMode) {
+                    modesPatch.permissionMode = permission.key;
+                }
                 if (model.key !== defaults.modelMode) modesPatch.modelMode = model.key;
                 if ((effort?.key ?? null) !== effectiveEffortDefault) modesPatch.effortLevel = effort?.key ?? null;
                 if (Object.keys(modesPatch).length > 0) {

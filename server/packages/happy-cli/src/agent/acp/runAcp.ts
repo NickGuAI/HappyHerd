@@ -604,7 +604,13 @@ export async function runAcp(opts: {
     ...currentState,
     messageQueue: messageQueue.getQueueState(),
   }));
-  let currentPermissionMode: string | undefined = opts.permissionMode;
+  // GrokBuild permission modes are process launch flags. Its ACP operating
+  // mode is a separate capability and must not emulate a live permission
+  // switch from Happy message metadata.
+  const supportsRuntimePermissionSelection = opts.agentName !== 'grok';
+  let currentPermissionMode: string | undefined = supportsRuntimePermissionSelection
+    ? opts.permissionMode
+    : undefined;
   let currentModel: string | null | undefined = opts.model;
   let currentEffort: string | null | undefined = opts.effort;
   let modeSelector: AcpConfigSelector | null = null;
@@ -940,7 +946,7 @@ export async function runAcp(opts: {
       return;
     }
 
-    if (typeof message.meta?.permissionMode === 'string') {
+    if (supportsRuntimePermissionSelection && typeof message.meta?.permissionMode === 'string') {
       currentPermissionMode = message.meta.permissionMode;
       logger.debug(`[${opts.agentName}] Requested ACP permission mode: ${currentPermissionMode}`);
     }
@@ -1050,7 +1056,7 @@ export async function runAcp(opts: {
       logAcp('incoming', `Incoming prompt: ${formatUnknownForConsole(batch.message, ACP_EVENT_PREVIEW_CHARS)}`);
       sendEnvelopes(sessionManager.startTurn());
       try {
-        if (typeof batch.mode.permissionMode === 'string' && batch.mode.permissionMode.length > 0) {
+        if (supportsRuntimePermissionSelection && typeof batch.mode.permissionMode === 'string' && batch.mode.permissionMode.length > 0) {
           await switchPermissionModeIfRequested(batch.mode.permissionMode);
         }
         await switchModelAndEffortIfRequested(batch.mode.model, batch.mode.effort);

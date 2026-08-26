@@ -490,12 +490,15 @@ export function getAvailablePermissionModes(
         return hackModes(getHardcodedPermissionModes(flavor, translate));
     }
 
+    // GrokBuild ACP operating modes are plan/build behavior, not process
+    // permission policies. Launch permissions come only from the machine
+    // catalog discovered from `grok --help`.
+    if (flavor === 'grok') return [];
+
     const metadataModes = mapMetadataOptions(metadata?.operatingModes);
     if (metadataModes.length > 0) {
         const modes = sortPermissionModes(hackModes(metadataModes));
-        return flavor === 'grok'
-            ? includeUnavailableSelection(modes, selectedKey, translate)
-            : modes;
+        return modes;
     }
 
     return hackModes(getHardcodedPermissionModes(flavor, translate));
@@ -649,6 +652,12 @@ export function getSessionAvailablePermissionModes(
     translate: Translate,
     selectedKey?: string | null,
 ): PermissionMode[] {
+    // GrokBuild permissions are process launch policies advertised by the
+    // machine. The ACP session's operatingModes are its independent
+    // plan/build modes and must never replace this launch catalog.
+    if (flavor === 'grok' && !isRigMetadataV1(sessionMetadata)) {
+        return getMachineAdvertisedPermissionModes(machineMetadata, flavor, translate, selectedKey);
+    }
     if (shouldUseMachineCapabilityCatalog(
         flavor,
         sessionMetadata,

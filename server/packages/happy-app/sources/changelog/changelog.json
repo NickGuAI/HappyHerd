@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 26 — GrokBuild launch permissions",
+      "summary": "",
+      "markdown": "- New GrokBuild sessions list all permission modes advertised by the installed CLI: `default`, `acceptEdits`, `auto`, `dontAsk`, `bypassPermissions`, and `plan`.\n- Happy forwards the selected mode to GrokBuild's process launch without mixing it with ACP per-tool permissions, plan/build operating mode, or sandbox controls.\n- Active GrokBuild sessions no longer suggest that their launch permission can be switched mid-session."
+    },
+    {
       "title": "August 25 — GrokBuild, session heartbeats, and completion-owned automations",
       "summary": "",
       "markdown": "- Automations no longer impose a run deadline: the provider owns completion, while historical timed-out runs remain visible as failed history.\n- Private, bounded `/automations` profiling separates route, RPC, daemon, and render time without recording user content or claiming a performance fix before production evidence exists.\n- `happyherd` forwards native Happy commands while its governed commands keep precedence.\n- GrokBuild sessions use the existing ACP runtime, with models, reasoning effort, permissions, and original-machine resume driven by the connected provider.\n- One exact-session heartbeat can return a recurring instruction to the same resumable Claude or Codex conversation through the existing queued-message path."
@@ -236,5 +241,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 25 — GrokBuild, session heartbeats, and completion-owned automations"
+  "latestTitle": "August 26 — GrokBuild launch permissions"
 }

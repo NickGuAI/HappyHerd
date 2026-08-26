@@ -26,6 +26,7 @@ const serverPackage = path.resolve(root, '..', 'happy-server');
 const entry = path.join(serverPackage, 'sources', 'standalone.ts');
 const pkg = require(path.join(root, 'package.json'));
 const dist = path.join(root, 'dist');
+const runtimeArtifact = path.join(dist, 'standalone.mjs');
 
 if (!fs.existsSync(entry)) {
   console.error(`Missing ${entry}. Run from the monorepo.`);
@@ -40,10 +41,11 @@ const args = [
   entry,
   '--target',
   'node',
+  '--production',
   '--format',
   'esm',
   '--outfile',
-  path.join(dist, 'standalone.mjs'),
+  runtimeArtifact,
 ];
 
 // The bundle externalizes every dependency, so this package's dependency list
@@ -86,6 +88,30 @@ if (result.error) {
 }
 if (result.status !== 0) {
   process.exit(result.status);
+}
+
+// Bun specializes process.env.NODE_ENV while bundling. Verify the production
+// artifact keeps the summary recorder and timer reachable instead of silently
+// baking the shared isProduction gate to false.
+const runtimeSource = fs.readFileSync(runtimeArtifact, 'utf8');
+const productionBinding = runtimeSource.match(/isProduction:\(\)=>[($]?([\w$]+)\)?/)?.[1];
+const escapedBinding = productionBinding?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const productionEnabled = escapedBinding
+  ? new RegExp(`(?:^|[^\\w$])${escapedBinding}\\s*=\\s*(?:!0|true)(?:[^\\w$]|$)`).test(runtimeSource)
+  : false;
+const recordsRpcSummaries = escapedBinding
+  ? new RegExp(`if\\s*\\(\\s*${escapedBinding}\\s*\\)[\\s\\S]{0,120}\\.recordRpc\\(`).test(runtimeSource)
+  : false;
+const startsSummaryTimer = escapedBinding
+  ? new RegExp(`if\\s*\\(\\s*!\\s*${escapedBinding}\\s*\\|\\|[\\s\\S]{0,240}setInterval\\(`).test(runtimeSource)
+  : false;
+const writesBoundedSummary = runtimeSource.includes('http:summary')
+  && runtimeSource.includes('rpcSlowest=')
+  && runtimeSource.includes('http-summary');
+
+if (!productionEnabled || !recordsRpcSummaries || !startsSummaryTimer || !writesBoundedSummary) {
+  console.error('Production runtime bundle does not enable the bounded RPC summary recorder and timer.');
+  process.exit(1);
 }
 
 // prisma/ ships inside this package: the runtime looks for prisma/migrations
