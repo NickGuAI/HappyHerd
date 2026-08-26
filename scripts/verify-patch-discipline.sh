@@ -147,15 +147,19 @@ validate_upstream_merge() {
     fail "UPSTREAM_SYNC changed paths outside server/: $outside_server"
 }
 
-for record in "${series[@]}"; do
-  sha="${record%%$'\t'*}"
-  subject="${record#*$'\t'}"
+validate_owned_commit() {
+  local sha="$1"
+  local subject parent_record parent_count first_parent second_parent
+  local expected_tree branch_sha
+  local -a branch_commits
+
+  subject="$(git show -s --format=%s "$sha")"
   parent_record="$(git rev-list --parents -n 1 "$sha")"
   parent_count="$(( $(wc -w <<< "$parent_record") - 1 ))"
 
   if [[ "$parent_count" -eq 1 ]]; then
     resolve_owned_commit "$sha" "$subject"
-    continue
+    return
   fi
 
   [[ "$parent_count" -eq 2 ]] ||
@@ -178,23 +182,17 @@ for record in "${series[@]}"; do
     [[ "${#branch_commits[@]}" -gt 0 ]] ||
       fail "owned PR merge has no branch patches: ${sha:0:12}"
     for branch_sha in "${branch_commits[@]}"; do
-      branch_subject="$(git show -s --format=%s "$branch_sha")"
-      branch_parent_record="$(git rev-list --parents -n 1 "$branch_sha")"
-      branch_parent_count="$(( $(wc -w <<< "$branch_parent_record") - 1 ))"
-      if [[ "$branch_parent_count" -eq 1 ]]; then
-        resolve_owned_commit "$branch_sha" "$branch_subject"
-        continue
-      fi
-      [[ "$branch_parent_count" -eq 2 ]] ||
-        fail "owned PR branch merge must have exactly two parents: ${branch_sha:0:12}"
-      read -r _ branch_first_parent branch_second_parent <<< "$branch_parent_record"
-      validate_upstream_merge \
-        "$branch_sha" "$branch_subject" "$branch_first_parent" "$branch_second_parent"
+      validate_owned_commit "$branch_sha"
     done
-    continue
+    return
   fi
 
   validate_upstream_merge "$sha" "$subject" "$first_parent" "$second_parent"
+}
+
+for record in "${series[@]}"; do
+  sha="${record%%$'\t'*}"
+  validate_owned_commit "$sha"
 done
 
 for subject in "${!manifest_gate[@]}"; do
