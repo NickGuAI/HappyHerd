@@ -1,6 +1,15 @@
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+// @ts-expect-error react-test-renderer has no declarations in this workspace.
+import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const onePixelPng = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    'base64',
+);
 
 const mocks = vi.hoisted(() => ({
     renderedText: [] as any[],
@@ -13,17 +22,32 @@ const mocks = vi.hoisted(() => ({
             absolutePath: '/workspace/README.md',
         },
     })),
+    resolveWorkspaceImage: vi.fn((): any => ({
+        rootPath: '/workspace',
+        workspaceRoute: {
+            pathname: '/workspace' as const,
+            params: {
+                mode: 'link' as const,
+                originSessionId: 'session-one',
+                machineId: 'machine-one',
+                absolutePath: '/workspace/images/chart.png',
+            },
+        },
+    })),
+    machineReadFileWithinRoot: vi.fn(),
+    modalShow: vi.fn(),
     openExternalUrl: vi.fn(),
 }));
 
 vi.mock('react-native', async () => {
     const ReactModule = await import('react');
-    const host = (name: string) => (props: any) => ReactModule.createElement(name, null, props.children);
+    const host = (name: string) => (props: any) => ReactModule.createElement(name, props, props.children);
     return {
         Platform: {
             OS: 'ios',
             select: (values: Record<string, unknown>) => values.ios ?? values.default,
         },
+        ActivityIndicator: host('ActivityIndicator'),
         Pressable: host('button'),
         ScrollView: host('div'),
         View: host('div'),
@@ -86,11 +110,12 @@ vi.mock('../SimpleSyntaxHighlighter', async () => {
     const ReactModule = await import('react');
     return { SimpleSyntaxHighlighter: (props: any) => ReactModule.createElement('SimpleSyntaxHighlighter', props) };
 });
-vi.mock('@/modal', () => ({ Modal: { alert: vi.fn(), show: vi.fn() } }));
+vi.mock('@/modal', () => ({ Modal: { alert: vi.fn(), show: mocks.modalShow } }));
 vi.mock('@/sync/storage', () => ({
     useLocalSetting: () => false,
     useSession: () => ({ metadata: { machineId: 'machine-one', path: '/workspace' } }),
 }));
+vi.mock('@/sync/ops', () => ({ machineReadFileWithinRoot: mocks.machineReadFileWithinRoot }));
 vi.mock('@/sync/persistence', () => ({ storeTempText: vi.fn() }));
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn() }));
@@ -101,6 +126,7 @@ vi.mock('./MermaidRenderer', async () => {
 vi.mock('@/text', () => ({ t: (key: string) => key }));
 vi.mock('@/utils/openExternalUrl', () => ({ openExternalUrl: mocks.openExternalUrl }));
 vi.mock('@/utils/markdownWorkspaceLink', () => ({
+    resolveMarkdownWorkspaceImageReference: mocks.resolveWorkspaceImage,
     resolveMarkdownWorkspaceLinkRoute: mocks.resolveWorkspaceLink,
 }));
 vi.mock('@/-session/workspaceLinkNavigation', () => ({ useWorkspaceLinkPress: () => null }));
@@ -111,9 +137,17 @@ function findText(text: string) {
     return mocks.renderedText.find((props) => props.children === text);
 }
 
+beforeEach(() => {
+    mocks.renderedText.length = 0;
+    mocks.resolveWorkspaceImage.mockClear();
+    mocks.resolveWorkspaceLink.mockClear();
+    mocks.machineReadFileWithinRoot.mockReset();
+    mocks.modalShow.mockClear();
+    mocks.openExternalUrl.mockClear();
+});
+
 describe('MarkdownView workspace-link opt-in', () => {
     it('keeps local links inert by default while preserving external links', () => {
-        mocks.renderedText.length = 0;
         renderToStaticMarkup(React.createElement(MarkdownView, {
             markdown: '[local](README.md) [web](https://example.com)',
             sessionId: 'session-one',
@@ -125,8 +159,6 @@ describe('MarkdownView workspace-link opt-in', () => {
     });
 
     it('resolves a local link only when the Agent Chat renderer opts in', () => {
-        mocks.renderedText.length = 0;
-        mocks.resolveWorkspaceLink.mockClear();
         renderToStaticMarkup(React.createElement(MarkdownView, {
             markdown: '[local](README.md)',
             sessionId: 'session-one',
@@ -147,9 +179,6 @@ describe('MarkdownView workspace-link opt-in', () => {
         ['[web](//example.com/docs "Docs")', 'https://example.com/docs'],
         ['[web](<//example.com/docs>)', 'https://example.com/docs'],
     ])('opens %s as an external HTTPS link instead of a machine path', (markdown, expectedUrl) => {
-        mocks.renderedText.length = 0;
-        mocks.resolveWorkspaceLink.mockClear();
-        mocks.openExternalUrl.mockClear();
         renderToStaticMarkup(React.createElement(MarkdownView, {
             markdown,
             sessionId: 'session-one',
@@ -161,5 +190,87 @@ describe('MarkdownView workspace-link opt-in', () => {
         web?.onPress();
         expect(mocks.openExternalUrl).toHaveBeenCalledWith(expectedUrl);
         expect(mocks.resolveWorkspaceLink).not.toHaveBeenCalled();
+    });
+
+    it('loads a rooted workspace image and opens its existing workspace route', async () => {
+        const base64 = onePixelPng.toString('base64');
+        const openWorkspace = vi.fn();
+        mocks.machineReadFileWithinRoot.mockResolvedValue({ success: true, content: base64 });
+
+        let renderer!: ReactTestRenderer;
+        await act(async () => {
+            renderer = create(React.createElement(MarkdownView, {
+                markdown: '![chart](images/chart.png)',
+                sessionId: 'session-one',
+                enableWorkspaceLinks: true,
+                onWorkspaceLinkPress: openWorkspace,
+            }));
+            await Promise.resolve();
+        });
+
+        expect(mocks.resolveWorkspaceImage).toHaveBeenCalledWith({
+            url: 'images/chart.png',
+            label: 'chart',
+            originSessionId: 'session-one',
+            metadata: { machineId: 'machine-one', path: '/workspace' },
+        });
+        expect(mocks.machineReadFileWithinRoot).toHaveBeenCalledWith(
+            'machine-one',
+            '/workspace/images/chart.png',
+            '/workspace',
+        );
+        const image = renderer.root.findByType('Image' as any);
+        expect(image.props.source.uri).toBe(`data:image/png;base64,${base64}`);
+        expect(image.props.accessibilityLabel).toBe('chart');
+        act(() => image.props.onLoad({ source: { width: 1, height: 1 } }));
+        expect(renderer.root.findByType('Image' as any).props.style).toEqual({
+            width: '100%',
+            aspectRatio: 1,
+        });
+
+        const openButton = renderer.root.find((node: any) => (
+            node.props.accessibilityLabel === 'markdown.openImageFullSize: chart'
+        ));
+        act(() => openButton.props.onPress());
+        expect(openWorkspace).toHaveBeenCalledWith(
+            mocks.resolveWorkspaceImage.mock.results[0].value.workspaceRoute,
+        );
+        act(() => renderer.unmount());
+    });
+
+    it('keeps an unresolved workspace image as inert Markdown without reading a machine', () => {
+        mocks.resolveWorkspaceImage.mockReturnValueOnce(null);
+        renderToStaticMarkup(React.createElement(MarkdownView, {
+            markdown: '![chart](../outside.png)',
+            sessionId: 'session-one',
+            enableWorkspaceLinks: true,
+        }));
+
+        expect(findText('![chart](../outside.png)')).toBeDefined();
+        expect(mocks.machineReadFileWithinRoot).not.toHaveBeenCalled();
+    });
+
+    it('keeps HTTP images on the existing modal path without a machine read', () => {
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(React.createElement(MarkdownView, {
+                markdown: '![remote chart](https://example.com/chart.png)',
+                sessionId: 'session-one',
+                enableWorkspaceLinks: true,
+            }));
+        });
+
+        expect(mocks.machineReadFileWithinRoot).not.toHaveBeenCalled();
+        const openButton = renderer.root.find((node: any) => (
+            node.props.accessibilityLabel === 'markdown.openImageFullSize: remote chart'
+        ));
+        act(() => openButton.props.onPress());
+        expect(mocks.modalShow).toHaveBeenCalledWith(expect.objectContaining({
+            props: {
+                alt: 'remote chart',
+                url: 'https://example.com/chart.png',
+            },
+        }));
+        act(() => renderer.unmount());
     });
 });

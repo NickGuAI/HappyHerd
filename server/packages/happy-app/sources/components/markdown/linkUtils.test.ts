@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { isHttpMarkdownLink, normalizeExternalMarkdownLink } from './linkUtils';
+import {
+    isHttpMarkdownLink,
+    isWorkspaceRelativeMarkdownLink,
+    normalizeExternalMarkdownLink,
+} from './linkUtils';
 
 describe('isHttpMarkdownLink', () => {
     it('accepts http and https links', () => {
@@ -13,6 +17,28 @@ describe('isHttpMarkdownLink', () => {
         expect(isHttpMarkdownLink('data:text/plain,hello')).toBe(false);
         expect(isHttpMarkdownLink('/Users/me/project/file.ts')).toBe(false);
         expect(isHttpMarkdownLink('packages/happy-app/index.tsx')).toBe(false);
+    });
+
+    it('accepts only workspace-relative image candidates', () => {
+        expect(isWorkspaceRelativeMarkdownLink('images/chart.png')).toBe(true);
+        expect(isWorkspaceRelativeMarkdownLink('./images/My Chart.jpg "Chart"')).toBe(true);
+        expect(isWorkspaceRelativeMarkdownLink('images\\chart.svg')).toBe(true);
+
+        for (const target of [
+            'https://example.com/chart.png',
+            '//example.com/chart.png',
+            '/tmp/chart.png',
+            'C:\\tmp\\chart.png',
+            '\\\\server\\share\\chart.png',
+            '~/chart.png',
+            'data:image/png;base64,AAAA',
+            'file:///tmp/chart.png',
+            'javascript:alert(1)',
+            '#chart',
+            '?chart',
+        ]) {
+            expect(isWorkspaceRelativeMarkdownLink(target)).toBe(false);
+        }
     });
 
     it('normalizes scheme-relative web links without claiming local paths', () => {

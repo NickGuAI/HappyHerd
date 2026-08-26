@@ -17,6 +17,11 @@ export type WorkspaceLinkRoute = Readonly<{
     params: WorkspaceLinkRouteParams;
 }>;
 
+export type MarkdownWorkspaceImageReference = Readonly<{
+    rootPath: string;
+    workspaceRoute: WorkspaceLinkRoute;
+}>;
+
 type BuildWorkspaceLinkRouteInput = Readonly<{
     originSessionId: string;
     machineId: string;
@@ -46,14 +51,16 @@ type ResolveMarkdownWorkspaceLinkRouteInput = Readonly<{
     metadata?: Pick<Metadata, 'machineId' | 'path' | 'os' | 'homeDir'> | null;
 }>;
 
-/**
- * Resolve an explicit Markdown target using only immutable provenance from the
- * session that rendered it. The link target can select a path, but it cannot
- * select or override the owning session or machine.
- */
-export function resolveMarkdownWorkspaceLinkRoute(
+type ResolvedMarkdownWorkspaceLink = Readonly<{
+    originSessionId: string;
+    machineId: string;
+    rootPath: string;
+    fileLink: NonNullable<ReturnType<typeof parseExplicitSessionFileLink>>;
+}>;
+
+function resolveMarkdownWorkspaceLink(
     input: ResolveMarkdownWorkspaceLinkRouteInput,
-): WorkspaceLinkRoute | null {
+): ResolvedMarkdownWorkspaceLink | null {
     const { originSessionId, metadata } = input;
     if (
         !originSessionId?.trim()
@@ -73,11 +80,52 @@ export function resolveMarkdownWorkspaceLinkRoute(
         return null;
     }
 
-    return buildWorkspaceLinkRoute({
+    return {
         originSessionId,
         machineId: metadata.machineId,
-        absolutePath: fileLink.absolutePath,
-        line: fileLink.line,
-        column: fileLink.column,
+        rootPath: metadata.path,
+        fileLink,
+    };
+}
+
+/**
+ * Resolve an explicit Markdown target using only immutable provenance from the
+ * session that rendered it. The link target can select a path, but it cannot
+ * select or override the owning session or machine.
+ */
+export function resolveMarkdownWorkspaceLinkRoute(
+    input: ResolveMarkdownWorkspaceLinkRouteInput,
+): WorkspaceLinkRoute | null {
+    const resolved = resolveMarkdownWorkspaceLink(input);
+    if (!resolved) return null;
+
+    return buildWorkspaceLinkRoute({
+        originSessionId: resolved.originSessionId,
+        machineId: resolved.machineId,
+        absolutePath: resolved.fileLink.absolutePath,
+        line: resolved.fileLink.line,
+        column: resolved.fileLink.column,
     });
+}
+
+/** Resolve inline image bytes only within the immutable originating workspace. */
+export function resolveMarkdownWorkspaceImageReference(
+    input: ResolveMarkdownWorkspaceLinkRouteInput,
+): MarkdownWorkspaceImageReference | null {
+    const resolved = resolveMarkdownWorkspaceLink(input);
+    if (
+        !resolved?.fileLink.withinSessionRoot
+        || /^(?:[A-Za-z]:[/\\]|[/\\]|~(?:[/\\]|$))/.test(resolved.fileLink.path)
+    ) {
+        return null;
+    }
+
+    return {
+        rootPath: resolved.rootPath,
+        workspaceRoute: buildWorkspaceLinkRoute({
+            originSessionId: resolved.originSessionId,
+            machineId: resolved.machineId,
+            absolutePath: resolved.fileLink.absolutePath,
+        }),
+    };
 }

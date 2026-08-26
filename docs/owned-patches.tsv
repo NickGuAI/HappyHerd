@@ -119,3 +119,4 @@ DEVELOPMENT_PRINCIPLES	accepted	docs(dev): record project development principles
 DEVELOPMENT_CONTEXT	accepted	docs(agents): explain generic development context loading	AGENTS.md
 COMMANDER_PICKER_SCROLL	accepted	fix(app): keep commander picker scrollable	server/packages/happy-app/sources/utils/newSessionSidebarLayout.test.ts
 VOICE_UPGRADE_PROMPT_REMOVAL	accepted	chore(app): remove voice upgrade prompt	server/packages/happy-app/sources/voiceSettingsRoute.test.ts
+WORKSPACE_LINKS	accepted	fix(app): render linked workspace images	server/packages/happy-app/sources/utils/markdownWorkspaceImage.test.ts

@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 26 — Workspace images render in agent responses",
+      "summary": "",
+      "markdown": "- Workspace-relative Markdown images in main-agent and subagent responses now render inline from the originating session's machine and remain openable in Workspace.\n- Missing provenance, unavailable or oversized files, traversal outside the originating workspace, unsafe schemes, and content that does not match its image type stay inert or show the existing image failure state."
+    },
+    {
       "title": "August 26 — Voice settings use your OpenAI key",
       "summary": "",
       "markdown": "- Voice settings no longer offers a voice upgrade; supported dictation transcription uses the configured OpenAI API key."
@@ -261,5 +266,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 26 — Voice settings use your OpenAI key"
+  "latestTitle": "August 26 — Workspace images render in agent responses"
 }

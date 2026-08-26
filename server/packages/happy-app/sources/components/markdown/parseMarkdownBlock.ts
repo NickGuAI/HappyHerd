@@ -1,6 +1,6 @@
 import type { MarkdownBlock, MarkdownSpan } from "./parseMarkdown";
 import { parseMarkdownSpans } from "./parseMarkdownSpans";
-import { isHttpMarkdownLink } from "./linkUtils";
+import { isHttpMarkdownLink, isWorkspaceRelativeMarkdownLink } from "./linkUtils";
 
 // Split a pipe-delimited table row into cells, stripping only the leading/trailing
 // empty strings caused by outer pipes while preserving interior empty cells.
@@ -137,13 +137,21 @@ export function parseMarkdownBlock(markdown: string) {
             continue;
         }
 
-        // Image block. Remote images must fail closed: the attachment pipeline
-        // owns local/data-backed images, while Markdown only fetches HTTP(S).
+        // Image block. Remote images keep their existing HTTP(S) path. Relative
+        // targets are resolved later from the originating session provenance;
+        // schemes and absolute paths remain inert Markdown text.
         const imageMatch = trimmed.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
         if (imageMatch) {
             const url = imageMatch[2].trim();
             if (isHttpMarkdownLink(url)) {
                 blocks.push({ type: 'image', alt: imageMatch[1], url });
+            } else if (isWorkspaceRelativeMarkdownLink(url)) {
+                blocks.push({
+                    type: 'workspace-image',
+                    alt: imageMatch[1],
+                    url,
+                    fallback: [{ styles: [], text: trimmed, url: null }],
+                });
             } else {
                 blocks.push({ type: 'text', content: [{ styles: [], text: trimmed, url: null }] });
             }
