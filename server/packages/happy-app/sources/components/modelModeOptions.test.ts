@@ -24,7 +24,6 @@ import {
     getSessionAvailablePermissionModes,
     getSessionEffortLevelsForModel,
     includeConfiguredModel,
-    getOpenClawPermissionModes,
     mapMetadataOptions,
     resolveCurrentOption,
 } from './modelModeOptions';
@@ -78,7 +77,6 @@ describe('modelModeOptions', () => {
                 claude: false,
                 codex: false,
                 gemini: false,
-                openclaw: false,
                 grok: true,
                 detectedAt: 1,
             },
@@ -419,7 +417,6 @@ describe('modelModeOptions', () => {
         ['claude', getClaudePermissionModes],
         ['codex', getCodexPermissionModes],
         ['gemini', getGeminiPermissionModes],
-        ['openclaw', getOpenClawPermissionModes],
     ] as const)('lists %s modes in the shared rank order', (_flavor, build) => {
         const modes = build(translate);
         expect(modes.map((mode) => mode.key)).toEqual(sortPermissionModes(modes).map((mode) => mode.key));

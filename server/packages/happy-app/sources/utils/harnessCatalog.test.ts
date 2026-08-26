@@ -9,9 +9,8 @@ describe('harness catalog', () => {
         expect(HARNESS_NAMES.grok).toBe('GrokBuild');
     });
 
-    it('retires Gemini and OpenClaw only', () => {
+    it('retires Gemini only', () => {
         expect(isRetiredHarness('gemini')).toBe(true);
-        expect(isRetiredHarness('openclaw')).toBe(true);
         expect(isRetiredHarness('claude')).toBe(false);
         expect(isRetiredHarness('grok')).toBe(false);
         // Antigravity is what Gemini's own error message redirects people to.
@@ -37,7 +36,7 @@ describe('harness catalog', () => {
 
     it('never offers a retired harness, even with its CLI installed', () => {
         const harnesses = listAvailableHarnesses({
-            availability: { claude: true, gemini: true, openclaw: true },
+            availability: { claude: true, gemini: true },
             happyAgentAvailable: false,
             selected: 'claude',
         });
@@ -59,7 +58,6 @@ describe('harness catalog', () => {
 
     it('keeps a real name for a retired harness so old sessions still read right', () => {
         expect(HARNESS_NAMES.gemini).toBe('Gemini');
-        expect(HARNESS_NAMES.openclaw).toBe('OpenClaw');
     });
 
     it('drops Happy when no connected machine can run it', () => {

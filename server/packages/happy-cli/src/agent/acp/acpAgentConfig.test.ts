@@ -143,7 +143,6 @@ describe('sanitizeGrokChildEnvironment', () => {
       ANTHROPIC_AUTH_TOKEN: 'claude-secret',
       OPENAI_API_KEY: 'openai-secret',
       GEMINI_API_KEY: 'gemini-secret',
-      OPENCLAW_GATEWAY_TOKEN: 'openclaw-secret',
       HAPPY_RECONNECT_ENCRYPTION_KEY: 'happy-secret',
       HAPPYHERD_AGENT_CAPABILITY_ID: 'broker-secret',
     })).toEqual({

@@ -919,12 +919,6 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: 1.29.0
         version: 1.29.0(zod@4.4.3)
-      '@noble/ed25519':
-        specifier: ^3.0.0
-        version: 3.0.0
-      '@noble/hashes':
-        specifier: ^2.0.1
-        version: 2.0.1
       '@paralleldrive/cuid2':
         specifier: ^2.2.2
         version: 2.3.1
@@ -1018,9 +1012,6 @@ importers:
       undici:
         specifier: ^6.28.0
         version: 6.28.0
-      ws:
-        specifier: ^8.19.0
-        version: 8.21.3
       zod:
         specifier: ^4.0.0
         version: 4.4.3
@@ -1037,9 +1028,6 @@ importers:
       '@types/node':
         specifier: '>=20'
         version: 20.19.39
-      '@types/ws':
-        specifier: ^8.18.1
-        version: 8.18.1
       cross-env:
         specifier: ^10.1.0
         version: 10.1.0
@@ -4451,9 +4439,6 @@ packages:
   '@noble/curves@1.9.7':
     resolution: {integrity: sha512-gbKGcRUYIjA3/zCCNaWDciTMFI0dCkvou3TL8Zmy5Nc7sJ47a0jtOeZoTaMxkuqRo9cRhjOdZJXegxYE5FN/xw==}
     engines: {node: ^14.21.3 || >=16}
-
-  '@noble/ed25519@3.0.0':
-    resolution: {integrity: sha512-QyteqMNm0GLqfa5SoYbSC3+Pvykwpn95Zgth4MFVSMKBB75ELl9tX1LAVsN4c3HXOrakHsF2gL4zWDAYCcsnzg==}
 
   '@noble/hashes@1.4.0':
     resolution: {integrity: sha512-V1JJ1WTRUqHHrOSh597hURcMqVKVGL/ea3kv0gSnEdsEZ0/+VyPghM1lMNGc00z7CIQorSvbKpuJkxvuHbvdbg==}
@@ -17478,8 +17463,6 @@ snapshots:
     dependencies:
       '@noble/hashes': 1.8.0
 
-  '@noble/ed25519@3.0.0': {}
-
   '@noble/hashes@1.4.0':
     optional: true
 
@@ -23303,8 +23286,6 @@ snapshots:
       '@anthropic-ai/claude-agent-sdk': 0.3.241(@anthropic-ai/sdk@0.110.0(zod@4.4.3))(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(zod@4.4.3)
       '@anthropic-ai/sandbox-runtime': 0.0.37
       '@modelcontextprotocol/sdk': 1.29.0(zod@4.4.3)
-      '@noble/ed25519': 3.0.0
-      '@noble/hashes': 2.0.1
       '@paralleldrive/cuid2': 2.3.1
       '@slopus/happy-terminal': 0.3.4(@electric-sql/pglite@0.3.15)(@emnapi/core@1.9.2)(@emnapi/runtime@1.11.3)(@prisma/client@6.19.2(prisma@6.19.2(typescript@5.9.3))(typescript@5.9.3))(@types/better-sqlite3@7.6.13)(@types/node@20.19.39)(better-sqlite3@12.9.0)(prisma@6.19.2(typescript@5.9.3))(zod@4.4.3)
       '@stablelib/base64': 2.0.1
@@ -23336,7 +23317,6 @@ snapshots:
       tmp: 0.2.5
       tweetnacl: 1.0.3
       undici: 6.28.0
-      ws: 8.21.3
       zod: 4.4.3
     transitivePeerDependencies:
       - '@anthropic-ai/sdk'

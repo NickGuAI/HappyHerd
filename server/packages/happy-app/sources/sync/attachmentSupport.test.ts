@@ -14,9 +14,8 @@ describe('supportsImageAttachmentsForFlavor', () => {
         expect(supportsImageAttachmentsForFlavor('codex')).toBe(true);
     });
 
-    it('rejects Gemini, OpenClaw, and unknown explicit flavors', () => {
+    it('rejects Gemini and unknown explicit flavors', () => {
         expect(supportsImageAttachmentsForFlavor('gemini')).toBe(false);
-        expect(supportsImageAttachmentsForFlavor('openclaw')).toBe(false);
         expect(supportsImageAttachmentsForFlavor('custom-agent')).toBe(false);
     });
 
@@ -60,7 +59,7 @@ describe('getImageAttachmentSendPlan', () => {
 
     it('warns and sends nothing for unsupported image-only messages', () => {
         expect(getImageAttachmentSendPlan({
-            flavor: 'openclaw',
+            flavor: 'custom-agent',
             text: '   ',
             attachmentCount: 2,
         })).toEqual({

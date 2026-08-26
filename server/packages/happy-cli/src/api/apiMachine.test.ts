@@ -108,7 +108,6 @@ describe('ApiMachineClient socket reconnection', () => {
             codex: false,
             gemini: false,
             grok: false,
-            openclaw: false,
             agy: false,
             detectedAt: 1,
         });
@@ -196,7 +195,6 @@ describe('ApiMachineClient socket reconnection', () => {
             codex: true,
             gemini: false,
             grok: true,
-            openclaw: false,
             agy: false,
             detectedAt: 2,
         };

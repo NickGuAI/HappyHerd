@@ -177,7 +177,6 @@ Run this flow for:
 - Codex
 - Claude
 - Gemini
-- OpenClaw
 
 If one is blocked by provider auth or environment issues, record the block
 explicitly.

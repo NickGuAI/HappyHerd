@@ -1,7 +1,5 @@
 import { execSync } from 'child_process';
 import os from 'os';
-import { existsSync } from 'fs';
-import { join } from 'path';
 import { findAgyBin } from '@/agy/constants';
 
 export interface CLIAvailability {
@@ -9,7 +7,6 @@ export interface CLIAvailability {
   codex: boolean;
   gemini: boolean;
   grok: boolean;
-  openclaw: boolean;
   agy: boolean;
   detectedAt: number;
 }
@@ -43,13 +40,7 @@ function detectPosix(): CLIAvailability {
   const grok = commandExists('grok');
   const agy = findAgyBin() !== undefined;
 
-  // OpenClaw: check command, config file, or env var
-  const openclawCommand = commandExists('openclaw');
-  const openclawConfig = existsSync(join(os.homedir(), '.openclaw', 'openclaw.json'));
-  const openclawEnv = !!process.env.OPENCLAW_GATEWAY_URL;
-  const openclaw = openclawCommand || openclawConfig || openclawEnv;
-
-  return { claude, codex, gemini, grok, openclaw, agy, detectedAt: Date.now() };
+  return { claude, codex, gemini, grok, agy, detectedAt: Date.now() };
 }
 
 function detectWindows(): CLIAvailability {
@@ -68,11 +59,5 @@ function detectWindows(): CLIAvailability {
   const grok = checkCommand('grok');
   const agy = findAgyBin() !== undefined;
 
-  // OpenClaw: check command, config file, or env var
-  const openclawCommand = checkCommand('openclaw');
-  const openclawConfig = existsSync(join(process.env.USERPROFILE || os.homedir(), '.openclaw', 'openclaw.json'));
-  const openclawEnv = !!process.env.OPENCLAW_GATEWAY_URL;
-  const openclaw = openclawCommand || openclawConfig || openclawEnv;
-
-  return { claude, codex, gemini, grok, openclaw, agy, detectedAt: Date.now() };
+  return { claude, codex, gemini, grok, agy, detectedAt: Date.now() };
 }

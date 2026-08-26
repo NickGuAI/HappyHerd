@@ -67,7 +67,6 @@ describe('agent capability discovery', () => {
             codex: true,
             gemini: false,
             grok: false,
-            openclaw: false,
             agy: false,
             detectedAt: 1,
         }, {
@@ -103,7 +102,6 @@ describe('agent capability discovery', () => {
             codex: true,
             gemini: false,
             grok: false,
-            openclaw: false,
             agy: false,
             detectedAt: 1,
         }, {
@@ -170,7 +168,6 @@ describe('agent capability discovery', () => {
             codex: false,
             gemini: false,
             grok: true,
-            openclaw: false,
             agy: false,
             detectedAt: 1,
         }, {
@@ -248,7 +245,6 @@ describe('agent capability discovery', () => {
             codex: true,
             gemini: false,
             grok: true,
-            openclaw: false,
             agy: false,
             detectedAt: 1,
         }, {

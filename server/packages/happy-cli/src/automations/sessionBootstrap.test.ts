@@ -1,14 +1,16 @@
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('HappyHerd automation session bootstrap', () => {
+  let root: string | null = null;
+
   beforeEach(() => {
     vi.resetModules();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     delete process.env.HAPPYHERD_AUTOMATION_ID;
     delete process.env.HAPPYHERD_AUTOMATION_RUN_ID;
     delete process.env.HAPPYHERD_AUTOMATION_KIND;
@@ -16,10 +18,15 @@ describe('HappyHerd automation session bootstrap', () => {
     delete process.env.HAPPYHERD_AUTOMATION_BOOTSTRAP_HASH;
     delete process.env.HAPPY_HOME_DIR;
     vi.resetModules();
+    if (root !== null) {
+      await rm(root, { recursive: true, force: true });
+      root = null;
+    }
   });
 
   it('writes an integrity-checked instruction snapshot and restores provenance', async () => {
-    process.env.HAPPY_HOME_DIR = await mkdtemp(path.join(os.tmpdir(), 'happyherd-bootstrap-'));
+    root = await mkdtemp(path.join(os.tmpdir(), 'happyherd-bootstrap-'));
+    process.env.HAPPY_HOME_DIR = root;
     const module = await import('./sessionBootstrap');
     const runId = crypto.randomUUID();
     const reference = await module.prepareAutomationBootstrap({
@@ -44,7 +51,8 @@ describe('HappyHerd automation session bootstrap', () => {
   });
 
   it('rejects a bootstrap changed after the daemon signed it', async () => {
-    process.env.HAPPY_HOME_DIR = await mkdtemp(path.join(os.tmpdir(), 'happyherd-bootstrap-'));
+    root = await mkdtemp(path.join(os.tmpdir(), 'happyherd-bootstrap-'));
+    process.env.HAPPY_HOME_DIR = root;
     const module = await import('./sessionBootstrap');
     const reference = await module.prepareAutomationBootstrap({
       schemaVersion: 1,
@@ -59,7 +67,8 @@ describe('HappyHerd automation session bootstrap', () => {
   });
 
   it('rejects a bootstrap without exact run provenance', async () => {
-    process.env.HAPPY_HOME_DIR = await mkdtemp(path.join(os.tmpdir(), 'happyherd-bootstrap-'));
+    root = await mkdtemp(path.join(os.tmpdir(), 'happyherd-bootstrap-'));
+    process.env.HAPPY_HOME_DIR = root;
     const module = await import('./sessionBootstrap');
 
     await expect(module.prepareAutomationBootstrap({

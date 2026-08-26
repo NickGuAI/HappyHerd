@@ -98,8 +98,6 @@
     "@anthropic-ai/claude-agent-sdk": "^0.3.179",
     "@anthropic-ai/sandbox-runtime": "^0.0.37",
     "@modelcontextprotocol/sdk": "1.29.0",
-    "@noble/ed25519": "^3.0.0",
-    "@noble/hashes": "^2.0.1",
     "@paralleldrive/cuid2": "^2.2.2",
     "@slopus/happy-terminal": "^0.3.3",
     "@stablelib/base64": "^2.0.1",
@@ -131,7 +129,6 @@
     "tmp": "^0.2.5",
     "tweetnacl": "^1.0.3",
     "undici": "^6.28.0",
-    "ws": "^8.19.0",
     "zod": "^4.0.0"
   },
   "devDependencies": {
@@ -139,7 +136,6 @@
     "@slopus/happy-wire": "workspace:*",
     "@types/inquirer": "^9.0.9",
     "@types/node": ">=20",
-    "@types/ws": "^8.18.1",
     "cross-env": "^10.1.0",
     "dotenv": "^16.6.1",
     "eslint": "^9",

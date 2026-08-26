@@ -35,7 +35,6 @@ happy codex
 happy agy        # Antigravity CLI (Gemini's successor)
 happy gemini     # deprecated — use `happy agy`
 happy grok       # GrokBuild through its official ACP stdio interface
-happy openclaw
 
 # or any ACP-compatible CLI
 happy acp opencode
@@ -140,7 +139,6 @@ happy connect status
 | `happy agy` | Start agy (Antigravity CLI) session |
 | `happy gemini` | Start Gemini CLI session (**deprecated** — use `happy agy`) |
 | `happy grok` | Start GrokBuild through its official ACP interface |
-| `happy openclaw` | Start OpenClaw session |
 | `happy acp` | Start any ACP-compatible agent |
 | `happy resume <id>` | Resume a previous session |
 | `happy notify` | Send push notification to your devices |

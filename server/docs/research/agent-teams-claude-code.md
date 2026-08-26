@@ -184,7 +184,7 @@ Each line is a JSON object representing one conversation turn:
   "cwd": "/Users/.../happy",
   "sessionId": "ddf0a0fe-...",
   "version": "2.1.59",
-  "gitBranch": "feat/openclaw-backend",
+  "gitBranch": "feat/provider-backend",
   "agentId": "ae4751a370100782f",
   "slug": "wondrous-shimmying-mccarthy",
   "type": "user",

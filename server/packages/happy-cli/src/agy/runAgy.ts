@@ -1,8 +1,7 @@
 /**
  * Agy Session Runner
  *
- * Entry point for agy (Antigravity CLI) agent sessions, following the runOpenClaw.ts
- * pattern. The daemon spawns this as:
+ * Entry point for agy (Antigravity CLI) agent sessions. The daemon spawns this as:
  *   `node dist/index.mjs agy --happy-starting-mode remote --started-by daemon`
  *
  * agy is a plain-text streaming CLI (no ACP), so this drives an AgyBackend that

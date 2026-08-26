@@ -87,7 +87,7 @@ vi.mock('@/utils/caffeinate', () => ({
 }));
 
 vi.mock('@/utils/detectCLI', () => ({
-  detectCLIAvailability: vi.fn(() => ({ claude: true, codex: true, gemini: false, grok: false, opencode: false, openclaw: false, agy: false })),
+  detectCLIAvailability: vi.fn(() => ({ claude: true, codex: true, gemini: false, grok: false, opencode: false, agy: false })),
 }));
 
 vi.mock('@/capabilities/agentCapabilities', () => ({

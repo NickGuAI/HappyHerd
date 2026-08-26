@@ -1,4 +1,4 @@
-import { mkdtemp } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -13,12 +13,13 @@ beforeEach(async () => {
   vi.resetModules();
 });
 
-afterEach(() => {
+afterEach(async () => {
   if (originalHappyHomeDir === undefined) delete process.env.HAPPY_HOME_DIR;
   else process.env.HAPPY_HOME_DIR = originalHappyHomeDir;
   if (originalLegacyRoot === undefined) delete process.env.HAPPYHERD_AGENTCONTEXT_ROOT;
   else process.env.HAPPYHERD_AGENTCONTEXT_ROOT = originalLegacyRoot;
   vi.resetModules();
+  await rm(root, { recursive: true, force: true });
 });
 
 describe('AgentContext root', () => {

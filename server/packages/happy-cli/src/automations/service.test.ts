@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -34,9 +34,13 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  await service?.stop();
-  service = null;
-  vi.restoreAllMocks();
+  try {
+    await service?.stop();
+  } finally {
+    service = null;
+    vi.restoreAllMocks();
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 function input() {

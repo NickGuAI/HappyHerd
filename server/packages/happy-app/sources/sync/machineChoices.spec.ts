@@ -29,7 +29,7 @@ const RIG = 'rig-machine';
 function cli(id = CLI, options?: { active?: boolean; activeAt?: number }) {
     return machine(id, {
         host: 'laptop.local',
-        cliAvailability: { claude: true, codex: true, gemini: false, openclaw: false, grok: false },
+        cliAvailability: { claude: true, codex: true, gemini: false, grok: false },
     }, options);
 }
 

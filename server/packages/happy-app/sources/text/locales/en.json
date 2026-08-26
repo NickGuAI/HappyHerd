@@ -559,8 +559,7 @@
       "claude": "Claude",
       "codex": "Codex",
       "grok": "GrokBuild",
-      "gemini": "Gemini",
-      "openclaw": "OpenClaw"
+      "gemini": "Gemini"
     },
     "model": {
       "title": "MODEL",
@@ -1368,7 +1367,6 @@
     "previousSessionsUpTo5MostRecent": "Previous Sessions (up to 5 most recent)",
     "claudeCode": "claude code",
     "codex": "codex",
-    "openclaw": "openclaw",
     "agy": "agy",
     "noResults": "no results",
     "done": "Done",

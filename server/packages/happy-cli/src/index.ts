@@ -414,48 +414,6 @@ Conversation history is preserved on the server, but in-flight tool calls are in
       process.exit(1)
     }
     return;
-  } else if (subcommand === 'openclaw') {
-    try {
-      const { runOpenClaw } = await import('@/openclaw/runOpenClaw');
-
-      let startedBy: 'daemon' | 'terminal' | undefined = undefined;
-      let verbose = false;
-      let gatewayUrl: string | undefined;
-      let gatewayToken: string | undefined;
-      let gatewayPassword: string | undefined;
-      for (let i = 1; i < args.length; i++) {
-        if (args[i] === '--started-by') {
-          startedBy = args[++i] as 'daemon' | 'terminal';
-        } else if (args[i] === '--verbose') {
-          verbose = true;
-        } else if (args[i] === '--gateway-url') {
-          gatewayUrl = args[++i];
-        } else if (args[i] === '--gateway-token') {
-          gatewayToken = args[++i];
-        } else if (args[i] === '--gateway-password') {
-          gatewayPassword = args[++i];
-        }
-      }
-
-      const { credentials } = await authAndSetupMachineIfNeeded();
-      await ensureDaemonRunning()
-
-      await runOpenClaw({
-        credentials,
-        startedBy,
-        verbose,
-        gatewayUrl,
-        gatewayToken,
-        gatewayPassword,
-      });
-    } catch (error) {
-      console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
-      if (process.env.DEBUG) {
-        console.error(error)
-      }
-      process.exit(1)
-    }
-    return;
   } else if (subcommand === 'agy') {
     try {
       const { runAgy } = await import('@/agy/runAgy');

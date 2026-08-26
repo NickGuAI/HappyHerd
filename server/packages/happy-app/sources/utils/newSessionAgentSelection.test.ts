@@ -7,7 +7,6 @@ describe('resolveMachineAgent', () => {
         expect(resolveMachineAgent('claude', {
             claude: false,
             codex: true,
-            openclaw: false,
             gemini: false,
         })).toBe('codex');
     });
@@ -40,24 +39,18 @@ describe('resolveMachineAgent', () => {
         expect(resolveMachineAgent('claude', {
             claude: false,
             codex: false,
-            openclaw: false,
             gemini: false,
         })).toBe('claude');
     });
 
-    // Gemini's login is dead and OpenClaw is shelved, so a draft pointing at
-    // either has to move even though the binary is still on the machine.
+    // Gemini's login is dead, so a draft pointing at it has to move even
+    // though the binary is still on the machine.
     it('migrates off a retired harness whose CLI is still installed', () => {
         expect(resolveMachineAgent('gemini', {
             gemini: true,
             claude: true,
             codex: true,
         })).toBe('claude');
-
-        expect(resolveMachineAgent('openclaw', {
-            openclaw: true,
-            codex: true,
-        })).toBe('codex');
     });
 
     it('migrates off a retired harness when capability metadata is missing', () => {

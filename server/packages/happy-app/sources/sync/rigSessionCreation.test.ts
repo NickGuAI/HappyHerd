@@ -21,7 +21,6 @@ const rigMachine = {
         claude: false,
         codex: false,
         gemini: false,
-        openclaw: false,
         agy: false,
         rig: true,
         detectedAt: 1,

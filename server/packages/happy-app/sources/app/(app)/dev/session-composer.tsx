@@ -39,15 +39,13 @@ import {
 const agentIcons = {
     claude: require('@/assets/images/icon-claude.png'),
     codex: require('@/assets/images/icon-gpt.png'),
-    openclaw: require('@/assets/images/icon-openclaw.png'),
     gemini: require('@/assets/images/icon-gemini.png'),
 };
 
-type AgentKey = 'claude' | 'codex' | 'openclaw' | 'gemini';
+type AgentKey = 'claude' | 'codex' | 'gemini';
 const AGENTS: { key: AgentKey; label: string }[] = [
     { key: 'claude', label: 'claude code' },
     { key: 'codex', label: 'codex' },
-    { key: 'openclaw', label: 'openclaw' },
     { key: 'gemini', label: 'gemini' },
 ];
 
