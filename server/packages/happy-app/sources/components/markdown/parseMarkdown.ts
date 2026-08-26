@@ -39,6 +39,11 @@ export type MarkdownBlock = {
     type: 'image',
     alt: string,
     url: string
+} | {
+    type: 'workspace-image',
+    alt: string,
+    url: string,
+    fallback: MarkdownSpan[]
 }
 
 export type MarkdownSpan = {

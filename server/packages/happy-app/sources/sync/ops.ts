@@ -102,6 +102,11 @@ interface SessionReadFileRequest {
     path: string;
 }
 
+interface MachineReadFileWithinRootRequest {
+    path: string;
+    rootPath: string;
+}
+
 interface SessionReadFileResponse {
     success: boolean;
     content?: string; // base64 encoded
@@ -713,6 +718,30 @@ export async function machineReadFile(machineId: string, path: string): Promise<
         return {
             success: false,
             error: error instanceof Error ? error.message : 'Failed to read machine file',
+        };
+    }
+}
+
+/**
+ * Read a file only when its machine-resolved path remains inside the supplied
+ * machine-resolved root. This distinct method intentionally has no readFile
+ * fallback: older daemons must fail closed instead of ignoring the root.
+ */
+export async function machineReadFileWithinRoot(
+    machineId: string,
+    path: string,
+    rootPath: string,
+): Promise<SessionReadFileResponse> {
+    try {
+        return await apiSocket.machineRPC<SessionReadFileResponse, MachineReadFileWithinRootRequest>(
+            machineId,
+            'readFileWithinRoot',
+            { path, rootPath },
+        );
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to read machine file within root',
         };
     }
 }

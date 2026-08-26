@@ -57,6 +57,23 @@ describe('sessionFileLinks', () => {
             });
         });
 
+        it.each([
+            ['POSIX', '/', 'linux', '/images/chart.png'],
+            ['Windows drive', 'C:\\', 'win32', 'C:/images/chart.png'],
+        ])('resolves relative files from a %s filesystem root', (_name, root, platform, absolutePath) => {
+            expect(parseExplicitSessionFileLink('images/chart.png', {
+                sessionRoot: root,
+                platform,
+            })).toEqual({
+                path: 'images/chart.png',
+                absolutePath,
+                relativePath: 'images/chart.png',
+                withinSessionRoot: true,
+                line: null,
+                column: null,
+            });
+        });
+
         it('decodes percent-encoded Markdown paths before resolving them', () => {
             expect(parseExplicitSessionFileLink('docs/My%20File-%E6%96%B9%E6%A1%88.md:17:2', { sessionRoot })).toEqual({
                 path: 'docs/My File-方案.md',

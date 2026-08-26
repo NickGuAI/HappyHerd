@@ -1,3 +1,8 @@
+# August 26 — Workspace images render in agent responses
+
+- Workspace-relative Markdown images in main-agent and subagent responses now render inline from the originating session's machine and remain openable in Workspace.
+- Missing provenance, unavailable or oversized files, traversal outside the originating workspace, unsafe schemes, and content that does not match its image type stay inert or show the existing image failure state.
+
 # August 26 — Voice settings use your OpenAI key
 
 - Voice settings no longer offers a voice upgrade; supported dictation transcription uses the configured OpenAI API key.

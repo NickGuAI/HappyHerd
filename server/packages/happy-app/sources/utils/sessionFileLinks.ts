@@ -247,7 +247,8 @@ function isWithinRoot(
     }
     const normalizedPath = normalizePath(path, platform);
     const normalizedRoot = normalizePath(root, platform);
-    return normalizedPath === normalizedRoot || normalizedPath.startsWith(`${normalizedRoot}/`);
+    const childPrefix = normalizedRoot.endsWith('/') ? normalizedRoot : `${normalizedRoot}/`;
+    return normalizedPath === normalizedRoot || normalizedPath.startsWith(childPrefix);
 }
 
 function getRelativePath(
@@ -263,7 +264,8 @@ function getRelativePath(
     if (normalizedPath === normalizedRoot) {
         return '.';
     }
-    return normalizedPath.slice(normalizedRoot.length + 1);
+    const childPrefix = normalizedRoot.endsWith('/') ? normalizedRoot : `${normalizedRoot}/`;
+    return normalizedPath.slice(childPrefix.length);
 }
 
 function looksLikeBareFileName(value: string): boolean {
