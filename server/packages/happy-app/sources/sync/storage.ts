@@ -44,6 +44,7 @@ import { mergeMachineSnapshot } from './machinePresence';
 import { t } from '@/text';
 import type { Project } from './projectTypes';
 import { getSessionProjectId, isHappyAgentSession } from './projectTypes';
+import { selectSideChatSessions } from './sideChatSessions';
 
 // Debounce timer for realtimeMode changes
 let realtimeModeDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1529,6 +1530,8 @@ export function useSession(id: string): Session | null {
     return storage(useShallow((state) => state.sessions[id] ?? null));
 }
 
+const emptyArray: unknown[] = [];
+
 export function useProjects(): Record<string, Project> {
     return storage(useShallow((state) => state.projects));
 }
@@ -1542,39 +1545,9 @@ export function useSessionProjectAvatar(sessionId: string): Project['avatar'] {
     }));
 }
 
-/**
- * Resolve the live "side chat" sessions belonging to a given parent session.
- * A side chat is a forked child flagged `metadata.isSideChat` whose
- * `metadata.parentSessionId` points at the parent. A parent can have several;
- * closing one archives it (`lifecycleState === 'archived'`), which drops it
- * from this list so the sidebar panel only shows open side chats. Sorted
- * oldest-first so tab order stays stable as new ones are created. Empty when
- * none are open (the panel then offers to start one).
- */
 export function useSideChatSessions(parentSessionId: string | null): Session[] {
-    return storage(useShallow((state) => {
-        if (!parentSessionId) {
-            return emptyArray as Session[];
-        }
-        const result: Session[] = [];
-        for (const session of Object.values(state.sessions)) {
-            if (
-                session.metadata?.isSideChat
-                && session.metadata?.parentSessionId === parentSessionId
-                && session.metadata?.lifecycleState !== 'archived'
-            ) {
-                result.push(session);
-            }
-        }
-        if (result.length === 0) {
-            return emptyArray as Session[];
-        }
-        result.sort((a, b) => a.createdAt - b.createdAt);
-        return result;
-    }));
+    return storage(useShallow((state) => selectSideChatSessions(state.sessions, parentSessionId)));
 }
-
-const emptyArray: unknown[] = [];
 
 export function useSessionMessages(sessionId: string): {
     messages: Message[],

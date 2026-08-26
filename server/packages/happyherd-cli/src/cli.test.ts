@@ -43,6 +43,10 @@ describe('happyherd command surface', () => {
     expect(help).not.toContain('--root');
     expect(help).toContain('Every other invocation');
     expect(help).toContain('forwarded unchanged to the bundled native Happy CLI');
+    expect(help).toContain('happyherd machine auth login');
+    expect(help).toContain('happyherd machine list --json');
+    expect(help).toContain('happyherd session create --machine ID_OR_HOST');
+    expect(help).toContain('supports native Happy CLI daemon machines');
   });
 
   it('reports the immutable launcher version without broker or network access', async () => {
@@ -87,6 +91,19 @@ describe('happyherd command surface', () => {
   it.each([
     [['automation', 'list', '--json'], 23],
     [['daemon', 'status'], 7],
+    [['machine', 'auth', 'login'], 17],
+    [['machine', 'list', '--json'], 11],
+    [[
+      'session', 'create',
+      '--machine', 'workstation',
+      '--path', '/srv/project',
+      '--provider', 'codex',
+      '--model', 'gpt-5.6',
+      '--effort', 'high',
+      '--permission', 'plan',
+      '--create-dir',
+      '--json',
+    ], 13],
     [['--started-by', 'daemon', '--no-sandbox'], 19],
   ] as const)('forwards an ungoverned invocation unchanged exactly once: %j', async (args, status) => {
     runHappy.mockReturnValue(status);

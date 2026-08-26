@@ -82,28 +82,55 @@ describe('useNewSessionDraft', () => {
         expect(mockPersistence.saved.at(-1)).toMatchObject({ effortLevel: 'high' });
     });
 
-    it('clears provider-specific selections when switching to GrokBuild', async () => {
+    it.each([
+        ['claude', 'codex', 'claude-opus-5'],
+        ['codex', 'claude', 'gpt-5.6-sol'],
+        ['claude', 'grok', 'claude-opus-5'],
+        ['claude', 'rig', 'claude-opus-5'],
+    ] as const)(
+        'clears provider-specific selections when switching from %s to %s',
+        async (previousAgent, agent, modelMode) => {
+            mockPersistence.draft = persistedDraft({
+                agentType: previousAgent,
+                permissionMode: 'default',
+                modelMode,
+                effortLevel: 'high',
+            });
+            const { useNewSessionDraft } = await import('./useNewSessionDraft');
+
+            useNewSessionDraft.getState().setAgentType(agent);
+
+            expect(useNewSessionDraft.getState()).toMatchObject({
+                agentType: agent,
+                permissionMode: null,
+                modelMode: null,
+                effortLevel: null,
+            });
+            expect(mockPersistence.saved.at(-1)).toMatchObject({
+                agentType: agent,
+                permissionMode: null,
+                modelMode: null,
+                effortLevel: null,
+            });
+        },
+    );
+
+    it('keeps provider-specific selections when the agent does not change', async () => {
         mockPersistence.draft = persistedDraft({
-            agentType: 'claude',
-            permissionMode: 'default',
-            modelMode: 'default',
-            effortLevel: 'high',
+            agentType: 'codex',
+            permissionMode: 'yolo',
+            modelMode: 'gpt-5.6-sol',
+            effortLevel: 'max',
         });
         const { useNewSessionDraft } = await import('./useNewSessionDraft');
 
-        useNewSessionDraft.getState().setAgentType('grok');
+        useNewSessionDraft.getState().setAgentType('codex');
 
         expect(useNewSessionDraft.getState()).toMatchObject({
-            agentType: 'grok',
-            permissionMode: null,
-            modelMode: null,
-            effortLevel: null,
-        });
-        expect(mockPersistence.saved.at(-1)).toMatchObject({
-            agentType: 'grok',
-            permissionMode: null,
-            modelMode: null,
-            effortLevel: null,
+            agentType: 'codex',
+            permissionMode: 'yolo',
+            modelMode: 'gpt-5.6-sol',
+            effortLevel: 'max',
         });
     });
 

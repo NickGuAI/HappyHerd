@@ -16,10 +16,34 @@ vi.mock('@/codex/codexAppServerClient', () => ({
 }));
 
 function machineClient() {
+    const catalog = {
+        detectedAt: 1,
+        sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
+        models: [{ code: 'default', value: 'Default', isDefault: true }],
+        effortLevels: [],
+        permissionModes: [{ code: 'default', value: 'Default', isDefault: true }],
+    };
     return {
         id: 'machine-1',
         encryptionKey: new Uint8Array(32),
         encryptionVariant: 'legacy',
+        metadata: {
+            host: 'machine',
+            platform: 'linux',
+            happyCliVersion: 'test',
+            homeDir: '/home/user',
+            happyHomeDir: '/home/user/.happyherd',
+            happyLibDir: '/opt/happy',
+            cliAvailability: {
+                claude: true,
+                codex: true,
+                gemini: false,
+                grok: false,
+                agy: false,
+                detectedAt: 1,
+            },
+            agentCapabilities: { claude: catalog, codex: catalog },
+        },
     } as any;
 }
 
@@ -65,7 +89,8 @@ describe('ApiMachineClient Codex fork RPCs', () => {
     });
 
     it('forwards resumeCodexThreadId through the spawn RPC', async () => {
-        const spawnSession = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'happy-forked' });
+        const settings = { provider: 'codex', model: 'default', effort: null, permission: 'default' };
+        const spawnSession = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'happy-forked', settings });
 
         const { ApiMachineClient } = await import('./apiMachine');
         const client = new ApiMachineClient('token', machineClient());
@@ -80,19 +105,23 @@ describe('ApiMachineClient Codex fork RPCs', () => {
             agent: 'codex',
             resumeCodexThreadId: 'thread-forked',
             parentSessionId: 'happy-source',
+            isSideChat: true,
         });
 
-        expect(result).toEqual({ type: 'success', sessionId: 'happy-forked' });
+        expect(result).toEqual({ type: 'success', sessionId: 'happy-forked', settings });
         expect(spawnSession).toHaveBeenCalledWith(expect.objectContaining({
             directory: '/tmp/project',
             agent: 'codex',
+            effectiveSettings: settings,
             resumeCodexThreadId: 'thread-forked',
             parentSessionId: 'happy-source',
+            isSideChat: true,
         }));
     });
 
     it('forwards Commander identity through the spawn RPC', async () => {
-        const spawnSession = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'happy-commander' });
+        const settings = { provider: 'claude', model: 'default', effort: null, permission: 'default' };
+        const spawnSession = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'happy-commander', settings });
         const { ApiMachineClient } = await import('./apiMachine');
         const client = new ApiMachineClient('token', machineClient());
         client.setRPCHandlers({
@@ -109,7 +138,26 @@ describe('ApiMachineClient Codex fork RPCs', () => {
 
         expect(spawnSession).toHaveBeenCalledWith(expect.objectContaining({
             commanderId: 'athena',
+            effectiveSettings: settings,
         }));
+    });
+
+    it('rejects an unadvertised mode on the target before starting a provider', async () => {
+        const spawnSession = vi.fn();
+        const { ApiMachineClient } = await import('./apiMachine');
+        const client = new ApiMachineClient('token', machineClient());
+        client.setRPCHandlers({
+            spawnSession,
+            stopSession: vi.fn(),
+            requestShutdown: vi.fn(),
+        });
+
+        await expect(handlersFrom(client).get('machine-1:spawn-happy-session')?.({
+            directory: '/tmp/project',
+            agent: 'codex',
+            modelMode: 'model-from-another-machine',
+        })).rejects.toThrow('does not advertise model');
+        expect(spawnSession).not.toHaveBeenCalled();
     });
 
     it('registers automation handlers against the daemon service', async () => {

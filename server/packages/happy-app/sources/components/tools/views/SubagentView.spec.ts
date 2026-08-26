@@ -1,6 +1,14 @@
 import * as React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+// @ts-expect-error react-test-renderer has no declarations in this workspace.
+import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const mocks = vi.hoisted(() => ({
+    markdownProps: [] as Array<Record<string, unknown>>,
+}));
 
 vi.mock('@expo/vector-icons', () => ({
     Ionicons: (props: Record<string, unknown>) => React.createElement('span', props),
@@ -33,7 +41,10 @@ vi.mock('react-native-unistyles', () => ({
 }));
 
 vi.mock('@/components/markdown/MarkdownView', () => ({
-    MarkdownView: ({ markdown }: { markdown: string }) => React.createElement('div', null, markdown),
+    MarkdownView: (props: { markdown: string }) => {
+        mocks.markdownProps.push(props);
+        return React.createElement('div', null, props.markdown);
+    },
 }));
 
 vi.mock('@/text', () => ({
@@ -49,6 +60,10 @@ vi.mock('@/text', () => ({
 }));
 
 describe('SubagentView', () => {
+    beforeEach(() => {
+        mocks.markdownProps.length = 0;
+    });
+
     it('keeps child output and tool activity collapsed by default', async () => {
         const { SubagentView } = await import('./SubagentView');
         const html = renderToStaticMarkup(React.createElement(SubagentView, {
@@ -92,5 +107,40 @@ describe('SubagentView', () => {
         expect(html).toContain('View activity');
         expect(html).not.toContain('CHILD FINAL RESPONSE SHOULD START HIDDEN');
         expect(html).not.toContain('CHILD TOOL SHOULD START HIDDEN');
+    });
+
+    it('passes the originating session to the shared Markdown renderer when expanded', async () => {
+        const { SubagentView } = await import('./SubagentView');
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(React.createElement(SubagentView, {
+                tool: {
+                    name: 'Subagent',
+                    state: 'completed',
+                    input: {},
+                    result: { status: 'completed' },
+                    createdAt: 1,
+                    completedAt: 2,
+                },
+                metadata: null,
+                sessionId: 'origin-session',
+                messages: [{
+                    id: 'child-final',
+                    kind: 'agent-text',
+                    text: '![chart](images/chart.png)',
+                    isThinking: false,
+                    createdAt: 2,
+                }],
+            } as any));
+        });
+
+        const toggle = renderer.root.findByType('button' as any);
+        act(() => toggle.props.onPress());
+        expect(mocks.markdownProps).toContainEqual(expect.objectContaining({
+            markdown: '![chart](images/chart.png)',
+            sessionId: 'origin-session',
+            enableWorkspaceLinks: true,
+        }));
+        act(() => renderer.unmount());
     });
 });

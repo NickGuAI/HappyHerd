@@ -1,9 +1,10 @@
 import { logger } from '@/ui/logger';
 import { exec, ExecOptions } from 'child_process';
 import { promisify } from 'util';
-import { link, lstat, mkdir, open, readFile, writeFile, readdir, rename, stat, unlink, type FileHandle } from 'fs/promises';
+import { link, lstat, mkdir, open, readFile, realpath, writeFile, readdir, rename, stat, unlink, type FileHandle } from 'fs/promises';
+import { constants as fsConstants } from 'fs';
 import { createHash, randomUUID } from 'crypto';
-import { basename, join, resolve } from 'path';
+import { basename, isAbsolute, join, relative, resolve, sep } from 'path';
 import {
     isSafeWorkspaceUploadFileName,
     isSafeWorkspacePathSegment,
@@ -26,6 +27,7 @@ import {
     type WorkspaceUploadStartRequest,
     type WorkspaceUploadStartResponse,
     type WorkspaceUploadResponse,
+    type HappyHerdMachineSessionSettings,
 } from '@slopus/happy-wire';
 import { run as runRipgrep } from '@/modules/ripgrep/index';
 import { run as runDifftastic } from '@/modules/difftastic/index';
@@ -51,6 +53,11 @@ interface BashResponse {
 
 interface ReadFileRequest {
     path: string;
+}
+
+interface ReadFileWithinRootRequest {
+    path: string;
+    rootPath: string;
 }
 
 interface ReadFileResponse {
@@ -148,6 +155,8 @@ export interface SpawnSessionOptions {
     permissionMode?: string;
     modelMode?: string;
     effortLevel?: string;
+    /** Target-daemon validated settings; remote callers cannot set this field directly. */
+    effectiveSettings?: HappyHerdMachineSessionSettings;
     /** Existing HappyHerd Commander identity to bind to this session. */
     commanderId?: string;
     /**
@@ -200,7 +209,7 @@ export interface SpawnSessionOptions {
 }
 
 export type SpawnSessionResult =
-    | { type: 'success'; sessionId: string }
+    | { type: 'success'; sessionId: string; settings?: HappyHerdMachineSessionSettings }
     | { type: 'requestToApproveDirectoryCreation'; directory: string }
     | {
         type: 'error';
@@ -367,6 +376,93 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
             return result;
         }
     });
+
+    // Machine-only, fail-closed read boundary for automatic workspace previews.
+    // The general readFile handler below intentionally keeps its existing behavior.
+    if (workingDirectory === null) {
+        rpcHandlerManager.registerHandler<ReadFileWithinRootRequest, ReadFileResponse>('readFileWithinRoot', async (data) => {
+            if (
+                !data
+                || typeof data.path !== 'string'
+                || typeof data.rootPath !== 'string'
+                || data.path.length === 0
+                || data.rootPath.length === 0
+            ) {
+                return { success: false, error: 'path and rootPath are required' };
+            }
+            if (!isAbsolute(data.path) || !isAbsolute(data.rootPath)) {
+                return { success: false, error: 'path and rootPath must be absolute' };
+            }
+
+            try {
+                const [realRootPath, realCandidatePath] = await Promise.all([
+                    realpath(data.rootPath),
+                    realpath(data.path),
+                ]);
+                const relativeCandidatePath = relative(realRootPath, realCandidatePath);
+                if (
+                    relativeCandidatePath === '..'
+                    || relativeCandidatePath.startsWith(`..${sep}`)
+                    || isAbsolute(relativeCandidatePath)
+                ) {
+                    return { success: false, error: 'Access denied: Path is outside the requested root' };
+                }
+
+                const rootInfo = await stat(realRootPath);
+                if (!rootInfo.isDirectory()) {
+                    return { success: false, error: 'Root path is not a directory' };
+                }
+
+                const openFlags = process.platform === 'win32'
+                    ? fsConstants.O_RDONLY
+                    : fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW;
+                const handle = await open(realCandidatePath, openFlags);
+                try {
+                    const [fileInfo, pathInfo] = await Promise.all([
+                        handle.stat(),
+                        stat(realCandidatePath),
+                    ]);
+                    const confirmedRealCandidatePath = await realpath(realCandidatePath);
+                    if (
+                        confirmedRealCandidatePath !== realCandidatePath
+                        || fileInfo.dev !== pathInfo.dev
+                        || fileInfo.ino !== pathInfo.ino
+                    ) {
+                        return { success: false, error: 'Access denied: Path changed during rooted read' };
+                    }
+                    if (!fileInfo.isFile()) {
+                        return { success: false, error: 'Path is not a file' };
+                    }
+                    if (fileInfo.size > MAX_FILE_PREVIEW_BYTES) {
+                        return { success: false, error: 'File is too large to preview (limit 20 MiB)' };
+                    }
+
+                    const buffer = Buffer.alloc(fileInfo.size);
+                    let bytesRead = 0;
+                    while (bytesRead < buffer.byteLength) {
+                        const result = await handle.read(
+                            buffer,
+                            bytesRead,
+                            buffer.byteLength - bytesRead,
+                            bytesRead,
+                        );
+                        if (result.bytesRead === 0) break;
+                        bytesRead += result.bytesRead;
+                    }
+                    const confirmedFileInfo = await handle.stat();
+                    if (bytesRead !== buffer.byteLength || confirmedFileInfo.size !== fileInfo.size) {
+                        return { success: false, error: 'Access denied: File changed during rooted read' };
+                    }
+                    return { success: true, content: buffer.toString('base64') };
+                } finally {
+                    await handle.close();
+                }
+            } catch (error) {
+                logger.debug('Failed to read file within root:', error);
+                return { success: false, error: error instanceof Error ? error.message : 'Failed to read file within root' };
+            }
+        });
+    }
 
     // Read file handler - returns base64 encoded content
     rpcHandlerManager.registerHandler<ReadFileRequest, ReadFileResponse>('readFile', async (data) => {

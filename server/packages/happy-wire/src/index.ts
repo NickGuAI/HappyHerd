@@ -9,3 +9,4 @@ export * from './automation';
 export * from './providerModels';
 export * from './workspaceUpload';
 export * from './agentQueue';
+export * from './machineSession';

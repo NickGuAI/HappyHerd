@@ -22,8 +22,10 @@ COPY packages/happy-app/package.json packages/happy-app/
 COPY packages/happy-server/package.json packages/happy-server/
 COPY packages/happy-server-self-host/package.json packages/happy-server-self-host/
 COPY packages/happy-cli/package.json packages/happy-cli/
-COPY packages/happy-agent/package.json packages/happy-agent/
-COPY packages/happy-wire/package.json packages/happy-wire/
+# pnpm packs injected workspace dependencies during this filtered install, so
+# their lifecycle builds need the same source inputs that invalidate this layer.
+COPY packages/happy-agent packages/happy-agent
+COPY packages/happy-wire packages/happy-wire
 
 # Workspace postinstall requirements
 COPY packages/happy-app/patches packages/happy-app/patches

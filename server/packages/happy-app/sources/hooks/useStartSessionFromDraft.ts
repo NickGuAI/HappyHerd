@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useAllMachines, useSetting } from '@/sync/storage';
+import { storage, useAllMachines, useSetting } from '@/sync/storage';
 import { resolveAgentDefaultConfig, resolveAgentDefaultEffortLevel } from '@/sync/agentDefaults';
 import {
     machineSpawnNewSession,
@@ -40,6 +40,7 @@ import {
 } from '@/sync/spawnRequestId';
 import type { NewSessionStartPhase } from '@/components/newSessionProgress';
 import { supportsImageAttachmentsForFlavor } from '@/sync/attachmentSupport';
+import { validateNewSessionLaunchSelection } from '@/utils/newSessionModeSelection';
 
 const MAX_RIG_PENDING_RESULTS = 3;
 
@@ -173,13 +174,7 @@ export function useStartSessionFromDraft() {
             );
             return false;
         }
-        const defaults = rigCreation
-            ? {
-                permissionMode: rigCreation.defaultPermissionMode ?? '',
-                modelMode: rigCreation.defaultModelKey ?? '',
-                effortLevel: rigCreation.defaultEffortForModel(rigCreation.defaultModelKey),
-            }
-            : resolveAgentDefaultConfig(defaultOverrides, agentType);
+        const defaults = resolveAgentDefaultConfig(defaultOverrides, agentType);
         const permissionOptions = rigCreation?.permissionModes
             ?? (machineCatalog
                 ? getMachineAdvertisedPermissionModes(machine.metadata, agentType, t, draft.permissionMode)
@@ -195,14 +190,20 @@ export function useStartSessionFromDraft() {
                 ));
         const permission = resolveOption<{ key: string }>(
             permissionOptions,
-            agentType === 'grok'
-                ? [draft.permissionMode ?? defaults.permissionMode, getAdvertisedDefaultOptionKey(permissionOptions)]
+            agentType === 'grok' || agentType === 'rig'
+                ? [
+                    draft.permissionMode ?? defaults.permissionMode,
+                    rigCreation?.defaultPermissionMode ?? getAdvertisedDefaultOptionKey(permissionOptions),
+                ]
                 : [draft.permissionMode, defaults.permissionMode],
         );
         const model = resolveOption<{ key: string }>(
             modelOptions,
-            agentType === 'grok'
-                ? [draft.modelMode ?? defaults.modelMode, getAdvertisedDefaultOptionKey(modelOptions)]
+            agentType === 'grok' || agentType === 'rig'
+                ? [
+                    draft.modelMode ?? defaults.modelMode,
+                    rigCreation?.defaultModelKey ?? getAdvertisedDefaultOptionKey(modelOptions),
+                ]
                 : [draft.modelMode, defaults.modelMode],
         );
         const effortOptions = rigCreation
@@ -210,15 +211,31 @@ export function useStartSessionFromDraft() {
             : machineCatalog
                 ? getMachineAdvertisedEffortLevels(machine.metadata, agentType, model?.key ?? 'default')
                 : getEffortLevelsForModel(agentType, model?.key ?? 'default');
-        const effectiveEffortDefault = rigCreation?.defaultEffortForModel(model?.key)
-            ?? resolveAgentDefaultEffortLevel(defaultOverrides, agentType, effortOptions);
+        const effectiveEffortDefault = resolveAgentDefaultEffortLevel(
+            defaultOverrides,
+            agentType,
+            effortOptions,
+        ) ?? rigCreation?.defaultEffortForModel(model?.key);
         const effort = resolveOption<{ key: string }>(
             effortOptions,
-            agentType === 'grok'
-                ? [draft.effortLevel ?? effectiveEffortDefault, getAdvertisedDefaultOptionKey(effortOptions)]
+            agentType === 'grok' || agentType === 'rig'
+                ? [
+                    draft.effortLevel ?? effectiveEffortDefault,
+                    rigCreation?.defaultEffortForModel(model?.key)
+                        ?? getAdvertisedDefaultOptionKey(effortOptions),
+                ]
                 : [draft.effortLevel, effectiveEffortDefault],
         );
-        if (!permission || !model || ('disabled' in permission && permission.disabled) || ('disabled' in model && model.disabled)) {
+        const initialSelectionError = validateNewSessionLaunchSelection({
+            agentAvailable: true,
+            permissionOptions,
+            modelOptions,
+            effortOptions,
+            permissionKey: permission?.key,
+            modelKey: model?.key,
+            effortKey: effort?.key,
+        });
+        if (initialSelectionError || (agentType === 'rig' && (!permission || !model || !effort))) {
             Modal.alert(t('common.error'), t("uiCopy.theSelectedAgentConfigurationIsUnavailable"));
             return false;
         }
@@ -244,8 +261,8 @@ export function useStartSessionFromDraft() {
             agent: agentType,
             directory: selectedPath,
             worktree: worktreeSelection,
-            modelKey: model.key,
-            permissionMode: permission.key,
+            modelKey: model?.key ?? null,
+            permissionMode: permission?.key ?? null,
             effort: effort?.key ?? null,
         }));
 
@@ -297,29 +314,98 @@ export function useStartSessionFromDraft() {
             }
 
             const spawn = async (approvedNewDirectoryCreation = false): Promise<string | null> => {
-                const spawnOptions = rigCreation
+                // Directory approval can keep this flow open while the daemon
+                // refreshes its provider catalog. Re-read and revalidate on
+                // every actual launch attempt, including the approved retry.
+                const latestMachine = storage.getState().machines[machine.id];
+                if (!latestMachine || !isMachineOnline(latestMachine)) {
+                    Modal.alert(t('common.error'), t("newSession.machineOffline"));
+                    return null;
+                }
+                const latestRigCreation = agentType === 'rig'
+                    ? getRigMachineSessionCreation(latestMachine.metadata)
+                    : null;
+                const latestAvailability = latestMachine.metadata?.cliAvailability;
+                const latestAgentAvailable = agentType === 'rig'
+                    ? latestRigCreation !== null
+                    : agentType === 'agy' || agentType === 'grok'
+                        ? latestAvailability?.[agentType] === true
+                        : !latestAvailability || latestAvailability[agentType] === true;
+                const latestMachineCatalog = latestMachine.metadata?.agentCapabilities?.[agentType];
+                if (agentType === 'grok' && !latestMachineCatalog) {
+                    Modal.alert(
+                        t('common.error'),
+                        latestMachine.metadata?.grokCapabilityError
+                            ?? t("uiCopy.theSelectedAgentConfigurationIsUnavailable"),
+                    );
+                    return null;
+                }
+                const latestPermissionOptions = latestRigCreation?.permissionModes
+                    ?? (latestMachineCatalog
+                        ? getMachineAdvertisedPermissionModes(
+                            latestMachine.metadata,
+                            agentType,
+                            t,
+                            permission?.key,
+                        )
+                        : getHardcodedPermissionModes(agentType, t));
+                const latestModelOptions = latestRigCreation?.models
+                    ?? (latestMachineCatalog
+                        ? getMachineAdvertisedModels(latestMachine.metadata, agentType, t, model?.key)
+                        : includeConfiguredModel(
+                            agentType,
+                            getHardcodedModelModes(agentType, t),
+                            model?.key ?? defaults.modelMode,
+                            t,
+                        ));
+                const latestEffortOptions = latestRigCreation
+                    ? latestRigCreation.effortsForModel(model?.key).map((key) => ({ key, name: key }))
+                    : latestMachineCatalog
+                        ? getMachineAdvertisedEffortLevels(
+                            latestMachine.metadata,
+                            agentType,
+                            model?.key ?? 'default',
+                        )
+                        : getEffortLevelsForModel(agentType, model?.key ?? 'default');
+                const latestSelectionError = validateNewSessionLaunchSelection({
+                    agentAvailable: latestAgentAvailable,
+                    permissionOptions: latestPermissionOptions,
+                    modelOptions: latestModelOptions,
+                    effortOptions: latestEffortOptions,
+                    permissionKey: permission?.key,
+                    modelKey: model?.key,
+                    effortKey: effort?.key,
+                });
+                if (latestSelectionError || (agentType === 'rig' && (!permission || !model || !effort))) {
+                    Modal.alert(t('common.error'), t("uiCopy.theSelectedAgentConfigurationIsUnavailable"));
+                    return null;
+                }
+
+                const spawnOptions = latestRigCreation
                     ? {
-                        machineId: machine.id,
-                        ...buildRigSpawnConfiguration(machine.metadata, {
+                        machineId: latestMachine.id,
+                        ...buildRigSpawnConfiguration(latestMachine.metadata, {
                             directory: spawnDirectory,
                             clientRequestId,
                             approvedNewDirectoryCreation,
-                            modelKey: model.key,
-                            permissionMode: permission.key,
+                            modelKey: model?.key,
+                            permissionMode: permission?.key,
                             effort: effort?.key,
                         }),
                     }
                     : {
-                        machineId: machine.id,
+                        machineId: latestMachine.id,
                         directory: spawnDirectory,
                         approvedNewDirectoryCreation,
                         agent: agentType,
                         // Claude's Default is ambient; Codex's Default is a
                         // concrete ask-first execution policy.
-                        permissionMode: agentType === 'codex' || agentType === 'grok' || permission.key !== 'default'
+                        permissionMode: permission?.key && (
+                            agentType === 'codex' || agentType === 'grok' || permission.key !== 'default'
+                        )
                             ? permission.key
                             : undefined,
-                        modelMode: model.key !== 'default' ? model.key : undefined,
+                        modelMode: model?.key && model.key !== 'default' ? model.key : undefined,
                         effortLevel: effort?.key,
                         commanderId: draft.selectedCommanderId ?? undefined,
                     };
@@ -329,7 +415,7 @@ export function useStartSessionFromDraft() {
                     pendingResults += 1;
                     await delay(resolveRigPendingRetryDelayMs(
                         result.retryAfterMs,
-                        rigCreation?.pendingRetryAfterMs,
+                        latestRigCreation?.pendingRetryAfterMs,
                     ));
                     if (!isMountedRef.current || run.canceled) return null;
                     result = await machineSpawnNewSession(spawnOptions);
@@ -383,15 +469,15 @@ export function useStartSessionFromDraft() {
                 return false;
             }
 
-            if (!rigCreation) {
+            if (agentType !== 'rig') {
                 const modesPatch: SessionAgentModesPatch = {};
                 // GrokBuild permission is launch-only, so every session keeps
                 // the exact policy its process started with even if the saved
                 // New Session default changes later.
-                if (agentType === 'grok' || permission.key !== defaults.permissionMode) {
+                if (permission?.key && (agentType === 'grok' || permission.key !== defaults.permissionMode)) {
                     modesPatch.permissionMode = permission.key;
                 }
-                if (model.key !== defaults.modelMode) modesPatch.modelMode = model.key;
+                if (model?.key && model.key !== defaults.modelMode) modesPatch.modelMode = model.key;
                 if ((effort?.key ?? null) !== effectiveEffortDefault) modesPatch.effortLevel = effort?.key ?? null;
                 if (Object.keys(modesPatch).length > 0) {
                     sessionSetAgentModes(sessionId, modesPatch);

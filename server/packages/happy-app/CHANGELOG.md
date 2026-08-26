@@ -1,3 +1,37 @@
+# August 26 — Child side chats from the command line
+
+- Commanders and agents can create a Claude or Codex side chat beneath an existing session while keeping the parent conversation unchanged.
+- Child conversations stay out of top-level lists and remain discoverable beneath their parent in the collapsible sub-worker view on wide, narrow, and mobile screens; unsupported providers and unavailable source metadata fail explicitly.
+
+# August 26 — Start sessions on a selected machine
+
+- The native `happy` CLI can link account-wide machine control through the Happy app, list linked-account machines, and create a tracked session on an exact machine ID or unambiguous hostname.
+- Machine control uses only its dedicated `agent.key`; native-session credentials cannot silently authorize machine commands.
+- Remote session creation requires a target-machine absolute path, keeps directory creation opt-in, and validates provider, model, effort, and permission choices again on the target daemon immediately before launch; providers without a mode catalog can still launch with their defaults.
+- New daemons advertise target-confirmed session protocol support; the CLI rejects older targets before sending a spawn request, while retained legacy callers remain compatible with their original settings-free receipts.
+- Success receipts report the target-confirmed effective settings after the new session persists them, rather than echoing the caller's requested overrides.
+- Session creation is explicitly limited to native Happy CLI daemon machines; stable machine-list receipts identify Rig and other unsupported machine kinds instead of sending them an incompatible RPC.
+- `happyherd` exposes the maintained commands through its unchanged native-command passthrough, including stable JSON receipts for automation.
+
+# August 26 — Agent Defaults cover every supported provider
+
+- Agent Defaults now includes Claude Code, Codex, GrokBuild, Antigravity, and Happy, with each provider's preferences stored and cleared independently.
+- Agent Defaults now names and lets you change the exact machine supplying GrokBuild and Happy controls; unavailable providers show a clear machine-selection action instead of a blank card or borrowed choices.
+- New Session and Home clear provider-specific modes when switching providers, revalidate machine-owned defaults immediately before launch, and pass valid Happy defaults through its provider-native session request.
+
+# August 26 — Workspace images render in agent responses
+
+- Workspace-relative Markdown images in main-agent and subagent responses now render inline from the originating session's machine and remain openable in Workspace.
+- Missing provenance, unavailable or oversized files, traversal outside the originating workspace, unsafe schemes, and content that does not match its image type stay inert or show the existing image failure state.
+
+# August 26 — Voice settings use your OpenAI key
+
+- Voice settings no longer offers a voice upgrade; supported dictation transcription uses the configured OpenAI API key.
+
+# August 26 — Commander lists stay usable on narrow screens
+
+- Start New Session now keeps long Commander lists inside a bounded, scrollable picker on narrow Web screens, so search and selection stay usable and every Commander remains reachable.
+
 # August 26 — Retired agent integration removed
 
 - The retired agent integration has been removed from agent selection, settings, machine availability, session controls, and app assets.

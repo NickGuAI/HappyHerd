@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     buildWorkspaceLinkRoute,
+    resolveMarkdownWorkspaceImageReference,
     resolveMarkdownWorkspaceLinkRoute,
 } from './markdownWorkspaceLink';
 
@@ -151,6 +152,71 @@ describe('markdownWorkspaceLink', () => {
             url: 'https://example.com/docs',
             originSessionId: 'session-origin',
             metadata,
+        })).toBeNull();
+    });
+
+    it('resolves an inline image only inside the originating session root', () => {
+        expect(resolveMarkdownWorkspaceImageReference({
+            url: 'images/../screenshots/result.png',
+            originSessionId: 'session-origin',
+            metadata,
+        })).toEqual({
+            rootPath: '/srv/projects/happy',
+            workspaceRoute: {
+                pathname: '/workspace',
+                params: {
+                    mode: 'link',
+                    originSessionId: 'session-origin',
+                    machineId: 'machine-origin',
+                    absolutePath: '/srv/projects/happy/screenshots/result.png',
+                },
+            },
+        });
+    });
+
+    it.each([
+        ['POSIX', { machineId: 'posix-root', path: '/', os: 'linux' }, '/images/chart.png'],
+        ['Windows drive', { machineId: 'windows-root', path: 'C:\\', os: 'win32' }, 'C:/images/chart.png'],
+    ])('resolves an inline image from a %s filesystem root', (_name, rootMetadata, absolutePath) => {
+        expect(resolveMarkdownWorkspaceImageReference({
+            url: 'images/chart.png',
+            originSessionId: 'session-origin',
+            metadata: rootMetadata,
+        })).toEqual({
+            rootPath: rootMetadata.path,
+            workspaceRoute: {
+                pathname: '/workspace',
+                params: {
+                    mode: 'link',
+                    originSessionId: 'session-origin',
+                    machineId: rootMetadata.machineId,
+                    absolutePath,
+                },
+            },
+        });
+    });
+
+    it.each([
+        '../outside.png',
+        '/var/tmp/outside.png',
+        'C:\\Temp\\outside.png',
+        '~/outside.png',
+        'data:image/png;base64,AAAA',
+        'file:///tmp/outside.png',
+        'javascript:alert',
+    ])('rejects the inline image target %s before a machine read', (url) => {
+        expect(resolveMarkdownWorkspaceImageReference({
+            url,
+            originSessionId: 'session-origin',
+            metadata,
+        })).toBeNull();
+    });
+
+    it('fails closed for an inline image without immutable session provenance', () => {
+        expect(resolveMarkdownWorkspaceImageReference({
+            url: 'images/result.png',
+            originSessionId: 'session-origin',
+            metadata: { machineId: 'machine-origin', path: '' },
         })).toBeNull();
     });
 

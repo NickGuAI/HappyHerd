@@ -15,6 +15,7 @@ on:
       - server/patches/**
       - server/scripts/**
       - server/packages/happy-app/**
+      - server/packages/happy-agent/**
       - server/packages/happy-cli/package.json
       - server/packages/happy-cli/scripts/bundle-webapp.cjs
       - server/packages/happy-server/**
@@ -32,6 +33,7 @@ on:
       - server/patches/**
       - server/scripts/**
       - server/packages/happy-app/**
+      - server/packages/happy-agent/**
       - server/packages/happy-cli/package.json
       - server/packages/happy-cli/scripts/bundle-webapp.cjs
       - server/packages/happy-server/**

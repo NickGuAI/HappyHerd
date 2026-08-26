@@ -102,6 +102,11 @@ interface SessionReadFileRequest {
     path: string;
 }
 
+interface MachineReadFileWithinRootRequest {
+    path: string;
+    rootPath: string;
+}
+
 interface SessionReadFileResponse {
     success: boolean;
     content?: string; // base64 encoded
@@ -718,6 +723,30 @@ export async function machineReadFile(machineId: string, path: string): Promise<
 }
 
 /**
+ * Read a file only when its machine-resolved path remains inside the supplied
+ * machine-resolved root. This distinct method intentionally has no readFile
+ * fallback: older daemons must fail closed instead of ignoring the root.
+ */
+export async function machineReadFileWithinRoot(
+    machineId: string,
+    path: string,
+    rootPath: string,
+): Promise<SessionReadFileResponse> {
+    try {
+        return await apiSocket.machineRPC<SessionReadFileResponse, MachineReadFileWithinRootRequest>(
+            machineId,
+            'readFileWithinRoot',
+            { path, rootPath },
+        );
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to read machine file within root',
+        };
+    }
+}
+
+/**
  * Read only a bounded regular file's size and SHA-256 identity. Newer daemon
  * support for this RPC is also the capability preflight for safe replacement.
  */
@@ -997,6 +1026,84 @@ export async function machineUpdateMetadata(
     throw new Error('Unexpected error in machineUpdateMetadata');
 }
 
+type SessionMetadataMerger = (
+    latest: Record<string, unknown>,
+    afterVersionConflict: boolean,
+) => Record<string, unknown> | null;
+
+const SESSION_ARCHIVE_METADATA_ACK_TIMEOUT_MS = 10_000;
+const SESSION_ARCHIVE_READBACK_TIMEOUT_MS = 10_000;
+
+async function withTimeout<T>(
+    operation: Promise<T>,
+    timeoutMs: number,
+    timeoutError: () => Error,
+): Promise<T> {
+    return await new Promise<T>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(timeoutError()), timeoutMs);
+        operation.then(
+            (value) => {
+                clearTimeout(timeout);
+                resolve(value);
+            },
+            (error) => {
+                clearTimeout(timeout);
+                reject(error);
+            },
+        );
+    });
+}
+
+/** Schema-free encrypted metadata read-modify-write with conflict retry. */
+async function sessionUpdateMetadata(
+    sessionId: string,
+    merge: SessionMetadataMerger,
+    maxRetries: number = 3,
+    ackTimeoutMs?: number,
+): Promise<void> {
+    const encryption = sync.encryption.getSessionEncryption(sessionId);
+    const session = storage.getState().sessions[sessionId];
+    if (!encryption || !session?.metadata) {
+        throw new Error(`Session ${sessionId} is not ready for metadata updates`);
+    }
+
+    let currentVersion = session.metadataVersion;
+    let latestMetadata: Record<string, unknown> = { ...session.metadata };
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        const currentMetadata = merge(latestMetadata, attempt > 0);
+        if (!currentMetadata) {
+            return;
+        }
+        const encrypted = await encryption.encryptRaw(currentMetadata);
+        const result = await apiSocket.emitWithAck<{
+            result: 'success' | 'version-mismatch' | 'error';
+            version?: number;
+            metadata?: string;
+        }>('update-metadata', {
+            sid: sessionId,
+            metadata: encrypted,
+            expectedVersion: currentVersion
+        }, ackTimeoutMs);
+
+        if (result.result === 'success') {
+            return;
+        }
+        if (result.result === 'version-mismatch' && result.version !== undefined && result.metadata) {
+            const latest = await encryption.decryptRaw(result.metadata);
+            if (!latest || typeof latest !== 'object' || Array.isArray(latest)) {
+                throw new Error('Failed to decrypt latest session metadata');
+            }
+            currentVersion = result.version;
+            latestMetadata = latest as Record<string, unknown>;
+            continue;
+        }
+        throw new Error('Failed to update session metadata');
+    }
+
+    throw new Error(`Failed to update session metadata after ${maxRetries} retries due to version conflicts`);
+}
+
 /**
  * Persist per-session mode picks into synced session metadata with optimistic
  * concurrency and automatic retry. On version conflict the latest metadata is
@@ -1008,38 +1115,10 @@ async function sessionUpdateAgentModesMetadata(
     patch: SessionAgentModesPatch,
     maxRetries: number = 3
 ): Promise<void> {
-    const encryption = sync.encryption.getSessionEncryption(sessionId);
-    const session = storage.getState().sessions[sessionId];
-    if (!encryption || !session?.metadata) {
-        throw new Error(`Session ${sessionId} is not ready for metadata updates`);
-    }
-
-    // Defensive copy: retries drop fields from the patch (see below)
-    let pendingPatch: SessionAgentModesPatch = { ...patch };
-    let currentVersion = session.metadataVersion;
-    let currentMetadata: Record<string, unknown> = { ...session.metadata, ...pendingPatch };
-
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-        const encrypted = await encryption.encryptRaw(currentMetadata);
-        const result = await apiSocket.emitWithAck<{
-            result: 'success' | 'version-mismatch' | 'error';
-            version?: number;
-            metadata?: string;
-        }>('update-metadata', {
-            sid: sessionId,
-            metadata: encrypted,
-            expectedVersion: currentVersion
-        });
-
-        if (result.result === 'success') {
-            return;
-        }
-        if (result.result === 'version-mismatch') {
-            currentVersion = result.version!;
-            const latest = await encryption.decryptRaw(result.metadata!);
-            if (!latest) {
-                throw new Error('Failed to decrypt latest session metadata');
-            }
+    // Defensive copy: retries drop fields from the patch (see below).
+    const pendingPatch: SessionAgentModesPatch = { ...patch };
+    await sessionUpdateMetadata(sessionId, (latest, afterVersionConflict) => {
+        if (afterVersionConflict) {
             // A newer local action (another pick, an abort clearing modes) may
             // have changed the mirror since this push started — that action
             // owns the field now, and blindly replaying the original patch
@@ -1050,16 +1129,11 @@ async function sessionUpdateAgentModesMetadata(
                     delete pendingPatch[field];
                 }
             }
-            if (Object.keys(pendingPatch).length === 0) {
-                return;
-            }
-            currentMetadata = { ...latest, ...pendingPatch };
-            continue;
         }
-        throw new Error('Failed to update session metadata');
-    }
-
-    throw new Error(`Failed to update session metadata after ${maxRetries} retries due to version conflicts`);
+        return Object.keys(pendingPatch).length > 0
+            ? { ...latest, ...pendingPatch }
+            : null;
+    }, maxRetries);
 }
 
 /**
@@ -1375,9 +1449,33 @@ export async function sessionKill(sessionId: string): Promise<SessionKillRespons
     }
 }
 
+async function sessionPersistArchivedLifecycle(
+    sessionId: string,
+    archivedAt: number,
+    maxRetries: number = 3,
+): Promise<void> {
+    const archivePatch = {
+        lifecycleState: 'archived',
+        lifecycleStateSince: archivedAt,
+        archivedBy: 'app',
+        archiveReason: 'User archived',
+    } as const;
+    await sessionUpdateMetadata(
+        sessionId,
+        (latest) => ({ ...latest, ...archivePatch }),
+        maxRetries,
+        SESSION_ARCHIVE_METADATA_ACK_TIMEOUT_MS,
+    );
+}
+
 /**
- * Archive a session by deactivating it on the server.
- * Use this when the CLI process is already dead and sessionKill can't reach it.
+ * Archive a session recoverably: deactivate it, then persist the durable
+ * encrypted lifecycle marker.
+ *
+ * `active=false` alone means stopped/disconnected and remains resumable. The
+ * encrypted lifecycle marker is the canonical explicit archive signal used by
+ * session selectors; the server POST separately guarantees inactivity when
+ * the provider process is already unreachable.
  */
 export async function sessionArchive(sessionId: string): Promise<{ success: boolean; message?: string }> {
     try {
@@ -1387,9 +1485,36 @@ export async function sessionArchive(sessionId: string): Promise<{ success: bool
         if (!response.ok) {
             return { success: false, message: `Server error: ${response.status}` };
         }
-        return { success: true };
     } catch (error) {
         return { success: false, message: error instanceof Error ? error.message : 'Unknown error' };
+    }
+
+    // Deactivate first: if either operation fails, the child remains without
+    // an archived marker and therefore visible/retryable under its parent.
+    try {
+        await sessionPersistArchivedLifecycle(sessionId, Date.now());
+        return { success: true };
+    } catch (error) {
+        // The server can commit the encrypted update and then lose its ack or
+        // fail while publishing the follow-up event. Refetch after every
+        // negative persistence receipt before claiming the tab is retryable.
+        try {
+            await withTimeout(
+                sync.refreshSessions(),
+                SESSION_ARCHIVE_READBACK_TIMEOUT_MS,
+                () => new Error('Session archive read-back timed out'),
+            );
+        } catch {
+            // Fall through to the local read. A concurrent broadcast may
+            // still have reconciled the metadata while refresh failed.
+        }
+        if (storage.getState().sessions[sessionId]?.metadata?.lifecycleState === 'archived') {
+            return { success: true };
+        }
+        return {
+            success: false,
+            message: error instanceof Error ? error.message : 'Failed to archive session metadata',
+        };
     }
 }
 

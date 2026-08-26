@@ -45,12 +45,30 @@ describe('parseMarkdown', () => {
         ]);
     });
 
-    it('fails closed for markdown images with unsafe schemes', () => {
-        const blocks = parseMarkdown('![secret](data:image/png;base64,abc123)');
+    it('keeps workspace-relative images distinct until session provenance is available', () => {
+        const blocks = parseMarkdown('![Build chart](images/build chart.jpg "Latest build")');
 
         expect(blocks).toEqual([{
+            type: 'workspace-image',
+            alt: 'Build chart',
+            url: 'images/build chart.jpg "Latest build"',
+            fallback: [{
+                styles: [],
+                text: '![Build chart](images/build chart.jpg "Latest build")',
+                url: null,
+            }],
+        }]);
+    });
+
+    it.each([
+        'data:image/png;base64,abc123',
+        'file:///tmp/secret.png',
+        'javascript:alert',
+    ])('fails closed for a Markdown image using %s', (target) => {
+        const markdown = `![secret](${target})`;
+        expect(parseMarkdown(markdown)).toEqual([{
             type: 'text',
-            content: [{ styles: [], text: '![secret](data:image/png;base64,abc123)', url: null }],
+            content: [{ styles: [], text: markdown, url: null }],
         }]);
     });
 

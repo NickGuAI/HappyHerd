@@ -1,5 +1,5 @@
 import type { AgentCapabilityCatalog, MachineMetadata, Metadata } from '@/sync/storageTypes';
-import { HAPPYHERD_CLAUDE_MODEL_SLUGS } from '@slopus/happy-wire';
+import { HAPPYHERD_AGY_MODEL_NAMES, HAPPYHERD_CLAUDE_MODEL_SLUGS } from '@slopus/happy-wire';
 import { hackModes } from '@/sync/modeHacks';
 import { sortPermissionModes } from '@/utils/permissionModeLabels';
 import { getCodeAgentDefaults } from '@/sync/agentDefaults';
@@ -307,9 +307,6 @@ export function getAgyPermissionModes(translate: Translate): PermissionMode[] {
 }
 
 export function getHardcodedPermissionModes(flavor: AgentFlavor, translate: Translate): PermissionMode[] {
-    if (flavor === 'grok') {
-        return [];
-    }
     if (flavor === 'codex') {
         return getCodexPermissionModes(translate);
     }
@@ -319,30 +316,22 @@ export function getHardcodedPermissionModes(flavor: AgentFlavor, translate: Tran
     if (flavor === 'agy') {
         return getAgyPermissionModes(translate);
     }
-    return getClaudePermissionModes(translate);
+    if (flavor === 'claude' || flavor === null || flavor === undefined) {
+        return getClaudePermissionModes(translate);
+    }
+    return [];
 }
 
 // Keys are the exact display names `agy --model` accepts (as printed by `agy models`).
 export function getAgyModelModes(): ModelMode[] {
-    return [
-        { key: 'Gemini 3.6 Flash (High)', name: 'gemini 3.6 flash (high)', description: null },
-        { key: 'Gemini 3.6 Flash (Medium)', name: 'gemini 3.6 flash (medium)', description: null },
-        { key: 'Gemini 3.6 Flash (Low)', name: 'gemini 3.6 flash (low)', description: null },
-        { key: 'Gemini 3.1 Pro (High)', name: 'gemini 3.1 pro (high)', description: null },
-        { key: 'Gemini 3.1 Pro (Low)', name: 'gemini 3.1 pro (low)', description: null },
-        { key: 'Gemini 3.5 Flash (High)', name: 'gemini 3.5 flash (high)', description: null },
-        { key: 'Gemini 3.5 Flash (Medium)', name: 'gemini 3.5 flash (medium)', description: null },
-        { key: 'Gemini 3.5 Flash (Low)', name: 'gemini 3.5 flash (low)', description: null },
-        { key: 'Claude Opus 4.6 (Thinking)', name: 'claude opus 4.6 (thinking)', description: null },
-        { key: 'Claude Sonnet 4.6 (Thinking)', name: 'claude sonnet 4.6 (thinking)', description: null },
-        { key: 'GPT-OSS 120B (Medium)', name: 'gpt-oss 120b (medium)', description: null },
-    ];
+    return HAPPYHERD_AGY_MODEL_NAMES.map((key) => ({
+        key,
+        name: key.toLowerCase(),
+        description: null,
+    }));
 }
 
 export function getHardcodedModelModes(flavor: AgentFlavor, translate: Translate): ModelMode[] {
-    if (flavor === 'grok') {
-        return [];
-    }
     if (flavor === 'codex') {
         return getCodexModelModes();
     }
@@ -352,7 +341,10 @@ export function getHardcodedModelModes(flavor: AgentFlavor, translate: Translate
     if (flavor === 'agy') {
         return getAgyModelModes();
     }
-    return getClaudeModelModes();
+    if (flavor === 'claude' || flavor === null || flavor === undefined) {
+        return getClaudeModelModes();
+    }
+    return [];
 }
 
 export function getAvailableModels(

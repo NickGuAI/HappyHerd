@@ -4,6 +4,7 @@ import {
   type AgentMessageQueueState,
   type HappyHerdAutomationProviderOutcome,
   type HappyHerdHeartbeatDeliveryReceipt,
+  type HappyHerdMachineSessionSettings,
   type Update,
   type UpdateMachineBody,
 } from '@slopus/happy-wire';
@@ -176,6 +177,10 @@ export const MachineMetadataSchema = z.object({
   host: z.string(),
   platform: z.string(),
   happyCliVersion: z.string(),
+  // Optional for metadata published by daemons predating target-confirmed
+  // machine-session creation. Callers that require this protocol must check
+  // the advertised version before issuing the spawn RPC.
+  machineSessionProtocolVersion: z.number().int().positive().optional(),
   homeDir: z.string(),
   happyHomeDir: z.string(),
   happyLibDir: z.string(),
@@ -388,6 +393,8 @@ export type Metadata = {
   archivedBy?: string,
   archiveReason?: string,
   flavor?: string
+  /** Exact launch settings validated by the target daemon for a remote spawn. */
+  spawnSettings?: HappyHerdMachineSessionSettings
   sandbox?: SandboxConfig | null
   dangerouslySkipPermissions?: boolean | null
   /** Lineage for sessions created via the fork / duplicate flow. */

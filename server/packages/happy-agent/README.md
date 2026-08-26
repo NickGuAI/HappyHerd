@@ -44,6 +44,12 @@ deduplication, and returns only non-thinking text from the correlated root
 agent turn. Tool output, ready events, stale turns, and child-agent text are
 excluded.
 
+`spawnCodexSession()` and `spawnSessionOnMachine()` retain compatibility with
+older daemons whose successful spawn receipt contains only the session ID,
+including when callers pass model, effort, or permission options. Callers that
+have first verified the target's `machineSessionProtocolVersion` and require a
+target-confirmed settings receipt use `spawnSessionOnMachineConfirmed()`.
+
 ## Installation
 
 From the monorepo:

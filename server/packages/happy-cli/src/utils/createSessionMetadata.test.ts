@@ -128,6 +128,28 @@ describe('createSessionMetadata', () => {
         expect(metadata.parentSessionId).toBe('happy-parent');
     });
 
+    it('persists target-daemon confirmed launch settings from the scoped handoff', () => {
+        vi.stubEnv('HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON', JSON.stringify({
+            provider: 'codex',
+            model: 'gpt-5.6-sol',
+            effort: 'high',
+            permission: 'yolo',
+        }));
+
+        const { metadata } = createSessionMetadata({
+            flavor: 'codex',
+            machineId: 'machine-remote',
+            startedBy: 'daemon',
+        });
+
+        expect(metadata.spawnSettings).toEqual({
+            provider: 'codex',
+            model: 'gpt-5.6-sol',
+            effort: 'high',
+            permission: 'yolo',
+        });
+    });
+
     it('omits metadata.isSideChat for a normal session', () => {
         const { metadata } = createSessionMetadata({
             flavor: 'claude',

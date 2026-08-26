@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { getNewSessionSidebarLayout } from './newSessionSidebarLayout';
+import {
+    getNewSessionCommanderPickerOptionListMaxHeight,
+    getNewSessionSidebarLayout,
+} from './newSessionSidebarLayout';
 
 describe('getNewSessionSidebarLayout', () => {
     it('enables the right sidebar on supported wide web layouts', () => {
@@ -54,5 +57,42 @@ describe('getNewSessionSidebarLayout', () => {
             zenMode: false,
             windowWidth: 1400,
         }).showSidebar).toBe(false);
+    });
+});
+
+describe('getNewSessionCommanderPickerOptionListMaxHeight', () => {
+    it('bounds a long narrow-web commander list below its full option height', () => {
+        const maxHeight = getNewSessionCommanderPickerOptionListMaxHeight({
+            platform: 'web',
+            embedded: false,
+            windowHeight: 844,
+        });
+
+        expect(maxHeight).toBe(320);
+        expect(maxHeight).toBeLessThan(10 * 44);
+    });
+
+    it('scales down with a shorter narrow-web viewport', () => {
+        expect(getNewSessionCommanderPickerOptionListMaxHeight({
+            platform: 'web',
+            embedded: false,
+            windowHeight: 480,
+        })).toBe(216);
+    });
+
+    it('leaves the embedded desktop sidebar picker unchanged', () => {
+        expect(getNewSessionCommanderPickerOptionListMaxHeight({
+            platform: 'web',
+            embedded: true,
+            windowHeight: 844,
+        })).toBeUndefined();
+    });
+
+    it('leaves native picker sizing unchanged', () => {
+        expect(getNewSessionCommanderPickerOptionListMaxHeight({
+            platform: 'ios',
+            embedded: false,
+            windowHeight: 844,
+        })).toBeUndefined();
     });
 });

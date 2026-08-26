@@ -37,6 +37,7 @@ import { handleCodexCommand } from './commands/codexCommand'
 import { sanitizeSessionEnvironment } from './daemon/sessionEnvironment'
 import { handleAutomationCommand } from './commands/automation'
 import { handleCommanderCommand } from './commands/commander'
+import { handleMachineCommand, handleSessionCommand } from './commands/machine'
 import { configuration } from './configuration'
 
 
@@ -134,6 +135,21 @@ Conversation history is preserved on the server, but in-flight tool calls are in
       await handleCommanderCommand(args.slice(1));
     } catch (error) {
       console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
+      process.exit(1)
+    }
+    return;
+  } else if (subcommand === 'machine' || subcommand === 'session') {
+    try {
+      if (subcommand === 'machine') {
+        await handleMachineCommand(args.slice(1));
+      } else {
+        await handleSessionCommand(args.slice(1));
+      }
+    } catch (error) {
+      console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
+      if (process.env.DEBUG) {
+        console.error(error)
+      }
       process.exit(1)
     }
     return;
@@ -420,11 +436,17 @@ Conversation history is preserved on the server, but in-flight tool calls are in
 
       let startedBy: 'daemon' | 'terminal' | undefined = undefined;
       let verbose = false;
+      let model: string | undefined;
+      let permissionMode: StartOptions['permissionMode'];
       for (let i = 1; i < args.length; i++) {
         if (args[i] === '--started-by') {
           startedBy = args[++i] as 'daemon' | 'terminal';
         } else if (args[i] === '--verbose') {
           verbose = true;
+        } else if (args[i] === '--model') {
+          model = args[++i];
+        } else if (args[i] === '--permission-mode') {
+          permissionMode = args[++i] as StartOptions['permissionMode'];
         }
       }
 
@@ -435,6 +457,8 @@ Conversation history is preserved on the server, but in-flight tool calls are in
         credentials,
         startedBy,
         verbose,
+        model,
+        permissionMode,
       });
     } catch (error) {
       console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
@@ -685,6 +709,8 @@ ${chalk.bold('happy')} - Claude Code On the Go
 ${chalk.bold('Usage:')}
   happy [options]         Start Claude with mobile control
   happy auth              Manage authentication
+  happy machine           Discover account machines
+  happy session           Create a tracked session on an account machine
   happy resume            Resume a previous Happy session by Happy session ID
   happy codex             Start Codex mode
   happy gemini            Start Gemini mode (ACP) [deprecated — use agy]
@@ -716,6 +742,9 @@ ${chalk.bold('Examples:')}
   happy acp opencode --verbose
                            Print raw ACP backend/envelope events
   happy auth login --force Authenticate
+  happy machine auth login Link account-wide machine control in the Happy app
+  happy machine list --json
+  happy session create --machine workstation --path /srv/project --provider codex --json
   happy doctor             Run diagnostics
 
 ${chalk.bold('Happy supports ALL Claude options!')}

@@ -1,9 +1,13 @@
 import { io, Socket } from 'socket.io-client';
+import {
+    HappyHerdMachineSessionSettingsSchema,
+    type HappyHerdMachineSessionSettings,
+} from '@slopus/happy-wire';
 import type { Config } from './config';
 import type { DecryptedMachine } from './api';
 import { decodeBase64, encodeBase64, encrypt, decrypt } from './encryption';
 
-export type SupportedAgent = 'claude' | 'codex' | 'gemini' | 'agy';
+export type SupportedAgent = 'claude' | 'codex' | 'gemini' | 'grok' | 'agy';
 
 export type SpawnSessionRuntimeContext = {
     surfaceId: string;
@@ -26,9 +30,18 @@ export type SpawnSessionOnMachineOptions = {
     effortLevel?: string;
     commanderId?: string;
     runtimeContext?: SpawnSessionRuntimeContext;
+    resumeClaudeSessionId?: string;
+    resumeCodexThreadId?: string;
+    parentSessionId?: string;
+    isSideChat?: boolean;
 };
 
 export type SpawnMachineSessionResult =
+    | { type: 'success'; sessionId: string; settings?: HappyHerdMachineSessionSettings }
+    | { type: 'requestToApproveDirectoryCreation'; directory: string }
+    | { type: 'error'; errorMessage: string };
+
+export type ResumeMachineSessionResult =
     | { type: 'success'; sessionId: string }
     | { type: 'requestToApproveDirectoryCreation'; directory: string }
     | { type: 'error'; errorMessage: string };
@@ -145,6 +158,10 @@ export async function spawnSessionOnMachine(
                 effortLevel: options.effortLevel,
                 commanderId: options.commanderId,
                 runtimeContext: normalizedRuntimeContext(options.runtimeContext),
+                resumeClaudeSessionId: options.resumeClaudeSessionId,
+                resumeCodexThreadId: options.resumeCodexThreadId,
+                parentSessionId: options.parentSessionId,
+                isSideChat: options.isSideChat,
             }),
         );
 
@@ -185,6 +202,25 @@ export async function spawnSessionOnMachine(
             throw new Error('RPC call returned unexpected data');
         }
 
+        if (decrypted.type === 'success') {
+            const response = decrypted as Record<string, unknown>;
+            const settings = HappyHerdMachineSessionSettingsSchema.safeParse(response.settings);
+            if (typeof response.sessionId !== 'string' || response.sessionId.length === 0) {
+                throw new Error('RPC call returned invalid session success data');
+            }
+            if (!settings.success) {
+                if (response.settings === undefined) {
+                    return { type: 'success', sessionId: response.sessionId };
+                }
+                throw new Error('Target daemon did not return confirmed machine-session settings');
+            }
+            return {
+                type: 'success',
+                sessionId: response.sessionId,
+                settings: settings.data,
+            };
+        }
+
         return decrypted as SpawnMachineSessionResult;
     } finally {
         socket.close();
@@ -197,7 +233,7 @@ export async function resumeSessionOnMachine(
     token: string,
     sessionId: string,
     runtimeContext?: SpawnSessionRuntimeContext,
-): Promise<SpawnMachineSessionResult> {
+): Promise<ResumeMachineSessionResult> {
     const socket = io(config.serverUrl, {
         auth: {
             token,
@@ -257,7 +293,72 @@ export async function resumeSessionOnMachine(
             throw new Error('RPC call returned unexpected data');
         }
 
-        return decrypted as SpawnMachineSessionResult;
+        return decrypted as ResumeMachineSessionResult;
+    } finally {
+        socket.close();
+    }
+}
+
+function normalizeMachineRpcMethod(method: string): string {
+    const normalized = method.trim();
+    if (!/^[a-z0-9-]{1,128}$/.test(normalized)) {
+        throw new Error('Machine RPC method must contain only lowercase letters, numbers, and hyphens');
+    }
+    return normalized;
+}
+
+export async function callMachineRpc<TResult = unknown>(
+    config: Config,
+    machine: DecryptedMachine,
+    token: string,
+    method: string,
+    params: Record<string, unknown>,
+): Promise<TResult> {
+    const normalizedMethod = normalizeMachineRpcMethod(method);
+    const socket = io(config.serverUrl, {
+        auth: {
+            token,
+        },
+        path: '/v1/updates',
+        transports: ['websocket'],
+        autoConnect: false,
+        reconnection: false,
+    });
+
+    socket.connect();
+
+    try {
+        await waitForConnect(socket);
+        const encryptedParams = encodeBase64(
+            encrypt(machine.encryption.key, machine.encryption.variant, params),
+        );
+        const response = await socket.timeout(30_000).emitWithAck('rpc-call', {
+            method: `${machine.id}:${normalizedMethod}`,
+            params: encryptedParams,
+        }) as RpcAck;
+
+        if (!response.ok) {
+            throw new Error(normalizeRpcError(response.error, machine.id));
+        }
+        if (!response.result) {
+            throw new Error('RPC call returned no result');
+        }
+
+        const decrypted = decrypt(
+            machine.encryption.key,
+            machine.encryption.variant,
+            decodeBase64(response.result),
+        );
+        if (
+            decrypted != null
+            && typeof decrypted === 'object'
+            && !Array.isArray(decrypted)
+            && 'error' in decrypted
+            && typeof decrypted.error === 'string'
+        ) {
+            throw new Error(decrypted.error);
+        }
+        return decrypted as TResult;
     } finally {
         socket.close();
     }

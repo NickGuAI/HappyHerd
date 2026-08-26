@@ -315,11 +315,14 @@
     "interruptPressStop": "如需中断，请按“停止”"
   },
   "agentDefaults": {
-    "customCodexModelTitle": "自定义 Codex 模型",
-    "customCodexModelDescription": "输入准确的模型 ID。可用性取决于您的 Codex 账户或 API 配置。",
-    "modelIdPlaceholder": "模型 ID",
-    "customModel": "自定义模型…",
-    "exactModelId": "输入准确的模型 ID"
+    "capabilitySource": "功能来源设备",
+    "capabilitySourceDescription": "设备提供的默认选项仅使用此处所选设备公布的功能。",
+    "selectCapabilityMachine": "选择功能来源设备",
+    "noMachinesForCapabilities": "请连接设备以加载提供商功能。",
+    "capabilitiesFromMachine": "功能由 {machine} 提供。",
+    "providerUnavailable": "没有可配置的默认值",
+    "providerUnavailableOnMachine": "此提供商在 {machine} 上未公布可配置的默认值。请在上方选择其他设备。",
+    "selectMachineForProvider": "请在上方选择功能来源设备以加载此提供商的默认值。"
   },
   "modelMode": {
     "unavailableSelectedDaemon": "在所选守护进程上不可用",
@@ -768,7 +771,7 @@
     "overwrite": "覆盖"
   },
   "sideChat": {
-    "panelTitle": "侧边聊天",
+    "panelTitle": "子工作会话",
     "emptyTitle": "开始侧边聊天",
     "emptySubtitle": "在一旁向智能体提问。它会继承此聊天的上下文，但保持独立——这里的任何操作都不会影响主对话。",
     "startButton": "开始侧边聊天",
@@ -778,7 +781,11 @@
     "expand": "全屏打开",
     "tabLabel": "侧边聊天 {index}",
     "newChat": "新建侧边聊天",
-    "close": "关闭侧边聊天"
+    "close": "关闭侧边聊天",
+    "collapse": "收起子工作会话",
+    "archiveFailed": "无法归档此子工作会话。标签页已恢复，您可以重试。",
+    "openCount": "打开子工作会话（{count}）",
+    "stopUnconfirmed": "子工作会话 {sessionId} 已归档，但 HappyHerd 无法确认其进程已停止。如果工作仍在继续，请检查所属机器。"
   },
   "settingsVoice": {
     "languageTitle": "语言",
@@ -813,9 +820,7 @@
     "usageFooter": "过去 30 天使用的语音时间。免费方案: 20 分钟。订阅用户: 5 小时。每月最多 100 次对话。",
     "usageLabel": "语音时间",
     "conversationsLabel": "对话",
-    "usageUsed": "已使用 {used}，共 {limit}",
-    "supportTitle": "升级语音",
-    "supportSubtitle": "获取更多语音时间并支持开发"
+    "usageUsed": "已使用 {used}，共 {limit}"
   },
   "settingsAccount": {
     "accountInformation": "账户信息",
@@ -1433,7 +1438,7 @@
     "onceThisDeviceIsRegisteredItWillAppearHere": "该设备注册后，它将出现在此处。",
     "agentDefaults": "代理默认值",
     "clearOverrides": "清除覆盖",
-    "returnEveryAgentToCodeDefaults": "将每个代理恢复为代码默认值",
+    "returnEveryAgentToCodeDefaults": "将每个代理恢复为其可用的默认值",
     "connect": "连接",
     "runTheFollowingCommandInYourTerminal": "在终端中运行以下命令：",
     "openaiApiKey": "OpenAI API 密钥",

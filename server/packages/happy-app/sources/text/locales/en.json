@@ -385,11 +385,14 @@
     "interruptPressStop": "To interrupt press stop"
   },
   "agentDefaults": {
-    "customCodexModelTitle": "Custom Codex model",
-    "customCodexModelDescription": "Enter an exact model ID. Availability depends on your Codex account or API configuration.",
-    "modelIdPlaceholder": "model-id",
-    "customModel": "Custom model…",
-    "exactModelId": "Enter an exact model ID"
+    "capabilitySource": "Capability Source Machine",
+    "capabilitySourceDescription": "Machine-owned defaults use only this exact machine's advertised capabilities.",
+    "selectCapabilityMachine": "Select a capability source machine",
+    "noMachinesForCapabilities": "Connect a machine to load provider capabilities.",
+    "capabilitiesFromMachine": "Capabilities advertised by {machine}.",
+    "providerUnavailable": "No configurable defaults",
+    "providerUnavailableOnMachine": "This provider advertises no configurable defaults on {machine}. Choose another machine above.",
+    "selectMachineForProvider": "Select a capability source machine above to load this provider's defaults."
   },
   "modelMode": {
     "unavailableSelectedDaemon": "Unavailable on the selected daemon",
@@ -838,7 +841,7 @@
     "overwrite": "Overwrite"
   },
   "sideChat": {
-    "panelTitle": "Side chat",
+    "panelTitle": "Sub-workers",
     "emptyTitle": "Start a side chat",
     "emptySubtitle": "Ask the agent something on the side. It inherits this chat’s context but stays isolated — nothing here touches the main conversation.",
     "startButton": "Start side chat",
@@ -848,7 +851,11 @@
     "expand": "Open full screen",
     "tabLabel": "Side chat {index}",
     "newChat": "New side chat",
-    "close": "Close side chat"
+    "close": "Close side chat",
+    "collapse": "Collapse sub-workers",
+    "archiveFailed": "This sub-worker could not be archived. Its tab has been restored so you can try again.",
+    "openCount": "Open sub-workers ({count})",
+    "stopUnconfirmed": "Sub-worker {sessionId} was archived, but HappyHerd could not confirm its process stopped. Check the owning machine if work continues."
   },
   "settingsVoice": {
     "languageTitle": "Language",
@@ -883,9 +890,7 @@
     "usageFooter": "Voice time used in the last 30 days. Free tier: 20 min. Subscribed: 5 hours. Max 100 conversations per month.",
     "usageLabel": "Voice Time",
     "conversationsLabel": "Conversations",
-    "usageUsed": "{used} used of {limit}",
-    "supportTitle": "Upgrade Voice",
-    "supportSubtitle": "Get more voice time and support development"
+    "usageUsed": "{used} used of {limit}"
   },
   "settingsAccount": {
     "accountInformation": "Account Information",
@@ -1433,7 +1438,7 @@
     "onceThisDeviceIsRegisteredItWillAppearHere": "Once this device is registered, it will appear here.",
     "agentDefaults": "Agent Defaults",
     "clearOverrides": "Clear Overrides",
-    "returnEveryAgentToCodeDefaults": "Return every agent to code defaults",
+    "returnEveryAgentToCodeDefaults": "Return every agent to its available defaults",
     "connect": "Connect",
     "runTheFollowingCommandInYourTerminal": "Run the following command in your terminal:",
     "openaiApiKey": "OpenAI API key",

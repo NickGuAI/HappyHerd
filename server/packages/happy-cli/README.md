@@ -90,6 +90,61 @@ happy daemon list
 
 The daemon starts automatically when you run `happy`, so you usually don't need to manage it manually.
 
+### Account machines and remote sessions
+
+Link account-wide machine control once from the Happy app. This key is stored
+as `agent.key` in the configured HappyHerd home and remains separate from the
+normal `access.key` used by native sessions. `access.key` never grants machine
+control, including for legacy native-session credentials:
+
+```bash
+happy machine auth login
+happy machine auth status
+happy machine auth logout
+```
+
+Then discover the online and offline machines registered to the linked
+account:
+
+```bash
+happy machine list
+happy machine list --json
+```
+
+Create a tracked Happy session on an explicitly selected machine and absolute
+path:
+
+```bash
+happy session create \
+  --machine workstation \
+  --path /srv/project \
+  --provider codex \
+  --model gpt-5.6 \
+  --effort high \
+  --permission plan \
+  --json
+```
+
+`--machine` accepts an exact machine ID or an unambiguous exact hostname from
+`machine list`. Machine-list receipts label each entry's `kind`,
+`machineSessionProtocolVersion`, `sessionCreateSupported` status, available
+providers, and any advertised mode catalogs. `sessionCreateSupported` is true
+only when a native Happy CLI daemon
+advertises the target-confirmed machine-session protocol used by this command;
+upgrade and restart an older target before creating a session. Rig machines use
+a separate creation contract and are reported but rejected here. The command
+refreshes the exact machine and verifies this marker before any spawn RPC,
+rejects an offline target, and validates every explicit mode against that
+machine's advertised provider catalog. A provider without a catalog may still
+launch with its defaults, but explicit overrides fail closed. It never
+substitutes another provider. The path must be absolute for the target operating
+system; add `--create-dir` only when you explicitly approve creating a missing
+directory on that machine. JSON success returns the tracked Happy session ID,
+machine identity, path, and the effective settings validated by the target
+daemon and persisted on the new session. A null setting means that dimension
+remains owned by the provider runtime because its catalog advertised no
+concrete default.
+
 ### Keeping the daemon running across reboots
 
 If you want the daemon to come back automatically after a reboot — without opening a `happy` session first — start it from your shell profile so it inherits your normal user session context (PATH, keychain access, OAuth credentials):
@@ -141,10 +196,14 @@ happy connect status
 | `happy grok` | Start GrokBuild through its official ACP interface |
 | `happy acp` | Start any ACP-compatible agent |
 | `happy resume <id>` | Resume a previous session |
+| `happy session side-chat <id>` | Create a Claude or Codex child side chat |
 | `happy notify` | Send push notification to your devices |
 | `happy doctor` | Diagnostics & troubleshooting |
 | `happy commander list` | List Commanders available on this machine |
 | `happy commander create --manifest <file>` | Atomically install agent-authored Commander content |
+| `happy machine auth <login\|status\|logout>` | Manage the app-approved account-machine control link |
+| `happy machine list [--json]` | Discover machines on the current account |
+| `happy session create ... [--json]` | Create a tracked session on a selected Happy CLI daemon machine |
 
 ---
 

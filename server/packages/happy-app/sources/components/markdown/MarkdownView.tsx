@@ -1,6 +1,6 @@
 import { MarkdownSpan, parseMarkdown } from './parseMarkdown';
 import * as React from 'react';
-import { Pressable, ScrollView, View, Platform, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, View, Platform, useWindowDimensions } from 'react-native';
 import { Image, type ImageLoadEventData } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { HorizontalScrollView } from '../HorizontalScrollView';
@@ -19,9 +19,12 @@ import { t } from '@/text';
 import { normalizeExternalMarkdownLink } from './linkUtils';
 import { openExternalUrl } from '@/utils/openExternalUrl';
 import {
+    resolveMarkdownWorkspaceImageReference,
     resolveMarkdownWorkspaceLinkRoute,
+    type MarkdownWorkspaceImageReference,
     type WorkspaceLinkRoute,
 } from '@/utils/markdownWorkspaceLink';
+import { loadMarkdownWorkspaceImage } from '@/utils/markdownWorkspaceImage';
 import { useWorkspaceLinkPress } from '@/-session/workspaceLinkNavigation';
 
 // Option type for callback
@@ -104,6 +107,16 @@ export const MarkdownView = React.memo((props: MarkdownViewProps) => {
         onLinkPress: handleLinkPress,
     }), [handleLinkPress, resolveLinkTarget]);
 
+    const resolveWorkspaceImageReference = React.useCallback((url: string, alt: string): MarkdownWorkspaceImageReference | null => {
+        if (!props.enableWorkspaceLinks) return null;
+        return resolveMarkdownWorkspaceImageReference({
+            url,
+            label: alt,
+            originSessionId: props.sessionId,
+            metadata: session?.metadata,
+        });
+    }, [props.enableWorkspaceLinks, props.sessionId, session?.metadata]);
+
     const handleLongPress = React.useCallback(() => {
         try {
             const textId = storeTempText(props.markdown);
@@ -141,6 +154,21 @@ export const MarkdownView = React.memo((props: MarkdownViewProps) => {
                         return <RenderTableBlock headers={block.headers} rows={block.rows} linkHandlers={linkHandlers} selectable={selectable} key={index} first={index === 0} last={index === blocks.length - 1} />;
                     } else if (block.type === 'image') {
                         return <RenderImageBlock url={block.url} alt={block.alt} key={index} first={index === 0} last={index === blocks.length - 1} />;
+                    } else if (block.type === 'workspace-image') {
+                        const reference = resolveWorkspaceImageReference(block.url, block.alt);
+                        if (!reference) {
+                            return <RenderTextBlock spans={block.fallback} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} linkHandlers={linkHandlers} />;
+                        }
+                        return (
+                            <RenderWorkspaceImageBlock
+                                reference={reference}
+                                alt={block.alt}
+                                key={index}
+                                first={index === 0}
+                                last={index === blocks.length - 1}
+                                onPress={() => handleLinkPress({ kind: 'workspace', route: reference.workspaceRoute })}
+                            />
+                        );
                     } else {
                         return null;
                     }
@@ -340,7 +368,59 @@ function MarkdownImagePreviewModal(props: { url: string, alt: string, onClose: (
     );
 }
 
-function RenderImageBlock(props: { url: string, alt: string, first: boolean, last: boolean }) {
+function RenderImageFailure() {
+    return (
+        <View accessibilityRole="alert" style={style.imageFailure}>
+            <Ionicons name="image-outline" size={24} color={style.imageFailureText.color} />
+            <Text style={style.imageFailureText}>{t('markdown.imageLoadFailed')}</Text>
+        </View>
+    );
+}
+
+function RenderWorkspaceImageBlock(props: {
+    reference: MarkdownWorkspaceImageReference;
+    alt: string;
+    first: boolean;
+    last: boolean;
+    onPress: () => void;
+}) {
+    const [state, setState] = React.useState<
+        { status: 'loading' } | { status: 'ready'; url: string } | { status: 'failed' }
+    >({ status: 'loading' });
+
+    React.useEffect(() => {
+        let active = true;
+        setState({ status: 'loading' });
+        void loadMarkdownWorkspaceImage(props.reference).then((url) => {
+            if (!active) return;
+            setState(url ? { status: 'ready', url } : { status: 'failed' });
+        });
+        return () => {
+            active = false;
+        };
+    }, [
+        props.reference.rootPath,
+        props.reference.workspaceRoute.params.absolutePath,
+        props.reference.workspaceRoute.params.machineId,
+    ]);
+
+    if (state.status === 'ready') {
+        return <RenderImageBlock {...props} url={state.url} />;
+    }
+
+    return (
+        <View style={[style.imageBlock, props.first && style.first, props.last && style.last]}>
+            {state.status === 'loading' ? (
+                <View style={style.imageFailure}>
+                    <ActivityIndicator color={style.imageFailureText.color} />
+                </View>
+            ) : <RenderImageFailure />}
+            {props.alt ? <Text style={style.imageCaption}>{props.alt}</Text> : null}
+        </View>
+    );
+}
+
+function RenderImageBlock(props: { url: string, alt: string, first: boolean, last: boolean, onPress?: () => void }) {
     const accessibleLabel = props.alt || t('uiCopy.markdownImage');
     const [aspectRatio, setAspectRatio] = React.useState(16 / 9);
     const [failed, setFailed] = React.useState(false);
@@ -354,19 +434,20 @@ function RenderImageBlock(props: { url: string, alt: string, first: boolean, las
     }, []);
 
     const openPreview = React.useCallback(() => {
+        if (props.onPress) {
+            props.onPress();
+            return;
+        }
         Modal.show({
             component: MarkdownImagePreviewModal,
             props: { url: props.url, alt: props.alt },
         });
-    }, [props.alt, props.url]);
+    }, [props.alt, props.onPress, props.url]);
 
     return (
         <View style={[style.imageBlock, props.first && style.first, props.last && style.last]}>
             {failed ? (
-                <View accessibilityRole="alert" style={style.imageFailure}>
-                    <Ionicons name="image-outline" size={24} color={style.imageFailureText.color} />
-                    <Text style={style.imageFailureText}>{t('markdown.imageLoadFailed')}</Text>
-                </View>
+                <RenderImageFailure />
             ) : (
                 <Pressable
                     accessibilityRole="button"

@@ -385,11 +385,14 @@
     "interruptPressStop": "Zum Unterbrechen „Stoppen“ drücken"
   },
   "agentDefaults": {
-    "customCodexModelTitle": "Benutzerdefiniertes Codex-Modell",
-    "customCodexModelDescription": "Geben Sie eine exakte Modell-ID ein. Die Verfügbarkeit hängt von Ihrem Codex-Konto oder Ihrer API-Konfiguration ab.",
-    "modelIdPlaceholder": "Modell-ID",
-    "customModel": "Benutzerdefiniertes Modell…",
-    "exactModelId": "Exakte Modell-ID eingeben"
+    "capabilitySource": "Quellrechner für Funktionen",
+    "capabilitySourceDescription": "Rechnergebundene Standardwerte verwenden ausschließlich die angekündigten Funktionen dieses exakten Rechners.",
+    "selectCapabilityMachine": "Quellrechner für Funktionen auswählen",
+    "noMachinesForCapabilities": "Verbinden Sie einen Rechner, um Anbieterfunktionen zu laden.",
+    "capabilitiesFromMachine": "Von {machine} angekündigte Funktionen.",
+    "providerUnavailable": "Keine konfigurierbaren Standardwerte",
+    "providerUnavailableOnMachine": "Dieser Anbieter kündigt auf {machine} keine konfigurierbaren Standardwerte an. Wählen Sie oben einen anderen Rechner aus.",
+    "selectMachineForProvider": "Wählen Sie oben einen Quellrechner aus, um die Standardwerte dieses Anbieters zu laden."
   },
   "modelMode": {
     "unavailableSelectedDaemon": "Auf dem ausgewählten Daemon nicht verfügbar",
@@ -838,7 +841,7 @@
     "overwrite": "Überschreiben"
   },
   "sideChat": {
-    "panelTitle": "Nebenchat",
+    "panelTitle": "Untergeordnete Agenten",
     "emptyTitle": "Starten Sie einen Nebenchat",
     "emptySubtitle": "Fragen Sie den Agenten nebenbei etwas. Es übernimmt den Kontext dieses Chats, bleibt aber isoliert – hier berührt nichts die Hauptkonversation.",
     "startButton": "Starten Sie den Side-Chat",
@@ -848,7 +851,11 @@
     "expand": "Vollbild öffnen",
     "tabLabel": "Nebenchat {index}",
     "newChat": "Neuer Seitenchat",
-    "close": "Side-Chat schließen"
+    "close": "Side-Chat schließen",
+    "collapse": "Untergeordnete Agenten einklappen",
+    "archiveFailed": "Dieser untergeordnete Agent konnte nicht archiviert werden. Sein Tab wurde wiederhergestellt, damit du es erneut versuchen kannst.",
+    "openCount": "Untergeordnete Agenten öffnen ({count})",
+    "stopUnconfirmed": "Der untergeordnete Agent {sessionId} wurde archiviert, aber HappyHerd konnte das Beenden seines Prozesses nicht bestätigen. Prüfe den zugehörigen Rechner, falls die Arbeit fortgesetzt wird."
   },
   "settingsVoice": {
     "languageTitle": "Sprache",
@@ -883,9 +890,7 @@
     "usageFooter": "In den letzten 30 Tagen genutzte Sprachzeit. Kostenloses Kontingent: 20 Min. Abonniert: 5 Stunden. Maximal 100 Gespräche pro Monat.",
     "usageLabel": "Sprachzeit",
     "conversationsLabel": "Gespräche",
-    "usageUsed": "{used} verwendet von {limit}",
-    "supportTitle": "Stimme verbessern",
-    "supportSubtitle": "Erhalten Sie mehr Sprachzeit und unterstützen Sie die Entwicklung"
+    "usageUsed": "{used} verwendet von {limit}"
   },
   "settingsAccount": {
     "accountInformation": "Kontoinformationen",
@@ -1433,7 +1438,7 @@
     "onceThisDeviceIsRegisteredItWillAppearHere": "Sobald dieses Gerät registriert ist, wird es hier angezeigt.",
     "agentDefaults": "Agentenstandards",
     "clearOverrides": "Überschreibungen löschen",
-    "returnEveryAgentToCodeDefaults": "Setzen Sie jeden Agenten auf die Code-Standardeinstellungen zurück",
+    "returnEveryAgentToCodeDefaults": "Alle Agenten auf ihre verfügbaren Standardwerte zurücksetzen",
     "connect": "Verbinden",
     "runTheFollowingCommandInYourTerminal": "Führen Sie den folgenden Befehl in Ihrem Terminal aus:",
     "openaiApiKey": "OpenAI-API-Schlüssel",

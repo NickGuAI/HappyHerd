@@ -11,6 +11,7 @@ const repoRoot = resolve(packageDir, '..', '..');
 const environmentsDir = join(repoRoot, 'environments', 'data', 'envs');
 const currentEnvironmentPath = join(repoRoot, 'environments', 'data', 'current.json');
 const binPath = resolve(packageDir, 'bin', 'happy-agent.mjs');
+const happyBinPath = resolve(repoRoot, 'packages', 'happy-cli', 'bin', 'happy.mjs');
 const keepIntegrationEnv = ['1', 'true', 'yes'].includes((process.env.HAPPY_AGENT_KEEP_ENV ?? '').toLowerCase());
 
 type EnvironmentConfig = {
@@ -103,6 +104,19 @@ function runAgentCli(args: string[], env: NodeJS.ProcessEnv): string {
         '--no-warnings',
         '--no-deprecation',
         binPath,
+        ...args,
+    ], {
+        env,
+        encoding: 'utf-8',
+        maxBuffer: 10_000_000,
+    });
+}
+
+function runHappyCli(args: string[], env: NodeJS.ProcessEnv): string {
+    return execFileSync(process.execPath, [
+        '--no-warnings',
+        '--no-deprecation',
+        happyBinPath,
         ...args,
     ], {
         env,
@@ -506,43 +520,92 @@ describe('happy-agent integration', { timeout: 180_000 }, () => {
         }, 20_000, 'spawned session to be tracked by daemon');
     });
 
-    it('spawns in the test project root and sends a message through happy-agent CLI', async () => {
+    it('creates through native happy and accepts a first turn on the tracked session', async () => {
         if (!activeMachineId || !integrationConfig || !agentHomeDir || !testProjectDir) {
             throw new Error('Integration environment not initialized');
         }
 
         const agentEnv = agentEnvVars(integrationConfig.serverPort, agentHomeDir);
-        const prompt = 'happy-agent root message';
+        const prompt = 'native happy machine-session message';
+        const machineReceipt = parseJson<{
+            type: 'machine-list';
+            machines: Array<{
+                id: string;
+                online: boolean;
+                providers: Record<string, {
+                    models: Array<{
+                        code: string;
+                        isDefault?: boolean;
+                        effortLevels?: Array<{ code: string }>;
+                    }>;
+                    effortLevels: Array<{ code: string }>;
+                    permissionModes: Array<{ code: string }>;
+                }>;
+            }>;
+        }>(runHappyCli(['machine', 'list', '--json'], agentEnv));
+        const target = machineReceipt.machines.find((machine) => machine.id === activeMachineId);
+        expect(target?.online).toBe(true);
+        const launch = (['claude', 'codex'] as const).flatMap((provider) => {
+            const catalog = target?.providers[provider];
+            if (!catalog) return [];
+            const model = catalog.models.find((candidate) => {
+                const efforts = candidate.effortLevels ?? catalog.effortLevels;
+                return candidate.code !== 'default' && efforts.length > 0;
+            });
+            const effort = model ? (model.effortLevels ?? catalog.effortLevels)[0] : undefined;
+            const permission = catalog.permissionModes[0];
+            return model && effort && permission
+                ? [{ provider, model: model.code, effort: effort.code, permission: permission.code }]
+                : [];
+        })[0];
+        if (!launch) {
+            throw new Error(`Machine ${activeMachineId} did not advertise a Claude or Codex model, effort, and permission tuple`);
+        }
         const spawnResult = parseJson<{
-            type: 'success' | 'requestToApproveDirectoryCreation' | 'error';
-            sessionId?: string;
-            machineId?: string;
-            directory?: string;
+            type: 'session-created';
+            sessionId: string;
+            machine: { id: string };
+            path: string;
+            settings: { provider: string; model: string | null; effort: string | null; permission: string | null };
         }>(
-            runAgentCli([
-                'spawn',
+            runHappyCli([
+                'session',
+                'create',
                 '--machine',
                 activeMachineId,
                 '--path',
                 testProjectDir,
+                '--provider',
+                launch.provider,
+                '--model',
+                launch.model,
+                '--effort',
+                launch.effort,
+                '--permission',
+                launch.permission,
                 '--json',
             ], agentEnv),
         );
 
-        expect(spawnResult.type).toBe('success');
-        expect(spawnResult.directory).toBe(testProjectDir);
+        expect(spawnResult).toMatchObject({
+            type: 'session-created',
+            machine: { id: activeMachineId },
+            path: testProjectDir,
+            settings: launch,
+        });
 
-        const sessionId = spawnResult.sessionId!;
+        const sessionId = spawnResult.sessionId;
         spawnedSessionIds.add(sessionId);
 
         await waitForSessionInList(sessionId, agentEnv);
 
         const status = parseJson<{
             id: string;
-            metadata?: { path?: string };
+            metadata?: { path?: string; spawnSettings?: typeof launch };
         }>(runAgentCli(['status', sessionId, '--json'], agentEnv));
         expect(status.id).toBe(sessionId);
         expect(status.metadata?.path).toBe(testProjectDir);
+        expect(status.metadata?.spawnSettings).toEqual(launch);
 
         const sendResult = parseJson<{ sessionId: string; message: string; sent: boolean; permissionMode: string | null }>(
             runAgentCli(['send', sessionId, prompt, '--json'], agentEnv),

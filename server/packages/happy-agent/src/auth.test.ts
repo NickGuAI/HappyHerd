@@ -297,6 +297,15 @@ describe('auth', () => {
             const calls = consoleSpy.mock.calls.map(c => String(c[0]));
             expect(calls).toContain('## Authentication');
             expect(calls).toContain('- Status: Not authenticated');
+            expect(calls).toContain('- Action: Run `happy-agent auth login` to authenticate.');
+        });
+
+        it('allows a supported caller to name its public login command', async () => {
+            await authStatus(config, { loginCommand: 'happy machine auth login' });
+
+            const calls = consoleSpy.mock.calls.map(c => String(c[0]));
+            expect(calls).toContain('- Action: Run `happy machine auth login` to authenticate.');
+            expect(calls.join('\n')).not.toContain('happy-agent auth login');
         });
 
         it('shows public key when authenticated', async () => {

@@ -16,6 +16,21 @@ export const HAPPYHERD_CLAUDE_MODEL_SLUGS = [
 
 export const HAPPYHERD_DEFAULT_CLAUDE_MODEL_SLUG = 'claude-opus-5';
 
+/** Exact display names accepted by `agy --model`, as printed by `agy models`. */
+export const HAPPYHERD_AGY_MODEL_NAMES = [
+    'Gemini 3.6 Flash (Medium)',
+    'Gemini 3.6 Flash (High)',
+    'Gemini 3.6 Flash (Low)',
+    'Gemini 3.5 Flash (Medium)',
+    'Gemini 3.5 Flash (High)',
+    'Gemini 3.5 Flash (Low)',
+    'Gemini 3.1 Pro (Low)',
+    'Gemini 3.1 Pro (High)',
+    'Claude Sonnet 4.6 (Thinking)',
+    'Claude Opus 4.6 (Thinking)',
+    'GPT-OSS 120B (Medium)',
+] as const;
+
 const LEGACY_CLAUDE_MODEL_ALIASES: Readonly<Record<string, string>> = {
     fable: 'claude-fable-5',
     opus: 'claude-opus-5',

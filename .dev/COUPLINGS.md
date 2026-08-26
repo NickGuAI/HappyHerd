@@ -75,6 +75,37 @@ responses; resume stays on the original machine. App attachment and fork
 surfaces must follow advertised ACP capabilities rather than another provider
 fallback.
 
+### Provider defaults and session launch
+
+```text
+active non-retired HARNESS_ORDER
+  → Agent Defaults schema + settings groups
+  → explicit Agent Defaults capability-source selector
+      (initially prefers the New Session draft machine)
+  → selected daemon catalog or explicitly empty dimensions
+       ├── GrokBuild agentCapabilities
+       └── Rig sessionCreation metadata
+  → Full New Session + HomeDock draft + draft launcher
+  → exact-daemon catalog re-read and selection validation
+  → provider-native spawn payload
+```
+
+The active harness registry owns Defaults coverage; retired Gemini remains
+parseable only for old synchronized settings. Agent Defaults visibly names and
+lets the user change its exact capability-source daemon without mutating the
+New Session draft. GrokBuild and Rig own their permission, model, and per-model
+effort values through that daemon. Unsupported dimensions stay explicitly
+absent; an absent provider catalog renders a localized, actionable unavailable
+state instead of a blank group or borrowed choice. The separate exact
+launch-target daemon is re-read immediately before
+spawn, so a saved value from another capability source is revalidated there.
+An unknown provider never falls through to Claude. Any provider-registry change
+must update or automatically flow through the defaults schema, settings groups,
+draft reset boundary, all three launch surfaces, and the registry-parity proof.
+Every actual provider change clears the draft's permission, model, and effort
+fields before the destination provider's defaults are resolved; provider-local
+values must never survive a Claude ↔ Codex (or any other) switch.
+
 ### Session heartbeat delivery
 
 ```text
@@ -129,6 +160,80 @@ Default state roots are intentionally not uniform: maintained CLI state uses
 `~/.happyherd`; retained `happy-agent` and app-logs defaults use `~/.happy`;
 Codium uses a platform-dependent `happy`/`Happy` directory. Never treat them as
 interchangeable stores.
+
+Native account-machine discovery and session creation cross one package edge:
+`happy-cli` owns the public commands, while the side-effect-free
+`happy-agent/control` and `happy-agent/auth` exports own account-machine
+decryption, encrypted machine RPC, and the app-approved account-link flow.
+`happy machine auth` stores its account-control key only at `agent.key` in the
+configured HappyHerd home; normal native auth remains in `access.key`, and
+HappyHerd issuer credentials remain unrelated. Do not copy or derive one from
+another. Because those package exports resolve through `happy-agent/dist`, the
+existing injected-package publish lifecycle builds that surface for clean
+workspace installs after its `happy-wire` dependency is available. Do not add a
+second root-postinstall build: it races pnpm's injected `happy-wire` packaging.
+The server image's filtered deps install also runs those injected-package
+lifecycles. Its deps stage must copy the full `happy-agent` and `happy-wire`
+package inputs before install—not only their manifests—so TypeScript sources
+and configuration, tests, and bins exist and source changes invalidate the
+cached install layer.
+The server-image workflow path filter must include both package trees.
+Release jobs that deliberately install with `--ignore-scripts` must instead
+build `happy-agent` explicitly before building `happy` and the launcher payload.
+Native `happy session create` accepts only Happy CLI daemon machines. Rig has a
+separate idempotent, provider-qualified RPC contract and must fail closed here
+unless that distinct contract is implemented end to end.
+Machine kind alone is not authorization to use the strict creation RPC. New
+daemons advertise `machineSessionProtocolVersion`; the command refreshes the
+target and requires the exact supported version before any side-effecting
+spawn. Missing or unknown versions remain discoverable but report
+`sessionCreateSupported: false`.
+The target daemon revalidates requested modes from its own current catalog,
+passes the resulting settings through a session-scoped environment handoff,
+and returns success only after the child session metadata persists the same
+settings. The requester reports that confirmation; it never reconstructs a
+success receipt from its earlier request.
+The retained `happy-agent` spawn APIs remain mixed-version compatible: they
+accept a legacy success receipt without settings and wait for the tracked
+session, including when existing callers pass model, effort, or permission
+options. Only the explicit confirmed API requires the receipt and persisted
+settings tuple; do not route legacy callers through that stricter method.
+Concrete provider defaults that Happy owns must be marked `isDefault` in the
+daemon catalog and share the same constant as the runtime launch path. Leaving
+an owned default unmarked turns an omitted request into a false receipt even
+when the provider process starts successfully.
+
+Coordinated child side chats extend that same exact-daemon boundary:
+
+```text
+happy session side-chat <parent-session-id>
+  → decrypt exact parent session metadata
+  → resolve its owning active machine and supported daemon protocol
+  → generic encrypted machine RPC
+       ├── Claude provider-native session fork
+       └── Codex provider-native thread fork
+  → confirmed spawn on the same machine and path
+       with fresh provider resume ID + parentSessionId + isSideChat
+  → hidden child metadata in synchronized session state
+  → exact-parent child selector
+       ├── wide Web/Mac collapsible sidebar
+       └── narrow/native full-screen panel
+```
+
+The parent session record owns the machine, path, provider, and provider-backend
+identity used for the fork; the command never substitutes another machine or
+provider. Provider-native fork RPCs must complete before child spawn, and the
+new backend ID—not the parent's ID—is the resume target. `parentSessionId` and
+`isSideChat` are persisted child lineage: top-level session selectors exclude
+those children while the parent view discovers every non-archived exact child,
+including children created by another CLI client. Side-chat presentation is
+independent of the default-off file-diff-sidebar setting. Collapsing either
+presentation changes only local view state; closing a child tab stops it and
+always archives the server session so it stays absent after reload. The
+encrypted archive acknowledgement uses Socket.IO's native timeout so a
+buffered mutation cannot apply after a reported failure. After a lost
+acknowledgement, the app refreshes and reads back the canonical lifecycle
+marker before it reports success or restores a retryable tab.
 
 ## Cross-cutting contracts
 

@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, truncate, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, symlink, truncate, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -37,6 +37,58 @@ describe('workspace file preview boundary', () => {
 
         const response = await handlersFor(root).get('readFile')?.({ path: file });
         expect(response).toEqual({ success: true, content: Buffer.from('# Hello').toString('base64') });
+    });
+
+    it('reads a genuine in-root file through the constrained machine RPC', async () => {
+        const container = await mkdtemp(join(tmpdir(), 'happyherd-rooted-file-preview-'));
+        cleanup.push(container);
+        const root = join(container, 'workspace');
+        const file = join(root, 'image.png');
+        const content = Buffer.from('in-root-image');
+        await mkdir(root);
+        await writeFile(file, content);
+
+        const response = await machineHandlers().get('readFileWithinRoot')?.({
+            path: file,
+            rootPath: root,
+        });
+
+        expect(response).toEqual({ success: true, content: content.toString('base64') });
+    });
+
+    it('requires both rooted-read paths and never exposes that handler to a session', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'happyherd-rooted-file-preview-'));
+        cleanup.push(root);
+        const file = join(root, 'image.png');
+        await writeFile(file, 'image');
+
+        expect(handlersFor(root).has('readFileWithinRoot')).toBe(false);
+        await expect(machineHandlers().get('readFileWithinRoot')?.({ path: file })).resolves.toEqual({
+            success: false,
+            error: 'path and rootPath are required',
+        });
+    });
+
+    it('rejects an in-root symlink to an outside file before returning bytes', async () => {
+        const container = await mkdtemp(join(tmpdir(), 'happyherd-rooted-file-preview-'));
+        cleanup.push(container);
+        const root = join(container, 'workspace');
+        const outside = join(container, 'outside.png');
+        const linked = join(root, 'linked.png');
+        await mkdir(root);
+        await writeFile(outside, 'outside-image-bytes');
+        await symlink(outside, linked);
+
+        const response = await machineHandlers().get('readFileWithinRoot')?.({
+            path: linked,
+            rootPath: root,
+        });
+
+        expect(response).toEqual({
+            success: false,
+            error: 'Access denied: Path is outside the requested root',
+        });
+        expect(response).not.toHaveProperty('content');
     });
 
     it('rejects oversized files before loading them into daemon memory', async () => {

@@ -37,6 +37,8 @@ export interface RunAgyOptions {
   credentials: Credentials;
   startedBy?: 'daemon' | 'terminal';
   verbose?: boolean;
+  model?: string;
+  permissionMode?: PermissionMode;
 }
 
 export async function runAgy(opts: RunAgyOptions): Promise<void> {
@@ -105,12 +107,12 @@ export async function runAgy(opts: RunAgyOptions): Promise<void> {
   let abortController = new AbortController();
   let thinking = false;
 
-  let displayedModel = DEFAULT_AGY_MODEL;
+  let displayedModel = opts.model ?? DEFAULT_AGY_MODEL;
 
   const backend = new AgyBackend({
     cwd: process.cwd(),
-    permissionMode: 'default',
-    model: DEFAULT_AGY_MODEL,
+    permissionMode: opts.permissionMode ?? 'default',
+    model: displayedModel,
     log,
   });
 

@@ -2,6 +2,7 @@ import * as React from 'react';
 import { View, Text, Pressable, Platform, ActivityIndicator, ScrollView, useWindowDimensions } from 'react-native';
 import { Octicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
 import { useSession, useSideChatSessions } from '@/sync/storage';
@@ -9,6 +10,55 @@ import { sync } from '@/sync/sync';
 import { Modal } from '@/modal';
 import type { Session } from '@/sync/storageTypes';
 import { SessionViewLoaded } from '@/-session/SessionView';
+import { resolveActiveSideChatId } from './sideChatPresentation';
+
+export type SideChatPanelProps = {
+    parentSessionId: string;
+    sideChats: Session[];
+    activeSideChatId: string | null;
+    onSelectSideChat: (id: string) => void;
+    onCloseSideChat: (id: string) => void;
+    onCreateSideChat: () => void;
+    canCreateSideChat: boolean;
+    creatingSideChat: boolean;
+};
+
+export const SideChatAccessButton = React.memo(function SideChatAccessButton({
+    count,
+    expanded,
+    compact,
+    onPress,
+}: {
+    count: number;
+    expanded: boolean;
+    compact: boolean;
+    onPress: () => void;
+}) {
+    const { theme } = useUnistyles();
+    if (count < 1) return null;
+
+    return (
+        <Pressable
+            onPress={onPress}
+            accessibilityRole="button"
+            accessibilityLabel={expanded
+                ? t('sideChat.collapse')
+                : t('sideChat.openCount', { count })}
+            accessibilityState={{ expanded }}
+            hitSlop={8}
+            style={({ pressed, hovered }: any) => [
+                styles.accessButton,
+                (pressed || hovered || expanded) && { backgroundColor: theme.colors.surface },
+            ]}
+        >
+            <Octicons name="comment-discussion" size={15} color={theme.colors.text} />
+            {!compact && <Text style={styles.accessButtonText}>{t('sideChat.panelTitle')}</Text>}
+            <View style={styles.accessCountBadge}>
+                <Text style={styles.accessCountText}>{count}</Text>
+            </View>
+        </Pressable>
+    );
+});
 
 /**
  * Right-sidebar "side chat" panel (controlled).
@@ -35,22 +85,13 @@ export const SideChatPanel = React.memo(function SideChatPanel({
     onCreateSideChat,
     canCreateSideChat,
     creatingSideChat,
-}: {
-    parentSessionId: string;
-    sideChats: Session[];
-    activeSideChatId: string | null;
-    onSelectSideChat: (id: string) => void;
-    onCloseSideChat: (id: string) => void;
-    onCreateSideChat: () => void;
-    canCreateSideChat: boolean;
-    creatingSideChat: boolean;
-}) {
+}: SideChatPanelProps) {
     const activeSession = React.useMemo(() => {
-        if (activeSideChatId) {
-            const match = sideChats.find((s) => s.id === activeSideChatId);
-            if (match) return match;
-        }
-        return sideChats.length > 0 ? sideChats[sideChats.length - 1] : null;
+        const resolvedId = resolveActiveSideChatId(
+            sideChats.map((session) => session.id),
+            activeSideChatId,
+        );
+        return resolvedId ? sideChats.find((session) => session.id === resolvedId) ?? null : null;
     }, [activeSideChatId, sideChats]);
 
     // Pull the focused side chat's messages into the store while mounted.
@@ -82,6 +123,48 @@ export const SideChatPanel = React.memo(function SideChatPanel({
             {activeSession && (
                 <SideChatConversation key={activeSession.id} session={activeSession} />
             )}
+        </View>
+    );
+});
+
+/** Full-screen host for the same controlled panel used by the wide sidebar. */
+export const SideChatFullscreen = React.memo(function SideChatFullscreen({
+    onCollapse,
+    ...panelProps
+}: SideChatPanelProps & { onCollapse: () => void }) {
+    const { theme } = useUnistyles();
+    const safeArea = useSafeAreaInsets();
+
+    return (
+        <View
+            style={[
+                styles.fullscreen,
+                {
+                    paddingTop: safeArea.top,
+                    paddingBottom: safeArea.bottom,
+                    backgroundColor: theme.colors.groupped.background,
+                },
+            ]}
+        >
+            <View style={styles.fullscreenHeader}>
+                <Octicons name="comment-discussion" size={16} color={theme.colors.textSecondary} />
+                <Text style={styles.fullscreenTitle} numberOfLines={1}>
+                    {t('sideChat.panelTitle')}
+                </Text>
+                <Pressable
+                    onPress={onCollapse}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('sideChat.collapse')}
+                    hitSlop={8}
+                    style={({ pressed, hovered }: any) => [
+                        styles.toolbarButton,
+                        (pressed || hovered) && { backgroundColor: theme.colors.surface },
+                    ]}
+                >
+                    <Octicons name="chevron-down" size={18} color={theme.colors.text} />
+                </Pressable>
+            </View>
+            <SideChatPanel {...panelProps} />
         </View>
     );
 });
@@ -289,8 +372,54 @@ const SideChatModal = React.memo(function SideChatModal({ sessionId, onClose }: 
 });
 
 const styles = StyleSheet.create((theme) => ({
+    accessButton: {
+        minHeight: 32,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        paddingHorizontal: 8,
+        borderRadius: 9,
+    },
+    accessButtonText: {
+        color: theme.colors.text,
+        fontSize: 13,
+        ...Typography.default('semiBold'),
+    },
+    accessCountBadge: {
+        minWidth: 18,
+        height: 18,
+        borderRadius: 9,
+        paddingHorizontal: 5,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: theme.colors.surfaceSelected,
+    },
+    accessCountText: {
+        color: theme.colors.text,
+        fontSize: 11,
+        ...Typography.default('semiBold'),
+    },
     panel: {
         flex: 1,
+    },
+    fullscreen: {
+        flex: 1,
+    },
+    fullscreenHeader: {
+        minHeight: 48,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 12,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: theme.colors.divider,
+    },
+    fullscreenTitle: {
+        flex: 1,
+        color: theme.colors.text,
+        fontSize: 16,
+        ...Typography.default('semiBold'),
     },
     tabsRow: {
         flexDirection: 'row',

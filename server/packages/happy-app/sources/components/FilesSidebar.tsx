@@ -73,6 +73,7 @@ interface FilesSidebarProps {
     onClosePanel: (panel: SidebarMode) => void;
     onAllFilesFilePress?: (filePath: string) => void;
     onAllFilesFileAttach?: (filePath: string) => void;
+    canOpenFilePanels: boolean;
     // Side chats (rendered inside the 'sideChat' panel). Creation is unified
     // into this sidebar's panel picker, so there is no separate add button.
     sideChats: Session[];
@@ -213,6 +214,7 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
     onClosePanel,
     onAllFilesFilePress,
     onAllFilesFileAttach,
+    canOpenFilePanels,
     sideChats,
     activeSideChatId,
     onSelectSideChat,
@@ -281,9 +283,13 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
         setAddMenuOpen(false);
     }, [activePanel, openPanels.length]);
 
+    const pickablePanels = React.useMemo(
+        () => canOpenFilePanels ? PICKABLE_PANELS : [],
+        [canOpenFilePanels],
+    );
     const availablePanels = React.useMemo(
-        () => PICKABLE_PANELS.filter((panel) => !openPanels.includes(panel.key)),
-        [openPanels],
+        () => pickablePanels.filter((panel) => !openPanels.includes(panel.key)),
+        [openPanels, pickablePanels],
     );
     const availablePickerActionIds = React.useMemo<SidebarPickerShortcutId[]>(() => [
         ...availablePanels.map((panel) => panel.key),
@@ -336,7 +342,7 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
         return (
             <View style={[styles.container, styles.pickerContainer]}>
                 <View style={styles.pickerWrap}>
-                    {PICKABLE_PANELS.map((p) => (
+                    {pickablePanels.map((p) => (
                         <Pressable
                             key={p.key}
                             onPress={() => onOpenPanel(p.key)}

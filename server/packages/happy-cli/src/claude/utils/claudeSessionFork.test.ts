@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdir, writeFile, readFile, rm } from 'node:fs/promises';
+import { appendFile, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { existsSync } from 'node:fs';
@@ -42,7 +42,7 @@ describe('claudeSessionFork', () => {
     }
 
     describe('forkSession', () => {
-        it('produces a byte-identical copy with a fresh session id', async () => {
+        it('produces an independently writable copy with a fresh session id', async () => {
             await writeSource([
                 { type: 'user', uuid: 'u1', message: { role: 'user', content: 'hi' } },
                 { type: 'assistant', uuid: 'a1', message: { role: 'assistant', content: 'hey' } },
@@ -55,6 +55,14 @@ describe('claudeSessionFork', () => {
             const original = await readFile(join(projectDir, `${sourceId}.jsonl`));
             const copy = await readFile(join(projectDir, `${newId}.jsonl`));
             expect(copy.equals(original)).toBe(true);
+
+            await appendFile(
+                join(projectDir, `${newId}.jsonl`),
+                `${JSON.stringify({ type: 'user', uuid: 'u2', message: { role: 'user', content: 'child turn' } })}\n`,
+                'utf-8',
+            );
+            expect((await readJsonl(sourceId)).map((entry: any) => entry.uuid)).toEqual(['u1', 'a1']);
+            expect((await readJsonl(newId)).map((entry: any) => entry.uuid)).toEqual(['u1', 'a1', 'u2']);
         });
 
         it('throws ForkSourceMissingError when source jsonl is absent', async () => {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
     buildClaudeCapabilityCatalog,
+    buildBaselineAgentCapabilities,
     buildGrokAcpCapabilityCatalog,
     detectAgentCapabilities,
     parseClaudeHelp,
@@ -94,6 +95,12 @@ describe('agent capability discovery', () => {
             'medium',
             'ultra',
         ]);
+        expect(capabilities.codex.models[1].effortLevels?.filter((effort) => effort.isDefault)).toEqual([
+            expect.objectContaining({ code: 'ultra' }),
+        ]);
+        expect(capabilities.codex.permissionModes).toContainEqual(
+            expect.objectContaining({ code: 'yolo', isDefault: true }),
+        );
     });
 
     it('uses only app-server-compatible effort fallbacks when live Codex discovery is unavailable', async () => {
@@ -125,6 +132,30 @@ describe('agent capability discovery', () => {
             'read-only',
             'safe-yolo',
             'yolo',
+        ]);
+        expect(capabilities.codex.permissionModes.filter((mode) => mode.isDefault)).toEqual([
+            expect.objectContaining({ code: 'yolo' }),
+        ]);
+        expect(capabilities.codex.models.filter((model) => model.isDefault)).toEqual([
+            expect.objectContaining({ code: 'gpt-5.6-sol' }),
+        ]);
+        expect(capabilities.codex.effortLevels.filter((effort) => effort.isDefault)).toEqual([
+            expect.objectContaining({ code: 'max' }),
+        ]);
+    });
+
+    it('advertises the concrete Antigravity runtime model default', () => {
+        const capabilities = buildBaselineAgentCapabilities({
+            claude: false,
+            codex: false,
+            gemini: false,
+            grok: false,
+            agy: true,
+            detectedAt: 1,
+        });
+
+        expect(capabilities.agy.models.filter((model) => model.isDefault)).toEqual([
+            expect.objectContaining({ code: 'Gemini 3.1 Pro (High)' }),
         ]);
     });
 

@@ -59,7 +59,7 @@ covered topology/couplings, verification, and GitHub lifecycle/cleanup.
 
 ## Fixture validation
 
-Two known change shapes were routed through the generated documents:
+Three known change shapes were routed through the generated documents:
 
 1. A localized app-route change reaches the route/component owner, all three
    JSON catalogs, UI inventory generation, app typecheck/tests, `i18n:check`,
@@ -67,8 +67,15 @@ Two known change shapes were routed through the generated documents:
 2. A Codex turn-lifecycle change reaches the CLI Codex owner and colocated
    tests, then the API session, wire/server/app consumers and full CLI/package
    contract proof.
+3. An active-provider or Agent Defaults change reaches the harness registry,
+   synchronized defaults schema, the explicit exact-machine capability-source
+   selector and GrokBuild/Rig catalogs, settings, draft reset boundary, Full New
+   Session, HomeDock, and draft launch. Its proof covers registry parity, every
+   non-empty active-provider group, localized unavailable states, independent
+   provider persistence, absent unsupported dimensions, provider-native Rig
+   payloads, and exact-machine revalidation immediately before launch.
 
-Both fixtures produced a complete owner → coupling → targeted verification →
+All three fixtures produced a complete owner → coupling → targeted verification →
 delivery route without relying on a directory name alone.
 
 ## Rejected assumptions
@@ -107,7 +114,7 @@ delivery route without relying on a directory name alone.
 
 ## Refresh rule
 
-Re-run the evidence scan and both fixture routes whenever an update trigger in
+Re-run the evidence scan and all fixture routes whenever an update trigger in
 `.dev/README.md` fires. Record disproven assumptions and remaining gaps rather
 than silently copying prior prose.
 

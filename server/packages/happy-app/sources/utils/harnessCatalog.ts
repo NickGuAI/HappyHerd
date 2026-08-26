@@ -26,13 +26,13 @@ export const RETIRED_HARNESSES: ReadonlySet<NewSessionAgentType> = new Set([
 ]);
 
 /** Pick order for every harness list: the ones people reach for come first. */
-export const HARNESS_ORDER: readonly NewSessionAgentType[] = [
+export const HARNESS_ORDER = [
     'claude',
     'codex',
     'grok',
     'agy',
     'rig',
-];
+] as const satisfies readonly NewSessionAgentType[];
 
 export function isRetiredHarness(key: NewSessionAgentType | string): boolean {
     return RETIRED_HARNESSES.has(key as NewSessionAgentType);

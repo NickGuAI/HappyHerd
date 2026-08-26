@@ -3,6 +3,7 @@ import React from "react";
 import { ApiClient } from '@/api/api';
 import { CodexAppServerClient } from './codexAppServerClient';
 import type { ReasoningEffort } from './codexAppServerTypes';
+import { DEFAULT_CODEX_MODEL, DEFAULT_CODEX_PERMISSION_MODE } from './defaults';
 import {
     DEFAULT_CODEX_REASONING_EFFORT,
     initialCodexReasoningEffort,
@@ -114,9 +115,6 @@ function isAuthoritativeCodexLifecycle(message: Record<string, unknown>): boolea
     }
     return true;
 }
-
-const DEFAULT_CODEX_MODEL = 'gpt-5.6-sol';
-const DEFAULT_CODEX_PERMISSION_MODE: PermissionMode = 'yolo';
 
 /**
  * Main entry point for the codex command with ink UI

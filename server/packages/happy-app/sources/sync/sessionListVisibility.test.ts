@@ -22,7 +22,15 @@ describe('isSessionVisibleInTopLevelLists', () => {
     });
 
     it('keeps side chats out of top-level lists', () => {
-        expect(isSessionVisibleInTopLevelLists(session({ isSideChat: true }))).toBe(false);
+        const parent = { ...session(), id: 'parent' };
+        const child = {
+            ...session({ isSideChat: true, parentSessionId: 'parent' }),
+            id: 'child',
+        };
+
+        expect(isSessionVisibleInTopLevelLists(parent)).toBe(true);
+        expect(isSessionVisibleInTopLevelLists(child)).toBe(false);
+        expect(filterSessionsForTopLevelLists([parent, child])).toEqual([parent]);
     });
 
     it('keeps running and completed automation sessions out of top-level lists', () => {
