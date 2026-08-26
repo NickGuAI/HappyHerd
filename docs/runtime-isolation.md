@@ -27,8 +27,10 @@ sudo scripts/deploy-server.sh ghcr.io/example/happyherd:main \
 ```
 
 `deploy-server.sh` pulls the exact operator-selected tag, restarts only the
-central server, and verifies both local and public `/health`. Rollback is
-explicit: rerun the same command with a previously published image tag.
+central server, and verifies both local and public `/health`. After successful
+health checks it removes only unused images labeled as HappyHerd; Docker keeps
+images referenced by any container. Rollback is explicit: rerun the same
+command with a previously published image tag.
 
 The service persists application state only under `HAPPYHERD_DATA_DIR`, writes
 logs under `HAPPYHERD_LOG_DIR`, and reads its master secret from

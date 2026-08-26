@@ -18,6 +18,10 @@ scripts/build-server-image.sh \
   --push
 ```
 
+The build uses a disposable HappyHerd builder and removes its cache when the
+command finishes. The resulting image remains available for tagging or local
+use.
+
 Install the stable service support files once on a Linux server:
 
 ```bash
@@ -33,8 +37,10 @@ sudo scripts/deploy-server.sh \
 ```
 
 The command pulls the selected image, restarts `happyherd.service`, and checks
-local and public `/health`. It does not build any other component. To roll back,
-run the same command with an older published tag.
+local and public `/health`. After both checks pass, it removes unused images
+labeled as HappyHerd; Docker retains images referenced by any container and it
+does not touch other projects or volumes. It does not build any other
+component. To roll back, run the same command with an older published tag.
 
 ## Happy CLI and host daemon
 
