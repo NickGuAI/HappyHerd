@@ -1221,7 +1221,7 @@
     },
     "commanderAvatars": {
       "title": "Commander 头像",
-      "description": "为每台机器上的每位 Commander 选择一张头像。支持不超过 2 MiB 的 PNG、JPEG 或 WebP 图片。",
+      "description": "为每台机器上的每位 Commander 选择一张头像。支持不超过 10 MiB 的 PNG、JPEG 或 WebP 图片。",
       "noMachines": "没有可用的机器",
       "machineOffline": "此机器已离线",
       "loading": "正在加载 Commander…",
@@ -1230,7 +1230,7 @@
       "updated": "已更新 {name} 的头像。",
       "uploadFailed": "无法更新 Commander 头像。",
       "empty": "所选文件为空。",
-      "tooLarge": "请选择不超过 2 MiB 的图片。",
+      "tooLarge": "请选择不超过 10 MiB 的图片。",
       "invalidFormat": "请选择完整的 PNG、JPEG 或 WebP 图片。",
       "stale": "机器上的头像已更改。请重新打开“功能”页面后再试。",
       "runtimeUnsupported": "请先更新此机器上的 HappyHerd，再替换 Commander 头像。"

@@ -1221,7 +1221,7 @@
     },
     "commanderAvatars": {
       "title": "Commander-Profilbilder",
-      "description": "Wähle ein Bild pro Commander und Rechner. PNG, JPEG oder WebP bis 2 MiB.",
+      "description": "Wähle ein Bild pro Commander und Rechner. PNG, JPEG oder WebP bis 10 MiB.",
       "noMachines": "Keine Rechner verfügbar",
       "machineOffline": "Dieser Rechner ist offline",
       "loading": "Commander werden geladen…",
@@ -1230,7 +1230,7 @@
       "updated": "Das Profilbild von {name} wurde aktualisiert.",
       "uploadFailed": "Das Commander-Profilbild konnte nicht aktualisiert werden.",
       "empty": "Die ausgewählte Datei ist leer.",
-      "tooLarge": "Wähle ein Bild, das nicht größer als 2 MiB ist.",
+      "tooLarge": "Wähle ein Bild, das nicht größer als 10 MiB ist.",
       "invalidFormat": "Wähle ein vollständiges PNG-, JPEG- oder WebP-Bild.",
       "stale": "Das Profilbild wurde auf dem Rechner geändert. Öffne „Funktionen“ erneut und versuche es noch einmal.",
       "runtimeUnsupported": "Aktualisiere HappyHerd auf diesem Rechner, bevor du sein Commander-Profilbild ersetzt."

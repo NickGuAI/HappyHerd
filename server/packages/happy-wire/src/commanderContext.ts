@@ -1,6 +1,6 @@
 import * as z from 'zod';
 
-export const MAX_HAPPYHERD_COMMANDER_AVATAR_BYTES = 2 * 1024 * 1024;
+export const MAX_HAPPYHERD_COMMANDER_AVATAR_BYTES = 10 * 1024 * 1024;
 
 export type HappyHerdCommanderAvatarMimeType = 'image/png' | 'image/jpeg' | 'image/webp';
 

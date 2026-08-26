@@ -49,6 +49,7 @@ describe('HappyHerd Commander wire contracts', () => {
   });
 
   it('bounds Commander avatar descriptors to supported raster images', () => {
+    expect(MAX_HAPPYHERD_COMMANDER_AVATAR_BYTES).toBe(10 * 1024 * 1024);
     expect(() => HappyHerdCommanderAvatarSchema.parse({
       path: '/tmp/avatar.jpg',
       mimeType: 'image/gif',

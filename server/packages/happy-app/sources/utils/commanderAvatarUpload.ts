@@ -83,7 +83,7 @@ export async function uploadCommanderAvatar(
         throw new CommanderAvatarUploadError('empty', 'Commander profile picture is empty');
     }
     if (content.byteLength > MAX_HAPPYHERD_COMMANDER_AVATAR_BYTES) {
-        throw new CommanderAvatarUploadError('too-large', 'Commander profile picture exceeds 2 MiB');
+        throw new CommanderAvatarUploadError('too-large', 'Commander profile picture exceeds 10 MiB');
     }
     const mimeType = detectHappyHerdCommanderAvatarMimeType(content);
     if (!mimeType) {
