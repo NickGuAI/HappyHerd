@@ -64,6 +64,18 @@ grep -Fq "docker pull \"\$IMAGE\"" "$ROOT/scripts/deploy-server.sh" || \
     fail 'server deploy does not pull an operator-selected image'
 grep -Fq "systemctl restart \"\$SERVICE\"" "$ROOT/scripts/deploy-server.sh" || \
     fail 'server deploy does not restart the central systemd service'
+grep -Fq "docker buildx create --name \"\$BUILDER\" --driver docker-container" \
+    "$ROOT/scripts/build-server-image.sh" || \
+    fail 'server build does not isolate its cache in a disposable HappyHerd builder'
+grep -Fq "docker buildx rm \"\$BUILDER\"" "$ROOT/scripts/build-server-image.sh" || \
+    fail 'server build does not remove its disposable builder and cache'
+grep -Fq "docker image prune --all --force --filter 'label=org.opencontainers.image.title=HappyHerd'" \
+    "$ROOT/scripts/deploy-server.sh" || \
+    fail 'server deploy does not remove only unused HappyHerd images'
+if rg -n 'docker (builder|system) prune' \
+    "$ROOT/scripts/build-server-image.sh" "$ROOT/scripts/deploy-server.sh" >/dev/null; then
+    fail 'server build or deploy uses global Docker pruning'
+fi
 grep -Fq 'Manual rollback: rerun this command with a previously published tag.' "$ROOT/scripts/deploy-server.sh" || \
     fail 'server deploy does not document explicit manual rollback'
 

@@ -60,6 +60,10 @@ done
 curl --fail --silent --show-error --max-time 10 "${HAPPYHERD_PUBLIC_URL}/health" >/dev/null || \
     die "public health check failed: ${HAPPYHERD_PUBLIC_URL}/health"
 
+# The image label scopes cleanup to HappyHerd. Docker retains every image still
+# referenced by a running or stopped container.
+docker image prune --all --force --filter 'label=org.opencontainers.image.title=HappyHerd'
+
 printf 'HappyHerd server deployed: %s\n' "$IMAGE"
 printf 'Local health: %s\n' "$health_url"
 printf 'Public health: %s/health\n' "$HAPPYHERD_PUBLIC_URL"

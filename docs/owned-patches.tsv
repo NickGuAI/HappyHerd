@@ -112,3 +112,4 @@ SESSION_HEARTBEAT	accepted	fix(heartbeat): preserve readiness and status semanti
 UI_SURFACE_INVENTORY	accepted	chore(app): refresh heartbeat UI inventory	server/packages/happy-app/scripts/generate-ui-surface-inventory.mjs
 RUNTIME_CONTRACT	accepted	feat(grok): expose native launch permission modes	server/packages/happy-cli/src/capabilities/agentCapabilities.test.ts
 AUTOMATIONS_PROFILING	accepted	fix(metrics): preserve production summary recording	server/packages/happy-server-self-host/scripts/build-runtime.cjs
+COMPONENT_DEPLOYMENT	accepted	fix(deploy): clean HappyHerd Docker artifacts	scripts/test-component-deployment-contract.sh

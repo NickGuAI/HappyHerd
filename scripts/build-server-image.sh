@@ -41,16 +41,27 @@ while [[ $# -gt 0 ]]; do
 done
 
 command -v docker >/dev/null 2>&1 || die 'docker is required'
+docker buildx version >/dev/null 2>&1 || die 'docker buildx is required'
 [[ "$IMAGE" =~ ^[a-z0-9.-]+(/[a-z0-9._-]+)+:[A-Za-z0-9._-]+$ ]] || \
     die "server image must be a normal repository:tag reference: $IMAGE"
 
 SOURCE_SHA="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || printf unknown)"
 CREATED="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 VERSION="${IMAGE##*:}"
+BUILDER="happyherd-server-${BASHPID}"
+
+cleanup_builder() {
+    docker buildx rm "$BUILDER" >/dev/null
+}
+
+docker buildx create --name "$BUILDER" --driver docker-container >/dev/null
+trap cleanup_builder EXIT
 
 # The Dockerfile builds only the self-host server and the Web bundle it serves.
 # CLI/daemon, mobile, and governed-agent releases are independent lanes.
-docker build \
+docker buildx build \
+    --builder "$BUILDER" \
+    --load \
     --pull \
     --file "$ROOT/server/Dockerfile" \
     --tag "$IMAGE" \
@@ -67,5 +78,8 @@ docker build \
 if [[ "$PUSH" == true ]]; then
     docker push "$IMAGE"
 fi
+
+cleanup_builder
+trap - EXIT
 
 printf 'HappyHerd server image ready: %s\n' "$IMAGE"
