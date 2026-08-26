@@ -105,8 +105,19 @@ export function resolveAcpLaunchConfig(
     providerArgs.push(arg);
   }
 
+  const resolved = resolveAcpAgentConfig(providerArgs);
+  const resolvedArgs = namedAgent === 'grok' && permissionMode
+    ? [
+      ...resolved.args.slice(0, 1),
+      '--permission-mode',
+      permissionMode,
+      ...resolved.args.slice(1),
+    ]
+    : resolved.args;
+
   return {
-    ...resolveAcpAgentConfig(providerArgs),
+    ...resolved,
+    args: resolvedArgs,
     startedBy,
     verbose,
     permissionMode,

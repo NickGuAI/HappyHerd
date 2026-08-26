@@ -1991,11 +1991,14 @@ function NewSessionScreen() {
                     completeSpawnRequest();
                     await sync.refreshSessions();
 
-                    // Store only per-session overrides. Matching the effective
-                    // default stays null so future code default changes apply.
-                    const permissionOverride = permissionKey === effectiveAgentDefaults.permissionMode
-                        ? null
-                        : permissionKey;
+                    // GrokBuild permission is launch-only, so every session
+                    // keeps the exact policy its process started with. Other
+                    // agents continue storing only per-session overrides.
+                    const permissionOverride = agentType === 'grok'
+                        ? permissionKey
+                        : permissionKey === effectiveAgentDefaults.permissionMode
+                            ? null
+                            : permissionKey;
                     const modelOverride = currentModelKey === effectiveAgentDefaults.modelMode
                         ? null
                         : currentModelKey;
@@ -2003,9 +2006,7 @@ function NewSessionScreen() {
                     const effortOverride = currentEffortKey === effectiveEffortDefault
                         ? null
                         : currentEffortKey;
-                    // Mode picks sync via session metadata (#1492). Nothing to
-                    // push when they match the defaults — a fresh session has
-                    // no picks in its metadata yet.
+                    // Mode picks sync via session metadata (#1492).
                     if (!spawnRigCreation) {
                         const modesPatch: SessionAgentModesPatch = {};
                         if (permissionOverride !== null) modesPatch.permissionMode = permissionOverride;

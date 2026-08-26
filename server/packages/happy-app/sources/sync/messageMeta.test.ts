@@ -210,16 +210,16 @@ describe('resolveMessageModeMeta', () => {
         expect(meta).toEqual({});
     });
 
-    it('uses GrokBuild overrides without inheriting the Claude catalog', () => {
+    it('keeps GrokBuild permission launch-only while retaining runtime model and effort controls', () => {
         const meta = resolveMessageModeMeta({
-            permissionMode: null,
+            permissionMode: 'dontAsk',
             modelMode: null,
             effortLevel: null,
             metadata: { flavor: 'grok' },
         } as any, {
             agentDefaultOverrides: {
                 grok: {
-                    permissionMode: 'ask-first',
+                    permissionMode: 'auto',
                     modelMode: 'grok-runtime-model',
                     effortLevel: 'thorough',
                 },
@@ -227,7 +227,6 @@ describe('resolveMessageModeMeta', () => {
         } as any, { availableEfforts: [{ key: 'thorough' }] });
 
         expect(meta).toEqual({
-            permissionMode: 'ask-first',
             model: 'grok-runtime-model',
             effort: 'thorough',
         });

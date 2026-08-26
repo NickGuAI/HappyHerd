@@ -80,6 +80,15 @@ describe('Rig metadata', () => {
         })).toBe(false);
     });
 
+    it('does not offer a live permission switch for an active GrokBuild session', () => {
+        expect(isRigPermissionSelectionEnabled({ flavor: 'grok' } as any)).toBe(false);
+        expect(isRigPermissionSelectionEnabled({
+            ...rigMetadataFixture,
+            flavor: 'grok',
+        })).toBe(true);
+        expect(isRigPermissionSelectionEnabled({ flavor: 'claude' } as any)).toBe(true);
+    });
+
     it('preserves activity metadata and derives only nonzero indicators', () => {
         const parsed = MetadataSchema.parse({ ...rigMetadataFixture, futureRigField: { retained: true } });
         expect(parsed.activity).toEqual(rigMetadataFixture.activity);

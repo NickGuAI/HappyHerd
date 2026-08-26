@@ -75,25 +75,44 @@ describe('resolveAcpAgentConfig', () => {
 });
 
 describe('resolveAcpLaunchConfig', () => {
-  it('keeps happy grok on the exact fixed provider invocation while consuming lifecycle flags', () => {
-    expect(resolveAcpLaunchConfig([
+  it.each([
+    'default',
+    'acceptEdits',
+    'auto',
+    'dontAsk',
+    'bypassPermissions',
+    'plan',
+  ])('forwards GrokBuild launch mode %s without leaking Happy lifecycle flags', (permissionMode) => {
+    const resolved = resolveAcpLaunchConfig([
       '--happy-starting-mode', 'remote',
       '--started-by', 'daemon',
-      '--permission-mode', 'default',
+      '--permission-mode', permissionMode,
       '--model', 'runtime-model',
       '--effort', 'runtime-effort',
       '--resume', 'provider-session',
-    ], 'grok')).toEqual({
+    ], 'grok');
+
+    expect(resolved).toEqual({
       agentName: 'grok',
       command: 'grok',
-      args: ['--no-auto-update', 'agent', 'stdio'],
+      args: [
+        '--no-auto-update',
+        '--permission-mode', permissionMode,
+        'agent',
+        'stdio',
+      ],
       startedBy: 'daemon',
       verbose: false,
-      permissionMode: 'default',
+      permissionMode,
       model: 'runtime-model',
       effort: 'runtime-effort',
       resumeSessionId: 'provider-session',
     });
+    expect(resolved.args).not.toContain('--happy-starting-mode');
+    expect(resolved.args).not.toContain('--started-by');
+    expect(resolved.args).not.toContain('--model');
+    expect(resolved.args).not.toContain('--effort');
+    expect(resolved.args).not.toContain('--resume');
   });
 
   it('rejects provider passthrough flags on the fixed GrokBuild alias', () => {

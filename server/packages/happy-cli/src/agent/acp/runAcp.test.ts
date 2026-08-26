@@ -647,6 +647,46 @@ describe('runAcp', () => {
     }]);
   });
 
+  it('does not reinterpret a GrokBuild launch permission as an ACP operating-mode switch', async () => {
+    mocks.backendState.startSessionMessages = [{
+      type: 'event',
+      name: 'config_options_update',
+      payload: {
+        configOptions: [{
+          type: 'select',
+          id: 'session-mode',
+          name: 'Session Mode',
+          category: 'mode',
+          currentValue: 'build',
+          options: [
+            { value: 'build', name: 'Build' },
+            { value: 'plan', name: 'Plan' },
+          ],
+        }],
+      },
+    }];
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'grok',
+      command: 'grok',
+      args: ['--no-auto-update', '--permission-mode', 'plan', 'agent', 'stdio'],
+      permissionMode: 'plan',
+    });
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+
+    mocks.getUserMessageHandler()!({
+      role: 'user',
+      content: { type: 'text', text: 'Keep the launch policy' },
+      meta: { permissionMode: 'plan' },
+    });
+    await vi.waitFor(() => expect(mocks.backendState.prompts).toHaveLength(1));
+    await mocks.getKillHandler()!();
+    await runPromise;
+
+    expect(mocks.backendState.setConfigOptionCalls).toEqual([]);
+    expect(mocks.backendState.setModeCalls).toEqual([]);
+  });
+
   it('uses the ACP prompt stop reason as the authoritative turn outcome', async () => {
     mocks.backendState.stopReason = 'refusal';
     const runPromise = runAcp({

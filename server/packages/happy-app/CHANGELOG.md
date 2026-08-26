@@ -1,3 +1,9 @@
+# August 26 — GrokBuild launch permissions
+
+- New GrokBuild sessions list all permission modes advertised by the installed CLI: `default`, `acceptEdits`, `auto`, `dontAsk`, `bypassPermissions`, and `plan`.
+- Happy forwards the selected mode to GrokBuild's process launch without mixing it with ACP per-tool permissions, plan/build operating mode, or sandbox controls.
+- Active GrokBuild sessions no longer suggest that their launch permission can be switched mid-session.
+
 # August 25 — GrokBuild, session heartbeats, and completion-owned automations
 
 - Automations no longer impose a run deadline: the provider owns completion, while historical timed-out runs remain visible as failed history.

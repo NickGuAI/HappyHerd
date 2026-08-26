@@ -64,19 +64,23 @@ export function resolveMessageModeMeta(
     const meta: MessageModeMeta = {};
     const flavor = session.metadata?.flavor;
 
-    let permissionMode: string | null | undefined;
-    if (session.permissionMode !== null && session.permissionMode !== undefined) {
-        // A session picked before a mode was retired still carries the old key,
-        // and the CLI rejects the whole message envelope on an unknown one.
-        permissionMode = retirePermissionMode(session.permissionMode);
-    } else if (agentOverrides.permissionMode !== undefined) {
-        permissionMode = agentOverrides.permissionMode;
-    }
-    // Claude's `default` is ambient: omitting it lets the SDK apply the
-    // process/user configuration. Codex's `default` is a concrete ask-first
-    // execution policy and must stay on the wire.
-    if (permissionMode && !(flavor === 'claude' && permissionMode === 'default')) {
-        meta.permissionMode = permissionMode;
+    // GrokBuild permission is fixed by its process launch flag. ACP operating
+    // modes and requestPermission responses are separate runtime concepts.
+    if (flavor !== 'grok') {
+        let permissionMode: string | null | undefined;
+        if (session.permissionMode !== null && session.permissionMode !== undefined) {
+            // A session picked before a mode was retired still carries the old key,
+            // and the CLI rejects the whole message envelope on an unknown one.
+            permissionMode = retirePermissionMode(session.permissionMode);
+        } else if (agentOverrides.permissionMode !== undefined) {
+            permissionMode = agentOverrides.permissionMode;
+        }
+        // Claude's `default` is ambient: omitting it lets the SDK apply the
+        // process/user configuration. Codex's `default` is a concrete ask-first
+        // execution policy and must stay on the wire.
+        if (permissionMode && !(flavor === 'claude' && permissionMode === 'default')) {
+            meta.permissionMode = permissionMode;
+        }
     }
 
     const modelMode = session.modelMode ?? agentOverrides.modelMode;

@@ -18,6 +18,15 @@ type CapabilityDiscoveryResult = {
     grokCapabilityError?: string;
 };
 
+const GROK_PERMISSION_MODE_DESCRIPTIONS: Record<string, string> = {
+    default: 'Run read-only and pre-approved tools; ask before other actions.',
+    acceptEdits: 'Approve file edits; ask before other actions.',
+    auto: 'Run calls the safety check allows; block or escalate other calls.',
+    dontAsk: 'Run only pre-approved and built-in read-only tools; deny other calls without prompting.',
+    bypassPermissions: 'Approve tool calls generally; deny rules, hooks, and shell ask rules still apply.',
+    plan: 'Compatibility permission value; Grok plan operating mode is separate.',
+};
+
 const CODEX_MODEL_DEFAULTS = [
     'gpt-5.6-sol',
     'gpt-5.6-terra',
@@ -78,6 +87,31 @@ function readCommand(command: string, args: string[]): string | null {
 
 function readVersion(command: string): string | undefined {
     return readCommand(command, ['--version']) || undefined;
+}
+
+export function parseGrokPermissionModeHelp(help: string): CapabilityOption[] {
+    const permissionStart = help.search(/^[ \t]*--permission-mode[ \t]+<mode>/im);
+    if (permissionStart < 0) return [];
+
+    const remainingHelp = help.slice(permissionStart);
+    const firstLineEnd = remainingHelp.search(/\r?\n/);
+    const followingLines = firstLineEnd >= 0 ? remainingHelp.slice(firstLineEnd + 1) : '';
+    const nextFlagOffset = followingLines.search(/^[ \t]*--[a-z0-9-]+(?:[ \t]|$)/im);
+    const permissionBlock = nextFlagOffset >= 0
+        ? remainingHelp.slice(0, firstLineEnd + 1 + nextFlagOffset)
+        : remainingHelp;
+    const permissionMatch = permissionBlock.match(
+        /\[possible values:[ \t]*([^\]\r\n]+)\]/i,
+    );
+    if (!permissionMatch) return [];
+
+    return uniqueOptions(permissionMatch[1].split(',').map((entry) => entry.trim()))
+        .map((entry) => option(
+            entry.code,
+            entry.code,
+            GROK_PERMISSION_MODE_DESCRIPTIONS[entry.code] ?? null,
+            entry.code === 'default',
+        ));
 }
 
 export function parseClaudeHelp(help: string): {
@@ -205,9 +239,10 @@ function runtimeObject(value: unknown): Record<string, unknown> | null {
         : null;
 }
 
-/** Build GrokBuild choices solely from the ACP initialize response. */
+/** Build GrokBuild runtime choices from ACP and launch permissions from CLI help. */
 export function buildGrokAcpCapabilityCatalog(
     initialize: InitializeResponse,
+    grokHelp: string,
     detectedAt = Date.now(),
 ): AgentCapabilityCatalog {
     const meta = runtimeObject(initialize._meta);
@@ -260,6 +295,7 @@ export function buildGrokAcpCapabilityCatalog(
     const providerVersion = typeof meta?.agentVersion === 'string'
         ? meta.agentVersion
         : undefined;
+    const parsedPermissionModes = parseGrokPermissionModeHelp(grokHelp);
 
     return {
         detectedAt,
@@ -267,15 +303,22 @@ export function buildGrokAcpCapabilityCatalog(
         sources: {
             models: 'acp:initialize:_meta.modelState',
             effortLevels: 'acp:initialize:_meta.modelState',
-            // ACP permission option kinds are authoritative at request time.
-            permissionModes: 'acp-v1:requestPermission',
+            permissionModes: parsedPermissionModes.length > 0
+                ? 'grok-cli-help:--permission-mode'
+                : 'provider-default',
         },
         models,
         effortLevels: [...effortByCode.values()],
-        // Generic ACP has no global permission-mode catalog. This is the one
-        // protocol-backed ambient choice; concrete allow/reject options still
-        // come from every requestPermission call.
-        permissionModes: [option('default', 'ask first', null, true)],
+        // These are process launch policies from `grok --help`, not ACP
+        // requestPermission choices or the session's plan/build operating mode.
+        permissionModes: parsedPermissionModes.length > 0
+            ? parsedPermissionModes
+            : [option(
+                'default',
+                'default',
+                GROK_PERMISSION_MODE_DESCRIPTIONS.default,
+                true,
+            )],
         acp: {
             loadSession: capabilities?.loadSession === true,
             prompt: {
@@ -359,6 +402,7 @@ export async function detectAgentCapabilities(
     opts?: {
         loadCodexModels?: () => Promise<ModelListEntry[]>;
         loadGrokInitialize?: () => Promise<InitializeResponse>;
+        loadGrokHelp?: () => string | null;
     },
 ): Promise<CapabilityDiscoveryResult> {
     const catalogs = buildBaselineAgentCapabilities(availability);
@@ -392,7 +436,8 @@ export async function detectAgentCapabilities(
     if (availability.grok) {
         try {
             const initialize = await (opts?.loadGrokInitialize ?? readGrokAcpInitialize)();
-            catalogs.grok = buildGrokAcpCapabilityCatalog(initialize);
+            const grokHelp = (opts?.loadGrokHelp ?? (() => readCommand('grok', ['--help'])))() ?? '';
+            catalogs.grok = buildGrokAcpCapabilityCatalog(initialize, grokHelp);
         } catch (error) {
             const detail = error instanceof Error ? error.message : String(error);
             grokCapabilityError = `GrokBuild is installed but ACP capability discovery failed: ${detail}. Run \`grok login\`, then verify \`grok --no-auto-update agent stdio\` starts.`;

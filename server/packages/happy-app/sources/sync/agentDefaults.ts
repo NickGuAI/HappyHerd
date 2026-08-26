@@ -44,7 +44,8 @@ const codeAgentDefaults: Record<AgentKey, AgentDefaultConfig> = {
     // capabilities remain authoritative, so unsupported models fall back to
     // their highest available effort rather than receiving an invalid value.
     codex: { permissionMode: 'yolo', modelMode: 'gpt-5.6-sol', effortLevel: 'max' },
-    // GrokBuild publishes its real defaults and selectable values through ACP.
+    // GrokBuild publishes its real defaults and selectable launch values
+    // through the selected machine's capability catalog.
     // These sentinels are deliberately neutral so an offline settings read can
     // never smuggle a Claude or Codex catalog into a Grok session.
     grok: { permissionMode: 'default', modelMode: 'default', effortLevel: null },
@@ -87,8 +88,13 @@ export function getAgentDefaultOverride(
     overrides: AgentDefaultOverrides | null | undefined,
     flavor: string | null | undefined,
 ): AgentDefaultOverride {
-    const override = overrides?.[normalizeAgentKey(flavor)] ?? {};
-    const permissionMode = retirePermissionMode(override.permissionMode);
+    const agent = normalizeAgentKey(flavor);
+    const override = overrides?.[agent] ?? {};
+    // `dontAsk` is retired only for providers whose message protocol cannot
+    // carry it. GrokBuild owns that exact launch token and must retain it.
+    const permissionMode = agent === 'grok'
+        ? override.permissionMode
+        : retirePermissionMode(override.permissionMode);
     return permissionMode === override.permissionMode
         ? override
         : { ...override, permissionMode };

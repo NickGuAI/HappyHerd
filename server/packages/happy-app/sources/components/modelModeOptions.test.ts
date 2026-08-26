@@ -72,7 +72,7 @@ describe('modelModeOptions', () => {
         ]);
     });
 
-    it('uses only ACP-advertised GrokBuild options and their defaults', () => {
+    it('shows all machine-advertised GrokBuild launch permission modes in New Session', () => {
         const machineMetadata = {
             cliAvailability: {
                 claude: false,
@@ -85,7 +85,7 @@ describe('modelModeOptions', () => {
             agentCapabilities: {
                 grok: {
                     detectedAt: 1,
-                    sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'provider' },
+                    sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'grok-cli-help:--permission-mode' },
                     models: [
                         {
                             code: 'grok-fast',
@@ -104,8 +104,12 @@ describe('modelModeOptions', () => {
                     ],
                     effortLevels: [],
                     permissionModes: [
-                        { code: 'ask-first', value: 'Ask first', isDefault: true },
-                        { code: 'auto', value: 'Automatic' },
+                        { code: 'default', value: 'default', description: 'Ask when required.', isDefault: true },
+                        { code: 'acceptEdits', value: 'acceptEdits', description: 'Approve file edits.' },
+                        { code: 'auto', value: 'auto', description: 'Use safety checks.' },
+                        { code: 'dontAsk', value: 'dontAsk', description: 'Deny unapproved calls.' },
+                        { code: 'bypassPermissions', value: 'bypassPermissions', description: 'Approve tool calls.' },
+                        { code: 'plan', value: 'plan', description: 'Compatibility value.' },
                     ],
                 },
             },
@@ -115,16 +119,31 @@ describe('modelModeOptions', () => {
         const modes = getMachineAdvertisedPermissionModes(machineMetadata, 'grok', translate);
         const efforts = getMachineAdvertisedEffortLevels(machineMetadata, 'grok', 'grok-build');
         expect(models.map((option) => option.key)).toEqual(['grok-fast', 'grok-build']);
-        expect(modes.map((option) => option.key)).toEqual(['ask-first', 'auto']);
+        expect(modes.map((option) => option.key)).toEqual([
+            'default',
+            'acceptEdits',
+            'auto',
+            'dontAsk',
+            'bypassPermissions',
+            'plan',
+        ]);
+        expect(modes.map((option) => option.description)).toEqual([
+            'Ask when required.',
+            'Approve file edits.',
+            'Use safety checks.',
+            'Deny unapproved calls.',
+            'Approve tool calls.',
+            'Compatibility value.',
+        ]);
         expect(efforts.map((option) => option.key)).toEqual(['quick', 'deep']);
         expect(getAdvertisedDefaultOptionKey(models)).toBe('grok-build');
-        expect(getAdvertisedDefaultOptionKey(modes)).toBe('ask-first');
+        expect(getAdvertisedDefaultOptionKey(modes)).toBe('default');
         expect(getAdvertisedDefaultOptionKey(efforts)).toBe('deep');
         expect(getHardcodedModelModes('grok', translate)).toEqual([]);
         expect(getHardcodedPermissionModes('grok', translate)).toEqual([]);
     });
 
-    it('uses GrokBuild ACP session updates when the machine catalog is unavailable', () => {
+    it('uses GrokBuild ACP model and effort updates without treating operating modes as permissions', () => {
         const metadata = {
             flavor: 'grok',
             models: [{
@@ -145,12 +164,12 @@ describe('modelModeOptions', () => {
         expect(getAvailableModels('grok', metadata, translate).map((option) => option.key))
             .toEqual(['grok-runtime']);
         expect(getAvailablePermissionModes('grok', metadata, translate).map((option) => option.key))
-            .toEqual(['ask-first']);
+            .toEqual([]);
         expect(getEffortLevelsForModel('grok', 'grok-runtime', metadata).map((option) => option.key))
             .toEqual(['quick', 'deep']);
     });
 
-    it('prefers live GrokBuild ACP session updates over the machine initialize catalog', () => {
+    it('keeps GrokBuild launch permissions separate from live ACP operating modes', () => {
         const machineMetadata = {
             agentCapabilities: {
                 grok: {
@@ -162,7 +181,7 @@ describe('modelModeOptions', () => {
                         effortLevels: [{ code: 'initialize-effort', value: 'Initialize Effort' }],
                     }],
                     effortLevels: [{ code: 'initialize-effort', value: 'Initialize Effort' }],
-                    permissionModes: [{ code: 'initialize-mode', value: 'Initialize Mode' }],
+                    permissionModes: [{ code: 'default', value: 'Default', isDefault: true }],
                 },
             },
         } as any;
@@ -180,8 +199,8 @@ describe('modelModeOptions', () => {
             'grok', sessionMetadata, machineMetadata, translate, 'runtime-model',
         ).map((option) => option.key)).toEqual(['runtime-model']);
         expect(getSessionAvailablePermissionModes(
-            'grok', sessionMetadata, machineMetadata, translate, 'runtime-mode',
-        ).map((option) => option.key)).toEqual(['runtime-mode']);
+            'grok', sessionMetadata, machineMetadata, translate, 'default',
+        ).map((option) => option.key)).toEqual(['default']);
         expect(getSessionEffortLevelsForModel(
             'grok', 'runtime-model', sessionMetadata, machineMetadata,
         ).map((option) => option.key)).toEqual(['runtime-effort']);
@@ -213,8 +232,8 @@ describe('modelModeOptions', () => {
             'grok', sessionMetadata, machineMetadata, translate, 'machine-model',
         ).map((option) => option.key)).toEqual(['machine-model']);
         expect(getSessionAvailablePermissionModes(
-            'grok', sessionMetadata, machineMetadata, translate, 'runtime-mode',
-        ).map((option) => option.key)).toEqual(['runtime-mode']);
+            'grok', sessionMetadata, machineMetadata, translate, 'machine-mode',
+        ).map((option) => option.key)).toEqual(['machine-mode']);
         expect(getSessionEffortLevelsForModel(
             'grok', 'machine-model', sessionMetadata, machineMetadata,
         ).map((option) => option.key)).toEqual(['machine-effort']);

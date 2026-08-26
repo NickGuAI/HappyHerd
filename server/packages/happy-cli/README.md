@@ -44,10 +44,30 @@ happy acp -- custom-agent --flag
 
 `happy grok` uses the installed official GrokBuild CLI. Authenticate that CLI
 with `grok login` before starting; Happy does not add another login or credential
-store. Model, reasoning-effort, and permission choices come from GrokBuild's
-live ACP catalog. Resume loads the same ACP conversation on its original online
-machine. The current GrokBuild integration does not expose image or audio
-attachments or session fork.
+store. Model and reasoning-effort choices come from GrokBuild's live ACP
+catalog. Launch permission choices come from the installed `grok --help`, and
+New Session offers them in that native order. If help does not advertise its
+choices, Happy exposes only the provider default.
+
+Use `grok --permission-mode MODE` with GrokBuild directly, or
+`happy grok --permission-mode MODE` through Happy. The default is `default`.
+Happy forwards the selection verbatim and starts
+`grok --no-auto-update --permission-mode MODE agent stdio`.
+
+| Mode | GrokBuild launch behavior |
+|------|----------------------------|
+| `default` | Run read-only and pre-approved tools; ask before other actions. |
+| `acceptEdits` | Approve file edits; ask before other actions. |
+| `auto` | Run calls allowed by GrokBuild's safety check; block or escalate other calls. |
+| `dontAsk` | Run only pre-approved and built-in read-only tools; deny other calls without prompting. |
+| `bypassPermissions` | Generally approve tool calls; deny rules, hooks, and shell ask rules still apply. |
+| `plan` | Compatibility permission value forwarded as-is; GrokBuild's live plan operating mode is separate. |
+
+This is a launch-only choice: an active GrokBuild session cannot change it from
+Happy. ACP per-tool permission responses, GrokBuild's plan/build operating mode,
+and Happy's optional OS sandbox are separate controls. Resume loads the same ACP
+conversation on its original online machine. The current GrokBuild integration
+does not expose image or audio attachments or session fork.
 
 > **Note on agy permissions:** the agy backend runs `agy --print`, which is
 > one-shot and has no interactive approval surface — tool calls proceed

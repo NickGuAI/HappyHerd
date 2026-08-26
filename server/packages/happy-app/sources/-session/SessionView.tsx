@@ -7,6 +7,7 @@ import { resolveVisibleAgentGoalStatus } from '@/components/agentGoalStatus';
 import type { MultiTextInputHandle } from '@/components/MultiTextInput';
 import { layout } from '@/components/layout';
 import {
+    getAdvertisedDefaultOptionKey,
     getRigCurrentModelOptionKey,
     getSessionAvailableModels,
     getSessionAvailablePermissionModes,
@@ -837,17 +838,17 @@ export function SessionViewLoaded({
             session.metadata,
             sessionMachine?.metadata,
             t,
-            session.permissionMode ?? (isGrok ? session.metadata?.currentOperatingModeCode : undefined),
+            session.permissionMode,
         )
-    ), [flavor, isGrok, session.metadata, session.permissionMode, sessionMachine?.metadata]);
+    ), [flavor, session.metadata, session.permissionMode, sessionMachine?.metadata]);
     const [agentDefaultOverrides, setAgentDefaultOverrides] = useSettingMutable('agentDefaultOverrides');
     const effectiveAgentDefaults = React.useMemo(() => (
         resolveAgentDefaultConfig(agentDefaultOverrides, flavor)
     ), [agentDefaultOverrides, flavor]);
 
     const permissionMode = React.useMemo<PermissionMode | null>(() => (
-        resolveCurrentOption(availableModes, isGrok
-            ? [session.permissionMode, session.metadata?.currentOperatingModeCode]
+        resolveCurrentOption(availableModes, isGrok && !isRig
+            ? [session.permissionMode, getAdvertisedDefaultOptionKey(availableModes)]
             : [
                 session.permissionMode,
                 ...(isRig ? [
