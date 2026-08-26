@@ -115,3 +115,4 @@ AUTOMATIONS_PROFILING	accepted	fix(metrics): preserve production summary recordi
 COMPONENT_DEPLOYMENT	accepted	fix(deploy): clean HappyHerd Docker artifacts	scripts/test-component-deployment-contract.sh
 RETIRED_AGENT_REMOVAL	accepted	refactor(agents): remove retired provider support	server/packages/happy-cli/src/index.ts
 TEST_TEMP_CLEANUP	accepted	test(cli): remove temporary test homes	server/packages/happy-cli/src/automations/sessionBootstrap.test.ts
+DEVELOPMENT_PRINCIPLES	accepted	docs(dev): record project development principles	.dev/README.md

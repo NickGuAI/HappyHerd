@@ -3,21 +3,23 @@
 This is the standard lifecycle for an ordinary HappyHerd-owned change.
 
 ```text
-feature branch → PR checks → merge commit → main-push workflows
-      │                                              │
-      └──────── keep as recovery pointer ────────────┤
-                                                     ▼
-                         prove PR head ∈ origin/main
-                                                     ↓
-                           sync main → delete exact PR head
-                                                     ↓
-                               prune → clean-main proof
+owning TickTick task → feature branch → PR checks → merge commit
+       │                                      │
+       │                                      ├─ feature: Quality + Contract suite
+       │                                      │           + ancestry → exact cleanup
+       │                                      └─ upstream: rehearsal → ready
+       │                                                   └→ conflict evidence → owner
+       └──────────── concise real-transition comments ────────────────────────────────┘
 ```
 
 Do not deploy as an implied part of this flow. Releases and deployments have
 their own SOPs in `.dev/SOP_INDEX.md`.
 
-## 1. Start clean and branch from current main
+## 1. Confirm the owning task, then branch from current main
+
+Before starting, every feature must have an owning TickTick task with the
+intended scope stated concisely. Do not start adjacent changes that the owner
+did not place in that task.
 
 ```bash
 test -z "$(git status --porcelain --untracked-files=normal)"
@@ -41,6 +43,9 @@ a feature branch.
 4. For every user-visible change, update the product changelog and regenerate
    its JSON.
 5. Stage only reviewed paths; do not use broad staging in a dirty checkout.
+6. Keep the owning TickTick task current with concise comments at real
+   progress, decision, blocker, PR, and merge transitions. Do not log routine
+   command chatter.
 
 Every ordinary owned commit must be single-parent and have a unique
 conventional subject with a matching ledger row in the same commit:
@@ -99,7 +104,8 @@ gh pr merge "$PR_NUMBER" --merge
 ```
 
 Do not pass `--delete-branch`. The PR head is a recovery pointer until the
-permanent-main proof succeeds.
+ordinary feature-permanence proof succeeds. Record the PR and merge transitions
+in the owning TickTick task.
 
 ## 4. Capture exact merge evidence
 
@@ -185,21 +191,57 @@ done
 test -n "$QUALITY_RUN"
 test -n "$CONTRACT_RUN"
 gh run watch "$QUALITY_RUN" --repo "$REPO" --exit-status
-gh run watch "$CONTRACT_RUN" --repo "$REPO" --exit-status
 
-test "$(gh run view "$CONTRACT_RUN" \
+# Watch the aggregate contract workflow without treating a rehearsal-only
+# failure as an ordinary feature failure.
+gh run watch "$CONTRACT_RUN" --repo "$REPO"
+
+QUALITY_CONCLUSION="$(gh run view "$QUALITY_RUN" \
+  --repo "$REPO" \
+  --json conclusion \
+  --jq .conclusion)"
+CONTRACT_CONCLUSION="$(gh run view "$CONTRACT_RUN" \
   --repo "$REPO" \
   --json jobs \
-  --jq '[.jobs[] | select(.name == "Real upstream rehearsal" and .conclusion == "success")] | length')" = "1"
+  --jq '.jobs[] | select(.name == "Contract suite") | .conclusion')"
+REHEARSAL_JOB_ID="$(gh run view "$CONTRACT_RUN" \
+  --repo "$REPO" \
+  --json jobs \
+  --jq '.jobs[] | select(.name == "Real upstream rehearsal") | .databaseId')"
+REHEARSAL_CONCLUSION="$(gh run view "$CONTRACT_RUN" \
+  --repo "$REPO" \
+  --json jobs \
+  --jq '.jobs[] | select(.name == "Real upstream rehearsal") | .conclusion')"
+
+test "$QUALITY_CONCLUSION" = "success"
+test "$CONTRACT_CONCLUSION" = "success"
+
+if test "$REHEARSAL_CONCLUSION" != "success"; then
+  test -n "$REHEARSAL_JOB_ID"
+  gh run view "$CONTRACT_RUN" \
+    --repo "$REPO" \
+    --job "$REHEARSAL_JOB_ID" \
+    --log-failed
+fi
 ```
 
 If a newer push advances `origin/main` and cancels these runs, fetch and repeat
-the proof for the new current `MAIN_SHA`. If either workflow fails, lifecycle
-completion is blocked: keep the branch, diagnose the permanent-main failure,
-and deliver any correction on a new feature branch. Never rewrite protected
-`main` to repair it.
+the proof for the new current `MAIN_SHA`.
 
-## 6. Delete only the proven merged PR head
+Classify a failed rehearsal once from its retained log and artifact. If Git
+reports merge conflicts, preserve that evidence, comment on the owning TickTick
+task, and stop: upstream reconciliation and a resolution PR require owner
+direction. That conflict does not block exact-head cleanup for an unrelated
+feature whose Quality, `Contract suite`, and ancestry proofs passed. A failure
+outside that verified conflict case remains blocking; keep the branch and
+diagnose it on a new feature branch. Never rewrite protected `main` to repair
+it.
+
+## 6. Delete only the feature-permanent merged PR head
+
+Proceed only after the Quality, `Contract suite`, and ancestry proofs above
+pass. A separately retained rehearsal merge conflict does not prevent this
+exact cleanup; any other required-job failure does.
 
 Never bulk-delete every branch listed by `git branch --merged`; long-lived
 branches can also be ancestors of `main`.
@@ -242,6 +284,7 @@ test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
 git status --short --branch
 ```
 
-The handoff records the PR, merge SHA, successful main workflow runs, deleted
+The handoff records the PR, merge SHA, Quality and `Contract suite` proof,
+rehearsal conclusion and retained conflict evidence when applicable, deleted
 local/remote branch name, and final clean/synchronized status. Branch deletion
 removes names, not commits; the recorded SHAs and merge commit retain recovery.

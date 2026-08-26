@@ -11,6 +11,35 @@ contract owned by the root workflows and the aligned branch guidance in root
 and `server/AGENTS.md`. Record any new discrepancy in
 [`EVALUATION.md`](EVALUATION.md) and repair this map in a focused patch.
 
+## Project development principles
+
+These are owner-approved prospective gates for future changes. They are not
+source-derived claims and do not require retroactive cleanup of prior work.
+
+```text
+owning TickTick task → bounded change → exact-head review → PR → merge
+                               └──────── separate feature/upstream proof ────────┘
+```
+
+1. **Own the work in TickTick.** Every feature has an owning task. Add concise
+   comments at real progress, decision, blocker, PR, and merge transitions.
+2. **Freeze automation unless explicitly scoped.** Automation behavior, schema,
+   cadence, lifecycle, and UI do not change unless the owner explicitly scopes
+   that change in the owning task.
+3. **Keep provider capabilities authoritative end to end.** Provider additions
+   and changes carry that provider's authoritative permission modes, models,
+   and per-model effort choices through every layer. Keep unsupported
+   dimensions explicitly empty; never invent values or fall back across
+   providers.
+4. **Pause on upstream conflicts.** Preserve the conflict evidence, stop
+   resolution work, and request owner direction through the owning TickTick
+   task before opening any resolution PR.
+5. **Review the exact head and keep it necessary.** Require exact-head
+   engineering review and apply YAGNI: add no unrequested production-safety
+   mechanism. Use zero fallback by default and at most one only when the
+   current supported contract demonstrably requires it. Continue ordinary
+   correctness, security, privacy, and data-integrity review.
+
 ## Navigate
 
 | Need | Read |
