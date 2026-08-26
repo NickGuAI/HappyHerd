@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 26 — Commander lists stay usable on narrow screens",
+      "summary": "",
+      "markdown": "- Start New Session now keeps long Commander lists inside a bounded, scrollable picker on narrow Web screens, so search and selection stay usable and every Commander remains reachable."
+    },
+    {
       "title": "August 26 — Retired agent integration removed",
       "summary": "",
       "markdown": "- The retired agent integration has been removed from agent selection, settings, machine availability, session controls, and app assets."
@@ -251,5 +256,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 26 — Retired agent integration removed"
+  "latestTitle": "August 26 — Commander lists stay usable on narrow screens"
 }

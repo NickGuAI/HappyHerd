@@ -117,3 +117,4 @@ RETIRED_AGENT_REMOVAL	accepted	refactor(agents): remove retired provider support
 TEST_TEMP_CLEANUP	accepted	test(cli): remove temporary test homes	server/packages/happy-cli/src/automations/sessionBootstrap.test.ts
 DEVELOPMENT_PRINCIPLES	accepted	docs(dev): record project development principles	.dev/README.md
 DEVELOPMENT_CONTEXT	accepted	docs(agents): explain generic development context loading	AGENTS.md
+COMMANDER_PICKER_SCROLL	accepted	fix(app): keep commander picker scrollable	server/packages/happy-app/sources/utils/newSessionSidebarLayout.test.ts

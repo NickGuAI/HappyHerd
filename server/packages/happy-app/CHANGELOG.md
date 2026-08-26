@@ -1,3 +1,7 @@
+# August 26 — Commander lists stay usable on narrow screens
+
+- Start New Session now keeps long Commander lists inside a bounded, scrollable picker on narrow Web screens, so search and selection stay usable and every Commander remains reachable.
+
 # August 26 — Retired agent integration removed
 
 - The retired agent integration has been removed from agent selection, settings, machine availability, session controls, and app assets.
