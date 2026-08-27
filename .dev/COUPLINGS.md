@@ -296,7 +296,8 @@ evidence and failure boundaries.
 ### Owned patches and upstream history
 
 Every ordinary owned commit after the baseline is a unique, conventional,
-single-parent patch with one `docs/owned-patches.tsv` row. Upstream integration
-is a non-squashed subtree merge limited to `server/` and must survive the real
-range-diff rehearsal. Do not use ordinary merge commits to refresh a feature
-branch; rebase that branch onto current `origin/main` instead.
+single-parent patch. It has one `docs/owned-patches.tsv` row unless all changed
+paths are under `.dev/`. Upstream integration is a non-squashed subtree merge
+limited to `server/` and must survive the real range-diff rehearsal. Do not use
+ordinary merge commits to refresh a feature branch; rebase that branch onto
+current `origin/main` instead.

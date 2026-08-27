@@ -178,3 +178,46 @@ than silently copying prior prose.
   already malformed machine payload. The playbook therefore keeps repair
   maintainer-assisted and does not prescribe raw database edits, machine
   deletion, an ad-hoc migration, or a new runtime guardrail.
+
+## Focused refresh — 2026-08-27: security-feature approval gate
+
+- **Evidence inputs:** the owner's prospective approval rule; `AGENTS.md`;
+  `.dev/README.md`; `.dev/playbooks/development-lifecycle.md`; the live TickTick
+  project list; and the protected-main delivery and patch-discipline contracts.
+- **Observed external contract:** the TickTick list is named exactly
+  `In review`. A dedicated task in that list plus Nick's explicit approval,
+  recorded in that task, is required before selecting implementation details or
+  beginning any HappyHerd-owned security-feature implementation or delegation.
+- **Read-only reviewer roles:** one governance reviewer checked the smallest
+  authoritative `.dev` placement and upstream exemption; one delivery reviewer
+  checked protected-main, verification, and owned-patch requirements.
+- **Checks selected:** exact diff review, `git diff --check`,
+  `node scripts/lint-source.mjs`, Markdown link resolution, clean-tree patch
+  discipline, the full contract suite, and the required protected PR checks.
+- **Rejected assumptions:** the shorthand `InReview` is the live list name;
+  list placement alone is approval; approval evidence need not be recorded in
+  the TickTick task; a security mechanism escapes the gate when labeled as
+  reliability or integration; an unchanged-upstream exemption can be asserted
+  without path-and-commit evidence; and unchanged upstream Happy security
+  behavior or pure removal of a HappyHerd-only security mechanism is itself a
+  new HappyHerd security feature.
+- **Remaining gap:** the gate is deliberately human-reviewed through TickTick
+  and code review. This refresh adds no runtime guard, approval service, or
+  other security mechanism.
+
+## Focused refresh — 2026-08-27: `.dev/`-only CI bypass
+
+- **Evidence inputs:** the owner's directive to run no suites for `.dev/`-only
+  changes; the live quality and contract workflow triggers; protected-main's
+  six required status contexts; and the patch-discipline verifier and ledger.
+- **Observed constraint:** path-ignoring both workflows would leave all six
+  required checks pending and make the PR unmergeable. Each workflow therefore
+  runs one path-scope job and skips every install, lint, typecheck, test, build,
+  contract, and upstream-rehearsal job when all changed paths are under `.dev/`.
+- **Patch contract:** a `.dev/`-only commit is exempt from the owned-patch
+  ledger. Without this exemption the required ledger edit would make the
+  commit non-`.dev/` and defeat the CI bypass.
+- **Checks selected:** workflow syntax review, scope-detector cases,
+  `scripts/test-owned-merge-provenance.sh`, patch discipline, source lint, and
+  the protected PR checks because this implementation also changes workflow
+  and verifier source.

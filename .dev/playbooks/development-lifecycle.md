@@ -21,6 +21,20 @@ Before starting, every feature must have an owning TickTick task with the
 intended scope stated concisely. Do not start adjacent changes that the owner
 did not place in that task.
 
+For any HappyHerd-owned security feature, apply the stop gate in
+`.dev/README.md` before selecting implementation details, branching,
+implementation, or delegation. Its dedicated TickTick task must be in the list
+named exactly `In review`; Nick must explicitly approve the feature; and that
+approval's exact text or linked evidence must be recorded in the task. Mere
+task creation, list placement, or silence does not count. If either list
+placement or approval evidence is missing or ambiguous, stop. An unchanged
+upstream Happy security behavior is exempt only when its source path and
+upstream commit or range-diff prove that provenance. Removing a HappyHerd-only
+security mechanism is also exempt when no replacement security mechanism is
+introduced or expanded and upstream Happy behavior remains intact. The
+existing repository requirement to record explicit approval in the owning
+issue and pull request still applies.
+
 ```bash
 test -z "$(git status --porcelain --untracked-files=normal)"
 git fetch origin
@@ -48,12 +62,13 @@ a feature branch.
    command chatter.
 
 Every ordinary owned commit must be single-parent and have a unique
-conventional subject with a matching ledger row in the same commit:
+conventional subject. Add a matching ledger row in the same commit unless every
+changed path is under `.dev/`:
 
 ```bash
 COMMIT_SUBJECT="type(scope): describe the owned change"
 
-# Add a row containing the exact subject to docs/owned-patches.tsv.
+# Except for a .dev-only commit, add the exact subject to docs/owned-patches.tsv.
 git add -- path/to/changed-file path/to/test docs/owned-patches.tsv
 git diff --cached --check
 git diff --cached
@@ -62,8 +77,9 @@ git commit -m "$COMMIT_SUBJECT"
 
 Check the configured identity before committing with `git var GIT_AUTHOR_IDENT`.
 After committing, `scripts/verify-patch-discipline.sh` verifies the patch/ledger
-contract and `node scripts/verify-public-boundary.mjs` verifies canonical public
-commit identity and tracked-content boundaries.
+contract, including the narrow `.dev/`-only exemption, and
+`node scripts/verify-public-boundary.mjs` verifies canonical public commit
+identity and tracked-content boundaries.
 
 If `origin/main` advances while the PR branch is open, refresh without adding an
 ordinary merge commit to the owned patch series:
@@ -88,7 +104,12 @@ gh pr create --draft --base main --head "$FEATURE_BRANCH"
 ```
 
 The PR description records the intended outcome, user-visible or invariant
-proof, exact checks run, and any bounded gap. When local evidence is complete:
+proof, exact checks run, and any bounded gap. A security-feature PR also records
+the dedicated TickTick task and recorded approval evidence; reviewers stop the
+PR if either is missing or the implementation exceeds that approval. An
+upstream exemption also records the source path and upstream commit or
+range-diff that proves the behavior is unchanged. When local evidence is
+complete:
 
 ```bash
 PR_NUMBER="123"

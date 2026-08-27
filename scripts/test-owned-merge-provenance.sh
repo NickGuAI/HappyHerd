@@ -65,13 +65,26 @@ run_case() {
   else
     git -C "$case_dir" switch -c feat/owned >/dev/null 2>&1
   fi
-  printf 'owned change\n' > "$case_dir/server/app.txt"
-  if [[ "$variant" != "unmanifested" ]]; then
-    printf 'TEST\tcode-ready\tfeat(test): add owned change\tserver/app.txt\n' \
-      >> "$case_dir/docs/owned-patches.tsv"
+  if [[ "$variant" == "dev-only" ]]; then
+    mkdir -p "$case_dir/.dev"
+    printf 'development context\n' > "$case_dir/.dev/README.md"
+    git -C "$case_dir" add .dev/README.md
+    git -C "$case_dir" commit --quiet -m "docs(dev): update development context"
+  elif [[ "$variant" == "dev-mixed" ]]; then
+    mkdir -p "$case_dir/.dev"
+    printf 'development context\n' > "$case_dir/.dev/README.md"
+    printf 'unmanifested owned change\n' > "$case_dir/server/app.txt"
+    git -C "$case_dir" add .dev/README.md server/app.txt
+    git -C "$case_dir" commit --quiet -m "docs(dev): mix development and source changes"
+  else
+    printf 'owned change\n' > "$case_dir/server/app.txt"
+    if [[ "$variant" != "unmanifested" ]]; then
+      printf 'TEST\tcode-ready\tfeat(test): add owned change\tserver/app.txt\n' \
+        >> "$case_dir/docs/owned-patches.tsv"
+    fi
+    git -C "$case_dir" add docs/owned-patches.tsv server/app.txt
+    git -C "$case_dir" commit --quiet -m "feat(test): add owned change"
   fi
-  git -C "$case_dir" add docs/owned-patches.tsv server/app.txt
-  git -C "$case_dir" commit --quiet -m "feat(test): add owned change"
 
   if [[ "$variant" == "nested-structural" ]]; then
     git -C "$case_dir" switch -c integration main >/dev/null 2>&1
@@ -129,7 +142,9 @@ run_case() {
 run_case valid valid pass
 run_case nested-upstream nested-upstream pass
 run_case nested-structural nested-structural pass
+run_case dev-only dev-only pass
 run_case unmanifested unmanifested "unmanifested patch"
+run_case dev-mixed dev-mixed "unmanifested patch"
 run_case merge-only-change merge-only-change "merge tree contains changes outside its branch patches"
 
-echo "owned-merge-provenance: ok (3 valid and 2 rejected fixtures)"
+echo "owned-merge-provenance: ok (4 valid and 3 rejected fixtures)"

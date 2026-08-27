@@ -67,7 +67,7 @@ Commands in this table run from `server/` unless they start with `scripts/` or
 | Product identity | `node scripts/verify-product-identity.mjs` |
 | Public boundary | `node scripts/test-public-boundary.mjs`; `node scripts/verify-public-boundary.mjs` |
 | Lineage | `scripts/verify-lineage.sh` |
-| Owned patch ledger | Add the exact commit subject to `docs/owned-patches.tsv`, commit it with the change, then run `scripts/verify-patch-discipline.sh` from a clean tree |
+| Owned patch ledger | Unless every changed path is under `.dev/`, add the exact commit subject to `docs/owned-patches.tsv`; then run `scripts/verify-patch-discipline.sh` from a clean tree |
 
 ## User-visible change gate
 

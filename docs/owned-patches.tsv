@@ -127,3 +127,5 @@ POST_UPDATE_RESTART	accepted	docs(dev): document post-update restart order	.dev/
 PATCH_DISCIPLINE	accepted	fix(ci): validate nested structural PR merges	scripts/test-owned-merge-provenance.sh
 SIDE_CHAT_LOCAL_AUTH	accepted	fix(cli): reuse local daemon auth for side chats	server/packages/happy-cli/src/commands/machine.test.ts
 SIDE_CHAT_LOCAL_AUTH_VERIFY	accepted	docs(cli): verify local side-chat authentication	.dev/VERIFY.md
+SECURITY_FEATURE_APPROVAL	accepted	docs(dev): require TickTick approval for security features	.dev/README.md
+DEV_CONTEXT_CI_BYPASS	accepted	ci: skip suites for development-context-only changes	.github/workflows/quality-gates.yml

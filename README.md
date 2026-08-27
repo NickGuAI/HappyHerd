@@ -11,12 +11,13 @@ source code. A public-boundary gate checks that invariant before changes ship.
 
 ## Continuous integration
 
-Every pull request runs the
+Every pull request that changes a path outside `.dev/` runs the
 [quality gates](.github/workflows/quality-gates.yml)—Clean install, Lint,
 Typecheck, Unit tests, and Production build—and the independent
-[Contract suite](.github/workflows/contract-suite.yml). These checks cover the
-source and localization contracts, production packages, component deployment,
-the public launcher, and HappyHerd's maintained patch boundary.
+[Contract suite](.github/workflows/contract-suite.yml). A `.dev/`-only change
+runs only the path-scope jobs needed to satisfy protected-main status reporting;
+all install, lint, typecheck, test, build, contract, and upstream-rehearsal jobs
+are skipped.
 
 ## License and support
 
