@@ -87,9 +87,8 @@ bounded change → exact-head review → PR → merge
                  │                                             │
                  └──────── machine/session RPC relay ──────────┘
 
- @happyherd/cli ──wraps──► happy-cli
-        ├── issuer device flow and verified Skills
-        └── OS-separated credential broker and native installers
+ @happyherd/cli ──exact passthrough──► happy-cli
+        └── user-owned installer ──persists──► normal Happy server settings
 
  happyherd-agent ──uses──► happy-agent/control ──uses──► server/daemon
         ├── Discord gateway
@@ -98,7 +97,7 @@ bounded change → exact-head review → PR → merge
  happy-server-self-host ──uses wire; bundles──► happy-server + happy-app
 
  Root docs + scripts + workflows govern lineage, patches, verification,
- component-native deployment, runtime boundaries, the public launcher, and
+ component-native deployment, runtime boundaries, the local installer, and
  upstream rehearsal.
 ```
 

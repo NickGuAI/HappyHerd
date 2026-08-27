@@ -23,6 +23,7 @@ describe('bundled Happy runtime', () => {
       [expect.stringMatching(/happy\/bin\/happy\.mjs$/), ...args],
       expect.objectContaining({ stdio: 'inherit' }),
     );
+    expect(spawnSync.mock.calls[0][2]).not.toHaveProperty('env');
   });
 
   it('relays native signal termination to the launcher process', () => {

@@ -6,10 +6,10 @@ self-host server and host-daemon deployment paths. The dispositions below are
 the human decisions recorded in TickTick task `6a8908bf8f087c81d06ccf69` on
 2026-08-22. Upstream Happy behavior is the baseline.
 
-The tagged public launcher and the optional governed-agent product are listed
-because they are adjacent, but they are independent lanes explicitly retained
-by the task. Their integrity and authorization contracts do not govern an
-ordinary server or host-daemon restart.
+The former public-launcher security stack and the optional governed-agent
+product are listed because they are adjacent. Issue #149 supersedes the former
+launcher integrity decision while retaining the unrelated governed-agent lane.
+Neither governs an ordinary server or host-daemon restart.
 
 | Candidate and former source | Trigger | Action blocked or controlled | Claimed failure prevented | User capability / operating cost | Upstream equivalent | Human disposition |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -30,7 +30,8 @@ ordinary server or host-daemon restart.
 | Required config, master-secret presence, and `/health` observation — `scripts/run-container.sh`, `scripts/deploy-server.sh` | Server start/deploy | Stops when the server cannot start; reports failed health | Starting an unusable server | Does not select another version or block unrelated components | Upstream runtime requirements and health endpoint | **APPROVED TO KEEP** |
 | Normal GHCR tags and manual rollback — `.github/workflows/server-image.yml`, `scripts/deploy-server.sh` | Server publish/deploy | Publishes/selects one server+Web tag; operator chooses any older tag | None; this is the primary path | Restores one-command component deployment | Native container workflow | **APPROVED TO KEEP** |
 | Minimal Linux boot adapter — `deploy/happyherd-daemon.cron`, `scripts/start-host-daemon.sh` | Host reboot | Invokes installed `happy daemon start` and exits | Daemon absent after reboot | Does not own daemon/provider processes | Happy detached daemon lifecycle | **APPROVED TO KEEP** |
-| Public launcher integrity lane — `.github/workflows/public-launcher-release.yml`, `installers/`, `docs/public-launcher-release.md` | Tagged public native release only | Validates the downloaded end-user installer and owned installation | Tampered native installer/credential host | No effect on self-host server/daemon deployment | Independent public distribution channel | **APPROVED TO KEEP** |
+| Former public-launcher integrity lane — release manifests, `SHA256SUMS`, receipts, broker/vault/helpers, issuer/Skill policy, and their tests/docs | End-user install/upgrade | Refused installation unless HappyHerd-only integrity and credential-isolation checks passed | Distribution or credential-host tampering | Added privileged services, platform-specific dependencies, and issuer setup to a local-host product | None | **DELETE — superseded by issue #149** |
+| Simple local-first installer — `install.sh`, `installers/`, `docs/public-launcher-release.md` | Explicit user install | Installs the Happy passthrough, local server, and ordinary daemon in the user's account; exposes separate exact cleanup for retired artifacts | None; this is the primary local install path | One copy/paste command and normal Happy settings | Ordinary Happy CLI/server/daemon lifecycle | **APPROVED TO KEEP** |
 | Optional governed-agent authorization/isolation — `server/packages/happyherd-agent/`, `deploy/happyherd-agent.service` | Explicit governed-agent installation only | Bounds organization credentials and declared tools | Agent obtains undeclared organization access | Isolated from ordinary server/host-daemon operations | HappyHerd product feature, not upstream release logic | **APPROVED TO KEEP** |
 | Owned-patch and upstream-sync review — `docs/patch-discipline.md`, `scripts/rehearse-upstream-sync.sh` | Contributor PR/upstream import only | Requires reviewable HappyHerd patches and merge provenance | Losing fork ownership during upstream sync | No runtime or deployment refusal | Maintainer workflow | **APPROVED TO KEEP** |
 

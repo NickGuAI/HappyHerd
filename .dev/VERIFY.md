@@ -60,7 +60,7 @@ Commands in this table run from `server/` unless they start with `scripts/` or
 | Local side-chat authentication | Focus `src/commands/machine.test.ts`, `src/commands/sideChat.test.ts`, and `src/daemon/run.resume.test.ts`; then, with the account-control link absent, run `happy session side-chat <local-parent-id> --json` and confirm the returned child is active under the same daemon without a QR prompt |
 | Session continuity across updates/restarts | `pnpm --filter happy test:session-continuity` must include recent and older-than-14-day records, then run the Happy CLI typecheck/tests |
 | Real provider/daemon/auth integration | `pnpm --filter happy test:integration` when its external prerequisites are available |
-| HappyHerd launcher | `pnpm --filter @happyherd/cli typecheck`; `pnpm --filter @happyherd/cli test` |
+| Local installer and HappyHerd alias | `scripts/test-public-launcher-release-contract.sh`; `pnpm --filter @happyherd/cli typecheck`; `pnpm --filter @happyherd/cli test`; shellcheck changed installer scripts |
 | Agent runtime | `pnpm --filter happy-agent test`; `pnpm --filter @happyherd/happyherd-agent test` |
 | Server | `pnpm --filter ./packages/happy-server typecheck`; `test`; `build` |
 | Repository or deployment shell | `scripts/test-component-deployment-contract.sh`; nearest other `scripts/test-*-contract.sh`; `shellcheck -x` on changed shell files |

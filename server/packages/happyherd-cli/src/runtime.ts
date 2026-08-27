@@ -1,4 +1,4 @@
-/** Resolve and launch the bundled maintained Happy runtime. */
+/** Resolve and launch the bundled upstream Happy runtime. */
 
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -26,18 +26,9 @@ export function resolveHappyBinary(): string {
 }
 
 export function runHappy(args: string[], stdio: 'inherit' | 'pipe' = 'inherit'): number {
-  const env = { ...process.env };
-  for (const name of Object.keys(env)) {
-    if (
-      name === 'HAPPYHERD_ISSUER'
-      || name === 'HAPPYHERD_API_BASE_URL'
-      || /_ACCESS_TOKEN$/.test(name)
-    ) delete env[name];
-  }
   const result = spawnSync(process.execPath, [resolveHappyBinary(), ...args], {
     stdio,
     encoding: stdio === 'pipe' ? 'utf8' : undefined,
-    env,
   });
   if (result.error) throw new Error(`Happy runtime could not start: ${result.error.message}`);
   if (result.signal) {
@@ -45,11 +36,4 @@ export function runHappy(args: string[], stdio: 'inherit' | 'pipe' = 'inherit'):
     return 1;
   }
   return result.status ?? 1;
-}
-
-export function launchAgent(provider: string, args: string[]): number {
-  if (provider !== 'claude' && provider !== 'codex') {
-    throw new Error('launch provider must be claude or codex');
-  }
-  return runHappy(provider === 'codex' ? ['codex', ...args] : args);
 }

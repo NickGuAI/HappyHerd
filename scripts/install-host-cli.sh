@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TARGET="${1:-/usr/local/lib/happyherd-cli}"
 LINK="${2:-/usr/local/bin/happy}"
+HAPPYHERD_LINK="${3:-/usr/local/bin/happyherd}"
 
 die() {
     printf 'error: %s\n' "$*" >&2
@@ -11,7 +12,8 @@ die() {
 }
 
 [[ "$(id -u)" -eq 0 ]] || die 'install-host-cli.sh must run as root'
-[[ "$TARGET" == /* && "$LINK" == /* ]] || die 'target and executable link must be absolute paths'
+[[ "$TARGET" == /* && "$LINK" == /* && "$HAPPYHERD_LINK" == /* ]] || \
+    die 'target and executable links must be absolute paths'
 
 if command -v pnpm >/dev/null 2>&1; then
     PNPM=(pnpm)
@@ -58,5 +60,6 @@ rm -rf "$TARGET"
 mv "$stage" "$TARGET"
 trap - EXIT
 ln -sfn "$TARGET/bin/happy.mjs" "$LINK"
+ln -sfn "$TARGET/bin/happy.mjs" "$HAPPYHERD_LINK"
 
-printf 'Happy CLI installed independently at %s\n' "$TARGET"
+printf 'Happy CLI and thin HappyHerd alias installed independently at %s\n' "$TARGET"

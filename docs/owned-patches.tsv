@@ -22,16 +22,16 @@ AGENT_LINK_CONTRACT	accepted	fix(agent): fail closed on malformed link commands	
 RUNTIME_CONTRACT	accepted	fix(runtime): restore session lifecycle contracts	server/packages/happy-cli/src/daemon/run.automation.test.ts
 PUBLIC_BOUNDARY	accepted	fix(public-boundary): canonicalize signed GitHub squash	scripts/test-public-boundary.mjs
 ISSUER_ONBOARDING	accepted	feat(launcher): add generic governed local runtime	scripts/test-public-launcher-release-contract.sh
-PUBLIC_RELEASE	accepted	fix(release): make native matrix deterministic	.github/workflows/public-launcher-release.yml
+PUBLIC_RELEASE	accepted	fix(release): make native matrix deterministic	scripts/test-public-launcher-release-contract.sh
 PUBLIC_RELEASE	accepted	fix(release): make native lifecycle portable	scripts/test-public-launcher-release-contract.sh
-PUBLIC_RELEASE	accepted	fix(release): make keychain host environment portable	installers/service/darwin/happyherd-keychain-broker.c
+PUBLIC_RELEASE	accepted	fix(release): make keychain host environment portable	scripts/test-public-launcher-release-contract.sh
 PUBLIC_RELEASE	accepted	fix(release): restore locked native lifecycle	server/pnpm-workspace.yaml
-PUBLIC_RELEASE	accepted	fix(release): publish portable target closures	scripts/prepare-public-launcher-payload.mjs
-PUBLIC_RELEASE	accepted	fix(release): verify native secret and ACL boundaries	server/packages/happyherd-cli/src/secretStore.test.ts
+PUBLIC_RELEASE	accepted	fix(release): publish portable target closures	scripts/test-public-launcher-release-contract.sh
+PUBLIC_RELEASE	accepted	fix(release): verify native secret and ACL boundaries	scripts/test-public-launcher-release-contract.sh
 PUBLIC_RELEASE	accepted	fix(release): create macOS identities in supported order	scripts/test-public-launcher-release-contract.sh
-PUBLIC_RELEASE	accepted	fix(release): preserve the Windows loader root	server/packages/happyherd-cli/src/broker.test.ts
+PUBLIC_RELEASE	accepted	fix(release): preserve the Windows loader root	scripts/test-public-launcher-release-contract.sh
 PUBLIC_RELEASE	accepted	fix(release): disable macOS service authentication	scripts/test-public-launcher-release-contract.sh
-PUBLIC_RELEASE	accepted	fix(release): statically link Windows service boundaries	.github/workflows/public-launcher-release.yml
+PUBLIC_RELEASE	accepted	fix(release): statically link Windows service boundaries	scripts/test-public-launcher-release-contract.sh
 PUBLIC_RELEASE	accepted	chore(release): record native portability patches	docs/owned-patches.tsv
 PUBLIC_RELEASE	accepted	fix(release): preserve macOS generated identities	scripts/test-public-launcher-release-contract.sh
 PUBLIC_RELEASE	accepted	fix(release): require macOS no-login identities	scripts/test-public-launcher-release-contract.sh
@@ -88,6 +88,7 @@ WORKSPACE_LINKS	accepted	fix(workspace): preserve live link context and state	se
 SESSION_DECISION_INBOX	accepted	feat(sessions): make Home a flat decision inbox	server/packages/happy-app/sources/utils/flatSessionList.test.ts
 EXACT_DAEMON_ROUTING	accepted	fix(sessions): pin new work to the exact daemon	server/packages/happy-app/sources/utils/newSessionPickerItems.test.ts
 UPSTREAM_SYNC_AUTOMATION	accepted	ci(upstream): add daily reviewed sync	scripts/test-daily-upstream-sync-contract.sh
+LOCAL_INSTALLER	accepted	feat(installer): simplify local-first setup	scripts/test-public-launcher-release-contract.sh
 COMMANDER_STATUS_AVATAR	accepted	feat(sessions): add Commander status avatars	server/packages/happy-app/sources/utils/sessionStatusAvatar.test.ts
 UPSTREAM_SYNC_EVIDENCE	accepted	docs(upstream): record audited sync evidence	docs/upstream-sync-2026-08-24.md
 PUBLIC_TEST_FIXTURES	accepted	test(public): generalize imported home-path fixtures	scripts/verify-public-boundary.mjs

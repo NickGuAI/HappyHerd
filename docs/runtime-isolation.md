@@ -52,7 +52,10 @@ sudo -u ec2-user \
 ```
 
 Replace `ec2-user` with the actual account that owns the configured
-`HAPPY_HOME_DIR` and provider credentials.
+`HAPPY_HOME_DIR` and provider credentials. The bootstrap initializes an empty
+Happy home to `http://127.0.0.1:3005`; otherwise the ordinary daemon keeps the
+server selection already persisted there. The template does not require
+`HAPPY_SERVER_URL` or `HAPPY_WEBAPP_URL` exports.
 
 The Linux cron entry is only a boot-time availability adapter. It calls the
 maintained Happy CLI's native detached `daemon start` lifecycle and exits. The
@@ -95,8 +98,8 @@ The `/mcp` listener remains loopback-only.
 - **Mobile:** its own app build, only when mobile source changes.
 - **Governed agent:** its own package and operator-controlled service, only when
   agent source changes.
-- **Public launcher:** the existing tagged five-platform release remains a
-  separate end-user integrity contract; it does not control self-host server or
-  daemon deployment.
+- **Local installer:** a user-owned bootstrap installs the Happy passthrough
+  and ordinary daemon without a separate integrity, broker, vault, or issuer
+  layer; it does not control self-host server deployment.
 
 See [deployment.md](deployment.md) for the operator sequence.

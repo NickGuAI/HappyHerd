@@ -53,7 +53,7 @@ node "$repo_root/scripts/verify-community-contract.mjs"
 "$repo_root/scripts/test-daily-upstream-sync-contract.sh"
 "$repo_root/scripts/test-owned-merge-provenance.sh"
 shellcheck -x "$repo_root"/scripts/*.sh "$repo_root"/scripts/lib/*.sh \
-  "$repo_root/installers/install.sh.template"
+  "$repo_root/install.sh" "$repo_root/installers"/*.sh
 
 cd "$server_root"
 pnpm --filter happy-app --fail-if-no-match typecheck
