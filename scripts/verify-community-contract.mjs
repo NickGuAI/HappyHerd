@@ -63,6 +63,8 @@ export function verifyCommunityContract() {
   const qualityWorkflow = read('.github/workflows/quality-gates.yml');
   for (const expected of [
     'pull_request:',
+    'name: Skip suites for .dev-only changes',
+    "needs.changes.outputs.run_suites == 'true'",
     'name: Clean install',
     'name: Lint',
     'name: Typecheck',
@@ -74,7 +76,12 @@ export function verifyCommunityContract() {
   }
 
   const contractWorkflow = read('.github/workflows/contract-suite.yml');
-  for (const expected of ['pull_request:', 'name: Contract suite']) {
+  for (const expected of [
+    'pull_request:',
+    'name: Skip suites for .dev-only changes',
+    "needs.changes.outputs.run_suites == 'true'",
+    'name: Contract suite',
+  ]) {
     requireText(contractWorkflow, expected, '.github/workflows/contract-suite.yml');
   }
 }

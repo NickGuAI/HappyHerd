@@ -135,10 +135,10 @@ Before editing:
 4. Follow the complete branch-to-cleanup lifecycle in the playbook.
 
 Every owned commit after the immutable baseline needs a unique conventional
-subject and a matching `docs/owned-patches.tsv` row in the same commit. Every
-user-visible change also updates `server/packages/happy-app/CHANGELOG.md` and
-its generated JSON. These are repository contracts, not optional release
-bookkeeping.
+subject. It also needs a matching `docs/owned-patches.tsv` row in the same
+commit unless every changed path is under `.dev/`. Every user-visible change
+also updates `server/packages/happy-app/CHANGELOG.md` and its generated JSON.
+These are repository contracts, not optional release bookkeeping.
 
 ## Update triggers
 

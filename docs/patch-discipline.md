@@ -15,7 +15,8 @@ The verifier requires:
 1. the baseline tag to resolve to its pinned commit;
 2. the baseline `server/` tree to match the recorded upstream tree;
 3. every owned commit after the baseline to have one conventional, unique
-   subject in `docs/owned-patches.tsv`;
+   subject in `docs/owned-patches.tsv`, except a commit whose changed paths are
+   all under `.dev/`;
 4. ordinary owned patches to remain single-parent commits;
 5. structural pull-request and upstream merges to satisfy their independent
    tree and provenance checks; and
@@ -23,7 +24,8 @@ The verifier requires:
 
 The subject-keyed ledger avoids self-referential commit hashes while resolving
 every row to one exact commit. Add a row in the same commit as every future
-owned change. Inspect the resolved series with:
+owned change unless every changed path is under `.dev/`. Inspect the resolved
+series with:
 
 ```bash
 scripts/list-owned-patches.sh

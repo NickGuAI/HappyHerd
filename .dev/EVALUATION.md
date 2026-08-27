@@ -202,5 +202,22 @@ than silently copying prior prose.
   behavior or pure removal of a HappyHerd-only security mechanism is itself a
   new HappyHerd security feature.
 - **Remaining gap:** the gate is deliberately human-reviewed through TickTick
-  and code review. This refresh adds no CI workflow, runtime guard, approval
-  service, or other security mechanism.
+  and code review. This refresh adds no runtime guard, approval service, or
+  other security mechanism.
+
+## Focused refresh — 2026-08-27: `.dev/`-only CI bypass
+
+- **Evidence inputs:** the owner's directive to run no suites for `.dev/`-only
+  changes; the live quality and contract workflow triggers; protected-main's
+  six required status contexts; and the patch-discipline verifier and ledger.
+- **Observed constraint:** path-ignoring both workflows would leave all six
+  required checks pending and make the PR unmergeable. Each workflow therefore
+  runs one path-scope job and skips every install, lint, typecheck, test, build,
+  contract, and upstream-rehearsal job when all changed paths are under `.dev/`.
+- **Patch contract:** a `.dev/`-only commit is exempt from the owned-patch
+  ledger. Without this exemption the required ledger edit would make the
+  commit non-`.dev/` and defeat the CI bypass.
+- **Checks selected:** workflow syntax review, scope-detector cases,
+  `scripts/test-owned-merge-provenance.sh`, patch discipline, source lint, and
+  the protected PR checks because this implementation also changes workflow
+  and verifier source.

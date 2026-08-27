@@ -91,16 +91,25 @@ mapfile -t series < <(
 
 declare -A resolved_subjects=()
 owned_patch_count=0
+dev_context_only_count=0
+
+is_dev_context_only_commit() {
+  local sha="$1"
+  local path
+  local -a changed_paths
+
+  mapfile -t changed_paths < <(git diff-tree --no-commit-id --name-only -r "$sha")
+  [[ "${#changed_paths[@]}" -gt 0 ]] || return 1
+  for path in "${changed_paths[@]}"; do
+    [[ "$path" == .dev/* ]] || return 1
+  done
+}
 
 resolve_owned_commit() {
   local sha="$1"
   local subject="$2"
   local gate="${manifest_gate[$subject]:-}"
   local parent_record parent_count
-
-  [[ -n "$gate" ]] || fail "unmanifested patch ${sha:0:12}: $subject"
-  [[ -z "${resolved_subjects[$subject]:-}" ]] ||
-    fail "manifest subject resolves to multiple commits: $subject"
 
   case "$subject" in
     fixup\!*|squash\!*|WIP*|wip*) fail "temporary commit subject: $subject" ;;
@@ -114,6 +123,15 @@ resolve_owned_commit() {
     fail "owned PR branch contains a merge-valued patch: ${sha:0:12} $subject"
   git diff-tree --quiet "${sha}^" "$sha" &&
     fail "empty owned patch: ${sha:0:12} $subject"
+
+  if [[ -z "$gate" ]] && is_dev_context_only_commit "$sha"; then
+    dev_context_only_count=$((dev_context_only_count + 1))
+    return
+  fi
+
+  [[ -n "$gate" ]] || fail "unmanifested patch ${sha:0:12}: $subject"
+  [[ -z "${resolved_subjects[$subject]:-}" ]] ||
+    fail "manifest subject resolves to multiple commits: $subject"
 
   resolved_subjects[$subject]="$sha"
   owned_patch_count=$((owned_patch_count + 1))
@@ -200,4 +218,4 @@ for subject in "${!manifest_gate[@]}"; do
     fail "manifest subject does not resolve to an owned commit: $subject"
 done
 
-echo "patch-discipline: ok ($owned_patch_count owned patches; baseline ${baseline_sha:0:12}; tree ${upstream_tree:0:12})"
+echo "patch-discipline: ok ($owned_patch_count owned patches; $dev_context_only_count .dev-only commits; baseline ${baseline_sha:0:12}; tree ${upstream_tree:0:12})"

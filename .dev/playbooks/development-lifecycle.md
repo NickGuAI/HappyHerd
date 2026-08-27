@@ -62,12 +62,13 @@ a feature branch.
    command chatter.
 
 Every ordinary owned commit must be single-parent and have a unique
-conventional subject with a matching ledger row in the same commit:
+conventional subject. Add a matching ledger row in the same commit unless every
+changed path is under `.dev/`:
 
 ```bash
 COMMIT_SUBJECT="type(scope): describe the owned change"
 
-# Add a row containing the exact subject to docs/owned-patches.tsv.
+# Except for a .dev-only commit, add the exact subject to docs/owned-patches.tsv.
 git add -- path/to/changed-file path/to/test docs/owned-patches.tsv
 git diff --cached --check
 git diff --cached
@@ -76,8 +77,9 @@ git commit -m "$COMMIT_SUBJECT"
 
 Check the configured identity before committing with `git var GIT_AUTHOR_IDENT`.
 After committing, `scripts/verify-patch-discipline.sh` verifies the patch/ledger
-contract and `node scripts/verify-public-boundary.mjs` verifies canonical public
-commit identity and tracked-content boundaries.
+contract, including the narrow `.dev/`-only exemption, and
+`node scripts/verify-public-boundary.mjs` verifies canonical public commit
+identity and tracked-content boundaries.
 
 If `origin/main` advances while the PR branch is open, refresh without adding an
 ordinary merge commit to the owned patch series:
