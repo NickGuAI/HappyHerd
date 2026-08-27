@@ -78,13 +78,13 @@ This lane expects the Happy CLI to be installed independently. Follow
 [runtime-isolation.md](runtime-isolation.md) for its operator configuration and
 credential boundaries.
 
-## Mobile and public launcher
+## Mobile and local installer
 
 Mobile artifacts are produced only from mobile changes through the mobile
-project's native release process. The tagged public launcher and its five
-platform integrity matrix remain documented in
-[public-launcher-release.md](public-launcher-release.md); that end-user channel
-is not a self-host deployment coordinator.
+project's native release process. The simple user-owned installer is documented
+in [public-launcher-release.md](public-launcher-release.md). It installs the
+Happy CLI and ordinary daemon independently of self-host server deployment; it
+does not add a release manifest, checksum gate, broker, vault, or issuer flow.
 
 ## Verification ownership
 

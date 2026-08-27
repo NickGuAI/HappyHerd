@@ -33,6 +33,19 @@ assert.deepEqual(inspect('README.md', `Support HappyHerd at ${approvedSupportUrl
 assert(inspect('README.md', `${approvedSupportUrl}-unapproved`).includes(
   'operator-specific personal identity',
 ));
+const approvedRepositoryOwner = ['Nick', 'GuAI'].join('');
+for (const url of [
+  `https://github.com/${approvedRepositoryOwner}/HappyHerd`,
+  `https://raw.githubusercontent.com/${approvedRepositoryOwner}/HappyHerd/main/install.sh`,
+]) {
+  assert.deepEqual(inspect('README.md', `Install from ${url}.`), []);
+}
+assert(inspect('README.md', `https://github.com/${approvedRepositoryOwner}/OtherProject`).includes(
+  'operator-specific personal identity',
+));
+assert(inspect('README.md', `https://github.com/${approvedRepositoryOwner}/HappyHerd.evil`).includes(
+  'operator-specific personal identity',
+));
 for (const suffix of ['.evil', ',evil']) {
   assert(inspect('README.md', `${approvedSupportUrl}${suffix}`).includes(
     'operator-specific personal identity',

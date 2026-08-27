@@ -22,17 +22,15 @@ The generation pass read these authoritative groups:
 - `server/package.json`, `server/pnpm-workspace.yaml`, and every
   `server/packages/*/package.json`;
 - package entry points and relevant app sync, server API/socket, CLI API,
-  Commander, automation, launcher, and governed-agent modules;
-- `.github/workflows/quality-gates.yml`,
-  `.github/workflows/contract-suite.yml`, and
-  `.github/workflows/public-launcher-release.yml`;
+  Commander, automation, local-installer, and governed-agent modules;
+- `.github/workflows/quality-gates.yml` and
+  `.github/workflows/contract-suite.yml`;
 - `scripts/contract-suite.sh`, lineage, patch-discipline, public-boundary,
-  product-identity, upstream rehearsal, component-deployment, public-launcher,
+  product-identity, upstream rehearsal, component-deployment, local-installer,
   and runtime scripts;
 - `docs/lineage.md`, `docs/patch-discipline.md`, `docs/owned-patches.tsv`,
   `docs/upstream-sync-rehearsal.md`, `docs/deployment.md`,
-  `docs/public-launcher-release.md`, `docs/runtime-isolation.md`,
-  `docs/issuer-protocol.md`, and
+  `docs/public-launcher-release.md`, `docs/runtime-isolation.md`, and
   `docs/agentcontext-authority.md`.
 
 ## Evidence commands
@@ -109,8 +107,8 @@ delivery route without relying on a directory name alone.
 - Repository settings permit squash and rebase even though the owner workflow
   and patch provenance require merge commits. The playbook prescribes merge
   commits; changing repository settings is outside this documentation patch.
-- The native public-launcher platform matrix is tag/manual-only and remains a
-  release gate, not ordinary PR evidence.
+- The local source installer has no separate release workflow; its executable
+  contract runs in the ordinary repository contract suite.
 
 ## Refresh rule
 

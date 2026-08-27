@@ -1,3 +1,10 @@
+# August 27 — One-command local HappyHerd install
+
+- macOS and Linux users can install from source with one copy/paste command into their own home directory; no issuer, release manifest, checksum, privileged broker, credential vault, helper identity, or environment export is required.
+- First-run server selection defaults to the existing local Happy server at `http://127.0.0.1:3005`, persists an explicitly selected remote URL in normal Happy settings, and starts the ordinary detached daemon.
+- `happyherd` is now an exact alias for Happy. Existing Happy authentication, encrypted sessions, provider login, server state, and the separate governed-agent product remain unchanged.
+- Uninstall removes only managed program files. A separate legacy cleanup removes retired #98 broker/vault/helper artifacts while preserving `~/.happyherd`, provider homes, sessions, and user-managed Skills.
+
 # August 26 — Child side chats from the command line
 
 - Commanders and agents can create a Claude or Codex side chat beneath an existing session while keeping the parent conversation unchanged.

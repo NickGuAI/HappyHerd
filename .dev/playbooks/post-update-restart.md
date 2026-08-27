@@ -5,7 +5,7 @@ server/Web component and one or more native Happy CLI daemon hosts. It is also
 the acceptance path after a merged change crosses both component boundaries.
 
 This is not a lockstep release rule. Server/Web, CLI/daemon, mobile, governed
-agent, and public launcher remain independent delivery lanes. If only one lane
+agent, and local installer remain independent delivery lanes. If only one lane
 changed, deploy only that lane through [`docs/deployment.md`](../../docs/deployment.md).
 
 For the combined operation, the activation order is fixed:
@@ -219,15 +219,12 @@ just their counts. Resume at least one retained historical session and prove it
 accepts the next turn when the release touches session or recovery behavior.
 
 On macOS, use the command surface that owns the existing installation. For the
-manifest/digest-verified public HappyHerd launcher channel, run the pre-restart
-read-backs and `happyherd daemon stop` as the logged-in owner of the existing
-Happy home. `happyherd upgrade --manifest <release-manifest-url>` verifies and
-reports the applicable installer URL and expected digest; it does not install
-it, so run the reported installer through the
-[documented release process](../../docs/public-launcher-release.md). Then run
-`happyherd daemon start`, `happyherd daemon status`, and `happyherd daemon list`
-as that same user. A standalone Happy installation instead uses its own package
-channel and `happy daemon ...` commands. Do not run
+user-owned HappyHerd installation, run the pre-restart read-backs and
+`happyherd daemon stop` as the logged-in owner of the existing Happy home. Run
+the one-command installer again from the selected source, then run `happyherd
+daemon start`, `happyherd daemon status`, and `happyherd daemon list` as that
+same user. The `happyherd` command forwards those commands directly to Happy.
+Do not run
 `scripts/install-host-cli.sh`, the Linux bootstrap, or Linux root commands on
 the Mac. When both components are being updated, the central server deployment
 and health proof still happen first.

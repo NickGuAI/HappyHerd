@@ -18,8 +18,8 @@ happy-server-self-host ──builds──► happy-server + Prisma + happy-app w
 
 - `happy-wire` is the shared protocol leaf. A schema change can affect every
   application and runtime even if TypeScript finds only some consumers.
-- `@happyherd/cli` wraps the maintained `happy` CLI and adds issuer, Skills,
-  credential-broker, runtime, and installer boundaries.
+- `@happyherd/cli` is an exact alias for the maintained `happy` CLI. The root
+  installer owns only source build, normal server settings, and user commands.
 - `@happyherd/happyherd-agent` composes `happy-agent/control` with Discord and
   the governed organization-service broker.
 - `happy-server-self-host` directly consumes `happy-wire` and also has
@@ -137,8 +137,8 @@ governed tool request
 ```
 
 Keep the bridge state, Happy runtime state, organization-service capability,
-and secret material separate. The runtime-isolation and issuer contracts define
-those boundaries.
+and secret material separate. The governed-agent runtime contract defines those
+boundaries; it is not part of the local installer.
 
 ## State owners
 
@@ -152,7 +152,6 @@ those boundaries.
 | Maintained CLI machine/session runtime | `happy-cli/src/configuration.ts` and `persistence.ts` | Defaults beneath `~/.happyherd`; do not mix with other package defaults |
 | Session heartbeat configuration and history | `happy-cli/src/automations/{store,service}.ts` | Stores cadence and one occurrence reference; the target session log and MessageQueue2 own message content and FIFO state |
 | Commander identity and AgentContext | Human-authored Markdown/JSONL beneath the HappyHerd home | Human knowledge remains reviewable files; runtime state does not own it |
-| Issuer credentials and verified Skill receipts | Launcher broker/OS secret store and launcher registry | Credentials never become agent-session state or receipt content |
 | Governed Discord settlement and surface bindings | `happyherd-agent` `BridgeStore` | Dedicated bridge state; not server message authority |
 | Provider process lifetime | Provider process, orchestrated by the daemon | Daemon registration does not make transport presence canonical completion state |
 
@@ -166,9 +165,8 @@ Native account-machine discovery and session creation cross one package edge:
 `happy-agent/control` and `happy-agent/auth` exports own account-machine
 decryption, encrypted machine RPC, and the app-approved account-link flow.
 `happy machine auth` stores its account-control key only at `agent.key` in the
-configured HappyHerd home; normal native auth remains in `access.key`, and
-HappyHerd issuer credentials remain unrelated. Do not copy or derive one from
-another. Because those package exports resolve through `happy-agent/dist`, the
+configured HappyHerd home; normal native auth remains in `access.key`. Do not
+copy or derive one from another. Because those package exports resolve through `happy-agent/dist`, the
 existing injected-package publish lifecycle builds that surface for clean
 workspace installs after its `happy-wire` dependency is available. Do not add a
 second root-postinstall build: it races pnpm's injected `happy-wire` packaging.
@@ -178,8 +176,8 @@ package inputs before install—not only their manifests—so TypeScript sources
 and configuration, tests, and bins exist and source changes invalidate the
 cached install layer.
 The server-image workflow path filter must include both package trees.
-Release jobs that deliberately install with `--ignore-scripts` must instead
-build `happy-agent` explicitly before building `happy` and the launcher payload.
+Deployments that deliberately install with `--ignore-scripts` must instead
+build `happy-agent` explicitly before building `happy` and the local CLI runtime.
 Native `happy session create` accepts only Happy CLI daemon machines. Rig has a
 separate idempotent, provider-qualified RPC contract and must fail closed here
 unless that distinct contract is implemented end to end.
@@ -265,11 +263,11 @@ allowlist entry to hide new hardcoded interface copy.
 | Self-host server | `happy-server-self-host`, server, Prisma, and app web bundle |
 | Host daemon | `happy-cli` and embedded/runtime dependencies |
 | Governed bridge | `happy-agent`, `happyherd-agent`, deploy/runtime contracts |
-| Native public launcher | `happyherd-cli`, `happy-cli`, installers, native service code |
+| Local user installer | `install.sh`, `happyherd-cli`, `happy-cli`, `happy-server-self-host` |
 
 These are independent delivery lanes. The self-host server intentionally
 contains the Web bundle, but changing the CLI/daemon, mobile client, governed
-agent, or public launcher does not rebuild or activate the others. Compatibility
+agent, or local installer does not rebuild or activate the others. Compatibility
 is enforced at wire/API boundaries and by component tests, not by requiring one
 Git SHA on every host.
 

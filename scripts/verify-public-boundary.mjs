@@ -22,6 +22,12 @@ const approvedPublicSupportPattern = new RegExp(
     + `(?=$|[\\s)"'\\]}>]|[.,](?:$|[\\s)"'\\]}>]))`,
   'g',
 );
+const approvedRepositoryOwner = ['Nick', 'GuAI'].join('');
+const approvedRepositoryPattern = new RegExp(
+  `https://(?:github\\.com|raw\\.githubusercontent\\.com)/${approvedRepositoryOwner}/HappyHerd`
+    + `(?=$|/|[\\s)"'\\]}>]|[.,](?:$|[\\s)"'\\]}>]))`,
+  'g',
+);
 const maxTextBytes = 2 * 1024 * 1024;
 const canonicalMaintainerName = 'HappyHerd Maintainers';
 const canonicalMaintainerEmail = 'maintainers@happyherd.example';
@@ -102,8 +108,10 @@ function inspectText(path, text) {
   if (/\.happyherd\/commanders\/[0-9a-f]{8}-[0-9a-f-]{27,}/i.test(text)) {
     findings.push('concrete private Commander identifier');
   }
-  const withoutApprovedPublicSupport = text.replace(approvedPublicSupportPattern, '');
-  if (personalIdentityMarkers.some((pattern) => pattern.test(withoutApprovedPublicSupport))) {
+  const withoutApprovedPublicIdentity = text
+    .replace(approvedPublicSupportPattern, '')
+    .replace(approvedRepositoryPattern, '');
+  if (personalIdentityMarkers.some((pattern) => pattern.test(withoutApprovedPublicIdentity))) {
     findings.push('operator-specific personal identity');
   }
 
