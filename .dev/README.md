@@ -17,28 +17,51 @@ These are owner-approved prospective gates for future changes. They are not
 source-derived claims and do not require retroactive cleanup of prior work.
 
 ```text
-owning TickTick task → bounded change → exact-head review → PR → merge
-                               └──────── separate feature/upstream proof ────────┘
+ordinary feature → owning TickTick task → bounded change
+security feature → TickTick "In review" → Nick explicitly approves → bounded change
+                                              └─ otherwise → STOP
+bounded change → exact-head review → PR → merge
 ```
 
 1. **Own the work in TickTick.** Every feature has an owning task. Add concise
    comments at real progress, decision, blocker, PR, and merge transitions.
-2. **Freeze automation unless explicitly scoped.** Automation behavior, schema,
+2. **Gate every HappyHerd-owned security feature before design.** Read-only
+   investigation and proposal-level analysis may identify the problem and the
+   anticipated mechanism. Before selecting implementation details, branching,
+   implementation, or delegation, create a dedicated TickTick task in the list
+   named exactly `In review`, obtain Nick's explicit approval, and record that
+   approval in the task. This applies to any HappyHerd-owned mechanism that
+   introduces or expands authentication, authorization, encryption, signing,
+   integrity or provenance verification, credential storage, privileged
+   brokering or helping, sandboxing or isolation, ACL/setuid/seccomp
+   enforcement, security refusal or rollback, supervision, or other hardening,
+   regardless of how the change is labeled. The task must state the user
+   problem, why unchanged upstream Happy behavior is insufficient, the
+   anticipated process/privilege/state/failure mode, and the simplest
+   no-new-security alternative. Task creation, list placement, or silence is
+   not approval; approval outside TickTick counts only after its exact text or
+   linked evidence is recorded in the task. If approval or classification is
+   unclear, treat the change as a security feature and stop. Unchanged upstream
+   Happy behavior is exempt only when its source path and upstream commit or
+   range-diff prove it remains unchanged. Removing a HappyHerd-only security
+   mechanism is also exempt when the change introduces or expands no
+   replacement mechanism and preserves upstream Happy behavior.
+3. **Freeze automation unless explicitly scoped.** Automation behavior, schema,
    cadence, lifecycle, and UI do not change unless the owner explicitly scopes
    that change in the owning task.
-3. **Keep provider capabilities authoritative end to end.** Provider additions
+4. **Keep provider capabilities authoritative end to end.** Provider additions
    and changes carry that provider's authoritative permission modes, models,
    and per-model effort choices through every layer. Keep unsupported
    dimensions explicitly empty; never invent values or fall back across
    providers.
-4. **Pause on upstream conflicts.** Preserve the conflict evidence, stop
+5. **Pause on upstream conflicts.** Preserve the conflict evidence, stop
    resolution work, and request owner direction through the owning TickTick
    task before opening any resolution PR.
-5. **Review the exact head and keep it necessary.** Require exact-head
-   engineering review and apply YAGNI: add no unrequested production-safety
-   mechanism. Use zero fallback by default and at most one only when the
-   current supported contract demonstrably requires it. Continue ordinary
-   correctness, security, privacy, and data-integrity review.
+6. **Review the exact head and keep it necessary.** Require exact-head
+   engineering review and apply YAGNI: add no unrequested mechanism. Use zero
+   fallback by default and at most one only when the current supported contract
+   demonstrably requires it. Continue ordinary correctness, security, privacy,
+   and data-integrity review.
 
 ## Navigate
 

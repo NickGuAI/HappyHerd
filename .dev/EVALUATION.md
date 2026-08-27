@@ -178,3 +178,29 @@ than silently copying prior prose.
   already malformed machine payload. The playbook therefore keeps repair
   maintainer-assisted and does not prescribe raw database edits, machine
   deletion, an ad-hoc migration, or a new runtime guardrail.
+
+## Focused refresh — 2026-08-27: security-feature approval gate
+
+- **Evidence inputs:** the owner's prospective approval rule; `AGENTS.md`;
+  `.dev/README.md`; `.dev/playbooks/development-lifecycle.md`; the live TickTick
+  project list; and the protected-main delivery and patch-discipline contracts.
+- **Observed external contract:** the TickTick list is named exactly
+  `In review`. A dedicated task in that list plus Nick's explicit approval,
+  recorded in that task, is required before selecting implementation details or
+  beginning any HappyHerd-owned security-feature implementation or delegation.
+- **Read-only reviewer roles:** one governance reviewer checked the smallest
+  authoritative `.dev` placement and upstream exemption; one delivery reviewer
+  checked protected-main, verification, and owned-patch requirements.
+- **Checks selected:** exact diff review, `git diff --check`,
+  `node scripts/lint-source.mjs`, Markdown link resolution, clean-tree patch
+  discipline, the full contract suite, and the required protected PR checks.
+- **Rejected assumptions:** the shorthand `InReview` is the live list name;
+  list placement alone is approval; approval evidence need not be recorded in
+  the TickTick task; a security mechanism escapes the gate when labeled as
+  reliability or integration; an unchanged-upstream exemption can be asserted
+  without path-and-commit evidence; and unchanged upstream Happy security
+  behavior or pure removal of a HappyHerd-only security mechanism is itself a
+  new HappyHerd security feature.
+- **Remaining gap:** the gate is deliberately human-reviewed through TickTick
+  and code review. This refresh adds no CI workflow, runtime guard, approval
+  service, or other security mechanism.
