@@ -287,7 +287,9 @@ export async function runCodex(opts: {
         session.updateMetadata((meta) => ({
             ...meta,
             lifecycleState: 'running',
+            lifecycleStateSince: undefined,
             archivedBy: undefined,
+            archiveReason: undefined,
         }));
     }
 

@@ -261,6 +261,49 @@ happy session side-chat <parent-session-id>
        └── narrow/native full-screen panel
 ```
 
+The same loopback endpoint owns the complete child lifecycle:
+
+```text
+durable encrypted reconnect records ──snapshot──► list / close --all
+             │                                      │
+             └── exact child read ──────────────────┘
+                         │
+       stop ──► live daemon PID only ──► confirm OS exit
+                         │
+                         ▼
+                 confirm active=false
+                         │
+                         ▼
+       close ──► encrypted lifecycleState=archived
+                         │
+                         ▼
+                exact server read-back
+
+       reopen ──► authenticated exact-session resume signal
+                         └── clear heartbeat suppression
+                                  └── same Happy session/provider state
+                                           └── bounded wait for live PID + active=true
+```
+
+Process authority is the current daemon's in-memory tracked-process map;
+persisted `hostPid` is reconnect context and is never a kill target. Discovery
+authority is the durable encrypted reconnect store, not `/daemon/list`, so
+stopped and archived children survive daemon restart. Server reads used for
+lifecycle receipts decrypt the exact remote metadata without overlaying stale
+local fields. Close order is process confirmation, server deactivation,
+encrypted archive metadata, then authoritative read-back; a confirmed live
+stop failure cannot be hidden by archival metadata. `close --all` takes one
+immutable, machine-scoped child snapshot and closes it sequentially, preserving
+one receipt per child and exact partial failures.
+
+The exact-session resume signal is distinct from read-back: it validates
+account ownership before clearing the server's post-archive heartbeat
+suppression. This lets the resumed provider's first heartbeat persist
+`active=true` immediately without making ordinary status reads mutate state.
+The local control client gives sequential `close --all` a longer bounded
+receipt window than single-child actions so the four-child shutdown contract
+cannot continue mutating after the caller has already timed out.
+
 The parent session record owns the machine, path, provider, and provider-backend
 identity used for the fork; the command never substitutes another machine or
 provider. Side-chat creation is intentionally local-owner-only and does not

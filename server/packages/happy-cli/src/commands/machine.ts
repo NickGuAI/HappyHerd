@@ -29,8 +29,13 @@ import {
   readLocalHappyAgentCredentials,
   type LocalHappyAgentCredentials,
 } from '@/resume/localHappyAgentAuth';
-import { handleSideChatCommand, sideChatHelp } from './sideChat';
-import { createDaemonSideChat } from '@/daemon/controlClient';
+import {
+  handleSideChatCommand,
+  sideChatHelp,
+  type SideChatLifecycleReceipt,
+  type SideChatLifecycleRequest,
+} from './sideChat';
+import { manageDaemonSideChat } from '@/daemon/controlClient';
 
 const DAEMON_PROVIDERS = HAPPYHERD_MACHINE_SESSION_PROVIDERS;
 type Provider = HappyHerdMachineSessionProvider;
@@ -54,7 +59,8 @@ export type MachineCommandDependencies = {
     status: (config: AccountControlConfig) => Promise<void>;
   };
   output?: Output;
-  createLocalSideChat?: (parentSessionId: string) => Promise<{ sessionId: string }>;
+  setExitCode?: (code: number) => void;
+  manageLocalSideChat?: (request: SideChatLifecycleRequest) => Promise<SideChatLifecycleReceipt>;
 };
 
 type AccountControlConfig = {
@@ -470,8 +476,9 @@ export async function handleSessionCommand(
       return;
     }
     await handleSideChatCommand(rest, {
-      createChild: dependencies?.createLocalSideChat ?? createDaemonSideChat,
+      execute: dependencies?.manageLocalSideChat ?? manageDaemonSideChat,
       output: outputFor(dependencies),
+      setExitCode: dependencies?.setExitCode,
     });
     return;
   }

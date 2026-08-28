@@ -106,6 +106,27 @@ happy machine auth status
 happy machine auth logout
 ```
 
+Create and manage a side chat through that local daemon:
+
+```bash
+happy session side-chat create <parent-session-id>
+happy session side-chat list <parent-session-id>
+happy session side-chat status <child-session-id>
+happy session side-chat stop <child-session-id>
+happy session side-chat close <child-session-id>
+happy session side-chat close <parent-session-id> --all
+happy session side-chat reopen <child-session-id>
+```
+
+The original `happy session side-chat <parent-session-id>` create form remains
+supported. Add `--json` to any action for a stable receipt. A failed receipt
+sets a nonzero exit code and names the exact failed phase. `stop` waits for the
+daemon-owned provider process to exit and for server deactivation; `close`
+then writes encrypted archived lifecycle metadata and reads the authoritative
+server state back. `reopen` (also accepted as `resume`) resumes the same Happy
+session and parent lineage. Stopped and archived children remain discoverable
+after daemon restarts through the daemon's durable encrypted reconnect store.
+
 Then discover the online and offline machines registered to the linked
 account:
 
@@ -199,7 +220,7 @@ happy connect status
 | `happy grok` | Start GrokBuild through its official ACP interface |
 | `happy acp` | Start any ACP-compatible agent |
 | `happy resume <id>` | Resume a previous session |
-| `happy session side-chat <id>` | Create a Claude or Codex child side chat on its local owning daemon |
+| `happy session side-chat <action> <id> [--all] [--json]` | Create, list, inspect, stop, close, or reopen Claude/Codex child side chats on their local owning daemon |
 | `happy notify` | Send push notification to your devices |
 | `happy doctor` | Diagnostics & troubleshooting |
 | `happy commander list` | List Commanders available on this machine |

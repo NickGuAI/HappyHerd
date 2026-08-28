@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Metadata } from '@/api/types';
+import type { SideChatLifecycleReceipt, SideChatLifecycleRequest } from '@/commands/sideChat';
 import type { SessionEncryptionData } from './types';
 
 const mocks = vi.hoisted(() => ({
+  authoritativeActive: false,
   backfillReconnectableSessionForMachine: vi.fn(),
   controlHandlers: undefined as unknown,
   forkCodexBackendThread: vi.fn(async () => ({
@@ -22,6 +24,7 @@ vi.mock('@/api/api', () => ({
   ApiClient: {
     create: vi.fn(async () => ({
       deactivateSession: vi.fn(),
+      inspectSessionAuthoritative: vi.fn(async (session: unknown) => ({ session, active: mocks.authoritativeActive })),
       getOrCreateMachine: vi.fn(async ({ metadata }: { metadata: Metadata }) => ({
         id: 'machine-record',
         metadata,
@@ -174,7 +177,7 @@ type CapturedControlHandlers = {
     metadata: Metadata,
     encryption?: SessionEncryptionData,
   ) => void;
-  createSideChat: (parentSessionId: string) => Promise<{ sessionId: string }>;
+  sideChat: (request: SideChatLifecycleRequest) => Promise<SideChatLifecycleReceipt>;
 };
 
 let daemonRun: Promise<void> | undefined;
@@ -194,6 +197,7 @@ describe('daemon session continuity', () => {
     daemonRun = undefined;
     mocks.controlHandlers = undefined;
     mocks.rpcHandlers = undefined;
+    mocks.authoritativeActive = false;
     initialMachineMetadata.agentCapabilities = defaultAgentCapabilities;
     originalCodexHome = process.env.CODEX_HOME;
     process.env.CODEX_HOME = '/ambient/wrong-provider-home';
@@ -437,6 +441,7 @@ describe('daemon session continuity', () => {
   });
 
   it('creates a local Codex side chat without account-control credentials', async () => {
+    mocks.authoritativeActive = true;
     const parentMetadata: Metadata = {
       path: process.cwd(),
       flavor: 'codex',
@@ -463,8 +468,8 @@ describe('daemon session continuity', () => {
     await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
     const control = mocks.controlHandlers as CapturedControlHandlers;
 
-    const sideChat = control.createSideChat('parent-session');
-    const concurrentSideChat = control.createSideChat('parent-session');
+    const sideChat = control.sideChat({ action: 'create', parentSessionId: 'parent-session' });
+    const concurrentSideChat = control.sideChat({ action: 'create', parentSessionId: 'parent-session' });
     await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
     control.onHappySessionWebhook('child-session', {
       ...parentMetadata,
@@ -472,10 +477,16 @@ describe('daemon session continuity', () => {
       codexThreadId: 'thread-child',
       parentSessionId: 'parent-session',
       isSideChat: true,
+    }, {
+      encryptionKey: new Uint8Array(32).fill(7),
+      encryptionVariant: 'dataKey',
+      seq: 1,
+      metadataVersion: 1,
+      agentStateVersion: 1,
     });
 
-    await expect(sideChat).resolves.toEqual({ sessionId: 'child-session' });
-    await expect(concurrentSideChat).resolves.toEqual({ sessionId: 'child-session' });
+    await expect(sideChat).resolves.toMatchObject({ success: true, sessionId: 'child-session' });
+    await expect(concurrentSideChat).resolves.toMatchObject({ success: true, sessionId: 'child-session' });
     expect(mocks.resolveLocalReconnectableSession).toHaveBeenCalledWith('parent-session');
     expect(mocks.forkCodexBackendThread).toHaveBeenCalledOnce();
     const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
@@ -484,5 +495,49 @@ describe('daemon session continuity', () => {
     ];
     expect(args).toEqual(expect.arrayContaining(['codex', '--resume', 'thread-child', '--started-by', 'daemon']));
     expect(spawnOptions.cwd).toBe(parentMetadata.path);
+  });
+
+  it('lists a stopped side chat after daemon restart from durable metadata and authoritative server state', async () => {
+    const metadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'codex',
+      codexThreadId: 'thread-persisted',
+      host: 'test-host',
+      hostPid: 9999,
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happy',
+      happyToolsDir: '/srv/happy/tools',
+      parentSessionId: 'parent-persisted',
+      isSideChat: true,
+    };
+    mocks.readPersistedSessions.mockReturnValue({
+      'child-persisted': {
+        encryptionKey: Buffer.alloc(32, 5).toString('base64'),
+        encryptionVariant: 'dataKey',
+        seq: 8,
+        metadataVersion: 4,
+        agentStateVersion: 3,
+        metadata,
+        savedAt: Date.now(),
+      },
+    });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+
+    await expect(control.sideChat({ action: 'list', parentSessionId: 'parent-persisted' }))
+      .resolves.toMatchObject({
+        success: true,
+        children: [{
+          sessionId: 'child-persisted',
+          status: 'stopped',
+          active: false,
+          providerRunning: false,
+        }],
+      });
+    expect(mocks.hasProviderProcessExited).not.toHaveBeenCalledWith(9999);
   });
 });

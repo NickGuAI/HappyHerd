@@ -337,7 +337,9 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         session.updateMetadata((meta) => ({
             ...meta,
             lifecycleState: 'running',
+            lifecycleStateSince: undefined,
             archivedBy: undefined,
+            archiveReason: undefined,
         }));
     }
 

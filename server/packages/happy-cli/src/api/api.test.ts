@@ -244,6 +244,7 @@ describe('Api server error handling', () => {
     describe('refreshSessionForReconnect', () => {
         it('refreshes queue-owning AgentState beyond the first cursor page and merges current process metadata', async () => {
             const encryptionKey = new Uint8Array(32);
+            mockPost.mockResolvedValue({ data: { success: true } });
             mockGet
                 .mockResolvedValueOnce({
                     data: {
@@ -313,6 +314,18 @@ describe('Api server error handling', () => {
                     timeout: 60000,
                 }),
             );
+            expect(mockPost).toHaveBeenCalledWith(
+                'https://api.example.com/v1/sessions/session-1/resume',
+                {},
+                {
+                    headers: {
+                        'Authorization': 'Bearer fake-token',
+                        'X-Happy-Client': 'cli-coding-session/1.0.0',
+                    },
+                    timeout: 60000,
+                },
+            );
+            expect(mockPost.mock.invocationCallOrder[0]).toBeLessThan(mockGet.mock.invocationCallOrder[0]);
         });
 
         it('fails closed when the reconnect target is absent', async () => {

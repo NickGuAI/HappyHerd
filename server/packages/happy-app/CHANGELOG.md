@@ -1,3 +1,8 @@
+# August 28 — Side chats have a complete CLI lifecycle
+
+- The native CLI can now list, inspect, stop, close, reopen, or close every exact child side chat, with stable human and JSON receipts that identify partial failures.
+- Stopped and archived children remain discoverable after daemon restarts; close waits for provider shutdown and server state before encrypted archival, while reopen preserves the same conversation and parent lineage.
+
 # August 28 — GrokBuild permissions and tool details stay accurate
 
 - GrokBuild's selected launch policy now governs later permission callbacks: bypass and deny-without-prompt modes no longer create approval cards, while interactive modes ask once.

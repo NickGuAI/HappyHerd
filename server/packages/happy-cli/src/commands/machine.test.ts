@@ -573,29 +573,48 @@ describe('remote tracked session creation', () => {
 describe('local side-chat creation', () => {
   it('uses the existing local daemon without loading account-control credentials', async () => {
     const createClient = vi.fn(async () => fakeClient().client);
-    const createLocalSideChat = vi.fn(async () => ({ sessionId: 'child-session' }));
+    const manageLocalSideChat = vi.fn(async () => ({
+      schemaVersion: 1 as const,
+      type: 'side-chat' as const,
+      action: 'create' as const,
+      success: true,
+      parentSessionId: 'parent-codex',
+      sessionId: 'child-session',
+      child: {
+        sessionId: 'child-session',
+        parentSessionId: 'parent-codex',
+        status: 'running' as const,
+        providerRunning: true,
+        active: true,
+        resumable: false,
+      },
+      phases: [],
+    }));
     const output = vi.fn();
 
     await handleSessionCommand(['side-chat', 'parent-codex', '--json'], {
       createClient,
-      createLocalSideChat,
+      manageLocalSideChat,
       output,
     });
 
-    expect(createLocalSideChat).toHaveBeenCalledWith('parent-codex');
+    expect(manageLocalSideChat).toHaveBeenCalledWith({
+      action: 'create',
+      parentSessionId: 'parent-codex',
+    });
     expect(createClient).not.toHaveBeenCalled();
-    expect(output).toHaveBeenCalledWith('{"sessionId":"child-session"}');
+    expect(output).toHaveBeenCalledWith(expect.stringContaining('"sessionId":"child-session"'));
   });
 
   it('does not fall back to account-control or a QR flow after a local failure', async () => {
     const createClient = vi.fn(async () => fakeClient().client);
-    const createLocalSideChat = vi.fn(async () => {
+    const manageLocalSideChat = vi.fn(async () => {
       throw new Error("Side chats must be created on the parent session's owning machine.");
     });
 
     await expect(handleSessionCommand(['side-chat', 'parent-session'], {
       createClient,
-      createLocalSideChat,
+      manageLocalSideChat,
       output: vi.fn(),
     })).rejects.toThrow("parent session's owning machine");
 

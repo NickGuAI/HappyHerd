@@ -7,6 +7,7 @@ interface SessionCacheEntry {
     lastUpdateSent: number;
     pendingUpdate: number | null;
     userId: string;
+    active: boolean;
 }
 
 interface MachineCacheEntry {
@@ -93,7 +94,8 @@ class ActivityCache {
                     validUntil: now + this.CACHE_TTL,
                     lastUpdateSent: session.lastActiveAt.getTime(),
                     pendingUpdate: null,
-                    userId
+                    userId,
+                    active: session.active
                 });
                 return true;
             }
@@ -159,9 +161,12 @@ class ActivityCache {
             return false; // Should validate first
         }
         
-        // Only queue if time difference is significant
+        // Always persist the first heartbeat that reactivates an inactive session.
+        // A recently archived session can have a fresh lastActiveAt value, so the
+        // timestamp threshold alone would leave the durable row inactive even while
+        // clients receive ephemeral activity updates.
         const timeDiff = Math.abs(timestamp - cached.lastUpdateSent);
-        if (timeDiff > this.UPDATE_THRESHOLD) {
+        if (!cached.active || timeDiff > this.UPDATE_THRESHOLD) {
             cached.pendingUpdate = timestamp;
             return true;
         }
@@ -231,6 +236,7 @@ class ActivityCache {
             if (entry.pendingUpdate) {
                 sessionUpdates.push({ id: sessionId, timestamp: entry.pendingUpdate });
                 entry.lastUpdateSent = entry.pendingUpdate;
+                entry.active = true;
                 entry.pendingUpdate = null;
             }
         }

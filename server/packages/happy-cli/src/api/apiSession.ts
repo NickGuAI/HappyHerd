@@ -1027,11 +1027,37 @@ export class ApiSessionClient extends EventEmitter {
         this.replayExistingQueueMessageIds = new Set(queueMessageIds);
     }
 
-    updateMetadata(handler: (metadata: Metadata) => Metadata): Promise<void> {
+    async waitForConnected(timeoutMs = 10_000): Promise<void> {
+        if (this.socket.connected) return;
+        await new Promise<void>((resolve, reject) => {
+            const timer = setTimeout(() => {
+                cleanup();
+                reject(new Error(`Timed out waiting for session ${this.sessionId} socket connection`));
+            }, timeoutMs);
+            const onConnect = () => {
+                cleanup();
+                resolve();
+            };
+            const cleanup = () => {
+                clearTimeout(timer);
+                this.socket.off('connect', onConnect);
+            };
+            this.socket.on('connect', onConnect);
+            // The socket can connect between the initial check and handler
+            // registration. Recheck after subscribing so that race cannot
+            // turn a healthy lifecycle mutation into a false timeout.
+            if (this.socket.connected) onConnect();
+        });
+    }
+
+    updateMetadata(handler: (metadata: Metadata) => Metadata, ackTimeoutMs?: number): Promise<void> {
         return this.metadataLock.inLock(async () => {
-            await backoff(async () => {
+            const updateOnce = async () => {
                 let updated = handler(this.metadata!); // Weird state if metadata is null - should never happen but here we are
-                const answer = await this.socket.emitWithAck('update-metadata', { sid: this.sessionId, expectedVersion: this.metadataVersion, metadata: encodeBase64(encrypt(this.encryptionKey, this.encryptionVariant, updated)) });
+                const payload = { sid: this.sessionId, expectedVersion: this.metadataVersion, metadata: encodeBase64(encrypt(this.encryptionKey, this.encryptionVariant, updated)) };
+                const answer = ackTimeoutMs === undefined
+                    ? await this.socket.emitWithAck('update-metadata', payload)
+                    : await this.socket.timeout(ackTimeoutMs).emitWithAck('update-metadata', payload);
                 if (answer.result === 'success') {
                     this.metadata = decrypt(this.encryptionKey, this.encryptionVariant, decodeBase64(answer.metadata));
                     this.metadataVersion = answer.version;
@@ -1042,9 +1068,21 @@ export class ApiSessionClient extends EventEmitter {
                     }
                     throw new Error('Metadata version mismatch');
                 } else if (answer.result === 'error') {
-                    // Hard error - ignore
+                    if (ackTimeoutMs !== undefined) {
+                        throw new Error('Server rejected the metadata update');
+                    }
+                    // Preserve existing best-effort behavior for session hot paths.
                 }
-            });
+            };
+            // Lifecycle commands need a bounded, truthful receipt. Existing
+            // session hot paths retain retry-forever behavior when no timeout
+            // is supplied; a bounded caller gets one native Socket.IO ack
+            // attempt and can report a version conflict or timeout exactly.
+            if (ackTimeoutMs === undefined) {
+                await backoff(updateOnce);
+            } else {
+                await updateOnce();
+            }
         });
     }
 

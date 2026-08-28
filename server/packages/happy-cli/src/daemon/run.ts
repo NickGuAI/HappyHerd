@@ -60,6 +60,8 @@ import {
 } from './sessionLaunchSettings';
 import type { HappyHerdMachineSessionSettings } from '@slopus/happy-wire';
 import { createChildSideChat } from '@/commands/sideChat';
+import type { SideChatLifecycleReceipt, SideChatLifecycleRequest, SideChatStatusReceipt } from '@/commands/sideChat';
+import { DaemonSideChatLifecycle } from './sideChatLifecycle';
 
 type AutomationTrackedSession = TrackedSession & {
   automationId?: string;
@@ -1273,6 +1275,9 @@ export async function startDaemon(): Promise<void> {
     await automations.start();
     await reconcileAutomationRuns();
 
+    let manageLocalSideChat = async (_request: SideChatLifecycleRequest): Promise<SideChatLifecycleReceipt> => {
+      throw new Error('HappyHerd daemon is still starting; retry the side-chat lifecycle action.');
+    };
     let createLocalSideChat = async (_parentSessionId: string): Promise<{ sessionId: string }> => {
       throw new Error('HappyHerd daemon is still starting; retry side-chat creation.');
     };
@@ -1282,7 +1287,7 @@ export async function startDaemon(): Promise<void> {
       getChildren: getCurrentChildren,
       stopSession,
       spawnSession,
-      createSideChat: (parentSessionId) => createLocalSideChat(parentSessionId),
+      sideChat: (request) => manageLocalSideChat(request),
       requestShutdown: () => requestShutdown('happy-cli'),
       onHappySessionWebhook,
       automations,
@@ -1389,6 +1394,146 @@ export async function startDaemon(): Promise<void> {
         }
       }
     };
+
+    const waitFor = async (
+      description: string,
+      predicate: () => boolean | Promise<boolean>,
+      timeoutMs = 15_000,
+    ): Promise<void> => {
+      const deadline = Date.now() + timeoutMs;
+      while (!(await predicate())) {
+        if (Date.now() >= deadline) throw new Error(`Timed out waiting for ${description}`);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    };
+
+    const localSessionFromPersistence = (sessionId: string): Session => {
+      const saved = persisted[sessionId];
+      if (!saved) throw new Error(`Side chat ${sessionId} is not stored by this daemon`);
+      return {
+        id: sessionId,
+        seq: saved.seq,
+        encryptionKey: decodeBase64(saved.encryptionKey),
+        encryptionVariant: saved.encryptionVariant,
+        metadata: saved.metadata,
+        metadataVersion: saved.metadataVersion,
+        agentState: null,
+        agentStateVersion: saved.agentStateVersion,
+      };
+    };
+
+    const persistAuthoritativeSession = (session: Session): void => {
+      const saved: PersistedSession = {
+        encryptionKey: encodeBase64(session.encryptionKey),
+        encryptionVariant: session.encryptionVariant,
+        seq: session.seq,
+        metadataVersion: session.metadataVersion,
+        agentStateVersion: session.agentStateVersion,
+        metadata: session.metadata,
+        savedAt: Date.now(),
+      };
+      if (!persistSession(session.id, saved)) {
+        throw new Error(`Failed to persist authoritative side-chat state for ${session.id}`);
+      }
+      persisted[session.id] = saved;
+    };
+
+    const readSideChat = async (sessionId: string): Promise<SideChatStatusReceipt> => {
+      const inspected = await api.inspectSessionAuthoritative(localSessionFromPersistence(sessionId));
+      const metadata = inspected.session.metadata;
+      if (metadata.isSideChat !== true || typeof metadata.parentSessionId !== 'string' || !metadata.parentSessionId) {
+        throw new Error(`Session ${sessionId} is not a side chat`);
+      }
+      if (metadata.machineId !== machineId) {
+        throw new Error(`Side chat ${sessionId} is owned by machine ${metadata.machineId ?? 'unknown'}, not ${machineId}`);
+      }
+      persistAuthoritativeSession(inspected.session);
+      const live = [...pidToTrackedSession.values()].find((candidate) => (
+        candidate.happySessionId === sessionId && !hasProviderProcessExited(candidate.pid)
+      ));
+      const status = metadata.lifecycleState === 'archived'
+        ? 'archived'
+        : live ? 'running' : 'stopped';
+      return {
+        sessionId,
+        parentSessionId: metadata.parentSessionId,
+        status,
+        providerRunning: Boolean(live),
+        active: inspected.active,
+        resumable: !live && resolveDaemonResumeAgent(metadata) !== null,
+      };
+    };
+
+    const sideChatLifecycle = new DaemonSideChatLifecycle({
+      create: createLocalSideChat,
+      // The durable encrypted reconnect store is the child index. The live
+      // daemon list contains processes only and loses stopped children after
+      // restart, so it must never be used for list or close-all discovery.
+      listSessionIds: async (parentSessionId) => Object.entries(persisted)
+        .filter(([, saved]) => saved.metadata.isSideChat === true
+          && saved.metadata.parentSessionId === parentSessionId
+          && saved.metadata.machineId === machineId)
+        .map(([sessionId]) => sessionId)
+        .sort(),
+      read: readSideChat,
+      stopProvider: async (sessionId) => {
+        const live = [...pidToTrackedSession.values()].find((candidate) => (
+          candidate.happySessionId === sessionId && !hasProviderProcessExited(candidate.pid)
+        ));
+        if (!live) return { success: true, message: 'Provider already stopped' };
+        if (!stopSession(sessionId)) return { success: false, message: 'Daemon could not signal the provider process' };
+        try {
+          await waitFor(`provider process ${live.pid} to exit`, () => hasProviderProcessExited(live.pid));
+          await onChildExited(live.pid);
+          return { success: true };
+        } catch (error) {
+          return { success: false, message: error instanceof Error ? error.message : String(error) };
+        }
+      },
+      archiveMetadata: async (sessionId) => {
+        let client: ReturnType<ApiClient['sessionSyncClient']> | null = null;
+        try {
+          const inspected = await api.inspectSessionAuthoritative(localSessionFromPersistence(sessionId));
+          client = api.sessionSyncClient(inspected.session);
+          await client.waitForConnected();
+          client.suppressNextArchiveSignal();
+          await client.updateMetadata((metadata) => ({
+            ...metadata,
+            lifecycleState: 'archived',
+            lifecycleStateSince: Date.now(),
+            archivedBy: 'cli',
+            archiveReason: 'Side chat closed from Happy CLI',
+          }), 10_000);
+          return { success: true };
+        } catch (error) {
+          return { success: false, message: error instanceof Error ? error.message : String(error) };
+        } finally {
+          await client?.close();
+        }
+      },
+      deactivate: async (sessionId) => {
+        const success = await api.deactivateSession(sessionId);
+        return success ? { success } : { success, message: 'Server did not confirm active=false' };
+      },
+      resumeProvider: async (sessionId) => {
+        const result = await resumeSession(sessionId);
+        if (result.type !== 'success') {
+          return { success: false, message: result.type === 'error' ? result.errorMessage : 'Resume unexpectedly requires directory approval' };
+        }
+        try {
+          // Spawn acknowledgement precedes the provider reconnect metadata and
+          // server heartbeat. Bound the wait and verify both sources of truth.
+          await waitFor(`side chat ${sessionId} to become running and active`, async () => {
+            const child = await readSideChat(sessionId);
+            return child.providerRunning && child.active && child.status === 'running';
+          });
+          return { success: true };
+        } catch (error) {
+          return { success: false, message: error instanceof Error ? error.message : String(error) };
+        }
+      },
+    });
+    manageLocalSideChat = (request) => sideChatLifecycle.execute(request);
 
     // Connect to server
     apiMachine.connect();

@@ -146,10 +146,22 @@ export class ApiClient {
    * delivered.
    */
   async refreshSessionForReconnect(session: Session): Promise<Session> {
+    await axios.post(
+      `${configuration.serverUrl}/v1/sessions/${session.id}/resume`,
+      {},
+      {
+        headers: {
+          'Authorization': `Bearer ${this.credential.token}`,
+          'X-Happy-Client': `cli-coding-session/${configuration.currentCliVersion}`,
+        },
+        timeout: 60000,
+      },
+    );
     return (await this.inspectSessionForHeartbeat(session)).session;
   }
 
-  async inspectSessionForHeartbeat(session: Session): Promise<{ session: Session; active: boolean }> {
+  /** Read exact encrypted server state without overlaying stale local metadata. */
+  async inspectSessionAuthoritative(session: Session): Promise<{ session: Session; active: boolean }> {
     const [raw] = await loadSessionRecords(this.credential.token, {
       exactId: session.id,
       timeout: 60000,
@@ -172,13 +184,24 @@ export class ApiClient {
       session: {
         ...session,
         seq: raw.seq,
-        metadata: {
-          ...persistedMetadata,
-          ...session.metadata,
-        },
+        metadata: persistedMetadata,
         metadataVersion: raw.metadataVersion,
         agentState: persistedAgentState,
         agentStateVersion: raw.agentStateVersion,
+      },
+    };
+  }
+
+  async inspectSessionForHeartbeat(session: Session): Promise<{ session: Session; active: boolean }> {
+    const inspected = await this.inspectSessionAuthoritative(session);
+    return {
+      ...inspected,
+      session: {
+        ...inspected.session,
+        metadata: {
+          ...inspected.session.metadata,
+          ...session.metadata,
+        },
       },
     };
   }
