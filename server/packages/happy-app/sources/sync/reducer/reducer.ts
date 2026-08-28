@@ -127,6 +127,8 @@ type ReducerMessage = {
     isThinking?: boolean;
     event: AgentEvent | null;
     tool: ToolCall | null;
+    /** Timestamp of the provider descriptor currently applied to this tool. */
+    toolDescriptorUpdatedAt?: number;
     meta?: MessageMeta;
     claudeUuid?: string;
     codexItemId?: string;
@@ -768,17 +770,26 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         // Update existing message with tool execution details
                         const message = state.messages.get(existingMessageId);
                         if (message?.tool) {
-                            message.realID = msg.id;
                             message.tool.callId = c.id;
-                            message.tool.name = c.name;
-                            message.tool.title = c.title;
-                            message.tool.input = message.tool.startedAt !== null
-                                ? c.input
-                                : mergeToolInputs(message.tool.input, c.input);
-                            message.tool.description = c.description;
+                            const hadStarted = message.tool.startedAt !== null;
+                            const hasLatestDescriptor = message.toolDescriptorUpdatedAt === undefined
+                                || msg.createdAt >= message.toolDescriptorUpdatedAt;
+                            if (hasLatestDescriptor) {
+                                message.realID = msg.id;
+                                message.tool.name = c.name;
+                                message.tool.title = c.title;
+                                message.tool.input = hadStarted
+                                    ? c.input
+                                    : mergeToolInputs(message.tool.input, c.input);
+                                message.tool.description = c.description;
+                                message.toolDescriptorUpdatedAt = msg.createdAt;
+                            }
                             // A repeated same-ID start is an ACP descriptor
-                            // update, not a new execution.
-                            message.tool.startedAt ??= msg.createdAt;
+                            // update, not a new execution. History can replay
+                            // newest-first, so retain the earliest observed start.
+                            message.tool.startedAt = message.tool.startedAt === null
+                                ? msg.createdAt
+                                : Math.min(message.tool.startedAt, msg.createdAt);
                             // If permission was approved and shown as completed (no tool), now it's running
                             if (message.tool.permission?.status === 'approved' && message.tool.state === 'completed') {
                                 message.tool.state = 'running';
@@ -842,6 +853,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                             createdAt: msg.createdAt,
                             text: null,
                             tool: toolCall,
+                            toolDescriptorUpdatedAt: msg.createdAt,
                             event: null,
                             meta: msg.meta,
                         });

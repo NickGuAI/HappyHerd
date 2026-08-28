@@ -3625,6 +3625,148 @@ describe('reducer', () => {
             });
         });
 
+        it('reconciles newest-first split provider history by timestamp', () => {
+            const state = createReducer();
+            const result = reducer(state, [
+                {
+                    id: 'provider-tool-end-newest-first',
+                    localId: null,
+                    createdAt: 1020,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: 'grok-tool-newest-first',
+                        content: { exitCode: 0, stdout: 'all passed' },
+                        is_error: false,
+                        uuid: 'provider-tool-end-newest-first-uuid',
+                        parentUUID: null,
+                    }],
+                },
+                {
+                    id: 'provider-tool-update-newest-first',
+                    localId: null,
+                    createdAt: 1010,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-call',
+                        id: 'grok-tool-newest-first',
+                        name: 'execute',
+                        title: 'Run exact ACP tests',
+                        input: { command: 'pnpm test --filter acp' },
+                        description: 'Running execute',
+                        uuid: 'provider-tool-update-newest-first-uuid',
+                        parentUUID: null,
+                    }],
+                },
+                {
+                    id: 'provider-tool-start-newest-first',
+                    localId: null,
+                    createdAt: 1000,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-call',
+                        id: 'grok-tool-newest-first',
+                        name: 'unknown',
+                        title: 'Run tests',
+                        input: { command: 'pnpm test' },
+                        description: 'Running unknown',
+                        uuid: 'provider-tool-start-newest-first-uuid',
+                        parentUUID: null,
+                    }],
+                },
+            ]);
+
+            expect(result.messages).toHaveLength(1);
+            expect(result.messages[0]).toMatchObject({
+                kind: 'tool-call',
+                tool: {
+                    callId: 'grok-tool-newest-first',
+                    name: 'execute',
+                    title: 'Run exact ACP tests',
+                    input: { command: 'pnpm test --filter acp' },
+                    description: 'Running execute',
+                    startedAt: 1000,
+                    completedAt: 1020,
+                    result: { exitCode: 0, stdout: 'all passed' },
+                },
+            });
+        });
+
+        it('keeps the latest descriptor when older history arrives in a later reducer call', () => {
+            const state = createReducer();
+            reducer(state, [
+                {
+                    id: 'provider-tool-end-first-page',
+                    localId: null,
+                    createdAt: 1020,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: 'grok-tool-cross-call',
+                        content: { exitCode: 0, stdout: 'all passed' },
+                        is_error: false,
+                        uuid: 'provider-tool-end-first-page-uuid',
+                        parentUUID: null,
+                    }],
+                },
+                {
+                    id: 'provider-tool-update-first-page',
+                    localId: null,
+                    createdAt: 1010,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-call',
+                        id: 'grok-tool-cross-call',
+                        name: 'execute',
+                        title: 'Run exact ACP tests',
+                        input: { command: 'pnpm test --filter acp' },
+                        description: 'Running execute',
+                        uuid: 'provider-tool-update-first-page-uuid',
+                        parentUUID: null,
+                    }],
+                },
+            ]);
+
+            const result = reducer(state, [{
+                id: 'provider-tool-start-second-page',
+                localId: null,
+                createdAt: 1000,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-call',
+                    id: 'grok-tool-cross-call',
+                    name: 'unknown',
+                    title: 'Run tests',
+                    input: { command: 'pnpm test' },
+                    description: 'Running unknown',
+                    uuid: 'provider-tool-start-second-page-uuid',
+                    parentUUID: null,
+                }],
+            }]);
+
+            expect(result.messages).toHaveLength(1);
+            expect(result.messages[0]).toMatchObject({
+                kind: 'tool-call',
+                tool: {
+                    callId: 'grok-tool-cross-call',
+                    name: 'execute',
+                    title: 'Run exact ACP tests',
+                    input: { command: 'pnpm test --filter acp' },
+                    description: 'Running execute',
+                    state: 'completed',
+                    startedAt: 1000,
+                    completedAt: 1020,
+                    result: { exitCode: 0, stdout: 'all passed' },
+                },
+            });
+        });
+
         it('keeps provider title, structured result, and error on the rendered tool model', () => {
             const state = createReducer();
             const result = reducer(state, [
