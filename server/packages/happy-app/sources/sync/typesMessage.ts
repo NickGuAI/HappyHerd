@@ -5,6 +5,8 @@ export type ToolCall = {
     /** Provider/session-protocol tool-call id used to join side-channel UI state. */
     callId?: string;
     name: string;
+    /** Provider-authored human-readable title. */
+    title?: string;
     state: 'running' | 'completed' | 'error';
     input: any;
     createdAt: number;
@@ -12,6 +14,10 @@ export type ToolCall = {
     completedAt: number | null;
     description: string | null;
     result?: any;
+    /** True when the provider, rather than a root-turn fallback, supplied the result. */
+    resultAuthoritative?: boolean;
+    /** Provider error detail kept separate from structured result data. */
+    error?: any;
     permission?: {
         id: string;
         status: 'pending' | 'approved' | 'denied' | 'canceled';

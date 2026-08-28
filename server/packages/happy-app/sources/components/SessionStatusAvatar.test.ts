@@ -4,6 +4,7 @@ import { act, create } from 'react-test-renderer';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const motion = vi.hoisted(() => ({ reduced: false }));
+const settings = vi.hoisted(() => ({ commanderProfilePictures: true }));
 
 vi.mock('react-native', async () => {
     const ReactModule = await import('react');
@@ -40,6 +41,11 @@ vi.mock('@/components/StyledText', async () => {
     return { Text: (props: any) => ReactModule.createElement('Text', props, props.children) };
 });
 vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}) } }));
+vi.mock('@/sync/storage', () => ({
+    useSetting: (key: string) => key === 'commanderProfilePictures'
+        ? settings.commanderProfilePictures
+        : false,
+}));
 vi.mock('@/text', () => ({ t: (key: string) => key }));
 vi.mock('./CommanderSessionAvatar', async () => {
     const ReactModule = await import('react');
@@ -75,6 +81,7 @@ beforeAll(() => {
 afterAll(() => vi.restoreAllMocks());
 beforeEach(() => {
     motion.reduced = false;
+    settings.commanderProfilePictures = true;
 });
 
 function flattenedStyle(value: unknown): Record<string, unknown> {
@@ -83,6 +90,33 @@ function flattenedStyle(value: unknown): Record<string, unknown> {
 }
 
 describe('SessionStatusAvatar', () => {
+    it('keeps initials and status rendering but withholds the machine identity while pictures are disabled', () => {
+        settings.commanderProfilePictures = false;
+        let renderer!: ReturnType<typeof create>;
+        act(() => {
+            renderer = create(React.createElement(SessionStatusAvatar, {
+                active: true,
+                clientId: null,
+                commanderId: 'athena',
+                commanderName: 'Athena',
+                flavor: 'codex',
+                hasDraft: true,
+                hasUnread: true,
+                machineId: 'machine-one',
+                state: 'permission_required',
+            }));
+        });
+
+        expect(renderer.root.findByType('CommanderSessionAvatar' as any).props).toMatchObject({
+            commanderId: 'athena',
+            commanderName: 'Athena',
+            machineId: null,
+        });
+        expect(renderer.root.findByType('StatusPulse' as any).props.isPulsing).toBe(true);
+        expect(renderer.root.findByType('HarnessBadgeIcon' as any).props.harness).toBe('codex');
+        expect(renderer.root.findByType('Ionicons' as any).props.name).toBe('create-outline');
+    });
+
     it('renders Commander identity with the blocking ring, harness and draft overlays', () => {
         let renderer!: ReturnType<typeof create>;
         act(() => {

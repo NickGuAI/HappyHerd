@@ -22,7 +22,10 @@ vi.mock('@/api/api', () => ({
   ApiClient: {
     create: vi.fn(async () => ({
       deactivateSession: vi.fn(),
-      getOrCreateMachine: vi.fn(async () => ({ id: 'machine-record' })),
+      getOrCreateMachine: vi.fn(async ({ metadata }: { metadata: Metadata }) => ({
+        id: 'machine-record',
+        metadata,
+      })),
       machineSyncClient: vi.fn(() => ({
         connect: vi.fn(),
         forkClaudeBackendSession: vi.fn(async () => ({
@@ -98,11 +101,24 @@ vi.mock('@/utils/caffeinate', () => ({
 }));
 
 vi.mock('@/utils/detectCLI', () => ({
-  detectCLIAvailability: vi.fn(() => ({ claude: true, codex: true, gemini: false, grok: false, opencode: false, agy: false })),
+  detectCLIAvailability: vi.fn(() => ({ claude: true, codex: true, gemini: false, grok: true, opencode: false, agy: false, detectedAt: 1 })),
 }));
 
 vi.mock('@/capabilities/agentCapabilities', () => ({
-  buildBaselineAgentCapabilities: vi.fn(() => []),
+  buildBaselineAgentCapabilities: vi.fn(() => ({
+    grok: {
+      detectedAt: 1,
+      sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
+      models: [{ code: 'grok-build', value: 'GrokBuild', isDefault: true }],
+      effortLevels: [],
+      permissionModes: [
+        { code: 'default', value: 'Default', isDefault: true },
+        { code: 'bypassPermissions', value: 'Bypass permissions' },
+        { code: 'dontAsk', value: 'Deny without asking' },
+      ],
+      acp: { loadSession: true, prompt: { image: true } },
+    },
+  })),
 }));
 
 vi.mock('@/resume/localHappyAgentAuth', () => ({
@@ -137,11 +153,19 @@ vi.mock('@/daemon/happyTerminalBoot', () => ({
   startHappyTerminalDaemon: vi.fn(),
 }));
 
-import { resolveDaemonAgentCommand, resolveDaemonResumeAgent, startDaemon } from './run';
+import {
+  initialMachineMetadata,
+  resolveDaemonAgentCommand,
+  resolveDaemonResumeAgent,
+  startDaemon,
+} from './run';
 
 type CapturedRpcHandlers = {
   requestShutdown: () => void;
-  resumeSession: (sessionId: string) => Promise<{ type: string; sessionId?: string }>;
+  resumeSession: (
+    sessionId: string,
+    options?: { permissionMode?: string },
+  ) => Promise<{ type: string; sessionId?: string; errorMessage?: string }>;
 };
 
 type CapturedControlHandlers = {
@@ -155,6 +179,7 @@ type CapturedControlHandlers = {
 
 let daemonRun: Promise<void> | undefined;
 let originalCodexHome: string | undefined;
+const defaultAgentCapabilities = initialMachineMetadata.agentCapabilities;
 
 describe('daemon session continuity', () => {
   it('resolves GrokBuild for the shared tmux and direct-spawn command path', () => {
@@ -169,6 +194,7 @@ describe('daemon session continuity', () => {
     daemonRun = undefined;
     mocks.controlHandlers = undefined;
     mocks.rpcHandlers = undefined;
+    initialMachineMetadata.agentCapabilities = defaultAgentCapabilities;
     originalCodexHome = process.env.CODEX_HOME;
     process.env.CODEX_HOME = '/ambient/wrong-provider-home';
     vi.spyOn(process, 'on').mockImplementation((() => process) as typeof process.on);
@@ -269,6 +295,145 @@ describe('daemon session continuity', () => {
     expect(spawnOptions.env.HAPPY_RECONNECT_SEQ).toBe(String(encryption.seq));
     expect(spawnOptions.env.HAPPY_RECONNECT_METADATA_VERSION).toBe(String(encryption.metadataVersion));
     expect(spawnOptions.env.HAPPY_RECONNECT_AGENT_STATE_VERSION).toBe(String(encryption.agentStateVersion));
+  });
+
+  it('keeps the persisted Grok policy authoritative over a mismatched resume RPC', async () => {
+    const resolvedSessionId = 'grok-session';
+    const encryptionKey = new Uint8Array([1, 2, 3, 4]);
+    const metadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'grok',
+      acpSessionId: 'grok-provider-session',
+      acpCapabilities: { loadSession: true, prompt: { image: true } },
+      spawnSettings: {
+        provider: 'grok',
+        model: 'grok-build',
+        effort: null,
+        permission: 'dontAsk',
+      },
+      host: 'test-host',
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happy',
+      happyToolsDir: '/srv/happy/tools',
+    };
+    const encryption: SessionEncryptionData = {
+      encryptionKey,
+      encryptionVariant: 'dataKey',
+      seq: 2,
+      metadataVersion: 3,
+      agentStateVersion: 4,
+    };
+    mocks.backfillReconnectableSessionForMachine.mockResolvedValue({
+      session: { id: resolvedSessionId, active: false, metadata, ...encryption },
+      persisted: {
+        encryptionKey: Buffer.from(encryptionKey).toString('base64'),
+        encryptionVariant: encryption.encryptionVariant,
+        seq: encryption.seq,
+        metadataVersion: encryption.metadataVersion,
+        agentStateVersion: encryption.agentStateVersion,
+        metadata,
+        savedAt: Date.now(),
+      },
+    });
+    mocks.spawnHappyCLI.mockReturnValue({ pid: 4322, kill: vi.fn(), on: vi.fn() });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const resume = rpc.resumeSession(resolvedSessionId, {
+      permissionMode: 'bypassPermissions',
+    });
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    control.onHappySessionWebhook(resolvedSessionId, { ...metadata, hostPid: 4322 }, encryption);
+
+    await expect(resume).resolves.toEqual({ type: 'success', sessionId: resolvedSessionId });
+    const [args] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [string[]];
+    expect(args).toEqual([
+      'grok',
+      '--started-by', 'daemon',
+      '--resume', 'grok-provider-session',
+      '--permission-mode', 'dontAsk',
+    ]);
+  });
+
+  it('uses the advertised default for legacy Grok resumes and rejects raw RPC policy without a valid catalog', async () => {
+    const encryptionKey = new Uint8Array([1, 2, 3, 4]);
+    const encryption: SessionEncryptionData = {
+      encryptionKey,
+      encryptionVariant: 'dataKey',
+      seq: 2,
+      metadataVersion: 3,
+      agentStateVersion: 4,
+    };
+    const metadata = (providerSessionId: string): Metadata => ({
+      path: process.cwd(),
+      flavor: 'grok',
+      acpSessionId: providerSessionId,
+      acpCapabilities: { loadSession: true, prompt: { image: true } },
+      host: 'test-host',
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happy',
+      happyToolsDir: '/srv/happy/tools',
+    });
+    const recovered = (sessionId: string, sessionMetadata: Metadata) => ({
+      session: { id: sessionId, active: false, metadata: sessionMetadata, ...encryption },
+      persisted: {
+        encryptionKey: Buffer.from(encryptionKey).toString('base64'),
+        encryptionVariant: encryption.encryptionVariant,
+        seq: encryption.seq,
+        metadataVersion: encryption.metadataVersion,
+        agentStateVersion: encryption.agentStateVersion,
+        metadata: sessionMetadata,
+        savedAt: Date.now(),
+      },
+    });
+    const legacyMetadata = metadata('grok-legacy-provider-session');
+    mocks.backfillReconnectableSessionForMachine.mockResolvedValueOnce(
+      recovered('grok-legacy-session', legacyMetadata),
+    );
+    mocks.spawnHappyCLI.mockReturnValue({ pid: 4323, kill: vi.fn(), on: vi.fn() });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const legacyResume = rpc.resumeSession('grok-legacy-session', {
+      permissionMode: 'bypassPermissions',
+    });
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    control.onHappySessionWebhook('grok-legacy-session', { ...legacyMetadata, hostPid: 4323 }, encryption);
+
+    await expect(legacyResume).resolves.toEqual({ type: 'success', sessionId: 'grok-legacy-session' });
+    expect(mocks.spawnHappyCLI.mock.calls[0]?.[0]).toEqual([
+      'grok',
+      '--started-by', 'daemon',
+      '--resume', 'grok-legacy-provider-session',
+      '--permission-mode', 'default',
+    ]);
+
+    for (const [catalogState, capabilities] of [
+      ['missing', {}],
+      ['invalid', { grok: { permissionModes: 'invalid' } }],
+    ] as const) {
+      initialMachineMetadata.agentCapabilities = capabilities as never;
+      const sessionId = `grok-${catalogState}-catalog-session`;
+      mocks.backfillReconnectableSessionForMachine.mockResolvedValueOnce(
+        recovered(sessionId, metadata(`grok-${catalogState}-provider-session`)),
+      );
+
+      await expect(rpc.resumeSession(sessionId, {
+        permissionMode: 'bypassPermissions',
+      })).resolves.toEqual({
+        type: 'error',
+        errorMessage: 'Failed to resume session: Grok resume requires a validated advertised permission mode on machine machine-record',
+      });
+      expect(mocks.spawnHappyCLI).toHaveBeenCalledTimes(1);
+    }
   });
 
   it('creates a local Codex side chat without account-control credentials', async () => {

@@ -1,3 +1,28 @@
+# August 28 — GrokBuild permissions and tool details stay accurate
+
+- GrokBuild's selected launch policy now governs later permission callbacks: bypass and deny-without-prompt modes no longer create approval cards, while interactive modes ask once.
+- GrokBuild and other ACP tool calls retain the provider's title, category, input, result, error, and call identity, so unfamiliar tools render meaningfully without provider-specific display entries.
+
+# August 28 — Commander pictures load only when enabled
+
+- Commander profile pictures are off by default again. Session lists keep Commander initials and status rings without remote avatar requests until the feature is enabled; enabling it restores the existing pictures and management controls.
+
+# August 28 — Agent images and one attachment menu
+
+- PNG and JPEG images returned by Claude and Codex now stay encrypted with the session, render inline after reconnecting, and open at full size.
+- New and active chats now use one attachment button for Photos and Device files while keeping workspace browsing separate.
+
+# August 28 — Child-agent outcomes stay accurate
+
+- Claude and Codex child-agent cards now trust provider-confirmed completion, failure, cancellation, and interruption even when a child returns no final text or reports after the root turn ends.
+- When no child terminal evidence arrives, the activity timer ends as unknown instead of being mislabeled as interrupted; late and replayed provider outcomes correct the same child card without duplicates.
+
+# August 28 — Scheduled automations run without approval stalls
+
+- Scheduled Claude and Codex automations now launch with an explicit provider-native unattended policy instead of inheriting a changing interactive default.
+- Unexpected interactive permission requests fail the exact automation run without leaving an unanswerable approval, so later schedules can continue.
+- Operators can stop an exact daemon-tracked run or explicitly abandon a confirmed legacy orphan while preserving its history.
+
 # August 27 — One-command local HappyHerd install
 
 - macOS and Linux users can install from source with one copy/paste command into their own home directory; no issuer, release manifest, checksum, privileged broker, credential vault, helper identity, or environment export is required.

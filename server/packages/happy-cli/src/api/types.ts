@@ -393,8 +393,10 @@ export type Metadata = {
   archivedBy?: string,
   archiveReason?: string,
   flavor?: string
-  /** Exact launch settings validated by the target daemon for a remote spawn. */
+  /** Exact launch settings selected directly or validated by the target daemon for a remote spawn. */
   spawnSettings?: HappyHerdMachineSessionSettings
+  /** Synced client-side selection retained for sessions created before spawn receipts. */
+  permissionMode?: string | null
   sandbox?: SandboxConfig | null
   dangerouslySkipPermissions?: boolean | null
   /** Lineage for sessions created via the fork / duplicate flow. */

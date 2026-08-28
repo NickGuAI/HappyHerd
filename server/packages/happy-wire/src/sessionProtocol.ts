@@ -54,6 +54,8 @@ export const sessionToolCallStartEventSchema = z.object({
 export const sessionToolCallEndEventSchema = z.object({
   t: z.literal('tool-call-end'),
   call: z.string(),
+  result: z.unknown().optional(),
+  error: z.unknown().optional(),
 });
 
 export const sessionFileEventSchema = z.object({
@@ -93,6 +95,9 @@ export const sessionStopEventSchema = z.object({
   // Optional for replay compatibility with envelopes emitted before child
   // outcomes were preserved. New producers should always set a status.
   status: z.enum(['completed', 'failed', 'cancelled', 'interrupted', 'unknown']).optional(),
+  // Provider-confirmed terminals outrank provisional/legacy outcomes during
+  // reconnect and replay. Optional keeps older envelopes parseable.
+  authoritative: z.boolean().optional(),
   detail: z.string().optional(),
 });
 

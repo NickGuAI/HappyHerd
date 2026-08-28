@@ -7,6 +7,7 @@ import {
 import {
     AgentCapabilityCatalogSchema,
     type AgentCapabilityCatalog,
+    type Metadata,
     type MachineMetadata,
 } from '@/api/types';
 
@@ -18,6 +19,20 @@ export type MachineSessionSettingsRequest = {
 };
 
 type CapabilityOption = AgentCapabilityCatalog['models'][number];
+
+/** Read only a provider-matching launch policy from the daemon-confirmed session receipt. */
+export function persistedProviderPermissionMode(
+    metadata: Pick<Metadata, 'spawnSettings' | 'permissionMode'>,
+    provider: HappyHerdMachineSessionProvider,
+): string | undefined {
+    const settings = HappyHerdMachineSessionSettingsSchema.safeParse(metadata.spawnSettings);
+    if (settings.success && settings.data.provider === provider) {
+        return settings.data.permission ?? undefined;
+    }
+    // Grok predates launch receipts but persisted its process policy in this
+    // synced metadata field. New launch-policy providers use spawnSettings.
+    return provider === 'grok' ? metadata.permissionMode ?? undefined : undefined;
+}
 
 function defaultOption(options: CapabilityOption[]): CapabilityOption | undefined {
     return options.find((option) => option.isDefault === true)

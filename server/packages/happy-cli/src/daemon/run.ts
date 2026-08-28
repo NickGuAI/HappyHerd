@@ -31,6 +31,10 @@ import { getTmuxUtilities, isTmuxAvailable, parseTmuxSessionIdentifier, formatTm
 import { expandEnvironmentVariables } from '@/utils/expandEnvVars';
 import { detectCLIAvailability } from '@/utils/detectCLI';
 import { buildBaselineAgentCapabilities } from '@/capabilities/agentCapabilities';
+import {
+  persistedProviderPermissionMode,
+  resolveEffectiveSessionSettings,
+} from '@/capabilities/sessionLaunchSettings';
 import { buildResumeLaunch } from '@/resume/handleResumeCommand';
 import { resolveCodexHomeForResume } from '@/resume/codexHome';
 import { detectResumeSupport } from '@/resume/localHappyAgentAuth';
@@ -1104,11 +1108,28 @@ export async function startDaemon(): Promise<void> {
         const codexHome = resumeAgent === 'codex'
           ? await resolveCodexHomeForResume(metadata, ambientEnvironment)
           : undefined;
+        const persistedGrokPermission = resumeAgent === 'grok'
+          ? persistedProviderPermissionMode(metadata, 'grok')
+          : undefined;
+        const grokResumeSettings = resumeAgent === 'grok'
+          ? resolveEffectiveSessionSettings(machine.metadata, machine.id, {
+              provider: 'grok',
+              // The original session receipt is authoritative. A resume RPC
+              // may repeat this value, but it cannot replace or weaken it.
+              permission: persistedGrokPermission,
+            })
+          : undefined;
+        const grokResumePermission = grokResumeSettings?.permission ?? undefined;
+        if (resumeAgent === 'grok' && !grokResumePermission) {
+          throw new Error(`Grok resume requires a validated advertised permission mode on machine ${machine.id}`);
+        }
         appendDaemonSpawnModeArgs(launch.args, {
           directory: launch.cwd,
           agent: resumeAgent,
           modelMode: options?.model,
-          permissionMode: options?.permissionMode,
+          permissionMode: resumeAgent === 'grok'
+            ? grokResumePermission
+            : options?.permissionMode,
         }, resumeAgent);
 
         await fs.access(launch.cwd);
@@ -1238,6 +1259,16 @@ export async function startDaemon(): Promise<void> {
       loadTarget: loadHeartbeatTarget,
       postMessage: (target, input) => api.postHeartbeatMessage(target, input),
       resumeTarget: resumeSession,
+    }, {
+      hasExactTrackedRun: (run) => {
+        const session = findExactTrackedAutomationSession(run);
+        return Boolean(session && !hasProviderProcessExited(session.pid));
+      },
+      stopExactTrackedRun: (run) => {
+        const session = findExactTrackedAutomationSession(run);
+        if (!session || hasProviderProcessExited(session.pid)) return false;
+        return stopSession(session.happySessionId ?? `PID-${session.pid}`);
+      },
     });
     await automations.start();
     await reconcileAutomationRuns();

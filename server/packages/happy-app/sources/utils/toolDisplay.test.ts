@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ToolCall } from '@/sync/typesMessage';
 import {
+    formatToolDisplayValue,
     getToolActivityLabel,
     getTerminalToolCommand,
+    getToolDisplayTitle,
     getToolSummaryCategory,
     getToolSummaryDetail,
+    isToolIdentityCompatibleWithFlavor,
     isTerminalToolName,
     resolveToolDisplayRuntimeState,
     shouldRenderToolCardHeader,
@@ -138,6 +141,35 @@ describe('terminal tool display helpers', () => {
         const futureTool = tool('brand_new_rig_tool', {});
         futureTool.description = 'Running Brand New Rig Tool';
         expect(getToolActivityLabel(futureTool)).toBe('Brand New Rig Tool');
+
+        const providerTitledTool = tool('execute', { command: 'pnpm test' });
+        providerTitledTool.title = 'Run the focused ACP callback tests';
+        providerTitledTool.description = 'Running execute';
+        expect(getToolActivityLabel(providerTitledTool)).toBe('Run the focused ACP callback tests');
+    });
+
+    it('uses an authoritative provider title without a known-tools entry', () => {
+        const providerTitledTool = tool('other', {});
+        providerTitledTool.title = 'Inspect the Grok configuration';
+
+        expect(getToolDisplayTitle(providerTitledTool)).toBe('Inspect the Grok configuration');
+        expect(getToolDisplayTitle(tool('future_provider_tool', {}))).toBe('future_provider_tool');
+    });
+
+    it('keeps ACP categories on generic views outside their owning provider', () => {
+        expect(isToolIdentityCompatibleWithFlavor('think', 'grok')).toBe(false);
+        expect(isToolIdentityCompatibleWithFlavor('read', 'grok')).toBe(false);
+        expect(isToolIdentityCompatibleWithFlavor('search', 'opencode')).toBe(false);
+        expect(isToolIdentityCompatibleWithFlavor('execute', 'grok')).toBe(false);
+        expect(isToolIdentityCompatibleWithFlavor('edit', 'opencode')).toBe(false);
+        expect(isToolIdentityCompatibleWithFlavor('execute', 'gemini')).toBe(true);
+        expect(isToolIdentityCompatibleWithFlavor('future_provider_tool', 'grok')).toBe(true);
+    });
+
+    it('formats structured and falsy provider outcomes without losing their value', () => {
+        expect(formatToolDisplayValue({ exitCode: 2, stderr: 'failed' })).toBe(`{\n  "exitCode": 2,\n  "stderr": "failed"\n}`);
+        expect(formatToolDisplayValue(false)).toBe('false');
+        expect(formatToolDisplayValue(null)).toBe('null');
     });
 
     it('uses compact rows for current and future non-interactive tools', () => {

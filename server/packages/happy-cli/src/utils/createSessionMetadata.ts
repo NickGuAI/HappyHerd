@@ -12,6 +12,10 @@ import { execSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
 import type { AgentState, Metadata } from '@/api/types';
+import {
+    HappyHerdMachineSessionSettingsSchema,
+    type HappyHerdMachineSessionSettings,
+} from '@slopus/happy-wire';
 import { configuration } from '@/configuration';
 import { projectPath } from '@/projectPath';
 import type { SandboxConfig } from '@/persistence';
@@ -39,6 +43,8 @@ export interface CreateSessionMetadataOptions {
     sandbox?: SandboxConfig;
     /** Whether the backend runs with "dangerously skip permissions" behavior */
     dangerouslySkipPermissions?: boolean;
+    /** Launch settings selected by a direct terminal command. Daemon handoff metadata remains authoritative. */
+    spawnSettings?: HappyHerdMachineSessionSettings;
     /** Happy session id this session was forked from. */
     parentSessionId?: string;
     /** Happy message id used as the fork rewind point. */
@@ -119,12 +125,17 @@ export function createSessionMetadata(opts: CreateSessionMetadataOptions): Sessi
             : {}),
         sandbox: opts.sandbox?.enabled ? opts.sandbox : null,
         dangerouslySkipPermissions: opts.dangerouslySkipPermissions ?? null,
+        ...(opts.spawnSettings
+            ? { spawnSettings: HappyHerdMachineSessionSettingsSchema.parse(opts.spawnSettings) }
+            : {}),
         ...(gitBranch ? { gitBranch } : {}),
         ...(opts.parentSessionId ? { parentSessionId: opts.parentSessionId } : {}),
         ...(opts.forkedFromMessageId ? { forkedFromMessageId: opts.forkedFromMessageId } : {}),
         ...(opts.isSideChat ? { isSideChat: true } : {}),
         ...contextMetadataFromEnvironment(),
         ...automationMetadataFromEnvironment(),
+        // A target daemon's validated handoff overrides any caller-supplied
+        // direct-terminal receipt when both are present.
         ...machineSessionSettingsMetadataFromEnvironment(),
         ...(process.env.HAPPYHERD_AGENT_SURFACE_ID
             ? { happyHerdAgentSurfaceId: process.env.HAPPYHERD_AGENT_SURFACE_ID }

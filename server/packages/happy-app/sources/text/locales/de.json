@@ -1202,6 +1202,9 @@
       "queueMessage": "Nachricht einreihen",
       "addPhoto": "Foto hinzufügen",
       "addPhotos": "Fotos hinzufügen",
+      "addAttachment": "Anhang hinzufügen",
+      "photos": "Fotos",
+      "deviceFiles": "Gerätedateien",
       "startVoice": "Spracheingabe starten",
       "finishVoice": "Spracheingabe beenden",
       "cancelVoice": "Spracheingabe abbrechen",
@@ -1220,6 +1223,8 @@
       "sortRecentSubtitle": "Sitzungen nach letzter Aktivität statt Erstellungsdatum sortieren",
       "resumeSession": "Sitzung fortsetzen",
       "resumeSessionSubtitle": "Getrennte Claude Code- und Codex-Sitzungen über den Rechner-Daemon fortsetzen",
+      "commanderProfilePictures": "Commander-Profilbilder",
+      "commanderProfilePicturesSubtitle": "Commander-Bilder in Gesprächslisten anzeigen und bei aktiver Arbeit pulsieren lassen",
       "voiceInput": "Spracheingabe",
       "voiceInputSubtitle": "OpenAI-Transkription anzeigen, wenn ein sicherer Schlüssel eingerichtet ist"
     },

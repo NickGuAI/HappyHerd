@@ -17,10 +17,12 @@ import { createEnvelope, type CreateEnvelopeOptions, type SessionEnvelope, type 
 import {
     closeClaudeTurnWithStatus,
     mapClaudeLogMessageToSessionEnvelopes,
+    mapClaudeLogMessageToSessionEnvelopesWithAgentImages,
     type ClaudeSessionProtocolState,
 } from '@/claude/utils/sessionProtocolMapper';
 import { InvalidateSync } from '@/utils/sync';
 import axios from 'axios';
+import { extractClaudeAgentOutputImages } from '@/sessionProtocol/providerOutputImages';
 
 /**
  * ACP (Agent Communication Protocol) message data types.
@@ -228,6 +230,8 @@ export class ApiSessionClient extends EventEmitter {
         hiddenParentToolCalls: new Set<string>(),
         startedSubagents: new Set<string>(),
         activeSubagents: new Set<string>(),
+        subagentTurnIds: new Map<string, string>(),
+        subagentStops: new Map(),
     };
     /**
      * How far this client has consumed the session's message log.
@@ -467,22 +471,30 @@ export class ApiSessionClient extends EventEmitter {
         });
     }
 
-    async uploadLocalImageAttachmentEnvelope(
+    async uploadImageAttachmentEnvelope(
         attachment: LocalImageAttachment,
-        opts: Pick<CreateEnvelopeOptions, 'id' | 'time' | 'claudeUuid' | 'codexItemId'> = {},
+        role: 'user' | 'agent',
+        opts: Pick<CreateEnvelopeOptions, 'id' | 'time' | 'turn' | 'subagent' | 'claudeUuid' | 'codexItemId'> = {},
     ): Promise<SessionEnvelope> {
         const blobKey = await this.getBlobKey();
         const encrypted = encryptBlob(attachment.data, blobKey);
         const upload = await this.requestAttachmentUpload(attachment.name, encrypted.length);
         await this.uploadEncryptedAttachmentBlob(upload, encrypted);
 
-        return createEnvelope('user', {
+        return createEnvelope(role, {
             t: 'file',
             ref: upload.ref,
             name: attachment.name,
             size: attachment.data.length,
             mimeType: attachment.mimeType,
         }, opts);
+    }
+
+    async uploadLocalImageAttachmentEnvelope(
+        attachment: LocalImageAttachment,
+        opts: Pick<CreateEnvelopeOptions, 'id' | 'time' | 'claudeUuid' | 'codexItemId'> = {},
+    ): Promise<SessionEnvelope> {
+        return this.uploadImageAttachmentEnvelope(attachment, 'user', opts);
     }
 
     /**
@@ -785,7 +797,34 @@ export class ApiSessionClient extends EventEmitter {
         this.applyClaudeSessionMessageSideEffects(body);
     }
 
+    async sendClaudeSessionMessageWithAgentImages(body: RawJSONLines): Promise<void> {
+        const mapped = await mapClaudeLogMessageToSessionEnvelopesWithAgentImages(
+            body,
+            this.claudeSessionProtocolState,
+            async (attachment, opts) => {
+                try {
+                    return await this.uploadImageAttachmentEnvelope(attachment, 'agent', opts);
+                } catch (error) {
+                    logger.debug('[API] Failed to upload Claude agent output image', {
+                        sessionId: this.sessionId,
+                        name: attachment.name,
+                        error,
+                    });
+                    return null;
+                }
+            },
+        );
+        this.claudeSessionProtocolState.currentTurnId = mapped.currentTurnId;
+        this.enqueueSessionProtocolEnvelopes(mapped.envelopes);
+        this.applyClaudeSessionMessageSideEffects(body);
+    }
+
     async sendClaudeSessionMessageFromLocalTranscript(body: RawJSONLines): Promise<void> {
+        if (extractClaudeAgentOutputImages(body).length > 0) {
+            await this.sendClaudeSessionMessageWithAgentImages(body);
+            return;
+        }
+
         const attachments = extractLocalTranscriptImageAttachments(body);
         if (attachments.length === 0) {
             this.sendClaudeSessionMessage(body);

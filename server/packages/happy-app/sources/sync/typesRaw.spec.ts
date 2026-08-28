@@ -20,6 +20,54 @@ import { RawRecordSchema } from './typesRaw';
 
 describe('Zod Transform - WOLOG Content Normalization', () => {
 
+    it('normalizes persisted agent image files into completed inline file tools', () => {
+        const result = normalizeRawMessage('server-id', null, 1, {
+            role: 'session',
+            content: {
+                type: 'session',
+                data: {
+                    id: createId(),
+                    time: 123,
+                    role: 'agent',
+                    turn: createId(),
+                    ev: {
+                        t: 'file',
+                        ref: 'encrypted-agent-image',
+                        name: 'result.png',
+                        size: 42,
+                        mimeType: 'image/png',
+                    },
+                },
+            },
+        });
+
+        expect(result).toMatchObject({
+            role: 'agent',
+            content: [
+                { type: 'tool-call', name: 'file', input: { ref: 'encrypted-agent-image', mimeType: 'image/png' } },
+                { type: 'tool-result', is_error: false },
+            ],
+        });
+    });
+
+    it('preserves the persisted server sequence through normalization', () => {
+        const result = normalizeRawMessage('server-sequenced', null, 1, {
+            role: 'session',
+            content: {
+                type: 'session',
+                data: {
+                    id: createId(),
+                    time: 123,
+                    role: 'agent',
+                    turn: createId(),
+                    ev: { t: 'service', text: 'sequenced event' },
+                },
+            },
+        }, 42);
+
+        expect(result?.sequence).toBe(42);
+    });
+
     describe('Accepts and transforms hyphenated types', () => {
         it('transforms tool-call to tool_use with field remapping', () => {
             const message = {
@@ -1785,6 +1833,7 @@ describe('Zod Transform - WOLOG Content Normalization', () => {
                     type: 'tool-call',
                     id: 'call-1',
                     name: 'CodexBash',
+                    title: 'Run `ls`',
                     input: { command: 'ls' }
                 });
             }
@@ -1800,7 +1849,8 @@ describe('Zod Transform - WOLOG Content Normalization', () => {
                         turn: 'turn-1',
                         ev: {
                             t: 'tool-call-end',
-                            call: 'call-1'
+                            call: 'call-1',
+                            result: { exitCode: 0, stdout: 'README.md' }
                         }
                     }
                 }
@@ -1810,8 +1860,40 @@ describe('Zod Transform - WOLOG Content Normalization', () => {
                 expect(end.content[0]).toMatchObject({
                     type: 'tool-result',
                     tool_use_id: 'call-1',
-                    content: null,
+                    content: { exitCode: 0, stdout: 'README.md' },
                     is_error: false
+                });
+            }
+        });
+
+        it('normalizes structured tool failures without dropping their result or error', () => {
+            const failed = normalizeRawMessage('db-tool-failed', null, 1, {
+                ...base,
+                content: {
+                    type: 'session',
+                    data: {
+                        id: 'env-tool-failed',
+                        time: 1,
+                        role: 'agent',
+                        turn: 'turn-1',
+                        ev: {
+                            t: 'tool-call-end',
+                            call: 'provider-call-2',
+                            result: { exitCode: 2, stderr: 'TypeScript compilation failed' },
+                            error: 'TypeScript compilation failed'
+                        }
+                    }
+                }
+            });
+
+            expect(failed).toBeTruthy();
+            if (failed && failed.role === 'agent') {
+                expect(failed.content[0]).toMatchObject({
+                    type: 'tool-result',
+                    tool_use_id: 'provider-call-2',
+                    content: { exitCode: 2, stderr: 'TypeScript compilation failed' },
+                    error: 'TypeScript compilation failed',
+                    is_error: true
                 });
             }
         });
@@ -2036,6 +2118,7 @@ describe('Zod Transform - WOLOG Content Normalization', () => {
                         ev: {
                             t: 'stop',
                             status: 'failed',
+                            authoritative: true,
                             detail: 'Provider child failed',
                         }
                     }
@@ -2049,6 +2132,7 @@ describe('Zod Transform - WOLOG Content Normalization', () => {
                     type: 'tool-result',
                     tool_use_id: subagent,
                     is_error: true,
+                    authoritative: true,
                     content: {
                         status: 'failed',
                         detail: 'Provider child failed',

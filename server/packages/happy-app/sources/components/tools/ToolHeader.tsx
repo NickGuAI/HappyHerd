@@ -4,29 +4,35 @@ import { Ionicons } from '@expo/vector-icons';
 import { ToolCall } from '@/sync/typesMessage';
 import { knownTools } from '@/components/tools/knownTools';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
+import { getToolDisplayTitle, isToolIdentityCompatibleWithFlavor } from '@/utils/toolDisplay';
+import { Metadata } from '@/sync/storageTypes';
 
 interface ToolHeaderProps {
     tool: ToolCall;
+    metadata?: Metadata | null;
 }
 
-export function ToolHeader({ tool }: ToolHeaderProps) {
+export function ToolHeader({ tool, metadata = null }: ToolHeaderProps) {
     const { theme } = useUnistyles();
-    const knownTool = knownTools[tool.name as keyof typeof knownTools] as any;
+    const knownTool = isToolIdentityCompatibleWithFlavor(tool.name, metadata?.flavor)
+        ? knownTools[tool.name as keyof typeof knownTools] as any
+        : undefined;
 
     // Extract status first for Bash tool to potentially use as title
     let status: string | null = null;
     if (knownTool && typeof knownTool.extractStatus === 'function') {
-        const extractedStatus = knownTool.extractStatus({ tool, metadata: null });
+        const extractedStatus = knownTool.extractStatus({ tool, metadata });
         if (typeof extractedStatus === 'string' && extractedStatus) {
             status = extractedStatus;
         }
     }
 
     // Handle optional title and function type
-    let toolTitle = tool.name;
-    if (knownTool?.title) {
+    const providerTitle = tool.title?.trim();
+    let toolTitle = getToolDisplayTitle(tool);
+    if (!providerTitle && knownTool?.title) {
         if (typeof knownTool.title === 'function') {
-            toolTitle = knownTool.title({ tool, metadata: null });
+            toolTitle = knownTool.title({ tool, metadata });
         } else {
             toolTitle = knownTool.title;
         }
@@ -37,7 +43,7 @@ export function ToolHeader({ tool }: ToolHeaderProps) {
     // Extract subtitle using the same logic as ToolView
     let subtitle = null;
     if (knownTool && typeof knownTool.extractSubtitle === 'function') {
-        const extractedSubtitle = knownTool.extractSubtitle({ tool, metadata: null });
+        const extractedSubtitle = knownTool.extractSubtitle({ tool, metadata });
         if (typeof extractedSubtitle === 'string' && extractedSubtitle) {
             subtitle = extractedSubtitle;
         }

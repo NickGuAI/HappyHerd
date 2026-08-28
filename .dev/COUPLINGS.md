@@ -70,10 +70,11 @@ happy-app agent selection + live machine catalog
 ```
 
 GrokBuild authentication remains owned by the installed provider CLI. Model,
-reasoning-effort, permission, and resume capabilities come from its live ACP
-responses; resume stays on the original machine. App attachment and fork
-surfaces must follow advertised ACP capabilities rather than another provider
-fallback.
+reasoning-effort, and resume capabilities come from its live ACP responses.
+Permission modes instead come from `grok --help` and are process launch
+policies; they are not Grok's ACP plan/build operating mode. Resume stays on
+the original machine. App attachment and fork surfaces must follow advertised
+ACP capabilities rather than another provider fallback.
 
 ### Provider defaults and session launch
 
@@ -105,6 +106,47 @@ draft reset boundary, all three launch surfaces, and the registry-parity proof.
 Every actual provider change clears the draft's permission, model, and effort
 fields before the destination provider's defaults are resolved; provider-local
 values must never survive a Claude ↔ Codex (or any other) switch.
+
+### Provider prompt, permission, and tool-event behavior
+
+```text
+provider capability source
+  → daemon catalog → app selection → shared message metadata
+  → CLI message admission → exact provider validation
+  → launch arguments and/or runtime selector
+  → provider permission callback
+       ├── interactive mode          → one Happy pending request
+       ├── allow-without-prompt mode → provider-advertised allow response
+       └── deny-without-prompt mode  → advertised reject or cancellation
+
+provider raw event
+  → provider mapper or ACP sessionUpdateHandlers
+  → AgentMessage → AcpSessionManager → SessionEnvelope
+  → app typesRaw → reducer → known-tool enrichment or generic ToolView
+```
+
+These are bidirectional provider contracts, not launch-only integrations.
+Shared wire and app metadata intentionally accept provider-native permission
+strings. Validation belongs at the exact provider/daemon boundary; a closed
+shared enum can discard a valid future-provider message before its adapter sees
+it. As of baseline `3eac2e3c`, the CLI copy in
+`server/packages/happy-cli/src/api/types.ts` is narrower than the wire and app
+schemas and must be reconciled by any implementation that adds a new native
+permission code.
+
+Permission discovery, delivery, and enforcement are separate. A launch flag
+does not prove how Happy handles a later ACP `requestPermission` callback, and
+an ACP operating-mode selector must not overwrite a process launch policy.
+A change that introduces or expands Happy-owned permission enforcement remains
+subject to the security approval gate in [`README.md`](README.md).
+
+ACP tool fields are also distinct: `toolCallId` correlates events, `title` is
+human-readable display text, optional `kind` is a category, and `rawInput` is
+structured input. Sparse updates may omit metadata already supplied at start,
+so the adapter must retain the descriptor by call ID through completion or
+failure. Known-tool registries may enrich presentation, but correctness cannot
+depend on a provider-specific registry entry: a valid unfamiliar tool with a
+title must not render as `unknown`.
 
 ### Session heartbeat delivery
 

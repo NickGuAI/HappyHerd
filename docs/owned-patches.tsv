@@ -130,3 +130,19 @@ SIDE_CHAT_LOCAL_AUTH	accepted	fix(cli): reuse local daemon auth for side chats	s
 SIDE_CHAT_LOCAL_AUTH_VERIFY	accepted	docs(cli): verify local side-chat authentication	.dev/VERIFY.md
 SECURITY_FEATURE_APPROVAL	accepted	docs(dev): require TickTick approval for security features	.dev/README.md
 DEV_CONTEXT_CI_BYPASS	accepted	ci: skip suites for development-context-only changes	.github/workflows/quality-gates.yml
+AUTOMATION_UNATTENDED	accepted	fix(automations): enforce unattended execution lifecycle	server/packages/happy-cli/src/automations/unattendedPolicy.test.ts
+SUBAGENT_LIFECYCLE	accepted	fix(subagents): trust provider lifecycle state	server/packages/happy-cli/src/codex/__tests__/sessionProtocolMapper.test.ts
+AGENT_MEDIA	accepted	fix(media): preserve agent images and unify attachments	server/packages/happy-cli/src/sessionProtocol/providerOutputImages.test.ts
+COMMANDER_AVATAR_GATE	accepted	fix(app): gate commander profile image loading	server/packages/happy-app/sources/components/SessionStatusAvatar.test.ts
+PROVIDER_CONFORMANCE	accepted	fix(acp): preserve permission and tool contracts	server/packages/happy-cli/src/agent/acp/sessionUpdateHandlers.test.ts
+PROVIDER_RESUME_POLICY	accepted	fix(grok): preserve permission policy on resume	server/packages/happy-cli/src/daemon/run.resume.test.ts
+PROVIDER_RESUME_AUTHORITY	accepted	fix(grok): make persisted resume policy authoritative	server/packages/happy-cli/src/daemon/run.resume.test.ts
+LATE_CHILD_IMAGE_OWNERSHIP	accepted	fix(media): preserve late child image ownership	server/packages/happy-cli/src/claude/utils/sessionProtocolMapper.test.ts
+BLOB_TEST_TIMEOUT	accepted	test(app): stabilize large blob encryption coverage	server/packages/happy-app/sources/encryption/blob.test.ts
+ACP_SPLIT_TOOL_UPDATES	accepted	fix(acp): preserve split tool updates	server/packages/happy-cli/src/agent/acp/sessionUpdateHandlers.test.ts
+APP_TOOL_REPLAY_ORDER	accepted	fix(app): make tool replay order-independent	server/packages/happy-app/sources/sync/reducer/reducer.spec.ts
+ACP_INDEPENDENT_OUTCOMES	accepted	fix(acp): preserve independent outcome fields	server/packages/happy-cli/src/agent/acp/sessionUpdateHandlers.test.ts
+APP_TOOL_REPLAY_SEQUENCE	accepted	fix(app): order equal-time tool replays by sequence	server/packages/happy-app/sources/sync/reducer/reducer.spec.ts
+PROVIDER_RESUME_VALIDATION	accepted	fix(grok): reject unvalidated resume policy	server/packages/happy-cli/src/daemon/run.resume.test.ts
+APP_TOOL_PAGED_RESULT	accepted	fix(app): reconcile paged tool results	server/packages/happy-app/sources/sync/reducer/reducer.spec.ts
+APP_TOOL_PAGED_AUTHORITY	accepted	fix(app): preserve authoritative paged tool result	server/packages/happy-app/sources/sync/reducer/reducer.spec.ts

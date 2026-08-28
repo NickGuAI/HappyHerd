@@ -83,7 +83,7 @@ export default React.memo(() => {
             {message && message.kind === 'tool-call' && message.tool && (
                 <Stack.Screen
                     options={{
-                        headerTitle: () => <ToolHeader tool={message.tool} />,
+                        headerTitle: () => <ToolHeader tool={message.tool} metadata={session.metadata} />,
                         headerRight: () => <ToolStatusIndicator tool={message.tool} />,
                         headerTintColor: theme.colors.header.tint,
                         headerShadowVisible: false,

@@ -49,6 +49,8 @@ export interface StatusMessage {
  */
 export interface ToolCallMessage {
   type: 'tool-call';
+  /** Provider-authored human-readable title. */
+  title?: string;
   toolName: string;
   args: Record<string, unknown>;
   callId: ToolCallId;
@@ -59,8 +61,12 @@ export interface ToolCallMessage {
  */
 export interface ToolResultMessage {
   type: 'tool-result';
+  /** Provider-authored title retained from the matching tool call. */
+  title?: string;
   toolName: string;
   result: unknown;
+  /** Provider error detail, kept separate from structured result data. */
+  error?: unknown;
   callId: ToolCallId;
 }
 

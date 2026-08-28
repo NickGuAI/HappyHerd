@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { AgentMessageQueueStateSchema } from '@slopus/happy-wire';
+import {
+    AgentMessageQueueStateSchema,
+    HappyHerdMachineSessionSettingsSchema,
+} from '@slopus/happy-wire';
 
 //
 // Agent states
@@ -156,6 +159,8 @@ export const MetadataSchema = z.object({
     hostPid: z.number().optional(), // Process ID of the session
     startedBy: z.enum(['daemon', 'terminal']).optional(),
     flavor: z.string().nullish(), // Session flavor/variant identifier
+    /** Exact launch settings confirmed and persisted by the owning daemon. */
+    spawnSettings: HappyHerdMachineSessionSettingsSchema.optional(),
     /**
      * Rig's project / worktree identity. Every worktree of the same repo
      * reports the same `project.id`, and `workspace` names the individual git

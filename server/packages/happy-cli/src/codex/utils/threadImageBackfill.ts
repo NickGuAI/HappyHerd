@@ -7,6 +7,7 @@ import { logger } from '@/ui/logger';
 
 import type { Thread, ThreadItem } from '../codexAppServerTypes';
 import { detectSupportedImageType } from './imageInput';
+import { extractCodexAgentOutputImages } from '@/sessionProtocol/providerOutputImages';
 import {
     completedTimestampMs,
     isCodexTurnInProgress,
@@ -18,6 +19,11 @@ import {
 type LocalImageUpload = (
     attachment: { data: Uint8Array; mimeType: string; name: string },
     opts: Pick<CreateEnvelopeOptions, 'id' | 'time' | 'codexItemId'> & { codexItemId: string },
+) => Promise<SessionEnvelope>;
+
+type AgentImageUpload = (
+    attachment: { data: Uint8Array; mimeType: string; name: string },
+    opts: Pick<CreateEnvelopeOptions, 'id' | 'time' | 'turn' | 'subagent' | 'codexItemId'>,
 ) => Promise<SessionEnvelope>;
 
 function localImagePaths(item: ThreadItem): string[] {
@@ -63,10 +69,16 @@ async function localImagePathToAttachment(
 export async function buildCodexThreadBackfillEnvelopes(opts: {
     thread: Pick<Thread, 'turns'>;
     uploadLocalImage: LocalImageUpload;
+    uploadAgentImage?: AgentImageUpload;
 }): Promise<SessionEnvelope[]> {
     const envelopes: SessionEnvelope[] = [];
     const providerSubagentToSessionSubagent = new Map<string, string>();
     const subagentTitles = new Map<string, string>();
+    const subagentTurnIds = new Map<string, string>();
+    const subagentStops = new Map<string, {
+        status: 'completed' | 'failed' | 'cancelled' | 'interrupted' | 'unknown';
+        authoritative: boolean;
+    }>();
     const collabReceiverThreadIdsByCall = new Map<string, string[]>();
     const collabToolByCall = new Map<string, string>();
 
@@ -77,6 +89,8 @@ export async function buildCodexThreadBackfillEnvelopes(opts: {
             currentTurnId: turn.id,
             startedSubagents: new Set<string>(),
             activeSubagents: new Set<string>(),
+            subagentTurnIds,
+            subagentStops,
             providerSubagentToSessionSubagent,
             subagentTitles,
             collabReceiverThreadIdsByCall,
@@ -109,18 +123,41 @@ export async function buildCodexThreadBackfillEnvelopes(opts: {
                 startedAt,
                 completedAt,
             }, state));
+            if (opts.uploadAgentImage) {
+                const outputImages = extractCodexAgentOutputImages(item);
+                for (let index = 0; index < outputImages.length; index += 1) {
+                    try {
+                        envelopes.push(await opts.uploadAgentImage(outputImages[index], {
+                            id: `${item.id}:output-image:${index + 1}`,
+                            time: completedAt,
+                            turn: turn.id,
+                            codexItemId: item.id,
+                        }));
+                    } catch (error) {
+                        logger.debug('[Codex image backfill] Failed to upload agent output image', {
+                            errorName: error instanceof Error ? error.name : typeof error,
+                        });
+                    }
+                }
+            }
         }
 
         if (!isCodexTurnInProgress(turn)) {
             for (const subagent of state.activeSubagents) {
-                envelopes.push(createEnvelope('agent', { t: 'stop' }, {
-                    turn: turn.id,
+                const owningTurn = subagentTurnIds.get(subagent) ?? turn.id;
+                envelopes.push(createEnvelope('agent', {
+                    t: 'stop',
+                    status: 'unknown',
+                    authoritative: false,
+                }, {
+                    id: `${owningTurn}:${subagent}:stop:provisional:unknown`,
+                    turn: owningTurn,
                     subagent,
                     time: completedAt,
                 }));
+                subagentStops.set(subagent, { status: 'unknown', authoritative: false });
             }
             state.activeSubagents.clear();
-            state.startedSubagents.clear();
             envelopes.push(createEnvelope('agent', { t: 'turn-end', status: turnStatus(turn) }, {
                 id: `${turn.id}:end`,
                 turn: turn.id,

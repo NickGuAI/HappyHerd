@@ -109,6 +109,8 @@ Usage:
     [--tag VALUE ...]
   happy automation update ID [the same optional flags] [--clear-tags]
   happy automation pause|resume|run-now|delete|history ID [--json]
+  happy automation stop-run AUTOMATION_ID RUN_ID [--json]
+  happy automation abandon-run AUTOMATION_ID RUN_ID --session SESSION_ID|none --confirm ABANDON [--json]
 
 Definitions are stored below the configured HAPPY_HOME_DIR at
 agentcontext/automations/happyherd and
@@ -145,6 +147,28 @@ export async function handleAutomationCommand(args: string[]): Promise<void> {
       if (!positional[0]) throw new Error('Automation id is required');
       result = await daemonAutomationAction(action, { id: positional[0] });
       break;
+    case 'stop-run':
+      if (!positional[0] || !positional[1]) throw new Error('Automation id and run id are required');
+      result = await daemonAutomationAction('stop-run', {
+        id: positional[0],
+        runId: positional[1],
+      });
+      break;
+    case 'abandon-run': {
+      if (!positional[0] || !positional[1]) throw new Error('Automation id and run id are required');
+      const session = stringFlag(flags, 'session', true)!;
+      const confirmation = stringFlag(flags, 'confirm');
+      if (confirmation !== 'ABANDON') throw new Error('--confirm ABANDON is required');
+      result = await daemonAutomationAction('abandon-run', {
+        id: positional[0],
+        runId: positional[1],
+        input: {
+          sessionId: session === 'none' ? null : session,
+          confirmation,
+        },
+      });
+      break;
+    }
     default:
       throw new Error(`Unknown automation command: ${action}`);
   }

@@ -45,6 +45,20 @@ function response(machineId: string, content = png): HappyHerdCommanderListRespo
 afterEach(() => resetCommanderAvatarCacheForTests());
 
 describe('Commander avatar loading', () => {
+    it('does not issue list or file RPCs without a machine identity', async () => {
+        const listCommanders = vi.fn(async (machineId: string) => response(machineId));
+        const readFile = vi.fn(async () => ({ success: true, content: png.toString('base64') }));
+
+        await expect(loadCommanderAvatar(null, 'athena', {
+            listCommanders,
+            readFile,
+            sha256,
+        })).resolves.toBeNull();
+
+        expect(listCommanders).not.toHaveBeenCalled();
+        expect(readFile).not.toHaveBeenCalled();
+    });
+
     it('loads and caches a validated profile image by machine and Commander', async () => {
         const listCommanders = vi.fn(async (machineId: string) => response(machineId));
         const readFile = vi.fn(async () => ({ success: true, content: png.toString('base64') }));

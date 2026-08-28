@@ -21,7 +21,17 @@ describe('session protocol schemas', () => {
         description: 'Run `ls -la` in the repo root',
         args: { command: 'ls -la' },
       },
-      { t: 'tool-call-end', call: 'call-1' },
+      {
+        t: 'tool-call-end',
+        call: 'provider-call-1',
+        result: { exitCode: 0, stdout: 'passed' },
+      },
+      {
+        t: 'tool-call-end',
+        call: 'provider-call-2',
+        result: { exitCode: 2, stderr: 'failed' },
+        error: 'failed',
+      },
       { t: 'file', ref: 'upload-1', name: 'report.txt', size: 1024, mimeType: 'text/plain' },
       {
         t: 'file',
@@ -40,6 +50,7 @@ describe('session protocol schemas', () => {
       { t: 'stop', status: 'cancelled' },
       { t: 'stop', status: 'interrupted', detail: 'Root turn ended' },
       { t: 'stop', status: 'unknown' },
+      { t: 'stop', status: 'completed', authoritative: true },
     ];
 
     for (const event of events) {
@@ -56,8 +67,23 @@ describe('session protocol schemas', () => {
     expect(sessionEventSchema.safeParse({ t: 'start', title: 1 }).success).toBe(false);
     expect(sessionEventSchema.safeParse({ t: 'stop', status: 'running' }).success).toBe(false);
     expect(sessionEventSchema.safeParse({ t: 'stop', detail: 1 }).success).toBe(false);
+    expect(sessionEventSchema.safeParse({ t: 'stop', authoritative: 'yes' }).success).toBe(false);
     expect(sessionEventSchema.safeParse({ t: 'service' }).success).toBe(false);
     expect(sessionEventSchema.safeParse({ t: 'not-real' }).success).toBe(false);
+  });
+
+  it('preserves provider authority on child terminal events', () => {
+    expect(sessionEventSchema.parse({
+      t: 'stop',
+      status: 'failed',
+      authoritative: true,
+      detail: 'Provider child failed',
+    })).toEqual({
+      t: 'stop',
+      status: 'failed',
+      authoritative: true,
+      detail: 'Provider child failed',
+    });
   });
 
   it('validates envelopes that include turn/subagent', () => {

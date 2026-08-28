@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => {
   const sessionHandlers = new Map<string, (params: any) => Promise<any> | any>();
@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => {
     sendSessionProtocolMessage: vi.fn(),
     sendSessionEvent: vi.fn(),
     updateMetadata: vi.fn(),
+    suppressNextArchiveSignal: vi.fn(),
+    skipExistingMessages: vi.fn(),
     sendSessionDeath: vi.fn(),
     flush: vi.fn(async () => {}),
     close: vi.fn(async () => {}),
@@ -45,6 +47,7 @@ const mocks = vi.hoisted(() => {
     mockApiCreate: vi.fn(),
     mockGetOrCreateMachine: vi.fn(async () => ({})),
     mockGetOrCreateSession: vi.fn(async () => ({ id: 'session-1' })),
+    mockRefreshSessionForReconnect: vi.fn(),
     mockSetupOfflineReconnection: vi.fn(),
     mockNotifyDaemonSessionStarted: vi.fn(async () => ({ error: null })),
     mockStartHappyServer: vi.fn(),
@@ -187,7 +190,7 @@ vi.mock('./AcpBackend', () => ({
   },
 }));
 
-import { runAcp } from './runAcp';
+import { resolveAcpPermissionPolicy, runAcp } from './runAcp';
 
 describe('runAcp', () => {
   const stripAnsi = (line: string) => line.replace(/\u001b\[[0-9;]*m/g, '');
@@ -216,6 +219,17 @@ describe('runAcp', () => {
     mocks.mockApiCreate.mockResolvedValue({
       getOrCreateMachine: mocks.mockGetOrCreateMachine,
       getOrCreateSession: mocks.mockGetOrCreateSession,
+      refreshSessionForReconnect: mocks.mockRefreshSessionForReconnect,
+    });
+    mocks.mockRefreshSessionForReconnect.mockResolvedValue({
+      id: 'resumed-session',
+      metadata: {},
+      agentState: {},
+      seq: 12,
+      encryptionKey: new Uint8Array(32),
+      encryptionVariant: 'legacy',
+      metadataVersion: 4,
+      agentStateVersion: 5,
     });
     mocks.mockSetupOfflineReconnection.mockImplementation(() => ({
       session: mocks.mockSession,
@@ -227,6 +241,167 @@ describe('runAcp', () => {
       stop: vi.fn(),
     });
   });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('keeps Grok launch permission policy distinct from ACP operating mode', () => {
+    expect(resolveAcpPermissionPolicy('grok', undefined)).toBe('prompt');
+    expect(resolveAcpPermissionPolicy('grok', 'default')).toBe('prompt');
+    expect(resolveAcpPermissionPolicy('grok', 'acceptEdits')).toBe('prompt');
+    expect(resolveAcpPermissionPolicy('grok', 'auto')).toBe('prompt');
+    expect(resolveAcpPermissionPolicy('grok', 'plan')).toBe('prompt');
+    expect(resolveAcpPermissionPolicy('grok', 'bypassPermissions')).toBe('approve');
+    expect(resolveAcpPermissionPolicy('grok', 'dontAsk')).toBe('deny');
+    expect(resolveAcpPermissionPolicy('grok', 'future-mode')).toBe('cancel');
+    expect(resolveAcpPermissionPolicy('opencode', 'bypassPermissions')).toBe('prompt');
+  });
+
+  it.each(['dontAsk', 'bypassPermissions'] as const)(
+    'persists direct terminal Grok %s policy in canonical spawn settings',
+    async (permissionMode) => {
+      const runPromise = runAcp({
+        credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+        agentName: 'grok',
+        command: 'grok',
+        args: ['--no-auto-update', '--permission-mode', permissionMode, 'agent', 'stdio'],
+        startedBy: 'terminal',
+        permissionMode,
+      });
+
+      await vi.waitFor(() => expect(mocks.backendState.startSessionCalls).toBe(1));
+      expect(mocks.mockGetOrCreateSession).toHaveBeenCalledWith(expect.objectContaining({
+        metadata: expect.objectContaining({
+          spawnSettings: {
+            provider: 'grok',
+            model: null,
+            effort: null,
+            permission: permissionMode,
+          },
+        }),
+      }));
+
+      await mocks.getKillHandler()!();
+      await runPromise;
+    },
+  );
+
+  it('does not create pending agent state for Grok bypass callbacks', async () => {
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'grok',
+      command: 'grok',
+      args: ['--no-auto-update', '--permission-mode', 'bypassPermissions', 'agent', 'stdio'],
+      permissionMode: 'bypassPermissions',
+    });
+
+    await vi.waitFor(() => expect(mocks.backendState.startSessionCalls).toBe(1));
+    const handler = mocks.backendState.constructorArgs.permissionHandler;
+    const updateCountBeforeCallback = mocks.mockSession.updateAgentState.mock.calls.length;
+
+    expect(handler.requiresUserInput('grok-tool-17', 'execute', { command: 'pnpm test' })).toBe(false);
+    await expect(handler.handleToolCall(
+      'grok-tool-17',
+      'execute',
+      { command: 'pnpm test' },
+      'Run focused tests',
+    )).resolves.toEqual({ decision: 'approved_without_prompt' });
+    expect(mocks.mockSession.updateAgentState).toHaveBeenCalledTimes(updateCountBeforeCallback);
+
+    await mocks.getKillHandler()!();
+    await runPromise;
+  });
+
+  it('creates exactly one pending agent-state request for interactive Grok callbacks', async () => {
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'grok',
+      command: 'grok',
+      args: ['--no-auto-update', '--permission-mode', 'default', 'agent', 'stdio'],
+      permissionMode: 'default',
+    });
+
+    await vi.waitFor(() => expect(mocks.backendState.startSessionCalls).toBe(1));
+    const handler = mocks.backendState.constructorArgs.permissionHandler;
+    const updateCountBeforeCallback = mocks.mockSession.updateAgentState.mock.calls.length;
+
+    expect(handler.requiresUserInput('grok-tool-18', 'edit', { path: 'CHANGELOG.md' })).toBe(true);
+    const pending = handler.handleToolCall(
+      'grok-tool-18',
+      'edit',
+      { path: 'CHANGELOG.md' },
+      'Write the changelog',
+    );
+
+    expect(mocks.mockSession.updateAgentState).toHaveBeenCalledTimes(updateCountBeforeCallback + 1);
+    const pendingStateUpdate = mocks.mockSession.updateAgentState.mock.calls.at(-1)?.[0];
+    expect(pendingStateUpdate?.({})).toMatchObject({
+      requests: {
+        'grok-tool-18': {
+          tool: 'Write the changelog',
+          arguments: { path: 'CHANGELOG.md' },
+        },
+      },
+    });
+
+    const permissionResponse = mocks.sessionHandlers.get('permission');
+    expect(permissionResponse).toBeTypeOf('function');
+    await permissionResponse!({ id: 'grok-tool-18', approved: true, decision: 'approved' });
+    await expect(pending).resolves.toEqual({ decision: 'approved' });
+
+    await mocks.getKillHandler()!();
+    await runPromise;
+  });
+
+  it.each([
+    ['bypassPermissions', false, 'approved_without_prompt'],
+    ['dontAsk', false, 'denied'],
+    ['default', true, 'approved'],
+  ] as const)(
+    'keeps resumed Grok %s policy for a late permission callback',
+    async (permissionMode, requiresUserInput, expectedDecision) => {
+      vi.stubEnv('HAPPY_RECONNECT_SESSION_ID', 'resumed-session');
+      vi.stubEnv('HAPPY_RECONNECT_ENCRYPTION_KEY', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=');
+      vi.stubEnv('HAPPY_RECONNECT_ENCRYPTION_VARIANT', 'legacy');
+      vi.stubEnv('HAPPY_RECONNECT_SEQ', '12');
+      vi.stubEnv('HAPPY_RECONNECT_METADATA_VERSION', '4');
+      vi.stubEnv('HAPPY_RECONNECT_AGENT_STATE_VERSION', '5');
+
+      const runPromise = runAcp({
+        credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+        agentName: 'grok',
+        command: 'grok',
+        args: ['--no-auto-update', '--permission-mode', permissionMode, 'agent', 'stdio'],
+        permissionMode,
+        resumeSessionId: 'grok-provider-session',
+      });
+
+      await vi.waitFor(() => expect(mocks.backendState.startSessionCalls).toBe(1));
+      const handler = mocks.backendState.constructorArgs.permissionHandler;
+      const updateCountBeforeCallback = mocks.mockSession.updateAgentState.mock.calls.length;
+      expect(handler.requiresUserInput('late-grok-tool', 'execute', { command: 'pnpm test' }))
+        .toBe(requiresUserInput);
+
+      const decision = handler.handleToolCall(
+        'late-grok-tool',
+        'execute',
+        { command: 'pnpm test' },
+        'Run focused tests',
+      );
+      if (requiresUserInput) {
+        expect(mocks.mockSession.updateAgentState).toHaveBeenCalledTimes(updateCountBeforeCallback + 1);
+        const permissionResponse = mocks.sessionHandlers.get('permission');
+        await permissionResponse!({ id: 'late-grok-tool', approved: true, decision: 'approved' });
+      } else {
+        expect(mocks.mockSession.updateAgentState).toHaveBeenCalledTimes(updateCountBeforeCallback);
+      }
+      await expect(decision).resolves.toEqual({ decision: expectedDecision });
+
+      await mocks.getKillHandler()!();
+      await runPromise;
+    },
+  );
 
   it('wires backend messages through mapper into session envelopes', async () => {
     const runPromise = runAcp({

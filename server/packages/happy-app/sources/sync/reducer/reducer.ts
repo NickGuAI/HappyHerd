@@ -117,6 +117,14 @@ import { AgentState, TodoItem, TodoItemsSchema } from "../storageTypes";
 import { MessageMeta } from "../typesMessageMeta";
 import { parseMessageAsEvent } from "./messageToEvent";
 
+type NormalizedAgentMessage = Extract<NormalizedMessage, { role: 'agent' }>;
+type NormalizedToolResult = Extract<NormalizedAgentMessage['content'][number], { type: 'tool-result' }>;
+
+type OrphanToolResult = {
+    content: NormalizedToolResult;
+    createdAt: number;
+};
+
 type ReducerMessage = {
     id: string;
     localId?: string | null;
@@ -127,6 +135,10 @@ type ReducerMessage = {
     isThinking?: boolean;
     event: AgentEvent | null;
     tool: ToolCall | null;
+    /** Timestamp of the provider descriptor currently applied to this tool. */
+    toolDescriptorUpdatedAt?: number;
+    /** Server message sequence used to break equal descriptor timestamp ties. */
+    toolDescriptorUpdatedSequence?: number | null;
     meta?: MessageMeta;
     claudeUuid?: string;
     codexItemId?: string;
@@ -150,6 +162,10 @@ type StoredPermission = {
 
 export type ReducerState = {
     toolIdToMessageId: Map<string, string>; // toolId/permissionId -> messageId (since they're the same now)
+    // Terminal results can be fetched one V3 page before their older tool
+    // descriptor. Retain their observed order per call so Subagent authority
+    // reconciliation stays identical, then remove them with the descriptor.
+    orphanToolResults: Map<string, OrphanToolResult[]>;
     sidechainToolIdToMessageId: Map<string, string>; // toolId -> sidechain messageId (for dual tracking)
     permissions: Map<string, StoredPermission>; // Store permission details by ID for quick lookup
     localIds: Map<string, string>;
@@ -175,6 +191,7 @@ export type ReducerState = {
 export function createReducer(): ReducerState {
     return {
         toolIdToMessageId: new Map(),
+        orphanToolResults: new Map(),
         sidechainToolIdToMessageId: new Map(),
         permissions: new Map(),
         messages: new Map(),
@@ -196,6 +213,25 @@ function mergeToolInputs(existingInput: unknown, nextInput: unknown): unknown {
         return { ...nextInput, ...existingInput };
     }
     return nextInput ?? existingInput;
+}
+
+function isLatestToolDescriptor(message: ReducerMessage, incoming: NormalizedMessage): boolean {
+    if (message.toolDescriptorUpdatedAt === undefined || incoming.createdAt > message.toolDescriptorUpdatedAt) {
+        return true;
+    }
+    if (incoming.createdAt < message.toolDescriptorUpdatedAt) {
+        return false;
+    }
+
+    const incomingSequence = incoming.sequence;
+    const currentSequence = message.toolDescriptorUpdatedSequence;
+    if (typeof incomingSequence === 'number') {
+        return typeof currentSequence !== 'number' || incomingSequence >= currentSequence;
+    }
+    if (typeof currentSequence === 'number') {
+        return false;
+    }
+    return true;
 }
 
 function getSidechainOwner(state: ReducerState, sidechainId: string): ReducerMessage | null {
@@ -235,6 +271,94 @@ function isDuplicateSidechainPrompt(
     }
 
     return text.trim() === ownerPrompt;
+}
+
+function applyToolResult(
+    state: ReducerState,
+    message: ReducerMessage,
+    result: NormalizedToolResult,
+    completedAt: number,
+): boolean {
+    if (!message.tool) {
+        return false;
+    }
+
+    const isSubagent = message.tool.name === 'Subagent';
+    const incomingAuthoritative = result.authoritative === true;
+    const existingAuthoritative = message.tool.resultAuthoritative === true;
+    const sameResult = message.tool.state === (result.is_error ? 'error' : 'completed')
+        && JSON.stringify(message.tool.result) === JSON.stringify(result.content);
+    if (message.tool.state !== 'running') {
+        if (!isSubagent) {
+            return false;
+        }
+        if (existingAuthoritative && !incomingAuthoritative) {
+            return false;
+        }
+        if (sameResult && existingAuthoritative === incomingAuthoritative) {
+            return false;
+        }
+        if (existingAuthoritative === incomingAuthoritative
+            && completedAt < (message.tool.completedAt ?? 0)) {
+            return false;
+        }
+    }
+
+    message.tool.state = result.is_error ? 'error' : 'completed';
+    message.tool.result = result.content;
+    message.tool.error = result.error;
+    message.tool.completedAt = completedAt;
+    if (isSubagent) {
+        message.tool.resultAuthoritative = incomingAuthoritative;
+    }
+
+    if (result.permissions) {
+        if (message.tool.permission) {
+            const existingDecision = message.tool.permission.decision;
+            message.tool.permission = {
+                ...message.tool.permission,
+                id: result.tool_use_id,
+                status: result.permissions.result === 'approved' ? 'approved' : 'denied',
+                date: result.permissions.date,
+                mode: result.permissions.mode,
+                allowedTools: result.permissions.allowedTools,
+                decision: result.permissions.decision || existingDecision
+            };
+        } else {
+            message.tool.permission = {
+                id: result.tool_use_id,
+                status: result.permissions.result === 'approved' ? 'approved' : 'denied',
+                date: result.permissions.date,
+                mode: result.permissions.mode,
+                allowedTools: result.permissions.allowedTools,
+                decision: result.permissions.decision
+            };
+        }
+    }
+
+    if (message.tool.name === 'TodoWrite' && !result.is_error) {
+        updateLatestTodos(state, message.tool.result?.newTodos, completedAt);
+    }
+
+    return true;
+}
+
+function applyOrphanToolResult(
+    state: ReducerState,
+    message: ReducerMessage,
+    callId: string,
+): boolean {
+    const orphans = state.orphanToolResults.get(callId);
+    if (!orphans) {
+        return false;
+    }
+
+    state.orphanToolResults.delete(callId);
+    let changed = false;
+    for (const orphan of orphans) {
+        changed = applyToolResult(state, message, orphan.content, orphan.createdAt) || changed;
+    }
+    return changed;
 }
 
 export type ReducerResult = {
@@ -768,17 +892,33 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         // Update existing message with tool execution details
                         const message = state.messages.get(existingMessageId);
                         if (message?.tool) {
-                            message.realID = msg.id;
                             message.tool.callId = c.id;
-                            message.tool.input = mergeToolInputs(message.tool.input, c.input);
-                            message.tool.description = c.description;
-                            message.tool.startedAt = msg.createdAt;
+                            const hadStarted = message.tool.startedAt !== null;
+                            const hasLatestDescriptor = isLatestToolDescriptor(message, msg);
+                            if (hasLatestDescriptor) {
+                                message.realID = msg.id;
+                                message.tool.name = c.name;
+                                message.tool.title = c.title;
+                                message.tool.input = hadStarted
+                                    ? c.input
+                                    : mergeToolInputs(message.tool.input, c.input);
+                                message.tool.description = c.description;
+                                message.toolDescriptorUpdatedAt = msg.createdAt;
+                                message.toolDescriptorUpdatedSequence = msg.sequence;
+                            }
+                            // A repeated same-ID start is an ACP descriptor
+                            // update, not a new execution. History can replay
+                            // newest-first, so retain the earliest observed start.
+                            message.tool.startedAt = message.tool.startedAt === null
+                                ? msg.createdAt
+                                : Math.min(message.tool.startedAt, msg.createdAt);
                             // If permission was approved and shown as completed (no tool), now it's running
                             if (message.tool.permission?.status === 'approved' && message.tool.state === 'completed') {
                                 message.tool.state = 'running';
                                 message.tool.completedAt = null;
                                 message.tool.result = undefined;
                             }
+                            applyOrphanToolResult(state, message, c.id);
                             changed.add(existingMessageId);
 
                         }
@@ -792,6 +932,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         let toolCall: ToolCall = {
                             callId: c.id,
                             name: c.name,
+                            title: c.title,
                             state: 'running' as const,
                             input: permission ? mergeToolInputs(permission.arguments, c.input) : c.input,
                             createdAt: permission ? permission.createdAt : msg.createdAt,  // Use permission timestamp if available
@@ -835,11 +976,14 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                             createdAt: msg.createdAt,
                             text: null,
                             tool: toolCall,
+                            toolDescriptorUpdatedAt: msg.createdAt,
+                            toolDescriptorUpdatedSequence: msg.sequence,
                             event: null,
                             meta: msg.meta,
                         });
 
                         state.toolIdToMessageId.set(c.id, mid);
+                        applyOrphanToolResult(state, state.messages.get(mid)!, c.id);
                         changed.add(mid);
 
                     }
@@ -859,6 +1003,12 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                     // Find the message containing this tool
                     let messageId = state.toolIdToMessageId.get(c.tool_use_id);
                     if (!messageId) {
+                        const orphans = state.orphanToolResults.get(c.tool_use_id) ?? [];
+                        orphans.push({
+                            content: c,
+                            createdAt: msg.createdAt,
+                        });
+                        state.orphanToolResults.set(c.tool_use_id, orphans);
                         continue;
                     }
 
@@ -866,48 +1016,9 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                     if (!message || !message.tool) {
                         continue;
                     }
-
-                    if (message.tool.state !== 'running') {
-                        continue;
+                    if (applyToolResult(state, message, c, msg.createdAt)) {
+                        changed.add(messageId);
                     }
-
-                    // Update tool state and result
-                    message.tool.state = c.is_error ? 'error' : 'completed';
-                    message.tool.result = c.content;
-                    message.tool.completedAt = msg.createdAt;
-
-                    // Update permission data if provided by backend
-                    if (c.permissions) {
-                        // Merge with existing permission to preserve decision field from agentState
-                        if (message.tool.permission) {
-                            // Preserve existing decision if not provided in tool result
-                            const existingDecision = message.tool.permission.decision;
-                            message.tool.permission = {
-                                ...message.tool.permission,
-                                id: c.tool_use_id,
-                                status: c.permissions.result === 'approved' ? 'approved' : 'denied',
-                                date: c.permissions.date,
-                                mode: c.permissions.mode,
-                                allowedTools: c.permissions.allowedTools,
-                                decision: c.permissions.decision || existingDecision
-                            };
-                        } else {
-                            message.tool.permission = {
-                                id: c.tool_use_id,
-                                status: c.permissions.result === 'approved' ? 'approved' : 'denied',
-                                date: c.permissions.date,
-                                mode: c.permissions.mode,
-                                allowedTools: c.permissions.allowedTools,
-                                decision: c.permissions.decision
-                            };
-                        }
-                    }
-
-                    if (message.tool.name === 'TodoWrite' && !c.is_error) {
-                        updateLatestTodos(state, message.tool.result?.newTodos, msg.createdAt);
-                    }
-
-                    changed.add(messageId);
                 }
             }
         }
@@ -983,6 +1094,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                     let toolCall: ToolCall = {
                         callId: c.id,
                         name: c.name,
+                        title: c.title,
                         state: 'running' as const,
                         input: c.input,
                         createdAt: msg.createdAt,
@@ -1000,6 +1112,8 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                             // Update the permission message to show it's running
                             if (permissionMessage.tool.state !== 'completed' && permissionMessage.tool.state !== 'error') {
                                 permissionMessage.tool.state = 'running';
+                                permissionMessage.tool.name = c.name;
+                                permissionMessage.tool.title = c.title;
                                 permissionMessage.tool.startedAt = msg.createdAt;
                                 permissionMessage.tool.description = c.description;
                                 changed.add(existingPermissionMessageId);
@@ -1032,6 +1146,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         if (sidechainMessage && sidechainMessage.tool && sidechainMessage.tool.state === 'running') {
                             sidechainMessage.tool.state = c.is_error ? 'error' : 'completed';
                             sidechainMessage.tool.result = c.content;
+                            sidechainMessage.tool.error = c.error;
                             sidechainMessage.tool.completedAt = msg.createdAt;
                             
                             // Update permission data if provided by backend
@@ -1069,6 +1184,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         if (permissionMessage && permissionMessage.tool && permissionMessage.tool.state === 'running') {
                             permissionMessage.tool.state = c.is_error ? 'error' : 'completed';
                             permissionMessage.tool.result = c.content;
+                            permissionMessage.tool.error = c.error;
                             permissionMessage.tool.completedAt = msg.createdAt;
                             
                             // Update permission data if provided by backend

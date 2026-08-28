@@ -29,20 +29,34 @@ export const DEFAULT_TOOL_CALL_TIMEOUT_MS = 120_000;
 export interface SessionUpdate {
   sessionUpdate?: string;
   toolCallId?: string;
-  status?: string;
-  kind?: string | unknown;
+  status?: string | null;
+  kind?: string | null | unknown;
+  title?: string | null;
+  rawInput?: unknown;
+  rawOutput?: unknown;
   content?: {
     text?: string;
     error?: string | { message?: string };
     [key: string]: unknown;
   } | string | unknown;
-  locations?: unknown[];
+  locations?: unknown[] | null;
   messageChunk?: {
     textDelta?: string;
   };
   plan?: unknown;
   thinking?: unknown;
   [key: string]: unknown;
+}
+
+export interface ToolCallDescriptor {
+  title: string;
+  toolName: string;
+  args: Record<string, unknown>;
+  /** ACP replace fields retained independently across sparse updates. */
+  rawOutput?: unknown;
+  hasRawOutput: boolean;
+  content?: unknown;
+  hasContent: boolean;
 }
 
 /**
@@ -59,6 +73,8 @@ export interface HandlerContext {
   toolCallTimeouts: Map<string, NodeJS.Timeout>;
   /** Map of tool call ID to tool name */
   toolCallIdToNameMap: Map<string, string>;
+  /** Provider-authored fields retained for sparse tool-call updates. */
+  toolCallDescriptors: Map<string, ToolCallDescriptor>;
   /** Current idle timeout handle */
   idleTimeout: NodeJS.Timeout | null;
   /** Tool call counter since last prompt */
@@ -96,6 +112,26 @@ export function parseArgsFromContent(content: unknown): Record<string, unknown> 
   return {};
 }
 
+function parseRawInput(rawInput: unknown): Record<string, unknown> {
+  if (Array.isArray(rawInput)) {
+    return { items: rawInput };
+  }
+  if (rawInput && typeof rawInput === 'object') {
+    return { ...(rawInput as Record<string, unknown>) };
+  }
+  return rawInput === undefined ? {} : { value: rawInput };
+}
+
+function nonEmptyString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0
+    ? value
+    : undefined;
+}
+
+function hasOwnField(update: SessionUpdate, field: 'rawOutput' | 'content'): boolean {
+  return Object.prototype.hasOwnProperty.call(update, field);
+}
+
 /**
  * Extract error detail from update content
  */
@@ -106,8 +142,21 @@ export function extractErrorDetail(content: unknown): string | undefined {
     return content;
   }
 
-  if (typeof content === 'object' && content !== null && !Array.isArray(content)) {
+  if (Array.isArray(content)) {
+    const details = content
+      .map((item) => extractErrorDetail(item))
+      .filter((detail): detail is string => Boolean(detail));
+    return details.length > 0 ? details.join('\n') : undefined;
+  }
+
+  if (typeof content === 'object' && content !== null) {
     const obj = content as Record<string, unknown>;
+
+    if (obj.type === 'content' && obj.content) {
+      return extractErrorDetail(obj.content);
+    }
+
+    if (typeof obj.text === 'string') return obj.text;
 
     if (obj.error) {
       const error = obj.error;
@@ -250,6 +299,33 @@ export function startToolCall(
   const extractedName = ctx.transport.extractToolNameFromId?.(toolCallId);
   const realToolName = extractedName ?? (toolKindStr || 'unknown');
 
+  const previousDescriptor = ctx.toolCallDescriptors.get(toolCallId);
+  const title = nonEmptyString(update.title)
+    ?? previousDescriptor?.title
+    ?? realToolName;
+
+  const hasRawInput = Object.prototype.hasOwnProperty.call(update, 'rawInput')
+    && update.rawInput !== undefined;
+  const args = hasRawInput
+    ? parseRawInput(update.rawInput)
+    : previousDescriptor?.args ?? parseArgsFromContent(update.content);
+  const hasRawOutput = hasOwnField(update, 'rawOutput');
+  const hasContent = hasOwnField(update, 'content');
+
+  if (update.locations && Array.isArray(update.locations)) {
+    args.locations = update.locations;
+  }
+
+  ctx.toolCallDescriptors.set(toolCallId, {
+    title,
+    toolName: realToolName,
+    args,
+    hasRawOutput: hasRawOutput || (previousDescriptor?.hasRawOutput ?? false),
+    rawOutput: hasRawOutput ? update.rawOutput : previousDescriptor?.rawOutput,
+    hasContent: hasContent || (previousDescriptor?.hasContent ?? false),
+    content: hasContent ? update.content : previousDescriptor?.content,
+  });
+
   // Store mapping for permission requests
   ctx.toolCallIdToNameMap.set(toolCallId, realToolName);
 
@@ -274,6 +350,8 @@ export function startToolCall(
       ctx.activeToolCalls.delete(toolCallId);
       ctx.toolCallStartTimes.delete(toolCallId);
       ctx.toolCallTimeouts.delete(toolCallId);
+      ctx.toolCallIdToNameMap.delete(toolCallId);
+      ctx.toolCallDescriptors.delete(toolCallId);
 
       if (ctx.activeToolCalls.size === 0) {
         logger.debug('[AcpBackend] No more active tool calls after timeout, emitting idle status');
@@ -293,14 +371,6 @@ export function startToolCall(
   // Emit running status
   ctx.emit({ type: 'status', status: 'running' });
 
-  // Parse args and emit tool-call event
-  const args = parseArgsFromContent(update.content);
-
-  // Extract locations if present
-  if (update.locations && Array.isArray(update.locations)) {
-    args.locations = update.locations;
-  }
-
   // Log investigation tool objective
   if (isInvestigation && args.objective) {
     logger.debug(`[AcpBackend] 🔍 Investigation tool objective: ${String(args.objective).substring(0, 100)}...`);
@@ -308,7 +378,8 @@ export function startToolCall(
 
   ctx.emit({
     type: 'tool-call',
-    toolName: toolKindStr || 'unknown',
+    toolName: realToolName,
+    title,
     args,
     callId: toolCallId,
   });
@@ -325,10 +396,13 @@ export function completeToolCall(
 ): void {
   const startTime = ctx.toolCallStartTimes.get(toolCallId);
   const duration = formatDuration(startTime);
-  const toolKindStr = typeof toolKind === 'string' ? toolKind : 'unknown';
+  const descriptor = ctx.toolCallDescriptors.get(toolCallId);
+  const toolKindStr = nonEmptyString(toolKind) ?? descriptor?.toolName ?? 'unknown';
 
   ctx.activeToolCalls.delete(toolCallId);
   ctx.toolCallStartTimes.delete(toolCallId);
+  ctx.toolCallIdToNameMap.delete(toolCallId);
+  ctx.toolCallDescriptors.delete(toolCallId);
 
   const timeout = ctx.toolCallTimeouts.get(toolCallId);
   if (timeout) {
@@ -341,6 +415,7 @@ export function completeToolCall(
   ctx.emit({
     type: 'tool-result',
     toolName: toolKindStr,
+    title: descriptor?.title,
     result: content,
     callId: toolCallId,
   });
@@ -361,11 +436,13 @@ export function failToolCall(
   status: 'failed' | 'cancelled',
   toolKind: string | unknown,
   content: unknown,
-  ctx: HandlerContext
+  ctx: HandlerContext,
+  errorContent?: unknown,
 ): void {
   const startTime = ctx.toolCallStartTimes.get(toolCallId);
   const duration = startTime ? Date.now() - startTime : null;
-  const toolKindStr = typeof toolKind === 'string' ? toolKind : 'unknown';
+  const descriptor = ctx.toolCallDescriptors.get(toolCallId);
+  const toolKindStr = nonEmptyString(toolKind) ?? descriptor?.toolName ?? 'unknown';
   const isInvestigation = ctx.transport.isInvestigationTool?.(toolCallId, toolKindStr) ?? false;
   const hadTimeout = ctx.toolCallTimeouts.has(toolCallId);
 
@@ -392,6 +469,8 @@ export function failToolCall(
   // Cleanup
   ctx.activeToolCalls.delete(toolCallId);
   ctx.toolCallStartTimes.delete(toolCallId);
+  ctx.toolCallIdToNameMap.delete(toolCallId);
+  ctx.toolCallDescriptors.delete(toolCallId);
 
   const timeout = ctx.toolCallTimeouts.get(toolCallId);
   if (timeout) {
@@ -406,7 +485,7 @@ export function failToolCall(
   logger.debug(`[AcpBackend] ❌ Tool call ${status.toUpperCase()}: ${toolCallId} (${toolKindStr}) - Duration: ${durationStr}. Active tool calls: ${ctx.activeToolCalls.size}`);
 
   // Extract error detail
-  const errorDetail = extractErrorDetail(content);
+  const errorDetail = extractErrorDetail(errorContent) ?? extractErrorDetail(content);
   if (errorDetail) {
     logger.debug(`[AcpBackend] ❌ Tool call error details: ${errorDetail.substring(0, 500)}`);
   } else {
@@ -417,9 +496,9 @@ export function failToolCall(
   ctx.emit({
     type: 'tool-result',
     toolName: toolKindStr,
-    result: errorDetail
-      ? { error: errorDetail, status }
-      : { error: `Tool call ${status}`, status },
+    title: descriptor?.title,
+    result: content,
+    error: errorDetail ?? `Tool call ${status}`,
     callId: toolCallId,
   });
 
@@ -446,7 +525,62 @@ export function handleToolCallUpdate(
     return { handled: false };
   }
 
-  const toolKind = update.kind || 'unknown';
+  const descriptor = ctx.toolCallDescriptors.get(toolCallId);
+  const toolKind = nonEmptyString(update.kind) ?? descriptor?.toolName ?? 'unknown';
+  const title = nonEmptyString(update.title);
+  const hasDescriptorUpdate = Boolean(
+    title
+    || nonEmptyString(update.kind)
+    || update.rawInput !== undefined
+    || (Array.isArray(update.locations) && update.locations.length > 0),
+  );
+  const hasRawOutputUpdate = hasOwnField(update, 'rawOutput');
+  const hasContentUpdate = hasOwnField(update, 'content');
+  const hasOutcomeUpdate = hasRawOutputUpdate || hasContentUpdate;
+  if (descriptor && (hasDescriptorUpdate || hasOutcomeUpdate)) {
+    const args = update.rawInput !== undefined ? parseRawInput(update.rawInput) : descriptor.args;
+    if (Array.isArray(update.locations)) {
+      args.locations = update.locations;
+    }
+    const updatedDescriptor: ToolCallDescriptor = {
+      title: title ?? descriptor.title,
+      toolName: toolKind,
+      args,
+      hasRawOutput: hasRawOutputUpdate || descriptor.hasRawOutput,
+      rawOutput: hasRawOutputUpdate ? update.rawOutput : descriptor.rawOutput,
+      hasContent: hasContentUpdate || descriptor.hasContent,
+      content: hasContentUpdate ? update.content : descriptor.content,
+    };
+    ctx.toolCallDescriptors.set(toolCallId, updatedDescriptor);
+
+    // ACP updates are sparse. Forward changed descriptor fields under the same
+    // provider call ID, but do not restart the CLI timeout or start timestamp.
+    if (ctx.activeToolCalls.has(toolCallId) && hasDescriptorUpdate) {
+      ctx.emit({
+        type: 'tool-call',
+        toolName: updatedDescriptor.toolName,
+        title: updatedDescriptor.title,
+        args: updatedDescriptor.args,
+        callId: toolCallId,
+      });
+    }
+  }
+  const accumulatedDescriptor = ctx.toolCallDescriptors.get(toolCallId);
+  const hasTerminalRawOutput = accumulatedDescriptor?.hasRawOutput
+    ?? hasRawOutputUpdate;
+  const terminalRawOutput = accumulatedDescriptor?.hasRawOutput
+    ? accumulatedDescriptor.rawOutput
+    : update.rawOutput;
+  const hasTerminalContent = accumulatedDescriptor?.hasContent
+    ?? hasContentUpdate;
+  const terminalContent = accumulatedDescriptor?.hasContent
+    ? accumulatedDescriptor.content
+    : update.content;
+  const terminalResult = hasTerminalRawOutput
+    ? terminalRawOutput
+    : hasTerminalContent
+      ? terminalContent
+      : undefined;
   let toolCallCountSincePrompt = ctx.toolCallCountSincePrompt;
 
   if (status === 'in_progress' || status === 'pending') {
@@ -457,9 +591,21 @@ export function handleToolCallUpdate(
       logger.debug(`[AcpBackend] Tool call ${toolCallId} already tracked, status: ${status}`);
     }
   } else if (status === 'completed') {
-    completeToolCall(toolCallId, toolKind, update.content, ctx);
+    completeToolCall(
+      toolCallId,
+      toolKind,
+      terminalResult,
+      ctx,
+    );
   } else if (status === 'failed' || status === 'cancelled') {
-    failToolCall(toolCallId, status, toolKind, update.content, ctx);
+    failToolCall(
+      toolCallId,
+      status,
+      toolKind,
+      terminalResult,
+      ctx,
+      hasTerminalContent ? terminalContent : undefined,
+    );
   }
 
   return { handled: true, toolCallCountSincePrompt };

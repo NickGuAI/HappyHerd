@@ -1453,6 +1453,21 @@ describe('CodexAppServerClient sandbox integration', () => {
                                 threadId: 'thread-raw-1',
                                 turnId: 'turn-raw-1',
                                 item: {
+                                    type: 'imageGeneration',
+                                    id: 'image-1',
+                                    status: 'completed',
+                                    revisedPrompt: null,
+                                    result: 'base64-png',
+                                    failure: null,
+                                },
+                            },
+                        });
+                        pushJsonLine(stdout, {
+                            method: 'item/completed',
+                            params: {
+                                threadId: 'thread-raw-1',
+                                turnId: 'turn-raw-1',
+                                item: {
                                     type: 'agentMessage',
                                     id: 'msg-1',
                                     text: 'done',
@@ -1527,6 +1542,10 @@ describe('CodexAppServerClient sandbox integration', () => {
                 agentPath: 'Auth explorer',
             }),
             expect.objectContaining({ type: 'agent_message', message: 'done' }),
+            expect.objectContaining({
+                type: 'provider_output_item',
+                item: expect.objectContaining({ type: 'imageGeneration', id: 'image-1' }),
+            }),
         ]));
         expect(events.filter((event) => event.type === 'subagent_activity')).toHaveLength(2);
         expect(events.filter((event) => event.type === 'task_complete')).toHaveLength(1);

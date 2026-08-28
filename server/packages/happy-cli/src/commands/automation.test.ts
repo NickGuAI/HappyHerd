@@ -69,4 +69,30 @@ describe('handleAutomationCommand', () => {
     ])).rejects.toThrow('--tag requires a value');
     expect(mocks.daemonAutomationAction).not.toHaveBeenCalled();
   });
+
+  it('targets one exact run for stop and requires explicit orphan confirmation', async () => {
+    await handleAutomationCommand(['stop-run', 'automation-id', 'run-id']);
+    expect(mocks.daemonAutomationAction).toHaveBeenNthCalledWith(1, 'stop-run', {
+      id: 'automation-id',
+      runId: 'run-id',
+    });
+
+    await handleAutomationCommand([
+      'abandon-run', 'automation-id', 'run-id',
+      '--session', 'session-id',
+      '--confirm', 'ABANDON',
+    ]);
+    expect(mocks.daemonAutomationAction).toHaveBeenNthCalledWith(2, 'abandon-run', {
+      id: 'automation-id',
+      runId: 'run-id',
+      input: {
+        sessionId: 'session-id',
+        confirmation: 'ABANDON',
+      },
+    });
+
+    await expect(handleAutomationCommand([
+      'abandon-run', 'automation-id', 'run-id', '--session', 'session-id',
+    ])).rejects.toThrow('--confirm ABANDON is required');
+  });
 });

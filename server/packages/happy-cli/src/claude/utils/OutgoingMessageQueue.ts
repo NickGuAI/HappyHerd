@@ -24,7 +24,7 @@ export class OutgoingMessageQueue {
     private processTimer?: NodeJS.Timeout;
     private delayTimers = new Map<number, NodeJS.Timeout>();
     
-    constructor(private sendFunction: (message: any) => void) {}
+    constructor(private sendFunction: (message: any) => void | Promise<void>) {}
     
     /**
      * Add message to queue
@@ -106,7 +106,7 @@ export class OutgoingMessageQueue {
      * Process queue - send messages in ID order that are released
      * (Internal implementation without lock)
      */
-    private processQueueInternal(): void {
+    private async processQueueInternal(): Promise<void> {
         // Sort by ID to ensure order
         this.queue.sort((a, b) => a.id - b.id);
         
@@ -122,7 +122,7 @@ export class OutgoingMessageQueue {
             // Send if not already sent
             if (!item.sent) {
                 if (item.logMessage.type !== 'system') {
-                    this.sendFunction(item.logMessage);
+                    await this.sendFunction(item.logMessage);
                 }
                 item.sent = true;
             }
@@ -137,7 +137,7 @@ export class OutgoingMessageQueue {
      */
     private async processQueue(): Promise<void> {
         await this.lock.inLock(async () => {
-            this.processQueueInternal();
+            await this.processQueueInternal();
         });
     }
     
@@ -158,7 +158,7 @@ export class OutgoingMessageQueue {
             }
             
             // Process everything - use internal method since we already have the lock
-            this.processQueueInternal();
+            await this.processQueueInternal();
         });
     }
     

@@ -1,6 +1,31 @@
 {
   "entries": [
     {
+      "title": "August 28 — GrokBuild permissions and tool details stay accurate",
+      "summary": "",
+      "markdown": "- GrokBuild's selected launch policy now governs later permission callbacks: bypass and deny-without-prompt modes no longer create approval cards, while interactive modes ask once.\n- GrokBuild and other ACP tool calls retain the provider's title, category, input, result, error, and call identity, so unfamiliar tools render meaningfully without provider-specific display entries."
+    },
+    {
+      "title": "August 28 — Commander pictures load only when enabled",
+      "summary": "",
+      "markdown": "- Commander profile pictures are off by default again. Session lists keep Commander initials and status rings without remote avatar requests until the feature is enabled; enabling it restores the existing pictures and management controls."
+    },
+    {
+      "title": "August 28 — Agent images and one attachment menu",
+      "summary": "",
+      "markdown": "- PNG and JPEG images returned by Claude and Codex now stay encrypted with the session, render inline after reconnecting, and open at full size.\n- New and active chats now use one attachment button for Photos and Device files while keeping workspace browsing separate."
+    },
+    {
+      "title": "August 28 — Child-agent outcomes stay accurate",
+      "summary": "",
+      "markdown": "- Claude and Codex child-agent cards now trust provider-confirmed completion, failure, cancellation, and interruption even when a child returns no final text or reports after the root turn ends.\n- When no child terminal evidence arrives, the activity timer ends as unknown instead of being mislabeled as interrupted; late and replayed provider outcomes correct the same child card without duplicates."
+    },
+    {
+      "title": "August 28 — Scheduled automations run without approval stalls",
+      "summary": "",
+      "markdown": "- Scheduled Claude and Codex automations now launch with an explicit provider-native unattended policy instead of inheriting a changing interactive default.\n- Unexpected interactive permission requests fail the exact automation run without leaving an unanswerable approval, so later schedules can continue.\n- Operators can stop an exact daemon-tracked run or explicitly abandon a confirmed legacy orphan while preserving its history."
+    },
+    {
       "title": "August 27 — One-command local HappyHerd install",
       "summary": "",
       "markdown": "- macOS and Linux users can install from source with one copy/paste command into their own home directory; no issuer, release manifest, checksum, privileged broker, credential vault, helper identity, or environment export is required.\n- First-run server selection defaults to the existing local Happy server at `http://127.0.0.1:3005`, persists an explicitly selected remote URL in normal Happy settings, and starts the ordinary detached daemon.\n- `happyherd` is now an exact alias for Happy. Existing Happy authentication, encrypted sessions, provider login, server state, and the separate governed-agent product remain unchanged.\n- Uninstall removes only managed program files. A separate legacy cleanup removes retired #98 broker/vault/helper artifacts while preserving `~/.happyherd`, provider homes, sessions, and user-managed Skills."
@@ -286,5 +311,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 27 — One-command local HappyHerd install"
+  "latestTitle": "August 28 — GrokBuild permissions and tool details stay accurate"
 }

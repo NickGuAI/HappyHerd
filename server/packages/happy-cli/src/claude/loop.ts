@@ -48,6 +48,7 @@ interface LoopOptions {
     onSessionReady?: (session: Session) => void
     onAbort?: () => void
     onProviderResult?: (result: { status: 'completed' | 'failed'; message: string | null }) => void
+    unattended?: boolean
     /** Path to temporary settings file with SessionStart hook (required for session tracking) */
     hookSettingsPath: string
     /** JavaScript runtime to use for spawning Claude Code (default: 'node') */
@@ -101,6 +102,7 @@ export async function loop(opts: LoopOptions): Promise<number> {
             case 'remote': {
                 const reason = await claudeRemoteLauncher(session, {
                     onProviderResult: opts.onProviderResult,
+                    unattended: opts.unattended,
                 });
                 switch (reason) {
                     case 'exit':

@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "028dcbe68d12b7e7b6fd6618f31355d7ff7427243e74b12fb8843fa909957c24",
+  "sourceFingerprint": "12ff86c33a1fc4aeb8fe22611c9d219ee706b206a240934e3607ddef775f67fc",
   "routeCount": 36,
-  "surfaceCount": 243,
+  "surfaceCount": 244,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -267,7 +267,6 @@
         "happyHerd.commander.createSubtitle",
         "happyHerd.commander.createTitle",
         "happyHerd.commander.onboardingPrompt",
-        "happyHerd.composer.addPhotos",
         "happyHerd.composer.cancelVoice",
         "happyHerd.composer.finishVoice",
         "happyHerd.composer.retryVoice",
@@ -322,8 +321,7 @@
         "uiCopy.worktree",
         "workspace.browseContext",
         "workspace.recent",
-        "workspace.selectMachine",
-        "workspace.upload"
+        "workspace.selectMachine"
       ],
       "states": [
         "error"
@@ -714,6 +712,8 @@
       "path": "/settings/features",
       "owner": "sources/app/(app)/settings/features.tsx",
       "translationKeys": [
+        "happyHerd.features.commanderProfilePictures",
+        "happyHerd.features.commanderProfilePicturesSubtitle",
         "happyHerd.features.fileDiffsSidebar",
         "happyHerd.features.fileDiffsSidebarSubtitle",
         "happyHerd.features.interface",
@@ -1388,7 +1388,6 @@
         "happyHerd.commander.createSubtitle",
         "happyHerd.commander.createTitle",
         "happyHerd.commander.onboardingPrompt",
-        "happyHerd.composer.addPhotos",
         "happyHerd.composer.cancelVoice",
         "happyHerd.composer.finishVoice",
         "happyHerd.composer.retryVoice",
@@ -1443,8 +1442,7 @@
         "uiCopy.worktree",
         "workspace.browseContext",
         "workspace.recent",
-        "workspace.selectMachine",
-        "workspace.upload"
+        "workspace.selectMachine"
       ],
       "states": [
         "error"
@@ -1895,6 +1893,8 @@
         "FeaturesSettingsScreen"
       ],
       "translationKeys": [
+        "happyHerd.features.commanderProfilePictures",
+        "happyHerd.features.commanderProfilePicturesSubtitle",
         "happyHerd.features.fileDiffsSidebar",
         "happyHerd.features.fileDiffsSidebarSubtitle",
         "happyHerd.features.interface",
@@ -2343,7 +2343,6 @@
         "agentInput.model.title",
         "agentInput.noMachinesAvailable",
         "agentInput.permissionMode.title",
-        "happyHerd.composer.addPhoto",
         "happyHerd.composer.cancelVoice",
         "happyHerd.composer.finishVoice",
         "happyHerd.composer.queueMessage",
@@ -2464,6 +2463,22 @@
         "LocalBlurHalo"
       ],
       "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/AttachmentInputButton.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "AttachmentInputButton"
+      ],
+      "translationKeys": [
+        "common.cancel",
+        "happyHerd.composer.addAttachment",
+        "happyHerd.composer.deviceFiles",
+        "happyHerd.composer.photos"
+      ],
       "states": [],
       "hardcodedCopy": []
     },
@@ -4575,7 +4590,10 @@
       "exports": [
         "FileView"
       ],
-      "translationKeys": [],
+      "translationKeys": [
+        "markdown.closeImagePreview",
+        "markdown.openImageFullSize"
+      ],
       "states": [],
       "hardcodedCopy": []
     },
@@ -5031,7 +5049,8 @@
         "sessionInfo.resumeSessionUnexpectedDirectoryPrompt",
         "uiCopy.archive",
         "uiCopy.copyMetadataAndClientLogs",
-        "uiCopy.session"
+        "uiCopy.session",
+        "uiCopy.theSelectedAgentConfigurationIsUnavailable"
       ],
       "states": [],
       "hardcodedCopy": []
@@ -5450,12 +5469,15 @@
       "route": null,
       "exports": [
         "formatMCPTitle",
+        "formatToolDisplayValue",
         "getTerminalToolCommand",
         "getToolActivityLabel",
+        "getToolDisplayTitle",
         "getToolSummaryCategory",
         "getToolSummaryDetail",
         "isInteractiveQuestionToolName",
         "isTerminalToolName",
+        "isToolIdentityCompatibleWithFlavor",
         "resolveToolDisplayRuntimeState",
         "shouldRenderToolCardHeader",
         "shouldUseCompactToolRow"

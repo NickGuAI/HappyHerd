@@ -13,7 +13,7 @@ import { HappyError } from '@/utils/errors';
 import { copySessionMetadataToClipboard, copySessionMetadataAndLogsToClipboard } from '@/utils/copySessionMetadataToClipboard';
 import { useSessionStatus } from '@/utils/sessionUtils';
 import { isMachineOnline } from '@/utils/machineUtils';
-import { getResumeAvailability } from '@/utils/sessionResume';
+import { getGrokResumePermissionMode, getResumeAvailability } from '@/utils/sessionResume';
 import { getSessionForkSource } from '@/utils/sessionFork';
 import { useRouter } from 'expo-router';
 import { useSession } from '@/sync/storage';
@@ -116,12 +116,24 @@ export function useSessionQuickActions(
             throw new HappyError(t('sessionInfo.resumeSessionMissingMachine'), false);
         }
 
-        const modeMeta = resolveMessageModeMeta(session, storage.getState().settings);
+        const currentState = storage.getState();
+        const latestMachine = currentState.machines[machineId];
+        const latestAvailability = getResumeAvailability(session, latestMachine, false);
+        if (!latestAvailability.canResume) {
+            throw new HappyError(
+                latestAvailability.messageKey ? t(latestAvailability.messageKey) : t('uiCopy.theSelectedAgentConfigurationIsUnavailable'),
+                false,
+            );
+        }
+
+        const modeMeta = resolveMessageModeMeta(session, currentState.settings);
         const result = await machineResumeSession({
             machineId,
             sessionId: session.id,
             model: modeMeta.model ?? undefined,
-            permissionMode: modeMeta.permissionMode,
+            permissionMode: session.metadata?.flavor === 'grok'
+                ? getGrokResumePermissionMode(session, latestMachine)
+                : modeMeta.permissionMode,
         });
 
         switch (result.type) {

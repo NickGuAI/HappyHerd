@@ -1202,6 +1202,9 @@
       "queueMessage": "排队消息",
       "addPhoto": "添加照片",
       "addPhotos": "添加照片",
+      "addAttachment": "添加附件",
+      "photos": "照片",
+      "deviceFiles": "设备文件",
       "startVoice": "开始语音输入",
       "finishVoice": "完成语音输入",
       "cancelVoice": "取消语音输入",
@@ -1220,6 +1223,8 @@
       "sortRecentSubtitle": "按最近活动而不是创建时间排列会话",
       "resumeSession": "恢复会话",
       "resumeSessionSubtitle": "通过机器守护进程恢复断开的 Claude Code 和 Codex 会话",
+      "commanderProfilePictures": "Commander 头像",
+      "commanderProfilePicturesSubtitle": "在会话列表中显示 Commander 头像，并在工作进行时显示呼吸效果",
       "voiceInput": "语音输入",
       "voiceInputSubtitle": "配置安全密钥后显示 OpenAI 语音转写控件"
     },

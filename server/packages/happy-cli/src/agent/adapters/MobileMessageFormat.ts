@@ -120,9 +120,11 @@ export interface NormalizedMobilePayload {
 
   /** Tool information for tool calls/results */
   toolName?: string;
+  toolTitle?: string;
   toolArgs?: Record<string, unknown>;
   toolCallId?: string;
   toolResult?: unknown;
+  toolError?: unknown;
 
   /** Permission information */
   permissionId?: string;

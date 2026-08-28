@@ -486,6 +486,90 @@ describe('ApiSessionClient v3 messages API migration', () => {
         });
     });
 
+    it('preserves Claude tool-result images during local transcript backfill', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        const pngBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1]);
+
+        mockAxiosPost.mockImplementation(async (url: string, payload: any) => {
+            if (url.endsWith('/attachments/request-upload')) {
+                return {
+                    data: {
+                        ref: 'sessions/test-session-id/attachments/agent-image.enc',
+                        uploadUrl: 'https://server.test/v1/sessions/test-session-id/attachments/agent-image.enc',
+                        method: 'PUT',
+                    },
+                };
+            }
+
+            return {
+                data: {
+                    messages: payload.messages.map((_message: unknown, index: number) => ({
+                        id: `msg-${index + 1}`,
+                        seq: index + 1,
+                        localId: `local-${index + 1}`,
+                        createdAt: 1,
+                        updatedAt: 1,
+                    })),
+                },
+            };
+        });
+        mockAxiosPut.mockResolvedValueOnce({ data: { ok: true } });
+
+        await client.sendClaudeSessionMessageFromLocalTranscript({
+            type: 'user',
+            uuid: 'tool-result-image',
+            message: {
+                role: 'user',
+                content: [{
+                    type: 'tool_result',
+                    tool_use_id: 'image-tool',
+                    content: [{
+                        type: 'image',
+                        source: {
+                            type: 'base64',
+                            media_type: 'image/png',
+                            data: Buffer.from(pngBytes).toString('base64'),
+                        },
+                    }],
+                }],
+            },
+        } as any);
+
+        await waitForCheck(() => {
+            expect(mockAxiosPut).toHaveBeenCalledTimes(1);
+            expect(mockAxiosPost.mock.calls.some(([url]) => url === 'https://server.test/v3/sessions/test-session-id/messages')).toBe(true);
+        });
+
+        const messagesPost = mockAxiosPost.mock.calls.find(([url]) => {
+            return url === 'https://server.test/v3/sessions/test-session-id/messages';
+        });
+        const decrypted = messagesPost![1].messages.map((message: { content: string }) => {
+            return decrypt(
+                session.encryptionKey,
+                session.encryptionVariant,
+                decodeBase64(message.content),
+            );
+        });
+
+        expect(decrypted.map((message: any) => message.content.ev.t)).toEqual([
+            'turn-start',
+            'tool-call-end',
+            'file',
+        ]);
+        expect(decrypted[2]).toMatchObject({
+            role: 'session',
+            content: {
+                role: 'agent',
+                claudeUuid: 'tool-result-image',
+                ev: {
+                    t: 'file',
+                    ref: 'sessions/test-session-id/attachments/agent-image.enc',
+                    mimeType: 'image/png',
+                },
+            },
+        });
+    });
+
     it('uploads local Codex image files with codex item ids', async () => {
         const client = new ApiSessionClient('fake-token', session);
         const pngBytes = new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);

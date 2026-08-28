@@ -225,13 +225,8 @@ describe('mapCodexMcpMessageToSessionEnvelopes', () => {
                 receiver_thread_ids: ['provider-child-thread'],
             },
             {
+                ...spawn,
                 currentTurnId: 'turn-1',
-                startedSubagents: spawn.startedSubagents,
-                activeSubagents: spawn.activeSubagents,
-                providerSubagentToSessionSubagent: spawn.providerSubagentToSessionSubagent,
-                subagentTitles: spawn.subagentTitles,
-                collabReceiverThreadIdsByCall: spawn.collabReceiverThreadIdsByCall,
-                collabToolByCall: spawn.collabToolByCall,
             }
         );
 
@@ -241,15 +236,7 @@ describe('mapCodexMcpMessageToSessionEnvelopes', () => {
                 call_id: 'close-1',
                 status: 'completed',
             },
-            {
-                currentTurnId: 'turn-1',
-                startedSubagents: closeBegin.startedSubagents,
-                activeSubagents: closeBegin.activeSubagents,
-                providerSubagentToSessionSubagent: closeBegin.providerSubagentToSessionSubagent,
-                subagentTitles: closeBegin.subagentTitles,
-                collabReceiverThreadIdsByCall: closeBegin.collabReceiverThreadIdsByCall,
-                collabToolByCall: closeBegin.collabToolByCall,
-            }
+            closeBegin,
         );
 
         expect(closeEnd.envelopes).toEqual(expect.arrayContaining([
@@ -338,6 +325,108 @@ describe('mapCodexMcpMessageToSessionEnvelopes', () => {
         });
     });
 
+    it('accepts a provider terminal state without child text', () => {
+        const started = mapCodexMcpMessageToSessionEnvelopes(
+            {
+                type: 'collab_agent_begin',
+                call_id: 'collab-null-result',
+                tool: 'spawnAgent',
+                status: 'inProgress',
+                receiver_thread_ids: ['provider-child-thread'],
+                prompt: 'Inspect auth flow',
+            },
+            { currentTurnId: 'turn-1' },
+        );
+        const sessionSubagent = started.envelopes.find((envelope) => envelope.ev.t === 'start')?.subagent;
+
+        const rootEnded = mapCodexMcpMessageToSessionEnvelopes(
+            { type: 'task_complete' },
+            started,
+        );
+        const nextRoot = mapCodexMcpMessageToSessionEnvelopes(
+            { type: 'task_started', turn_id: 'turn-2' },
+            rootEnded,
+        );
+        const ended = mapCodexMcpMessageToSessionEnvelopes(
+            {
+                type: 'collab_agent_end',
+                call_id: 'collab-null-result',
+                tool: 'spawnAgent',
+                status: 'completed',
+                agents_states: {
+                    'provider-child-thread': { status: 'completed', message: null },
+                },
+            },
+            nextRoot,
+        );
+
+        expect(ended.envelopes.some((envelope) => envelope.ev.t === 'text')).toBe(false);
+        expect(ended.envelopes).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                turn: 'turn-1',
+                subagent: sessionSubagent,
+                ev: {
+                    t: 'stop',
+                    status: 'completed',
+                    authoritative: true,
+                },
+            }),
+        ]));
+        expect(ended.currentTurnId).toBe('turn-2');
+    });
+
+    it('keeps provider truth when closeAgent reports a terminal child state', () => {
+        const started = mapCodexMcpMessageToSessionEnvelopes({
+            type: 'collab_agent_begin',
+            call_id: 'close-child',
+            tool: 'closeAgent',
+            status: 'inProgress',
+            receiver_thread_ids: ['provider-child-thread'],
+        }, { currentTurnId: 'turn-1' });
+
+        const ended = mapCodexMcpMessageToSessionEnvelopes({
+            type: 'collab_agent_end',
+            call_id: 'close-child',
+            tool: 'closeAgent',
+            status: 'completed',
+            agents_states: {
+                'provider-child-thread': { status: 'completed', message: null },
+            },
+        }, started);
+
+        expect(ended.envelopes.filter((envelope) => envelope.ev.t === 'stop')).toEqual([
+            expect.objectContaining({
+                turn: 'turn-1',
+                ev: { t: 'stop', status: 'completed', authoritative: true },
+            }),
+        ]);
+    });
+
+    it('correlates coordination begin/end events when Codex omits a call id', () => {
+        const begin = mapCodexMcpMessageToSessionEnvelopes({
+            type: 'collab_agent_begin',
+            tool: 'spawnAgent',
+            status: 'inProgress',
+            receiver_thread_ids: ['provider-child-thread'],
+            prompt: 'Inspect auth flow',
+        }, { currentTurnId: 'turn-1' });
+        const end = mapCodexMcpMessageToSessionEnvelopes({
+            type: 'collab_agent_end',
+            tool: 'spawnAgent',
+            status: 'completed',
+            receiver_thread_ids: ['provider-child-thread'],
+            prompt: 'Inspect auth flow',
+        }, begin);
+
+        const startEvent = begin.envelopes.find((envelope) => envelope.ev.t === 'tool-call-start');
+        const endEvent = end.envelopes.find((envelope) => envelope.ev.t === 'tool-call-end');
+        expect(startEvent?.ev).toMatchObject({ t: 'tool-call-start', call: expect.any(String) });
+        expect(endEvent?.ev).toMatchObject({
+            t: 'tool-call-end',
+            call: startEvent?.ev.t === 'tool-call-start' ? startEvent.ev.call : undefined,
+        });
+    });
+
     it('waits for real provider identities and emits one completed sidechain per child', () => {
         let state: Parameters<typeof mapCodexMcpMessageToSessionEnvelopes>[1] = {
             currentTurnId: 'turn-1',
@@ -345,15 +434,7 @@ describe('mapCodexMcpMessageToSessionEnvelopes', () => {
         const allEnvelopes: ReturnType<typeof mapCodexMcpMessageToSessionEnvelopes>['envelopes'] = [];
         const advance = (message: Record<string, unknown>) => {
             const result = mapCodexMcpMessageToSessionEnvelopes(message, state);
-            state = {
-                currentTurnId: result.currentTurnId,
-                startedSubagents: result.startedSubagents,
-                activeSubagents: result.activeSubagents,
-                providerSubagentToSessionSubagent: result.providerSubagentToSessionSubagent,
-                subagentTitles: result.subagentTitles,
-                collabReceiverThreadIdsByCall: result.collabReceiverThreadIdsByCall,
-                collabToolByCall: result.collabToolByCall,
-            };
+            state = result;
             allEnvelopes.push(...result.envelopes);
             return result.envelopes;
         };
@@ -471,12 +552,13 @@ describe('mapCodexMcpMessageToSessionEnvelopes', () => {
         expect(interrupted.envelopes[1].ev).toEqual({
             t: 'stop',
             status: 'interrupted',
+            authoritative: true,
             detail: 'Codex reported that the child was interrupted.',
         });
         expect(interrupted.envelopes[1].subagent).toBe(started.envelopes[0].subagent);
     });
 
-    it('emits stop for active subagents before turn-end', () => {
+    it('ends active child timing neutrally without fabricating an interruption', () => {
         const subagent = createId();
         const activeSubagents = new Set<string>([subagent]);
         const startedSubagents = new Set<string>([subagent]);
@@ -488,12 +570,68 @@ describe('mapCodexMcpMessageToSessionEnvelopes', () => {
         expect(result.envelopes).toHaveLength(2);
         expect(result.envelopes[0]).toMatchObject({
             subagent,
-            ev: { t: 'stop' },
+            turn: 'turn-1',
+            ev: { t: 'stop', status: 'unknown', authoritative: false },
         });
         expect(result.envelopes[1].ev).toEqual({
             t: 'turn-end',
             status: 'completed',
         });
+    });
+
+    it('keeps a late provider terminal on its owning turn and suppresses duplicates', () => {
+        let state: Parameters<typeof mapCodexMcpMessageToSessionEnvelopes>[1] = { currentTurnId: null };
+        const advance = (message: Record<string, unknown>) => {
+            const result = mapCodexMcpMessageToSessionEnvelopes(message, state);
+            state = result;
+            return result.envelopes;
+        };
+
+        const rootStart = advance({ type: 'task_started', turn_id: 'provider-turn-1' });
+        expect(rootStart[0]?.turn).toBe('provider-turn-1');
+
+        const childStart = advance({
+            type: 'subagent_activity',
+            kind: 'started',
+            agent_thread_id: 'provider-child-thread',
+        });
+        const subagent = childStart.find((envelope) => envelope.ev.t === 'start')?.subagent;
+        expect(subagent).toBeDefined();
+
+        const rootEnd = advance({ type: 'task_complete', turn_id: 'provider-turn-1' });
+        expect(rootEnd).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                turn: 'provider-turn-1',
+                subagent,
+                ev: { t: 'stop', status: 'unknown', authoritative: false },
+            }),
+            expect.objectContaining({
+                turn: 'provider-turn-1',
+                ev: { t: 'turn-end', status: 'completed' },
+            }),
+        ]));
+
+        advance({ type: 'task_started', turn_id: 'provider-turn-2' });
+
+        const lateTerminal = advance({
+            type: 'subagent_terminal',
+            agent_thread_id: 'provider-child-thread',
+            status: 'completed',
+        });
+        expect(lateTerminal).toEqual([
+            expect.objectContaining({
+                turn: 'provider-turn-1',
+                subagent,
+                ev: { t: 'stop', status: 'completed', authoritative: true },
+            }),
+        ]);
+        expect(state.currentTurnId).toBe('provider-turn-2');
+
+        expect(advance({
+            type: 'subagent_terminal',
+            agent_thread_id: 'provider-child-thread',
+            status: 'completed',
+        })).toEqual([]);
     });
 
     it('maps exec command begin to tool-call-start', () => {
@@ -833,6 +971,34 @@ describe('mapCodexThreadToSessionEnvelopes', () => {
         ]);
     });
 
+    it('preserves historical provider truth for closeAgent terminal states', () => {
+        const envelopes = mapCodexThreadToSessionEnvelopes({
+            turns: [{
+                id: 'turn-close',
+                startedAt: 100,
+                completedAt: 101,
+                status: 'completed',
+                items: [{
+                    id: 'close-historical',
+                    type: 'collabAgentToolCall',
+                    tool: 'closeAgent',
+                    status: 'completed',
+                    receiverThreadIds: ['provider-child-thread'],
+                    agentsStates: {
+                        'provider-child-thread': { status: 'completed', message: null },
+                    },
+                }],
+            }],
+        });
+
+        expect(envelopes.filter((envelope) => envelope.ev.t === 'stop')).toEqual([
+            expect.objectContaining({
+                turn: 'turn-close',
+                ev: { t: 'stop', status: 'completed', authoritative: true },
+            }),
+        ]);
+    });
+
     it('backfills subagent-scoped historical reasoning and agent messages into sidechains', () => {
         const envelopes = mapCodexThreadToSessionEnvelopes({
             turns: [{
@@ -919,6 +1085,42 @@ describe('mapCodexThreadToSessionEnvelopes', () => {
         expect(subagents).toHaveLength(2);
         expect(subagents[1]).toBe(subagents[0]);
         expect(isCuid(subagents[0]!)).toBe(true);
+    });
+
+    it('replays unresolved children with deterministic neutral lifecycle ids', () => {
+        const thread = {
+            turns: [{
+                id: 'turn-replay',
+                startedAt: 100,
+                completedAt: 101,
+                status: 'completed',
+                items: [{
+                    id: 'activity-replay',
+                    type: 'subAgentActivity' as const,
+                    kind: 'started',
+                    agentThreadId: 'provider-child-thread',
+                }],
+            }],
+        };
+
+        const first = mapCodexThreadToSessionEnvelopes(thread);
+        const second = mapCodexThreadToSessionEnvelopes(thread);
+        const lifecycle = (envelopes: typeof first) => envelopes.filter((envelope) => (
+            envelope.ev.t === 'start' || envelope.ev.t === 'stop'
+        ));
+
+        expect(lifecycle(second).map((envelope) => envelope.id)).toEqual(
+            lifecycle(first).map((envelope) => envelope.id),
+        );
+        expect(first).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                turn: 'turn-replay',
+                ev: { t: 'stop', status: 'unknown', authoritative: false },
+            }),
+        ]));
+        expect(first.some((envelope) => (
+            envelope.ev.t === 'stop' && envelope.ev.status === 'interrupted'
+        ))).toBe(false);
     });
 
     it('uses one fallback timestamp pair for historical tool items without provider timestamps', () => {

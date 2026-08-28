@@ -52,6 +52,7 @@ Commands in this table run from `server/` unless they start with `scripts/` or
 |---|---|
 | App logic | `pnpm --filter happy-app typecheck`; `pnpm --filter happy-app test --run` |
 | Provider registry, Agent Defaults, or launch-mode propagation | Focus `sources/sync/agentDefaults.test.ts`, `sources/sync/settings.spec.ts`, `sources/app/(app)/settings/agents.test.ts`, `sources/app/(app)/new/index.launch.test.ts`, `sources/components/modelModeOptions.test.ts`, `sources/hooks/useNewSessionDraft.test.ts`, `sources/hooks/useStartSessionFromDraft.test.ts`, and `sources/utils/newSessionModeSelection.test.ts`; prove active-registry parity, every active provider group, explicit capability-source selection and unavailable states, selected exact-machine catalog ownership, independent provider keys, every cross-provider draft reset, empty unsupported dimensions, Rig spawn payloads in both launchers, and post-await GrokBuild/Rig revalidation; then run the full app checks |
+| New provider or provider protocol behavior | Follow [the provider-onboarding playbook](playbooks/provider-onboarding.md). Prove arbitrary provider-native mode transit through wire, app, and CLI admission; exact-daemon validation and launch arguments; every advertised permission mode's callback behavior; raw/spec-shaped text, thinking, tool start/update/result/error mapping; stable call correlation; and meaningful generic app rendering. Add the missing focused fixture at the owning boundary, then run wire plus affected CLI/app package checks. Run a live provider smoke when its external prerequisites are available; argv proof alone is insufficient. |
 | UI, routes, or localized copy | App checks plus `pnpm --filter happy-app i18n:check` |
 | Catalog keys/placeholders | First `pnpm --filter happy-app i18n:generate`, review generated changes, then `i18n:check` |
 | Route or UI-owning module | First `pnpm --filter happy-app ui:inventory:generate`, review generated changes, then `i18n:check` |
@@ -68,6 +69,26 @@ Commands in this table run from `server/` unless they start with `scripts/` or
 | Public boundary | `node scripts/test-public-boundary.mjs`; `node scripts/verify-public-boundary.mjs` |
 | Lineage | `scripts/verify-lineage.sh` |
 | Owned patch ledger | Unless every changed path is under `.dev/`, add the exact commit subject to `docs/owned-patches.tsv`; then run `scripts/verify-patch-discipline.sh` from a clean tree |
+
+## Provider onboarding conformance
+
+Every new provider, and every provider protocol-shape change, needs a
+deterministic vertical-slice fixture. The minimum matrix is:
+
+| Plane | Deterministic proof | Live proof when available |
+|---|---|---|
+| Capability ownership | Models, efforts, and permission modes come from the documented provider source; unsupported dimensions are empty | Catalog matches the installed provider version |
+| Prompt admission | A provider-native mode not known to Claude or Codex survives wire, app, and CLI transit and reaches the provider boundary | One prompt reaches the selected provider |
+| Launch/runtime selection | Exact native arguments or runtime selector; plan/build remains independent from permission policy; app and terminal resume restore persisted policy only after exact-machine catalog validation; mismatched resume input cannot replace the receipt, and receipt-less legacy sessions use the current advertised default | Selected mode remains visible after a real resume |
+| Permission callbacks | A synthetic late callback after startup and after resume prompts exactly once for interactive modes; allow-without-prompt selects only an advertised allow option; deny-without-prompt selects an advertised reject or cancels; neither non-interactive mode creates a pending request; unknown modes fail safe | Harmless calls show zero prompts and the documented allow/deny outcome in non-interactive modes, plus a prompt where the interactive contract requires one |
+| Tool events | Start from a raw/spec-shaped unfamiliar tool with required title, optional category absent, and structured input. Split later descriptor and output/error deltas from a status-only completion/failure; preserve the accumulated fields, original start time, title, and call ID across the CLI, wire, and app model. | Harmless unfamiliar/native tool has a meaningful activity label and paired completion |
+| App rendering | Normalize and reduce the real wire shape; prove compact and expanded generic views prefer authoritative provider text without a `knownTools` entry | Tool call is readable on the supported app surface |
+
+Provider integration tests that inject an already-normalized `AgentMessage` do
+not satisfy the raw-event row. Permission tests that stop after constructing
+argv do not satisfy the callback row. Keep security-feature approval evidence
+separate from test evidence; both are required when the implementation
+introduces or expands Happy-owned permission enforcement.
 
 ## User-visible change gate
 

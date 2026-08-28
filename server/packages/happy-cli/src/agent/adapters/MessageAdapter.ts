@@ -180,6 +180,7 @@ export class MessageAdapter {
     return {
       ...base,
       toolName: msg.toolName,
+      toolTitle: msg.title,
       toolArgs: msg.args,
       toolCallId: msg.callId,
     };
@@ -192,7 +193,9 @@ export class MessageAdapter {
     return {
       ...base,
       toolName: msg.toolName,
+      toolTitle: msg.title,
       toolResult: msg.result,
+      toolError: msg.error,
       toolCallId: msg.callId,
     };
   }

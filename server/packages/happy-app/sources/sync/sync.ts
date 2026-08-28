@@ -2562,7 +2562,13 @@ class Sync {
         for (let i = 0; i < decryptedMessages.length; i++) {
             const decrypted = decryptedMessages[i];
             if (!decrypted) continue;
-            const normalized = normalizeRawMessage(decrypted.id, decrypted.localId, decrypted.createdAt, decrypted.content);
+            const normalized = normalizeRawMessage(
+                decrypted.id,
+                decrypted.localId,
+                decrypted.createdAt,
+                decrypted.content,
+                decrypted.seq,
+            );
             if (normalized) {
                 normalizedMessages.push(normalized);
             }
@@ -2707,7 +2713,13 @@ class Sync {
             if (updateData.body.message) {
                 const decrypted = await encryption.decryptMessage(updateData.body.message);
                 if (decrypted) {
-                    lastMessage = normalizeRawMessage(decrypted.id, decrypted.localId, decrypted.createdAt, decrypted.content);
+                    lastMessage = normalizeRawMessage(
+                        decrypted.id,
+                        decrypted.localId,
+                        decrypted.createdAt,
+                        decrypted.content,
+                        decrypted.seq,
+                    );
 
                     // Check for task lifecycle events to update thinking state
                     // This ensures UI updates even if volatile activity updates are lost

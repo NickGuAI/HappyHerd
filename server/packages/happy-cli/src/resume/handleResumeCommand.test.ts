@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
     mockHasLocalHappyAgentAuth: vi.fn(),
     mockResolveHappySession: vi.fn(),
     mockPrepareCommanderContext: vi.fn(),
+    mockDetectAgentCapabilities: vi.fn(),
+    mockDetectCLIAvailability: vi.fn(),
 }));
 
 vi.mock('node:fs', async (importOriginal) => {
@@ -28,6 +30,14 @@ vi.mock('@/agentContext/commanderContext', () => ({
         HAPPYHERD_CONTEXT_BUNDLE_PATH: '/tmp/current-agentcontext.md',
         HAPPYHERD_CONTEXT_HASH: 'current-context-hash',
     }),
+}));
+
+vi.mock('@/utils/detectCLI', () => ({
+    detectCLIAvailability: mocks.mockDetectCLIAvailability,
+}));
+
+vi.mock('@/capabilities/agentCapabilities', () => ({
+    detectAgentCapabilities: mocks.mockDetectAgentCapabilities,
 }));
 
 vi.mock('./localResumeStore', () => {
@@ -113,6 +123,28 @@ beforeEach(() => {
         new LocalResumeSessionError('no local session', 'not_found'),
     );
     mocks.mockHasLocalHappyAgentAuth.mockReturnValue(false);
+    mocks.mockDetectCLIAvailability.mockReturnValue({
+        claude: false,
+        codex: false,
+        gemini: false,
+        grok: true,
+        agy: false,
+        detectedAt: 1,
+    });
+    mocks.mockDetectAgentCapabilities.mockResolvedValue({
+        capabilities: {
+            grok: {
+                detectedAt: 1,
+                sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
+                models: [{ code: 'grok-build', value: 'GrokBuild', isDefault: true }],
+                effortLevels: [],
+                permissionModes: [
+                    { code: 'default', value: 'Default', isDefault: true },
+                    { code: 'dontAsk', value: 'Deny without prompting' },
+                ],
+            },
+        },
+    });
 });
 
 afterEach(() => {
@@ -243,6 +275,50 @@ describe('formatResumeHelp', () => {
 });
 
 describe('handleResumeCommand', () => {
+    it('revalidates and preserves a local Grok launch policy on terminal resume', async () => {
+        const session = createReconnectableSession();
+        session.metadata = {
+            ...session.metadata,
+            flavor: 'grok',
+            codexThreadId: undefined,
+            acpSessionId: 'grok-provider-session',
+            spawnSettings: {
+                provider: 'grok',
+                model: 'grok-build',
+                effort: null,
+                permission: 'dontAsk',
+            },
+        };
+        mocks.mockResolveLocalReconnectableSession.mockResolvedValue(session);
+
+        await handleResumeCommand(['session-1']);
+
+        expect(mocks.mockDetectAgentCapabilities).toHaveBeenCalledOnce();
+        expect(spawnHappyCLI).toHaveBeenCalledWith(
+            ['grok', '--resume', 'grok-provider-session', '--permission-mode', 'dontAsk'],
+            expect.objectContaining({ cwd: '/tmp/repo', stdio: 'inherit' }),
+        );
+    });
+
+    it('uses the current advertised default for a receipt-less legacy Grok session', async () => {
+        const session = createReconnectableSession();
+        session.metadata = {
+            ...session.metadata,
+            flavor: 'grok',
+            codexThreadId: undefined,
+            acpSessionId: 'legacy-grok-provider-session',
+        };
+        mocks.mockResolveLocalReconnectableSession.mockResolvedValue(session);
+
+        await handleResumeCommand(['session-1']);
+
+        expect(mocks.mockDetectAgentCapabilities).toHaveBeenCalledOnce();
+        expect(spawnHappyCLI).toHaveBeenCalledWith(
+            ['grok', '--resume', 'legacy-grok-provider-session', '--permission-mode', 'default'],
+            expect.objectContaining({ cwd: '/tmp/repo', stdio: 'inherit' }),
+        );
+    });
+
     it('resumes from local persisted encryption data', async () => {
         const session = createReconnectableSession();
         session.metadata.codexHome = '/tmp';

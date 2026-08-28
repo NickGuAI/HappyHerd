@@ -59,6 +59,8 @@ const sessionToolCallStartEventSchema = z.object({
 const sessionToolCallEndEventSchema = z.object({
     t: z.literal('tool-call-end'),
     call: z.string(),
+    result: z.unknown().optional(),
+    error: z.unknown().optional(),
 });
 
 const sessionFileEventSchema = z.object({
@@ -66,6 +68,7 @@ const sessionFileEventSchema = z.object({
     ref: z.string(),
     name: z.string(),
     size: z.number(),
+    mimeType: z.string().optional(),
     image: z.object({
         width: z.number(),
         height: z.number(),
@@ -93,6 +96,7 @@ const sessionTurnEndEventSchema = z.object({
 const sessionStopEventSchema = z.object({
     t: z.literal('stop'),
     status: z.enum(['completed', 'failed', 'cancelled', 'interrupted', 'unknown']).optional(),
+    authoritative: z.boolean().optional(),
     detail: z.string().optional(),
 });
 
@@ -492,6 +496,7 @@ type NormalizedAgentContent =
         type: 'tool-call';
         id: string;
         name: string;
+        title?: string;
         input: any;
         description: string | null;
         uuid: string;
@@ -501,6 +506,8 @@ type NormalizedAgentContent =
         tool_use_id: string;
         content: any;
         is_error: boolean;
+        authoritative?: boolean;
+        error?: unknown;
         uuid: string;
         parentUUID: string | null;
         permissions?: {
@@ -535,6 +542,8 @@ export type NormalizedMessage = ({
     id: string,
     localId: string | null,
     createdAt: number,
+    /** Persisted server message order when this message came from V3 history or realtime sync. */
+    sequence?: number | null,
     isSidechain: boolean,
     meta?: MessageMeta,
     usage?: UsageData,
@@ -623,6 +632,7 @@ function normalizeSessionEnvelope(
                     ...(envelope.ev.detail ? { detail: envelope.ev.detail } : {}),
                 },
                 is_error: status === 'failed' || status === 'interrupted',
+                authoritative: envelope.ev.authoritative === true,
                 uuid: contentUUID,
                 parentUUID: null,
             }],
@@ -726,6 +736,7 @@ function normalizeSessionEnvelope(
                 type: 'tool-call',
                 id: envelope.ev.call,
                 name: envelope.ev.name || 'unknown',
+                title: envelope.ev.title,
                 input: envelope.ev.args,
                 description: envelope.ev.description,
                 uuid: contentUUID,
@@ -746,8 +757,9 @@ function normalizeSessionEnvelope(
             content: [{
                 type: 'tool-result',
                 tool_use_id: envelope.ev.call,
-                content: null,
-                is_error: false,
+                content: envelope.ev.result ?? null,
+                is_error: envelope.ev.error !== undefined,
+                ...(envelope.ev.error !== undefined ? { error: envelope.ev.error } : {}),
                 uuid: contentUUID,
                 parentUUID
             }],
@@ -788,6 +800,7 @@ function normalizeSessionEnvelope(
                         ref: envelope.ev.ref,
                         name: envelope.ev.name,
                         size: envelope.ev.size,
+                        ...(envelope.ev.mimeType ? { mimeType: envelope.ev.mimeType } : {}),
                         ...maybeImageMetadata
                     },
                     description: envelope.ev.image
@@ -813,7 +826,7 @@ function normalizeSessionEnvelope(
     return null;
 }
 
-export function normalizeRawMessage(id: string, localId: string | null, createdAt: number, raw: RawRecord): NormalizedMessage | null {
+function normalizeRawMessageContent(id: string, localId: string | null, createdAt: number, raw: RawRecord): NormalizedMessage | null {
     // Zod transform handles normalization during validation
     let parsed = rawRecordSchema.safeParse(raw);
     if (!parsed.success) {
@@ -1263,4 +1276,18 @@ export function normalizeRawMessage(id: string, localId: string | null, createdA
         }
     }
     return null;
+}
+
+export function normalizeRawMessage(
+    id: string,
+    localId: string | null,
+    createdAt: number,
+    raw: RawRecord,
+    sequence?: number | null,
+): NormalizedMessage | null {
+    const normalized = normalizeRawMessageContent(id, localId, createdAt, raw);
+    if (!normalized || sequence === undefined) {
+        return normalized;
+    }
+    return { ...normalized, sequence };
 }

@@ -99,6 +99,8 @@ export type ThreadItem =
     | { type: "commandExecution"; id: string; command: string; cwd?: string; status?: string; aggregatedOutput?: string | null; exitCode?: number | null; durationMs?: number | null }
     | { type: "fileChange"; id: string; changes: unknown[]; status?: string }
     | { type: "mcpToolCall"; id: string; server: string; tool: string; status?: string; arguments?: unknown; result?: unknown; error?: unknown; durationMs?: number | null }
+    | { type: "dynamicToolCall"; id: string; namespace?: string | null; tool: string; status?: string; arguments?: unknown; contentItems?: unknown[] | null; success?: boolean | null; durationMs?: number | null }
+    | { type: "imageGeneration"; id: string; status: string; revisedPrompt?: string | null; result: string; transparentBackground?: boolean; failure?: unknown | null; savedPath?: string }
     | {
         type: "collabAgentToolCall";
         id: string;

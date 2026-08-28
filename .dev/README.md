@@ -49,11 +49,19 @@ bounded change → exact-head review → PR → merge
 3. **Freeze automation unless explicitly scoped.** Automation behavior, schema,
    cadence, lifecycle, and UI do not change unless the owner explicitly scopes
    that change in the owning task.
-4. **Keep provider capabilities authoritative end to end.** Provider additions
+4. **Keep the provider contract authoritative end to end.** Provider additions
    and changes carry that provider's authoritative permission modes, models,
-   and per-model effort choices through every layer. Keep unsupported
-   dimensions explicitly empty; never invent values or fall back across
-   providers.
+   and per-model effort choices through discovery, selection, message
+   admission, launch, runtime behavior, event normalization, and rendering.
+   Keep shared transit fields open to provider-native values, validate at the
+   exact provider boundary, keep unsupported dimensions explicitly empty, and
+   never invent values or fall back across providers. Document whether each
+   permission mode is a launch policy, a runtime selector, or a Happy-handled
+   approval policy. If the UI promises a non-interactive mode, a late provider
+   permission callback must follow its documented allow or deny behavior
+   without creating a pending user request. Preserve a provider tool's call ID,
+   display title, category, input, result, and error as separate concepts; an
+   unfamiliar valid tool must still render meaningfully.
 5. **Pause on upstream conflicts.** Preserve the conflict evidence, stop
    resolution work, and request owner direction through the owning TickTick
    task before opening any resolution PR.
@@ -71,6 +79,7 @@ bounded change → exact-head review → PR → merge
 | See dependencies, state owners, and end-to-end paths | [`COUPLINGS.md`](COUPLINGS.md) |
 | Select cheap, targeted, full, and CI checks | [`VERIFY.md`](VERIFY.md) |
 | Find the canonical operational document or script | [`SOP_INDEX.md`](SOP_INDEX.md) |
+| Add or change a provider | [`playbooks/provider-onboarding.md`](playbooks/provider-onboarding.md) |
 | Deliver through protected `main` and clean the branch | [`playbooks/development-lifecycle.md`](playbooks/development-lifecycle.md) |
 | Run a combined central-server and native-daemon update | [`playbooks/post-update-restart.md`](playbooks/post-update-restart.md) |
 | Audit how this context was derived | [`EVALUATION.md`](EVALUATION.md) |
@@ -144,6 +153,8 @@ These are repository contracts, not optional release bookkeeping.
 Update this directory when any of these change:
 
 - workspace packages, entry points, imports, RPC/message schemas, or state roots;
+- provider registries, capability sources, permission semantics, adapters, or
+  raw event shapes;
 - app routes, localization catalogs, UI inventory, or changelog generation;
 - package scripts, pinned tool versions, tests, build commands, or CI checks;
 - branch protection, merge policy, patch discipline, or upstream-sync rules;

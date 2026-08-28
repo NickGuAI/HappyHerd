@@ -32,6 +32,46 @@ afterEach(async () => {
 });
 
 describe('buildCodexThreadBackfillEnvelopes', () => {
+    it('uploads persisted Codex output images as agent file envelopes', async () => {
+        const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1]);
+        const uploadAgentImage = vi.fn(async (attachment, opts) => createEnvelope('agent', {
+            t: 'file',
+            ref: 'agent-output-ref',
+            name: attachment.name,
+            size: attachment.data.length,
+            mimeType: attachment.mimeType,
+        }, opts));
+
+        const envelopes = await buildCodexThreadBackfillEnvelopes({
+            thread: {
+                turns: [{
+                    id: 'turn-image',
+                    startedAt: 100,
+                    completedAt: 101,
+                    status: 'completed',
+                    items: [{
+                        type: 'imageGeneration',
+                        id: 'generated-1',
+                        status: 'completed',
+                        revisedPrompt: null,
+                        result: png.toString('base64'),
+                        failure: null,
+                    }],
+                }],
+            },
+            uploadLocalImage: vi.fn(),
+            uploadAgentImage,
+        });
+
+        expect(envelopes.map((envelope) => envelope.ev.t)).toEqual(['turn-start', 'file', 'turn-end']);
+        expect(envelopes[1]).toMatchObject({
+            role: 'agent',
+            turn: 'turn-image',
+            codexItemId: 'generated-1',
+            ev: { t: 'file', ref: 'agent-output-ref' },
+        });
+    });
+
     it('inserts uploaded local image file envelopes before the matching user text', async () => {
         const imagePath = await makePngFile('input.png');
         const uploadLocalImage = vi.fn(async (_attachment, opts) => createEnvelope('user', {

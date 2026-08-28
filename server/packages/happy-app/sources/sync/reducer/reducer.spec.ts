@@ -1390,7 +1390,7 @@ describe('reducer', () => {
             }
         });
 
-        it('should handle tool result arriving before tool call (race condition)', () => {
+        it('should reconcile a tool result that arrives before its tool call', () => {
             const state = createReducer();
             
             // Tool result arrives first
@@ -1413,7 +1413,8 @@ describe('reducer', () => {
             ];
             
             const result1 = reducer(state, resultMessages);
-            expect(result1.messages).toHaveLength(0); // Should not create anything
+            expect(result1.messages).toHaveLength(0);
+            expect(state.orphanToolResults.has('tool-1')).toBe(true);
             
             // Tool call arrives later
             const toolMessages: NormalizedMessage[] = [
@@ -1438,41 +1439,11 @@ describe('reducer', () => {
             const result2 = reducer(state, toolMessages);
             expect(result2.messages).toHaveLength(1);
             if (result2.messages[0].kind === 'tool-call') {
-                expect(result2.messages[0].tool.state).toBe('running'); // Result was ignored
-                expect(result2.messages[0].tool.result).toBeUndefined();
+                expect(result2.messages[0].tool.state).toBe('completed');
+                expect(result2.messages[0].tool.result).toBe('Success');
+                expect(result2.messages[0].tool.completedAt).toBe(1000);
             }
-            
-            // Result arrives again (with different message ID since it's a new message)
-            const resultMessages2: NormalizedMessage[] = [
-                {
-                    id: 'msg-3',
-                    localId: null,
-                    createdAt: 3000,
-                    role: 'agent',
-                    content: [{
-                        type: 'tool-result',
-                        tool_use_id: 'tool-1',
-                        content: 'Success',
-                        is_error: false,
-                        uuid: 'result-uuid-2',
-                        parentUUID: null
-                    }],
-                    isSidechain: false
-                }
-            ];
-            
-            const result3 = reducer(state, resultMessages2, null);
-            
-            // Debug: Check if tool was properly registered
-            const toolId = 'tool-1';
-            const msgId = state.toolIdToMessageId.get(toolId);
-            const message = msgId ? state.messages.get(msgId) : null;
-            
-            expect(result3.messages).toHaveLength(1);
-            if (result3.messages[0].kind === 'tool-call') {
-                expect(result3.messages[0].tool.state).toBe('completed');
-                expect(result3.messages[0].tool.result).toBe('Success');
-            }
+            expect(state.orphanToolResults.has('tool-1')).toBe(false);
         });
 
         it('should handle interleaved messages from multiple sources correctly', () => {
@@ -3366,6 +3337,797 @@ describe('reducer', () => {
             if (providerTool?.kind === 'tool-call') {
                 expect(providerTool.children).toHaveLength(0);
             }
+        });
+
+        it('lets provider authority correct provisional or legacy child outcomes regardless of replay order', () => {
+            const subagent = createId();
+            const owner = {
+                id: 'authoritative-child-owner',
+                localId: null,
+                createdAt: 1000,
+                role: 'agent' as const,
+                isSidechain: false,
+                content: [{
+                    type: 'tool-call' as const,
+                    id: subagent,
+                    name: 'Subagent',
+                    input: { sessionSubagent: subagent, title: 'Lifecycle child' },
+                    description: 'Lifecycle child',
+                    uuid: 'authoritative-child-owner-uuid',
+                    parentUUID: null,
+                }],
+            };
+            const provisional = {
+                id: 'provisional-child-stop',
+                localId: null,
+                createdAt: 1200,
+                role: 'agent' as const,
+                isSidechain: false,
+                content: [{
+                    type: 'tool-result' as const,
+                    tool_use_id: subagent,
+                    content: { status: 'interrupted', detail: 'Legacy root-turn inference' },
+                    is_error: true,
+                    authoritative: false,
+                    uuid: 'provisional-child-stop-uuid',
+                    parentUUID: null,
+                }],
+            };
+            const provider = {
+                id: 'provider-child-stop',
+                localId: null,
+                createdAt: 1100,
+                role: 'agent' as const,
+                isSidechain: false,
+                content: [{
+                    type: 'tool-result' as const,
+                    tool_use_id: subagent,
+                    content: { status: 'completed' },
+                    is_error: false,
+                    authoritative: true,
+                    uuid: 'provider-child-stop-uuid',
+                    parentUUID: null,
+                }],
+            };
+
+            for (const terminalOrder of [[provisional, provider], [provider, provisional]]) {
+                const state = createReducer();
+                const result = reducer(state, [owner, ...terminalOrder]);
+                expect(result.messages).toHaveLength(1);
+                expect(result.messages[0].kind).toBe('tool-call');
+                if (result.messages[0].kind === 'tool-call') {
+                    expect(result.messages[0].tool.state).toBe('completed');
+                    expect(result.messages[0].tool.result).toEqual({ status: 'completed' });
+                    expect(result.messages[0].tool.completedAt).toBe(1100);
+                    expect(result.messages[0].tool.resultAuthoritative).toBe(true);
+                }
+            }
+        });
+
+        it('converges duplicate provider child terminals without extending duration', () => {
+            const state = createReducer();
+            const subagent = createId();
+            reducer(state, [{
+                id: 'duplicate-child-owner',
+                localId: null,
+                createdAt: 1000,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-call',
+                    id: subagent,
+                    name: 'Subagent',
+                    input: { sessionSubagent: subagent, title: 'Lifecycle child' },
+                    description: 'Lifecycle child',
+                    uuid: 'duplicate-child-owner-uuid',
+                    parentUUID: null,
+                }],
+            }, {
+                id: 'duplicate-provider-stop-1',
+                localId: null,
+                createdAt: 1100,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-result',
+                    tool_use_id: subagent,
+                    content: { status: 'completed' },
+                    is_error: false,
+                    authoritative: true,
+                    uuid: 'duplicate-provider-stop-1-uuid',
+                    parentUUID: null,
+                }],
+            }]);
+
+            const duplicate = reducer(state, [{
+                id: 'duplicate-provider-stop-2',
+                localId: null,
+                createdAt: 1300,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-result',
+                    tool_use_id: subagent,
+                    content: { status: 'completed' },
+                    is_error: false,
+                    authoritative: true,
+                    uuid: 'duplicate-provider-stop-2-uuid',
+                    parentUUID: null,
+                }],
+            }]);
+
+            expect(duplicate.messages).toEqual([]);
+            const messageId = state.toolIdToMessageId.get(subagent);
+            expect(messageId).toBeDefined();
+            expect(state.messages.get(messageId!)?.tool).toMatchObject({
+                state: 'completed',
+                completedAt: 1100,
+                result: { status: 'completed' },
+                resultAuthoritative: true,
+            });
+        });
+
+        it('upgrades an equivalent provisional child result to provider authority', () => {
+            const state = createReducer();
+            const subagent = createId();
+            const result = reducer(state, [{
+                id: 'equivalent-child-owner',
+                localId: null,
+                createdAt: 1000,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-call',
+                    id: subagent,
+                    name: 'Subagent',
+                    input: { sessionSubagent: subagent, title: 'Lifecycle child' },
+                    description: 'Lifecycle child',
+                    uuid: 'equivalent-child-owner-uuid',
+                    parentUUID: null,
+                }],
+            }, {
+                id: 'equivalent-provisional-stop',
+                localId: null,
+                createdAt: 1200,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-result',
+                    tool_use_id: subagent,
+                    content: { status: 'completed' },
+                    is_error: false,
+                    authoritative: false,
+                    uuid: 'equivalent-provisional-stop-uuid',
+                    parentUUID: null,
+                }],
+            }, {
+                id: 'equivalent-provider-stop',
+                localId: null,
+                createdAt: 1100,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-result',
+                    tool_use_id: subagent,
+                    content: { status: 'completed' },
+                    is_error: false,
+                    authoritative: true,
+                    uuid: 'equivalent-provider-stop-uuid',
+                    parentUUID: null,
+                }],
+            }]);
+
+            expect(result.messages).toHaveLength(1);
+            expect(result.messages[0].kind).toBe('tool-call');
+            if (result.messages[0].kind === 'tool-call') {
+                expect(result.messages[0].tool.completedAt).toBe(1100);
+                expect(result.messages[0].tool.resultAuthoritative).toBe(true);
+            }
+        });
+    });
+
+    describe('provider tool contracts', () => {
+        const descriptor = (
+            messageId: string,
+            callId: string,
+            sequence: number,
+            name: string,
+            title: string,
+            command: string,
+        ): NormalizedMessage => ({
+            id: messageId,
+            localId: null,
+            createdAt: 1000,
+            sequence,
+            role: 'agent',
+            isSidechain: false,
+            content: [{
+                type: 'tool-call',
+                id: callId,
+                name,
+                title,
+                input: { command },
+                description: `Running ${name}`,
+                uuid: `${messageId}-uuid`,
+                parentUUID: null,
+            }],
+        });
+
+        it('orders equal-timestamp newest-first descriptor replay by sequence', () => {
+            const state = createReducer();
+            const result = reducer(state, [
+                descriptor('provider-tool-equal-new', 'grok-tool-equal', 42, 'execute', 'Run exact ACP tests', 'pnpm test --filter acp'),
+                descriptor('provider-tool-equal-old', 'grok-tool-equal', 41, 'unknown', 'Run tests', 'pnpm test'),
+            ]);
+
+            expect(result.messages).toHaveLength(1);
+            expect(result.messages[0]).toMatchObject({
+                kind: 'tool-call',
+                tool: {
+                    callId: 'grok-tool-equal',
+                    name: 'execute',
+                    title: 'Run exact ACP tests',
+                    input: { command: 'pnpm test --filter acp' },
+                    description: 'Running execute',
+                    startedAt: 1000,
+                },
+            });
+        });
+
+        it('keeps the highest sequence across equal-time live updates and later page replay', () => {
+            const state = createReducer();
+            reducer(state, [
+                descriptor('provider-tool-live-start', 'grok-tool-live', 50, 'unknown', 'Run tests', 'pnpm test'),
+            ]);
+            reducer(state, [
+                descriptor('provider-tool-live-update', 'grok-tool-live', 51, 'execute', 'Run exact ACP tests', 'pnpm test --filter acp'),
+            ]);
+
+            const result = reducer(state, [
+                descriptor('provider-tool-older-page', 'grok-tool-live', 49, 'unknown', 'Old replay', 'pnpm old-test'),
+            ]);
+
+            expect(result.messages).toHaveLength(1);
+            expect(result.messages[0]).toMatchObject({
+                kind: 'tool-call',
+                tool: {
+                    callId: 'grok-tool-live',
+                    name: 'execute',
+                    title: 'Run exact ACP tests',
+                    input: { command: 'pnpm test --filter acp' },
+                    description: 'Running execute',
+                    startedAt: 1000,
+                },
+            });
+        });
+
+        it('updates a split provider descriptor without restarting the tool model', () => {
+            const state = createReducer();
+            const result = reducer(state, [
+                {
+                    id: 'provider-tool-start',
+                    localId: null,
+                    createdAt: 1000,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-call',
+                        id: 'grok-tool-split',
+                        name: 'unknown',
+                        title: 'Run tests',
+                        input: { command: 'pnpm test' },
+                        description: 'Running unknown',
+                        uuid: 'provider-tool-start-uuid',
+                        parentUUID: null,
+                    }],
+                },
+                {
+                    id: 'provider-tool-update',
+                    localId: null,
+                    createdAt: 1010,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-call',
+                        id: 'grok-tool-split',
+                        name: 'execute',
+                        title: 'Run exact ACP tests',
+                        input: { command: 'pnpm test --filter acp' },
+                        description: 'Running execute',
+                        uuid: 'provider-tool-update-uuid',
+                        parentUUID: null,
+                    }],
+                },
+                {
+                    id: 'provider-tool-end',
+                    localId: null,
+                    createdAt: 1020,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: 'grok-tool-split',
+                        content: { exitCode: 0, stdout: 'all passed' },
+                        is_error: false,
+                        uuid: 'provider-tool-end-uuid',
+                        parentUUID: null,
+                    }],
+                },
+            ]);
+
+            expect(result.messages).toHaveLength(1);
+            expect(result.messages[0]).toMatchObject({
+                kind: 'tool-call',
+                tool: {
+                    callId: 'grok-tool-split',
+                    name: 'execute',
+                    title: 'Run exact ACP tests',
+                    input: { command: 'pnpm test --filter acp' },
+                    startedAt: 1000,
+                    completedAt: 1020,
+                    result: { exitCode: 0, stdout: 'all passed' },
+                },
+            });
+        });
+
+        it('reconciles newest-first split provider history by timestamp', () => {
+            const state = createReducer();
+            const result = reducer(state, [
+                {
+                    id: 'provider-tool-end-newest-first',
+                    localId: null,
+                    createdAt: 1020,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: 'grok-tool-newest-first',
+                        content: { exitCode: 0, stdout: 'all passed' },
+                        is_error: false,
+                        uuid: 'provider-tool-end-newest-first-uuid',
+                        parentUUID: null,
+                    }],
+                },
+                {
+                    id: 'provider-tool-update-newest-first',
+                    localId: null,
+                    createdAt: 1010,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-call',
+                        id: 'grok-tool-newest-first',
+                        name: 'execute',
+                        title: 'Run exact ACP tests',
+                        input: { command: 'pnpm test --filter acp' },
+                        description: 'Running execute',
+                        uuid: 'provider-tool-update-newest-first-uuid',
+                        parentUUID: null,
+                    }],
+                },
+                {
+                    id: 'provider-tool-start-newest-first',
+                    localId: null,
+                    createdAt: 1000,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-call',
+                        id: 'grok-tool-newest-first',
+                        name: 'unknown',
+                        title: 'Run tests',
+                        input: { command: 'pnpm test' },
+                        description: 'Running unknown',
+                        uuid: 'provider-tool-start-newest-first-uuid',
+                        parentUUID: null,
+                    }],
+                },
+            ]);
+
+            expect(result.messages).toHaveLength(1);
+            expect(result.messages[0]).toMatchObject({
+                kind: 'tool-call',
+                tool: {
+                    callId: 'grok-tool-newest-first',
+                    name: 'execute',
+                    title: 'Run exact ACP tests',
+                    input: { command: 'pnpm test --filter acp' },
+                    description: 'Running execute',
+                    startedAt: 1000,
+                    completedAt: 1020,
+                    result: { exitCode: 0, stdout: 'all passed' },
+                },
+            });
+        });
+
+        it('reconciles a successful terminal from the newer V3 page exactly once', () => {
+            const state = createReducer();
+            const resultPage: NormalizedMessage = {
+                id: 'provider-tool-result-page',
+                localId: null,
+                createdAt: 1020,
+                sequence: 102,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-result',
+                    tool_use_id: 'grok-tool-paged-success',
+                    content: { exitCode: 0, stdout: 'all passed' },
+                    is_error: false,
+                    uuid: 'provider-tool-result-page-uuid',
+                    parentUUID: null,
+                }],
+            };
+
+            expect(reducer(state, [resultPage]).messages).toEqual([]);
+            expect(state.orphanToolResults.size).toBe(1);
+            expect(reducer(state, [resultPage]).messages).toEqual([]);
+            expect(state.orphanToolResults.size).toBe(1);
+
+            const descriptorPage = reducer(state, [{
+                id: 'provider-tool-descriptor-page',
+                localId: null,
+                createdAt: 1010,
+                sequence: 101,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-call',
+                    id: 'grok-tool-paged-success',
+                    name: 'execute',
+                    title: 'Run exact ACP tests',
+                    input: { command: 'pnpm test --filter acp' },
+                    description: 'Running execute',
+                    uuid: 'provider-tool-descriptor-page-uuid',
+                    parentUUID: null,
+                }],
+            }]);
+
+            expect(descriptorPage.messages).toHaveLength(1);
+            expect(descriptorPage.messages[0]).toMatchObject({
+                kind: 'tool-call',
+                tool: {
+                    callId: 'grok-tool-paged-success',
+                    state: 'completed',
+                    startedAt: 1010,
+                    completedAt: 1020,
+                    result: { exitCode: 0, stdout: 'all passed' },
+                },
+            });
+            expect(state.orphanToolResults.size).toBe(0);
+        });
+
+        it('reconciles a paged failure without consuming another call result', () => {
+            const state = createReducer();
+            reducer(state, [
+                {
+                    id: 'provider-tool-error-result-page',
+                    localId: null,
+                    createdAt: 2020,
+                    sequence: 202,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: 'grok-tool-paged-error',
+                        content: { exitCode: 2, stderr: 'failed' },
+                        error: 'failed',
+                        is_error: true,
+                        uuid: 'provider-tool-error-result-page-uuid',
+                        parentUUID: null,
+                    }],
+                },
+                {
+                    id: 'provider-tool-other-result-page',
+                    localId: null,
+                    createdAt: 2040,
+                    sequence: 204,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: 'grok-tool-paged-other',
+                        content: { status: 'done' },
+                        is_error: false,
+                        uuid: 'provider-tool-other-result-page-uuid',
+                        parentUUID: null,
+                    }],
+                },
+            ]);
+
+            const errorPage = reducer(state, [descriptor(
+                'provider-tool-error-descriptor-page',
+                'grok-tool-paged-error',
+                201,
+                'execute',
+                'Run failing command',
+                'false',
+            )]);
+
+            expect(errorPage.messages).toHaveLength(1);
+            expect(errorPage.messages[0]).toMatchObject({
+                kind: 'tool-call',
+                tool: {
+                    callId: 'grok-tool-paged-error',
+                    state: 'error',
+                    completedAt: 2020,
+                    result: { exitCode: 2, stderr: 'failed' },
+                    error: 'failed',
+                },
+            });
+            expect(state.orphanToolResults.has('grok-tool-paged-error')).toBe(false);
+            expect(state.orphanToolResults.has('grok-tool-paged-other')).toBe(true);
+
+            const otherPage = reducer(state, [descriptor(
+                'provider-tool-other-descriptor-page',
+                'grok-tool-paged-other',
+                203,
+                'query',
+                'Fetch status',
+                'status',
+            )]);
+            expect(otherPage.messages[0]).toMatchObject({
+                kind: 'tool-call',
+                tool: {
+                    callId: 'grok-tool-paged-other',
+                    state: 'completed',
+                    completedAt: 2040,
+                    result: { status: 'done' },
+                },
+            });
+            expect(state.orphanToolResults.size).toBe(0);
+        });
+
+        it('preserves an authoritative paged Subagent result regardless of arrival order', () => {
+            const subagent = createId();
+            const provisional: NormalizedMessage = {
+                id: 'paged-subagent-provisional',
+                localId: null,
+                createdAt: 1030,
+                sequence: 103,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-result',
+                    tool_use_id: subagent,
+                    content: { status: 'interrupted', detail: 'Legacy root-turn inference' },
+                    error: 'interrupted',
+                    is_error: true,
+                    authoritative: false,
+                    uuid: 'paged-subagent-provisional-uuid',
+                    parentUUID: null,
+                }],
+            };
+            const provider: NormalizedMessage = {
+                id: 'paged-subagent-authoritative',
+                localId: null,
+                createdAt: 1020,
+                sequence: 102,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-result',
+                    tool_use_id: subagent,
+                    content: { status: 'completed' },
+                    is_error: false,
+                    authoritative: true,
+                    uuid: 'paged-subagent-authoritative-uuid',
+                    parentUUID: null,
+                }],
+            };
+
+            for (const terminalOrder of [[provisional, provider], [provider, provisional]]) {
+                const state = createReducer();
+                expect(reducer(state, terminalOrder).messages).toEqual([]);
+                expect(state.orphanToolResults.get(subagent)).toHaveLength(2);
+
+                const descriptorPage = reducer(state, [descriptor(
+                    'paged-subagent-descriptor',
+                    subagent,
+                    101,
+                    'Subagent',
+                    'Lifecycle child',
+                    'child',
+                )]);
+
+                expect(descriptorPage.messages).toHaveLength(1);
+                expect(descriptorPage.messages[0]).toMatchObject({
+                    kind: 'tool-call',
+                    tool: {
+                        callId: subagent,
+                        state: 'completed',
+                        completedAt: 1020,
+                        result: { status: 'completed' },
+                        resultAuthoritative: true,
+                    },
+                });
+                expect(descriptorPage.messages[0]).not.toMatchObject({
+                    tool: { error: 'interrupted' },
+                });
+                expect(state.orphanToolResults.has(subagent)).toBe(false);
+            }
+        });
+
+        it('keeps the first newest-first paged terminal for an ordinary tool', () => {
+            const state = createReducer();
+            reducer(state, [
+                {
+                    id: 'paged-ordinary-newest-result',
+                    localId: null,
+                    createdAt: 3030,
+                    sequence: 303,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: 'paged-ordinary-tool',
+                        content: { exitCode: 0, stdout: 'done' },
+                        is_error: false,
+                        uuid: 'paged-ordinary-newest-result-uuid',
+                        parentUUID: null,
+                    }],
+                },
+                {
+                    id: 'paged-ordinary-older-result',
+                    localId: null,
+                    createdAt: 3020,
+                    sequence: 302,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: 'paged-ordinary-tool',
+                        content: { exitCode: 2, stderr: 'older failure' },
+                        error: 'older failure',
+                        is_error: true,
+                        uuid: 'paged-ordinary-older-result-uuid',
+                        parentUUID: null,
+                    }],
+                },
+            ]);
+
+            const descriptorPage = reducer(state, [descriptor(
+                'paged-ordinary-descriptor',
+                'paged-ordinary-tool',
+                301,
+                'execute',
+                'Run command',
+                'command',
+            )]);
+
+            expect(descriptorPage.messages[0]).toMatchObject({
+                kind: 'tool-call',
+                tool: {
+                    state: 'completed',
+                    completedAt: 3030,
+                    result: { exitCode: 0, stdout: 'done' },
+                },
+            });
+            expect(state.orphanToolResults.size).toBe(0);
+        });
+
+        it('keeps the latest descriptor when older history arrives in a later reducer call', () => {
+            const state = createReducer();
+            reducer(state, [
+                {
+                    id: 'provider-tool-end-first-page',
+                    localId: null,
+                    createdAt: 1020,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: 'grok-tool-cross-call',
+                        content: { exitCode: 0, stdout: 'all passed' },
+                        is_error: false,
+                        uuid: 'provider-tool-end-first-page-uuid',
+                        parentUUID: null,
+                    }],
+                },
+                {
+                    id: 'provider-tool-update-first-page',
+                    localId: null,
+                    createdAt: 1010,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-call',
+                        id: 'grok-tool-cross-call',
+                        name: 'execute',
+                        title: 'Run exact ACP tests',
+                        input: { command: 'pnpm test --filter acp' },
+                        description: 'Running execute',
+                        uuid: 'provider-tool-update-first-page-uuid',
+                        parentUUID: null,
+                    }],
+                },
+            ]);
+
+            const result = reducer(state, [{
+                id: 'provider-tool-start-second-page',
+                localId: null,
+                createdAt: 1000,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-call',
+                    id: 'grok-tool-cross-call',
+                    name: 'unknown',
+                    title: 'Run tests',
+                    input: { command: 'pnpm test' },
+                    description: 'Running unknown',
+                    uuid: 'provider-tool-start-second-page-uuid',
+                    parentUUID: null,
+                }],
+            }]);
+
+            expect(result.messages).toHaveLength(1);
+            expect(result.messages[0]).toMatchObject({
+                kind: 'tool-call',
+                tool: {
+                    callId: 'grok-tool-cross-call',
+                    name: 'execute',
+                    title: 'Run exact ACP tests',
+                    input: { command: 'pnpm test --filter acp' },
+                    description: 'Running execute',
+                    state: 'completed',
+                    startedAt: 1000,
+                    completedAt: 1020,
+                    result: { exitCode: 0, stdout: 'all passed' },
+                },
+            });
+        });
+
+        it('keeps provider title, structured result, and error on the rendered tool model', () => {
+            const state = createReducer();
+            const result = reducer(state, [
+                {
+                    id: 'provider-tool-start',
+                    localId: null,
+                    createdAt: 1000,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-call',
+                        id: 'grok-tool-17',
+                        name: 'execute',
+                        title: 'Run focused tests',
+                        input: { command: 'pnpm test' },
+                        description: 'Running execute',
+                        uuid: 'provider-tool-start-uuid',
+                        parentUUID: null,
+                    }],
+                },
+                {
+                    id: 'provider-tool-end',
+                    localId: null,
+                    createdAt: 1010,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: 'grok-tool-17',
+                        content: { exitCode: 2, stderr: 'failed' },
+                        error: 'failed',
+                        is_error: true,
+                        uuid: 'provider-tool-end-uuid',
+                        parentUUID: null,
+                    }],
+                },
+            ]);
+
+            expect(result.messages).toHaveLength(1);
+            expect(result.messages[0]).toMatchObject({
+                kind: 'tool-call',
+                tool: {
+                    callId: 'grok-tool-17',
+                    name: 'execute',
+                    title: 'Run focused tests',
+                    state: 'error',
+                    result: { exitCode: 2, stderr: 'failed' },
+                    error: 'failed',
+                },
+            });
         });
     });
 

@@ -19,6 +19,7 @@ import { getSuggestions } from '@/components/autocomplete/suggestions';
 import { ChatHeaderView } from '@/components/ChatHeaderView';
 import { ChatList } from '@/components/ChatList';
 import { QueuedMessagesPanel } from '@/components/QueuedMessagesPanel';
+import { MachineFileUploadStatus } from '@/components/MachineFileUploadStatus';
 import { Deferred } from '@/components/Deferred';
 import { EmptyMessages } from '@/components/EmptyMessages';
 import { SessionStatusBar } from '@/components/SessionStatusBar';
@@ -26,6 +27,7 @@ import { Avatar } from '@/components/Avatar';
 import { VoiceAssistantStatusBar } from '@/components/VoiceAssistantStatusBar';
 import { useDraft } from '@/hooks/useDraft';
 import { useImagePicker } from '@/hooks/useImagePicker';
+import { useMachineFileUpload } from '@/hooks/useMachineFileUpload';
 import { Modal } from '@/modal';
 import { gitStatusSync } from '@/sync/gitStatusSync';
 import { machineControlHeartbeat, machineStopSession, sessionAbort, sessionCancelCommunication, sessionGoalAction, sessionSetAgentModes, spawnSideChat, sessionKill, sessionArchive } from '@/sync/ops';
@@ -96,6 +98,7 @@ import {
     buildWorkspaceContextMessage,
     clearWorkspaceContextFiles,
     getWorkspaceContextEntries,
+    MAX_WORKSPACE_CONTEXT_ITEMS,
     removeWorkspaceContextEntry,
     subscribeWorkspaceContext,
 } from '@/sync/workspaceContext';
@@ -1119,6 +1122,16 @@ export function SessionViewLoaded({
         () => getWorkspaceContextEntries(sessionId),
         () => getWorkspaceContextEntries(sessionId),
     );
+    const workspaceUploader = useMachineFileUpload({
+        machineId,
+        directory: session.metadata?.path,
+        maxFiles: Math.max(0, MAX_WORKSPACE_CONTEXT_ITEMS - selectedContextEntries.length),
+        onUploaded: (filePath) => {
+            if (!addWorkspaceContextFile(sessionId, filePath)) {
+                Modal.alert(t("uiCopy.workspaceContext"), t("uiCopy.youCanAttachUpTo8FilesToOneMessage"));
+            }
+        },
+    });
 
     // Handle dismissing CLI version warning
     const handleDismissCliWarning = React.useCallback(() => {
@@ -1382,6 +1395,14 @@ export function SessionViewLoaded({
 
     const composer = (
         <View onLayout={usesFloatingMobileDock ? handleComposerLayout : undefined}>
+        <MachineFileUploadStatus
+            state={workspaceUploader.state}
+            canCancel={workspaceUploader.canCancel}
+            canRetry={workspaceUploader.canRetry}
+            onCancel={workspaceUploader.cancel}
+            onRetry={() => void workspaceUploader.retry()}
+            style={{ paddingHorizontal: sessionInputHorizontalPadding, paddingBottom: 4 }}
+        />
         <ChatComposer
             composerHandleRef={composerHandleRef}
             placeholder={t('session.inputPlaceholder')}
@@ -1414,6 +1435,13 @@ export function SessionViewLoaded({
             onFileViewerPress={rigCanBrowseFiles(session.metadata) && rigCanReadFiles(session.metadata) ? handleFileViewerPress : undefined}
             selectedImages={expImageUpload && canUseAttachments ? selectedImages : undefined}
             onPickImages={expImageUpload && canUseAttachments ? pickImages : undefined}
+            onPickDeviceFiles={machineId
+                && session.metadata?.path
+                && selectedContextEntries.length < MAX_WORKSPACE_CONTEXT_ITEMS
+                && workspaceUploader.state.phase !== 'uploading'
+                && workspaceUploader.state.phase !== 'cancelling'
+                ? () => void workspaceUploader.pickAndUpload()
+                : undefined}
             onRemoveImage={expImageUpload && canUseAttachments ? removeImage : undefined}
             onAddImages={expImageUpload && canUseAttachments ? addImages : undefined}
             selectedContextEntries={selectedContextEntries}

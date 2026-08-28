@@ -18,6 +18,7 @@ export default function FeaturesSettingsScreen() {
     const [machineWorkspace, setMachineWorkspace] = useSettingMutable('machineWorkspace');
     const [groupToolCalls, setGroupToolCalls] = useSettingMutable('groupToolCalls');
     const [expImageUpload, setExpImageUpload] = useSettingMutable('expImageUpload');
+    const [commanderProfilePictures, setCommanderProfilePictures] = useSettingMutable('commanderProfilePictures');
     const [voiceInputEnabled, setVoiceInputEnabled] = useSettingMutable('voiceInputEnabled');
 
     return (
@@ -119,6 +120,18 @@ export default function FeaturesSettingsScreen() {
                     showChevron={false}
                 />
                 <Item
+                    title={t('happyHerd.features.commanderProfilePictures')}
+                    subtitle={t('happyHerd.features.commanderProfilePicturesSubtitle')}
+                    icon={<Ionicons name="people-circle-outline" size={29} color="#007AFF" />}
+                    rightElement={(
+                        <Switch
+                            value={commanderProfilePictures}
+                            onValueChange={setCommanderProfilePictures}
+                        />
+                    )}
+                    showChevron={false}
+                />
+                <Item
                     title={t('happyHerd.features.voiceInput')}
                     subtitle={t('happyHerd.features.voiceInputSubtitle')}
                     icon={<Ionicons name="mic-outline" size={29} color="#111111" />}
@@ -132,7 +145,7 @@ export default function FeaturesSettingsScreen() {
                 />
             </ItemGroup>
 
-            <CommanderAvatarSettings />
+            {commanderProfilePictures && <CommanderAvatarSettings />}
             {/* Web-only Features */}
             {Platform.OS === 'web' && (
                 <ItemGroup 

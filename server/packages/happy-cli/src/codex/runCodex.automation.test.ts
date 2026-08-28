@@ -5,6 +5,9 @@ const mocks = vi.hoisted(() => {
     let metadata: Record<string, unknown> = {};
     let agentState: Record<string, unknown> = { controlledByUser: false };
     let eventHandler: ((message: Record<string, unknown>) => void) | null = null;
+    let approvalHandler: ((params: Record<string, unknown>) => Promise<string>) | null = null;
+    let requestInteractiveApproval = false;
+    const permissionHandleToolCall = vi.fn(async () => ({ decision: 'approved' }));
 
     const session = {
         sessionId: 'session-one',
@@ -51,6 +54,27 @@ const mocks = vi.hoisted(() => {
                 provider_terminal: true,
             });
         },
+        setApprovalHandler(handler: (params: Record<string, unknown>) => Promise<string>) {
+            approvalHandler = handler;
+        },
+        requestInteractiveApproval(value: boolean) {
+            requestInteractiveApproval = value;
+        },
+        async maybeRequestInteractiveApproval() {
+            if (!requestInteractiveApproval || !approvalHandler) return null;
+            return approvalHandler({
+                type: 'exec',
+                callId: 'approval-one',
+                command: 'printf smoke',
+                cwd: '/srv/app',
+            });
+        },
+        resetRuntime() {
+            requestInteractiveApproval = false;
+            approvalHandler = null;
+            permissionHandleToolCall.mockClear();
+        },
+        permissionHandleToolCall,
     };
 });
 
@@ -158,7 +182,7 @@ vi.mock('./utils/permissionHandler', () => ({
     CodexPermissionHandler: class {
         reset = vi.fn();
         abortAll = vi.fn();
-        handleToolCall = vi.fn(async () => ({ decision: 'approved' }));
+        handleToolCall = mocks.permissionHandleToolCall;
         updateSession = vi.fn();
     },
 }));
@@ -192,7 +216,9 @@ vi.mock('./codexAppServerClient', () => ({
         sandboxEnabled = false;
         threadId: string | null = null;
 
-        setApprovalHandler = vi.fn();
+        setApprovalHandler = vi.fn((handler: (params: Record<string, unknown>) => Promise<string>) => {
+            mocks.setApprovalHandler(handler);
+        });
         setEventHandler = vi.fn((handler: (message: Record<string, unknown>) => void) => {
             mocks.setEventHandler(handler);
         });
@@ -205,6 +231,11 @@ vi.mock('./codexAppServerClient', () => ({
             return { threadId: this.threadId };
         });
         sendTurnAndWait = vi.fn(async () => {
+            const decision = await mocks.maybeRequestInteractiveApproval();
+            if (decision) {
+                mocks.events.push(`approval:${decision}`);
+                return { aborted: true };
+            }
             mocks.emitCompleted();
             return { aborted: false };
         });
@@ -220,6 +251,7 @@ describe('runCodex automation process lifecycle', () => {
     afterEach(() => {
         vi.restoreAllMocks();
         mocks.events.length = 0;
+        mocks.resetRuntime();
         delete process.env.HAPPY_RECONNECT_SESSION_ID;
         delete process.env.HAPPY_RECONNECT_ENCRYPTION_KEY;
         delete process.env.HAPPY_RECONNECT_ENCRYPTION_VARIANT;
@@ -271,5 +303,24 @@ describe('runCodex automation process lifecycle', () => {
             ['heartbeat-occurrence'],
             0,
         );
+    });
+
+    it('aborts an unexpected automation approval without publishing a pending request', async () => {
+        mocks.requestInteractiveApproval(true);
+        const exit = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+
+        await runCodex({
+            credentials: { token: 'test-token' } as never,
+            startedBy: 'daemon',
+            permissionMode: 'read-only',
+        });
+
+        expect(mocks.permissionHandleToolCall).not.toHaveBeenCalled();
+        expect(mocks.events).toContain('approval:abort');
+        expect(mocks.getMetadata().automationProviderOutcome).toMatchObject({
+            status: 'failed',
+            message: expect.stringContaining('requested interactive permission'),
+        });
+        expect(exit).toHaveBeenCalledWith(1);
     });
 });
