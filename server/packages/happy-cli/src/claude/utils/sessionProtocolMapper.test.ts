@@ -49,6 +49,77 @@ describe('mapClaudeLogMessageToSessionEnvelopes', () => {
         expect(result.envelopes[2]).toMatchObject({ role: 'agent', turn: result.currentTurnId, ev: { t: 'file' } });
     });
 
+    it('keeps a late Task-result image on its remembered child turn while a newer root is active', async () => {
+        const state = { currentTurnId: null };
+        const parent = mapClaudeLogMessageToSessionEnvelopes({
+            type: 'assistant',
+            uuid: 'parent-image-task',
+            message: {
+                role: 'assistant',
+                content: [{
+                    type: 'tool_use',
+                    id: 'task-late-image',
+                    name: 'Task',
+                    input: { prompt: 'Generate an image' },
+                }],
+            },
+        } as any, state);
+        const childStart = parent.envelopes.find((envelope) => envelope.ev.t === 'start');
+        expect(childStart?.turn).toBeDefined();
+        expect(childStart?.subagent).toBeDefined();
+
+        closeClaudeTurnWithStatus(state, 'completed');
+        const nextRoot = mapClaudeLogMessageToSessionEnvelopes({
+            type: 'assistant',
+            uuid: 'next-root-after-image-task',
+            message: { role: 'assistant', content: [{ type: 'text', text: 'next root' }] },
+        } as any, state);
+        const nextTurn = nextRoot.envelopes.find((envelope) => envelope.ev.t === 'turn-start')?.turn;
+        expect(nextTurn).not.toBe(childStart?.turn);
+
+        const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1]);
+        const result = await mapClaudeLogMessageToSessionEnvelopesWithAgentImages({
+            type: 'user',
+            uuid: 'late-task-image-result',
+            isSidechain: false,
+            message: {
+                role: 'user',
+                content: [{
+                    type: 'tool_result',
+                    tool_use_id: 'task-late-image',
+                    content: [{
+                        type: 'image',
+                        source: {
+                            type: 'base64',
+                            media_type: 'image/png',
+                            data: png.toString('base64'),
+                        },
+                    }],
+                }],
+            },
+        } as any, state, async (image, opts) => createEnvelope('agent', {
+            t: 'file',
+            ref: 'late-image-ref',
+            name: image.name,
+            size: image.data.length,
+            mimeType: image.mimeType,
+        }, opts));
+
+        expect(result.envelopes.find((envelope) => envelope.ev.t === 'stop')).toMatchObject({
+            turn: childStart?.turn,
+            subagent: childStart?.subagent,
+            ev: { t: 'stop', status: 'completed', authoritative: true },
+        });
+        expect(result.envelopes.find((envelope) => envelope.ev.t === 'file')).toMatchObject({
+            role: 'agent',
+            turn: childStart?.turn,
+            subagent: childStart?.subagent,
+            claudeUuid: 'late-task-image-result',
+            ev: { t: 'file', ref: 'late-image-ref', mimeType: 'image/png' },
+        });
+        expect(state.currentTurnId).toBe(nextTurn);
+    });
+
     it('maps user text to a user text envelope', () => {
         const result = mapClaudeLogMessageToSessionEnvelopes({
             type: 'user',

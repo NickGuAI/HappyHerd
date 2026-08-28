@@ -629,6 +629,21 @@ export async function mapClaudeLogMessageToSessionEnvelopesWithAgentImages(
             envelopes.push({ ...envelope, usage: undefined });
         }
 
+        const mappedOwner = [...mapped.envelopes]
+            .reverse()
+            .find((envelope) => envelope.turn && envelope.subagent);
+        const toolResultSubagent = isToolResultBlock
+            && typeof (block as { tool_use_id?: unknown }).tool_use_id === 'string'
+            ? getSessionSubagentIdForProviderSubagent(
+                state,
+                (block as { tool_use_id: string }).tool_use_id,
+            )
+            : undefined;
+        const imageSubagent = mappedOwner?.subagent ?? subagent ?? toolResultSubagent;
+        const imageTurn = imageSubagent
+            ? getSubagentTurnIds(state).get(imageSubagent) ?? mappedOwner?.turn ?? state.currentTurnId
+            : mappedOwner?.turn ?? state.currentTurnId;
+
         for (const extracted of extractClaudeAgentOutputImages(blockMessage)) {
             imageIndex += 1;
             const renamed = {
@@ -636,8 +651,8 @@ export async function mapClaudeLogMessageToSessionEnvelopesWithAgentImages(
                 name: `claude-image-${imageIndex}.${extracted.mimeType === 'image/png' ? 'png' : 'jpg'}`,
             };
             const uploaded = await uploadAgentImage(renamed, {
-                ...(state.currentTurnId ? { turn: state.currentTurnId } : {}),
-                ...(subagent ? { subagent } : {}),
+                ...(imageTurn ? { turn: imageTurn } : {}),
+                ...(imageSubagent ? { subagent: imageSubagent } : {}),
                 ...(claudeUuid ? { claudeUuid } : {}),
             });
             if (uploaded) envelopes.push(uploaded);
