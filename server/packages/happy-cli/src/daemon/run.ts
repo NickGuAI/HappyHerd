@@ -1119,12 +1119,17 @@ export async function startDaemon(): Promise<void> {
               permission: persistedGrokPermission,
             })
           : undefined;
+        const grokResumePermission = grokResumeSettings?.permission ?? undefined;
+        if (resumeAgent === 'grok' && !grokResumePermission) {
+          throw new Error(`Grok resume requires a validated advertised permission mode on machine ${machine.id}`);
+        }
         appendDaemonSpawnModeArgs(launch.args, {
           directory: launch.cwd,
           agent: resumeAgent,
           modelMode: options?.model,
-          permissionMode: grokResumeSettings?.permission
-            ?? options?.permissionMode,
+          permissionMode: resumeAgent === 'grok'
+            ? grokResumePermission
+            : options?.permissionMode,
         }, resumeAgent);
 
         await fs.access(launch.cwd);

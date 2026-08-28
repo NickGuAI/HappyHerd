@@ -143,3 +143,4 @@ ACP_SPLIT_TOOL_UPDATES	accepted	fix(acp): preserve split tool updates	server/pac
 APP_TOOL_REPLAY_ORDER	accepted	fix(app): make tool replay order-independent	server/packages/happy-app/sources/sync/reducer/reducer.spec.ts
 ACP_INDEPENDENT_OUTCOMES	accepted	fix(acp): preserve independent outcome fields	server/packages/happy-cli/src/agent/acp/sessionUpdateHandlers.test.ts
 APP_TOOL_REPLAY_SEQUENCE	accepted	fix(app): order equal-time tool replays by sequence	server/packages/happy-app/sources/sync/reducer/reducer.spec.ts
+PROVIDER_RESUME_VALIDATION	accepted	fix(grok): reject unvalidated resume policy	server/packages/happy-cli/src/daemon/run.resume.test.ts
