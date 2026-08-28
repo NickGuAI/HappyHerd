@@ -117,6 +117,14 @@ import { AgentState, TodoItem, TodoItemsSchema } from "../storageTypes";
 import { MessageMeta } from "../typesMessageMeta";
 import { parseMessageAsEvent } from "./messageToEvent";
 
+type NormalizedAgentMessage = Extract<NormalizedMessage, { role: 'agent' }>;
+type NormalizedToolResult = Extract<NormalizedAgentMessage['content'][number], { type: 'tool-result' }>;
+
+type OrphanToolResult = {
+    content: NormalizedToolResult;
+    createdAt: number;
+};
+
 type ReducerMessage = {
     id: string;
     localId?: string | null;
@@ -154,6 +162,10 @@ type StoredPermission = {
 
 export type ReducerState = {
     toolIdToMessageId: Map<string, string>; // toolId/permissionId -> messageId (since they're the same now)
+    // Terminal results can be fetched one V3 page before their older tool
+    // descriptor. Keep at most one unresolved result per call and remove it as
+    // soon as that descriptor is reduced.
+    orphanToolResults: Map<string, OrphanToolResult>;
     sidechainToolIdToMessageId: Map<string, string>; // toolId -> sidechain messageId (for dual tracking)
     permissions: Map<string, StoredPermission>; // Store permission details by ID for quick lookup
     localIds: Map<string, string>;
@@ -179,6 +191,7 @@ export type ReducerState = {
 export function createReducer(): ReducerState {
     return {
         toolIdToMessageId: new Map(),
+        orphanToolResults: new Map(),
         sidechainToolIdToMessageId: new Map(),
         permissions: new Map(),
         messages: new Map(),
@@ -258,6 +271,90 @@ function isDuplicateSidechainPrompt(
     }
 
     return text.trim() === ownerPrompt;
+}
+
+function applyToolResult(
+    state: ReducerState,
+    message: ReducerMessage,
+    result: NormalizedToolResult,
+    completedAt: number,
+): boolean {
+    if (!message.tool) {
+        return false;
+    }
+
+    const isSubagent = message.tool.name === 'Subagent';
+    const incomingAuthoritative = result.authoritative === true;
+    const existingAuthoritative = message.tool.resultAuthoritative === true;
+    const sameResult = message.tool.state === (result.is_error ? 'error' : 'completed')
+        && JSON.stringify(message.tool.result) === JSON.stringify(result.content);
+    if (message.tool.state !== 'running') {
+        if (!isSubagent) {
+            return false;
+        }
+        if (existingAuthoritative && !incomingAuthoritative) {
+            return false;
+        }
+        if (sameResult && existingAuthoritative === incomingAuthoritative) {
+            return false;
+        }
+        if (existingAuthoritative === incomingAuthoritative
+            && completedAt < (message.tool.completedAt ?? 0)) {
+            return false;
+        }
+    }
+
+    message.tool.state = result.is_error ? 'error' : 'completed';
+    message.tool.result = result.content;
+    message.tool.error = result.error;
+    message.tool.completedAt = completedAt;
+    if (isSubagent) {
+        message.tool.resultAuthoritative = incomingAuthoritative;
+    }
+
+    if (result.permissions) {
+        if (message.tool.permission) {
+            const existingDecision = message.tool.permission.decision;
+            message.tool.permission = {
+                ...message.tool.permission,
+                id: result.tool_use_id,
+                status: result.permissions.result === 'approved' ? 'approved' : 'denied',
+                date: result.permissions.date,
+                mode: result.permissions.mode,
+                allowedTools: result.permissions.allowedTools,
+                decision: result.permissions.decision || existingDecision
+            };
+        } else {
+            message.tool.permission = {
+                id: result.tool_use_id,
+                status: result.permissions.result === 'approved' ? 'approved' : 'denied',
+                date: result.permissions.date,
+                mode: result.permissions.mode,
+                allowedTools: result.permissions.allowedTools,
+                decision: result.permissions.decision
+            };
+        }
+    }
+
+    if (message.tool.name === 'TodoWrite' && !result.is_error) {
+        updateLatestTodos(state, message.tool.result?.newTodos, completedAt);
+    }
+
+    return true;
+}
+
+function applyOrphanToolResult(
+    state: ReducerState,
+    message: ReducerMessage,
+    callId: string,
+): boolean {
+    const orphan = state.orphanToolResults.get(callId);
+    if (!orphan) {
+        return false;
+    }
+
+    state.orphanToolResults.delete(callId);
+    return applyToolResult(state, message, orphan.content, orphan.createdAt);
 }
 
 export type ReducerResult = {
@@ -817,6 +914,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                                 message.tool.completedAt = null;
                                 message.tool.result = undefined;
                             }
+                            applyOrphanToolResult(state, message, c.id);
                             changed.add(existingMessageId);
 
                         }
@@ -881,6 +979,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         });
 
                         state.toolIdToMessageId.set(c.id, mid);
+                        applyOrphanToolResult(state, state.messages.get(mid)!, c.id);
                         changed.add(mid);
 
                     }
@@ -900,6 +999,12 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                     // Find the message containing this tool
                     let messageId = state.toolIdToMessageId.get(c.tool_use_id);
                     if (!messageId) {
+                        if (!state.orphanToolResults.has(c.tool_use_id)) {
+                            state.orphanToolResults.set(c.tool_use_id, {
+                                content: c,
+                                createdAt: msg.createdAt,
+                            });
+                        }
                         continue;
                     }
 
@@ -907,69 +1012,9 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                     if (!message || !message.tool) {
                         continue;
                     }
-
-                    const isSubagent = message.tool.name === 'Subagent';
-                    const incomingAuthoritative = c.authoritative === true;
-                    const existingAuthoritative = message.tool.resultAuthoritative === true;
-                    const sameResult = message.tool.state === (c.is_error ? 'error' : 'completed')
-                        && JSON.stringify(message.tool.result) === JSON.stringify(c.content);
-                    if (message.tool.state !== 'running') {
-                        if (!isSubagent) {
-                            continue;
-                        }
-                        if (existingAuthoritative && !incomingAuthoritative) {
-                            continue;
-                        }
-                        if (sameResult && existingAuthoritative === incomingAuthoritative) {
-                            continue;
-                        }
-                        if (existingAuthoritative === incomingAuthoritative
-                            && msg.createdAt < (message.tool.completedAt ?? 0)) {
-                            continue;
-                        }
+                    if (applyToolResult(state, message, c, msg.createdAt)) {
+                        changed.add(messageId);
                     }
-
-                    // Update tool state and result
-                    message.tool.state = c.is_error ? 'error' : 'completed';
-                    message.tool.result = c.content;
-                    message.tool.error = c.error;
-                    message.tool.completedAt = msg.createdAt;
-                    if (isSubagent) {
-                        message.tool.resultAuthoritative = incomingAuthoritative;
-                    }
-
-                    // Update permission data if provided by backend
-                    if (c.permissions) {
-                        // Merge with existing permission to preserve decision field from agentState
-                        if (message.tool.permission) {
-                            // Preserve existing decision if not provided in tool result
-                            const existingDecision = message.tool.permission.decision;
-                            message.tool.permission = {
-                                ...message.tool.permission,
-                                id: c.tool_use_id,
-                                status: c.permissions.result === 'approved' ? 'approved' : 'denied',
-                                date: c.permissions.date,
-                                mode: c.permissions.mode,
-                                allowedTools: c.permissions.allowedTools,
-                                decision: c.permissions.decision || existingDecision
-                            };
-                        } else {
-                            message.tool.permission = {
-                                id: c.tool_use_id,
-                                status: c.permissions.result === 'approved' ? 'approved' : 'denied',
-                                date: c.permissions.date,
-                                mode: c.permissions.mode,
-                                allowedTools: c.permissions.allowedTools,
-                                decision: c.permissions.decision
-                            };
-                        }
-                    }
-
-                    if (message.tool.name === 'TodoWrite' && !c.is_error) {
-                        updateLatestTodos(state, message.tool.result?.newTodos, msg.createdAt);
-                    }
-
-                    changed.add(messageId);
                 }
             }
         }
