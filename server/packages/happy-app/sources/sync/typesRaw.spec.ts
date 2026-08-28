@@ -50,6 +50,24 @@ describe('Zod Transform - WOLOG Content Normalization', () => {
         });
     });
 
+    it('preserves the persisted server sequence through normalization', () => {
+        const result = normalizeRawMessage('server-sequenced', null, 1, {
+            role: 'session',
+            content: {
+                type: 'session',
+                data: {
+                    id: createId(),
+                    time: 123,
+                    role: 'agent',
+                    turn: createId(),
+                    ev: { t: 'service', text: 'sequenced event' },
+                },
+            },
+        }, 42);
+
+        expect(result?.sequence).toBe(42);
+    });
+
     describe('Accepts and transforms hyphenated types', () => {
         it('transforms tool-call to tool_use with field remapping', () => {
             const message = {

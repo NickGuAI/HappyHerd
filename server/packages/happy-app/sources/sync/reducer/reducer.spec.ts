@@ -3556,6 +3556,80 @@ describe('reducer', () => {
     });
 
     describe('provider tool contracts', () => {
+        const descriptor = (
+            messageId: string,
+            callId: string,
+            sequence: number,
+            name: string,
+            title: string,
+            command: string,
+        ): NormalizedMessage => ({
+            id: messageId,
+            localId: null,
+            createdAt: 1000,
+            sequence,
+            role: 'agent',
+            isSidechain: false,
+            content: [{
+                type: 'tool-call',
+                id: callId,
+                name,
+                title,
+                input: { command },
+                description: `Running ${name}`,
+                uuid: `${messageId}-uuid`,
+                parentUUID: null,
+            }],
+        });
+
+        it('orders equal-timestamp newest-first descriptor replay by sequence', () => {
+            const state = createReducer();
+            const result = reducer(state, [
+                descriptor('provider-tool-equal-new', 'grok-tool-equal', 42, 'execute', 'Run exact ACP tests', 'pnpm test --filter acp'),
+                descriptor('provider-tool-equal-old', 'grok-tool-equal', 41, 'unknown', 'Run tests', 'pnpm test'),
+            ]);
+
+            expect(result.messages).toHaveLength(1);
+            expect(result.messages[0]).toMatchObject({
+                kind: 'tool-call',
+                tool: {
+                    callId: 'grok-tool-equal',
+                    name: 'execute',
+                    title: 'Run exact ACP tests',
+                    input: { command: 'pnpm test --filter acp' },
+                    description: 'Running execute',
+                    startedAt: 1000,
+                },
+            });
+        });
+
+        it('keeps the highest sequence across equal-time live updates and later page replay', () => {
+            const state = createReducer();
+            reducer(state, [
+                descriptor('provider-tool-live-start', 'grok-tool-live', 50, 'unknown', 'Run tests', 'pnpm test'),
+            ]);
+            reducer(state, [
+                descriptor('provider-tool-live-update', 'grok-tool-live', 51, 'execute', 'Run exact ACP tests', 'pnpm test --filter acp'),
+            ]);
+
+            const result = reducer(state, [
+                descriptor('provider-tool-older-page', 'grok-tool-live', 49, 'unknown', 'Old replay', 'pnpm old-test'),
+            ]);
+
+            expect(result.messages).toHaveLength(1);
+            expect(result.messages[0]).toMatchObject({
+                kind: 'tool-call',
+                tool: {
+                    callId: 'grok-tool-live',
+                    name: 'execute',
+                    title: 'Run exact ACP tests',
+                    input: { command: 'pnpm test --filter acp' },
+                    description: 'Running execute',
+                    startedAt: 1000,
+                },
+            });
+        });
+
         it('updates a split provider descriptor without restarting the tool model', () => {
             const state = createReducer();
             const result = reducer(state, [

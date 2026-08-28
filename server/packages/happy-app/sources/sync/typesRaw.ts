@@ -542,6 +542,8 @@ export type NormalizedMessage = ({
     id: string,
     localId: string | null,
     createdAt: number,
+    /** Persisted server message order when this message came from V3 history or realtime sync. */
+    sequence?: number | null,
     isSidechain: boolean,
     meta?: MessageMeta,
     usage?: UsageData,
@@ -824,7 +826,7 @@ function normalizeSessionEnvelope(
     return null;
 }
 
-export function normalizeRawMessage(id: string, localId: string | null, createdAt: number, raw: RawRecord): NormalizedMessage | null {
+function normalizeRawMessageContent(id: string, localId: string | null, createdAt: number, raw: RawRecord): NormalizedMessage | null {
     // Zod transform handles normalization during validation
     let parsed = rawRecordSchema.safeParse(raw);
     if (!parsed.success) {
@@ -1274,4 +1276,18 @@ export function normalizeRawMessage(id: string, localId: string | null, createdA
         }
     }
     return null;
+}
+
+export function normalizeRawMessage(
+    id: string,
+    localId: string | null,
+    createdAt: number,
+    raw: RawRecord,
+    sequence?: number | null,
+): NormalizedMessage | null {
+    const normalized = normalizeRawMessageContent(id, localId, createdAt, raw);
+    if (!normalized || sequence === undefined) {
+        return normalized;
+    }
+    return { ...normalized, sequence };
 }

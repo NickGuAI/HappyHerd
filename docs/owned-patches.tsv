@@ -142,3 +142,4 @@ BLOB_TEST_TIMEOUT	accepted	test(app): stabilize large blob encryption coverage	s
 ACP_SPLIT_TOOL_UPDATES	accepted	fix(acp): preserve split tool updates	server/packages/happy-cli/src/agent/acp/sessionUpdateHandlers.test.ts
 APP_TOOL_REPLAY_ORDER	accepted	fix(app): make tool replay order-independent	server/packages/happy-app/sources/sync/reducer/reducer.spec.ts
 ACP_INDEPENDENT_OUTCOMES	accepted	fix(acp): preserve independent outcome fields	server/packages/happy-cli/src/agent/acp/sessionUpdateHandlers.test.ts
+APP_TOOL_REPLAY_SEQUENCE	accepted	fix(app): order equal-time tool replays by sequence	server/packages/happy-app/sources/sync/reducer/reducer.spec.ts

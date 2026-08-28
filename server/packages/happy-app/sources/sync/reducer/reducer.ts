@@ -129,6 +129,8 @@ type ReducerMessage = {
     tool: ToolCall | null;
     /** Timestamp of the provider descriptor currently applied to this tool. */
     toolDescriptorUpdatedAt?: number;
+    /** Server message sequence used to break equal descriptor timestamp ties. */
+    toolDescriptorUpdatedSequence?: number | null;
     meta?: MessageMeta;
     claudeUuid?: string;
     codexItemId?: string;
@@ -198,6 +200,25 @@ function mergeToolInputs(existingInput: unknown, nextInput: unknown): unknown {
         return { ...nextInput, ...existingInput };
     }
     return nextInput ?? existingInput;
+}
+
+function isLatestToolDescriptor(message: ReducerMessage, incoming: NormalizedMessage): boolean {
+    if (message.toolDescriptorUpdatedAt === undefined || incoming.createdAt > message.toolDescriptorUpdatedAt) {
+        return true;
+    }
+    if (incoming.createdAt < message.toolDescriptorUpdatedAt) {
+        return false;
+    }
+
+    const incomingSequence = incoming.sequence;
+    const currentSequence = message.toolDescriptorUpdatedSequence;
+    if (typeof incomingSequence === 'number') {
+        return typeof currentSequence !== 'number' || incomingSequence >= currentSequence;
+    }
+    if (typeof currentSequence === 'number') {
+        return false;
+    }
+    return true;
 }
 
 function getSidechainOwner(state: ReducerState, sidechainId: string): ReducerMessage | null {
@@ -772,8 +793,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         if (message?.tool) {
                             message.tool.callId = c.id;
                             const hadStarted = message.tool.startedAt !== null;
-                            const hasLatestDescriptor = message.toolDescriptorUpdatedAt === undefined
-                                || msg.createdAt >= message.toolDescriptorUpdatedAt;
+                            const hasLatestDescriptor = isLatestToolDescriptor(message, msg);
                             if (hasLatestDescriptor) {
                                 message.realID = msg.id;
                                 message.tool.name = c.name;
@@ -783,6 +803,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                                     : mergeToolInputs(message.tool.input, c.input);
                                 message.tool.description = c.description;
                                 message.toolDescriptorUpdatedAt = msg.createdAt;
+                                message.toolDescriptorUpdatedSequence = msg.sequence;
                             }
                             // A repeated same-ID start is an ACP descriptor
                             // update, not a new execution. History can replay
@@ -854,6 +875,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                             text: null,
                             tool: toolCall,
                             toolDescriptorUpdatedAt: msg.createdAt,
+                            toolDescriptorUpdatedSequence: msg.sequence,
                             event: null,
                             meta: msg.meta,
                         });
