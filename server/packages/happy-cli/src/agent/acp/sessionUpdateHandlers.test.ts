@@ -34,6 +34,95 @@ function createContext() {
 }
 
 describe('ACP spec-shaped tool updates', () => {
+  it.each(['raw-output-first', 'content-first'] as const)(
+    'preserves raw output when %s updates complete with a status-only delta',
+    (fieldOrder) => {
+      const { context, emitted } = createContext();
+      const callId = `grok-tool-independent-success-${fieldOrder}`;
+      const rawOutputUpdate = {
+        sessionUpdate: 'tool_call_update',
+        toolCallId: callId,
+        rawOutput: { exitCode: 0, stdout: 'structured result' },
+      } satisfies AcpSdkSessionUpdate;
+      const contentUpdate = {
+        sessionUpdate: 'tool_call_update',
+        toolCallId: callId,
+        content: [{
+          type: 'content',
+          content: { type: 'text', text: 'Human-readable result' },
+        }],
+      } satisfies AcpSdkSessionUpdate;
+
+      handleToolCall({
+        sessionUpdate: 'tool_call',
+        toolCallId: callId,
+        title: 'Run independent outcome test',
+        kind: 'execute',
+      } satisfies AcpSdkSessionUpdate, context);
+      for (const update of fieldOrder === 'raw-output-first'
+        ? [rawOutputUpdate, contentUpdate]
+        : [contentUpdate, rawOutputUpdate]) {
+        handleToolCallUpdate(update, context);
+      }
+      handleToolCallUpdate({
+        sessionUpdate: 'tool_call_update',
+        toolCallId: callId,
+        status: 'completed',
+      } satisfies AcpSdkSessionUpdate, context);
+
+      expect(emitted.at(-1)).toEqual(expect.objectContaining({
+        type: 'tool-result',
+        callId,
+        result: { exitCode: 0, stdout: 'structured result' },
+      }));
+    },
+  );
+
+  it.each(['raw-output-first', 'content-first'] as const)(
+    'preserves structured failure output and provider detail when %s updates fail with a status-only delta',
+    (fieldOrder) => {
+      const { context, emitted } = createContext();
+      const callId = `grok-tool-independent-failure-${fieldOrder}`;
+      const rawOutputUpdate = {
+        sessionUpdate: 'tool_call_update',
+        toolCallId: callId,
+        rawOutput: { exitCode: 2, stderr: 'command failed' },
+      } satisfies AcpSdkSessionUpdate;
+      const contentUpdate = {
+        sessionUpdate: 'tool_call_update',
+        toolCallId: callId,
+        content: [{
+          type: 'content',
+          content: { type: 'text', text: 'Provider rejected the command' },
+        }],
+      } satisfies AcpSdkSessionUpdate;
+
+      handleToolCall({
+        sessionUpdate: 'tool_call',
+        toolCallId: callId,
+        title: 'Run independent failure test',
+        kind: 'execute',
+      } satisfies AcpSdkSessionUpdate, context);
+      for (const update of fieldOrder === 'raw-output-first'
+        ? [rawOutputUpdate, contentUpdate]
+        : [contentUpdate, rawOutputUpdate]) {
+        handleToolCallUpdate(update, context);
+      }
+      handleToolCallUpdate({
+        sessionUpdate: 'tool_call_update',
+        toolCallId: callId,
+        status: 'failed',
+      } satisfies AcpSdkSessionUpdate, context);
+
+      expect(emitted.at(-1)).toEqual(expect.objectContaining({
+        type: 'tool-result',
+        callId,
+        result: { exitCode: 2, stderr: 'command failed' },
+        error: 'Provider rejected the command',
+      }));
+    },
+  );
+
   it('accumulates split descriptor and output updates before status-only completion', () => {
     const { context, emitted } = createContext();
 

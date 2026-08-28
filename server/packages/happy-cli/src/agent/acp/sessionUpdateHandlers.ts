@@ -52,9 +52,11 @@ export interface ToolCallDescriptor {
   title: string;
   toolName: string;
   args: Record<string, unknown>;
-  /** Latest provider output carried by a sparse update before terminal status. */
-  outcome?: unknown;
-  hasOutcome: boolean;
+  /** ACP replace fields retained independently across sparse updates. */
+  rawOutput?: unknown;
+  hasRawOutput: boolean;
+  content?: unknown;
+  hasContent: boolean;
 }
 
 /**
@@ -126,6 +128,10 @@ function nonEmptyString(value: unknown): string | undefined {
     : undefined;
 }
 
+function hasOwnField(update: SessionUpdate, field: 'rawOutput' | 'content'): boolean {
+  return Object.prototype.hasOwnProperty.call(update, field);
+}
+
 /**
  * Extract error detail from update content
  */
@@ -136,8 +142,21 @@ export function extractErrorDetail(content: unknown): string | undefined {
     return content;
   }
 
-  if (typeof content === 'object' && content !== null && !Array.isArray(content)) {
+  if (Array.isArray(content)) {
+    const details = content
+      .map((item) => extractErrorDetail(item))
+      .filter((detail): detail is string => Boolean(detail));
+    return details.length > 0 ? details.join('\n') : undefined;
+  }
+
+  if (typeof content === 'object' && content !== null) {
     const obj = content as Record<string, unknown>;
+
+    if (obj.type === 'content' && obj.content) {
+      return extractErrorDetail(obj.content);
+    }
+
+    if (typeof obj.text === 'string') return obj.text;
 
     if (obj.error) {
       const error = obj.error;
@@ -290,14 +309,8 @@ export function startToolCall(
   const args = hasRawInput
     ? parseRawInput(update.rawInput)
     : previousDescriptor?.args ?? parseArgsFromContent(update.content);
-  const outcome = update.rawOutput !== undefined
-    ? { hasOutcome: true, outcome: update.rawOutput }
-    : update.content !== undefined
-      ? { hasOutcome: true, outcome: update.content }
-      : {
-          hasOutcome: previousDescriptor?.hasOutcome ?? false,
-          outcome: previousDescriptor?.outcome,
-        };
+  const hasRawOutput = hasOwnField(update, 'rawOutput');
+  const hasContent = hasOwnField(update, 'content');
 
   if (update.locations && Array.isArray(update.locations)) {
     args.locations = update.locations;
@@ -307,7 +320,10 @@ export function startToolCall(
     title,
     toolName: realToolName,
     args,
-    ...outcome,
+    hasRawOutput: hasRawOutput || (previousDescriptor?.hasRawOutput ?? false),
+    rawOutput: hasRawOutput ? update.rawOutput : previousDescriptor?.rawOutput,
+    hasContent: hasContent || (previousDescriptor?.hasContent ?? false),
+    content: hasContent ? update.content : previousDescriptor?.content,
   });
 
   // Store mapping for permission requests
@@ -420,7 +436,8 @@ export function failToolCall(
   status: 'failed' | 'cancelled',
   toolKind: string | unknown,
   content: unknown,
-  ctx: HandlerContext
+  ctx: HandlerContext,
+  errorContent?: unknown,
 ): void {
   const startTime = ctx.toolCallStartTimes.get(toolCallId);
   const duration = startTime ? Date.now() - startTime : null;
@@ -468,7 +485,7 @@ export function failToolCall(
   logger.debug(`[AcpBackend] ❌ Tool call ${status.toUpperCase()}: ${toolCallId} (${toolKindStr}) - Duration: ${durationStr}. Active tool calls: ${ctx.activeToolCalls.size}`);
 
   // Extract error detail
-  const errorDetail = extractErrorDetail(content);
+  const errorDetail = extractErrorDetail(errorContent) ?? extractErrorDetail(content);
   if (errorDetail) {
     logger.debug(`[AcpBackend] ❌ Tool call error details: ${errorDetail.substring(0, 500)}`);
   } else {
@@ -517,7 +534,9 @@ export function handleToolCallUpdate(
     || update.rawInput !== undefined
     || (Array.isArray(update.locations) && update.locations.length > 0),
   );
-  const hasOutcomeUpdate = update.rawOutput !== undefined || update.content !== undefined;
+  const hasRawOutputUpdate = hasOwnField(update, 'rawOutput');
+  const hasContentUpdate = hasOwnField(update, 'content');
+  const hasOutcomeUpdate = hasRawOutputUpdate || hasContentUpdate;
   if (descriptor && (hasDescriptorUpdate || hasOutcomeUpdate)) {
     const args = update.rawInput !== undefined ? parseRawInput(update.rawInput) : descriptor.args;
     if (Array.isArray(update.locations)) {
@@ -527,12 +546,10 @@ export function handleToolCallUpdate(
       title: title ?? descriptor.title,
       toolName: toolKind,
       args,
-      hasOutcome: hasOutcomeUpdate ? true : descriptor.hasOutcome,
-      outcome: update.rawOutput !== undefined
-        ? update.rawOutput
-        : update.content !== undefined
-          ? update.content
-          : descriptor.outcome,
+      hasRawOutput: hasRawOutputUpdate || descriptor.hasRawOutput,
+      rawOutput: hasRawOutputUpdate ? update.rawOutput : descriptor.rawOutput,
+      hasContent: hasContentUpdate || descriptor.hasContent,
+      content: hasContentUpdate ? update.content : descriptor.content,
     };
     ctx.toolCallDescriptors.set(toolCallId, updatedDescriptor);
 
@@ -549,11 +566,21 @@ export function handleToolCallUpdate(
     }
   }
   const accumulatedDescriptor = ctx.toolCallDescriptors.get(toolCallId);
-  const terminalOutcome = accumulatedDescriptor?.hasOutcome
-    ? accumulatedDescriptor.outcome
-    : update.rawOutput !== undefined
-      ? update.rawOutput
-      : update.content;
+  const hasTerminalRawOutput = accumulatedDescriptor?.hasRawOutput
+    ?? hasRawOutputUpdate;
+  const terminalRawOutput = accumulatedDescriptor?.hasRawOutput
+    ? accumulatedDescriptor.rawOutput
+    : update.rawOutput;
+  const hasTerminalContent = accumulatedDescriptor?.hasContent
+    ?? hasContentUpdate;
+  const terminalContent = accumulatedDescriptor?.hasContent
+    ? accumulatedDescriptor.content
+    : update.content;
+  const terminalResult = hasTerminalRawOutput
+    ? terminalRawOutput
+    : hasTerminalContent
+      ? terminalContent
+      : undefined;
   let toolCallCountSincePrompt = ctx.toolCallCountSincePrompt;
 
   if (status === 'in_progress' || status === 'pending') {
@@ -567,7 +594,7 @@ export function handleToolCallUpdate(
     completeToolCall(
       toolCallId,
       toolKind,
-      terminalOutcome,
+      terminalResult,
       ctx,
     );
   } else if (status === 'failed' || status === 'cancelled') {
@@ -575,8 +602,9 @@ export function handleToolCallUpdate(
       toolCallId,
       status,
       toolKind,
-      terminalOutcome,
+      terminalResult,
       ctx,
+      hasTerminalContent ? terminalContent : undefined,
     );
   }
 

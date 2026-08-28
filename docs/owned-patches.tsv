@@ -140,3 +140,4 @@ LATE_CHILD_IMAGE_OWNERSHIP	accepted	fix(media): preserve late child image owners
 BLOB_TEST_TIMEOUT	accepted	test(app): stabilize large blob encryption coverage	server/packages/happy-app/sources/encryption/blob.test.ts
 ACP_SPLIT_TOOL_UPDATES	accepted	fix(acp): preserve split tool updates	server/packages/happy-cli/src/agent/acp/sessionUpdateHandlers.test.ts
 APP_TOOL_REPLAY_ORDER	accepted	fix(app): make tool replay order-independent	server/packages/happy-app/sources/sync/reducer/reducer.spec.ts
+ACP_INDEPENDENT_OUTCOMES	accepted	fix(acp): preserve independent outcome fields	server/packages/happy-cli/src/agent/acp/sessionUpdateHandlers.test.ts
