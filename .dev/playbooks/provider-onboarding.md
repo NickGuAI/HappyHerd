@@ -125,7 +125,8 @@ Use the provider matrix in [`../VERIFY.md`](../VERIFY.md). At minimum, retain:
 2. open metadata transit plus exact-provider validation;
 3. exact native launch/runtime selection;
 4. a synthetic late permission callback for every advertised behavior class;
-5. raw/spec-shaped tool start, sparse completion, and failure fixtures;
+5. raw/spec-shaped tool start, split descriptor/output deltas, and status-only
+   completion and failure fixtures;
 6. stable call correlation and meaningful generic app rendering; and
 7. a live smoke against the installed provider when prerequisites are
    available.

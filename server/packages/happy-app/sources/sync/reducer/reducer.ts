@@ -772,9 +772,13 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                             message.tool.callId = c.id;
                             message.tool.name = c.name;
                             message.tool.title = c.title;
-                            message.tool.input = mergeToolInputs(message.tool.input, c.input);
+                            message.tool.input = message.tool.startedAt !== null
+                                ? c.input
+                                : mergeToolInputs(message.tool.input, c.input);
                             message.tool.description = c.description;
-                            message.tool.startedAt = msg.createdAt;
+                            // A repeated same-ID start is an ACP descriptor
+                            // update, not a new execution.
+                            message.tool.startedAt ??= msg.createdAt;
                             // If permission was approved and shown as completed (no tool), now it's running
                             if (message.tool.permission?.status === 'approved' && message.tool.state === 'completed') {
                                 message.tool.state = 'running';

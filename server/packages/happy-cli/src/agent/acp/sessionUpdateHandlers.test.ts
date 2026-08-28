@@ -34,6 +34,84 @@ function createContext() {
 }
 
 describe('ACP spec-shaped tool updates', () => {
+  it('accumulates split descriptor and output updates before status-only completion', () => {
+    const { context, emitted } = createContext();
+
+    handleToolCall({
+      sessionUpdate: 'tool_call',
+      toolCallId: 'grok-tool-split-success',
+      title: 'Run tests',
+      status: 'in_progress',
+      rawInput: { command: 'pnpm test' },
+    } satisfies AcpSdkSessionUpdate, context);
+
+    handleToolCallUpdate({
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 'grok-tool-split-success',
+      title: 'Run exact ACP tests',
+      kind: 'execute',
+      rawInput: { command: 'pnpm test --filter acp' },
+      rawOutput: { exitCode: 0, stdout: 'all passed' },
+    } satisfies AcpSdkSessionUpdate, context);
+
+    handleToolCallUpdate({
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 'grok-tool-split-success',
+      status: 'completed',
+    } satisfies AcpSdkSessionUpdate, context);
+
+    expect(emitted).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'tool-call',
+        callId: 'grok-tool-split-success',
+        title: 'Run tests',
+      }),
+      expect.objectContaining({
+        type: 'tool-call',
+        callId: 'grok-tool-split-success',
+        toolName: 'execute',
+        title: 'Run exact ACP tests',
+        args: { command: 'pnpm test --filter acp' },
+      }),
+      expect.objectContaining({
+        type: 'tool-result',
+        callId: 'grok-tool-split-success',
+        toolName: 'execute',
+        title: 'Run exact ACP tests',
+        result: { exitCode: 0, stdout: 'all passed' },
+      }),
+    ]));
+  });
+
+  it('accumulates split failure output before status-only failure', () => {
+    const { context, emitted } = createContext();
+
+    handleToolCall({
+      sessionUpdate: 'tool_call',
+      toolCallId: 'grok-tool-split-failure',
+      title: 'Build app',
+      kind: 'execute',
+    } satisfies AcpSdkSessionUpdate, context);
+    handleToolCallUpdate({
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 'grok-tool-split-failure',
+      rawOutput: { error: { message: 'compile failed' }, exitCode: 2 },
+    } satisfies AcpSdkSessionUpdate, context);
+    handleToolCallUpdate({
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 'grok-tool-split-failure',
+      status: 'failed',
+    } satisfies AcpSdkSessionUpdate, context);
+
+    expect(emitted.at(-1)).toEqual(expect.objectContaining({
+      type: 'tool-result',
+      callId: 'grok-tool-split-failure',
+      title: 'Build app',
+      result: { error: { message: 'compile failed' }, exitCode: 2 },
+      error: 'compile failed',
+    }));
+  });
+
   it('preserves provider id, title, category, raw input, and sparse completion output', () => {
     const { context, emitted } = createContext();
 

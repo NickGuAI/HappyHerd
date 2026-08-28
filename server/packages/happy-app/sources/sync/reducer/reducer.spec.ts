@@ -3556,6 +3556,75 @@ describe('reducer', () => {
     });
 
     describe('provider tool contracts', () => {
+        it('updates a split provider descriptor without restarting the tool model', () => {
+            const state = createReducer();
+            const result = reducer(state, [
+                {
+                    id: 'provider-tool-start',
+                    localId: null,
+                    createdAt: 1000,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-call',
+                        id: 'grok-tool-split',
+                        name: 'unknown',
+                        title: 'Run tests',
+                        input: { command: 'pnpm test' },
+                        description: 'Running unknown',
+                        uuid: 'provider-tool-start-uuid',
+                        parentUUID: null,
+                    }],
+                },
+                {
+                    id: 'provider-tool-update',
+                    localId: null,
+                    createdAt: 1010,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-call',
+                        id: 'grok-tool-split',
+                        name: 'execute',
+                        title: 'Run exact ACP tests',
+                        input: { command: 'pnpm test --filter acp' },
+                        description: 'Running execute',
+                        uuid: 'provider-tool-update-uuid',
+                        parentUUID: null,
+                    }],
+                },
+                {
+                    id: 'provider-tool-end',
+                    localId: null,
+                    createdAt: 1020,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: 'grok-tool-split',
+                        content: { exitCode: 0, stdout: 'all passed' },
+                        is_error: false,
+                        uuid: 'provider-tool-end-uuid',
+                        parentUUID: null,
+                    }],
+                },
+            ]);
+
+            expect(result.messages).toHaveLength(1);
+            expect(result.messages[0]).toMatchObject({
+                kind: 'tool-call',
+                tool: {
+                    callId: 'grok-tool-split',
+                    name: 'execute',
+                    title: 'Run exact ACP tests',
+                    input: { command: 'pnpm test --filter acp' },
+                    startedAt: 1000,
+                    completedAt: 1020,
+                    result: { exitCode: 0, stdout: 'all passed' },
+                },
+            });
+        });
+
         it('keeps provider title, structured result, and error on the rendered tool model', () => {
             const state = createReducer();
             const result = reducer(state, [

@@ -52,6 +52,9 @@ export interface ToolCallDescriptor {
   title: string;
   toolName: string;
   args: Record<string, unknown>;
+  /** Latest provider output carried by a sparse update before terminal status. */
+  outcome?: unknown;
+  hasOutcome: boolean;
 }
 
 /**
@@ -287,6 +290,14 @@ export function startToolCall(
   const args = hasRawInput
     ? parseRawInput(update.rawInput)
     : previousDescriptor?.args ?? parseArgsFromContent(update.content);
+  const outcome = update.rawOutput !== undefined
+    ? { hasOutcome: true, outcome: update.rawOutput }
+    : update.content !== undefined
+      ? { hasOutcome: true, outcome: update.content }
+      : {
+          hasOutcome: previousDescriptor?.hasOutcome ?? false,
+          outcome: previousDescriptor?.outcome,
+        };
 
   if (update.locations && Array.isArray(update.locations)) {
     args.locations = update.locations;
@@ -296,6 +307,7 @@ export function startToolCall(
     title,
     toolName: realToolName,
     args,
+    ...outcome,
   });
 
   // Store mapping for permission requests
@@ -499,13 +511,49 @@ export function handleToolCallUpdate(
   const descriptor = ctx.toolCallDescriptors.get(toolCallId);
   const toolKind = nonEmptyString(update.kind) ?? descriptor?.toolName ?? 'unknown';
   const title = nonEmptyString(update.title);
-  if (descriptor && (title || update.rawInput !== undefined)) {
-    ctx.toolCallDescriptors.set(toolCallId, {
+  const hasDescriptorUpdate = Boolean(
+    title
+    || nonEmptyString(update.kind)
+    || update.rawInput !== undefined
+    || (Array.isArray(update.locations) && update.locations.length > 0),
+  );
+  const hasOutcomeUpdate = update.rawOutput !== undefined || update.content !== undefined;
+  if (descriptor && (hasDescriptorUpdate || hasOutcomeUpdate)) {
+    const args = update.rawInput !== undefined ? parseRawInput(update.rawInput) : descriptor.args;
+    if (Array.isArray(update.locations)) {
+      args.locations = update.locations;
+    }
+    const updatedDescriptor: ToolCallDescriptor = {
       title: title ?? descriptor.title,
       toolName: toolKind,
-      args: update.rawInput !== undefined ? parseRawInput(update.rawInput) : descriptor.args,
-    });
+      args,
+      hasOutcome: hasOutcomeUpdate ? true : descriptor.hasOutcome,
+      outcome: update.rawOutput !== undefined
+        ? update.rawOutput
+        : update.content !== undefined
+          ? update.content
+          : descriptor.outcome,
+    };
+    ctx.toolCallDescriptors.set(toolCallId, updatedDescriptor);
+
+    // ACP updates are sparse. Forward changed descriptor fields under the same
+    // provider call ID, but do not restart the CLI timeout or start timestamp.
+    if (ctx.activeToolCalls.has(toolCallId) && hasDescriptorUpdate) {
+      ctx.emit({
+        type: 'tool-call',
+        toolName: updatedDescriptor.toolName,
+        title: updatedDescriptor.title,
+        args: updatedDescriptor.args,
+        callId: toolCallId,
+      });
+    }
   }
+  const accumulatedDescriptor = ctx.toolCallDescriptors.get(toolCallId);
+  const terminalOutcome = accumulatedDescriptor?.hasOutcome
+    ? accumulatedDescriptor.outcome
+    : update.rawOutput !== undefined
+      ? update.rawOutput
+      : update.content;
   let toolCallCountSincePrompt = ctx.toolCallCountSincePrompt;
 
   if (status === 'in_progress' || status === 'pending') {
@@ -519,7 +567,7 @@ export function handleToolCallUpdate(
     completeToolCall(
       toolCallId,
       toolKind,
-      update.rawOutput !== undefined ? update.rawOutput : update.content,
+      terminalOutcome,
       ctx,
     );
   } else if (status === 'failed' || status === 'cancelled') {
@@ -527,7 +575,7 @@ export function handleToolCallUpdate(
       toolCallId,
       status,
       toolKind,
-      update.rawOutput !== undefined ? update.rawOutput : update.content,
+      terminalOutcome,
       ctx,
     );
   }
