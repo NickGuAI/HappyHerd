@@ -3878,6 +3878,134 @@ describe('reducer', () => {
             expect(state.orphanToolResults.size).toBe(0);
         });
 
+        it('preserves an authoritative paged Subagent result regardless of arrival order', () => {
+            const subagent = createId();
+            const provisional: NormalizedMessage = {
+                id: 'paged-subagent-provisional',
+                localId: null,
+                createdAt: 1030,
+                sequence: 103,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-result',
+                    tool_use_id: subagent,
+                    content: { status: 'interrupted', detail: 'Legacy root-turn inference' },
+                    error: 'interrupted',
+                    is_error: true,
+                    authoritative: false,
+                    uuid: 'paged-subagent-provisional-uuid',
+                    parentUUID: null,
+                }],
+            };
+            const provider: NormalizedMessage = {
+                id: 'paged-subagent-authoritative',
+                localId: null,
+                createdAt: 1020,
+                sequence: 102,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-result',
+                    tool_use_id: subagent,
+                    content: { status: 'completed' },
+                    is_error: false,
+                    authoritative: true,
+                    uuid: 'paged-subagent-authoritative-uuid',
+                    parentUUID: null,
+                }],
+            };
+
+            for (const terminalOrder of [[provisional, provider], [provider, provisional]]) {
+                const state = createReducer();
+                expect(reducer(state, terminalOrder).messages).toEqual([]);
+                expect(state.orphanToolResults.get(subagent)).toHaveLength(2);
+
+                const descriptorPage = reducer(state, [descriptor(
+                    'paged-subagent-descriptor',
+                    subagent,
+                    101,
+                    'Subagent',
+                    'Lifecycle child',
+                    'child',
+                )]);
+
+                expect(descriptorPage.messages).toHaveLength(1);
+                expect(descriptorPage.messages[0]).toMatchObject({
+                    kind: 'tool-call',
+                    tool: {
+                        callId: subagent,
+                        state: 'completed',
+                        completedAt: 1020,
+                        result: { status: 'completed' },
+                        resultAuthoritative: true,
+                    },
+                });
+                expect(descriptorPage.messages[0]).not.toMatchObject({
+                    tool: { error: 'interrupted' },
+                });
+                expect(state.orphanToolResults.has(subagent)).toBe(false);
+            }
+        });
+
+        it('keeps the first newest-first paged terminal for an ordinary tool', () => {
+            const state = createReducer();
+            reducer(state, [
+                {
+                    id: 'paged-ordinary-newest-result',
+                    localId: null,
+                    createdAt: 3030,
+                    sequence: 303,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: 'paged-ordinary-tool',
+                        content: { exitCode: 0, stdout: 'done' },
+                        is_error: false,
+                        uuid: 'paged-ordinary-newest-result-uuid',
+                        parentUUID: null,
+                    }],
+                },
+                {
+                    id: 'paged-ordinary-older-result',
+                    localId: null,
+                    createdAt: 3020,
+                    sequence: 302,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: 'paged-ordinary-tool',
+                        content: { exitCode: 2, stderr: 'older failure' },
+                        error: 'older failure',
+                        is_error: true,
+                        uuid: 'paged-ordinary-older-result-uuid',
+                        parentUUID: null,
+                    }],
+                },
+            ]);
+
+            const descriptorPage = reducer(state, [descriptor(
+                'paged-ordinary-descriptor',
+                'paged-ordinary-tool',
+                301,
+                'execute',
+                'Run command',
+                'command',
+            )]);
+
+            expect(descriptorPage.messages[0]).toMatchObject({
+                kind: 'tool-call',
+                tool: {
+                    state: 'completed',
+                    completedAt: 3030,
+                    result: { exitCode: 0, stdout: 'done' },
+                },
+            });
+            expect(state.orphanToolResults.size).toBe(0);
+        });
+
         it('keeps the latest descriptor when older history arrives in a later reducer call', () => {
             const state = createReducer();
             reducer(state, [

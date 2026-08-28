@@ -163,9 +163,9 @@ type StoredPermission = {
 export type ReducerState = {
     toolIdToMessageId: Map<string, string>; // toolId/permissionId -> messageId (since they're the same now)
     // Terminal results can be fetched one V3 page before their older tool
-    // descriptor. Keep at most one unresolved result per call and remove it as
-    // soon as that descriptor is reduced.
-    orphanToolResults: Map<string, OrphanToolResult>;
+    // descriptor. Retain their observed order per call so Subagent authority
+    // reconciliation stays identical, then remove them with the descriptor.
+    orphanToolResults: Map<string, OrphanToolResult[]>;
     sidechainToolIdToMessageId: Map<string, string>; // toolId -> sidechain messageId (for dual tracking)
     permissions: Map<string, StoredPermission>; // Store permission details by ID for quick lookup
     localIds: Map<string, string>;
@@ -348,13 +348,17 @@ function applyOrphanToolResult(
     message: ReducerMessage,
     callId: string,
 ): boolean {
-    const orphan = state.orphanToolResults.get(callId);
-    if (!orphan) {
+    const orphans = state.orphanToolResults.get(callId);
+    if (!orphans) {
         return false;
     }
 
     state.orphanToolResults.delete(callId);
-    return applyToolResult(state, message, orphan.content, orphan.createdAt);
+    let changed = false;
+    for (const orphan of orphans) {
+        changed = applyToolResult(state, message, orphan.content, orphan.createdAt) || changed;
+    }
+    return changed;
 }
 
 export type ReducerResult = {
@@ -999,12 +1003,12 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                     // Find the message containing this tool
                     let messageId = state.toolIdToMessageId.get(c.tool_use_id);
                     if (!messageId) {
-                        if (!state.orphanToolResults.has(c.tool_use_id)) {
-                            state.orphanToolResults.set(c.tool_use_id, {
-                                content: c,
-                                createdAt: msg.createdAt,
-                            });
-                        }
+                        const orphans = state.orphanToolResults.get(c.tool_use_id) ?? [];
+                        orphans.push({
+                            content: c,
+                            createdAt: msg.createdAt,
+                        });
+                        state.orphanToolResults.set(c.tool_use_id, orphans);
                         continue;
                     }
 
