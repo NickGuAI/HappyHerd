@@ -12,6 +12,8 @@ export type ToolCall = {
     completedAt: number | null;
     description: string | null;
     result?: any;
+    /** True when the provider, rather than a root-turn fallback, supplied the result. */
+    resultAuthoritative?: boolean;
     permission?: {
         id: string;
         status: 'pending' | 'approved' | 'denied' | 'canceled';

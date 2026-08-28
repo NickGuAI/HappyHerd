@@ -18,6 +18,8 @@ export type ClaudeSessionProtocolState = {
     hiddenParentToolCalls?: Set<string>;
     startedSubagents?: Set<string>;
     activeSubagents?: Set<string>;
+    subagentTurnIds?: Map<string, string>;
+    subagentStops?: Map<string, { status: SubagentStopStatus; authoritative: boolean }>;
 };
 
 type ClaudeMapperResult = {
@@ -142,6 +144,22 @@ function getActiveSubagents(state: ClaudeSessionProtocolState): Set<string> {
         state.activeSubagents = new Set<string>();
     }
     return state.activeSubagents;
+}
+
+function getSubagentTurnIds(state: ClaudeSessionProtocolState): Map<string, string> {
+    if (!state.subagentTurnIds) {
+        state.subagentTurnIds = new Map<string, string>();
+    }
+    return state.subagentTurnIds;
+}
+
+function getSubagentStops(
+    state: ClaudeSessionProtocolState,
+): Map<string, { status: SubagentStopStatus; authoritative: boolean }> {
+    if (!state.subagentStops) {
+        state.subagentStops = new Map<string, { status: SubagentStopStatus; authoritative: boolean }>();
+    }
+    return state.subagentStops;
 }
 
 function pickUuid(message: RawJSONLines): string | undefined {
@@ -347,6 +365,8 @@ function maybeEmitSubagentStart(
     }
 
     const started = getStartedSubagents(state);
+    const owningTurn = getSubagentTurnIds(state).get(subagent) ?? turn;
+    getSubagentTurnIds(state).set(subagent, owningTurn);
     if (started.has(subagent)) {
         return;
     }
@@ -355,7 +375,7 @@ function maybeEmitSubagentStart(
     envelopes.push(createEnvelope('agent', {
         t: 'start',
         ...(title ? { title } : {}),
-    }, { turn, subagent }));
+    }, { id: `${owningTurn}:${subagent}:start`, turn: owningTurn, subagent }));
     started.add(subagent);
     getActiveSubagents(state).add(subagent);
 }
@@ -367,18 +387,37 @@ function maybeEmitSubagentStop(
     envelopes: SessionEnvelope[],
     status: SubagentStopStatus,
     detail?: string,
+    authoritative = true,
 ): void {
     const active = getActiveSubagents(state);
-    if (!active.has(subagent)) {
+    const previous = getSubagentStops(state).get(subagent);
+    if (previous?.authoritative && !authoritative) {
         return;
     }
+    if (!active.has(subagent)) {
+        if (!previous || !authoritative) {
+            return;
+        }
+        if (previous.authoritative && previous.status === status) {
+            return;
+        }
+    }
+
+    const owningTurn = getSubagentTurnIds(state).get(subagent) ?? turn;
+    getSubagentTurnIds(state).set(subagent, owningTurn);
 
     envelopes.push(createEnvelope('agent', {
         t: 'stop',
         status,
+        authoritative,
         ...(detail ? { detail } : {}),
-    }, { turn, subagent }));
+    }, {
+        id: `${owningTurn}:${subagent}:stop:${authoritative ? 'provider' : 'provisional'}:${status}`,
+        turn: owningTurn,
+        subagent,
+    }));
     active.delete(subagent);
+    getSubagentStops(state).set(subagent, { status, authoritative });
 }
 
 function emitActiveSubagentStops(
@@ -387,14 +426,9 @@ function emitActiveSubagentStops(
     envelopes: SessionEnvelope[],
 ): void {
     const active = getActiveSubagents(state);
-    for (const subagent of active) {
-        envelopes.push(createEnvelope('agent', {
-            t: 'stop',
-            status: 'interrupted',
-            detail: 'The root turn ended before a child terminal result was observed.',
-        }, { turn, subagent }));
+    for (const subagent of [...active]) {
+        maybeEmitSubagentStop(state, turn, subagent, envelopes, 'unknown', undefined, false);
     }
-    active.clear();
 }
 
 function toolResultDetail(content: unknown): string | undefined {
@@ -416,24 +450,31 @@ function toolResultDetail(content: unknown): string | undefined {
     return undefined;
 }
 
-function clearSubagentTracking(state: ClaudeSessionProtocolState): void {
-    getUuidToProviderSubagent(state).clear();
+function clearCompletedTurnPromptTracking(state: ClaudeSessionProtocolState): void {
     getTaskPromptToSubagents(state).clear();
-    getProviderSubagentToSessionSubagent(state).clear();
-    getSubagentTitles(state).clear();
-    getBufferedSubagentMessages(state).clear();
-    getHiddenParentToolCalls(state).clear();
-    getStartedSubagents(state).clear();
-    getActiveSubagents(state).clear();
 }
 
-function ensureTurn(state: ClaudeSessionProtocolState, envelopes: SessionEnvelope[]): string {
+function deterministicClaudeTurnId(seed: string): string {
+    const digest = createHash('sha256')
+        .update(`claude-turn:${seed}`)
+        .digest('hex');
+    return `c${digest.slice(0, 23)}`;
+}
+
+function ensureTurn(
+    state: ClaudeSessionProtocolState,
+    envelopes: SessionEnvelope[],
+    providerMessageId?: string,
+): string {
     if (state.currentTurnId) {
         return state.currentTurnId;
     }
 
-    const turnId = createId();
-    envelopes.push(createEnvelope('agent', { t: 'turn-start' }, { turn: turnId }));
+    const turnId = providerMessageId ? deterministicClaudeTurnId(providerMessageId) : createId();
+    envelopes.push(createEnvelope('agent', { t: 'turn-start' }, {
+        id: `${turnId}:start`,
+        turn: turnId,
+    }));
     state.currentTurnId = turnId;
     return turnId;
 }
@@ -488,9 +529,12 @@ function closeTurn(
     }
 
     emitActiveSubagentStops(state, state.currentTurnId, envelopes);
-    envelopes.push(createEnvelope('agent', { t: 'turn-end', status }, { turn: state.currentTurnId }));
+    envelopes.push(createEnvelope('agent', { t: 'turn-end', status }, {
+        id: `${state.currentTurnId}:end`,
+        turn: state.currentTurnId,
+    }));
     state.currentTurnId = null;
-    clearSubagentTracking(state);
+    clearCompletedTurnPromptTracking(state);
 }
 
 function toolTitle(name: string, input: unknown): string {
@@ -576,7 +620,8 @@ function mapClaudeLogMessageToSessionEnvelopesInternal(
     if (message.type === 'assistant') {
         const firstUsageCandidateIndex = envelopes.length;
         const usage = usageFromClaudeMessage(message);
-        const turnId = ensureTurn(state, envelopes);
+        const turnId = (subagent ? getSubagentTurnIds(state).get(subagent) : undefined)
+            ?? ensureTurn(state, envelopes, claudeUuid);
         maybeEmitSubagentStart(state, turnId, subagent, envelopes);
         const blocks = Array.isArray(message.message?.content) ? message.message.content : [];
 
@@ -598,11 +643,13 @@ function mapClaudeLogMessageToSessionEnvelopesInternal(
                 const title = toolTitle(name, block.input);
                 const sessionSubagentForCall = ensureSessionSubagentIdForProviderSubagent(state, call);
                 if (isSubagentTool(name)) {
+                    getSubagentTurnIds(state).set(sessionSubagentForCall, turnId);
                     const prompt = pickTaskPrompt(block.input);
                     if (prompt) {
                         queueTaskPromptSubagent(state, prompt, call);
                     }
                     setSubagentTitle(state, sessionSubagentForCall, pickTaskTitle(block.input) ?? prompt);
+                    maybeEmitSubagentStart(state, turnId, sessionSubagentForCall, envelopes);
                 }
                 if (shouldHideParentToolCall(name)) {
                     getHiddenParentToolCalls(state).add(call);
@@ -657,7 +704,8 @@ function mapClaudeLogMessageToSessionEnvelopesInternal(
         }
         if (typeof message.message.content === 'string') {
             if (message.isSidechain) {
-                const turnId = ensureTurn(state, envelopes);
+                const turnId = (subagent ? getSubagentTurnIds(state).get(subagent) : undefined)
+                    ?? ensureTurn(state, envelopes, claudeUuid);
                 maybeEmitSubagentStart(state, turnId, subagent, envelopes);
                 envelopes.push(createEnvelope('agent', { t: 'text', text: message.message.content }, { turn: turnId, subagent, claudeUuid }));
             } else {
@@ -696,7 +744,14 @@ function mapClaudeLogMessageToSessionEnvelopesInternal(
             };
         }
 
-        const turnId = ensureTurn(state, envelopes);
+        const rememberedToolResultTurn = blocks
+            .filter((block) => block?.type === 'tool_result' && typeof block.tool_use_id === 'string')
+            .map((block) => getSessionSubagentIdForProviderSubagent(state, block.tool_use_id))
+            .map((sessionSubagent) => sessionSubagent ? getSubagentTurnIds(state).get(sessionSubagent) : undefined)
+            .find((turn): turn is string => typeof turn === 'string');
+        const turnId = rememberedToolResultTurn
+            ?? state.currentTurnId
+            ?? ensureTurn(state, envelopes, claudeUuid);
         if (message.isSidechain) {
             maybeEmitSubagentStart(state, turnId, subagent, envelopes);
         }
@@ -715,9 +770,9 @@ function mapClaudeLogMessageToSessionEnvelopesInternal(
                                 envelopes,
                                 subagentStatus,
                                 subagentDetail,
+                                true,
                             );
                         }
-                        getHiddenParentToolCalls(state).delete(block.tool_use_id);
                         continue;
                     }
                     if (sessionSubagentForToolResult) {
@@ -728,6 +783,7 @@ function mapClaudeLogMessageToSessionEnvelopesInternal(
                             envelopes,
                             subagentStatus,
                             subagentDetail,
+                            true,
                         );
                     }
                 }

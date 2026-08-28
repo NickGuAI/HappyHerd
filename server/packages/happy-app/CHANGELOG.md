@@ -1,3 +1,8 @@
+# August 28 — Child-agent outcomes stay accurate
+
+- Claude and Codex child-agent cards now trust provider-confirmed completion, failure, cancellation, and interruption even when a child returns no final text or reports after the root turn ends.
+- When no child terminal evidence arrives, the activity timer ends as unknown instead of being mislabeled as interrupted; late and replayed provider outcomes correct the same child card without duplicates.
+
 # August 28 — Scheduled automations run without approval stalls
 
 - Scheduled Claude and Codex automations now launch with an explicit provider-native unattended policy instead of inheriting a changing interactive default.

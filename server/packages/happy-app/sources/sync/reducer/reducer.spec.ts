@@ -3367,6 +3367,192 @@ describe('reducer', () => {
                 expect(providerTool.children).toHaveLength(0);
             }
         });
+
+        it('lets provider authority correct provisional or legacy child outcomes regardless of replay order', () => {
+            const subagent = createId();
+            const owner = {
+                id: 'authoritative-child-owner',
+                localId: null,
+                createdAt: 1000,
+                role: 'agent' as const,
+                isSidechain: false,
+                content: [{
+                    type: 'tool-call' as const,
+                    id: subagent,
+                    name: 'Subagent',
+                    input: { sessionSubagent: subagent, title: 'Lifecycle child' },
+                    description: 'Lifecycle child',
+                    uuid: 'authoritative-child-owner-uuid',
+                    parentUUID: null,
+                }],
+            };
+            const provisional = {
+                id: 'provisional-child-stop',
+                localId: null,
+                createdAt: 1200,
+                role: 'agent' as const,
+                isSidechain: false,
+                content: [{
+                    type: 'tool-result' as const,
+                    tool_use_id: subagent,
+                    content: { status: 'interrupted', detail: 'Legacy root-turn inference' },
+                    is_error: true,
+                    authoritative: false,
+                    uuid: 'provisional-child-stop-uuid',
+                    parentUUID: null,
+                }],
+            };
+            const provider = {
+                id: 'provider-child-stop',
+                localId: null,
+                createdAt: 1100,
+                role: 'agent' as const,
+                isSidechain: false,
+                content: [{
+                    type: 'tool-result' as const,
+                    tool_use_id: subagent,
+                    content: { status: 'completed' },
+                    is_error: false,
+                    authoritative: true,
+                    uuid: 'provider-child-stop-uuid',
+                    parentUUID: null,
+                }],
+            };
+
+            for (const terminalOrder of [[provisional, provider], [provider, provisional]]) {
+                const state = createReducer();
+                const result = reducer(state, [owner, ...terminalOrder]);
+                expect(result.messages).toHaveLength(1);
+                expect(result.messages[0].kind).toBe('tool-call');
+                if (result.messages[0].kind === 'tool-call') {
+                    expect(result.messages[0].tool.state).toBe('completed');
+                    expect(result.messages[0].tool.result).toEqual({ status: 'completed' });
+                    expect(result.messages[0].tool.completedAt).toBe(1100);
+                    expect(result.messages[0].tool.resultAuthoritative).toBe(true);
+                }
+            }
+        });
+
+        it('converges duplicate provider child terminals without extending duration', () => {
+            const state = createReducer();
+            const subagent = createId();
+            reducer(state, [{
+                id: 'duplicate-child-owner',
+                localId: null,
+                createdAt: 1000,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-call',
+                    id: subagent,
+                    name: 'Subagent',
+                    input: { sessionSubagent: subagent, title: 'Lifecycle child' },
+                    description: 'Lifecycle child',
+                    uuid: 'duplicate-child-owner-uuid',
+                    parentUUID: null,
+                }],
+            }, {
+                id: 'duplicate-provider-stop-1',
+                localId: null,
+                createdAt: 1100,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-result',
+                    tool_use_id: subagent,
+                    content: { status: 'completed' },
+                    is_error: false,
+                    authoritative: true,
+                    uuid: 'duplicate-provider-stop-1-uuid',
+                    parentUUID: null,
+                }],
+            }]);
+
+            const duplicate = reducer(state, [{
+                id: 'duplicate-provider-stop-2',
+                localId: null,
+                createdAt: 1300,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-result',
+                    tool_use_id: subagent,
+                    content: { status: 'completed' },
+                    is_error: false,
+                    authoritative: true,
+                    uuid: 'duplicate-provider-stop-2-uuid',
+                    parentUUID: null,
+                }],
+            }]);
+
+            expect(duplicate.messages).toEqual([]);
+            const messageId = state.toolIdToMessageId.get(subagent);
+            expect(messageId).toBeDefined();
+            expect(state.messages.get(messageId!)?.tool).toMatchObject({
+                state: 'completed',
+                completedAt: 1100,
+                result: { status: 'completed' },
+                resultAuthoritative: true,
+            });
+        });
+
+        it('upgrades an equivalent provisional child result to provider authority', () => {
+            const state = createReducer();
+            const subagent = createId();
+            const result = reducer(state, [{
+                id: 'equivalent-child-owner',
+                localId: null,
+                createdAt: 1000,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-call',
+                    id: subagent,
+                    name: 'Subagent',
+                    input: { sessionSubagent: subagent, title: 'Lifecycle child' },
+                    description: 'Lifecycle child',
+                    uuid: 'equivalent-child-owner-uuid',
+                    parentUUID: null,
+                }],
+            }, {
+                id: 'equivalent-provisional-stop',
+                localId: null,
+                createdAt: 1200,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-result',
+                    tool_use_id: subagent,
+                    content: { status: 'completed' },
+                    is_error: false,
+                    authoritative: false,
+                    uuid: 'equivalent-provisional-stop-uuid',
+                    parentUUID: null,
+                }],
+            }, {
+                id: 'equivalent-provider-stop',
+                localId: null,
+                createdAt: 1100,
+                role: 'agent',
+                isSidechain: false,
+                content: [{
+                    type: 'tool-result',
+                    tool_use_id: subagent,
+                    content: { status: 'completed' },
+                    is_error: false,
+                    authoritative: true,
+                    uuid: 'equivalent-provider-stop-uuid',
+                    parentUUID: null,
+                }],
+            }]);
+
+            expect(result.messages).toHaveLength(1);
+            expect(result.messages[0].kind).toBe('tool-call');
+            if (result.messages[0].kind === 'tool-call') {
+                expect(result.messages[0].tool.completedAt).toBe(1100);
+                expect(result.messages[0].tool.resultAuthoritative).toBe(true);
+            }
+        });
     });
 
     describe('TodoWrite latestTodos handling', () => {

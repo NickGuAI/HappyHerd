@@ -196,6 +196,11 @@ describe('mapClaudeLogMessageToSessionEnvelopes', () => {
             },
         } as any, state);
         expect(parent.envelopes.some((envelope) => envelope.ev.t === 'tool-call-start')).toBe(false);
+        const start = parent.envelopes.find((envelope) => envelope.ev.t === 'start');
+        expect(start).toMatchObject({
+            ev: { t: 'start', title: 'Inspect translations' },
+            subagent: expect.any(String),
+        });
 
         const child = mapClaudeLogMessageToSessionEnvelopes({
             type: 'assistant',
@@ -206,17 +211,14 @@ describe('mapClaudeLogMessageToSessionEnvelopes', () => {
                 content: [{ type: 'text', text: 'child evidence' }],
             },
         } as any, state);
-        const start = child.envelopes.find((envelope) => envelope.ev.t === 'start');
-        expect(start).toMatchObject({
-            ev: { t: 'start', title: 'Inspect translations' },
-            subagent: expect.any(String),
-        });
+        expect(child.envelopes.some((envelope) => envelope.ev.t === 'start')).toBe(false);
+        expect(child.envelopes[0]?.subagent).toBe(start?.subagent);
         expect(isCuid(String(start?.subagent))).toBe(true);
     });
 
     it('generates stable session subagent ids for the same provider tool id', () => {
         const firstState = { currentTurnId: null };
-        mapClaudeLogMessageToSessionEnvelopes({
+        const firstParent = mapClaudeLogMessageToSessionEnvelopes({
             type: 'assistant',
             uuid: 'a-agent-stable-1',
             message: {
@@ -232,7 +234,7 @@ describe('mapClaudeLogMessageToSessionEnvelopes', () => {
                 }],
             },
         } as any, firstState);
-        const first = mapClaudeLogMessageToSessionEnvelopes({
+        mapClaudeLogMessageToSessionEnvelopes({
             type: 'assistant',
             uuid: 'a-agent-stable-child-1',
             parent_tool_use_id: 'tool-agent-stable',
@@ -240,7 +242,7 @@ describe('mapClaudeLogMessageToSessionEnvelopes', () => {
         } as any, firstState);
 
         const secondState = { currentTurnId: null };
-        mapClaudeLogMessageToSessionEnvelopes({
+        const secondParent = mapClaudeLogMessageToSessionEnvelopes({
             type: 'assistant',
             uuid: 'a-agent-stable-2',
             message: {
@@ -256,15 +258,15 @@ describe('mapClaudeLogMessageToSessionEnvelopes', () => {
                 }],
             },
         } as any, secondState);
-        const second = mapClaudeLogMessageToSessionEnvelopes({
+        mapClaudeLogMessageToSessionEnvelopes({
             type: 'assistant',
             uuid: 'a-agent-stable-child-2',
             parent_tool_use_id: 'tool-agent-stable',
             message: { role: 'assistant', content: [{ type: 'text', text: 'second' }] },
         } as any, secondState);
 
-        const firstStart = first.envelopes.find((envelope) => envelope.ev.t === 'start');
-        const secondStart = second.envelopes.find((envelope) => envelope.ev.t === 'start');
+        const firstStart = firstParent.envelopes.find((envelope) => envelope.ev.t === 'start');
+        const secondStart = secondParent.envelopes.find((envelope) => envelope.ev.t === 'start');
         expect(firstStart?.subagent).toBe(secondStart?.subagent);
         expect(isCuid(String(firstStart?.subagent))).toBe(true);
     });
@@ -288,6 +290,7 @@ describe('mapClaudeLogMessageToSessionEnvelopes', () => {
             },
         } as any, state);
         expect(started.envelopes.some((envelope) => envelope.ev.t === 'tool-call-start')).toBe(false);
+        const sessionSubagent = started.envelopes.find((envelope) => envelope.ev.t === 'start')?.subagent;
 
         const child = mapClaudeLogMessageToSessionEnvelopes({
             type: 'assistant',
@@ -298,10 +301,9 @@ describe('mapClaudeLogMessageToSessionEnvelopes', () => {
                 content: [{ type: 'text', text: 'child result' }],
             },
         } as any, state);
-        const sessionSubagent = child.envelopes.find((envelope) => envelope.ev.t === 'start')?.subagent;
         expect(child.envelopes.some((envelope) => {
             return envelope.ev.t === 'start' && envelope.subagent === sessionSubagent;
-        })).toBe(true);
+        })).toBe(false);
 
         const stopped = mapClaudeLogMessageToSessionEnvelopes({
             type: 'user',
@@ -427,16 +429,16 @@ describe('mapClaudeLogMessageToSessionEnvelopes', () => {
             },
         } as any, state);
 
-        expect(sidechainRoot.envelopes).toHaveLength(2);
-        const mappedSubagent = sidechainRoot.envelopes[0].subagent;
+        expect(sidechainRoot.envelopes).toHaveLength(1);
+        const lifecycleStart = taskToolUse.envelopes.find((envelope) => envelope.ev.t === 'start');
+        const mappedSubagent = lifecycleStart?.subagent;
         expect(mappedSubagent).toBeDefined();
         expect(isCuid(mappedSubagent!)).toBe(true);
         expect(mappedSubagent).not.toBe('task-call-1');
-        expect(sidechainRoot.envelopes[0].role).toBe('agent');
+        expect(lifecycleStart?.role).toBe('agent');
+        expect(lifecycleStart?.ev).toEqual({ t: 'start', title: 'Search TypeScript docs' });
         expect(sidechainRoot.envelopes[0].subagent).toBe(mappedSubagent);
-        expect(sidechainRoot.envelopes[0].ev).toEqual({ t: 'start', title: 'Search TypeScript docs' });
-        expect(sidechainRoot.envelopes[1].subagent).toBe(mappedSubagent);
-        expect(sidechainRoot.envelopes[1].ev).toEqual({ t: 'text', text: prompt });
+        expect(sidechainRoot.envelopes[0].ev).toEqual({ t: 'text', text: prompt });
 
         const sidechainChild = mapClaudeLogMessageToSessionEnvelopes({
             type: 'assistant',
@@ -563,20 +565,120 @@ describe('closeClaudeTurnWithStatus', () => {
         expect(result.envelopes[0].ev).toEqual({ t: 'turn-end', status: 'cancelled' });
     });
 
-    it('stops active subagents before ending an aborted turn', () => {
+    it('ends active child timing neutrally without inventing an interruption', () => {
         const subagent = createId();
-        const result = closeClaudeTurnWithStatus({
+        const state = {
             currentTurnId: 'turn-1',
             startedSubagents: new Set([subagent]),
             activeSubagents: new Set([subagent]),
-        }, 'cancelled');
+            subagentTurnIds: new Map([[subagent, 'turn-1']]),
+        };
+        const result = closeClaudeTurnWithStatus(state, 'cancelled');
 
         expect(result.currentTurnId).toBeNull();
         expect(result.envelopes).toHaveLength(2);
         expect(result.envelopes[0]).toMatchObject({
             subagent,
-            ev: { t: 'stop' },
+            turn: 'turn-1',
+            ev: { t: 'stop', status: 'unknown', authoritative: false },
         });
         expect(result.envelopes[1].ev).toEqual({ t: 'turn-end', status: 'cancelled' });
+        expect(state.startedSubagents.has(subagent)).toBe(true);
+        expect(state.subagentTurnIds.get(subagent)).toBe('turn-1');
+        expect((state as any).subagentStops.get(subagent)).toEqual({ status: 'unknown', authoritative: false });
+    });
+
+    it('corrects a provisional close with a late provider tool result on the original turn', () => {
+        const state = { currentTurnId: null };
+        const parent = mapClaudeLogMessageToSessionEnvelopes({
+            type: 'assistant',
+            uuid: 'parent-tool-message',
+            message: {
+                role: 'assistant',
+                content: [{
+                    type: 'tool_use',
+                    id: 'task-late-terminal',
+                    name: 'Task',
+                    input: { prompt: 'Inspect lifecycle' },
+                }],
+            },
+        } as any, state);
+        const start = parent.envelopes.find((envelope) => envelope.ev.t === 'start');
+        expect(start?.turn).toBeDefined();
+
+        const closed = closeClaudeTurnWithStatus(state, 'completed');
+        expect(closed.envelopes[0]).toMatchObject({
+            turn: start?.turn,
+            subagent: start?.subagent,
+            ev: { t: 'stop', status: 'unknown', authoritative: false },
+        });
+
+        const nextRoot = mapClaudeLogMessageToSessionEnvelopes({
+            type: 'assistant',
+            uuid: 'next-root-message',
+            message: { role: 'assistant', content: [{ type: 'text', text: 'next root' }] },
+        } as any, state);
+        const nextTurn = nextRoot.envelopes.find((envelope) => envelope.ev.t === 'turn-start')?.turn;
+        expect(nextTurn).not.toBe(start?.turn);
+
+        const terminalMessage = {
+            type: 'user',
+            uuid: 'late-tool-result',
+            isSidechain: false,
+            message: {
+                role: 'user',
+                content: [{
+                    type: 'tool_result',
+                    tool_use_id: 'task-late-terminal',
+                    content: null,
+                }],
+            },
+        } as any;
+        const terminal = mapClaudeLogMessageToSessionEnvelopes(terminalMessage, state);
+        expect(terminal.envelopes).toEqual([
+            expect.objectContaining({
+                turn: start?.turn,
+                subagent: start?.subagent,
+                ev: { t: 'stop', status: 'completed', authoritative: true },
+            }),
+        ]);
+        expect(state.currentTurnId).toBe(nextTurn);
+
+        expect(mapClaudeLogMessageToSessionEnvelopes(terminalMessage, state).envelopes).toEqual([]);
+    });
+
+    it('derives stable turn and child lifecycle ids when replaying Claude logs', () => {
+        const rows = [{
+            type: 'assistant',
+            uuid: 'parent-stable-turn',
+            message: {
+                role: 'assistant',
+                content: [{
+                    type: 'tool_use',
+                    id: 'task-stable-turn',
+                    name: 'Task',
+                    input: { prompt: 'Inspect lifecycle' },
+                }],
+            },
+        }, {
+            type: 'assistant',
+            uuid: 'child-stable-turn',
+            parent_tool_use_id: 'task-stable-turn',
+            message: { role: 'assistant', content: [{ type: 'text', text: 'child evidence' }] },
+        }] as any[];
+        const replay = () => {
+            const state = { currentTurnId: null };
+            return rows.flatMap((row) => mapClaudeLogMessageToSessionEnvelopes(row, state).envelopes);
+        };
+
+        const first = replay();
+        const second = replay();
+        const firstStart = first.find((envelope) => envelope.ev.t === 'start');
+        const secondStart = second.find((envelope) => envelope.ev.t === 'start');
+        expect(secondStart).toMatchObject({
+            id: firstStart?.id,
+            turn: firstStart?.turn,
+            subagent: firstStart?.subagent,
+        });
     });
 });

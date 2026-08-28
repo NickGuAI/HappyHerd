@@ -67,6 +67,11 @@ export async function buildCodexThreadBackfillEnvelopes(opts: {
     const envelopes: SessionEnvelope[] = [];
     const providerSubagentToSessionSubagent = new Map<string, string>();
     const subagentTitles = new Map<string, string>();
+    const subagentTurnIds = new Map<string, string>();
+    const subagentStops = new Map<string, {
+        status: 'completed' | 'failed' | 'cancelled' | 'interrupted' | 'unknown';
+        authoritative: boolean;
+    }>();
     const collabReceiverThreadIdsByCall = new Map<string, string[]>();
     const collabToolByCall = new Map<string, string>();
 
@@ -77,6 +82,8 @@ export async function buildCodexThreadBackfillEnvelopes(opts: {
             currentTurnId: turn.id,
             startedSubagents: new Set<string>(),
             activeSubagents: new Set<string>(),
+            subagentTurnIds,
+            subagentStops,
             providerSubagentToSessionSubagent,
             subagentTitles,
             collabReceiverThreadIdsByCall,
@@ -113,14 +120,20 @@ export async function buildCodexThreadBackfillEnvelopes(opts: {
 
         if (!isCodexTurnInProgress(turn)) {
             for (const subagent of state.activeSubagents) {
-                envelopes.push(createEnvelope('agent', { t: 'stop' }, {
-                    turn: turn.id,
+                const owningTurn = subagentTurnIds.get(subagent) ?? turn.id;
+                envelopes.push(createEnvelope('agent', {
+                    t: 'stop',
+                    status: 'unknown',
+                    authoritative: false,
+                }, {
+                    id: `${owningTurn}:${subagent}:stop:provisional:unknown`,
+                    turn: owningTurn,
                     subagent,
                     time: completedAt,
                 }));
+                subagentStops.set(subagent, { status: 'unknown', authoritative: false });
             }
             state.activeSubagents.clear();
-            state.startedSubagents.clear();
             envelopes.push(createEnvelope('agent', { t: 'turn-end', status: turnStatus(turn) }, {
                 id: `${turn.id}:end`,
                 turn: turn.id,

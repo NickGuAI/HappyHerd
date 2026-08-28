@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 28 — Child-agent outcomes stay accurate",
+      "summary": "",
+      "markdown": "- Claude and Codex child-agent cards now trust provider-confirmed completion, failure, cancellation, and interruption even when a child returns no final text or reports after the root turn ends.\n- When no child terminal evidence arrives, the activity timer ends as unknown instead of being mislabeled as interrupted; late and replayed provider outcomes correct the same child card without duplicates."
+    },
+    {
       "title": "August 28 — Scheduled automations run without approval stalls",
       "summary": "",
       "markdown": "- Scheduled Claude and Codex automations now launch with an explicit provider-native unattended policy instead of inheriting a changing interactive default.\n- Unexpected interactive permission requests fail the exact automation run without leaving an unanswerable approval, so later schedules can continue.\n- Operators can stop an exact daemon-tracked run or explicitly abandon a confirmed legacy orphan while preserving its history."
@@ -291,5 +296,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 28 — Scheduled automations run without approval stalls"
+  "latestTitle": "August 28 — Child-agent outcomes stay accurate"
 }

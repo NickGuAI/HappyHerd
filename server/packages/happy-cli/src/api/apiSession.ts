@@ -228,6 +228,8 @@ export class ApiSessionClient extends EventEmitter {
         hiddenParentToolCalls: new Set<string>(),
         startedSubagents: new Set<string>(),
         activeSubagents: new Set<string>(),
+        subagentTurnIds: new Map<string, string>(),
+        subagentStops: new Map(),
     };
     /**
      * How far this client has consumed the session's message log.

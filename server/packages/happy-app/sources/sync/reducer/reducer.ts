@@ -867,14 +867,34 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         continue;
                     }
 
+                    const isSubagent = message.tool.name === 'Subagent';
+                    const incomingAuthoritative = c.authoritative === true;
+                    const existingAuthoritative = message.tool.resultAuthoritative === true;
+                    const sameResult = message.tool.state === (c.is_error ? 'error' : 'completed')
+                        && JSON.stringify(message.tool.result) === JSON.stringify(c.content);
                     if (message.tool.state !== 'running') {
-                        continue;
+                        if (!isSubagent) {
+                            continue;
+                        }
+                        if (existingAuthoritative && !incomingAuthoritative) {
+                            continue;
+                        }
+                        if (sameResult && existingAuthoritative === incomingAuthoritative) {
+                            continue;
+                        }
+                        if (existingAuthoritative === incomingAuthoritative
+                            && msg.createdAt < (message.tool.completedAt ?? 0)) {
+                            continue;
+                        }
                     }
 
                     // Update tool state and result
                     message.tool.state = c.is_error ? 'error' : 'completed';
                     message.tool.result = c.content;
                     message.tool.completedAt = msg.createdAt;
+                    if (isSubagent) {
+                        message.tool.resultAuthoritative = incomingAuthoritative;
+                    }
 
                     // Update permission data if provided by backend
                     if (c.permissions) {

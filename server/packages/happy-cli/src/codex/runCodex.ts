@@ -548,11 +548,18 @@ export async function runCodex(opts: {
     }
     let thinking = false;
     let currentTurnId: string | null = null;
+    let lastTurnId: string | null = null;
     let codexStartedSubagents = new Set<string>();
     let codexActiveSubagents = new Set<string>();
+    let codexSubagentTurnIds = new Map<string, string>();
+    let codexSubagentStops = new Map<string, {
+        status: 'completed' | 'failed' | 'cancelled' | 'interrupted' | 'unknown';
+        authoritative: boolean;
+    }>();
     let codexProviderSubagentToSessionSubagent = new Map<string, string>();
     let codexSubagentTitles = new Map<string, string>();
     let codexCollabReceiverThreadIdsByCall = new Map<string, string[]>();
+    let codexCollabTurnIdsByCall = new Map<string, string>();
     let codexCollabToolByCall = new Map<string, string>();
     let activeTurnPermissionMode: PermissionMode | undefined = undefined;
     let automationTerminalEvent: { status: 'completed' | 'failed'; message: string | null } | null = null;
@@ -1042,19 +1049,27 @@ export async function runCodex(opts: {
             && (!isReasoningEvent || isForwardableSubagentReasoning)) {
             const mapped = mapCodexMcpMessageToSessionEnvelopes(msg, {
                 currentTurnId,
+                lastTurnId,
                 startedSubagents: codexStartedSubagents,
                 activeSubagents: codexActiveSubagents,
+                subagentTurnIds: codexSubagentTurnIds,
+                subagentStops: codexSubagentStops,
                 providerSubagentToSessionSubagent: codexProviderSubagentToSessionSubagent,
                 subagentTitles: codexSubagentTitles,
                 collabReceiverThreadIdsByCall: codexCollabReceiverThreadIdsByCall,
+                collabTurnIdsByCall: codexCollabTurnIdsByCall,
                 collabToolByCall: codexCollabToolByCall,
             });
             currentTurnId = mapped.currentTurnId;
+            lastTurnId = mapped.lastTurnId;
             codexStartedSubagents = mapped.startedSubagents;
             codexActiveSubagents = mapped.activeSubagents;
+            codexSubagentTurnIds = mapped.subagentTurnIds;
+            codexSubagentStops = mapped.subagentStops;
             codexProviderSubagentToSessionSubagent = mapped.providerSubagentToSessionSubagent;
             codexSubagentTitles = mapped.subagentTitles;
             codexCollabReceiverThreadIdsByCall = mapped.collabReceiverThreadIdsByCall;
+            codexCollabTurnIdsByCall = mapped.collabTurnIdsByCall;
             codexCollabToolByCall = mapped.collabToolByCall;
             for (const envelope of mapped.envelopes) {
                 session.sendSessionProtocolMessage(envelope);
@@ -1188,11 +1203,15 @@ export async function runCodex(opts: {
                 logger.debug('[Codex] Handling /clear command - resetting Codex thread state');
                 client.clearThreadState();
                 currentTurnId = null;
+                lastTurnId = null;
                 codexStartedSubagents = new Set<string>();
                 codexActiveSubagents = new Set<string>();
+                codexSubagentTurnIds = new Map<string, string>();
+                codexSubagentStops = new Map();
                 codexProviderSubagentToSessionSubagent = new Map<string, string>();
                 codexSubagentTitles = new Map<string, string>();
                 codexCollabReceiverThreadIdsByCall = new Map<string, string[]>();
+                codexCollabTurnIdsByCall = new Map<string, string>();
                 codexCollabToolByCall = new Map<string, string>();
                 permissionHandler.reset();
                 reasoningProcessor.abort();

@@ -93,6 +93,7 @@ const sessionTurnEndEventSchema = z.object({
 const sessionStopEventSchema = z.object({
     t: z.literal('stop'),
     status: z.enum(['completed', 'failed', 'cancelled', 'interrupted', 'unknown']).optional(),
+    authoritative: z.boolean().optional(),
     detail: z.string().optional(),
 });
 
@@ -501,6 +502,7 @@ type NormalizedAgentContent =
         tool_use_id: string;
         content: any;
         is_error: boolean;
+        authoritative?: boolean;
         uuid: string;
         parentUUID: string | null;
         permissions?: {
@@ -623,6 +625,7 @@ function normalizeSessionEnvelope(
                     ...(envelope.ev.detail ? { detail: envelope.ev.detail } : {}),
                 },
                 is_error: status === 'failed' || status === 'interrupted',
+                authoritative: envelope.ev.authoritative === true,
                 uuid: contentUUID,
                 parentUUID: null,
             }],

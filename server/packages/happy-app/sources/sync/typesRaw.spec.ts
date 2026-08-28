@@ -2036,6 +2036,7 @@ describe('Zod Transform - WOLOG Content Normalization', () => {
                         ev: {
                             t: 'stop',
                             status: 'failed',
+                            authoritative: true,
                             detail: 'Provider child failed',
                         }
                     }
@@ -2049,6 +2050,7 @@ describe('Zod Transform - WOLOG Content Normalization', () => {
                     type: 'tool-result',
                     tool_use_id: subagent,
                     is_error: true,
+                    authoritative: true,
                     content: {
                         status: 'failed',
                         detail: 'Provider child failed',
