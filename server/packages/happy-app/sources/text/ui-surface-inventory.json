@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "07085c0551165051756788931c5443bdd3dbd91ba12d30697700c44fe757bf98",
+  "sourceFingerprint": "142f23e484c7e377960fd60057e9631e108519e60f1bd5a3fdb020a224b6dfb7",
   "routeCount": 36,
   "surfaceCount": 244,
   "hardcodedCopyCount": 0,
@@ -5049,7 +5049,8 @@
         "sessionInfo.resumeSessionUnexpectedDirectoryPrompt",
         "uiCopy.archive",
         "uiCopy.copyMetadataAndClientLogs",
-        "uiCopy.session"
+        "uiCopy.session",
+        "uiCopy.theSelectedAgentConfigurationIsUnavailable"
       ],
       "states": [],
       "hardcodedCopy": []

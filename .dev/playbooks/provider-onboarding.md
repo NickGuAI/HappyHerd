@@ -66,6 +66,13 @@ provider advertised; a deny-without-prompt mode selects an advertised reject
 or cancels. An unknown provider or mode fails safe rather than inheriting
 another provider's policy. Launch flags alone do not prove this behavior.
 
+If the provider supports resume, persist the exact launch policy in session
+metadata and restore it through both app and terminal resume. Revalidate it
+against the current catalog on the exact owning machine before relaunch; never
+derive a launch policy from runtime message-mode metadata or ACP operating
+mode. Repeat the late-callback matrix after resume so an allow-without-prompt
+or deny-without-prompt policy cannot silently become interactive.
+
 For GrokBuild specifically, `server/packages/happy-cli/src/capabilities/agentCapabilities.ts`
 discovers permission modes from `grok --help`,
 `server/packages/happy-cli/src/agent/acp/acpAgentConfig.ts` applies them at

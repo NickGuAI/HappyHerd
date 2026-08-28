@@ -6,6 +6,12 @@ import { hasLocalHappyAgentAuth } from '@/resume/localHappyAgentAuth';
 import { spawnHappyCLI } from '@/utils/spawnHappyCLI';
 import { buildSessionChildEnvironment, sanitizeSessionEnvironment } from '@/daemon/sessionEnvironment';
 import { contextEnvironment, prepareCommanderContext } from '@/agentContext/commanderContext';
+import { detectAgentCapabilities } from '@/capabilities/agentCapabilities';
+import {
+    persistedProviderPermissionMode,
+    resolveEffectiveSessionSettings,
+} from '@/capabilities/sessionLaunchSettings';
+import { detectCLIAvailability } from '@/utils/detectCLI';
 
 import { LocalResumeSessionError, resolveLocalReconnectableSession } from './localResumeStore';
 import { resolveHappySession, type ReconnectableHappySession, type ResumableHappySession } from './resolveHappySession';
@@ -156,6 +162,38 @@ function spawnResumeChild(launch: ResumeLaunch, env: NodeJS.ProcessEnv = sanitiz
     });
 }
 
+/** Rebuild a local Grok resume from the saved launch receipt and today's local provider catalog. */
+export async function buildValidatedTerminalResumeLaunch(
+    session: ResumableHappySession,
+): Promise<ResumeLaunch> {
+    const launch = buildResumeLaunch(session);
+    if (resolveFlavor(session.metadata) !== 'grok') return launch;
+
+    const permissionMode = persistedProviderPermissionMode(session.metadata, 'grok');
+    if (!permissionMode) return launch;
+
+    const availability = detectCLIAvailability();
+    const discovery = await detectAgentCapabilities(availability);
+    const settings = resolveEffectiveSessionSettings({
+        host: 'local',
+        platform: process.platform,
+        happyCliVersion: 'local',
+        homeDir: session.metadata.homeDir,
+        happyHomeDir: session.metadata.happyHomeDir,
+        happyLibDir: session.metadata.happyLibDir,
+        cliAvailability: availability,
+        agentCapabilities: discovery.capabilities,
+        ...(discovery.grokCapabilityError ? { grokCapabilityError: discovery.grokCapabilityError } : {}),
+    }, 'local', {
+        provider: 'grok',
+        permission: permissionMode,
+    });
+    if (settings.permission) {
+        launch.args.push('--permission-mode', settings.permission);
+    }
+    return launch;
+}
+
 async function resolveLegacySessionIfAvailable(sessionId: string): Promise<ResumableHappySession | null> {
     if (!hasLocalHappyAgentAuth()) {
         return null;
@@ -182,7 +220,7 @@ export async function handleResumeCommand(args: string[]): Promise<void> {
     }
 
     if (reconnectableSession) {
-        const launch = buildResumeLaunch(reconnectableSession);
+        const launch = await buildValidatedTerminalResumeLaunch(reconnectableSession);
 
         if (!existsSync(launch.cwd)) {
             throw new Error(`Saved session path does not exist: ${launch.cwd}`);
@@ -199,7 +237,7 @@ export async function handleResumeCommand(args: string[]): Promise<void> {
     if (!session) {
         throw localError;
     }
-    const launch = buildResumeLaunch(session);
+    const launch = await buildValidatedTerminalResumeLaunch(session);
 
     if (!existsSync(launch.cwd)) {
         throw new Error(`Saved session path does not exist: ${launch.cwd}`);

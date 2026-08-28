@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => {
   const sessionHandlers = new Map<string, (params: any) => Promise<any> | any>();
@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => {
     sendSessionProtocolMessage: vi.fn(),
     sendSessionEvent: vi.fn(),
     updateMetadata: vi.fn(),
+    suppressNextArchiveSignal: vi.fn(),
+    skipExistingMessages: vi.fn(),
     sendSessionDeath: vi.fn(),
     flush: vi.fn(async () => {}),
     close: vi.fn(async () => {}),
@@ -45,6 +47,7 @@ const mocks = vi.hoisted(() => {
     mockApiCreate: vi.fn(),
     mockGetOrCreateMachine: vi.fn(async () => ({})),
     mockGetOrCreateSession: vi.fn(async () => ({ id: 'session-1' })),
+    mockRefreshSessionForReconnect: vi.fn(),
     mockSetupOfflineReconnection: vi.fn(),
     mockNotifyDaemonSessionStarted: vi.fn(async () => ({ error: null })),
     mockStartHappyServer: vi.fn(),
@@ -216,6 +219,17 @@ describe('runAcp', () => {
     mocks.mockApiCreate.mockResolvedValue({
       getOrCreateMachine: mocks.mockGetOrCreateMachine,
       getOrCreateSession: mocks.mockGetOrCreateSession,
+      refreshSessionForReconnect: mocks.mockRefreshSessionForReconnect,
+    });
+    mocks.mockRefreshSessionForReconnect.mockResolvedValue({
+      id: 'resumed-session',
+      metadata: {},
+      agentState: {},
+      seq: 12,
+      encryptionKey: new Uint8Array(32),
+      encryptionVariant: 'legacy',
+      metadataVersion: 4,
+      agentStateVersion: 5,
     });
     mocks.mockSetupOfflineReconnection.mockImplementation(() => ({
       session: mocks.mockSession,
@@ -226,6 +240,10 @@ describe('runAcp', () => {
       url: 'http://127.0.0.1:9876',
       stop: vi.fn(),
     });
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it('keeps Grok launch permission policy distinct from ACP operating mode', () => {
@@ -306,6 +324,55 @@ describe('runAcp', () => {
     await mocks.getKillHandler()!();
     await runPromise;
   });
+
+  it.each([
+    ['bypassPermissions', false, 'approved_without_prompt'],
+    ['dontAsk', false, 'denied'],
+    ['default', true, 'approved'],
+  ] as const)(
+    'keeps resumed Grok %s policy for a late permission callback',
+    async (permissionMode, requiresUserInput, expectedDecision) => {
+      vi.stubEnv('HAPPY_RECONNECT_SESSION_ID', 'resumed-session');
+      vi.stubEnv('HAPPY_RECONNECT_ENCRYPTION_KEY', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=');
+      vi.stubEnv('HAPPY_RECONNECT_ENCRYPTION_VARIANT', 'legacy');
+      vi.stubEnv('HAPPY_RECONNECT_SEQ', '12');
+      vi.stubEnv('HAPPY_RECONNECT_METADATA_VERSION', '4');
+      vi.stubEnv('HAPPY_RECONNECT_AGENT_STATE_VERSION', '5');
+
+      const runPromise = runAcp({
+        credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+        agentName: 'grok',
+        command: 'grok',
+        args: ['--no-auto-update', '--permission-mode', permissionMode, 'agent', 'stdio'],
+        permissionMode,
+        resumeSessionId: 'grok-provider-session',
+      });
+
+      await vi.waitFor(() => expect(mocks.backendState.startSessionCalls).toBe(1));
+      const handler = mocks.backendState.constructorArgs.permissionHandler;
+      const updateCountBeforeCallback = mocks.mockSession.updateAgentState.mock.calls.length;
+      expect(handler.requiresUserInput('late-grok-tool', 'execute', { command: 'pnpm test' }))
+        .toBe(requiresUserInput);
+
+      const decision = handler.handleToolCall(
+        'late-grok-tool',
+        'execute',
+        { command: 'pnpm test' },
+        'Run focused tests',
+      );
+      if (requiresUserInput) {
+        expect(mocks.mockSession.updateAgentState).toHaveBeenCalledTimes(updateCountBeforeCallback + 1);
+        const permissionResponse = mocks.sessionHandlers.get('permission');
+        await permissionResponse!({ id: 'late-grok-tool', approved: true, decision: 'approved' });
+      } else {
+        expect(mocks.mockSession.updateAgentState).toHaveBeenCalledTimes(updateCountBeforeCallback);
+      }
+      await expect(decision).resolves.toEqual({ decision: expectedDecision });
+
+      await mocks.getKillHandler()!();
+      await runPromise;
+    },
+  );
 
   it('wires backend messages through mapper into session envelopes', async () => {
     const runPromise = runAcp({

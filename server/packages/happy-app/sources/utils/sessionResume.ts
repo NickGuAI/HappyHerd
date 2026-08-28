@@ -13,6 +13,30 @@ export type ResumeAvailability = {
         | null;
 };
 
+function storedGrokPermissionMode(session: Session): string | undefined {
+    const persistedSettings = session.metadata?.spawnSettings;
+    if (persistedSettings?.provider === 'grok') {
+        return persistedSettings.permission ?? undefined;
+    }
+    return session.permissionMode ?? session.metadata?.permissionMode ?? undefined;
+}
+
+/** Resolve Grok's process launch policy only from the session that is being resumed. */
+export function getGrokResumePermissionMode(
+    session: Session,
+    machine: Machine | null | undefined,
+): string | undefined {
+    if (session.metadata?.flavor !== 'grok') return undefined;
+
+    const permissionMode = storedGrokPermissionMode(session);
+    if (!permissionMode) return undefined;
+
+    const catalog = machine?.metadata?.agentCapabilities?.grok;
+    return catalog?.permissionModes.some((option) => option.code === permissionMode)
+        ? permissionMode
+        : undefined;
+}
+
 export function getResumeAvailability(
     session: Session,
     machine: Machine | null | undefined,
@@ -48,6 +72,19 @@ export function getResumeAvailability(
 
     if (!isMachineOnline(machine)) {
         return { canResume: false, canShowResume: true, messageKey: 'sessionInfo.resumeSessionMachineOffline' };
+    }
+
+    if (session.metadata?.flavor === 'grok') {
+        const catalog = machine.metadata?.agentCapabilities?.grok;
+        const selectedPermission = storedGrokPermissionMode(session);
+        if (
+            machine.metadata?.cliAvailability?.grok !== true
+            || catalog?.acp?.loadSession !== true
+            || (selectedPermission !== undefined
+                && !catalog.permissionModes.some((option) => option.code === selectedPermission))
+        ) {
+            return { canResume: false, canShowResume: false, messageKey: null };
+        }
     }
 
     return { canResume: true, canShowResume: true, messageKey: 'sessionInfo.resumeSessionSubtitle' };

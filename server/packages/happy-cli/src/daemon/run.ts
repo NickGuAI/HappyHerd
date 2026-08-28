@@ -31,6 +31,10 @@ import { getTmuxUtilities, isTmuxAvailable, parseTmuxSessionIdentifier, formatTm
 import { expandEnvironmentVariables } from '@/utils/expandEnvVars';
 import { detectCLIAvailability } from '@/utils/detectCLI';
 import { buildBaselineAgentCapabilities } from '@/capabilities/agentCapabilities';
+import {
+  persistedProviderPermissionMode,
+  resolveEffectiveSessionSettings,
+} from '@/capabilities/sessionLaunchSettings';
 import { buildResumeLaunch } from '@/resume/handleResumeCommand';
 import { resolveCodexHomeForResume } from '@/resume/codexHome';
 import { detectResumeSupport } from '@/resume/localHappyAgentAuth';
@@ -1104,11 +1108,19 @@ export async function startDaemon(): Promise<void> {
         const codexHome = resumeAgent === 'codex'
           ? await resolveCodexHomeForResume(metadata, ambientEnvironment)
           : undefined;
+        const grokResumeSettings = resumeAgent === 'grok'
+          ? resolveEffectiveSessionSettings(machine.metadata, machine.id, {
+              provider: 'grok',
+              permission: options?.permissionMode
+                ?? persistedProviderPermissionMode(metadata, 'grok'),
+            })
+          : undefined;
         appendDaemonSpawnModeArgs(launch.args, {
           directory: launch.cwd,
           agent: resumeAgent,
           modelMode: options?.model,
-          permissionMode: options?.permissionMode,
+          permissionMode: grokResumeSettings?.permission
+            ?? options?.permissionMode,
         }, resumeAgent);
 
         await fs.access(launch.cwd);

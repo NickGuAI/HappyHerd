@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Machine, Session } from '@/sync/storageTypes';
-import { getResumeAvailability } from './sessionResume';
+import { getGrokResumePermissionMode, getResumeAvailability } from './sessionResume';
 
 function resumableSession(): Session {
     return {
@@ -67,16 +67,99 @@ describe('getResumeAvailability', () => {
                 loadSession: true,
                 prompt: { image: false },
             },
+            spawnSettings: {
+                provider: 'grok',
+                model: 'grok-build',
+                effort: 'high',
+                permission: 'dontAsk',
+            },
         } as Session['metadata'];
+        const machine = onlineMachine();
+        machine.metadata = {
+            host: 'target',
+            platform: 'linux',
+            happyCliVersion: '1.0.0',
+            homeDir: '/home/test',
+            happyHomeDir: '/home/test/.happyherd',
+            happyLibDir: '/srv/happy',
+            cliAvailability: {
+                claude: false,
+                codex: false,
+                gemini: false,
+                grok: true,
+                agy: false,
+                detectedAt: 1,
+            },
+            agentCapabilities: {
+                grok: {
+                    detectedAt: 1,
+                    sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
+                    models: [{ code: 'grok-build', value: 'GrokBuild', isDefault: true }],
+                    effortLevels: [{ code: 'high', value: 'High', isDefault: true }],
+                    permissionModes: [
+                        { code: 'default', value: 'Default', isDefault: true },
+                        { code: 'dontAsk', value: 'Deny without asking' },
+                    ],
+                    acp: { loadSession: true, prompt: { image: true } },
+                },
+            },
+        };
 
-        expect(getResumeAvailability(session, onlineMachine(), false)).toMatchObject({
+        expect(getResumeAvailability(session, machine, false)).toMatchObject({
             canResume: true,
             canShowResume: true,
         });
+        expect(getGrokResumePermissionMode(session, machine)).toBe('dontAsk');
         expect(getResumeAvailability(session, null, false)).toMatchObject({
             canResume: false,
             messageKey: 'sessionInfo.resumeSessionSameMachineOnly',
         });
+    });
+
+    it('rejects Grok resume when the current exact machine no longer advertises its launch policy', () => {
+        const session = resumableSession();
+        session.permissionMode = 'bypassPermissions';
+        session.metadata = {
+            ...session.metadata,
+            flavor: 'grok',
+            codexThreadId: undefined,
+            acpSessionId: 'grok-acp-session',
+            acpCapabilities: { loadSession: true, prompt: { image: false } },
+        } as Session['metadata'];
+        const machine = onlineMachine();
+        machine.metadata = {
+            host: 'target',
+            platform: 'linux',
+            happyCliVersion: '1.0.0',
+            homeDir: '/home/test',
+            happyHomeDir: '/home/test/.happyherd',
+            happyLibDir: '/srv/happy',
+            cliAvailability: {
+                claude: false,
+                codex: false,
+                gemini: false,
+                grok: true,
+                agy: false,
+                detectedAt: 1,
+            },
+            agentCapabilities: {
+                grok: {
+                    detectedAt: 1,
+                    sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
+                    models: [],
+                    effortLevels: [],
+                    permissionModes: [{ code: 'default', value: 'Default', isDefault: true }],
+                    acp: { loadSession: true, prompt: { image: false } },
+                },
+            },
+        };
+
+        expect(getResumeAvailability(session, machine, false)).toEqual({
+            canResume: false,
+            canShowResume: false,
+            messageKey: null,
+        });
+        expect(getGrokResumePermissionMode(session, machine)).toBeUndefined();
     });
 
     it('hides GrokBuild resume when ACP loadSession is false', () => {
