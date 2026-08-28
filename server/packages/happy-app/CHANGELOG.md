@@ -1,3 +1,8 @@
+# August 28 — Agent images and one attachment menu
+
+- PNG and JPEG images returned by Claude and Codex now stay encrypted with the session, render inline after reconnecting, and open at full size.
+- New and active chats now use one attachment button for Photos and Device files while keeping workspace browsing separate.
+
 # August 28 — Child-agent outcomes stay accurate
 
 - Claude and Codex child-agent cards now trust provider-confirmed completion, failure, cancellation, and interruption even when a child returns no final text or reports after the root turn ends.

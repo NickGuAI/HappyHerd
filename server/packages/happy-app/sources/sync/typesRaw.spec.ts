@@ -20,6 +20,36 @@ import { RawRecordSchema } from './typesRaw';
 
 describe('Zod Transform - WOLOG Content Normalization', () => {
 
+    it('normalizes persisted agent image files into completed inline file tools', () => {
+        const result = normalizeRawMessage('server-id', null, 1, {
+            role: 'session',
+            content: {
+                type: 'session',
+                data: {
+                    id: createId(),
+                    time: 123,
+                    role: 'agent',
+                    turn: createId(),
+                    ev: {
+                        t: 'file',
+                        ref: 'encrypted-agent-image',
+                        name: 'result.png',
+                        size: 42,
+                        mimeType: 'image/png',
+                    },
+                },
+            },
+        });
+
+        expect(result).toMatchObject({
+            role: 'agent',
+            content: [
+                { type: 'tool-call', name: 'file', input: { ref: 'encrypted-agent-image', mimeType: 'image/png' } },
+                { type: 'tool-result', is_error: false },
+            ],
+        });
+    });
+
     describe('Accepts and transforms hyphenated types', () => {
         it('transforms tool-call to tool_use with field remapping', () => {
             const message = {

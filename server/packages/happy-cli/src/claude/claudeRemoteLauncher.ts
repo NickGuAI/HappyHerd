@@ -124,7 +124,7 @@ export async function claudeRemoteLauncher(
 
     // Create outgoing message queue
     const messageQueue = new OutgoingMessageQueue(
-        (logMessage) => session.client.sendClaudeSessionMessage(logMessage)
+        (logMessage) => session.client.sendClaudeSessionMessageWithAgentImages(logMessage)
     );
 
     // Set up callback to release delayed messages when permission is requested

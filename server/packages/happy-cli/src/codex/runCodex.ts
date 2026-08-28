@@ -56,6 +56,7 @@ import { downloadCodexFileEventAttachment } from './utils/attachmentEvents';
 import { prepareCodexImageInputItems } from './utils/imageInput';
 import { createSerialAsyncHandler } from './utils/serialAsyncHandler';
 import { buildCodexThreadBackfillEnvelopes } from './utils/threadImageBackfill';
+import { extractCodexAgentOutputImages } from '@/sessionProtocol/providerOutputImages';
 import {
     buildCodexTurnPrompt,
     hashCodexEnhancedMode,
@@ -790,17 +791,29 @@ export async function runCodex(opts: {
     // process that died while a tool prompt was open — see the matching
     // call in claudeRemoteLauncher for the full rationale.
     permissionHandler.reset('Previous CLI process exited before responding');
+    let codexProtocolQueue: Promise<void> = Promise.resolve();
+    const enqueueCodexProtocolWork = (work: () => void | Promise<void>) => {
+        codexProtocolQueue = codexProtocolQueue
+            .then(work)
+            .catch((error) => {
+                logger.debug('[Codex] Failed to preserve provider output event', error);
+            });
+    };
     reasoningProcessor = new ReasoningProcessor((message) => {
-        const envelopes = mapCodexProcessorMessageToSessionEnvelopes(message, { currentTurnId });
-        for (const envelope of envelopes) {
-            session.sendSessionProtocolMessage(envelope);
-        }
+        enqueueCodexProtocolWork(() => {
+            const envelopes = mapCodexProcessorMessageToSessionEnvelopes(message, { currentTurnId });
+            for (const envelope of envelopes) {
+                session.sendSessionProtocolMessage(envelope);
+            }
+        });
     });
     const diffProcessor = new DiffProcessor((message) => {
-        const envelopes = mapCodexProcessorMessageToSessionEnvelopes(message, { currentTurnId });
-        for (const envelope of envelopes) {
-            session.sendSessionProtocolMessage(envelope);
-        }
+        enqueueCodexProtocolWork(() => {
+            const envelopes = mapCodexProcessorMessageToSessionEnvelopes(message, { currentTurnId });
+            for (const envelope of envelopes) {
+                session.sendSessionProtocolMessage(envelope);
+            }
+        });
     });
     const updateCodexGoalState = (message: Record<string, unknown>) => {
         const capabilities = codexGoalActionCapabilities(client.supportsGoalActions());
@@ -928,7 +941,9 @@ export async function runCodex(opts: {
 
     // Event handler: same EventMsg types as the legacy MCP server — no changes needed
     client.setEventHandler((msg) => {
-        logger.debug(`[Codex] Event: ${JSON.stringify(msg)}`);
+        logger.debug(msg.type === 'provider_output_item'
+            ? '[Codex] Event: provider_output_item'
+            : `[Codex] Event: ${JSON.stringify(msg)}`);
         const isSubagentScopedEvent = hasCodexSubagentReference(msg as Record<string, unknown>);
         const isAuthoritativeLifecycle = isAuthoritativeCodexLifecycle(msg as Record<string, unknown>);
 
@@ -1047,33 +1062,68 @@ export async function runCodex(opts: {
         if (msg.type !== 'turn_diff'
             && (!isLifecycleEvent || isAuthoritativeLifecycle)
             && (!isReasoningEvent || isForwardableSubagentReasoning)) {
-            const mapped = mapCodexMcpMessageToSessionEnvelopes(msg, {
-                currentTurnId,
-                lastTurnId,
-                startedSubagents: codexStartedSubagents,
-                activeSubagents: codexActiveSubagents,
-                subagentTurnIds: codexSubagentTurnIds,
-                subagentStops: codexSubagentStops,
-                providerSubagentToSessionSubagent: codexProviderSubagentToSessionSubagent,
-                subagentTitles: codexSubagentTitles,
-                collabReceiverThreadIdsByCall: codexCollabReceiverThreadIdsByCall,
-                collabTurnIdsByCall: codexCollabTurnIdsByCall,
-                collabToolByCall: codexCollabToolByCall,
+            enqueueCodexProtocolWork(async () => {
+                const mapped = mapCodexMcpMessageToSessionEnvelopes(msg, {
+                    currentTurnId,
+                    lastTurnId,
+                    startedSubagents: codexStartedSubagents,
+                    activeSubagents: codexActiveSubagents,
+                    subagentTurnIds: codexSubagentTurnIds,
+                    subagentStops: codexSubagentStops,
+                    providerSubagentToSessionSubagent: codexProviderSubagentToSessionSubagent,
+                    subagentTitles: codexSubagentTitles,
+                    collabReceiverThreadIdsByCall: codexCollabReceiverThreadIdsByCall,
+                    collabTurnIdsByCall: codexCollabTurnIdsByCall,
+                    collabToolByCall: codexCollabToolByCall,
+                });
+                currentTurnId = mapped.currentTurnId;
+                lastTurnId = mapped.lastTurnId;
+                codexStartedSubagents = mapped.startedSubagents;
+                codexActiveSubagents = mapped.activeSubagents;
+                codexSubagentTurnIds = mapped.subagentTurnIds;
+                codexSubagentStops = mapped.subagentStops;
+                codexProviderSubagentToSessionSubagent = mapped.providerSubagentToSessionSubagent;
+                codexSubagentTitles = mapped.subagentTitles;
+                codexCollabReceiverThreadIdsByCall = mapped.collabReceiverThreadIdsByCall;
+                codexCollabTurnIdsByCall = mapped.collabTurnIdsByCall;
+                codexCollabToolByCall = mapped.collabToolByCall;
+                for (const envelope of mapped.envelopes) {
+                    session.sendSessionProtocolMessage(envelope);
+                }
+
+                if (msg.type === 'provider_output_item') {
+                    const item = msg.item;
+                    const images = extractCodexAgentOutputImages(item);
+                    const providerSubagent = typeof msg.agent_thread_id === 'string'
+                        ? msg.agent_thread_id
+                        : (typeof msg.agentThreadId === 'string' ? msg.agentThreadId : undefined);
+                    const subagent = providerSubagent
+                        ? codexProviderSubagentToSessionSubagent.get(providerSubagent)
+                        : undefined;
+                    const imageTurn = subagent
+                        ? codexSubagentTurnIds.get(subagent) ?? currentTurnId ?? lastTurnId
+                        : currentTurnId ?? lastTurnId;
+                    const itemId = item && typeof item === 'object' && typeof (item as { id?: unknown }).id === 'string'
+                        ? (item as { id: string }).id
+                        : undefined;
+                    for (let index = 0; index < images.length; index += 1) {
+                        try {
+                            const envelope = await session.uploadImageAttachmentEnvelope(images[index], 'agent', {
+                                ...(imageTurn ? { turn: imageTurn } : {}),
+                                ...(subagent ? { subagent } : {}),
+                                ...(itemId ? { codexItemId: itemId, id: `${itemId}:output-image:${index + 1}` } : {}),
+                            });
+                            session.sendSessionProtocolMessage(envelope);
+                        } catch (error) {
+                            logger.debug('[Codex] Failed to upload agent output image', {
+                                itemId,
+                                imageIndex: index,
+                                error,
+                            });
+                        }
+                    }
+                }
             });
-            currentTurnId = mapped.currentTurnId;
-            lastTurnId = mapped.lastTurnId;
-            codexStartedSubagents = mapped.startedSubagents;
-            codexActiveSubagents = mapped.activeSubagents;
-            codexSubagentTurnIds = mapped.subagentTurnIds;
-            codexSubagentStops = mapped.subagentStops;
-            codexProviderSubagentToSessionSubagent = mapped.providerSubagentToSessionSubagent;
-            codexSubagentTitles = mapped.subagentTitles;
-            codexCollabReceiverThreadIdsByCall = mapped.collabReceiverThreadIdsByCall;
-            codexCollabTurnIdsByCall = mapped.collabTurnIdsByCall;
-            codexCollabToolByCall = mapped.collabToolByCall;
-            for (const envelope of mapped.envelopes) {
-                session.sendSessionProtocolMessage(envelope);
-            }
         }
     });
 
@@ -1151,6 +1201,9 @@ export async function runCodex(opts: {
                         thread,
                         uploadLocalImage: (attachment, imageOpts) => (
                             session.uploadLocalImageAttachmentEnvelope(attachment, imageOpts)
+                        ),
+                        uploadAgentImage: (attachment, imageOpts) => (
+                            session.uploadImageAttachmentEnvelope(attachment, 'agent', imageOpts)
                         ),
                     });
                     for (const envelope of envelopes) {
@@ -1321,6 +1374,7 @@ export async function runCodex(opts: {
                     effort: turnEffort,
                     extraInputItems: imageInputs.inputItems,
                 });
+                await codexProtocolQueue;
                 first = false;
                 if (includeAppendSystemPrompt) {
                     appendSystemPromptInjected = true;
@@ -1385,6 +1439,7 @@ export async function runCodex(opts: {
     } finally {
         // Clean up resources when main loop exits
         logger.debug('[codex]: Final cleanup start');
+        await codexProtocolQueue;
         logActiveHandles('cleanup-start');
 
         // Cancel offline reconnection if still running

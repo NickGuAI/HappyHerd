@@ -2,7 +2,12 @@ import { createHash } from 'node:crypto';
 import { createId } from '@paralleldrive/cuid2';
 import type { RawJSONLines } from '@/claude/types';
 import {
+    extractClaudeAgentOutputImages,
+    type ProviderOutputImage,
+} from '@/sessionProtocol/providerOutputImages';
+import {
     createEnvelope,
+    type CreateEnvelopeOptions,
     type SessionEnvelope,
     type SessionUsage,
     type SessionTurnEndStatus,
@@ -26,6 +31,11 @@ type ClaudeMapperResult = {
     currentTurnId: string | null;
     envelopes: SessionEnvelope[];
 };
+
+type UploadAgentImage = (
+    image: ProviderOutputImage,
+    opts: Pick<CreateEnvelopeOptions, 'time' | 'turn' | 'subagent' | 'claudeUuid'>,
+) => Promise<SessionEnvelope | null>;
 
 function isSubagentTool(name: string): boolean {
     return name === 'Task' || name === 'Agent';
@@ -574,6 +584,68 @@ export function mapClaudeLogMessageToSessionEnvelopes(
     state: ClaudeSessionProtocolState,
 ): ClaudeMapperResult {
     return mapClaudeLogMessageToSessionEnvelopesInternal(message, state);
+}
+
+export async function mapClaudeLogMessageToSessionEnvelopesWithAgentImages(
+    message: RawJSONLines,
+    state: ClaudeSessionProtocolState,
+    uploadAgentImage: UploadAgentImage,
+): Promise<ClaudeMapperResult> {
+    const content = (message as { message?: { content?: unknown } }).message?.content;
+    if (!Array.isArray(content)) {
+        return mapClaudeLogMessageToSessionEnvelopes(message, state);
+    }
+
+    const images = extractClaudeAgentOutputImages(message);
+    if (images.length === 0) {
+        return mapClaudeLogMessageToSessionEnvelopes(message, state);
+    }
+
+    const envelopes: SessionEnvelope[] = [];
+    const claudeUuid = pickUuid(message);
+    const providerSubagent = resolveProviderSubagent(message, state);
+    const subagent = providerSubagent
+        ? getSessionSubagentIdForProviderSubagent(state, providerSubagent)
+        : undefined;
+    let imageIndex = 0;
+    const isToolResultMessage = message.type === 'user'
+        && content.some((block) => block && typeof block === 'object'
+            && (block as { type?: unknown }).type === 'tool_result');
+
+    for (const block of content) {
+        const isToolResultBlock = block && typeof block === 'object'
+            && (block as { type?: unknown }).type === 'tool_result';
+        const blockMessage = {
+            ...message,
+            ...(isToolResultMessage && !isToolResultBlock ? { isSidechain: true } : {}),
+            message: {
+                ...(message as { message?: Record<string, unknown> }).message,
+                content: [block],
+            },
+        } as RawJSONLines;
+        const mapped = mapClaudeLogMessageToSessionEnvelopes(blockMessage, state);
+        state.currentTurnId = mapped.currentTurnId;
+        for (const envelope of mapped.envelopes) {
+            envelopes.push({ ...envelope, usage: undefined });
+        }
+
+        for (const extracted of extractClaudeAgentOutputImages(blockMessage)) {
+            imageIndex += 1;
+            const renamed = {
+                ...extracted,
+                name: `claude-image-${imageIndex}.${extracted.mimeType === 'image/png' ? 'png' : 'jpg'}`,
+            };
+            const uploaded = await uploadAgentImage(renamed, {
+                ...(state.currentTurnId ? { turn: state.currentTurnId } : {}),
+                ...(subagent ? { subagent } : {}),
+                ...(claudeUuid ? { claudeUuid } : {}),
+            });
+            if (uploaded) envelopes.push(uploaded);
+        }
+    }
+
+    attachUsageToLastEnvelope(envelopes, 0, usageFromClaudeMessage(message));
+    return { currentTurnId: state.currentTurnId, envelopes };
 }
 
 function mapClaudeLogMessageToSessionEnvelopesInternal(

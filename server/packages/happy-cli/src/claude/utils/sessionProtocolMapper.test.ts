@@ -2,13 +2,53 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createId, isCuid } from '@paralleldrive/cuid2';
+import { createEnvelope } from '@slopus/happy-wire';
 import { RawJSONLinesSchema } from '../types';
 import {
     closeClaudeTurnWithStatus,
     mapClaudeLogMessageToSessionEnvelopes,
+    mapClaudeLogMessageToSessionEnvelopesWithAgentImages,
 } from './sessionProtocolMapper';
 
 describe('mapClaudeLogMessageToSessionEnvelopes', () => {
+    it('uploads Claude tool-result images as agent files in response order', async () => {
+        const state = { currentTurnId: null };
+        const uploaded: string[] = [];
+        const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1]);
+        const result = await mapClaudeLogMessageToSessionEnvelopesWithAgentImages({
+            type: 'user',
+            uuid: 'result-row',
+            message: {
+                content: [
+                    {
+                        type: 'tool_result',
+                        tool_use_id: 'tool-1',
+                        content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: png.toString('base64') } }],
+                    },
+                    { type: 'text', text: 'after image' },
+                ],
+            },
+        } as any, state, async (image, opts) => {
+            uploaded.push(image.name);
+            return createEnvelope('agent', {
+                t: 'file',
+                ref: 'image-ref',
+                name: image.name,
+                size: image.data.length,
+                mimeType: image.mimeType,
+            }, opts);
+        });
+
+        expect(uploaded).toEqual(['claude-image-1.png']);
+        expect(result.envelopes.map((envelope) => envelope.ev.t)).toEqual([
+            'turn-start',
+            'tool-call-end',
+            'file',
+            'text',
+        ]);
+        expect(result.envelopes[2]).toMatchObject({ role: 'agent', turn: result.currentTurnId, ev: { t: 'file' } });
+    });
+
     it('maps user text to a user text envelope', () => {
         const result = mapClaudeLogMessageToSessionEnvelopes({
             type: 'user',

@@ -132,3 +132,4 @@ SECURITY_FEATURE_APPROVAL	accepted	docs(dev): require TickTick approval for secu
 DEV_CONTEXT_CI_BYPASS	accepted	ci: skip suites for development-context-only changes	.github/workflows/quality-gates.yml
 AUTOMATION_UNATTENDED	accepted	fix(automations): enforce unattended execution lifecycle	server/packages/happy-cli/src/automations/unattendedPolicy.test.ts
 SUBAGENT_LIFECYCLE	accepted	fix(subagents): trust provider lifecycle state	server/packages/happy-cli/src/codex/__tests__/sessionProtocolMapper.test.ts
+AGENT_MEDIA	accepted	fix(media): preserve agent images and unify attachments	server/packages/happy-cli/src/sessionProtocol/providerOutputImages.test.ts

@@ -7,6 +7,7 @@ import { logger } from '@/ui/logger';
 
 import type { Thread, ThreadItem } from '../codexAppServerTypes';
 import { detectSupportedImageType } from './imageInput';
+import { extractCodexAgentOutputImages } from '@/sessionProtocol/providerOutputImages';
 import {
     completedTimestampMs,
     isCodexTurnInProgress,
@@ -18,6 +19,11 @@ import {
 type LocalImageUpload = (
     attachment: { data: Uint8Array; mimeType: string; name: string },
     opts: Pick<CreateEnvelopeOptions, 'id' | 'time' | 'codexItemId'> & { codexItemId: string },
+) => Promise<SessionEnvelope>;
+
+type AgentImageUpload = (
+    attachment: { data: Uint8Array; mimeType: string; name: string },
+    opts: Pick<CreateEnvelopeOptions, 'id' | 'time' | 'turn' | 'subagent' | 'codexItemId'>,
 ) => Promise<SessionEnvelope>;
 
 function localImagePaths(item: ThreadItem): string[] {
@@ -63,6 +69,7 @@ async function localImagePathToAttachment(
 export async function buildCodexThreadBackfillEnvelopes(opts: {
     thread: Pick<Thread, 'turns'>;
     uploadLocalImage: LocalImageUpload;
+    uploadAgentImage?: AgentImageUpload;
 }): Promise<SessionEnvelope[]> {
     const envelopes: SessionEnvelope[] = [];
     const providerSubagentToSessionSubagent = new Map<string, string>();
@@ -116,6 +123,23 @@ export async function buildCodexThreadBackfillEnvelopes(opts: {
                 startedAt,
                 completedAt,
             }, state));
+            if (opts.uploadAgentImage) {
+                const outputImages = extractCodexAgentOutputImages(item);
+                for (let index = 0; index < outputImages.length; index += 1) {
+                    try {
+                        envelopes.push(await opts.uploadAgentImage(outputImages[index], {
+                            id: `${item.id}:output-image:${index + 1}`,
+                            time: completedAt,
+                            turn: turn.id,
+                            codexItemId: item.id,
+                        }));
+                    } catch (error) {
+                        logger.debug('[Codex image backfill] Failed to upload agent output image', {
+                            errorName: error instanceof Error ? error.name : typeof error,
+                        });
+                    }
+                }
+            }
         }
 
         if (!isCodexTurnInProgress(turn)) {

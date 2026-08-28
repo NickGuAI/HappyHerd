@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "bc1c83fcce27d13ee08f55de4a0c9844a76505aa95c84eff74261e4e6c5de89a",
+  "sourceFingerprint": "4f30fe42f68f611772bb53ca85ebbca5b7a279d078f67dec670f5281955ce0b2",
   "routeCount": 36,
-  "surfaceCount": 243,
+  "surfaceCount": 244,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -267,7 +267,6 @@
         "happyHerd.commander.createSubtitle",
         "happyHerd.commander.createTitle",
         "happyHerd.commander.onboardingPrompt",
-        "happyHerd.composer.addPhotos",
         "happyHerd.composer.cancelVoice",
         "happyHerd.composer.finishVoice",
         "happyHerd.composer.retryVoice",
@@ -322,8 +321,7 @@
         "uiCopy.worktree",
         "workspace.browseContext",
         "workspace.recent",
-        "workspace.selectMachine",
-        "workspace.upload"
+        "workspace.selectMachine"
       ],
       "states": [
         "error"
@@ -1388,7 +1386,6 @@
         "happyHerd.commander.createSubtitle",
         "happyHerd.commander.createTitle",
         "happyHerd.commander.onboardingPrompt",
-        "happyHerd.composer.addPhotos",
         "happyHerd.composer.cancelVoice",
         "happyHerd.composer.finishVoice",
         "happyHerd.composer.retryVoice",
@@ -1443,8 +1440,7 @@
         "uiCopy.worktree",
         "workspace.browseContext",
         "workspace.recent",
-        "workspace.selectMachine",
-        "workspace.upload"
+        "workspace.selectMachine"
       ],
       "states": [
         "error"
@@ -2343,7 +2339,6 @@
         "agentInput.model.title",
         "agentInput.noMachinesAvailable",
         "agentInput.permissionMode.title",
-        "happyHerd.composer.addPhoto",
         "happyHerd.composer.cancelVoice",
         "happyHerd.composer.finishVoice",
         "happyHerd.composer.queueMessage",
@@ -2464,6 +2459,22 @@
         "LocalBlurHalo"
       ],
       "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/AttachmentInputButton.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "AttachmentInputButton"
+      ],
+      "translationKeys": [
+        "common.cancel",
+        "happyHerd.composer.addAttachment",
+        "happyHerd.composer.deviceFiles",
+        "happyHerd.composer.photos"
+      ],
       "states": [],
       "hardcodedCopy": []
     },
@@ -4575,7 +4586,10 @@
       "exports": [
         "FileView"
       ],
-      "translationKeys": [],
+      "translationKeys": [
+        "markdown.closeImagePreview",
+        "markdown.openImageFullSize"
+      ],
       "states": [],
       "hardcodedCopy": []
     },

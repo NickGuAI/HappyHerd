@@ -6,6 +6,7 @@ import { AgentInputAttachmentStrip } from './AgentInputAttachmentStrip';
 import { WorkspaceContextStrip } from './WorkspaceContextStrip';
 import { CompactWorkspaceContextButton } from './CompactWorkspaceContextButton';
 import type { AttachmentPreview } from '@/sync/attachmentTypes';
+import { AttachmentInputButton } from '@/components/AttachmentInputButton';
 import type { WorkspaceContextEntry } from '@/sync/workspaceContext';
 import { generateThumbhash } from '@/utils/thumbhash';
 import { layout } from './layout';
@@ -119,6 +120,7 @@ interface AgentInputProps {
     /** Image attachments waiting to be sent (expImageUpload feature). */
     selectedImages?: AttachmentPreview[];
     onPickImages?: () => void;
+    onPickDeviceFiles?: () => void;
     onRemoveImage?: (id: string) => void;
     onAddImages?: (images: AttachmentPreview[]) => void;
     /** Explicit workspace files/directories embedded in the next user message. */
@@ -1432,9 +1434,14 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             </Pressable>
                         )}
 
-                        {props.onPickImages && (
-                            <Pressable
-                                onPress={props.onPickImages}
+                        {(props.onPickImages || props.onPickDeviceFiles) && (
+                            <AttachmentInputButton
+                                onPickPhotos={props.onPickImages}
+                                onPickDeviceFiles={props.onPickDeviceFiles}
+                                active={(props.selectedImages?.length ?? 0) > 0 || hasContextEntries}
+                                color={theme.colors.button.secondary.tint}
+                                activeColor={theme.colors.radio.active}
+                                size={16}
                                 hitSlop={{ top: 5, bottom: 10, left: 0, right: 0 }}
                                 style={(p) => ({
                                     flexDirection: 'row',
@@ -1446,15 +1453,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     height: 32,
                                     opacity: p.pressed ? 0.7 : 1,
                                 })}
-                            >
-                                <Ionicons
-                                    name="image-outline"
-                                    size={16}
-                                    color={(props.selectedImages?.length ?? 0) > 0
-                                        ? theme.colors.radio.active
-                                        : theme.colors.button.secondary.tint}
-                                />
-                            </Pressable>
+                            />
                         )}
                     </View>}
 
@@ -2106,22 +2105,17 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             </BubblePressable>
                         )}
 
-                        {!props.zenMode && props.onPickImages && (
-                            <BubblePressable
-                                onPress={props.onPickImages}
+                        {!props.zenMode && (props.onPickImages || props.onPickDeviceFiles) && (
+                            <AttachmentInputButton
+                                onPickPhotos={props.onPickImages}
+                                onPickDeviceFiles={props.onPickDeviceFiles}
+                                active={(props.selectedImages?.length ?? 0) > 0 || hasContextEntries}
+                                color={theme.colors.text}
+                                activeColor={theme.colors.radio.active}
+                                size={MOBILE_COMPOSER_METRICS.addIconSize}
                                 hitSlop={6}
                                 style={styles.mobileIconButton}
-                                accessibilityRole="button"
-                                accessibilityLabel={t('happyHerd.composer.addPhoto')}
-                            >
-                                <Ionicons
-                                    name="add"
-                                    size={MOBILE_COMPOSER_METRICS.addIconSize}
-                                    color={(props.selectedImages?.length ?? 0) > 0
-                                        ? theme.colors.radio.active
-                                        : theme.colors.text}
-                                />
-                            </BubblePressable>
+                            />
                         )}
 
                         {!props.zenMode && (

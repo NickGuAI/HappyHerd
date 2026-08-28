@@ -48,6 +48,7 @@ import { useMachineFileUpload } from '@/hooks/useMachineFileUpload';
 import { useVoiceDictation, type VoiceDictationPhase } from '@/hooks/useVoiceDictation';
 import { useVoiceInputAvailability } from '@/hooks/useVoiceInputAvailability';
 import { AgentInputAttachmentStrip } from '@/components/AgentInputAttachmentStrip';
+import { AttachmentInputButton } from '@/components/AttachmentInputButton';
 import { WorkspaceContextStrip } from '@/components/WorkspaceContextStrip';
 import { MachineWorkspaceContextPicker } from '@/components/MachineWorkspaceContextPicker';
 import { resolveAgentInputPrimaryAction } from '@/components/agentInputPrimaryAction';
@@ -2725,45 +2726,25 @@ function NewSessionScreen() {
                         )}
                     </View>
                 )}
-                {canUseImageAttachments && (
-                    <BubblePressable
-                        onPress={() => void imagePicker.pickImages()}
-                        hitSlop={6}
-                        style={(pressedState) => [
-                            styles.composerActionButton,
-                            pressedState.pressed && styles.configRowPressed,
-                        ]}
-                        accessibilityRole="button"
-                        accessibilityLabel={t('happyHerd.composer.addPhotos')}
-                    >
-                        <Ionicons
-                            name="image-outline"
-                            size={21}
-                            color={imagePicker.selectedImages.length > 0
-                                ? theme.colors.radio.active
-                                : theme.colors.textSecondary}
-                        />
-                    </BubblePressable>
-                )}
-                <BubblePressable
-                    onPress={() => void workspaceUploader.pickAndUpload()}
+                <AttachmentInputButton
+                    onPickPhotos={canUseImageAttachments ? () => void imagePicker.pickImages() : undefined}
+                    onPickDeviceFiles={selectedMachineId
+                        && uploadDirectory
+                        && workspaceEntries.length < MAX_WORKSPACE_CONTEXT_ITEMS
+                        && workspaceUploader.state.phase !== 'uploading'
+                        && workspaceUploader.state.phase !== 'cancelling'
+                        ? () => void workspaceUploader.pickAndUpload()
+                        : undefined}
+                    active={imagePicker.selectedImages.length > 0 || workspaceEntries.length > 0}
+                    color={theme.colors.textSecondary}
+                    activeColor={theme.colors.radio.active}
+                    size={21}
                     hitSlop={6}
-                    disabled={!selectedMachineId || !uploadDirectory || workspaceEntries.length >= MAX_WORKSPACE_CONTEXT_ITEMS || workspaceUploader.state.phase === 'uploading' || workspaceUploader.state.phase === 'cancelling'}
                     style={(pressedState) => [
                         styles.composerActionButton,
                         pressedState.pressed && styles.configRowPressed,
                     ]}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('workspace.upload')}
-                >
-                    <Ionicons
-                        name="document-attach-outline"
-                        size={21}
-                        color={workspaceEntries.length > 0
-                            ? theme.colors.radio.active
-                            : theme.colors.textSecondary}
-                    />
-                </BubblePressable>
+                />
                 <BubblePressable
                     onPress={() => setWorkspaceContextOpen(true)}
                     hitSlop={6}

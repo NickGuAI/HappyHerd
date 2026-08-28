@@ -598,8 +598,23 @@ export class CodexAppServerClient {
                     result: item.result,
                     error: item.error,
                 });
+                this.eventHandler?.({
+                    type: 'provider_output_item',
+                    item,
+                    ...this.childThreadScope(params),
+                });
                 return true;
             }
+        }
+
+        if (method === 'item/completed'
+            && (item.type === 'imageGeneration' || item.type === 'dynamicToolCall')) {
+            this.eventHandler?.({
+                type: 'provider_output_item',
+                item,
+                ...this.childThreadScope(params),
+            });
+            return true;
         }
 
         if (method === 'item/started' && item.type === 'commandExecution') {
