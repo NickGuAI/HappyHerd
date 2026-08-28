@@ -1,3 +1,8 @@
+# August 28 — GrokBuild permissions and tool details stay accurate
+
+- GrokBuild's selected launch policy now governs later permission callbacks: bypass and deny-without-prompt modes no longer create approval cards, while interactive modes ask once.
+- GrokBuild and other ACP tool calls retain the provider's title, category, input, result, error, and call identity, so unfamiliar tools render meaningfully without provider-specific display entries.
+
 # August 28 — Commander pictures load only when enabled
 
 - Commander profile pictures are off by default again. Session lists keep Commander initials and status rings without remote avatar requests until the feature is enabled; enabling it restores the existing pictures and management controls.

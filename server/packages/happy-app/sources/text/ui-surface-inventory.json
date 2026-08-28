@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "05ef896070117cd10c0c5d089f9bc2c71a6e0a09d479e030452a458c84955f89",
+  "sourceFingerprint": "07085c0551165051756788931c5443bdd3dbd91ba12d30697700c44fe757bf98",
   "routeCount": 36,
   "surfaceCount": 244,
   "hardcodedCopyCount": 0,
@@ -5468,12 +5468,15 @@
       "route": null,
       "exports": [
         "formatMCPTitle",
+        "formatToolDisplayValue",
         "getTerminalToolCommand",
         "getToolActivityLabel",
+        "getToolDisplayTitle",
         "getToolSummaryCategory",
         "getToolSummaryDetail",
         "isInteractiveQuestionToolName",
         "isTerminalToolName",
+        "isToolIdentityCompatibleWithFlavor",
         "resolveToolDisplayRuntimeState",
         "shouldRenderToolCardHeader",
         "shouldUseCompactToolRow"

@@ -158,24 +158,25 @@ describe('AcpSessionManager text mapping', () => {
 });
 
 describe('AcpSessionManager tool mapping', () => {
-  it('maps tool-call to tool-call-start with generated call id', () => {
+  it('maps tool-call to tool-call-start without replacing provider identity or title', () => {
     const mapper = new AcpSessionManager();
     const start = mapper.startTurn()[0];
 
     const envelopes = mapper.mapMessage({
       type: 'tool-call',
       callId: 'acp-call-1',
-      toolName: 'ReadFile',
+      toolName: 'read',
+      title: 'Read the project README',
       args: { path: 'README.md' },
     });
 
     expect(envelopes).toHaveLength(1);
     expect(envelopes[0].ev.t).toBe('tool-call-start');
     if (envelopes[0].ev.t === 'tool-call-start') {
-      expect(isCuid(envelopes[0].ev.call)).toBe(true);
-      expect(envelopes[0].ev.name).toBe('ReadFile');
-      expect(envelopes[0].ev.title).toBe('ReadFile');
-      expect(envelopes[0].ev.description).toContain('ReadFile');
+      expect(envelopes[0].ev.call).toBe('acp-call-1');
+      expect(envelopes[0].ev.name).toBe('read');
+      expect(envelopes[0].ev.title).toBe('Read the project README');
+      expect(envelopes[0].ev.description).toContain('read');
       expect(envelopes[0].ev.args).toEqual({ path: 'README.md' });
     }
     expect(envelopes[0].turn).toBe(start.turn);
@@ -201,6 +202,7 @@ describe('AcpSessionManager tool mapping', () => {
     expect(end.ev.t).toBe('tool-call-end');
     if (start.ev.t === 'tool-call-start' && end.ev.t === 'tool-call-end') {
       expect(end.ev.call).toBe(start.ev.call);
+      expect(end.ev.result).toEqual({ ok: true });
     }
   });
 
@@ -228,19 +230,22 @@ describe('AcpSessionManager tool mapping', () => {
     }
   });
 
-  it('emits tool-call-end with generated call id for unknown tool result', () => {
+  it('emits tool-call-end with the provider call id and error payload for unknown results', () => {
     const mapper = new AcpSessionManager();
     mapper.startTurn();
     const envelope = mapper.mapMessage({
       type: 'tool-result',
       callId: 'missing-call',
       toolName: 'ReadFile',
-      result: { ok: true },
+      result: { stderr: 'not found' },
+      error: 'not found',
     })[0];
 
     expect(envelope.ev.t).toBe('tool-call-end');
     if (envelope.ev.t === 'tool-call-end') {
-      expect(isCuid(envelope.ev.call)).toBe(true);
+      expect(envelope.ev.call).toBe('missing-call');
+      expect(envelope.ev.result).toEqual({ stderr: 'not found' });
+      expect(envelope.ev.error).toBe('not found');
     }
   });
 });
@@ -358,7 +363,7 @@ describe('AcpSessionManager id consistency', () => {
     expect(toolEnd).toBeDefined();
     if (toolStart?.ev.t === 'tool-call-start' && toolEnd?.ev.t === 'tool-call-end') {
       expect(toolStart.ev.call).toBe(toolEnd.ev.call);
-      expect(isCuid(toolStart.ev.call)).toBe(true);
+      expect(toolStart.ev.call).toBe('tool-1');
     }
 
     const allIds = envelopes.map((envelope) => envelope.id);

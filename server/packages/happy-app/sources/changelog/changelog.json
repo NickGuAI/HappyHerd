@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 28 — GrokBuild permissions and tool details stay accurate",
+      "summary": "",
+      "markdown": "- GrokBuild's selected launch policy now governs later permission callbacks: bypass and deny-without-prompt modes no longer create approval cards, while interactive modes ask once.\n- GrokBuild and other ACP tool calls retain the provider's title, category, input, result, error, and call identity, so unfamiliar tools render meaningfully without provider-specific display entries."
+    },
+    {
       "title": "August 28 — Commander pictures load only when enabled",
       "summary": "",
       "markdown": "- Commander profile pictures are off by default again. Session lists keep Commander initials and status rings without remote avatar requests until the feature is enabled; enabling it restores the existing pictures and management controls."
@@ -306,5 +311,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 28 — Commander pictures load only when enabled"
+  "latestTitle": "August 28 — GrokBuild permissions and tool details stay accurate"
 }

@@ -115,6 +115,29 @@ export function shouldRenderToolCardHeader(toolName: string, platformOS: string)
     return !(platformOS === 'web' && toolName === 'CodexPatch');
 }
 
+export function getToolDisplayTitle(tool: Pick<ToolCall, 'name' | 'title'>): string {
+    return tool.title?.trim() || tool.name;
+}
+
+export function formatToolDisplayValue(value: unknown): string {
+    if (typeof value === 'string') {
+        return value;
+    }
+    try {
+        return JSON.stringify(value, null, 2) ?? String(value);
+    } catch {
+        return String(value);
+    }
+}
+
+/** Keep provider categories from selecting another provider's identity-specific view. */
+export function isToolIdentityCompatibleWithFlavor(toolName: string, flavor: string | null | undefined): boolean {
+    if (toolName === 'read' || toolName === 'search' || toolName === 'think' || toolName === 'edit' || toolName === 'execute') {
+        return flavor === 'gemini';
+    }
+    return true;
+}
+
 /**
  * Compact mode is deliberately name-agnostic so newly introduced provider
  * tools do not fall back to a half-screen raw JSON card. User attachments and
@@ -209,7 +232,12 @@ export function getToolSummaryDetail(tool: Pick<ToolCall, 'name' | 'input' | 'de
  * provider-supplied description when it adds information beyond the raw
  * command/path, then fall back to a localized action and its detail.
  */
-export function getToolActivityLabel(tool: Pick<ToolCall, 'name' | 'input' | 'description'>): string {
+export function getToolActivityLabel(tool: Pick<ToolCall, 'name' | 'title' | 'input' | 'description'>): string {
+    const providerTitle = tool.title?.trim();
+    if (providerTitle) {
+        return providerTitle;
+    }
+
     const summaryDetail = getToolSummaryDetail(tool);
     const detail = isGenericToolDescription(tool.name, summaryDetail) ? null : summaryDetail;
     const providerDescription = getProviderActivityDescription(tool, detail);

@@ -59,6 +59,8 @@ const sessionToolCallStartEventSchema = z.object({
 const sessionToolCallEndEventSchema = z.object({
     t: z.literal('tool-call-end'),
     call: z.string(),
+    result: z.unknown().optional(),
+    error: z.unknown().optional(),
 });
 
 const sessionFileEventSchema = z.object({
@@ -494,6 +496,7 @@ type NormalizedAgentContent =
         type: 'tool-call';
         id: string;
         name: string;
+        title?: string;
         input: any;
         description: string | null;
         uuid: string;
@@ -504,6 +507,7 @@ type NormalizedAgentContent =
         content: any;
         is_error: boolean;
         authoritative?: boolean;
+        error?: unknown;
         uuid: string;
         parentUUID: string | null;
         permissions?: {
@@ -730,6 +734,7 @@ function normalizeSessionEnvelope(
                 type: 'tool-call',
                 id: envelope.ev.call,
                 name: envelope.ev.name || 'unknown',
+                title: envelope.ev.title,
                 input: envelope.ev.args,
                 description: envelope.ev.description,
                 uuid: contentUUID,
@@ -750,8 +755,9 @@ function normalizeSessionEnvelope(
             content: [{
                 type: 'tool-result',
                 tool_use_id: envelope.ev.call,
-                content: null,
-                is_error: false,
+                content: envelope.ev.result ?? null,
+                is_error: envelope.ev.error !== undefined,
+                ...(envelope.ev.error !== undefined ? { error: envelope.ev.error } : {}),
                 uuid: contentUUID,
                 parentUUID
             }],

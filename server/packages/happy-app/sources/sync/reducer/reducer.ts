@@ -770,6 +770,8 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         if (message?.tool) {
                             message.realID = msg.id;
                             message.tool.callId = c.id;
+                            message.tool.name = c.name;
+                            message.tool.title = c.title;
                             message.tool.input = mergeToolInputs(message.tool.input, c.input);
                             message.tool.description = c.description;
                             message.tool.startedAt = msg.createdAt;
@@ -792,6 +794,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         let toolCall: ToolCall = {
                             callId: c.id,
                             name: c.name,
+                            title: c.title,
                             state: 'running' as const,
                             input: permission ? mergeToolInputs(permission.arguments, c.input) : c.input,
                             createdAt: permission ? permission.createdAt : msg.createdAt,  // Use permission timestamp if available
@@ -891,6 +894,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                     // Update tool state and result
                     message.tool.state = c.is_error ? 'error' : 'completed';
                     message.tool.result = c.content;
+                    message.tool.error = c.error;
                     message.tool.completedAt = msg.createdAt;
                     if (isSubagent) {
                         message.tool.resultAuthoritative = incomingAuthoritative;
@@ -1003,6 +1007,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                     let toolCall: ToolCall = {
                         callId: c.id,
                         name: c.name,
+                        title: c.title,
                         state: 'running' as const,
                         input: c.input,
                         createdAt: msg.createdAt,
@@ -1020,6 +1025,8 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                             // Update the permission message to show it's running
                             if (permissionMessage.tool.state !== 'completed' && permissionMessage.tool.state !== 'error') {
                                 permissionMessage.tool.state = 'running';
+                                permissionMessage.tool.name = c.name;
+                                permissionMessage.tool.title = c.title;
                                 permissionMessage.tool.startedAt = msg.createdAt;
                                 permissionMessage.tool.description = c.description;
                                 changed.add(existingPermissionMessageId);
@@ -1052,6 +1059,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         if (sidechainMessage && sidechainMessage.tool && sidechainMessage.tool.state === 'running') {
                             sidechainMessage.tool.state = c.is_error ? 'error' : 'completed';
                             sidechainMessage.tool.result = c.content;
+                            sidechainMessage.tool.error = c.error;
                             sidechainMessage.tool.completedAt = msg.createdAt;
                             
                             // Update permission data if provided by backend
@@ -1089,6 +1097,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         if (permissionMessage && permissionMessage.tool && permissionMessage.tool.state === 'running') {
                             permissionMessage.tool.state = c.is_error ? 'error' : 'completed';
                             permissionMessage.tool.result = c.content;
+                            permissionMessage.tool.error = c.error;
                             permissionMessage.tool.completedAt = msg.createdAt;
                             
                             // Update permission data if provided by backend

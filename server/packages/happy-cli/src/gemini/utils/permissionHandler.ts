@@ -106,15 +106,18 @@ export class GeminiPermissionHandler extends BasePermissionHandler {
     /**
      * Handle a tool permission request
      * @param toolCallId - The unique ID of the tool call
-     * @param toolName - The name of the tool being called
+     * @param toolName - Semantic tool name/category used for safety classification
      * @param input - The input parameters for the tool
+     * @param displayTitle - Provider-authored title used only for presentation
      * @returns Promise resolving to permission result
      */
     async handleToolCall(
         toolCallId: string,
         toolName: string,
-        input: unknown
+        input: unknown,
+        displayTitle?: string,
     ): Promise<PermissionResult> {
+        const pendingTitle = displayTitle?.trim() || toolName;
         // Check if we should auto-approve based on permission mode
         // Pass toolCallId to check by ID (e.g., change_title-* even if toolName is "other")
         if (this.shouldAutoApprove(toolName, toolCallId, input)) {
@@ -126,7 +129,7 @@ export class GeminiPermissionHandler extends BasePermissionHandler {
                 completedRequests: {
                     ...currentState.completedRequests,
                     [toolCallId]: {
-                        tool: toolName,
+                        tool: pendingTitle,
                         arguments: input,
                         createdAt: Date.now(),
                         completedAt: Date.now(),
@@ -147,15 +150,14 @@ export class GeminiPermissionHandler extends BasePermissionHandler {
             this.pendingRequests.set(toolCallId, {
                 resolve,
                 reject,
-                toolName,
+                toolName: pendingTitle,
                 input
             });
 
             // Update agent state with pending request
-            this.addPendingRequestToState(toolCallId, toolName, input);
+            this.addPendingRequestToState(toolCallId, pendingTitle, input);
 
             logger.debug(`${this.getLogPrefix()} Permission request sent for tool: ${toolName} (${toolCallId}) in ${this.currentPermissionMode} mode`);
         });
     }
 }
-

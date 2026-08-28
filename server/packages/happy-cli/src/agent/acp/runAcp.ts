@@ -431,28 +431,72 @@ function readModelEffortState(
   };
 }
 
+export type AcpPermissionPolicy = 'prompt' | 'approve' | 'deny' | 'cancel';
+
+/** Resolve only launch-time permission policy; ACP plan/build mode remains separate. */
+export function resolveAcpPermissionPolicy(
+  agentName: string,
+  permissionMode: string | undefined,
+): AcpPermissionPolicy {
+  if (agentName !== 'grok') return 'prompt';
+  if (permissionMode === 'bypassPermissions') return 'approve';
+  if (permissionMode === 'dontAsk') return 'deny';
+  if (
+    permissionMode === undefined
+    || permissionMode === 'default'
+    || permissionMode === 'acceptEdits'
+    || permissionMode === 'auto'
+    || permissionMode === 'plan'
+  ) {
+    return 'prompt';
+  }
+  return 'cancel';
+}
+
 class GenericAcpPermissionHandler extends BasePermissionHandler implements AcpPermissionHandler {
   private readonly logPrefix: string;
+  private readonly permissionPolicy: AcpPermissionPolicy;
 
-  constructor(session: ApiSessionClient, agentName: string) {
+  constructor(session: ApiSessionClient, agentName: string, permissionMode?: string) {
     super(session);
     this.logPrefix = `[${agentName}]`;
+    this.permissionPolicy = resolveAcpPermissionPolicy(agentName, permissionMode);
   }
 
   protected getLogPrefix(): string {
     return this.logPrefix;
   }
 
-  async handleToolCall(toolCallId: string, toolName: string, input: unknown): Promise<PermissionResult> {
+  requiresUserInput(): boolean {
+    return this.permissionPolicy === 'prompt';
+  }
+
+  async handleToolCall(
+    toolCallId: string,
+    toolName: string,
+    input: unknown,
+    displayTitle?: string,
+  ): Promise<PermissionResult | { decision: 'approved_without_prompt' }> {
+    if (this.permissionPolicy === 'approve') {
+      return { decision: 'approved_without_prompt' };
+    }
+    if (this.permissionPolicy === 'deny') {
+      return { decision: 'denied' };
+    }
+    if (this.permissionPolicy === 'cancel') {
+      return { decision: 'abort' };
+    }
+
+    const pendingTitle = displayTitle?.trim() || toolName;
     return new Promise<PermissionResult>((resolve, reject) => {
       this.pendingRequests.set(toolCallId, {
         resolve,
         reject,
-        toolName,
+        toolName: pendingTitle,
         input,
       });
-      this.addPendingRequestToState(toolCallId, toolName, input);
-      logger.debug(`${this.logPrefix} Permission request sent for tool: ${toolName} (${toolCallId})`);
+      this.addPendingRequestToState(toolCallId, pendingTitle, input);
+      logger.debug(`${this.logPrefix} Permission request sent for tool: ${pendingTitle} (${toolCallId})`);
     });
   }
 }
@@ -589,7 +633,7 @@ export async function runAcp(opts: {
     }
   }
 
-  permissionHandler = new GenericAcpPermissionHandler(session, opts.agentName);
+  permissionHandler = new GenericAcpPermissionHandler(session, opts.agentName, opts.permissionMode);
   // Drop any permission requests left in agent state from a previous CLI
   // process that died while a tool prompt was open — see the matching
   // call in claudeRemoteLauncher for the full rationale.

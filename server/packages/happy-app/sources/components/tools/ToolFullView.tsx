@@ -9,6 +9,7 @@ import { layout } from '../layout';
 import { useLocalSetting } from '@/sync/storage';
 import { StyleSheet } from 'react-native-unistyles';
 import { t } from '@/text';
+import { formatToolDisplayValue } from '@/utils/toolDisplay';
 
 interface ToolFullViewProps {
     tool: ToolCall;
@@ -22,6 +23,7 @@ export function ToolFullView({ tool, metadata, messages = [], sessionId }: ToolF
     const SpecializedFullView = getToolFullViewComponent(tool.name);
     const screenWidth = useWindowDimensions().width;
     const devModeEnabled = (useLocalSetting('devModeEnabled') || __DEV__);
+    const renderedError = tool.error ?? tool.result;
     console.log('ToolFullView', devModeEnabled);
 
     return (
@@ -55,33 +57,43 @@ export function ToolFullView({ tool, metadata, messages = [], sessionId }: ToolF
                     )}
 
                     {/* Result/Output */}
-                    {tool.state === 'completed' && tool.result && (
+                    {tool.state === 'completed' && tool.result !== undefined && (
                         <View style={styles.section}>
                             <View style={styles.sectionHeader}>
                                 <Ionicons name="log-out" size={20} color="#34C759" />
                                 <Text style={styles.sectionTitle}>{t('tools.fullView.output')}</Text>
                             </View>
                             <CodeView
-                                code={typeof tool.result === 'string' ? tool.result : JSON.stringify(tool.result, null, 2)}
+                                code={formatToolDisplayValue(tool.result)}
                             />
                         </View>
                     )}
 
                     {/* Error Details */}
-                    {tool.state === 'error' && tool.result && (
+                    {tool.state === 'error' && renderedError !== undefined && (
                         <View style={styles.section}>
                             <View style={styles.sectionHeader}>
                                 <Ionicons name="close-circle" size={20} color="#FF3B30" />
                                 <Text style={styles.sectionTitle}>{t('tools.fullView.error')}</Text>
                             </View>
                             <View style={styles.errorContainer}>
-                                <Text style={styles.errorText}>{String(tool.result)}</Text>
+                                <Text style={styles.errorText}>{formatToolDisplayValue(renderedError)}</Text>
                             </View>
                         </View>
                     )}
 
+                    {tool.state === 'error' && tool.error !== undefined && tool.result !== undefined && (
+                        <View style={styles.section}>
+                            <View style={styles.sectionHeader}>
+                                <Ionicons name="log-out" size={20} color="#5856D6" />
+                                <Text style={styles.sectionTitle}>{t('tools.fullView.output')}</Text>
+                            </View>
+                            <CodeView code={formatToolDisplayValue(tool.result)} />
+                        </View>
+                    )}
+
                     {/* No Output Message */}
-                    {tool.state === 'completed' && !tool.result && (
+                    {tool.state === 'completed' && tool.result === undefined && (
                         <View style={styles.section}>
                             <View style={styles.emptyOutputContainer}>
                                 <Ionicons name="checkmark-circle-outline" size={48} color="#34C759" />
@@ -104,10 +116,13 @@ export function ToolFullView({ tool, metadata, messages = [], sessionId }: ToolF
                         <CodeView 
                             code={JSON.stringify({
                                 name: tool.name,
+                                title: tool.title,
+                                callId: tool.callId,
                                 state: tool.state,
                                 description: tool.description,
                                 input: tool.input,
                                 result: tool.result,
+                                error: tool.error,
                                 createdAt: tool.createdAt,
                                 startedAt: tool.startedAt,
                                 completedAt: tool.completedAt,

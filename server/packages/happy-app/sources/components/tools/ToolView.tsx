@@ -16,8 +16,11 @@ import { parseToolUseError } from '@/utils/toolErrorParser';
 import { t } from '@/text';
 import {
     formatMCPTitle,
+    formatToolDisplayValue,
     getToolActivityLabel,
+    getToolDisplayTitle,
     getTerminalToolCommand,
+    isToolIdentityCompatibleWithFlavor,
     resolveToolDisplayRuntimeState,
     shouldRenderToolCardHeader,
     shouldUseCompactToolRow,
@@ -60,7 +63,10 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     // Enable pressable if either onPress is provided or we have navigation params
     const isPressable = !!(onPress || (sessionId && filePath) || (sessionId && messageId));
 
-    let knownTool = knownTools[tool.name as keyof typeof knownTools] as any;
+    const isToolIdentityCompatible = isToolIdentityCompatibleWithFlavor(tool.name, props.metadata?.flavor);
+    let knownTool = isToolIdentityCompatible
+        ? knownTools[tool.name as keyof typeof knownTools] as any
+        : undefined;
 
     // Internal Claude Code tools (e.g. ToolSearch) are completely hidden from the UI
     if (knownTool?.hidden) {
@@ -91,14 +97,17 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     }
 
     // Handle optional title and function type
-    let toolTitle = tool.name;
+    const providerTitle = tool.title?.trim();
+    let toolTitle = getToolDisplayTitle(tool);
     
     // Special handling for MCP tools
     if (tool.name.startsWith('mcp__')) {
-        toolTitle = formatMCPTitle(tool.name);
+        if (!providerTitle) {
+            toolTitle = formatMCPTitle(tool.name);
+        }
         icon = <Ionicons name="extension-puzzle-outline" size={18} color={theme.colors.textSecondary} />;
         minimal = true;
-    } else if (knownTool?.title) {
+    } else if (!providerTitle && knownTool?.title) {
         if (typeof knownTool.title === 'function') {
             toolTitle = knownTool.title({ tool, metadata: props.metadata });
         } else {
@@ -143,10 +152,11 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
 
     let statusIcon = null;
 
+    const renderedError = tool.error ?? tool.result;
     let isToolUseError = false;
-    if (tool.state === 'error' && tool.result && parseToolUseError(tool.result).isToolUseError) {
+    if (tool.state === 'error' && renderedError !== undefined && parseToolUseError(formatToolDisplayValue(renderedError)).isToolUseError) {
         isToolUseError = true;
-        console.log('isToolUseError', tool.result);
+        console.log('isToolUseError', renderedError);
     }
 
     // Check permission status first for denied/canceled states
@@ -256,7 +266,9 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                 }
 
                 // Try to use a specific tool view component first
-                const SpecificToolView = getToolViewComponent(tool.name);
+                const SpecificToolView = isToolIdentityCompatible
+                    ? getToolViewComponent(tool.name)
+                    : null;
                 if (SpecificToolView) {
                     return (
                         <View style={styles.content}>
@@ -267,22 +279,29 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                                 sessionId={sessionId}
                                 permissionFooter={isInlineCodexPatch ? renderPermissionFooter() : undefined}
                             />
-                            {tool.state === 'error' && tool.result &&
+                            {tool.state === 'error' && renderedError !== undefined &&
                                 !(tool.permission && (tool.permission.status === 'denied' || tool.permission.status === 'canceled')) &&
                                 !hideDefaultError && (
-                                    <ToolError message={String(tool.result)} />
+                                    <ToolError message={formatToolDisplayValue(renderedError)} />
                                 )}
                         </View>
                     );
                 }
 
                 // Show error state if present (but not for denied/canceled permissions and not when hideDefaultError is true)
-                if (tool.state === 'error' && tool.result &&
+                if (tool.state === 'error' && renderedError !== undefined &&
                     !(tool.permission && (tool.permission.status === 'denied' || tool.permission.status === 'canceled')) &&
                     !isToolUseError) {
                     return (
                         <View style={styles.content}>
-                            <ToolError message={String(tool.result)} />
+                            <ToolError message={formatToolDisplayValue(renderedError)} />
+                            {tool.error !== undefined && tool.result !== undefined && (
+                                <ToolSectionView title={t('toolView.output')}>
+                                    <CodeView
+                                        code={formatToolDisplayValue(tool.result)}
+                                    />
+                                </ToolSectionView>
+                            )}
                         </View>
                     );
                 }
@@ -297,10 +316,10 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                             </ToolSectionView>
                         )}
 
-                        {tool.state === 'completed' && tool.result && (
+                        {tool.state === 'completed' && tool.result !== undefined && (
                             <ToolSectionView title={t('toolView.output')}>
                                 <CodeView
-                                    code={typeof tool.result === 'string' ? tool.result : JSON.stringify(tool.result, null, 2)}
+                                    code={formatToolDisplayValue(tool.result)}
                                 />
                             </ToolSectionView>
                         )}

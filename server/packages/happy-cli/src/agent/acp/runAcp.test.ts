@@ -187,7 +187,7 @@ vi.mock('./AcpBackend', () => ({
   },
 }));
 
-import { runAcp } from './runAcp';
+import { resolveAcpPermissionPolicy, runAcp } from './runAcp';
 
 describe('runAcp', () => {
   const stripAnsi = (line: string) => line.replace(/\u001b\[[0-9;]*m/g, '');
@@ -226,6 +226,85 @@ describe('runAcp', () => {
       url: 'http://127.0.0.1:9876',
       stop: vi.fn(),
     });
+  });
+
+  it('keeps Grok launch permission policy distinct from ACP operating mode', () => {
+    expect(resolveAcpPermissionPolicy('grok', undefined)).toBe('prompt');
+    expect(resolveAcpPermissionPolicy('grok', 'default')).toBe('prompt');
+    expect(resolveAcpPermissionPolicy('grok', 'acceptEdits')).toBe('prompt');
+    expect(resolveAcpPermissionPolicy('grok', 'auto')).toBe('prompt');
+    expect(resolveAcpPermissionPolicy('grok', 'plan')).toBe('prompt');
+    expect(resolveAcpPermissionPolicy('grok', 'bypassPermissions')).toBe('approve');
+    expect(resolveAcpPermissionPolicy('grok', 'dontAsk')).toBe('deny');
+    expect(resolveAcpPermissionPolicy('grok', 'future-mode')).toBe('cancel');
+    expect(resolveAcpPermissionPolicy('opencode', 'bypassPermissions')).toBe('prompt');
+  });
+
+  it('does not create pending agent state for Grok bypass callbacks', async () => {
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'grok',
+      command: 'grok',
+      args: ['--no-auto-update', '--permission-mode', 'bypassPermissions', 'agent', 'stdio'],
+      permissionMode: 'bypassPermissions',
+    });
+
+    await vi.waitFor(() => expect(mocks.backendState.startSessionCalls).toBe(1));
+    const handler = mocks.backendState.constructorArgs.permissionHandler;
+    const updateCountBeforeCallback = mocks.mockSession.updateAgentState.mock.calls.length;
+
+    expect(handler.requiresUserInput('grok-tool-17', 'execute', { command: 'pnpm test' })).toBe(false);
+    await expect(handler.handleToolCall(
+      'grok-tool-17',
+      'execute',
+      { command: 'pnpm test' },
+      'Run focused tests',
+    )).resolves.toEqual({ decision: 'approved_without_prompt' });
+    expect(mocks.mockSession.updateAgentState).toHaveBeenCalledTimes(updateCountBeforeCallback);
+
+    await mocks.getKillHandler()!();
+    await runPromise;
+  });
+
+  it('creates exactly one pending agent-state request for interactive Grok callbacks', async () => {
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'grok',
+      command: 'grok',
+      args: ['--no-auto-update', '--permission-mode', 'default', 'agent', 'stdio'],
+      permissionMode: 'default',
+    });
+
+    await vi.waitFor(() => expect(mocks.backendState.startSessionCalls).toBe(1));
+    const handler = mocks.backendState.constructorArgs.permissionHandler;
+    const updateCountBeforeCallback = mocks.mockSession.updateAgentState.mock.calls.length;
+
+    expect(handler.requiresUserInput('grok-tool-18', 'edit', { path: 'CHANGELOG.md' })).toBe(true);
+    const pending = handler.handleToolCall(
+      'grok-tool-18',
+      'edit',
+      { path: 'CHANGELOG.md' },
+      'Write the changelog',
+    );
+
+    expect(mocks.mockSession.updateAgentState).toHaveBeenCalledTimes(updateCountBeforeCallback + 1);
+    const pendingStateUpdate = mocks.mockSession.updateAgentState.mock.calls.at(-1)?.[0];
+    expect(pendingStateUpdate?.({})).toMatchObject({
+      requests: {
+        'grok-tool-18': {
+          tool: 'Write the changelog',
+          arguments: { path: 'CHANGELOG.md' },
+        },
+      },
+    });
+
+    const permissionResponse = mocks.sessionHandlers.get('permission');
+    expect(permissionResponse).toBeTypeOf('function');
+    await permissionResponse!({ id: 'grok-tool-18', approved: true, decision: 'approved' });
+    await expect(pending).resolves.toEqual({ decision: 'approved' });
+
+    await mocks.getKillHandler()!();
+    await runPromise;
   });
 
   it('wires backend messages through mapper into session envelopes', async () => {

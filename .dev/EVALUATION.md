@@ -219,3 +219,42 @@ than silently copying prior prose.
   `scripts/test-owned-merge-provenance.sh`, patch discipline, source lint, and
   the protected PR checks because this implementation also changes workflow
   and verifier source.
+
+## Focused refresh — 2026-08-28: provider behavior conformance
+
+- **Trigger:** TickTick task `6a9056ef371f1102d668ea8f` reported that Grok
+  `bypassPermissions` still displayed approval prompts and that Grok tool calls
+  rendered as `unknown`.
+- **Evidence inputs:** baseline `3eac2e3c`; installed `grok 1.0.5` help;
+  Happy wire and app schemas; CLI message admission, capability discovery,
+  daemon spawn, ACP launch, permission handling, raw session-update mapping,
+  backend-neutral messages, session-protocol mapping, app normalization,
+  reducer, and generic tool rendering; ACP 0.14.1 schema; and Grok
+  launch-permission commit `c56cef2c`.
+- **Observed causal chain:** Grok's launch mode reached the child process, but
+  the generic ACP permission handler received no selected launch policy and
+  converted every callback into a pending Happy request. Independently, ACP
+  mapping discarded the required display `title` and `rawInput`, treated
+  optional `kind` as identity, replaced the provider call ID, dropped outcome
+  data at the wire boundary, and did not retain the initial descriptor for
+  sparse updates.
+- **Context correction:** Grok permission choices come from `grok --help` and
+  are process launch policies. They are distinct from ACP plan/build operating
+  mode. Provider conformance therefore requires both launch proof and callback
+  behavior, plus raw-event return-path fixtures.
+- **Approval:** the owner recorded security approval in TickTick umbrella
+  `6a9123188f08defd95547b7f` before implementation.
+- **Implemented repair:** Grok callback policy now prompts once for interactive
+  modes, selects only advertised allow options for bypass, denies without a
+  pending request for `dontAsk`, and cancels unknown modes. ACP tool descriptors
+  retain provider ID, title, optional category, structured input, result, and
+  error through the shared wire and generic app renderer without a Grok
+  `knownTools` entry.
+- **Deterministic evidence:** raw/spec-shaped initial and sparse ACP update
+  fixtures, callback policy and pending-state tests, wire schemas, app
+  normalization/reducer tests, and compact/expanded title helpers cover the
+  corrected vertical slice.
+- **Remaining live proof:** a harmless real-provider callback and unfamiliar
+  tool smoke still depends on a usable Grok account/session. Deterministic ACP
+  callback and protocol fixtures are the local proof when those external
+  prerequisites are unavailable.

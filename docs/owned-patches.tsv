@@ -134,3 +134,4 @@ AUTOMATION_UNATTENDED	accepted	fix(automations): enforce unattended execution li
 SUBAGENT_LIFECYCLE	accepted	fix(subagents): trust provider lifecycle state	server/packages/happy-cli/src/codex/__tests__/sessionProtocolMapper.test.ts
 AGENT_MEDIA	accepted	fix(media): preserve agent images and unify attachments	server/packages/happy-cli/src/sessionProtocol/providerOutputImages.test.ts
 COMMANDER_AVATAR_GATE	accepted	fix(app): gate commander profile image loading	server/packages/happy-app/sources/components/SessionStatusAvatar.test.ts
+PROVIDER_CONFORMANCE	accepted	fix(acp): preserve permission and tool contracts	server/packages/happy-cli/src/agent/acp/sessionUpdateHandlers.test.ts

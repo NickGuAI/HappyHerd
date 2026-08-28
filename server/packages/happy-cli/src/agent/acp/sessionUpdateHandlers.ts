@@ -29,20 +29,29 @@ export const DEFAULT_TOOL_CALL_TIMEOUT_MS = 120_000;
 export interface SessionUpdate {
   sessionUpdate?: string;
   toolCallId?: string;
-  status?: string;
-  kind?: string | unknown;
+  status?: string | null;
+  kind?: string | null | unknown;
+  title?: string | null;
+  rawInput?: unknown;
+  rawOutput?: unknown;
   content?: {
     text?: string;
     error?: string | { message?: string };
     [key: string]: unknown;
   } | string | unknown;
-  locations?: unknown[];
+  locations?: unknown[] | null;
   messageChunk?: {
     textDelta?: string;
   };
   plan?: unknown;
   thinking?: unknown;
   [key: string]: unknown;
+}
+
+export interface ToolCallDescriptor {
+  title: string;
+  toolName: string;
+  args: Record<string, unknown>;
 }
 
 /**
@@ -59,6 +68,8 @@ export interface HandlerContext {
   toolCallTimeouts: Map<string, NodeJS.Timeout>;
   /** Map of tool call ID to tool name */
   toolCallIdToNameMap: Map<string, string>;
+  /** Provider-authored fields retained for sparse tool-call updates. */
+  toolCallDescriptors: Map<string, ToolCallDescriptor>;
   /** Current idle timeout handle */
   idleTimeout: NodeJS.Timeout | null;
   /** Tool call counter since last prompt */
@@ -94,6 +105,22 @@ export function parseArgsFromContent(content: unknown): Record<string, unknown> 
     return content as Record<string, unknown>;
   }
   return {};
+}
+
+function parseRawInput(rawInput: unknown): Record<string, unknown> {
+  if (Array.isArray(rawInput)) {
+    return { items: rawInput };
+  }
+  if (rawInput && typeof rawInput === 'object') {
+    return { ...(rawInput as Record<string, unknown>) };
+  }
+  return rawInput === undefined ? {} : { value: rawInput };
+}
+
+function nonEmptyString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0
+    ? value
+    : undefined;
 }
 
 /**
@@ -250,6 +277,27 @@ export function startToolCall(
   const extractedName = ctx.transport.extractToolNameFromId?.(toolCallId);
   const realToolName = extractedName ?? (toolKindStr || 'unknown');
 
+  const previousDescriptor = ctx.toolCallDescriptors.get(toolCallId);
+  const title = nonEmptyString(update.title)
+    ?? previousDescriptor?.title
+    ?? realToolName;
+
+  const hasRawInput = Object.prototype.hasOwnProperty.call(update, 'rawInput')
+    && update.rawInput !== undefined;
+  const args = hasRawInput
+    ? parseRawInput(update.rawInput)
+    : previousDescriptor?.args ?? parseArgsFromContent(update.content);
+
+  if (update.locations && Array.isArray(update.locations)) {
+    args.locations = update.locations;
+  }
+
+  ctx.toolCallDescriptors.set(toolCallId, {
+    title,
+    toolName: realToolName,
+    args,
+  });
+
   // Store mapping for permission requests
   ctx.toolCallIdToNameMap.set(toolCallId, realToolName);
 
@@ -274,6 +322,8 @@ export function startToolCall(
       ctx.activeToolCalls.delete(toolCallId);
       ctx.toolCallStartTimes.delete(toolCallId);
       ctx.toolCallTimeouts.delete(toolCallId);
+      ctx.toolCallIdToNameMap.delete(toolCallId);
+      ctx.toolCallDescriptors.delete(toolCallId);
 
       if (ctx.activeToolCalls.size === 0) {
         logger.debug('[AcpBackend] No more active tool calls after timeout, emitting idle status');
@@ -293,14 +343,6 @@ export function startToolCall(
   // Emit running status
   ctx.emit({ type: 'status', status: 'running' });
 
-  // Parse args and emit tool-call event
-  const args = parseArgsFromContent(update.content);
-
-  // Extract locations if present
-  if (update.locations && Array.isArray(update.locations)) {
-    args.locations = update.locations;
-  }
-
   // Log investigation tool objective
   if (isInvestigation && args.objective) {
     logger.debug(`[AcpBackend] 🔍 Investigation tool objective: ${String(args.objective).substring(0, 100)}...`);
@@ -308,7 +350,8 @@ export function startToolCall(
 
   ctx.emit({
     type: 'tool-call',
-    toolName: toolKindStr || 'unknown',
+    toolName: realToolName,
+    title,
     args,
     callId: toolCallId,
   });
@@ -325,10 +368,13 @@ export function completeToolCall(
 ): void {
   const startTime = ctx.toolCallStartTimes.get(toolCallId);
   const duration = formatDuration(startTime);
-  const toolKindStr = typeof toolKind === 'string' ? toolKind : 'unknown';
+  const descriptor = ctx.toolCallDescriptors.get(toolCallId);
+  const toolKindStr = nonEmptyString(toolKind) ?? descriptor?.toolName ?? 'unknown';
 
   ctx.activeToolCalls.delete(toolCallId);
   ctx.toolCallStartTimes.delete(toolCallId);
+  ctx.toolCallIdToNameMap.delete(toolCallId);
+  ctx.toolCallDescriptors.delete(toolCallId);
 
   const timeout = ctx.toolCallTimeouts.get(toolCallId);
   if (timeout) {
@@ -341,6 +387,7 @@ export function completeToolCall(
   ctx.emit({
     type: 'tool-result',
     toolName: toolKindStr,
+    title: descriptor?.title,
     result: content,
     callId: toolCallId,
   });
@@ -365,7 +412,8 @@ export function failToolCall(
 ): void {
   const startTime = ctx.toolCallStartTimes.get(toolCallId);
   const duration = startTime ? Date.now() - startTime : null;
-  const toolKindStr = typeof toolKind === 'string' ? toolKind : 'unknown';
+  const descriptor = ctx.toolCallDescriptors.get(toolCallId);
+  const toolKindStr = nonEmptyString(toolKind) ?? descriptor?.toolName ?? 'unknown';
   const isInvestigation = ctx.transport.isInvestigationTool?.(toolCallId, toolKindStr) ?? false;
   const hadTimeout = ctx.toolCallTimeouts.has(toolCallId);
 
@@ -392,6 +440,8 @@ export function failToolCall(
   // Cleanup
   ctx.activeToolCalls.delete(toolCallId);
   ctx.toolCallStartTimes.delete(toolCallId);
+  ctx.toolCallIdToNameMap.delete(toolCallId);
+  ctx.toolCallDescriptors.delete(toolCallId);
 
   const timeout = ctx.toolCallTimeouts.get(toolCallId);
   if (timeout) {
@@ -417,9 +467,9 @@ export function failToolCall(
   ctx.emit({
     type: 'tool-result',
     toolName: toolKindStr,
-    result: errorDetail
-      ? { error: errorDetail, status }
-      : { error: `Tool call ${status}`, status },
+    title: descriptor?.title,
+    result: content,
+    error: errorDetail ?? `Tool call ${status}`,
     callId: toolCallId,
   });
 
@@ -446,7 +496,16 @@ export function handleToolCallUpdate(
     return { handled: false };
   }
 
-  const toolKind = update.kind || 'unknown';
+  const descriptor = ctx.toolCallDescriptors.get(toolCallId);
+  const toolKind = nonEmptyString(update.kind) ?? descriptor?.toolName ?? 'unknown';
+  const title = nonEmptyString(update.title);
+  if (descriptor && (title || update.rawInput !== undefined)) {
+    ctx.toolCallDescriptors.set(toolCallId, {
+      title: title ?? descriptor.title,
+      toolName: toolKind,
+      args: update.rawInput !== undefined ? parseRawInput(update.rawInput) : descriptor.args,
+    });
+  }
   let toolCallCountSincePrompt = ctx.toolCallCountSincePrompt;
 
   if (status === 'in_progress' || status === 'pending') {
@@ -457,9 +516,20 @@ export function handleToolCallUpdate(
       logger.debug(`[AcpBackend] Tool call ${toolCallId} already tracked, status: ${status}`);
     }
   } else if (status === 'completed') {
-    completeToolCall(toolCallId, toolKind, update.content, ctx);
+    completeToolCall(
+      toolCallId,
+      toolKind,
+      update.rawOutput !== undefined ? update.rawOutput : update.content,
+      ctx,
+    );
   } else if (status === 'failed' || status === 'cancelled') {
-    failToolCall(toolCallId, status, toolKind, update.content, ctx);
+    failToolCall(
+      toolCallId,
+      status,
+      toolKind,
+      update.rawOutput !== undefined ? update.rawOutput : update.content,
+      ctx,
+    );
   }
 
   return { handled: true, toolCallCountSincePrompt };

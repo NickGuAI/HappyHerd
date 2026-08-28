@@ -3555,6 +3555,60 @@ describe('reducer', () => {
         });
     });
 
+    describe('provider tool contracts', () => {
+        it('keeps provider title, structured result, and error on the rendered tool model', () => {
+            const state = createReducer();
+            const result = reducer(state, [
+                {
+                    id: 'provider-tool-start',
+                    localId: null,
+                    createdAt: 1000,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-call',
+                        id: 'grok-tool-17',
+                        name: 'execute',
+                        title: 'Run focused tests',
+                        input: { command: 'pnpm test' },
+                        description: 'Running execute',
+                        uuid: 'provider-tool-start-uuid',
+                        parentUUID: null,
+                    }],
+                },
+                {
+                    id: 'provider-tool-end',
+                    localId: null,
+                    createdAt: 1010,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: 'grok-tool-17',
+                        content: { exitCode: 2, stderr: 'failed' },
+                        error: 'failed',
+                        is_error: true,
+                        uuid: 'provider-tool-end-uuid',
+                        parentUUID: null,
+                    }],
+                },
+            ]);
+
+            expect(result.messages).toHaveLength(1);
+            expect(result.messages[0]).toMatchObject({
+                kind: 'tool-call',
+                tool: {
+                    callId: 'grok-tool-17',
+                    name: 'execute',
+                    title: 'Run focused tests',
+                    state: 'error',
+                    result: { exitCode: 2, stderr: 'failed' },
+                    error: 'failed',
+                },
+            });
+        });
+    });
+
     describe('TodoWrite latestTodos handling', () => {
         it('does not update todos from a running TodoWrite input', () => {
             const state = createReducer();

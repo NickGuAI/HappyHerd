@@ -100,6 +100,7 @@ import {
 import {
   type SessionUpdate,
   type HandlerContext,
+  type ToolCallDescriptor,
   DEFAULT_IDLE_TIMEOUT_MS,
   DEFAULT_TOOL_CALL_TIMEOUT_MS,
   handleAgentMessageChunk,
@@ -116,9 +117,12 @@ import {
  */
 type ExtendedRequestPermissionRequest = RequestPermissionRequest & {
   toolCall?: {
+    toolCallId?: string;
     id?: string;
-    kind?: string;
+    title?: string | null;
+    kind?: string | null;
     toolName?: string;
+    rawInput?: unknown;
     input?: Record<string, unknown>;
     arguments?: Record<string, unknown>;
     content?: Record<string, unknown>;
@@ -158,8 +162,18 @@ type ExtendedSessionNotification = SessionNotification & {
   };
 }
 
-type AcpPermissionDecision = 'approved' | 'approved_for_session' | 'denied' | 'abort';
+type AcpPermissionDecision = 'approved' | 'approved_for_session' | 'approved_without_prompt' | 'denied' | 'abort';
 type AcpPermissionOption = NonNullable<ExtendedRequestPermissionRequest['options']>[number];
+
+function nonEmptyPermissionString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+}
+
+function normalizePermissionInput(value: unknown): Record<string, unknown> {
+  if (Array.isArray(value)) return { items: value };
+  if (value && typeof value === 'object') return value as Record<string, unknown>;
+  return value === undefined ? {} : { value };
+}
 
 /** Select only an option the provider actually advertised, using ACP permission kinds. */
 export function resolveAcpPermissionResponse(
@@ -170,14 +184,16 @@ export function resolveAcpPermissionResponse(
     return { outcome: { outcome: 'cancelled' } };
   }
 
-  const kind = decision === 'approved_for_session'
-    ? 'allow_always'
+  const acceptableKinds = decision === 'approved_for_session'
+    ? ['allow_always']
     : decision === 'approved'
-      ? 'allow_once'
-      : 'reject_once';
-  const selected = options.find((option) => (
-    option.kind === kind && typeof option.optionId === 'string'
-  ));
+      ? ['allow_once']
+      : decision === 'approved_without_prompt'
+        ? ['allow_once', 'allow_always']
+        : ['reject_once'];
+  const selected = acceptableKinds.flatMap((kind) => (
+    options.filter((option) => option.kind === kind)
+  )).find((option) => typeof option.optionId === 'string');
 
   return selected?.optionId
     ? { outcome: { outcome: 'selected', optionId: selected.optionId } }
@@ -188,17 +204,25 @@ export function resolveAcpPermissionResponse(
  * Permission handler interface for ACP backends
  */
 export interface AcpPermissionHandler {
+  /** Whether this callback requires one user-visible prompt. Defaults to true. */
+  requiresUserInput?(
+    toolCallId: string,
+    toolName: string,
+    input: unknown
+  ): boolean;
   /**
    * Handle a tool permission request
    * @param toolCallId - The unique ID of the tool call
-   * @param toolName - The name of the tool being called
+   * @param toolName - Semantic tool name/category used by permission policy
    * @param input - The input parameters for the tool
+   * @param displayTitle - Provider-authored title used only for presentation
    * @returns Promise resolving to permission result with decision
    */
   handleToolCall(
     toolCallId: string,
     toolName: string,
-    input: unknown
+    input: unknown,
+    displayTitle?: string,
   ): Promise<{ decision: AcpPermissionDecision }>;
 }
 
@@ -371,6 +395,8 @@ export class AcpBackend implements AgentBackend {
 
   /** Map from real tool call ID to tool name for auto-approval */
   private toolCallIdToNameMap = new Map<string, string>();
+  /** Provider-authored tool fields retained for sparse completion updates. */
+  private toolCallDescriptors = new Map<string, ToolCallDescriptor>();
 
   /** Track if we just sent a prompt with change_title instruction */
   private recentPromptHadChangeTitle = false;
@@ -406,6 +432,96 @@ export class AcpBackend implements AgentBackend {
       } catch (error) {
         logger.warn('[AcpBackend] Error in message handler:', error);
       }
+    }
+  }
+
+  /** @internal ACP requestPermission callback, public for contract-level tests. */
+  async handlePermissionRequest(params: RequestPermissionRequest): Promise<RequestPermissionResponse> {
+    const extendedParams = params as ExtendedRequestPermissionRequest;
+    const toolCall = extendedParams.toolCall;
+    const providerTitle = nonEmptyPermissionString(toolCall?.title);
+    const initialToolName = nonEmptyPermissionString(toolCall?.kind)
+      ?? nonEmptyPermissionString(toolCall?.toolName)
+      ?? nonEmptyPermissionString(extendedParams.kind)
+      ?? 'Unknown tool';
+    const toolCallId = toolCall?.toolCallId ?? toolCall?.id ?? randomUUID();
+    const permissionId = toolCallId;
+
+    let rawInput: unknown;
+    if (toolCall && Object.prototype.hasOwnProperty.call(toolCall, 'rawInput')) {
+      rawInput = toolCall.rawInput;
+    } else if (toolCall) {
+      rawInput = toolCall.input ?? toolCall.arguments ?? toolCall.content;
+    } else {
+      rawInput = extendedParams.input ?? extendedParams.arguments ?? extendedParams.content;
+    }
+    const input = normalizePermissionInput(rawInput);
+
+    const context: ToolNameContext = {
+      recentPromptHadChangeTitle: this.recentPromptHadChangeTitle,
+      toolCallCountSincePrompt: this.toolCallCountSincePrompt,
+    };
+    const toolName = this.transport.determineToolName?.(initialToolName, toolCallId, input, context) ?? initialToolName;
+    const displayTitle = providerTitle ?? toolName;
+
+    if (toolName !== initialToolName) {
+      logger.debug(`[AcpBackend] Detected tool name: ${toolName} from toolCallId: ${toolCallId}`);
+    }
+
+    this.toolCallCountSincePrompt++;
+    const options = extendedParams.options || [];
+
+    logger.debug(`[AcpBackend] Permission request: tool=${toolName}, title=${displayTitle}, toolCallId=${toolCallId}, input=`, JSON.stringify(input));
+    logger.debug(`[AcpBackend] Permission request params structure:`, JSON.stringify({
+      hasToolCall: !!toolCall,
+      toolCallKind: toolCall?.kind,
+      toolCallTitle: toolCall?.title,
+      toolCallId,
+      paramsKind: extendedParams.kind,
+      paramsKeys: Object.keys(params),
+    }, null, 2));
+
+    const requiresUserInput = this.options.permissionHandler?.requiresUserInput?.(
+      toolCallId,
+      toolName,
+      input,
+    ) ?? true;
+    if (requiresUserInput) {
+      this.emit({
+        type: 'permission-request',
+        id: permissionId,
+        reason: displayTitle,
+        payload: {
+          ...params,
+          permissionId,
+          toolCallId,
+          toolName,
+          toolTitle: displayTitle,
+          input,
+          options: options.map((option) => ({
+            id: option.optionId,
+            name: option.name,
+            kind: option.kind,
+          })),
+        },
+      });
+    }
+
+    if (!this.options.permissionHandler) {
+      return resolveAcpPermissionResponse(options, 'approved');
+    }
+
+    try {
+      const result = await this.options.permissionHandler.handleToolCall(
+        toolCallId,
+        toolName,
+        input,
+        displayTitle,
+      );
+      return resolveAcpPermissionResponse(options, result.decision);
+    } catch (error) {
+      logger.debug('[AcpBackend] Error in permission handler:', error);
+      return { outcome: { outcome: 'cancelled' } };
     }
   }
 
@@ -602,100 +718,9 @@ export class AcpBackend implements AgentBackend {
         sessionUpdate: async (params: SessionNotification) => {
           this.handleSessionUpdate(params);
         },
-        requestPermission: async (params: RequestPermissionRequest): Promise<RequestPermissionResponse> => {
-          
-          const extendedParams = params as ExtendedRequestPermissionRequest;
-          const toolCall = extendedParams.toolCall;
-          let toolName = toolCall?.kind || toolCall?.toolName || extendedParams.kind || 'Unknown tool';
-          // Use toolCallId as the single source of truth for permission ID
-          // This ensures mobile app sends back the same ID that we use to store pending requests
-          const toolCallId = toolCall?.id || randomUUID();
-          const permissionId = toolCallId; // Use same ID for consistency!
-          
-          // Extract input/arguments from various possible locations FIRST (before checking toolName)
-          let input: Record<string, unknown> = {};
-          if (toolCall) {
-            input = toolCall.input || toolCall.arguments || toolCall.content || {};
-          } else {
-            // If no toolCall, try to extract from params directly
-            input = extendedParams.input || extendedParams.arguments || extendedParams.content || {};
-          }
-          
-          // If toolName is "other" or "Unknown tool", try to determine real tool name
-          const context: ToolNameContext = {
-            recentPromptHadChangeTitle: this.recentPromptHadChangeTitle,
-            toolCallCountSincePrompt: this.toolCallCountSincePrompt,
-          };
-          toolName = this.transport.determineToolName?.(toolName, toolCallId, input, context) ?? toolName;
-          
-          if (toolName !== (toolCall?.kind || toolCall?.toolName || extendedParams.kind || 'Unknown tool')) {
-            logger.debug(`[AcpBackend] Detected tool name: ${toolName} from toolCallId: ${toolCallId}`);
-          }
-          
-          // Increment tool call counter for context tracking
-          this.toolCallCountSincePrompt++;
-          
-          const options = extendedParams.options || [];
-          
-          // Log permission request for debugging (include full params to understand structure)
-          logger.debug(`[AcpBackend] Permission request: tool=${toolName}, toolCallId=${toolCallId}, input=`, JSON.stringify(input));
-          logger.debug(`[AcpBackend] Permission request params structure:`, JSON.stringify({
-            hasToolCall: !!toolCall,
-            toolCallKind: toolCall?.kind,
-            toolCallId: toolCall?.id,
-            paramsKind: extendedParams.kind,
-            paramsKeys: Object.keys(params),
-          }, null, 2));
-          
-          // Emit permission request event for UI/mobile handling
-          this.emit({
-            type: 'permission-request',
-            id: permissionId,
-            reason: toolName,
-            payload: {
-              ...params,
-              permissionId,
-              toolCallId,
-              toolName,
-              input,
-              options: options.map((opt) => ({
-                id: opt.optionId,
-                name: opt.name,
-                kind: opt.kind,
-              })),
-            },
-          });
-          
-          // Use permission handler if provided, otherwise auto-approve
-          if (this.options.permissionHandler) {
-            try {
-              const result = await this.options.permissionHandler.handleToolCall(
-                toolCallId,
-                toolName,
-                input
-              );
-              
-              this.emit({
-                type: 'tool-result',
-                toolName,
-                result: {
-                  status: result.decision === 'approved' || result.decision === 'approved_for_session'
-                    ? 'approved'
-                    : 'denied',
-                  decision: result.decision,
-                },
-                callId: permissionId,
-              });
-              return resolveAcpPermissionResponse(options, result.decision);
-            } catch (error) {
-              // Log to file only, not console
-              logger.debug('[AcpBackend] Error in permission handler:', error);
-              return { outcome: { outcome: 'cancelled' } };
-            }
-          }
-          
-          return resolveAcpPermissionResponse(options, 'approved');
-        },
+        requestPermission: (params: RequestPermissionRequest): Promise<RequestPermissionResponse> => (
+          this.handlePermissionRequest(params)
+        ),
       };
 
       // Create ClientSideConnection
@@ -882,6 +907,7 @@ export class AcpBackend implements AgentBackend {
       toolCallStartTimes: this.toolCallStartTimes,
       toolCallTimeouts: this.toolCallTimeouts,
       toolCallIdToNameMap: this.toolCallIdToNameMap,
+      toolCallDescriptors: this.toolCallDescriptors,
       idleTimeout: this.idleTimeout,
       toolCallCountSincePrompt: this.toolCallCountSincePrompt,
       emit: (msg) => this.emit(msg),
