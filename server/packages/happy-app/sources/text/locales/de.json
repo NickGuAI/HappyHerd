@@ -1223,6 +1223,8 @@
       "sortRecentSubtitle": "Sitzungen nach letzter Aktivität statt Erstellungsdatum sortieren",
       "resumeSession": "Sitzung fortsetzen",
       "resumeSessionSubtitle": "Getrennte Claude Code- und Codex-Sitzungen über den Rechner-Daemon fortsetzen",
+      "commanderProfilePictures": "Commander-Profilbilder",
+      "commanderProfilePicturesSubtitle": "Commander-Bilder in Gesprächslisten anzeigen und bei aktiver Arbeit pulsieren lassen",
       "voiceInput": "Spracheingabe",
       "voiceInputSubtitle": "OpenAI-Transkription anzeigen, wenn ein sicherer Schlüssel eingerichtet ist"
     },

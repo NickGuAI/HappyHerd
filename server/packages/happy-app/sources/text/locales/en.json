@@ -1223,6 +1223,8 @@
       "sortRecentSubtitle": "Order the session list by last activity instead of creation date",
       "resumeSession": "Resume Session",
       "resumeSessionSubtitle": "Resume disconnected Claude Code and Codex sessions via the machine daemon",
+      "commanderProfilePictures": "Commander Profile Pictures",
+      "commanderProfilePicturesSubtitle": "Show Commander pictures in conversation lists and pulse them while work is active",
       "voiceInput": "Voice Input",
       "voiceInputSubtitle": "Show OpenAI transcription controls when a secure key is configured"
     },

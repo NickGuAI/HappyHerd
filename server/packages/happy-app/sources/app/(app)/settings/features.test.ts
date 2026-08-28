@@ -3,6 +3,7 @@ import * as React from 'react';
 import { act, create } from 'react-test-renderer';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const settings = vi.hoisted(() => ({ commanderProfilePictures: false }));
 const settingReads = vi.hoisted(() => [] as string[]);
 
 vi.mock('react-native', () => ({ Platform: { OS: 'web' } }));
@@ -35,7 +36,10 @@ vi.mock('@/components/CommanderAvatarSettings', async () => {
 vi.mock('@/sync/storage', () => ({
     useSettingMutable: (key: string) => {
         settingReads.push(key);
-        return [false, vi.fn()];
+        return [
+            key === 'commanderProfilePictures' ? settings.commanderProfilePictures : false,
+            vi.fn(),
+        ];
     },
     useLocalSettingMutable: () => [false, vi.fn()],
 }));
@@ -54,19 +58,29 @@ beforeAll(() => {
 });
 
 afterAll(() => vi.restoreAllMocks());
-beforeEach(() => settingReads.splice(0));
+beforeEach(() => {
+    settingReads.splice(0);
+    settings.commanderProfilePictures = false;
+});
 
-describe('Commander profile picture management', () => {
-    it('is directly available and never reads or renders the retired visibility gate', () => {
+describe('Commander profile picture feature gate', () => {
+    it('keeps avatar management unmounted until the account-synced switch is enabled', () => {
         let renderer!: ReturnType<typeof create>;
         act(() => {
             renderer = create(React.createElement(FeaturesSettingsScreen));
         });
 
-        expect(renderer.root.findAllByType('CommanderAvatarSettings' as any)).toHaveLength(1);
-        expect(settingReads).not.toContain('commanderProfilePictures');
+        expect(settingReads).toContain('commanderProfilePictures');
+        expect(renderer.root.findAllByType('CommanderAvatarSettings' as any)).toHaveLength(0);
         expect(renderer.root.findAllByType('Item' as any)
             .map((item: any) => item.props.title))
-            .not.toContain('happyHerd.features.commanderProfilePictures');
+            .toContain('happyHerd.features.commanderProfilePictures');
+
+        settings.commanderProfilePictures = true;
+        act(() => {
+            renderer.update(React.createElement(FeaturesSettingsScreen));
+        });
+
+        expect(renderer.root.findAllByType('CommanderAvatarSettings' as any)).toHaveLength(1);
     });
 });

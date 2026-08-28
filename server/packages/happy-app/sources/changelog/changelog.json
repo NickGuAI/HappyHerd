@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 28 — Commander pictures load only when enabled",
+      "summary": "",
+      "markdown": "- Commander profile pictures are off by default again. Session lists keep Commander initials and status rings without remote avatar requests until the feature is enabled; enabling it restores the existing pictures and management controls."
+    },
+    {
       "title": "August 28 — Agent images and one attachment menu",
       "summary": "",
       "markdown": "- PNG and JPEG images returned by Claude and Codex now stay encrypted with the session, render inline after reconnecting, and open at full size.\n- New and active chats now use one attachment button for Photos and Device files while keeping workspace browsing separate."
@@ -301,5 +306,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 28 — Agent images and one attachment menu"
+  "latestTitle": "August 28 — Commander pictures load only when enabled"
 }

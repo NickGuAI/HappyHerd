@@ -360,6 +360,8 @@ export type TranslationKey =
     | "happyHerd.composer.sendFailedTitle"
     | "happyHerd.composer.startVoice"
     | "happyHerd.composer.stop"
+    | "happyHerd.features.commanderProfilePictures"
+    | "happyHerd.features.commanderProfilePicturesSubtitle"
     | "happyHerd.features.fileDiffsSidebar"
     | "happyHerd.features.fileDiffsSidebarSubtitle"
     | "happyHerd.features.interface"

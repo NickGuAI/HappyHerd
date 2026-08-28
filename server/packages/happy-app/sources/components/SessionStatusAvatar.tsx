@@ -7,6 +7,7 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { getProviderIconKind } from '@/sync/rig';
+import { useSetting } from '@/sync/storage';
 import { t } from '@/text';
 import { resolveAvatarHarness } from '@/utils/avatarHarness';
 import type { SessionState } from '@/utils/sessionUtils';
@@ -62,6 +63,7 @@ export function SessionStatusAvatar({
 }) {
     const { theme } = useUnistyles();
     const reduceMotion = useReducedMotion();
+    const commanderProfilePictures = useSetting('commanderProfilePictures');
     const presentation = resolveSessionStatusAvatar({
         active,
         hasUnread,
@@ -105,7 +107,7 @@ export function SessionStatusAvatar({
     const identity = commanderId ? (
         <CommanderSessionAvatar
             accessible={false}
-            machineId={machineId}
+            machineId={commanderProfilePictures ? machineId : null}
             commanderId={commanderId}
             commanderName={commanderName}
             size={innerSize}

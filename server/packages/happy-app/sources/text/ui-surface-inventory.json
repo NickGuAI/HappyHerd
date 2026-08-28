@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "4f30fe42f68f611772bb53ca85ebbca5b7a279d078f67dec670f5281955ce0b2",
+  "sourceFingerprint": "05ef896070117cd10c0c5d089f9bc2c71a6e0a09d479e030452a458c84955f89",
   "routeCount": 36,
   "surfaceCount": 244,
   "hardcodedCopyCount": 0,
@@ -712,6 +712,8 @@
       "path": "/settings/features",
       "owner": "sources/app/(app)/settings/features.tsx",
       "translationKeys": [
+        "happyHerd.features.commanderProfilePictures",
+        "happyHerd.features.commanderProfilePicturesSubtitle",
         "happyHerd.features.fileDiffsSidebar",
         "happyHerd.features.fileDiffsSidebarSubtitle",
         "happyHerd.features.interface",
@@ -1891,6 +1893,8 @@
         "FeaturesSettingsScreen"
       ],
       "translationKeys": [
+        "happyHerd.features.commanderProfilePictures",
+        "happyHerd.features.commanderProfilePicturesSubtitle",
         "happyHerd.features.fileDiffsSidebar",
         "happyHerd.features.fileDiffsSidebarSubtitle",
         "happyHerd.features.interface",

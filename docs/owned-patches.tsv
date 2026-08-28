@@ -133,3 +133,4 @@ DEV_CONTEXT_CI_BYPASS	accepted	ci: skip suites for development-context-only chan
 AUTOMATION_UNATTENDED	accepted	fix(automations): enforce unattended execution lifecycle	server/packages/happy-cli/src/automations/unattendedPolicy.test.ts
 SUBAGENT_LIFECYCLE	accepted	fix(subagents): trust provider lifecycle state	server/packages/happy-cli/src/codex/__tests__/sessionProtocolMapper.test.ts
 AGENT_MEDIA	accepted	fix(media): preserve agent images and unify attachments	server/packages/happy-cli/src/sessionProtocol/providerOutputImages.test.ts
+COMMANDER_AVATAR_GATE	accepted	fix(app): gate commander profile image loading	server/packages/happy-app/sources/components/SessionStatusAvatar.test.ts

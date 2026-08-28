@@ -1,3 +1,7 @@
+# August 28 — Commander pictures load only when enabled
+
+- Commander profile pictures are off by default again. Session lists keep Commander initials and status rings without remote avatar requests until the feature is enabled; enabling it restores the existing pictures and management controls.
+
 # August 28 — Agent images and one attachment menu
 
 - PNG and JPEG images returned by Claude and Codex now stay encrypted with the session, render inline after reconnecting, and open at full size.
