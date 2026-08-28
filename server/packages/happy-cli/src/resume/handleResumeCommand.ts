@@ -170,7 +170,6 @@ export async function buildValidatedTerminalResumeLaunch(
     if (resolveFlavor(session.metadata) !== 'grok') return launch;
 
     const permissionMode = persistedProviderPermissionMode(session.metadata, 'grok');
-    if (!permissionMode) return launch;
 
     const availability = detectCLIAvailability();
     const discovery = await detectAgentCapabilities(availability);

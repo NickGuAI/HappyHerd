@@ -150,6 +150,29 @@ describe('createSessionMetadata', () => {
         });
     });
 
+    it('lets the target-daemon handoff override direct launch settings', () => {
+        vi.stubEnv('HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON', JSON.stringify({
+            provider: 'grok',
+            model: 'grok-build',
+            effort: null,
+            permission: 'dontAsk',
+        }));
+
+        const { metadata } = createSessionMetadata({
+            flavor: 'grok',
+            machineId: 'machine-remote',
+            startedBy: 'daemon',
+            spawnSettings: {
+                provider: 'grok',
+                model: 'grok-build',
+                effort: null,
+                permission: 'bypassPermissions',
+            },
+        });
+
+        expect(metadata.spawnSettings?.permission).toBe('dontAsk');
+    });
+
     it('omits metadata.isSideChat for a normal session', () => {
         const { metadata } = createSessionMetadata({
             flavor: 'claude',

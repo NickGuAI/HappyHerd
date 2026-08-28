@@ -70,8 +70,11 @@ If the provider supports resume, persist the exact launch policy in session
 metadata and restore it through both app and terminal resume. Revalidate it
 against the current catalog on the exact owning machine before relaunch; never
 derive a launch policy from runtime message-mode metadata or ACP operating
-mode. Repeat the late-callback matrix after resume so an allow-without-prompt
-or deny-without-prompt policy cannot silently become interactive.
+mode, and never let a resume caller replace the persisted policy. A legacy
+session without a persisted launch policy uses the provider's currently
+advertised default after the same exact-machine validation. Repeat the
+late-callback matrix after resume so an allow-without-prompt or
+deny-without-prompt policy cannot silently become interactive.
 
 For GrokBuild specifically, `server/packages/happy-cli/src/capabilities/agentCapabilities.ts`
 discovers permission modes from `grok --help`,

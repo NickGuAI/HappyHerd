@@ -290,7 +290,7 @@ describe('daemon session continuity', () => {
     expect(spawnOptions.env.HAPPY_RECONNECT_AGENT_STATE_VERSION).toBe(String(encryption.agentStateVersion));
   });
 
-  it('revalidates and preserves the persisted Grok launch policy on app resume', async () => {
+  it('keeps the persisted Grok policy authoritative over a mismatched resume RPC', async () => {
     const resolvedSessionId = 'grok-session';
     const encryptionKey = new Uint8Array([1, 2, 3, 4]);
     const metadata: Metadata = {
@@ -336,7 +336,9 @@ describe('daemon session continuity', () => {
     await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
     const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
     const control = mocks.controlHandlers as CapturedControlHandlers;
-    const resume = rpc.resumeSession(resolvedSessionId);
+    const resume = rpc.resumeSession(resolvedSessionId, {
+      permissionMode: 'bypassPermissions',
+    });
     await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
     control.onHappySessionWebhook(resolvedSessionId, { ...metadata, hostPid: 4322 }, encryption);
 

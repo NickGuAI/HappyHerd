@@ -563,6 +563,16 @@ export async function runAcp(opts: {
     machineId: settings.machineId,
     startedBy: opts.startedBy,
     sandbox: settings.sandboxConfig,
+    ...(opts.agentName === 'grok' && opts.startedBy !== 'daemon'
+      ? {
+        spawnSettings: {
+          provider: 'grok',
+          model: opts.model ?? null,
+          effort: opts.effort ?? null,
+          permission: opts.permissionMode ?? null,
+        },
+      }
+      : {}),
   });
   const reconnectSessionId = process.env.HAPPY_RECONNECT_SESSION_ID;
   const reconnectKeyBase64 = process.env.HAPPY_RECONNECT_ENCRYPTION_KEY;

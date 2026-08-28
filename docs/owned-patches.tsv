@@ -136,6 +136,7 @@ AGENT_MEDIA	accepted	fix(media): preserve agent images and unify attachments	ser
 COMMANDER_AVATAR_GATE	accepted	fix(app): gate commander profile image loading	server/packages/happy-app/sources/components/SessionStatusAvatar.test.ts
 PROVIDER_CONFORMANCE	accepted	fix(acp): preserve permission and tool contracts	server/packages/happy-cli/src/agent/acp/sessionUpdateHandlers.test.ts
 PROVIDER_RESUME_POLICY	accepted	fix(grok): preserve permission policy on resume	server/packages/happy-cli/src/daemon/run.resume.test.ts
+PROVIDER_RESUME_AUTHORITY	accepted	fix(grok): make persisted resume policy authoritative	server/packages/happy-cli/src/daemon/run.resume.test.ts
 LATE_CHILD_IMAGE_OWNERSHIP	accepted	fix(media): preserve late child image ownership	server/packages/happy-cli/src/claude/utils/sessionProtocolMapper.test.ts
 BLOB_TEST_TIMEOUT	accepted	test(app): stabilize large blob encryption coverage	server/packages/happy-app/sources/encryption/blob.test.ts
 ACP_SPLIT_TOOL_UPDATES	accepted	fix(acp): preserve split tool updates	server/packages/happy-cli/src/agent/acp/sessionUpdateHandlers.test.ts

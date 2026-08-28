@@ -1108,11 +1108,15 @@ export async function startDaemon(): Promise<void> {
         const codexHome = resumeAgent === 'codex'
           ? await resolveCodexHomeForResume(metadata, ambientEnvironment)
           : undefined;
+        const persistedGrokPermission = resumeAgent === 'grok'
+          ? persistedProviderPermissionMode(metadata, 'grok')
+          : undefined;
         const grokResumeSettings = resumeAgent === 'grok'
           ? resolveEffectiveSessionSettings(machine.metadata, machine.id, {
               provider: 'grok',
-              permission: options?.permissionMode
-                ?? persistedProviderPermissionMode(metadata, 'grok'),
+              // The original session receipt is authoritative. A resume RPC
+              // may repeat this value, but it cannot replace or weaken it.
+              permission: persistedGrokPermission,
             })
           : undefined;
         appendDaemonSpawnModeArgs(launch.args, {

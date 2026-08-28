@@ -258,6 +258,35 @@ describe('runAcp', () => {
     expect(resolveAcpPermissionPolicy('opencode', 'bypassPermissions')).toBe('prompt');
   });
 
+  it.each(['dontAsk', 'bypassPermissions'] as const)(
+    'persists direct terminal Grok %s policy in canonical spawn settings',
+    async (permissionMode) => {
+      const runPromise = runAcp({
+        credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+        agentName: 'grok',
+        command: 'grok',
+        args: ['--no-auto-update', '--permission-mode', permissionMode, 'agent', 'stdio'],
+        startedBy: 'terminal',
+        permissionMode,
+      });
+
+      await vi.waitFor(() => expect(mocks.backendState.startSessionCalls).toBe(1));
+      expect(mocks.mockGetOrCreateSession).toHaveBeenCalledWith(expect.objectContaining({
+        metadata: expect.objectContaining({
+          spawnSettings: {
+            provider: 'grok',
+            model: null,
+            effort: null,
+            permission: permissionMode,
+          },
+        }),
+      }));
+
+      await mocks.getKillHandler()!();
+      await runPromise;
+    },
+  );
+
   it('does not create pending agent state for Grok bypass callbacks', async () => {
     const runPromise = runAcp({
       credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },

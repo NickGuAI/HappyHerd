@@ -300,6 +300,25 @@ describe('handleResumeCommand', () => {
         );
     });
 
+    it('uses the current advertised default for a receipt-less legacy Grok session', async () => {
+        const session = createReconnectableSession();
+        session.metadata = {
+            ...session.metadata,
+            flavor: 'grok',
+            codexThreadId: undefined,
+            acpSessionId: 'legacy-grok-provider-session',
+        };
+        mocks.mockResolveLocalReconnectableSession.mockResolvedValue(session);
+
+        await handleResumeCommand(['session-1']);
+
+        expect(mocks.mockDetectAgentCapabilities).toHaveBeenCalledOnce();
+        expect(spawnHappyCLI).toHaveBeenCalledWith(
+            ['grok', '--resume', 'legacy-grok-provider-session', '--permission-mode', 'default'],
+            expect.objectContaining({ cwd: '/tmp/repo', stdio: 'inherit' }),
+        );
+    });
+
     it('resumes from local persisted encryption data', async () => {
         const session = createReconnectableSession();
         session.metadata.codexHome = '/tmp';
