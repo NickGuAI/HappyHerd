@@ -1,8 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({
-    claudeRemote: vi.fn(),
-}));
+const mocks = vi.hoisted(() => {
+    let unattended = false;
+    return {
+        claudeRemote: vi.fn(),
+        setUnattended(value: boolean) {
+            unattended = value;
+        },
+        permissionToolCall: vi.fn(async () => {
+            if (unattended) throw new Error('Unattended Claude automation requested interactive permission for AskUserQuestion');
+            return { behavior: 'allow' };
+        }),
+    };
+});
 
 vi.mock('./claudeRemote', () => ({ claudeRemote: mocks.claudeRemote }));
 vi.mock('ink', () => ({ render: vi.fn() }));
@@ -19,10 +29,13 @@ vi.mock('@/ui/logger', () => ({
 }));
 vi.mock('./utils/permissionHandler', () => ({
     PermissionHandler: class {
+        constructor(_session: unknown, options?: { unattended?: boolean }) {
+            mocks.setUnattended(Boolean(options?.unattended));
+        }
         reset = vi.fn();
         setOnPermissionRequest = vi.fn();
         getResponseLookup = vi.fn(() => new Map());
-        handleToolCall = vi.fn();
+        handleToolCall = mocks.permissionToolCall;
         isAborted = vi.fn(() => false);
         handleModeChange = vi.fn();
         setPermissionModeUpdater = vi.fn();
@@ -134,6 +147,56 @@ describe('claudeRemoteLauncher heartbeat receipt', () => {
         expect(onProviderResult).toHaveBeenCalledWith({
             status: 'failed',
             message: 'maximum turns reached',
+        });
+    });
+
+    it('turns an unexpected unattended permission callback into a terminal provider failure', async () => {
+        const client = {
+            sessionId: 'session-one',
+            rpcHandlerManager: { registerHandler: vi.fn() },
+            updateAgentState: vi.fn(),
+            updateMetadata: vi.fn(),
+            closeClaudeSessionTurn: vi.fn(),
+            sendSessionEvent: vi.fn(),
+            sendClaudeSessionMessage: vi.fn(),
+            getMetadata: vi.fn(() => ({})),
+        };
+        const queue = new MessageQueue2<EnhancedMode>((mode) => JSON.stringify(mode));
+        queue.push('ask before running', { permissionMode: 'bypassPermissions' });
+        queue.close();
+
+        mocks.claudeRemote.mockImplementation(async (options: any) => {
+            const message = await options.nextMessage();
+            expect(message).toMatchObject({ message: 'ask before running' });
+            return options.canCallTool('AskUserQuestion', {}, {
+                signal: new AbortController().signal,
+                toolUseID: 'question-one',
+                requestId: 'request-one',
+            });
+        });
+        const onProviderResult = vi.fn();
+
+        await expect(claudeRemoteLauncher({
+            sessionId: 'claude-session-one',
+            path: '/srv/app',
+            logPath: '/tmp/claude.log',
+            allowedTools: [],
+            mcpServers: {},
+            hookSettingsPath: '/tmp/settings.json',
+            jsRuntime: 'node',
+            queue,
+            client,
+            api: { push: () => ({ sendSessionNotification: vi.fn() }) },
+            onAbort: vi.fn(),
+            onSessionFound: vi.fn(),
+            onThinkingChange: vi.fn(),
+            clearSessionId: vi.fn(),
+            consumeOneTimeFlags: vi.fn(),
+        } as any, { onProviderResult, unattended: true })).resolves.toBe('exit');
+
+        expect(onProviderResult).toHaveBeenCalledWith({
+            status: 'failed',
+            message: expect.stringContaining('requested interactive permission'),
         });
     });
 });

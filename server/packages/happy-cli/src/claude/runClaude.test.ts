@@ -999,6 +999,10 @@ describe('runClaude remote JSONL scanner', () => {
             expect.objectContaining({ message: bootstrap.instruction }),
         ]);
         expect(harness.loopOptions.messageQueue.isClosed()).toBe(true);
+        expect(harness.loopOptions).toMatchObject({
+            permissionMode: 'bypassPermissions',
+            unattended: true,
+        });
 
         harness.loopOptions.onProviderResult({ status: 'completed', message: null });
         await harness.finish();

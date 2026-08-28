@@ -147,8 +147,8 @@ export async function createDaemonSideChat(parentSessionId: string): Promise<{ s
 }
 
 export async function daemonAutomationAction(
-  action: 'list' | 'create' | 'update' | 'pause' | 'resume' | 'delete' | 'run-now' | 'history',
-  options: { id?: string; input?: unknown } = {},
+  action: 'list' | 'create' | 'update' | 'pause' | 'resume' | 'delete' | 'run-now' | 'history' | 'stop-run' | 'abandon-run',
+  options: { id?: string; runId?: string; input?: unknown } = {},
 ): Promise<any> {
   const result = await daemonPost('/automations', { action, ...options }, action === 'run-now' ? 25_000 : undefined);
   if (result?.error) throw new Error(result.error);

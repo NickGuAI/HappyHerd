@@ -26,6 +26,7 @@ import type { SpawnSessionOptions, SpawnSessionResult } from '@/modules/common/r
 import { logger } from '@/ui/logger';
 import { agentContextRoot, listCommanders } from '@/agentContext/commanderContext';
 import { HappyHerdAutomationStore } from './store';
+import { automationUnattendedPermissionMode } from './unattendedPolicy';
 
 const SCHEDULER_HEARTBEAT_MS = 30_000;
 const MAX_OFFLINE_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1_000;
@@ -74,6 +75,21 @@ export interface HappyHerdHeartbeatDependencies {
     automationId: string;
   }) => Promise<void>;
   resumeTarget: (sessionId: string, options?: { replayQueueMessageId?: string }) => Promise<SpawnSessionResult>;
+}
+
+export interface HappyHerdAutomationRunRecoveryDependencies {
+  hasExactTrackedRun: (run: HappyHerdAutomationRun) => boolean;
+  stopExactTrackedRun: (run: HappyHerdAutomationRun) => boolean;
+}
+
+export interface HappyHerdAutomationRunTarget {
+  automationId: string;
+  runId: string;
+}
+
+export interface HappyHerdAutomationRunAbandonment extends HappyHerdAutomationRunTarget {
+  sessionId: string | null;
+  confirmation: 'ABANDON';
 }
 
 interface SchedulerState {
@@ -199,6 +215,7 @@ export class HappyHerdAutomationService {
     private readonly machineId: string,
     private readonly spawnSession: (options: AutomationSpawnSessionOptions) => Promise<SpawnSessionResult>,
     private readonly heartbeatDependencies?: HappyHerdHeartbeatDependencies,
+    private readonly runRecoveryDependencies?: HappyHerdAutomationRunRecoveryDependencies,
   ) {}
 
   async start(): Promise<void> {
@@ -325,6 +342,7 @@ export class HappyHerdAutomationService {
             directory: automation.workspace,
             approvedNewDirectoryCreation: false,
             agent: automation.rail,
+            permissionMode: automationUnattendedPermissionMode(automation.rail),
             effortLevel: 'max',
             commanderId: automation.commanderId ?? undefined,
             automation: {
@@ -799,6 +817,57 @@ export class HappyHerdAutomationService {
   async listActiveRuns(): Promise<HappyHerdAutomationRun[]> {
     const { automations } = await this.store.list(this.machineId);
     return (await Promise.all(automations.map((automation) => this.store.activeRuns(automation.id)))).flat();
+  }
+
+  /** Ask the daemon to stop only the live process whose full run provenance matches. */
+  async stopRun(raw: HappyHerdAutomationRunTarget): Promise<HappyHerdAutomationRun> {
+    const automation = await this.store.get(raw.automationId);
+    if (automation.machineId !== this.machineId) throw new Error('Automation belongs to another machine');
+    const current = await this.store.getRun(raw.automationId, raw.runId);
+    if (!current) throw new Error(`Automation run ${raw.runId} was not found`);
+    if (current.status !== 'started' || !current.sessionId) {
+      throw new Error(`Automation run ${raw.runId} has no exact started session to stop`);
+    }
+    if (!this.runRecoveryDependencies?.stopExactTrackedRun(current)) {
+      throw new Error(`Automation run ${raw.runId} is not an exact live session tracked by this daemon`);
+    }
+    // Process signalling is not terminal evidence. The row remains active
+    // until the normal provider-exit reconciler confirms the exact PID exited.
+    return current;
+  }
+
+  /**
+   * Explicitly close a legacy active row only when no exact live run is
+   * tracked. This never signals a process and preserves the historical row.
+   */
+  async abandonRun(raw: HappyHerdAutomationRunAbandonment): Promise<HappyHerdAutomationRun> {
+    if (raw.confirmation !== 'ABANDON') {
+      throw new Error('Explicit ABANDON confirmation is required');
+    }
+    const automation = await this.store.get(raw.automationId);
+    if (automation.machineId !== this.machineId) throw new Error('Automation belongs to another machine');
+    const current = await this.store.getRun(raw.automationId, raw.runId);
+    if (!current) throw new Error(`Automation run ${raw.runId} was not found`);
+    if (current.status !== 'running' && current.status !== 'started') {
+      throw new Error(`Automation run ${raw.runId} is already ${current.status}`);
+    }
+    if (current.sessionId !== raw.sessionId) {
+      throw new Error(`Automation run ${raw.runId} session confirmation does not match`);
+    }
+    if (!this.runRecoveryDependencies) {
+      throw new Error('Automation run recovery is unavailable on this daemon');
+    }
+    if (this.runRecoveryDependencies.hasExactTrackedRun(current)) {
+      throw new Error(`Automation run ${raw.runId} is still tracked; stop the exact run instead`);
+    }
+    const abandoned: HappyHerdAutomationRun = {
+      ...current,
+      status: 'failed',
+      finishedAt: new Date().toISOString(),
+      message: 'Operator explicitly abandoned this untracked legacy automation run.',
+    };
+    await this.store.appendRun(abandoned);
+    return abandoned;
   }
 
   /**

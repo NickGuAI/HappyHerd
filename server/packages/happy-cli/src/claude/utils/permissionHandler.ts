@@ -33,6 +33,10 @@ interface PendingRequest {
 type PermissionResponseForLookup = Pick<PermissionResponse, 'approved' | 'mode' | 'reason'>;
 export type PermissionResponseLookup = Pick<ReadonlyMap<string, PermissionResponseForLookup>, 'get' | 'has'>;
 
+export interface PermissionHandlerOptions {
+    unattended?: boolean;
+}
+
 export class PermissionHandler {
     private responses = new Map<string, PermissionResponse>();
     private pendingRequests = new Map<string, PendingRequest>();
@@ -45,7 +49,7 @@ export class PermissionHandler {
     /** Callback to change permission mode on the active query (set by claudeRemote) */
     private setPermissionModeCallback?: (mode: PermissionMode) => Promise<void>;
 
-    constructor(session: Session) {
+    constructor(session: Session, private readonly options: PermissionHandlerOptions = {}) {
         this.session = session;
         this.setupClientHandler();
     }
@@ -228,6 +232,9 @@ export class PermissionHandler {
         signal: AbortSignal,
         toolUseId: string
     ): Promise<PermissionResult> {
+        if (this.options.unattended) {
+            throw new Error(`Unattended Claude automation requested interactive permission for ${toolName}`);
+        }
         return new Promise<PermissionResult>((resolve, reject) => {
             // Set up abort signal handling
             const abortHandler = () => {

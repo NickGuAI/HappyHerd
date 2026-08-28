@@ -1238,6 +1238,16 @@ export async function startDaemon(): Promise<void> {
       loadTarget: loadHeartbeatTarget,
       postMessage: (target, input) => api.postHeartbeatMessage(target, input),
       resumeTarget: resumeSession,
+    }, {
+      hasExactTrackedRun: (run) => {
+        const session = findExactTrackedAutomationSession(run);
+        return Boolean(session && !hasProviderProcessExited(session.pid));
+      },
+      stopExactTrackedRun: (run) => {
+        const session = findExactTrackedAutomationSession(run);
+        if (!session || hasProviderProcessExited(session.pid)) return false;
+        return stopSession(session.happySessionId ?? `PID-${session.pid}`);
+      },
     });
     await automations.start();
     await reconcileAutomationRuns();

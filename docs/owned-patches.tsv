@@ -130,3 +130,4 @@ SIDE_CHAT_LOCAL_AUTH	accepted	fix(cli): reuse local daemon auth for side chats	s
 SIDE_CHAT_LOCAL_AUTH_VERIFY	accepted	docs(cli): verify local side-chat authentication	.dev/VERIFY.md
 SECURITY_FEATURE_APPROVAL	accepted	docs(dev): require TickTick approval for security features	.dev/README.md
 DEV_CONTEXT_CI_BYPASS	accepted	ci: skip suites for development-context-only changes	.github/workflows/quality-gates.yml
+AUTOMATION_UNATTENDED	accepted	fix(automations): enforce unattended execution lifecycle	server/packages/happy-cli/src/automations/unattendedPolicy.test.ts

@@ -1,3 +1,9 @@
+# August 28 — Scheduled automations run without approval stalls
+
+- Scheduled Claude and Codex automations now launch with an explicit provider-native unattended policy instead of inheriting a changing interactive default.
+- Unexpected interactive permission requests fail the exact automation run without leaving an unanswerable approval, so later schedules can continue.
+- Operators can stop an exact daemon-tracked run or explicitly abandon a confirmed legacy orphan while preserving its history.
+
 # August 27 — One-command local HappyHerd install
 
 - macOS and Linux users can install from source with one copy/paste command into their own home directory; no issuer, release manifest, checksum, privileged broker, credential vault, helper identity, or environment export is required.

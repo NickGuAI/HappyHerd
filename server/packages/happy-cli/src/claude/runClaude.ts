@@ -121,7 +121,10 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     const sandboxConfig = options.noSandbox ? undefined : settings?.sandboxConfig;
     const sandboxEnabled = Boolean(sandboxConfig?.enabled);
     const initialPermissionMode = applySandboxPermissionPolicy(
-        resolveInitialClaudePermissionMode(options.permissionMode, options.claudeArgs),
+        resolveInitialClaudePermissionMode(
+            automationBootstrap ? 'bypassPermissions' : options.permissionMode,
+            options.claudeArgs,
+        ),
         sandboxEnabled,
     );
     const dangerouslySkipPermissions =
@@ -1043,6 +1046,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
             onProviderResult: (result) => {
                 if (automationBootstrap) automationProviderResult = result;
             },
+            unattended: Boolean(automationBootstrap),
             mcpServers: {
                 'happy': {
                     type: 'http' as const,

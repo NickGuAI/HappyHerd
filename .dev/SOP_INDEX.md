@@ -19,6 +19,7 @@ component deployment does not impose that source-state gate.
 | Component-native deployment | `docs/deployment.md`, `docs/runtime-isolation.md` | `scripts/build-server-image.sh`, `scripts/deploy-server.sh`, `scripts/install-host-cli.sh`, `scripts/install-linux-daemon-bootstrap.sh`, `scripts/install-agent-runtime.sh` |
 | Combined post-update server/daemon restart and read-back | `.dev/playbooks/post-update-restart.md`, `docs/deployment.md`, `docs/runtime-isolation.md` | `.github/workflows/server-image.yml`, `scripts/deploy-server.sh`, `scripts/install-host-cli.sh`, `scripts/start-host-daemon.sh`, native `happy daemon` commands |
 | `/automations` production profiling | `docs/automations-profiling.md` | Browser Performance API, private container metrics, retained server and daemon logs |
+| Unattended automation provider onboarding | `.dev/playbooks/automation-unattended-smoke.md` | CLI automation/permission lifecycle tests, then one authenticated harmless provider smoke |
 | AgentContext ownership | `docs/agentcontext-authority.md` | CLI Commander/context tests |
 | Upstream server deployment reference | `server/docs/deployment.md` | package scripts under `server/packages/happy-server` |
 

@@ -131,8 +131,9 @@ export function startDaemonControlServer({
     typed.post('/automations', {
       schema: {
         body: z.object({
-          action: z.enum(['list', 'create', 'update', 'pause', 'resume', 'delete', 'run-now', 'history']),
+          action: z.enum(['list', 'create', 'update', 'pause', 'resume', 'delete', 'run-now', 'history', 'stop-run', 'abandon-run']),
           id: z.string().optional(),
+          runId: z.string().optional(),
           input: z.any().optional(),
         }),
         response: { 200: z.any() },
@@ -161,6 +162,17 @@ export function startDaemonControlServer({
         case 'history':
           if (!id) throw new Error('id is required');
           return automations.history(id);
+        case 'stop-run':
+          if (!id || !request.body.runId) throw new Error('id and runId are required');
+          return automations.stopRun({ automationId: id, runId: request.body.runId });
+        case 'abandon-run':
+          if (!id || !request.body.runId) throw new Error('id and runId are required');
+          return automations.abandonRun({
+            automationId: id,
+            runId: request.body.runId,
+            sessionId: request.body.input?.sessionId ?? null,
+            confirmation: request.body.input?.confirmation,
+          });
       }
     });
 

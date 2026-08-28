@@ -321,6 +321,23 @@ describe('HappyHerdAutomationService', () => {
     expect((await service.history(created.id)).runs[0]).toMatchObject({ status: 'started' });
   });
 
+  it.each([
+    ['claude', 'bypassPermissions'],
+    ['codex', 'yolo'],
+  ] as const)('spawns %s automations with an explicit unattended permission policy', async (rail, permissionMode) => {
+    const spawn = vi.fn().mockResolvedValue({ type: 'success', sessionId: `${rail}-session` });
+    service = new HappyHerdAutomationService('machine-one', spawn);
+    await service.start();
+    const created = await service.create({ ...input(), rail });
+
+    await service.runNow(created.id);
+
+    expect(spawn).toHaveBeenCalledWith(expect.objectContaining({
+      agent: rail,
+      permissionMode,
+    }));
+  });
+
   it('does not execute missed runs automatically after downtime', async () => {
     const spawn = vi.fn();
     service = new HappyHerdAutomationService('machine-one', spawn);
@@ -509,6 +526,79 @@ describe('HappyHerdAutomationService', () => {
     await expect(service.pause(created.id)).resolves.toMatchObject({ status: 'paused' });
     await expect(service.delete(created.id)).rejects.toThrow(/currently running/);
     expect(replacementSpawn).not.toHaveBeenCalled();
+  });
+
+  it('stops only the exact tracked run and waits for confirmed provider exit', async () => {
+    const spawn = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'session-one' });
+    const stopExactTrackedRun = vi.fn(() => true);
+    service = new HappyHerdAutomationService('machine-one', spawn, undefined, {
+      hasExactTrackedRun: vi.fn(() => true),
+      stopExactTrackedRun,
+    });
+    await service.start();
+    const created = await service.create(input());
+    const started = await service.runNow(created.id);
+
+    await expect(service.stopRun({
+      automationId: created.id,
+      runId: started.id,
+    })).resolves.toMatchObject({ status: 'started', sessionId: 'session-one' });
+    expect(stopExactTrackedRun).toHaveBeenCalledWith(started);
+    expect((await service.history(created.id)).runs[0]).toMatchObject({
+      status: 'started',
+      finishedAt: null,
+    });
+
+    await service.confirmRunTermination({
+      automationId: created.id,
+      runId: started.id,
+      sessionId: 'session-one',
+      status: 'failed',
+      message: 'Operator stopped the exact tracked run.',
+    });
+    await expect(service.runNow(created.id)).resolves.toMatchObject({ status: 'started' });
+  });
+
+  it('abandons only an explicitly confirmed orphan and preserves its history', async () => {
+    const spawn = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'legacy-session' });
+    let tracked = true;
+    service = new HappyHerdAutomationService('machine-one', spawn, undefined, {
+      hasExactTrackedRun: vi.fn(() => tracked),
+      stopExactTrackedRun: vi.fn(() => false),
+    });
+    await service.start();
+    const created = await service.create(input());
+    const started = await service.runNow(created.id);
+
+    await expect(service.abandonRun({
+      automationId: created.id,
+      runId: started.id,
+      sessionId: 'legacy-session',
+      confirmation: 'ABANDON',
+    })).rejects.toThrow(/still tracked/);
+
+    tracked = false;
+    await expect(service.abandonRun({
+      automationId: created.id,
+      runId: started.id,
+      sessionId: 'wrong-session',
+      confirmation: 'ABANDON',
+    })).rejects.toThrow(/session confirmation/);
+
+    const abandoned = await service.abandonRun({
+      automationId: created.id,
+      runId: started.id,
+      sessionId: 'legacy-session',
+      confirmation: 'ABANDON',
+    });
+    expect(abandoned).toMatchObject({
+      id: started.id,
+      status: 'failed',
+      sessionId: 'legacy-session',
+      message: expect.stringContaining('explicitly abandoned'),
+    });
+    expect((await service.history(created.id)).runs).toContainEqual(abandoned);
+    await expect(service.runNow(created.id)).resolves.toMatchObject({ status: 'started' });
   });
 
   it('enforces the selected Commander workspace', async () => {

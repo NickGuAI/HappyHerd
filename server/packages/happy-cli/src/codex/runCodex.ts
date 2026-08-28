@@ -900,6 +900,15 @@ export async function runCodex(opts: {
             return 'approved';
         }
 
+        if (automationBootstrap) {
+            const message = `Unattended Codex automation requested interactive permission for ${toolName}`;
+            logger.warn(`[AUTOMATIONS] ${message}`);
+            automationTerminalEvent = { status: 'failed', message };
+            // Returning abort asks the provider to end this exact turn without
+            // ever publishing a pending approval that nobody can answer.
+            return 'abort';
+        }
+
         try {
             const result = await permissionHandler.handleToolCall(params.callId, toolName, input);
             logger.debug('[Codex] Permission result:', result.decision);

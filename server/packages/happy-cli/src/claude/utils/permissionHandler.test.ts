@@ -85,6 +85,22 @@ describe('PermissionHandler', () => {
         expect(result).toMatchObject({ behavior: 'allow' });
     });
 
+    it('fails an unattended interactive request without creating pending approval state', async () => {
+        const { session, getState } = createSessionMock();
+        const handler = new PermissionHandler(session as any, { unattended: true });
+        const controller = new AbortController();
+
+        handler.handleModeChange('bypassPermissions');
+
+        await expect(handler.handleToolCall(
+            'AskUserQuestion',
+            { questions: [{ question: 'Continue?' }] },
+            mode,
+            { signal: controller.signal, toolUseID: 'toolu_question', requestId: 'request_question' },
+        )).rejects.toThrow(/unattended Claude automation requested interactive permission/i);
+        expect(getState().requests).toBeUndefined();
+    });
+
     it('syncs the mapped mode into the live query on mode change', async () => {
         const { session } = createSessionMock();
         const handler = new PermissionHandler(session as any);
