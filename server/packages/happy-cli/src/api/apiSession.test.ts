@@ -170,6 +170,9 @@ describe('ApiSessionClient v3 messages API migration', () => {
             off: vi.fn(),
             emit: vi.fn(),
             emitWithAck: vi.fn(async () => ({ result: 'error' })),
+            timeout: vi.fn(() => ({
+                emitWithAck: mockSocket.emitWithAck
+            })),
             volatile: {
                 emit: vi.fn()
             },
@@ -191,6 +194,38 @@ describe('ApiSessionClient v3 messages API migration', () => {
         expect(mockSocket.on).toHaveBeenCalledWith('disconnect', expect.any(Function));
         expect(mockSocket.on).toHaveBeenCalledWith('update', expect.any(Function));
         expect(mockSocket.connect).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not miss a socket connection between checking and subscribing', async () => {
+        mockSocket.connected = false;
+        let connectRegistrations = 0;
+        mockSocket.on.mockImplementation((event: string, handler: SocketHandler) => {
+            if (!socketHandlers[event]) socketHandlers[event] = [];
+            socketHandlers[event].push(handler);
+            if (event === 'connect' && ++connectRegistrations === 2) {
+                mockSocket.connected = true;
+            }
+        });
+
+        const client = new ApiSessionClient('fake-token', session);
+
+        await expect(client.waitForConnected(10)).resolves.toBeUndefined();
+        expect(mockSocket.off).toHaveBeenCalledWith('connect', expect.any(Function));
+        await client.close();
+    });
+
+    it('bounds lifecycle metadata acknowledgement failure without entering general backoff', async () => {
+        const acknowledgement = vi.fn(async () => {
+            throw new Error('ack timeout');
+        });
+        mockSocket.timeout.mockReturnValue({ emitWithAck: acknowledgement });
+        const client = new ApiSessionClient('fake-token', session);
+
+        await expect(client.updateMetadata((metadata) => metadata, 10))
+            .rejects.toThrow('ack timeout');
+        expect(acknowledgement).toHaveBeenCalledOnce();
+        expect(mockBackoff).not.toHaveBeenCalled();
+        await client.close();
     });
 
     it('retries after initial socket connection error', async () => {

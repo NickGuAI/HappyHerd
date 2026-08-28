@@ -310,6 +310,32 @@ export function sessionRoutes(app: Fastify) {
         }
     });
 
+    // Prepare an existing exact session for an in-place provider reconnect.
+    // Unlike tag-based startup through POST /v1/sessions, reconnect already
+    // knows the Happy session ID and otherwise only performs read requests.
+    app.post('/v1/sessions/:sessionId/resume', {
+        schema: {
+            params: z.object({
+                sessionId: z.string()
+            })
+        },
+        preHandler: app.authenticate
+    }, async (request, reply) => {
+        const userId = request.userId;
+        const { sessionId } = request.params;
+
+        const session = await db.session.findFirst({
+            where: { id: sessionId, accountId: userId },
+            select: { id: true }
+        });
+        if (!session) {
+            return reply.code(404).send({ error: 'Session not found' });
+        }
+
+        activityCache.resumeSessionUpdates(session.id);
+        return reply.send({ success: true });
+    });
+
     app.get('/v1/sessions/:sessionId/messages', {
         schema: {
             params: z.object({

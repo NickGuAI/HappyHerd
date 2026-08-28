@@ -16,6 +16,7 @@ component deployment does not impose that source-state gate.
 | Upstream sync | `docs/upstream-sync-rehearsal.md` | `scripts/rehearse-upstream-sync.sh`, `scripts/test-upstream-sync-provenance.sh` |
 | End-user local install and cleanup | `README.md`, `docs/public-launcher-release.md` | `install.sh`, `installers/{uninstall,cleanup-legacy}.sh`, `scripts/test-public-launcher-release-contract.sh` |
 | CLI command reference | `server/packages/happyherd-cli/README.md`, `server/packages/happy-cli/README.md` | `happyherd --help`, `happy --help` |
+| Side-chat lifecycle and recovery | `.dev/playbooks/side-chat-lifecycle.md`, `.dev/COUPLINGS.md`, `.dev/VERIFY.md` | `happy session side-chat` lifecycle commands |
 | Troubleshooting and diagnostics | CLI README files, `docs/runtime-isolation.md` | native `happyherd doctor` / `happy doctor`, `scripts/health-happyherd-agent.sh` |
 | Component-native deployment | `docs/deployment.md`, `docs/runtime-isolation.md` | `scripts/build-server-image.sh`, `scripts/deploy-server.sh`, `scripts/install-host-cli.sh`, `scripts/install-linux-daemon-bootstrap.sh`, `scripts/install-agent-runtime.sh` |
 | Combined post-update server/daemon restart and read-back | `.dev/playbooks/post-update-restart.md`, `docs/deployment.md`, `docs/runtime-isolation.md` | `.github/workflows/server-image.yml`, `scripts/deploy-server.sh`, `scripts/install-host-cli.sh`, `scripts/start-host-daemon.sh`, native `happy daemon` commands |

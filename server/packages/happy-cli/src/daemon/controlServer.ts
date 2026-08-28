@@ -12,12 +12,13 @@ import { decodeBase64 } from '@/api/encryption';
 import { TrackedSession, SessionEncryptionData } from './types';
 import { SpawnSessionOptions, SpawnSessionResult } from '@/modules/common/registerCommonHandlers';
 import type { HappyHerdAutomationService } from '@/automations/service';
+import type { SideChatLifecycleReceipt, SideChatLifecycleRequest } from '@/commands/sideChat';
 
 export function startDaemonControlServer({
   getChildren,
   stopSession,
   spawnSession,
-  createSideChat,
+  sideChat,
   requestShutdown,
   onHappySessionWebhook,
   automations,
@@ -25,7 +26,7 @@ export function startDaemonControlServer({
   getChildren: () => TrackedSession[];
   stopSession: (sessionId: string) => boolean;
   spawnSession: (options: SpawnSessionOptions) => Promise<SpawnSessionResult>;
-  createSideChat: (parentSessionId: string) => Promise<{ sessionId: string }>;
+  sideChat: (request: SideChatLifecycleRequest) => Promise<SideChatLifecycleReceipt>;
   requestShutdown: () => void;
   onHappySessionWebhook: (sessionId: string, metadata: Metadata, encryption?: SessionEncryptionData) => void;
   automations: HappyHerdAutomationService;
@@ -246,19 +247,29 @@ export function startDaemonControlServer({
       }
     });
 
-    // Create a child side chat only from a parent owned by this daemon. The
-    // caller supplies no machine, path, provider, or backend ID overrides.
+    const sideChatRequestSchema = z.discriminatedUnion('action', [
+      z.object({ action: z.literal('create'), parentSessionId: z.string().min(1) }),
+      z.object({ action: z.literal('list'), parentSessionId: z.string().min(1) }),
+      z.object({ action: z.literal('status'), sessionId: z.string().min(1) }),
+      z.object({ action: z.literal('stop'), sessionId: z.string().min(1) }),
+      z.object({ action: z.literal('close'), sessionId: z.string().min(1) }),
+      z.object({ action: z.literal('reopen'), sessionId: z.string().min(1) }),
+      z.object({ action: z.literal('close-all'), parentSessionId: z.string().min(1) }),
+    ]);
+
+    // The daemon owns side-chat process state and encrypted session metadata;
+    // all lifecycle actions therefore cross this one local control boundary.
     typed.post('/side-chat', {
       schema: {
-        body: z.object({ parentSessionId: z.string().min(1) }),
+        body: sideChatRequestSchema,
         response: {
-          200: z.object({ sessionId: z.string().min(1) }),
+          200: z.any(),
           500: z.object({ error: z.string() }),
         },
       },
     }, async (request, reply) => {
       try {
-        return await createSideChat(request.body.parentSessionId);
+        return await sideChat(request.body);
       } catch (error) {
         reply.code(500);
         return { error: error instanceof Error ? error.message : String(error) };

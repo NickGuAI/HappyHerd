@@ -78,6 +78,35 @@ describe("ActivityCache machine heartbeats", () => {
         activityCache.shutdown();
     });
 
+    it("persists active=true for an inactive session inside the timestamp threshold", async () => {
+        const now = Date.parse("2026-01-01T00:00:00.000Z");
+        vi.setSystemTime(now);
+        dbMock.session.findUnique.mockResolvedValue({
+            id: "session-1",
+            accountId: "user-1",
+            active: false,
+            lastActiveAt: new Date(now),
+        });
+        dbMock.session.update.mockResolvedValue({});
+
+        const { activityCache } = await import("./sessionCache");
+
+        await expect(activityCache.isSessionValid("session-1", "user-1")).resolves.toBe(true);
+        expect(activityCache.queueSessionUpdate("session-1", now + 1000)).toBe(true);
+
+        await vi.advanceTimersByTimeAsync(5000);
+
+        expect(dbMock.session.update).toHaveBeenCalledWith({
+            where: { id: "session-1" },
+            data: {
+                lastActiveAt: new Date(now + 1000),
+                active: true,
+            },
+        });
+
+        activityCache.shutdown();
+    });
+
     it("discards a queued session heartbeat when the session is stopped", async () => {
         const now = Date.parse("2026-01-01T00:00:00.000Z");
         vi.setSystemTime(now);

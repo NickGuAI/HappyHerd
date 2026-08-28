@@ -36,13 +36,80 @@ export type SideChatCommandDependencies = {
 };
 
 export type SideChatHandlerDependencies = {
-  createChild: (parentSessionId: string) => Promise<CreateChildSideChatResult>;
+  execute: (request: SideChatLifecycleRequest) => Promise<SideChatLifecycleReceipt>;
   output?: (value: string) => void;
+  setExitCode?: (code: number) => void;
 };
 
 export type CreateChildSideChatResult = {
   sessionId: string;
 };
+
+export type SideChatLifecycleStatus = 'running' | 'stopped' | 'archived';
+
+export type SideChatStatusReceipt = {
+  sessionId: string;
+  parentSessionId: string;
+  status: SideChatLifecycleStatus;
+  providerRunning: boolean;
+  active: boolean;
+  resumable: boolean;
+};
+
+export type SideChatPhaseReceipt = {
+  phase: 'resolve' | 'stop' | 'archive-metadata' | 'deactivate' | 'resume' | 'readback';
+  status: 'succeeded' | 'skipped' | 'failed';
+  message?: string;
+};
+
+export type SideChatLifecycleRequest =
+  | { action: 'create'; parentSessionId: string }
+  | { action: 'list'; parentSessionId: string }
+  | { action: 'status' | 'stop' | 'close' | 'reopen'; sessionId: string }
+  | { action: 'close-all'; parentSessionId: string };
+
+type SideChatSingleAction = 'create' | 'status' | 'stop' | 'close' | 'reopen';
+
+export type SideChatSingleReceipt = {
+  schemaVersion: 1;
+  type: 'side-chat';
+  action: SideChatSingleAction;
+  success: boolean;
+  parentSessionId: string | null;
+  sessionId: string | null;
+  child: SideChatStatusReceipt | null;
+  phases: SideChatPhaseReceipt[];
+};
+
+export type SideChatListReceipt = {
+  schemaVersion: 1;
+  type: 'side-chat-list';
+  action: 'list';
+  success: boolean;
+  parentSessionId: string;
+  count: number;
+  openCount: number;
+  archivedCount: number;
+  children: SideChatStatusReceipt[];
+  failures: Array<{ sessionId: string; phase: 'readback'; message: string }>;
+};
+
+export type SideChatCloseAllReceipt = {
+  schemaVersion: 1;
+  type: 'side-chat-close-all';
+  action: 'close-all';
+  success: boolean;
+  parentSessionId: string;
+  total: number;
+  closed: number;
+  failed: number;
+  children: SideChatSingleReceipt[];
+};
+
+export type SideChatLifecycleReceipt =
+  | SideChatSingleReceipt
+  | SideChatListReceipt
+  | SideChatCloseAllReceipt;
 
 type SideChatSource = Readonly<{
   kind: 'claude' | 'codex';
@@ -176,13 +243,100 @@ export function sideChatHelp(): string {
   return `happy session side-chat
 
 Usage:
+  happy session side-chat create <parent-session-id> [--json]
+  happy session side-chat list <parent-session-id> [--json]
+  happy session side-chat status <child-session-id> [--json]
+  happy session side-chat stop <child-session-id> [--json]
+  happy session side-chat close <child-session-id> [--json]
+  happy session side-chat close <parent-session-id> --all [--json]
+  happy session side-chat reopen <child-session-id> [--json]
+  happy session side-chat resume <child-session-id> [--json]
+
+Legacy create syntax remains supported:
   happy session side-chat <parent-session-id> [--json]
 
-Creates a Claude or Codex child side chat from an existing Happy session.
-Run it on the parent session's owning machine; it reuses the local daemon and
-does not require account-control linking or QR approval.
-The child stays beneath its parent in the collapsible side-chat panel.
+All lifecycle actions run through the parent machine's local daemon. Close
+stops the provider, deactivates the server session, archives encrypted
+lifecycle metadata, and reads the final state back. Reopen resumes the same
+Happy session and preserves its parent lineage.
 `;
+}
+
+export function parseSideChatLifecycleRequest(args: string[]): {
+  request: SideChatLifecycleRequest;
+  json: boolean;
+} {
+  const json = args.includes('--json');
+  const all = args.includes('--all');
+  const positional = args.filter((arg) => arg !== '--json' && arg !== '--all');
+  const unknownOption = positional.find((arg) => arg.startsWith('-'));
+  if (unknownOption) {
+    throw new Error(`Unknown side-chat option: ${unknownOption}`);
+  }
+  if (positional.length === 0) {
+    throw new Error('Usage: happy session side-chat <action> <session-id> [--json]');
+  }
+
+  const [candidateAction, ...ids] = positional;
+  const action = candidateAction === 'resume' ? 'reopen' : candidateAction;
+  const knownAction = ['create', 'list', 'status', 'stop', 'close', 'reopen', 'close-all'].includes(action);
+  if (!knownAction) {
+    if (all || ids.length > 0 || !candidateAction.trim()) {
+      throw new Error(`Unknown side-chat action: ${candidateAction}`);
+    }
+    return { request: { action: 'create', parentSessionId: candidateAction }, json };
+  }
+  if (ids.length !== 1 || !ids[0].trim()) {
+    throw new Error(`Usage: happy session side-chat ${action} <session-id> [--json]`);
+  }
+  const id = ids[0];
+  if (action === 'close' && all) {
+    return { request: { action: 'close-all', parentSessionId: id }, json };
+  }
+  if (all) {
+    throw new Error('--all is supported only with the close action');
+  }
+  if (action === 'create' || action === 'list' || action === 'close-all') {
+    return { request: { action, parentSessionId: id }, json };
+  }
+  return {
+    request: { action: action as 'status' | 'stop' | 'close' | 'reopen', sessionId: id },
+    json,
+  };
+}
+
+export function formatSideChatLifecycleReceipt(receipt: SideChatLifecycleReceipt): string {
+  if (receipt.type === 'side-chat-list') {
+    const rows = receipt.children.map((child) => (
+      `${child.sessionId}\t${child.status}\t${child.active ? 'active' : 'inactive'}\t${child.resumable ? 'resumable' : 'not-resumable'}`
+    ));
+    const failures = receipt.failures.map((failure) => (
+      `${failure.sessionId}\tfailed\t${failure.phase}\t${failure.message}`
+    ));
+    return [
+      `Side chats for ${receipt.parentSessionId}: ${receipt.openCount} open, ${receipt.archivedCount} archived`,
+      'SESSION\tSTATUS\tSERVER\tRESUME',
+      ...rows,
+      ...failures,
+    ].join('\n');
+  }
+  if (receipt.type === 'side-chat-close-all') {
+    return [
+      `Closed ${receipt.closed}/${receipt.total} side chats for ${receipt.parentSessionId}`,
+      ...receipt.children.map((child) => (
+        `${child.sessionId ?? '-'}\t${child.success ? 'closed' : 'failed'}\t${child.child?.status ?? 'unknown'}`
+      )),
+    ].join('\n');
+  }
+  const child = receipt.child;
+  const label = receipt.action === 'create' ? 'Created' : receipt.action[0].toUpperCase() + receipt.action.slice(1);
+  const summary = child
+    ? `${label} side chat ${child.sessionId}: ${child.status} (${child.active ? 'active' : 'inactive'})`
+    : `${label} side chat ${receipt.sessionId ?? '-'}: failed`;
+  const failures = receipt.phases
+    .filter((phase) => phase.status === 'failed')
+    .map((phase) => `${phase.phase}: ${phase.message ?? 'failed'}`);
+  return [summary, ...failures].join('\n');
 }
 
 export async function handleSideChatCommand(
@@ -195,16 +349,10 @@ export async function handleSideChatCommand(
     return;
   }
 
-  const json = args.includes('--json');
-  const positional = args.filter((arg) => arg !== '--json');
-  const unknownOption = positional.find((arg) => arg.startsWith('-'));
-  if (unknownOption) {
-    throw new Error(`Unknown side-chat option: ${unknownOption}`);
+  const { request, json } = parseSideChatLifecycleRequest(args);
+  const receipt = await dependencies.execute(request);
+  output(json ? JSON.stringify(receipt) : formatSideChatLifecycleReceipt(receipt));
+  if (!receipt.success) {
+    (dependencies.setExitCode ?? ((code) => { process.exitCode = code; }))(1);
   }
-  if (positional.length !== 1 || !positional[0].trim()) {
-    throw new Error('Usage: happy session side-chat <parent-session-id> [--json]');
-  }
-
-  const result = await dependencies.createChild(positional[0]);
-  output(json ? JSON.stringify(result) : result.sessionId);
 }

@@ -2,9 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   createChildSideChat,
+  formatSideChatLifecycleReceipt,
   handleSideChatCommand,
+  parseSideChatLifecycleRequest,
   type ResolvedSideChatMachine,
   type SideChatCommandDependencies,
+  type SideChatLifecycleReceipt,
+  type SideChatSingleReceipt,
 } from './sideChat';
 
 const parentId = 'happy-parent';
@@ -34,6 +38,29 @@ function dependencies(
     }),
   } satisfies SideChatCommandDependencies;
   return result;
+}
+
+function lifecycleReceipt(): SideChatSingleReceipt {
+  return {
+    schemaVersion: 1,
+    type: 'side-chat',
+    action: 'create',
+    success: true,
+    parentSessionId: parentId,
+    sessionId: 'happy-child',
+    child: {
+      sessionId: 'happy-child',
+      parentSessionId: parentId,
+      status: 'running',
+      providerRunning: true,
+      active: true,
+      resumable: false,
+    },
+    phases: [
+      { phase: 'resolve', status: 'succeeded' },
+      { phase: 'readback', status: 'succeeded' },
+    ],
+  };
 }
 
 describe('createChildSideChat', () => {
@@ -210,32 +237,115 @@ describe('handleSideChatCommand', () => {
     vi.spyOn(console, 'log').mockImplementation(() => undefined);
   });
 
-  it('prints a stable secret-free JSON result', async () => {
-    const deps = dependencies();
+  it('prints a stable secret-free JSON receipt', async () => {
+    const receipt = lifecycleReceipt();
     await handleSideChatCommand([parentId, '--json'], {
-      createChild: (sessionId) => createChildSideChat(sessionId, deps),
+      execute: vi.fn(async () => receipt),
     });
 
-    expect(console.log).toHaveBeenCalledWith('{"sessionId":"happy-child"}');
+    expect(console.log).toHaveBeenCalledWith(JSON.stringify(receipt));
   });
 
-  it('prints only the child session ID by default', async () => {
-    const deps = dependencies();
-    await handleSideChatCommand([parentId], {
-      createChild: (sessionId) => createChildSideChat(sessionId, deps),
+  it('prints a stable human receipt by default', async () => {
+    const receipt = lifecycleReceipt();
+    await handleSideChatCommand(['create', parentId], {
+      execute: vi.fn(async () => receipt),
     });
 
-    expect(console.log).toHaveBeenCalledWith('happy-child');
+    expect(console.log).toHaveBeenCalledWith(
+      'Created side chat happy-child: running (active)',
+    );
   });
 
-  it('shows help without resolving sessions or machines', async () => {
-    const deps = dependencies();
+  it('shows help without calling the daemon', async () => {
+    const receipt = lifecycleReceipt();
+    const execute = vi.fn(async () => receipt);
     await handleSideChatCommand(['--help'], {
-      createChild: (sessionId) => createChildSideChat(sessionId, deps),
+      execute,
     });
 
     expect(console.log).toHaveBeenCalledOnce();
-    expect(deps.resolveSession).not.toHaveBeenCalled();
-    expect(deps.resolveMachine).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+  });
+});
+
+describe('parseSideChatLifecycleRequest', () => {
+  it('preserves legacy create and supports every lifecycle action', () => {
+    expect(parseSideChatLifecycleRequest([parentId])).toEqual({
+      request: { action: 'create', parentSessionId: parentId },
+      json: false,
+    });
+    expect(parseSideChatLifecycleRequest(['create', parentId, '--json'])).toEqual({
+      request: { action: 'create', parentSessionId: parentId },
+      json: true,
+    });
+    expect(parseSideChatLifecycleRequest(['list', parentId])).toEqual({
+      request: { action: 'list', parentSessionId: parentId },
+      json: false,
+    });
+    expect(parseSideChatLifecycleRequest(['status', 'child'])).toEqual({
+      request: { action: 'status', sessionId: 'child' },
+      json: false,
+    });
+    expect(parseSideChatLifecycleRequest(['stop', 'child'])).toEqual({
+      request: { action: 'stop', sessionId: 'child' },
+      json: false,
+    });
+    expect(parseSideChatLifecycleRequest(['close', 'child'])).toEqual({
+      request: { action: 'close', sessionId: 'child' },
+      json: false,
+    });
+    expect(parseSideChatLifecycleRequest(['close', parentId, '--all', '--json'])).toEqual({
+      request: { action: 'close-all', parentSessionId: parentId },
+      json: true,
+    });
+    expect(parseSideChatLifecycleRequest(['close-all', parentId])).toEqual({
+      request: { action: 'close-all', parentSessionId: parentId },
+      json: false,
+    });
+    expect(parseSideChatLifecycleRequest(['reopen', 'child'])).toEqual({
+      request: { action: 'reopen', sessionId: 'child' },
+      json: false,
+    });
+    expect(parseSideChatLifecycleRequest(['resume', 'child'])).toEqual({
+      request: { action: 'reopen', sessionId: 'child' },
+      json: false,
+    });
+  });
+
+  it('rejects ambiguous or unsupported action shapes', () => {
+    expect(() => parseSideChatLifecycleRequest(['stop', 'child', '--all']))
+      .toThrow('--all is supported only with the close action');
+    expect(() => parseSideChatLifecycleRequest(['create']))
+      .toThrow('Usage: happy session side-chat create');
+    expect(() => parseSideChatLifecycleRequest(['--unknown']))
+      .toThrow('Unknown side-chat option');
+  });
+
+  it('keeps a failed JSON receipt on stdout and marks the command unsuccessful', async () => {
+    const receipt = { ...lifecycleReceipt(), success: false };
+    const output = vi.fn();
+    const setExitCode = vi.fn();
+
+    await handleSideChatCommand(['status', 'happy-child', '--json'], {
+      execute: vi.fn(async () => receipt),
+      output,
+      setExitCode,
+    });
+
+    expect(output).toHaveBeenCalledWith(JSON.stringify(receipt));
+    expect(setExitCode).toHaveBeenCalledWith(1);
+  });
+});
+
+describe('formatSideChatLifecycleReceipt', () => {
+  it('renders partial failures with the exact failed phase', () => {
+    const receipt = lifecycleReceipt();
+    expect(formatSideChatLifecycleReceipt({
+      ...receipt,
+      action: 'close',
+      success: false,
+      phases: [{ phase: 'archive-metadata', status: 'failed', message: 'version conflict' }],
+    })).toContain('archive-metadata: version conflict');
   });
 });
