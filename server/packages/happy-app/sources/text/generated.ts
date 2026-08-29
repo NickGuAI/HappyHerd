@@ -33,6 +33,9 @@ export type TranslationKey =
     | "agentInput.codexPermissionMode.title"
     | "agentInput.codexPermissionMode.yolo"
     | "agentInput.codexPermissionMode.yoloDescription"
+    | "agentInput.context.detailContext"
+    | "agentInput.context.percentContext"
+    | "agentInput.context.percentWeek"
     | "agentInput.context.remaining"
     | "agentInput.effort.title"
     | "agentInput.geminiPermissionMode.autoEdit"
@@ -57,6 +60,9 @@ export type TranslationKey =
     | "agentInput.permissionMode.title"
     | "agentInput.suggestion.fileLabel"
     | "agentInput.suggestion.folderLabel"
+    | "agentInput.usagePopup.resets"
+    | "agentInput.usagePopup.session"
+    | "agentInput.usagePopup.week"
     | "agentQuestion.chooseMultiple"
     | "agentQuestion.dismiss"
     | "agentQuestion.moreQuestions"
@@ -134,11 +140,20 @@ export type TranslationKey =
     | "components.agentGoalBar.currentGoal"
     | "components.agentGoalBar.editGoal"
     | "components.agentGoalBar.stopGoal"
+    | "components.emptyMainScreen.bringMachineOnline"
+    | "components.emptyMainScreen.copyAiPrompt"
+    | "components.emptyMainScreen.copyAiPromptFailed"
     | "components.emptyMainScreen.installCli"
+    | "components.emptyMainScreen.machineUnreachable"
+    | "components.emptyMainScreen.noMachinesReachable"
+    | "components.emptyMainScreen.noSessionsYet"
     | "components.emptyMainScreen.openCamera"
     | "components.emptyMainScreen.readyToCode"
     | "components.emptyMainScreen.runIt"
     | "components.emptyMainScreen.scanQrCode"
+    | "components.emptyMainScreen.startOnConnectedMachine"
+    | "components.emptyMainScreen.troubleshoot"
+    | "components.emptyMainScreen.troubleshootConnection"
     | "components.sessionStatusBar.contextUsage"
     | "components.sessionStatusBar.limitAsOf"
     | "components.sessionStatusBar.limitFiveHour"
@@ -184,6 +199,7 @@ export type TranslationKey =
     | "errors.tokenStorageFailed"
     | "errors.tryAgain"
     | "errors.unknownError"
+    | "errors.unsupportedPermissionMode"
     | "errors.userNotFound"
     | "errors.validationError"
     | "errors.voiceConversationLimitReached"
@@ -519,6 +535,11 @@ export type TranslationKey =
     | "newSession.switchMachinesHint"
     | "newSession.title"
     | "newSession.workspace"
+    | "newSession.workspaceNoLongerAvailable"
+    | "offlineMachines.bringOnline"
+    | "offlineMachines.noneReachable"
+    | "offlineMachines.singleUnreachable"
+    | "offlineMachines.troubleshoot"
     | "profile.details"
     | "profile.firstName"
     | "profile.lastName"
@@ -634,6 +655,11 @@ export type TranslationKey =
     | "sessionInfo.worktreeCleanupKeep"
     | "sessionInfo.worktreeCleanupMessage"
     | "sessionInfo.worktreeCleanupTitle"
+    | "sessionsFilter.appearanceSettings"
+    | "sessionsFilter.flatList"
+    | "sessionsFilter.groupByProject"
+    | "sessionsFilter.groupingTitle"
+    | "sessionsFilter.title"
     | "settings.about"
     | "settings.aboutFooter"
     | "settings.account"
@@ -707,6 +733,8 @@ export type TranslationKey =
     | "settingsAccount.tapToReveal"
     | "settingsAppearance.alwaysShowContextSize"
     | "settingsAppearance.alwaysShowContextSizeDescription"
+    | "settingsAppearance.avatarMonochrome"
+    | "settingsAppearance.avatarMonochromeDescription"
     | "settingsAppearance.avatarOptions.brutalist"
     | "settingsAppearance.avatarOptions.gradient"
     | "settingsAppearance.avatarOptions.pixelated"
@@ -726,6 +754,8 @@ export type TranslationKey =
     | "settingsAppearance.expandTodoListsDescription"
     | "settingsAppearance.inlineToolCalls"
     | "settingsAppearance.inlineToolCallsDescription"
+    | "settingsAppearance.input"
+    | "settingsAppearance.inputDescription"
     | "settingsAppearance.sessionStatusBar"
     | "settingsAppearance.sessionStatusBarDescription"
     | "settingsAppearance.sessionStatusDisplayOptions.above"
@@ -1212,6 +1242,10 @@ export type TranslationKey =
     | "usage.totalCost"
     | "usage.totalTokens"
     | "usage.usageOverTime"
+    | "voiceStatusBar.active"
+    | "voiceStatusBar.connecting"
+    | "voiceStatusBar.error"
+    | "voiceStatusBar.tapToEnd"
     | "welcome.createAccount"
     | "welcome.linkOrRestoreAccount"
     | "welcome.loginWithMobileApp"
@@ -1270,12 +1304,17 @@ export type TranslationKey =
 export interface TranslationParamsByKey {
     "agentDefaults.capabilitiesFromMachine": { machine: string };
     "agentDefaults.providerUnavailableOnMachine": { machine: string };
+    "agentInput.context.detailContext": { total: string | number; used: string | number };
+    "agentInput.context.percentContext": { percent: number };
+    "agentInput.context.percentWeek": { percent: number };
     "agentInput.context.remaining": { percent: number };
+    "agentInput.usagePopup.resets": { time: string };
     "agentQuestion.moreQuestions": { count: number };
     "agentQuestion.unsupportedDescription": { kind: string };
     "artifacts.countPlural": { count: number };
     "changelog.version": { version: string | number };
     "components.agentGoalBar.accessibilityLabel": { goal: string };
+    "components.emptyMainScreen.machineUnreachable": { machine: string };
     "components.sessionStatusBar.contextUsage": { percent: number; total: string | number; used: string | number };
     "components.sessionStatusBar.limitAsOf": { age: string };
     "components.sessionStatusBar.limitRemaining": { percent: number };
@@ -1285,6 +1324,7 @@ export interface TranslationParamsByKey {
     "errors.errorWithCode": { code: string | number; message: string };
     "errors.fieldError": { field: string; reason: string };
     "errors.retryIn": { seconds: number };
+    "errors.unsupportedPermissionMode": { cliVersion: string; mode: string };
     "errors.validationError": { field: string; max: number; min: number };
     "errors.voiceHardLimitReached": { hours: number };
     "feed.friendAccepted": { name: string };
@@ -1326,6 +1366,7 @@ export interface TranslationParamsByKey {
     "message.usageLimitUntil": { time: string };
     "modals.disconnectService": { service: string };
     "modals.disconnectServiceConfirm": { service: string };
+    "offlineMachines.singleUnreachable": { name: string };
     "sessionHistory.daysAgo": { count: number };
     "sessionInfo.cliVersionOutdatedMessage": { currentVersion: string; requiredVersion: string };
     "settings.accountConnected": { service: string };

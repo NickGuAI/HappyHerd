@@ -3,30 +3,46 @@ import {
     FlatList,
     NativeScrollEvent,
     NativeSyntheticEvent,
+    Platform,
     Pressable,
     View,
 } from 'react-native';
-import { usePathname } from 'expo-router';
-import { StyleSheet } from 'react-native-unistyles';
+import { Ionicons } from '@expo/vector-icons';
+import { usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
+
 import { Text } from '@/components/StyledText';
-import { FlatSessionRow, flatListBackgroundColor } from './FlatSessionRow';
+import { Typography } from '@/constants/Typography';
+import { useHasArchivedSessions, useVisibleSessionListViewData } from '@/hooks/useVisibleSessionListViewData';
+import { useIsTablet } from '@/utils/responsive';
+import {
+    type SessionListViewItem,
+    useAllMachines,
+    useSetting,
+    useSettingMutable,
+} from '@/sync/storage';
+import { filterProjectGroupSessions } from '@/sync/projectGroups';
+import { t } from '@/text';
 import {
     buildFlatSessionRows,
     sessionMatchesFlatListSearch,
     toFlatSessionRow,
     type FlatSessionRowData,
 } from '@/utils/flatSessionList';
-import { useHasArchivedSessions, useVisibleSessionListViewData } from '@/hooks/useVisibleSessionListViewData';
-import { useSettingMutable } from '@/sync/storage';
-import { Typography } from '@/constants/Typography';
-import { useIsTablet } from '@/utils/responsive';
+import { buildSessionProjectDisplayGroups } from '@/utils/sessionDisplayOrder';
 import { requestReview } from '@/utils/requestReview';
+import { ActiveSessionsGroupCompact } from './ActiveSessionsGroupCompact';
+import { FlatSessionRow, flatListBackgroundColor } from './FlatSessionRow';
+import { ProjectGroup } from './ProjectGroup';
 import { UpdateBanner } from './UpdateBanner';
 import { layout } from './layout';
-import { t } from '@/text';
 
-type SessionListDisplayItem = {
+type SessionListDisplayItem = SessionListViewItem | {
+    type: 'machine-header';
+    machineId: string | null;
+    machineName: string;
+} | {
     type: 'archive-toggle';
     hidden: boolean;
 } | {
@@ -45,6 +61,9 @@ const stylesheet = StyleSheet.create((theme) => ({
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'stretch',
+        backgroundColor: theme.colors.groupped.background,
+    },
+    containerFlat: {
         backgroundColor: flatListBackgroundColor(theme),
     },
     contentContainer: {
@@ -86,6 +105,25 @@ const stylesheet = StyleSheet.create((theme) => ({
         letterSpacing: 0.1,
         ...Typography.default('semiBold'),
     },
+    machineHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: Platform.select({ ios: 32, default: 24 }),
+        paddingTop: 8,
+        paddingBottom: 0,
+    },
+    machineHeaderLine: {
+        flex: 1,
+        height: StyleSheet.hairlineWidth,
+        backgroundColor: theme.colors.divider,
+    },
+    machineHeaderText: {
+        maxWidth: '60%',
+        fontSize: 11,
+        color: theme.colors.textSecondary,
+        marginRight: 4,
+        ...Typography.default('regular'),
+    },
     phoneUpdateBanner: {
         paddingBottom: 16,
     },
@@ -94,11 +132,37 @@ const stylesheet = StyleSheet.create((theme) => ({
     },
 }));
 
-/**
- * Home has one product shape: a globally ordered decision inbox. The source
- * may still be grouped for sync compatibility, but no grouped/Active variant
- * is rendered and no display-mode setting is read or written here.
- */
+const MachineHeader = React.memo(({ machineId, machineName }: {
+    machineId: string | null;
+    machineName: string;
+}) => {
+    const styles = stylesheet;
+    const { theme } = useUnistyles();
+    const router = useRouter();
+
+    return (
+        <Pressable
+            onPress={() => machineId && router.navigate(`/machine/${machineId}` as any)}
+            disabled={!machineId}
+            accessibilityRole={machineId ? 'button' : undefined}
+            style={styles.machineHeader}
+            hitSlop={{ top: 8, bottom: 8 }}
+        >
+            <View style={styles.machineHeaderLine} />
+            <Ionicons
+                name="desktop-outline"
+                size={11}
+                color={theme.colors.textSecondary}
+                style={{ marginHorizontal: 6 }}
+            />
+            <Text style={styles.machineHeaderText} numberOfLines={1}>
+                {machineName}
+            </Text>
+            <View style={styles.machineHeaderLine} />
+        </Pressable>
+    );
+});
+
 export function SessionsList({
     topContentInset = 0,
     scrollIndicatorTopInset = 0,
@@ -116,9 +180,9 @@ export function SessionsList({
     const safeArea = useSafeAreaInsets();
     const sourceData = useVisibleSessionListViewData();
     const hasArchivedSessions = useHasArchivedSessions();
-    // The persisted key predates archive semantics and has no rename migration.
-    // This is archive visibility, not a second Home display mode.
     const [hideArchivedSessions, setHideArchivedSessions] = useSettingMutable('hideInactiveSessions');
+    const flatSessionList = useSetting('sessionListGrouping') !== 'project';
+    const machines = useAllMachines();
     const pathname = usePathname();
     const isTablet = useIsTablet();
     const selectedSessionId = React.useMemo<string | undefined>(() => {
@@ -127,80 +191,117 @@ export function SessionsList({
     }, [isTablet, pathname]);
 
     React.useEffect(() => {
-        if (sourceData && sourceData.length > 0) {
-            requestReview();
-        }
+        if (sourceData && sourceData.length > 0) requestReview();
     }, [sourceData && sourceData.length > 0]);
 
     const data = React.useMemo<SessionListDisplayItem[] | null>(() => {
         if (!sourceData) return sourceData;
 
         const normalizedQuery = searchQuery.trim().toLocaleLowerCase();
-        const matches = (row: FlatSessionRowData) => (
-            !normalizedQuery
-            || sessionMatchesFlatListSearch(row.session, normalizedQuery)
+        const matchesSession = (session: FlatSessionRowData['session']) => (
+            !normalizedQuery || sessionMatchesFlatListSearch(session, normalizedQuery)
         );
-        const primaryRows = buildFlatSessionRows(sourceData).filter(matches);
-        const items: SessionListDisplayItem[] = primaryRows.map((row, index) => ({
-            type: 'flat-session',
-            row,
-            last: index === primaryRows.length - 1,
-        }));
-
-        if (hasArchivedSessions) {
-            items.push({ type: 'archive-toggle', hidden: hideArchivedSessions });
-        }
-        if (hideArchivedSessions) return items;
-
-        // Archived sessions already arrive in deterministic activity order,
-        // split by date headings. Hold each heading until one of its rows
-        // survives search so the archive never shows an empty date group.
-        let pendingHeader: string | null = null;
-        const archivedItems: SessionListDisplayItem[] = [];
-        for (const item of sourceData) {
-            if (item.type === 'header') {
-                pendingHeader = item.title;
-                continue;
+        const primaryRows = sourceData.flatMap<SessionListViewItem>((item) => {
+            if (item.type === 'header' || item.type === 'session') return [];
+            if (item.type === 'active-sessions') {
+                const sessions = item.sessions.filter(matchesSession);
+                return sessions.length > 0 ? [{ ...item, sessions }] : [];
             }
-            if (item.type !== 'session') continue;
-
-            const row = toFlatSessionRow(item.session);
-            if (!matches(row)) continue;
-            if (pendingHeader) {
-                archivedItems.push({ type: 'archive-header', title: pendingHeader });
-                pendingHeader = null;
+            if (item.type === 'project') {
+                const project = filterProjectGroupSessions(item.project, matchesSession);
+                return project ? [{ ...item, project }] : [];
             }
-            archivedItems.push({
-                type: 'flat-session',
-                row,
-                last: false,
-                archived: true,
-            });
-        }
-        for (let index = archivedItems.length - 1; index >= 0; index -= 1) {
-            const item = archivedItems[index];
-            if (item.type === 'flat-session') {
-                item.last = true;
-                break;
+            return [item];
+        });
+
+        const archiveItems: SessionListDisplayItem[] = [];
+        if (!hideArchivedSessions) {
+            let pendingHeader: string | null = null;
+            for (const item of sourceData) {
+                if (item.type === 'header') {
+                    pendingHeader = item.title;
+                    continue;
+                }
+                if (item.type !== 'session' || !matchesSession(item.session)) continue;
+                if (pendingHeader) {
+                    archiveItems.push({ type: 'archive-header', title: pendingHeader });
+                    pendingHeader = null;
+                }
+                archiveItems.push({
+                    type: 'flat-session',
+                    row: toFlatSessionRow(item.session),
+                    last: false,
+                    archived: true,
+                });
+            }
+            for (let index = archiveItems.length - 1; index >= 0; index -= 1) {
+                const item = archiveItems[index];
+                if (item.type === 'flat-session') {
+                    item.last = true;
+                    break;
+                }
             }
         }
-        return [...items, ...archivedItems];
-    }, [hasArchivedSessions, hideArchivedSessions, searchQuery, sourceData]);
+
+        const archiveToggle: SessionListDisplayItem[] = hasArchivedSessions
+            ? [{ type: 'archive-toggle', hidden: hideArchivedSessions }]
+            : [];
+
+        if (flatSessionList) {
+            const flatRows = buildFlatSessionRows(primaryRows);
+            return [
+                ...flatRows.map<SessionListDisplayItem>((row, index) => ({
+                    type: 'flat-session',
+                    row,
+                    last: index === flatRows.length - 1,
+                })),
+                ...archiveToggle,
+                ...archiveItems,
+            ];
+        }
+
+        const machineGroups = buildSessionProjectDisplayGroups(
+            primaryRows,
+            machines,
+            t('status.unknown'),
+        );
+        const hierarchy = machineGroups.flatMap<SessionListDisplayItem>((group) => [
+            {
+                type: 'machine-header',
+                machineId: group.machineId,
+                machineName: group.machineName,
+            },
+            ...group.projects,
+        ]);
+        const legacyItems = primaryRows.filter((item) => (
+            item.type !== 'project' && item.type !== 'projects-header'
+        ));
+        return [...hierarchy, ...legacyItems, ...archiveToggle, ...archiveItems];
+    }, [flatSessionList, hasArchivedSessions, hideArchivedSessions, machines, searchQuery, sourceData]);
 
     if (!data) {
-        return <View style={styles.container} />;
+        return <View style={[styles.container, flatSessionList && styles.containerFlat]} />;
     }
 
     const keyExtractor = React.useCallback((item: SessionListDisplayItem, index: number) => {
         switch (item.type) {
+            case 'machine-header': return `machine-header-${item.machineId ?? 'unknown'}`;
             case 'archive-toggle': return 'archive-toggle';
             case 'archive-header': return `archive-header-${item.title}-${index}`;
             case 'flat-session': return `flat-session-${item.row.session.id}`;
+            case 'header': return `header-${item.title}-${index}`;
+            case 'active-sessions': return 'active-sessions';
+            case 'project-group': return `project-group-${item.machine.id}-${item.displayPath}-${index}`;
+            case 'projects-header': return `projects-header-${item.source}`;
+            case 'project': return `project-${item.source}-${item.project.machineId ?? 'unknown'}-${item.project.id}`;
+            case 'session': return `session-${item.session.id}`;
         }
     }, []);
 
     const renderItem = React.useCallback(({ item }: { item: SessionListDisplayItem }) => {
         switch (item.type) {
+            case 'machine-header':
+                return <MachineHeader machineId={item.machineId} machineName={item.machineName} />;
             case 'flat-session':
                 return (
                     <FlatSessionRow
@@ -229,11 +330,30 @@ export function SessionsList({
                     </Pressable>
                 );
             case 'archive-header':
+            case 'header':
                 return (
                     <View style={styles.archiveHeader}>
                         <Text style={styles.headerText}>{item.title}</Text>
                     </View>
                 );
+            case 'active-sessions':
+                return (
+                    <ActiveSessionsGroupCompact
+                        sessions={item.sessions}
+                        selectedSessionId={selectedSessionId}
+                    />
+                );
+            case 'project':
+                return (
+                    <ProjectGroup
+                        project={item.project}
+                        selectedSessionId={selectedSessionId}
+                    />
+                );
+            case 'project-group':
+            case 'projects-header':
+            case 'session':
+                return null;
         }
     }, [selectedSessionId, setHideArchivedSessions]);
 
@@ -248,7 +368,7 @@ export function SessionsList({
     }, [styles.phoneUpdateBanner, styles.phoneUpdateBannerHeader, topContentInset]);
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, flatSessionList && styles.containerFlat]}>
             <View style={styles.contentContainer}>
                 <FlatList
                     data={data}

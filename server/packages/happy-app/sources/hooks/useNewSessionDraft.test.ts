@@ -144,6 +144,38 @@ describe('useNewSessionDraft', () => {
         expect(mockPersistence.saved.at(-1)).toMatchObject({ selectedMachineId: 'two', selectedCommanderId: null });
     });
 
+    it('re-keys the same computer without clearing its draft selections', async () => {
+        mockPersistence.draft = persistedDraft({
+            selectedMachineId: 'agent-machine',
+            selectedPath: '/work/project',
+            selectedCommanderId: 'athena',
+            permissionMode: 'bypassPermissions',
+            modelMode: 'claude-opus-5',
+            effortLevel: 'max',
+            sessionType: 'worktree',
+            worktreeKey: 'feature',
+        });
+        const { useNewSessionDraft } = await import('./useNewSessionDraft');
+
+        useNewSessionDraft.getState().renameMachineId('cli-machine');
+
+        expect(useNewSessionDraft.getState()).toMatchObject({
+            selectedMachineId: 'cli-machine',
+            selectedPath: '/work/project',
+            selectedCommanderId: 'athena',
+            permissionMode: 'bypassPermissions',
+            modelMode: 'claude-opus-5',
+            effortLevel: 'max',
+            sessionType: 'worktree',
+            worktreeKey: 'feature',
+        });
+        expect(mockPersistence.saved.at(-1)).toMatchObject({
+            selectedMachineId: 'cli-machine',
+            selectedPath: '/work/project',
+            selectedCommanderId: 'athena',
+        });
+    });
+
     it('keeps temporary image attachments in memory without persisting their file URIs', async () => {
         const { useNewSessionDraft } = await import('./useNewSessionDraft');
         const attachment = {

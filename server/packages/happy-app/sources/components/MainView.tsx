@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import { useFriendRequests, useSocketStatus, useRealtimeStatus, useSetting } from '@/sync/storage';
+import { useFriendRequests, useSocketStatus, useRealtimeStatus, useSetting, useSettingMutable } from '@/sync/storage';
+import { NativeSettingsMenu, type NativeSettingsMenuGroup } from './NativeSettingsMenu';
 import { useVisibleSessionListViewData } from '@/hooks/useVisibleSessionListViewData';
 import { useIsTablet } from '@/utils/responsive';
 import { useRouter } from 'expo-router';
@@ -283,11 +284,49 @@ const HeaderRight = React.memo(({
     const { theme } = useUnistyles();
     const isCustomServer = isUsingCustomServer();
     const machineWorkspaceEnabled = useSetting('machineWorkspace');
+    const [sessionListGrouping, setSessionListGrouping] = useSettingMutable('sessionListGrouping');
 
     if (activeTab === 'sessions') {
         if (Platform.OS !== 'web') {
+            const viewMenuGroups: NativeSettingsMenuGroup[] = [
+                {
+                    key: 'grouping',
+                    label: t('sessionsFilter.groupingTitle'),
+                    title: t('sessionsFilter.groupingTitle'),
+                    systemImage: 'rectangle.grid.1x2',
+                    options: [
+                        { key: 'flat', label: t('sessionsFilter.flatList') },
+                        { key: 'project', label: t('sessionsFilter.groupByProject') },
+                    ],
+                    selectedKey: sessionListGrouping === 'project' ? 'project' : 'flat',
+                    onSelect: (key) => setSessionListGrouping(key === 'project' ? 'project' : 'flat'),
+                },
+                // A plain row, not a choice: it leaves this screen for the
+                // appearance settings, where the avatar options now live.
+                {
+                    key: 'appearance',
+                    label: '',
+                    title: '',
+                    options: [{
+                        key: 'open',
+                        label: t('sessionsFilter.appearanceSettings'),
+                        systemImage: 'paintpalette',
+                    }],
+                    selectedKey: null,
+                    onSelect: () => router.push('/settings/appearance'),
+                },
+            ];
             return (
                 <View style={styles.headerActions}>
+                    <NativeSettingsMenu
+                        groups={viewMenuGroups}
+                        anchor="top"
+                        accessibilityLabel={t('sessionsFilter.title')}
+                    >
+                        <View style={styles.headerActionButton}>
+                            <Ionicons name="filter" size={21} color={theme.colors.header.tint} />
+                        </View>
+                    </NativeSettingsMenu>
                     {machineWorkspaceEnabled && (
                         <Pressable
                             onPress={() => router.push('/workspace')}
@@ -322,7 +361,7 @@ const HeaderRight = React.memo(({
                         accessibilityRole="button"
                         style={styles.headerActionButton}
                     >
-                        <Ionicons name="settings-outline" size={21} color={theme.colors.header.tint} />
+                        <Ionicons name="settings-outline" size={22} color={theme.colors.header.tint} />
                     </Pressable>
                 </View>
             );

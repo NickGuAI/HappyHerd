@@ -12,12 +12,13 @@ describe('HappyHerd provider model catalog', () => {
         expect(HAPPYHERD_CLAUDE_MODEL_SLUGS).toEqual([
             'claude-fable-5',
             'claude-opus-5',
+            'claude-opus-5[1m]',
             'claude-opus-4-8',
             'claude-opus-4-6',
             'claude-sonnet-5',
             'claude-haiku-4-5',
         ]);
-        expect(HAPPYHERD_CLAUDE_MODEL_SLUGS.every((slug) => /^claude-[a-z]+-\d(?:-\d+)?$/.test(slug))).toBe(true);
+        expect(HAPPYHERD_CLAUDE_MODEL_SLUGS.every((slug) => /^claude-[a-z]+-\d(?:-\d+)?(?:\[1m\])?$/.test(slug))).toBe(true);
         expect(HAPPYHERD_CLAUDE_MODEL_SLUGS).toContain(HAPPYHERD_DEFAULT_CLAUDE_MODEL_SLUG);
     });
 

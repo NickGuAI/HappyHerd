@@ -33,7 +33,7 @@ import {
 } from '@/claude/claudeGoalStatus';
 import { Session } from './session';
 import { machineSessionSettingsMetadataFromEnvironment } from '@/daemon/sessionLaunchSettings';
-import { applySandboxPermissionPolicy, resolveInitialClaudePermissionMode, resolveRemoteClaudePermissionMode } from './utils/permissionMode';
+import { applySandboxPermissionPolicy, normalizeRemotePermissionMode, resolveInitialClaudePermissionMode, resolveRemoteClaudePermissionMode } from './utils/permissionMode';
 import { decodeBase64, encodeBase64 } from '@/api/encryption';
 import type { Session as ApiSession } from '@/api/types';
 import { getProjectPath } from './utils/path';
@@ -77,7 +77,6 @@ export interface StartOptions {
 // harness is already configured to do", so the mode is left unset and Claude
 // applies its own settings. Substituting a value here — this used to be
 // 'yolo' — silently overrode every user's Claude config with full access.
-const DEFAULT_CLAUDE_MODEL = 'opus';
 const DEFAULT_CLAUDE_EFFORT: 'low' | 'medium' | 'high' | 'xhigh' | 'max' = 'max';
 type ClaudeGoalCommand = NonNullable<ReturnType<typeof parseClaudeGoalActionParams>>;
 type PendingClaudeGoalAction = {
@@ -594,7 +593,9 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     // Forward messages to the queue
     // Permission modes: Use the unified 7-mode type, mapping happens at SDK boundary in claudeRemote.ts
     let currentPermissionMode: PermissionMode | undefined = initialPermissionMode;
-    let currentModel: string | undefined = options.model ?? DEFAULT_CLAUDE_MODEL; // Track current model state
+    // Undefined preserves Claude's own configured model. An explicit app or
+    // launch selection still becomes the sticky model for later turns.
+    let currentModel: string | undefined = options.model;
     let currentFallbackModel: string | undefined = undefined; // Track current fallback model
     let currentCustomSystemPrompt: string | undefined = undefined; // Track current custom system prompt
     let currentAppendSystemPrompt: string | undefined = happyHerdContextPrompt; // Commander context is an invariant
@@ -735,7 +736,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
             const previousPermissionMode = currentPermissionMode;
             messagePermissionMode = resolveRemoteClaudePermissionMode(
                 currentPermissionMode,
-                message.meta.permissionMode,
+                normalizeRemotePermissionMode(message.meta.permissionMode),
                 sandboxEnabled,
             );
             currentPermissionMode = messagePermissionMode;

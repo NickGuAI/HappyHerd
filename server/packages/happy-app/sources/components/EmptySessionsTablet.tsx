@@ -4,8 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { Typography } from '@/constants/Typography';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useAllMachines } from '@/sync/storage';
-import { isMachineOnline } from '@/utils/machineUtils';
 import { useRouter } from 'expo-router';
+import { collectMachineChoices } from '@/sync/machineChoices';
+import { useOfflineMachineTroubleshooting } from '@/hooks/useOfflineMachineTroubleshooting';
 
 import { t } from '@/text';
 const stylesheet = StyleSheet.create((theme) => ({
@@ -59,11 +60,11 @@ export function EmptySessionsTablet() {
     const { theme } = useUnistyles();
     const styles = stylesheet;
     const router = useRouter();
-    const machines = useAllMachines();
-    
-    const hasOnlineMachines = React.useMemo(() => {
-        return machines.some(machine => isMachineOnline(machine));
-    }, [machines]);
+    const machines = useAllMachines({ includeOffline: true });
+    const machineChoices = React.useMemo(() => collectMachineChoices(machines), [machines]);
+    const hasOnlineMachines = machineChoices.some((machine) => machine.online);
+    const hasOfflineMachines = machineChoices.length > 0 && !hasOnlineMachines;
+    const troubleshoot = useOfflineMachineTroubleshooting(machineChoices);
     
     const handleStartNewSession = () => {
         router.navigate('/new');
@@ -71,15 +72,19 @@ export function EmptySessionsTablet() {
     
     return (
         <View style={styles.container}>
-            <Ionicons 
-                name="terminal-outline" 
+            <Ionicons
+                name={hasOfflineMachines ? 'cloud-offline-outline' : 'terminal-outline'}
                 size={64} 
                 color={theme.colors.textSecondary}
                 style={styles.iconContainer}
             />
             
             <Text style={styles.titleText}>
-                {t("uiCopy.noActiveSessions")}
+                {hasOfflineMachines
+                    ? machineChoices.length === 1
+                        ? t('offlineMachines.singleUnreachable', { name: machineChoices[0].name })
+                        : t('offlineMachines.noneReachable')
+                    : t('uiCopy.noActiveSessions')}
             </Text>
             
             {hasOnlineMachines ? (
@@ -100,6 +105,21 @@ export function EmptySessionsTablet() {
                         <Text style={styles.buttonText}>
                             {t("newSession.title")}
                         </Text>
+                    </Pressable>
+                </>
+            ) : hasOfflineMachines ? (
+                <>
+                    <Text style={styles.descriptionText}>
+                        {t('offlineMachines.bringOnline')}
+                    </Text>
+                    <Pressable style={styles.button} onPress={troubleshoot}>
+                        <Ionicons
+                            name="help-circle-outline"
+                            size={20}
+                            color={theme.colors.button.primary.tint}
+                            style={styles.buttonIcon}
+                        />
+                        <Text style={styles.buttonText}>{t('offlineMachines.troubleshoot')}</Text>
                     </Pressable>
                 </>
             ) : (

@@ -9,6 +9,7 @@ import {
     getEffortLevelsForModel,
     getHardcodedModelModes,
     getHardcodedPermissionModes,
+    filterPermissionModesForCli,
     getMachineAdvertisedEffortLevels,
     getMachineAdvertisedModels,
     getMachineAdvertisedPermissionModes,
@@ -228,7 +229,10 @@ export default function AgentDefaultsSettingsScreen() {
                 const permissionOptions: ModeOption[] = rigCreation?.permissionModes
                     ?? (machineCatalog
                         ? getMachineAdvertisedPermissionModes(selectedMachine?.metadata, agent, t)
-                        : getHardcodedPermissionModes(agent, t));
+                        : filterPermissionModesForCli(
+                            getHardcodedPermissionModes(agent, t),
+                            selectedMachine?.metadata?.happyCliVersion,
+                        ));
                 const permissionDefault = rigCreation?.defaultPermissionMode
                     ?? (machineCatalog
                         ? getAdvertisedDefaultOptionKey(permissionOptions)

@@ -24,11 +24,13 @@ import { Deferred } from '@/components/Deferred';
 import { EmptyMessages } from '@/components/EmptyMessages';
 import { SessionStatusBar } from '@/components/SessionStatusBar';
 import { Avatar } from '@/components/Avatar';
-import { VoiceAssistantStatusBar } from '@/components/VoiceAssistantStatusBar';
+import { VoiceAssistantStatusBar, VOICE_PILL_TOTAL_HEIGHT } from '@/components/VoiceAssistantStatusBar';
 import { useDraft } from '@/hooks/useDraft';
 import { useImagePicker } from '@/hooks/useImagePicker';
 import { useMachineFileUpload } from '@/hooks/useMachineFileUpload';
 import { Modal } from '@/modal';
+import { voiceHooks } from '@/realtime/hooks/voiceHooks';
+import { getCurrentVoiceConversationId, getCurrentVoiceSessionDurationSeconds, startRealtimeSession, stopRealtimeSession } from '@/realtime/RealtimeSession';
 import { gitStatusSync } from '@/sync/gitStatusSync';
 import { machineControlHeartbeat, machineStopSession, sessionAbort, sessionCancelCommunication, sessionGoalAction, sessionSetAgentModes, spawnSideChat, sessionKill, sessionArchive } from '@/sync/ops';
 import { closeSideChatSession, resolveSideChatCloseReconciliation } from '@/sync/sideChatLifecycle';
@@ -39,11 +41,14 @@ import { useHappyAction } from '@/hooks/useHappyAction';
 import { HappyError } from '@/utils/errors';
 import { Session } from '@/sync/storageTypes';
 import { sync } from '@/sync/sync';
+import { supportsImageAttachmentsForFlavor } from '@/sync/attachmentSupport';
 import { t } from '@/text';
 import { tracking } from '@/track';
+import { getVoiceMessageCount, getVoiceOnboardingPromptLoadCount } from '@/sync/persistence';
 import { isRunningOnMac } from '@/utils/platform';
 import { useDeviceType, useHeaderHeight, useIsLandscape, useIsTablet } from '@/utils/responsive';
 import { resolveStatusBarGitBranch } from '@/utils/sessionStatusBar';
+import { visibleRigGitLineChanges } from '@/utils/rigGitLineChanges';
 import { FilesSidebar, SidebarMode } from '@/components/FilesSidebar';
 import { SideChatAccessButton, SideChatFullscreen } from '@/components/SideChatPanel';
 import {
@@ -79,6 +84,7 @@ import {
 import { performAgentGoalAction } from './agentGoalActionHandler';
 import { MOBILE_GLASS_HEADER_HEIGHT } from '@/components/navigation/headerMetrics';
 import {
+    getRigGitSummary,
     getRigReasoningSelection,
     isRigMetadata,
     isRigModelSelectionEnabled,
@@ -91,7 +97,6 @@ import {
     rigCanUseShell,
 } from '@/sync/rig';
 import { RigActivityBar } from '@/components/RigActivityBar';
-import { useVoiceDictation } from '@/hooks/useVoiceDictation';
 import { useVoiceInputAvailability } from '@/hooks/useVoiceInputAvailability';
 import {
     addWorkspaceContextFile,
@@ -104,7 +109,6 @@ import {
 } from '@/sync/workspaceContext';
 import { buildWorkspaceAttachmentParams } from '@/utils/machineWorkspace';
 import { projectSessionQueue } from '@/sync/queueProjection';
-import { supportsImageAttachmentsForFlavor } from '@/sync/attachmentSupport';
 import { WorkspaceLinkSidePanel } from '@/components/WorkspaceLinkSidePanel';
 import {
     resolveActiveWorkspaceLinkPresentation,
@@ -630,7 +634,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                     paddingTop: !(isLandscape && deviceType === 'phone' && Platform.OS !== 'web')
                         ? contentRunsUnderHeader
                             ? 0
-                            : safeArea.top + mobileHeaderHeight + (!isTablet && realtimeStatus !== 'disconnected' ? 32 : 0)
+                            : safeArea.top + mobileHeaderHeight + (!isTablet && realtimeStatus !== 'disconnected' ? VOICE_PILL_TOTAL_HEIGHT : 0)
                         : 0,
                 }}
             >
@@ -829,7 +833,6 @@ const AGENT_INPUT_AUTOCOMPLETE_PREFIXES = ['@', '/'];
 type ChatComposerHandle = {
     getMessage: () => string;
     clearMessage: () => void;
-    appendMessage: (text: string) => void;
 };
 
 type ChatComposerProps = Omit<
@@ -876,13 +879,6 @@ const ChatComposer = React.memo(function ChatComposer(props: ChatComposerProps) 
             setMessage('');
             clearDraft();
         },
-        appendMessage: (text: string) => {
-            const current = inputHandleRef.current?.getText() ?? '';
-            const separator = current.length > 0 && !/\s$/.test(current) ? ' ' : '';
-            const next = `${current}${separator}${text}`;
-            inputHandleRef.current?.setTextAndSelection(next, { start: next.length, end: next.length });
-            setMessage(next);
-        },
     }), [clearDraft]);
 
     return (
@@ -924,9 +920,13 @@ export function SessionViewLoaded({
         && !isLandscape;
     const [bottomDockInset, setBottomDockInset] = React.useState(0);
     const [composerY, setComposerY] = React.useState(0);
+    // Offset of the composer card inside AgentInput — the faded status rows
+    // above it keep their space, so anchoring to the dock top floats the
+    // scroll button over a visually empty band.
+    const [composerCardOffset, setComposerCardOffset] = React.useState(0);
     const [isChatAtBottom, setIsChatAtBottom] = React.useState(true);
     const showBottomDockDetails = !usesFloatingMobileDock || isChatAtBottom;
-    const scrollButtonInset = Math.max(0, bottomDockInset - composerY);
+    const scrollButtonInset = Math.max(0, bottomDockInset - composerY - composerCardOffset);
 
     const handleBottomDockInsetChange = React.useCallback((nextInset: number) => {
         setBottomDockInset((currentInset) => (
@@ -937,6 +937,12 @@ export function SessionViewLoaded({
         const nextY = Math.ceil(event.nativeEvent.layout.y);
         setComposerY((currentY) => (
             Math.abs(currentY - nextY) < 1 ? currentY : nextY
+        ));
+    }, []);
+    const handleComposerCardOffsetChange = React.useCallback((offset: number) => {
+        const nextOffset = Math.ceil(offset);
+        setComposerCardOffset((currentOffset) => (
+            Math.abs(currentOffset - nextOffset) < 1 ? currentOffset : nextOffset
         ));
     }, []);
     const handleChatBottomVisibilityChange = React.useCallback((visible: boolean) => {
@@ -969,7 +975,7 @@ export function SessionViewLoaded({
         : deviceType === 'phone' && Platform.OS !== 'web'
             ? safeArea.top
                 + MOBILE_GLASS_HEADER_HEIGHT
-                + (realtimeStatus !== 'disconnected' ? 32 : 0)
+                + (realtimeStatus !== 'disconnected' ? VOICE_PILL_TOTAL_HEIGHT : 0)
                 + 12
             : undefined;
 
@@ -1092,12 +1098,12 @@ export function SessionViewLoaded({
     const gitStatus = useSessionGitStatus(sessionId);
     const alwaysShowContextSize = useSetting('alwaysShowContextSize');
     const sessionStatusBarDisplay = useSetting('sessionStatusBarDisplay');
+    const expImageUpload = useSetting('expImageUpload');
     const { canResume, resumeSession, resumingSession } = useSessionQuickActions(session);
     const isDisconnected = !sessionStatus.isConnected;
     const resumeCommandBlock = getResumeCommandBlock(session);
 
-    // Image attachment state (expImageUpload feature flag)
-    const expImageUpload = useSetting('expImageUpload');
+    // Attachment availability is capability-driven by the active session.
     const { selectedImages, pickImages, removeImage, clearImages, addImages } = useImagePicker();
     const canUseAttachments = rigCanUseAttachments(session.metadata)
         && supportsImageAttachmentsForFlavor(flavor, session.metadata?.acpCapabilities);
@@ -1112,10 +1118,6 @@ export function SessionViewLoaded({
     // clear it without subscribing to it (which would re-render the whole
     // SessionViewLoaded tree on every keystroke).
     const composerHandleRef = React.useRef<ChatComposerHandle | null>(null);
-    const handleDictationTranscript = React.useCallback((text: string) => {
-        composerHandleRef.current?.appendMessage(text);
-    }, []);
-    const voiceDictation = useVoiceDictation(handleDictationTranscript);
     const voiceInputAvailability = useVoiceInputAvailability();
     const selectedContextEntries = React.useSyncExternalStore(
         subscribeWorkspaceContext,
@@ -1265,7 +1267,7 @@ export function SessionViewLoaded({
             sessionSetAgentModes(sessionId, { permissionMode: null });
         }
         sessionAbort(sessionId);
-    }, [sessionId, isRig]);
+    }, [sessionId]);
 
     const handleFileViewerPress = React.useCallback(() => {
         const params = buildWorkspaceAttachmentParams(sessionId, session?.metadata);
@@ -1308,6 +1310,24 @@ export function SessionViewLoaded({
     const statusBarEffortLabel = effortLevel?.name
         ? effortLevel.name.charAt(0).toUpperCase() + effortLevel.name.slice(1)
         : null;
+    // Same source and fallback chain as the session list rows.
+    const statusBarGitChanges = React.useMemo(() => {
+        const liveInsertions = gitStatus?.unstagedLinesAdded ?? 0;
+        const liveDeletions = gitStatus?.unstagedLinesRemoved ?? 0;
+        if (liveInsertions > 0 || liveDeletions > 0) {
+            return { approximate: false, insertions: liveInsertions, deletions: liveDeletions };
+        }
+        const rigGit = getRigGitSummary(session.metadata);
+        if (rigGit && rigGit.changedFiles !== null) {
+            return visibleRigGitLineChanges({
+                changedFiles: rigGit.changedFiles,
+                countsExact: rigGit.countsExact ?? true,
+                deletions: rigGit.deletions ?? 0,
+                insertions: rigGit.insertions ?? 0,
+            });
+        }
+        return null;
+    }, [gitStatus?.unstagedLinesAdded, gitStatus?.unstagedLinesRemoved, session.metadata]);
 
     const visibleAgentGoal = React.useMemo(() => (
         resolveVisibleAgentGoalStatus(session)
@@ -1333,6 +1353,61 @@ export function SessionViewLoaded({
             onError: (error) => console.error('Failed to perform goal action', error),
         });
     }, [sessionId, visibleAgentGoal?.text]);
+
+    // Handle microphone button press - memoized to prevent button flashing
+    const handleMicrophonePress = React.useCallback(async () => {
+        if (!voiceInputAvailability.enabled) {
+            return;
+        }
+        if (realtimeStatus === 'connecting') {
+            return; // Prevent actions during transitions
+        }
+        if (realtimeStatus === 'disconnected' || realtimeStatus === 'error') {
+            try {
+                const initialPrompt = voiceHooks.onVoiceStarted(sessionId);
+                const conversationId = await startRealtimeSession(sessionId, initialPrompt);
+                if (conversationId) {
+                    const hasPro = storage.getState().purchases.entitlements['pro'] ?? false;
+                    tracking?.capture('voice_session_started', {
+                        session_id: sessionId,
+                        elevenlabs_conversation_id: conversationId,
+                        has_pro: hasPro,
+                        onboarding_prompt_load_count: getVoiceOnboardingPromptLoadCount(),
+                        voice_message_count: getVoiceMessageCount(),
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to start realtime session:', error);
+                Modal.alert(t('common.error'), t('errors.voiceSessionFailed'));
+                tracking?.capture('voice_session_error', {
+                    session_id: sessionId,
+                    elevenlabs_conversation_id: getCurrentVoiceConversationId(),
+                    error: error instanceof Error ? error.message : 'Unknown error',
+                });
+            }
+        } else if (realtimeStatus === 'connected') {
+            const conversationId = getCurrentVoiceConversationId();
+            const durationSeconds = getCurrentVoiceSessionDurationSeconds();
+            await stopRealtimeSession();
+            tracking?.capture('voice_session_stopped', {
+                session_id: sessionId,
+                elevenlabs_conversation_id: conversationId,
+                ...(durationSeconds !== undefined ? { duration_seconds: durationSeconds } : {}),
+            });
+
+            // Notify voice assistant about voice session stop
+            voiceHooks.onVoiceStopped();
+        }
+    }, [realtimeStatus, sessionId, voiceInputAvailability.enabled]);
+
+    // Memoize mic button state to prevent flashing during chat transitions.
+    // While a call runs the pill under the header is the only stop control,
+    // so the composer mic disappears instead of doubling as a stop button.
+    const voiceSessionActive = realtimeStatus === 'connected' || realtimeStatus === 'connecting';
+    const micButtonState = useMemo(() => ({
+        onMicPress: voiceSessionActive ? undefined : handleMicrophonePress,
+        isMicActive: false,
+    }), [handleMicrophonePress, voiceSessionActive]);
 
     // Track route visibility only. App foregrounding and socket reconnects
     // reconcile the current conversation inside Sync without remounting it.
@@ -1395,72 +1470,71 @@ export function SessionViewLoaded({
 
     const composer = (
         <View onLayout={usesFloatingMobileDock ? handleComposerLayout : undefined}>
-        <MachineFileUploadStatus
-            state={workspaceUploader.state}
-            canCancel={workspaceUploader.canCancel}
-            canRetry={workspaceUploader.canRetry}
-            onCancel={workspaceUploader.cancel}
-            onRetry={() => void workspaceUploader.retry()}
-            style={{ paddingHorizontal: sessionInputHorizontalPadding, paddingBottom: 4 }}
-        />
-        <ChatComposer
-            composerHandleRef={composerHandleRef}
-            placeholder={t('session.inputPlaceholder')}
-            sessionId={sessionId}
-            permissionMode={permissionMode}
-            onPermissionModeChange={isRigPermissionSelectionEnabled(session.metadata) ? updatePermissionMode : undefined}
-            availableModes={availableModes}
-            modelMode={modelMode}
-            availableModels={availableModels}
-            onModelModeChange={isRigModelSelectionEnabled(session.metadata) ? updateModelMode : undefined}
-            effortLevel={effortLevel}
-            availableEffortLevels={availableEffortLevels}
-            onEffortLevelChange={isRigReasoningSelectionEnabled(session.metadata) ? updateEffortLevel : undefined}
-            metadata={session.metadata}
-            connectionStatus={connectionStatus}
-            blockSend={isRig && session.thinking && session.metadata?.capabilities?.steering !== true}
-            onSend={handleSend}
-            onQueueMessage={handleQueueMessage}
-            onMicPress={(embedded || isDisconnected || !voiceInputAvailability.available)
-                ? undefined
-                : voiceDictation.toggle}
-            isMicActive={!embedded && !isDisconnected && voiceDictation.phase === 'recording'}
-            onAbort={isDisconnected || !rigCanAbort(session.metadata) ? undefined : handleAbort}
-            showAbortButton={rigCanAbort(session.metadata) && (
-                sessionStatus.state === 'thinking'
-                || sessionStatus.state === 'permission_required'
-                || sessionStatus.state === 'input_required'
-                || (Platform.OS === 'web' && sessionStatus.state === 'waiting')
-            )}
-            onFileViewerPress={rigCanBrowseFiles(session.metadata) && rigCanReadFiles(session.metadata) ? handleFileViewerPress : undefined}
-            selectedImages={expImageUpload && canUseAttachments ? selectedImages : undefined}
-            onPickImages={expImageUpload && canUseAttachments ? pickImages : undefined}
-            onPickDeviceFiles={machineId
-                && session.metadata?.path
-                && selectedContextEntries.length < MAX_WORKSPACE_CONTEXT_ITEMS
-                && workspaceUploader.state.phase !== 'uploading'
-                && workspaceUploader.state.phase !== 'cancelling'
-                ? () => void workspaceUploader.pickAndUpload()
-                : undefined}
-            onRemoveImage={expImageUpload && canUseAttachments ? removeImage : undefined}
-            onAddImages={expImageUpload && canUseAttachments ? addImages : undefined}
-            selectedContextEntries={selectedContextEntries}
-            onRemoveContextEntry={(path) => removeWorkspaceContextEntry(sessionId, path)}
-            dictationPhase={voiceDictation.phase}
-            dictationError={voiceDictation.error}
-            onDictationCancel={voiceDictation.cancel}
-            onDictationRetry={voiceDictation.canRetry ? voiceDictation.retry : undefined}
-            autocompletePrefixes={AGENT_INPUT_AUTOCOMPLETE_PREFIXES}
-            autocompleteSuggestions={handleAutocompleteSuggestions}
-            usageData={usageData}
-            alwaysShowContextSize={alwaysShowContextSize}
-            zenMode={zenMode}
-            showSessionStatusInfoInSettings={false}
-            showStatusDetails={showBottomDockDetails}
-            sessionStatusGitBranch={statusBarGitBranch}
-            sessionStatusModelLabel={statusBarModelLabel}
-            sessionStatusEffortLabel={statusBarEffortLabel}
-        />
+            <MachineFileUploadStatus
+                state={workspaceUploader.state}
+                canCancel={workspaceUploader.canCancel}
+                canRetry={workspaceUploader.canRetry}
+                onCancel={workspaceUploader.cancel}
+                onRetry={() => void workspaceUploader.retry()}
+                style={{ paddingHorizontal: sessionInputHorizontalPadding, paddingBottom: 4 }}
+            />
+            <ChatComposer
+                composerHandleRef={composerHandleRef}
+                placeholder={t('session.inputPlaceholder')}
+                sessionId={sessionId}
+                permissionMode={permissionMode}
+                onPermissionModeChange={isRigPermissionSelectionEnabled(session.metadata) ? updatePermissionMode : undefined}
+                availableModes={availableModes}
+                modelMode={modelMode}
+                availableModels={availableModels}
+                onModelModeChange={isRigModelSelectionEnabled(session.metadata) ? updateModelMode : undefined}
+                effortLevel={effortLevel}
+                availableEffortLevels={availableEffortLevels}
+                onEffortLevelChange={isRigReasoningSelectionEnabled(session.metadata) ? updateEffortLevel : undefined}
+                metadata={session.metadata}
+                connectionStatus={connectionStatus}
+                blockSend={isRig && session.thinking && session.metadata?.capabilities?.steering !== true}
+                onSend={handleSend}
+                onQueueMessage={handleQueueMessage}
+                onMicPress={(embedded || isDisconnected || !voiceInputAvailability.enabled)
+                    ? undefined
+                    : micButtonState.onMicPress}
+                isMicActive={(embedded || isDisconnected) ? false : micButtonState.isMicActive}
+                onAbort={isDisconnected || !rigCanAbort(session.metadata) ? undefined : handleAbort}
+                showAbortButton={rigCanAbort(session.metadata) && (
+                    sessionStatus.state === 'thinking'
+                    // A pending selection or permission request parks the agent inside
+                    // a tool call. Keep Stop reachable on every platform while either
+                    // kind of user action is outstanding.
+                    || sessionStatus.state === 'permission_required'
+                    || sessionStatus.state === 'input_required'
+                    || (Platform.OS === 'web' && sessionStatus.state === 'waiting')
+                )}
+                onFileViewerPress={rigCanBrowseFiles(session.metadata) && rigCanReadFiles(session.metadata) ? handleFileViewerPress : undefined}
+                selectedImages={expImageUpload && canUseAttachments ? selectedImages : undefined}
+                onPickImages={expImageUpload && canUseAttachments ? pickImages : undefined}
+                onPickDeviceFiles={machineId
+                    && session.metadata?.path
+                    && selectedContextEntries.length < MAX_WORKSPACE_CONTEXT_ITEMS
+                    && workspaceUploader.state.phase !== 'uploading'
+                    && workspaceUploader.state.phase !== 'cancelling'
+                    ? () => void workspaceUploader.pickAndUpload()
+                    : undefined}
+                onRemoveImage={expImageUpload && canUseAttachments ? removeImage : undefined}
+                onAddImages={expImageUpload && canUseAttachments ? addImages : undefined}
+                selectedContextEntries={selectedContextEntries}
+                onRemoveContextEntry={(path) => removeWorkspaceContextEntry(sessionId, path)}
+                autocompletePrefixes={AGENT_INPUT_AUTOCOMPLETE_PREFIXES}
+                autocompleteSuggestions={handleAutocompleteSuggestions}
+                usageData={usageData}
+                alwaysShowContextSize={alwaysShowContextSize}
+                zenMode={zenMode}
+                showStatusDetails={showBottomDockDetails}
+                sessionStatusGitBranch={statusBarGitBranch ?? 'main'}
+                sessionStatusGitChanges={statusBarGitChanges}
+                sessionStatusUsageLimits={session.agentState?.usageLimits ?? null}
+                onActionAreaOffsetChange={usesFloatingMobileDock ? handleComposerCardOffsetChange : undefined}
+            />
         </View>
     );
 

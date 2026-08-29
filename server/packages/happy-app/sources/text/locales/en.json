@@ -1,4 +1,10 @@
 {
+  "voiceStatusBar": {
+    "tapToEnd": "tap to end",
+    "connecting": "Connecting…",
+    "error": "Connection error",
+    "active": "Voice assistant active"
+  },
   "tabs": {
     "inbox": "Inbox",
     "sessions": "Terminals",
@@ -212,6 +218,8 @@
     },
     "alwaysShowContextSize": "Always Show Context Size",
     "alwaysShowContextSizeDescription": "Display context usage even when not near limit",
+    "input": "Input",
+    "inputDescription": "Configure the message input",
     "showHarnessIconInSessionHeader": "Show Harness Icon in Session Header",
     "showHarnessIconInSessionHeaderDescription": "Display the harness icon in the session header",
     "showHarnessIconsInSessionList": "Show Harness Icons in Session List",
@@ -223,8 +231,17 @@
       "gradient": "Gradient",
       "brutalist": "Brutalist"
     },
+    "avatarMonochrome": "Black & White Avatars",
+    "avatarMonochromeDescription": "Render avatars without color",
     "showFlavorIcons": "Show AI Provider Icons",
     "showFlavorIconsDescription": "Display AI provider icons on session avatars"
+  },
+  "sessionsFilter": {
+    "title": "Filter",
+    "groupingTitle": "Grouping",
+    "flatList": "Flat List",
+    "groupByProject": "Group by Project",
+    "appearanceSettings": "Appearance Settings"
   },
   "settingsFeatures": {
     "experiments": "Experiments",
@@ -372,7 +389,8 @@
     "failedToRemoveFriend": "Failed to remove friend",
     "searchFailed": "Search failed. Please try again.",
     "failedToSendRequest": "Failed to send friend request",
-    "sessionNotFinishedSyncing": "The message was not sent: this session has not finished syncing. Please try again."
+    "sessionNotFinishedSyncing": "The message was not sent: this session has not finished syncing. Please try again.",
+    "unsupportedPermissionMode": "This session's Happy CLI ({cliVersion}) does not support permission mode \"{mode}\". Pick a different mode or upgrade Happy CLI."
   },
   "newSession": {
     "title": "Start New Session",
@@ -382,6 +400,7 @@
     "noWorkspace": "no workspace",
     "newWorkspace": "new workspace",
     "happyAgentUnsupported": "This machine cannot start Happy agent sessions",
+    "workspaceNoLongerAvailable": "The selected Happy Agent workspace is no longer available.",
     "interruptPressStop": "To interrupt press stop"
   },
   "agentDefaults": {
@@ -528,7 +547,16 @@
       "installCli": "Install the Happy CLI",
       "runIt": "Run it",
       "scanQrCode": "Scan the QR code",
-      "openCamera": "Open Camera"
+      "openCamera": "Open Camera",
+      "noSessionsYet": "No sessions yet",
+      "startOnConnectedMachine": "Start one on a connected machine.",
+      "machineUnreachable": "{machine} is unreachable",
+      "noMachinesReachable": "No machines are reachable",
+      "bringMachineOnline": "Bring a machine online to start a session.",
+      "troubleshoot": "Troubleshoot",
+      "troubleshootConnection": "Troubleshoot connection",
+      "copyAiPrompt": "Copy AI prompt",
+      "copyAiPromptFailed": "Could not copy the AI prompt."
     },
     "agentGoalBar": {
       "currentGoal": "Current goal",
@@ -606,13 +634,27 @@
       "badgePlan": "plan"
     },
     "context": {
-      "remaining": "{percent}% left"
+      "remaining": "{percent}% left",
+      "detailContext": "{used} / {total} context",
+      "percentContext": "{percent}% context",
+      "percentWeek": "{percent}% week"
+    },
+    "usagePopup": {
+      "session": "Session",
+      "week": "Week",
+      "resets": "Resets {time}"
     },
     "suggestion": {
       "fileLabel": "FILE",
       "folderLabel": "FOLDER"
     },
     "noMachinesAvailable": "No machines"
+  },
+  "offlineMachines": {
+    "singleUnreachable": "{name} is unreachable",
+    "noneReachable": "No machines are reachable",
+    "bringOnline": "Bring a machine online to start a session.",
+    "troubleshoot": "Troubleshoot"
   },
   "machineLauncher": {
     "showLess": "Show less",

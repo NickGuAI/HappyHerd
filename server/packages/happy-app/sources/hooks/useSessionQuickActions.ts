@@ -7,7 +7,7 @@ import { maybeCleanupWorktree } from '@/hooks/useWorktreeCleanup';
 import { storage, useLocalSetting, useMachine, useSetting } from '@/sync/storage';
 import { Session } from '@/sync/storageTypes';
 import { sync } from '@/sync/sync';
-import { resolveMessageModeMeta } from '@/sync/messageMeta';
+import { resolveMessageModeMeta, UnsupportedPermissionModeError } from '@/sync/messageMeta';
 import { t } from '@/text';
 import { HappyError } from '@/utils/errors';
 import { copySessionMetadataToClipboard, copySessionMetadataAndLogsToClipboard } from '@/utils/copySessionMetadataToClipboard';
@@ -126,7 +126,20 @@ export function useSessionQuickActions(
             );
         }
 
-        const modeMeta = resolveMessageModeMeta(session, currentState.settings);
+        let modeMeta: ReturnType<typeof resolveMessageModeMeta>;
+        try {
+            modeMeta = resolveMessageModeMeta(session, currentState.settings);
+        } catch (error) {
+            if (error instanceof UnsupportedPermissionModeError) {
+                // Refuse loudly instead of substituting a mode: swapping in a
+                // default would silently change what the agent may do.
+                throw new HappyError(t('errors.unsupportedPermissionMode', {
+                    mode: error.mode,
+                    cliVersion: error.cliVersion,
+                }), false);
+            }
+            throw error;
+        }
         const result = await machineResumeSession({
             machineId,
             sessionId: session.id,

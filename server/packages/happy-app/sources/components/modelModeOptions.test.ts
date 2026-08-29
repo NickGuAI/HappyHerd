@@ -17,6 +17,7 @@ import {
     getAdvertisedDefaultOptionKey,
     getHardcodedModelModes,
     getHardcodedPermissionModes,
+    filterPermissionModesForCli,
     getMachineAdvertisedEffortLevels,
     getMachineAdvertisedModels,
     getMachineAdvertisedPermissionModes,
@@ -405,6 +406,18 @@ describe('modelModeOptions', () => {
         expect(keys).not.toContain('dontAsk');
     });
 
+    it('filters only post-version hardcoded modes for an old Happy CLI', () => {
+        const modes = getClaudePermissionModes(translate);
+        expect(filterPermissionModesForCli(modes, '1.2.0').map((mode) => mode.key)).toEqual([
+            'acceptEdits',
+            'plan',
+            'bypassPermissions',
+            'default',
+        ]);
+        expect(filterPermissionModesForCli(modes, '1.2.1-beta.2')).toEqual(modes);
+        expect(filterPermissionModesForCli(modes, undefined)).toEqual(modes);
+    });
+
     it('leads both shipped harnesses with Auto', () => {
         expect(getClaudePermissionModes(translate)[0].key).toBe('auto');
         expect(getCodexPermissionModes(translate)[0].key).toBe('auto');
@@ -463,6 +476,7 @@ describe('modelModeOptions', () => {
             'default',
             'claude-fable-5',
             'claude-opus-5',
+            'claude-opus-5[1m]',
             'claude-opus-4-8',
             'claude-opus-4-6',
             'claude-sonnet-5',
@@ -514,7 +528,7 @@ describe('modelModeOptions', () => {
     it('offers claude the SDK effort union for every model', () => {
         // Claude's scale belongs to the SDK, not the model: an unreachable level
         // is silently downgraded, so all three models get the same list.
-        for (const model of ['claude-fable-5', 'claude-opus-5', 'claude-sonnet-5']) {
+        for (const model of ['claude-fable-5', 'claude-opus-5', 'claude-opus-5[1m]', 'claude-sonnet-5']) {
             const keys = getEffortLevelsForModel('claude', model).map((level) => level.key);
             expect(keys).toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
             // Claude's floor is `low`; there is no off.

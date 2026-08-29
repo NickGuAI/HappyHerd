@@ -1,18 +1,26 @@
 import React from 'react';
 import { Platform, Pressable, View } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
-import { ProjectGroupData, ProjectWorkspaceGroup } from '@/sync/storage';
+import { ProjectGroupData, ProjectWorkspaceGroup, useSessionGitStatus } from '@/sync/storage';
 import { CompactSessionRow } from './ActiveSessionsGroupCompact';
 import { Avatar } from './Avatar';
 import { requestHomeDockFocus } from './homeDockFocus';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
 import { formatPathRelativeToHome } from '@/utils/sessionUtils';
+import { compactCount, visibleRigGitLineChanges } from '@/utils/rigGitLineChanges';
 import { getRepoPath, isWorktreePath } from '@/utils/worktreePaths';
+
+// Tall enough to span the name and branch lines together.
+const HEADER_AVATAR_SIZE = 30;
+// Roughly 70% of the composer attachment "+": same feel, less presence in a
+// list header. hitSlop keeps the touch target comfortable.
+const ADD_BUTTON_SIZE = 30;
+const ADD_ICON_SIZE = 18;
 
 interface ProjectGroupProps {
     project: ProjectGroupData;
@@ -51,9 +59,27 @@ const WorkspaceSection = React.memo(({ project, workspace, selectedSessionId }: 
     const { theme } = useUnistyles();
     const router = useRouter();
     const firstSession = workspace.sessions[0];
-    // The primary checkout is the project itself, so naming it twice adds
-    // nothing. Only a real worktree earns the second line.
     const worktreeName = workspace.name ?? (workspace.id || null);
+
+    // The branch line belongs to the checkout, so it reads from the live git
+    // status the daemon reports, through the workspace's own name, down to the
+    // "main" every repo has when nothing better is known.
+    const gitStatus = useSessionGitStatus(firstSession?.id ?? '');
+    const branchName = worktreeName
+        ?? gitStatus?.branch
+        ?? 'main';
+    const liveInsertions = gitStatus?.unstagedLinesAdded ?? 0;
+    const liveDeletions = gitStatus?.unstagedLinesRemoved ?? 0;
+    const changes = liveInsertions > 0 || liveDeletions > 0
+        ? { approximate: false, insertions: liveInsertions, deletions: liveDeletions }
+        : firstSession && firstSession.gitChangedFiles !== null
+            ? visibleRigGitLineChanges({
+                changedFiles: firstSession.gitChangedFiles,
+                countsExact: firstSession.gitCountsExact,
+                deletions: firstSession.gitDeletions ?? 0,
+                insertions: firstSession.gitInsertions ?? 0,
+            })
+            : null;
 
     // Point the draft at this exact checkout before opening the composer, so
     // the dock's machine, project and worktree rows already read correctly.
@@ -84,24 +110,30 @@ const WorkspaceSection = React.memo(({ project, workspace, selectedSessionId }: 
         <View style={styles.section}>
             <View style={styles.header}>
                 {firstSession && (
-                    <Avatar id={firstSession.avatarId} size={24} flavor={null} imageUrl={firstSession.projectAvatarUri} thumbhash={firstSession.projectAvatarThumbhash} />
+                    <Avatar id={firstSession.avatarId} size={HEADER_AVATAR_SIZE} flavor={null} imageUrl={firstSession.projectAvatarUri} thumbhash={firstSession.projectAvatarThumbhash} />
                 )}
                 <View style={styles.headerText}>
                     <Text style={styles.title} numberOfLines={1}>
                         {project.name}
                     </Text>
-                    {worktreeName && (
-                        <View style={styles.worktreeRow}>
-                            <Text style={styles.worktreeTitle} numberOfLines={1}>
-                                {worktreeName}
-                            </Text>
-                            <MaterialCommunityIcons
-                                name="source-branch"
-                                size={11}
-                                color={theme.colors.textSecondary}
-                            />
-                        </View>
-                    )}
+                    <View style={styles.branchLine}>
+                        <Text style={styles.branchText} numberOfLines={1}>
+                            {branchName}
+                        </Text>
+                        {changes && (
+                            <View style={styles.branchChanges}>
+                                {changes.approximate && (
+                                    <Text style={styles.approximateText}>≈</Text>
+                                )}
+                                {changes.insertions > 0 && (
+                                    <Text style={styles.addedText}>+{compactCount(changes.insertions)}</Text>
+                                )}
+                                {changes.deletions > 0 && (
+                                    <Text style={styles.removedText}>-{compactCount(changes.deletions)}</Text>
+                                )}
+                            </View>
+                        )}
+                    </View>
                 </View>
                 <Pressable
                     onPress={handleNewSession}
@@ -110,7 +142,7 @@ const WorkspaceSection = React.memo(({ project, workspace, selectedSessionId }: 
                     accessibilityLabel={t('sidebar.newSession')}
                     style={({ pressed }) => [styles.addButton, pressed && styles.addButtonPressed]}
                 >
-                    <Ionicons name="add" size={20} color={theme.colors.textSecondary} />
+                    <Ionicons name="add" size={ADD_ICON_SIZE} color={theme.colors.text} />
                 </Pressable>
             </View>
 
@@ -136,12 +168,17 @@ const stylesheet = StyleSheet.create((theme) => ({
     section: {
         backgroundColor: 'transparent',
     },
+    // Pulled toward the screen edges: the "+" sits so its center shares an x
+    // with the status dot inside the card rows below (see
+    // trailingIndicatorSlot in ActiveSessionsGroupCompact). The right inset
+    // compensates for the button being narrower than it once was.
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingTop: 12,
         paddingBottom: Platform.select({ ios: 6, default: 8 }),
-        paddingHorizontal: Platform.select({ ios: 32, default: 24 }),
+        paddingLeft: Platform.select({ ios: 20, default: 16 }),
+        paddingRight: Platform.select({ ios: 26, default: 22 }),
         gap: 8,
     },
     headerText: {
@@ -156,12 +193,12 @@ const stylesheet = StyleSheet.create((theme) => ({
         fontWeight: Platform.select({ ios: 'normal', default: '500' }),
         ...Typography.default('regular'),
     },
-    worktreeRow: {
+    branchLine: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        gap: 6,
     },
-    worktreeTitle: {
+    branchText: {
         flexShrink: 1,
         minWidth: 0,
         fontSize: 12,
@@ -169,9 +206,33 @@ const stylesheet = StyleSheet.create((theme) => ({
         color: theme.colors.textSecondary,
         ...Typography.default('regular'),
     },
+    branchChanges: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    approximateText: {
+        fontSize: 11,
+        color: theme.colors.textSecondary,
+        ...Typography.default('regular'),
+    },
+    addedText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: theme.colors.gitAddedText,
+    },
+    removedText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: theme.colors.gitRemovedText,
+    },
+    // Filled like the composer's resting send button so it reads as a control,
+    // not an ornament.
     addButton: {
-        width: 28,
-        height: 28,
+        width: ADD_BUTTON_SIZE,
+        height: ADD_BUTTON_SIZE,
+        borderRadius: ADD_BUTTON_SIZE / 2,
+        backgroundColor: theme.colors.surfaceHighest,
         alignItems: 'center',
         justifyContent: 'center',
     },

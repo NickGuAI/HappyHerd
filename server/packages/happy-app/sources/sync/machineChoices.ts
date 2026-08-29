@@ -197,12 +197,9 @@ export function resolveChoiceAgent(
 /**
  * Resolve the harness a new-session surface may offer and launch.
  *
- * Happy's own harness remains fully supported for existing sessions and sync,
- * but session creation is experimental. A saved Happy draft therefore falls
- * back to the first regular harness while experiments are disabled. Falling
- * back even when a computer only has Happy registered keeps the hidden harness
- * from being launched through a stale draft; the normal missing-daemon check
- * then explains why the regular harness cannot start on that computer.
+ * Happy Agent remains available for existing sessions and sync while its
+ * creation surface is experimental. A saved Happy Agent draft therefore
+ * falls back to the first regular harness while experiments are disabled.
  */
 export function resolveNewSessionAgent(
     choice: MachineChoice | null,
@@ -229,4 +226,31 @@ export function resolveAgentMachine(
 ): Machine | null {
     if (!choice) return null;
     return agent === 'rig' ? choice.rigMachine : choice.happyMachine;
+}
+
+/**
+ * The daemon that can create a git worktree for a new session.
+ *
+ * Happy Agent may publish `worktrees: false` while the Happy CLI daemon paired
+ * with it still exposes the machine-level git RPC. In that case the CLI daemon
+ * creates the checkout and Happy Agent starts the session inside the resulting
+ * directory. Other harnesses keep respecting their own worktree capability.
+ */
+export function resolveWorktreeCreationMachine(
+    choice: MachineChoice | null,
+    agent: NewSessionAgentType,
+    agentSupportsWorktrees: boolean,
+): Machine | null {
+    if (!choice) return null;
+
+    if (agent === 'rig') {
+        const happyMachine = choice.happyMachine;
+        if (happyMachine && isMachineOnline(happyMachine)) {
+            return happyMachine;
+        }
+    }
+
+    if (!agentSupportsWorktrees) return null;
+    const agentMachine = resolveAgentMachine(choice, agent);
+    return agentMachine && isMachineOnline(agentMachine) ? agentMachine : null;
 }

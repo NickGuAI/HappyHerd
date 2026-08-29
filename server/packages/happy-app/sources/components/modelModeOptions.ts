@@ -3,6 +3,7 @@ import { HAPPYHERD_AGY_MODEL_NAMES, HAPPYHERD_CLAUDE_MODEL_SLUGS } from '@slopus
 import { hackModes } from '@/sync/modeHacks';
 import { sortPermissionModes } from '@/utils/permissionModeLabels';
 import { getCodeAgentDefaults } from '@/sync/agentDefaults';
+import { compareVersionsWithPrerelease, isWellFormedVersion } from '@/utils/versionUtils';
 import {
     getRigCurrentModel,
     getRigModels,
@@ -19,6 +20,8 @@ export type ModeOption = {
     disabled?: boolean;
     unavailable?: boolean;
     isDefault?: boolean;
+    /** First Happy CLI version that can parse this hardcoded mode. */
+    sinceCliVersion?: string;
 };
 
 export type PermissionMode = ModeOption;
@@ -193,7 +196,7 @@ export function getAdvertisedDefaultOptionKey(
 // sending it fails UserMessageSchema.safeParse and drops the whole prompt.
 export function getClaudePermissionModes(translate: Translate): PermissionMode[] {
     return [
-        { key: 'auto', name: 'Auto', description: translate('agentInput.permissionMode.auto') },
+        { key: 'auto', name: 'Auto', description: translate('agentInput.permissionMode.auto'), sinceCliVersion: CLI_VERSION_WITH_AUTO },
         { key: 'acceptEdits', name: 'Edits', description: translate('agentInput.permissionMode.acceptEdits') },
         { key: 'plan', name: 'Plan', description: translate('agentInput.permissionMode.plan') },
         { key: 'bypassPermissions', name: 'Yolo', description: translate('agentInput.permissionMode.bypassPermissions') },
@@ -209,7 +212,7 @@ export function getClaudePermissionModes(translate: Translate): PermissionMode[]
 // sandbox but stops asking, so it is the one named for the sandbox.
 export function getCodexPermissionModes(translate: Translate): PermissionMode[] {
     return [
-        { key: 'auto', name: 'Auto', description: translate('agentInput.codexPermissionMode.autoDescription') },
+        { key: 'auto', name: 'Auto', description: translate('agentInput.codexPermissionMode.autoDescription'), sinceCliVersion: CLI_VERSION_WITH_AUTO },
         { key: 'safe-yolo', name: 'Workspace', description: translate('agentInput.codexPermissionMode.safeYoloDescription') },
         { key: 'read-only', name: 'Read', description: translate('agentInput.codexPermissionMode.readOnlyDescription') },
         { key: 'yolo', name: 'Yolo', description: translate('agentInput.codexPermissionMode.yoloDescription') },
@@ -304,6 +307,44 @@ export function getAgyPermissionModes(translate: Translate): PermissionMode[] {
         { key: 'default', name: 'Default', description: translate('agentInput.permissionMode.agyDefault') },
         { key: 'bypassPermissions', name: 'Yolo', description: translate('agentInput.permissionMode.bypassPermissions') },
     ];
+}
+
+/** `auto` first became valid shared message metadata in this CLI build. */
+export const CLI_VERSION_WITH_AUTO = '1.2.1-beta.2';
+
+export function modeSupportedByCli(
+    mode: Pick<ModeOption, 'sinceCliVersion'>,
+    cliVersion: string | null | undefined,
+): boolean {
+    if (!mode.sinceCliVersion || !cliVersion) return true;
+    if (!isWellFormedVersion(cliVersion)) return false;
+    return compareVersionsWithPrerelease(cliVersion, mode.sinceCliVersion) >= 0;
+}
+
+const PERMISSION_MODE_SINCE_CLI_VERSION: Record<string, string> = {
+    auto: CLI_VERSION_WITH_AUTO,
+};
+
+export function permissionModeSupportedByCli(
+    modeKey: string | null | undefined,
+    cliVersion: string | null | undefined,
+): boolean {
+    if (!modeKey) return true;
+    return modeSupportedByCli(
+        { sinceCliVersion: PERMISSION_MODE_SINCE_CLI_VERSION[modeKey] },
+        cliVersion,
+    );
+}
+
+/**
+ * Hardcoded compatibility filtering only. Exact-machine provider catalogs are
+ * already authoritative for the daemon that will receive the request.
+ */
+export function filterPermissionModesForCli<T extends ModeOption>(
+    modes: T[],
+    cliVersion: string | null | undefined,
+): T[] {
+    return modes.filter((mode) => modeSupportedByCli(mode, cliVersion));
 }
 
 export function getHardcodedPermissionModes(flavor: AgentFlavor, translate: Translate): PermissionMode[] {
@@ -457,7 +498,10 @@ export function getAvailablePermissionModes(
         return modes;
     }
     if (flavor === 'claude' || flavor === 'codex' || flavor === 'agy') {
-        return hackModes(getHardcodedPermissionModes(flavor, translate));
+        return hackModes(filterPermissionModesForCli(
+            getHardcodedPermissionModes(flavor, translate),
+            metadata?.version,
+        ));
     }
 
     // GrokBuild ACP operating modes are plan/build behavior, not process

@@ -4,11 +4,19 @@ import {
     isHomeDockOptionSelectable,
     resolveCustomProjectPathSelection,
     resolveHomeDockBackdropPressAction,
+    resolveHomeDockMachineReconciliation,
     resolveHomeDockMachineSelection,
+    resolveHomeDockPermissionSelection,
     resolveHomeDockPickerBackAction,
     resolveHomeDockPromptPlaceholder,
     shouldUseNativeHomeDockMenus,
 } from './homeDockInteraction';
+import {
+    filterPermissionModesForCli,
+    getClaudePermissionModes,
+    getCodexPermissionModes,
+} from './modelModeOptions';
+import { collectMachineChoices, findMachineChoice } from '@/sync/machineChoices';
 
 describe('HomeDock interaction lifecycle', () => {
     it('ignores a custom-project prompt result after HomeDock unmounts', () => {
@@ -31,6 +39,74 @@ describe('HomeDock interaction lifecycle', () => {
         expect(resolveHomeDockMachineSelection('removed', ['online', 'offline'])).toBe('online');
         expect(resolveHomeDockMachineSelection('offline', ['online', 'offline'])).toBe('offline');
         expect(resolveHomeDockMachineSelection('loading', [])).toBe('loading');
+    });
+
+    it('shows the canonical computer key when the stored daemon is its paired Rig', () => {
+        const machines = [
+            {
+                id: 'cli-machine',
+                active: true,
+                activeAt: 1,
+                metadata: { host: 'laptop.local', cliAvailability: { claude: true } },
+            },
+            {
+                id: 'rig-machine',
+                active: true,
+                activeAt: 2,
+                metadata: {
+                    host: 'laptop.local',
+                    machineKind: 'rig',
+                    rigOnly: true,
+                    siblingMachineId: 'cli-machine',
+                },
+            },
+        ] as any;
+        const choices = collectMachineChoices(machines);
+        const selectedChoice = findMachineChoice(choices, 'rig-machine');
+
+        expect(resolveHomeDockMachineSelection(
+            selectedChoice?.id ?? 'rig-machine',
+            choices.map((choice) => choice.id),
+        )).toBe('cli-machine');
+    });
+
+    it('preserves a draft only for an exact-daemon rekey on the same computer', () => {
+        expect(resolveHomeDockMachineReconciliation({
+            selectedMachineId: 'cli-machine',
+            selectedChoiceId: 'cli-machine',
+            resolvedMachineId: 'rig-machine',
+        })).toBe('rename');
+        expect(resolveHomeDockMachineReconciliation({
+            selectedMachineId: 'removed-machine',
+            selectedChoiceId: null,
+            resolvedMachineId: 'replacement-machine',
+        })).toBe('reset');
+        expect(resolveHomeDockMachineReconciliation({
+            selectedMachineId: 'cli-machine',
+            selectedChoiceId: 'cli-machine',
+            resolvedMachineId: 'cli-machine',
+        })).toBe('none');
+    });
+
+    it('hides Auto on old CLIs and visibly resolves the approved code default', () => {
+        const translate = (key: string) => key;
+        const claudeModes = filterPermissionModesForCli(getClaudePermissionModes(translate), '1.2.0');
+        const codexModes = filterPermissionModesForCli(getCodexPermissionModes(translate), '1.2.0');
+
+        expect(claudeModes.some((mode) => mode.key === 'auto')).toBe(false);
+        expect(codexModes.some((mode) => mode.key === 'auto')).toBe(false);
+        expect(resolveHomeDockPermissionSelection(
+            claudeModes,
+            'auto',
+            'auto',
+            'bypassPermissions',
+        )?.key).toBe('bypassPermissions');
+        expect(resolveHomeDockPermissionSelection(
+            codexModes,
+            'auto',
+            'auto',
+            'yolo',
+        )?.key).toBe('yolo');
     });
 
     it('names the selected legacy agent in the focused prompt', () => {

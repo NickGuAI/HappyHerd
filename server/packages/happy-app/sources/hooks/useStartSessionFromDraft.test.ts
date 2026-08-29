@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
         online: boolean;
         metadata?: any;
     }>,
+    sessions: [] as any[],
     defaultOverrides: {},
     experiments: true,
     draft: null as any,
@@ -39,6 +40,7 @@ vi.mock('react', () => ({
 
 vi.mock('@/sync/storage', () => ({
     useAllMachines: () => mocks.machines,
+    useSessions: () => mocks.sessions,
     useSetting: (key: string) => key === 'experiments' ? mocks.experiments : mocks.defaultOverrides,
     storage: {
         getState: () => ({
@@ -48,6 +50,11 @@ vi.mock('@/sync/storage', () => ({
 }));
 
 vi.mock('@/sync/agentDefaults', () => ({
+    getCodeAgentDefaults: (agentType: string) => ({
+        permissionMode: agentType === 'claude' ? 'bypassPermissions' : 'yolo',
+        modelMode: 'default',
+        effortLevel: null,
+    }),
     resolveAgentDefaultConfig: (
         overrides: Record<string, unknown>,
         agentType: string,
@@ -108,10 +115,17 @@ vi.mock('@/utils/time', () => ({ delay: mocks.delay }));
 
 vi.mock('@/components/modelModeOptions', () => ({
     getHardcodedPermissionModes: () => [
+        { key: 'auto', name: 'Auto', sinceCliVersion: '1.2.1-beta.2' },
         { key: 'default', name: 'Default' },
         { key: 'safe-yolo', name: 'Safe YOLO' },
         { key: 'yolo', name: 'YOLO' },
     ],
+    filterPermissionModesForCli: (
+        modes: Array<{ sinceCliVersion?: string }>,
+        cliVersion?: string,
+    ) => cliVersion === '1.2.0'
+        ? modes.filter((mode) => !mode.sinceCliVersion)
+        : modes,
     getHardcodedModelModes: () => [
         { key: 'default', name: 'Default' },
         { key: 'opus', name: 'Opus' },
@@ -122,6 +136,7 @@ vi.mock('@/components/modelModeOptions', () => ({
     getMachineAdvertisedPermissionModes: mocks.getMachineAdvertisedPermissionModes,
     getMachineAdvertisedModels: mocks.getMachineAdvertisedModels,
     getMachineAdvertisedEffortLevels: mocks.getMachineAdvertisedEffortLevels,
+    getSupportsWorktree: (agentType: string) => agentType !== 'rig',
     getAdvertisedDefaultOptionKey: (options: Array<{ key: string; isDefault?: boolean }>) => (
         options.find((option) => option.isDefault)?.key ?? null
     ),
@@ -182,6 +197,32 @@ function createRigMachine(metadata: Record<string, unknown> = {}) {
     };
 }
 
+function createPairedMachines() {
+    return [
+        {
+            id: 'cli-machine',
+            online: true,
+            metadata: {
+                homeDir: '/Users/dev',
+                host: 'laptop.local',
+                cliAvailability: {
+                    claude: true,
+                    codex: true,
+                    gemini: false,
+                    detectedAt: 1,
+                },
+            },
+        },
+        {
+            ...createRigMachine({
+                host: 'laptop.local',
+                siblingMachineId: 'cli-machine',
+            }),
+            id: 'rig-machine',
+        },
+    ];
+}
+
 function createDraft(overrides: Record<string, unknown> = {}) {
     return {
         input: ' Start the implementation ',
@@ -206,6 +247,7 @@ describe('useStartSessionFromDraft', () => {
         mocks.uuidCount = 0;
         completeSpawnRequest();
         mocks.defaultOverrides = {};
+        mocks.sessions = [];
         mocks.experiments = true;
         mocks.machines = [{ id: 'machine-1', online: true, metadata: { homeDir: '/Users/dev' } }];
         mocks.draft = createDraft();
@@ -246,6 +288,30 @@ describe('useStartSessionFromDraft', () => {
         );
         expect(mocks.navigateToSession.mock.invocationCallOrder[0])
             .toBeLessThan(mocks.sendMessage.mock.invocationCallOrder[0]);
+    });
+
+    it('submits the visible Codex code default when an old CLI filters saved Auto', async () => {
+        mocks.machines = [{
+            id: 'machine-1',
+            online: true,
+            metadata: { homeDir: '/Users/dev', happyCliVersion: '1.2.0' },
+        }];
+        mocks.defaultOverrides = {
+            codex: {
+                permissionMode: 'auto',
+                modelMode: 'default',
+                effortLevel: null,
+            },
+        };
+        mocks.draft = createDraft({ permissionMode: 'auto' });
+
+        const { startSession } = useStartSessionFromDraft();
+        await expect(startSession()).resolves.toBe(true);
+
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            machineId: 'machine-1',
+            permissionMode: 'yolo',
+        }));
     });
 
     it('refuses a custom model that is not advertised for a new Codex session', async () => {
@@ -532,8 +598,6 @@ describe('useStartSessionFromDraft', () => {
         }];
         mocks.draft = createDraft({
             agentType: 'rig',
-            sessionType: 'worktree',
-            worktreeKey: null,
         });
         mocks.machineSpawnNewSession
             .mockResolvedValueOnce({ type: 'pending', clientRequestId: 'rig-request-1', retryAfterMs: 0 })
@@ -559,6 +623,117 @@ describe('useStartSessionFromDraft', () => {
         expect(mocks.createWorktree).not.toHaveBeenCalled();
         expect(mocks.sessionSetAgentModes).not.toHaveBeenCalled();
         expect(mocks.navigateToSession).toHaveBeenCalledWith('rig-session-1');
+    });
+
+    it('refuses a normal Rig worktree when no worktree-capable daemon exists', async () => {
+        mocks.machines = [createRigMachine()];
+        mocks.draft = createDraft({
+            agentType: 'rig',
+            sessionType: 'worktree',
+            worktreeKey: null,
+        });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(false);
+        expect(mocks.createWorktree).not.toHaveBeenCalled();
+        expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
+        expect(mocks.alert).toHaveBeenCalledWith('common.error', 'uiCopy.failedToCreateWorktree');
+    });
+
+    it('routes a paired-computer Happy Agent draft to the Rig daemon', async () => {
+        mocks.machines = createPairedMachines();
+        // Home stores the canonical computer id, which is the Happy CLI half.
+        mocks.draft = createDraft({
+            selectedMachineId: 'cli-machine',
+            agentType: 'rig',
+        });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            machineId: 'rig-machine',
+            agent: 'rig',
+        }));
+    });
+
+    it('uses paired Happy CLI for a normal Rig worktree and still spawns on Rig', async () => {
+        mocks.machines = createPairedMachines();
+        mocks.draft = createDraft({
+            selectedMachineId: 'cli-machine',
+            agentType: 'rig',
+            sessionType: 'worktree',
+            worktreeKey: null,
+        });
+        mocks.createWorktree.mockResolvedValue({
+            success: true,
+            worktreePath: '/worktrees/feature',
+            branchName: 'feature',
+        });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.createWorktree).toHaveBeenCalledWith('cli-machine', '/absolute/project');
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            machineId: 'rig-machine',
+            agent: 'rig',
+            directory: '/worktrees/feature',
+        }));
+    });
+
+    it('keeps an ordinary code-agent draft on the paired Happy CLI daemon', async () => {
+        mocks.machines = createPairedMachines();
+        mocks.draft = createDraft({
+            selectedMachineId: 'rig-machine',
+            agentType: 'claude',
+        });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            machineId: 'cli-machine',
+            agent: 'claude',
+        }));
+    });
+
+    it('creates a Happy Agent workspace through its native durable target', async () => {
+        mocks.machines = [createRigMachine()];
+        mocks.sessions = [{
+            id: 'project-session',
+            metadata: {
+                machineId: 'machine-1',
+                path: '~/project',
+                project: { id: 'project-1', kind: 'regular', name: 'happy' },
+            },
+        }];
+        mocks.draft = createDraft({
+            agentType: 'rig',
+            sessionType: 'worktree',
+            worktreeKey: null,
+        });
+        mocks.machineSpawnNewSession
+            .mockResolvedValueOnce({ type: 'pending', clientRequestId: 'rig-request-1', retryAfterMs: 250 })
+            .mockResolvedValueOnce({ type: 'success', sessionId: 'rig-session-1' });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.createWorktree).not.toHaveBeenCalled();
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledTimes(2);
+        expect(mocks.machineSpawnNewSession).toHaveBeenNthCalledWith(1, expect.objectContaining({
+            machineId: 'machine-1',
+            agent: 'rig',
+            directory: '/absolute/project',
+            clientRequestId: 'rig-request-1',
+            happyAgentTarget: { kind: 'newWorkspace', projectId: 'project-1' },
+        }));
+        expect(mocks.machineSpawnNewSession).toHaveBeenNthCalledWith(2, expect.objectContaining({
+            happyAgentTarget: { kind: 'newWorkspace', projectId: 'project-1' },
+            clientRequestId: 'rig-request-1',
+        }));
     });
 
     it('honors synchronized Rig defaults in the native spawn payload', async () => {
