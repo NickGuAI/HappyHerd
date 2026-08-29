@@ -1,19 +1,27 @@
-# Upstream sync rehearsal
+# Upstream merge proposal
 
-The upstream rehearsal proves that HappyHerd can consume the real
-`slopus/happy` lineage without silently losing or combining owned patches.
+Upstream readiness is investigated by the machine-local HappyHerd automation
+named `happyherd-upstream-merge-proposal`, not by GitHub Actions. It preserves
+the former daily `17 9 * * *` cadence in `Etc/UTC` while keeping expected merge
+conflicts out of normal feature status checks and GitHub notifications.
 
-1. `scripts/rehearse-upstream-sync.sh` clones the pushed `main`, fetches
-   `upstream/main`, and performs a non-squashed subtree pull.
-2. When upstream advances, it compares the owned series before and after the
-   real integration with `git range-diff` and rejects a lost or combined owned
-   patch. A merge conflict remains a failing rehearsal that requires a real
-   upstream-sync change; an already-integrated upstream is a successful no-op.
-3. The full contract suite runs inside the disposable clone at the exact
-   post-sync tree, including the no-op case.
+The automation freezes current HappyHerd origin main and `slopus/happy` main in
+a disposable clone. `scripts/rehearse-upstream-sync.sh` remains the
+read-only evidence owner: it performs the non-squashed subtree merge, checks
+the owned series with `git range-diff`, and runs the full contract suite when
+the merge is clean. `scripts/test-upstream-sync-provenance.sh` continues to
+prove accepted merge topology. The canonical checkout is never mutated.
 
-The delivery checkout is never mutated. The rehearsal requires local `HEAD` to
-equal pushed `origin/main`, validates the trusted upstream URL and second-parent
-ancestry, and rejects changes escaping the `server/` prefix. CI keeps short-lived
-logs as workflow artifacts; generated logs and operator deployment evidence do
-not belong in public source history.
+```text
+same upstream SHA ──→ silent no-op
+new upstream SHA  ──→ one deduplicated AgentWork proposal
+                         ├─ features and impact
+                         ├─ resolvable conflicts
+                         └─ genuine owner decisions only
+```
+
+The automation may read GitHub and write the scoped TickTick proposal. It must
+never push a branch, create or update a GitHub issue or pull request, merge,
+deploy, alter the canonical checkout, or create failure-alert tasks. A proposal
+is not merge authority; implementation still proceeds through the normal
+reviewed branch and pull-request lifecycle after owner direction.

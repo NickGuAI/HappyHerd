@@ -8,8 +8,9 @@ When the user says `sync to main` or `synt to main`, they mean:
 2. Push only that feature branch and open or update its pull request.
 3. Wait for every required protected-branch check and resolve review threads.
 4. Merge with a GitHub merge commit.
-5. Verify the main-push workflows, including the real upstream rehearsal, then
-   delete only the exact merged PR head.
+5. Verify the Quality and Contract main-push workflows, then delete only the
+   exact merged PR head. Upstream merge proposals are owned separately by the
+   native `happyherd-upstream-merge-proposal` automation.
 
 Never push `HEAD:main` or force-push `main`. Follow the complete repository
 lifecycle and race-safe cleanup procedure in
