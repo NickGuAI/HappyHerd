@@ -167,7 +167,7 @@ const briefOptionEntries = Object.entries(briefOptions) as Array<
   [keyof typeof briefOptions, keyof SideChatDelegationBrief]
 >;
 
-function requireDelegationBrief(
+export function normalizeSideChatDelegationBrief(
   values: Partial<Record<keyof SideChatDelegationBrief, string>>,
 ): SideChatDelegationBrief {
   const missing = briefOptionEntries
@@ -435,7 +435,7 @@ export function parseSideChatLifecycleRequest(args: string[]): {
       request: {
         action: 'create',
         parentSessionId: candidateAction,
-        brief: requireDelegationBrief(briefValues),
+        brief: normalizeSideChatDelegationBrief(briefValues),
       },
       json,
     };
@@ -455,7 +455,7 @@ export function parseSideChatLifecycleRequest(args: string[]): {
   }
   if (action === 'create') {
     return {
-      request: { action, parentSessionId: id, brief: requireDelegationBrief(briefValues) },
+      request: { action, parentSessionId: id, brief: normalizeSideChatDelegationBrief(briefValues) },
       json,
     };
   }

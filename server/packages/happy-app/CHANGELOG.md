@@ -1,3 +1,12 @@
+# August 29 — Structured side chats for Humans and Main Agents
+
+- Humans can create a side chat from the right panel by completing the same six-field delegation brief used by the Main Agent CLI.
+- New children hydrate into the exact parent, open in the correct responsive host, and remain directly selectable alongside stopped but resumable children.
+
+# August 29 — Chat microphone dictation drafts
+
+- Updated the active chat composer microphone to perform OpenAI speech-to-text dictation using the configured OpenAI key instead of launching a separate realtime voice conversation, appending transcripts directly to existing message drafts for editing before sending while preserving recording controls, progress feedback, error handling, and retry support.
+
 # August 29 — Named provider accounts and automatic failover
 
 - Connect and manage multiple local accounts for Claude, Codex, and GrokBuild using `happyherd connect <claude|codex|grok> --acct <nickname>` and the `happyherd accounts` command suite.
@@ -6,8 +15,8 @@
 
 # August 29 — Side chats carry bounded delegation briefs
 
-- Delegated Worker Agent creation now runs exclusively through `happyherd session side-chat create`, with required outcome, scope, dependencies, write ownership, verification, and handoff fields. On successful creation, the brief is the child's first encrypted queued message; a delivery failure retains the child ID and exact failed phase.
-- The app continues to discover, render, switch, resume, and close existing side chats, while unbriefed creation controls are removed and generic `spawn-happy-session` rejects `isSideChat` before provider launch.
+- Main Agent creation runs through `happyherd session side-chat create`, with required outcome, scope, dependencies, write ownership, verification, and handoff fields. On successful creation, the brief is the child's first encrypted queued message; a delivery failure retains the child ID and exact failed phase.
+- Generic `spawn-happy-session` rejects `isSideChat` before provider launch, so every Human or Main Agent creation enters the daemon-owned brief lifecycle.
 - The CLI and daemon loopback API accept `inspect` for `status`, `pause` for `stop`, and `resume` for `reopen`, while receipts retain canonical action names and provider-native subagents remain the default inline fan-out.
 
 # August 29 — Attachment selection

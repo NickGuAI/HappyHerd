@@ -61,10 +61,11 @@ verification, and handoff. The Orchestrating Agent owns child lifecycle and
 reviews the final handoff. Side chats do not create more side chats by default;
 use provider-native subagents for bounded fan-out inside a child.
 
-Delegated Worker Agents must be launched through
-`happyherd session side-chat create` with that complete structured brief. The
-app presents existing side chats, while generic session spawn must not set
-`isSideChat` or bypass the daemon-owned brief lifecycle.
+The Human may launch a delegated Worker Agent from the app's New side chat
+form. The Main Agent may launch one through `happyherd session side-chat
+create`. Both surfaces require the complete structured brief and enter the
+same daemon-owned lifecycle. Generic session spawn must not set `isSideChat`
+or bypass that lifecycle.
 
 ## Package manager and verification
 

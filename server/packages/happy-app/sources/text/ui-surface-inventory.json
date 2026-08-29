@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "53f9b5c92bba3ecc11d561f30f7634d61ec779bc1f26c297cffdd9a11b73230d",
+  "sourceFingerprint": "7d466225ecb0b799738e7d453373e4c974477162934a10d7569b8176901e8e23",
   "routeCount": 36,
   "surfaceCount": 246,
   "hardcodedCopyCount": 0,
@@ -1009,7 +1009,6 @@
         "errors.grokPermissionModeChangeFailed",
         "errors.sessionDeleted",
         "errors.sessionDeletedDescription",
-        "errors.voiceSessionFailed",
         "happyHerd.composer.sendFailedBody",
         "happyHerd.composer.sendFailedTitle",
         "happyHerd.heartbeat.machineUnavailable",
@@ -1020,6 +1019,8 @@
         "sessionInfo.cliVersionOutdated",
         "sessionInfo.resumeSession",
         "sideChat.archiveFailed",
+        "sideChat.createFailed",
+        "sideChat.createFailedWithDetail",
         "sideChat.stopUnconfirmed",
         "uiCopy.discardUnsavedChanges",
         "uiCopy.thisFile",
@@ -3085,6 +3086,7 @@
         "files.noFilesFound",
         "files.noFilesInProject",
         "files.searchPlaceholder",
+        "sideChat.newChat",
         "sideChat.panelTitle",
         "uiCopy.attachValueToNextMessage"
       ],
@@ -4277,14 +4279,37 @@
         "SideChatPanel"
       ],
       "translationKeys": [
+        "common.cancel",
         "sideChat.close",
         "sideChat.collapse",
+        "sideChat.create",
+        "sideChat.createDescription",
+        "sideChat.createTitle",
+        "sideChat.creating",
+        "sideChat.emptyDescription",
+        "sideChat.emptyTitle",
         "sideChat.expand",
+        "sideChat.fields.dependencies",
+        "sideChat.fields.handoff",
+        "sideChat.fields.outcome",
+        "sideChat.fields.scope",
+        "sideChat.fields.verification",
+        "sideChat.fields.writeOwnership",
+        "sideChat.newChat",
         "sideChat.openCount",
         "sideChat.panelTitle",
-        "sideChat.tabLabel"
+        "sideChat.placeholders.dependencies",
+        "sideChat.placeholders.handoff",
+        "sideChat.placeholders.outcome",
+        "sideChat.placeholders.scope",
+        "sideChat.placeholders.verification",
+        "sideChat.placeholders.writeOwnership",
+        "sideChat.tabLabel",
+        "sideChat.unavailable"
       ],
-      "states": [],
+      "states": [
+        "unavailable"
+      ],
       "hardcodedCopy": []
     },
     {

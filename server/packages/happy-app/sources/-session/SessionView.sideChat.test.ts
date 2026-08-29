@@ -20,10 +20,22 @@ const mocks = vi.hoisted(() => ({
     emptyArray: [] as unknown[],
     emptyObject: {} as Record<string, unknown>,
     closeSideChatSession: vi.fn(),
+    machineCreateSideChat: vi.fn(),
     resumeSession: vi.fn(),
     sessionArchive: vi.fn(),
     sessionKill: vi.fn(),
     sessionVisible: vi.fn(),
+    sendMessage: vi.fn(),
+    startRealtimeSession: vi.fn(),
+    voiceAvailable: false,
+    voiceCanRetry: false,
+    voiceCancel: vi.fn(),
+    voiceError: null as string | null,
+    voiceOnTranscript: null as null | ((text: string) => void),
+    voicePhase: 'idle' as 'idle' | 'recording' | 'transcribing' | 'error',
+    voiceRetry: vi.fn(),
+    voiceToggle: vi.fn(),
+    composerText: {} as Record<string, string>,
 }));
 
 vi.mock('react-native', async () => {
@@ -130,9 +142,16 @@ vi.mock('@/components/AgentContentView', async () => {
 vi.mock('@/components/AgentInput', async () => {
     const ReactModule = await import('react');
     const AgentInput = ReactModule.forwardRef((props: any, ref: any) => {
+        if (!(props.sessionId in mocks.composerText)) {
+            mocks.composerText[props.sessionId] = props.initialValue ?? '';
+        }
         ReactModule.useImperativeHandle(ref, () => ({
-            getText: () => '',
-            setTextAndSelection: vi.fn(),
+            focus: vi.fn(),
+            getText: () => mocks.composerText[props.sessionId] ?? '',
+            setTextAndSelection: (text: string) => {
+                mocks.composerText[props.sessionId] = text;
+                props.onChangeText?.(text);
+            },
         }));
         return ReactModule.createElement('AgentInput', props);
     });
@@ -276,7 +295,27 @@ vi.mock('@/hooks/useSessionQuickActions', () => ({
         resumingSession: false,
     }),
 }));
-vi.mock('@/hooks/useVoiceInputAvailability', () => ({ useVoiceInputAvailability: () => ({ enabled: false }) }));
+vi.mock('@/hooks/useVoiceInputAvailability', () => ({
+    useVoiceInputAvailability: () => ({
+        available: mocks.voiceAvailable,
+        configured: mocks.voiceAvailable,
+        enabled: mocks.voiceAvailable,
+        loading: false,
+    }),
+}));
+vi.mock('@/hooks/useVoiceDictation', () => ({
+    useVoiceDictation: (onTranscript: (text: string) => void) => {
+        mocks.voiceOnTranscript = onTranscript;
+        return {
+            canRetry: mocks.voiceCanRetry,
+            cancel: mocks.voiceCancel,
+            error: mocks.voiceError,
+            phase: mocks.voicePhase,
+            retry: mocks.voiceRetry,
+            toggle: mocks.voiceToggle,
+        };
+    },
+}));
 
 vi.mock('@/modal', () => ({
     Modal: {
@@ -291,7 +330,7 @@ vi.mock('@/realtime/hooks/voiceHooks', () => ({ voiceHooks: { onVoiceStarted: vi
 vi.mock('@/realtime/RealtimeSession', () => ({
     getCurrentVoiceConversationId: () => null,
     getCurrentVoiceSessionDurationSeconds: () => undefined,
-    startRealtimeSession: vi.fn(),
+    startRealtimeSession: mocks.startRealtimeSession,
     stopRealtimeSession: vi.fn(),
 }));
 
@@ -303,6 +342,7 @@ vi.mock('@/sync/projectFiles', () => ({ getProjectFiles: vi.fn(async () => ({ fi
 
 vi.mock('@/sync/ops', () => ({
     machineControlHeartbeat: vi.fn(),
+    machineCreateSideChat: mocks.machineCreateSideChat,
     machineStopSession: vi.fn(),
     sessionAbort: vi.fn(),
     sessionArchive: mocks.sessionArchive,
@@ -348,7 +388,7 @@ vi.mock('@/sync/storage', async () => {
             () => mocks.localSettings[key],
             () => mocks.localSettings[key],
         ),
-        useMachine: () => null,
+        useMachine: (id: string) => id === 'machine-1' ? { id, active: true } : null,
         useRealtimeStatus: () => 'disconnected',
         useSession: (id: string) => ReactModule.useSyncExternalStore(
             subscribe,
@@ -366,7 +406,9 @@ vi.mock('@/sync/storage', async () => {
         useSessionPendingCommunications: () => mocks.emptyArray,
         useSessionProjectFiles: () => null,
         useSessionUsage: () => null,
-        useSetting: (key: string) => key === 'sessionStatusBarDisplay' ? 'hidden' : false,
+        useSetting: (key: string) => key === 'sessionStatusBarDisplay'
+            ? 'hidden'
+            : key === 'fileDiffsSidebar',
         useSettingMutable: () => [mocks.emptyObject, vi.fn()],
         useSideChatSessions: (parentSessionId: string | null) => {
             const revision = ReactModule.useSyncExternalStore(
@@ -386,7 +428,7 @@ vi.mock('@/sync/sync', () => ({
     sync: {
         onSessionVisible: mocks.sessionVisible,
         refreshSessions: vi.fn(),
-        sendMessage: vi.fn(),
+        sendMessage: mocks.sendMessage,
     },
 }));
 vi.mock('@/sync/attachmentSupport', () => ({ supportsImageAttachmentsForFlavor: () => false }));
@@ -408,10 +450,10 @@ vi.mock('@/sync/rig', () => ({
     isRigPermissionSelectionEnabled: () => false,
     isRigReasoningSelectionEnabled: () => false,
     rigCanAbort: () => false,
-    rigCanBrowseFiles: () => false,
+    rigCanBrowseFiles: () => true,
     rigCanReadFiles: () => false,
     rigCanUseAttachments: () => false,
-    rigCanUseShell: () => false,
+    rigCanUseShell: () => true,
 }));
 vi.mock('@/sync/workspaceContext', () => ({
     MAX_WORKSPACE_CONTEXT_ITEMS: 8,
@@ -537,7 +579,11 @@ function makeSession(
 
 function seedSessions() {
     mocks.sessions = {
-        parent: makeSession('parent', 1),
+        parent: makeSession('parent', 1, {
+            machineId: 'machine-1',
+            flavor: 'codex',
+            codexThreadId: 'thread-parent',
+        }),
         ordinary: makeSession('ordinary', 2),
         oldest: makeSession('oldest', 10, { isSideChat: true, parentSessionId: 'parent' }),
         stopped: makeSession('stopped', 20, { isSideChat: true, parentSessionId: 'parent' }, false),
@@ -554,6 +600,7 @@ function seedSessions() {
 }
 
 beforeEach(() => {
+    mocks.listeners.clear();
     mocks.width = 1280;
     mocks.platform = 'web';
     mocks.localSettings.acknowledgedCliVersions = {};
@@ -561,10 +608,22 @@ beforeEach(() => {
     mocks.localSettings.sidebarPanelsOpen = [];
     mocks.localSettings.zenMode = false;
     mocks.closeSideChatSession.mockReset();
+    mocks.machineCreateSideChat.mockReset();
     mocks.resumeSession.mockReset();
     mocks.sessionArchive.mockReset();
     mocks.sessionKill.mockReset();
     mocks.sessionVisible.mockReset();
+    mocks.sendMessage.mockReset();
+    mocks.startRealtimeSession.mockReset();
+    mocks.voiceAvailable = false;
+    mocks.voiceCanRetry = false;
+    mocks.voiceCancel.mockReset();
+    mocks.voiceError = null;
+    mocks.voiceOnTranscript = null;
+    mocks.voicePhase = 'idle';
+    mocks.voiceRetry.mockReset();
+    mocks.voiceToggle.mockReset();
+    mocks.composerText = {};
     seedSessions();
 });
 
@@ -619,12 +678,34 @@ function expectExactParentTabs(renderer: ReactTestRenderer) {
 }
 
 describe('SessionView side-chat integration', () => {
+    it('appends OpenAI dictation to the active draft without sending or starting realtime voice', () => {
+        mocks.voiceAvailable = true;
+        mocks.sessions.parent.draft = 'Keep this draft';
+        const renderer = renderParent();
+        const composer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
+            node.props.sessionId === 'parent'
+        ));
+
+        expect(composer?.props.onMicPress).toBe(mocks.voiceToggle);
+        expect(composer?.props.dictationPhase).toBe('idle');
+        expect(composer?.props.dictationError).toBeNull();
+        expect(composer?.props.onDictationCancel).toBe(mocks.voiceCancel);
+        act(() => composer?.props.onMicPress());
+        expect(mocks.voiceToggle).toHaveBeenCalledOnce();
+
+        act(() => mocks.voiceOnTranscript?.('dictated words'));
+        expect(mocks.composerText.parent).toBe('Keep this draft dictated words');
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+        expect(mocks.startRealtimeSession).not.toHaveBeenCalled();
+    });
+
     it('opens the exact parent children in the wide sidebar and keeps collapse non-destructive', () => {
         const renderer = renderParent();
 
-        expect(textValues(renderer)).not.toContain('sideChat.newChat');
+        expect(textValues(renderer)).toContain('sideChat.newChat');
         pressByLabel(renderer, 'Open sub-workers (3)');
         expectExactParentTabs(renderer);
+        expect(textValues(renderer)).toContain('sideChat.newChat');
         expect(renderedComposerSessions(renderer)).toEqual(expect.arrayContaining(['parent', 'newest']));
         expect(renderedComposerSessions(renderer)).not.toContain('oldest');
 
@@ -650,6 +731,7 @@ describe('SessionView side-chat integration', () => {
         expect(textValues(renderer)).not.toContain('sideChat.newChat');
         pressByLabel(renderer, 'Open sub-workers (3)');
         expectExactParentTabs(renderer);
+        expect(textValues(renderer)).toContain('sideChat.newChat');
         expect(renderedComposerSessions(renderer)).toEqual(expect.arrayContaining(['parent', 'newest']));
 
         pressTab(renderer, 'oldest');
@@ -665,5 +747,62 @@ describe('SessionView side-chat integration', () => {
         expect(mocks.closeSideChatSession).not.toHaveBeenCalled();
         expect(mocks.sessionArchive).not.toHaveBeenCalled();
         expect(mocks.sessionKill).not.toHaveBeenCalled();
+    });
+
+    it('creates from the zero-child right-panel picker and focuses the hydrated child', async () => {
+        mocks.sessions = {
+            parent: makeSession('parent', 1, {
+                machineId: 'machine-1',
+                flavor: 'codex',
+                codexThreadId: 'thread-parent',
+            }),
+        };
+        mocks.revision += 1;
+        mocks.machineCreateSideChat.mockImplementation(async () => {
+            mocks.sessions = {
+                ...mocks.sessions,
+                created: makeSession('created', 50, {
+                    isSideChat: true,
+                    parentSessionId: 'parent',
+                    machineId: 'machine-1',
+                    flavor: 'codex',
+                    codexThreadId: 'thread-created',
+                }),
+            };
+            mocks.revision += 1;
+            for (const listener of mocks.listeners) listener();
+            return {
+                schemaVersion: 1,
+                type: 'side-chat',
+                action: 'create',
+                success: true,
+                parentSessionId: 'parent',
+                sessionId: 'created',
+                phases: [],
+            };
+        });
+        const renderer = renderParent();
+
+        pressByText(renderer, 'sideChat.newChat');
+        const inputs = renderer.root.findAllByType('TextInput' as any)
+            .filter((node: any) => node.props.multiline === true);
+        expect(inputs).toHaveLength(6);
+        for (let index = 0; index < inputs.length; index += 1) {
+            act(() => inputs[index].props.onChangeText(`brief ${index + 1}`));
+        }
+        const submit = pressables(renderer)
+            .find((node: any) => node.props.accessibilityLabel === 'sideChat.create');
+        await act(async () => submit?.props.onPress());
+
+        expect(mocks.machineCreateSideChat).toHaveBeenCalledWith('machine-1', 'parent', {
+            outcome: 'brief 1',
+            scope: 'brief 2',
+            dependencies: 'brief 3',
+            writeOwnership: 'brief 4',
+            verification: 'brief 5',
+            handoff: 'brief 6',
+        });
+        expect(renderedComposerSessions(renderer)).toEqual(expect.arrayContaining(['parent', 'created']));
+        expect(textValues(renderer)).toContain('created');
     });
 });

@@ -1,5 +1,20 @@
 export type AgentInputPrimaryAction = 'send' | 'stop' | 'blocked' | 'voice' | 'idle';
 
+type DictationPhase = 'idle' | 'recording' | 'transcribing' | 'error';
+
+export function doesVoiceOwnPrimaryPress({
+    primaryAction,
+    dictationPhase,
+    liveHasContent,
+}: {
+    primaryAction: AgentInputPrimaryAction;
+    dictationPhase: DictationPhase;
+    liveHasContent: boolean;
+}): boolean {
+    if (primaryAction !== 'voice') return false;
+    return !liveHasContent || dictationPhase === 'recording' || dictationPhase === 'transcribing';
+}
+
 export function resolveAgentInputPrimaryAction({
     hasComposerContent,
     isSendBlocked,
@@ -7,6 +22,8 @@ export function resolveAgentInputPrimaryAction({
     showAbortButton,
     canAbort,
     canVoice = false,
+    dictationPhase = 'idle',
+    canRetryVoice = false,
 }: {
     hasComposerContent: boolean;
     isSendBlocked: boolean;
@@ -14,7 +31,18 @@ export function resolveAgentInputPrimaryAction({
     showAbortButton: boolean;
     canAbort: boolean;
     canVoice?: boolean;
+    dictationPhase?: DictationPhase;
+    canRetryVoice?: boolean;
 }): AgentInputPrimaryAction {
+    // Once recording starts, the primary control must keep owning that
+    // lifecycle even if the Human types or attaches content in parallel.
+    // Transcribing retains the same position as a disabled progress control.
+    if (canVoice && (dictationPhase === 'recording' || dictationPhase === 'transcribing')) {
+        return 'voice';
+    }
+    if (canVoice && canRetryVoice && dictationPhase === 'error' && !hasComposerContent) {
+        return 'voice';
+    }
     // A blank composer while the agent is working is the one case where the
     // primary control is Stop. As soon as the user starts a follow-up, sending
     // takes priority so the next message can be queued without aborting work.

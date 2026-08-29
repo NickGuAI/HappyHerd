@@ -9,7 +9,7 @@ vi.mock('@/app/monitoring/productionLogSummary', () => ({
     recordProductionRpc: vi.fn(),
 }));
 
-import { rpcHandler } from './rpcHandler';
+import { rpcCallTimeoutMs, rpcHandler } from './rpcHandler';
 
 describe('rpcHandler metrics', () => {
     beforeEach(() => register.resetMetrics());
@@ -42,5 +42,12 @@ describe('rpcHandler metrics', () => {
         expect(scrape).not.toContain(marker);
         expect(scrape).toMatch(/rpc_calls_total\{[^}]*method="other"[^}]*result="self_call"/);
         expect(scrape).toMatch(/rpc_calls_total\{[^}]*method="happyherd-automations-list"[^}]*result="self_call"/);
+    });
+});
+
+describe('rpcCallTimeoutMs', () => {
+    it('allows the daemon-owned side-chat create lifecycle to finish', () => {
+        expect(rpcCallTimeoutMs('machine:happyherd-side-chat-create')).toBe(240_000);
+        expect(rpcCallTimeoutMs('machine:happyherd-list-commanders')).toBe(30_000);
     });
 });

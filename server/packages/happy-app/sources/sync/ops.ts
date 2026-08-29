@@ -236,6 +236,29 @@ export type SpawnSessionResult =
     | { type: 'requestToApproveDirectoryCreation'; directory: string }
     | { type: 'error'; errorMessage: string };
 
+export type SideChatDelegationBrief = Readonly<{
+    outcome: string;
+    scope: string;
+    dependencies: string;
+    writeOwnership: string;
+    verification: string;
+    handoff: string;
+}>;
+
+export type SideChatCreateReceipt = {
+    schemaVersion: 1;
+    type: 'side-chat';
+    action: 'create';
+    success: boolean;
+    parentSessionId: string | null;
+    sessionId: string | null;
+    phases: Array<{
+        phase: string;
+        status: 'succeeded' | 'skipped' | 'failed';
+        message?: string;
+    }>;
+};
+
 // Options for spawning a session
 export interface SpawnSessionOptions {
     machineId: string;
@@ -419,6 +442,28 @@ export async function machineListCommanders(machineId: string): Promise<HappyHer
         'happyherd-list-commanders',
         {},
     );
+}
+
+/** Create a durable child through the daemon's brief-validating lifecycle. */
+export async function machineCreateSideChat(
+    machineId: string,
+    parentSessionId: string,
+    brief: SideChatDelegationBrief,
+): Promise<SideChatCreateReceipt> {
+    const receipt = await apiSocket.machineRPC<SideChatCreateReceipt, {
+        parentSessionId: string;
+        brief: SideChatDelegationBrief;
+    }>(machineId, 'happyherd-side-chat-create', { parentSessionId, brief });
+    if (receipt.success && receipt.sessionId) {
+        // The receipt is authoritative. A websocket hydration failure must not
+        // turn an already-created child into a false creation failure.
+        try {
+            await sync.refreshSessions();
+        } catch {
+            // The normal websocket session event can still hydrate the child.
+        }
+    }
+    return receipt;
 }
 
 async function machineAutomationRPC<T>(machineId: string, method: string, params: unknown): Promise<T> {
