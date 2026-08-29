@@ -25,13 +25,29 @@ interface ToolGroupViewProps {
     sessionId: string;
     expanded: boolean;
     onToggle: () => void;
+    onAnchorLayoutChange?: (anchor: ToolGroupLayoutAnchor) => void;
     nested?: boolean;
     hideSingleToolChildren?: boolean;
     forceCompleted?: boolean;
 }
 
+export type ToolGroupLayoutAnchor = {
+    node: View;
+    y: number;
+};
+
 export const ToolGroupView = React.memo<ToolGroupViewProps>((props) => {
-    const { group, metadata, sessionId, expanded, onToggle, nested, hideSingleToolChildren, forceCompleted } = props;
+    const {
+        group,
+        metadata,
+        sessionId,
+        expanded,
+        onToggle,
+        onAnchorLayoutChange,
+        nested,
+        hideSingleToolChildren,
+        forceCompleted,
+    } = props;
     const router = useRouter();
     const summary = React.useMemo(() => generateGroupSummary(group.messages), [group.messages]);
     const summaryCategory = React.useMemo(() => getGroupSummaryCategory(group.messages), [group.messages]);
@@ -54,6 +70,7 @@ export const ToolGroupView = React.memo<ToolGroupViewProps>((props) => {
         }
         router.push(`/session/${sessionId}/message/${singleToolMessage.id}`);
     }, [onToggle, router, sessionId, singleToolMessage]);
+    const handleAnchoredToggle = useAnchoredToggle(expanded, onToggle, onAnchorLayoutChange);
     const renderGroupMessage = React.useCallback((msg: Message) => (
         <ToolGroupMessageRow
             key={msg.id}
@@ -69,7 +86,7 @@ export const ToolGroupView = React.memo<ToolGroupViewProps>((props) => {
                 expanded={expanded}
                 hasRunning={hasRunning}
                 label={summary}
-                onPress={singleToolMessage ? handleSingleToolPress : onToggle}
+                onPress={singleToolMessage ? handleSingleToolPress : handleAnchoredToggle}
                 category={summaryCategory}
                 showChevron
             />
@@ -104,10 +121,11 @@ interface AgentWorkGroupViewProps {
     onToggle: () => void;
     forceCompleted?: boolean;
     forceCompletedAt?: number;
+    onAnchorLayoutChange?: (anchor: ToolGroupLayoutAnchor) => void;
 }
 
 export const AgentWorkGroupView = React.memo<AgentWorkGroupViewProps>((props) => {
-    const { group, metadata, sessionId, expanded, onToggle } = props;
+    const { group, metadata, sessionId, expanded, onToggle, onAnchorLayoutChange } = props;
     const effectiveCompletedAt = group.completedAt ?? props.forceCompletedAt ?? null;
     const isCompleted = props.forceCompleted || effectiveCompletedAt !== null;
     const runningElapsedSeconds = useElapsedTime(effectiveCompletedAt === null ? group.startedAt : null);
@@ -115,6 +133,7 @@ export const AgentWorkGroupView = React.memo<AgentWorkGroupViewProps>((props) =>
         ? runningElapsedSeconds * 1000
         : Math.max(0, effectiveCompletedAt - group.startedAt);
     const label = t('toolGroup.workedFor', { duration: formatWorkDuration(durationMs) });
+    const handleAnchoredToggle = useAnchoredToggle(expanded, onToggle, onAnchorLayoutChange);
     const nestedItemsNewestFirst = React.useMemo(
         () => groupToolCallsForDisplay(group.messages, true, { groupSingleToolCalls: true }),
         [group.messages],
@@ -181,6 +200,7 @@ export const AgentWorkGroupView = React.memo<AgentWorkGroupViewProps>((props) =>
                     sessionId={sessionId}
                     expanded={!collapsedToolGroups.has(item.id)}
                     onToggle={() => handleToggleNestedGroup(item.id)}
+                    onAnchorLayoutChange={onAnchorLayoutChange}
                     nested
                     hideSingleToolChildren
                     forceCompleted={isCompleted}
@@ -195,7 +215,7 @@ export const AgentWorkGroupView = React.memo<AgentWorkGroupViewProps>((props) =>
                 sessionId={sessionId}
             />
         );
-    }, [collapsedToolGroups, handleToggleNestedGroup, metadata, sessionId]);
+    }, [collapsedToolGroups, handleToggleNestedGroup, isCompleted, metadata, onAnchorLayoutChange, sessionId]);
 
     return (
         <View style={styles.outerContainer}>
@@ -204,7 +224,7 @@ export const AgentWorkGroupView = React.memo<AgentWorkGroupViewProps>((props) =>
                     expanded={expanded}
                     hasRunning={!isCompleted && group.hasRunning}
                     label={label}
-                    onPress={onToggle}
+                    onPress={handleAnchoredToggle}
                 />
                 {expanded && (
                     <View style={styles.content}>
@@ -220,13 +240,28 @@ function CollapseHeader(props: {
     expanded: boolean;
     hasRunning: boolean;
     label: string;
-    onPress: () => void;
+    onPress: (anchor?: ToolGroupLayoutAnchor) => void;
     category?: ToolSummaryCategory | null;
     showChevron?: boolean;
     disabled?: boolean;
 }) {
     const { theme } = useUnistyles();
     const showChevron = props.showChevron ?? true;
+    const headerRef = React.useRef<View>(null);
+    const handlePress = React.useCallback(() => {
+        const node = headerRef.current;
+        if (!node) {
+            props.onPress();
+            return;
+        }
+        node.measureInWindow((_x, y, _width, height) => {
+            if (!Number.isFinite(y) || height <= 0) {
+                props.onPress();
+                return;
+            }
+            props.onPress({ node, y });
+        });
+    }, [props.onPress]);
     const content = (
         <>
             {props.category ? (
@@ -264,7 +299,9 @@ function CollapseHeader(props: {
 
     return (
         <Pressable
-            onPress={props.onPress}
+            ref={headerRef}
+            collapsable={false}
+            onPress={handlePress}
             style={({ pressed }) => [
                 styles.header,
                 pressed && styles.headerPressed,
@@ -273,6 +310,28 @@ function CollapseHeader(props: {
             {content}
         </Pressable>
     );
+}
+
+function useAnchoredToggle(
+    expanded: boolean,
+    onToggle: () => void,
+    onAnchorLayoutChange?: (anchor: ToolGroupLayoutAnchor) => void,
+): (anchor?: ToolGroupLayoutAnchor) => void {
+    const pendingAnchorRef = React.useRef<ToolGroupLayoutAnchor | null>(null);
+
+    React.useLayoutEffect(() => {
+        const anchor = pendingAnchorRef.current;
+        if (!anchor) {
+            return;
+        }
+        pendingAnchorRef.current = null;
+        onAnchorLayoutChange?.(anchor);
+    }, [expanded, onAnchorLayoutChange]);
+
+    return React.useCallback((anchor?: ToolGroupLayoutAnchor) => {
+        pendingAnchorRef.current = anchor ?? null;
+        onToggle();
+    }, [onToggle]);
 }
 
 function ToolGroupMessageRow(props: {

@@ -60,7 +60,7 @@ import { fetchFeed } from './apiFeed';
 import { FeedItem } from './feedTypes';
 import { UserProfile } from './friendTypes';
 import { resolveControlHandoffDirection } from './controlHandoff';
-import { resolveMessageModeMeta } from './messageMeta';
+import { resolveMessageModeMeta, UnsupportedPermissionModeError } from './messageMeta';
 import {
     normalizeAgentKey,
     resolveAgentDefaultConfig,
@@ -794,7 +794,19 @@ class Sync {
         const availableEfforts = hasAuthoritativeEffortCatalog
             ? getMachineAdvertisedEffortLevels(machine?.metadata, agentKey, selectedModel)
             : undefined;
-        const modeMeta = resolveMessageModeMeta(session, settings, { availableEfforts });
+        let modeMeta: ReturnType<typeof resolveMessageModeMeta>;
+        try {
+            modeMeta = resolveMessageModeMeta(session, settings, { availableEfforts });
+        } catch (error) {
+            if (error instanceof UnsupportedPermissionModeError) {
+                Modal.alert(t('common.error'), t('errors.unsupportedPermissionMode', {
+                    mode: error.mode,
+                    cliVersion: error.cliVersion,
+                }));
+                return;
+            }
+            throw error;
+        }
         const {
             displayText,
             source = 'chat',

@@ -1,4 +1,3 @@
-import { Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Item } from '@/components/Item';
 import { ItemGroup } from '@/components/ItemGroup';
@@ -10,13 +9,9 @@ import { CommanderAvatarSettings } from '@/components/CommanderAvatarSettings';
 
 export default function FeaturesSettingsScreen() {
     const [experiments, setExperiments] = useSettingMutable('experiments');
-    const [agentInputEnterToSend, setAgentInputEnterToSend] = useSettingMutable('agentInputEnterToSend');
-    const [commandPaletteEnabled, setCommandPaletteEnabled] = useLocalSettingMutable('commandPaletteEnabled');
     const [markdownCopyV2, setMarkdownCopyV2] = useLocalSettingMutable('markdownCopyV2');
     const [hideInactiveSessions, setHideInactiveSessions] = useSettingMutable('hideInactiveSessions');
-    const [fileDiffsSidebar, setFileDiffsSidebar] = useSettingMutable('fileDiffsSidebar');
     const [machineWorkspace, setMachineWorkspace] = useSettingMutable('machineWorkspace');
-    const [groupToolCalls, setGroupToolCalls] = useSettingMutable('groupToolCalls');
     const [expImageUpload, setExpImageUpload] = useSettingMutable('expImageUpload');
     const [commanderProfilePictures, setCommanderProfilePictures] = useSettingMutable('commanderProfilePictures');
     const [voiceInputEnabled, setVoiceInputEnabled] = useSettingMutable('voiceInputEnabled');
@@ -29,18 +24,6 @@ export default function FeaturesSettingsScreen() {
                 footer={t('happyHerd.features.interfaceFooter')}
             >
                 <Item
-                    title={t('happyHerd.features.fileDiffsSidebar')}
-                    subtitle={t('happyHerd.features.fileDiffsSidebarSubtitle')}
-                    icon={<Ionicons name="git-branch-outline" size={29} color="#5AC8FA" />}
-                    rightElement={
-                        <Switch
-                            value={fileDiffsSidebar}
-                            onValueChange={setFileDiffsSidebar}
-                        />
-                    }
-                    showChevron={false}
-                />
-                <Item
                     title={t('workspace.title')}
                     subtitle={t('workspace.featureSubtitle')}
                     icon={<Ionicons name="folder-open-outline" size={29} color="#34C759" />}
@@ -48,18 +31,6 @@ export default function FeaturesSettingsScreen() {
                         <Switch
                             value={machineWorkspace}
                             onValueChange={setMachineWorkspace}
-                        />
-                    }
-                    showChevron={false}
-                />
-                <Item
-                    title={t('settingsFeatures.groupToolCalls')}
-                    subtitle={t('settingsFeatures.groupToolCallsSubtitle')}
-                    icon={<Ionicons name="layers-outline" size={29} color="#AF52DE" />}
-                    rightElement={
-                        <Switch
-                            value={groupToolCalls}
-                            onValueChange={setGroupToolCalls}
                         />
                     }
                     showChevron={false}
@@ -146,38 +117,6 @@ export default function FeaturesSettingsScreen() {
             </ItemGroup>
 
             {commanderProfilePictures && <CommanderAvatarSettings />}
-            {/* Web-only Features */}
-            {Platform.OS === 'web' && (
-                <ItemGroup 
-                    title={t('settingsFeatures.webFeatures')}
-                    footer={t('settingsFeatures.webFeaturesDescription')}
-                >
-                    <Item
-                        title={t('settingsFeatures.enterToSend')}
-                        subtitle={agentInputEnterToSend ? t('settingsFeatures.enterToSendEnabled') : t('settingsFeatures.enterToSendDisabled')}
-                        icon={<Ionicons name="return-down-forward-outline" size={29} color="#007AFF" />}
-                        rightElement={
-                            <Switch
-                                value={agentInputEnterToSend}
-                                onValueChange={setAgentInputEnterToSend}
-                            />
-                        }
-                        showChevron={false}
-                    />
-                    <Item
-                        title={t('settingsFeatures.commandPalette')}
-                        subtitle={commandPaletteEnabled ? t('settingsFeatures.commandPaletteEnabled') : t('settingsFeatures.commandPaletteDisabled')}
-                        icon={<Ionicons name="keypad-outline" size={29} color="#007AFF" />}
-                        rightElement={
-                            <Switch
-                                value={commandPaletteEnabled}
-                                onValueChange={setCommandPaletteEnabled}
-                            />
-                        }
-                        showChevron={false}
-                    />
-                </ItemGroup>
-            )}
         </ItemList>
     );
 }

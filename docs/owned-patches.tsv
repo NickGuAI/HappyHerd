@@ -148,3 +148,5 @@ APP_TOOL_REPLAY_SEQUENCE	accepted	fix(app): order equal-time tool replays by seq
 PROVIDER_RESUME_VALIDATION	accepted	fix(grok): reject unvalidated resume policy	server/packages/happy-cli/src/daemon/run.resume.test.ts
 APP_TOOL_PAGED_RESULT	accepted	fix(app): reconcile paged tool results	server/packages/happy-app/sources/sync/reducer/reducer.spec.ts
 APP_TOOL_PAGED_AUTHORITY	accepted	fix(app): preserve authoritative paged tool result	server/packages/happy-app/sources/sync/reducer/reducer.spec.ts
+BUNDLED_RUNTIME_SYNC	accepted	fix(cli): sync bundled Happy before wrapper tests	server/packages/happyherd-cli/package.json
+UPSTREAM_REVIEW_FIX	accepted	fix(upstream): address integration review findings	server/packages/happy-app/sources/-session/SessionView.tsx

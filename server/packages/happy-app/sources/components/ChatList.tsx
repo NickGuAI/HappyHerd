@@ -6,7 +6,7 @@ import { useCallback } from 'react';
 import { useHeaderHeight } from '@/utils/responsive';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MessageView } from './MessageView';
-import { AgentWorkGroupView, ToolGroupView } from './ToolGroupView';
+import { AgentWorkGroupView, type ToolGroupLayoutAnchor, ToolGroupView } from './ToolGroupView';
 import { Metadata, Session } from '@/sync/storageTypes';
 import { ChatFooter } from './ChatFooter';
 import { Message } from '@/sync/typesMessage';
@@ -32,7 +32,12 @@ import { buildAgentTurnCopyTextByMessageId } from '@/utils/agentTurnCopy';
 const SCROLL_THRESHOLD = 300;
 const DOCK_DETAILS_SHOW_OFFSET = 16;
 const DOCK_DETAILS_HIDE_OFFSET = 48;
-const SCROLL_BUTTON_DOCK_GAP = 8;
+// Visual gap between the button's bottom edge and the composer card's top
+// edge. scrollButtonInset is measured to the card itself, so this is exact.
+const SCROLL_BUTTON_COMPOSER_GAP = 16;
+// Fallback for non-floating layouts (tablet/web/landscape), where the list
+// already ends at the input's top edge.
+const SCROLL_BUTTON_DOCK_GAP = 4;
 
 export const ChatList = React.memo((props: {
     session: Session;
@@ -139,6 +144,25 @@ const ChatListInternal = React.memo((props: {
         contentHeight: 0,
         viewportHeight: 0,
     });
+    const preserveToolGroupAnchor = React.useCallback((anchor: ToolGroupLayoutAnchor) => {
+        // Inverted FlatList rows keep their visual bottom edge fixed when their
+        // height changes. Measure the pressed header after layout and offset the
+        // list by the movement so details grow below it instead.
+        requestAnimationFrame(() => {
+            anchor.node.measureInWindow((_x, nextY, _width, height) => {
+                if (!Number.isFinite(nextY) || height <= 0) {
+                    return;
+                }
+                const adjustment = anchor.y - nextY;
+                if (Math.abs(adjustment) < 0.5) {
+                    return;
+                }
+                const nextOffset = Math.max(0, scrollMetricsRef.current.offsetY + adjustment);
+                scrollMetricsRef.current.offsetY = nextOffset;
+                flatListRef.current?.scrollToOffset({ offset: nextOffset, animated: false });
+            });
+        });
+    }, []);
     const session = useSession(props.sessionId);
     const controlMode = resolveControlMode(usesControlledSessionUi(session?.metadata) ? session?.agentState?.controlledByUser : false);
     const previousControlModeRef = React.useRef(controlMode);
@@ -543,6 +567,7 @@ const ChatListInternal = React.memo((props: {
                     expanded={!collapsedGroups.has(item.id)}
                     onToggle={() => handleToggleGroup(item.id)}
                     forceCompleted={session?.active === false}
+                    onAnchorLayoutChange={preserveToolGroupAnchor}
                 />
             );
         }
@@ -556,6 +581,7 @@ const ChatListInternal = React.memo((props: {
                     onToggle={() => handleToggleGroup(item.id)}
                     forceCompleted={session?.active === false}
                     forceCompletedAt={session?.active === false ? session.activeAt : undefined}
+                    onAnchorLayoutChange={preserveToolGroupAnchor}
                 />
             );
         }
@@ -567,7 +593,7 @@ const ChatListInternal = React.memo((props: {
                 copyText={agentCopyTextByMessageId.get(item.message.id)}
             />
         );
-    }, [agentCopyTextByMessageId, props.metadata, props.sessionId, collapsedGroups, handleToggleGroup, session?.active, session?.activeAt]);
+    }, [agentCopyTextByMessageId, props.metadata, props.sessionId, collapsedGroups, handleToggleGroup, preserveToolGroupAnchor, session?.active, session?.activeAt]);
 
     // In inverted FlatList, offset 0 = latest messages (visual bottom).
     // Offset increases as user scrolls up to see older messages.
@@ -684,7 +710,11 @@ const ChatListInternal = React.memo((props: {
             {(showScrollButton || newMessageCount > 0) && (
                 <View style={[
                     styles.scrollButtonContainer,
-                    { bottom: SCROLL_BUTTON_DOCK_GAP + (props.scrollButtonInset ?? props.bottomContentInset ?? 0) },
+                    {
+                        bottom: props.scrollButtonInset != null
+                            ? SCROLL_BUTTON_COMPOSER_GAP + props.scrollButtonInset
+                            : SCROLL_BUTTON_DOCK_GAP + (props.bottomContentInset ?? 0),
+                    },
                 ]}>
                     <Pressable
                         style={({ pressed }) => [

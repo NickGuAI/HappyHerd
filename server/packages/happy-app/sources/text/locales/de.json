@@ -1,4 +1,10 @@
 {
+  "voiceStatusBar": {
+    "tapToEnd": "Zum Beenden tippen",
+    "connecting": "Verbindung wird hergestellt …",
+    "error": "Verbindungsfehler",
+    "active": "Sprachassistent aktiv"
+  },
   "tabs": {
     "inbox": "Posteingang",
     "sessions": "Terminalsitzungen",
@@ -212,6 +218,8 @@
     },
     "alwaysShowContextSize": "Kontextgröße immer anzeigen",
     "alwaysShowContextSizeDescription": "Kontextnutzung anzeigen, auch wenn sie nicht in der Nähe des Grenzwerts liegt",
+    "input": "Eingabe",
+    "inputDescription": "Nachrichteneingabe konfigurieren",
     "showHarnessIconInSessionHeader": "Harness-Symbol in der Sitzungsüberschrift anzeigen",
     "showHarnessIconInSessionHeaderDescription": "Zeigt das Harness-Symbol in der Sitzungsüberschrift an",
     "showHarnessIconsInSessionList": "Harness-Symbole in der Sitzungsliste anzeigen",
@@ -223,8 +231,17 @@
       "gradient": "Farbverlauf",
       "brutalist": "Brutalistisch"
     },
+    "avatarMonochrome": "Schwarz-Weiß-Avatare",
+    "avatarMonochromeDescription": "Avatare ohne Farben darstellen",
     "showFlavorIcons": "Symbole für KI-Anbieter anzeigen",
     "showFlavorIconsDescription": "Zeigen Sie KI-Anbietersymbole auf Sitzungsavataren an"
+  },
+  "sessionsFilter": {
+    "title": "Sitzungen filtern",
+    "groupingTitle": "Gruppierung",
+    "flatList": "Flache Liste",
+    "groupByProject": "Nach Projekt gruppieren",
+    "appearanceSettings": "Darstellungseinstellungen"
   },
   "settingsFeatures": {
     "experiments": "Experimente",
@@ -372,7 +389,8 @@
     "failedToRemoveFriend": "Freund konnte nicht entfernt werden",
     "searchFailed": "Die Suche ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
     "failedToSendRequest": "Freundschaftsanfrage konnte nicht gesendet werden",
-    "sessionNotFinishedSyncing": "Die Nachricht wurde nicht gesendet: Diese Sitzung ist noch nicht vollständig synchronisiert. Bitte versuchen Sie es erneut."
+    "sessionNotFinishedSyncing": "Die Nachricht wurde nicht gesendet: Diese Sitzung ist noch nicht vollständig synchronisiert. Bitte versuchen Sie es erneut.",
+    "unsupportedPermissionMode": "Die Happy CLI dieser Sitzung ({cliVersion}) unterstützt den Berechtigungsmodus \"{mode}\" nicht. Wählen Sie einen anderen Modus oder aktualisieren Sie Happy CLI."
   },
   "newSession": {
     "title": "Neue Sitzung starten",
@@ -382,6 +400,7 @@
     "noWorkspace": "kein Arbeitsbereich",
     "newWorkspace": "neuer Arbeitsbereich",
     "happyAgentUnsupported": "Dieser Rechner kann keine Happy-Agent-Sitzungen starten",
+    "workspaceNoLongerAvailable": "Der ausgewählte Happy-Agent-Arbeitsbereich ist nicht mehr verfügbar.",
     "interruptPressStop": "Zum Unterbrechen „Stoppen“ drücken"
   },
   "agentDefaults": {
@@ -528,7 +547,17 @@
       "installCli": "Installieren Sie die Happy CLI",
       "runIt": "Führen Sie es aus",
       "scanQrCode": "Scannen Sie den QR-Code",
-      "openCamera": "Öffnen Sie die Kamera"
+      "openCamera": "Öffnen Sie die Kamera",
+      "noSessionsYet": "Noch keine Sitzungen",
+      "startOnConnectedMachine": "Starten Sie eine Sitzung auf einem verbundenen Rechner.",
+      "machineUnreachable": "{machine} ist nicht erreichbar",
+      "noMachinesReachable": "Keine Rechner sind erreichbar",
+      "bringMachineOnline": "Bringen Sie einen Rechner online, um eine Sitzung zu starten.",
+      "troubleshoot": "Fehlerbehebung",
+      "troubleshootConnection": "Verbindung prüfen",
+      "troubleshootMessage": "1. Wecken Sie den Rechner auf und prüfen Sie die Internetverbindung.\n2. Führen Sie `happy` erneut aus.\n3. Öffnen Sie Happy erneut.\n\nKI-Prompt:\n{aiPrompt}",
+      "copyAiPrompt": "KI-Prompt kopieren",
+      "copyAiPromptFailed": "Der KI-Prompt konnte nicht kopiert werden."
     },
     "agentGoalBar": {
       "currentGoal": "Aktuelles Ziel",
@@ -606,13 +635,27 @@
       "badgePlan": "planen"
     },
     "context": {
-      "remaining": "{percent}% übrig"
+      "remaining": "{percent}% übrig",
+      "detailContext": "{used} / {total} Kontext",
+      "percentContext": "{percent} % Kontext",
+      "percentWeek": "{percent} % Woche"
+    },
+    "usagePopup": {
+      "session": "Sitzung",
+      "week": "Woche",
+      "resets": "Wird {time} zurückgesetzt"
     },
     "suggestion": {
       "fileLabel": "DATEI",
       "folderLabel": "ORDNER"
     },
     "noMachinesAvailable": "Keine Maschinen"
+  },
+  "offlineMachines": {
+    "singleUnreachable": "{name} ist nicht erreichbar",
+    "noneReachable": "Keine Maschinen sind erreichbar",
+    "bringOnline": "Bringe eine Maschine online, um eine Sitzung zu starten.",
+    "troubleshoot": "Fehlerbehebung"
   },
   "machineLauncher": {
     "showLess": "Weniger anzeigen",

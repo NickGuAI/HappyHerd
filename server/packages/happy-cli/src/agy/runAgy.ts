@@ -33,6 +33,11 @@ import type { PermissionMode } from '@/api/types';
 import { AgyBackend } from './AgyBackend';
 import { DEFAULT_AGY_MODEL } from './constants';
 
+const AGY_REMOTE_PERMISSION_MODES = new Set<PermissionMode>([
+  'default',
+  'bypassPermissions',
+]);
+
 export interface RunAgyOptions {
   credentials: Credentials;
   startedBy?: 'daemon' | 'terminal';
@@ -180,7 +185,12 @@ export async function runAgy(opts: RunAgyOptions): Promise<void> {
     if (!message.content.text) return;
 
     if (message.meta?.permissionMode) {
-      backend.setPermissionMode(message.meta.permissionMode as PermissionMode);
+      const mode = message.meta.permissionMode;
+      if (AGY_REMOTE_PERMISSION_MODES.has(mode as PermissionMode)) {
+        backend.setPermissionMode(mode as PermissionMode);
+      } else {
+        logger.debug(`[agy] Ignoring unsupported permission mode from app: ${mode}`);
+      }
     }
     if (message.meta?.hasOwnProperty('model') && message.meta.model) {
       backend.setModel(message.meta.model);

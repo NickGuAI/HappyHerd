@@ -56,10 +56,12 @@ import { useShallow } from 'zustand/react/shallow';
 import type { MultiTextInputHandle } from '@/components/MultiTextInput';
 import { Modal } from '@/modal';
 import type { Machine, Session } from '@/sync/storageTypes';
+import { HappyAgentWorkspaceUnavailableError } from '@/sync/happyAgentSpawn';
 import { collectSessionPlaces, collectSessionWorkspaces } from '@/sync/agentSessionPlaces';
 import {
     getHardcodedModelModes,
     getHardcodedPermissionModes,
+    filterPermissionModesForCli,
     getEffortLevelsForModel,
     getAdvertisedDefaultOptionKey,
     getMachineAdvertisedPermissionModes,
@@ -131,6 +133,7 @@ import {
     MAX_WORKSPACE_CONTEXT_ITEMS,
     type WorkspaceContextEntry,
 } from '@/sync/workspaceContext';
+import { resolveHappyAgentSpawnTarget } from '@/sync/happyAgentSpawn';
 
 // Agent icon assets
 const agentIcons = {
@@ -1216,8 +1219,12 @@ function NewSessionScreen() {
     // available for ordinary CLI projects, and their RPC always goes to Happy CLI's machine even
     // when the session itself will be started by Happy Agent.
     const picksWorkspaces = selectedProjectId !== null;
+    const createsNativeHappyAgentWorkspace = selectedAgent === 'rig'
+        && picksWorkspaces
+        && rigCreation !== null;
     const worktreeMachine = selectedMachine;
     const canPickWorktree = supportsWorktree || picksWorkspaces;
+    const canCreateWorktree = createsNativeHappyAgentWorkspace || supportsWorktree;
 
     // Fetch existing worktrees/workspaces from the selected computer/path
     const [worktreeItems, setWorktreeItems] = React.useState<PickerItem[]>([]);
@@ -1268,10 +1275,10 @@ function NewSessionScreen() {
 
     const worktreeFixedItems = React.useMemo<PickerItem[]>(() => [
         { key: '__none__', label: picksWorkspaces ? t('newSession.noWorkspace') : t('uiCopy.noWorktree') },
-        ...(supportsWorktree
+        ...(canCreateWorktree
             ? [{ key: '__new__', label: picksWorkspaces ? t('newSession.newWorkspace') : t('uiCopy.newWorktree') }]
             : []),
-    ], [picksWorkspaces, supportsWorktree]);
+    ], [canCreateWorktree, picksWorkspaces]);
 
     // Filter against this exact daemon. Antigravity requires an explicit
     // availability advertisement; older daemons retain Claude/Codex fallback.
@@ -1327,7 +1334,10 @@ function NewSessionScreen() {
         () => rigCreation?.permissionModes
             ?? (machineCatalog
                 ? getMachineAdvertisedPermissionModes(selectedMachine?.metadata, selectedAgent, t, draft.permissionMode)
-                : getHardcodedPermissionModes(selectedAgent, t)),
+                : filterPermissionModesForCli(
+                    getHardcodedPermissionModes(selectedAgent, t),
+                    selectedMachine?.metadata?.happyCliVersion,
+                )),
         [selectedAgent, selectedMachine?.metadata, machineCatalog, rigCreation, draft.permissionMode],
     );
     const effectiveAgentDefaults = React.useMemo(
@@ -1842,7 +1852,10 @@ function NewSessionScreen() {
             const latestPermissionModes = latestRigCreation?.permissionModes
                 ?? (machineCatalog
                     ? getMachineAdvertisedPermissionModes(machine.metadata, agentType, t, permissionKey)
-                    : getHardcodedPermissionModes(agentType, t));
+                    : filterPermissionModesForCli(
+                        getHardcodedPermissionModes(agentType, t),
+                        machine.metadata?.happyCliVersion,
+                    ));
             const latestModelModes = latestRigCreation?.models
                 ?? (machineCatalog
                     ? getMachineAdvertisedModels(machine.metadata, agentType, t, selectedModelKey)
@@ -1906,7 +1919,27 @@ function NewSessionScreen() {
         const agentSupportsWorktree = initialRigCreation?.supportsWorktrees
             ?? (agentType === 'rig' ? false : getSupportsWorktree(agentType));
         const requestedWorktree = canPickWorktree ? worktreeKey : '__none__';
-        const worktreeSelection = !agentSupportsWorktree && requestedWorktree === '__new__'
+        let happyAgentTarget: ReturnType<typeof resolveHappyAgentSpawnTarget>;
+        try {
+            happyAgentTarget = initialRigCreation
+                ? resolveHappyAgentSpawnTarget({
+                    projectId: selectedProjectId,
+                    workspaceSelection: requestedWorktree,
+                    workspaces: agentWorkspaces,
+                })
+                : null;
+        } catch (error) {
+            Modal.alert(
+                t('common.error'),
+                error instanceof HappyAgentWorkspaceUnavailableError
+                    ? t('newSession.workspaceNoLongerAvailable')
+                    : t('uiCopy.theSelectedAgentConfigurationIsUnavailable'),
+            );
+            return;
+        }
+        const worktreeSelection = !happyAgentTarget
+            && !agentSupportsWorktree
+            && requestedWorktree === '__new__'
             ? '__none__'
             : requestedWorktree;
 
@@ -1932,14 +1965,14 @@ function NewSessionScreen() {
             // Handle worktree selection
             let spawnDirectory = absolutePath;
             const worktreeMachine = machine;
-            if (worktreeSelection === '__new__') {
+            if (worktreeSelection === '__new__' && !happyAgentTarget) {
                 const worktreeResult = await createWorktree(worktreeMachine.id, absolutePath);
                 if (!worktreeResult.success) {
                     Modal.alert(t('common.error'), worktreeResult.error || t("uiCopy.failedToCreateWorktree"));
                     return;
                 }
                 spawnDirectory = worktreeResult.worktreePath;
-            } else if (worktreeSelection !== '__none__') {
+            } else if (!happyAgentTarget && worktreeSelection !== '__none__') {
                 // Existing worktree — use its path directly
                 spawnDirectory = worktreeSelection;
             }
@@ -1972,6 +2005,7 @@ function NewSessionScreen() {
                         permissionMode: permissionKey,
                         effort: currentEffort?.key,
                     }),
+                    ...(happyAgentTarget ? { happyAgentTarget } : {}),
                 }
                 : {
                     machineId: spawnMachine.id,
@@ -2114,7 +2148,7 @@ function NewSessionScreen() {
         } finally {
             if (isMountedRef.current) setIsSpawning(false);
         }
-    }, [selectedMachineId, selectedMachine, selectedPath, selectedCommanderId, selectedAgent, router, navigateToSession, currentPermission?.key, currentModel?.key, currentModelKey, currentEffort?.key, effectiveAgentDefaults.permissionMode, effectiveAgentDefaults.modelMode, effectiveEffortDefault, canPickWorktree, worktreeKey, workspaceEntries]);
+    }, [agentWorkspaces, selectedProjectId, selectedMachineId, selectedMachine, selectedPath, selectedCommanderId, selectedAgent, router, navigateToSession, currentPermission?.key, currentModel?.key, currentModelKey, currentEffort?.key, effectiveAgentDefaults.permissionMode, effectiveAgentDefaults.modelMode, effectiveEffortDefault, canPickWorktree, worktreeKey, workspaceEntries]);
 
     const canSend = selectedMachineId
         && selectedMachine

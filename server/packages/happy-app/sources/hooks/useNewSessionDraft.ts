@@ -30,6 +30,11 @@ interface NewSessionDraftState {
     setInput: (input: string) => void;
     setAttachments: (attachments: AttachmentPreview[]) => void;
     setMachineId: (id: string | null) => void;
+    /**
+     * Re-key a draft to the canonical id for the same physical computer
+     * without discarding the path and launch options already chosen there.
+     */
+    renameMachineId: (id: string | null) => void;
     setPath: (path: string | null) => void;
     setCommanderId: (id: string | null) => void;
     setAgentType: (agent: NewSessionAgentType) => void;
@@ -88,6 +93,7 @@ export const useNewSessionDraft = create<NewSessionDraftState>()((set, get) => (
         });
         persist(get());
     },
+    renameMachineId: (id) => { set({ selectedMachineId: id }); persist(get()); },
     setPath: (path) => { set({ selectedPath: path, worktreeKey: null }); persist(get()); },
     setCommanderId: (id) => { set({ selectedCommanderId: id, worktreeKey: null }); persist(get()); },
     setAgentType: (agent) => {

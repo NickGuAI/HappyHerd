@@ -57,6 +57,45 @@ export function resolveHomeDockMachineSelection(
     return availableMachineIds[0];
 }
 
+export type HomeDockMachineReconciliation = 'none' | 'rename' | 'reset';
+
+/**
+ * Rekeying between paired daemons keeps the draft because it is still the same
+ * computer. Falling back after the stored computer disappeared is a real
+ * machine change and must clear machine-scoped path, Commander, and mode state.
+ */
+export function resolveHomeDockMachineReconciliation({
+    selectedMachineId,
+    selectedChoiceId,
+    resolvedMachineId,
+}: {
+    selectedMachineId: string | null;
+    selectedChoiceId: string | null;
+    resolvedMachineId: string | null;
+}): HomeDockMachineReconciliation {
+    if (resolvedMachineId === selectedMachineId) return 'none';
+    return selectedChoiceId ? 'rename' : 'reset';
+}
+
+/**
+ * Keep the rendered Home Dock selection aligned with the mode submission will
+ * use after old-CLI filtering. A synchronized override can itself be too new,
+ * so the approved code default is the last semantic fallback before list order.
+ */
+export function resolveHomeDockPermissionSelection<T extends { key: string }>(
+    options: readonly T[],
+    selectedKey: string | null | undefined,
+    configuredDefaultKey: string | null | undefined,
+    codeDefaultKey: string | null | undefined,
+): T | null {
+    for (const key of [selectedKey, configuredDefaultKey, codeDefaultKey]) {
+        if (!key) continue;
+        const option = options.find((candidate) => candidate.key === key);
+        if (option) return option;
+    }
+    return options[0] ?? null;
+}
+
 export function resolveHomeDockPromptPlaceholder(agentKey: string, agentName: string) {
     if (agentKey === 'claude') return 'Ask Claude Code';
     if (agentKey === 'codex') return 'Ask Codex';

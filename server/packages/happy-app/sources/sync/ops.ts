@@ -17,6 +17,7 @@ import {
     rigCanWriteFiles,
     rigHasRpcMethod,
 } from './rig';
+import type { HappyAgentSpawnTarget } from './happyAgentSpawn';
 import {
     MAX_WORKSPACE_UPLOAD_BYTES,
     MAX_WORKSPACE_UPLOAD_CHUNK_BASE64_LENGTH,
@@ -250,6 +251,8 @@ export interface SpawnSessionOptions {
     providerId?: string;
     modelId?: string;
     effort?: string;
+    /** Durable project/workspace destination for Happy Agent's native RPC. */
+    happyAgentTarget?: HappyAgentSpawnTarget;
     /**
      * If set, the daemon spawns the agent with `--resume <id>` so the new
      * Happy session attaches to a pre-existing on-disk Claude conversation
@@ -326,13 +329,16 @@ export interface ResumeSessionOptions {
  */
 export async function machineSpawnNewSession(options: SpawnSessionOptions): Promise<SpawnSessionResult> {
 
-    const { machineId, directory, approvedNewDirectoryCreation = false, token, agent, permissionMode, modelMode, effortLevel, commanderId, clientRequestId, providerId, modelId, effort, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat } = options;
+    const { machineId, directory, approvedNewDirectoryCreation = false, token, agent, permissionMode, modelMode, effortLevel, commanderId, clientRequestId, providerId, modelId, effort, happyAgentTarget, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat } = options;
 
     try {
         if (agent === 'rig' && !clientRequestId) {
             throw new Error('Rig session creation requires a client request ID');
         }
-        type SpawnRequest = {
+        if (happyAgentTarget && agent !== 'rig') {
+            throw new Error('Happy Agent catalog targets require the Happy Agent harness');
+        }
+        type DirectorySpawnRequest = {
             type: 'spawn-in-directory'
             directory: string
             approvedNewDirectoryCreation?: boolean,
@@ -352,7 +358,33 @@ export async function machineSpawnNewSession(options: SpawnSessionOptions): Prom
             forkedFromMessageId?: string,
             isSideChat?: boolean,
         };
-        const request: SpawnRequest = agent === 'rig'
+        type HappyAgentSpawnRequest = {
+            type: 'happy-agent-spawn';
+            clientRequestId: string;
+            target: HappyAgentSpawnTarget;
+            agentConfiguration: {
+                type: 'happy-agent';
+                permissionMode?: string;
+                providerId?: string;
+                modelId?: string;
+                effort?: string;
+            };
+        };
+        type SpawnRequest = DirectorySpawnRequest | HappyAgentSpawnRequest;
+        const request: SpawnRequest = agent === 'rig' && happyAgentTarget
+            ? {
+                type: 'happy-agent-spawn',
+                clientRequestId: clientRequestId!,
+                target: happyAgentTarget,
+                agentConfiguration: {
+                    type: 'happy-agent',
+                    ...(permissionMode ? { permissionMode } : {}),
+                    ...(providerId ? { providerId } : {}),
+                    ...(modelId ? { modelId } : {}),
+                    ...((effort ?? effortLevel) ? { effort: effort ?? effortLevel } : {}),
+                },
+            }
+            : agent === 'rig'
             ? {
                 type: 'spawn-in-directory',
                 agent: 'rig',

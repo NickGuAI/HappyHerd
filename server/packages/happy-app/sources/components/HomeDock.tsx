@@ -28,6 +28,7 @@ import { t } from '@/text';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
 import { useAllMachines, useSessions, useSetting, useSettingMutable } from '@/sync/storage';
 import {
+    getCodeAgentDefaults,
     resolveAgentDefaultConfig,
     resolveAgentDefaultEffortLevel,
     setAgentDefaultOverride,
@@ -37,11 +38,20 @@ import { isMachineOnline } from '@/utils/machineUtils';
 import { resolveAbsolutePath } from '@/utils/pathUtils';
 import { listWorktrees } from '@/utils/worktree';
 import { collectSessionPlaces, collectSessionWorkspaces } from '@/sync/agentSessionPlaces';
-import { getMachineName } from '@/sync/machineChoices';
+import {
+    collectMachineChoices,
+    findMachineChoice,
+    machineChoiceAgentAvailable,
+    machineChoiceAgentVisible,
+    resolveAgentMachine,
+    resolveNewSessionAgent,
+    resolveWorktreeCreationMachine,
+} from '@/sync/machineChoices';
 import type { Session } from '@/sync/storageTypes';
 import {
     getEffortLevelsForModel,
     getAdvertisedDefaultOptionKey,
+    filterPermissionModesForCli,
     getHardcodedModelModes,
     getHardcodedPermissionModes,
     getMachineAdvertisedEffortLevels,
@@ -58,6 +68,9 @@ import {
     isHomeDockOptionSelectable,
     resolveCustomProjectPathSelection,
     resolveHomeDockBackdropPressAction,
+    resolveHomeDockMachineReconciliation,
+    resolveHomeDockMachineSelection,
+    resolveHomeDockPermissionSelection,
     resolveHomeDockPickerBackAction,
     shouldUseNativeHomeDockMenus,
 } from './homeDockInteraction';
@@ -70,7 +83,7 @@ import {
 import { StatusDot } from './StatusDot';
 import { Shaker, type ShakeInstance } from './Shaker';
 import { hapticsError } from './haptics';
-import { HARNESS_ORDER, getHarnessName, isHarnessAvailable } from '@/utils/harnessCatalog';
+import { HARNESS_ORDER, getHarnessName } from '@/utils/harnessCatalog';
 import { getPermissionModeMenuLabel, getPermissionModeShortLabel } from '@/utils/permissionModeLabels';
 import { getRigMachineSessionCreation } from '@/sync/rigSessionCreation';
 import { supportsImageAttachmentsForFlavor } from '@/sync/attachmentSupport';
@@ -677,6 +690,7 @@ export const HomeDock = React.memo(({
     const modelMode = useNewSessionDraft((state) => state.modelMode);
     const effortLevel = useNewSessionDraft((state) => state.effortLevel);
     const setMachineId = useNewSessionDraft((state) => state.setMachineId);
+    const renameMachineId = useNewSessionDraft((state) => state.renameMachineId);
     const setAgentType = useNewSessionDraft((state) => state.setAgentType);
     const setPath = useNewSessionDraft((state) => state.setPath);
     const setSessionType = useNewSessionDraft((state) => state.setSessionType);
@@ -687,33 +701,54 @@ export const HomeDock = React.memo(({
     const [defaultOverrides, setDefaultOverrides] = useSettingMutable('agentDefaultOverrides');
     const machines = useAllMachines({ includeOffline: true });
     const sessions = useSessions();
-    const selectedMachine = React.useMemo(
-        () => machines.find((machine) => machine.id === selectedMachineId) ?? null,
-        [machines, selectedMachineId],
+    const machineChoices = React.useMemo(() => collectMachineChoices(machines), [machines]);
+    const selectedChoice = React.useMemo(
+        () => findMachineChoice(machineChoices, selectedMachineId),
+        [machineChoices, selectedMachineId],
     );
+    const resolvedAgentType = resolveNewSessionAgent(selectedChoice, agentType, experiments);
     const machineOptions = React.useMemo<ModeOption[]>(() => (
-        [...machines]
-            .sort((left, right) => Number(isMachineOnline(right)) - Number(isMachineOnline(left)))
-            .map((machine) => ({
-                key: machine.id,
-                name: `${getMachineName(machine)} · ${machine.id.slice(0, 8)}`,
-                description: isMachineOnline(machine)
+        [...machineChoices]
+            .sort((left, right) => Number(right.online) - Number(left.online))
+            .map((choice) => ({
+                key: choice.id,
+                name: choice.name,
+                description: choice.online
                     ? t('status.online')
-                    : t('status.lastSeen', { time: formatLastSeen(machine.activeAt, false) }),
+                    : t('status.lastSeen', { time: formatLastSeen(choice.activeAt, false) }),
             }))
-    ), [machines]);
-    const currentMachine = resolveOption(machineOptions, [selectedMachineId]);
+    ), [machineChoices]);
+    const currentMachine = resolveOption(machineOptions, [selectedChoice?.id]);
+    const resolvedChoiceId = resolveHomeDockMachineSelection(
+        selectedChoice?.id ?? selectedMachineId,
+        machineOptions.map((machine) => machine.key),
+    );
+    const resolvedChoice = findMachineChoice(machineChoices, resolvedChoiceId);
+    const resolvedMachineId = resolveAgentMachine(resolvedChoice, resolvedAgentType)?.id ?? resolvedChoiceId;
+    // The picker validates one physical-computer choice. Provider catalogs and
+    // launch routing then follow the daemon that owns the selected agent.
+    const selectedMachine = resolveAgentMachine(selectedChoice, resolvedAgentType)
+        ?? selectedChoice?.happyMachine
+        ?? selectedChoice?.rigMachine
+        ?? null;
     const selectedHomeDir = selectedMachine?.metadata?.homeDir;
 
+    const machineReconciliation = resolveHomeDockMachineReconciliation({
+        selectedMachineId,
+        selectedChoiceId: selectedChoice?.id ?? null,
+        resolvedMachineId,
+    });
     React.useEffect(() => {
-        if (!selectedMachineId && machineOptions[0]) {
-            setMachineId(machineOptions[0].key);
+        if (machineReconciliation === 'rename') {
+            renameMachineId(resolvedMachineId);
+        } else if (machineReconciliation === 'reset') {
+            setMachineId(resolvedMachineId);
         }
-    }, [machineOptions, selectedMachineId, setMachineId]);
+    }, [machineReconciliation, renameMachineId, resolvedMachineId, setMachineId]);
 
     const placeMachineIds = React.useMemo(
-        () => selectedMachineId ? [selectedMachineId] : [],
-        [selectedMachineId],
+        () => selectedChoice?.machineIds ?? [],
+        [selectedChoice],
     );
     const sessionList = React.useMemo<Session[]>(
         () => (sessions ?? []).filter((item): item is Session => typeof item !== 'string'),
@@ -745,8 +780,8 @@ export const HomeDock = React.memo(({
         [places, selectedPath],
     );
     const currentProject = resolveOption(projectOptions, [selectedPath, '~']);
-    const rigSelectionMachine = selectedMachine && isMachineOnline(selectedMachine)
-        ? selectedMachine
+    const rigSelectionMachine = selectedChoice?.rigMachine && isMachineOnline(selectedChoice.rigMachine)
+        ? selectedChoice.rigMachine
         : null;
     const rigSelectionCreation = React.useMemo(
         () => getRigMachineSessionCreation(rigSelectionMachine?.metadata),
@@ -768,6 +803,17 @@ export const HomeDock = React.memo(({
         [placeMachineIds, selectedProjectId, sessionList],
     );
 
+    // Happy Agent calls these workspaces, and names them; git calls them worktrees.
+    const picksWorkspaces = selectedProjectId !== null;
+    const createsNativeHappyAgentWorkspace = agentType === 'rig'
+        && picksWorkspaces
+        && rigCreation !== null;
+    const worktreeCreationMachine = React.useMemo(
+        () => resolveWorktreeCreationMachine(selectedChoice, agentType, supportsWorktree),
+        [agentType, selectedChoice, supportsWorktree],
+    );
+    const canCreateWorktree = createsNativeHappyAgentWorkspace || worktreeCreationMachine !== null;
+
     React.useEffect(() => {
         const path = resolveAbsolutePath(selectedPath ?? '~', selectedHomeDir);
 
@@ -784,13 +830,13 @@ export const HomeDock = React.memo(({
             return;
         }
 
-        if (!supportsWorktree || !selectedMachine || !isMachineOnline(selectedMachine) || !path) {
+        if (!worktreeCreationMachine || !path) {
             setExistingWorktrees([]);
             return;
         }
 
         let cancelled = false;
-        listWorktrees(selectedMachine.id, path).then((worktrees) => {
+        listWorktrees(worktreeCreationMachine.id, path).then((worktrees) => {
             if (cancelled) return;
             setExistingWorktrees(worktrees.map((worktree) => ({
                 key: worktree.path,
@@ -801,20 +847,17 @@ export const HomeDock = React.memo(({
         return () => {
             cancelled = true;
         };
-    }, [agentWorkspaces, selectedHomeDir, selectedMachine, selectedPath, selectedProjectId, supportsWorktree]);
-
-    // Happy Agent calls these workspaces, and names them; git calls them worktrees.
-    const picksWorkspaces = selectedProjectId !== null;
+    }, [agentWorkspaces, selectedHomeDir, selectedPath, selectedProjectId, worktreeCreationMachine]);
 
     React.useEffect(() => {
-        if (!supportsWorktree && !picksWorkspaces && sessionType === 'worktree') {
+        if (!canCreateWorktree && !picksWorkspaces && sessionType === 'worktree') {
             setSessionType('simple');
             setWorktreeKey(null);
         }
-    }, [picksWorkspaces, sessionType, setSessionType, setWorktreeKey, supportsWorktree]);
+    }, [canCreateWorktree, picksWorkspaces, sessionType, setSessionType, setWorktreeKey]);
 
     const worktreeOptions = React.useMemo<ModeOption[]>(() => {
-        if (!supportsWorktree && !picksWorkspaces) {
+        if (!canCreateWorktree && !picksWorkspaces) {
             return [{
                 key: '__none__',
                 name: 'No worktree',
@@ -822,13 +865,12 @@ export const HomeDock = React.memo(({
             }];
         }
         const options: ModeOption[] = [
+            ...(canCreateWorktree
+                ? [{ key: '__new__', name: picksWorkspaces ? 'Create New' : 'Create new worktree' }]
+                : []),
             // Starting in no workspace means starting in the project's own
             // checkout, which is a place with a name rather than an absence.
             { key: '__none__', name: picksWorkspaces ? 'Main' : 'No worktree' },
-            // Making one is a separate ability from starting in one that already exists.
-            ...(supportsWorktree
-                ? [{ key: '__new__', name: picksWorkspaces ? 'Create New' : 'Create new worktree' }]
-                : []),
             ...existingWorktrees,
         ];
         if (
@@ -838,7 +880,7 @@ export const HomeDock = React.memo(({
             options.push({ key: worktreeKey, name: worktreeKey });
         }
         return options;
-    }, [agentType, existingWorktrees, picksWorkspaces, supportsWorktree, worktreeKey]);
+    }, [agentType, canCreateWorktree, existingWorktrees, picksWorkspaces, worktreeKey]);
     const currentWorktree = resolveOption(worktreeOptions, [selectedWorktreeKey]);
     // Common harnesses stay listed but disabled when unavailable, so the picker
     // still reads as a choice. Antigravity is niche and stays entirely absent
@@ -846,19 +888,12 @@ export const HomeDock = React.memo(({
     const harnessKeys = React.useMemo<NewSessionAgentType[]>(() => (
         (HARNESS_ORDER.some((key) => key === agentType) ? [...HARNESS_ORDER] : [agentType, ...HARNESS_ORDER])
             .filter((key) => experiments || key !== 'rig')
-            .filter((key) => (
-                (key !== 'agy' && key !== 'grok')
-                || selectedMachine?.metadata?.cliAvailability?.[key] === true
-            ))
-    ), [agentType, experiments, selectedMachine?.metadata?.cliAvailability]);
+            .filter((key) => machineChoiceAgentVisible(selectedChoice, key))
+    ), [agentType, experiments, selectedChoice]);
     const availableAgents = React.useMemo<ModeOption[]>(() => (
         harnessKeys.map((key) => {
             const agent = { key, name: getHarnessName(key) };
-            return isHarnessAvailable({
-                availability: selectedMachine?.metadata?.cliAvailability,
-                happyAgentAvailable: rigSelectionCreation !== null,
-                key,
-            })
+            return machineChoiceAgentAvailable(selectedChoice, key)
                 ? agent
                 : {
                     ...agent,
@@ -868,7 +903,7 @@ export const HomeDock = React.memo(({
                         : t('uiCopy.notInstalledOnThisMachine'),
                 };
         })
-    ), [harnessKeys, rigSelectionCreation, selectedMachine?.metadata?.cliAvailability]);
+    ), [harnessKeys, selectedChoice]);
     React.useEffect(() => {
         if (agentType !== 'grok') return;
         if (availableAgents.some((agent) => agent.key === agentType && !agent.disabled)) return;
@@ -884,11 +919,14 @@ export const HomeDock = React.memo(({
         () => resolveAgentDefaultConfig(defaultOverrides, agentType),
         [agentType, defaultOverrides],
     );
-    const permissionOptions = React.useMemo(
+    const permissionOptions = React.useMemo<ModeOption[]>(
         () => rigCreation?.permissionModes
             ?? (machineCatalog
                 ? getMachineAdvertisedPermissionModes(selectedMachine?.metadata, agentType, t)
-                : getHardcodedPermissionModes(agentType, t)),
+                : filterPermissionModesForCli(
+                    getHardcodedPermissionModes(agentType, t),
+                    selectedMachine?.metadata?.happyCliVersion,
+                )),
         [agentType, machineCatalog, rigCreation, selectedMachine?.metadata],
     );
     const modelOptions = React.useMemo(
@@ -898,12 +936,17 @@ export const HomeDock = React.memo(({
                 : getHardcodedModelModes(agentType, t)),
         [agentType, machineCatalog, rigCreation, selectedMachine?.metadata],
     );
-    const currentPermission = resolveOption(permissionOptions, agentType === 'grok' || agentType === 'rig'
-        ? [
+    const currentPermission = agentType === 'grok' || agentType === 'rig'
+        ? resolveOption(permissionOptions, [
             permissionMode ?? defaults.permissionMode,
             rigCreation?.defaultPermissionMode ?? getAdvertisedDefaultOptionKey(permissionOptions),
-        ]
-        : [permissionMode, defaults.permissionMode]);
+        ])
+        : resolveHomeDockPermissionSelection(
+            permissionOptions,
+            permissionMode,
+            defaults.permissionMode,
+            getCodeAgentDefaults(agentType).permissionMode,
+        );
     const currentModel = resolveOption(modelOptions, agentType === 'grok' || agentType === 'rig'
         ? [
             modelMode ?? defaults.modelMode,
@@ -1143,7 +1186,6 @@ export const HomeDock = React.memo(({
             useNewSessionDraft.getState().setAttachments([]);
         }
     }, [canUseImageAttachments, clearImages, selectedImages.length]);
-
     const openFocusMode = React.useCallback(() => {
         if (focusAnimationTimerRef.current) {
             clearTimeout(focusAnimationTimerRef.current);
@@ -1221,14 +1263,18 @@ export const HomeDock = React.memo(({
     const selectAgent = React.useCallback((agent: NewSessionAgentType) => {
         const nextRigCreation = agent === 'rig' ? rigSelectionCreation : null;
         const nextDefaults = resolveAgentDefaultConfig(defaultOverrides, agent);
-        const nextCatalog = selectedMachine?.metadata?.agentCapabilities?.[agent];
-        const nextPermissions = nextRigCreation?.permissionModes
+        const nextMachine = resolveAgentMachine(selectedChoice, agent) ?? selectedMachine;
+        const nextCatalog = nextMachine?.metadata?.agentCapabilities?.[agent];
+        const nextPermissions: ModeOption[] = nextRigCreation?.permissionModes
             ?? (nextCatalog
-                ? getMachineAdvertisedPermissionModes(selectedMachine?.metadata, agent, t)
-                : getHardcodedPermissionModes(agent, t));
+                ? getMachineAdvertisedPermissionModes(nextMachine?.metadata, agent, t)
+                : filterPermissionModesForCli(
+                    getHardcodedPermissionModes(agent, t),
+                    nextMachine?.metadata?.happyCliVersion,
+                ));
         const nextModels = nextRigCreation?.models
             ?? (nextCatalog
-                ? getMachineAdvertisedModels(selectedMachine?.metadata, agent, t)
+                ? getMachineAdvertisedModels(nextMachine?.metadata, agent, t)
                 : getHardcodedModelModes(agent, t));
         const nextModel = resolveOption(nextModels, agent === 'grok' || agent === 'rig'
             ? [
@@ -1236,16 +1282,21 @@ export const HomeDock = React.memo(({
                 nextRigCreation?.defaultModelKey ?? getAdvertisedDefaultOptionKey(nextModels),
             ]
             : [nextDefaults.modelMode]);
-        const nextPermission = resolveOption(nextPermissions, agent === 'grok' || agent === 'rig'
-            ? [
+        const nextPermission = agent === 'grok' || agent === 'rig'
+            ? resolveOption(nextPermissions, [
                 nextDefaults.permissionMode,
                 nextRigCreation?.defaultPermissionMode ?? getAdvertisedDefaultOptionKey(nextPermissions),
-            ]
-            : [nextDefaults.permissionMode]);
+            ])
+            : resolveHomeDockPermissionSelection(
+                nextPermissions,
+                null,
+                nextDefaults.permissionMode,
+                getCodeAgentDefaults(agent).permissionMode,
+            );
         const nextEfforts = nextRigCreation
             ? nextRigCreation.effortsForModel(nextModel?.key).map((key) => ({ key, name: key }))
             : nextCatalog
-                ? getMachineAdvertisedEffortLevels(selectedMachine?.metadata, agent, nextModel?.key ?? 'default')
+                ? getMachineAdvertisedEffortLevels(nextMachine?.metadata, agent, nextModel?.key ?? 'default')
                 : getEffortLevelsForModel(agent, nextModel?.key ?? 'default');
         const configuredEffort = resolveAgentDefaultEffortLevel(defaultOverrides, agent, nextEfforts);
         const nextEffort = configuredEffort
@@ -1257,11 +1308,17 @@ export const HomeDock = React.memo(({
             setModelMode(nextModel?.key ?? null);
             setEffortLevel(nextEffort);
         } else {
-            setPermissionMode(nextDefaults.permissionMode);
+            setPermissionMode(nextPermission?.key ?? nextDefaults.permissionMode);
             setModelMode(nextDefaults.modelMode);
             if (nextEffort) setEffortLevel(nextEffort);
         }
-    }, [defaultOverrides, rigSelectionCreation, selectedMachine?.metadata, setAgentType, setEffortLevel, setModelMode, setPermissionMode]);
+    }, [defaultOverrides, rigSelectionCreation, selectedChoice, selectedMachine, setAgentType, setEffortLevel, setModelMode, setPermissionMode]);
+
+    React.useEffect(() => {
+        if (resolvedAgentType !== agentType) {
+            selectAgent(resolvedAgentType);
+        }
+    }, [agentType, resolvedAgentType, selectAgent]);
 
     type SettingsRow = {
         page: string;
@@ -1321,7 +1378,7 @@ export const HomeDock = React.memo(({
 
     const getEnvironmentPickerConfig = (setting: EnvironmentSetting): PickerConfig => {
         if (setting === 'machine') {
-            return { title: t("machine.machineGroup"), options: machineOptions, selectedKey: selectedMachineId, onSelect: setMachineId };
+            return { title: t("machine.machineGroup"), options: machineOptions, selectedKey: currentMachine?.key, onSelect: setMachineId };
         }
         if (setting === 'project') {
             return {

@@ -341,19 +341,13 @@ export const SettingsView = React.memo(function SettingsView({
                         const host = machine.metadata?.host || 'Unknown';
                         const displayName = machine.metadata?.displayName;
                         const platform = machine.metadata?.platform || '';
-
-                        // Use displayName if available, otherwise use host
                         const title = displayName || host;
-
-                        // Build subtitle: show hostname if different from title, plus platform and status
                         let subtitle = '';
-                        if (displayName && displayName !== host) {
-                            subtitle = host;
-                        }
-                        if (platform) {
-                            subtitle = subtitle ? `${subtitle} • ${platform}` : platform;
-                        }
-                        subtitle = subtitle ? `${subtitle} • ${isOnline ? t('status.online') : t('status.offline')}` : (isOnline ? t('status.online') : t('status.offline'));
+                        if (displayName && displayName !== host) subtitle = host;
+                        if (platform) subtitle = subtitle ? `${subtitle} • ${platform}` : platform;
+                        subtitle = subtitle
+                            ? `${subtitle} • ${isOnline ? t('status.online') : t('status.offline')}`
+                            : (isOnline ? t('status.online') : t('status.offline'));
 
                         return (
                             <Item
@@ -376,7 +370,7 @@ export const SettingsView = React.memo(function SettingsView({
                             title={showOfflineMachines
                                 ? t('settings.hideOfflineMachines')
                                 : t('settings.showOfflineMachines', { count: offlineMachineCount })}
-                            onPress={() => setShowOfflineMachines(v => !v)}
+                            onPress={() => setShowOfflineMachines((value) => !value)}
                             showChevron={false}
                             titleStyle={{
                                 textAlign: 'center',

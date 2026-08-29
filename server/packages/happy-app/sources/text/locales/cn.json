@@ -1,4 +1,10 @@
 {
+  "voiceStatusBar": {
+    "tapToEnd": "点按结束",
+    "connecting": "连接中…",
+    "error": "连接错误",
+    "active": "语音助手运行中"
+  },
   "tabs": {
     "inbox": "收件箱",
     "sessions": "终端",
@@ -212,6 +218,8 @@
     },
     "alwaysShowContextSize": "始终显示上下文大小",
     "alwaysShowContextSizeDescription": "即使未接近限制时也显示上下文使用情况",
+    "input": "输入",
+    "inputDescription": "配置消息输入框",
     "showHarnessIconInSessionHeader": "在会话标题中显示 harness 图标",
     "showHarnessIconInSessionHeaderDescription": "在会话标题中显示 harness 图标",
     "showHarnessIconsInSessionList": "在会话列表中显示 harness 图标",
@@ -223,8 +231,17 @@
       "gradient": "渐变",
       "brutalist": "粗糙风格"
     },
+    "avatarMonochrome": "黑白头像",
+    "avatarMonochromeDescription": "不带颜色显示头像",
     "showFlavorIcons": "显示 AI 提供商图标",
     "showFlavorIconsDescription": "在会话头像上显示 AI 提供商图标"
+  },
+  "sessionsFilter": {
+    "title": "筛选",
+    "groupingTitle": "分组",
+    "flatList": "平铺列表",
+    "groupByProject": "按项目分组",
+    "appearanceSettings": "外观设置"
   },
   "settingsFeatures": {
     "experiments": "实验功能",
@@ -302,7 +319,8 @@
     "failedToRemoveFriend": "删除好友失败",
     "searchFailed": "搜索失败。请重试。",
     "failedToSendRequest": "发送好友请求失败",
-    "sessionNotFinishedSyncing": "消息未发送：此会话尚未完成同步。请重试。"
+    "sessionNotFinishedSyncing": "消息未发送：此会话尚未完成同步。请重试。",
+    "unsupportedPermissionMode": "此会话的 Happy CLI（{cliVersion}）不支持权限模式“{mode}”。请选择其他模式或升级 Happy CLI。"
   },
   "newSession": {
     "title": "开始新会话",
@@ -312,6 +330,7 @@
     "noWorkspace": "无工作区",
     "newWorkspace": "新建工作区",
     "happyAgentUnsupported": "此机器无法启动 Happy Agent 会话",
+    "workspaceNoLongerAvailable": "所选的 Happy Agent 工作区已不可用。",
     "interruptPressStop": "如需中断，请按“停止”"
   },
   "agentDefaults": {
@@ -458,7 +477,17 @@
       "installCli": "安装 Happy CLI",
       "runIt": "运行它",
       "scanQrCode": "扫描二维码",
-      "openCamera": "打开相机"
+      "openCamera": "打开相机",
+      "noSessionsYet": "还没有会话",
+      "startOnConnectedMachine": "在已连接的机器上启动一个会话。",
+      "machineUnreachable": "无法连接 {machine}",
+      "noMachinesReachable": "目前无法连接任何机器",
+      "bringMachineOnline": "请先让一台机器上线，然后再启动会话。",
+      "troubleshoot": "排查问题",
+      "troubleshootConnection": "排查连接问题",
+      "troubleshootMessage": "1. 唤醒设备并检查网络连接。\n2. 再次运行 `happy`。\n3. 重新打开 Happy。\n\nAI 提示词：\n{aiPrompt}",
+      "copyAiPrompt": "复制 AI 提示词",
+      "copyAiPromptFailed": "无法复制 AI 提示词。"
     },
     "agentGoalBar": {
       "currentGoal": "当前目标",
@@ -536,13 +565,27 @@
       "badgePlan": "计划"
     },
     "context": {
-      "remaining": "剩余 {percent}%"
+      "remaining": "剩余 {percent}%",
+      "detailContext": "上下文 {used} / {total}",
+      "percentContext": "上下文 {percent}%",
+      "percentWeek": "本周 {percent}%"
+    },
+    "usagePopup": {
+      "session": "会话",
+      "week": "周",
+      "resets": "重置于 {time}"
     },
     "suggestion": {
       "fileLabel": "文件",
       "folderLabel": "文件夹"
     },
     "noMachinesAvailable": "无设备"
+  },
+  "offlineMachines": {
+    "singleUnreachable": "无法连接到 {name}",
+    "noneReachable": "无法连接到任何设备",
+    "bringOnline": "请先让一台设备上线，再开始会话。",
+    "troubleshoot": "排查问题"
   },
   "machineLauncher": {
     "showLess": "显示更少",

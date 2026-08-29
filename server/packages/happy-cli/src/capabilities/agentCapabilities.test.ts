@@ -47,6 +47,7 @@ describe('agent capability discovery', () => {
             'default',
             'claude-fable-5',
             'claude-opus-5',
+            'claude-opus-5[1m]',
             'claude-opus-4-8',
             'claude-opus-4-6',
             'claude-sonnet-5',

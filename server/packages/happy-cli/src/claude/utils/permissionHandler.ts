@@ -416,7 +416,11 @@ export class PermissionHandler {
                             status: message.approved ? 'approved' : 'denied',
                             reason: message.reason,
                             mode: message.mode,
-                            allowTools: message.allowTools
+                            // Both names: the app schema reads `allowedTools`;
+                            // `allowTools` stays for app builds that predate
+                            // the alias.
+                            allowTools: message.allowTools,
+                            allowedTools: message.allowTools
                         }
                     }
                 };
