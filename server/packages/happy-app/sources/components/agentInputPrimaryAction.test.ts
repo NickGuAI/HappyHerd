@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveAgentInputPrimaryAction } from './agentInputPrimaryAction';
+import { doesVoiceOwnPrimaryPress, resolveAgentInputPrimaryAction } from './agentInputPrimaryAction';
 
 describe('resolveAgentInputPrimaryAction', () => {
     const base = {
@@ -60,6 +60,33 @@ describe('resolveAgentInputPrimaryAction', () => {
         })).toBe('send');
     });
 
+    it('keeps Finish ahead of Send while dictation is recording', () => {
+        expect(resolveAgentInputPrimaryAction({
+            ...base,
+            hasComposerContent: true,
+            canVoice: true,
+            dictationPhase: 'recording',
+        })).toBe('voice');
+    });
+
+    it('keeps the voice position busy while transcription is in flight', () => {
+        expect(resolveAgentInputPrimaryAction({
+            ...base,
+            hasComposerContent: true,
+            canVoice: true,
+            dictationPhase: 'transcribing',
+        })).toBe('voice');
+    });
+
+    it('offers retry from the primary control after a failed blank dictation', () => {
+        expect(resolveAgentInputPrimaryAction({
+            ...base,
+            canVoice: true,
+            canRetryVoice: true,
+            dictationPhase: 'error',
+        })).toBe('voice');
+    });
+
     it('still offers Stop for a blank composer when steering is blocked', () => {
         expect(resolveAgentInputPrimaryAction({
             ...base,
@@ -75,5 +102,31 @@ describe('resolveAgentInputPrimaryAction', () => {
             isSendBlocked: true,
             showAbortButton: true,
         })).toBe('blocked');
+    });
+});
+
+describe('doesVoiceOwnPrimaryPress', () => {
+    it('defers a stale idle voice state to newly typed live content', () => {
+        expect(doesVoiceOwnPrimaryPress({
+            primaryAction: 'voice',
+            dictationPhase: 'idle',
+            liveHasContent: true,
+        })).toBe(false);
+    });
+
+    it('defers a stale retry state to newly typed live content', () => {
+        expect(doesVoiceOwnPrimaryPress({
+            primaryAction: 'voice',
+            dictationPhase: 'error',
+            liveHasContent: true,
+        })).toBe(false);
+    });
+
+    it('keeps Finish authoritative after typing during recording', () => {
+        expect(doesVoiceOwnPrimaryPress({
+            primaryAction: 'voice',
+            dictationPhase: 'recording',
+            liveHasContent: true,
+        })).toBe(true);
     });
 });

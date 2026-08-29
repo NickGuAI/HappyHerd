@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 29 — Chat microphone dictation drafts",
+      "summary": "",
+      "markdown": "- Updated the active chat composer microphone to perform OpenAI speech-to-text dictation using the configured OpenAI key instead of launching a separate realtime voice conversation, appending transcripts directly to existing message drafts for editing before sending while preserving recording controls, progress feedback, error handling, and retry support."
+    },
+    {
       "title": "August 29 — Named provider accounts and automatic failover",
       "summary": "",
       "markdown": "- Connect and manage multiple local accounts for Claude, Codex, and GrokBuild using `happyherd connect <claude|codex|grok> --acct <nickname>` and the `happyherd accounts` command suite.\n- HappyHerd switches to the next available provider account upon reaching rate limits or hard quotas without losing transcript history or runtime context, using reactive and lazy selection without background quota polling.\n- When all accounts are limited, execution pauses and resumes automatically after the earliest account reset window elapses."
@@ -346,5 +351,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 29 — Named provider accounts and automatic failover"
+  "latestTitle": "August 29 — Chat microphone dictation drafts"
 }

@@ -182,6 +182,22 @@ Keep the bridge state, Happy runtime state, organization-service capability,
 and secret material separate. The governed-agent runtime contract defines those
 boundaries; it is not part of the local installer.
 
+### Active-session voice dictation
+
+The active-chat composer uses `useVoiceInputAvailability.available` and
+`useVoiceDictation` to send recorded audio to `POST /v1/voice/transcriptions`.
+The returned text is appended to the uncontrolled `MultiTextInput`, remains
+editable and unsent, and flows into the existing `useDraft` persistence mirror.
+Recording, transcribing, cancel, error, and retry states are rendered by
+`AgentInput`; the composer does not start the separate realtime voice system.
+
+```text
+composer mic → useVoiceDictation → POST /v1/voice/transcriptions
+                                      │
+                                      ▼
+existing draft + transcript → editable MultiTextInput → useDraft persistence
+```
+
 ## State owners
 
 | State | Canonical owner | Important boundary |

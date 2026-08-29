@@ -38,7 +38,7 @@ import { isRunningOnMac } from '@/utils/platform';
 import { MobileGlassSurface } from './MobileGlass';
 import { AnimatedClickAwayBackdrop, AnimatedFade } from './AnimatedOverlay';
 import { BubblePressable } from './BubblePressable';
-import { resolveAgentInputPrimaryAction } from './agentInputPrimaryAction';
+import { doesVoiceOwnPrimaryPress, resolveAgentInputPrimaryAction } from './agentInputPrimaryAction';
 import { NativeSettingsMenu, type NativeSettingsMenuGroup, type NativeSettingsMenuOption } from './NativeSettingsMenu';
 import { ProviderIcon } from './ProviderIcon';
 import { isRigMetadata } from '@/sync/rig';
@@ -966,6 +966,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         showAbortButton: props.showAbortButton ?? false,
         canAbort: !!props.onAbort && !stopRequested,
         canVoice: !!props.onMicPress,
+        dictationPhase: props.dictationPhase,
+        canRetryVoice: !!props.onDictationRetry,
     });
     const shouldShowStopButton = primaryAction === 'stop';
     const shouldShowVoiceButton = primaryAction === 'voice';
@@ -976,9 +978,10 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     const desktopCanPressSendButton = !props.isSending
         && !props.isSendDisabled
         && props.dictationPhase !== 'transcribing'
-        && (isSendBlocked
+        && (shouldShowVoiceButton
+            || (isSendBlocked
             ? hasComposerContent
-            : hasComposerContent || !!props.onMicPress);
+            : hasComposerContent || !!props.onMicPress));
     const canPressSendButton = compactMobileComposer
         ? mobileCanPressSendButton
         : desktopCanPressSendButton;
@@ -1251,7 +1254,28 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         sendBlockShakerRef.current?.shake();
     }, [hasComposerContent, isSendBlocked, props.isSending]);
 
+    const handleMicrophonePress = React.useCallback(() => {
+        if (props.isSendDisabled || props.dictationPhase === 'transcribing') return;
+        hapticsLight();
+        if (props.dictationPhase === 'error' && props.onDictationRetry) {
+            props.onDictationRetry();
+            return;
+        }
+        props.onMicPress?.();
+    }, [props.dictationPhase, props.isSendDisabled, props.onDictationRetry, props.onMicPress]);
+
     const handleSendPress = React.useCallback(() => {
+        const liveHasContent = (inputRef.current?.getText() ?? '').trim().length > 0
+            || hasImages
+            || hasContextEntries;
+        if (doesVoiceOwnPrimaryPress({
+            primaryAction,
+            dictationPhase: props.dictationPhase ?? 'idle',
+            liveHasContent,
+        })) {
+            handleMicrophonePress();
+            return;
+        }
         if (isSendBlocked) {
             handleBlockedSendAttempt();
             return;
@@ -1260,24 +1284,17 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
 
         hapticsLight();
         // Live read avoids stalling behind the transitioned `hasText`.
-        const liveHasText = (inputRef.current?.getText() ?? '').trim().length > 0;
-        if (liveHasText || hasImages || hasContextEntries) {
+        if (liveHasContent) {
             setStopRequested(false);
             props.onSend();
         } else if (!compactMobileComposer) {
             props.onMicPress?.();
         }
-    }, [compactMobileComposer, handleBlockedSendAttempt, hasContextEntries, hasImages, isSendBlocked, props.isSendDisabled, props.isSending, props.onMicPress, props.onSend]);
+    }, [compactMobileComposer, handleBlockedSendAttempt, handleMicrophonePress, hasContextEntries, hasImages, isSendBlocked, primaryAction, props.dictationPhase, props.isSendDisabled, props.isSending, props.onMicPress, props.onSend]);
 
-    const handleMicrophonePress = React.useCallback(() => {
-        if (!props.onMicPress || props.isSendDisabled) return;
-        hapticsLight();
-        props.onMicPress();
-    }, [props.isSendDisabled, props.onMicPress]);
-
-    // Stop, voice and send share one button, so which one fires is resolved from
-    // the live text rather than from `hasText`, which is set in a transition and
-    // lags a fast type-then-tap.
+    // Stop, voice and send share one button. Recording owns the primary action,
+    // while idle/error states still consult live text because transitioned
+    // `hasText` can lag a fast type-then-tap.
     const handleMobilePrimaryPress = React.useCallback(() => {
         const liveHasContent = (inputRef.current?.getText() ?? '').trim().length > 0
             || hasImages
@@ -1286,7 +1303,11 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
             void handleAbortPress();
             return;
         }
-        if (!liveHasContent && shouldShowVoiceButton) {
+        if (doesVoiceOwnPrimaryPress({
+            primaryAction,
+            dictationPhase: props.dictationPhase ?? 'idle',
+            liveHasContent,
+        })) {
             handleMicrophonePress();
             return;
         }
@@ -1297,8 +1318,9 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         handleSendPress,
         hasContextEntries,
         hasImages,
+        primaryAction,
+        props.dictationPhase,
         shouldShowStopButton,
-        shouldShowVoiceButton,
     ]);
 
     const permissionSettingsGroups = React.useMemo<NativeSettingsMenuGroup[]>(() => {
@@ -1617,9 +1639,9 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                     <View
                         style={[
                             styles.sendButton,
-                            isSendBlocked
+                            primaryAction === 'blocked'
                                 ? styles.sendButtonLocked
-                                : (hasComposerContent || props.isSending || props.onMicPress)
+                                : (hasComposerContent || props.isSending || shouldShowVoiceButton)
                                     ? styles.sendButtonActive
                                     : styles.sendButtonInactive,
                         ]}
@@ -1635,21 +1657,31 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             hitSlop={{ top: 5, bottom: 10, left: 0, right: 0 }}
                             onPress={handleSendPress}
                             disabled={!desktopCanPressSendButton}
+                            accessibilityRole="button"
+                            accessibilityLabel={shouldShowVoiceButton
+                                ? (props.dictationPhase === 'error' && props.onDictationRetry
+                                    ? t('happyHerd.composer.retryVoice')
+                                    : props.isMicActive
+                                        ? t('happyHerd.composer.finishVoice')
+                                        : t('happyHerd.composer.startVoice'))
+                                : t('happyHerd.composer.send')}
                         >
                             {props.isSending ? (
                                 <ActivityIndicator size="small" color={theme.colors.button.primary.tint} />
-                            ) : isSendBlocked ? (
+                            ) : primaryAction === 'blocked' ? (
                                 <Ionicons name="lock-closed" size={15} color={theme.colors.textSecondary} />
-                            ) : hasComposerContent ? (
+                            ) : canSendMessage ? (
                                 <Octicons
                                     name="arrow-up"
                                     size={16}
                                     color={theme.colors.button.primary.tint}
                                     style={[styles.sendButtonIcon, { marginTop: Platform.OS === 'web' ? 2 : 0 }]}
                                 />
-                            ) : props.onMicPress ? (
+                            ) : shouldShowVoiceButton ? (
                                 props.dictationPhase === 'transcribing' ? (
                                     <ActivityIndicator size="small" color={theme.colors.button.primary.tint} />
+                                ) : props.dictationPhase === 'error' && props.onDictationRetry ? (
+                                    <Ionicons name="refresh" size={18} color={theme.colors.button.primary.tint} />
                                 ) : props.isMicActive ? (
                                     <Ionicons name="stop" size={18} color={theme.colors.button.primary.tint} />
                                 ) : (
@@ -2395,7 +2427,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     // non-steerable agent is both blocked and
                                     // abortable, and it must not look locked.
                                     shouldShowStopButton ? styles.mobileStopButton
-                                        : isSendBlocked ? styles.sendButtonLocked
+                                        : primaryAction === 'blocked' ? styles.sendButtonLocked
                                             : canSendMessage || shouldShowVoiceButton ? styles.mobilePrimaryButtonActive
                                                 : styles.mobilePrimaryButtonInactive,
                                 ]}
@@ -2415,7 +2447,11 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     accessibilityLabel={shouldShowStopButton
                                         ? t('happyHerd.composer.stop')
                                         : shouldShowVoiceButton
-                                            ? (props.isMicActive ? t('happyHerd.composer.finishVoice') : t('happyHerd.composer.startVoice'))
+                                            ? (props.dictationPhase === 'error' && props.onDictationRetry
+                                                ? t('happyHerd.composer.retryVoice')
+                                                : props.isMicActive
+                                                    ? t('happyHerd.composer.finishVoice')
+                                                    : t('happyHerd.composer.startVoice'))
                                             : t('happyHerd.composer.send')}
                                 >
                                     {isAborting ? (
@@ -2429,7 +2465,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                             size={16}
                                             color={theme.dark ? '#000000' : '#FFFFFF'}
                                         />
-                                    ) : isSendBlocked ? (
+                                    ) : primaryAction === 'blocked' ? (
                                         <Ionicons
                                             name="lock-closed"
                                             size={14}
@@ -2438,6 +2474,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     ) : shouldShowVoiceButton ? (
                                         props.dictationPhase === 'transcribing' ? (
                                             <ActivityIndicator size="small" color={activeSendIconColor} />
+                                        ) : props.dictationPhase === 'error' && props.onDictationRetry ? (
+                                            <Ionicons name="refresh" size={20} color={activeSendIconColor} />
                                         ) : props.isMicActive ? (
                                             <Ionicons name="stop" size={20} color={activeSendIconColor} />
                                         ) : (
