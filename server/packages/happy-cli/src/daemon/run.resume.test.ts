@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Metadata } from '@/api/types';
-import type { SideChatLifecycleReceipt, SideChatLifecycleRequest } from '@/commands/sideChat';
+import type {
+  SideChatDelegationBrief,
+  SideChatLifecycleReceipt,
+  SideChatLifecycleRequest,
+} from '@/commands/sideChat';
 import type { SessionEncryptionData } from './types';
 
 const mocks = vi.hoisted(() => ({
@@ -15,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   })),
   hasProviderProcessExited: vi.fn((_pid: number) => false),
   persistSession: vi.fn(() => true),
+  postSideChatBrief: vi.fn(async () => undefined),
   readPersistedSessions: vi.fn(() => ({})),
   resolveLocalReconnectableSession: vi.fn(),
   rpcHandlers: undefined as unknown,
@@ -26,6 +31,7 @@ vi.mock('@/api/api', () => ({
     create: vi.fn(async () => ({
       deactivateSession: vi.fn(),
       inspectSessionAuthoritative: vi.fn(async (session: unknown) => ({ session, active: mocks.authoritativeActive })),
+      postSideChatBrief: mocks.postSideChatBrief,
       getOrCreateMachine: vi.fn(async ({ metadata }: { metadata: Metadata }) => ({
         id: 'machine-record',
         metadata,
@@ -188,6 +194,14 @@ type CapturedControlHandlers = {
 let daemonRun: Promise<void> | undefined;
 let originalCodexHome: string | undefined;
 const defaultAgentCapabilities = initialMachineMetadata.agentCapabilities;
+const sideChatBrief: SideChatDelegationBrief = {
+  outcome: 'Deliver the delegated change.',
+  scope: 'Change the owned workstream only.',
+  dependencies: 'Use the parent context.',
+  writeOwnership: '/srv/project/owned.ts',
+  verification: 'Run the focused checks.',
+  handoff: 'Return result, evidence, blockers, and remaining work.',
+};
 
 describe('daemon session continuity', () => {
   it('resolves GrokBuild for the shared tmux and direct-spawn command path', () => {
@@ -646,8 +660,16 @@ describe('daemon session continuity', () => {
     await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
     const control = mocks.controlHandlers as CapturedControlHandlers;
 
-    const sideChat = control.sideChat({ action: 'create', parentSessionId: 'parent-session' });
-    const concurrentSideChat = control.sideChat({ action: 'create', parentSessionId: 'parent-session' });
+    const sideChat = control.sideChat({
+      action: 'create',
+      parentSessionId: 'parent-session',
+      brief: sideChatBrief,
+    });
+    const concurrentSideChat = control.sideChat({
+      action: 'create',
+      parentSessionId: 'parent-session',
+      brief: sideChatBrief,
+    });
     await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
     control.onHappySessionWebhook('child-session', {
       ...parentMetadata,
@@ -667,6 +689,14 @@ describe('daemon session continuity', () => {
     await expect(concurrentSideChat).resolves.toMatchObject({ success: true, sessionId: 'child-session' });
     expect(mocks.resolveLocalReconnectableSession).toHaveBeenCalledWith('parent-session');
     expect(mocks.forkCodexBackendThread).toHaveBeenCalledOnce();
+    expect(mocks.postSideChatBrief).toHaveBeenCalledOnce();
+    expect(mocks.postSideChatBrief).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'child-session' }),
+      expect.objectContaining({
+        localId: expect.any(String),
+        text: expect.stringContaining(sideChatBrief.outcome),
+      }),
+    );
     const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
       string[],
       { cwd: string },

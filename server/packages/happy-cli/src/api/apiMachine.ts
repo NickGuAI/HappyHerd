@@ -229,6 +229,11 @@ export class ApiMachineClient {
             if (!directory) {
                 throw new Error('Directory is required');
             }
+            if (isSideChat === true) {
+                throw new Error(
+                    'Generic spawn-happy-session cannot create a side chat; use happyherd session side-chat create with all six delegation brief fields.',
+                );
+            }
 
             const provider = HappyHerdMachineSessionProviderSchema.parse(agent ?? 'claude');
             const effectiveSettings = resolveEffectiveSessionSettings(
@@ -242,7 +247,7 @@ export class ApiMachineClient {
                 },
             );
 
-            const result = await spawnSession({ directory, sessionId, machineId, approvedNewDirectoryCreation, agent: provider, permissionMode, modelMode, effortLevel, effectiveSettings, commanderId, environmentVariables, agentRuntimeContext: runtimeContext, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat });
+            const result = await spawnSession({ directory, sessionId, machineId, approvedNewDirectoryCreation, agent: provider, permissionMode, modelMode, effortLevel, effectiveSettings, commanderId, environmentVariables, agentRuntimeContext: runtimeContext, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId });
 
             switch (result.type) {
                 case 'success':

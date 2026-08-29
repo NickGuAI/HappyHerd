@@ -310,7 +310,6 @@ vi.mock('@/sync/ops', () => ({
     sessionGoalAction: vi.fn(),
     sessionKill: mocks.sessionKill,
     sessionSetAgentModes: vi.fn(),
-    spawnSideChat: vi.fn(),
 }));
 
 vi.mock('@/sync/sideChatLifecycle', () => ({
@@ -481,7 +480,6 @@ vi.mock('@/keyboard/shortcuts', () => ({
     SIDEBAR_PICKER_SHORTCUTS: {
         allFiles: { key: 'f' },
         changes: { key: 'c' },
-        newSideChat: { key: 's' },
     },
     formatShortcutChord: () => '',
     getPreferredShortcutModifier: () => 'meta',
@@ -624,6 +622,7 @@ describe('SessionView side-chat integration', () => {
     it('opens the exact parent children in the wide sidebar and keeps collapse non-destructive', () => {
         const renderer = renderParent();
 
+        expect(textValues(renderer)).not.toContain('sideChat.newChat');
         pressByLabel(renderer, 'Open sub-workers (3)');
         expectExactParentTabs(renderer);
         expect(renderedComposerSessions(renderer)).toEqual(expect.arrayContaining(['parent', 'newest']));
@@ -648,6 +647,7 @@ describe('SessionView side-chat integration', () => {
         mocks.width = 700;
         const renderer = renderParent();
 
+        expect(textValues(renderer)).not.toContain('sideChat.newChat');
         pressByLabel(renderer, 'Open sub-workers (3)');
         expectExactParentTabs(renderer);
         expect(renderedComposerSessions(renderer)).toEqual(expect.arrayContaining(['parent', 'newest']));

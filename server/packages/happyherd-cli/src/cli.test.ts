@@ -25,6 +25,16 @@ describe('happyherd passthrough', () => {
       '--provider', 'codex',
       '--json',
     ], 19],
+    [[
+      'session', 'side-chat', 'create', 'parent-session',
+      '--outcome', 'Deliver the bounded change',
+      '--scope', 'Owned files only',
+      '--dependencies', 'Parent context',
+      '--write-ownership', '/srv/project/owned.ts',
+      '--verification', 'Run focused tests',
+      '--handoff', 'Return result and evidence',
+      '--json',
+    ], 21],
     [['codex', '--sandbox', 'workspace-write'], 23],
     [['--started-by', 'daemon', '--no-sandbox'], 29],
   ] as const)('forwards one invocation unchanged: %j', async (args, status) => {

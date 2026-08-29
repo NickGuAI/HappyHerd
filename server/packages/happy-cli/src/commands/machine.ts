@@ -118,7 +118,7 @@ function sessionHelp(): string {
 Usage:
   happy session create --machine ID_OR_HOST --path ABSOLUTE_PATH --provider PROVIDER \\
     [--model MODEL] [--effort EFFORT] [--permission MODE] [--create-dir] [--json]
-  happy session side-chat <parent-session-id> [--json]
+  happyherd session side-chat create <parent-session-id> <brief-options> [--json]
 
 Happy CLI daemon providers: ${DAEMON_PROVIDERS.join(', ')}
 

@@ -127,6 +127,7 @@ PROVIDER_DEFAULTS	accepted	fix(app): cover all provider defaults	server/packages
 CLI_MACHINE_SESSION	accepted	feat(cli): create sessions on selected machines	server/packages/happy-cli/src/commands/machine.test.ts
 SIDE_CHAT_CLI	accepted	feat(cli): create coordinated child side chats	server/packages/happy-cli/src/commands/sideChat.test.ts
 SIDE_CHAT_LIFECYCLE	accepted	feat(cli): complete side-chat lifecycle	server/packages/happy-cli/src/daemon/sideChatLifecycle.test.ts
+MULTIAGENT_DELEGATION	accepted	feat(cli): deliver bounded side-chat delegation briefs	server/packages/happy-cli/src/commands/sideChat.test.ts
 POST_UPDATE_RESTART	accepted	docs(dev): document post-update restart order	.dev/playbooks/post-update-restart.md
 PATCH_DISCIPLINE	accepted	fix(ci): validate nested structural PR merges	scripts/test-owned-merge-provenance.sh
 SIDE_CHAT_LOCAL_AUTH	accepted	fix(cli): reuse local daemon auth for side chats	server/packages/happy-cli/src/commands/machine.test.ts

@@ -130,6 +130,7 @@ describe('codex fork ops', () => {
                 parentSessionId: 'happy-source',
             }),
         );
+        expect(machineRPC.mock.calls[1]?.[2]).not.toHaveProperty('isSideChat');
         expect(refreshSessions).toHaveBeenCalledTimes(1);
     });
 
