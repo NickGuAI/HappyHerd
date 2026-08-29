@@ -26,7 +26,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc --noEmit && pkgroll",
-    "test": "$npm_execpath run build && vitest run"
+    "test": "$npm_execpath --filter happy --fail-if-no-match build && $npm_execpath run build && vitest run"
   },
   "dependencies": {
     "happy": "workspace:*"
