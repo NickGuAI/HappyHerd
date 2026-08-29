@@ -78,6 +78,10 @@ import {
   DaemonSideChatLifecycle,
   type SideChatOperationResult,
 } from './sideChatLifecycle';
+import { resolveCredentialAccountEnvironment } from '@/credentialPool/store';
+import type { CredentialProvider } from '@/credentialPool/types';
+import type { ProviderLimitNotice } from '@/credentialPool/providerLimitNotice';
+import { rotateProviderSessionAfterLimit } from '@/credentialPool/rotation';
 
 type AutomationTrackedSession = TrackedSession & {
   automationId?: string;
@@ -172,6 +176,12 @@ export function resolveDaemonResumeAgent(metadata: Metadata): 'claude' | 'codex'
   if (metadata.flavor === 'grok') return 'grok';
   if (metadata.flavor === 'codex' || metadata.codexThreadId) return 'codex';
   if (metadata.flavor === 'claude' || metadata.claudeSessionId) return 'claude';
+  return null;
+}
+
+function credentialProviderForAgent(agent: SpawnSessionOptions['agent']): CredentialProvider | null {
+  if (agent === undefined || agent === 'claude') return 'claude';
+  if (agent === 'codex' || agent === 'grok') return agent;
   return null;
 }
 
@@ -546,7 +556,18 @@ export async function startDaemon(): Promise<void> {
 
         // Resolve authentication token if provided
         const authEnv: Record<string, string> = {};
-        if (options.token) {
+        const credentialProvider = credentialProviderForAgent(options.agent);
+        const credentialResolution = credentialProvider
+          ? await resolveCredentialAccountEnvironment(credentialProvider)
+          : { selection: { type: 'unconfigured' as const }, env: {} };
+        if (credentialResolution.selection.type === 'all-limited') {
+          return {
+            type: 'error',
+            errorMessage: `All ${credentialProvider} accounts are limited until ${new Date(credentialResolution.selection.limitedUntil).toISOString()}.`,
+          };
+        }
+        Object.assign(authEnv, credentialResolution.env);
+        if (options.token && credentialResolution.selection.type === 'unconfigured') {
           if (options.agent === 'codex') {
 
             // Create a temporary directory for Codex
@@ -1144,6 +1165,14 @@ export async function startDaemon(): Promise<void> {
         if (!resumeAgent) {
           throw new Error(`Session ${resolvedSessionId} uses unsupported flavor "${metadata.flavor ?? 'unknown'}".`);
         }
+        const credentialResolution = await resolveCredentialAccountEnvironment(resumeAgent, {
+          preferred: metadata.providerAccount,
+        });
+        if (credentialResolution.selection.type === 'all-limited') {
+          throw new Error(
+            `All ${resumeAgent} accounts are limited until ${new Date(credentialResolution.selection.limitedUntil).toISOString()}.`,
+          );
+        }
         const codexHome = resumeAgent === 'codex'
           ? await resolveCodexHomeForResume(metadata, ambientEnvironment)
           : undefined;
@@ -1182,6 +1211,7 @@ export async function startDaemon(): Promise<void> {
           env: buildSessionChildEnvironment(ambientEnvironment, {
             ...contextEnvironment(resumedContextBundle),
             ...agentRuntimeEnvironment,
+            ...credentialResolution.env,
             ...(codexHome ? { CODEX_HOME: codexHome } : {}),
             ...machineSessionSettingsEnvironment(grokResumeSettings),
             HAPPY_RECONNECT_SESSION_ID: resolvedSessionId,
@@ -1423,12 +1453,49 @@ export async function startDaemon(): Promise<void> {
       throw new Error('HappyHerd daemon is still starting; retry side-chat creation.');
     };
 
+    const providerLimitRotations = new Map<string, Promise<void>>();
+    const onProviderLimited = (notice: ProviderLimitNotice): void => {
+      const key = `${notice.sessionId}:${notice.provider}:${notice.account}`;
+      if (providerLimitRotations.has(key)) return;
+      const rotation = rotateProviderSessionAfterLimit(notice, {
+        stopProvider: async (sessionId) => {
+          const live = [...pidToTrackedSession.values()].find((candidate) => (
+            candidate.happySessionId === sessionId && !hasProviderProcessExited(candidate.pid)
+          ));
+          if (!live) return;
+          if (!stopSession(sessionId)) throw new Error(`Could not stop limited provider for ${sessionId}`);
+          const deadline = Date.now() + 15_000;
+          while (!hasProviderProcessExited(live.pid)) {
+            if (Date.now() >= deadline) throw new Error(`Timed out stopping limited provider for ${sessionId}`);
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+          await onChildExited(live.pid);
+        },
+        resumeProvider: async (sessionId) => {
+          const result = await resumeSession(sessionId);
+          if (result.type !== 'success') {
+            throw new Error(result.type === 'error'
+              ? result.errorMessage
+              : `Provider resume unexpectedly requires directory approval for ${result.directory}`);
+          }
+        },
+      }).then((result) => {
+        logger.debug(`[CREDENTIAL POOL] ${notice.provider} rotation for ${notice.sessionId}: ${result.type}`);
+      }).catch((error) => {
+        logger.warn(`[CREDENTIAL POOL] Failed to rotate ${notice.provider} account for ${notice.sessionId}`, error);
+      }).finally(() => {
+        providerLimitRotations.delete(key);
+      });
+      providerLimitRotations.set(key, rotation);
+    };
+
     // Start control server
     const { port: controlPort, stop: stopControlServer } = await startDaemonControlServer({
       getChildren: getCurrentChildren,
       stopSession,
       spawnSession,
       sideChat: (request) => manageLocalSideChat(request),
+      onProviderLimited,
       requestShutdown: () => requestShutdown('happy-cli'),
       onHappySessionWebhook,
       automations,

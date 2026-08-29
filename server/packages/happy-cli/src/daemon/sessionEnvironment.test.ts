@@ -34,6 +34,8 @@ describe('sessionEnvironment', () => {
             HAPPY_FORKED_FROM_MESSAGE_ID: 'new-parent-message',
             HAPPY_FORK_CODEX_THREAD_ID: 'new-codex-thread',
             HAPPY_SIDE_CHAT: '1',
+            HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: '/accounts/new/auth.json',
+            HAPPYHERD_GROK_ACCOUNT_AUTH_FILE: '/accounts/grok/new/auth.json',
         });
 
         expect(childEnv).toMatchObject({
@@ -42,6 +44,8 @@ describe('sessionEnvironment', () => {
             HAPPY_FORKED_FROM_MESSAGE_ID: 'new-parent-message',
             HAPPY_FORK_CODEX_THREAD_ID: 'new-codex-thread',
             HAPPY_SIDE_CHAT: '1',
+            HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: '/accounts/new/auth.json',
+            HAPPYHERD_GROK_ACCOUNT_AUTH_FILE: '/accounts/grok/new/auth.json',
         });
         expect(childEnv).not.toHaveProperty('CODEX_THREAD_ID');
         expect(childEnv).not.toHaveProperty('HAPPY_RECONNECT_SESSION_ID');

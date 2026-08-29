@@ -226,6 +226,30 @@ happy connect codex
 happy connect status
 ```
 
+### Named provider accounts
+
+HappyHerd supports multiple named local accounts for Claude, Codex, and
+GrokBuild. You can configure multiple accounts per provider to manage workflows
+when encountering rate limits or quota restrictions. If no named account pool
+is configured, HappyHerd retains standard single-account behavior. Account
+selection is reactive and lazy, with no background quota polling.
+
+```bash
+happyherd connect <claude|codex|grok> --acct <nickname>
+happyherd accounts list [claude|codex|grok] [--json]
+happyherd accounts use <nickname>
+happyherd accounts use <provider> <nickname>
+happyherd accounts remove <nickname>
+happyherd accounts remove <provider> <nickname>
+```
+
+When an active account encounters a rate limit or hard quota, HappyHerd marks
+the account limited until its provider reset time, stops the running provider
+process, and resumes the exact same session using the next available account
+with transcript history and runtime context preserved. If all configured
+accounts for a provider are limited, execution pauses until the earliest
+account becomes eligible again.
+
 ## Commands
 
 | Command | Description |

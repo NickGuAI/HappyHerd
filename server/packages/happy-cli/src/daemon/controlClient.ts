@@ -15,6 +15,7 @@ import type {
   SideChatLifecycleRequest,
 } from '@/commands/sideChat';
 import { normalizeSideChatLifecycleRequest } from '@/commands/sideChat';
+import type { ProviderLimitNotice } from '@/credentialPool/providerLimitNotice';
 
 async function daemonPost(path: string, body?: any, timeoutOverride?: number): Promise<{ error?: string } | any> {
   const state = await readDaemonState();
@@ -135,6 +136,12 @@ export async function listDaemonSessions(): Promise<DaemonSessionSummary[]> {
 export async function stopDaemonSession(sessionId: string): Promise<boolean> {
   const result = await daemonPost('/stop-session', { sessionId });
   return result.success || false;
+}
+
+export async function notifyDaemonProviderLimited(
+  notice: ProviderLimitNotice,
+): Promise<{ status?: 'scheduled'; error?: string }> {
+  return daemonPost('/provider-limited', notice);
 }
 
 export async function spawnDaemonSession(directory: string, sessionId?: string): Promise<any> {

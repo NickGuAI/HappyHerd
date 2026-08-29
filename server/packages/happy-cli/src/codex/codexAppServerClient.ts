@@ -1832,6 +1832,13 @@ export class CodexAppServerClient {
     }
 
     private handleNotification(method: string, params: any): void {
+        if (method === 'account/rateLimits/updated') {
+            this.eventHandler?.({
+                type: 'account_rate_limits_updated',
+                rateLimits: params,
+            });
+            return;
+        }
         // codex/event notifications: either `codex/event` or `codex/event/<type>`
         if (method === 'codex/event' || method.startsWith('codex/event/')) {
             if (this.notificationProtocol === 'unknown') {

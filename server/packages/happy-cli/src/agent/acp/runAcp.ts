@@ -31,6 +31,9 @@ import {
 } from './sessionConfigMetadata';
 import { sanitizeGrokChildEnvironment } from './acpAgentConfig';
 import type { InitializeResponse, SessionConfigOption, SessionModeState, SessionModelState, StopReason } from '@agentclientprotocol/sdk';
+import { classifyGrokHardLimit } from '@/credentialPool/providerLimits';
+import { reportProviderHardLimitOnce } from '@/credentialPool/providerLimitNotice';
+import { persistActiveGrokCredential } from '@/credentialPool/grokAuth';
 
 const ACP_EVENT_PREVIEW_CHARS = 240;
 const ACP_RAW_PREVIEW_CHARS = 2000;
@@ -1144,6 +1147,20 @@ export async function runAcp(opts: {
         sendEnvelopes(sessionManager.endTurn('failed'));
         session.sendSessionEvent({ type: 'ready' });
         logAcp('error', `Prompt error from ${opts.agentName}: ${error instanceof Error ? error.message : String(error)}`);
+        if (opts.agentName === 'grok') {
+          const hardLimit = classifyGrokHardLimit(error);
+          if (hardLimit) {
+            try {
+              await persistActiveGrokCredential();
+            } catch (persistError) {
+              logger.debug('[grok] Failed to persist named account credentials before rotation', persistError);
+            }
+            await reportProviderHardLimitOnce({
+              sessionId: session.sessionId,
+              ...hardLimit,
+            });
+          }
+        }
         throw error;
       }
     }
@@ -1158,6 +1175,13 @@ export async function runAcp(opts: {
     }
 
     backend.offMessage?.(onBackendMessage);
+    if (opts.agentName === 'grok') {
+      try {
+        await persistActiveGrokCredential();
+      } catch (error) {
+        logger.debug('[grok] Failed to persist named account credentials during cleanup', error);
+      }
+    }
     await backend.dispose();
 
     try {

@@ -149,4 +149,53 @@ describe('claudeRemote', () => {
             }),
         }));
     });
+
+    it('reports a rejected rate-limit event without waiting for a result message', async () => {
+        vi.mocked(query).mockReturnValue({
+            setPermissionMode: vi.fn(),
+            async *[Symbol.asyncIterator]() {
+                yield {
+                    type: 'rate_limit_event',
+                    rate_limit_info: {
+                        status: 'rejected',
+                        rateLimitType: 'five_hour',
+                        utilization: 1,
+                        resetsAt: 1_800_000_000,
+                    },
+                };
+            },
+        } as any);
+        const onUsageLimits = vi.fn();
+        let messageCount = 0;
+
+        await claudeRemote({
+            sessionId: null,
+            path: process.cwd(),
+            allowedTools: [],
+            hookSettingsPath: '/tmp/happy-test-settings.json',
+            nextMessage: async () => {
+                messageCount += 1;
+                return messageCount === 1
+                    ? { message: 'continue', mode }
+                    : null;
+            },
+            onReady: vi.fn(),
+            canCallTool: async () => ({ behavior: 'allow' }) as any,
+            isAborted: () => false,
+            onSessionFound: vi.fn(),
+            onThinkingChange: vi.fn(),
+            onMessage: vi.fn(),
+            onCompletionEvent: vi.fn(),
+            onSessionReset: vi.fn(),
+            onUsageLimits,
+        });
+
+        expect(onUsageLimits).toHaveBeenCalledOnce();
+        expect(onUsageLimits).toHaveBeenCalledWith(expect.objectContaining({
+            windows: [expect.objectContaining({
+                id: 'five_hour',
+                status: 'rejected',
+            })],
+        }));
+    });
 });

@@ -155,3 +155,4 @@ UPSTREAM_REVIEW_FIX	accepted	fix(upstream): address integration review findings	
 SIDE_CHAT_RENDER	accepted	test(app): cover side-chat rendering hosts	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 ATTACHMENT_PICKER_UI	accepted	fix(app): present attachment choices in-app (#159)	server/packages/happy-app/sources/components/AttachmentInputButton.test.ts
 GROK_PERMISSION_TRANSITION	accepted	feat(grok): switch active permission modes	server/packages/happy-cli/src/daemon/run.resume.test.ts
+CREDENTIAL_POOL	accepted	feat(cli): add reactive credential account rotation	server/packages/happy-cli/src/credentialPool/rotation.test.ts

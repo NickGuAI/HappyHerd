@@ -1,13 +1,27 @@
 import chalk from 'chalk';
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { chmodSync, existsSync, mkdirSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
-import { join } from 'path';
+import { dirname, join } from 'path';
 import { readCredentials } from '@/persistence';
 import { ApiClient } from '@/api/api';
 import { authenticateCodex } from './connect/authenticateCodex';
 import { authenticateClaude } from './connect/authenticateClaude';
 import { authenticateGemini } from './connect/authenticateGemini';
 import { decodeJwtPayload } from './connect/utils';
+import spawn from 'cross-spawn';
+import {
+    accountAuthFile,
+    accountHome,
+    upsertCredentialAccount,
+    useCredentialAccount,
+    validateAccountName,
+} from '@/credentialPool/store';
+import type { CredentialPoolPaths } from '@/credentialPool/store';
+import type { CredentialAccount, CredentialProvider } from '@/credentialPool/types';
+
+export type ConnectCommandDependencies = {
+    credentialPoolPaths?: CredentialPoolPaths;
+};
 
 /**
  * Handle connect subcommand
@@ -18,11 +32,24 @@ import { decodeJwtPayload } from './connect/utils';
  * - connect gemini: Store Gemini API key in Happy cloud
  * - connect help: Show help for connect command
  */
-export async function handleConnectCommand(args: string[]): Promise<void> {
+export async function handleConnectCommand(
+    args: string[],
+    dependencies: ConnectCommandDependencies = {},
+): Promise<void> {
     const subcommand = args[0];
 
     if (!subcommand || subcommand === 'help' || subcommand === '--help' || subcommand === '-h') {
         showConnectHelp();
+        return;
+    }
+
+    const accountOption = readAccountOption(args.slice(1));
+    if (accountOption.name) {
+        const provider = subcommand.toLowerCase();
+        if (provider !== 'claude' && provider !== 'codex' && provider !== 'grok') {
+            throw new Error('Named accounts are supported for claude, codex, and grok.');
+        }
+        await handleConnectNamedAccount(provider, accountOption.name, dependencies);
         return;
     }
 
@@ -36,6 +63,8 @@ export async function handleConnectCommand(args: string[]): Promise<void> {
         case 'gemini':
             await handleConnectVendor('gemini', 'Gemini');
             break;
+        case 'grok':
+            throw new Error('Grok requires a nickname: happyherd connect grok --acct <nickname>');
         case 'status':
             await handleConnectStatus();
             break;
@@ -51,6 +80,9 @@ function showConnectHelp(): void {
 ${chalk.bold('happy connect')} - Connect AI vendor API keys to Happy cloud
 
 ${chalk.bold('Usage:')}
+  happyherd connect claude --acct <nickname>
+  happyherd connect codex --acct <nickname>
+  happyherd connect grok --acct <nickname>
   happy connect codex        Store your Codex API key in Happy cloud
   happy connect claude       Store your Anthropic API key in Happy cloud
   happy connect gemini       Store your Gemini API key in Happy cloud
@@ -63,6 +95,9 @@ ${chalk.bold('Description:')}
   without exposing your API keys locally.
 
 ${chalk.bold('Examples:')}
+  happyherd connect claude --acct work
+  happyherd connect codex --acct personal
+  happyherd connect grok --acct primary
   happy connect codex
   happy connect claude
   happy connect gemini
@@ -73,6 +108,134 @@ ${chalk.bold('Notes:')}
   • API keys are encrypted and stored securely in Happy cloud
   • You can manage your stored keys at app.happy.engineering
 `);
+}
+
+function readAccountOption(args: string[]): { name?: string } {
+    const index = args.indexOf('--acct');
+    if (index < 0) return {};
+    const value = args[index + 1];
+    if (!value || value.startsWith('-')) throw new Error('Missing nickname after --acct.');
+    return { name: validateAccountName(value) };
+}
+
+function codexAuthFile(tokens: Awaited<ReturnType<typeof authenticateCodex>>): string {
+    return `${JSON.stringify({
+        OPENAI_API_KEY: null,
+        tokens: {
+            id_token: tokens.id_token,
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token,
+            account_id: tokens.account_id,
+        },
+        last_refresh: new Date().toISOString(),
+    }, null, 2)}\n`;
+}
+
+async function createClaudeSetupToken(): Promise<string> {
+    const configured = process.env.CLAUDE_CODE_OAUTH_TOKEN?.trim();
+    if (configured) return configured;
+    return new Promise((resolve, reject) => {
+        const child = spawn('claude', ['setup-token'], {
+            stdio: ['inherit', 'pipe', 'pipe'],
+            windowsHide: true,
+            env: process.env,
+        });
+        let output = '';
+        child.stdout?.on('data', (chunk: Buffer) => {
+            output += chunk.toString('utf8');
+            process.stdout.write(chunk);
+        });
+        child.stderr?.on('data', (chunk: Buffer) => {
+            output += chunk.toString('utf8');
+            process.stderr.write(chunk);
+        });
+        child.once('error', reject);
+        child.once('exit', (code) => {
+            if (code !== 0) {
+                reject(new Error(`claude setup-token exited with status ${code ?? 'unknown'}`));
+                return;
+            }
+            const plain = output.replace(/\u001b\[[0-9;]*m/g, '');
+            const token = plain.match(/sk-ant-[A-Za-z0-9_-]+/)?.[0];
+            if (!token) {
+                reject(new Error('Claude did not return a setup token. Set CLAUDE_CODE_OAUTH_TOKEN and retry.'));
+                return;
+            }
+            resolve(token);
+        });
+    });
+}
+
+type CredentialAccountInput = Omit<CredentialAccount, 'createdAt' | 'updatedAt' | 'limitedUntil'>;
+
+async function retainCredentialAccount(
+    account: CredentialAccountInput,
+    paths?: CredentialPoolPaths,
+): Promise<void> {
+    if (paths) await upsertCredentialAccount(account, { paths });
+    else await upsertCredentialAccount(account);
+}
+
+async function selectCredentialAccount(
+    provider: CredentialProvider,
+    name: string,
+    paths?: CredentialPoolPaths,
+): Promise<void> {
+    if (paths) await useCredentialAccount(provider, name, paths);
+    else await useCredentialAccount(provider, name);
+}
+
+function ensureOwnerOnlyAccountHome(home: string): void {
+    mkdirSync(home, { recursive: true, mode: 0o700 });
+    chmodSync(dirname(dirname(home)), 0o700);
+    chmodSync(dirname(home), 0o700);
+    chmodSync(home, 0o700);
+}
+
+async function handleConnectNamedAccount(
+    provider: CredentialProvider,
+    name: string,
+    dependencies: ConnectCommandDependencies,
+): Promise<void> {
+    console.log(chalk.bold(`\nConnecting ${provider} account "${name}"\n`));
+    if (provider === 'claude') {
+        const token = await createClaudeSetupToken();
+        await retainCredentialAccount({
+            provider,
+            name,
+            credential: { type: 'oauth-token', token },
+        }, dependencies.credentialPoolPaths);
+    } else if (provider === 'codex') {
+        const authFile = accountAuthFile(provider, name, dependencies.credentialPoolPaths);
+        const home = dirname(authFile);
+        ensureOwnerOnlyAccountHome(home);
+        const tokens = await authenticateCodex();
+        writeFileSync(authFile, codexAuthFile(tokens), { encoding: 'utf8', mode: 0o600 });
+        chmodSync(authFile, 0o600);
+        await retainCredentialAccount({
+            provider,
+            name,
+            credential: { type: 'auth-file', path: authFile },
+        }, dependencies.credentialPoolPaths);
+    } else {
+        const home = accountHome(provider, name, dependencies.credentialPoolPaths);
+        ensureOwnerOnlyAccountHome(home);
+        const result = spawn.sync('grok', ['login'], {
+            stdio: 'inherit',
+            windowsHide: true,
+            env: { ...process.env, GROK_HOME: home },
+        });
+        if (result.error) throw result.error;
+        if (result.status !== 0) throw new Error(`grok login exited with status ${result.status ?? 'unknown'}`);
+        chmodSync(join(home, 'auth.json'), 0o600);
+        await retainCredentialAccount({
+            provider,
+            name,
+            credential: { type: 'auth-file', path: join(home, 'auth.json') },
+        }, dependencies.credentialPoolPaths);
+    }
+    await selectCredentialAccount(provider, name, dependencies.credentialPoolPaths);
+    console.log(chalk.green(`Connected and selected ${provider} account "${name}".`));
 }
 
 async function handleConnectVendor(vendor: 'codex' | 'claude' | 'gemini', displayName: string): Promise<void> {
