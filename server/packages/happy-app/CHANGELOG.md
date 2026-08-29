@@ -1,3 +1,7 @@
+# August 29 — Chat microphone dictation drafts
+
+- Updated the active chat composer microphone to perform OpenAI speech-to-text dictation using the configured OpenAI key instead of launching a separate realtime voice conversation, appending transcripts directly to existing message drafts for editing before sending while preserving recording controls, progress feedback, error handling, and retry support.
+
 # August 29 — Named provider accounts and automatic failover
 
 - Connect and manage multiple local accounts for Claude, Codex, and GrokBuild using `happyherd connect <claude|codex|grok> --acct <nickname>` and the `happyherd accounts` command suite.

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "53f9b5c92bba3ecc11d561f30f7634d61ec779bc1f26c297cffdd9a11b73230d",
+  "sourceFingerprint": "fc4a966db51b31a9ce3c97770a6a4c3e2a19edc6887ed6638ce5c71333ea9f44",
   "routeCount": 36,
   "surfaceCount": 246,
   "hardcodedCopyCount": 0,
@@ -1009,7 +1009,6 @@
         "errors.grokPermissionModeChangeFailed",
         "errors.sessionDeleted",
         "errors.sessionDeletedDescription",
-        "errors.voiceSessionFailed",
         "happyHerd.composer.sendFailedBody",
         "happyHerd.composer.sendFailedTitle",
         "happyHerd.heartbeat.machineUnavailable",

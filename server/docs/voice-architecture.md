@@ -1,11 +1,17 @@
 # Voice Architecture
 
-How the ElevenLabs voice assistant integrates with the Happy app, routes messages to sessions, and manages context delivery.
+HappyHerd has two distinct voice paths: OpenAI speech-to-text dictation for
+editable composer drafts, and the retained ElevenLabs realtime assistant. The
+active-chat composer microphone owns dictation only; it does not start a
+realtime voice conversation.
 
 ## Components
 
 ```text
-SessionView.tsx            UI — mic button, triggers voice start/stop
+SessionView.tsx            UI — active-chat dictation and realtime status host
+useVoiceDictation.ts       Dictation recording, transcription, cancel, error, retry
+apiVoice.ts                POST /v1/voice/transcriptions transport
+AgentInput.tsx             Composer dictation controls and feedback
 RealtimeSession.ts         Lifecycle — start/stop, token fetch, session routing state
 RealtimeVoiceSession.tsx   Native ElevenLabs bridge (useConversation hook)
 RealtimeVoiceSession.web.tsx  Web ElevenLabs bridge (same interface)
@@ -17,6 +23,27 @@ storage.ts                 Global state (realtimeStatus, realtimeMode)
 types.ts                   Shared type definitions
 ```
 
+## Composer Dictation
+
+When `useVoiceInputAvailability.available` is true, the active-session composer
+passes its microphone control to `useVoiceDictation`. Recorded audio goes to
+`POST /v1/voice/transcriptions`; the returned text is appended to any existing
+`MultiTextInput` draft, remains editable and unsent, and continues through the
+existing `useDraft` persistence path. `AgentInput` keeps finish, cancel,
+transcribing, error, and retry states reachable throughout the recording
+lifecycle.
+
+```text
+composer mic → useVoiceDictation → POST /v1/voice/transcriptions
+                                      │
+                                      ▼
+existing draft + transcript → editable, unsent composer
+```
+
+This flow does not call `startRealtimeSession` or
+`POST /v1/voice/conversations`. The realtime modules and status pill remain a
+separate subsystem; the pill can still end an already active realtime session.
+
 ## Session Routing
 
 A single module-level variable `currentSessionId` in `RealtimeSession.ts` controls which session the voice agent's tool calls route to. It is the single source of truth for both:
@@ -27,7 +54,7 @@ A single module-level variable `currentSessionId` in `RealtimeSession.ts` contro
 When the user navigates to a different session while voice is active, `onSessionFocus` updates `currentSessionId` so subsequent voice commands route to the newly viewed session.
 
 ```text
-User taps mic on Session A
+Realtime caller starts Session A
   │
   v
 startRealtimeSession("A")
@@ -152,14 +179,14 @@ App mounts RealtimeVoiceSession component
   └──> useConversation() hook initializes
   └──> registerVoiceSession(impl) — makes the instance available globally
 
-User taps mic
+Realtime caller invokes the separate voice lifecycle
   └──> voiceHooks.onVoiceStarted(sessionId) — builds initial prompt
   └──> startRealtimeSession(sessionId, prompt)
          ├──> fetchVoiceToken() — server-side gating (see plans/elevenlabs-voice-usage-gating.md)
          ├──> currentSessionId = sessionId
          └──> voiceSession.startSession({ token, initialContext, ... })
 
-User taps mic again (or navigates away)
+Realtime status pill is pressed
   └──> stopRealtimeSession()
          ├──> voiceSession.endSession()
          ├──> currentSessionId = null
