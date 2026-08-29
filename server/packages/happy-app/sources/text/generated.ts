@@ -854,11 +854,33 @@ export type TranslationKey =
     | "sideChat.close"
     | "sideChat.collapse"
     | "sideChat.composerPlaceholder"
+    | "sideChat.create"
+    | "sideChat.createDescription"
+    | "sideChat.createFailed"
+    | "sideChat.createFailedWithDetail"
+    | "sideChat.createTitle"
+    | "sideChat.creating"
+    | "sideChat.emptyDescription"
+    | "sideChat.emptyTitle"
     | "sideChat.expand"
+    | "sideChat.fields.dependencies"
+    | "sideChat.fields.handoff"
+    | "sideChat.fields.outcome"
+    | "sideChat.fields.scope"
+    | "sideChat.fields.verification"
+    | "sideChat.fields.writeOwnership"
+    | "sideChat.newChat"
     | "sideChat.openCount"
     | "sideChat.panelTitle"
+    | "sideChat.placeholders.dependencies"
+    | "sideChat.placeholders.handoff"
+    | "sideChat.placeholders.outcome"
+    | "sideChat.placeholders.scope"
+    | "sideChat.placeholders.verification"
+    | "sideChat.placeholders.writeOwnership"
     | "sideChat.stopUnconfirmed"
     | "sideChat.tabLabel"
+    | "sideChat.unavailable"
     | "sidebar.hideArchived"
     | "sidebar.newSession"
     | "sidebar.projects"
@@ -1373,6 +1395,7 @@ export interface TranslationParamsByKey {
     "settings.showOfflineMachines": { count: number };
     "settingsVoice.language.footer": { count: number };
     "settingsVoice.usageUsed": { limit: number; used: string | number };
+    "sideChat.createFailedWithDetail": { detail: string };
     "sideChat.openCount": { count: number };
     "sideChat.stopUnconfirmed": { sessionId: string };
     "sideChat.tabLabel": { index: number };

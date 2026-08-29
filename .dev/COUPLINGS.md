@@ -259,11 +259,15 @@ daemon catalog and share the same constant as the runtime launch path. Leaving
 an owned default unmarked turns an omitted request into a false receipt even
 when the provider process starts successfully.
 
-Coordinated child side chats extend that same exact-daemon boundary:
+Coordinated child side chats extend that same exact-daemon boundary. The Human
+uses the app form and the Main Agent uses the CLI; both provide the same brief:
 
 ```text
-happyherd session side-chat create <parent-session-id> <six brief fields>
-  → authenticated loopback request to the running local daemon
+Human app form ─┐
+                ├─→ six brief fields → daemon-owned side-chat lifecycle
+Main Agent CLI ─┘
+  → app: encrypted `happyherd-side-chat-create` machine RPC
+  → CLI: authenticated loopback request to the running local daemon
   → validate outcome + scope + dependencies + write ownership + verification + handoff
   → resolve exact parent from machine-local reconnect data
   → require parent machine ID == this daemon machine ID
@@ -286,8 +290,8 @@ generic app fork/spawn + isSideChat
 ```
 
 The app discovers, renders, switches, resumes, and closes already-briefed side
-chats. It does not create delegated Worker Agents; only the daemon-owned
-`happyherd session side-chat create` lifecycle may set `isSideChat`.
+chats. Its dedicated create RPC and `happyherd session side-chat create` both
+enter the daemon-owned lifecycle; only that lifecycle may set `isSideChat`.
 
 The same loopback endpoint owns the complete child lifecycle:
 
@@ -347,7 +351,7 @@ operations must complete before child spawn, and the
 new backend ID—not the parent's ID—is the resume target. `parentSessionId` and
 `isSideChat` are persisted child lineage: top-level session selectors exclude
 those children while the parent view discovers every non-archived exact child,
-including children created by another CLI client. Side-chat presentation is
+including children created by another app or CLI client. Side-chat presentation is
 independent of the default-off file-diff-sidebar setting. Collapsing either
 presentation changes only local view state; closing a child tab stops it and
 always archives the server session so it stays absent after reload. The
@@ -358,8 +362,8 @@ marker before it reports success or restores a retryable tab.
 
 The generic encrypted `spawn-happy-session` machine RPC rejects
 `isSideChat=true` before calling the provider spawn boundary. Ordinary app
-forks cannot mark a child as a Worker Agent, and the app contains no unbriefed
-side-chat creation affordance or shortcut.
+forks cannot mark a child as a Worker Agent. The app's dedicated form validates
+and forwards all six fields through `happyherd-side-chat-create` instead.
 
 Provider-native subagents remain inline provider activity in the owning
 session protocol and tool panels. They are not side-chat session records and

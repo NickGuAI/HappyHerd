@@ -13,6 +13,7 @@ vi.mock('react-native', async () => {
     return {
         View: host('View'),
         Text: host('Text'),
+        TextInput: host('TextInput'),
         Pressable: host('Pressable'),
         ActivityIndicator: host('ActivityIndicator'),
         ScrollView: host('ScrollView'),
@@ -30,6 +31,7 @@ vi.mock('react-native-unistyles', () => {
             text: '#111',
             textSecondary: '#666',
             divider: '#ddd',
+            input: { placeholder: '#999' },
             surface: '#eee',
             surfaceSelected: '#ddd',
             groupped: { background: '#fff' },
@@ -109,6 +111,12 @@ function panelProps(overrides: Partial<SideChatPanelProps> = {}): SideChatPanelP
         activeSideChatId: null,
         onSelectSideChat: vi.fn(),
         onCloseSideChat: vi.fn(),
+        createOpen: false,
+        creating: false,
+        canCreate: true,
+        onStartCreate: vi.fn(),
+        onCancelCreate: vi.fn(),
+        onCreate: vi.fn().mockResolvedValue(true),
         ...overrides,
     };
 }
@@ -137,12 +145,61 @@ describe('SideChatAccessButton', () => {
         act(() => button.props.onPress());
         expect(onPress).toHaveBeenCalledOnce();
     });
+
+    it('keeps creation reachable when the parent has no children', () => {
+        const onPress = vi.fn();
+        const renderer = render(React.createElement(SideChatAccessButton, {
+            count: 0,
+            expanded: false,
+            compact: false,
+            onPress,
+        }));
+
+        const button = renderer.root.findByType('Pressable' as any);
+        expect(button.props.accessibilityLabel).toBe('sideChat.newChat');
+        act(() => button.props.onPress());
+        expect(onPress).toHaveBeenCalledOnce();
+    });
 });
 
 describe('SideChatPanel', () => {
-    it('does not expose an unbriefed creation control when there are no children', () => {
-        const renderer = render(React.createElement(SideChatPanel, panelProps({ sideChats: [] })));
-        expect(renderer.toJSON()).toBeNull();
+    it('shows the structured creation affordance when there are no children', () => {
+        const onStartCreate = vi.fn();
+        const renderer = render(React.createElement(SideChatPanel, panelProps({
+            sideChats: [],
+            onStartCreate,
+        })));
+        const start = renderer.root.findAllByType('Pressable' as any)
+            .find((node: any) => node.props.accessibilityLabel === 'sideChat.newChat');
+        expect(start).toBeDefined();
+        act(() => start?.props.onPress());
+        expect(onStartCreate).toHaveBeenCalledOnce();
+    });
+
+    it('submits all six trimmed brief fields through the Human form', async () => {
+        const onCreate = vi.fn().mockResolvedValue(true);
+        const renderer = render(React.createElement(SideChatPanel, panelProps({
+            sideChats: [],
+            createOpen: true,
+            onCreate,
+        })));
+        const inputs = renderer.root.findAllByType('TextInput' as any);
+        expect(inputs).toHaveLength(6);
+        for (let index = 0; index < inputs.length; index += 1) {
+            act(() => inputs[index].props.onChangeText(` value ${index + 1} `));
+        }
+        const submit = renderer.root.findAllByType('Pressable' as any)
+            .find((node: any) => node.props.accessibilityLabel === 'sideChat.create');
+        expect(submit?.props.disabled).toBe(false);
+        await act(async () => submit?.props.onPress());
+        expect(onCreate).toHaveBeenCalledWith({
+            outcome: 'value 1',
+            scope: 'value 2',
+            dependencies: 'value 3',
+            writeOwnership: 'value 4',
+            verification: 'value 5',
+            handoff: 'value 6',
+        });
     });
 
     it('shows multiple children as tabs and focuses the newest hydrated child by default', () => {

@@ -68,8 +68,9 @@ export function shouldShowLandscapeSideChatAccess(input: {
     deviceType: string;
     isLandscape: boolean;
     sideChatCount: number;
+    canCreateSideChat: boolean;
 }): boolean {
-    return input.sideChatCount > 0
+    return (input.sideChatCount > 0 || input.canCreateSideChat)
         && input.isLandscape
         && input.deviceType === 'phone'
         && input.platform !== 'web';

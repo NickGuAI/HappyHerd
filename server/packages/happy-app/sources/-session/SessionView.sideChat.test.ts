@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
     emptyArray: [] as unknown[],
     emptyObject: {} as Record<string, unknown>,
     closeSideChatSession: vi.fn(),
+    machineCreateSideChat: vi.fn(),
     resumeSession: vi.fn(),
     sessionArchive: vi.fn(),
     sessionKill: vi.fn(),
@@ -341,6 +342,7 @@ vi.mock('@/sync/projectFiles', () => ({ getProjectFiles: vi.fn(async () => ({ fi
 
 vi.mock('@/sync/ops', () => ({
     machineControlHeartbeat: vi.fn(),
+    machineCreateSideChat: mocks.machineCreateSideChat,
     machineStopSession: vi.fn(),
     sessionAbort: vi.fn(),
     sessionArchive: mocks.sessionArchive,
@@ -386,7 +388,7 @@ vi.mock('@/sync/storage', async () => {
             () => mocks.localSettings[key],
             () => mocks.localSettings[key],
         ),
-        useMachine: () => null,
+        useMachine: (id: string) => id === 'machine-1' ? { id, active: true } : null,
         useRealtimeStatus: () => 'disconnected',
         useSession: (id: string) => ReactModule.useSyncExternalStore(
             subscribe,
@@ -404,7 +406,9 @@ vi.mock('@/sync/storage', async () => {
         useSessionPendingCommunications: () => mocks.emptyArray,
         useSessionProjectFiles: () => null,
         useSessionUsage: () => null,
-        useSetting: (key: string) => key === 'sessionStatusBarDisplay' ? 'hidden' : false,
+        useSetting: (key: string) => key === 'sessionStatusBarDisplay'
+            ? 'hidden'
+            : key === 'fileDiffsSidebar',
         useSettingMutable: () => [mocks.emptyObject, vi.fn()],
         useSideChatSessions: (parentSessionId: string | null) => {
             const revision = ReactModule.useSyncExternalStore(
@@ -446,10 +450,10 @@ vi.mock('@/sync/rig', () => ({
     isRigPermissionSelectionEnabled: () => false,
     isRigReasoningSelectionEnabled: () => false,
     rigCanAbort: () => false,
-    rigCanBrowseFiles: () => false,
+    rigCanBrowseFiles: () => true,
     rigCanReadFiles: () => false,
     rigCanUseAttachments: () => false,
-    rigCanUseShell: () => false,
+    rigCanUseShell: () => true,
 }));
 vi.mock('@/sync/workspaceContext', () => ({
     MAX_WORKSPACE_CONTEXT_ITEMS: 8,
@@ -575,7 +579,11 @@ function makeSession(
 
 function seedSessions() {
     mocks.sessions = {
-        parent: makeSession('parent', 1),
+        parent: makeSession('parent', 1, {
+            machineId: 'machine-1',
+            flavor: 'codex',
+            codexThreadId: 'thread-parent',
+        }),
         ordinary: makeSession('ordinary', 2),
         oldest: makeSession('oldest', 10, { isSideChat: true, parentSessionId: 'parent' }),
         stopped: makeSession('stopped', 20, { isSideChat: true, parentSessionId: 'parent' }, false),
@@ -592,6 +600,7 @@ function seedSessions() {
 }
 
 beforeEach(() => {
+    mocks.listeners.clear();
     mocks.width = 1280;
     mocks.platform = 'web';
     mocks.localSettings.acknowledgedCliVersions = {};
@@ -599,6 +608,7 @@ beforeEach(() => {
     mocks.localSettings.sidebarPanelsOpen = [];
     mocks.localSettings.zenMode = false;
     mocks.closeSideChatSession.mockReset();
+    mocks.machineCreateSideChat.mockReset();
     mocks.resumeSession.mockReset();
     mocks.sessionArchive.mockReset();
     mocks.sessionKill.mockReset();
@@ -692,9 +702,10 @@ describe('SessionView side-chat integration', () => {
     it('opens the exact parent children in the wide sidebar and keeps collapse non-destructive', () => {
         const renderer = renderParent();
 
-        expect(textValues(renderer)).not.toContain('sideChat.newChat');
+        expect(textValues(renderer)).toContain('sideChat.newChat');
         pressByLabel(renderer, 'Open sub-workers (3)');
         expectExactParentTabs(renderer);
+        expect(textValues(renderer)).toContain('sideChat.newChat');
         expect(renderedComposerSessions(renderer)).toEqual(expect.arrayContaining(['parent', 'newest']));
         expect(renderedComposerSessions(renderer)).not.toContain('oldest');
 
@@ -720,6 +731,7 @@ describe('SessionView side-chat integration', () => {
         expect(textValues(renderer)).not.toContain('sideChat.newChat');
         pressByLabel(renderer, 'Open sub-workers (3)');
         expectExactParentTabs(renderer);
+        expect(textValues(renderer)).toContain('sideChat.newChat');
         expect(renderedComposerSessions(renderer)).toEqual(expect.arrayContaining(['parent', 'newest']));
 
         pressTab(renderer, 'oldest');
@@ -735,5 +747,62 @@ describe('SessionView side-chat integration', () => {
         expect(mocks.closeSideChatSession).not.toHaveBeenCalled();
         expect(mocks.sessionArchive).not.toHaveBeenCalled();
         expect(mocks.sessionKill).not.toHaveBeenCalled();
+    });
+
+    it('creates from the zero-child right-panel picker and focuses the hydrated child', async () => {
+        mocks.sessions = {
+            parent: makeSession('parent', 1, {
+                machineId: 'machine-1',
+                flavor: 'codex',
+                codexThreadId: 'thread-parent',
+            }),
+        };
+        mocks.revision += 1;
+        mocks.machineCreateSideChat.mockImplementation(async () => {
+            mocks.sessions = {
+                ...mocks.sessions,
+                created: makeSession('created', 50, {
+                    isSideChat: true,
+                    parentSessionId: 'parent',
+                    machineId: 'machine-1',
+                    flavor: 'codex',
+                    codexThreadId: 'thread-created',
+                }),
+            };
+            mocks.revision += 1;
+            for (const listener of mocks.listeners) listener();
+            return {
+                schemaVersion: 1,
+                type: 'side-chat',
+                action: 'create',
+                success: true,
+                parentSessionId: 'parent',
+                sessionId: 'created',
+                phases: [],
+            };
+        });
+        const renderer = renderParent();
+
+        pressByText(renderer, 'sideChat.newChat');
+        const inputs = renderer.root.findAllByType('TextInput' as any)
+            .filter((node: any) => node.props.multiline === true);
+        expect(inputs).toHaveLength(6);
+        for (let index = 0; index < inputs.length; index += 1) {
+            act(() => inputs[index].props.onChangeText(`brief ${index + 1}`));
+        }
+        const submit = pressables(renderer)
+            .find((node: any) => node.props.accessibilityLabel === 'sideChat.create');
+        await act(async () => submit?.props.onPress());
+
+        expect(mocks.machineCreateSideChat).toHaveBeenCalledWith('machine-1', 'parent', {
+            outcome: 'brief 1',
+            scope: 'brief 2',
+            dependencies: 'brief 3',
+            writeOwnership: 'brief 4',
+            verification: 'brief 5',
+            handoff: 'brief 6',
+        });
+        expect(renderedComposerSessions(renderer)).toEqual(expect.arrayContaining(['parent', 'created']));
+        expect(textValues(renderer)).toContain('created');
     });
 });

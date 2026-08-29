@@ -816,6 +816,32 @@
   },
   "sideChat": {
     "panelTitle": "子工作会话",
+    "newChat": "新建侧聊",
+    "emptyTitle": "暂无侧聊",
+    "emptyDescription": "创建侧聊以分配边界清晰的专项任务。",
+    "createTitle": "创建侧聊",
+    "createDescription": "定义结构化任务简报，支持 Human UI 与 Main Agent CLI 使用同一持久委托流程。",
+    "create": "创建",
+    "creating": "正在创建…",
+    "createFailed": "创建侧聊失败。",
+    "createFailedWithDetail": "创建侧聊失败：{detail}",
+    "unavailable": "当前会话不支持侧聊，或所属机器处于离线状态。",
+    "fields": {
+      "outcome": "预期结果",
+      "scope": "任务范围与边界",
+      "dependencies": "依赖项",
+      "writeOwnership": "写入权限范围",
+      "verification": "验证步骤",
+      "handoff": "交付标准"
+    },
+    "placeholders": {
+      "outcome": "此侧聊需要达成什么目标？",
+      "scope": "涉及的文件、模块或任务",
+      "dependencies": "前置任务、服务或依赖项",
+      "writeOwnership": "允许修改的文件或路径",
+      "verification": "用于验证完成情况的命令或测试",
+      "handoff": "预期交付物及交接格式"
+    },
     "composerPlaceholder": "给侧边聊天发消息…",
     "expand": "全屏打开",
     "tabLabel": "侧边聊天 {index}",
