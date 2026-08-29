@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "7691d45dfd0a4b6bc134589e666490f5746b10ab9274f7ab1d9a95aa817598d2",
+  "sourceFingerprint": "8f7962c358d11cfd1a7915c7978ac1def2d1bc7978c9103be17750266ab44aac",
   "routeCount": 36,
-  "surfaceCount": 245,
+  "surfaceCount": 246,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -2501,7 +2501,20 @@
         "AttachmentInputButton"
       ],
       "translationKeys": [
-        "common.cancel",
+        "happyHerd.composer.addAttachment"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/AttachmentInputMenu.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "AttachmentInputMenu",
+        "getAttachmentInputMenuFrame"
+      ],
+      "translationKeys": [
         "happyHerd.composer.addAttachment",
         "happyHerd.composer.deviceFiles",
         "happyHerd.composer.photos"

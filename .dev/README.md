@@ -70,6 +70,10 @@ bounded change → exact-head review → PR → merge
    fallback by default and at most one only when the current supported contract
    demonstrably requires it. Continue ordinary correctness, security, privacy,
    and data-integrity review.
+7. **Keep product-owned choice menus inside HappyHerd.** Render small
+   product-owned choice menus through coherent responsive surfaces: anchored
+   popovers on Web and desktop, and safe-area-aware sheets on native. Preserve
+   operating-system pickers as the final platform handoff.
 
 ## Navigate
 
