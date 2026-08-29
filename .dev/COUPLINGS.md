@@ -259,16 +259,19 @@ daemon catalog and share the same constant as the runtime launch path. Leaving
 an owned default unmarked turns an omitted request into a false receipt even
 when the provider process starts successfully.
 
-Coordinated child side chats extend that same exact-daemon boundary. The Human
-uses the app form and the Main Agent uses the CLI; both provide the same brief:
+Coordinated child side chats extend that same exact-daemon boundary through two
+deliberately different creation surfaces:
 
 ```text
-Human app form ─┐
-                ├─→ six brief fields → daemon-owned side-chat lifecycle
-Main Agent CLI ─┘
-  → app: encrypted `happyherd-side-chat-create` machine RPC
-  → CLI: authenticated loopback request to the running local daemon
-  → validate outcome + scope + dependencies + write ownership + verification + handoff
+Human: app New side chat action
+  → one click, no fields
+  → encrypted `happyherd-side-chat-create` machine RPC with parentSessionId only
+
+Main Agent: `happyherd session side-chat create`
+  → require outcome + scope + dependencies + write ownership + verification + handoff
+  → authenticated loopback request to the running local daemon
+
+Both → daemon-owned side-chat lifecycle
   → resolve exact parent from machine-local reconnect data
   → require parent machine ID == this daemon machine ID
   → daemon-owned provider fork
@@ -276,10 +279,12 @@ Main Agent CLI ─┘
        └── Codex provider-native thread fork
   → daemon spawn on the same machine and path
        with fresh provider resume ID + parentSessionId + isSideChat
-  → render bounded Worker Agent prompt with exact parent and child IDs
-  → persist prompt through the child's encrypted queued-message path
-       ├── delivery success in the creation receipt
-       └── exact child ID + deliver-brief failure for parent recovery
+  → creation path
+       ├── Human: skip deliver-brief → empty child → focus/open normal composer
+       └── Main Agent: render bounded Worker Agent prompt with exact parent/child IDs
+             → persist prompt through the child's encrypted queued-message path
+                  ├── delivery success in the creation receipt
+                  └── parentSessionId + sessionId + failed deliver-brief phase
   → hidden child metadata in synchronized session state
   → exact-parent child selector
        ├── wide Web/Mac collapsible sidebar
@@ -289,9 +294,10 @@ generic app fork/spawn + isSideChat
   → rejected by spawn-happy-session before provider launch
 ```
 
-The app discovers, renders, switches, resumes, and closes already-briefed side
-chats. Its dedicated create RPC and `happyherd session side-chat create` both
-enter the daemon-owned lifecycle; only that lifecycle may set `isSideChat`.
+The app creates, discovers, renders, switches, resumes, and closes side chats.
+Its parent-only dedicated create RPC and `happyherd session side-chat create`
+both enter the daemon-owned lifecycle; only that lifecycle may set
+`isSideChat`.
 
 The same loopback endpoint owns the complete child lifecycle:
 
@@ -337,17 +343,19 @@ receipt window than single-child actions so the four-child shutdown contract
 cannot continue mutating after the caller has already timed out.
 
 The parent session record owns the machine, path, provider, and provider-backend
-identity used for the fork; the command never substitutes another machine or
-provider. Side-chat creation is intentionally local-owner-only and does not
-load `agent.key`, list account machines, or fall back to the QR-based
-account-control flow. The loopback request accepts the parent Happy session ID
-plus the complete structured brief; the daemon re-resolves every launch value
-from its own persisted record, rejects a parent belonging to another machine,
-and coalesces concurrent
-requests carrying the same brief for the same exact parent while fork, spawn,
-and prompt delivery are in flight. A concurrent request with a different brief
-fails instead of assigning two scopes to one child. Provider-native fork
-operations must complete before child spawn, and the
+identity used for the fork; neither creation surface substitutes another
+machine or provider. Side-chat creation is intentionally local-owner-only and
+does not load `agent.key`, list account machines, or fall back to the QR-based
+account-control flow. The Human app request carries only the parent Happy
+session ID. The Main Agent loopback request accepts that ID plus the complete
+structured brief. The daemon re-resolves every launch value from its own
+persisted record,
+rejects a parent belonging to another machine, and coalesces concurrent
+requests with the same creation input for the same exact parent while fork,
+spawn, and any prompt delivery are in flight. A concurrent no-brief request and
+briefed request, or two requests with different briefs, fail instead of
+assigning different intent to one child. Provider-native fork operations must
+complete before child spawn, and the
 new backend ID—not the parent's ID—is the resume target. `parentSessionId` and
 `isSideChat` are persisted child lineage: top-level session selectors exclude
 those children while the parent view discovers every non-archived exact child,
@@ -362,8 +370,10 @@ marker before it reports success or restores a retryable tab.
 
 The generic encrypted `spawn-happy-session` machine RPC rejects
 `isSideChat=true` before calling the provider spawn boundary. Ordinary app
-forks cannot mark a child as a Worker Agent. The app's dedicated form validates
-and forwards all six fields through `happyherd-side-chat-create` instead.
+forks cannot mark a child as a side chat. The app's dedicated New side chat
+action forwards only `parentSessionId` through `happyherd-side-chat-create`.
+The Main Agent CLI remains the surface that validates and forwards all six
+brief fields.
 
 Provider-native subagents remain inline provider activity in the owning
 session protocol and tool panels. They are not side-chat session records and

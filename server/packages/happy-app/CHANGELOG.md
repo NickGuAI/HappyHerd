@@ -1,7 +1,7 @@
-# August 29 — Structured side chats for Humans and Main Agents
+# August 29 — Side chats open in one click
 
-- Humans can create a side chat from the right panel by completing the same six-field delegation brief used by the Main Agent CLI.
-- New children hydrate into the exact parent, open in the correct responsive host, and remain directly selectable alongside stopped but resumable children.
+- Humans can again create and open an empty side chat in one click, then type normally in its composer.
+- Main Agents continue to create side chats with the structured six-field `happyherd session side-chat create` CLI flow.
 
 # August 29 — Chat microphone dictation drafts
 
@@ -16,7 +16,7 @@
 # August 29 — Side chats carry bounded delegation briefs
 
 - Main Agent creation runs through `happyherd session side-chat create`, with required outcome, scope, dependencies, write ownership, verification, and handoff fields. On successful creation, the brief is the child's first encrypted queued message; a delivery failure retains the child ID and exact failed phase.
-- Generic `spawn-happy-session` rejects `isSideChat` before provider launch, so every Human or Main Agent creation enters the daemon-owned brief lifecycle.
+- Human one-click app creation and six-field Main Agent CLI creation both enter the dedicated daemon lifecycle; only the Main Agent path delivers a brief, and generic `spawn-happy-session` still rejects `isSideChat` before provider launch.
 - The CLI and daemon loopback API accept `inspect` for `status`, `pause` for `stop`, and `resume` for `reopen`, while receipts retain canonical action names and provider-native subagents remain the default inline fan-out.
 
 # August 29 — Attachment selection

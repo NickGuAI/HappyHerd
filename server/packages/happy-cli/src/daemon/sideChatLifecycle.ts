@@ -19,8 +19,8 @@ export type SideChatOperationResult = {
 export type DaemonSideChatLifecycleDependencies = {
   create: (
     parentSessionId: string,
-    brief: SideChatDelegationBrief,
-  ) => Promise<{ sessionId: string; briefDelivery: SideChatOperationResult }>;
+    brief: SideChatDelegationBrief | null,
+  ) => Promise<{ sessionId: string; briefDelivery: SideChatOperationResult | null }>;
   listSessionIds: (parentSessionId: string) => Promise<string[]>;
   read: (sessionId: string) => Promise<DaemonSideChatRecord>;
   stopProvider: (sessionId: string) => Promise<SideChatOperationResult>;
@@ -35,6 +35,11 @@ function phase(
   message?: string,
 ): SideChatPhaseReceipt {
   return { phase: name, status, ...(message ? { message } : {}) };
+}
+
+function briefDeliveryPhase(result: SideChatOperationResult | null): SideChatPhaseReceipt {
+  if (result === null) return phase('deliver-brief', 'skipped');
+  return phase('deliver-brief', result.success ? 'succeeded' : 'failed', result.message);
 }
 
 function failedSingle(
@@ -76,7 +81,7 @@ export class DaemonSideChatLifecycle {
 
   private async create(
     parentSessionId: string,
-    brief: SideChatDelegationBrief,
+    brief: SideChatDelegationBrief | null,
   ): Promise<SideChatSingleReceipt> {
     let created: Awaited<ReturnType<DaemonSideChatLifecycleDependencies['create']>>;
     try {
@@ -99,11 +104,7 @@ export class DaemonSideChatLifecycle {
         child: null,
         phases: [
           phase('resolve', 'succeeded'),
-          phase(
-            'deliver-brief',
-            created.briefDelivery.success ? 'succeeded' : 'failed',
-            created.briefDelivery.message,
-          ),
+          briefDeliveryPhase(created.briefDelivery),
           phase('readback', 'failed', error instanceof Error ? error.message : String(error)),
         ],
       };
@@ -115,17 +116,13 @@ export class DaemonSideChatLifecycle {
       schemaVersion: 1,
       type: 'side-chat',
       action: 'create',
-      success: lineageMatches && childIsRunning && created.briefDelivery.success,
+      success: lineageMatches && childIsRunning && (created.briefDelivery?.success ?? true),
       parentSessionId,
       sessionId: child.sessionId,
       child,
       phases: [
         phase('resolve', 'succeeded'),
-        phase(
-          'deliver-brief',
-          created.briefDelivery.success ? 'succeeded' : 'failed',
-          created.briefDelivery.message,
-        ),
+        briefDeliveryPhase(created.briefDelivery),
         phase(
           'readback',
           lineageMatches && childIsRunning ? 'succeeded' : 'failed',

@@ -1444,11 +1444,11 @@ export async function startDaemon(): Promise<void> {
     };
     type LocalSideChatCreation = {
       sessionId: string;
-      briefDelivery: SideChatOperationResult;
+      briefDelivery: SideChatOperationResult | null;
     };
     let createLocalSideChat = async (
       _parentSessionId: string,
-      _brief: SideChatDelegationBrief,
+      _brief: SideChatDelegationBrief | null,
     ): Promise<LocalSideChatCreation> => {
       throw new Error('HappyHerd daemon is still starting; retry side-chat creation.');
     };
@@ -1576,7 +1576,7 @@ export async function startDaemon(): Promise<void> {
     };
 
     const inFlightLocalSideChats = new Map<string, {
-      brief: SideChatDelegationBrief;
+      brief: SideChatDelegationBrief | null;
       creation: Promise<LocalSideChatCreation>;
     }>();
     createLocalSideChat = async (parentSessionId, brief) => {
@@ -1591,7 +1591,10 @@ export async function startDaemon(): Promise<void> {
 
       const existing = inFlightLocalSideChats.get(parent.id);
       if (existing) {
-        if (!sameSideChatDelegationBrief(existing.brief, brief)) {
+        const briefMatches = existing.brief === null || brief === null
+          ? existing.brief === brief
+          : sameSideChatDelegationBrief(existing.brief, brief);
+        if (!briefMatches) {
           throw new Error(`Side-chat creation for parent ${parent.id} is already carrying a different delegation brief.`);
         }
         return existing.creation;
@@ -1619,6 +1622,9 @@ export async function startDaemon(): Promise<void> {
           },
           createMachineSession: async ({ machine: _target, ...options }) => spawnSession(options),
         });
+        if (brief === null) {
+          return { ...created, briefDelivery: null };
+        }
         try {
           await api.postSideChatBrief(localSessionFromPersistence(created.sessionId), {
             localId: randomUUID(),

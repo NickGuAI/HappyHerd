@@ -280,9 +280,11 @@ export class ApiMachineClient {
         if (sideChat) {
             this.rpcHandlerManager.registerHandler('happyherd-side-chat-create', async (params: any) => {
                 const parentSessionId = requireNonEmptyString(params?.parentSessionId, 'parentSessionId');
-                const brief = normalizeSideChatDelegationBrief(
-                    (params?.brief ?? {}) as Partial<Record<keyof SideChatDelegationBrief, string>>,
-                );
+                const brief = params?.brief === undefined || params.brief === null
+                    ? null
+                    : normalizeSideChatDelegationBrief(
+                        params.brief as Partial<Record<keyof SideChatDelegationBrief, string>>,
+                    );
                 return sideChat({ action: 'create', parentSessionId, brief });
             });
         }

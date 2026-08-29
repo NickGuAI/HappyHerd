@@ -236,15 +236,6 @@ export type SpawnSessionResult =
     | { type: 'requestToApproveDirectoryCreation'; directory: string }
     | { type: 'error'; errorMessage: string };
 
-export type SideChatDelegationBrief = Readonly<{
-    outcome: string;
-    scope: string;
-    dependencies: string;
-    writeOwnership: string;
-    verification: string;
-    handoff: string;
-}>;
-
 export type SideChatCreateReceipt = {
     schemaVersion: 1;
     type: 'side-chat';
@@ -444,16 +435,14 @@ export async function machineListCommanders(machineId: string): Promise<HappyHer
     );
 }
 
-/** Create a durable child through the daemon's brief-validating lifecycle. */
+/** Create an empty durable child for the Human through the dedicated daemon lifecycle. */
 export async function machineCreateSideChat(
     machineId: string,
     parentSessionId: string,
-    brief: SideChatDelegationBrief,
 ): Promise<SideChatCreateReceipt> {
     const receipt = await apiSocket.machineRPC<SideChatCreateReceipt, {
         parentSessionId: string;
-        brief: SideChatDelegationBrief;
-    }>(machineId, 'happyherd-side-chat-create', { parentSessionId, brief });
+    }>(machineId, 'happyherd-side-chat-create', { parentSessionId });
     if (receipt.success && receipt.sessionId) {
         // The receipt is authoritative. A websocket hydration failure must not
         // turn an already-created child into a false creation failure.

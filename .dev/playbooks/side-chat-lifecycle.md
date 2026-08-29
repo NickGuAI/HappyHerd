@@ -6,11 +6,14 @@ resumable child conversation with stable parent lineage. The Orchestrating
 Agent explicitly creates each delegated task, owns its direct children, and
 integrates their handoffs.
 
-The Human creates a delegated Worker Agent from the app's New side chat form.
-The Main Agent uses the CLI command below. Both collect the same six-field
-brief and call the daemon-owned lifecycle. The app also discovers, renders,
-switches, resumes, and closes exact-parent children. Generic
-`spawn-happy-session` still rejects `isSideChat` before launch.
+The Human creates a side chat from the app's New side chat action with one
+click and no fields. The app sends only `parentSessionId` through the dedicated
+`happyherd-side-chat-create` machine RPC, creates an empty durable child,
+focuses and opens it, and exposes its normal composer. The Main Agent uses the
+CLI command below and supplies the complete six-field brief. Both enter the
+same daemon-owned lifecycle. The app also discovers, renders, switches,
+resumes, and closes exact-parent children. Generic `spawn-happy-session` still
+rejects `isSideChat` before launch.
 
 For Main Agent creation, run the HappyHerd command on the machine that owns the
 parent session and supply every bounded brief field:
@@ -26,11 +29,14 @@ happyherd session side-chat create <parent-session-id> \
   --json
 ```
 
-The daemon forks the parent provider state, creates a child session on the same
-machine and path, and persists the rendered brief as the child's first
-encrypted queued user message. The Worker Agent executes that brief directly,
-does not manage its own side-chat lifecycle, and does not create another side
-chat unless the Human or Main Agent explicitly requests it. Provider-native
+The daemon forks the parent provider state and creates a child session on the
+same machine and path. Human creation omits the brief, records
+`deliver-brief` as skipped, and leaves the child empty for the Human's first
+message through the normal composer. Main Agent creation validates all six
+non-empty fields and persists the rendered brief as the child's first encrypted
+queued user message. The Worker Agent executes that brief directly, does not
+manage its own side-chat lifecycle, and does not create another side chat
+unless the Human or Main Agent explicitly requests it. Provider-native
 subagents remain the default bounded fan-out inside the child.
 
 Use the same command surface for lifecycle operations:
@@ -50,9 +56,10 @@ happyherd session side-chat close <parent-session-id> --all --json
 These actions reuse the owning daemon's normal local credentials; they do not
 require account-machine linking or a QR flow. Every receipt has
 `schemaVersion: 1`, `success`, and exact per-phase state. Creation includes a
-`deliver-brief` phase. If delivery fails after the child is created, the failed
-receipt retains the child and parent IDs so the Orchestrating Agent can inspect
-or close the exact conversation.
+`deliver-brief` phase. It is `skipped` for Human one-click creation. If CLI
+brief delivery fails after the child is created, the failed receipt retains
+`parentSessionId`, `sessionId`, and the failed `deliver-brief` phase so the
+Orchestrating Agent can inspect or close the exact conversation.
 
 `inspect`, `pause`, and `resume` are aliases for `status`, `stop`, and
 `reopen`; lifecycle receipts keep the canonical action names.

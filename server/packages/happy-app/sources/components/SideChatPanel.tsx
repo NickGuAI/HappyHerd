@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ActivityIndicator, View, Text, TextInput, Pressable, Platform, ScrollView, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, View, Text, Pressable, Platform, ScrollView, useWindowDimensions } from 'react-native';
 import { Octicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,19 +11,15 @@ import { Modal } from '@/modal';
 import type { Session } from '@/sync/storageTypes';
 import { SessionViewLoaded } from '@/-session/SessionView';
 import { resolveActiveSideChatId } from './sideChatPresentation';
-import type { SideChatDelegationBrief } from '@/sync/ops';
 
 export type SideChatPanelProps = {
     sideChats: Session[];
     activeSideChatId: string | null;
     onSelectSideChat: (id: string) => void;
     onCloseSideChat: (id: string) => void;
-    createOpen: boolean;
-    creating: boolean;
-    canCreate: boolean;
-    onStartCreate: () => void;
-    onCancelCreate: () => void;
-    onCreate: (brief: SideChatDelegationBrief) => Promise<boolean>;
+    creatingSideChat: boolean;
+    canCreateSideChat: boolean;
+    onCreateSideChat: () => Promise<boolean>;
 };
 
 export const SideChatAccessButton = React.memo(function SideChatAccessButton({
@@ -68,13 +64,11 @@ export const SideChatAccessButton = React.memo(function SideChatAccessButton({
 /**
  * Right-sidebar "side chat" panel (controlled).
  *
- * A side chat is a forked child session with stable parent lineage. It inherits
- * the parent's provider context, receives its bounded brief as the first queued
- * message, and is flagged `metadata.isSideChat` so it stays out of top-level lists.
+ * A side chat is a forked child session with stable parent lineage. Human
+ * creation opens an empty conversation in one click; Main Agent CLI creation
+ * may seed the child with a structured brief. Both stay out of top-level lists.
  *
- * A parent can have several side chats, shown here as switchable tabs. Human
- * creation collects the same bounded brief as the Main Agent CLI and submits
- * it through the daemon-owned lifecycle.
+ * A parent can have several side chats, shown here as switchable tabs.
  *
  * The chat body is the exact same `SessionViewLoaded` used by the main screen
  * (rendered `embedded`), so tools, MCP, options, permission/model pickers and
@@ -85,12 +79,9 @@ export const SideChatPanel = React.memo(function SideChatPanel({
     activeSideChatId,
     onSelectSideChat,
     onCloseSideChat,
-    createOpen,
-    creating,
-    canCreate,
-    onStartCreate,
-    onCancelCreate,
-    onCreate,
+    creatingSideChat,
+    canCreateSideChat,
+    onCreateSideChat,
 }: SideChatPanelProps) {
     const { theme } = useUnistyles();
     const activeSession = React.useMemo(() => {
@@ -109,17 +100,6 @@ export const SideChatPanel = React.memo(function SideChatPanel({
         }
     }, [activeId]);
 
-    if (createOpen) {
-        return (
-            <SideChatCreateForm
-                creating={creating}
-                canCreate={canCreate}
-                onCancel={onCancelCreate}
-                onCreate={onCreate}
-            />
-        );
-    }
-
     if (sideChats.length === 0) {
         return (
             <View style={styles.emptyState}>
@@ -127,17 +107,26 @@ export const SideChatPanel = React.memo(function SideChatPanel({
                 <Text style={styles.emptyTitle}>{t('sideChat.emptyTitle')}</Text>
                 <Text style={styles.emptyDescription}>{t('sideChat.emptyDescription')}</Text>
                 <Pressable
-                    onPress={onStartCreate}
+                    onPress={() => void onCreateSideChat()}
+                    disabled={creatingSideChat || !canCreateSideChat}
                     accessibilityRole="button"
                     accessibilityLabel={t('sideChat.newChat')}
                     style={({ pressed, hovered }: any) => [
                         styles.primaryButton,
                         (pressed || hovered) && { opacity: 0.82 },
+                        (creatingSideChat || !canCreateSideChat) && styles.buttonDisabled,
                     ]}
                 >
-                    <Octicons name="plus" size={14} color={theme.colors.button.primary.tint} />
-                    <Text style={styles.primaryButtonText}>{t('sideChat.newChat')}</Text>
+                    {creatingSideChat
+                        ? <ActivityIndicator size="small" color={theme.colors.button.primary.tint} />
+                        : <Octicons name="plus" size={14} color={theme.colors.button.primary.tint} />}
+                    <Text style={styles.primaryButtonText}>
+                        {creatingSideChat ? t('sideChat.creating') : t('sideChat.newChat')}
+                    </Text>
                 </Pressable>
+                {!canCreateSideChat && (
+                    <Text style={styles.unavailableText}>{t('sideChat.unavailable')}</Text>
+                )}
             </View>
         );
     }
@@ -149,138 +138,13 @@ export const SideChatPanel = React.memo(function SideChatPanel({
                 activeId={activeId}
                 onSelect={onSelectSideChat}
                 onClose={onCloseSideChat}
-                onNew={onStartCreate}
+                onNew={() => void onCreateSideChat()}
+                creating={creatingSideChat}
+                canCreate={canCreateSideChat}
             />
             {activeSession && (
                 <SideChatConversation key={activeSession.id} session={activeSession} />
             )}
-        </View>
-    );
-});
-
-const SIDE_CHAT_BRIEF_FIELDS = [
-    'outcome',
-    'scope',
-    'dependencies',
-    'writeOwnership',
-    'verification',
-    'handoff',
-] as const satisfies ReadonlyArray<keyof SideChatDelegationBrief>;
-
-function sideChatBriefFieldLabel(field: keyof SideChatDelegationBrief): string {
-    switch (field) {
-        case 'outcome': return t('sideChat.fields.outcome');
-        case 'scope': return t('sideChat.fields.scope');
-        case 'dependencies': return t('sideChat.fields.dependencies');
-        case 'writeOwnership': return t('sideChat.fields.writeOwnership');
-        case 'verification': return t('sideChat.fields.verification');
-        case 'handoff': return t('sideChat.fields.handoff');
-    }
-}
-
-function sideChatBriefFieldPlaceholder(field: keyof SideChatDelegationBrief): string {
-    switch (field) {
-        case 'outcome': return t('sideChat.placeholders.outcome');
-        case 'scope': return t('sideChat.placeholders.scope');
-        case 'dependencies': return t('sideChat.placeholders.dependencies');
-        case 'writeOwnership': return t('sideChat.placeholders.writeOwnership');
-        case 'verification': return t('sideChat.placeholders.verification');
-        case 'handoff': return t('sideChat.placeholders.handoff');
-    }
-}
-
-const SideChatCreateForm = React.memo(function SideChatCreateForm({
-    creating,
-    canCreate,
-    onCancel,
-    onCreate,
-}: {
-    creating: boolean;
-    canCreate: boolean;
-    onCancel: () => void;
-    onCreate: (brief: SideChatDelegationBrief) => Promise<boolean>;
-}) {
-    const { theme } = useUnistyles();
-    const [brief, setBrief] = React.useState<Record<keyof SideChatDelegationBrief, string>>({
-        outcome: '',
-        scope: '',
-        dependencies: '',
-        writeOwnership: '',
-        verification: '',
-        handoff: '',
-    });
-    const complete = SIDE_CHAT_BRIEF_FIELDS.every((field) => brief[field].trim().length > 0);
-    const submit = React.useCallback(async () => {
-        if (!complete || !canCreate || creating) return;
-        await onCreate({
-            outcome: brief.outcome.trim(),
-            scope: brief.scope.trim(),
-            dependencies: brief.dependencies.trim(),
-            writeOwnership: brief.writeOwnership.trim(),
-            verification: brief.verification.trim(),
-            handoff: brief.handoff.trim(),
-        });
-    }, [brief, canCreate, complete, creating, onCreate]);
-
-    return (
-        <View style={styles.createForm}>
-            <View style={styles.createHeader}>
-                <View style={styles.createHeading}>
-                    <Text style={styles.createTitle}>{t('sideChat.createTitle')}</Text>
-                    <Text style={styles.createDescription}>{t('sideChat.createDescription')}</Text>
-                </View>
-                <Pressable
-                    onPress={onCancel}
-                    accessibilityLabel={t('common.cancel')}
-                    hitSlop={8}
-                    style={styles.toolbarButton}
-                >
-                    <Octicons name="x" size={16} color={theme.colors.textSecondary} />
-                </Pressable>
-            </View>
-            <ScrollView style={styles.formScroll} contentContainerStyle={styles.formContent}>
-                {SIDE_CHAT_BRIEF_FIELDS.map((field) => (
-                    <View key={field} style={styles.field}>
-                        <Text style={styles.fieldLabel}>{sideChatBriefFieldLabel(field)}</Text>
-                        <TextInput
-                            value={brief[field]}
-                            onChangeText={(value) => setBrief((current) => ({ ...current, [field]: value }))}
-                            placeholder={sideChatBriefFieldPlaceholder(field)}
-                            placeholderTextColor={theme.colors.input.placeholder}
-                            multiline
-                            editable={!creating}
-                            style={styles.fieldInput}
-                        />
-                    </View>
-                ))}
-                {!canCreate && (
-                    <Text style={styles.unavailableText}>{t('sideChat.unavailable')}</Text>
-                )}
-                <View style={styles.formActions}>
-                    <Pressable
-                        onPress={onCancel}
-                        disabled={creating}
-                        style={styles.secondaryButton}
-                    >
-                        <Text style={styles.secondaryButtonText}>{t('common.cancel')}</Text>
-                    </Pressable>
-                    <Pressable
-                        onPress={submit}
-                        disabled={!complete || !canCreate || creating}
-                        accessibilityRole="button"
-                        accessibilityLabel={t('sideChat.create')}
-                        style={[
-                            styles.primaryButton,
-                            (!complete || !canCreate || creating) && styles.buttonDisabled,
-                        ]}
-                    >
-                        {creating && <ActivityIndicator size="small" color={theme.colors.button.primary.tint} />}
-                        <Text style={styles.primaryButtonText}>
-                            {creating ? t('sideChat.creating') : t('sideChat.create')}
-                        </Text>
-                    </Pressable>
-                </View>
-            </ScrollView>
         </View>
     );
 });
@@ -334,19 +198,23 @@ function sideChatLabel(session: Session, index: number): string {
     return t('sideChat.tabLabel', { index: index + 1 });
 }
 
-/** Horizontal tab strip for already-briefed side chats. */
+/** Horizontal tab strip for existing side chats. */
 const SideChatTabs = React.memo(function SideChatTabs({
     sessions,
     activeId,
     onSelect,
     onClose,
     onNew,
+    creating,
+    canCreate,
 }: {
     sessions: Session[];
     activeId: string | null;
     onSelect: (id: string) => void;
     onClose: (id: string) => void;
     onNew: () => void;
+    creating: boolean;
+    canCreate: boolean;
 }) {
     const { theme } = useUnistyles();
     return (
@@ -367,13 +235,21 @@ const SideChatTabs = React.memo(function SideChatTabs({
                 ))}
                 <Pressable
                     onPress={onNew}
+                    disabled={creating || !canCreate}
                     accessibilityRole="button"
                     accessibilityLabel={t('sideChat.newChat')}
                     hitSlop={6}
-                    style={styles.newTabButton}
+                    style={[
+                        styles.newTabButton,
+                        (creating || !canCreate) && styles.buttonDisabled,
+                    ]}
                 >
-                    <Octicons name="plus" size={13} color={theme.colors.textSecondary} />
-                    <Text style={styles.newTabText}>{t('sideChat.newChat')}</Text>
+                    {creating
+                        ? <ActivityIndicator size="small" color={theme.colors.textSecondary} />
+                        : <Octicons name="plus" size={13} color={theme.colors.textSecondary} />}
+                    <Text style={styles.newTabText}>
+                        {creating ? t('sideChat.creating') : t('sideChat.newChat')}
+                    </Text>
                 </Pressable>
             </ScrollView>
         </View>
@@ -663,76 +539,11 @@ const styles = StyleSheet.create((theme) => ({
         textAlign: 'center',
         ...Typography.default(),
     },
-    createForm: {
-        flex: 1,
-    },
-    createHeader: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 8,
-        paddingHorizontal: 12,
-        paddingTop: 8,
-        paddingBottom: 10,
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: theme.colors.divider,
-    },
-    createHeading: {
-        flex: 1,
-        gap: 3,
-    },
-    createTitle: {
-        color: theme.colors.text,
-        fontSize: 15,
-        ...Typography.default('semiBold'),
-    },
-    createDescription: {
-        color: theme.colors.textSecondary,
-        fontSize: 12,
-        lineHeight: 17,
-        ...Typography.default(),
-    },
-    formScroll: {
-        flex: 1,
-    },
-    formContent: {
-        padding: 12,
-        gap: 12,
-    },
-    field: {
-        gap: 5,
-    },
-    fieldLabel: {
-        color: theme.colors.text,
-        fontSize: 12,
-        ...Typography.default('semiBold'),
-    },
-    fieldInput: {
-        minHeight: 58,
-        maxHeight: 104,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: theme.colors.divider,
-        borderRadius: 8,
-        paddingHorizontal: 10,
-        paddingVertical: 8,
-        color: theme.colors.text,
-        backgroundColor: theme.colors.surface,
-        fontSize: 13,
-        lineHeight: 18,
-        textAlignVertical: 'top',
-        ...Typography.default(),
-    },
     unavailableText: {
         color: theme.colors.textSecondary,
         fontSize: 12,
         lineHeight: 17,
         ...Typography.default(),
-    },
-    formActions: {
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        alignItems: 'center',
-        gap: 8,
-        paddingTop: 4,
     },
     primaryButton: {
         minHeight: 36,
@@ -746,19 +557,6 @@ const styles = StyleSheet.create((theme) => ({
     },
     primaryButtonText: {
         color: theme.colors.button.primary.tint,
-        fontSize: 13,
-        ...Typography.default('semiBold'),
-    },
-    secondaryButton: {
-        minHeight: 36,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 14,
-        borderRadius: 9,
-        backgroundColor: theme.colors.surface,
-    },
-    secondaryButtonText: {
-        color: theme.colors.text,
         fontSize: 13,
         ...Typography.default('semiBold'),
     },
