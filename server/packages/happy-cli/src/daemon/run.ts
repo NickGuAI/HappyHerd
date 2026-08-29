@@ -3,7 +3,11 @@ import os from 'os';
 import * as tmp from 'tmp';
 import { randomUUID } from 'node:crypto';
 import {
+  GrokPermissionModeTransitionReceiptSchema,
+  HappyHerdMachineSessionSettingsSchema,
   HappyHerdAutomationProviderOutcomeSchema,
+  type GrokPermissionModeTransitionReceipt,
+  type GrokPermissionModeTransitionRequest,
   type HappyHerdAutomationProviderOutcome,
   type HappyHerdAutomationRun,
 } from '@slopus/happy-wire';
@@ -363,7 +367,10 @@ export async function startDaemon(): Promise<void> {
     };
 
     // Session spawning awaiter system
-    const pidToAwaiter = new Map<number, (session: TrackedSession) => void>();
+    // A reconnecting provider can report its existing Happy session before
+    // the resumed backend has accepted a new launch receipt. Returning false
+    // keeps the awaiter installed for the provider-ready webhook.
+    const pidToAwaiter = new Map<number, (session: TrackedSession) => boolean>();
     const pidToPreWebhookExitAwaiter = new Map<number, () => void>();
 
     // Helper functions
@@ -414,9 +421,12 @@ export async function startDaemon(): Promise<void> {
         // Resolve any awaiter for this PID
         const awaiter = existingSession.startedBy === 'daemon' ? pidToAwaiter.get(pid) : undefined;
         if (awaiter) {
-          pidToAwaiter.delete(pid);
-          awaiter(existingSession);
-          logger.debug(`[DAEMON RUN] Resolved session awaiter for PID ${pid}`);
+          if (awaiter(existingSession)) {
+            pidToAwaiter.delete(pid);
+            logger.debug(`[DAEMON RUN] Resolved session awaiter for PID ${pid}`);
+          } else {
+            logger.debug(`[DAEMON RUN] Session PID ${pid} registered before its target launch receipt was ready`);
+          }
         }
       } else if (!existingSession) {
         // New session started externally
@@ -739,13 +749,14 @@ export async function startDaemon(): Promise<void> {
                     type: 'error',
                     errorMessage: `Session ${completedSession.happySessionId} did not persist the target daemon's effective settings`,
                   });
-                  return;
+                  return true;
                 }
                 resolve({
                   type: 'success',
                   sessionId: completedSession.happySessionId!,
                   ...(options.effectiveSettings ? { settings: options.effectiveSettings } : {}),
                 });
+                return true;
               });
             });
           } else {
@@ -820,6 +831,7 @@ export async function startDaemon(): Promise<void> {
       message,
       automation,
       settings,
+      deferSettingsReceipt = false,
     }: {
       args: string[];
       cwd: string;
@@ -828,6 +840,7 @@ export async function startDaemon(): Promise<void> {
       message?: string;
       automation?: { id: string; runId: string };
       settings?: HappyHerdMachineSessionSettings;
+      deferSettingsReceipt?: boolean;
     }): Promise<SpawnSessionResult> => {
       const happyProcess = spawnHappyCLI(args, {
         cwd,
@@ -905,21 +918,25 @@ export async function startDaemon(): Promise<void> {
         }
 
         pidToAwaiter.set(happyProcess.pid!, (completedSession) => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timeout);
-          pidToPreWebhookExitAwaiter.delete(happyProcess.pid!);
+          if (settled) return true;
           logger.debug(`[DAEMON RUN] Session ${completedSession.happySessionId} fully spawned with webhook`);
           if (!persistedMachineSessionSettingsMatch(
             completedSession.happySessionMetadataFromLocalWebhook,
             settings,
           )) {
+            if (deferSettingsReceipt) return false;
+            settled = true;
+            clearTimeout(timeout);
+            pidToPreWebhookExitAwaiter.delete(happyProcess.pid!);
             resolve({
               type: 'error',
               errorMessage: `Session ${completedSession.happySessionId} did not persist the target daemon's effective settings`,
             });
-            return;
+            return true;
           }
+          settled = true;
+          clearTimeout(timeout);
+          pidToPreWebhookExitAwaiter.delete(happyProcess.pid!);
           resolve({
             type: 'success',
             sessionId: completedSession.happySessionId!,
@@ -932,6 +949,7 @@ export async function startDaemon(): Promise<void> {
               });
             }, 0).unref?.();
           }
+          return true;
         });
       });
     };
@@ -1055,12 +1073,19 @@ export async function startDaemon(): Promise<void> {
       }
     }
 
-    const resumeSession = async (happySessionId: string, options?: {
+    type DaemonResumeSessionOptions = {
       model?: string;
       permissionMode?: string;
       agentRuntimeContext?: unknown;
       replayQueueMessageId?: string;
-    }): Promise<SpawnSessionResult> => {
+      /** Daemon-only receipt selected by the Grok permission transition RPC. */
+      grokPermissionTransitionSettings?: HappyHerdMachineSessionSettings;
+    };
+
+    const resumeSession = async (
+      happySessionId: string,
+      options?: DaemonResumeSessionOptions,
+    ): Promise<SpawnSessionResult> => {
       try {
         const liveSession = [...pidToTrackedSession.values()].find((session) => session.happySessionId === happySessionId);
         if (liveSession) {
@@ -1114,7 +1139,8 @@ export async function startDaemon(): Promise<void> {
           ? persistedProviderPermissionMode(metadata, 'grok')
           : undefined;
         const grokResumeSettings = resumeAgent === 'grok'
-          ? resolveEffectiveSessionSettings(machine.metadata, machine.id, {
+          ? options?.grokPermissionTransitionSettings
+            ?? resolveEffectiveSessionSettings(machine.metadata, machine.id, {
               provider: 'grok',
               // The original session receipt is authoritative. A resume RPC
               // may repeat this value, but it cannot replace or weaken it.
@@ -1138,13 +1164,14 @@ export async function startDaemon(): Promise<void> {
         const resumedContextBundle = await prepareCommanderContext(metadata.commanderId, launch.cwd);
         const agentRuntimeEnvironment = happyHerdAgentSessionRuntimeEnvironment(options?.agentRuntimeContext);
 
-        return spawnTrackedHappyProcess({
+        const resumed = await spawnTrackedHappyProcess({
           args: launch.args,
           cwd: launch.cwd,
           env: buildSessionChildEnvironment(ambientEnvironment, {
             ...contextEnvironment(resumedContextBundle),
             ...agentRuntimeEnvironment,
             ...(codexHome ? { CODEX_HOME: codexHome } : {}),
+            ...machineSessionSettingsEnvironment(grokResumeSettings),
             HAPPY_RECONNECT_SESSION_ID: resolvedSessionId,
             HAPPY_RECONNECT_ENCRYPTION_KEY: encodeBase64(tracked.encryption.encryptionKey),
             HAPPY_RECONNECT_ENCRYPTION_VARIANT: tracked.encryption.encryptionVariant,
@@ -1155,7 +1182,13 @@ export async function startDaemon(): Promise<void> {
               ? { HAPPY_RECONNECT_QUEUE_MESSAGE_ID: options.replayQueueMessageId }
               : {}),
           }),
+          settings: grokResumeSettings,
+          deferSettingsReceipt: resumeAgent === 'grok',
         });
+        if (resumed.type === 'success' && !options?.grokPermissionTransitionSettings) {
+          return { type: 'success', sessionId: resumed.sessionId };
+        }
+        return resumed;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : (error && typeof error === 'object' ? JSON.stringify(error) : String(error));
         logger.debug(`[DAEMON RUN] Failed to resume session: ${errorMessage}`, error instanceof Error ? error.stack : undefined);
@@ -1228,6 +1261,95 @@ export async function startDaemon(): Promise<void> {
 
       logger.debug(`[DAEMON RUN] Session ${sessionId} not found`);
       return false;
+    };
+
+    const waitForProviderExit = async (pid: number, timeoutMs = 12_000): Promise<void> => {
+      const deadline = Date.now() + timeoutMs;
+      while (!hasProviderProcessExited(pid)) {
+        if (Date.now() >= deadline) {
+          throw new Error(`Timed out waiting for Grok provider process ${pid} to exit`);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    };
+
+    const changeGrokPermissionMode = async (
+      request: GrokPermissionModeTransitionRequest,
+    ): Promise<GrokPermissionModeTransitionReceipt> => {
+      const live = [...pidToTrackedSession.values()].find((candidate) => (
+        candidate.happySessionId === request.sessionId
+        && !hasProviderProcessExited(candidate.pid)
+      ));
+      if (!live?.happySessionMetadataFromLocalWebhook || !live.encryption) {
+        throw new Error(`Grok session ${request.sessionId} is not running on this daemon`);
+      }
+
+      const metadata = live.happySessionMetadataFromLocalWebhook;
+      if (metadata.machineId !== machineId) {
+        throw new Error(`Session ${request.sessionId} belongs to machine ${metadata.machineId ?? 'unknown'}, not ${machineId}`);
+      }
+      if (metadata.flavor !== 'grok') {
+        throw new Error(`Session ${request.sessionId} is not a Grok session`);
+      }
+      if (!metadata.acpSessionId) {
+        throw new Error(`Grok session ${request.sessionId} is missing its provider resume identity`);
+      }
+
+      const validated = resolveEffectiveSessionSettings(machine.metadata, machine.id, {
+        provider: 'grok',
+        permission: request.permissionMode,
+      });
+      if (!validated.permission) {
+        throw new Error(`Grok permission mode ${request.permissionMode} is unavailable on machine ${machine.id}`);
+      }
+
+      // Permission is the only changing launch dimension. Retain the prior
+      // daemon receipt for model/effort so restarting the process cannot turn
+      // a permission pick into a broader agent-settings reset.
+      const previous = HappyHerdMachineSessionSettingsSchema.safeParse(metadata.spawnSettings);
+      const nextSettings = HappyHerdMachineSessionSettingsSchema.parse({
+        provider: 'grok',
+        model: previous.success && previous.data.provider === 'grok' ? previous.data.model : null,
+        effort: previous.success && previous.data.provider === 'grok' ? previous.data.effort : null,
+        permission: validated.permission,
+      });
+
+      if (persistedProviderPermissionMode(metadata, 'grok') === nextSettings.permission) {
+        return GrokPermissionModeTransitionReceiptSchema.parse({
+          type: 'success',
+          sessionId: request.sessionId,
+          permissionMode: nextSettings.permission,
+        });
+      }
+
+      if (!stopSession(request.sessionId)) {
+        throw new Error(`Could not stop Grok session ${request.sessionId}`);
+      }
+      await waitForProviderExit(live.pid);
+      await onChildExited(live.pid);
+
+      const resumed = await resumeSession(request.sessionId, {
+        grokPermissionTransitionSettings: nextSettings,
+      });
+      if (resumed.type !== 'success') {
+        throw new Error(
+          resumed.type === 'error'
+            ? resumed.errorMessage
+            : `Grok permission transition unexpectedly requested directory creation for ${resumed.directory}`,
+        );
+      }
+      if (resumed.sessionId !== request.sessionId) {
+        throw new Error(`Grok permission transition resumed unexpected session ${resumed.sessionId}`);
+      }
+      if (JSON.stringify(resumed.settings) !== JSON.stringify(nextSettings)) {
+        throw new Error(`Grok session ${request.sessionId} did not confirm the requested permission launch receipt`);
+      }
+
+      return GrokPermissionModeTransitionReceiptSchema.parse({
+        type: 'success',
+        sessionId: resumed.sessionId,
+        permissionMode: nextSettings.permission,
+      });
     };
 
     const loadHeartbeatTarget = async (happySessionId: string) => {
@@ -1346,6 +1468,7 @@ export async function startDaemon(): Promise<void> {
       spawnSession,
       resumeSession,
       stopSession,
+      changeGrokPermissionMode,
       requestShutdown: () => requestShutdown('happy-app'),
       automations,
     });

@@ -390,7 +390,8 @@
     "searchFailed": "Die Suche ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
     "failedToSendRequest": "Freundschaftsanfrage konnte nicht gesendet werden",
     "sessionNotFinishedSyncing": "Die Nachricht wurde nicht gesendet: Diese Sitzung ist noch nicht vollständig synchronisiert. Bitte versuchen Sie es erneut.",
-    "unsupportedPermissionMode": "Die Happy CLI dieser Sitzung ({cliVersion}) unterstützt den Berechtigungsmodus \"{mode}\" nicht. Wählen Sie einen anderen Modus oder aktualisieren Sie Happy CLI."
+    "unsupportedPermissionMode": "Die Happy CLI dieser Sitzung ({cliVersion}) unterstützt den Berechtigungsmodus \"{mode}\" nicht. Wählen Sie einen anderen Modus oder aktualisieren Sie Happy CLI.",
+    "grokPermissionModeChangeFailed": "Grok-Berechtigungsmodus konnte nicht geändert werden"
   },
   "newSession": {
     "title": "Neue Sitzung starten",

@@ -8,6 +8,7 @@ HappyHerd brings in the approved upstream project and conversation improvements 
 
 - Home can switch between the existing flat inbox and Group by Project, with encrypted project details, project avatars, live Git changes, and archive gestures.
 - Provider-native permission choices, remembered grants, configured Claude models, Opus 5, and Happy Agent workspaces now flow through their owning runtimes while HappyHerd keeps its existing launch defaults.
+- Switch Grok permission modes during active sessions without losing your conversation history, path, or queued messages.
 - The composer retains one attachment menu, queued follow-ups, Workspace context, and response images while adding steadier scroll anchoring, compact Git and usage details, and clearer tool-group expansion.
 - Voice calls show a live duration and end when the call pill is tapped; the Features switch remains authoritative, calls stay on the configured HappyHerd server, and no upgrade prompt is shown.
 - Settings, empty states, recovery actions, subprocess behavior, and local source installs include the approved upstream fixes while the Features page and configurable session status bar remain available.

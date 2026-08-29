@@ -47,6 +47,7 @@ const SUPPORTED_RPC_METRIC_METHODS = new Set([
     'difftastic',
     'getDirectoryTree',
     'goal-action',
+    'grok-permission-mode-transition',
     'happyherd-automations-create',
     'happyherd-automations-delete',
     'happyherd-automations-history',

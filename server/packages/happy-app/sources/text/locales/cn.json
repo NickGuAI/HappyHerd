@@ -320,7 +320,8 @@
     "searchFailed": "搜索失败。请重试。",
     "failedToSendRequest": "发送好友请求失败",
     "sessionNotFinishedSyncing": "消息未发送：此会话尚未完成同步。请重试。",
-    "unsupportedPermissionMode": "此会话的 Happy CLI（{cliVersion}）不支持权限模式“{mode}”。请选择其他模式或升级 Happy CLI。"
+    "unsupportedPermissionMode": "此会话的 Happy CLI（{cliVersion}）不支持权限模式“{mode}”。请选择其他模式或升级 Happy CLI。",
+    "grokPermissionModeChangeFailed": "无法更改 Grok 权限模式"
   },
   "newSession": {
     "title": "开始新会话",

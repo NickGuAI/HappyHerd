@@ -109,6 +109,7 @@ import {
 } from '@/sync/workspaceContext';
 import { buildWorkspaceAttachmentParams } from '@/utils/machineWorkspace';
 import { projectSessionQueue } from '@/sync/queueProjection';
+import { transitionGrokPermissionModeAndCommit } from '@/sync/grokPermissionModeTransition';
 import { WorkspaceLinkSidePanel } from '@/components/WorkspaceLinkSidePanel';
 import {
     resolveActiveWorkspaceLinkPresentation,
@@ -1153,10 +1154,32 @@ export function SessionViewLoaded({
         }
     }, [machineId, cliVersion, acknowledgedCliVersions]);
 
-    // Function to update permission mode
+    const grokPermissionTransitionInFlight = React.useRef(false);
+
+    // Runtime-selectable providers update metadata directly. Grok's mode is a
+    // process launch policy, so its exact daemon must restart/resume first and
+    // return the receipt that authorizes the visible composer update.
     const updatePermissionMode = React.useCallback((mode: PermissionMode) => {
-        sessionSetAgentModes(sessionId, { permissionMode: mode.key });
-    }, [sessionId]);
+        if (!isGrok) {
+            sessionSetAgentModes(sessionId, { permissionMode: mode.key });
+            return;
+        }
+        if (!machineId || grokPermissionTransitionInFlight.current) return;
+
+        grokPermissionTransitionInFlight.current = true;
+        void transitionGrokPermissionModeAndCommit(machineId, sessionId, mode.key, {
+            commit: (permissionMode) => {
+                sessionSetAgentModes(sessionId, { permissionMode });
+            },
+        }).catch((error) => {
+            Modal.alert(
+                t('errors.grokPermissionModeChangeFailed'),
+                error instanceof Error ? error.message : String(error),
+            );
+        }).finally(() => {
+            grokPermissionTransitionInFlight.current = false;
+        });
+    }, [isGrok, machineId, sessionId]);
 
     const updateModelMode = React.useCallback((mode: ModelMode) => {
         const nextEffortLevels = getSessionEffortLevelsForModel(
@@ -1510,7 +1533,10 @@ export function SessionViewLoaded({
                 placeholder={t('session.inputPlaceholder')}
                 sessionId={sessionId}
                 permissionMode={permissionMode}
-                onPermissionModeChange={isRigPermissionSelectionEnabled(session.metadata) ? updatePermissionMode : undefined}
+                onPermissionModeChange={isRigPermissionSelectionEnabled(session.metadata)
+                    && (!isGrok || Boolean(machineId && sessionMachine))
+                    ? updatePermissionMode
+                    : undefined}
                 availableModes={availableModes}
                 modelMode={modelMode}
                 availableModels={availableModels}

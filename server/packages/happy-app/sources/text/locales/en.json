@@ -390,7 +390,8 @@
     "searchFailed": "Search failed. Please try again.",
     "failedToSendRequest": "Failed to send friend request",
     "sessionNotFinishedSyncing": "The message was not sent: this session has not finished syncing. Please try again.",
-    "unsupportedPermissionMode": "This session's Happy CLI ({cliVersion}) does not support permission mode \"{mode}\". Pick a different mode or upgrade Happy CLI."
+    "unsupportedPermissionMode": "This session's Happy CLI ({cliVersion}) does not support permission mode \"{mode}\". Pick a different mode or upgrade Happy CLI.",
+    "grokPermissionModeChangeFailed": "Could not change Grok permission mode"
   },
   "newSession": {
     "title": "Start New Session",

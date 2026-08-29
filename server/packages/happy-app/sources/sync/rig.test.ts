@@ -80,8 +80,8 @@ describe('Rig metadata', () => {
         })).toBe(false);
     });
 
-    it('does not offer a live permission switch for an active GrokBuild session', () => {
-        expect(isRigPermissionSelectionEnabled({ flavor: 'grok' } as any)).toBe(false);
+    it('offers the shared permission selector for an active GrokBuild session', () => {
+        expect(isRigPermissionSelectionEnabled({ flavor: 'grok' } as any)).toBe(true);
         expect(isRigPermissionSelectionEnabled({
             ...rigMetadataFixture,
             flavor: 'grok',

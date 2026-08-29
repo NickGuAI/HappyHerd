@@ -10,3 +10,4 @@ export * from './providerModels';
 export * from './workspaceUpload';
 export * from './agentQueue';
 export * from './machineSession';
+export * from './grokPermissionMode';

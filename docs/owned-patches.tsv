@@ -153,3 +153,4 @@ BUNDLED_RUNTIME_SYNC	accepted	fix(cli): sync bundled Happy before wrapper tests	
 UPSTREAM_REVIEW_FIX	accepted	fix(upstream): address integration review findings	server/packages/happy-app/sources/-session/SessionView.tsx
 SIDE_CHAT_RENDER	accepted	test(app): cover side-chat rendering hosts	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 ATTACHMENT_PICKER_UI	accepted	fix(app): present attachment choices in-app (#159)	server/packages/happy-app/sources/components/AttachmentInputButton.test.ts
+GROK_PERMISSION_TRANSITION	accepted	feat(grok): switch active permission modes	server/packages/happy-cli/src/daemon/run.resume.test.ts

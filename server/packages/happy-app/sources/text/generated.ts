@@ -182,6 +182,7 @@ export type TranslationKey =
     | "errors.failedToSendRequest"
     | "errors.fieldError"
     | "errors.fileNotFound"
+    | "errors.grokPermissionModeChangeFailed"
     | "errors.invalidFormat"
     | "errors.networkError"
     | "errors.oauthAuthorizationDenied"
