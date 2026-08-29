@@ -1,3 +1,7 @@
+# August 29 — Attachment selection
+
+- Attachment choices now appear in styled in-app surfaces (anchored popovers on desktop and web, safe-area bottom sheets on mobile) rather than system alert dialogs, while leaving system photo and file pickers unchanged.
+
 # August 29 — Projects, conversation controls, and voice polish
 
 HappyHerd brings in the approved upstream project and conversation improvements without changing its provider defaults or self-hosted service boundary.

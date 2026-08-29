@@ -151,3 +151,4 @@ APP_TOOL_PAGED_AUTHORITY	accepted	fix(app): preserve authoritative paged tool re
 BUNDLED_RUNTIME_SYNC	accepted	fix(cli): sync bundled Happy before wrapper tests	server/packages/happyherd-cli/package.json
 UPSTREAM_REVIEW_FIX	accepted	fix(upstream): address integration review findings	server/packages/happy-app/sources/-session/SessionView.tsx
 SIDE_CHAT_RENDER	accepted	test(app): cover side-chat rendering hosts	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
+ATTACHMENT_PICKER_UI	accepted	fix(app): present attachment choices in-app (#159)	server/packages/happy-app/sources/components/AttachmentInputButton.test.ts

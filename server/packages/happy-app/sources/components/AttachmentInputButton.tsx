@@ -1,11 +1,11 @@
 import * as React from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import type { PressableProps, StyleProp, ViewStyle } from 'react-native';
+import { Platform, View, useWindowDimensions, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 
 import { BubblePressable } from '@/components/BubblePressable';
-import { Modal } from '@/modal';
 import { t } from '@/text';
 import { availableAttachmentInputActions } from './attachmentInputActions';
+import { AttachmentInputMenu, type AttachmentInputMenuAnchor } from './AttachmentInputMenu';
 
 export function AttachmentInputButton(props: {
     onPickPhotos?: () => void;
@@ -18,38 +18,68 @@ export function AttachmentInputButton(props: {
     hitSlop?: PressableProps['hitSlop'];
     style?: StyleProp<ViewStyle> | PressableProps['style'];
 }) {
-    const actions = availableAttachmentInputActions({
-        photos: !!props.onPickPhotos,
-        deviceFiles: !!props.onPickDeviceFiles,
+    const { height: windowHeight } = useWindowDimensions();
+    const anchorRef = React.useRef<View>(null);
+    const [menuVisible, setMenuVisible] = React.useState(false);
+    const [anchor, setAnchor] = React.useState<AttachmentInputMenuAnchor>({
+        x: 12,
+        y: Math.max(12, windowHeight - 52),
+        width: 32,
+        height: 32,
     });
+    const actions = React.useMemo(() => availableAttachmentInputActions({
+        photos: Boolean(props.onPickPhotos),
+        deviceFiles: Boolean(props.onPickDeviceFiles),
+    }), [props.onPickDeviceFiles, props.onPickPhotos]);
+    const closeMenu = React.useCallback(() => setMenuVisible(false), []);
     const open = React.useCallback(() => {
         if (actions.length === 1) {
             if (actions[0] === 'photos') props.onPickPhotos?.();
             else props.onPickDeviceFiles?.();
             return;
         }
-        Modal.alert(t('happyHerd.composer.addAttachment'), undefined, [
-            ...(props.onPickPhotos ? [{ text: t('happyHerd.composer.photos'), onPress: props.onPickPhotos }] : []),
-            ...(props.onPickDeviceFiles ? [{ text: t('happyHerd.composer.deviceFiles'), onPress: props.onPickDeviceFiles }] : []),
-            { text: t('common.cancel'), style: 'cancel' as const },
-        ]);
+
+        setMenuVisible(true);
+        if (Platform.OS === 'web') {
+            anchorRef.current?.measureInWindow((x, y, width, height) => {
+                setAnchor({ x, y, width, height });
+            });
+        }
     }, [actions, props.onPickDeviceFiles, props.onPickPhotos]);
+
+    React.useEffect(() => {
+        if (actions.length !== 2) closeMenu();
+    }, [actions.length, closeMenu]);
 
     if (actions.length === 0) return null;
     return (
-        <BubblePressable
-            onPress={open}
-            disabled={props.disabled}
-            hitSlop={props.hitSlop}
-            style={props.style}
-            accessibilityRole="button"
-            accessibilityLabel={t('happyHerd.composer.addAttachment')}
-        >
-            <Ionicons
-                name="attach-outline"
-                size={props.size ?? 20}
-                color={props.active && props.activeColor ? props.activeColor : props.color}
-            />
-        </BubblePressable>
+        <>
+            <View collapsable={false} ref={anchorRef} testID="attachment-menu-anchor">
+                <BubblePressable
+                    onPress={open}
+                    disabled={props.disabled}
+                    hitSlop={props.hitSlop}
+                    style={props.style}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('happyHerd.composer.addAttachment')}
+                    accessibilityState={{ expanded: actions.length === 2 ? menuVisible : undefined }}
+                >
+                    <Ionicons
+                        name="attach-outline"
+                        size={props.size ?? 20}
+                        color={props.active && props.activeColor ? props.activeColor : props.color}
+                    />
+                </BubblePressable>
+            </View>
+            {actions.length === 2 && props.onPickPhotos && props.onPickDeviceFiles && (
+                <AttachmentInputMenu
+                    anchor={anchor}
+                    onClose={closeMenu}
+                    onPickDeviceFiles={props.onPickDeviceFiles}
+                    onPickPhotos={props.onPickPhotos}
+                    visible={menuVisible}
+                />
+            )}
+        </>
     );
 }
