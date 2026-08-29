@@ -119,6 +119,34 @@ describe('ApiMachineClient Codex fork RPCs', () => {
         }));
     });
 
+    it('forwards the archived prompt replay ID through the exact-session resume RPC', async () => {
+        const resumeSession = vi.fn().mockResolvedValue({
+            type: 'success',
+            sessionId: 'happy-archived',
+        });
+        const { ApiMachineClient } = await import('./apiMachine');
+        const client = new ApiMachineClient('token', machineClient());
+        client.setRPCHandlers({
+            spawnSession: vi.fn(),
+            resumeSession,
+            stopSession: vi.fn(),
+            requestShutdown: vi.fn(),
+        });
+
+        const result = await handlersFrom(client).get('machine-1:resume-happy-session')?.({
+            sessionId: 'happy-archived',
+            replayQueueMessageId: 'archived-next-turn',
+        });
+
+        expect(result).toEqual({ type: 'success', sessionId: 'happy-archived' });
+        expect(resumeSession).toHaveBeenCalledWith('happy-archived', {
+            model: undefined,
+            permissionMode: undefined,
+            agentRuntimeContext: undefined,
+            replayQueueMessageId: 'archived-next-turn',
+        });
+    });
+
     it('forwards Commander identity through the spawn RPC', async () => {
         const settings = { provider: 'claude', model: 'default', effort: null, permission: 'default' };
         const spawnSession = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'happy-commander', settings });

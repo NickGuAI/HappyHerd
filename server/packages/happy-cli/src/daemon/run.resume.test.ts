@@ -167,7 +167,7 @@ type CapturedRpcHandlers = {
   requestShutdown: () => void;
   resumeSession: (
     sessionId: string,
-    options?: { permissionMode?: string },
+    options?: { permissionMode?: string; replayQueueMessageId?: string },
   ) => Promise<{ type: string; sessionId?: string; errorMessage?: string }>;
 };
 
@@ -294,6 +294,71 @@ describe('daemon session continuity', () => {
     expect(spawnOptions.cwd).toBe(metadata.path);
     expect(spawnOptions.env.CODEX_HOME).toBe(codexHome);
     expect(spawnOptions.env.HAPPY_RECONNECT_SESSION_ID).toBe(resolvedSessionId);
+    expect(spawnOptions.env.HAPPY_RECONNECT_ENCRYPTION_KEY).toBe(persisted.encryptionKey);
+    expect(spawnOptions.env.HAPPY_RECONNECT_ENCRYPTION_VARIANT).toBe(encryption.encryptionVariant);
+    expect(spawnOptions.env.HAPPY_RECONNECT_SEQ).toBe(String(encryption.seq));
+    expect(spawnOptions.env.HAPPY_RECONNECT_METADATA_VERSION).toBe(String(encryption.metadataVersion));
+    expect(spawnOptions.env.HAPPY_RECONNECT_AGENT_STATE_VERSION).toBe(String(encryption.agentStateVersion));
+  });
+
+  it('replays the next archived turn from an older retained record without changing session identity or encryption', async () => {
+    const sessionId = 'happy-archived-retained';
+    const encryptionKey = new Uint8Array([7, 8, 9, 10]);
+    const encryption: SessionEncryptionData = {
+      encryptionKey,
+      encryptionVariant: 'dataKey',
+      seq: 91,
+      metadataVersion: 12,
+      agentStateVersion: 13,
+    };
+    const metadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'codex',
+      codexThreadId: 'thread-archived-retained',
+      lifecycleState: 'archived',
+      lifecycleStateSince: Date.now() - 60_000,
+      archivedBy: 'app',
+      archiveReason: 'User archived',
+      host: 'test-host',
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happy',
+      happyToolsDir: '/srv/happy/tools',
+    };
+    const persisted = {
+      encryptionKey: Buffer.from(encryptionKey).toString('base64'),
+      encryptionVariant: encryption.encryptionVariant,
+      seq: encryption.seq,
+      metadataVersion: encryption.metadataVersion,
+      agentStateVersion: encryption.agentStateVersion,
+      metadata,
+      savedAt: Date.now() - 45 * 24 * 60 * 60 * 1000,
+    };
+    mocks.readPersistedSessions.mockReturnValue({ [sessionId]: persisted });
+    mocks.spawnHappyCLI.mockReturnValue({ pid: 4324, kill: vi.fn(), on: vi.fn() });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const resume = rpc.resumeSession(sessionId, {
+      replayQueueMessageId: 'archived-next-turn',
+    });
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    control.onHappySessionWebhook(sessionId, { ...metadata, hostPid: 4324 }, encryption);
+
+    await expect(resume).resolves.toEqual({ type: 'success', sessionId });
+    expect(mocks.backfillReconnectableSessionForMachine).not.toHaveBeenCalled();
+
+    const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
+      string[],
+      { cwd: string; env: NodeJS.ProcessEnv },
+    ];
+    expect(args).toEqual(['codex', '--resume', metadata.codexThreadId, '--started-by', 'daemon']);
+    expect(spawnOptions.cwd).toBe(metadata.path);
+    expect(spawnOptions.env.HAPPY_RECONNECT_SESSION_ID).toBe(sessionId);
+    expect(spawnOptions.env.HAPPY_RECONNECT_QUEUE_MESSAGE_ID).toBe('archived-next-turn');
     expect(spawnOptions.env.HAPPY_RECONNECT_ENCRYPTION_KEY).toBe(persisted.encryptionKey);
     expect(spawnOptions.env.HAPPY_RECONNECT_ENCRYPTION_VARIANT).toBe(encryption.encryptionVariant);
     expect(spawnOptions.env.HAPPY_RECONNECT_SEQ).toBe(String(encryption.seq));

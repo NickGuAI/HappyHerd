@@ -427,7 +427,7 @@ export class ApiMachineClient {
         if (this.resumeSessionHandler) {
             if (!this.rpcHandlerManager.hasHandler(method)) {
                 this.rpcHandlerManager.registerHandler(method, async (params: any) => {
-                    const { sessionId, model, permissionMode, runtimeContext } = params || {};
+                    const { sessionId, model, permissionMode, runtimeContext, replayQueueMessageId } = params || {};
 
                     if (!sessionId || typeof sessionId !== 'string') {
                         throw new Error('Session ID is required');
@@ -442,6 +442,7 @@ export class ApiMachineClient {
                         model,
                         permissionMode,
                         agentRuntimeContext: runtimeContext,
+                        replayQueueMessageId,
                     });
                     switch (result.type) {
                         case 'success':

@@ -11,6 +11,7 @@ HappyHerd brings in the approved upstream project and conversation improvements 
 - The composer retains one attachment menu, queued follow-ups, Workspace context, and response images while adding steadier scroll anchoring, compact Git and usage details, and clearer tool-group expansion.
 - Voice calls show a live duration and end when the call pill is tapped; the Features switch remains authoritative, calls stay on the configured HappyHerd server, and no upgrade prompt is shown.
 - Settings, empty states, recovery actions, subprocess behavior, and local source installs include the approved upstream fixes while the Features page and configurable session status bar remain available.
+- Sending a prompt from an archived session now resumes the original conversation on its original machine and working directory, preserving existing history and delivering your message as the next turn.
 
 # August 28 — Side chats have a complete CLI lifecycle
 
