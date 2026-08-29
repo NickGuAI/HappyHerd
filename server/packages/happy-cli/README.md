@@ -109,23 +109,40 @@ happy machine auth logout
 Create and manage a side chat through that local daemon:
 
 ```bash
-happy session side-chat create <parent-session-id>
-happy session side-chat list <parent-session-id>
-happy session side-chat status <child-session-id>
-happy session side-chat stop <child-session-id>
-happy session side-chat close <child-session-id>
-happy session side-chat close <parent-session-id> --all
-happy session side-chat reopen <child-session-id>
+happyherd session side-chat create <parent-session-id> \
+  --outcome '<target result>' \
+  --scope '<bounded work>' \
+  --dependencies '<inputs or none>' \
+  --write-ownership '<owned files or resources>' \
+  --verification '<required proof>' \
+  --handoff '<result and evidence to return>'
+happyherd session side-chat list <parent-session-id>
+happyherd session side-chat status <child-session-id>
+happyherd session side-chat inspect <child-session-id>
+happyherd session side-chat stop <child-session-id>
+happyherd session side-chat pause <child-session-id>
+happyherd session side-chat close <child-session-id>
+happyherd session side-chat close <parent-session-id> --all
+happyherd session side-chat reopen <child-session-id>
+happyherd session side-chat resume <child-session-id>
 ```
 
-The original `happy session side-chat <parent-session-id>` create form remains
-supported. Add `--json` to any action for a stable receipt. A failed receipt
-sets a nonzero exit code and names the exact failed phase. `stop` waits for the
-daemon-owned provider process to exit and for server deactivation; `close`
-then writes encrypted archived lifecycle metadata and reads the authoritative
-server state back. `reopen` (also accepted as `resume`) resumes the same Happy
+All six delegation fields are required. The parent-ID shorthand remains
+supported when it carries the same six options. The daemon persists the
+rendered brief as the child's first encrypted queued user message. Add
+`--json` to any action for a stable receipt. A failed receipt sets a nonzero
+exit code and names the exact failed phase; a post-spawn `deliver-brief`
+failure retains the created child ID. `stop` waits for the daemon-owned
+provider process to exit and for server deactivation; `close` then writes
+encrypted archived lifecycle metadata and reads the authoritative server state
+back. `inspect`, `pause`, and `resume` map to `status`, `stop`, and `reopen`,
+while receipts retain canonical action names. `reopen` resumes the same Happy
 session and parent lineage. Stopped and archived children remain discoverable
 after daemon restarts through the daemon's durable encrypted reconnect store.
+
+The app discovers, renders, switches, resumes, and closes existing side chats;
+it cannot create an unbriefed Worker Agent. Generic `spawn-happy-session`
+rejects `isSideChat` before provider launch.
 
 Then discover the online and offline machines registered to the linked
 account:
@@ -209,6 +226,30 @@ happy connect codex
 happy connect status
 ```
 
+### Named provider accounts
+
+HappyHerd supports multiple named local accounts for Claude, Codex, and
+GrokBuild. You can configure multiple accounts per provider to manage workflows
+when encountering rate limits or quota restrictions. If no named account pool
+is configured, HappyHerd retains standard single-account behavior. Account
+selection is reactive and lazy, with no background quota polling.
+
+```bash
+happyherd connect <claude|codex|grok> --acct <nickname>
+happyherd accounts list [claude|codex|grok] [--json]
+happyherd accounts use <nickname>
+happyherd accounts use <provider> <nickname>
+happyherd accounts remove <nickname>
+happyherd accounts remove <provider> <nickname>
+```
+
+When an active account encounters a rate limit or hard quota, HappyHerd marks
+the account limited until its provider reset time, stops the running provider
+process, and resumes the exact same session using the next available account
+with transcript history and runtime context preserved. If all configured
+accounts for a provider are limited, execution pauses until the earliest
+account becomes eligible again.
+
 ## Commands
 
 | Command | Description |
@@ -220,7 +261,7 @@ happy connect status
 | `happy grok` | Start GrokBuild through its official ACP interface |
 | `happy acp` | Start any ACP-compatible agent |
 | `happy resume <id>` | Resume a previous session |
-| `happy session side-chat <action> <id> [--all] [--json]` | Create, list, inspect, stop, close, or reopen Claude/Codex child side chats on their local owning daemon |
+| `happyherd session side-chat <action> <id> [brief options] [--all] [--json]` | Create a briefed Worker Agent conversation or list, status/inspect, stop/pause, close, and reopen/resume exact Claude/Codex child side chats on their local owning daemon |
 | `happy notify` | Send push notification to your devices |
 | `happy doctor` | Diagnostics & troubleshooting |
 | `happy commander list` | List Commanders available on this machine |

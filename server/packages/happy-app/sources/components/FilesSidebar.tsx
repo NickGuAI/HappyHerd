@@ -41,15 +41,12 @@ const ALL_PANELS: { key: SidebarMode; icon: keyof typeof Octicons.glyphMap }[] =
     { key: 'sideChat', icon: 'comment-discussion' },
 ];
 
-// Panels that are opened directly from the picker. The 'sideChat' panel is not
-// here: it isn't opened empty — it appears when you create a side chat via the
-// dedicated "New side chat" picker action, which forks a new child session.
+// The picker opens file panels only. An existing briefed side chat is opened
+// through its parent-session access control instead of an empty panel.
 const PICKABLE_PANELS = ALL_PANELS.filter((p) => p.key !== 'sideChat') as Array<{
     key: PickableSidebarMode;
     icon: keyof typeof Octicons.glyphMap;
 }>;
-const SIDE_CHAT_ICON: keyof typeof Octicons.glyphMap = 'comment-discussion';
-
 function panelIcon(panel: SidebarMode): keyof typeof Octicons.glyphMap {
     return ALL_PANELS.find((p) => p.key === panel)?.icon ?? 'file';
 }
@@ -74,15 +71,12 @@ interface FilesSidebarProps {
     onAllFilesFilePress?: (filePath: string) => void;
     onAllFilesFileAttach?: (filePath: string) => void;
     canOpenFilePanels: boolean;
-    // Side chats (rendered inside the 'sideChat' panel). Creation is unified
-    // into this sidebar's panel picker, so there is no separate add button.
+    // Side chats are created only through the daemon-owned brief lifecycle;
+    // this sidebar presents already-briefed children.
     sideChats: Session[];
     activeSideChatId: string | null;
     onSelectSideChat: (id: string) => void;
     onCloseSideChat: (id: string) => void;
-    onCreateSideChat: () => void;
-    canCreateSideChat: boolean;
-    creatingSideChat: boolean;
 }
 
 type FileNode<T = GitFileStatus> = {
@@ -219,9 +213,6 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
     activeSideChatId,
     onSelectSideChat,
     onCloseSideChat,
-    onCreateSideChat,
-    canCreateSideChat,
-    creatingSideChat,
 }) => {
     const router = useRouter();
     const { theme } = useUnistyles();
@@ -291,28 +282,19 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
         () => pickablePanels.filter((panel) => !openPanels.includes(panel.key)),
         [openPanels, pickablePanels],
     );
-    const availablePickerActionIds = React.useMemo<SidebarPickerShortcutId[]>(() => [
-        ...availablePanels.map((panel) => panel.key),
-        'newSideChat',
-    ], [availablePanels]);
+    const availablePickerActionIds = React.useMemo<SidebarPickerShortcutId[]>(
+        () => availablePanels.map((panel) => panel.key),
+        [availablePanels],
+    );
 
     const runPickerAction = React.useCallback((actionId: SidebarPickerShortcutId): boolean => {
-        if (actionId === 'newSideChat') {
-            if (creatingSideChat || !canCreateSideChat) {
-                return false;
-            }
-            setAddMenuOpen(false);
-            onCreateSideChat();
-            return true;
-        }
-
         if (!availablePanels.some((panel) => panel.key === actionId)) {
             return false;
         }
         setAddMenuOpen(false);
         onOpenPanel(actionId);
         return true;
-    }, [availablePanels, canCreateSideChat, creatingSideChat, onCreateSideChat, onOpenPanel]);
+    }, [availablePanels, onOpenPanel]);
 
     React.useEffect(() => {
         const shortcutsActive = activePanel === null || addMenuOpen;
@@ -355,23 +337,6 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
                             </Text>
                         </Pressable>
                     ))}
-                    <Pressable
-                        onPress={onCreateSideChat}
-                        disabled={creatingSideChat || !canCreateSideChat}
-                        style={({ pressed, hovered }: any) => [
-                            styles.pickerCard,
-                            (pressed || hovered) && styles.pickerCardPressed,
-                            (creatingSideChat || !canCreateSideChat) && { opacity: 0.5 },
-                        ]}
-                    >
-                        {creatingSideChat
-                            ? <ActivityIndicator size="small" color={theme.colors.textSecondary} />
-                            : <Octicons name={SIDE_CHAT_ICON} size={15} color={theme.colors.textSecondary} />}
-                        <Text style={styles.pickerCardText} numberOfLines={1}>{t('sideChat.newChat')}</Text>
-                        <Text style={styles.pickerShortcut}>
-                            {formatShortcutChord(preferredModifier, SIDEBAR_PICKER_SHORTCUTS.newSideChat)}
-                        </Text>
-                    </Pressable>
                 </View>
             </View>
         );
@@ -395,26 +360,6 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
                     </Text>
                 </Pressable>
             ))}
-            <Pressable
-                disabled={creatingSideChat || !canCreateSideChat}
-                onPress={() => {
-                    setAddMenuOpen(false);
-                    onCreateSideChat();
-                }}
-                style={({ pressed, hovered }: any) => [
-                    styles.menuAddRow,
-                    (pressed || hovered) && { backgroundColor: theme.colors.surfaceSelected },
-                    (creatingSideChat || !canCreateSideChat) && { opacity: 0.5 },
-                ]}
-            >
-                {creatingSideChat
-                    ? <ActivityIndicator size="small" color={theme.colors.textSecondary} />
-                    : <Octicons name={SIDE_CHAT_ICON} size={13} color={theme.colors.textSecondary} />}
-                <Text style={styles.menuRowText} numberOfLines={1}>{t('sideChat.newChat')}</Text>
-                <Text style={styles.menuShortcut}>
-                    {formatShortcutChord(preferredModifier, SIDEBAR_PICKER_SHORTCUTS.newSideChat)}
-                </Text>
-            </Pressable>
         </>
     );
 
@@ -459,14 +404,10 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
 
             {activePanel === 'sideChat' ? (
                 <SideChatPanel
-                    parentSessionId={sessionId}
                     sideChats={sideChats}
                     activeSideChatId={activeSideChatId}
                     onSelectSideChat={onSelectSideChat}
                     onCloseSideChat={onCloseSideChat}
-                    onCreateSideChat={onCreateSideChat}
-                    canCreateSideChat={canCreateSideChat}
-                    creatingSideChat={creatingSideChat}
                 />
             ) : activePanel === 'changes' ? (
                 <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>

@@ -32,13 +32,10 @@ import { Modal } from '@/modal';
 import { voiceHooks } from '@/realtime/hooks/voiceHooks';
 import { getCurrentVoiceConversationId, getCurrentVoiceSessionDurationSeconds, startRealtimeSession, stopRealtimeSession } from '@/realtime/RealtimeSession';
 import { gitStatusSync } from '@/sync/gitStatusSync';
-import { machineControlHeartbeat, machineStopSession, sessionAbort, sessionCancelCommunication, sessionGoalAction, sessionSetAgentModes, spawnSideChat, sessionKill, sessionArchive } from '@/sync/ops';
+import { machineControlHeartbeat, machineStopSession, sessionAbort, sessionCancelCommunication, sessionGoalAction, sessionSetAgentModes, sessionKill, sessionArchive } from '@/sync/ops';
 import { closeSideChatSession, resolveSideChatCloseReconciliation } from '@/sync/sideChatLifecycle';
 import { storage, useIsDataReady, useLocalSetting, useMachine, useRealtimeStatus, useSessionGitStatus, useSessionMessages, useSessionPendingCommunications, useSessionUsage, useSetting, useSettingMutable, useSideChatSessions } from '@/sync/storage';
 import { useSession } from '@/sync/storage';
-import { getSessionForkSource } from '@/utils/sessionFork';
-import { useHappyAction } from '@/hooks/useHappyAction';
-import { HappyError } from '@/utils/errors';
 import { Session } from '@/sync/storageTypes';
 import { sync } from '@/sync/sync';
 import { supportsImageAttachmentsForFlavor } from '@/sync/attachmentSupport';
@@ -109,6 +106,7 @@ import {
 } from '@/sync/workspaceContext';
 import { buildWorkspaceAttachmentParams } from '@/utils/machineWorkspace';
 import { projectSessionQueue } from '@/sync/queueProjection';
+import { transitionGrokPermissionModeAndCommit } from '@/sync/grokPermissionModeTransition';
 import { WorkspaceLinkSidePanel } from '@/components/WorkspaceLinkSidePanel';
 import {
     resolveActiveWorkspaceLinkPresentation,
@@ -122,6 +120,7 @@ import {
 import type { WorkspaceLinkRoute } from '@/utils/markdownWorkspaceLink';
 import { AnimatedFade } from '@/components/AnimatedOverlay';
 import { HEARTBEAT_COMMAND } from '@/utils/heartbeatCommand';
+import { deliverSessionTurn } from '@/utils/sessionContinuation';
 
 export const SessionView = React.memo((props: { id: string; focusMessageId?: string }) => {
     const sessionId = props.id;
@@ -228,12 +227,9 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         storage.getState().applyLocalSettings({ sidebarPanelsOpen: open, sidebarPanelActive: active });
     }, []);
 
-    // Side chats live inside the single "sideChat" panel as switchable tabs.
-    // Creation is unified into the sidebar panel picker (the top "+") so there
-    // is no separate per-tab add button. Which side chat is focused lives here
-    // (not in the panel) so the picker can create-and-focus a new one in one go.
+    // Already-briefed side chats hydrate into one switchable panel. Focus lives
+    // here (not in the panel) so wide and narrow hosts share one selection.
     const rawSideChats = useSideChatSessions(sessionId);
-    const sideChatForkSource = session ? getSessionForkSource(session) : null;
     const [activeSideChatId, setActiveSideChatId] = React.useState<string | null>(null);
     // Optimistically hide a side chat the instant it's closed. The server's
     // /archive only flips active=false (not lifecycleState), so if the CLI is
@@ -360,24 +356,6 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             refresh: () => sync.refreshSessions(),
         });
     }, []);
-
-    const [creatingSideChat, createSideChat] = useHappyAction(async () => {
-        if (!sideChatForkSource) {
-            throw new HappyError(t('sideChat.unavailable'), false);
-        }
-        const result = await spawnSideChat(sideChatForkSource);
-        if (result.type === 'error') {
-            throw new HappyError(result.errorMessage, true);
-        }
-        if (result.type === 'success') {
-            setActiveSideChatId(result.sessionId);
-            if (sidebarPresentation.sideChatSurface === 'sidebar') {
-                openSidebarPanel('sideChat');
-            } else {
-                setSideChatFullscreenOpen(true);
-            }
-        }
-    });
 
     const closeSideChat = React.useCallback((id: string) => {
         const idx = sideChats.findIndex((s) => s.id === id);
@@ -699,14 +677,10 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                     }}
                 >
                     <SideChatFullscreen
-                        parentSessionId={sessionId}
                         sideChats={sideChats}
                         activeSideChatId={activeSideChatId}
                         onSelectSideChat={setActiveSideChatId}
                         onCloseSideChat={closeSideChat}
-                        onCreateSideChat={createSideChat}
-                        canCreateSideChat={!!sideChatForkSource}
-                        creatingSideChat={creatingSideChat}
                         onCollapse={() => setSideChatFullscreenOpen(false)}
                     />
                 </View>
@@ -813,9 +787,6 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                             activeSideChatId={activeSideChatId}
                             onSelectSideChat={setActiveSideChatId}
                             onCloseSideChat={closeSideChat}
-                            onCreateSideChat={createSideChat}
-                            canCreateSideChat={!!sideChatForkSource}
-                            creatingSideChat={creatingSideChat}
                         />
                     </View>
                 </Animated.View>
@@ -1099,7 +1070,12 @@ export function SessionViewLoaded({
     const alwaysShowContextSize = useSetting('alwaysShowContextSize');
     const sessionStatusBarDisplay = useSetting('sessionStatusBarDisplay');
     const expImageUpload = useSetting('expImageUpload');
-    const { canResume, resumeSession, resumingSession } = useSessionQuickActions(session);
+    const {
+        canResume,
+        resumeSession,
+        resumeSessionWithQueuedTurn,
+        resumingSession,
+    } = useSessionQuickActions(session);
     const isDisconnected = !sessionStatus.isConnected;
     const resumeCommandBlock = getResumeCommandBlock(session);
 
@@ -1147,10 +1123,32 @@ export function SessionViewLoaded({
         }
     }, [machineId, cliVersion, acknowledgedCliVersions]);
 
-    // Function to update permission mode
+    const grokPermissionTransitionInFlight = React.useRef(false);
+
+    // Runtime-selectable providers update metadata directly. Grok's mode is a
+    // process launch policy, so its exact daemon must restart/resume first and
+    // return the receipt that authorizes the visible composer update.
     const updatePermissionMode = React.useCallback((mode: PermissionMode) => {
-        sessionSetAgentModes(sessionId, { permissionMode: mode.key });
-    }, [sessionId]);
+        if (!isGrok) {
+            sessionSetAgentModes(sessionId, { permissionMode: mode.key });
+            return;
+        }
+        if (!machineId || grokPermissionTransitionInFlight.current) return;
+
+        grokPermissionTransitionInFlight.current = true;
+        void transitionGrokPermissionModeAndCommit(machineId, sessionId, mode.key, {
+            commit: (permissionMode) => {
+                sessionSetAgentModes(sessionId, { permissionMode });
+            },
+        }).catch((error) => {
+            Modal.alert(
+                t('errors.grokPermissionModeChangeFailed'),
+                error instanceof Error ? error.message : String(error),
+            );
+        }).finally(() => {
+            grokPermissionTransitionInFlight.current = false;
+        });
+    }, [isGrok, machineId, sessionId]);
 
     const updateModelMode = React.useCallback((mode: ModelMode) => {
         const nextEffortLevels = getSessionEffortLevelsForModel(
@@ -1230,12 +1228,20 @@ export function SessionViewLoaded({
             const contextMessage = await buildWorkspaceContextMessage(sessionId, liveMessage, selectedContextEntries);
             const attachments = expImageUpload && canUseAttachments ? selectedImages : undefined;
             const communicationsToDismiss = deliveryMode ? [] : [...pendingCommunications];
-            await sync.sendMessage(sessionId, contextMessage.promptText, {
-                source: 'chat',
-                attachments,
-                ...(selectedContextEntries.length > 0 ? { displayText: contextMessage.displayText } : {}),
-                ...(deliveryMode ? { deliveryMode } : {}),
+            await deliverSessionTurn({
+                isDisconnected,
+                canResume,
+                sessionLifecycleState: session.metadata?.lifecycleState,
+                requestedDeliveryMode: deliveryMode,
                 awaitDelivery: communicationsToDismiss.length > 0,
+                deliver: (continuation) => sync.sendMessage(sessionId, contextMessage.promptText, {
+                    source: 'chat',
+                    attachments,
+                    ...(selectedContextEntries.length > 0 ? { displayText: contextMessage.displayText } : {}),
+                    ...(continuation.deliveryMode ? { deliveryMode: continuation.deliveryMode } : {}),
+                    awaitDelivery: continuation.awaitDelivery,
+                }),
+                resume: resumeSessionWithQueuedTurn,
             });
             composerHandleRef.current?.clearMessage();
             if (expImageUpload && canUseAttachments) clearImages();
@@ -1254,7 +1260,20 @@ export function SessionViewLoaded({
                 error instanceof Error ? error.message : t('happyHerd.composer.sendFailedBody'),
             );
         }
-    }, [sessionId, machineId, expImageUpload, canUseAttachments, selectedImages, selectedContextEntries, clearImages, pendingCommunications]);
+    }, [
+        sessionId,
+        machineId,
+        expImageUpload,
+        canUseAttachments,
+        selectedImages,
+        selectedContextEntries,
+        clearImages,
+        pendingCommunications,
+        isDisconnected,
+        canResume,
+        session.metadata?.lifecycleState,
+        resumeSessionWithQueuedTurn,
+    ]);
     const handleSend = React.useCallback(() => sendComposerMessage(), [sendComposerMessage]);
     const handleQueueMessage = React.useCallback(() => sendComposerMessage('queue'), [sendComposerMessage]);
 
@@ -1483,7 +1502,10 @@ export function SessionViewLoaded({
                 placeholder={t('session.inputPlaceholder')}
                 sessionId={sessionId}
                 permissionMode={permissionMode}
-                onPermissionModeChange={isRigPermissionSelectionEnabled(session.metadata) ? updatePermissionMode : undefined}
+                onPermissionModeChange={isRigPermissionSelectionEnabled(session.metadata)
+                    && (!isGrok || Boolean(machineId && sessionMachine))
+                    ? updatePermissionMode
+                    : undefined}
                 availableModes={availableModes}
                 modelMode={modelMode}
                 availableModels={availableModels}

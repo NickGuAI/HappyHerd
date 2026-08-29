@@ -12,13 +12,16 @@ import { decodeBase64 } from '@/api/encryption';
 import { TrackedSession, SessionEncryptionData } from './types';
 import { SpawnSessionOptions, SpawnSessionResult } from '@/modules/common/registerCommonHandlers';
 import type { HappyHerdAutomationService } from '@/automations/service';
+import { normalizeSideChatLifecycleRequest } from '@/commands/sideChat';
 import type { SideChatLifecycleReceipt, SideChatLifecycleRequest } from '@/commands/sideChat';
+import type { ProviderLimitNotice } from '@/credentialPool/providerLimitNotice';
 
 export function startDaemonControlServer({
   getChildren,
   stopSession,
   spawnSession,
   sideChat,
+  onProviderLimited,
   requestShutdown,
   onHappySessionWebhook,
   automations,
@@ -27,6 +30,7 @@ export function startDaemonControlServer({
   stopSession: (sessionId: string) => boolean;
   spawnSession: (options: SpawnSessionOptions) => Promise<SpawnSessionResult>;
   sideChat: (request: SideChatLifecycleRequest) => Promise<SideChatLifecycleReceipt>;
+  onProviderLimited: (notice: ProviderLimitNotice) => void;
   requestShutdown: () => void;
   onHappySessionWebhook: (sessionId: string, metadata: Metadata, encryption?: SessionEncryptionData) => void;
   automations: HappyHerdAutomationService;
@@ -80,6 +84,23 @@ export function startDaemonControlServer({
       onHappySessionWebhook(sessionId, metadata, encryptionData);
 
       return { status: 'ok' as const };
+    });
+
+    typed.post('/provider-limited', {
+      schema: {
+        body: z.object({
+          sessionId: z.string().min(1),
+          provider: z.enum(['claude', 'codex', 'grok']),
+          account: z.string().min(1),
+          limitedUntil: z.number().int().positive(),
+        }),
+        response: {
+          200: z.object({ status: z.literal('scheduled') }),
+        },
+      },
+    }, async (request) => {
+      onProviderLimited(request.body);
+      return { status: 'scheduled' as const };
     });
 
     // List all tracked sessions
@@ -247,13 +268,28 @@ export function startDaemonControlServer({
       }
     });
 
+    const sideChatDelegationBriefSchema = z.object({
+      outcome: z.string().trim().min(1),
+      scope: z.string().trim().min(1),
+      dependencies: z.string().trim().min(1),
+      writeOwnership: z.string().trim().min(1),
+      verification: z.string().trim().min(1),
+      handoff: z.string().trim().min(1),
+    }).strict();
     const sideChatRequestSchema = z.discriminatedUnion('action', [
-      z.object({ action: z.literal('create'), parentSessionId: z.string().min(1) }),
+      z.object({
+        action: z.literal('create'),
+        parentSessionId: z.string().min(1),
+        brief: sideChatDelegationBriefSchema,
+      }),
       z.object({ action: z.literal('list'), parentSessionId: z.string().min(1) }),
       z.object({ action: z.literal('status'), sessionId: z.string().min(1) }),
+      z.object({ action: z.literal('inspect'), sessionId: z.string().min(1) }),
       z.object({ action: z.literal('stop'), sessionId: z.string().min(1) }),
+      z.object({ action: z.literal('pause'), sessionId: z.string().min(1) }),
       z.object({ action: z.literal('close'), sessionId: z.string().min(1) }),
       z.object({ action: z.literal('reopen'), sessionId: z.string().min(1) }),
+      z.object({ action: z.literal('resume'), sessionId: z.string().min(1) }),
       z.object({ action: z.literal('close-all'), parentSessionId: z.string().min(1) }),
     ]);
 
@@ -269,7 +305,7 @@ export function startDaemonControlServer({
       },
     }, async (request, reply) => {
       try {
-        return await sideChat(request.body);
+        return await sideChat(normalizeSideChatLifecycleRequest(request.body));
       } catch (error) {
         reply.code(500);
         return { error: error instanceof Error ? error.message : String(error) };

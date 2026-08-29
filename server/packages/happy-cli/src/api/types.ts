@@ -380,6 +380,8 @@ export type Metadata = {
     prompt: { image: boolean },
   },
   codexHome?: string, // CODEX_HOME used to create codexThreadId
+  /** Named local credential-pool account used by this provider process. */
+  providerAccount?: string,
   tools?: string[],
   slashCommands?: string[],
   mcpServers?: Array<{ name: string; status: string }>,

@@ -27,6 +27,8 @@ class Configuration {
   public readonly daemonStateFile: string
   public readonly daemonLockFile: string
   public readonly sessionsFile: string
+  public readonly credentialPoolFile: string
+  public readonly credentialPoolDir: string
   public readonly currentCliVersion: string
 
   public readonly isExperimentalEnabled: boolean
@@ -54,6 +56,8 @@ class Configuration {
     this.daemonStateFile = join(this.happyHomeDir, 'daemon.state.json')
     this.daemonLockFile = join(this.happyHomeDir, 'daemon.state.json.lock')
     this.sessionsFile = join(this.happyHomeDir, 'sessions.json')
+    this.credentialPoolFile = join(this.happyHomeDir, 'credential-pools.json')
+    this.credentialPoolDir = join(this.happyHomeDir, 'credential-pools')
 
     // URL precedence (both): HAPPY_*_URL env > settings.<key> > default.
     // Settings are read sync here (avoid circular import with persistence.ts).

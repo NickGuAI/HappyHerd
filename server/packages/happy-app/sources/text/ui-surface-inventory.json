@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "7691d45dfd0a4b6bc134589e666490f5746b10ab9274f7ab1d9a95aa817598d2",
+  "sourceFingerprint": "53f9b5c92bba3ecc11d561f30f7634d61ec779bc1f26c297cffdd9a11b73230d",
   "routeCount": 36,
-  "surfaceCount": 245,
+  "surfaceCount": 246,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -1006,6 +1006,7 @@
         "common.save",
         "components.agentGoalBar.currentGoal",
         "components.agentGoalBar.editGoal",
+        "errors.grokPermissionModeChangeFailed",
         "errors.sessionDeleted",
         "errors.sessionDeletedDescription",
         "errors.voiceSessionFailed",
@@ -1020,7 +1021,6 @@
         "sessionInfo.resumeSession",
         "sideChat.archiveFailed",
         "sideChat.stopUnconfirmed",
-        "sideChat.unavailable",
         "uiCopy.discardUnsavedChanges",
         "uiCopy.thisFile",
         "uiCopy.workspaceContext",
@@ -1028,8 +1028,7 @@
         "uiCopy.yourEditsToValueHaveNotBeenSaved"
       ],
       "states": [
-        "error",
-        "unavailable"
+        "error"
       ],
       "hardcodedCopy": []
     },
@@ -2501,7 +2500,20 @@
         "AttachmentInputButton"
       ],
       "translationKeys": [
-        "common.cancel",
+        "happyHerd.composer.addAttachment"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/AttachmentInputMenu.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "AttachmentInputMenu",
+        "getAttachmentInputMenuFrame"
+      ],
+      "translationKeys": [
         "happyHerd.composer.addAttachment",
         "happyHerd.composer.deviceFiles",
         "happyHerd.composer.photos"
@@ -3073,7 +3085,6 @@
         "files.noFilesFound",
         "files.noFilesInProject",
         "files.searchPlaceholder",
-        "sideChat.newChat",
         "sideChat.panelTitle",
         "uiCopy.attachValueToNextMessage"
       ],
@@ -4268,19 +4279,12 @@
       "translationKeys": [
         "sideChat.close",
         "sideChat.collapse",
-        "sideChat.creating",
-        "sideChat.emptySubtitle",
-        "sideChat.emptyTitle",
         "sideChat.expand",
         "sideChat.openCount",
         "sideChat.panelTitle",
-        "sideChat.startButton",
-        "sideChat.tabLabel",
-        "sideChat.unavailable"
+        "sideChat.tabLabel"
       ],
-      "states": [
-        "unavailable"
-      ],
+      "states": [],
       "hardcodedCopy": []
     },
     {

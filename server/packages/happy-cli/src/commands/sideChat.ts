@@ -41,6 +41,15 @@ export type SideChatHandlerDependencies = {
   setExitCode?: (code: number) => void;
 };
 
+export type SideChatDelegationBrief = Readonly<{
+  outcome: string;
+  scope: string;
+  dependencies: string;
+  writeOwnership: string;
+  verification: string;
+  handoff: string;
+}>;
+
 export type CreateChildSideChatResult = {
   sessionId: string;
 };
@@ -57,16 +66,38 @@ export type SideChatStatusReceipt = {
 };
 
 export type SideChatPhaseReceipt = {
-  phase: 'resolve' | 'stop' | 'archive-metadata' | 'deactivate' | 'resume' | 'readback';
+  phase: 'resolve' | 'deliver-brief' | 'stop' | 'archive-metadata' | 'deactivate' | 'resume' | 'readback';
   status: 'succeeded' | 'skipped' | 'failed';
   message?: string;
 };
 
 export type SideChatLifecycleRequest =
-  | { action: 'create'; parentSessionId: string }
+  | { action: 'create'; parentSessionId: string; brief: SideChatDelegationBrief }
   | { action: 'list'; parentSessionId: string }
   | { action: 'status' | 'stop' | 'close' | 'reopen'; sessionId: string }
   | { action: 'close-all'; parentSessionId: string };
+
+export type SideChatLifecycleAliasRequest = {
+  action: 'inspect' | 'pause' | 'resume';
+  sessionId: string;
+};
+
+export type SideChatLifecycleInput = SideChatLifecycleRequest | SideChatLifecycleAliasRequest;
+
+export function normalizeSideChatLifecycleRequest(
+  request: SideChatLifecycleInput,
+): SideChatLifecycleRequest {
+  switch (request.action) {
+    case 'inspect':
+      return { action: 'status', sessionId: request.sessionId };
+    case 'pause':
+      return { action: 'stop', sessionId: request.sessionId };
+    case 'resume':
+      return { action: 'reopen', sessionId: request.sessionId };
+    default:
+      return request;
+  }
+}
 
 type SideChatSingleAction = 'create' | 'status' | 'stop' | 'close' | 'reopen';
 
@@ -121,6 +152,83 @@ type SideChatSource = Readonly<{
 
 function nonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+const briefOptions = Object.freeze({
+  '--outcome': 'outcome',
+  '--scope': 'scope',
+  '--dependencies': 'dependencies',
+  '--write-ownership': 'writeOwnership',
+  '--verification': 'verification',
+  '--handoff': 'handoff',
+} satisfies Record<string, keyof SideChatDelegationBrief>);
+
+const briefOptionEntries = Object.entries(briefOptions) as Array<
+  [keyof typeof briefOptions, keyof SideChatDelegationBrief]
+>;
+
+function requireDelegationBrief(
+  values: Partial<Record<keyof SideChatDelegationBrief, string>>,
+): SideChatDelegationBrief {
+  const missing = briefOptionEntries
+    .filter(([, field]) => !nonEmptyString(values[field]))
+    .map(([option]) => option);
+  if (missing.length > 0) {
+    throw new Error(`Side-chat creation requires: ${missing.join(', ')}`);
+  }
+  return Object.freeze({
+    outcome: values.outcome!.trim(),
+    scope: values.scope!.trim(),
+    dependencies: values.dependencies!.trim(),
+    writeOwnership: values.writeOwnership!.trim(),
+    verification: values.verification!.trim(),
+    handoff: values.handoff!.trim(),
+  });
+}
+
+export function sameSideChatDelegationBrief(
+  left: SideChatDelegationBrief,
+  right: SideChatDelegationBrief,
+): boolean {
+  return briefOptionEntries.every(([, field]) => left[field] === right[field]);
+}
+
+export function formatSideChatDelegationPrompt(
+  parentSessionId: string,
+  childSessionId: string,
+  brief: SideChatDelegationBrief,
+): string {
+  return `# Delegated delivery brief
+
+You are the Worker Agent in HappyHerd side chat \`${childSessionId}\`, delegated by Orchestrating Agent session \`${parentSessionId}\`. The Human interacts directly with the Main Agent. A provider-native subagent is the default inline fan-out for bounded parallel work; this HappyHerd side chat is a durable, visible, resumable child conversation with stable parent lineage.
+
+## Outcome
+
+${brief.outcome}
+
+## Scope
+
+${brief.scope}
+
+## Dependencies
+
+${brief.dependencies}
+
+## Write ownership
+
+${brief.writeOwnership}
+
+## Verification
+
+${brief.verification}
+
+## Handoff
+
+${brief.handoff}
+
+Execute only this brief. If you become an Orchestrating Agent, explicitly create each delegated task and remain accountable for every direct child and the integrated result. Do not create another HappyHerd side chat unless the Human or Main Agent explicitly requests it. Do not stop, close, reopen, or otherwise manage this side chat; its Orchestrating Agent owns that lifecycle.
+
+Your final handoff must state the result, exact verification evidence, blockers, and remaining work.`;
 }
 
 function record(value: unknown): Record<string, unknown> {
@@ -240,25 +348,30 @@ export async function createChildSideChat(
 }
 
 export function sideChatHelp(): string {
-  return `happy session side-chat
+  return `happyherd session side-chat
 
 Usage:
-  happy session side-chat create <parent-session-id> [--json]
-  happy session side-chat list <parent-session-id> [--json]
-  happy session side-chat status <child-session-id> [--json]
-  happy session side-chat stop <child-session-id> [--json]
-  happy session side-chat close <child-session-id> [--json]
-  happy session side-chat close <parent-session-id> --all [--json]
-  happy session side-chat reopen <child-session-id> [--json]
-  happy session side-chat resume <child-session-id> [--json]
+  happyherd session side-chat create <parent-session-id> \\
+    --outcome <text> --scope <text> --dependencies <text> \\
+    --write-ownership <text> --verification <text> --handoff <text> [--json]
+  happyherd session side-chat list <parent-session-id> [--json]
+  happyherd session side-chat status <child-session-id> [--json]
+  happyherd session side-chat inspect <child-session-id> [--json]
+  happyherd session side-chat stop <child-session-id> [--json]
+  happyherd session side-chat pause <child-session-id> [--json]
+  happyherd session side-chat close <child-session-id> [--json]
+  happyherd session side-chat close <parent-session-id> --all [--json]
+  happyherd session side-chat reopen <child-session-id> [--json]
+  happyherd session side-chat resume <child-session-id> [--json]
 
-Legacy create syntax remains supported:
-  happy session side-chat <parent-session-id> [--json]
+The parent-id shorthand remains supported when all six brief options are supplied:
+  happyherd session side-chat <parent-session-id> <brief-options> [--json]
 
 All lifecycle actions run through the parent machine's local daemon. Close
 stops the provider, deactivates the server session, archives encrypted
 lifecycle metadata, and reads the final state back. Reopen resumes the same
-Happy session and preserves its parent lineage.
+Happy session and preserves its parent lineage. Inspect, pause, and resume are
+aliases for status, stop, and reopen; receipts use the canonical action names.
 `;
 }
 
@@ -266,37 +379,87 @@ export function parseSideChatLifecycleRequest(args: string[]): {
   request: SideChatLifecycleRequest;
   json: boolean;
 } {
-  const json = args.includes('--json');
-  const all = args.includes('--all');
-  const positional = args.filter((arg) => arg !== '--json' && arg !== '--all');
-  const unknownOption = positional.find((arg) => arg.startsWith('-'));
-  if (unknownOption) {
-    throw new Error(`Unknown side-chat option: ${unknownOption}`);
+  let json = false;
+  let all = false;
+  const positional: string[] = [];
+  const briefValues: Partial<Record<keyof SideChatDelegationBrief, string>> = {};
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index];
+    if (argument === '--json') {
+      json = true;
+      continue;
+    }
+    if (argument === '--all') {
+      all = true;
+      continue;
+    }
+    const briefField = briefOptions[argument as keyof typeof briefOptions];
+    if (briefField) {
+      if (briefValues[briefField] !== undefined) {
+        throw new Error(`Duplicate side-chat option: ${argument}`);
+      }
+      const value = args[index + 1];
+      const valueIsOption = value === '--json'
+        || value === '--all'
+        || Object.prototype.hasOwnProperty.call(briefOptions, value);
+      if (!nonEmptyString(value) || valueIsOption) {
+        throw new Error(`Side-chat option ${argument} requires a non-empty value`);
+      }
+      briefValues[briefField] = value;
+      index += 1;
+      continue;
+    }
+    if (argument.startsWith('-')) {
+      throw new Error(`Unknown side-chat option: ${argument}`);
+    }
+    positional.push(argument);
   }
   if (positional.length === 0) {
-    throw new Error('Usage: happy session side-chat <action> <session-id> [--json]');
+    throw new Error('Usage: happyherd session side-chat <action> <session-id> [--json]');
   }
 
   const [candidateAction, ...ids] = positional;
-  const action = candidateAction === 'resume' ? 'reopen' : candidateAction;
+  const action = candidateAction === 'inspect'
+    ? 'status'
+    : candidateAction === 'pause'
+      ? 'stop'
+      : candidateAction === 'resume'
+        ? 'reopen'
+        : candidateAction;
   const knownAction = ['create', 'list', 'status', 'stop', 'close', 'reopen', 'close-all'].includes(action);
   if (!knownAction) {
     if (all || ids.length > 0 || !candidateAction.trim()) {
       throw new Error(`Unknown side-chat action: ${candidateAction}`);
     }
-    return { request: { action: 'create', parentSessionId: candidateAction }, json };
+    return {
+      request: {
+        action: 'create',
+        parentSessionId: candidateAction,
+        brief: requireDelegationBrief(briefValues),
+      },
+      json,
+    };
   }
   if (ids.length !== 1 || !ids[0].trim()) {
-    throw new Error(`Usage: happy session side-chat ${action} <session-id> [--json]`);
+    throw new Error(`Usage: happyherd session side-chat ${action} <session-id> [--json]`);
   }
   const id = ids[0];
+  if (action !== 'create' && Object.keys(briefValues).length > 0) {
+    throw new Error('Delegation brief options are supported only with the create action');
+  }
   if (action === 'close' && all) {
     return { request: { action: 'close-all', parentSessionId: id }, json };
   }
   if (all) {
     throw new Error('--all is supported only with the close action');
   }
-  if (action === 'create' || action === 'list' || action === 'close-all') {
+  if (action === 'create') {
+    return {
+      request: { action, parentSessionId: id, brief: requireDelegationBrief(briefValues) },
+      json,
+    };
+  }
+  if (action === 'list' || action === 'close-all') {
     return { request: { action, parentSessionId: id }, json };
   }
   return {

@@ -1,9 +1,24 @@
 {
   "entries": [
     {
+      "title": "August 29 — Named provider accounts and automatic failover",
+      "summary": "",
+      "markdown": "- Connect and manage multiple local accounts for Claude, Codex, and GrokBuild using `happyherd connect <claude|codex|grok> --acct <nickname>` and the `happyherd accounts` command suite.\n- HappyHerd switches to the next available provider account upon reaching rate limits or hard quotas without losing transcript history or runtime context, using reactive and lazy selection without background quota polling.\n- When all accounts are limited, execution pauses and resumes automatically after the earliest account reset window elapses."
+    },
+    {
+      "title": "August 29 — Side chats carry bounded delegation briefs",
+      "summary": "",
+      "markdown": "- Delegated Worker Agent creation now runs exclusively through `happyherd session side-chat create`, with required outcome, scope, dependencies, write ownership, verification, and handoff fields. On successful creation, the brief is the child's first encrypted queued message; a delivery failure retains the child ID and exact failed phase.\n- The app continues to discover, render, switch, resume, and close existing side chats, while unbriefed creation controls are removed and generic `spawn-happy-session` rejects `isSideChat` before provider launch.\n- The CLI and daemon loopback API accept `inspect` for `status`, `pause` for `stop`, and `resume` for `reopen`, while receipts retain canonical action names and provider-native subagents remain the default inline fan-out."
+    },
+    {
+      "title": "August 29 — Attachment selection",
+      "summary": "",
+      "markdown": "- Attachment choices now appear in styled in-app surfaces (anchored popovers on desktop and web, safe-area bottom sheets on mobile) rather than system alert dialogs, while leaving system photo and file pickers unchanged."
+    },
+    {
       "title": "August 29 — Projects, conversation controls, and voice polish",
       "summary": "HappyHerd brings in the approved upstream project and conversation improvements without changing its provider defaults or self-hosted service boundary.",
-      "markdown": "- Home can switch between the existing flat inbox and Group by Project, with encrypted project details, project avatars, live Git changes, and archive gestures.\n- Provider-native permission choices, remembered grants, configured Claude models, Opus 5, and Happy Agent workspaces now flow through their owning runtimes while HappyHerd keeps its existing launch defaults.\n- The composer retains one attachment menu, queued follow-ups, Workspace context, and response images while adding steadier scroll anchoring, compact Git and usage details, and clearer tool-group expansion.\n- Voice calls show a live duration and end when the call pill is tapped; the Features switch remains authoritative, calls stay on the configured HappyHerd server, and no upgrade prompt is shown.\n- Settings, empty states, recovery actions, subprocess behavior, and local source installs include the approved upstream fixes while the Features page and configurable session status bar remain available."
+      "markdown": "- Home can switch between the existing flat inbox and Group by Project, with encrypted project details, project avatars, live Git changes, and archive gestures.\n- Provider-native permission choices, remembered grants, configured Claude models, Opus 5, and Happy Agent workspaces now flow through their owning runtimes while HappyHerd keeps its existing launch defaults.\n- Switch Grok permission modes during active sessions without losing your conversation history, path, or queued messages.\n- The composer retains one attachment menu, queued follow-ups, Workspace context, and response images while adding steadier scroll anchoring, compact Git and usage details, and clearer tool-group expansion.\n- Voice calls show a live duration and end when the call pill is tapped; the Features switch remains authoritative, calls stay on the configured HappyHerd server, and no upgrade prompt is shown.\n- Settings, empty states, recovery actions, subprocess behavior, and local source installs include the approved upstream fixes while the Features page and configurable session status bar remain available.\n- Sending a prompt from an archived session now resumes the original conversation on its original machine and working directory, preserving existing history and delivering your message as the next turn."
     },
     {
       "title": "August 28 — Side chats have a complete CLI lifecycle",
@@ -331,5 +346,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 29 — Projects, conversation controls, and voice polish"
+  "latestTitle": "August 29 — Named provider accounts and automatic failover"
 }

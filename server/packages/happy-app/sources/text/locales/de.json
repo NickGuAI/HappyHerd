@@ -390,7 +390,8 @@
     "searchFailed": "Die Suche ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
     "failedToSendRequest": "Freundschaftsanfrage konnte nicht gesendet werden",
     "sessionNotFinishedSyncing": "Die Nachricht wurde nicht gesendet: Diese Sitzung ist noch nicht vollständig synchronisiert. Bitte versuchen Sie es erneut.",
-    "unsupportedPermissionMode": "Die Happy CLI dieser Sitzung ({cliVersion}) unterstützt den Berechtigungsmodus \"{mode}\" nicht. Wählen Sie einen anderen Modus oder aktualisieren Sie Happy CLI."
+    "unsupportedPermissionMode": "Die Happy CLI dieser Sitzung ({cliVersion}) unterstützt den Berechtigungsmodus \"{mode}\" nicht. Wählen Sie einen anderen Modus oder aktualisieren Sie Happy CLI.",
+    "grokPermissionModeChangeFailed": "Grok-Berechtigungsmodus konnte nicht geändert werden"
   },
   "newSession": {
     "title": "Neue Sitzung starten",
@@ -885,15 +886,9 @@
   },
   "sideChat": {
     "panelTitle": "Untergeordnete Agenten",
-    "emptyTitle": "Starten Sie einen Nebenchat",
-    "emptySubtitle": "Fragen Sie den Agenten nebenbei etwas. Es übernimmt den Kontext dieses Chats, bleibt aber isoliert – hier berührt nichts die Hauptkonversation.",
-    "startButton": "Starten Sie den Side-Chat",
-    "creating": "Seitenchat wird gestartet…",
-    "unavailable": "In dieser Sitzung kann noch kein Nebenchat gestartet werden. Warten Sie, bis der Agent online ist.",
     "composerPlaceholder": "Nachrichtenseitenchat…",
     "expand": "Vollbild öffnen",
     "tabLabel": "Nebenchat {index}",
-    "newChat": "Neuer Seitenchat",
     "close": "Side-Chat schließen",
     "collapse": "Untergeordnete Agenten einklappen",
     "archiveFailed": "Dieser untergeordnete Agent konnte nicht archiviert werden. Sein Tab wurde wiederhergestellt, damit du es erneut versuchen kannst.",

@@ -24,6 +24,7 @@ import {
     WorkspaceFileHashResponseSchema,
 } from '@slopus/happy-wire';
 import type {
+    GrokPermissionModeTransitionReceipt,
     HappyHerdAutomation,
     HappyHerdAutomationCreateInput,
     HappyHerdAutomationHistoryResponse,
@@ -44,6 +45,7 @@ import type {
     WorkspaceUploadStartRequest,
     WorkspaceUploadStartResponse,
 } from '@slopus/happy-wire';
+import { GrokPermissionModeTransitionReceiptSchema } from '@slopus/happy-wire';
 
 export type { SessionAgentModesPatch };
 
@@ -268,8 +270,6 @@ export interface SpawnSessionOptions {
     parentSessionId?: string;
     /** Happy message id used as the rewind point (only set for "duplicate"). */
     forkedFromMessageId?: string;
-    /** Marks the spawned session as a hidden side chat of `parentSessionId`. */
-    isSideChat?: boolean;
 }
 
 // Options for forking a Claude session on a machine
@@ -320,6 +320,8 @@ export type CodexListRewindPointsResult =
 export interface ResumeSessionOptions {
     machineId: string;
     sessionId: string;
+    /** Existing queued user record that reconnect catch-up must deliver. */
+    replayQueueMessageId?: string;
 }
 
 // Exported session operation functions
@@ -329,7 +331,7 @@ export interface ResumeSessionOptions {
  */
 export async function machineSpawnNewSession(options: SpawnSessionOptions): Promise<SpawnSessionResult> {
 
-    const { machineId, directory, approvedNewDirectoryCreation = false, token, agent, permissionMode, modelMode, effortLevel, commanderId, clientRequestId, providerId, modelId, effort, happyAgentTarget, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat } = options;
+    const { machineId, directory, approvedNewDirectoryCreation = false, token, agent, permissionMode, modelMode, effortLevel, commanderId, clientRequestId, providerId, modelId, effort, happyAgentTarget, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId } = options;
 
     try {
         if (agent === 'rig' && !clientRequestId) {
@@ -356,7 +358,6 @@ export async function machineSpawnNewSession(options: SpawnSessionOptions): Prom
             resumeCodexThreadId?: string,
             parentSessionId?: string,
             forkedFromMessageId?: string,
-            isSideChat?: boolean,
         };
         type HappyAgentSpawnRequest = {
             type: 'happy-agent-spawn';
@@ -396,7 +397,7 @@ export async function machineSpawnNewSession(options: SpawnSessionOptions): Prom
                 ...(modelId ? { modelId } : {}),
                 ...((effort ?? effortLevel) ? { effort: effort ?? effortLevel } : {}),
             }
-            : { type: 'spawn-in-directory', directory, approvedNewDirectoryCreation, token, agent, permissionMode, modelMode, effortLevel, commanderId, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat };
+            : { type: 'spawn-in-directory', directory, approvedNewDirectoryCreation, token, agent, permissionMode, modelMode, effortLevel, commanderId, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId };
         const result = await apiSocket.machineRPC<SpawnSessionResult, SpawnRequest>(
             machineId,
             'spawn-happy-session',
@@ -629,13 +630,18 @@ export async function codexListRewindPoints(
 }
 
 export async function machineResumeSession(options: ResumeSessionOptions & { model?: string; permissionMode?: string }): Promise<SpawnSessionResult> {
-    const { machineId, sessionId, model, permissionMode } = options;
+    const { machineId, sessionId, model, permissionMode, replayQueueMessageId } = options;
 
     try {
-        const result = await apiSocket.machineRPC<SpawnSessionResult, { sessionId: string; model?: string; permissionMode?: string }>(
+        const result = await apiSocket.machineRPC<SpawnSessionResult, {
+            sessionId: string;
+            model?: string;
+            permissionMode?: string;
+            replayQueueMessageId?: string;
+        }>(
             machineId,
             'resume-happy-session',
-            { sessionId, model, permissionMode },
+            { sessionId, model, permissionMode, replayQueueMessageId },
         );
         return result;
     } catch (error) {
@@ -644,6 +650,22 @@ export async function machineResumeSession(options: ResumeSessionOptions & { mod
             errorMessage: error instanceof Error ? error.message : 'Failed to resume session',
         };
     }
+}
+
+export async function machineTransitionGrokPermissionMode(
+    machineId: string,
+    sessionId: string,
+    permissionMode: string,
+): Promise<GrokPermissionModeTransitionReceipt> {
+    const receipt = await apiSocket.machineRPC<GrokPermissionModeTransitionReceipt, {
+        sessionId: string;
+        permissionMode: string;
+    }>(
+        machineId,
+        'grok-permission-mode-transition',
+        { sessionId, permissionMode },
+    );
+    return GrokPermissionModeTransitionReceiptSchema.parse(receipt);
 }
 
 /**
@@ -1602,8 +1624,6 @@ type ForkOptions = {
     cutAfterUuid?: string;
     cutAfterItemId?: string;
     forkedFromMessageId?: string;
-    /** Marks the forked child as a hidden side chat (kept out of the session list). */
-    isSideChat?: boolean;
 };
 
 /**
@@ -1648,7 +1668,6 @@ export async function forkAndSpawn(
             resumeCodexThreadId: forkResult.newCodexThreadId,
             parentSessionId: source.sessionId,
             forkedFromMessageId: opts.forkedFromMessageId,
-            isSideChat: opts.isSideChat,
         });
 
         if (spawnResult.type === 'success') {
@@ -1687,7 +1706,6 @@ export async function forkAndSpawn(
         resumeClaudeSessionId: forkResult.newClaudeSessionId,
         parentSessionId: source.sessionId,
         forkedFromMessageId: opts.forkedFromMessageId,
-        isSideChat: opts.isSideChat,
     });
 
     // Pull the newly-created session row into local sync state before we
@@ -1704,18 +1722,6 @@ export async function forkAndSpawn(
     }
 
     return spawnResult;
-}
-
-/**
- * Create a "side chat" for a session: a forked child that inherits the
- * parent's full context but is provably isolated (writes only to its own
- * transcript, never back into the parent) and is flagged `isSideChat` so it
- * stays out of the top-level session list. Rendered only inside the parent's
- * sidebar panel. Reuses the fork/spawn machinery; the only difference from a
- * normal fork is the `isSideChat` marker.
- */
-export async function spawnSideChat(source: ForkSource): Promise<SpawnSessionResult> {
-    return forkAndSpawn(source, { isSideChat: true });
 }
 
 // Export types for external use

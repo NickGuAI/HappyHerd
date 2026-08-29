@@ -1553,9 +1553,58 @@ describe('CodexAppServerClient sandbox integration', () => {
         await client.disconnect();
     });
 
-    it('maps raw goal notifications into legacy goal events', async () => {
+    it('forwards account rate-limit snapshots to the event handler', async () => {
         const proc = createMockProcess({
             pid: 3002,
+            onRequest: (msg, stdout) => {
+                if (msg.method === 'thread/start' && msg.id != null) {
+                    setTimeout(() => {
+                        pushJsonLine(stdout, {
+                            id: msg.id,
+                            result: {
+                                thread: { id: 'thread-rate-limits', path: '/tmp/thread-rate-limits' },
+                                model: 'gpt-test',
+                                modelProvider: 'openai',
+                                cwd: '/tmp/project',
+                                approvalPolicy: 'never',
+                                sandbox: { type: 'dangerFullAccess' },
+                                reasoningEffort: null,
+                            },
+                        });
+                        pushJsonLine(stdout, {
+                            method: 'account/rateLimits/updated',
+                            params: { primary: { usedPercent: 100, resetsAt: 1_800_000_000 } },
+                        });
+                    }, 0);
+                }
+            },
+        });
+        mockSpawn.mockImplementation(() => proc);
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient();
+        const events: Array<Record<string, unknown>> = [];
+        client.setEventHandler((msg) => events.push(msg as Record<string, unknown>));
+
+        await client.connect();
+        await client.startThread({
+            model: 'gpt-test',
+            cwd: '/tmp/project',
+            approvalPolicy: 'never',
+            sandbox: 'danger-full-access',
+        });
+        await waitFor(() => events.some((event) => event.type === 'account_rate_limits_updated'));
+
+        expect(events).toContainEqual({
+            type: 'account_rate_limits_updated',
+            rateLimits: { primary: { usedPercent: 100, resetsAt: 1_800_000_000 } },
+        });
+        await client.disconnect();
+    });
+
+    it('maps raw goal notifications into legacy goal events', async () => {
+        const proc = createMockProcess({
+            pid: 3003,
             onRequest: (msg, stdout) => {
                 if (msg.method === 'thread/start' && msg.id != null) {
                     setTimeout(() => {

@@ -320,7 +320,8 @@
     "searchFailed": "搜索失败。请重试。",
     "failedToSendRequest": "发送好友请求失败",
     "sessionNotFinishedSyncing": "消息未发送：此会话尚未完成同步。请重试。",
-    "unsupportedPermissionMode": "此会话的 Happy CLI（{cliVersion}）不支持权限模式“{mode}”。请选择其他模式或升级 Happy CLI。"
+    "unsupportedPermissionMode": "此会话的 Happy CLI（{cliVersion}）不支持权限模式“{mode}”。请选择其他模式或升级 Happy CLI。",
+    "grokPermissionModeChangeFailed": "无法更改 Grok 权限模式"
   },
   "newSession": {
     "title": "开始新会话",
@@ -815,15 +816,9 @@
   },
   "sideChat": {
     "panelTitle": "子工作会话",
-    "emptyTitle": "开始侧边聊天",
-    "emptySubtitle": "在一旁向智能体提问。它会继承此聊天的上下文，但保持独立——这里的任何操作都不会影响主对话。",
-    "startButton": "开始侧边聊天",
-    "creating": "正在开始侧边聊天…",
-    "unavailable": "此会话暂时无法开始侧边聊天——请等待智能体上线。",
     "composerPlaceholder": "给侧边聊天发消息…",
     "expand": "全屏打开",
     "tabLabel": "侧边聊天 {index}",
-    "newChat": "新建侧边聊天",
     "close": "关闭侧边聊天",
     "collapse": "收起子工作会话",
     "archiveFailed": "无法归档此子工作会话。标签页已恢复，您可以重试。",

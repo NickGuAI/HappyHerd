@@ -21,6 +21,8 @@ import { cleanupStdinAfterInk } from "@/utils/terminalStdinCleanup";
 import type { MessageParam, ContentBlockParam } from '@anthropic-ai/sdk/resources';
 import type { HappyHerdHeartbeatMessageMarker } from '@slopus/happy-wire';
 import { persistHeartbeatDeliveryReceipt } from '@/automations/providerOutcome';
+import { classifyClaudeHardLimit } from '@/credentialPool/providerLimits';
+import { reportProviderHardLimitOnce } from '@/credentialPool/providerLimitNotice';
 
 interface PermissionsField {
     date: number;
@@ -456,6 +458,13 @@ export async function claudeRemoteLauncher(
                             ...currentAgentState,
                             usageLimits: mergeUsageLimits(currentAgentState.usageLimits, patch),
                         }));
+                        const hardLimit = classifyClaudeHardLimit(patch);
+                        if (hardLimit) {
+                            void reportProviderHardLimitOnce({
+                                sessionId: session.client.sessionId,
+                                ...hardLimit,
+                            });
+                        }
                     },
                     onQueryReady: (q) => {
                         permissionHandler.setPermissionModeUpdater(async (mode) => {

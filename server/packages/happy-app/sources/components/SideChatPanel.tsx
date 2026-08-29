@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { View, Text, Pressable, Platform, ActivityIndicator, ScrollView, useWindowDimensions } from 'react-native';
+import { View, Text, Pressable, Platform, ScrollView, useWindowDimensions } from 'react-native';
 import { Octicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,14 +13,10 @@ import { SessionViewLoaded } from '@/-session/SessionView';
 import { resolveActiveSideChatId } from './sideChatPresentation';
 
 export type SideChatPanelProps = {
-    parentSessionId: string;
     sideChats: Session[];
     activeSideChatId: string | null;
     onSelectSideChat: (id: string) => void;
     onCloseSideChat: (id: string) => void;
-    onCreateSideChat: () => void;
-    canCreateSideChat: boolean;
-    creatingSideChat: boolean;
 };
 
 export const SideChatAccessButton = React.memo(function SideChatAccessButton({
@@ -63,15 +59,13 @@ export const SideChatAccessButton = React.memo(function SideChatAccessButton({
 /**
  * Right-sidebar "side chat" panel (controlled).
  *
- * A side chat is a forked child session of `parentSessionId`: it inherits the
- * parent's context inside the model but starts empty in the UI and is flagged
- * `metadata.isSideChat` so it never shows in the top-level session list.
+ * A side chat is a forked child session with stable parent lineage. It inherits
+ * the parent's provider context, receives its bounded brief as the first queued
+ * message, and is flagged `metadata.isSideChat` so it stays out of top-level lists.
  *
- * A parent can have several side chats, shown here as switchable tabs. Creation
- * is unified into the sidebar panel picker (the top "+"), so this panel has no
- * add button of its own — it only switches between and closes existing chats.
- * Which chat is focused, plus create/close, are owned by the parent so the
- * picker can create-and-focus in one action; this component is presentational.
+ * A parent can have several side chats, shown here as switchable tabs. The
+ * daemon-owned lifecycle creates them only after validating a bounded brief;
+ * this component only switches between and closes existing chats.
  *
  * The chat body is the exact same `SessionViewLoaded` used by the main screen
  * (rendered `embedded`), so tools, MCP, options, permission/model pickers and
@@ -82,9 +76,6 @@ export const SideChatPanel = React.memo(function SideChatPanel({
     activeSideChatId,
     onSelectSideChat,
     onCloseSideChat,
-    onCreateSideChat,
-    canCreateSideChat,
-    creatingSideChat,
 }: SideChatPanelProps) {
     const activeSession = React.useMemo(() => {
         const resolvedId = resolveActiveSideChatId(
@@ -102,15 +93,7 @@ export const SideChatPanel = React.memo(function SideChatPanel({
         }
     }, [activeId]);
 
-    if (sideChats.length === 0) {
-        return (
-            <SideChatEmptyState
-                creating={creatingSideChat}
-                canStart={canCreateSideChat}
-                onStart={onCreateSideChat}
-            />
-        );
-    }
+    if (sideChats.length === 0) return null;
 
     return (
         <View style={styles.panel}>
@@ -176,8 +159,7 @@ function sideChatLabel(session: Session, index: number): string {
     return t('sideChat.tabLabel', { index: index + 1 });
 }
 
-/** Horizontal tab strip: one pill per side chat. No add button — creation is
- *  handled by the sidebar panel picker. */
+/** Horizontal tab strip for already-briefed side chats. */
 const SideChatTabs = React.memo(function SideChatTabs({
     sessions,
     activeId,
@@ -247,53 +229,6 @@ const SideChatTab = React.memo(function SideChatTab({
                 <Octicons name="x" size={11} color={active ? theme.colors.text : theme.colors.textSecondary} />
             </Pressable>
         </Pressable>
-    );
-});
-
-/** Empty state: shown only if the panel is open with no side chats. Offers to
- *  start one (same action as the picker's "New side chat"). */
-const SideChatEmptyState = React.memo(function SideChatEmptyState({
-    creating,
-    canStart,
-    onStart,
-}: {
-    creating: boolean;
-    canStart: boolean;
-    onStart: () => void;
-}) {
-    const { theme } = useUnistyles();
-    return (
-        <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconWrap}>
-                <Octicons name="comment-discussion" size={26} color={theme.colors.textSecondary} />
-            </View>
-            <Text style={styles.emptyTitle}>{t('sideChat.emptyTitle')}</Text>
-            <Text style={styles.emptySubtitle}>{t('sideChat.emptySubtitle')}</Text>
-            <Pressable
-                onPress={onStart}
-                disabled={creating || !canStart}
-                style={({ pressed, hovered }: any) => [
-                    styles.startButton,
-                    (pressed || hovered) && styles.startButtonPressed,
-                    (creating || !canStart) && styles.startButtonDisabled,
-                ]}
-            >
-                {creating ? (
-                    <>
-                        <ActivityIndicator size="small" color={theme.colors.button.primary.tint} />
-                        <Text style={styles.startButtonText}>{t('sideChat.creating')}</Text>
-                    </>
-                ) : (
-                    <>
-                        <Octicons name="plus" size={14} color={theme.colors.button.primary.tint} />
-                        <Text style={styles.startButtonText}>{t('sideChat.startButton')}</Text>
-                    </>
-                )}
-            </Pressable>
-            {!canStart && (
-                <Text style={styles.unavailableHint}>{t('sideChat.unavailable')}</Text>
-            )}
-        </View>
     );
 });
 
@@ -466,67 +401,6 @@ const styles = StyleSheet.create((theme) => ({
         borderRadius: 4,
         alignItems: 'center',
         justifyContent: 'center',
-    },
-    emptyContainer: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 24,
-        gap: 6,
-    },
-    emptyIconWrap: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: theme.colors.surface,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: theme.colors.divider,
-        marginBottom: 12,
-    },
-    emptyTitle: {
-        fontSize: 15,
-        fontWeight: '600',
-        color: theme.colors.text,
-        textAlign: 'center',
-        ...Typography.default('semiBold'),
-    },
-    emptySubtitle: {
-        fontSize: 13,
-        color: theme.colors.textSecondary,
-        textAlign: 'center',
-        lineHeight: 18,
-        ...Typography.default(),
-    },
-    startButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        marginTop: 10,
-        paddingHorizontal: 14,
-        paddingVertical: 9,
-        borderRadius: 10,
-        backgroundColor: theme.colors.button.primary.background,
-    },
-    startButtonPressed: {
-        opacity: 0.85,
-    },
-    startButtonDisabled: {
-        opacity: 0.5,
-    },
-    startButtonText: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: theme.colors.button.primary.tint,
-        ...Typography.default('semiBold'),
-    },
-    unavailableHint: {
-        fontSize: 12,
-        color: theme.colors.textSecondary,
-        textAlign: 'center',
-        marginTop: 8,
-        ...Typography.default(),
     },
     conversationContainer: {
         flex: 1,

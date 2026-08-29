@@ -123,6 +123,9 @@ export function createSessionMetadata(opts: CreateSessionMetadataOptions): Sessi
         ...(opts.flavor === 'codex'
             ? { codexHome: resolve(process.env.CODEX_HOME?.trim() || resolve(os.homedir(), '.codex')) }
             : {}),
+        ...(process.env.HAPPYHERD_PROVIDER_ACCOUNT
+            ? { providerAccount: process.env.HAPPYHERD_PROVIDER_ACCOUNT }
+            : {}),
         sandbox: opts.sandbox?.enabled ? opts.sandbox : null,
         dangerouslySkipPermissions: opts.dangerouslySkipPermissions ?? null,
         ...(opts.spawnSettings

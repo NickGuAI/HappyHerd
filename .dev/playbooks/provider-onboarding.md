@@ -82,6 +82,8 @@ discovers permission modes from `grok --help`,
 process launch, and `server/packages/happy-cli/src/agent/acp/runAcp.ts` keeps
 them separate from ACP plan/build selection.
 
+When a permission mode change is requested, the daemon must validate the selection and restart only the tracked Grok process using the corresponding Grok launch policy flag rather than modifying the ACP operating mode. Ensure the shared composer only updates the visible mode after the resumed provider returns a matching launch receipt while retaining transcript, path, identity, and queued messages.
+
 ## 3. Preserve open transit and validate at the provider boundary
 
 Shared wire/app metadata carries provider-native strings so a new provider does

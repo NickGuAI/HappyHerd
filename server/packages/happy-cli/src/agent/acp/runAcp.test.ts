@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { HAPPYHERD_MACHINE_SESSION_SETTINGS_ENV } from '@slopus/happy-wire';
 
 const mocks = vi.hoisted(() => {
   const sessionHandlers = new Map<string, (params: any) => Promise<any> | any>();
+  const lifecycleEvents: string[] = [];
   let userMessageHandler: ((message: any) => void) | null = null;
   let killHandler: (() => Promise<void>) | null = null;
 
   const mockSession = {
+    sessionId: 'session-1',
     onUserMessage: vi.fn((handler: (message: any) => void) => {
       userMessageHandler = handler;
     }),
@@ -40,6 +43,7 @@ const mocks = vi.hoisted(() => {
     disposeCalls: 0,
     constructorArgs: null as any,
     stopReason: 'end_turn' as 'end_turn' | 'refusal' | 'cancelled',
+    promptError: null as Error | null,
   };
 
   return {
@@ -57,7 +61,16 @@ const mocks = vi.hoisted(() => {
       killHandler = handler;
     }),
     mockLoggerDebug: vi.fn(),
+    mockPersistActiveGrokCredential: vi.fn(async () => {
+      lifecycleEvents.push('persist');
+      return true;
+    }),
+    mockReportProviderHardLimitOnce: vi.fn(async () => {
+      lifecycleEvents.push('report');
+      return true;
+    }),
     mockConsoleLog: vi.spyOn(console, 'log').mockImplementation(() => {}),
+    lifecycleEvents,
     sessionHandlers,
     getUserMessageHandler: () => userMessageHandler,
     setUserMessageHandler: (handler: ((message: any) => void) | null) => {
@@ -148,6 +161,7 @@ vi.mock('./AcpBackend', () => ({
 
     async sendPrompt(sessionId: string, prompt: string) {
       mocks.backendState.prompts.push({ sessionId, prompt });
+      if (mocks.backendState.promptError) throw mocks.backendState.promptError;
       for (const listener of mocks.backendState.listeners) {
         listener({ type: 'status', status: 'running' });
         listener({ type: 'model-output', textDelta: 'hello' });
@@ -186,8 +200,17 @@ vi.mock('./AcpBackend', () => ({
 
     async dispose() {
       mocks.backendState.disposeCalls += 1;
+      mocks.lifecycleEvents.push('dispose');
     }
   },
+}));
+
+vi.mock('@/credentialPool/grokAuth', () => ({
+  persistActiveGrokCredential: mocks.mockPersistActiveGrokCredential,
+}));
+
+vi.mock('@/credentialPool/providerLimitNotice', () => ({
+  reportProviderHardLimitOnce: mocks.mockReportProviderHardLimitOnce,
 }));
 
 import { resolveAcpPermissionPolicy, runAcp } from './runAcp';
@@ -215,6 +238,8 @@ describe('runAcp', () => {
     mocks.backendState.disposeCalls = 0;
     mocks.backendState.constructorArgs = null;
     mocks.backendState.stopReason = 'end_turn';
+    mocks.backendState.promptError = null;
+    mocks.lifecycleEvents.length = 0;
 
     mocks.mockApiCreate.mockResolvedValue({
       getOrCreateMachine: mocks.mockGetOrCreateMachine,
@@ -286,6 +311,55 @@ describe('runAcp', () => {
       await runPromise;
     },
   );
+
+  it('passes the stable Grok runtime home to the child while retaining the provider session id', async () => {
+    vi.stubEnv('GROK_HOME', '/runtime/grok');
+
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'grok',
+      command: 'grok',
+      args: ['--no-auto-update', 'agent', 'stdio'],
+      resumeSessionId: 'grok-provider-session',
+    });
+
+    await vi.waitFor(() => expect(mocks.backendState.startSessionCalls).toBe(1));
+    expect(mocks.backendState.constructorArgs.processEnv).toMatchObject({
+      GROK_HOME: '/runtime/grok',
+    });
+    expect(mocks.backendState.constructorArgs.loadSessionId).toBe('grok-provider-session');
+
+    await mocks.getKillHandler()!();
+    await runPromise;
+    expect(mocks.lifecycleEvents).toEqual(['persist', 'dispose']);
+  });
+
+  it('persists refreshed Grok auth before reporting a hard limit and again during cleanup', async () => {
+    mocks.backendState.promptError = Object.assign(new Error('rate limit exceeded'), { status: 429 });
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'grok',
+      command: 'grok',
+      args: ['--no-auto-update', 'agent', 'stdio'],
+    });
+    const outcome = runPromise.then(
+      () => null,
+      (error: unknown) => error,
+    );
+
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+    mocks.getUserMessageHandler()!({
+      role: 'user',
+      content: { type: 'text', text: 'Trigger the provider limit' },
+    });
+
+    await expect(outcome).resolves.toMatchObject({ message: 'rate limit exceeded' });
+    expect(mocks.mockReportProviderHardLimitOnce).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: 'session-1',
+      provider: 'grok',
+    }));
+    expect(mocks.lifecycleEvents).toEqual(['persist', 'report', 'persist', 'dispose']);
+  });
 
   it('does not create pending agent state for Grok bypass callbacks', async () => {
     const runPromise = runAcp({
@@ -402,6 +476,140 @@ describe('runAcp', () => {
       await runPromise;
     },
   );
+
+  it('replays the explicit archived turn during raw Grok ACP reconnect', async () => {
+    vi.stubEnv('HAPPY_RECONNECT_SESSION_ID', 'resumed-session');
+    vi.stubEnv('HAPPY_RECONNECT_ENCRYPTION_KEY', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=');
+    vi.stubEnv('HAPPY_RECONNECT_ENCRYPTION_VARIANT', 'legacy');
+    vi.stubEnv('HAPPY_RECONNECT_SEQ', '12');
+    vi.stubEnv('HAPPY_RECONNECT_METADATA_VERSION', '4');
+    vi.stubEnv('HAPPY_RECONNECT_AGENT_STATE_VERSION', '5');
+    vi.stubEnv('HAPPY_RECONNECT_QUEUE_MESSAGE_ID', 'archived-next-turn');
+    mocks.mockRefreshSessionForReconnect.mockResolvedValueOnce({
+      id: 'resumed-session',
+      metadata: {},
+      agentState: {
+        messageQueue: {
+          pendingMessageIds: ['retained-queued-turn'],
+          currentMessageIds: [],
+        },
+      },
+      seq: 12,
+      encryptionKey: new Uint8Array(32),
+      encryptionVariant: 'legacy',
+      metadataVersion: 4,
+      agentStateVersion: 5,
+    });
+
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'grok',
+      command: 'grok',
+      args: ['--no-auto-update', '--permission-mode', 'default', 'agent', 'stdio'],
+      permissionMode: 'default',
+      resumeSessionId: 'grok-provider-session',
+    });
+
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+    expect(mocks.mockSession.skipExistingMessages).toHaveBeenCalledWith(
+      ['retained-queued-turn', 'archived-next-turn'],
+      12,
+    );
+
+    mocks.getUserMessageHandler()!({
+      role: 'user',
+      content: { type: 'text', text: 'Continue the archived Grok task' },
+      localKey: 'archived-next-turn',
+      meta: {
+        deliveryMode: 'queue',
+        queueMessageId: 'archived-next-turn',
+      },
+    });
+
+    await vi.waitFor(() => expect(mocks.backendState.prompts).toEqual([{
+      sessionId: 'acp-session-1',
+      prompt: 'Continue the archived Grok task',
+    }]));
+    await mocks.getKillHandler()!();
+    await runPromise;
+  });
+
+  it('publishes a changed Grok launch receipt only after resumed provider startup and restores queued turns', async () => {
+    const oldReceipt = {
+      provider: 'grok' as const,
+      model: 'grok-build',
+      effort: null,
+      permission: 'default',
+    };
+    const newReceipt = { ...oldReceipt, permission: 'bypassPermissions' };
+    vi.stubEnv('HAPPY_RECONNECT_SESSION_ID', 'resumed-session');
+    vi.stubEnv('HAPPY_RECONNECT_ENCRYPTION_KEY', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=');
+    vi.stubEnv('HAPPY_RECONNECT_ENCRYPTION_VARIANT', 'legacy');
+    vi.stubEnv('HAPPY_RECONNECT_SEQ', '12');
+    vi.stubEnv('HAPPY_RECONNECT_METADATA_VERSION', '4');
+    vi.stubEnv('HAPPY_RECONNECT_AGENT_STATE_VERSION', '5');
+    vi.stubEnv(HAPPYHERD_MACHINE_SESSION_SETTINGS_ENV, JSON.stringify(newReceipt));
+    mocks.mockRefreshSessionForReconnect.mockResolvedValue({
+      id: 'resumed-session',
+      metadata: {
+        flavor: 'grok',
+        acpSessionId: 'grok-provider-session',
+        spawnSettings: oldReceipt,
+        permissionMode: 'default',
+      },
+      agentState: {
+        messageQueue: {
+          currentMessageIds: ['queue-current'],
+          pendingMessageIds: ['queue-pending'],
+        },
+      },
+      seq: 12,
+      encryptionKey: new Uint8Array(32),
+      encryptionVariant: 'legacy',
+      metadataVersion: 4,
+      agentStateVersion: 5,
+    });
+
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'grok',
+      command: 'grok',
+      args: ['--no-auto-update', '--permission-mode', 'bypassPermissions', 'agent', 'stdio'],
+      startedBy: 'daemon',
+      permissionMode: 'bypassPermissions',
+      resumeSessionId: 'grok-provider-session',
+    });
+
+    await vi.waitFor(() => expect(mocks.backendState.startSessionCalls).toBe(1));
+    expect(mocks.mockSession.skipExistingMessages).toHaveBeenCalledWith(
+      ['queue-current', 'queue-pending'],
+      12,
+    );
+    const daemonNotifications = mocks.mockNotifyDaemonSessionStarted.mock.calls as unknown as Array<[string, Record<string, any>]>;
+    expect(daemonNotifications[0]?.[1]).toMatchObject({
+      spawnSettings: oldReceipt,
+      permissionMode: 'default',
+    });
+    expect(daemonNotifications.at(-1)?.[1]).toMatchObject({
+      acpSessionId: 'provider-session-1',
+      spawnSettings: newReceipt,
+      permissionMode: 'bypassPermissions',
+    });
+
+    const confirmedMetadataUpdate = mocks.mockSession.updateMetadata.mock.calls
+      .map(([update]) => update)
+      .find((update) => {
+        const result = update({ spawnSettings: oldReceipt, permissionMode: 'default' });
+        return result.spawnSettings?.permission === 'bypassPermissions';
+      });
+    expect(confirmedMetadataUpdate).toBeTypeOf('function');
+    expect(confirmedMetadataUpdate({ spawnSettings: oldReceipt, permissionMode: 'default' })).toMatchObject({
+      spawnSettings: newReceipt,
+      permissionMode: 'bypassPermissions',
+    });
+    await mocks.getKillHandler()!();
+    await runPromise;
+  });
 
   it('wires backend messages through mapper into session envelopes', async () => {
     const runPromise = runAcp({

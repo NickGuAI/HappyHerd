@@ -5,6 +5,10 @@
 
 import { io, Socket } from 'socket.io-client';
 import {
+    GrokPermissionModeTransitionReceiptSchema,
+    GrokPermissionModeTransitionRequestSchema,
+    type GrokPermissionModeTransitionReceipt,
+    type GrokPermissionModeTransitionRequest,
     HappyHerdMachineSessionProviderSchema,
     HappyHerdMachineSessionSettingsSchema,
 } from '@slopus/happy-wire';
@@ -108,6 +112,9 @@ type MachineRpcHandlers = {
         replayQueueMessageId?: string;
     }) => Promise<SpawnSessionResult>;
     stopSession: (sessionId: string) => boolean;
+    changeGrokPermissionMode?: (
+        request: GrokPermissionModeTransitionRequest,
+    ) => Promise<GrokPermissionModeTransitionReceipt>;
     requestShutdown: () => void;
     automations?: HappyHerdAutomationService;
 }
@@ -198,6 +205,7 @@ export class ApiMachineClient {
         spawnSession,
         resumeSession,
         stopSession,
+        changeGrokPermissionMode,
         requestShutdown,
         automations,
     }: MachineRpcHandlers) {
@@ -221,6 +229,11 @@ export class ApiMachineClient {
             if (!directory) {
                 throw new Error('Directory is required');
             }
+            if (isSideChat === true) {
+                throw new Error(
+                    'Generic spawn-happy-session cannot create a side chat; use happyherd session side-chat create with all six delegation brief fields.',
+                );
+            }
 
             const provider = HappyHerdMachineSessionProviderSchema.parse(agent ?? 'claude');
             const effectiveSettings = resolveEffectiveSessionSettings(
@@ -234,7 +247,7 @@ export class ApiMachineClient {
                 },
             );
 
-            const result = await spawnSession({ directory, sessionId, machineId, approvedNewDirectoryCreation, agent: provider, permissionMode, modelMode, effortLevel, effectiveSettings, commanderId, environmentVariables, agentRuntimeContext: runtimeContext, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat });
+            const result = await spawnSession({ directory, sessionId, machineId, approvedNewDirectoryCreation, agent: provider, permissionMode, modelMode, effortLevel, effectiveSettings, commanderId, environmentVariables, agentRuntimeContext: runtimeContext, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId });
 
             switch (result.type) {
                 case 'success':
@@ -275,6 +288,15 @@ export class ApiMachineClient {
         }
 
         this.syncResumeSessionRpcRegistration();
+
+        if (changeGrokPermissionMode) {
+            this.rpcHandlerManager.registerHandler('grok-permission-mode-transition', async (params: unknown) => {
+                const request = GrokPermissionModeTransitionRequestSchema.parse(params);
+                return GrokPermissionModeTransitionReceiptSchema.parse(
+                    await changeGrokPermissionMode(request),
+                );
+            });
+        }
 
         // Register stop session handler
         this.rpcHandlerManager.registerHandler('stop-session', (params: any) => {
@@ -427,7 +449,7 @@ export class ApiMachineClient {
         if (this.resumeSessionHandler) {
             if (!this.rpcHandlerManager.hasHandler(method)) {
                 this.rpcHandlerManager.registerHandler(method, async (params: any) => {
-                    const { sessionId, model, permissionMode, runtimeContext } = params || {};
+                    const { sessionId, model, permissionMode, runtimeContext, replayQueueMessageId } = params || {};
 
                     if (!sessionId || typeof sessionId !== 'string') {
                         throw new Error('Session ID is required');
@@ -442,6 +464,7 @@ export class ApiMachineClient {
                         model,
                         permissionMode,
                         agentRuntimeContext: runtimeContext,
+                        replayQueueMessageId,
                     });
                     switch (result.type) {
                         case 'success':

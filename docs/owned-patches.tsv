@@ -9,6 +9,7 @@ SESSION_CONTINUITY	accepted	revert(sessions): keep terminal resume local-only	se
 SESSION_CONTINUITY	accepted	fix(sessions): restore legacy terminal resume fallback	server/packages/happy-cli/src/resume/handleResumeCommand.test.ts
 SESSION_CONTINUITY	accepted	fix(sessions): narrow historical recovery scope	server/packages/happy-cli/src/resume/resolveHappySession.test.ts
 SESSION_CONTINUITY	accepted	fix(sessions): remove redundant continuity checks	server/packages/happy-cli/src/daemon/run.resume.test.ts
+SESSION_CONTINUITY	accepted	fix(sessions): deliver archived next turns on resume	server/packages/happy-cli/src/daemon/run.resume.test.ts
 AUTOMATION_TIMEOUT	accepted	fix(automations): make run deadlines configurable	server/packages/happy-cli/src/daemon/run.automation.test.ts
 AGENT_CONTEXT_AUTHORITY	accepted	fix(context): make AgentContext standalone	server/packages/happy-cli/src/agentContext/commanderContext.test.ts
 PUBLIC_BOUNDARY	accepted	feat(agent): make governed runtime organization-neutral	scripts/verify-public-boundary.mjs
@@ -126,6 +127,7 @@ PROVIDER_DEFAULTS	accepted	fix(app): cover all provider defaults	server/packages
 CLI_MACHINE_SESSION	accepted	feat(cli): create sessions on selected machines	server/packages/happy-cli/src/commands/machine.test.ts
 SIDE_CHAT_CLI	accepted	feat(cli): create coordinated child side chats	server/packages/happy-cli/src/commands/sideChat.test.ts
 SIDE_CHAT_LIFECYCLE	accepted	feat(cli): complete side-chat lifecycle	server/packages/happy-cli/src/daemon/sideChatLifecycle.test.ts
+MULTIAGENT_DELEGATION	accepted	feat(cli): deliver bounded side-chat delegation briefs	server/packages/happy-cli/src/commands/sideChat.test.ts
 POST_UPDATE_RESTART	accepted	docs(dev): document post-update restart order	.dev/playbooks/post-update-restart.md
 PATCH_DISCIPLINE	accepted	fix(ci): validate nested structural PR merges	scripts/test-owned-merge-provenance.sh
 SIDE_CHAT_LOCAL_AUTH	accepted	fix(cli): reuse local daemon auth for side chats	server/packages/happy-cli/src/commands/machine.test.ts
@@ -150,3 +152,7 @@ APP_TOOL_PAGED_RESULT	accepted	fix(app): reconcile paged tool results	server/pac
 APP_TOOL_PAGED_AUTHORITY	accepted	fix(app): preserve authoritative paged tool result	server/packages/happy-app/sources/sync/reducer/reducer.spec.ts
 BUNDLED_RUNTIME_SYNC	accepted	fix(cli): sync bundled Happy before wrapper tests	server/packages/happyherd-cli/package.json
 UPSTREAM_REVIEW_FIX	accepted	fix(upstream): address integration review findings	server/packages/happy-app/sources/-session/SessionView.tsx
+SIDE_CHAT_RENDER	accepted	test(app): cover side-chat rendering hosts	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
+ATTACHMENT_PICKER_UI	accepted	fix(app): present attachment choices in-app (#159)	server/packages/happy-app/sources/components/AttachmentInputButton.test.ts
+GROK_PERMISSION_TRANSITION	accepted	feat(grok): switch active permission modes	server/packages/happy-cli/src/daemon/run.resume.test.ts
+CREDENTIAL_POOL	accepted	feat(cli): add reactive credential account rotation	server/packages/happy-cli/src/credentialPool/rotation.test.ts

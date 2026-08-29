@@ -3,7 +3,11 @@ import os from 'os';
 import * as tmp from 'tmp';
 import { randomUUID } from 'node:crypto';
 import {
+  GrokPermissionModeTransitionReceiptSchema,
+  HappyHerdMachineSessionSettingsSchema,
   HappyHerdAutomationProviderOutcomeSchema,
+  type GrokPermissionModeTransitionReceipt,
+  type GrokPermissionModeTransitionRequest,
   type HappyHerdAutomationProviderOutcome,
   type HappyHerdAutomationRun,
 } from '@slopus/happy-wire';
@@ -59,9 +63,25 @@ import {
   persistedMachineSessionSettingsMatch,
 } from './sessionLaunchSettings';
 import type { HappyHerdMachineSessionSettings } from '@slopus/happy-wire';
-import { createChildSideChat } from '@/commands/sideChat';
-import type { SideChatLifecycleReceipt, SideChatLifecycleRequest, SideChatStatusReceipt } from '@/commands/sideChat';
-import { DaemonSideChatLifecycle } from './sideChatLifecycle';
+import {
+  createChildSideChat,
+  formatSideChatDelegationPrompt,
+  sameSideChatDelegationBrief,
+} from '@/commands/sideChat';
+import type {
+  SideChatDelegationBrief,
+  SideChatLifecycleReceipt,
+  SideChatLifecycleRequest,
+  SideChatStatusReceipt,
+} from '@/commands/sideChat';
+import {
+  DaemonSideChatLifecycle,
+  type SideChatOperationResult,
+} from './sideChatLifecycle';
+import { resolveCredentialAccountEnvironment } from '@/credentialPool/store';
+import type { CredentialProvider } from '@/credentialPool/types';
+import type { ProviderLimitNotice } from '@/credentialPool/providerLimitNotice';
+import { rotateProviderSessionAfterLimit } from '@/credentialPool/rotation';
 
 type AutomationTrackedSession = TrackedSession & {
   automationId?: string;
@@ -156,6 +176,12 @@ export function resolveDaemonResumeAgent(metadata: Metadata): 'claude' | 'codex'
   if (metadata.flavor === 'grok') return 'grok';
   if (metadata.flavor === 'codex' || metadata.codexThreadId) return 'codex';
   if (metadata.flavor === 'claude' || metadata.claudeSessionId) return 'claude';
+  return null;
+}
+
+function credentialProviderForAgent(agent: SpawnSessionOptions['agent']): CredentialProvider | null {
+  if (agent === undefined || agent === 'claude') return 'claude';
+  if (agent === 'codex' || agent === 'grok') return agent;
   return null;
 }
 
@@ -363,7 +389,10 @@ export async function startDaemon(): Promise<void> {
     };
 
     // Session spawning awaiter system
-    const pidToAwaiter = new Map<number, (session: TrackedSession) => void>();
+    // A reconnecting provider can report its existing Happy session before
+    // the resumed backend has accepted a new launch receipt. Returning false
+    // keeps the awaiter installed for the provider-ready webhook.
+    const pidToAwaiter = new Map<number, (session: TrackedSession) => boolean>();
     const pidToPreWebhookExitAwaiter = new Map<number, () => void>();
 
     // Helper functions
@@ -414,9 +443,12 @@ export async function startDaemon(): Promise<void> {
         // Resolve any awaiter for this PID
         const awaiter = existingSession.startedBy === 'daemon' ? pidToAwaiter.get(pid) : undefined;
         if (awaiter) {
-          pidToAwaiter.delete(pid);
-          awaiter(existingSession);
-          logger.debug(`[DAEMON RUN] Resolved session awaiter for PID ${pid}`);
+          if (awaiter(existingSession)) {
+            pidToAwaiter.delete(pid);
+            logger.debug(`[DAEMON RUN] Resolved session awaiter for PID ${pid}`);
+          } else {
+            logger.debug(`[DAEMON RUN] Session PID ${pid} registered before its target launch receipt was ready`);
+          }
         }
       } else if (!existingSession) {
         // New session started externally
@@ -524,7 +556,18 @@ export async function startDaemon(): Promise<void> {
 
         // Resolve authentication token if provided
         const authEnv: Record<string, string> = {};
-        if (options.token) {
+        const credentialProvider = credentialProviderForAgent(options.agent);
+        const credentialResolution = credentialProvider
+          ? await resolveCredentialAccountEnvironment(credentialProvider)
+          : { selection: { type: 'unconfigured' as const }, env: {} };
+        if (credentialResolution.selection.type === 'all-limited') {
+          return {
+            type: 'error',
+            errorMessage: `All ${credentialProvider} accounts are limited until ${new Date(credentialResolution.selection.limitedUntil).toISOString()}.`,
+          };
+        }
+        Object.assign(authEnv, credentialResolution.env);
+        if (options.token && credentialResolution.selection.type === 'unconfigured') {
           if (options.agent === 'codex') {
 
             // Create a temporary directory for Codex
@@ -739,13 +782,14 @@ export async function startDaemon(): Promise<void> {
                     type: 'error',
                     errorMessage: `Session ${completedSession.happySessionId} did not persist the target daemon's effective settings`,
                   });
-                  return;
+                  return true;
                 }
                 resolve({
                   type: 'success',
                   sessionId: completedSession.happySessionId!,
                   ...(options.effectiveSettings ? { settings: options.effectiveSettings } : {}),
                 });
+                return true;
               });
             });
           } else {
@@ -820,6 +864,7 @@ export async function startDaemon(): Promise<void> {
       message,
       automation,
       settings,
+      deferSettingsReceipt = false,
     }: {
       args: string[];
       cwd: string;
@@ -828,6 +873,7 @@ export async function startDaemon(): Promise<void> {
       message?: string;
       automation?: { id: string; runId: string };
       settings?: HappyHerdMachineSessionSettings;
+      deferSettingsReceipt?: boolean;
     }): Promise<SpawnSessionResult> => {
       const happyProcess = spawnHappyCLI(args, {
         cwd,
@@ -905,21 +951,25 @@ export async function startDaemon(): Promise<void> {
         }
 
         pidToAwaiter.set(happyProcess.pid!, (completedSession) => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timeout);
-          pidToPreWebhookExitAwaiter.delete(happyProcess.pid!);
+          if (settled) return true;
           logger.debug(`[DAEMON RUN] Session ${completedSession.happySessionId} fully spawned with webhook`);
           if (!persistedMachineSessionSettingsMatch(
             completedSession.happySessionMetadataFromLocalWebhook,
             settings,
           )) {
+            if (deferSettingsReceipt) return false;
+            settled = true;
+            clearTimeout(timeout);
+            pidToPreWebhookExitAwaiter.delete(happyProcess.pid!);
             resolve({
               type: 'error',
               errorMessage: `Session ${completedSession.happySessionId} did not persist the target daemon's effective settings`,
             });
-            return;
+            return true;
           }
+          settled = true;
+          clearTimeout(timeout);
+          pidToPreWebhookExitAwaiter.delete(happyProcess.pid!);
           resolve({
             type: 'success',
             sessionId: completedSession.happySessionId!,
@@ -932,6 +982,7 @@ export async function startDaemon(): Promise<void> {
               });
             }, 0).unref?.();
           }
+          return true;
         });
       });
     };
@@ -1055,12 +1106,19 @@ export async function startDaemon(): Promise<void> {
       }
     }
 
-    const resumeSession = async (happySessionId: string, options?: {
+    type DaemonResumeSessionOptions = {
       model?: string;
       permissionMode?: string;
       agentRuntimeContext?: unknown;
       replayQueueMessageId?: string;
-    }): Promise<SpawnSessionResult> => {
+      /** Daemon-only receipt selected by the Grok permission transition RPC. */
+      grokPermissionTransitionSettings?: HappyHerdMachineSessionSettings;
+    };
+
+    const resumeSession = async (
+      happySessionId: string,
+      options?: DaemonResumeSessionOptions,
+    ): Promise<SpawnSessionResult> => {
       try {
         const liveSession = [...pidToTrackedSession.values()].find((session) => session.happySessionId === happySessionId);
         if (liveSession) {
@@ -1107,6 +1165,14 @@ export async function startDaemon(): Promise<void> {
         if (!resumeAgent) {
           throw new Error(`Session ${resolvedSessionId} uses unsupported flavor "${metadata.flavor ?? 'unknown'}".`);
         }
+        const credentialResolution = await resolveCredentialAccountEnvironment(resumeAgent, {
+          preferred: metadata.providerAccount,
+        });
+        if (credentialResolution.selection.type === 'all-limited') {
+          throw new Error(
+            `All ${resumeAgent} accounts are limited until ${new Date(credentialResolution.selection.limitedUntil).toISOString()}.`,
+          );
+        }
         const codexHome = resumeAgent === 'codex'
           ? await resolveCodexHomeForResume(metadata, ambientEnvironment)
           : undefined;
@@ -1114,7 +1180,8 @@ export async function startDaemon(): Promise<void> {
           ? persistedProviderPermissionMode(metadata, 'grok')
           : undefined;
         const grokResumeSettings = resumeAgent === 'grok'
-          ? resolveEffectiveSessionSettings(machine.metadata, machine.id, {
+          ? options?.grokPermissionTransitionSettings
+            ?? resolveEffectiveSessionSettings(machine.metadata, machine.id, {
               provider: 'grok',
               // The original session receipt is authoritative. A resume RPC
               // may repeat this value, but it cannot replace or weaken it.
@@ -1138,13 +1205,15 @@ export async function startDaemon(): Promise<void> {
         const resumedContextBundle = await prepareCommanderContext(metadata.commanderId, launch.cwd);
         const agentRuntimeEnvironment = happyHerdAgentSessionRuntimeEnvironment(options?.agentRuntimeContext);
 
-        return spawnTrackedHappyProcess({
+        const resumed = await spawnTrackedHappyProcess({
           args: launch.args,
           cwd: launch.cwd,
           env: buildSessionChildEnvironment(ambientEnvironment, {
             ...contextEnvironment(resumedContextBundle),
             ...agentRuntimeEnvironment,
+            ...credentialResolution.env,
             ...(codexHome ? { CODEX_HOME: codexHome } : {}),
+            ...machineSessionSettingsEnvironment(grokResumeSettings),
             HAPPY_RECONNECT_SESSION_ID: resolvedSessionId,
             HAPPY_RECONNECT_ENCRYPTION_KEY: encodeBase64(tracked.encryption.encryptionKey),
             HAPPY_RECONNECT_ENCRYPTION_VARIANT: tracked.encryption.encryptionVariant,
@@ -1155,7 +1224,13 @@ export async function startDaemon(): Promise<void> {
               ? { HAPPY_RECONNECT_QUEUE_MESSAGE_ID: options.replayQueueMessageId }
               : {}),
           }),
+          settings: grokResumeSettings,
+          deferSettingsReceipt: resumeAgent === 'grok',
         });
+        if (resumed.type === 'success' && !options?.grokPermissionTransitionSettings) {
+          return { type: 'success', sessionId: resumed.sessionId };
+        }
+        return resumed;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : (error && typeof error === 'object' ? JSON.stringify(error) : String(error));
         logger.debug(`[DAEMON RUN] Failed to resume session: ${errorMessage}`, error instanceof Error ? error.stack : undefined);
@@ -1230,6 +1305,95 @@ export async function startDaemon(): Promise<void> {
       return false;
     };
 
+    const waitForProviderExit = async (pid: number, timeoutMs = 12_000): Promise<void> => {
+      const deadline = Date.now() + timeoutMs;
+      while (!hasProviderProcessExited(pid)) {
+        if (Date.now() >= deadline) {
+          throw new Error(`Timed out waiting for Grok provider process ${pid} to exit`);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    };
+
+    const changeGrokPermissionMode = async (
+      request: GrokPermissionModeTransitionRequest,
+    ): Promise<GrokPermissionModeTransitionReceipt> => {
+      const live = [...pidToTrackedSession.values()].find((candidate) => (
+        candidate.happySessionId === request.sessionId
+        && !hasProviderProcessExited(candidate.pid)
+      ));
+      if (!live?.happySessionMetadataFromLocalWebhook || !live.encryption) {
+        throw new Error(`Grok session ${request.sessionId} is not running on this daemon`);
+      }
+
+      const metadata = live.happySessionMetadataFromLocalWebhook;
+      if (metadata.machineId !== machineId) {
+        throw new Error(`Session ${request.sessionId} belongs to machine ${metadata.machineId ?? 'unknown'}, not ${machineId}`);
+      }
+      if (metadata.flavor !== 'grok') {
+        throw new Error(`Session ${request.sessionId} is not a Grok session`);
+      }
+      if (!metadata.acpSessionId) {
+        throw new Error(`Grok session ${request.sessionId} is missing its provider resume identity`);
+      }
+
+      const validated = resolveEffectiveSessionSettings(machine.metadata, machine.id, {
+        provider: 'grok',
+        permission: request.permissionMode,
+      });
+      if (!validated.permission) {
+        throw new Error(`Grok permission mode ${request.permissionMode} is unavailable on machine ${machine.id}`);
+      }
+
+      // Permission is the only changing launch dimension. Retain the prior
+      // daemon receipt for model/effort so restarting the process cannot turn
+      // a permission pick into a broader agent-settings reset.
+      const previous = HappyHerdMachineSessionSettingsSchema.safeParse(metadata.spawnSettings);
+      const nextSettings = HappyHerdMachineSessionSettingsSchema.parse({
+        provider: 'grok',
+        model: previous.success && previous.data.provider === 'grok' ? previous.data.model : null,
+        effort: previous.success && previous.data.provider === 'grok' ? previous.data.effort : null,
+        permission: validated.permission,
+      });
+
+      if (persistedProviderPermissionMode(metadata, 'grok') === nextSettings.permission) {
+        return GrokPermissionModeTransitionReceiptSchema.parse({
+          type: 'success',
+          sessionId: request.sessionId,
+          permissionMode: nextSettings.permission,
+        });
+      }
+
+      if (!stopSession(request.sessionId)) {
+        throw new Error(`Could not stop Grok session ${request.sessionId}`);
+      }
+      await waitForProviderExit(live.pid);
+      await onChildExited(live.pid);
+
+      const resumed = await resumeSession(request.sessionId, {
+        grokPermissionTransitionSettings: nextSettings,
+      });
+      if (resumed.type !== 'success') {
+        throw new Error(
+          resumed.type === 'error'
+            ? resumed.errorMessage
+            : `Grok permission transition unexpectedly requested directory creation for ${resumed.directory}`,
+        );
+      }
+      if (resumed.sessionId !== request.sessionId) {
+        throw new Error(`Grok permission transition resumed unexpected session ${resumed.sessionId}`);
+      }
+      if (JSON.stringify(resumed.settings) !== JSON.stringify(nextSettings)) {
+        throw new Error(`Grok session ${request.sessionId} did not confirm the requested permission launch receipt`);
+      }
+
+      return GrokPermissionModeTransitionReceiptSchema.parse({
+        type: 'success',
+        sessionId: resumed.sessionId,
+        permissionMode: nextSettings.permission,
+      });
+    };
+
     const loadHeartbeatTarget = async (happySessionId: string) => {
       let tracked = findTrackedSessionById(happySessionId);
       if (!tracked) {
@@ -1278,8 +1442,51 @@ export async function startDaemon(): Promise<void> {
     let manageLocalSideChat = async (_request: SideChatLifecycleRequest): Promise<SideChatLifecycleReceipt> => {
       throw new Error('HappyHerd daemon is still starting; retry the side-chat lifecycle action.');
     };
-    let createLocalSideChat = async (_parentSessionId: string): Promise<{ sessionId: string }> => {
+    type LocalSideChatCreation = {
+      sessionId: string;
+      briefDelivery: SideChatOperationResult;
+    };
+    let createLocalSideChat = async (
+      _parentSessionId: string,
+      _brief: SideChatDelegationBrief,
+    ): Promise<LocalSideChatCreation> => {
       throw new Error('HappyHerd daemon is still starting; retry side-chat creation.');
+    };
+
+    const providerLimitRotations = new Map<string, Promise<void>>();
+    const onProviderLimited = (notice: ProviderLimitNotice): void => {
+      const key = `${notice.sessionId}:${notice.provider}:${notice.account}`;
+      if (providerLimitRotations.has(key)) return;
+      const rotation = rotateProviderSessionAfterLimit(notice, {
+        stopProvider: async (sessionId) => {
+          const live = [...pidToTrackedSession.values()].find((candidate) => (
+            candidate.happySessionId === sessionId && !hasProviderProcessExited(candidate.pid)
+          ));
+          if (!live) return;
+          if (!stopSession(sessionId)) throw new Error(`Could not stop limited provider for ${sessionId}`);
+          const deadline = Date.now() + 15_000;
+          while (!hasProviderProcessExited(live.pid)) {
+            if (Date.now() >= deadline) throw new Error(`Timed out stopping limited provider for ${sessionId}`);
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+          await onChildExited(live.pid);
+        },
+        resumeProvider: async (sessionId) => {
+          const result = await resumeSession(sessionId);
+          if (result.type !== 'success') {
+            throw new Error(result.type === 'error'
+              ? result.errorMessage
+              : `Provider resume unexpectedly requires directory approval for ${result.directory}`);
+          }
+        },
+      }).then((result) => {
+        logger.debug(`[CREDENTIAL POOL] ${notice.provider} rotation for ${notice.sessionId}: ${result.type}`);
+      }).catch((error) => {
+        logger.warn(`[CREDENTIAL POOL] Failed to rotate ${notice.provider} account for ${notice.sessionId}`, error);
+      }).finally(() => {
+        providerLimitRotations.delete(key);
+      });
+      providerLimitRotations.set(key, rotation);
     };
 
     // Start control server
@@ -1288,6 +1495,7 @@ export async function startDaemon(): Promise<void> {
       stopSession,
       spawnSession,
       sideChat: (request) => manageLocalSideChat(request),
+      onProviderLimited,
       requestShutdown: () => requestShutdown('happy-cli'),
       onHappySessionWebhook,
       automations,
@@ -1346,12 +1554,31 @@ export async function startDaemon(): Promise<void> {
       spawnSession,
       resumeSession,
       stopSession,
+      changeGrokPermissionMode,
       requestShutdown: () => requestShutdown('happy-app'),
       automations,
     });
 
-    const inFlightLocalSideChats = new Map<string, Promise<{ sessionId: string }>>();
-    createLocalSideChat = async (parentSessionId) => {
+    const localSessionFromPersistence = (sessionId: string): Session => {
+      const saved = persisted[sessionId];
+      if (!saved) throw new Error(`Side chat ${sessionId} is not stored by this daemon`);
+      return {
+        id: sessionId,
+        seq: saved.seq,
+        encryptionKey: decodeBase64(saved.encryptionKey),
+        encryptionVariant: saved.encryptionVariant,
+        metadata: saved.metadata,
+        metadataVersion: saved.metadataVersion,
+        agentState: null,
+        agentStateVersion: saved.agentStateVersion,
+      };
+    };
+
+    const inFlightLocalSideChats = new Map<string, {
+      brief: SideChatDelegationBrief;
+      creation: Promise<LocalSideChatCreation>;
+    }>();
+    createLocalSideChat = async (parentSessionId, brief) => {
       let parent: { id: string; metadata: Metadata };
       try {
         const session = await resolveLocalReconnectableSession(parentSessionId);
@@ -1362,34 +1589,56 @@ export async function startDaemon(): Promise<void> {
       }
 
       const existing = inFlightLocalSideChats.get(parent.id);
-      if (existing) return existing;
+      if (existing) {
+        if (!sameSideChatDelegationBrief(existing.brief, brief)) {
+          throw new Error(`Side-chat creation for parent ${parent.id} is already carrying a different delegation brief.`);
+        }
+        return existing.creation;
+      }
 
-      const creation = createChildSideChat(parent.id, {
-        resolveSession: async () => parent,
-        resolveMachine: async (requestedMachineId) => {
-          if (requestedMachineId !== machineId) {
-            throw new Error(
-              `Side chats must be created on the parent session's owning machine (${requestedMachineId}).`,
-            );
-          }
-          return { id: machineId, active: true };
-        },
-        machineRpc: async (_target, method, params) => {
-          if (method === 'claude-fork-session') {
-            return apiMachine.forkClaudeBackendSession(params.directory, params.claudeSessionId);
-          }
-          if (method === 'codex-fork-thread') {
-            return apiMachine.forkCodexBackendThread(params.directory, params.codexThreadId);
-          }
-          throw new Error(`Unsupported local side-chat RPC: ${method}`);
-        },
-        createMachineSession: async ({ machine: _target, ...options }) => spawnSession(options),
-      });
-      inFlightLocalSideChats.set(parent.id, creation);
+      const creation = (async (): Promise<LocalSideChatCreation> => {
+        const created = await createChildSideChat(parent.id, {
+          resolveSession: async () => parent,
+          resolveMachine: async (requestedMachineId) => {
+            if (requestedMachineId !== machineId) {
+              throw new Error(
+                `Side chats must be created on the parent session's owning machine (${requestedMachineId}).`,
+              );
+            }
+            return { id: machineId, active: true };
+          },
+          machineRpc: async (_target, method, params) => {
+            if (method === 'claude-fork-session') {
+              return apiMachine.forkClaudeBackendSession(params.directory, params.claudeSessionId);
+            }
+            if (method === 'codex-fork-thread') {
+              return apiMachine.forkCodexBackendThread(params.directory, params.codexThreadId);
+            }
+            throw new Error(`Unsupported local side-chat RPC: ${method}`);
+          },
+          createMachineSession: async ({ machine: _target, ...options }) => spawnSession(options),
+        });
+        try {
+          await api.postSideChatBrief(localSessionFromPersistence(created.sessionId), {
+            localId: randomUUID(),
+            text: formatSideChatDelegationPrompt(parent.id, created.sessionId, brief),
+          });
+          return { ...created, briefDelivery: { success: true } };
+        } catch (error) {
+          return {
+            ...created,
+            briefDelivery: {
+              success: false,
+              message: error instanceof Error ? error.message : String(error),
+            },
+          };
+        }
+      })();
+      inFlightLocalSideChats.set(parent.id, { brief, creation });
       try {
         return await creation;
       } finally {
-        if (inFlightLocalSideChats.get(parent.id) === creation) {
+        if (inFlightLocalSideChats.get(parent.id)?.creation === creation) {
           inFlightLocalSideChats.delete(parent.id);
         }
       }
@@ -1405,21 +1654,6 @@ export async function startDaemon(): Promise<void> {
         if (Date.now() >= deadline) throw new Error(`Timed out waiting for ${description}`);
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
-    };
-
-    const localSessionFromPersistence = (sessionId: string): Session => {
-      const saved = persisted[sessionId];
-      if (!saved) throw new Error(`Side chat ${sessionId} is not stored by this daemon`);
-      return {
-        id: sessionId,
-        seq: saved.seq,
-        encryptionKey: decodeBase64(saved.encryptionKey),
-        encryptionVariant: saved.encryptionVariant,
-        metadata: saved.metadata,
-        metadataVersion: saved.metadataVersion,
-        agentState: null,
-        agentStateVersion: saved.agentStateVersion,
-      };
     };
 
     const persistAuthoritativeSession = (session: Session): void => {

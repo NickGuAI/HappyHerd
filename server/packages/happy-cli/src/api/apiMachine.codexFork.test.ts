@@ -105,7 +105,6 @@ describe('ApiMachineClient Codex fork RPCs', () => {
             agent: 'codex',
             resumeCodexThreadId: 'thread-forked',
             parentSessionId: 'happy-source',
-            isSideChat: true,
         });
 
         expect(result).toEqual({ type: 'success', sessionId: 'happy-forked', settings });
@@ -115,8 +114,55 @@ describe('ApiMachineClient Codex fork RPCs', () => {
             effectiveSettings: settings,
             resumeCodexThreadId: 'thread-forked',
             parentSessionId: 'happy-source',
-            isSideChat: true,
         }));
+    });
+
+    it('forwards the archived prompt replay ID through the exact-session resume RPC', async () => {
+        const resumeSession = vi.fn().mockResolvedValue({
+            type: 'success',
+            sessionId: 'happy-archived',
+        });
+        const { ApiMachineClient } = await import('./apiMachine');
+        const client = new ApiMachineClient('token', machineClient());
+        client.setRPCHandlers({
+            spawnSession: vi.fn(),
+            resumeSession,
+            stopSession: vi.fn(),
+            requestShutdown: vi.fn(),
+        });
+
+        const result = await handlersFrom(client).get('machine-1:resume-happy-session')?.({
+            sessionId: 'happy-archived',
+            replayQueueMessageId: 'archived-next-turn',
+        });
+
+        expect(result).toEqual({ type: 'success', sessionId: 'happy-archived' });
+        expect(resumeSession).toHaveBeenCalledWith('happy-archived', {
+            model: undefined,
+            permissionMode: undefined,
+            agentRuntimeContext: undefined,
+            replayQueueMessageId: 'archived-next-turn',
+        });
+    });
+
+    it('rejects generic side-chat spawn before creating an unbriefed Worker Agent', async () => {
+        const spawnSession = vi.fn();
+        const { ApiMachineClient } = await import('./apiMachine');
+        const client = new ApiMachineClient('token', machineClient());
+        client.setRPCHandlers({
+            spawnSession,
+            stopSession: vi.fn(),
+            requestShutdown: vi.fn(),
+        });
+
+        await expect(handlersFrom(client).get('machine-1:spawn-happy-session')?.({
+            directory: '/tmp/project',
+            agent: 'codex',
+            resumeCodexThreadId: 'thread-forked',
+            parentSessionId: 'happy-source',
+            isSideChat: true,
+        })).rejects.toThrow('use happyherd session side-chat create with all six delegation brief fields');
+        expect(spawnSession).not.toHaveBeenCalled();
     });
 
     it('forwards Commander identity through the spawn RPC', async () => {

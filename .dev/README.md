@@ -70,6 +70,10 @@ bounded change → exact-head review → PR → merge
    fallback by default and at most one only when the current supported contract
    demonstrably requires it. Continue ordinary correctness, security, privacy,
    and data-integrity review.
+7. **Keep product-owned choice menus inside HappyHerd.** Render small
+   product-owned choice menus through coherent responsive surfaces: anchored
+   popovers on Web and desktop, and safe-area-aware sheets on native. Preserve
+   operating-system pickers as the final platform handoff.
 
 ## Navigate
 
@@ -82,7 +86,7 @@ bounded change → exact-head review → PR → merge
 | Add or change a provider | [`playbooks/provider-onboarding.md`](playbooks/provider-onboarding.md) |
 | Deliver through protected `main` and clean the branch | [`playbooks/development-lifecycle.md`](playbooks/development-lifecycle.md) |
 | Run a combined central-server and native-daemon update | [`playbooks/post-update-restart.md`](playbooks/post-update-restart.md) |
-| Operate and verify side-chat lifecycle | [`playbooks/side-chat-lifecycle.md`](playbooks/side-chat-lifecycle.md) |
+| Delegate, operate, and verify side chats | [`playbooks/side-chat-lifecycle.md`](playbooks/side-chat-lifecycle.md) |
 | Audit how this context was derived | [`EVALUATION.md`](EVALUATION.md) |
 
 ## System at a glance

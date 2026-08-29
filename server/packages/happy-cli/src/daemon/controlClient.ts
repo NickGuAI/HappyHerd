@@ -8,7 +8,14 @@ import { clearDaemonState, readDaemonState } from '@/persistence';
 import { Metadata } from '@/api/types';
 import { configuration } from '@/configuration';
 import { daemonInstanceKey, maintainDaemonSessionRegistration } from './sessionRegistration';
-import type { SideChatLifecycleReceipt, SideChatLifecycleRequest } from '@/commands/sideChat';
+import type {
+  SideChatDelegationBrief,
+  SideChatLifecycleInput,
+  SideChatLifecycleReceipt,
+  SideChatLifecycleRequest,
+} from '@/commands/sideChat';
+import { normalizeSideChatLifecycleRequest } from '@/commands/sideChat';
+import type { ProviderLimitNotice } from '@/credentialPool/providerLimitNotice';
 
 async function daemonPost(path: string, body?: any, timeoutOverride?: number): Promise<{ error?: string } | any> {
   const state = await readDaemonState();
@@ -131,15 +138,26 @@ export async function stopDaemonSession(sessionId: string): Promise<boolean> {
   return result.success || false;
 }
 
+export async function notifyDaemonProviderLimited(
+  notice: ProviderLimitNotice,
+): Promise<{ status?: 'scheduled'; error?: string }> {
+  return daemonPost('/provider-limited', notice);
+}
+
 export async function spawnDaemonSession(directory: string, sessionId?: string): Promise<any> {
   const result = await daemonPost('/spawn-session', { directory, sessionId });
   return result;
 }
 
 const SIDE_CHAT_REQUEST_TIMEOUT_MS = 60_000;
+const SIDE_CHAT_CREATE_TIMEOUT_MS = 4 * 60_000;
 const SIDE_CHAT_CLOSE_ALL_TIMEOUT_MS = 5 * 60_000;
 
 export function sideChatRequestTimeoutMs(action: SideChatLifecycleRequest['action']): number {
+  // Create can include two bounded 30s Codex fork RPCs, a 15s spawn/webhook
+  // wait, 60s encrypted brief persistence, and a 60s authoritative read-back.
+  // Four minutes exceed that complete supported sequential ceiling.
+  if (action === 'create') return SIDE_CHAT_CREATE_TIMEOUT_MS;
   // close-all is sequential by contract. Five bounded minutes cover the
   // supported four-child incident's complete 4 × 15s provider-exit SLA plus
   // deactivation, encrypted archive, and authoritative read-back overhead.
@@ -147,8 +165,9 @@ export function sideChatRequestTimeoutMs(action: SideChatLifecycleRequest['actio
 }
 
 export async function manageDaemonSideChat(
-  request: SideChatLifecycleRequest,
+  input: SideChatLifecycleInput,
 ): Promise<SideChatLifecycleReceipt> {
+  const request = normalizeSideChatLifecycleRequest(input);
   const result = await daemonPost(
     '/side-chat',
     request,
@@ -160,11 +179,41 @@ export async function manageDaemonSideChat(
   if (result?.schemaVersion !== 1 || typeof result?.type !== 'string') {
     throw new Error('Daemon returned an invalid side-chat lifecycle receipt');
   }
+  if (request.action === 'create' && result.type === 'side-chat') {
+    const phases = Array.isArray(result.phases) ? result.phases : [];
+    const deliveryPhase = phases.find((candidate: unknown) => (
+      candidate != null
+      && typeof candidate === 'object'
+      && (candidate as { phase?: unknown }).phase === 'deliver-brief'
+    ));
+    if (!deliveryPhase) {
+      return {
+        ...result,
+        success: false,
+        parentSessionId: typeof result.parentSessionId === 'string'
+          ? result.parentSessionId
+          : request.parentSessionId,
+        sessionId: typeof result.sessionId === 'string' ? result.sessionId : null,
+        child: result.child ?? null,
+        phases: [
+          ...phases,
+          {
+            phase: 'deliver-brief',
+            status: 'failed',
+            message: 'The running daemon did not acknowledge bounded brief delivery; restart it and inspect this child before retrying.',
+          },
+        ],
+      } as SideChatLifecycleReceipt;
+    }
+  }
   return result as SideChatLifecycleReceipt;
 }
 
-export async function createDaemonSideChat(parentSessionId: string): Promise<{ sessionId: string }> {
-  const receipt = await manageDaemonSideChat({ action: 'create', parentSessionId });
+export async function createDaemonSideChat(
+  parentSessionId: string,
+  brief: SideChatDelegationBrief,
+): Promise<{ sessionId: string }> {
+  const receipt = await manageDaemonSideChat({ action: 'create', parentSessionId, brief });
   if (receipt.type !== 'side-chat' || !receipt.success || !receipt.sessionId) {
     throw new Error('Daemon failed to create a side chat');
   }

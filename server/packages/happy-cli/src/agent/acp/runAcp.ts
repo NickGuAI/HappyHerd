@@ -31,6 +31,9 @@ import {
 } from './sessionConfigMetadata';
 import { sanitizeGrokChildEnvironment } from './acpAgentConfig';
 import type { InitializeResponse, SessionConfigOption, SessionModeState, SessionModelState, StopReason } from '@agentclientprotocol/sdk';
+import { classifyGrokHardLimit } from '@/credentialPool/providerLimits';
+import { reportProviderHardLimitOnce } from '@/credentialPool/providerLimitNotice';
+import { persistActiveGrokCredential } from '@/credentialPool/grokAuth';
 
 const ACP_EVENT_PREVIEW_CHARS = 240;
 const ACP_RAW_PREVIEW_CHARS = 2000;
@@ -574,6 +577,10 @@ export async function runAcp(opts: {
       }
       : {}),
   });
+  // A reconnect loads the old encrypted metadata before the provider process
+  // is ready. Keep the newly validated daemon launch receipt locally, but do
+  // not publish it until Grok confirms that its resumed backend started.
+  const pendingLaunchReceipt = metadata.spawnSettings;
   const reconnectSessionId = process.env.HAPPY_RECONNECT_SESSION_ID;
   const reconnectKeyBase64 = process.env.HAPPY_RECONNECT_ENCRYPTION_KEY;
   const reconnectVariant = process.env.HAPPY_RECONNECT_ENCRYPTION_VARIANT as 'legacy' | 'dataKey' | undefined;
@@ -590,6 +597,9 @@ export async function runAcp(opts: {
       agentStateVersion: Number.parseInt(process.env.HAPPY_RECONNECT_AGENT_STATE_VERSION || '0', 10),
     });
     Object.assign(metadata, response.metadata);
+    if (pendingLaunchReceipt) {
+      metadata.spawnSettings = pendingLaunchReceipt;
+    }
   } else {
     response = await api.getOrCreateSession({ tag: sessionTag, metadata, state });
   }
@@ -615,7 +625,12 @@ export async function runAcp(opts: {
   session = initialSession;
 
   const reconnectQueueMessageIds = reconnectSessionId && response
-    ? queueMessageIdsForResume(response.agentState?.messageQueue)
+    ? Array.from(new Set([
+      ...queueMessageIdsForResume(response.agentState?.messageQueue),
+      ...(process.env.HAPPY_RECONNECT_QUEUE_MESSAGE_ID
+        ? [process.env.HAPPY_RECONNECT_QUEUE_MESSAGE_ID]
+        : []),
+    ]))
     : [];
   if (reconnectSessionId) {
     session.suppressNextArchiveSignal();
@@ -1052,14 +1067,22 @@ export async function runAcp(opts: {
     const started = await backend.startSession();
     acpSessionId = started.sessionId;
     if (started.providerSessionId) {
+      const confirmedLaunchReceipt = opts.agentName === 'grok' && metadata.spawnSettings
+        ? {
+          spawnSettings: metadata.spawnSettings,
+          permissionMode: metadata.spawnSettings.permission,
+        }
+        : {};
       Object.assign(metadata, {
         acpSessionId: started.providerSessionId,
         ...(runtimeAcpCapabilities ? { acpCapabilities: runtimeAcpCapabilities } : {}),
+        ...confirmedLaunchReceipt,
       });
       session.updateMetadata((currentMetadata) => ({
         ...currentMetadata,
         acpSessionId: started.providerSessionId,
         ...(runtimeAcpCapabilities ? { acpCapabilities: runtimeAcpCapabilities } : {}),
+        ...confirmedLaunchReceipt,
       }));
       if (response) {
         try {
@@ -1124,6 +1147,20 @@ export async function runAcp(opts: {
         sendEnvelopes(sessionManager.endTurn('failed'));
         session.sendSessionEvent({ type: 'ready' });
         logAcp('error', `Prompt error from ${opts.agentName}: ${error instanceof Error ? error.message : String(error)}`);
+        if (opts.agentName === 'grok') {
+          const hardLimit = classifyGrokHardLimit(error);
+          if (hardLimit) {
+            try {
+              await persistActiveGrokCredential();
+            } catch (persistError) {
+              logger.debug('[grok] Failed to persist named account credentials before rotation', persistError);
+            }
+            await reportProviderHardLimitOnce({
+              sessionId: session.sessionId,
+              ...hardLimit,
+            });
+          }
+        }
         throw error;
       }
     }
@@ -1138,6 +1175,13 @@ export async function runAcp(opts: {
     }
 
     backend.offMessage?.(onBackendMessage);
+    if (opts.agentName === 'grok') {
+      try {
+        await persistActiveGrokCredential();
+      } catch (error) {
+        logger.debug('[grok] Failed to persist named account credentials during cleanup', error);
+      }
+    }
     await backend.dispose();
 
     try {
