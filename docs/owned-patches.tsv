@@ -87,7 +87,7 @@ WORKSPACE_LINKS	accepted	fix(workspace): close exact-link review gaps	server/pac
 WORKSPACE_LINKS	accepted	fix(workspace): preserve live link context and state	server/packages/happy-app/sources/components/WorkspaceLinkViewer.native.test.ts
 SESSION_DECISION_INBOX	accepted	feat(sessions): make Home a flat decision inbox	server/packages/happy-app/sources/utils/flatSessionList.test.ts
 EXACT_DAEMON_ROUTING	accepted	fix(sessions): pin new work to the exact daemon	server/packages/happy-app/sources/utils/newSessionPickerItems.test.ts
-UPSTREAM_SYNC_AUTOMATION	accepted	ci(upstream): add daily reviewed sync	scripts/test-daily-upstream-sync-contract.sh
+UPSTREAM_SYNC_AUTOMATION	accepted	ci(upstream): add daily reviewed sync	docs/upstream-sync-2026-08-24.md
 LOCAL_INSTALLER	accepted	feat(installer): simplify local-first setup	scripts/test-public-launcher-release-contract.sh
 COMMANDER_STATUS_AVATAR	accepted	feat(sessions): add Commander status avatars	server/packages/happy-app/sources/utils/sessionStatusAvatar.test.ts
 UPSTREAM_SYNC_EVIDENCE	accepted	docs(upstream): record audited sync evidence	docs/upstream-sync-2026-08-24.md
@@ -95,7 +95,8 @@ PUBLIC_TEST_FIXTURES	accepted	test(public): generalize imported home-path fixtur
 PUBLIC_LAUNCHER_CONTRACT	accepted	test(release): decouple launcher and runtime versions	scripts/test-public-launcher-release-contract.sh
 EXACT_DAEMON_ROUTING	accepted	fix(app): inject model catalog translations	server/packages/happy-app/sources/components/modelModeOptions.test.ts
 UI_SURFACE_INVENTORY	accepted	chore(app): refresh UI surface inventory	server/packages/happy-app/scripts/generate-ui-surface-inventory.mjs
-UPSTREAM_SYNC_REVIEW	accepted	fix(sync): close exact-head review gaps	scripts/test-daily-upstream-sync-contract.sh
+UPSTREAM_SYNC_REVIEW	accepted	fix(sync): close exact-head review gaps	docs/upstream-sync-2026-08-24.md
+UPSTREAM_SYNC_NATIVE_PROPOSAL	accepted	chore(upstream): replace GitHub sync automation	scripts/test-upstream-proposal-ownership.sh
 AUTOMATION_NO_TIMEOUT	accepted	feat: support unbounded automation runs	server/packages/happy-cli/src/daemon/run.automation.test.ts
 SESSION_UI_STATE	accepted	fix(app): prevent machine blink and show archive progress	server/packages/happy-app/sources/sync/machinePresence.test.ts
 AUTOMATIONS_PROFILING	accepted	feat(metrics): profile automations page latency	docs/automations-profiling.md

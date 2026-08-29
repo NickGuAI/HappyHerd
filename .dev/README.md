@@ -107,8 +107,8 @@ bounded change → exact-head review → PR → merge
  happy-server-self-host ──uses wire; bundles──► happy-server + happy-app
 
  Root docs + scripts + workflows govern lineage, patches, verification,
- component-native deployment, runtime boundaries, the local installer, and
- upstream rehearsal.
+ component-native deployment, runtime boundaries, and the local installer.
+ A machine-local HappyHerd automation owns upstream merge proposals.
 ```
 
 The dependency edges above are grounded in `server/pnpm-workspace.yaml`, the

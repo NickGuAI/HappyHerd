@@ -4,12 +4,12 @@ This is the standard lifecycle for an ordinary HappyHerd-owned change.
 
 ```text
 owning TickTick task → feature branch → PR checks → merge commit
-       │                                      │
-       │                                      ├─ feature: Quality + Contract suite
-       │                                      │           + ancestry → exact cleanup
-       │                                      └─ upstream: rehearsal → ready
-       │                                                   └→ conflict evidence → owner
-       └──────────── concise real-transition comments ────────────────────────────────┘
+       │                                      └─ main push: Quality + Contract suite
+       │                                                    + ancestry → exact cleanup
+       └──────────── concise real-transition comments ───────────────────────────────┘
+
+Happy upstream → happyherd-upstream-merge-proposal → deduplicated TickTick proposal
+                         └─ unchanged SHA → no write
 ```
 
 Do not deploy as an implied part of this flow. Releases and deployments have
@@ -212,10 +212,7 @@ done
 test -n "$QUALITY_RUN"
 test -n "$CONTRACT_RUN"
 gh run watch "$QUALITY_RUN" --repo "$REPO" --exit-status
-
-# Watch the aggregate contract workflow without treating a rehearsal-only
-# failure as an ordinary feature failure.
-gh run watch "$CONTRACT_RUN" --repo "$REPO"
+gh run watch "$CONTRACT_RUN" --repo "$REPO" --exit-status
 
 QUALITY_CONCLUSION="$(gh run view "$QUALITY_RUN" \
   --repo "$REPO" \
@@ -223,46 +220,20 @@ QUALITY_CONCLUSION="$(gh run view "$QUALITY_RUN" \
   --jq .conclusion)"
 CONTRACT_CONCLUSION="$(gh run view "$CONTRACT_RUN" \
   --repo "$REPO" \
-  --json jobs \
-  --jq '.jobs[] | select(.name == "Contract suite") | .conclusion')"
-REHEARSAL_JOB_ID="$(gh run view "$CONTRACT_RUN" \
-  --repo "$REPO" \
-  --json jobs \
-  --jq '.jobs[] | select(.name == "Real upstream rehearsal") | .databaseId')"
-REHEARSAL_CONCLUSION="$(gh run view "$CONTRACT_RUN" \
-  --repo "$REPO" \
-  --json jobs \
-  --jq '.jobs[] | select(.name == "Real upstream rehearsal") | .conclusion')"
+  --json conclusion \
+  --jq .conclusion)"
 
 test "$QUALITY_CONCLUSION" = "success"
 test "$CONTRACT_CONCLUSION" = "success"
-
-if test "$REHEARSAL_CONCLUSION" != "success"; then
-  test -n "$REHEARSAL_JOB_ID"
-  gh run view "$CONTRACT_RUN" \
-    --repo "$REPO" \
-    --job "$REHEARSAL_JOB_ID" \
-    --log-failed
-fi
 ```
 
 If a newer push advances `origin/main` and cancels these runs, fetch and repeat
 the proof for the new current `MAIN_SHA`.
 
-Classify a failed rehearsal once from its retained log and artifact. If Git
-reports merge conflicts, preserve that evidence, comment on the owning TickTick
-task, and stop: upstream reconciliation and a resolution PR require owner
-direction. That conflict does not block exact-head cleanup for an unrelated
-feature whose Quality, `Contract suite`, and ancestry proofs passed. A failure
-outside that verified conflict case remains blocking; keep the branch and
-diagnose it on a new feature branch. Never rewrite protected `main` to repair
-it.
-
 ## 6. Delete only the feature-permanent merged PR head
 
 Proceed only after the Quality, `Contract suite`, and ancestry proofs above
-pass. A separately retained rehearsal merge conflict does not prevent this
-exact cleanup; any other required-job failure does.
+pass. Any required-job failure blocks cleanup.
 
 Never bulk-delete every branch listed by `git branch --merged`; long-lived
 branches can also be ancestors of `main`.
@@ -306,6 +277,6 @@ git status --short --branch
 ```
 
 The handoff records the PR, merge SHA, Quality and `Contract suite` proof,
-rehearsal conclusion and retained conflict evidence when applicable, deleted
-local/remote branch name, and final clean/synchronized status. Branch deletion
-removes names, not commits; the recorded SHAs and merge commit retain recovery.
+deleted local/remote branch name, and final clean/synchronized status. Branch
+deletion removes names, not commits; the recorded SHAs and merge commit retain
+recovery.

@@ -16,8 +16,7 @@ Every pull request that changes a path outside `.dev/` runs the
 Typecheck, Unit tests, and Production build—and the independent
 [Contract suite](.github/workflows/contract-suite.yml). A `.dev/`-only change
 runs only the path-scope jobs needed to satisfy protected-main status reporting;
-all install, lint, typecheck, test, build, contract, and upstream-rehearsal jobs
-are skipped.
+all install, lint, typecheck, test, build, and contract jobs are skipped.
 
 ## License and support
 
@@ -32,7 +31,7 @@ upstream Happy. If HappyHerd is useful to you, you can
 - `deploy/` — generic, secret-free deployment templates.
 - `examples/` — explicitly named organization integrations.
 - `docs/` — lineage, component deployment, runtime, and public-release contracts.
-- `scripts/` — verification, upstream-sync, component build, and deployment tools.
+- `scripts/` — verification, upstream comparison, component build, and deployment tools.
 
 ## Self-host deployment
 
