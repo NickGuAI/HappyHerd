@@ -1,3 +1,9 @@
+# August 29 — Side chats carry bounded delegation briefs
+
+- Delegated Worker Agent creation now runs exclusively through `happyherd session side-chat create`, with required outcome, scope, dependencies, write ownership, verification, and handoff fields. On successful creation, the brief is the child's first encrypted queued message; a delivery failure retains the child ID and exact failed phase.
+- The app continues to discover, render, switch, resume, and close existing side chats, while unbriefed creation controls are removed and generic `spawn-happy-session` rejects `isSideChat` before provider launch.
+- The CLI and daemon loopback API accept `inspect` for `status`, `pause` for `stop`, and `resume` for `reopen`, while receipts retain canonical action names and provider-native subagents remain the default inline fan-out.
+
 # August 29 — Attachment selection
 
 - Attachment choices now appear in styled in-app surfaces (anchored popovers on desktop and web, safe-area bottom sheets on mobile) rather than system alert dialogs, while leaving system photo and file pickers unchanged.

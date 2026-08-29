@@ -15,6 +15,15 @@ vi.mock('@/ui/logger', () => ({
 
 import { manageDaemonSideChat, sideChatRequestTimeoutMs } from './controlClient';
 
+const brief = {
+  outcome: 'Deliver the delegated change.',
+  scope: 'Owned files only.',
+  dependencies: 'Parent context.',
+  writeOwnership: '/srv/project/owned.ts',
+  verification: 'Run focused tests.',
+  handoff: 'Return result and evidence.',
+} as const;
+
 describe('side-chat daemon control client', () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -77,11 +86,97 @@ describe('side-chat daemon control client', () => {
     expect(sideChatRequestTimeoutMs('close-all')).toBeGreaterThan(
       4 * 15_000 + sideChatRequestTimeoutMs('close'),
     );
-    expect(sideChatRequestTimeoutMs('create')).toBe(60_000);
+    expect(sideChatRequestTimeoutMs('create')).toBe(240_000);
+    expect(sideChatRequestTimeoutMs('create')).toBeGreaterThan(
+      2 * 30_000 + 15_000 + 60_000 + 60_000,
+    );
     expect(sideChatRequestTimeoutMs('list')).toBe(60_000);
     expect(sideChatRequestTimeoutMs('status')).toBe(60_000);
     expect(sideChatRequestTimeoutMs('stop')).toBe(60_000);
     expect(sideChatRequestTimeoutMs('close')).toBe(60_000);
     expect(sideChatRequestTimeoutMs('reopen')).toBe(60_000);
+  });
+
+  it('turns an old-daemon unbriefed create success into a failed receipt that retains the child', async () => {
+    const legacyReceipt = {
+      schemaVersion: 1,
+      type: 'side-chat',
+      action: 'create',
+      success: true,
+      parentSessionId: 'parent',
+      sessionId: 'unbriefed-child',
+      child: {
+        sessionId: 'unbriefed-child',
+        parentSessionId: 'parent',
+        status: 'running',
+        providerRunning: true,
+        active: true,
+        resumable: false,
+      },
+      phases: [
+        { phase: 'resolve', status: 'succeeded' },
+        { phase: 'readback', status: 'succeeded' },
+      ],
+    };
+    const fetch = vi.fn(async (_input: string | URL | Request, _init?: RequestInit) => ({
+      ok: true,
+      json: async () => legacyReceipt,
+    }));
+    vi.stubGlobal('fetch', fetch);
+    vi.spyOn(process, 'kill').mockImplementation(() => true);
+
+    await expect(manageDaemonSideChat({ action: 'create', parentSessionId: 'parent', brief }))
+      .resolves.toMatchObject({
+        success: false,
+        parentSessionId: 'parent',
+        sessionId: 'unbriefed-child',
+        child: { sessionId: 'unbriefed-child' },
+        phases: expect.arrayContaining([{
+          phase: 'deliver-brief',
+          status: 'failed',
+          message: expect.stringContaining('did not acknowledge bounded brief delivery'),
+        }]),
+      });
+    expect(JSON.parse(fetch.mock.calls[0][1]!.body as string)).toEqual({
+      action: 'create',
+      parentSessionId: 'parent',
+      brief,
+    });
+  });
+
+  it('normalizes inspect, pause, and resume before crossing the daemon API boundary', async () => {
+    const fetch = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      const request = JSON.parse(init?.body as string) as { action: 'status' | 'stop' | 'reopen'; sessionId: string };
+      return {
+        ok: true,
+        json: async () => ({
+          schemaVersion: 1,
+          type: 'side-chat',
+          action: request.action,
+          success: true,
+          parentSessionId: 'parent',
+          sessionId: request.sessionId,
+          child: null,
+          phases: [],
+        }),
+      };
+    });
+    vi.stubGlobal('fetch', fetch);
+    vi.spyOn(process, 'kill').mockImplementation(() => true);
+
+    const inputs = [
+      [{ action: 'inspect', sessionId: 'child' }, 'status'],
+      [{ action: 'pause', sessionId: 'child' }, 'stop'],
+      [{ action: 'resume', sessionId: 'child' }, 'reopen'],
+    ] as const;
+    for (const [input, canonicalAction] of inputs) {
+      await expect(manageDaemonSideChat(input)).resolves.toMatchObject({ action: canonicalAction });
+    }
+
+    expect(fetch.mock.calls.map(([, init]) => JSON.parse(init?.body as string))).toEqual([
+      { action: 'status', sessionId: 'child' },
+      { action: 'stop', sessionId: 'child' },
+      { action: 'reopen', sessionId: 'child' },
+    ]);
   });
 });

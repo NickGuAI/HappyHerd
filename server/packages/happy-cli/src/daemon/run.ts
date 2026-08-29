@@ -63,9 +63,21 @@ import {
   persistedMachineSessionSettingsMatch,
 } from './sessionLaunchSettings';
 import type { HappyHerdMachineSessionSettings } from '@slopus/happy-wire';
-import { createChildSideChat } from '@/commands/sideChat';
-import type { SideChatLifecycleReceipt, SideChatLifecycleRequest, SideChatStatusReceipt } from '@/commands/sideChat';
-import { DaemonSideChatLifecycle } from './sideChatLifecycle';
+import {
+  createChildSideChat,
+  formatSideChatDelegationPrompt,
+  sameSideChatDelegationBrief,
+} from '@/commands/sideChat';
+import type {
+  SideChatDelegationBrief,
+  SideChatLifecycleReceipt,
+  SideChatLifecycleRequest,
+  SideChatStatusReceipt,
+} from '@/commands/sideChat';
+import {
+  DaemonSideChatLifecycle,
+  type SideChatOperationResult,
+} from './sideChatLifecycle';
 
 type AutomationTrackedSession = TrackedSession & {
   automationId?: string;
@@ -1400,7 +1412,14 @@ export async function startDaemon(): Promise<void> {
     let manageLocalSideChat = async (_request: SideChatLifecycleRequest): Promise<SideChatLifecycleReceipt> => {
       throw new Error('HappyHerd daemon is still starting; retry the side-chat lifecycle action.');
     };
-    let createLocalSideChat = async (_parentSessionId: string): Promise<{ sessionId: string }> => {
+    type LocalSideChatCreation = {
+      sessionId: string;
+      briefDelivery: SideChatOperationResult;
+    };
+    let createLocalSideChat = async (
+      _parentSessionId: string,
+      _brief: SideChatDelegationBrief,
+    ): Promise<LocalSideChatCreation> => {
       throw new Error('HappyHerd daemon is still starting; retry side-chat creation.');
     };
 
@@ -1473,8 +1492,26 @@ export async function startDaemon(): Promise<void> {
       automations,
     });
 
-    const inFlightLocalSideChats = new Map<string, Promise<{ sessionId: string }>>();
-    createLocalSideChat = async (parentSessionId) => {
+    const localSessionFromPersistence = (sessionId: string): Session => {
+      const saved = persisted[sessionId];
+      if (!saved) throw new Error(`Side chat ${sessionId} is not stored by this daemon`);
+      return {
+        id: sessionId,
+        seq: saved.seq,
+        encryptionKey: decodeBase64(saved.encryptionKey),
+        encryptionVariant: saved.encryptionVariant,
+        metadata: saved.metadata,
+        metadataVersion: saved.metadataVersion,
+        agentState: null,
+        agentStateVersion: saved.agentStateVersion,
+      };
+    };
+
+    const inFlightLocalSideChats = new Map<string, {
+      brief: SideChatDelegationBrief;
+      creation: Promise<LocalSideChatCreation>;
+    }>();
+    createLocalSideChat = async (parentSessionId, brief) => {
       let parent: { id: string; metadata: Metadata };
       try {
         const session = await resolveLocalReconnectableSession(parentSessionId);
@@ -1485,34 +1522,56 @@ export async function startDaemon(): Promise<void> {
       }
 
       const existing = inFlightLocalSideChats.get(parent.id);
-      if (existing) return existing;
+      if (existing) {
+        if (!sameSideChatDelegationBrief(existing.brief, brief)) {
+          throw new Error(`Side-chat creation for parent ${parent.id} is already carrying a different delegation brief.`);
+        }
+        return existing.creation;
+      }
 
-      const creation = createChildSideChat(parent.id, {
-        resolveSession: async () => parent,
-        resolveMachine: async (requestedMachineId) => {
-          if (requestedMachineId !== machineId) {
-            throw new Error(
-              `Side chats must be created on the parent session's owning machine (${requestedMachineId}).`,
-            );
-          }
-          return { id: machineId, active: true };
-        },
-        machineRpc: async (_target, method, params) => {
-          if (method === 'claude-fork-session') {
-            return apiMachine.forkClaudeBackendSession(params.directory, params.claudeSessionId);
-          }
-          if (method === 'codex-fork-thread') {
-            return apiMachine.forkCodexBackendThread(params.directory, params.codexThreadId);
-          }
-          throw new Error(`Unsupported local side-chat RPC: ${method}`);
-        },
-        createMachineSession: async ({ machine: _target, ...options }) => spawnSession(options),
-      });
-      inFlightLocalSideChats.set(parent.id, creation);
+      const creation = (async (): Promise<LocalSideChatCreation> => {
+        const created = await createChildSideChat(parent.id, {
+          resolveSession: async () => parent,
+          resolveMachine: async (requestedMachineId) => {
+            if (requestedMachineId !== machineId) {
+              throw new Error(
+                `Side chats must be created on the parent session's owning machine (${requestedMachineId}).`,
+              );
+            }
+            return { id: machineId, active: true };
+          },
+          machineRpc: async (_target, method, params) => {
+            if (method === 'claude-fork-session') {
+              return apiMachine.forkClaudeBackendSession(params.directory, params.claudeSessionId);
+            }
+            if (method === 'codex-fork-thread') {
+              return apiMachine.forkCodexBackendThread(params.directory, params.codexThreadId);
+            }
+            throw new Error(`Unsupported local side-chat RPC: ${method}`);
+          },
+          createMachineSession: async ({ machine: _target, ...options }) => spawnSession(options),
+        });
+        try {
+          await api.postSideChatBrief(localSessionFromPersistence(created.sessionId), {
+            localId: randomUUID(),
+            text: formatSideChatDelegationPrompt(parent.id, created.sessionId, brief),
+          });
+          return { ...created, briefDelivery: { success: true } };
+        } catch (error) {
+          return {
+            ...created,
+            briefDelivery: {
+              success: false,
+              message: error instanceof Error ? error.message : String(error),
+            },
+          };
+        }
+      })();
+      inFlightLocalSideChats.set(parent.id, { brief, creation });
       try {
         return await creation;
       } finally {
-        if (inFlightLocalSideChats.get(parent.id) === creation) {
+        if (inFlightLocalSideChats.get(parent.id)?.creation === creation) {
           inFlightLocalSideChats.delete(parent.id);
         }
       }
@@ -1528,21 +1587,6 @@ export async function startDaemon(): Promise<void> {
         if (Date.now() >= deadline) throw new Error(`Timed out waiting for ${description}`);
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
-    };
-
-    const localSessionFromPersistence = (sessionId: string): Session => {
-      const saved = persisted[sessionId];
-      if (!saved) throw new Error(`Side chat ${sessionId} is not stored by this daemon`);
-      return {
-        id: sessionId,
-        seq: saved.seq,
-        encryptionKey: decodeBase64(saved.encryptionKey),
-        encryptionVariant: saved.encryptionVariant,
-        metadata: saved.metadata,
-        metadataVersion: saved.metadataVersion,
-        agentState: null,
-        agentStateVersion: saved.agentStateVersion,
-      };
     };
 
     const persistAuthoritativeSession = (session: Session): void => {

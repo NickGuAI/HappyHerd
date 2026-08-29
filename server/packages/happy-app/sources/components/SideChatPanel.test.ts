@@ -105,14 +105,10 @@ function child(id: string, createdAt: number): Session {
 
 function panelProps(overrides: Partial<SideChatPanelProps> = {}): SideChatPanelProps {
     return {
-        parentSessionId: 'parent',
         sideChats: [child('child-one', 1), child('child-two', 2)],
         activeSideChatId: null,
         onSelectSideChat: vi.fn(),
         onCloseSideChat: vi.fn(),
-        onCreateSideChat: vi.fn(),
-        canCreateSideChat: true,
-        creatingSideChat: false,
         ...overrides,
     };
 }
@@ -144,6 +140,11 @@ describe('SideChatAccessButton', () => {
 });
 
 describe('SideChatPanel', () => {
+    it('does not expose an unbriefed creation control when there are no children', () => {
+        const renderer = render(React.createElement(SideChatPanel, panelProps({ sideChats: [] })));
+        expect(renderer.toJSON()).toBeNull();
+    });
+
     it('shows multiple children as tabs and focuses the newest hydrated child by default', () => {
         const props = panelProps();
         const renderer = render(React.createElement(SideChatPanel, props));

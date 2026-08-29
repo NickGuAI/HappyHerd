@@ -17,9 +17,10 @@ live source remain authoritative.
 
 - `server/` is imported from `https://github.com/slopus/happy.git` with full
   history. Do not squash upstream history.
-- Commanders and agents should prefer coordinated child side chats or
-  provider-native subagents for bounded execution. The parent remains
-  accountable for scope, integration, verification, and final delivery.
+- Commanders and agents should prefer provider-native subagents for bounded
+  fan-out. Use a HappyHerd side chat when the child work needs a durable,
+  visible, resumable conversation. The parent remains accountable for scope,
+  integration, verification, and final delivery.
 - The Git remote named `upstream` always points to `slopus/happy`.
 - Do not copy changes from the dirty reference checkout at
   `App/external-projects/happy` without reviewing and recommitting them as an
@@ -39,6 +40,31 @@ live source remain authoritative.
   lock, fail-closed refusal, automatic rollback, process supervisor, or
   isolation layer without explicit human approval recorded in the owning
   issue and pull request. Upstream Happy behavior is the default.
+
+## Multiagent roles and delegation
+
+- **Human** is the person using HappyHerd.
+- **Main Agent** is the session the Human interacts with directly.
+- **Orchestrating Agent** is any Main Agent or Worker Agent that explicitly
+  creates and manages delegated work. It remains accountable for its direct
+  children and the integrated result.
+- **Worker Agent** executes one bounded brief.
+- **Provider-native subagent** is ephemeral inline fan-out owned by a provider.
+  It is the default mechanism for bounded parallel work.
+- **HappyHerd side chat** is a durable, visible, resumable child conversation
+  with stable parent lineage. Use it when work needs persistence, inspection,
+  or multiple turns.
+
+An Orchestrating Agent explicitly creates every delegated task. A HappyHerd
+side-chat brief must state the outcome, scope, dependencies, write ownership,
+verification, and handoff. The Orchestrating Agent owns child lifecycle and
+reviews the final handoff. Side chats do not create more side chats by default;
+use provider-native subagents for bounded fan-out inside a child.
+
+Delegated Worker Agents must be launched through
+`happyherd session side-chat create` with that complete structured brief. The
+app presents existing side chats, while generic session spawn must not set
+`isSideChat` or bypass the daemon-owned brief lifecycle.
 
 ## Package manager and verification
 

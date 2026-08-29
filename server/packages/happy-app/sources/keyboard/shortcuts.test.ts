@@ -146,10 +146,8 @@ describe('sidebar picker shortcuts', () => {
         expect(Object.keys(SIDEBAR_PICKER_SHORTCUTS)).toEqual([
             'changes',
             'allFiles',
-            'newSideChat',
         ]);
         expect(formatShortcutChord('meta', SIDEBAR_PICKER_SHORTCUTS.changes)).toBe('⌥⌘C');
         expect(formatShortcutChord('meta', SIDEBAR_PICKER_SHORTCUTS.allFiles)).toBe('⌥⌘F');
-        expect(formatShortcutChord('meta', SIDEBAR_PICKER_SHORTCUTS.newSideChat)).toBe('⌥⌘S');
     });
 });

@@ -206,26 +206,15 @@ export class ApiClient {
     };
   }
 
-  async postHeartbeatMessage(session: Session, input: {
+  private async postQueuedUserMessage(session: Session, input: {
     localId: string;
     text: string;
-    displayText: string;
-    automationId: string;
+    meta: NonNullable<UserMessage['meta']>;
   }): Promise<void> {
     const content: UserMessage = {
       role: 'user',
       content: { type: 'text', text: input.text },
-      meta: {
-        sentFrom: 'happyherd-heartbeat',
-        displayText: input.displayText,
-        deliveryMode: 'queue',
-        queueMessageId: input.localId,
-        heartbeat: {
-          schemaVersion: 1,
-          automationId: input.automationId,
-          occurrenceId: input.localId,
-        },
-      },
+      meta: input.meta,
     };
     await axios.post(
       `${configuration.serverUrl}/v3/sessions/${encodeURIComponent(session.id)}/messages`,
@@ -244,6 +233,44 @@ export class ApiClient {
         timeout: 60000,
       },
     );
+  }
+
+  async postHeartbeatMessage(session: Session, input: {
+    localId: string;
+    text: string;
+    displayText: string;
+    automationId: string;
+  }): Promise<void> {
+    await this.postQueuedUserMessage(session, {
+      localId: input.localId,
+      text: input.text,
+      meta: {
+        sentFrom: 'happyherd-heartbeat',
+        displayText: input.displayText,
+        deliveryMode: 'queue',
+        queueMessageId: input.localId,
+        heartbeat: {
+          schemaVersion: 1,
+          automationId: input.automationId,
+          occurrenceId: input.localId,
+        },
+      },
+    });
+  }
+
+  async postSideChatBrief(session: Session, input: {
+    localId: string;
+    text: string;
+  }): Promise<void> {
+    await this.postQueuedUserMessage(session, {
+      localId: input.localId,
+      text: input.text,
+      meta: {
+        sentFrom: 'happyherd-side-chat',
+        deliveryMode: 'queue',
+        queueMessageId: input.localId,
+      },
+    });
   }
 
   /**

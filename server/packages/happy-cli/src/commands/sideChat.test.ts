@@ -2,9 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   createChildSideChat,
+  formatSideChatDelegationPrompt,
   formatSideChatLifecycleReceipt,
   handleSideChatCommand,
+  normalizeSideChatLifecycleRequest,
   parseSideChatLifecycleRequest,
+  sameSideChatDelegationBrief,
+  sideChatHelp,
   type ResolvedSideChatMachine,
   type SideChatCommandDependencies,
   type SideChatLifecycleReceipt,
@@ -16,6 +20,22 @@ const machine: ResolvedSideChatMachine = {
   id: 'machine-owner',
   active: true,
 };
+const brief = {
+  outcome: 'Open a verified pull request.',
+  scope: 'Change only the side-chat command contract.',
+  dependencies: 'Base branch feature/integration.',
+  writeOwnership: 'server/packages/happy-cli/src/commands/sideChat.ts',
+  verification: 'Run the focused CLI tests and typecheck.',
+  handoff: 'Report the PR URL, checks, blockers, and remaining work.',
+} as const;
+const briefArgs = [
+  '--outcome', brief.outcome,
+  '--scope', brief.scope,
+  '--dependencies', brief.dependencies,
+  '--write-ownership', brief.writeOwnership,
+  '--verification', brief.verification,
+  '--handoff', brief.handoff,
+];
 
 function dependencies(
   metadata: Record<string, unknown> = {
@@ -239,7 +259,7 @@ describe('handleSideChatCommand', () => {
 
   it('prints a stable secret-free JSON receipt', async () => {
     const receipt = lifecycleReceipt();
-    await handleSideChatCommand([parentId, '--json'], {
+    await handleSideChatCommand([parentId, ...briefArgs, '--json'], {
       execute: vi.fn(async () => receipt),
     });
 
@@ -248,7 +268,7 @@ describe('handleSideChatCommand', () => {
 
   it('prints a stable human receipt by default', async () => {
     const receipt = lifecycleReceipt();
-    await handleSideChatCommand(['create', parentId], {
+    await handleSideChatCommand(['create', parentId, ...briefArgs], {
       execute: vi.fn(async () => receipt),
     });
 
@@ -270,13 +290,13 @@ describe('handleSideChatCommand', () => {
 });
 
 describe('parseSideChatLifecycleRequest', () => {
-  it('preserves legacy create and supports every lifecycle action', () => {
-    expect(parseSideChatLifecycleRequest([parentId])).toEqual({
-      request: { action: 'create', parentSessionId: parentId },
+  it('supports briefed shorthand create and every lifecycle action', () => {
+    expect(parseSideChatLifecycleRequest([parentId, ...briefArgs])).toEqual({
+      request: { action: 'create', parentSessionId: parentId, brief },
       json: false,
     });
-    expect(parseSideChatLifecycleRequest(['create', parentId, '--json'])).toEqual({
-      request: { action: 'create', parentSessionId: parentId },
+    expect(parseSideChatLifecycleRequest(['create', parentId, ...briefArgs, '--json'])).toEqual({
+      request: { action: 'create', parentSessionId: parentId, brief },
       json: true,
     });
     expect(parseSideChatLifecycleRequest(['list', parentId])).toEqual({
@@ -287,7 +307,15 @@ describe('parseSideChatLifecycleRequest', () => {
       request: { action: 'status', sessionId: 'child' },
       json: false,
     });
+    expect(parseSideChatLifecycleRequest(['inspect', 'child'])).toEqual({
+      request: { action: 'status', sessionId: 'child' },
+      json: false,
+    });
     expect(parseSideChatLifecycleRequest(['stop', 'child'])).toEqual({
+      request: { action: 'stop', sessionId: 'child' },
+      json: false,
+    });
+    expect(parseSideChatLifecycleRequest(['pause', 'child'])).toEqual({
       request: { action: 'stop', sessionId: 'child' },
       json: false,
     });
@@ -313,13 +341,57 @@ describe('parseSideChatLifecycleRequest', () => {
     });
   });
 
+  it('normalizes CLI and daemon API aliases to canonical lifecycle requests', () => {
+    expect(normalizeSideChatLifecycleRequest({ action: 'inspect', sessionId: 'child' }))
+      .toEqual({ action: 'status', sessionId: 'child' });
+    expect(normalizeSideChatLifecycleRequest({ action: 'pause', sessionId: 'child' }))
+      .toEqual({ action: 'stop', sessionId: 'child' });
+    expect(normalizeSideChatLifecycleRequest({ action: 'resume', sessionId: 'child' }))
+      .toEqual({ action: 'reopen', sessionId: 'child' });
+    expect(normalizeSideChatLifecycleRequest({ action: 'close', sessionId: 'child' }))
+      .toEqual({ action: 'close', sessionId: 'child' });
+  });
+
+  it('advertises lifecycle aliases and their canonical receipts', () => {
+    const help = sideChatHelp();
+    expect(help).toContain('side-chat inspect <child-session-id>');
+    expect(help).toContain('side-chat pause <child-session-id>');
+    expect(help).toContain('side-chat resume <child-session-id>');
+    expect(help).toContain('receipts use the canonical action names');
+  });
+
   it('rejects ambiguous or unsupported action shapes', () => {
     expect(() => parseSideChatLifecycleRequest(['stop', 'child', '--all']))
       .toThrow('--all is supported only with the close action');
     expect(() => parseSideChatLifecycleRequest(['create']))
-      .toThrow('Usage: happy session side-chat create');
+      .toThrow('Usage: happyherd session side-chat create');
     expect(() => parseSideChatLifecycleRequest(['--unknown']))
       .toThrow('Unknown side-chat option');
+  });
+
+  it('requires all six bounded brief fields and confines them to create', () => {
+    expect(() => parseSideChatLifecycleRequest(['create', parentId]))
+      .toThrow('Side-chat creation requires: --outcome, --scope, --dependencies, --write-ownership, --verification, --handoff');
+    expect(() => parseSideChatLifecycleRequest([
+      'create', parentId,
+      ...briefArgs.slice(0, -2),
+    ])).toThrow('Side-chat creation requires: --handoff');
+    expect(() => parseSideChatLifecycleRequest(['status', 'child', '--outcome', 'wrong action']))
+      .toThrow('supported only with the create action');
+    expect(() => parseSideChatLifecycleRequest([
+      'create', parentId,
+      ...briefArgs,
+      '--outcome', 'duplicate',
+    ])).toThrow('Duplicate side-chat option: --outcome');
+    expect(() => parseSideChatLifecycleRequest([
+      'create', parentId,
+      '--outcome', '--scope', 'wrongly consumed',
+    ])).toThrow('Side-chat option --outcome requires a non-empty value');
+
+    const markdownBriefArgs = [...briefArgs];
+    markdownBriefArgs[1] = '- deliver only the owned files';
+    expect(parseSideChatLifecycleRequest(['create', parentId, ...markdownBriefArgs]))
+      .toMatchObject({ request: { brief: { outcome: '- deliver only the owned files' } } });
   });
 
   it('keeps a failed JSON receipt on stdout and marks the command unsuccessful', async () => {
@@ -335,6 +407,27 @@ describe('parseSideChatLifecycleRequest', () => {
 
     expect(output).toHaveBeenCalledWith(JSON.stringify(receipt));
     expect(setExitCode).toHaveBeenCalledWith(1);
+  });
+});
+
+describe('formatSideChatDelegationPrompt', () => {
+  it('delivers stable lineage, every bounded field, role semantics, and handoff accountability', () => {
+    const prompt = formatSideChatDelegationPrompt(parentId, 'happy-child', brief);
+
+    expect(prompt).toContain(`side chat \`happy-child\``);
+    expect(prompt).toContain(`session \`${parentId}\``);
+    for (const value of Object.values(brief)) expect(prompt).toContain(value);
+    expect(prompt).toContain('Human interacts directly with the Main Agent');
+    expect(prompt).toContain('provider-native subagent is the default inline fan-out');
+    expect(prompt).toContain('durable, visible, resumable child conversation');
+    expect(prompt).toContain('explicitly create each delegated task');
+    expect(prompt).toContain('Do not create another HappyHerd side chat');
+    expect(prompt).toContain('result, exact verification evidence, blockers, and remaining work');
+  });
+
+  it('compares the complete structured brief for concurrent creation accountability', () => {
+    expect(sameSideChatDelegationBrief(brief, { ...brief })).toBe(true);
+    expect(sameSideChatDelegationBrief(brief, { ...brief, handoff: 'Different handoff' })).toBe(false);
   });
 });
 

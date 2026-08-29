@@ -22,6 +22,23 @@ import {
   type MachineControlClient,
 } from './machine';
 
+const sideChatBrief = {
+  outcome: 'Deliver the delegated change.',
+  scope: 'Use the owned files only.',
+  dependencies: 'Use the parent context.',
+  writeOwnership: '/srv/project/owned.ts',
+  verification: 'Run the focused checks.',
+  handoff: 'Return result, evidence, blockers, and remaining work.',
+} as const;
+const sideChatBriefArgs = [
+  '--outcome', sideChatBrief.outcome,
+  '--scope', sideChatBrief.scope,
+  '--dependencies', sideChatBrief.dependencies,
+  '--write-ownership', sideChatBrief.writeOwnership,
+  '--verification', sideChatBrief.verification,
+  '--handoff', sideChatBrief.handoff,
+];
+
 function option(code: string, extra: Record<string, unknown> = {}) {
   return { code, value: code, description: null, ...extra };
 }
@@ -209,7 +226,7 @@ describe('machine and session command parsing', () => {
     expect(createClient).not.toHaveBeenCalled();
     expect(output.mock.calls.join('\n')).toContain('happy machine list');
     expect(output.mock.calls.join('\n')).toContain('happy session create');
-    expect(output.mock.calls.join('\n')).toContain('happy session side-chat');
+    expect(output.mock.calls.join('\n')).toContain('happyherd session side-chat');
   });
 
   it('routes account-control auth through the configured HappyHerd home', async () => {
@@ -592,7 +609,7 @@ describe('local side-chat creation', () => {
     }));
     const output = vi.fn();
 
-    await handleSessionCommand(['side-chat', 'parent-codex', '--json'], {
+    await handleSessionCommand(['side-chat', 'parent-codex', ...sideChatBriefArgs, '--json'], {
       createClient,
       manageLocalSideChat,
       output,
@@ -601,6 +618,7 @@ describe('local side-chat creation', () => {
     expect(manageLocalSideChat).toHaveBeenCalledWith({
       action: 'create',
       parentSessionId: 'parent-codex',
+      brief: sideChatBrief,
     });
     expect(createClient).not.toHaveBeenCalled();
     expect(output).toHaveBeenCalledWith(expect.stringContaining('"sessionId":"child-session"'));
@@ -612,7 +630,7 @@ describe('local side-chat creation', () => {
       throw new Error("Side chats must be created on the parent session's owning machine.");
     });
 
-    await expect(handleSessionCommand(['side-chat', 'parent-session'], {
+    await expect(handleSessionCommand(['side-chat', 'parent-session', ...sideChatBriefArgs], {
       createClient,
       manageLocalSideChat,
       output: vi.fn(),

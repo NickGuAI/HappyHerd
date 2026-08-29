@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "f2bd05dcdd502de97bb32f4533cc045ba744fcfd396dbe1467410524c0c9fc6c",
+  "sourceFingerprint": "53f9b5c92bba3ecc11d561f30f7634d61ec779bc1f26c297cffdd9a11b73230d",
   "routeCount": 36,
   "surfaceCount": 246,
   "hardcodedCopyCount": 0,
@@ -1021,7 +1021,6 @@
         "sessionInfo.resumeSession",
         "sideChat.archiveFailed",
         "sideChat.stopUnconfirmed",
-        "sideChat.unavailable",
         "uiCopy.discardUnsavedChanges",
         "uiCopy.thisFile",
         "uiCopy.workspaceContext",
@@ -1029,8 +1028,7 @@
         "uiCopy.yourEditsToValueHaveNotBeenSaved"
       ],
       "states": [
-        "error",
-        "unavailable"
+        "error"
       ],
       "hardcodedCopy": []
     },
@@ -3087,7 +3085,6 @@
         "files.noFilesFound",
         "files.noFilesInProject",
         "files.searchPlaceholder",
-        "sideChat.newChat",
         "sideChat.panelTitle",
         "uiCopy.attachValueToNextMessage"
       ],
@@ -4282,19 +4279,12 @@
       "translationKeys": [
         "sideChat.close",
         "sideChat.collapse",
-        "sideChat.creating",
-        "sideChat.emptySubtitle",
-        "sideChat.emptyTitle",
         "sideChat.expand",
         "sideChat.openCount",
         "sideChat.panelTitle",
-        "sideChat.startButton",
-        "sideChat.tabLabel",
-        "sideChat.unavailable"
+        "sideChat.tabLabel"
       ],
-      "states": [
-        "unavailable"
-      ],
+      "states": [],
       "hardcodedCopy": []
     },
     {

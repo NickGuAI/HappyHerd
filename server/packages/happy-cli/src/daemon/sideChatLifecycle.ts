@@ -1,4 +1,5 @@
 import type {
+  SideChatDelegationBrief,
   SideChatCloseAllReceipt,
   SideChatListReceipt,
   SideChatLifecycleReceipt,
@@ -10,19 +11,22 @@ import type {
 
 export type DaemonSideChatRecord = SideChatStatusReceipt;
 
-type OperationResult = {
+export type SideChatOperationResult = {
   success: boolean;
   message?: string;
 };
 
 export type DaemonSideChatLifecycleDependencies = {
-  create: (parentSessionId: string) => Promise<{ sessionId: string }>;
+  create: (
+    parentSessionId: string,
+    brief: SideChatDelegationBrief,
+  ) => Promise<{ sessionId: string; briefDelivery: SideChatOperationResult }>;
   listSessionIds: (parentSessionId: string) => Promise<string[]>;
   read: (sessionId: string) => Promise<DaemonSideChatRecord>;
-  stopProvider: (sessionId: string) => Promise<OperationResult>;
-  archiveMetadata: (sessionId: string) => Promise<OperationResult>;
-  deactivate: (sessionId: string) => Promise<OperationResult>;
-  resumeProvider: (sessionId: string) => Promise<OperationResult>;
+  stopProvider: (sessionId: string) => Promise<SideChatOperationResult>;
+  archiveMetadata: (sessionId: string) => Promise<SideChatOperationResult>;
+  deactivate: (sessionId: string) => Promise<SideChatOperationResult>;
+  resumeProvider: (sessionId: string) => Promise<SideChatOperationResult>;
 };
 
 function phase(
@@ -60,7 +64,7 @@ export class DaemonSideChatLifecycle {
 
   async execute(request: SideChatLifecycleRequest): Promise<SideChatLifecycleReceipt> {
     switch (request.action) {
-      case 'create': return this.create(request.parentSessionId);
+      case 'create': return this.create(request.parentSessionId, request.brief);
       case 'list': return this.list(request.parentSessionId);
       case 'status': return this.status(request.sessionId);
       case 'stop': return this.stop(request.sessionId);
@@ -70,27 +74,69 @@ export class DaemonSideChatLifecycle {
     }
   }
 
-  private async create(parentSessionId: string): Promise<SideChatSingleReceipt> {
+  private async create(
+    parentSessionId: string,
+    brief: SideChatDelegationBrief,
+  ): Promise<SideChatSingleReceipt> {
+    let created: Awaited<ReturnType<DaemonSideChatLifecycleDependencies['create']>>;
     try {
-      const created = await this.dependencies.create(parentSessionId);
-      const child = await this.dependencies.read(created.sessionId);
+      created = await this.dependencies.create(parentSessionId, brief);
+    } catch (error) {
+      return failedSingle('create', null, 'resolve', error);
+    }
+
+    let child: DaemonSideChatRecord;
+    try {
+      child = await this.dependencies.read(created.sessionId);
+    } catch (error) {
       return {
         schemaVersion: 1,
         type: 'side-chat',
         action: 'create',
-        success: child.parentSessionId === parentSessionId && child.status === 'running',
+        success: false,
         parentSessionId,
-        sessionId: child.sessionId,
-        child,
+        sessionId: created.sessionId,
+        child: null,
         phases: [
           phase('resolve', 'succeeded'),
-          phase('readback', child.parentSessionId === parentSessionId ? 'succeeded' : 'failed',
-            child.parentSessionId === parentSessionId ? undefined : 'Created child lineage did not match the requested parent'),
+          phase(
+            'deliver-brief',
+            created.briefDelivery.success ? 'succeeded' : 'failed',
+            created.briefDelivery.message,
+          ),
+          phase('readback', 'failed', error instanceof Error ? error.message : String(error)),
         ],
       };
-    } catch (error) {
-      return failedSingle('create', null, 'resolve', error);
     }
+
+    const lineageMatches = child.parentSessionId === parentSessionId;
+    const childIsRunning = child.status === 'running';
+    return {
+      schemaVersion: 1,
+      type: 'side-chat',
+      action: 'create',
+      success: lineageMatches && childIsRunning && created.briefDelivery.success,
+      parentSessionId,
+      sessionId: child.sessionId,
+      child,
+      phases: [
+        phase('resolve', 'succeeded'),
+        phase(
+          'deliver-brief',
+          created.briefDelivery.success ? 'succeeded' : 'failed',
+          created.briefDelivery.message,
+        ),
+        phase(
+          'readback',
+          lineageMatches && childIsRunning ? 'succeeded' : 'failed',
+          !lineageMatches
+            ? 'Created child lineage did not match the requested parent'
+            : !childIsRunning
+              ? 'Created child was not running at read-back'
+              : undefined,
+        ),
+      ],
+    };
   }
 
   private async list(parentSessionId: string): Promise<SideChatListReceipt> {

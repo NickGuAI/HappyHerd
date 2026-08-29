@@ -32,13 +32,10 @@ import { Modal } from '@/modal';
 import { voiceHooks } from '@/realtime/hooks/voiceHooks';
 import { getCurrentVoiceConversationId, getCurrentVoiceSessionDurationSeconds, startRealtimeSession, stopRealtimeSession } from '@/realtime/RealtimeSession';
 import { gitStatusSync } from '@/sync/gitStatusSync';
-import { machineControlHeartbeat, machineStopSession, sessionAbort, sessionCancelCommunication, sessionGoalAction, sessionSetAgentModes, spawnSideChat, sessionKill, sessionArchive } from '@/sync/ops';
+import { machineControlHeartbeat, machineStopSession, sessionAbort, sessionCancelCommunication, sessionGoalAction, sessionSetAgentModes, sessionKill, sessionArchive } from '@/sync/ops';
 import { closeSideChatSession, resolveSideChatCloseReconciliation } from '@/sync/sideChatLifecycle';
 import { storage, useIsDataReady, useLocalSetting, useMachine, useRealtimeStatus, useSessionGitStatus, useSessionMessages, useSessionPendingCommunications, useSessionUsage, useSetting, useSettingMutable, useSideChatSessions } from '@/sync/storage';
 import { useSession } from '@/sync/storage';
-import { getSessionForkSource } from '@/utils/sessionFork';
-import { useHappyAction } from '@/hooks/useHappyAction';
-import { HappyError } from '@/utils/errors';
 import { Session } from '@/sync/storageTypes';
 import { sync } from '@/sync/sync';
 import { supportsImageAttachmentsForFlavor } from '@/sync/attachmentSupport';
@@ -230,12 +227,9 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         storage.getState().applyLocalSettings({ sidebarPanelsOpen: open, sidebarPanelActive: active });
     }, []);
 
-    // Side chats live inside the single "sideChat" panel as switchable tabs.
-    // Creation is unified into the sidebar panel picker (the top "+") so there
-    // is no separate per-tab add button. Which side chat is focused lives here
-    // (not in the panel) so the picker can create-and-focus a new one in one go.
+    // Already-briefed side chats hydrate into one switchable panel. Focus lives
+    // here (not in the panel) so wide and narrow hosts share one selection.
     const rawSideChats = useSideChatSessions(sessionId);
-    const sideChatForkSource = session ? getSessionForkSource(session) : null;
     const [activeSideChatId, setActiveSideChatId] = React.useState<string | null>(null);
     // Optimistically hide a side chat the instant it's closed. The server's
     // /archive only flips active=false (not lifecycleState), so if the CLI is
@@ -362,24 +356,6 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             refresh: () => sync.refreshSessions(),
         });
     }, []);
-
-    const [creatingSideChat, createSideChat] = useHappyAction(async () => {
-        if (!sideChatForkSource) {
-            throw new HappyError(t('sideChat.unavailable'), false);
-        }
-        const result = await spawnSideChat(sideChatForkSource);
-        if (result.type === 'error') {
-            throw new HappyError(result.errorMessage, true);
-        }
-        if (result.type === 'success') {
-            setActiveSideChatId(result.sessionId);
-            if (sidebarPresentation.sideChatSurface === 'sidebar') {
-                openSidebarPanel('sideChat');
-            } else {
-                setSideChatFullscreenOpen(true);
-            }
-        }
-    });
 
     const closeSideChat = React.useCallback((id: string) => {
         const idx = sideChats.findIndex((s) => s.id === id);
@@ -701,14 +677,10 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                     }}
                 >
                     <SideChatFullscreen
-                        parentSessionId={sessionId}
                         sideChats={sideChats}
                         activeSideChatId={activeSideChatId}
                         onSelectSideChat={setActiveSideChatId}
                         onCloseSideChat={closeSideChat}
-                        onCreateSideChat={createSideChat}
-                        canCreateSideChat={!!sideChatForkSource}
-                        creatingSideChat={creatingSideChat}
                         onCollapse={() => setSideChatFullscreenOpen(false)}
                     />
                 </View>
@@ -815,9 +787,6 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                             activeSideChatId={activeSideChatId}
                             onSelectSideChat={setActiveSideChatId}
                             onCloseSideChat={closeSideChat}
-                            onCreateSideChat={createSideChat}
-                            canCreateSideChat={!!sideChatForkSource}
-                            creatingSideChat={creatingSideChat}
                         />
                     </View>
                 </Animated.View>

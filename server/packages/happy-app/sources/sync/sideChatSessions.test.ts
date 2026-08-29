@@ -22,6 +22,14 @@ describe('selectSideChatSessions', () => {
         const sessions = {
             newest: session('newest', 30, { isSideChat: true, parentSessionId: 'parent' }),
             ordinary: session('ordinary', 5, {}),
+            providerNativeInline: session('provider-native-inline', 6, {
+                activity: {
+                    subagents: { running: 1, queued: 0, total: 1 },
+                    workflows: { running: 0, total: 0 },
+                    processes: { running: 0 },
+                    tasks: { pending: 0, inProgress: 0, completed: 0, total: 0 },
+                },
+            }),
             archived: session('archived', 10, {
                 isSideChat: true,
                 parentSessionId: 'parent',
@@ -40,5 +48,25 @@ describe('selectSideChatSessions', () => {
         expect(selectSideChatSessions(sessions, 'other-parent').map((item) => item.id))
             .toEqual(['sibling']);
         expect(selectSideChatSessions(sessions, null)).toEqual([]);
+    });
+
+    it('does not turn provider-native inline subagent activity into a side-chat conversation', () => {
+        const sessions = {
+            parent: session('parent', 1, {
+                activity: {
+                    subagents: { running: 2, queued: 1, total: 3 },
+                    workflows: { running: 0, total: 0 },
+                    processes: { running: 0 },
+                    tasks: { pending: 0, inProgress: 0, completed: 0, total: 0 },
+                },
+            }),
+            durableChild: session('durable-child', 2, {
+                isSideChat: true,
+                parentSessionId: 'parent',
+            }),
+        };
+
+        expect(selectSideChatSessions(sessions, 'parent').map((item) => item.id))
+            .toEqual(['durable-child']);
     });
 });

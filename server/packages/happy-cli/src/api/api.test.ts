@@ -394,6 +394,54 @@ describe('Api server error handling', () => {
         });
     });
 
+    describe('postSideChatBrief', () => {
+        it('posts the complete brief through the ordinary encrypted queue without heartbeat semantics', async () => {
+            mockPost.mockResolvedValue({ data: {} });
+            const encryptionKey = new Uint8Array(32);
+
+            await api.postSideChatBrief({
+                id: 'side/chat',
+                seq: 4,
+                encryptionKey,
+                encryptionVariant: 'legacy',
+                metadata: testMetadata,
+                metadataVersion: 2,
+                agentState: {},
+                agentStateVersion: 3,
+            }, {
+                localId: 'brief-one',
+                text: '# Delegated delivery brief\n\nComplete the bounded work.',
+            });
+
+            expect(mockPost).toHaveBeenCalledWith(
+                'https://api.example.com/v3/sessions/side%2Fchat/messages',
+                {
+                    messages: [{
+                        localId: 'brief-one',
+                        content: {
+                            role: 'user',
+                            content: {
+                                type: 'text',
+                                text: '# Delegated delivery brief\n\nComplete the bounded work.',
+                            },
+                            meta: {
+                                sentFrom: 'happyherd-side-chat',
+                                deliveryMode: 'queue',
+                                queueMessageId: 'brief-one',
+                            },
+                        },
+                    }],
+                },
+                expect.objectContaining({
+                    headers: expect.objectContaining({ Authorization: 'Bearer fake-token' }),
+                    timeout: 60000,
+                }),
+            );
+            const payload = mockPost.mock.calls[0][1] as { messages: Array<{ content: { meta: unknown } }> };
+            expect(payload.messages[0].content.meta).not.toHaveProperty('heartbeat');
+        });
+    });
+
     describe('getOrCreateMachine', () => {
         it('should return minimal machine object when server is unreachable (ECONNREFUSED)', async () => {
             connectionState.reset();

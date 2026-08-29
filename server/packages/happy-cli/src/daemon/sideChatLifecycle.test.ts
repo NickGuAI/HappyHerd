@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { SideChatLifecycleStatus } from '@/commands/sideChat';
+import type { SideChatDelegationBrief, SideChatLifecycleStatus } from '@/commands/sideChat';
 import {
   DaemonSideChatLifecycle,
   type DaemonSideChatLifecycleDependencies,
@@ -23,15 +23,25 @@ function child(
   };
 }
 
+const brief: SideChatDelegationBrief = {
+  outcome: 'Deliver the child result.',
+  scope: 'One bounded workstream.',
+  dependencies: 'Parent context.',
+  writeOwnership: '/srv/project/owned.ts',
+  verification: 'Run the focused test.',
+  handoff: 'Return result, evidence, blockers, and remaining work.',
+};
+
 function harness(initial: DaemonSideChatRecord[]) {
   const records = new Map(initial.map((record) => [record.sessionId, { ...record }]));
   const calls: string[] = [];
   const dependencies: DaemonSideChatLifecycleDependencies = {
-    create: vi.fn(async (parentSessionId) => {
+    create: vi.fn(async (parentSessionId, deliveredBrief) => {
       const created = child('created-child', 'running', { parentSessionId });
       records.set(created.sessionId, created);
       calls.push(`create:${parentSessionId}`);
-      return { sessionId: created.sessionId };
+      calls.push(`brief:${deliveredBrief.outcome}`);
+      return { sessionId: created.sessionId, briefDelivery: { success: true } };
     }),
     listSessionIds: vi.fn(async (parentSessionId) => [...records.values()]
       .filter((record) => record.parentSessionId === parentSessionId)
@@ -77,7 +87,7 @@ describe('DaemonSideChatLifecycle', () => {
   it('creates a child and returns daemon-read lineage and running state', async () => {
     const { lifecycle } = harness([]);
 
-    await expect(lifecycle.execute({ action: 'create', parentSessionId: 'parent' }))
+    await expect(lifecycle.execute({ action: 'create', parentSessionId: 'parent', brief }))
       .resolves.toMatchObject({
         schemaVersion: 1,
         type: 'side-chat',
@@ -86,6 +96,51 @@ describe('DaemonSideChatLifecycle', () => {
         parentSessionId: 'parent',
         sessionId: 'created-child',
         child: { status: 'running', providerRunning: true, active: true },
+        phases: [
+          { phase: 'resolve', status: 'succeeded' },
+          { phase: 'deliver-brief', status: 'succeeded' },
+          { phase: 'readback', status: 'succeeded' },
+        ],
+      });
+  });
+
+  it('retains the created child and exact failed phase when brief delivery fails', async () => {
+    const { lifecycle, dependencies, records } = harness([]);
+    vi.mocked(dependencies.create).mockImplementation(async (parentSessionId) => {
+      records.set('created-child', child('created-child', 'running', { parentSessionId }));
+      return {
+        sessionId: 'created-child',
+        briefDelivery: { success: false, message: 'message persistence failed' },
+      };
+    });
+
+    await expect(lifecycle.execute({ action: 'create', parentSessionId: 'parent', brief }))
+      .resolves.toMatchObject({
+        success: false,
+        parentSessionId: 'parent',
+        sessionId: 'created-child',
+        child: { sessionId: 'created-child', parentSessionId: 'parent' },
+        phases: expect.arrayContaining([
+          { phase: 'deliver-brief', status: 'failed', message: 'message persistence failed' },
+        ]),
+      });
+  });
+
+  it('retains the created child ID when authoritative read-back fails', async () => {
+    const { lifecycle, dependencies } = harness([]);
+    vi.mocked(dependencies.read).mockRejectedValueOnce(new Error('read-back unavailable'));
+
+    await expect(lifecycle.execute({ action: 'create', parentSessionId: 'parent', brief }))
+      .resolves.toMatchObject({
+        success: false,
+        parentSessionId: 'parent',
+        sessionId: 'created-child',
+        child: null,
+        phases: [
+          { phase: 'resolve', status: 'succeeded' },
+          { phase: 'deliver-brief', status: 'succeeded' },
+          { phase: 'readback', status: 'failed', message: 'read-back unavailable' },
+        ],
       });
   });
 
@@ -108,6 +163,24 @@ describe('DaemonSideChatLifecycle', () => {
           { sessionId: 'running', status: 'running', resumable: false },
           { sessionId: 'stopped', status: 'stopped', resumable: true },
         ],
+      });
+  });
+
+  it('reports each Orchestrating Agent direct children without flattening a delegated subtree', async () => {
+    const { lifecycle } = harness([
+      child('worker', 'running', { parentSessionId: 'parent' }),
+      child('nested-worker', 'running', { parentSessionId: 'worker' }),
+    ]);
+
+    await expect(lifecycle.execute({ action: 'list', parentSessionId: 'parent' }))
+      .resolves.toMatchObject({
+        success: true,
+        children: [{ sessionId: 'worker', parentSessionId: 'parent' }],
+      });
+    await expect(lifecycle.execute({ action: 'list', parentSessionId: 'worker' }))
+      .resolves.toMatchObject({
+        success: true,
+        children: [{ sessionId: 'nested-worker', parentSessionId: 'worker' }],
       });
   });
 
