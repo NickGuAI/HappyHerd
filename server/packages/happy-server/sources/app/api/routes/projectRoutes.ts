@@ -113,6 +113,14 @@ function checkUploadRate(userId: string): boolean {
     const current = uploadRateState.get(userId);
     if (!current || now - current.windowStart >= UPLOAD_RATE_WINDOW_MS) {
         uploadRateState.set(userId, { count: 1, windowStart: now });
+        // Bound one-shot user churn just like the attachment upload limiter.
+        if (uploadRateState.size > 10_000) {
+            for (const [key, entry] of uploadRateState) {
+                if (now - entry.windowStart >= UPLOAD_RATE_WINDOW_MS) {
+                    uploadRateState.delete(key);
+                }
+            }
+        }
         return true;
     }
     if (current.count >= UPLOAD_RATE_MAX) return false;

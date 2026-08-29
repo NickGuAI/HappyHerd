@@ -53,8 +53,6 @@ describe('offline machine troubleshooting', () => {
         ]);
 
         expect(guide.aiPrompt).toBe('In /Users/kirill/.happy, diagnose why Happy cannot reach "Kirill’s Mac" for project "Happy".');
-        expect(guide.message).toContain('1. Wake the machine and check internet.');
-        expect(guide.message.endsWith(guide.aiPrompt)).toBe(true);
     });
 
     it('uses the newest known project to choose which offline machine to troubleshoot', () => {

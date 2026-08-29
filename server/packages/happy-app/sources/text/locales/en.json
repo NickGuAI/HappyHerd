@@ -555,6 +555,7 @@
       "bringMachineOnline": "Bring a machine online to start a session.",
       "troubleshoot": "Troubleshoot",
       "troubleshootConnection": "Troubleshoot connection",
+      "troubleshootMessage": "1. Wake the machine and check internet.\n2. Run `happy` again.\n3. Reopen Happy.\n\nAI prompt:\n{aiPrompt}",
       "copyAiPrompt": "Copy AI prompt",
       "copyAiPromptFailed": "Could not copy the AI prompt."
     },

@@ -6,7 +6,6 @@ export type OfflineMachineTroubleshooting = {
     projectName: string;
     happyHomeDir: string;
     aiPrompt: string;
-    message: string;
 };
 
 function projectNameFromPath(path: string | null | undefined): string | null {
@@ -54,13 +53,5 @@ export function buildOfflineMachineTroubleshooting(
         projectName,
         happyHomeDir,
         aiPrompt,
-        message: [
-            '1. Wake the machine and check internet.',
-            '2. Run `happy` again.',
-            '3. Reopen Happy.',
-            '',
-            'AI prompt:',
-            aiPrompt,
-        ].join('\n'),
     };
 }

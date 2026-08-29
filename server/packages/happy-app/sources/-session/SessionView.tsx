@@ -1530,7 +1530,7 @@ export function SessionViewLoaded({
                 alwaysShowContextSize={alwaysShowContextSize}
                 zenMode={zenMode}
                 showStatusDetails={showBottomDockDetails}
-                sessionStatusGitBranch={statusBarGitBranch ?? 'main'}
+                sessionStatusGitBranch={statusBarGitBranch}
                 sessionStatusGitChanges={statusBarGitChanges}
                 sessionStatusUsageLimits={session.agentState?.usageLimits ?? null}
                 onActionAreaOffsetChange={usesFloatingMobileDock ? handleComposerCardOffsetChange : undefined}

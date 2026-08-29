@@ -485,6 +485,7 @@
       "bringMachineOnline": "请先让一台机器上线，然后再启动会话。",
       "troubleshoot": "排查问题",
       "troubleshootConnection": "排查连接问题",
+      "troubleshootMessage": "1. 唤醒设备并检查网络连接。\n2. 再次运行 `happy`。\n3. 重新打开 Happy。\n\nAI 提示词：\n{aiPrompt}",
       "copyAiPrompt": "复制 AI 提示词",
       "copyAiPromptFailed": "无法复制 AI 提示词。"
     },

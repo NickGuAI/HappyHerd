@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "97eb43b21a31c73d551c4425183cb1593444685c027fd164a02bc1fb18ee0a2f",
+  "sourceFingerprint": "7691d45dfd0a4b6bc134589e666490f5746b10ab9274f7ab1d9a95aa817598d2",
   "routeCount": 36,
   "surfaceCount": 245,
   "hardcodedCopyCount": 0,
@@ -5095,7 +5095,8 @@
         "common.error",
         "components.emptyMainScreen.copyAiPrompt",
         "components.emptyMainScreen.copyAiPromptFailed",
-        "components.emptyMainScreen.troubleshootConnection"
+        "components.emptyMainScreen.troubleshootConnection",
+        "components.emptyMainScreen.troubleshootMessage"
       ],
       "states": [
         "error"

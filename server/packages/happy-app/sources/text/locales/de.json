@@ -555,6 +555,7 @@
       "bringMachineOnline": "Bringen Sie einen Rechner online, um eine Sitzung zu starten.",
       "troubleshoot": "Fehlerbehebung",
       "troubleshootConnection": "Verbindung prüfen",
+      "troubleshootMessage": "1. Wecken Sie den Rechner auf und prüfen Sie die Internetverbindung.\n2. Führen Sie `happy` erneut aus.\n3. Öffnen Sie Happy erneut.\n\nKI-Prompt:\n{aiPrompt}",
       "copyAiPrompt": "KI-Prompt kopieren",
       "copyAiPromptFailed": "Der KI-Prompt konnte nicht kopiert werden."
     },

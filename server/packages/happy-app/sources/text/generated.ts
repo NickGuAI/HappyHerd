@@ -154,6 +154,7 @@ export type TranslationKey =
     | "components.emptyMainScreen.startOnConnectedMachine"
     | "components.emptyMainScreen.troubleshoot"
     | "components.emptyMainScreen.troubleshootConnection"
+    | "components.emptyMainScreen.troubleshootMessage"
     | "components.sessionStatusBar.contextUsage"
     | "components.sessionStatusBar.limitAsOf"
     | "components.sessionStatusBar.limitFiveHour"
@@ -1315,6 +1316,7 @@ export interface TranslationParamsByKey {
     "changelog.version": { version: string | number };
     "components.agentGoalBar.accessibilityLabel": { goal: string };
     "components.emptyMainScreen.machineUnreachable": { machine: string };
+    "components.emptyMainScreen.troubleshootMessage": { aiPrompt: string };
     "components.sessionStatusBar.contextUsage": { percent: number; total: string | number; used: string | number };
     "components.sessionStatusBar.limitAsOf": { age: string };
     "components.sessionStatusBar.limitRemaining": { percent: number };

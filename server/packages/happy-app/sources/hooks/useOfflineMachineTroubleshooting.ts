@@ -14,7 +14,10 @@ export function useOfflineMachineTroubleshooting(choices: readonly MachineChoice
     );
 
     return React.useCallback(() => {
-        Modal.alert(t('components.emptyMainScreen.troubleshootConnection'), guide.message, [
+        const message = t('components.emptyMainScreen.troubleshootMessage', {
+            aiPrompt: guide.aiPrompt,
+        });
+        Modal.alert(t('components.emptyMainScreen.troubleshootConnection'), message, [
             { text: t('common.cancel'), style: 'cancel' },
             {
                 text: t('components.emptyMainScreen.copyAiPrompt'),
