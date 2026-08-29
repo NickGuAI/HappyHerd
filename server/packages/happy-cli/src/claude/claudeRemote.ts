@@ -326,6 +326,13 @@ export async function claudeRemote(opts: {
                     } else if (normalized.unbound) {
                         pendingUnbound = normalized.unbound;
                     }
+                    if (info.status === 'rejected') {
+                        opts.onUsageLimits?.({
+                            capturedAt: Date.now(),
+                            windows: normalized.window ? [normalized.window] : [],
+                            unbound: normalized.unbound,
+                        });
+                    }
                 }
             }
 

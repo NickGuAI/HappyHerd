@@ -14,12 +14,14 @@ import { SpawnSessionOptions, SpawnSessionResult } from '@/modules/common/regist
 import type { HappyHerdAutomationService } from '@/automations/service';
 import { normalizeSideChatLifecycleRequest } from '@/commands/sideChat';
 import type { SideChatLifecycleReceipt, SideChatLifecycleRequest } from '@/commands/sideChat';
+import type { ProviderLimitNotice } from '@/credentialPool/providerLimitNotice';
 
 export function startDaemonControlServer({
   getChildren,
   stopSession,
   spawnSession,
   sideChat,
+  onProviderLimited,
   requestShutdown,
   onHappySessionWebhook,
   automations,
@@ -28,6 +30,7 @@ export function startDaemonControlServer({
   stopSession: (sessionId: string) => boolean;
   spawnSession: (options: SpawnSessionOptions) => Promise<SpawnSessionResult>;
   sideChat: (request: SideChatLifecycleRequest) => Promise<SideChatLifecycleReceipt>;
+  onProviderLimited: (notice: ProviderLimitNotice) => void;
   requestShutdown: () => void;
   onHappySessionWebhook: (sessionId: string, metadata: Metadata, encryption?: SessionEncryptionData) => void;
   automations: HappyHerdAutomationService;
@@ -81,6 +84,23 @@ export function startDaemonControlServer({
       onHappySessionWebhook(sessionId, metadata, encryptionData);
 
       return { status: 'ok' as const };
+    });
+
+    typed.post('/provider-limited', {
+      schema: {
+        body: z.object({
+          sessionId: z.string().min(1),
+          provider: z.enum(['claude', 'codex', 'grok']),
+          account: z.string().min(1),
+          limitedUntil: z.number().int().positive(),
+        }),
+        response: {
+          200: z.object({ status: z.literal('scheduled') }),
+        },
+      },
+    }, async (request) => {
+      onProviderLimited(request.body);
+      return { status: 'scheduled' as const };
     });
 
     // List all tracked sessions

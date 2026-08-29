@@ -25,6 +25,7 @@ import { runDoctorCommand, runDoctorDaemon } from './ui/doctor'
 import { listDaemonSessions, stopDaemonSession } from './daemon/controlClient'
 import { handleAuthCommand } from './commands/auth'
 import { handleConnectCommand } from './commands/connect'
+import { handleAccountsCommand } from './commands/accounts'
 import { handleSandboxCommand } from './commands/sandbox'
 import { handleServerCommand } from './commands/server'
 import { spawnHappyCLI } from './utils/spawnHappyCLI'
@@ -39,6 +40,7 @@ import { handleAutomationCommand } from './commands/automation'
 import { handleCommanderCommand } from './commands/commander'
 import { handleMachineCommand, handleSessionCommand } from './commands/machine'
 import { configuration } from './configuration'
+import { activateCredentialAccount } from './credentialPool/activate'
 
 
 (async () => {
@@ -108,6 +110,14 @@ Conversation history is preserved on the server, but in-flight tool calls are in
       if (process.env.DEBUG) {
         console.error(error)
       }
+      process.exit(1)
+    }
+    return;
+  } else if (subcommand === 'accounts') {
+    try {
+      await handleAccountsCommand(args.slice(1));
+    } catch (error) {
+      console.error(chalk.red('Error:'), error instanceof Error ? error.message : 'Unknown error')
       process.exit(1)
     }
     return;
@@ -409,6 +419,7 @@ Conversation history is preserved on the server, but in-flight tool calls are in
       );
       const { credentials } = await authAndSetupMachineIfNeeded();
       await ensureDaemonRunning()
+      if (subcommand === 'grok') await activateCredentialAccount('grok');
 
       await runAcp({
         credentials,
@@ -718,6 +729,7 @@ ${chalk.bold('Usage:')}
   happy grok              Start GrokBuild through ACP
   happy acp               Start a generic ACP-compatible agent
   happy connect           Connect AI vendor API keys
+  happyherd accounts      List, select, or remove named provider accounts
   happy sandbox           Configure and manage OS-level sandboxing
   happy notify            Send push notification
   happy daemon            Manage background service that allows
@@ -777,6 +789,7 @@ ${chalk.bold.cyan('Claude Code Options (from `claude --help`):')}
       credentials
     } = await authAndSetupMachineIfNeeded();
     await ensureDaemonRunning()
+    await activateCredentialAccount('claude')
 
     // Start the CLI
     try {

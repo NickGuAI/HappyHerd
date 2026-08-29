@@ -1,3 +1,9 @@
+# August 29 — Named provider accounts and automatic failover
+
+- Connect and manage multiple local accounts for Claude, Codex, and GrokBuild using `happyherd connect <claude|codex|grok> --acct <nickname>` and the `happyherd accounts` command suite.
+- HappyHerd switches to the next available provider account upon reaching rate limits or hard quotas without losing transcript history or runtime context, using reactive and lazy selection without background quota polling.
+- When all accounts are limited, execution pauses and resumes automatically after the earliest account reset window elapses.
+
 # August 29 — Side chats carry bounded delegation briefs
 
 - Delegated Worker Agent creation now runs exclusively through `happyherd session side-chat create`, with required outcome, scope, dependencies, write ownership, verification, and handoff fields. On successful creation, the brief is the child's first encrypted queued message; a delivery failure retains the child ID and exact failed phase.

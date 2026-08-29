@@ -13,6 +13,10 @@ const mocks = vi.hoisted(() => ({
   backfillReconnectableSessionForMachine: vi.fn(),
   controlHandlers: undefined as unknown,
   exitedPids: new Set<number>(),
+  resolveCredentialAccountEnvironment: vi.fn(async (): Promise<any> => ({
+    selection: { type: 'unconfigured' },
+    env: {},
+  })),
   forkCodexBackendThread: vi.fn(async () => ({
     type: 'success',
     newCodexThreadId: 'thread-child',
@@ -163,6 +167,10 @@ vi.mock('@/daemon/happyTerminalBoot', () => ({
   startHappyTerminalDaemon: vi.fn(),
 }));
 
+vi.mock('@/credentialPool/store', () => ({
+  resolveCredentialAccountEnvironment: mocks.resolveCredentialAccountEnvironment,
+}));
+
 import {
   initialMachineMetadata,
   resolveDaemonAgentCommand,
@@ -219,6 +227,10 @@ describe('daemon session continuity', () => {
     mocks.authoritativeActive = false;
     mocks.exitedPids.clear();
     mocks.hasProviderProcessExited.mockImplementation((pid: number) => mocks.exitedPids.has(pid));
+    mocks.resolveCredentialAccountEnvironment.mockResolvedValue({
+      selection: { type: 'unconfigured' },
+      env: {},
+    });
     initialMachineMetadata.agentCapabilities = defaultAgentCapabilities;
     originalCodexHome = process.env.CODEX_HOME;
     process.env.CODEX_HOME = '/ambient/wrong-provider-home';
@@ -249,11 +261,13 @@ describe('daemon session continuity', () => {
     const resolvedSessionId = 'csynthetic000000000000001';
     const encryptionKey = new Uint8Array([1, 2, 3, 4]);
     const codexHome = '/unavailable/provider-home';
+    const accountAuthFile = '/managed/codex/account-two/auth.json';
     const metadata: Metadata = {
       path: process.cwd(),
       flavor: 'codex',
       codexThreadId: 'thread-legacy',
       codexHome,
+      providerAccount: 'account-one',
       host: 'test-host',
       hostPid: 9876,
       machineId: 'machine-1',
@@ -287,6 +301,24 @@ describe('daemon session continuity', () => {
       },
       persisted,
     });
+    mocks.resolveCredentialAccountEnvironment.mockResolvedValue({
+      selection: {
+        type: 'available',
+        account: {
+          provider: 'codex',
+          name: 'account-two',
+          credential: { type: 'auth-file', path: accountAuthFile },
+          createdAt: 1,
+          updatedAt: 2,
+          limitedUntil: null,
+        },
+      },
+      env: {
+        HAPPYHERD_PROVIDER_ACCOUNT: 'account-two',
+        HAPPYHERD_PROVIDER_ACCOUNT_TYPE: 'codex',
+        HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: accountAuthFile,
+      },
+    });
     mocks.spawnHappyCLI.mockReturnValue({
       pid: 4321,
       kill: vi.fn(),
@@ -313,7 +345,12 @@ describe('daemon session continuity', () => {
     ];
     expect(args).toEqual(['codex', '--resume', metadata.codexThreadId, '--started-by', 'daemon']);
     expect(spawnOptions.cwd).toBe(metadata.path);
+    expect(mocks.resolveCredentialAccountEnvironment).toHaveBeenCalledWith('codex', {
+      preferred: 'account-one',
+    });
     expect(spawnOptions.env.CODEX_HOME).toBe(codexHome);
+    expect(spawnOptions.env.HAPPYHERD_PROVIDER_ACCOUNT).toBe('account-two');
+    expect(spawnOptions.env.HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE).toBe(accountAuthFile);
     expect(spawnOptions.env.HAPPY_RECONNECT_SESSION_ID).toBe(resolvedSessionId);
     expect(spawnOptions.env.HAPPY_RECONNECT_ENCRYPTION_KEY).toBe(persisted.encryptionKey);
     expect(spawnOptions.env.HAPPY_RECONNECT_ENCRYPTION_VARIANT).toBe(encryption.encryptionVariant);

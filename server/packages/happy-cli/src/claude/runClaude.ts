@@ -165,6 +165,9 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         lifecycleState: 'running',
         lifecycleStateSince: Date.now(),
         flavor: 'claude',
+        ...(process.env.HAPPYHERD_PROVIDER_ACCOUNT
+            ? { providerAccount: process.env.HAPPYHERD_PROVIDER_ACCOUNT }
+            : {}),
         sandbox: sandboxConfig?.enabled ? sandboxConfig : null,
         dangerouslySkipPermissions,
         ...(forkedFromSessionId ? { parentSessionId: forkedFromSessionId } : {}),

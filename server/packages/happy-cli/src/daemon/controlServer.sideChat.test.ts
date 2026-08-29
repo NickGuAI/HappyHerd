@@ -32,6 +32,7 @@ describe('side-chat daemon control server aliases', () => {
       sideChat: sideChat as any,
       requestShutdown: vi.fn(),
       onHappySessionWebhook: vi.fn(),
+      onProviderLimited: vi.fn(),
       automations: {} as any,
     });
     stop = server.stop;

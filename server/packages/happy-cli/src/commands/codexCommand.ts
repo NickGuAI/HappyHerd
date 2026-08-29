@@ -6,6 +6,7 @@ import { ensureDaemonRunning } from '@/daemon/ensureDaemonRunning'
 import type { PermissionMode } from '@/api/types'
 import type { ReasoningEffort } from '@/codex/codexAppServerTypes'
 import spawn from 'cross-spawn'
+import { activateCredentialAccount } from '@/credentialPool/activate'
 
 export interface CodexCommandDependencies {
   showNativeHelp?: () => void
@@ -47,6 +48,7 @@ export async function handleCodexCommand(
 
   const { credentials } = await authAndSetupMachineIfNeeded()
   await ensureDaemonRunning()
+  await activateCredentialAccount('codex')
 
   await runCodex({
     credentials,
