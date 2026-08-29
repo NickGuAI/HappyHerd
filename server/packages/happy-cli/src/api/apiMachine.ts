@@ -5,6 +5,10 @@
 
 import { io, Socket } from 'socket.io-client';
 import {
+    GrokPermissionModeTransitionReceiptSchema,
+    GrokPermissionModeTransitionRequestSchema,
+    type GrokPermissionModeTransitionReceipt,
+    type GrokPermissionModeTransitionRequest,
     HappyHerdMachineSessionProviderSchema,
     HappyHerdMachineSessionSettingsSchema,
 } from '@slopus/happy-wire';
@@ -108,6 +112,9 @@ type MachineRpcHandlers = {
         replayQueueMessageId?: string;
     }) => Promise<SpawnSessionResult>;
     stopSession: (sessionId: string) => boolean;
+    changeGrokPermissionMode?: (
+        request: GrokPermissionModeTransitionRequest,
+    ) => Promise<GrokPermissionModeTransitionReceipt>;
     requestShutdown: () => void;
     automations?: HappyHerdAutomationService;
 }
@@ -198,6 +205,7 @@ export class ApiMachineClient {
         spawnSession,
         resumeSession,
         stopSession,
+        changeGrokPermissionMode,
         requestShutdown,
         automations,
     }: MachineRpcHandlers) {
@@ -275,6 +283,15 @@ export class ApiMachineClient {
         }
 
         this.syncResumeSessionRpcRegistration();
+
+        if (changeGrokPermissionMode) {
+            this.rpcHandlerManager.registerHandler('grok-permission-mode-transition', async (params: unknown) => {
+                const request = GrokPermissionModeTransitionRequestSchema.parse(params);
+                return GrokPermissionModeTransitionReceiptSchema.parse(
+                    await changeGrokPermissionMode(request),
+                );
+            });
+        }
 
         // Register stop session handler
         this.rpcHandlerManager.registerHandler('stop-session', (params: any) => {

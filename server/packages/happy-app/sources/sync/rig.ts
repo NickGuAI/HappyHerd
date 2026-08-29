@@ -243,9 +243,5 @@ export function isRigReasoningSelectionEnabled(metadata: Metadata | null | undef
 }
 
 export function isRigPermissionSelectionEnabled(metadata: Metadata | null | undefined): boolean {
-    // GrokBuild permission is fixed at process launch. Its live ACP operating
-    // mode is a separate plan/build control, so the composer cannot switch the
-    // launch policy mid-session.
-    if (metadata?.flavor === 'grok' && !isRigMetadataV1(metadata)) return false;
     return !isRigMetadataV1(metadata) || metadata?.capabilities?.permissionModeSelection !== false;
 }

@@ -24,6 +24,7 @@ import {
     WorkspaceFileHashResponseSchema,
 } from '@slopus/happy-wire';
 import type {
+    GrokPermissionModeTransitionReceipt,
     HappyHerdAutomation,
     HappyHerdAutomationCreateInput,
     HappyHerdAutomationHistoryResponse,
@@ -44,6 +45,7 @@ import type {
     WorkspaceUploadStartRequest,
     WorkspaceUploadStartResponse,
 } from '@slopus/happy-wire';
+import { GrokPermissionModeTransitionReceiptSchema } from '@slopus/happy-wire';
 
 export type { SessionAgentModesPatch };
 
@@ -651,6 +653,22 @@ export async function machineResumeSession(options: ResumeSessionOptions & { mod
             errorMessage: error instanceof Error ? error.message : 'Failed to resume session',
         };
     }
+}
+
+export async function machineTransitionGrokPermissionMode(
+    machineId: string,
+    sessionId: string,
+    permissionMode: string,
+): Promise<GrokPermissionModeTransitionReceipt> {
+    const receipt = await apiSocket.machineRPC<GrokPermissionModeTransitionReceipt, {
+        sessionId: string;
+        permissionMode: string;
+    }>(
+        machineId,
+        'grok-permission-mode-transition',
+        { sessionId, permissionMode },
+    );
+    return GrokPermissionModeTransitionReceiptSchema.parse(receipt);
 }
 
 /**

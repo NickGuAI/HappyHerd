@@ -8,11 +8,12 @@ const mocks = vi.hoisted(() => ({
   authoritativeActive: false,
   backfillReconnectableSessionForMachine: vi.fn(),
   controlHandlers: undefined as unknown,
+  exitedPids: new Set<number>(),
   forkCodexBackendThread: vi.fn(async () => ({
     type: 'success',
     newCodexThreadId: 'thread-child',
   })),
-  hasProviderProcessExited: vi.fn(() => false),
+  hasProviderProcessExited: vi.fn((_pid: number) => false),
   persistSession: vi.fn(() => true),
   readPersistedSessions: vi.fn(() => ({})),
   resolveLocalReconnectableSession: vi.fn(),
@@ -169,6 +170,10 @@ type CapturedRpcHandlers = {
     sessionId: string,
     options?: { permissionMode?: string; replayQueueMessageId?: string },
   ) => Promise<{ type: string; sessionId?: string; errorMessage?: string }>;
+  changeGrokPermissionMode: (request: {
+    sessionId: string;
+    permissionMode: string;
+  }) => Promise<{ type: 'success'; sessionId: string; permissionMode: string }>;
 };
 
 type CapturedControlHandlers = {
@@ -198,6 +203,8 @@ describe('daemon session continuity', () => {
     mocks.controlHandlers = undefined;
     mocks.rpcHandlers = undefined;
     mocks.authoritativeActive = false;
+    mocks.exitedPids.clear();
+    mocks.hasProviderProcessExited.mockImplementation((pid: number) => mocks.exitedPids.has(pid));
     initialMachineMetadata.agentCapabilities = defaultAgentCapabilities;
     originalCodexHome = process.env.CODEX_HOME;
     process.env.CODEX_HOME = '/ambient/wrong-provider-home';
@@ -475,7 +482,17 @@ describe('daemon session continuity', () => {
       permissionMode: 'bypassPermissions',
     });
     await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
-    control.onHappySessionWebhook('grok-legacy-session', { ...legacyMetadata, hostPid: 4323 }, encryption);
+    control.onHappySessionWebhook('grok-legacy-session', {
+      ...legacyMetadata,
+      hostPid: 4323,
+      permissionMode: 'default',
+      spawnSettings: {
+        provider: 'grok',
+        model: 'grok-build',
+        effort: null,
+        permission: 'default',
+      },
+    }, encryption);
 
     await expect(legacyResume).resolves.toEqual({ type: 'success', sessionId: 'grok-legacy-session' });
     expect(mocks.spawnHappyCLI.mock.calls[0]?.[0]).toEqual([
@@ -503,6 +520,102 @@ describe('daemon session continuity', () => {
       });
       expect(mocks.spawnHappyCLI).toHaveBeenCalledTimes(1);
     }
+  });
+
+  it('validates, restarts, and resumes the same Grok session before returning a changed-mode receipt', async () => {
+    const sessionId = 'grok-live-session';
+    const oldPid = 7001;
+    const newPid = 7002;
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array([1, 2, 3, 4]),
+      encryptionVariant: 'dataKey',
+      seq: 18,
+      metadataVersion: 6,
+      agentStateVersion: 7,
+    };
+    const oldSettings = {
+      provider: 'grok' as const,
+      model: 'grok-build',
+      effort: null,
+      permission: 'default',
+    };
+    const metadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'grok',
+      acpSessionId: 'grok-provider-session',
+      acpCapabilities: { loadSession: true, prompt: { image: true } },
+      spawnSettings: oldSettings,
+      permissionMode: 'default',
+      host: 'test-host',
+      hostPid: oldPid,
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happy',
+      happyToolsDir: '/srv/happy/tools',
+    };
+    const kill = vi.spyOn(process, 'kill').mockImplementation(((pid: number) => {
+      mocks.exitedPids.add(Math.abs(pid));
+      return true;
+    }) as typeof process.kill);
+    mocks.spawnHappyCLI.mockReturnValue({ pid: newPid, kill: vi.fn(), on: vi.fn() });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    control.onHappySessionWebhook(sessionId, metadata, encryption);
+
+    await expect(rpc.changeGrokPermissionMode({
+      sessionId,
+      permissionMode: 'unknown-mode',
+    })).rejects.toThrow('does not advertise permission mode "unknown-mode"');
+    expect(kill).not.toHaveBeenCalled();
+
+    let settled = false;
+    const transition = rpc.changeGrokPermissionMode({
+      sessionId,
+      permissionMode: 'bypassPermissions',
+    }).finally(() => {
+      settled = true;
+    });
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    expect(kill).toHaveBeenCalledWith(oldPid, 'SIGTERM');
+
+    const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
+      string[],
+      { cwd: string; env: NodeJS.ProcessEnv },
+    ];
+    expect(args).toEqual([
+      'grok',
+      '--started-by', 'daemon',
+      '--resume', 'grok-provider-session',
+      '--permission-mode', 'bypassPermissions',
+    ]);
+    expect(spawnOptions.cwd).toBe(metadata.path);
+    expect(spawnOptions.env.HAPPY_RECONNECT_SESSION_ID).toBe(sessionId);
+    expect(JSON.parse(spawnOptions.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON!)).toEqual({
+      ...oldSettings,
+      permission: 'bypassPermissions',
+    });
+
+    // Reconnect registration alone is not a receipt: it still carries the old
+    // launch policy and must leave the RPC pending.
+    control.onHappySessionWebhook(sessionId, { ...metadata, hostPid: newPid }, encryption);
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    control.onHappySessionWebhook(sessionId, {
+      ...metadata,
+      hostPid: newPid,
+      permissionMode: 'bypassPermissions',
+      spawnSettings: { ...oldSettings, permission: 'bypassPermissions' },
+    }, encryption);
+    await expect(transition).resolves.toEqual({
+      type: 'success',
+      sessionId,
+      permissionMode: 'bypassPermissions',
+    });
   });
 
   it('creates a local Codex side chat without account-control credentials', async () => {

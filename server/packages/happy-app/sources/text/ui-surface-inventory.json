@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "0705af44d2a90d19925ab7dd9b96f70b128ee10b9908d8537377f9d553db1c6e",
+  "sourceFingerprint": "f2bd05dcdd502de97bb32f4533cc045ba744fcfd396dbe1467410524c0c9fc6c",
   "routeCount": 36,
   "surfaceCount": 246,
   "hardcodedCopyCount": 0,
@@ -1006,6 +1006,7 @@
         "common.save",
         "components.agentGoalBar.currentGoal",
         "components.agentGoalBar.editGoal",
+        "errors.grokPermissionModeChangeFailed",
         "errors.sessionDeleted",
         "errors.sessionDeletedDescription",
         "errors.voiceSessionFailed",

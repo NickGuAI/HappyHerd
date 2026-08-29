@@ -574,6 +574,10 @@ export async function runAcp(opts: {
       }
       : {}),
   });
+  // A reconnect loads the old encrypted metadata before the provider process
+  // is ready. Keep the newly validated daemon launch receipt locally, but do
+  // not publish it until Grok confirms that its resumed backend started.
+  const pendingLaunchReceipt = metadata.spawnSettings;
   const reconnectSessionId = process.env.HAPPY_RECONNECT_SESSION_ID;
   const reconnectKeyBase64 = process.env.HAPPY_RECONNECT_ENCRYPTION_KEY;
   const reconnectVariant = process.env.HAPPY_RECONNECT_ENCRYPTION_VARIANT as 'legacy' | 'dataKey' | undefined;
@@ -590,6 +594,9 @@ export async function runAcp(opts: {
       agentStateVersion: Number.parseInt(process.env.HAPPY_RECONNECT_AGENT_STATE_VERSION || '0', 10),
     });
     Object.assign(metadata, response.metadata);
+    if (pendingLaunchReceipt) {
+      metadata.spawnSettings = pendingLaunchReceipt;
+    }
   } else {
     response = await api.getOrCreateSession({ tag: sessionTag, metadata, state });
   }
@@ -1057,14 +1064,22 @@ export async function runAcp(opts: {
     const started = await backend.startSession();
     acpSessionId = started.sessionId;
     if (started.providerSessionId) {
+      const confirmedLaunchReceipt = opts.agentName === 'grok' && metadata.spawnSettings
+        ? {
+          spawnSettings: metadata.spawnSettings,
+          permissionMode: metadata.spawnSettings.permission,
+        }
+        : {};
       Object.assign(metadata, {
         acpSessionId: started.providerSessionId,
         ...(runtimeAcpCapabilities ? { acpCapabilities: runtimeAcpCapabilities } : {}),
+        ...confirmedLaunchReceipt,
       });
       session.updateMetadata((currentMetadata) => ({
         ...currentMetadata,
         acpSessionId: started.providerSessionId,
         ...(runtimeAcpCapabilities ? { acpCapabilities: runtimeAcpCapabilities } : {}),
+        ...confirmedLaunchReceipt,
       }));
       if (response) {
         try {
