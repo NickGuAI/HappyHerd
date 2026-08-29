@@ -122,6 +122,7 @@ import {
 import type { WorkspaceLinkRoute } from '@/utils/markdownWorkspaceLink';
 import { AnimatedFade } from '@/components/AnimatedOverlay';
 import { HEARTBEAT_COMMAND } from '@/utils/heartbeatCommand';
+import { deliverSessionTurn } from '@/utils/sessionContinuation';
 
 export const SessionView = React.memo((props: { id: string; focusMessageId?: string }) => {
     const sessionId = props.id;
@@ -1099,7 +1100,12 @@ export function SessionViewLoaded({
     const alwaysShowContextSize = useSetting('alwaysShowContextSize');
     const sessionStatusBarDisplay = useSetting('sessionStatusBarDisplay');
     const expImageUpload = useSetting('expImageUpload');
-    const { canResume, resumeSession, resumingSession } = useSessionQuickActions(session);
+    const {
+        canResume,
+        resumeSession,
+        resumeSessionWithQueuedTurn,
+        resumingSession,
+    } = useSessionQuickActions(session);
     const isDisconnected = !sessionStatus.isConnected;
     const resumeCommandBlock = getResumeCommandBlock(session);
 
@@ -1230,12 +1236,20 @@ export function SessionViewLoaded({
             const contextMessage = await buildWorkspaceContextMessage(sessionId, liveMessage, selectedContextEntries);
             const attachments = expImageUpload && canUseAttachments ? selectedImages : undefined;
             const communicationsToDismiss = deliveryMode ? [] : [...pendingCommunications];
-            await sync.sendMessage(sessionId, contextMessage.promptText, {
-                source: 'chat',
-                attachments,
-                ...(selectedContextEntries.length > 0 ? { displayText: contextMessage.displayText } : {}),
-                ...(deliveryMode ? { deliveryMode } : {}),
+            await deliverSessionTurn({
+                isDisconnected,
+                canResume,
+                sessionLifecycleState: session.metadata?.lifecycleState,
+                requestedDeliveryMode: deliveryMode,
                 awaitDelivery: communicationsToDismiss.length > 0,
+                deliver: (continuation) => sync.sendMessage(sessionId, contextMessage.promptText, {
+                    source: 'chat',
+                    attachments,
+                    ...(selectedContextEntries.length > 0 ? { displayText: contextMessage.displayText } : {}),
+                    ...(continuation.deliveryMode ? { deliveryMode: continuation.deliveryMode } : {}),
+                    awaitDelivery: continuation.awaitDelivery,
+                }),
+                resume: resumeSessionWithQueuedTurn,
             });
             composerHandleRef.current?.clearMessage();
             if (expImageUpload && canUseAttachments) clearImages();
@@ -1254,7 +1268,20 @@ export function SessionViewLoaded({
                 error instanceof Error ? error.message : t('happyHerd.composer.sendFailedBody'),
             );
         }
-    }, [sessionId, machineId, expImageUpload, canUseAttachments, selectedImages, selectedContextEntries, clearImages, pendingCommunications]);
+    }, [
+        sessionId,
+        machineId,
+        expImageUpload,
+        canUseAttachments,
+        selectedImages,
+        selectedContextEntries,
+        clearImages,
+        pendingCommunications,
+        isDisconnected,
+        canResume,
+        session.metadata?.lifecycleState,
+        resumeSessionWithQueuedTurn,
+    ]);
     const handleSend = React.useCallback(() => sendComposerMessage(), [sendComposerMessage]);
     const handleQueueMessage = React.useCallback(() => sendComposerMessage('queue'), [sendComposerMessage]);
 

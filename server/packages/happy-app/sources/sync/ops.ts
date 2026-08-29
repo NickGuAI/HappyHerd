@@ -320,6 +320,8 @@ export type CodexListRewindPointsResult =
 export interface ResumeSessionOptions {
     machineId: string;
     sessionId: string;
+    /** Existing queued user record that reconnect catch-up must deliver. */
+    replayQueueMessageId?: string;
 }
 
 // Exported session operation functions
@@ -629,13 +631,18 @@ export async function codexListRewindPoints(
 }
 
 export async function machineResumeSession(options: ResumeSessionOptions & { model?: string; permissionMode?: string }): Promise<SpawnSessionResult> {
-    const { machineId, sessionId, model, permissionMode } = options;
+    const { machineId, sessionId, model, permissionMode, replayQueueMessageId } = options;
 
     try {
-        const result = await apiSocket.machineRPC<SpawnSessionResult, { sessionId: string; model?: string; permissionMode?: string }>(
+        const result = await apiSocket.machineRPC<SpawnSessionResult, {
+            sessionId: string;
+            model?: string;
+            permissionMode?: string;
+            replayQueueMessageId?: string;
+        }>(
             machineId,
             'resume-happy-session',
-            { sessionId, model, permissionMode },
+            { sessionId, model, permissionMode, replayQueueMessageId },
         );
         return result;
     } catch (error) {

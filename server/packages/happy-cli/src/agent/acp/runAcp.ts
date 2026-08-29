@@ -615,7 +615,12 @@ export async function runAcp(opts: {
   session = initialSession;
 
   const reconnectQueueMessageIds = reconnectSessionId && response
-    ? queueMessageIdsForResume(response.agentState?.messageQueue)
+    ? Array.from(new Set([
+      ...queueMessageIdsForResume(response.agentState?.messageQueue),
+      ...(process.env.HAPPY_RECONNECT_QUEUE_MESSAGE_ID
+        ? [process.env.HAPPY_RECONNECT_QUEUE_MESSAGE_ID]
+        : []),
+    ]))
     : [];
   if (reconnectSessionId) {
     session.suppressNextArchiveSignal();

@@ -931,8 +931,18 @@ describe('ApiSessionClient v3 messages API migration', () => {
         });
     });
 
-    it('replays only unfinished queued text and attachment records during reconnect catch-up', async () => {
-        const client = new ApiSessionClient('fake-token', session);
+    it('replays an archived next turn without replaying or replacing the retained transcript', async () => {
+        const archivedSession = {
+            ...session,
+            metadata: {
+                ...session.metadata,
+                flavor: 'codex',
+                codexThreadId: 'thread-retained',
+                lifecycleState: 'archived',
+                lifecycleStateSince: 900,
+            },
+        };
+        const client = new ApiSessionClient('fake-token', archivedSession);
         const onUserMessage = vi.fn();
         const onFileEvent = vi.fn();
         client.onUserMessage(onUserMessage);
@@ -977,7 +987,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
                 messages: records.map((record, index) => ({
                     id: `msg-${index + 1}`,
                     seq: index + 1,
-                    content: { t: 'encrypted', c: encryptContent(session, record) },
+                    content: { t: 'encrypted', c: encryptContent(archivedSession, record) },
                     localId: index === 2 ? 'queue-pending' : `local-${index + 1}`,
                     createdAt: 1000 + index,
                     updatedAt: 1000 + index,
@@ -992,6 +1002,9 @@ describe('ApiSessionClient v3 messages API migration', () => {
         expect(onFileEvent).toHaveBeenCalledWith(queuedFile);
         expect(onUserMessage).toHaveBeenCalledTimes(1);
         expect(onUserMessage).toHaveBeenCalledWith({ ...queuedUser, localKey: 'queue-pending' });
+        expect(client.sessionId).toBe(archivedSession.id);
+        expect((client as any).encryptionKey).toBe(archivedSession.encryptionKey);
+        expect((client as any).encryptionVariant).toBe(archivedSession.encryptionVariant);
         expect((client as any).lastReceivedSeq).toBe(4);
         expect((client as any).skipInitialMessages).toBe(false);
     });

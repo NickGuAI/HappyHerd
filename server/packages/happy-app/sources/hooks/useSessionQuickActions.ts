@@ -107,7 +107,7 @@ export function useSessionQuickActions(
         })();
     }, [onAfterCopySessionMetadata, session]);
 
-    const [resumingSession, performResume] = useHappyAction(async () => {
+    const resumeSessionWithQueuedTurn = React.useCallback(async (replayQueueMessageId?: string) => {
         if (!resumeAvailability.canResume) {
             throw new HappyError(resumeAvailability.message, false);
         }
@@ -147,6 +147,7 @@ export function useSessionQuickActions(
             permissionMode: session.metadata?.flavor === 'grok'
                 ? getGrokResumePermissionMode(session, latestMachine)
                 : modeMeta.permissionMode,
+            replayQueueMessageId,
         });
 
         switch (result.type) {
@@ -169,6 +170,10 @@ export function useSessionQuickActions(
             case 'error':
                 throw new HappyError(result.errorMessage, false);
         }
+    }, [machineId, navigateToSession, resumeAvailability, session]);
+
+    const [resumingSession, performResume] = useHappyAction(async () => {
+        await resumeSessionWithQueuedTurn();
     });
 
     const [archivingSession, performArchive] = useHappyAction(async () => {
@@ -284,6 +289,7 @@ export function useSessionQuickActions(
         openDetails,
         openDuplicateSheet,
         resumeSession,
+        resumeSessionWithQueuedTurn,
         resumeSessionSubtitle: resumeAvailability.subtitle,
         resumingSession,
     };

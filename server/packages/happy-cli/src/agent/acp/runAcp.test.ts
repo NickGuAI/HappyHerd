@@ -403,6 +403,63 @@ describe('runAcp', () => {
     },
   );
 
+  it('replays the explicit archived turn during raw Grok ACP reconnect', async () => {
+    vi.stubEnv('HAPPY_RECONNECT_SESSION_ID', 'resumed-session');
+    vi.stubEnv('HAPPY_RECONNECT_ENCRYPTION_KEY', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=');
+    vi.stubEnv('HAPPY_RECONNECT_ENCRYPTION_VARIANT', 'legacy');
+    vi.stubEnv('HAPPY_RECONNECT_SEQ', '12');
+    vi.stubEnv('HAPPY_RECONNECT_METADATA_VERSION', '4');
+    vi.stubEnv('HAPPY_RECONNECT_AGENT_STATE_VERSION', '5');
+    vi.stubEnv('HAPPY_RECONNECT_QUEUE_MESSAGE_ID', 'archived-next-turn');
+    mocks.mockRefreshSessionForReconnect.mockResolvedValueOnce({
+      id: 'resumed-session',
+      metadata: {},
+      agentState: {
+        messageQueue: {
+          pendingMessageIds: ['retained-queued-turn'],
+          currentMessageIds: [],
+        },
+      },
+      seq: 12,
+      encryptionKey: new Uint8Array(32),
+      encryptionVariant: 'legacy',
+      metadataVersion: 4,
+      agentStateVersion: 5,
+    });
+
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'grok',
+      command: 'grok',
+      args: ['--no-auto-update', '--permission-mode', 'default', 'agent', 'stdio'],
+      permissionMode: 'default',
+      resumeSessionId: 'grok-provider-session',
+    });
+
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+    expect(mocks.mockSession.skipExistingMessages).toHaveBeenCalledWith(
+      ['retained-queued-turn', 'archived-next-turn'],
+      12,
+    );
+
+    mocks.getUserMessageHandler()!({
+      role: 'user',
+      content: { type: 'text', text: 'Continue the archived Grok task' },
+      localKey: 'archived-next-turn',
+      meta: {
+        deliveryMode: 'queue',
+        queueMessageId: 'archived-next-turn',
+      },
+    });
+
+    await vi.waitFor(() => expect(mocks.backendState.prompts).toEqual([{
+      sessionId: 'acp-session-1',
+      prompt: 'Continue the archived Grok task',
+    }]));
+    await mocks.getKillHandler()!();
+    await runPromise;
+  });
+
   it('wires backend messages through mapper into session envelopes', async () => {
     const runPromise = runAcp({
       credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
