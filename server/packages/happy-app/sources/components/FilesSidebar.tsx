@@ -18,6 +18,7 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
 import { SideChatPanel } from './SideChatPanel';
 import type { Session } from '@/sync/storageTypes';
+import type { SideChatDelegationBrief } from '@/sync/ops';
 import {
     formatShortcutChord,
     getPreferredShortcutModifier,
@@ -41,8 +42,8 @@ const ALL_PANELS: { key: SidebarMode; icon: keyof typeof Octicons.glyphMap }[] =
     { key: 'sideChat', icon: 'comment-discussion' },
 ];
 
-// The picker opens file panels only. An existing briefed side chat is opened
-// through its parent-session access control instead of an empty panel.
+// File panels and side-chat creation share the right-panel picker. Creation
+// opens the structured brief form; it never uses generic session spawn.
 const PICKABLE_PANELS = ALL_PANELS.filter((p) => p.key !== 'sideChat') as Array<{
     key: PickableSidebarMode;
     icon: keyof typeof Octicons.glyphMap;
@@ -71,12 +72,16 @@ interface FilesSidebarProps {
     onAllFilesFilePress?: (filePath: string) => void;
     onAllFilesFileAttach?: (filePath: string) => void;
     canOpenFilePanels: boolean;
-    // Side chats are created only through the daemon-owned brief lifecycle;
-    // this sidebar presents already-briefed children.
     sideChats: Session[];
     activeSideChatId: string | null;
     onSelectSideChat: (id: string) => void;
     onCloseSideChat: (id: string) => void;
+    sideChatCreateOpen: boolean;
+    creatingSideChat: boolean;
+    canCreateSideChat: boolean;
+    onStartSideChatCreate: () => void;
+    onCancelSideChatCreate: () => void;
+    onCreateSideChat: (brief: SideChatDelegationBrief) => Promise<boolean>;
 }
 
 type FileNode<T = GitFileStatus> = {
@@ -213,6 +218,12 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
     activeSideChatId,
     onSelectSideChat,
     onCloseSideChat,
+    sideChatCreateOpen,
+    creatingSideChat,
+    canCreateSideChat,
+    onStartSideChatCreate,
+    onCancelSideChatCreate,
+    onCreateSideChat,
 }) => {
     const router = useRouter();
     const { theme } = useUnistyles();
@@ -337,6 +348,13 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
                             </Text>
                         </Pressable>
                     ))}
+                    <Pressable
+                        onPress={onStartSideChatCreate}
+                        style={({ pressed, hovered }: any) => [styles.pickerCard, (pressed || hovered) && styles.pickerCardPressed]}
+                    >
+                        <Octicons name="comment-discussion" size={15} color={theme.colors.textSecondary} />
+                        <Text style={styles.pickerCardText} numberOfLines={1}>{t('sideChat.newChat')}</Text>
+                    </Pressable>
                 </View>
             </View>
         );
@@ -360,6 +378,19 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
                     </Text>
                 </Pressable>
             ))}
+            <Pressable
+                onPress={() => {
+                    setAddMenuOpen(false);
+                    onStartSideChatCreate();
+                }}
+                style={({ pressed, hovered }: any) => [
+                    styles.menuAddRow,
+                    (pressed || hovered) && { backgroundColor: theme.colors.surfaceSelected },
+                ]}
+            >
+                <Octicons name="comment-discussion" size={13} color={theme.colors.textSecondary} />
+                <Text style={styles.menuRowText} numberOfLines={1}>{t('sideChat.newChat')}</Text>
+            </Pressable>
         </>
     );
 
@@ -408,6 +439,12 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
                     activeSideChatId={activeSideChatId}
                     onSelectSideChat={onSelectSideChat}
                     onCloseSideChat={onCloseSideChat}
+                    createOpen={sideChatCreateOpen}
+                    creating={creatingSideChat}
+                    canCreate={canCreateSideChat}
+                    onStartCreate={onStartSideChatCreate}
+                    onCancelCreate={onCancelSideChatCreate}
+                    onCreate={onCreateSideChat}
                 />
             ) : activePanel === 'changes' ? (
                 <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>

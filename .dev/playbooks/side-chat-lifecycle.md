@@ -6,12 +6,14 @@ resumable child conversation with stable parent lineage. The Orchestrating
 Agent explicitly creates each delegated task, owns its direct children, and
 integrates their handoffs.
 
-Delegated Worker Agent creation is CLI-only. The app discovers, renders,
-switches, resumes, and closes existing side chats; it has no unbriefed creation
-path, and generic `spawn-happy-session` rejects `isSideChat` before launch.
+The Human creates a delegated Worker Agent from the app's New side chat form.
+The Main Agent uses the CLI command below. Both collect the same six-field
+brief and call the daemon-owned lifecycle. The app also discovers, renders,
+switches, resumes, and closes exact-parent children. Generic
+`spawn-happy-session` still rejects `isSideChat` before launch.
 
-Create a side chat through the sole HappyHerd command surface on the machine
-that owns the parent session. Supply every bounded brief field:
+For Main Agent creation, run the HappyHerd command on the machine that owns the
+parent session and supply every bounded brief field:
 
 ```bash
 happyherd session side-chat create <parent-session-id> \

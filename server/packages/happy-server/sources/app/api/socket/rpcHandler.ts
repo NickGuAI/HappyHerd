@@ -16,6 +16,9 @@ import { recordProductionRpc } from '@/app/monitoring/productionLogSummary';
 
 const RPC_ROOM_PREFIX = 'rpc:';
 const RPC_CALL_TIMEOUT_MS = 30_000;
+// Side-chat creation may perform a provider fork plus structured brief
+// delivery. Keep the web relay aligned with the daemon's four-minute budget.
+const SIDE_CHAT_CREATE_CALL_TIMEOUT_MS = 240_000;
 const RPC_PRESENCE_POLL_MS = 2_000;
 // Timeouts for cross-replica fetchSockets during the reconnect grace window.
 // Exponential backoff: 2s → 4s → 8s. Reduces stream pressure under load
@@ -56,6 +59,7 @@ const SUPPORTED_RPC_METRIC_METHODS = new Set([
     'happyherd-automations-resume',
     'happyherd-automations-run-now',
     'happyherd-automations-update',
+    'happyherd-side-chat-create',
     'happyherd-list-commanders',
     'hashFile',
     'killSession',
@@ -118,6 +122,12 @@ function baseMethodName(prefixedMethod: string): string {
     const lastColon = prefixedMethod.lastIndexOf(':');
     const method = lastColon >= 0 ? prefixedMethod.substring(lastColon + 1) : prefixedMethod;
     return SUPPORTED_RPC_METRIC_METHODS.has(method) ? method : 'other';
+}
+
+export function rpcCallTimeoutMs(prefixedMethod: string): number {
+    return baseMethodName(prefixedMethod) === 'happyherd-side-chat-create'
+        ? SIDE_CHAT_CREATE_CALL_TIMEOUT_MS
+        : RPC_CALL_TIMEOUT_MS;
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -261,7 +271,7 @@ export function rpcHandler(userId: string, socket: Socket, io: Server) {
             //
             // Requires 2 consecutive empty polls before declaring disconnect
             // to avoid false positives from transient Redis/adapter timeouts.
-            const ackPromise = target.timeout(RPC_CALL_TIMEOUT_MS)
+            const ackPromise = target.timeout(rpcCallTimeoutMs(method))
                 .emitWithAck('rpc-request', { method, params });
 
             let presenceAlive = true;

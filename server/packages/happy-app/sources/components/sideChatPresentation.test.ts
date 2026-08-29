@@ -74,18 +74,21 @@ describe('shouldShowLandscapeSideChatAccess', () => {
             deviceType: 'phone',
             isLandscape: true,
             sideChatCount: 1,
+            canCreateSideChat: false,
         })).toBe(true);
         expect(shouldShowLandscapeSideChatAccess({
             platform: 'web',
             deviceType: 'phone',
             isLandscape: true,
             sideChatCount: 1,
+            canCreateSideChat: false,
         })).toBe(false);
         expect(shouldShowLandscapeSideChatAccess({
             platform: 'ios',
             deviceType: 'phone',
             isLandscape: true,
             sideChatCount: 0,
-        })).toBe(false);
+            canCreateSideChat: true,
+        })).toBe(true);
     });
 });

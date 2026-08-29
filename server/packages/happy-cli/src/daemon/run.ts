@@ -1557,6 +1557,7 @@ export async function startDaemon(): Promise<void> {
       changeGrokPermissionMode,
       requestShutdown: () => requestShutdown('happy-app'),
       automations,
+      sideChat: (request) => manageLocalSideChat(request),
     });
 
     const localSessionFromPersistence = (sessionId: string): Session => {

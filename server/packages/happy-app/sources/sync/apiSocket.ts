@@ -5,6 +5,7 @@ import { TokenStorage } from '@/auth/tokenStorage';
 import { Encryption } from './encryption/encryption';
 import { storage } from './storage';
 import { emitWithNativeAckTimeout } from './socketAck';
+import { rpcAckTimeoutMs } from './rpcTimeout';
 
 export function getHappyClientId(): string {
     let platform: string = Platform.OS; // 'ios' | 'android' | 'web'
@@ -49,10 +50,6 @@ export interface SyncSocketState {
 }
 
 export type SyncSocketListener = (state: SyncSocketState) => void;
-
-// Comfortably past the server's worst honest case: a 15s wait for a
-// reconnecting daemon to rejoin the room, then a 30s call.
-const RPC_ACK_TIMEOUT_MS = 50_000;
 
 //
 // Main Class
@@ -181,7 +178,7 @@ class ApiSocket {
             throw new Error('Not connected to the server');
         }
         return await socket
-            .timeout(RPC_ACK_TIMEOUT_MS)
+            .timeout(rpcAckTimeoutMs(method))
             .emitWithAck('rpc-call', { method, params })
             .catch(() => {
                 throw new Error('The computer did not respond');

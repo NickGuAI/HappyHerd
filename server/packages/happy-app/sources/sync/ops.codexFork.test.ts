@@ -92,6 +92,61 @@ describe('codex fork ops', () => {
         await expect(machineListAutomations('machine-1')).rejects.toThrow('Invalid or unsafe cron expression');
     });
 
+    it('creates a side chat through the dedicated brief lifecycle RPC and hydrates sessions', async () => {
+        const brief = {
+            outcome: 'Deliver the result.',
+            scope: 'Only the assigned files.',
+            dependencies: 'None.',
+            writeOwnership: 'src/owned.ts',
+            verification: 'Run the focused test.',
+            handoff: 'Return the commit and evidence.',
+        };
+        machineRPC.mockResolvedValue({
+            schemaVersion: 1,
+            type: 'side-chat',
+            action: 'create',
+            success: true,
+            parentSessionId: 'happy-source',
+            sessionId: 'happy-child',
+            phases: [],
+        });
+        const { machineCreateSideChat } = await import('./ops');
+
+        const result = await machineCreateSideChat('machine-1', 'happy-source', brief);
+
+        expect(result).toMatchObject({ success: true, sessionId: 'happy-child' });
+        expect(machineRPC).toHaveBeenCalledWith('machine-1', 'happyherd-side-chat-create', {
+            parentSessionId: 'happy-source',
+            brief,
+        });
+        expect(refreshSessions).toHaveBeenCalledOnce();
+    });
+
+    it('does not hydrate sessions after a failed side-chat lifecycle receipt', async () => {
+        machineRPC.mockResolvedValue({
+            schemaVersion: 1,
+            type: 'side-chat',
+            action: 'create',
+            success: false,
+            parentSessionId: 'happy-source',
+            sessionId: null,
+            phases: [{ phase: 'resolve', status: 'failed', message: 'Parent unavailable' }],
+        });
+        const { machineCreateSideChat } = await import('./ops');
+
+        const result = await machineCreateSideChat('machine-1', 'happy-source', {
+            outcome: 'Deliver.',
+            scope: 'Only this.',
+            dependencies: 'None.',
+            writeOwnership: 'None.',
+            verification: 'Inspect.',
+            handoff: 'Report.',
+        });
+
+        expect(result.success).toBe(false);
+        expect(refreshSessions).not.toHaveBeenCalled();
+    });
+
     it('forks a full Codex thread and spawns a Codex session resumed to the new thread', async () => {
         machineRPC.mockImplementation(async (_machineId: string, method: string) => {
             if (method === 'codex-fork-thread') {

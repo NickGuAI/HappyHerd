@@ -43,6 +43,12 @@ import {
 import { listCommanders } from '@/agentContext/commanderContext';
 import type { HappyHerdAutomationService } from '@/automations/service';
 import { resolveEffectiveSessionSettings } from '@/capabilities/sessionLaunchSettings';
+import { normalizeSideChatDelegationBrief } from '@/commands/sideChat';
+import type {
+    SideChatDelegationBrief,
+    SideChatLifecycleReceipt,
+    SideChatLifecycleRequest,
+} from '@/commands/sideChat';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -117,6 +123,7 @@ type MachineRpcHandlers = {
     ) => Promise<GrokPermissionModeTransitionReceipt>;
     requestShutdown: () => void;
     automations?: HappyHerdAutomationService;
+    sideChat?: (request: SideChatLifecycleRequest) => Promise<SideChatLifecycleReceipt>;
 }
 
 function requireNonEmptyString(value: unknown, name: string): string {
@@ -208,6 +215,7 @@ export class ApiMachineClient {
         changeGrokPermissionMode,
         requestShutdown,
         automations,
+        sideChat,
     }: MachineRpcHandlers) {
         this.resumeSessionHandler = resumeSession ?? null;
 
@@ -269,6 +277,15 @@ export class ApiMachineClient {
         });
 
         this.rpcHandlerManager.registerHandler('happyherd-list-commanders', async () => listCommanders());
+        if (sideChat) {
+            this.rpcHandlerManager.registerHandler('happyherd-side-chat-create', async (params: any) => {
+                const parentSessionId = requireNonEmptyString(params?.parentSessionId, 'parentSessionId');
+                const brief = normalizeSideChatDelegationBrief(
+                    (params?.brief ?? {}) as Partial<Record<keyof SideChatDelegationBrief, string>>,
+                );
+                return sideChat({ action: 'create', parentSessionId, brief });
+            });
+        }
         if (automations) {
             this.rpcHandlerManager.registerHandler('happyherd-automations-list', async () => automations.list());
             this.rpcHandlerManager.registerHandler('happyherd-automations-create', async (params: any) => automations.create(params));

@@ -886,6 +886,32 @@
   },
   "sideChat": {
     "panelTitle": "Untergeordnete Agenten",
+    "newChat": "Neuer Side-Chat",
+    "emptyTitle": "Keine Side-Chats",
+    "emptyDescription": "Erstellen Sie einen Side-Chat, um fokussierte Aufgaben mit klaren Grenzen zu delegieren.",
+    "createTitle": "Side-Chat erstellen",
+    "createDescription": "Definieren Sie ein strukturiertes Briefing für denselben dauerhaften Ablauf in der Human-UI und der Main-Agent-CLI.",
+    "create": "Erstellen",
+    "creating": "Wird erstellt…",
+    "createFailed": "Side-Chat konnte nicht erstellt werden.",
+    "createFailedWithDetail": "Side-Chat konnte nicht erstellt werden: {detail}",
+    "unavailable": "Side-Chats sind für diese Sitzung nicht verfügbar oder der zugehörige Rechner ist offline.",
+    "fields": {
+      "outcome": "Erwartetes Ergebnis",
+      "scope": "Umfang und Grenzen",
+      "dependencies": "Abhängigkeiten",
+      "writeOwnership": "Schreibrechte",
+      "verification": "Verifizierungsschritte",
+      "handoff": "Übergabekriterien"
+    },
+    "placeholders": {
+      "outcome": "Was soll dieser Side-Chat erreichen?",
+      "scope": "Relevante Dateien, Module oder Aufgaben",
+      "dependencies": "Erforderliche Aufgaben, Dienste oder Voraussetzungen",
+      "writeOwnership": "Zur Bearbeitung freigegebene Dateien oder Pfade",
+      "verification": "Befehle oder Tests zur Überprüfung des Ergebnisses",
+      "handoff": "Erwartete Ergebnisse und Übergabeformat"
+    },
     "composerPlaceholder": "Nachrichtenseitenchat…",
     "expand": "Vollbild öffnen",
     "tabLabel": "Nebenchat {index}",

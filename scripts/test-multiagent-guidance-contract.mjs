@@ -27,8 +27,9 @@ assert(
   'AGENTS.md must assign explicit task creation to the Orchestrating Agent',
 );
 assert(
-  rootGuidance.includes('Delegated Worker Agents must be launched through'),
-  'AGENTS.md must reserve delegated Worker creation for the briefed happyherd command',
+  rootGuidance.includes('The Human may launch a delegated Worker Agent')
+    && rootGuidance.includes('The Main Agent may launch one through'),
+  'AGENTS.md must preserve both Human app and Main Agent CLI creation surfaces',
 );
 
 const playbook = read('.dev/playbooks/side-chat-lifecycle.md');
@@ -59,8 +60,8 @@ const appOps = read('server/packages/happy-app/sources/sync/ops.ts');
 assert(!appOps.includes('spawnSideChat'), 'the app must not expose an unbriefed side-chat helper');
 assert(!appOps.includes('isSideChat?: boolean'), 'generic app spawn options must not accept isSideChat');
 assert(
-  !read('server/packages/happy-app/sources/-session/SessionView.tsx').includes('spawnSideChat'),
-  'SessionView must remain presentation-only for side chats',
+  appOps.includes("'happyherd-side-chat-create'"),
+  'the app must use the dedicated briefed side-chat machine RPC',
 );
 const machineApi = read('server/packages/happy-cli/src/api/apiMachine.ts');
 assert(

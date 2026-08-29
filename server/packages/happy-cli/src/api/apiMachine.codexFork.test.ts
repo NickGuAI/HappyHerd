@@ -165,6 +165,65 @@ describe('ApiMachineClient Codex fork RPCs', () => {
         expect(spawnSession).not.toHaveBeenCalled();
     });
 
+    it('routes a complete Human brief through the dedicated side-chat lifecycle RPC', async () => {
+        const sideChat = vi.fn().mockResolvedValue({
+            schemaVersion: 1,
+            type: 'side-chat',
+            action: 'create',
+            success: true,
+            parentSessionId: 'happy-source',
+            sessionId: 'happy-child',
+            child: null,
+            phases: [],
+        });
+        const { ApiMachineClient } = await import('./apiMachine');
+        const client = new ApiMachineClient('token', machineClient());
+        client.setRPCHandlers({
+            spawnSession: vi.fn(),
+            stopSession: vi.fn(),
+            requestShutdown: vi.fn(),
+            sideChat,
+        });
+        const brief = {
+            outcome: 'Deliver the result.',
+            scope: 'Only the assigned files.',
+            dependencies: 'None.',
+            writeOwnership: 'src/owned.ts',
+            verification: 'Run the focused test.',
+            handoff: 'Return the commit and evidence.',
+        };
+
+        const result = await handlersFrom(client).get('machine-1:happyherd-side-chat-create')?.({
+            parentSessionId: 'happy-source',
+            brief,
+        });
+
+        expect(result).toMatchObject({ success: true, sessionId: 'happy-child' });
+        expect(sideChat).toHaveBeenCalledWith({
+            action: 'create',
+            parentSessionId: 'happy-source',
+            brief,
+        });
+    });
+
+    it('rejects an incomplete Human brief before entering the side-chat lifecycle', async () => {
+        const sideChat = vi.fn();
+        const { ApiMachineClient } = await import('./apiMachine');
+        const client = new ApiMachineClient('token', machineClient());
+        client.setRPCHandlers({
+            spawnSession: vi.fn(),
+            stopSession: vi.fn(),
+            requestShutdown: vi.fn(),
+            sideChat,
+        });
+
+        await expect(handlersFrom(client).get('machine-1:happyherd-side-chat-create')?.({
+            parentSessionId: 'happy-source',
+            brief: { outcome: 'Only one field.' },
+        })).rejects.toThrow('Side-chat creation requires');
+        expect(sideChat).not.toHaveBeenCalled();
+    });
+
     it('forwards Commander identity through the spawn RPC', async () => {
         const settings = { provider: 'claude', model: 'default', effort: null, permission: 'default' };
         const spawnSession = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'happy-commander', settings });
