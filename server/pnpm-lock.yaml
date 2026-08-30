@@ -880,9 +880,15 @@ importers:
       cross-env:
         specifier: ^10.1.0
         version: 10.1.0
+      esbuild:
+        specifier: ^0.27.2
+        version: 0.27.2
       patch-package:
         specifier: ^8.0.0
         version: 8.0.1
+      playwright-core:
+        specifier: ^1.62.1
+        version: 1.62.1
       react-test-renderer:
         specifier: 19.0.0
         version: 19.0.0(react@19.2.0)
@@ -11424,6 +11430,11 @@ packages:
     peerDependenciesMeta:
       typescript:
         optional: true
+
+  playwright-core@1.62.1:
+    resolution: {integrity: sha512-wPYSwEBJY9GHraISXqyqtx0na0LpO3XEX7jNDhntbex7tzUS7kLnZsOlFruFJB4Hi/rhDMjXGqHewDZ68nYZVw==}
+    engines: {node: '>=20'}
+    hasBin: true
 
   plist@3.1.0:
     resolution: {integrity: sha512-uysumyrvkUX0rX/dEVqt8gC3sTBzd4zoWfLeS29nb53imdaXVvLINYXTI2GNqzaMuvacNx4uJQ8+b3zXR0pkgQ==}
@@ -25832,6 +25843,8 @@ snapshots:
       yaml: 2.8.2
     optionalDependencies:
       typescript: 5.9.3
+
+  playwright-core@1.62.1: {}
 
   plist@3.1.0:
     dependencies:
