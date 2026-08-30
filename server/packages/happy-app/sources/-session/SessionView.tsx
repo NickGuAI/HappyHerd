@@ -889,7 +889,22 @@ type ChatComposerHandle = {
     appendTranscript: (transcript: string) => void;
     getMessage: () => string;
     clearMessage: () => void;
+    clearSentMessage: (sentMessage: string) => void;
 };
+
+function preserveDraftAfterSentSnapshot(currentDraft: string, sentMessage: string): string {
+    if (currentDraft === sentMessage) return '';
+    if (!sentMessage) return currentDraft;
+
+    // Dictation appends a single space when the existing draft does not end
+    // in whitespace. Remove only the exact snapshot that was delivered plus
+    // that separator. Any divergent edit is left byte-for-byte intact rather
+    // than risking the loss of text entered while delivery was in flight.
+    const appendedPrefix = /\s$/.test(sentMessage) ? sentMessage : `${sentMessage} `;
+    return currentDraft.startsWith(appendedPrefix)
+        ? currentDraft.slice(appendedPrefix.length)
+        : currentDraft;
+}
 
 type ChatComposerProps = Omit<
     React.ComponentProps<typeof AgentInput>,
@@ -942,6 +957,13 @@ const ChatComposer = React.memo(function ChatComposer(props: ChatComposerProps) 
             inputHandleRef.current?.setTextAndSelection('', { start: 0, end: 0 });
             setMessage('');
             clearDraft();
+        },
+        clearSentMessage: (sentMessage: string) => {
+            const current = inputHandleRef.current?.getText() ?? '';
+            const next = preserveDraftAfterSentSnapshot(current, sentMessage);
+            inputHandleRef.current?.setTextAndSelection(next, { start: next.length, end: next.length });
+            setMessage(next);
+            if (!next) clearDraft();
         },
     }), [clearDraft]);
 
@@ -1316,7 +1338,7 @@ export function SessionViewLoaded({
                 },
             });
             if (heartbeatCommand.handled) {
-                if (heartbeatCommand.clearComposer) composerHandleRef.current?.clearMessage();
+                if (heartbeatCommand.clearComposer) composerHandleRef.current?.clearSentMessage(liveMessage);
                 if (heartbeatCommand.message) {
                     Modal.alert(t('happyHerd.heartbeat.title'), heartbeatCommand.message);
                 }
@@ -1340,7 +1362,7 @@ export function SessionViewLoaded({
                 }),
                 resume: resumeSessionWithQueuedTurn,
             });
-            composerHandleRef.current?.clearMessage();
+            composerHandleRef.current?.clearSentMessage(liveMessage);
             if (expImageUpload && canUseAttachments) clearImages();
             clearWorkspaceContextFiles(sessionId);
             const dismissals = await Promise.allSettled(communicationsToDismiss.map((communication) => (
@@ -1564,10 +1586,10 @@ export function SessionViewLoaded({
                 blockSend={isRig && session.thinking && session.metadata?.capabilities?.steering !== true}
                 onSend={handleSend}
                 onQueueMessage={handleQueueMessage}
-                onMicPress={(embedded || isDisconnected || voiceSessionActive || !voiceInputAvailability.available)
+                onMicPress={(voiceDictation.phase !== 'recording'
+                    && (voiceSessionActive || !voiceInputAvailability.available))
                     ? undefined
                     : voiceDictation.toggle}
-                isMicActive={!embedded && !isDisconnected && voiceDictation.phase === 'recording'}
                 dictationPhase={voiceDictation.phase}
                 dictationError={voiceDictation.error}
                 onDictationCancel={voiceDictation.cancel}

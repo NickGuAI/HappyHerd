@@ -165,3 +165,7 @@ AUTOMATIONS_MASTER_DETAIL_POLISH	accepted	fix(automations): polish master-detail
 AUTOMATIONS_HEARTBEAT_CADENCE	accepted	fix(automations): preserve exact heartbeat cadence (#178)	server/packages/happy-app/sources/components/happyHerdAutomationPresentation.ts
 WORKSPACE_FILE_EDIT	accepted	feat(workspace): edit linked files in place	server/packages/happy-app/sources/components/FileViewPanel.native.test.ts
 WORKSPACE_LINK_DIRTY_GUARD	accepted	fix(workspace): preserve unsaved linked-file edits (#177)	server/packages/happy-app/sources/components/WorkspaceLinkViewer.native.test.ts
+DEDICATED_DICTATION_CONTROL	accepted	fix(app): separate dictation from Send (#179)	server/packages/happy-app/sources/components/voiceDictationControl.test.ts
+CONFIGURED_DICTATION_COMPOSERS	accepted	fix(app): expose configured dictation across composers (#179)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
+DICTATION_DRAFT_RESUME_REPAIR	accepted	fix(app): harden configured dictation composers (#179)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
+DICTATION_HEARTBEAT_DRAFT_REPAIR	accepted	fix(app): preserve late dictation after heartbeat sends (#179)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts

@@ -2,7 +2,6 @@ import { Ionicons, Octicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 import * as React from 'react';
 import { Keyboard, View, Platform, useWindowDimensions, Text, ActivityIndicator, Pressable, TouchableWithoutFeedback, LayoutChangeEvent } from 'react-native';
-import { Image } from 'expo-image';
 import { AgentInputAttachmentStrip } from './AgentInputAttachmentStrip';
 import { WorkspaceContextStrip } from './WorkspaceContextStrip';
 import { CompactWorkspaceContextButton } from './CompactWorkspaceContextButton';
@@ -38,7 +37,8 @@ import { isRunningOnMac } from '@/utils/platform';
 import { MobileGlassSurface } from './MobileGlass';
 import { AnimatedClickAwayBackdrop, AnimatedFade } from './AnimatedOverlay';
 import { BubblePressable } from './BubblePressable';
-import { doesVoiceOwnPrimaryPress, resolveAgentInputPrimaryAction } from './agentInputPrimaryAction';
+import { resolveAgentInputPrimaryAction, resolveAgentInputSendPressAvailability } from './agentInputPrimaryAction';
+import { resolveVoiceDictationControl, resolveVoiceDictationControlVisibility } from './voiceDictationControl';
 import { NativeSettingsMenu, type NativeSettingsMenuGroup, type NativeSettingsMenuOption } from './NativeSettingsMenu';
 import { ProviderIcon } from './ProviderIcon';
 import { isRigMetadata } from '@/sync/rig';
@@ -66,7 +66,6 @@ interface AgentInputProps {
     onQueueMessage?: () => void;
     sendIcon?: React.ReactNode;
     onMicPress?: () => void;
-    isMicActive?: boolean;
     permissionMode?: PermissionMode | null;
     availableModes?: PermissionMode[];
     onPermissionModeChange?: (mode: PermissionMode) => void;
@@ -968,23 +967,16 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         canVoice: !!props.onMicPress,
         dictationPhase: props.dictationPhase,
         canRetryVoice: !!props.onDictationRetry,
+        voiceControlPlacement: 'dedicated',
     });
     const shouldShowStopButton = primaryAction === 'stop';
-    const shouldShowVoiceButton = primaryAction === 'voice';
     const canSendMessage = primaryAction === 'send';
-    const mobileCanPressSendButton = !isAborting
-        && props.dictationPhase !== 'transcribing'
-        && primaryAction !== 'idle';
-    const desktopCanPressSendButton = !props.isSending
-        && !props.isSendDisabled
-        && props.dictationPhase !== 'transcribing'
-        && (shouldShowVoiceButton
-            || (isSendBlocked
-            ? hasComposerContent
-            : hasComposerContent || !!props.onMicPress));
-    const canPressSendButton = compactMobileComposer
-        ? mobileCanPressSendButton
-        : desktopCanPressSendButton;
+    const canPressSendButton = resolveAgentInputSendPressAvailability({
+        isAborting,
+        isSending: !!props.isSending,
+        isSendDisabled: !!props.isSendDisabled,
+    });
+    const desktopCanPressSendButton = !compactMobileComposer && canPressSendButton;
 
     // A local acknowledgement avoids leaving Stop visible forever when the
     // session-status update arrives after the abort RPC has completed. The next
@@ -1255,73 +1247,36 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     }, [hasComposerContent, isSendBlocked, props.isSending]);
 
     const handleMicrophonePress = React.useCallback(() => {
-        if (props.isSendDisabled || props.dictationPhase === 'transcribing') return;
+        if (props.dictationPhase === 'transcribing') return;
+        if (props.dictationPhase !== 'recording' && props.isSendDisabled) return;
         hapticsLight();
-        if (props.dictationPhase === 'error' && props.onDictationRetry) {
-            props.onDictationRetry();
-            return;
-        }
         props.onMicPress?.();
-    }, [props.dictationPhase, props.isSendDisabled, props.onDictationRetry, props.onMicPress]);
+    }, [props.dictationPhase, props.isSendDisabled, props.onMicPress]);
 
     const handleSendPress = React.useCallback(() => {
         const liveHasContent = (inputRef.current?.getText() ?? '').trim().length > 0
             || hasImages
             || hasContextEntries;
-        if (doesVoiceOwnPrimaryPress({
-            primaryAction,
-            dictationPhase: props.dictationPhase ?? 'idle',
-            liveHasContent,
-        })) {
-            handleMicrophonePress();
-            return;
-        }
         if (isSendBlocked) {
             handleBlockedSendAttempt();
             return;
         }
         if (props.isSendDisabled || (!compactMobileComposer && props.isSending)) return;
 
-        hapticsLight();
         // Live read avoids stalling behind the transitioned `hasText`.
         if (liveHasContent) {
+            hapticsLight();
             setStopRequested(false);
             props.onSend();
-        } else if (!compactMobileComposer) {
-            props.onMicPress?.();
         }
-    }, [compactMobileComposer, handleBlockedSendAttempt, handleMicrophonePress, hasContextEntries, hasImages, isSendBlocked, primaryAction, props.dictationPhase, props.isSendDisabled, props.isSending, props.onMicPress, props.onSend]);
+    }, [handleBlockedSendAttempt, hasContextEntries, hasImages, isSendBlocked, props.isSendDisabled, props.isSending, props.onSend]);
 
-    // Stop, voice and send share one button. Recording owns the primary action,
-    // while idle/error states still consult live text because transitioned
-    // `hasText` can lag a fast type-then-tap.
+    // Mobile keeps Stop separate while Send remains a send-only control.
+    // Live text is still read on press because transitioned `hasText` can lag
+    // a fast type-then-tap.
     const handleMobilePrimaryPress = React.useCallback(() => {
-        const liveHasContent = (inputRef.current?.getText() ?? '').trim().length > 0
-            || hasImages
-            || hasContextEntries;
-        if (!liveHasContent && shouldShowStopButton) {
-            void handleAbortPress();
-            return;
-        }
-        if (doesVoiceOwnPrimaryPress({
-            primaryAction,
-            dictationPhase: props.dictationPhase ?? 'idle',
-            liveHasContent,
-        })) {
-            handleMicrophonePress();
-            return;
-        }
         handleSendPress();
-    }, [
-        handleAbortPress,
-        handleMicrophonePress,
-        handleSendPress,
-        hasContextEntries,
-        hasImages,
-        primaryAction,
-        props.dictationPhase,
-        shouldShowStopButton,
-    ]);
+    }, [handleSendPress]);
 
     const permissionSettingsGroups = React.useMemo<NativeSettingsMenuGroup[]>(() => {
         if (!props.onPermissionModeChange || availableModes.length === 0) {
@@ -1581,12 +1536,6 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
 
                         <GitStatusButton sessionId={props.sessionId} onPress={props.onFileViewerPress} />
 
-                        <VoiceDictationAuxiliaryControls
-                            phase={props.dictationPhase ?? 'idle'}
-                            onCancel={props.onDictationCancel}
-                            onRetry={props.onDictationRetry}
-                        />
-
                         {props.onQueueMessage && (
                             <Pressable
                                 onPress={props.onQueueMessage}
@@ -1636,12 +1585,20 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                         )}
                     </View>}
 
+                    <VoiceDictationControls
+                        phase={props.dictationPhase ?? 'idle'}
+                        onPress={props.onMicPress ? handleMicrophonePress : undefined}
+                        onCancel={props.onDictationCancel}
+                        onRetry={props.onDictationRetry}
+                        disabled={!!props.isSendDisabled || !!props.isSending}
+                    />
+
                     <View
                         style={[
                             styles.sendButton,
                             primaryAction === 'blocked'
                                 ? styles.sendButtonLocked
-                                : (hasComposerContent || props.isSending || shouldShowVoiceButton)
+                                : (hasComposerContent || props.isSending)
                                     ? styles.sendButtonActive
                                     : styles.sendButtonInactive,
                         ]}
@@ -1658,39 +1615,12 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             onPress={handleSendPress}
                             disabled={!desktopCanPressSendButton}
                             accessibilityRole="button"
-                            accessibilityLabel={shouldShowVoiceButton
-                                ? (props.dictationPhase === 'error' && props.onDictationRetry
-                                    ? t('happyHerd.composer.retryVoice')
-                                    : props.isMicActive
-                                        ? t('happyHerd.composer.finishVoice')
-                                        : t('happyHerd.composer.startVoice'))
-                                : t('happyHerd.composer.send')}
+                            accessibilityLabel={t('happyHerd.composer.send')}
                         >
                             {props.isSending ? (
                                 <ActivityIndicator size="small" color={theme.colors.button.primary.tint} />
                             ) : primaryAction === 'blocked' ? (
                                 <Ionicons name="lock-closed" size={15} color={theme.colors.textSecondary} />
-                            ) : canSendMessage ? (
-                                <Octicons
-                                    name="arrow-up"
-                                    size={16}
-                                    color={theme.colors.button.primary.tint}
-                                    style={[styles.sendButtonIcon, { marginTop: Platform.OS === 'web' ? 2 : 0 }]}
-                                />
-                            ) : shouldShowVoiceButton ? (
-                                props.dictationPhase === 'transcribing' ? (
-                                    <ActivityIndicator size="small" color={theme.colors.button.primary.tint} />
-                                ) : props.dictationPhase === 'error' && props.onDictationRetry ? (
-                                    <Ionicons name="refresh" size={18} color={theme.colors.button.primary.tint} />
-                                ) : props.isMicActive ? (
-                                    <Ionicons name="stop" size={18} color={theme.colors.button.primary.tint} />
-                                ) : (
-                                    <Image
-                                        source={require('@/assets/images/icon-voice-white.png')}
-                                        style={{ width: 24, height: 24 }}
-                                        tintColor={theme.colors.button.primary.tint}
-                                    />
-                                )
                             ) : (
                                 <Octicons
                                     name="arrow-up"
@@ -2234,7 +2164,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
 
                     {compactMobileComposer ? (
                     /* Explicit queued follow-up precedes attachments; provider
-                        settings and the unified voice/send/stop action follow. */
+                        settings, dedicated dictation, Stop, and Send follow. */
                     <View style={[
                         styles.actionButtonsContainer,
                         styles.mobileActionButtonsContainer,
@@ -2412,101 +2342,106 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             <GitStatusButton sessionId={props.sessionId} onPress={props.onFileViewerPress} />
                         )}
 
-                        <VoiceDictationAuxiliaryControls
+                        {shouldShowStopButton && props.onAbort && (
+                            <Shaker ref={shakerRef}>
+                                <View
+                                    style={[
+                                        styles.sendButton,
+                                        styles.mobilePrimaryButton,
+                                        styles.mobileStopButton,
+                                        { marginLeft: 0 },
+                                    ]}
+                                >
+                                    <BubblePressable
+                                        style={(p) => ({
+                                            width: '100%',
+                                            height: '100%',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            opacity: p.pressed ? 0.7 : 1,
+                                        })}
+                                        hitSlop={6}
+                                        onPress={() => void handleAbortPress()}
+                                        disabled={isAborting}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={t('happyHerd.composer.stop')}
+                                    >
+                                        {isAborting ? (
+                                            <ActivityIndicator
+                                                size="small"
+                                                color={theme.dark ? '#000000' : '#FFFFFF'}
+                                            />
+                                        ) : (
+                                            <Octicons
+                                                name="stop"
+                                                size={16}
+                                                color={theme.dark ? '#000000' : '#FFFFFF'}
+                                            />
+                                        )}
+                                    </BubblePressable>
+                                </View>
+                            </Shaker>
+                        )}
+                        <VoiceDictationControls
                             compact
                             phase={props.dictationPhase ?? 'idle'}
+                            onPress={props.onMicPress ? handleMicrophonePress : undefined}
                             onCancel={props.onDictationCancel}
                             onRetry={props.onDictationRetry}
+                            disabled={!!props.isSendDisabled || !!props.isSending}
                         />
-                        <Shaker ref={shakerRef}>
-                            <View
-                                style={[
-                                    styles.sendButton,
-                                    styles.mobilePrimaryButton,
-                                    // Stop is checked first: a blank composer on a
-                                    // non-steerable agent is both blocked and
-                                    // abortable, and it must not look locked.
-                                    shouldShowStopButton ? styles.mobileStopButton
-                                        : primaryAction === 'blocked' ? styles.sendButtonLocked
-                                            : canSendMessage || shouldShowVoiceButton ? styles.mobilePrimaryButtonActive
-                                                : styles.mobilePrimaryButtonInactive,
-                                ]}
+                        <View
+                            style={[
+                                styles.sendButton,
+                                styles.mobilePrimaryButton,
+                                primaryAction === 'blocked' ? styles.sendButtonLocked
+                                    : canSendMessage ? styles.mobilePrimaryButtonActive
+                                        : styles.mobilePrimaryButtonInactive,
+                            ]}
+                        >
+                            <BubblePressable
+                                style={(p) => ({
+                                    width: '100%',
+                                    height: '100%',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    opacity: p.pressed ? 0.7 : 1,
+                                })}
+                                hitSlop={6}
+                                onPress={handleMobilePrimaryPress}
+                                disabled={!canPressSendButton}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('happyHerd.composer.send')}
                             >
-                                <BubblePressable
-                                    style={(p) => ({
-                                        width: '100%',
-                                        height: '100%',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        opacity: p.pressed ? 0.7 : 1,
-                                    })}
-                                    hitSlop={6}
-                                    onPress={handleMobilePrimaryPress}
-                                    disabled={!canPressSendButton}
-                                    accessibilityRole="button"
-                                    accessibilityLabel={shouldShowStopButton
-                                        ? t('happyHerd.composer.stop')
-                                        : shouldShowVoiceButton
-                                            ? (props.dictationPhase === 'error' && props.onDictationRetry
-                                                ? t('happyHerd.composer.retryVoice')
-                                                : props.isMicActive
-                                                    ? t('happyHerd.composer.finishVoice')
-                                                    : t('happyHerd.composer.startVoice'))
-                                            : t('happyHerd.composer.send')}
-                                >
-                                    {isAborting ? (
-                                        <ActivityIndicator
-                                            size="small"
-                                            color={shouldShowStopButton && theme.dark ? '#000000' : activeSendIconColor}
-                                        />
-                                    ) : shouldShowStopButton ? (
-                                        <Octicons
-                                            name="stop"
-                                            size={16}
-                                            color={theme.dark ? '#000000' : '#FFFFFF'}
-                                        />
-                                    ) : primaryAction === 'blocked' ? (
-                                        <Ionicons
-                                            name="lock-closed"
-                                            size={14}
-                                            color={theme.colors.textSecondary}
-                                        />
-                                    ) : shouldShowVoiceButton ? (
-                                        props.dictationPhase === 'transcribing' ? (
-                                            <ActivityIndicator size="small" color={activeSendIconColor} />
-                                        ) : props.dictationPhase === 'error' && props.onDictationRetry ? (
-                                            <Ionicons name="refresh" size={20} color={activeSendIconColor} />
-                                        ) : props.isMicActive ? (
-                                            <Ionicons name="stop" size={20} color={activeSendIconColor} />
-                                        ) : (
-                                            <Image
-                                                source={require('@/assets/images/icon-voice-white.png')}
-                                                style={{ width: 22, height: 22 }}
-                                                tintColor={activeSendIconColor}
-                                            />
-                                        )
-                                    ) : (
-                                        <Octicons
-                                            name="arrow-up"
-                                            size={16}
-                                            color={canPressSendButton ? activeSendIconColor : theme.colors.textSecondary}
-                                            // The color has to travel in `style`, not just the
-                                            // `color` prop: @expo/vector-icons builds
-                                            // `[styleDefaults, style, ...]` (create-icon-set.js),
-                                            // so a `style` entry always wins over `color`. With
-                                            // styles.sendButtonIcon here — it hardcodes the
-                                            // primary tint (white) — the computed color was
-                                            // discarded and the arrow painted white on the
-                                            // near-white glass composer, i.e. invisible.
-                                            style={{
-                                                color: canPressSendButton ? activeSendIconColor : theme.colors.textSecondary,
-                                                marginTop: Platform.OS === 'web' ? 2 : 0,
-                                            }}
-                                        />
-                                    )}
-                                </BubblePressable>
-                            </View>
-                        </Shaker>
+                                {props.isSending ? (
+                                    <ActivityIndicator size="small" color={activeSendIconColor} />
+                                ) : primaryAction === 'blocked' ? (
+                                    <Ionicons
+                                        name="lock-closed"
+                                        size={14}
+                                        color={theme.colors.textSecondary}
+                                    />
+                                ) : (
+                                    <Octicons
+                                        name="arrow-up"
+                                        size={16}
+                                        color={canPressSendButton ? activeSendIconColor : theme.colors.textSecondary}
+                                        // The color has to travel in `style`, not just the
+                                        // `color` prop: @expo/vector-icons builds
+                                        // `[styleDefaults, style, ...]` (create-icon-set.js),
+                                        // so a `style` entry always wins over `color`. With
+                                        // styles.sendButtonIcon here — it hardcodes the
+                                        // primary tint (white) — the computed color was
+                                        // discarded and the arrow painted white on the
+                                        // near-white glass composer, i.e. invisible.
+                                        style={{
+                                            color: canPressSendButton ? activeSendIconColor : theme.colors.textSecondary,
+                                            marginTop: Platform.OS === 'web' ? 2 : 0,
+                                        }}
+                                    />
+                                )}
+                            </BubblePressable>
+                        </View>
                     </View>
                     ) : desktopActionControls}
                         </MobileGlassSurface>
@@ -2525,44 +2460,94 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     );
 }));
 
-function VoiceDictationAuxiliaryControls({
+function VoiceDictationControls({
     phase,
+    onPress,
     onCancel,
     onRetry,
+    disabled,
     compact = false,
 }: {
     phase: VoiceDictationPhase;
+    onPress?: () => void;
     onCancel?: () => void;
     onRetry?: () => void;
+    disabled: boolean;
     compact?: boolean;
 }) {
     const { theme } = useUnistyles();
-    if (phase !== 'recording' && phase !== 'error') return null;
+    const control = resolveVoiceDictationControl({ phase, canRetry: !!onRetry, disabled });
+    const actionPress = control.action === 'retry' ? onRetry : onPress;
+    const visibility = resolveVoiceDictationControlVisibility({
+        state: control,
+        hasActionHandler: !!actionPress,
+        hasCancelHandler: !!onCancel,
+    });
+    if (!visibility.shouldRender) return null;
     const buttonStyle = compact
         ? stylesheet.mobileIconButton
-        : { height: 32, paddingHorizontal: 8, alignItems: 'center' as const, justifyContent: 'center' as const, borderRadius: 16 };
+        : {
+            width: 32,
+            height: 32,
+            flexShrink: 0,
+            alignItems: 'center' as const,
+            justifyContent: 'center' as const,
+            borderRadius: 16,
+        };
+    const accessibilityLabel = control.action === 'finish'
+        ? t('happyHerd.composer.finishVoice')
+        : control.action === 'retry'
+            ? t('happyHerd.composer.retryVoice')
+            : control.action === 'transcribing'
+                ? t('happyHerd.composer.transcribingVoice')
+                : t('happyHerd.composer.startVoice');
+    const tintColor = phase === 'recording'
+        ? theme.colors.textDestructive
+        : phase === 'error'
+            ? theme.colors.textLink
+            : compact
+                ? theme.colors.text
+                : theme.colors.button.secondary.tint;
     return (
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {phase === 'recording' && onCancel && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: compact ? 0 : 2 }}>
+            {visibility.showCancel && (
                 <BubblePressable
                     onPress={onCancel}
                     hitSlop={6}
                     style={buttonStyle}
+                    testID="composer-dictation-cancel"
                     accessibilityRole="button"
                     accessibilityLabel={t('happyHerd.composer.cancelVoice')}
                 >
                     <Ionicons name="close" size={compact ? 20 : 16} color={theme.colors.textSecondary} />
                 </BubblePressable>
             )}
-            {phase === 'error' && onRetry && (
+            {visibility.showAction && (
                 <BubblePressable
-                    onPress={onRetry}
+                    onPress={actionPress}
+                    disabled={control.disabled || !actionPress}
                     hitSlop={6}
-                    style={buttonStyle}
+                    style={(pressedState) => [
+                        buttonStyle,
+                        { opacity: control.disabled ? 0.58 : pressedState.pressed ? 0.7 : 1 },
+                    ]}
+                    testID="composer-dictation-button"
                     accessibilityRole="button"
-                    accessibilityLabel={t('happyHerd.composer.retryVoice')}
+                    accessibilityLabel={accessibilityLabel}
+                    accessibilityState={{
+                        disabled: control.disabled || !actionPress,
+                        busy: control.action === 'transcribing',
+                    }}
                 >
-                    <Ionicons name="refresh" size={compact ? 20 : 16} color={theme.colors.textLink} />
+                    {control.action === 'transcribing' ? (
+                        <ActivityIndicator size="small" color={tintColor} />
+                    ) : control.action === 'retry' ? (
+                        <Ionicons name="refresh" size={compact ? 20 : 18} color={tintColor} />
+                    ) : control.action === 'finish' ? (
+                        <Ionicons name="stop" size={compact ? 20 : 18} color={tintColor} />
+                    ) : (
+                        <Ionicons name="mic" size={compact ? 20 : 18} color={tintColor} />
+                    )}
                 </BubblePressable>
             )}
         </View>

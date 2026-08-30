@@ -14,7 +14,6 @@ export default function FeaturesSettingsScreen() {
     const [machineWorkspace, setMachineWorkspace] = useSettingMutable('machineWorkspace');
     const [expImageUpload, setExpImageUpload] = useSettingMutable('expImageUpload');
     const [commanderProfilePictures, setCommanderProfilePictures] = useSettingMutable('commanderProfilePictures');
-    const [voiceInputEnabled, setVoiceInputEnabled] = useSettingMutable('voiceInputEnabled');
 
     return (
         <ItemList style={{ paddingTop: 0 }}>
@@ -100,18 +99,6 @@ export default function FeaturesSettingsScreen() {
                             onValueChange={setCommanderProfilePictures}
                         />
                     )}
-                    showChevron={false}
-                />
-                <Item
-                    title={t('happyHerd.features.voiceInput')}
-                    subtitle={t('happyHerd.features.voiceInputSubtitle')}
-                    icon={<Ionicons name="mic-outline" size={29} color="#111111" />}
-                    rightElement={
-                        <Switch
-                            value={voiceInputEnabled}
-                            onValueChange={setVoiceInputEnabled}
-                        />
-                    }
                     showChevron={false}
                 />
             </ItemGroup>

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { doesVoiceOwnPrimaryPress, resolveAgentInputPrimaryAction } from './agentInputPrimaryAction';
+import {
+    doesVoiceOwnPrimaryPress,
+    resolveAgentInputPrimaryAction,
+    resolveAgentInputSendPressAvailability,
+} from './agentInputPrimaryAction';
 
 describe('resolveAgentInputPrimaryAction', () => {
     const base = {
@@ -87,6 +91,27 @@ describe('resolveAgentInputPrimaryAction', () => {
         })).toBe('voice');
     });
 
+    it.each(['idle', 'recording', 'transcribing', 'error'] as const)(
+        'never assigns %s dictation to a dedicated composer primary action',
+        (dictationPhase) => {
+            expect(resolveAgentInputPrimaryAction({
+                ...base,
+                hasComposerContent: true,
+                canVoice: true,
+                canRetryVoice: true,
+                dictationPhase,
+                voiceControlPlacement: 'dedicated',
+            })).toBe('send');
+            expect(resolveAgentInputPrimaryAction({
+                ...base,
+                canVoice: true,
+                canRetryVoice: true,
+                dictationPhase,
+                voiceControlPlacement: 'dedicated',
+            })).toBe('idle');
+        },
+    );
+
     it('still offers Stop for a blank composer when steering is blocked', () => {
         expect(resolveAgentInputPrimaryAction({
             ...base,
@@ -128,5 +153,68 @@ describe('doesVoiceOwnPrimaryPress', () => {
             dictationPhase: 'recording',
             liveHasContent: true,
         })).toBe(true);
+    });
+});
+
+describe('resolveAgentInputSendPressAvailability', () => {
+    const base = {
+        isAborting: false,
+        isSending: false,
+        isSendDisabled: false,
+    };
+
+    it('keeps Send reachable while deferred composer state catches up without dictation', () => {
+        expect(resolveAgentInputSendPressAvailability(base)).toBe(true);
+    });
+
+    it('keeps Send reachable when retry remains visible but starting dictation is unavailable', () => {
+        expect(resolveAgentInputPrimaryAction({
+            hasComposerContent: false,
+            isSendBlocked: false,
+            isSendDisabled: false,
+            showAbortButton: false,
+            canAbort: true,
+            canVoice: false,
+            canRetryVoice: true,
+            dictationPhase: 'error',
+            voiceControlPlacement: 'dedicated',
+        })).toBe('idle');
+        expect(resolveAgentInputSendPressAvailability(base)).toBe(true);
+    });
+
+    it.each(['idle', 'recording', 'transcribing', 'error'] as const)(
+        'keeps Send actionable during %s dictation when the draft has content',
+        (dictationPhase) => {
+            expect(resolveAgentInputPrimaryAction({
+                hasComposerContent: true,
+                isSendBlocked: false,
+                isSendDisabled: false,
+                showAbortButton: false,
+                canAbort: true,
+                canVoice: true,
+                canRetryVoice: true,
+                dictationPhase,
+                voiceControlPlacement: 'dedicated',
+            })).toBe('send');
+            expect(resolveAgentInputSendPressAvailability(base)).toBe(true);
+        },
+    );
+
+    it('still honors hard send disablement', () => {
+        expect(resolveAgentInputSendPressAvailability({
+            ...base,
+            isSendDisabled: true,
+        })).toBe(false);
+    });
+
+    it('disables Send only for an abort or in-flight send', () => {
+        expect(resolveAgentInputSendPressAvailability({
+            ...base,
+            isAborting: true,
+        })).toBe(false);
+        expect(resolveAgentInputSendPressAvailability({
+            ...base,
+            isSending: true,
+        })).toBe(false);
     });
 });

@@ -1,3 +1,9 @@
+# August 30 — Dedicated dictation beside Send
+
+- Active chat composers on desktop and mobile now include a dedicated speech-to-text dictation microphone beside Send, while Send remains an arrow dedicated strictly to sending during idle, recording, transcribing, and retry states.
+- The microphone controls recording, finishing, transcription progress, retries, and cancellation, appending successful OpenAI transcriptions directly into the editable draft without starting realtime voice chat.
+- Enabled the dedicated microphone automatically across Main Agent and Side chat composers on Web Desktop and Web Mobile whenever an account or deployment OpenAI transcription key is configured.
+
 # August 30 — Edit workspace files
 
 - Edit workspace text and Markdown files directly in the linked file viewer on Web Desktop and Web Mobile, with Source, Preview when supported, and Edit modes, clear save states, and saves to the selected machine path. Unsaved edits stay in place through transient refresh failures and require confirmation before leaving the file.

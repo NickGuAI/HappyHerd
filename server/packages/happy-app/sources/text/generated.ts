@@ -413,6 +413,7 @@ export type TranslationKey =
     | "happyHerd.composer.sendFailedTitle"
     | "happyHerd.composer.startVoice"
     | "happyHerd.composer.stop"
+    | "happyHerd.composer.transcribingVoice"
     | "happyHerd.features.commanderProfilePictures"
     | "happyHerd.features.commanderProfilePicturesSubtitle"
     | "happyHerd.features.fileDiffsSidebar"
