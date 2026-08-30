@@ -21,8 +21,11 @@ const mocks = vi.hoisted(() => ({
     emptyArray: [] as unknown[],
     emptyObject: {} as Record<string, unknown>,
     closeSideChatSession: vi.fn(),
+    buildWorkspaceContextMessage: vi.fn(),
+    heartbeatDispatch: vi.fn(),
     machineCreateSideChat: vi.fn(),
     resumeSession: vi.fn(),
+    resumeSessionWithQueuedTurn: vi.fn(),
     sessionArchive: vi.fn(),
     sessionKill: vi.fn(),
     sessionVisible: vi.fn(),
@@ -293,6 +296,7 @@ vi.mock('@/hooks/useSessionQuickActions', () => ({
     useSessionQuickActions: (session: Session) => ({
         canResume: !session.active,
         resumeSession: () => mocks.resumeSession(session.id),
+        resumeSessionWithQueuedTurn: mocks.resumeSessionWithQueuedTurn,
         resumingSession: false,
     }),
 }));
@@ -461,7 +465,7 @@ vi.mock('@/sync/rig', () => ({
 vi.mock('@/sync/workspaceContext', () => ({
     MAX_WORKSPACE_CONTEXT_ITEMS: 8,
     addWorkspaceContextFile: () => true,
-    buildWorkspaceContextMessage: vi.fn(),
+    buildWorkspaceContextMessage: mocks.buildWorkspaceContextMessage,
     clearWorkspaceContextFiles: vi.fn(),
     getWorkspaceContextEntries: () => mocks.emptyArray,
     removeWorkspaceContextEntry: vi.fn(),
@@ -498,7 +502,7 @@ vi.mock('@/utils/sessionUtils', () => ({
 vi.mock('@/utils/versionUtils', () => ({ MINIMUM_CLI_VERSION: '0.0.0', isVersionSupported: () => true }));
 vi.mock('@/utils/machineWorkspace', () => ({ buildWorkspaceAttachmentParams: () => null }));
 vi.mock('@/utils/errors', () => ({ HappyError: class HappyError extends Error {} }));
-vi.mock('@/utils/heartbeatCommand', () => ({ HEARTBEAT_COMMAND: { dispatch: vi.fn() } }));
+vi.mock('@/utils/heartbeatCommand', () => ({ HEARTBEAT_COMMAND: { dispatch: mocks.heartbeatDispatch } }));
 
 vi.mock('@/-session/sessionOverlayNav', () => ({
     useOverlayNav: { getState: () => ({ publish: vi.fn(), reset: vi.fn() }) },
@@ -612,12 +616,21 @@ beforeEach(() => {
     mocks.localSettings.sidebarPanelsOpen = [];
     mocks.localSettings.zenMode = false;
     mocks.closeSideChatSession.mockReset();
+    mocks.buildWorkspaceContextMessage.mockReset();
+    mocks.buildWorkspaceContextMessage.mockImplementation(async (_sessionId: string, text: string) => ({
+        displayText: text,
+        promptText: text,
+    }));
+    mocks.heartbeatDispatch.mockReset();
+    mocks.heartbeatDispatch.mockResolvedValue({ handled: false });
     mocks.machineCreateSideChat.mockReset();
     mocks.resumeSession.mockReset();
+    mocks.resumeSessionWithQueuedTurn.mockReset();
     mocks.sessionArchive.mockReset();
     mocks.sessionKill.mockReset();
     mocks.sessionVisible.mockReset();
     mocks.sendMessage.mockReset();
+    mocks.sendMessage.mockResolvedValue(undefined);
     mocks.startRealtimeSession.mockReset();
     mocks.voiceAvailable = false;
     mocks.voiceCanRetry = false;
@@ -745,6 +758,41 @@ describe('SessionView side-chat integration', () => {
         expect(mocks.startRealtimeSession).not.toHaveBeenCalled();
     });
 
+    it('preserves a transcript that arrives while the draft snapshot is being delivered', async () => {
+        mocks.voiceAvailable = true;
+        mocks.sessions.parent.draft = 'Send this draft';
+        let acceptDelivery!: () => void;
+        mocks.sendMessage.mockImplementation(() => new Promise<void>((resolve) => {
+            acceptDelivery = resolve;
+        }));
+        const renderer = renderParent();
+        const composer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
+            node.props.sessionId === 'parent'
+        ));
+
+        let sendPromise!: Promise<void>;
+        await act(async () => {
+            sendPromise = composer?.props.onSend();
+            await vi.waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledOnce());
+        });
+
+        act(() => mocks.voiceOnTranscript?.('late transcript'));
+        expect(mocks.composerText.parent).toBe('Send this draft late transcript');
+
+        await act(async () => {
+            acceptDelivery();
+            await sendPromise;
+        });
+
+        expect(mocks.sendMessage).toHaveBeenCalledWith(
+            'parent',
+            'Send this draft',
+            expect.objectContaining({ source: 'chat' }),
+        );
+        expect(mocks.composerText.parent).toBe('late transcript');
+        expect(mocks.startRealtimeSession).not.toHaveBeenCalled();
+    });
+
     it('keeps finish and cancel wired when availability changes during recording', () => {
         mocks.voiceAvailable = false;
         mocks.voicePhase = 'recording';
@@ -820,6 +868,33 @@ describe('SessionView side-chat integration', () => {
         expect(childComposer?.props.onMicPress).toBe(mocks.voiceToggle);
         act(() => childComposer?.props.onMicPress());
         expect(mocks.voiceToggle).toHaveBeenCalledOnce();
+        expect(mocks.startRealtimeSession).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        { surface: 'Web Desktop', width: 1200 },
+        { surface: 'Web Mobile', width: 700 },
+    ])('keeps configured dictation available in disconnected Main Agent and Side chat composers on $surface', ({ width }) => {
+        mocks.width = width;
+        mocks.voiceAvailable = true;
+        mocks.sessions.parent.active = false;
+        const renderer = renderParent();
+
+        const mainComposer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
+            node.props.sessionId === 'parent'
+        ));
+        expect(mainComposer?.props.onMicPress).toBe(mocks.voiceToggle);
+
+        pressByLabel(renderer, 'Open side chats (3)');
+        pressTab(renderer, 'stopped');
+        const sideChatComposer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
+            node.props.sessionId === 'stopped'
+        ));
+        expect(sideChatComposer?.props.onMicPress).toBe(mocks.voiceToggle);
+
+        act(() => mainComposer?.props.onMicPress());
+        act(() => sideChatComposer?.props.onMicPress());
+        expect(mocks.voiceToggle).toHaveBeenCalledTimes(2);
         expect(mocks.startRealtimeSession).not.toHaveBeenCalled();
     });
 
