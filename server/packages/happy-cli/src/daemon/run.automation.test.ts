@@ -72,6 +72,10 @@ describe('daemon automation lifecycle guardrails', () => {
       .toBe(HAPPYHERD_MACHINE_SESSION_PROTOCOL_VERSION);
   });
 
+  it('advertises machine-scoped file deletion for existing sessions', () => {
+    expect(initialMachineMetadata.supportsFileDelete).toBe(true);
+  });
+
   it('requires exact automation, run, session, PID, and daemon provenance', () => {
     const run = activeRun();
     const session = trackedSession();

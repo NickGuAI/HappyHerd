@@ -1,4 +1,4 @@
-import type { Metadata } from './storageTypes';
+import type { MachineMetadata, Metadata } from './storageTypes';
 
 export type ProviderIconKind = 'codex' | 'claude' | 'grok' | 'kimi' | 'generic';
 
@@ -173,6 +173,16 @@ export function rigCanBrowseFiles(metadata: Metadata | null | undefined): boolea
 export function rigCanWriteFiles(metadata: Metadata | null | undefined): boolean {
     return !isRigMetadataV1(metadata)
         || (metadata?.capabilities?.files.write === true && rigHasRpcMethod(metadata, 'writeFile'));
+}
+
+export function sessionCanDeleteFiles(
+    metadata: Metadata | null | undefined,
+    machineMetadata?: MachineMetadata | null,
+): boolean {
+    if (!rigCanWriteFiles(metadata)) return false;
+    return isRigMetadata(metadata)
+        ? metadata?.capabilities?.rpcMethods.includes('deleteFile') === true
+        : machineMetadata?.supportsFileDelete === true;
 }
 
 export function rigCanSearchFiles(metadata: Metadata | null | undefined): boolean {

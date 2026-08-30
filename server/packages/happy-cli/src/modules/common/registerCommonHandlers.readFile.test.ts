@@ -120,6 +120,29 @@ describe('workspace file preview boundary', () => {
         expect(await readFile(file, 'utf8')).toBe('# After');
     });
 
+    it('deletes an in-workspace regular file', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'happyherd-file-delete-'));
+        cleanup.push(root);
+        const file = join(root, 'obsolete.md');
+        await writeFile(file, '# Remove me');
+
+        const response = await handlersFor(root).get('deleteFile')?.({ path: file });
+
+        expect(response).toEqual({ success: true });
+        await expect(readFile(file)).rejects.toMatchObject({ code: 'ENOENT' });
+    });
+
+    it('refuses to delete a directory through the file handler', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'happyherd-file-delete-'));
+        cleanup.push(root);
+        const directory = join(root, 'keep');
+        await mkdir(directory);
+
+        const response = await handlersFor(root).get('deleteFile')?.({ path: directory });
+
+        expect(response).toEqual({ success: false, error: 'Path is not a file' });
+    });
+
     it('does not overwrite a file when its hash changed externally', async () => {
         const root = await mkdtemp(join(tmpdir(), 'happyherd-file-preview-'));
         cleanup.push(root);

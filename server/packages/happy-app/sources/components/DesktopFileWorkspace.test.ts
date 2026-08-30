@@ -18,6 +18,7 @@ vi.mock('react-native', async () => {
                 return { panHandlers: handlers };
             },
         },
+        Platform: { OS: 'web' },
         Pressable: host('Pressable'),
         ScrollView: host('ScrollView'),
         View: host('View'),
@@ -115,7 +116,7 @@ function workspaceElement(overrides: Record<string, unknown> = {}) {
         picker: React.createElement('Picker'),
         onSelect: vi.fn(),
         onRequestClose: vi.fn(),
-        onOpenChanges: vi.fn(),
+        onFileDeleted: vi.fn(),
         onOpenPicker: vi.fn(),
         onDirtyChange: vi.fn(),
         ...overrides,
@@ -131,10 +132,12 @@ describe('DesktopFileWorkspace', () => {
         let renderer!: ReactTestRenderer;
         act(() => { renderer = create(workspaceElement()); });
         const initialMounts = Object.fromEntries(filePanels(renderer).map((node: any) => [node.props.filePath, node.props.mountId]));
+        expect(filePanels(renderer).every((node: any) => node.props.headerVariant === 'desktop-workspace')).toBe(true);
 
         act(() => { renderer.update(workspaceElement({ activePath: '/work/b.md' })); });
         expect(Object.fromEntries(filePanels(renderer).map((node: any) => [node.props.filePath, node.props.mountId])))
             .toEqual(initialMounts);
+        expect(filePanels(renderer).every((node: any) => node.props.headerVariant === 'desktop-workspace')).toBe(true);
         expect(filePanels(renderer).find((node: any) => node.props.filePath === '/work/b.md')?.props.active).toBe(true);
 
         act(() => { renderer.update(workspaceElement({ activePath: '/work/b.md', pickerOpen: true })); });
@@ -146,30 +149,29 @@ describe('DesktopFileWorkspace', () => {
 
     it('keeps dirty and header callbacks scoped to their exact path', () => {
         const onDirtyChange = vi.fn();
+        const onFileDeleted = vi.fn();
         let renderer!: ReactTestRenderer;
-        act(() => { renderer = create(workspaceElement({ onDirtyChange })); });
+        act(() => { renderer = create(workspaceElement({ onDirtyChange, onFileDeleted })); });
 
         const second = filePanels(renderer).find((node: any) => node.props.filePath === '/work/b.md');
         act(() => second?.props.onDirtyChange(true));
         expect(onDirtyChange).toHaveBeenCalledWith('/work/b.md', true);
+        act(() => second?.props.onDeleted('/work/b.md'));
+        expect(onFileDeleted).toHaveBeenCalledWith('/work/b.md');
 
         act(() => second?.props.onHeaderRightSlotChange(React.createElement('HeaderControl')));
         act(() => { renderer.update(workspaceElement({ activePath: '/work/b.md', onDirtyChange })); });
         expect(renderer.root.findAllByType('HeaderControl' as any)).toHaveLength(1);
     });
 
-    it('keeps Changes available, uses plus only for the existing picker, and closes only the requested tab', () => {
-        const onOpenChanges = vi.fn();
+    it('keeps the header focused on file tabs and the existing picker, and closes only the requested tab', () => {
         const onOpenPicker = vi.fn();
         const onRequestClose = vi.fn();
         const onSelect = vi.fn();
         let renderer!: ReactTestRenderer;
-        act(() => { renderer = create(workspaceElement({ onOpenChanges, onOpenPicker, onRequestClose, onSelect })); });
+        act(() => { renderer = create(workspaceElement({ onOpenPicker, onRequestClose, onSelect })); });
 
-        const changes = renderer.root.findAllByType('Pressable' as any)
-            .find((node: any) => node.props.accessibilityLabel === 'files.changes');
-        act(() => changes?.props.onPress());
-        expect(onOpenChanges).toHaveBeenCalledOnce();
+        expect(renderer.root.findAllByProps({ accessibilityLabel: 'files.changes' })).toHaveLength(0);
 
         const plus = renderer.root.findAllByType('Pressable' as any)
             .find((node: any) => node.props.accessibilityLabel === 'files.openExistingFile');
@@ -198,6 +200,7 @@ describe('DesktopFileWorkspace', () => {
 
         expect(Object.fromEntries(filePanels(renderer).map((node: any) => [node.props.filePath, node.props.mountId])))
             .toEqual(initialMounts);
+        expect(filePanels(renderer).every((node: any) => node.props.headerVariant === 'standard')).toBe(true);
         expect(renderer.root.findAllByProps({ testID: 'desktop-file-workspace-fullscreen-header' }).length).toBeGreaterThan(0);
         expect(renderer.root.findAllByProps({ accessibilityLabel: 'files.openExistingFile' })).toHaveLength(0);
 
@@ -229,10 +232,59 @@ describe('DesktopFileWorkspaceSplit', () => {
         expect(renderer.root.findAllByType('Fallback' as any)).toHaveLength(0);
         expect(renderer.root.findAllByProps({ testID: 'desktop-file-workspace-divider' })).toHaveLength(0);
     });
+
+    it('resizes the visible host through pointer capture without remounting workspace content', () => {
+        let workspaceMounts = 0;
+        const WorkspaceProbe = () => {
+            const mountId = React.useRef(++workspaceMounts).current;
+            return React.createElement('WorkspaceProbe', { mountId });
+        };
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(React.createElement(
+                DesktopFileWorkspaceSplit,
+                {
+                    workspaceVisible: true,
+                    workspaceFullscreen: false,
+                    workspace: React.createElement(WorkspaceProbe),
+                    fallback: React.createElement('Fallback'),
+                    children: React.createElement('Chat'),
+                },
+            ));
+        });
+        act(() => renderer.root.findByProps({ testID: 'desktop-file-workspace-split' }).props.onLayout({
+            nativeEvent: { layout: { width: 1200 } },
+        }));
+        const initialMountId = renderer.root.findByType('WorkspaceProbe' as any).props.mountId;
+        const initialWidth = renderer.root.findByProps({ testID: 'desktop-file-workspace-host' }).props.style.width;
+        const divider = renderer.root.findByProps({ testID: 'desktop-file-workspace-divider' });
+        const currentTarget = { setPointerCapture: vi.fn(), releasePointerCapture: vi.fn() };
+
+        act(() => divider.props.onPointerDown({
+            nativeEvent: { pointerId: 3, clientX: 900, button: 0 },
+            currentTarget,
+            preventDefault: vi.fn(),
+        }));
+        act(() => divider.props.onPointerMove({
+            nativeEvent: { pointerId: 3, clientX: 800 },
+            currentTarget,
+            preventDefault: vi.fn(),
+        }));
+        act(() => divider.props.onPointerUp({
+            nativeEvent: { pointerId: 3, clientX: 800 },
+            currentTarget,
+        }));
+
+        expect(currentTarget.setPointerCapture).toHaveBeenCalledWith(3);
+        expect(currentTarget.releasePointerCapture).toHaveBeenCalledWith(3);
+        expect(renderer.root.findByProps({ testID: 'desktop-file-workspace-host' }).props.style.width)
+            .toBe(initialWidth + 100);
+        expect(renderer.root.findByType('WorkspaceProbe' as any).props.mountId).toBe(initialMountId);
+    });
 });
 
 describe('DesktopFileWorkspaceDivider', () => {
-    it('translates drag distance into right-pane width without remounting content', () => {
+    it('translates captured pointer movement into right-pane width', () => {
         const onWidthChange = vi.fn();
         let renderer!: ReactTestRenderer;
         act(() => {
@@ -240,9 +292,24 @@ describe('DesktopFileWorkspaceDivider', () => {
         });
 
         const divider = renderer.root.findByProps({ testID: 'desktop-file-workspace-divider' });
-        act(() => divider.props.onPanResponderGrant());
-        act(() => divider.props.onPanResponderMove({}, { dx: 75 }));
+        const currentTarget = { setPointerCapture: vi.fn(), releasePointerCapture: vi.fn() };
+        act(() => divider.props.onPointerDown({
+            nativeEvent: { pointerId: 7, clientX: 500, button: 0 },
+            currentTarget,
+            preventDefault: vi.fn(),
+        }));
+        act(() => divider.props.onPointerMove({
+            nativeEvent: { pointerId: 7, clientX: 575 },
+            currentTarget,
+            preventDefault: vi.fn(),
+        }));
+        act(() => divider.props.onPointerUp({
+            nativeEvent: { pointerId: 7, clientX: 575 },
+            currentTarget,
+        }));
         expect(onWidthChange).toHaveBeenCalledWith(425);
+        expect(currentTarget.setPointerCapture).toHaveBeenCalledWith(7);
+        expect(currentTarget.releasePointerCapture).toHaveBeenCalledWith(7);
     });
 
     it('supports accessible 40-pixel increments and decrements', () => {

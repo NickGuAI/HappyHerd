@@ -20,6 +20,7 @@ export const LocalSettingsSchema = z.object({
     // Persisted so the layout survives reloads and long absences.
     sidebarPanelsOpen: z.array(z.enum(['changes', 'allFiles', 'sideChat'])).describe('Open right-sidebar panels, in tab order'),
     sidebarPanelActive: z.enum(['changes', 'allFiles', 'sideChat']).nullable().describe('Currently active right-sidebar panel (null shows the picker)'),
+    sidebarSideChatSessionId: z.string().nullable().describe('Parent session that owns the open Side chat panel'),
     // CLI version acknowledgments - keyed by machineId
     acknowledgedCliVersions: z.record(z.string(), z.string()).describe('Acknowledged CLI versions per machine'),
     // Collapsed Rig projects in the session list - keyed by project id
@@ -52,6 +53,7 @@ export const localSettingsDefaults: LocalSettings = {
     navigationSidebarCollapsed: false,
     sidebarPanelsOpen: [],
     sidebarPanelActive: null,
+    sidebarSideChatSessionId: null,
     acknowledgedCliVersions: {},
     collapsedProjects: {},
 };

@@ -203,6 +203,8 @@ export const MachineMetadataSchema = z.object({
     detectedAt: z.number(),
   }).optional(),
   agentCapabilities: z.record(z.string(), AgentCapabilityCatalogSchema).optional(),
+  /** The restarted daemon exposes deleteFile through its machine RPC. */
+  supportsFileDelete: z.boolean().optional(),
   grokCapabilityError: z.string().optional(),
 })
 

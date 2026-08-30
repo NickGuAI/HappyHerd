@@ -78,6 +78,15 @@ interface WriteFileResponse {
     error?: string;
 }
 
+interface DeleteFileRequest {
+    path: string;
+}
+
+interface DeleteFileResponse {
+    success: boolean;
+    error?: string;
+}
+
 interface ListDirectoryRequest {
     path: string;
 }
@@ -488,6 +497,27 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
         } catch (error) {
             logger.debug('Failed to read file:', error);
             return { success: false, error: error instanceof Error ? error.message : 'Failed to read file' };
+        }
+    });
+
+    rpcHandlerManager.registerHandler<DeleteFileRequest, DeleteFileResponse>('deleteFile', async (data) => {
+        logger.debug('Delete file request:', data.path);
+
+        const validation = checkPath(data.path);
+        if (!validation.valid) {
+            return { success: false, error: validation.error };
+        }
+
+        try {
+            const fileInfo = await lstat(validation.resolvedPath!);
+            if (!fileInfo.isFile()) {
+                return { success: false, error: 'Path is not a file' };
+            }
+            await unlink(validation.resolvedPath!);
+            return { success: true };
+        } catch (error) {
+            logger.debug('Failed to delete file:', error);
+            return { success: false, error: error instanceof Error ? error.message : 'Failed to delete file' };
         }
     });
 
