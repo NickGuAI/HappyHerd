@@ -286,9 +286,9 @@ Both → daemon-owned side-chat lifecycle
                   ├── delivery success in the creation receipt
                   └── parentSessionId + sessionId + failed deliver-brief phase
   → hidden child metadata in synchronized session state
-  → exact-parent child selector
-       ├── wide Web/Mac collapsible sidebar
-       └── narrow/native full-screen panel
+  → exact-parent child selector and `Side chats N` access control
+       ├── wide Web/Mac click → collapsible right-panel host
+       └── narrow/native click → full-screen host with the same selection
 
 generic app fork/spawn + isSideChat
   → rejected by spawn-happy-session before provider launch

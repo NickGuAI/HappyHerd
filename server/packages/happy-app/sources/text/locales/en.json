@@ -885,7 +885,7 @@
     "overwrite": "Overwrite"
   },
   "sideChat": {
-    "panelTitle": "Sub-workers",
+    "panelTitle": "Side chats",
     "newChat": "New side chat",
     "emptyTitle": "No side chats yet",
     "emptyDescription": "Click New side chat to open an empty side chat, then type normally in its composer.",
@@ -897,10 +897,10 @@
     "expand": "Open full screen",
     "tabLabel": "Side chat {index}",
     "close": "Close side chat",
-    "collapse": "Collapse sub-workers",
-    "archiveFailed": "This sub-worker could not be archived. Its tab has been restored so you can try again.",
-    "openCount": "Open sub-workers ({count})",
-    "stopUnconfirmed": "Sub-worker {sessionId} was archived, but HappyHerd could not confirm its process stopped. Check the owning machine if work continues."
+    "collapse": "Collapse side chats",
+    "archiveFailed": "This side chat could not be archived. Its tab has been restored so you can try again.",
+    "openCount": "Open side chats ({count})",
+    "stopUnconfirmed": "Side chat {sessionId} was archived, but HappyHerd could not confirm its process stopped. Check the owning machine if work continues."
   },
   "settingsVoice": {
     "languageTitle": "Language",

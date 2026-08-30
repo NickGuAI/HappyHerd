@@ -53,7 +53,7 @@ vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}) } }
 vi.mock('@/text', () => ({
     t: (key: string, params?: { index?: number; count?: number }) => {
         if (key === 'sideChat.tabLabel') return `Side chat ${params?.index}`;
-        if (key === 'sideChat.openCount') return `Open sub-workers (${params?.count})`;
+        if (key === 'sideChat.openCount') return `Open side chats (${params?.count})`;
         return key;
     },
 }));
@@ -135,7 +135,7 @@ describe('SideChatAccessButton', () => {
         }));
 
         const button = renderer.root.findByType('Pressable' as any);
-        expect(button.props.accessibilityLabel).toBe('Open sub-workers (2)');
+        expect(button.props.accessibilityLabel).toBe('Open side chats (2)');
         expect(button.props.accessibilityState).toEqual({ expanded: false });
         expect(renderer.root.findAllByType('Text' as any).map((node: any) => node.props.children))
             .toContain('sideChat.panelTitle');

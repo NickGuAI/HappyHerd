@@ -815,7 +815,7 @@
     "overwrite": "覆盖"
   },
   "sideChat": {
-    "panelTitle": "子工作会话",
+    "panelTitle": "侧聊",
     "newChat": "新建侧聊",
     "emptyTitle": "暂无侧聊",
     "emptyDescription": "点击“新建侧聊”打开空白侧聊，然后像往常一样在输入框中输入消息。",
@@ -823,14 +823,14 @@
     "createFailed": "创建侧聊失败。",
     "createFailedWithDetail": "创建侧聊失败：{detail}",
     "unavailable": "当前会话不支持侧聊，或所属机器处于离线状态。",
-    "composerPlaceholder": "给侧边聊天发消息…",
+    "composerPlaceholder": "给侧聊发消息…",
     "expand": "全屏打开",
-    "tabLabel": "侧边聊天 {index}",
-    "close": "关闭侧边聊天",
-    "collapse": "收起子工作会话",
-    "archiveFailed": "无法归档此子工作会话。标签页已恢复，您可以重试。",
-    "openCount": "打开子工作会话（{count}）",
-    "stopUnconfirmed": "子工作会话 {sessionId} 已归档，但 HappyHerd 无法确认其进程已停止。如果工作仍在继续，请检查所属机器。"
+    "tabLabel": "侧聊 {index}",
+    "close": "关闭侧聊",
+    "collapse": "收起侧聊",
+    "archiveFailed": "无法归档此侧聊。标签页已恢复，您可以重试。",
+    "openCount": "打开侧聊（{count}）",
+    "stopUnconfirmed": "侧聊 {sessionId} 已归档，但 HappyHerd 无法确认其进程已停止。如果工作仍在继续，请检查所属机器。"
   },
   "settingsVoice": {
     "languageTitle": "语言",

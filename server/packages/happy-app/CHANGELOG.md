@@ -1,5 +1,6 @@
-# August 29 — Side chats open in one click
+# August 29 — Side chats open consistently
 
+- The `Side chats` control opens the exact parent session's conversations in the desktop right panel and the narrow or mobile full-screen view, with the same selected conversation on either surface.
 - Humans can again create and open an empty side chat in one click, then type normally in its composer.
 - Main Agents continue to create side chats with the structured six-field `happyherd session side-chat create` CLI flow.
 
@@ -76,7 +77,7 @@ HappyHerd brings in the approved upstream project and conversation improvements 
 
 - Commanders and agents can create a Claude or Codex side chat beneath an existing session while keeping the parent conversation unchanged.
 - Side-chat creation now reuses the parent machine's already-authenticated local daemon; it no longer asks for a second account-control link or QR approval.
-- Child conversations stay out of top-level lists and remain discoverable beneath their parent in the collapsible sub-worker view on wide, narrow, and mobile screens; unsupported providers and unavailable source metadata fail explicitly.
+- Child conversations stay out of top-level lists and remain discoverable beneath their parent in the collapsible side-chat view on wide, narrow, and mobile screens; unsupported providers and unavailable source metadata fail explicitly.
 
 # August 26 — Start sessions on a selected machine
 
