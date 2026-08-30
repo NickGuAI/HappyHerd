@@ -139,7 +139,9 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         && !isLandscape;
     const realtimeStatus = useRealtimeStatus();
     const isTablet = useIsTablet();
-    const { width: windowWidth } = useWindowDimensions();
+    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+    const isWebMobileSessionViewport = Platform.OS === 'web'
+        && Math.min(windowWidth, windowHeight) < 720;
     const fileDiffsSidebarEnabled = useSetting('fileDiffsSidebar');
     const zenMode = useLocalSetting('zenMode');
     const [headerBackdropVisible, setHeaderBackdropVisible] = React.useState(false);
@@ -718,7 +720,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                         extraPathSegment={fileViewPath ?? undefined}
                         rightSlot={(diffViewOpen || !!fileViewPath) ? headerRightSlot : headerRight}
                         onTitlePress={session ? () => router.push(`/session/${sessionId}/info`) : undefined}
-                        onBackPress={() => Platform.OS === 'web' && deviceType === 'phone'
+                        onBackPress={() => isWebMobileSessionViewport
                             ? router.dismissTo('/')
                             : router.back()}
                     />
@@ -961,6 +963,9 @@ export function SessionViewLoaded({
     const isLandscape = useIsLandscape();
     const deviceType = useDeviceType();
     const isTablet = useIsTablet();
+    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+    const isWebMobileSessionViewport = Platform.OS === 'web'
+        && Math.min(windowWidth, windowHeight) < 720;
     // Only the portrait phone chat uses an overlay dock. Tablet, desktop,
     // landscape, and embedded views retain their existing split layout.
     const usesFloatingMobileDock = !embedded
@@ -1731,7 +1736,7 @@ export function SessionViewLoaded({
             {
                 isLandscape && deviceType === 'phone' && (
                     <Pressable
-                        onPress={() => Platform.OS === 'web'
+                        onPress={() => isWebMobileSessionViewport
                             ? router.dismissTo('/')
                             : router.back()}
                         style={{

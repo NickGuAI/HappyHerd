@@ -7,8 +7,10 @@ import type { Session } from '@/sync/storageTypes';
 
 const mocks = vi.hoisted(() => ({
     width: 1280,
+    height: 900,
     platform: 'web',
     landscape: false,
+    deviceType: null as 'phone' | 'tablet' | null,
     fileDiffsSidebarEnabled: true,
     revision: 0,
     sessions: {} as Record<string, Session>,
@@ -62,7 +64,7 @@ vi.mock('react-native', async () => {
         Text: host('Text'),
         TextInput: host('TextInput'),
         View: host('View'),
-        useWindowDimensions: () => ({ width: mocks.width, height: 900 }),
+        useWindowDimensions: () => ({ width: mocks.width, height: mocks.height }),
     };
 });
 
@@ -479,7 +481,7 @@ vi.mock('@/sync/queueProjection', () => ({ projectSessionQueue: () => ({ items: 
 
 vi.mock('@/utils/platform', () => ({ isRunningOnMac: () => false }));
 vi.mock('@/utils/responsive', () => ({
-    useDeviceType: () => mocks.width < 720 ? 'phone' : 'desktop',
+    useDeviceType: () => mocks.deviceType ?? (Math.min(mocks.width, mocks.height) < 720 ? 'phone' : 'tablet'),
     useHeaderHeight: () => 48,
     useIsLandscape: () => mocks.landscape,
     useIsTablet: () => false,
@@ -613,8 +615,10 @@ function seedSessions() {
 beforeEach(() => {
     mocks.listeners.clear();
     mocks.width = 1280;
+    mocks.height = 900;
     mocks.platform = 'web';
     mocks.landscape = false;
+    mocks.deviceType = null;
     mocks.fileDiffsSidebarEnabled = true;
     mocks.localSettings.acknowledgedCliVersions = {};
     mocks.localSettings.sidebarPanelActive = null;
@@ -723,7 +727,8 @@ function expectExactParentTabs(renderer: ReactTestRenderer) {
 
 describe('SessionView mobile back navigation', () => {
     it('dismisses the portrait narrow-Web session directly to the session list', () => {
-        mocks.width = 700;
+        mocks.width = 390;
+        mocks.height = 844;
         const renderer = renderParent();
 
         act(() => chatHeader(renderer).props.onBackPress());
@@ -734,7 +739,8 @@ describe('SessionView mobile back navigation', () => {
     });
 
     it('dismisses the landscape narrow-Web session directly to the session list', () => {
-        mocks.width = 700;
+        mocks.width = 844;
+        mocks.height = 390;
         mocks.landscape = true;
         const renderer = renderParent();
         const backButton = landscapeBackButton(renderer);
@@ -769,6 +775,9 @@ describe('SessionView mobile back navigation', () => {
     });
 
     it('keeps Web Desktop navigation on router.back()', () => {
+        mocks.width = 1100;
+        mocks.height = 800;
+        mocks.deviceType = 'phone';
         const renderer = renderParent();
 
         act(() => chatHeader(renderer).props.onBackPress());
