@@ -1,6 +1,7 @@
-# August 30 — Web Mobile session back navigation
+# August 30 — Streamlined Automations Experience
 
-- On Web Mobile, tapping back from an active session now reliably returns directly to the session list in a single tap—even when deep-linked or navigating multiple pages—while preserving native mobile back behavior and standard desktop browser history.
+- Browse automations faster with a compact list powered by dynamic project-tag filters and search instead of repeating card sections.
+- Inspect automations in a desktop side panel or mobile full-width view with preserved search filters, collapsible Markdown instructions, compact rows showing localized, human-readable cadence and next-run information, and details featuring localized automation kinds, run states, run history, and controls.
 
 # August 29 — Side chats open consistently
 
