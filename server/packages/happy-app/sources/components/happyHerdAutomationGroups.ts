@@ -62,6 +62,60 @@ export function happyHerdAutomationProjectKey(tag: string | null): string {
     return tag === null ? 'project:untagged' : `project:tag:${tag}`;
 }
 
+export function happyHerdAutomationTags<
+    TMachine extends HappyHerdAutomationMachine,
+>(
+    collections: readonly HappyHerdAutomationMachineCollection<TMachine>[],
+): string[] {
+    return [...new Set(
+        collections.flatMap((collection) => (
+            collection.automations.flatMap((automation) => automation.tags)
+        )),
+    )].sort(bytewiseCompare);
+}
+
+export function happyHerdAutomationsForMachine<
+    TMachine extends HappyHerdAutomationMachine,
+>(
+    collections: readonly HappyHerdAutomationMachineCollection<TMachine>[],
+    machineId: string | null,
+): HappyHerdAutomation[] {
+    if (!machineId) return [];
+
+    const unique = new Map<string, HappyHerdAutomation>();
+    for (const collection of collections) {
+        if (collection.machine.id !== machineId) continue;
+        for (const automation of collection.automations) {
+            unique.set(automation.id, automation);
+        }
+    }
+
+    return [...unique.values()].sort((left, right) => (
+        bytewiseCompare(right.createdAt, left.createdAt) || bytewiseCompare(left.id, right.id)
+    ));
+}
+
+export function filterHappyHerdAutomations(
+    automations: readonly HappyHerdAutomation[],
+    tag: string | null,
+    query: string,
+): HappyHerdAutomation[] {
+    const normalizedQuery = query.trim().toLocaleLowerCase();
+    return automations.filter((automation) => {
+        if (tag !== null && !automation.tags.includes(tag)) return false;
+        if (!normalizedQuery) return true;
+
+        return [
+            automation.name,
+            automation.instruction,
+            automation.workspace,
+            automation.rail,
+            automation.kind,
+            ...automation.tags,
+        ].some((value) => value.toLocaleLowerCase().includes(normalizedQuery));
+    });
+}
+
 export function happyHerdAutomationReloadKey(
     machines: readonly HappyHerdAutomationReloadMachine[],
 ): string {

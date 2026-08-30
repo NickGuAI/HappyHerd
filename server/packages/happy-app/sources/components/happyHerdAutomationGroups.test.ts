@@ -3,10 +3,13 @@ import type { HappyHerdAutomation } from '@slopus/happy-wire';
 
 import type { Machine } from '@/sync/storageTypes';
 import {
+    filterHappyHerdAutomations,
     groupHappyHerdAutomationsByProject,
+    happyHerdAutomationsForMachine,
     happyHerdAutomationProjectKey,
     happyHerdAutomationReloadKey,
     happyHerdAutomationTagInput,
+    happyHerdAutomationTags,
     loadHappyHerdAutomationMachines,
 } from './happyHerdAutomationGroups';
 
@@ -194,5 +197,48 @@ describe('HappyHerd automation project grouping', () => {
         ]);
         expect(groups[1].machines[0].automations).toEqual([shared]);
         expect(groups[2].machines[0].automations).toEqual([untagged]);
+    });
+});
+
+describe('HappyHerd automation master list', () => {
+    it('collects byte-faithful dynamic tags and deduplicates machine definitions', () => {
+        const alpha = machine('machine-a', 'Alpha');
+        const shared = automation(
+            '11111111-1111-4111-8111-111111111111',
+            alpha.id,
+            ['health', 'dream'],
+            '2026-08-22T00:00:00.000Z',
+        );
+        const older = automation(
+            '22222222-2222-4222-8222-222222222222',
+            alpha.id,
+            ['dream'],
+            '2026-08-21T00:00:00.000Z',
+        );
+
+        const collections = [
+            { machine: alpha, definitionSchemaVersion: 3 as const, automations: [older, shared] },
+            { machine: alpha, definitionSchemaVersion: 3 as const, automations: [shared] },
+        ];
+
+        expect(happyHerdAutomationTags(collections)).toEqual(['dream', 'health']);
+        expect(happyHerdAutomationsForMachine(collections, alpha.id)).toEqual([shared, older]);
+    });
+
+    it('combines tag and case-insensitive search filters without duplicating rows', () => {
+        const dream = {
+            ...automation('33333333-3333-4333-8333-333333333333', 'machine-a', ['dream', 'health']),
+            name: 'Daily Attention',
+            instruction: 'Review blockers.',
+        };
+        const health = {
+            ...automation('44444444-4444-4444-8444-444444444444', 'machine-a', ['health']),
+            name: 'Evening Review',
+            instruction: 'Summarize exercise.',
+        };
+
+        expect(filterHappyHerdAutomations([dream, health], 'health', 'DAILY')).toEqual([dream]);
+        expect(filterHappyHerdAutomations([dream, health], 'dream', 'exercise')).toEqual([]);
+        expect(filterHappyHerdAutomations([dream, health], null, 'exercise')).toEqual([health]);
     });
 });

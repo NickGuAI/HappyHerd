@@ -1,3 +1,8 @@
+# August 30 — Streamlined Automations Experience
+
+- Browse automations faster with a compact list powered by dynamic project-tag filters and search instead of repeating card sections.
+- Inspect automations in a desktop side panel or mobile full-width view with preserved search filters, collapsible Markdown instructions, compact rows showing localized, human-readable cadence and next-run information, and details featuring localized automation kinds, run states, run history, and controls.
+
 # August 29 — Side chats open consistently
 
 - The `Side chats` control opens the exact parent session's conversations in the desktop right panel and the narrow or mobile full-screen view, with the same selected conversation on either surface.

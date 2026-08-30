@@ -25,6 +25,7 @@
     { "key": "settingsAccount.server", "locales": ["de"], "reason": "Server is the conventional German technical noun with identical spelling." },
     { "key": "changelog.version", "locales": ["de"], "reason": "Version is the conventional German noun and the version value is raw data." },
     { "key": "happyHerd.automations.cron", "locales": ["cn", "de"], "reason": "Cron is a technical scheduler name and must remain byte-faithful." },
+    { "key": "happyHerd.automations.kindHeartbeat", "locales": ["de"], "reason": "Heartbeat is the established HappyHerd feature name in German product copy." },
     { "key": "uiCopy.claudeCode", "locales": ["cn", "de"], "reason": "Claude Code is a proper provider name and must remain byte-faithful." },
     { "key": "uiCopy.codex", "locales": ["cn", "de"], "reason": "Codex is a proper provider name and must remain byte-faithful." },
     { "key": "uiCopy.rig", "locales": ["cn", "de"], "reason": "Rig is a proper upstream agent product name and must remain byte-faithful." },
