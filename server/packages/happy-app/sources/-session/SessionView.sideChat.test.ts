@@ -7,7 +7,9 @@ import type { Session } from '@/sync/storageTypes';
 
 const mocks = vi.hoisted(() => ({
     width: 1280,
+    height: 900,
     platform: 'web',
+    landscape: false,
     fileDiffsSidebarEnabled: true,
     revision: 0,
     sessions: {} as Record<string, Session>,
@@ -24,6 +26,9 @@ const mocks = vi.hoisted(() => ({
     buildWorkspaceContextMessage: vi.fn(),
     heartbeatDispatch: vi.fn(),
     machineCreateSideChat: vi.fn(),
+    routerBack: vi.fn(),
+    routerDismissTo: vi.fn(),
+    routerPush: vi.fn(),
     resumeSession: vi.fn(),
     resumeSessionWithQueuedTurn: vi.fn(),
     sessionArchive: vi.fn(),
@@ -61,7 +66,7 @@ vi.mock('react-native', async () => {
         Text: host('Text'),
         TextInput: host('TextInput'),
         View: host('View'),
-        useWindowDimensions: () => ({ width: mocks.width, height: 900 }),
+        useWindowDimensions: () => ({ width: mocks.width, height: mocks.height }),
     };
 });
 
@@ -120,7 +125,11 @@ vi.mock('@expo/vector-icons', async () => {
 });
 
 vi.mock('expo-router', () => ({
-    useRouter: () => ({ back: vi.fn(), push: vi.fn() }),
+    useRouter: () => ({
+        back: mocks.routerBack,
+        dismissTo: mocks.routerDismissTo,
+        push: mocks.routerPush,
+    }),
 }));
 
 vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn() }));
@@ -474,12 +483,29 @@ vi.mock('@/sync/workspaceContext', () => ({
 vi.mock('@/sync/queueProjection', () => ({ projectSessionQueue: () => ({ items: mocks.emptyArray }) }));
 
 vi.mock('@/utils/platform', () => ({ isRunningOnMac: () => false }));
-vi.mock('@/utils/responsive', () => ({
-    useDeviceType: () => mocks.width < 720 ? 'phone' : 'desktop',
-    useHeaderHeight: () => 48,
-    useIsLandscape: () => false,
-    useIsTablet: () => false,
-}));
+vi.mock('@/utils/responsive', async () => {
+    const {
+        calculateDeviceDimensions,
+        determineDeviceType,
+    } = await vi.importActual<typeof import('@/utils/deviceCalculations')>('@/utils/deviceCalculations');
+
+    const productionDeviceType = () => determineDeviceType({
+        diagonalInches: calculateDeviceDimensions({
+            widthPoints: mocks.width,
+            heightPoints: mocks.height,
+            pointsPerInch: mocks.platform === 'ios' ? 163 : 160,
+        }).diagonalInches,
+        platform: mocks.platform,
+        isPad: false,
+    });
+
+    return {
+        useDeviceType: productionDeviceType,
+        useHeaderHeight: () => 48,
+        useIsLandscape: () => mocks.landscape,
+        useIsTablet: () => productionDeviceType() === 'tablet',
+    };
+});
 vi.mock('@/utils/sessionFork', () => ({ getSessionForkSource: () => ({ sessionId: 'parent' }) }));
 vi.mock('@/utils/sessionStatusBar', () => ({ resolveStatusBarGitBranch: () => null }));
 vi.mock('@/utils/rigGitLineChanges', () => ({ visibleRigGitLineChanges: () => null }));
@@ -612,7 +638,9 @@ function seedSessions() {
 beforeEach(() => {
     mocks.listeners.clear();
     mocks.width = 1280;
+    mocks.height = 900;
     mocks.platform = 'web';
+    mocks.landscape = false;
     mocks.fileDiffsSidebarEnabled = true;
     mocks.localSettings.acknowledgedCliVersions = {};
     mocks.localSettings.sidebarPanelActive = null;
@@ -627,6 +655,9 @@ beforeEach(() => {
     mocks.heartbeatDispatch.mockReset();
     mocks.heartbeatDispatch.mockResolvedValue({ handled: false });
     mocks.machineCreateSideChat.mockReset();
+    mocks.routerBack.mockReset();
+    mocks.routerDismissTo.mockReset();
+    mocks.routerPush.mockReset();
     mocks.resumeSession.mockReset();
     mocks.resumeSessionWithQueuedTurn.mockReset();
     mocks.sessionArchive.mockReset();
@@ -675,6 +706,18 @@ function fullscreenSideChatHosts(renderer: ReactTestRenderer) {
     ));
 }
 
+function chatHeader(renderer: ReactTestRenderer) {
+    return renderer.root.findByType('ChatHeaderView' as any);
+}
+
+function landscapeBackButton(renderer: ReactTestRenderer) {
+    return pressables(renderer).find((node: any) => (
+        node.findAllByType('Ionicons' as any).some((icon: any) => (
+            icon.props.name === 'arrow-back' || icon.props.name === 'chevron-back'
+        ))
+    ));
+}
+
 function textValues(renderer: ReactTestRenderer): unknown[] {
     return renderer.root.findAllByType('Text' as any).map((node: any) => node.props.children);
 }
@@ -712,6 +755,71 @@ function expectExactParentTabs(renderer: ReactTestRenderer) {
     expect(labels).not.toContain('archived');
     expect(labels).not.toContain('otherChild');
 }
+
+describe('SessionView mobile back navigation', () => {
+    it('dismisses the portrait narrow-Web session directly to the session list', () => {
+        mocks.width = 390;
+        mocks.height = 844;
+        const renderer = renderParent();
+
+        act(() => chatHeader(renderer).props.onBackPress());
+
+        expect(mocks.routerDismissTo).toHaveBeenCalledOnce();
+        expect(mocks.routerDismissTo).toHaveBeenCalledWith('/');
+        expect(mocks.routerBack).not.toHaveBeenCalled();
+    });
+
+    it('dismisses the landscape narrow-Web session directly to the session list', () => {
+        mocks.width = 844;
+        mocks.height = 390;
+        mocks.landscape = true;
+        const renderer = renderParent();
+        const backButton = landscapeBackButton(renderer);
+
+        expect(backButton).toBeDefined();
+        act(() => backButton?.props.onPress());
+
+        expect(mocks.routerDismissTo).toHaveBeenCalledOnce();
+        expect(mocks.routerDismissTo).toHaveBeenCalledWith('/');
+        expect(mocks.routerBack).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        { orientation: 'portrait', width: 390, height: 844, landscape: false },
+        { orientation: 'landscape', width: 844, height: 390, landscape: true },
+    ])('keeps native $orientation navigation on router.back()', ({ width, height, landscape }) => {
+        mocks.width = width;
+        mocks.height = height;
+        mocks.platform = 'ios';
+        mocks.landscape = landscape;
+        const renderer = renderParent();
+
+        if (landscape) {
+            const backButton = landscapeBackButton(renderer);
+            expect(backButton).toBeDefined();
+            act(() => backButton?.props.onPress());
+        } else {
+            act(() => chatHeader(renderer).props.onBackPress());
+        }
+
+        expect(mocks.routerBack).toHaveBeenCalledOnce();
+        expect(mocks.routerDismissTo).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        { label: 'production-phone at the desktop boundary', width: 1100, height: 800 },
+        { label: 'wide short desktop', width: 1440, height: 600 },
+    ])('keeps Web Desktop navigation on router.back() for $label', ({ width, height }) => {
+        mocks.width = width;
+        mocks.height = height;
+        const renderer = renderParent();
+
+        act(() => chatHeader(renderer).props.onBackPress());
+
+        expect(mocks.routerBack).toHaveBeenCalledOnce();
+        expect(mocks.routerDismissTo).not.toHaveBeenCalled();
+    });
+});
 
 describe('SessionView side-chat integration', () => {
     it('appends OpenAI dictation to the active draft without sending or starting realtime voice', () => {

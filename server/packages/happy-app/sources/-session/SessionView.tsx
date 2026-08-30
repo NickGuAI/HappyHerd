@@ -49,6 +49,7 @@ import {
     resolveActiveSideChatId,
     resolveSideChatSelectionAfterClose,
     resolveSessionSidebarPresentation,
+    SIDE_CHAT_SIDEBAR_MIN_WINDOW_WIDTH,
     shouldShowLandscapeSideChatAccess,
 } from '@/components/sideChatPresentation';
 import { AllFilesDiffView } from '@/components/AllFilesDiffView';
@@ -140,6 +141,9 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     const realtimeStatus = useRealtimeStatus();
     const isTablet = useIsTablet();
     const { width: windowWidth } = useWindowDimensions();
+    const isWebMobileSessionViewport = Platform.OS === 'web'
+        && deviceType === 'phone'
+        && windowWidth < SIDE_CHAT_SIDEBAR_MIN_WINDOW_WIDTH;
     const fileDiffsSidebarEnabled = useSetting('fileDiffsSidebar');
     const zenMode = useLocalSetting('zenMode');
     const [headerBackdropVisible, setHeaderBackdropVisible] = React.useState(false);
@@ -731,7 +735,9 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                         extraPathSegment={fileViewPath ?? undefined}
                         rightSlot={(diffViewOpen || !!fileViewPath) ? headerRightSlot : headerRight}
                         onTitlePress={session ? () => router.push(`/session/${sessionId}/info`) : undefined}
-                        onBackPress={() => router.back()}
+                        onBackPress={() => isWebMobileSessionViewport
+                            ? router.dismissTo('/')
+                            : router.back()}
                     />
                     {/* Voice status bar below header - not on tablet (shown in sidebar) */}
                     {!isTablet && realtimeStatus !== 'disconnected' && (
@@ -997,6 +1003,10 @@ export function SessionViewLoaded({
     const isLandscape = useIsLandscape();
     const deviceType = useDeviceType();
     const isTablet = useIsTablet();
+    const { width: windowWidth } = useWindowDimensions();
+    const isWebMobileSessionViewport = Platform.OS === 'web'
+        && deviceType === 'phone'
+        && windowWidth < SIDE_CHAT_SIDEBAR_MIN_WINDOW_WIDTH;
     // Only the portrait phone chat uses an overlay dock. Tablet, desktop,
     // landscape, and embedded views retain their existing split layout.
     const usesFloatingMobileDock = !embedded
@@ -1767,7 +1777,9 @@ export function SessionViewLoaded({
             {
                 isLandscape && deviceType === 'phone' && (
                     <Pressable
-                        onPress={() => router.back()}
+                        onPress={() => isWebMobileSessionViewport
+                            ? router.dismissTo('/')
+                            : router.back()}
                         style={{
                             position: 'absolute',
                             top: safeArea.top + 8,
