@@ -8,8 +8,10 @@ import type { Machine } from '@/sync/storageTypes';
 
 const testState = vi.hoisted(() => ({
     machines: [] as Machine[],
+    width: 1200,
     focusEpoch: 0,
     listAutomations: vi.fn(),
+    automationHistory: vi.fn(),
     listCommanders: vi.fn(),
     createAutomation: vi.fn(),
     updateAutomation: vi.fn(),
@@ -28,7 +30,7 @@ vi.mock('react-native', async () => {
         ScrollView: host('ScrollView'),
         TextInput: host('TextInput'),
         View: host('View'),
-        useWindowDimensions: () => ({ width: 1200, height: 800 }),
+        useWindowDimensions: () => ({ width: testState.width, height: 800 }),
     };
 });
 
@@ -81,10 +83,10 @@ vi.mock('@/components/StyledText', async () => {
     return { Text: (props: any) => ReactModule.createElement('Text', props, props.children) };
 });
 
-vi.mock('@/components/HappyHerdAutomationCard', async () => {
+vi.mock('@/components/HappyHerdAutomationDetail', async () => {
     const ReactModule = await import('react');
     return {
-        HappyHerdAutomationCard: (props: any) => ReactModule.createElement('AutomationCard', props),
+        HappyHerdAutomationDetail: (props: any) => ReactModule.createElement('AutomationDetail', props),
     };
 });
 
@@ -96,7 +98,7 @@ vi.mock('@/modal', () => ({
 }));
 
 vi.mock('@/sync/ops', () => ({
-    machineAutomationHistory: vi.fn(),
+    machineAutomationHistory: testState.automationHistory,
     machineCreateAutomation: testState.createAutomation,
     machineDeleteAutomation: vi.fn(),
     machineListAutomations: testState.listAutomations,
@@ -125,11 +127,20 @@ const translations: Record<string, string> = {
     'happyHerd.automations.machine': 'Machine',
     'happyHerd.automations.save': 'Save automation',
     'happyHerd.automations.subtitle': 'Automation subtitle',
-    'happyHerd.automations.tagGuide': 'Expand the automation, choose Edit, add one project tag per line, then save.',
+    'happyHerd.automations.allTags': 'All',
+    'happyHerd.automations.tagFilters': 'Automation tags',
+    'happyHerd.automations.searchPlaceholder': 'Search automations',
+    'happyHerd.automations.automationCount': '{count} automations',
+    'happyHerd.automations.noMatches': 'No automations match these filters.',
+    'happyHerd.automations.openDetails': 'Open details for {name}',
+    'happyHerd.automations.listLabel': 'Automations',
 };
 
 vi.mock('@/text', () => ({
-    t: (key: string) => translations[key] ?? key,
+    t: (key: string, values?: Record<string, unknown>) => Object.entries(values ?? {}).reduce(
+        (value, [name, replacement]) => value.replace(`{${name}}`, String(replacement)),
+        translations[key] ?? key,
+    ),
 }));
 
 import AutomationsScreen from '../app/(app)/automations/index';
@@ -148,12 +159,14 @@ afterAll(() => vi.restoreAllMocks());
 
 beforeEach(() => {
     testState.machines = [];
+    testState.width = 1200;
     testState.focusEpoch = 0;
     testState.listAutomations.mockReset().mockResolvedValue({
         definitionSchemaVersion: 2,
         automations: [],
     });
     testState.listCommanders.mockReset().mockResolvedValue({ commanders: [] });
+    testState.automationHistory.mockReset().mockResolvedValue({ runs: [] });
     testState.createAutomation.mockReset().mockResolvedValue(undefined);
     testState.updateAutomation.mockReset().mockResolvedValue(undefined);
     testState.profileRpc.mockReset().mockImplementation(async (_method, operation) => operation());
@@ -242,15 +255,29 @@ async function updateScreen(renderer: ReactTestRenderer): Promise<void> {
 }
 
 describe('AutomationsScreen refresh behavior', () => {
-    it('shows tag guidance without opening the form', async () => {
+    it('shows dynamic tag filters and search without opening the form', async () => {
         testState.machines = [machine('machine-a', 100)];
+        testState.listAutomations.mockResolvedValue({
+            definitionSchemaVersion: 3,
+            automations: [automation(
+                '11111111-1111-4111-8111-111111111111',
+                'machine-a',
+                'Daily Attention',
+                ['dream', 'health'],
+            )],
+        });
 
         const renderer = await renderScreen();
 
-        expect(visibleText(renderer)).toContain(
-            'Expand the automation, choose Edit, add one project tag per line, then save.',
-        );
-        expect(renderer.root.findAllByType('TextInput' as any)).toHaveLength(0);
+        expect(renderer.root.findByProps({ accessibilityLabel: 'Automation tags' }))
+            .toBeDefined();
+        expect(renderer.root.findAll((node: any) => (
+            node.type === 'Pressable'
+            && node.props.accessibilityRole === 'radio'
+            && ['All', 'dream', 'health'].includes(nodeText(node))
+        )).map((node: any) => nodeText(node))).toEqual(['All', 'dream', 'health']);
+        expect(renderer.root.findByProps({ accessibilityLabel: 'Search automations' }))
+            .toBeDefined();
     });
 
     it('does not reload automation or Commander configuration for heartbeat-only updates', async () => {
@@ -304,8 +331,8 @@ describe('AutomationsScreen refresh behavior', () => {
     });
 });
 
-describe('AutomationsScreen project machine selection', () => {
-    it('places independent machine selectors inside projects and shows only each selected machine', async () => {
+describe('AutomationsScreen master-detail behavior', () => {
+    it('uses one global machine selector and one deduplicated compact list', async () => {
         testState.machines = [machine('machine-a', 100), machine('machine-b', 100)];
         testState.listAutomations.mockImplementation(async (machineId: string) => ({
             definitionSchemaVersion: 2,
@@ -321,44 +348,189 @@ describe('AutomationsScreen project machine selection', () => {
 
         const renderer = await renderScreen();
         const machineSelectors = renderer.root.findAll((node: any) => (
-            node.type === 'Pressable' && ['machine-a', 'machine-b'].includes(nodeText(node))
+            node.type === 'Pressable'
+            && node.props.accessibilityRole === 'radio'
+            && ['machine-a', 'machine-b'].includes(nodeText(node))
         ));
 
-        expect(machineSelectors).toHaveLength(4);
-        expect(machineSelectors.every((node: any) => node.props.accessibilityRole === 'radio')).toBe(true);
+        expect(machineSelectors).toHaveLength(2);
         expect(renderer.root.findAll((node: any) => (
             node.type === 'ScrollView' && node.props.accessibilityRole === 'radiogroup'
-        )).map((node: any) => node.props.accessibilityLabel)).toEqual(['Beacon', 'Operations']);
-        expect(machineSelectors.filter((node: any) => node.props.accessibilityState?.selected)).toHaveLength(2);
-        expect(renderer.root.findAllByType('AutomationCard' as any).map((node: any) => node.props.automation.name)).toEqual([
-            'Alpha Beacon',
-            'Alpha Operations',
+        )).map((node: any) => node.props.accessibilityLabel)).toEqual(['Automation tags', 'Machine']);
+        expect(machineSelectors.filter((node: any) => node.props.accessibilityState?.selected)).toHaveLength(1);
+        expect(renderer.root.findAll((node: any) => (
+            node.type === 'Pressable' && node.props.accessibilityLabel?.startsWith('Open details for ')
+        )).map((node: any) => node.props.accessibilityLabel)).toEqual([
+            'Open details for Alpha Beacon',
+            'Open details for Alpha Operations',
         ]);
 
         const betaSelectors = machineSelectors.filter((node: any) => nodeText(node) === 'machine-b');
-        expect(betaSelectors).toHaveLength(2);
+        expect(betaSelectors).toHaveLength(1);
 
         await act(async () => {
             betaSelectors[0].props.onPress();
             await Promise.resolve();
         });
 
-        expect(renderer.root.findAllByType('AutomationCard' as any).map((node: any) => node.props.automation.name)).toEqual([
-            'Beta Beacon',
-            'Alpha Operations',
-        ]);
+        expect(renderer.root.findAll((node: any) => (
+            node.type === 'Pressable' && node.props.accessibilityLabel?.startsWith('Open details for ')
+        )).map((node: any) => node.props.accessibilityLabel)).toEqual(['Open details for Beta Beacon']);
         expect(testState.listAutomations).toHaveBeenCalledTimes(2);
-        expect(testState.listCommanders).toHaveBeenCalledTimes(1);
+        expect(testState.listCommanders).toHaveBeenCalledTimes(2);
 
         testState.machines = [machine('machine-a', 200), machine('machine-b', 200)];
         await updateScreen(renderer);
 
-        expect(renderer.root.findAllByType('AutomationCard' as any).map((node: any) => node.props.automation.name)).toEqual([
-            'Beta Beacon',
-            'Alpha Operations',
-        ]);
+        expect(renderer.root.findAll((node: any) => (
+            node.type === 'Pressable' && node.props.accessibilityLabel?.startsWith('Open details for ')
+        )).map((node: any) => node.props.accessibilityLabel)).toEqual(['Open details for Beta Beacon']);
         expect(testState.listAutomations).toHaveBeenCalledTimes(2);
-        expect(testState.listCommanders).toHaveBeenCalledTimes(1);
+        expect(testState.listCommanders).toHaveBeenCalledTimes(2);
+    });
+
+    it('combines dynamic tag and search filters and renders a focused empty result', async () => {
+        testState.machines = [machine('machine-a', 100)];
+        testState.listAutomations.mockResolvedValue({
+            definitionSchemaVersion: 3,
+            automations: [
+                automation('11111111-1111-4111-8111-111111111111', 'machine-a', 'Daily Attention', ['dream', 'health']),
+                automation('22222222-2222-4222-8222-222222222222', 'machine-a', 'Evening Review', ['health']),
+            ],
+        });
+        const renderer = await renderScreen();
+        const dreamChip = renderer.root.findAll((node: any) => (
+            node.type === 'Pressable'
+            && node.props.accessibilityRole === 'radio'
+            && nodeText(node) === 'dream'
+        ))[0];
+
+        await act(async () => {
+            dreamChip.props.onPress();
+            await Promise.resolve();
+        });
+
+        expect(renderer.root.findAll((node: any) => (
+            node.type === 'Pressable' && node.props.accessibilityLabel?.startsWith('Open details for ')
+        )).map((node: any) => node.props.accessibilityLabel)).toEqual(['Open details for Daily Attention']);
+
+        const search = renderer.root.findAllByType('TextInput' as any).find((node: any) => (
+            node.props.accessibilityLabel === 'Search automations'
+        ))!;
+        await act(async () => {
+            search.props.onChangeText('evening');
+            await Promise.resolve();
+        });
+
+        expect(visibleText(renderer)).toContain('No automations match these filters.');
+        expect(renderer.root.findAll((node: any) => (
+            node.type === 'Pressable' && node.props.accessibilityLabel?.startsWith('Open details for ')
+        ))).toHaveLength(0);
+    });
+
+    it('keeps the desktop list beside detail and restores preserved filters after mobile Back', async () => {
+        testState.machines = [machine('machine-a', 100)];
+        testState.listAutomations.mockResolvedValue({
+            definitionSchemaVersion: 3,
+            automations: [automation(
+                '11111111-1111-4111-8111-111111111111',
+                'machine-a',
+                'Daily Attention',
+                ['dream'],
+            )],
+        });
+        const renderer = await renderScreen();
+        const dreamChip = renderer.root.findAll((node: any) => (
+            node.type === 'Pressable'
+            && node.props.accessibilityRole === 'radio'
+            && nodeText(node) === 'dream'
+        ))[0];
+        const search = renderer.root.findAllByType('TextInput' as any).find((node: any) => (
+            node.props.accessibilityLabel === 'Search automations'
+        ))!;
+
+        await act(async () => {
+            dreamChip.props.onPress();
+            search.props.onChangeText('daily');
+            await Promise.resolve();
+        });
+        await act(async () => {
+            renderer.root.findAll((node: any) => (
+                node.type === 'Pressable'
+                && node.props.accessibilityLabel === 'Open details for Daily Attention'
+            ))[0].props.onPress();
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        expect(renderer.root.findAllByType('TextInput' as any).some((node: any) => (
+            node.props.accessibilityLabel === 'Search automations'
+        ))).toBe(true);
+        expect(renderer.root.findByType('AutomationDetail' as any).props.mobile).toBe(false);
+        expect(testState.automationHistory).toHaveBeenCalledWith('machine-a', '11111111-1111-4111-8111-111111111111');
+
+        testState.width = 600;
+        await updateScreen(renderer);
+        expect(renderer.root.findByType('AutomationDetail' as any).props.mobile).toBe(true);
+        expect(renderer.root.findAllByType('TextInput' as any)).toHaveLength(0);
+
+        await act(async () => {
+            renderer.root.findByType('AutomationDetail' as any).props.onBack();
+            await Promise.resolve();
+        });
+
+        const restoredSearch = renderer.root.findAllByType('TextInput' as any).find((node: any) => (
+            node.props.accessibilityLabel === 'Search automations'
+        ));
+        expect(restoredSearch?.props.value).toBe('daily');
+        expect(renderer.root.findAll((node: any) => (
+            node.type === 'Pressable'
+            && node.props.accessibilityRole === 'radio'
+            && nodeText(node) === 'dream'
+        ))[0].props.accessibilityState).toEqual({ selected: true });
+    });
+
+    it('keeps failed history retryable instead of caching a false empty result', async () => {
+        testState.machines = [machine('machine-a', 100)];
+        testState.listAutomations.mockResolvedValue({
+            definitionSchemaVersion: 3,
+            automations: [automation(
+                '11111111-1111-4111-8111-111111111111',
+                'machine-a',
+                'Daily Attention',
+                ['dream'],
+            )],
+        });
+        testState.automationHistory
+            .mockRejectedValueOnce(new Error('temporary disconnect'))
+            .mockResolvedValueOnce({ runs: [] });
+        const renderer = await renderScreen();
+
+        await act(async () => {
+            renderer.root.findByProps({
+                accessibilityLabel: 'Open details for Daily Attention',
+            }).props.onPress();
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        expect(testState.automationHistory).toHaveBeenCalledTimes(1);
+        expect(renderer.root.findByType('AutomationDetail' as any).props).toMatchObject({
+            history: undefined,
+            historyFailed: true,
+        });
+
+        await act(async () => {
+            renderer.root.findByType('AutomationDetail' as any).props.onRetryHistory();
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        expect(testState.automationHistory).toHaveBeenCalledTimes(2);
+        expect(renderer.root.findByType('AutomationDetail' as any).props).toMatchObject({
+            history: [],
+            historyFailed: false,
+        });
     });
 
     it('shows the target machine in the create form and saves to the selected machine', async () => {
@@ -426,7 +598,7 @@ describe('AutomationsScreen project machine selection', () => {
         );
     });
 
-    it('keeps edits pinned to the automation owner when the project selection changes', async () => {
+    it('keeps edits pinned to the selected automation owner', async () => {
         testState.machines = [machine('machine-a', 100), machine('machine-b', 100)];
         testState.listAutomations.mockImplementation(async (machineId: string) => ({
             definitionSchemaVersion: 2,
@@ -440,17 +612,25 @@ describe('AutomationsScreen project machine selection', () => {
             )],
         }));
         const renderer = await renderScreen();
-        const betaProjectSelector = renderer.root.findAll((node: any) => (
-            node.type === 'Pressable' && nodeText(node) === 'machine-b'
+        const betaMachineSelector = renderer.root.findAll((node: any) => (
+            node.type === 'Pressable'
+            && node.props.accessibilityRole === 'radio'
+            && nodeText(node) === 'machine-b'
         ))[0];
 
         await act(async () => {
-            betaProjectSelector.props.onPress();
+            betaMachineSelector.props.onPress();
             await Promise.resolve();
         });
-        const betaCard = renderer.root.findByType('AutomationCard' as any);
         await act(async () => {
-            betaCard.props.onEdit();
+            renderer.root.findAll((node: any) => (
+                node.type === 'Pressable'
+                && node.props.accessibilityLabel === 'Open details for Beta Beacon'
+            ))[0].props.onPress();
+            await Promise.resolve();
+        });
+        await act(async () => {
+            renderer.root.findByType('AutomationDetail' as any).props.onEdit();
             await Promise.resolve();
         });
 
@@ -460,16 +640,6 @@ describe('AutomationsScreen project machine selection', () => {
             && node.props.accessibilityState?.disabled
         ));
         expect(editMachine).toHaveLength(1);
-
-        const alphaProjectSelector = renderer.root.findAll((node: any) => (
-            node.type === 'Pressable'
-            && nodeText(node) === 'machine-a'
-            && !node.props.accessibilityState?.disabled
-        ))[0];
-        await act(async () => {
-            alphaProjectSelector.props.onPress();
-            await Promise.resolve();
-        });
 
         const saveButton = renderer.root.findAll((node: any) => (
             node.type === 'Pressable' && nodeText(node) === 'Save automation'

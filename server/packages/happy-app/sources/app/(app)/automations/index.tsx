@@ -20,14 +20,15 @@ import type {
 } from '@slopus/happy-wire';
 
 import { Text as StyledText } from '@/components/StyledText';
-import { HappyHerdAutomationCard } from '@/components/HappyHerdAutomationCard';
+import { HappyHerdAutomationDetail } from '@/components/HappyHerdAutomationDetail';
 import { createHappyHerdAutomationMachineActions } from '@/components/happyHerdAutomationActions';
 import {
-    groupHappyHerdAutomationsByProject,
+    filterHappyHerdAutomations,
+    happyHerdAutomationsForMachine,
     happyHerdAutomationMachineName,
-    happyHerdAutomationProjectKey,
     happyHerdAutomationReloadKey,
     happyHerdAutomationTagInput,
+    happyHerdAutomationTags,
     loadHappyHerdAutomationMachines,
     type HappyHerdAutomationMachineCollection,
     type HappyHerdAutomationMachineFailure,
@@ -199,6 +200,31 @@ function MachineChoice({
     );
 }
 
+function FilterChip({
+    label,
+    selected,
+    onSelect,
+}: {
+    label: string;
+    selected: boolean;
+    onSelect: () => void;
+}) {
+    const { theme } = useUnistyles();
+    return (
+        <Pressable
+            accessibilityRole="radio"
+            accessibilityState={{ selected }}
+            onPress={onSelect}
+            style={[
+                styles.filterChip,
+                selected && { backgroundColor: theme.colors.surfaceHighest },
+            ]}
+        >
+            <Text style={[styles.filterChipText, selected && Typography.default('semiBold')]}>{label}</Text>
+        </Pressable>
+    );
+}
+
 function Field({
     label,
     value,
@@ -243,10 +269,6 @@ export default function AutomationsScreen() {
     const desktop = (Platform.OS === 'web' || Platform.OS === 'macos') && width >= 900;
     const machines = useAllMachines({ includeOffline: true });
     const onlineMachines = React.useMemo(() => machines.filter(isMachineOnline), [machines]);
-    const onlineMachineIds = React.useMemo(
-        () => new Set(onlineMachines.map((candidate) => candidate.id)),
-        [onlineMachines],
-    );
     const onlineMachinesRef = React.useRef(onlineMachines);
     onlineMachinesRef.current = onlineMachines;
     const automationReloadKey = happyHerdAutomationReloadKey(machines);
@@ -263,7 +285,11 @@ export default function AutomationsScreen() {
     const [formVisible, setFormVisible] = React.useState(false);
     const [draft, setDraft] = React.useState<Draft>(() => emptyDraft());
     const [history, setHistory] = React.useState<Record<string, HappyHerdAutomationRun[]>>({});
-    const [projectMachineIds, setProjectMachineIds] = React.useState<Record<string, string>>({});
+    const [historyLoading, setHistoryLoading] = React.useState<Record<string, boolean>>({});
+    const [historyFailed, setHistoryFailed] = React.useState<Record<string, boolean>>({});
+    const [selectedTag, setSelectedTag] = React.useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = React.useState('');
+    const [selectedAutomationId, setSelectedAutomationId] = React.useState<string | null>(null);
     const routeStartedAtRef = React.useRef<number | null>(null);
     const initialDataReadyAtRef = React.useRef<number | null>(null);
     const initialRenderProfiledRef = React.useRef(false);
@@ -277,13 +303,18 @@ export default function AutomationsScreen() {
             ? [machine, ...onlineMachines]
             : onlineMachines
     ), [machine, onlineMachines]);
-    const projects = React.useMemo(
-        () => groupHappyHerdAutomationsByProject(machineCollections),
-        [machineCollections],
+    const tags = React.useMemo(() => happyHerdAutomationTags(machineCollections), [machineCollections]);
+    const automations = React.useMemo(
+        () => happyHerdAutomationsForMachine(machineCollections, machineId),
+        [machineCollections, machineId],
     );
-    const automationCount = React.useMemo(
-        () => machineCollections.reduce((count, collection) => count + collection.automations.length, 0),
-        [machineCollections],
+    const filteredAutomations = React.useMemo(
+        () => filterHappyHerdAutomations(automations, selectedTag, searchQuery),
+        [automations, searchQuery, selectedTag],
+    );
+    const selectedAutomation = React.useMemo(
+        () => automations.find((automation) => automation.id === selectedAutomationId) ?? null,
+        [automations, selectedAutomationId],
     );
     const selectedDefinitionSchemaVersion = machineCollections.find(
         (collection) => collection.machine.id === (editingMachineId ?? machineId),
@@ -296,6 +327,18 @@ export default function AutomationsScreen() {
         const preferred = onlineMachines[0] ?? machines[0];
         setMachineId(preferred?.id ?? null);
     }, [formVisible, machineId, machines, onlineMachines]);
+
+    React.useEffect(() => {
+        if (selectedTag !== null && !tags.includes(selectedTag)) {
+            setSelectedTag(null);
+        }
+    }, [selectedTag, tags]);
+
+    React.useEffect(() => {
+        if (selectedAutomationId && !selectedAutomation) {
+            setSelectedAutomationId(null);
+        }
+    }, [selectedAutomation, selectedAutomationId]);
 
     const refresh = React.useCallback(async () => {
         setLoading(true);
@@ -360,6 +403,7 @@ export default function AutomationsScreen() {
 
     const openCreate = React.useCallback(() => {
         if (!machine || !isMachineOnline(machine)) return;
+        setSelectedAutomationId(null);
         setEditingId(null);
         setEditingMachineId(null);
         setDraft(emptyDraft(machine.metadata?.homeDir));
@@ -377,12 +421,19 @@ export default function AutomationsScreen() {
         }));
     }, [onlineMachines]);
 
-    const selectProjectMachine = React.useCallback((projectKey: string, nextMachineId: string) => {
-        setProjectMachineIds((current) => (
-            current[projectKey] === nextMachineId
-                ? current
-                : { ...current, [projectKey]: nextMachineId }
-        ));
+    const selectBrowseMachine = React.useCallback((nextMachineId: string) => {
+        setMachineId(nextMachineId);
+        setSelectedAutomationId(null);
+    }, []);
+
+    const selectAutomation = React.useCallback((automationId: string) => {
+        setHistoryFailed((current) => {
+            if (!current[automationId]) return current;
+            const next = { ...current };
+            delete next[automationId];
+            return next;
+        });
+        setSelectedAutomationId(automationId);
     }, []);
 
     const openEdit = React.useCallback((automation: HappyHerdAutomation) => {
@@ -390,6 +441,7 @@ export default function AutomationsScreen() {
             navigateToSession(automation.targetSessionId);
             return;
         }
+        setSelectedAutomationId(null);
         setMachineId(automation.machineId);
         setEditingId(automation.id);
         setEditingMachineId(automation.machineId);
@@ -450,28 +502,46 @@ export default function AutomationsScreen() {
         try {
             const run = await automationMachineActions.runNow(automation);
             setHistory((current) => ({ ...current, [automation.id]: [run, ...(current[automation.id] ?? [])] }));
+            setHistoryFailed((current) => {
+                if (!current[automation.id]) return current;
+                const next = { ...current };
+                delete next[automation.id];
+                return next;
+            });
             await refresh();
         } catch (nextError) {
             Modal.alert(t('happyHerd.automations.unableRun'), nextError instanceof Error ? nextError.message : t('happyHerd.automations.unknownError'));
         }
     }, [refresh]);
 
-    const loadHistory = React.useCallback(async (automation: HappyHerdAutomation) => {
-        if (history[automation.id]) {
-            setHistory((current) => {
-                const next = { ...current };
-                delete next[automation.id];
-                return next;
-            });
-            return;
-        }
+    const ensureHistory = React.useCallback(async (automation: HappyHerdAutomation, force = false) => {
+        if (historyLoading[automation.id]) return;
+        if (!force && (history[automation.id] !== undefined || historyFailed[automation.id])) return;
+        setHistoryFailed((current) => {
+            if (!current[automation.id]) return current;
+            const next = { ...current };
+            delete next[automation.id];
+            return next;
+        });
+        setHistoryLoading((current) => ({ ...current, [automation.id]: true }));
         try {
             const result = await automationMachineActions.history(automation);
             setHistory((current) => ({ ...current, [automation.id]: result.runs }));
         } catch (nextError) {
             Modal.alert(t('happyHerd.automations.unableHistory'), nextError instanceof Error ? nextError.message : t('happyHerd.automations.unknownError'));
+            setHistoryFailed((current) => ({ ...current, [automation.id]: true }));
+        } finally {
+            setHistoryLoading((current) => {
+                const next = { ...current };
+                delete next[automation.id];
+                return next;
+            });
         }
-    }, [history]);
+    }, [history, historyFailed, historyLoading]);
+
+    React.useEffect(() => {
+        if (selectedAutomation) void ensureHistory(selectedAutomation);
+    }, [ensureHistory, selectedAutomation]);
 
     const remove = React.useCallback(async (automation: HappyHerdAutomation) => {
         const confirmed = await Modal.confirm(
@@ -482,6 +552,7 @@ export default function AutomationsScreen() {
         if (!confirmed) return;
         try {
             await automationMachineActions.delete(automation);
+            setSelectedAutomationId((current) => current === automation.id ? null : current);
             await refresh();
         } catch (nextError) {
             Modal.alert(t('happyHerd.automations.unableDelete'), nextError instanceof Error ? nextError.message : t('happyHerd.automations.unknownError'));
@@ -489,15 +560,18 @@ export default function AutomationsScreen() {
     }, [refresh]);
 
     return (
-        <ScrollView contentContainerStyle={[styles.page, desktop && styles.pageDesktop]}>
+        <View style={[styles.page, desktop && styles.pageDesktop]}>
             <Stack.Screen options={{ title: t('happyHerd.automations.title') }} />
+            {(desktop || !selectedAutomation) && (
+            <ScrollView
+                style={styles.master}
+                contentContainerStyle={styles.masterContent}
+                showsVerticalScrollIndicator
+            >
             <View style={styles.hero}>
                 <View style={styles.heroCopy}>
                     <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
                         {t('happyHerd.automations.subtitle')}
-                    </Text>
-                    <Text style={[styles.tagGuide, { color: theme.colors.textSecondary }]}>
-                        {t('happyHerd.automations.tagGuide')}
                     </Text>
                 </View>
                 <Pressable
@@ -633,79 +707,174 @@ export default function AutomationsScreen() {
                 </View>
             )}
 
-            <View style={styles.list}>
-                {!loading && automationCount === 0 && (
-                    <View style={[styles.empty, { borderColor: theme.colors.divider }]}>
-                        <Ionicons name="time-outline" size={32} color={theme.colors.textSecondary} />
-                        <Text style={styles.sectionTitle}>{t('happyHerd.automations.emptyTitle')}</Text>
-                        <Text style={{ color: theme.colors.textSecondary }}>{t('happyHerd.automations.emptySubtitle')}</Text>
-                    </View>
-                )}
-                {projects.map((project) => {
-                    const projectKey = happyHerdAutomationProjectKey(project.tag);
-                    const storedMachineId = projectMachineIds[projectKey];
-                    const selectedMachineId = storedMachineId && onlineMachineIds.has(storedMachineId)
-                        ? storedMachineId
-                        : project.machines.find(
-                            (collection) => onlineMachineIds.has(collection.machine.id),
-                        )?.machine.id ?? onlineMachines[0]?.id;
-                    const selectedCollection = project.machines.find(
-                        (collection) => collection.machine.id === selectedMachineId,
-                    );
-                    return (
-                        <View
-                            key={projectKey}
-                            style={[styles.projectGroup, { borderColor: theme.colors.divider }]}
+            {!formVisible && (
+                <View style={styles.list}>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        accessibilityRole="radiogroup"
+                        accessibilityLabel={t('happyHerd.automations.tagFilters')}
+                        contentContainerStyle={styles.filterChips}
+                    >
+                        <FilterChip
+                            label={t('happyHerd.automations.allTags')}
+                            selected={selectedTag === null}
+                            onSelect={() => setSelectedTag(null)}
+                        />
+                        {tags.map((tag) => (
+                            <FilterChip
+                                key={tag}
+                                label={tag}
+                                selected={selectedTag === tag}
+                                onSelect={() => setSelectedTag(tag)}
+                            />
+                        ))}
+                    </ScrollView>
+
+                    <TextInput
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        placeholder={t('happyHerd.automations.searchPlaceholder')}
+                        accessibilityLabel={t('happyHerd.automations.searchPlaceholder')}
+                        placeholderTextColor={theme.colors.textSecondary}
+                        style={[
+                            styles.search,
+                            {
+                                color: theme.colors.text,
+                                borderColor: theme.colors.divider,
+                                backgroundColor: theme.colors.surfaceHigh,
+                            },
+                        ]}
+                    />
+
+                    <View style={styles.machineBar}>
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.choices}
+                            accessibilityRole="radiogroup"
+                            accessibilityLabel={t('happyHerd.automations.machine')}
                         >
-                            <Text style={styles.projectTitle}>
-                                {project.tag ?? t('happyHerd.automations.untagged')}
-                            </Text>
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                contentContainerStyle={styles.choices}
-                                accessibilityRole="radiogroup"
-                                accessibilityLabel={project.tag ?? t('happyHerd.automations.untagged')}
-                            >
-                                {onlineMachines.map((candidate) => (
-                                    <MachineChoice
-                                        key={candidate.id}
-                                        machine={candidate}
-                                        selected={candidate.id === selectedMachineId}
-                                        onSelect={(nextMachineId) => selectProjectMachine(projectKey, nextMachineId)}
-                                    />
-                                ))}
-                            </ScrollView>
-                            <View style={styles.machineCards}>
-                                {selectedCollection?.automations.map((automation) => (
-                                    <HappyHerdAutomationCard
-                                        key={automation.id}
-                                        automation={automation}
-                                        history={history[automation.id]}
-                                        onToggleStatus={() => void toggleStatus(automation)}
-                                        onRunNow={() => void runNow(automation)}
-                                        onToggleHistory={() => void loadHistory(automation)}
-                                        onOpenSession={navigateToSession}
-                                        onEdit={() => openEdit(automation)}
-                                        onDelete={() => void remove(automation)}
-                                    />
-                                ))}
-                            </View>
+                            {onlineMachines.map((candidate) => (
+                                <MachineChoice
+                                    key={candidate.id}
+                                    machine={candidate}
+                                    selected={candidate.id === machineId}
+                                    onSelect={selectBrowseMachine}
+                                />
+                            ))}
+                        </ScrollView>
+                        <Text style={[styles.count, { color: theme.colors.textSecondary }]}>
+                            {t('happyHerd.automations.automationCount', { count: filteredAutomations.length })}
+                        </Text>
+                    </View>
+
+                    {!loading && automations.length === 0 && (
+                        <View style={[styles.empty, { borderColor: theme.colors.divider }]}>
+                            <Ionicons name="time-outline" size={32} color={theme.colors.textSecondary} />
+                            <Text style={styles.sectionTitle}>{t('happyHerd.automations.emptyTitle')}</Text>
+                            <Text style={{ color: theme.colors.textSecondary }}>{t('happyHerd.automations.emptySubtitle')}</Text>
                         </View>
-                    );
-                })}
-            </View>
-        </ScrollView>
+                    )}
+                    {!loading && automations.length > 0 && filteredAutomations.length === 0 && (
+                        <View style={[styles.empty, { borderColor: theme.colors.divider }]}>
+                            <Ionicons name="search-outline" size={30} color={theme.colors.textSecondary} />
+                            <Text style={{ color: theme.colors.textSecondary }}>
+                                {t('happyHerd.automations.noMatches')}
+                            </Text>
+                        </View>
+                    )}
+                    {filteredAutomations.length > 0 && (
+                        <View
+                            accessibilityLabel={t('happyHerd.automations.listLabel')}
+                            style={[styles.automationList, { borderColor: theme.colors.divider }]}
+                        >
+                            {filteredAutomations.map((automation) => {
+                                const selected = automation.id === selectedAutomationId;
+                                const schedule = automation.kind === 'heartbeat'
+                                    ? `${t('happyHerd.heartbeat.every')} ${automation.intervalSeconds}s`
+                                    : automation.schedule;
+                                return (
+                                    <Pressable
+                                        key={automation.id}
+                                        accessibilityRole="button"
+                                        accessibilityState={{ selected }}
+                                        accessibilityLabel={t('happyHerd.automations.openDetails', { name: automation.name })}
+                                        onPress={() => selectAutomation(automation.id)}
+                                        style={({ pressed }) => [
+                                            styles.automationRow,
+                                            { borderBottomColor: theme.colors.divider },
+                                            selected && {
+                                                backgroundColor: theme.colors.surfaceHigh,
+                                                borderLeftColor: theme.colors.text,
+                                            },
+                                            pressed && styles.rowPressed,
+                                        ]}
+                                    >
+                                        <View
+                                            style={[
+                                                styles.statusDot,
+                                                {
+                                                    backgroundColor: automation.status === 'active'
+                                                        ? '#34C759'
+                                                        : theme.colors.textSecondary,
+                                                },
+                                            ]}
+                                        />
+                                        <View style={styles.rowCopy}>
+                                            <Text style={styles.rowTitle} numberOfLines={1}>{automation.name}</Text>
+                                            <Text style={[styles.rowMeta, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                                                {schedule} · {automation.timezone}
+                                            </Text>
+                                        </View>
+                                        <Text style={[styles.rowState, { color: theme.colors.textSecondary }]}>
+                                            {t(
+                                                automation.status === 'active'
+                                                    ? 'happyHerd.automations.statusActive'
+                                                    : 'happyHerd.automations.statusPaused',
+                                            )}
+                                        </Text>
+                                        <Ionicons name="chevron-forward" size={17} color={theme.colors.textSecondary} />
+                                    </Pressable>
+                                );
+                            })}
+                        </View>
+                    )}
+                </View>
+            )}
+            </ScrollView>
+            )}
+
+            {selectedAutomation && (
+                <HappyHerdAutomationDetail
+                    automation={selectedAutomation}
+                    machineName={machine ? happyHerdAutomationMachineName(machine) : selectedAutomation.machineId}
+                    history={history[selectedAutomation.id]}
+                    historyLoading={historyLoading[selectedAutomation.id] === true}
+                    historyFailed={historyFailed[selectedAutomation.id] === true}
+                    mobile={!desktop}
+                    onBack={() => setSelectedAutomationId(null)}
+                    onClose={() => setSelectedAutomationId(null)}
+                    onRunNow={() => void runNow(selectedAutomation)}
+                    onEdit={() => openEdit(selectedAutomation)}
+                    onToggleStatus={() => void toggleStatus(selectedAutomation)}
+                    onDelete={() => void remove(selectedAutomation)}
+                    onOpenSession={navigateToSession}
+                    onRetryHistory={() => void ensureHistory(selectedAutomation, true)}
+                />
+            )}
+        </View>
     );
 }
 
 const styles = StyleSheet.create((theme) => ({
-    page: { padding: 16, paddingBottom: 80, gap: 16 },
-    pageDesktop: { width: '100%', maxWidth: 980, alignSelf: 'center', padding: 28 },
+    page: { flex: 1, width: '100%', flexDirection: 'row' },
+    pageDesktop: { maxWidth: 1400, alignSelf: 'center' },
+    master: { minWidth: 0, flex: 1 },
+    masterContent: { padding: 22, paddingBottom: 80, gap: 16 },
     hero: { flexDirection: 'row', alignItems: 'center', gap: 16 },
     heroCopy: { flex: 1, gap: 6 },
     subtitle: { fontSize: 15, lineHeight: 21, maxWidth: 680 },
-    tagGuide: { fontSize: 13, lineHeight: 19, maxWidth: 680 },
     primaryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 },
     buttonDisabled: { opacity: 0.45 },
     buttonText: { ...Typography.default('semiBold') },
@@ -725,9 +894,19 @@ const styles = StyleSheet.create((theme) => ({
     choice: { borderWidth: StyleSheet.hairlineWidth, borderColor: theme.colors.divider, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7 },
     choiceText: { fontSize: 13 },
     saveButton: { alignSelf: 'flex-start', minWidth: 160 },
-    list: { gap: 12 },
-    projectGroup: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, padding: 14, gap: 16 },
-    projectTitle: { fontSize: 19, ...Typography.default('semiBold') },
-    machineCards: { gap: 10 },
+    list: { gap: 16 },
+    filterChips: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    filterChip: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
+    filterChipText: { fontSize: 14 },
+    search: { minHeight: 44, borderWidth: StyleSheet.hairlineWidth, borderRadius: 11, paddingHorizontal: 14, fontSize: 15, ...Typography.default() },
+    machineBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14 },
+    count: { flexShrink: 0, fontSize: 12 },
+    automationList: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, overflow: 'hidden' },
+    automationRow: { minHeight: 72, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderLeftWidth: 3, borderLeftColor: 'transparent', flexDirection: 'row', alignItems: 'center', gap: 10 },
+    rowPressed: { opacity: 0.72 },
+    rowCopy: { minWidth: 0, flex: 1 },
+    rowTitle: { fontSize: 16, ...Typography.default('semiBold') },
+    rowMeta: { marginTop: 3, fontSize: 13 },
+    rowState: { fontSize: 12 },
     empty: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, padding: 28, alignItems: 'center', gap: 8 },
 }));

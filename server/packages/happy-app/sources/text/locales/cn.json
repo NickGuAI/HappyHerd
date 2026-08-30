@@ -1326,6 +1326,34 @@
       "tags": "项目标签",
       "tagsHint": "每行输入一个项目标签。",
       "tagGuide": "给自动化添加标签：先展开卡片并选择“编辑”，再在“项目标签”中每行输入一个标签并保存。多个标签会让它出现在对应的每个项目中。",
+      "allTags": "全部",
+      "tagFilters": "自动化标签",
+      "searchPlaceholder": "搜索自动化",
+      "automationCount": {
+        "select": {
+          "param": "count",
+          "cases": {
+            "one": "{count} 个自动化",
+            "other": "{count} 个自动化"
+          }
+        }
+      },
+      "noMatches": "没有符合这些筛选条件的自动化。",
+      "openDetails": "打开 {name} 的详情",
+      "closeDetails": "关闭自动化详情",
+      "backToAutomations": "返回自动化",
+      "instructions": "指令",
+      "showFullInstruction": "显示完整指令",
+      "showLessInstruction": "收起",
+      "details": "详情",
+      "project": "项目",
+      "scheduleSection": "计划",
+      "previousRuns": "历史运行",
+      "lifecycle": "生命周期",
+      "loadingRuns": "正在加载历史运行",
+      "listLabel": "自动化",
+      "lastRun": "上次运行",
+      "neverRun": "从不",
       "tagsRequiresUpgrade": "请更新此机器上的 HappyHerd 后再编辑标签。",
       "untagged": "未标记",
       "machineLoadFailed": "无法加载 {name}：{message}",

@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 30 — Streamlined Automations Experience",
+      "summary": "",
+      "markdown": "- Browse automations faster with a compact list powered by dynamic project-tag filters and search instead of repeating card sections.\n- Inspect automations in a desktop side panel or mobile full-width view with preserved search filters, collapsible Markdown instructions, and quick access to schedules, run history, and controls."
+    },
+    {
       "title": "August 29 — Side chats open consistently",
       "summary": "",
       "markdown": "- The `Side chats` control opens the exact parent session's conversations in the desktop right panel and the narrow or mobile full-screen view, with the same selected conversation on either surface.\n- Humans can again create and open an empty side chat in one click, then type normally in its composer.\n- Main Agents continue to create side chats with the structured six-field `happyherd session side-chat create` CLI flow."
@@ -356,5 +361,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 29 — Side chats open consistently"
+  "latestTitle": "August 30 — Streamlined Automations Experience"
 }
