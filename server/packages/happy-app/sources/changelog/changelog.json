@@ -3,7 +3,7 @@
     {
       "title": "August 30 — Streamlined Automations Experience",
       "summary": "",
-      "markdown": "- Browse automations faster with a compact list powered by dynamic project-tag filters and search instead of repeating card sections.\n- Inspect automations in a desktop side panel or mobile full-width view with preserved search filters, collapsible Markdown instructions, and quick access to schedules, run history, and controls."
+      "markdown": "- Browse automations faster with a compact list powered by dynamic project-tag filters and search instead of repeating card sections.\n- Inspect automations in a desktop side panel or mobile full-width view with preserved search filters, collapsible Markdown instructions, compact rows showing localized, human-readable cadence and next-run information, and details featuring localized automation kinds, run states, run history, and controls."
     },
     {
       "title": "August 29 — Side chats open consistently",

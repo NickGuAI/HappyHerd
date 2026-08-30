@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "a25ca332df76ac921523641a094bb0f653eb3a40ffe8ed8dc1a7874ef03a3306",
+  "sourceFingerprint": "58367a7510c54f722b2098f6069a8f6ea8b3683cd9b143426396700a2cc7e2c8",
   "routeCount": 36,
-  "surfaceCount": 247,
+  "surfaceCount": 248,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -124,8 +124,7 @@
         "happyHerd.automations.unableSave",
         "happyHerd.automations.unableUpdate",
         "happyHerd.automations.unknownError",
-        "happyHerd.automations.workspace",
-        "happyHerd.heartbeat.every"
+        "happyHerd.automations.workspace"
       ],
       "states": []
     },
@@ -1232,8 +1231,7 @@
         "happyHerd.automations.unableSave",
         "happyHerd.automations.unableUpdate",
         "happyHerd.automations.unknownError",
-        "happyHerd.automations.workspace",
-        "happyHerd.heartbeat.every"
+        "happyHerd.automations.workspace"
       ],
       "states": [],
       "hardcodedCopy": []
@@ -3248,6 +3246,37 @@
         "happyHerd.heartbeat.every",
         "happyHerd.heartbeat.interval",
         "happyHerd.heartbeat.openTarget"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/happyHerdAutomationPresentation.ts",
+      "kind": "ui-module",
+      "route": null,
+      "exports": [
+        "happyHerdAutomationKindLabel",
+        "happyHerdAutomationRowMeta",
+        "happyHerdAutomationRunStatusLabel"
+      ],
+      "translationKeys": [
+        "happyHerd.automations.cadenceDailyAt",
+        "happyHerd.automations.cadenceMonthlyAt",
+        "happyHerd.automations.cadenceScheduled",
+        "happyHerd.automations.cadenceWeekdaysAt",
+        "happyHerd.automations.cadenceWeeklyAt",
+        "happyHerd.automations.kindHeartbeat",
+        "happyHerd.automations.kindMemoryMaintenance",
+        "happyHerd.automations.kindScheduled",
+        "happyHerd.automations.nextRunIn",
+        "happyHerd.automations.nextRunNow",
+        "happyHerd.automations.runStatusCompleted",
+        "happyHerd.automations.runStatusFailed",
+        "happyHerd.automations.runStatusMissed",
+        "happyHerd.automations.runStatusRunning",
+        "happyHerd.automations.runStatusSkipped",
+        "happyHerd.automations.statusPaused",
+        "happyHerd.heartbeat.every"
       ],
       "states": [],
       "hardcodedCopy": []
@@ -5528,6 +5557,7 @@
       "route": null,
       "exports": [
         "HEARTBEAT_COMMAND",
+        "formatCompactCountdown",
         "formatHeartbeatControlResult",
         "formatHeartbeatStatusPresentation"
       ],

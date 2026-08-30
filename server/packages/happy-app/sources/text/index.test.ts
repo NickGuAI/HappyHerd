@@ -42,6 +42,10 @@ describe('JSON i18n runtime', () => {
         setCurrentLanguage('de');
         expect(t('happyHerd.automations.automationCount', { count: 1 })).toBe('1 Automatisierung');
         expect(t('happyHerd.automations.automationCount', { count: 2 })).toBe('2 Automatisierungen');
+
+        setCurrentLanguage('cn');
+        expect(t('happyHerd.automations.automationCount', { count: 1 })).toBe('1 个自动化');
+        expect(t('happyHerd.automations.automationCount', { count: 2 })).toBe('2 个自动化');
     });
 
     it('preserves literal double-brace provider variables', () => {

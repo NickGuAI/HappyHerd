@@ -81,7 +81,7 @@ function compactInterval(intervalSeconds: number): string {
     return `${intervalSeconds}s`;
 }
 
-function compactCountdown(seconds: number): string {
+export function formatCompactCountdown(seconds: number): string {
     if (seconds >= 86_400) return `${Math.ceil(seconds / 86_400)}d`;
     if (seconds >= 3_600) return `${Math.ceil(seconds / 3_600)}h`;
     if (seconds >= 60) return `${Math.ceil(seconds / 60)}m`;
@@ -131,7 +131,7 @@ export function formatHeartbeatStatusPresentation(
         ));
         const countdown = remainingSeconds === 0
             ? translate('happyHerd.heartbeat.dueNow')
-            : translate('happyHerd.heartbeat.countdownIn', { duration: compactCountdown(remainingSeconds) });
+            : translate('happyHerd.heartbeat.countdownIn', { duration: formatCompactCountdown(remainingSeconds) });
         nextDue = translate('happyHerd.heartbeat.nextDue', {
             time: new Date(heartbeat.nextDueAt).toLocaleString(),
             countdown,

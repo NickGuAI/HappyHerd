@@ -33,6 +33,10 @@ import {
     type HappyHerdAutomationMachineCollection,
     type HappyHerdAutomationMachineFailure,
 } from '@/components/happyHerdAutomationGroups';
+import {
+    happyHerdAutomationKindLabel,
+    happyHerdAutomationRowMeta,
+} from '@/components/happyHerdAutomationPresentation';
 import { Modal } from '@/modal';
 import {
     machineAutomationHistory,
@@ -49,7 +53,7 @@ import { useAllMachines } from '@/sync/storage';
 import type { Machine } from '@/sync/storageTypes';
 import { isMachineOnline } from '@/utils/machineUtils';
 import { Typography } from '@/constants/Typography';
-import { t } from '@/text';
+import { getCurrentLanguage, t } from '@/text';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 import {
     automationProfileStart,
@@ -79,6 +83,10 @@ const automationMachineActions = createHappyHerdAutomationMachineActions({
         () => machineDeleteAutomation(machineId, automationId),
     ),
 });
+
+const translateAutomation = (key: any, params?: Record<string, string | number>) => (
+    (t as any)(key, params)
+);
 
 type Draft = {
     name: string;
@@ -144,10 +152,12 @@ function draftFromAutomation(automation: HappyHerdAutomation): Draft {
 
 function Choice<T extends string>({
     value,
+    label = value,
     selected,
     onSelect,
 }: {
     value: T;
+    label?: string;
     selected: boolean;
     onSelect: (value: T) => void;
 }) {
@@ -159,7 +169,7 @@ function Choice<T extends string>({
             accessibilityState={{ selected }}
             style={[styles.choice, selected && { backgroundColor: theme.colors.text }]}
         >
-            <Text style={[styles.choiceText, selected && { color: theme.colors.surface }]}>{value}</Text>
+            <Text style={[styles.choiceText, selected && { color: theme.colors.surface }]}>{label}</Text>
         </Pressable>
     );
 }
@@ -313,8 +323,8 @@ export default function AutomationsScreen() {
         [automations, searchQuery, selectedTag],
     );
     const selectedAutomation = React.useMemo(
-        () => automations.find((automation) => automation.id === selectedAutomationId) ?? null,
-        [automations, selectedAutomationId],
+        () => filteredAutomations.find((automation) => automation.id === selectedAutomationId) ?? null,
+        [filteredAutomations, selectedAutomationId],
     );
     const selectedDefinitionSchemaVersion = machineCollections.find(
         (collection) => collection.machine.id === (editingMachineId ?? machineId),
@@ -647,7 +657,13 @@ export default function AutomationsScreen() {
                     <Text style={styles.label}>{t('happyHerd.automations.kind')}</Text>
                     <View style={styles.choices}>
                         {(['scheduled', 'memory-maintenance'] as const).map((kind) => (
-                            <Choice key={kind} value={kind} selected={draft.kind === kind} onSelect={(next) => setDraft((current) => ({ ...current, kind: next }))} />
+                            <Choice
+                                key={kind}
+                                value={kind}
+                                label={happyHerdAutomationKindLabel(kind, translateAutomation)}
+                                selected={draft.kind === kind}
+                                onSelect={(next) => setDraft((current) => ({ ...current, kind: next }))}
+                            />
                         ))}
                     </View>
                     <View style={desktop ? styles.twoColumns : undefined}>
@@ -686,7 +702,17 @@ export default function AutomationsScreen() {
                             <Text style={styles.label}>{t('happyHerd.automations.initialState')}</Text>
                             <View style={styles.choices}>
                                 {(['paused', 'active'] as const).map((status) => (
-                                    <Choice key={status} value={status} selected={draft.status === status} onSelect={(next) => setDraft((current) => ({ ...current, status: next }))} />
+                                    <Choice
+                                        key={status}
+                                        value={status}
+                                        label={t(
+                                            status === 'active'
+                                                ? 'happyHerd.automations.statusActive'
+                                                : 'happyHerd.automations.statusPaused',
+                                        )}
+                                        selected={draft.status === status}
+                                        onSelect={(next) => setDraft((current) => ({ ...current, status: next }))}
+                                    />
                                 ))}
                             </View>
                         </View>
@@ -791,9 +817,11 @@ export default function AutomationsScreen() {
                         >
                             {filteredAutomations.map((automation) => {
                                 const selected = automation.id === selectedAutomationId;
-                                const schedule = automation.kind === 'heartbeat'
-                                    ? `${t('happyHerd.heartbeat.every')} ${automation.intervalSeconds}s`
-                                    : automation.schedule;
+                                const schedule = happyHerdAutomationRowMeta(
+                                    automation,
+                                    translateAutomation,
+                                    getCurrentLanguage(),
+                                );
                                 return (
                                     <Pressable
                                         key={automation.id}

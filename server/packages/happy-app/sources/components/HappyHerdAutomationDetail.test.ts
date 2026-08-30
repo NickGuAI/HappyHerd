@@ -190,6 +190,8 @@ describe('HappyHerdAutomationDetail', () => {
             .toEqual(expect.arrayContaining([
                 'MainEC2',
                 'dream · health',
+                'happyHerd.automations.kindScheduled',
+                'happyHerd.automations.runStatusCompleted',
                 '0 7 * * *',
                 'happyHerd.automations.runNow',
                 'happyHerd.automations.editAction',
@@ -201,6 +203,23 @@ describe('HappyHerdAutomationDetail', () => {
             accessibilityLabel: 'happyHerd.automations.openSession:session-123',
         }).props.onPress());
         expect(props.onOpenSession).toHaveBeenCalledWith('session-123');
+    });
+
+    it('uses the approved bounded desktop detail width', () => {
+        const { renderer } = renderDetail();
+        const panel = renderer.root.findByProps({
+            accessibilityLabel: 'happyHerd.automations.details',
+        });
+
+        expect(panel.props.style.flat()).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                width: '34%',
+                minWidth: 420,
+                maxWidth: 470,
+                flexGrow: 0,
+                flexBasis: 'auto',
+            }),
+        ]));
     });
 
     it('shows a retry action instead of a false empty state when history loading fails', () => {

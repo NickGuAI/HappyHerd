@@ -137,6 +137,7 @@ const translations: Record<string, string> = {
 };
 
 vi.mock('@/text', () => ({
+    getCurrentLanguage: () => 'en',
     t: (key: string, values?: Record<string, unknown>) => Object.entries(values ?? {}).reduce(
         (value, [name, replacement]) => value.replace(`{${name}}`, String(replacement)),
         translations[key] ?? key,
@@ -426,6 +427,55 @@ describe('AutomationsScreen master-detail behavior', () => {
         expect(renderer.root.findAll((node: any) => (
             node.type === 'Pressable' && node.props.accessibilityLabel?.startsWith('Open details for ')
         ))).toHaveLength(0);
+    });
+
+    it('clears selected detail when tag or search filters exclude it', async () => {
+        testState.machines = [machine('machine-a', 100)];
+        testState.listAutomations.mockResolvedValue({
+            definitionSchemaVersion: 3,
+            automations: [
+                automation('11111111-1111-4111-8111-111111111111', 'machine-a', 'Daily Attention', ['dream']),
+                automation('22222222-2222-4222-8222-222222222222', 'machine-a', 'Evening Review', ['health']),
+            ],
+        });
+        const renderer = await renderScreen();
+
+        await act(async () => {
+            renderer.root.findByProps({ accessibilityLabel: 'Open details for Daily Attention' }).props.onPress();
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+        expect(renderer.root.findByType('AutomationDetail' as any).props.automation.name)
+            .toBe('Daily Attention');
+
+        const search = renderer.root.findByProps({ accessibilityLabel: 'Search automations' });
+        await act(async () => {
+            search.props.onChangeText('evening');
+            await Promise.resolve();
+        });
+        expect(renderer.root.findAllByType('AutomationDetail' as any)).toHaveLength(0);
+
+        await act(async () => {
+            search.props.onChangeText('');
+            await Promise.resolve();
+        });
+        expect(renderer.root.findAllByType('AutomationDetail' as any)).toHaveLength(0);
+
+        await act(async () => {
+            renderer.root.findByProps({ accessibilityLabel: 'Open details for Evening Review' }).props.onPress();
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+        const dreamChip = renderer.root.findAll((node: any) => (
+            node.type === 'Pressable'
+            && node.props.accessibilityRole === 'radio'
+            && nodeText(node) === 'dream'
+        ))[0];
+        await act(async () => {
+            dreamChip.props.onPress();
+            await Promise.resolve();
+        });
+        expect(renderer.root.findAllByType('AutomationDetail' as any)).toHaveLength(0);
     });
 
     it('keeps the desktop list beside detail and restores preserved filters after mobile Back', async () => {

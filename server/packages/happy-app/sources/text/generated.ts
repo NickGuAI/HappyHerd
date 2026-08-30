@@ -300,6 +300,11 @@ export type TranslationKey =
     | "happyHerd.automations.attempt"
     | "happyHerd.automations.automationCount"
     | "happyHerd.automations.backToAutomations"
+    | "happyHerd.automations.cadenceDailyAt"
+    | "happyHerd.automations.cadenceMonthlyAt"
+    | "happyHerd.automations.cadenceScheduled"
+    | "happyHerd.automations.cadenceWeekdaysAt"
+    | "happyHerd.automations.cadenceWeeklyAt"
     | "happyHerd.automations.closeDetails"
     | "happyHerd.automations.collapseDetails"
     | "happyHerd.automations.commander"
@@ -320,6 +325,9 @@ export type TranslationKey =
     | "happyHerd.automations.instruction"
     | "happyHerd.automations.instructions"
     | "happyHerd.automations.kind"
+    | "happyHerd.automations.kindHeartbeat"
+    | "happyHerd.automations.kindMemoryMaintenance"
+    | "happyHerd.automations.kindScheduled"
     | "happyHerd.automations.lastRun"
     | "happyHerd.automations.lifecycle"
     | "happyHerd.automations.listLabel"
@@ -330,6 +338,8 @@ export type TranslationKey =
     | "happyHerd.automations.name"
     | "happyHerd.automations.neverRun"
     | "happyHerd.automations.new"
+    | "happyHerd.automations.nextRunIn"
+    | "happyHerd.automations.nextRunNow"
     | "happyHerd.automations.noMatches"
     | "happyHerd.automations.noRuns"
     | "happyHerd.automations.none"
@@ -341,6 +351,11 @@ export type TranslationKey =
     | "happyHerd.automations.rail"
     | "happyHerd.automations.resume"
     | "happyHerd.automations.runNow"
+    | "happyHerd.automations.runStatusCompleted"
+    | "happyHerd.automations.runStatusFailed"
+    | "happyHerd.automations.runStatusMissed"
+    | "happyHerd.automations.runStatusRunning"
+    | "happyHerd.automations.runStatusSkipped"
     | "happyHerd.automations.save"
     | "happyHerd.automations.scheduleSection"
     | "happyHerd.automations.searchPlaceholder"
@@ -1366,11 +1381,16 @@ export interface TranslationParamsByKey {
     "friends.sentOn": { date: string };
     "happyHerd.automations.attempt": { count: number };
     "happyHerd.automations.automationCount": { count: number };
+    "happyHerd.automations.cadenceDailyAt": { time: string };
+    "happyHerd.automations.cadenceMonthlyAt": { day: string; time: string };
+    "happyHerd.automations.cadenceWeekdaysAt": { time: string };
+    "happyHerd.automations.cadenceWeeklyAt": { day: string; time: string };
     "happyHerd.automations.collapseDetails": { name: string };
     "happyHerd.automations.commanderValue": { id: string };
     "happyHerd.automations.deleteDescription": { name: string };
     "happyHerd.automations.expandDetails": { name: string };
     "happyHerd.automations.machineLoadFailed": { message: string; name: string };
+    "happyHerd.automations.nextRunIn": { duration: string };
     "happyHerd.automations.openDetails": { name: string };
     "happyHerd.automations.openSession": { id: string };
     "happyHerd.commanderAvatars.updated": { name: string };

@@ -6,6 +6,10 @@ import type { HappyHerdAutomation, HappyHerdAutomationRun } from '@slopus/happy-
 
 import { Text as StyledText } from '@/components/StyledText';
 import { MarkdownView } from '@/components/markdown/MarkdownView';
+import {
+    happyHerdAutomationKindLabel,
+    happyHerdAutomationRunStatusLabel,
+} from '@/components/happyHerdAutomationPresentation';
 import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
 
@@ -13,6 +17,10 @@ function Text(props: React.ComponentProps<typeof StyledText>) {
     const { theme } = useUnistyles();
     return <StyledText {...props} style={[{ color: theme.colors.text }, props.style]} />;
 }
+
+const translateAutomation = (key: any, params?: Record<string, string | number>) => (
+    (t as any)(key, params)
+);
 
 type SettingRowProps = {
     label: string;
@@ -195,7 +203,10 @@ export function HappyHerdAutomationDetail({
                 <View style={[styles.settingsCard, { borderColor: theme.colors.divider }]}>
                     <SettingRow label={t('happyHerd.automations.machine')} value={machineName} />
                     <SettingRow label={t('happyHerd.automations.project')} value={project} />
-                    <SettingRow label={t('happyHerd.automations.kind')} value={automation.kind} />
+                    <SettingRow
+                        label={t('happyHerd.automations.kind')}
+                        value={happyHerdAutomationKindLabel(automation.kind, translateAutomation)}
+                    />
                     <SettingRow label={t('happyHerd.automations.rail')} value={automation.rail} />
                     <SettingRow
                         label={t('happyHerd.automations.commander')}
@@ -262,7 +273,9 @@ export function HappyHerdAutomationDetail({
                                     ]}
                                 />
                                 <View style={styles.runCopy}>
-                                    <Text style={styles.runStatus}>{run.status}</Text>
+                                    <Text style={styles.runStatus}>
+                                        {happyHerdAutomationRunStatusLabel(run.status, translateAutomation)}
+                                    </Text>
                                     {run.message && (
                                         <Text style={{ color: theme.colors.textSecondary }} numberOfLines={2}>
                                             {run.message}
@@ -376,7 +389,15 @@ export function HappyHerdAutomationDetail({
 
 const styles = StyleSheet.create(() => ({
     panel: { minWidth: 0, flex: 1 },
-    panelDesktop: { maxWidth: 470, borderLeftWidth: StyleSheet.hairlineWidth },
+    panelDesktop: {
+        width: '34%',
+        minWidth: 420,
+        maxWidth: 470,
+        flexGrow: 0,
+        flexShrink: 0,
+        flexBasis: 'auto',
+        borderLeftWidth: StyleSheet.hairlineWidth,
+    },
     panelMobile: { width: '100%' },
     header: {
         minHeight: 92,
