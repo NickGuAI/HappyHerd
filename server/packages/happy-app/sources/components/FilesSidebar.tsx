@@ -485,7 +485,7 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
                     )}
                 </ScrollView>
             ) : (
-                <AllFilesTab
+                <AllFilesPicker
                     sessionId={sessionId}
                     selectedPath={selectedPath ?? null}
                     onFilePress={onAllFilesFilePress}
@@ -589,7 +589,7 @@ const PanelChip = React.memo(function PanelChip({
 });
 
 /** All-files tab: reads from Zustand store, fetches on mount */
-const AllFilesTab = React.memo(function AllFilesTab({
+export const AllFilesPicker = React.memo(function AllFilesPicker({
     sessionId,
     selectedPath,
     onFilePress,

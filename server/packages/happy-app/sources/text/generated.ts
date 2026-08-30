@@ -220,6 +220,7 @@ export type TranslationKey =
     | "files.cannotDisplayBinary"
     | "files.changedFiles"
     | "files.changes"
+    | "files.closeFileTab"
     | "files.closePanel"
     | "files.deleted"
     | "files.detachedHead"
@@ -239,9 +240,12 @@ export type TranslationKey =
     | "files.noFilesInProject"
     | "files.notRepo"
     | "files.notUnderGit"
+    | "files.openExistingFile"
+    | "files.openFileTab"
     | "files.overwrite"
     | "files.projectRoot"
     | "files.reload"
+    | "files.resizeWorkspace"
     | "files.saveFile"
     | "files.searchPlaceholder"
     | "files.searchResults"
@@ -296,7 +300,16 @@ export type TranslationKey =
     | "friends.title"
     | "friends.userNotFound"
     | "grok.permissions.noProvideFeedback"
+    | "happyHerd.automations.allTags"
     | "happyHerd.automations.attempt"
+    | "happyHerd.automations.automationCount"
+    | "happyHerd.automations.backToAutomations"
+    | "happyHerd.automations.cadenceDailyAt"
+    | "happyHerd.automations.cadenceMonthlyAt"
+    | "happyHerd.automations.cadenceScheduled"
+    | "happyHerd.automations.cadenceWeekdaysAt"
+    | "happyHerd.automations.cadenceWeeklyAt"
+    | "happyHerd.automations.closeDetails"
     | "happyHerd.automations.collapseDetails"
     | "happyHerd.automations.commander"
     | "happyHerd.automations.commanderValue"
@@ -305,6 +318,7 @@ export type TranslationKey =
     | "happyHerd.automations.delete"
     | "happyHerd.automations.deleteDescription"
     | "happyHerd.automations.deleteTitle"
+    | "happyHerd.automations.details"
     | "happyHerd.automations.edit"
     | "happyHerd.automations.editAction"
     | "happyHerd.automations.emptySubtitle"
@@ -313,24 +327,49 @@ export type TranslationKey =
     | "happyHerd.automations.history"
     | "happyHerd.automations.initialState"
     | "happyHerd.automations.instruction"
+    | "happyHerd.automations.instructions"
     | "happyHerd.automations.kind"
+    | "happyHerd.automations.kindHeartbeat"
+    | "happyHerd.automations.kindMemoryMaintenance"
+    | "happyHerd.automations.kindScheduled"
+    | "happyHerd.automations.lastRun"
+    | "happyHerd.automations.lifecycle"
+    | "happyHerd.automations.listLabel"
+    | "happyHerd.automations.loadingRuns"
     | "happyHerd.automations.machine"
     | "happyHerd.automations.machineLoadFailed"
     | "happyHerd.automations.machineOffline"
     | "happyHerd.automations.name"
+    | "happyHerd.automations.neverRun"
     | "happyHerd.automations.new"
+    | "happyHerd.automations.nextRunIn"
+    | "happyHerd.automations.nextRunNow"
+    | "happyHerd.automations.noMatches"
     | "happyHerd.automations.noRuns"
     | "happyHerd.automations.none"
+    | "happyHerd.automations.openDetails"
     | "happyHerd.automations.openSession"
     | "happyHerd.automations.pause"
+    | "happyHerd.automations.previousRuns"
+    | "happyHerd.automations.project"
     | "happyHerd.automations.rail"
     | "happyHerd.automations.resume"
     | "happyHerd.automations.runNow"
+    | "happyHerd.automations.runStatusCompleted"
+    | "happyHerd.automations.runStatusFailed"
+    | "happyHerd.automations.runStatusMissed"
+    | "happyHerd.automations.runStatusRunning"
+    | "happyHerd.automations.runStatusSkipped"
     | "happyHerd.automations.save"
+    | "happyHerd.automations.scheduleSection"
+    | "happyHerd.automations.searchPlaceholder"
+    | "happyHerd.automations.showFullInstruction"
+    | "happyHerd.automations.showLessInstruction"
     | "happyHerd.automations.spawnRetries"
     | "happyHerd.automations.statusActive"
     | "happyHerd.automations.statusPaused"
     | "happyHerd.automations.subtitle"
+    | "happyHerd.automations.tagFilters"
     | "happyHerd.automations.tagGuide"
     | "happyHerd.automations.tags"
     | "happyHerd.automations.tagsHint"
@@ -378,6 +417,7 @@ export type TranslationKey =
     | "happyHerd.composer.sendFailedTitle"
     | "happyHerd.composer.startVoice"
     | "happyHerd.composer.stop"
+    | "happyHerd.composer.transcribingVoice"
     | "happyHerd.features.commanderProfilePictures"
     | "happyHerd.features.commanderProfilePicturesSubtitle"
     | "happyHerd.features.fileDiffsSidebar"
@@ -524,7 +564,9 @@ export type TranslationKey =
     | "modals.terminalConnectedSuccessfully"
     | "modelMode.savedModelUnavailableDaemon"
     | "modelMode.unavailableSelectedDaemon"
+    | "navigation.collapseSidebar"
     | "navigation.connectTerminal"
+    | "navigation.expandSidebar"
     | "navigation.friends"
     | "navigation.linkNewDevice"
     | "navigation.restoreWithSecretKey"
@@ -1149,6 +1191,7 @@ export type TranslationKey =
     | "uiCopy.runTheFollowingCommandInYourTerminal"
     | "uiCopy.runningAndQueued"
     | "uiCopy.sandbox"
+    | "uiCopy.saved"
     | "uiCopy.saving"
     | "uiCopy.search"
     | "uiCopy.searchAgents"
@@ -1334,7 +1377,9 @@ export interface TranslationParamsByKey {
     "feed.friendAccepted": { name: string };
     "feed.friendRequestFrom": { name: string };
     "files.changedFiles": { count: number };
+    "files.closeFileTab": { name: string };
     "files.loadingFile": { fileName: string };
+    "files.openFileTab": { name: string };
     "files.searchResults": { count: number };
     "files.stagedChanges": { count: number };
     "files.summary": { staged: number; unstaged: number };
@@ -1345,11 +1390,18 @@ export interface TranslationParamsByKey {
     "friends.requestSentDescription": { name: string };
     "friends.sentOn": { date: string };
     "happyHerd.automations.attempt": { count: number };
+    "happyHerd.automations.automationCount": { count: number };
+    "happyHerd.automations.cadenceDailyAt": { time: string };
+    "happyHerd.automations.cadenceMonthlyAt": { day: string; time: string };
+    "happyHerd.automations.cadenceWeekdaysAt": { time: string };
+    "happyHerd.automations.cadenceWeeklyAt": { day: string; time: string };
     "happyHerd.automations.collapseDetails": { name: string };
     "happyHerd.automations.commanderValue": { id: string };
     "happyHerd.automations.deleteDescription": { name: string };
     "happyHerd.automations.expandDetails": { name: string };
     "happyHerd.automations.machineLoadFailed": { message: string; name: string };
+    "happyHerd.automations.nextRunIn": { duration: string };
+    "happyHerd.automations.openDetails": { name: string };
     "happyHerd.automations.openSession": { id: string };
     "happyHerd.commanderAvatars.updated": { name: string };
     "happyHerd.heartbeat.confirmation": { cadence: string; state: string };

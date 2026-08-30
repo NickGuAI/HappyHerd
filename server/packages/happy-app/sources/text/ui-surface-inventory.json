@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "4c979f81f09274a3354c97f7988d73ce4dc68c8a47b51b880dc81f773c477717",
+  "sourceFingerprint": "65baa0876fd8e8d89c8cb3f0fa2c93164be597249e72520c27d8128186b8a103",
   "routeCount": 36,
-  "surfaceCount": 246,
+  "surfaceCount": 250,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -80,6 +80,9 @@
       "path": "/automations",
       "owner": "sources/app/(app)/automations/index.tsx",
       "translationKeys": [
+        "active",
+        "happyHerd.automations.allTags",
+        "happyHerd.automations.automationCount",
         "happyHerd.automations.commander",
         "happyHerd.automations.create",
         "happyHerd.automations.cron",
@@ -92,17 +95,23 @@
         "happyHerd.automations.initialState",
         "happyHerd.automations.instruction",
         "happyHerd.automations.kind",
+        "happyHerd.automations.listLabel",
         "happyHerd.automations.machine",
         "happyHerd.automations.machineLoadFailed",
         "happyHerd.automations.machineOffline",
         "happyHerd.automations.name",
         "happyHerd.automations.new",
+        "happyHerd.automations.noMatches",
         "happyHerd.automations.none",
+        "happyHerd.automations.openDetails",
         "happyHerd.automations.rail",
         "happyHerd.automations.save",
+        "happyHerd.automations.searchPlaceholder",
         "happyHerd.automations.spawnRetries",
+        "happyHerd.automations.statusActive",
+        "happyHerd.automations.statusPaused",
         "happyHerd.automations.subtitle",
-        "happyHerd.automations.tagGuide",
+        "happyHerd.automations.tagFilters",
         "happyHerd.automations.tags",
         "happyHerd.automations.tagsHint",
         "happyHerd.automations.tagsRequiresUpgrade",
@@ -115,7 +124,6 @@
         "happyHerd.automations.unableSave",
         "happyHerd.automations.unableUpdate",
         "happyHerd.automations.unknownError",
-        "happyHerd.automations.untagged",
         "happyHerd.automations.workspace"
       ],
       "states": []
@@ -739,8 +747,6 @@
         "happyHerd.features.commanderProfilePicturesSubtitle",
         "happyHerd.features.interface",
         "happyHerd.features.interfaceFooter",
-        "happyHerd.features.voiceInput",
-        "happyHerd.features.voiceInputSubtitle",
         "settingsFeatures.experimentalFeatures",
         "settingsFeatures.experimentalFeaturesDisabled",
         "settingsFeatures.experimentalFeaturesEnabled",
@@ -1002,6 +1008,7 @@
       ],
       "translationKeys": [
         "common.cancel",
+        "common.discard",
         "common.error",
         "common.save",
         "components.agentGoalBar.currentGoal",
@@ -1031,6 +1038,26 @@
       "states": [
         "error"
       ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/-session/workspaceLinkNavigation.ts",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "WorkspaceLinkPressContext",
+        "dismissWorkspaceLinkToOrigin",
+        "openWorkspaceLinkFromSession",
+        "useWorkspaceLinkDismissGuard",
+        "useWorkspaceLinkPress"
+      ],
+      "translationKeys": [
+        "common.cancel",
+        "common.discard",
+        "uiCopy.discardUnsavedChanges",
+        "uiCopy.yourCurrentFileEditsHaveNotBeenSaved"
+      ],
+      "states": [],
       "hardcodedCopy": []
     },
     {
@@ -1179,6 +1206,9 @@
         "AutomationsScreen"
       ],
       "translationKeys": [
+        "active",
+        "happyHerd.automations.allTags",
+        "happyHerd.automations.automationCount",
         "happyHerd.automations.commander",
         "happyHerd.automations.create",
         "happyHerd.automations.cron",
@@ -1191,17 +1221,23 @@
         "happyHerd.automations.initialState",
         "happyHerd.automations.instruction",
         "happyHerd.automations.kind",
+        "happyHerd.automations.listLabel",
         "happyHerd.automations.machine",
         "happyHerd.automations.machineLoadFailed",
         "happyHerd.automations.machineOffline",
         "happyHerd.automations.name",
         "happyHerd.automations.new",
+        "happyHerd.automations.noMatches",
         "happyHerd.automations.none",
+        "happyHerd.automations.openDetails",
         "happyHerd.automations.rail",
         "happyHerd.automations.save",
+        "happyHerd.automations.searchPlaceholder",
         "happyHerd.automations.spawnRetries",
+        "happyHerd.automations.statusActive",
+        "happyHerd.automations.statusPaused",
         "happyHerd.automations.subtitle",
-        "happyHerd.automations.tagGuide",
+        "happyHerd.automations.tagFilters",
         "happyHerd.automations.tags",
         "happyHerd.automations.tagsHint",
         "happyHerd.automations.tagsRequiresUpgrade",
@@ -1214,7 +1250,6 @@
         "happyHerd.automations.unableSave",
         "happyHerd.automations.unableUpdate",
         "happyHerd.automations.unknownError",
-        "happyHerd.automations.untagged",
         "happyHerd.automations.workspace"
       ],
       "states": [],
@@ -1931,8 +1966,6 @@
         "happyHerd.features.commanderProfilePicturesSubtitle",
         "happyHerd.features.interface",
         "happyHerd.features.interfaceFooter",
-        "happyHerd.features.voiceInput",
-        "happyHerd.features.voiceInputSubtitle",
         "settingsFeatures.experimentalFeatures",
         "settingsFeatures.experimentalFeaturesDisabled",
         "settingsFeatures.experimentalFeaturesEnabled",
@@ -2377,6 +2410,7 @@
         "happyHerd.composer.send",
         "happyHerd.composer.startVoice",
         "happyHerd.composer.stop",
+        "happyHerd.composer.transcribingVoice",
         "settings.title",
         "uiCopy.claude",
         "uiCopy.codex",
@@ -2861,6 +2895,27 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/DesktopFileWorkspace.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "DesktopFileWorkspace",
+        "DesktopFileWorkspaceDivider",
+        "DesktopFileWorkspaceSplit"
+      ],
+      "translationKeys": [
+        "common.back",
+        "files.allFiles",
+        "files.changes",
+        "files.closeFileTab",
+        "files.openExistingFile",
+        "files.openFileTab",
+        "files.resizeWorkspace"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/diff/DiffView.tsx",
       "kind": "component",
       "route": null,
@@ -3074,6 +3129,7 @@
       "kind": "sidebar",
       "route": null,
       "exports": [
+        "AllFilesPicker",
         "FilesSidebar"
       ],
       "translationKeys": [
@@ -3102,6 +3158,7 @@
         "FileViewPanel"
       ],
       "translationKeys": [
+        "common.cancel",
         "common.error",
         "files.cannotDisplayBinary",
         "files.diff",
@@ -3115,7 +3172,10 @@
         "files.saveFile",
         "uiCopy.preview",
         "uiCopy.previewOfValue",
-        "uiCopy.source"
+        "uiCopy.saved",
+        "uiCopy.saving",
+        "uiCopy.source",
+        "uiCopy.unsaved"
       ],
       "states": [
         "error"
@@ -3181,6 +3241,86 @@
         "happyHerd.automations.resume",
         "happyHerd.automations.runNow",
         "happyHerd.heartbeat.openTarget"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/HappyHerdAutomationDetail.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "HappyHerdAutomationDetail"
+      ],
+      "translationKeys": [
+        "common.back",
+        "common.retry",
+        "happyHerd.automations.backToAutomations",
+        "happyHerd.automations.closeDetails",
+        "happyHerd.automations.commander",
+        "happyHerd.automations.cron",
+        "happyHerd.automations.delete",
+        "happyHerd.automations.details",
+        "happyHerd.automations.editAction",
+        "happyHerd.automations.instructions",
+        "happyHerd.automations.kind",
+        "happyHerd.automations.lastRun",
+        "happyHerd.automations.lifecycle",
+        "happyHerd.automations.loadingRuns",
+        "happyHerd.automations.machine",
+        "happyHerd.automations.neverRun",
+        "happyHerd.automations.noRuns",
+        "happyHerd.automations.none",
+        "happyHerd.automations.openSession",
+        "happyHerd.automations.pause",
+        "happyHerd.automations.previousRuns",
+        "happyHerd.automations.project",
+        "happyHerd.automations.rail",
+        "happyHerd.automations.resume",
+        "happyHerd.automations.runNow",
+        "happyHerd.automations.scheduleSection",
+        "happyHerd.automations.showFullInstruction",
+        "happyHerd.automations.showLessInstruction",
+        "happyHerd.automations.statusActive",
+        "happyHerd.automations.statusPaused",
+        "happyHerd.automations.timezone",
+        "happyHerd.automations.unableHistory",
+        "happyHerd.automations.untagged",
+        "happyHerd.automations.workspace",
+        "happyHerd.heartbeat.every",
+        "happyHerd.heartbeat.interval",
+        "happyHerd.heartbeat.openTarget"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/happyHerdAutomationPresentation.ts",
+      "kind": "ui-module",
+      "route": null,
+      "exports": [
+        "happyHerdAutomationKindLabel",
+        "happyHerdAutomationRowMeta",
+        "happyHerdAutomationRunStatusLabel"
+      ],
+      "translationKeys": [
+        "happyHerd.automations.cadenceDailyAt",
+        "happyHerd.automations.cadenceMonthlyAt",
+        "happyHerd.automations.cadenceScheduled",
+        "happyHerd.automations.cadenceWeekdaysAt",
+        "happyHerd.automations.cadenceWeeklyAt",
+        "happyHerd.automations.kindHeartbeat",
+        "happyHerd.automations.kindMemoryMaintenance",
+        "happyHerd.automations.kindScheduled",
+        "happyHerd.automations.nextRunIn",
+        "happyHerd.automations.nextRunNow",
+        "happyHerd.automations.runStatusCompleted",
+        "happyHerd.automations.runStatusFailed",
+        "happyHerd.automations.runStatusMissed",
+        "happyHerd.automations.runStatusRunning",
+        "happyHerd.automations.runStatusSkipped",
+        "happyHerd.automations.statusPaused",
+        "happyHerd.heartbeat.every"
       ],
       "states": [],
       "hardcodedCopy": []
@@ -4246,6 +4386,8 @@
         "SidebarNavigator"
       ],
       "translationKeys": [
+        "navigation.collapseSidebar",
+        "navigation.expandSidebar",
         "zen.toggle"
       ],
       "states": [],
@@ -4958,11 +5100,15 @@
       ],
       "translationKeys": [
         "common.back",
+        "common.cancel",
+        "common.discard",
         "common.fileViewer",
         "common.retry",
         "errors.tryAgain",
+        "uiCopy.discardUnsavedChanges",
         "uiCopy.machineNotFound",
         "uiCopy.openFolderValue",
+        "uiCopy.yourCurrentFileEditsHaveNotBeenSaved",
         "workspace.emptyFolder",
         "workspace.linkMachineMissingDescription",
         "workspace.linkPathMissingDescription",
@@ -5461,6 +5607,8 @@
       "route": null,
       "exports": [
         "HEARTBEAT_COMMAND",
+        "formatCompactCountdown",
+        "formatCompactInterval",
         "formatHeartbeatControlResult",
         "formatHeartbeatStatusPresentation"
       ],

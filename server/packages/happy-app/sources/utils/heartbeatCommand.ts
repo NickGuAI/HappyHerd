@@ -74,14 +74,14 @@ function heartbeatCommandSuggestions(translate: Translate): Array<{ command: str
     return [HEARTBEAT_COMMAND.name, ...HEARTBEAT_COMMAND.aliases].map((command) => ({ command, description }));
 }
 
-function compactInterval(intervalSeconds: number): string {
+export function formatCompactInterval(intervalSeconds: number): string {
     if (intervalSeconds % 86_400 === 0) return `${intervalSeconds / 86_400}d`;
     if (intervalSeconds % 3_600 === 0) return `${intervalSeconds / 3_600}h`;
     if (intervalSeconds % 60 === 0) return `${intervalSeconds / 60}m`;
     return `${intervalSeconds}s`;
 }
 
-function compactCountdown(seconds: number): string {
+export function formatCompactCountdown(seconds: number): string {
     if (seconds >= 86_400) return `${Math.ceil(seconds / 86_400)}d`;
     if (seconds >= 3_600) return `${Math.ceil(seconds / 3_600)}h`;
     if (seconds >= 60) return `${Math.ceil(seconds / 60)}m`;
@@ -131,7 +131,7 @@ export function formatHeartbeatStatusPresentation(
         ));
         const countdown = remainingSeconds === 0
             ? translate('happyHerd.heartbeat.dueNow')
-            : translate('happyHerd.heartbeat.countdownIn', { duration: compactCountdown(remainingSeconds) });
+            : translate('happyHerd.heartbeat.countdownIn', { duration: formatCompactCountdown(remainingSeconds) });
         nextDue = translate('happyHerd.heartbeat.nextDue', {
             time: new Date(heartbeat.nextDueAt).toLocaleString(),
             countdown,
@@ -142,7 +142,7 @@ export function formatHeartbeatStatusPresentation(
         : heartbeat.instruction;
     return {
         summary: translate('happyHerd.heartbeat.confirmation', {
-            cadence: compactInterval(heartbeat.intervalSeconds),
+            cadence: formatCompactInterval(heartbeat.intervalSeconds),
             state,
         }),
         details: [

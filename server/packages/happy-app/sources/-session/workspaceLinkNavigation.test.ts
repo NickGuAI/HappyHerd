@@ -5,11 +5,16 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 const mocks = vi.hoisted(() => ({
     usePreventRemove: vi.fn(),
+    navigationDispatch: vi.fn(),
+    confirm: vi.fn(),
 }));
 
 vi.mock('@react-navigation/native', () => ({
+    useNavigation: () => ({ dispatch: mocks.navigationDispatch }),
     usePreventRemove: mocks.usePreventRemove,
 }));
+vi.mock('@/modal', () => ({ Modal: { confirm: mocks.confirm } }));
+vi.mock('@/text', () => ({ t: (key: string) => key }));
 
 import {
     dismissWorkspaceLinkToOrigin,
@@ -41,6 +46,9 @@ afterAll(() => vi.restoreAllMocks());
 
 beforeEach(() => {
     mocks.usePreventRemove.mockReset();
+    mocks.navigationDispatch.mockReset();
+    mocks.confirm.mockReset();
+    mocks.confirm.mockResolvedValue(false);
 });
 
 function DismissGuardHarness() {
@@ -124,6 +132,63 @@ describe('workspace link navigation', () => {
         expect(mocks.usePreventRemove).toHaveBeenLastCalledWith(false, expect.any(Function));
         expect(renderer.root.findByType('DismissGuardHarness' as any).props.sendingRef.current).toBe(false);
 
+        act(() => renderer.unmount());
+    });
+
+    it('guards dirty mobile route dismissal until discard is confirmed', async () => {
+        const dismiss = vi.fn();
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(React.createElement(DismissGuardHarness));
+        });
+
+        act(() => {
+            renderer.root.findByType('DismissGuardHarness' as any).props.onDirtyChange(true);
+        });
+        expect(mocks.usePreventRemove).toHaveBeenLastCalledWith(true, expect.any(Function));
+
+        await act(async () => {
+            renderer.root.findByType('DismissGuardHarness' as any).props.guardDismiss(dismiss);
+            await Promise.resolve();
+        });
+        expect(mocks.confirm).toHaveBeenCalledWith(
+            'uiCopy.discardUnsavedChanges',
+            'uiCopy.yourCurrentFileEditsHaveNotBeenSaved',
+            { cancelText: 'common.cancel', confirmText: 'common.discard', destructive: true },
+        );
+        expect(dismiss).not.toHaveBeenCalled();
+
+        mocks.confirm.mockResolvedValueOnce(true);
+        await act(async () => {
+            renderer.root.findByType('DismissGuardHarness' as any).props.guardDismiss(dismiss);
+            await Promise.resolve();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+        });
+        expect(dismiss).toHaveBeenCalledOnce();
+        expect(renderer.root.findByType('DismissGuardHarness' as any).props.dirtyRef.current).toBe(false);
+        expect(mocks.usePreventRemove).toHaveBeenLastCalledWith(false, expect.any(Function));
+
+        act(() => renderer.unmount());
+    });
+
+    it('replays an intercepted native back action after dirty discard confirmation', async () => {
+        mocks.confirm.mockResolvedValueOnce(true);
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(React.createElement(DismissGuardHarness));
+        });
+        act(() => {
+            renderer.root.findByType('DismissGuardHarness' as any).props.onDirtyChange(true);
+        });
+        const preventRemoveHandler = mocks.usePreventRemove.mock.calls.at(-1)?.[1];
+
+        await act(async () => {
+            preventRemoveHandler({ data: { action: { type: 'GO_BACK' } } });
+            await Promise.resolve();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+        });
+
+        expect(mocks.navigationDispatch).toHaveBeenCalledWith({ type: 'GO_BACK' });
         act(() => renderer.unmount());
     });
 });

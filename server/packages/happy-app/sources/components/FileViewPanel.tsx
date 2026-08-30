@@ -35,6 +35,7 @@ import { FileDocumentPreview } from '@/components/FileDocumentPreview';
 interface FileViewPanelProps {
     sessionId: string;
     filePath: string;
+    active?: boolean;
     /** Publishes the right-side controls (edit/preview toggle, save button) into the chat header. */
     onHeaderRightSlotChange: (slot: React.ReactNode) => void;
     onDirtyChange?: (dirty: boolean) => void;
@@ -64,6 +65,7 @@ export interface FileContentPanelProps {
     ) => Promise<FileContentWriteResult>;
     canWrite: boolean;
     markdownSessionId?: string;
+    active?: boolean;
     onHeaderRightSlotChange: (slot: React.ReactNode) => void;
     onDirtyChange?: (dirty: boolean) => void;
 }
@@ -81,6 +83,9 @@ type EditableFileSnapshot = {
     hash: string;
     hasUtf8Bom: boolean;
 };
+
+type FileDisplayMode = 'source' | 'preview' | 'edit';
+type FileSaveStatus = 'idle' | 'saved';
 
 function getFileLanguage(path: string): string | null {
     const ext = path.split('.').pop()?.toLowerCase();
@@ -174,6 +179,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     writeFile,
     canWrite,
     markdownSessionId,
+    active = true,
     onHeaderRightSlotChange,
     onDirtyChange,
 }: FileContentPanelProps) {
@@ -181,8 +187,10 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     const [fileState, setFileState] = React.useState<FileState>({ kind: 'loading' });
     const [editContent, setEditContent] = React.useState('');
     const [isSaving, setIsSaving] = React.useState(false);
-    const [displayMode, setDisplayMode] = React.useState<'edit' | 'preview'>('edit');
+    const [displayMode, setDisplayMode] = React.useState<FileDisplayMode>('source');
+    const [saveStatus, setSaveStatus] = React.useState<FileSaveStatus>('idle');
     const [reloadRevision, setReloadRevision] = React.useState(0);
+    const previousViewModeRef = React.useRef<Exclude<FileDisplayMode, 'edit'>>('source');
 
     // External change detection
     const [externalChange, setExternalChange] = React.useState<EditableFileSnapshot | null>(null);
@@ -210,6 +218,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     React.useEffect(() => {
         let cancelled = false;
         setFileState({ kind: 'loading' });
+        setSaveStatus('idle');
         setExternalChange(null);
         setShowConflictDiff(false);
 
@@ -271,12 +280,39 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     }, [resourceKey, filePath, previewKind, readFile, reloadRevision]);
 
     React.useEffect(() => {
-        setDisplayMode(hasSourcePreview ? 'preview' : 'edit');
+        const defaultMode = hasSourcePreview ? 'preview' : 'source';
+        previousViewModeRef.current = defaultMode;
+        setDisplayMode(defaultMode);
     }, [filePath, hasSourcePreview]);
+
+    const handleDisplayModeChange = React.useCallback((mode: FileDisplayMode) => {
+        if (mode === 'edit') {
+            if (displayMode !== 'edit') {
+                previousViewModeRef.current = displayMode;
+            }
+            setSaveStatus('idle');
+        } else {
+            previousViewModeRef.current = mode;
+        }
+        setDisplayMode(mode);
+    }, [displayMode]);
+
+    const handleEditContentChange = React.useCallback((content: string) => {
+        setEditContent(content);
+        setSaveStatus('idle');
+    }, []);
+
+    const handleCancel = React.useCallback(() => {
+        if (fileState.kind !== 'loaded' || isSaving) return;
+        setEditContent(fileState.content);
+        setSaveStatus('idle');
+        setShowConflictDiff(false);
+        setDisplayMode(previousViewModeRef.current);
+    }, [fileState, isSaving]);
 
     // Poll for external changes every 5s
     React.useEffect(() => {
-        if (fileState.kind !== 'loaded' || !fileState.originalHash) return;
+        if (!active || fileState.kind !== 'loaded' || !fileState.originalHash) return;
         const originalHash = fileState.originalHash;
 
         const interval = setInterval(async () => {
@@ -287,7 +323,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
         }, 5000);
 
         return () => clearInterval(interval);
-    }, [resourceKey, filePath, fileState, readFile]);
+    }, [active, resourceKey, filePath, fileState, readFile]);
 
     const handleReload = React.useCallback(() => {
         if (externalChange === null) return;
@@ -343,6 +379,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                 originalHash: savedHash,
                 hasUtf8Bom: fileState.hasUtf8Bom,
             });
+            setSaveStatus('saved');
             setExternalChange(null);
             setShowConflictDiff(false);
         } finally {
@@ -375,6 +412,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                 originalHash: savedHash,
                 hasUtf8Bom: fileState.hasUtf8Bom,
             });
+            setSaveStatus('saved');
             setExternalChange(null);
             setShowConflictDiff(false);
         } finally {
@@ -382,26 +420,90 @@ export const FileContentPanel = React.memo(function FileContentPanel({
         }
     }, [filePath, editContent, fileState, canWrite, readFile, writeFile]);
 
-    // Publish right-slot controls (edit/preview toggle, save button) into the chat header.
+    // Publish the shared Source/Preview/Edit mode control into the host header.
     const isLoaded = fileState.kind === 'loaded';
     React.useEffect(() => {
+        if (!active) {
+            onHeaderRightSlotChange(null);
+            return;
+        }
         onHeaderRightSlotChange(
             <FileHeaderRight
                 hasSourcePreview={hasSourcePreview}
                 isLoaded={isLoaded}
                 displayMode={displayMode}
-                onDisplayModeChange={setDisplayMode}
-                hasChanges={hasChanges}
-                isSaving={isSaving}
-                onSave={handleSave}
+                onDisplayModeChange={handleDisplayModeChange}
                 canWrite={canWrite}
             />
         );
         return () => onHeaderRightSlotChange(null);
-    }, [hasSourcePreview, isLoaded, displayMode, hasChanges, isSaving, handleSave, onHeaderRightSlotChange, canWrite]);
+    }, [active, hasSourcePreview, isLoaded, displayMode, handleDisplayModeChange, onHeaderRightSlotChange, canWrite]);
+
+    const saveStatusLabel = isSaving
+        ? t('uiCopy.saving')
+        : hasChanges
+            ? t('uiCopy.unsaved')
+            : saveStatus === 'saved'
+                ? t('uiCopy.saved')
+                : null;
+    const showEditActions = canWrite
+        && isLoaded
+        && (displayMode === 'edit' || hasChanges || saveStatus === 'saved');
 
     return (
         <View style={styles.outer}>
+            {showEditActions && (
+                <View style={[styles.editorActionBar, { borderBottomColor: theme.colors.divider, backgroundColor: theme.colors.surfaceHigh }]}>
+                    {saveStatusLabel ? (
+                        <Text
+                            accessibilityLiveRegion="polite"
+                            style={[
+                                styles.saveStatus,
+                                { color: hasChanges ? theme.colors.warning : theme.colors.textSecondary },
+                            ]}
+                        >
+                            {saveStatusLabel}
+                        </Text>
+                    ) : null}
+                    <View style={{ flex: 1 }} />
+                    <Pressable
+                        accessibilityRole="button"
+                        disabled={isSaving}
+                        onPress={handleCancel}
+                        style={({ pressed }) => [
+                            styles.secondaryActionButton,
+                            { borderColor: theme.colors.divider, opacity: isSaving ? 0.5 : pressed ? 0.75 : 1 },
+                        ]}
+                    >
+                        <Text style={[styles.actionButtonTextSecondary, { color: theme.colors.text }]}>
+                            {t('common.cancel')}
+                        </Text>
+                    </Pressable>
+                    <Pressable
+                        accessibilityRole="button"
+                        disabled={!hasChanges || isSaving}
+                        onPress={handleSave}
+                        style={({ pressed }) => [
+                            styles.actionButton,
+                            {
+                                backgroundColor: hasChanges ? theme.colors.textLink : theme.colors.input.background,
+                                opacity: !hasChanges ? 0.4 : isSaving ? 0.6 : pressed ? 0.8 : 1,
+                            },
+                        ]}
+                    >
+                        {isSaving ? (
+                            <ActivityIndicator size="small" color="white" />
+                        ) : (
+                            <Text style={[
+                                hasChanges ? styles.actionButtonText : styles.actionButtonTextSecondary,
+                                !hasChanges && { color: theme.colors.textSecondary },
+                            ]}>
+                                {t('files.saveFile')}
+                            </Text>
+                        )}
+                    </Pressable>
+                </View>
+            )}
             {/* External change warning bar */}
             {externalChange && !showConflictDiff && (
                 <View style={[styles.warningBar, { backgroundColor: theme.colors.warning + '18', borderBottomColor: theme.colors.divider }]}>
@@ -536,9 +638,9 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                 <View style={{ flex: 1, maxWidth: layout.maxWidth, alignSelf: 'center', width: '100%' }}>
                     <EditorView
                         value={editContent}
-                        onChange={setEditContent}
+                        onChange={handleEditContentChange}
                         language={language}
-                        readOnly={!canWrite}
+                        readOnly={!canWrite || displayMode !== 'edit'}
                     />
                 </View>
             )}
@@ -554,6 +656,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
 export const FileViewPanel = React.memo(function FileViewPanel({
     sessionId,
     filePath,
+    active = true,
     onHeaderRightSlotChange,
     onDirtyChange,
 }: FileViewPanelProps) {
@@ -577,6 +680,7 @@ export const FileViewPanel = React.memo(function FileViewPanel({
             writeFile={writeFile}
             canWrite={rigCanWriteFiles(session?.metadata)}
             markdownSessionId={sessionId}
+            active={active}
             onHeaderRightSlotChange={onHeaderRightSlotChange}
             onDirtyChange={onDirtyChange}
         />
@@ -589,82 +693,79 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
     isLoaded,
     displayMode,
     onDisplayModeChange,
-    hasChanges,
-    isSaving,
-    onSave,
     canWrite,
 }: {
     hasSourcePreview: boolean;
     isLoaded: boolean;
-    displayMode: 'edit' | 'preview';
-    onDisplayModeChange: (mode: 'edit' | 'preview') => void;
-    hasChanges: boolean;
-    isSaving: boolean;
-    onSave: () => void;
+    displayMode: FileDisplayMode;
+    onDisplayModeChange: (mode: FileDisplayMode) => void;
     canWrite: boolean;
 }) {
     const { theme } = useUnistyles();
+    const showModeControls = isLoaded && (hasSourcePreview || canWrite);
     return (
         <>
-            {hasSourcePreview && isLoaded && (
+            {showModeControls && (
                 <View style={[styles.toggleRow, { backgroundColor: theme.colors.groupped.background, borderColor: theme.colors.divider }]}>
                     <Pressable
-                        onPress={() => onDisplayModeChange('edit')}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: displayMode === 'source' }}
+                        onPress={() => onDisplayModeChange('source')}
                         style={[
                             styles.toggleButton,
-                            displayMode === 'edit' && { backgroundColor: theme.colors.surface },
+                            displayMode === 'source' && { backgroundColor: theme.colors.surface },
                         ]}
                     >
                         <Text style={[
                             styles.toggleText,
                             { color: theme.colors.textSecondary },
-                            displayMode === 'edit' && styles.toggleTextActive,
-                            displayMode === 'edit' && { color: theme.colors.text },
+                            displayMode === 'source' && styles.toggleTextActive,
+                            displayMode === 'source' && { color: theme.colors.text },
                         ]}>
-                            {canWrite ? t('files.editFile') : t("uiCopy.source")}
+                            {t('uiCopy.source')}
                         </Text>
                     </Pressable>
-                    <Pressable
-                        onPress={() => onDisplayModeChange('preview')}
-                        style={[
-                            styles.toggleButton,
-                            displayMode === 'preview' && { backgroundColor: theme.colors.surface },
-                        ]}
-                    >
-                        <Text style={[
-                            styles.toggleText,
-                            { color: theme.colors.textSecondary },
-                            displayMode === 'preview' && styles.toggleTextActive,
-                            displayMode === 'preview' && { color: theme.colors.text },
-                        ]}>
-                            {t("uiCopy.preview")}
-                        </Text>
-                    </Pressable>
-                </View>
-            )}
-            {canWrite && isLoaded && (
-                <Pressable
-                    onPress={onSave}
-                    disabled={!hasChanges || isSaving}
-                    style={({ pressed }) => [
-                        styles.actionButton,
-                        {
-                            backgroundColor: hasChanges ? theme.colors.textLink : theme.colors.input.background,
-                            opacity: !hasChanges ? 0.4 : isSaving ? 0.6 : pressed ? 0.8 : 1,
-                        },
-                    ]}
-                >
-                    {isSaving ? (
-                        <ActivityIndicator size="small" color="white" />
-                    ) : (
-                        <Text style={[
-                            hasChanges ? styles.actionButtonText : styles.actionButtonTextSecondary,
-                            !hasChanges && { color: theme.colors.textSecondary },
-                        ]}>
-                            {t('files.saveFile')}
-                        </Text>
+                    {hasSourcePreview && (
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: displayMode === 'preview' }}
+                            onPress={() => onDisplayModeChange('preview')}
+                            style={[
+                                styles.toggleButton,
+                                displayMode === 'preview' && { backgroundColor: theme.colors.surface },
+                            ]}
+                        >
+                            <Text style={[
+                                styles.toggleText,
+                                { color: theme.colors.textSecondary },
+                                displayMode === 'preview' && styles.toggleTextActive,
+                                displayMode === 'preview' && { color: theme.colors.text },
+                            ]}>
+                                {t('uiCopy.preview')}
+                            </Text>
+                        </Pressable>
                     )}
-                </Pressable>
+                    {canWrite && (
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: displayMode === 'edit' }}
+                            onPress={() => onDisplayModeChange('edit')}
+                            style={[
+                                styles.toggleButton,
+                                displayMode === 'edit' && { backgroundColor: theme.colors.surface },
+                            ]}
+                        >
+                            <Text style={[
+                                styles.toggleText,
+                                { color: theme.colors.textSecondary },
+                                displayMode === 'edit' && styles.toggleTextActive,
+                                displayMode === 'edit' && { color: theme.colors.text },
+                            ]}>
+                                {t('files.editFile')}
+                            </Text>
+                        </Pressable>
+                    )}
+                </View>
             )}
         </>
     );
@@ -766,6 +867,26 @@ const styles = StyleSheet.create((theme) => ({
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 6,
+    },
+    secondaryActionButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 6,
+        borderWidth: StyleSheet.hairlineWidth,
+    },
+    editorActionBar: {
+        minHeight: 46,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 12,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    saveStatus: {
+        fontSize: 12,
+        ...Typography.default('semiBold'),
     },
     actionButtonText: {
         fontSize: 13,

@@ -117,7 +117,11 @@ function WorkspaceLinkRouteScreen({ params }: {
 }) {
     const router = useRouter();
     const safeArea = useSafeAreaInsets();
-    const { onSendingChange: onFeedbackSendingChange } = useWorkspaceLinkDismissGuard();
+    const {
+        onSendingChange: onFeedbackSendingChange,
+        onDirtyChange,
+        guardDismiss,
+    } = useWorkspaceLinkDismissGuard();
     const originSessionId = param(params.originSessionId);
     const machineId = param(params.machineId);
     const absolutePath = param(params.absolutePath);
@@ -152,13 +156,14 @@ function WorkspaceLinkRouteScreen({ params }: {
                 key={workspaceLinkViewerKey(reference)}
                 reference={reference}
                 headerTopInset={safeArea.top}
-                onBack={() => router.back()}
+                onBack={() => guardDismiss(() => router.back())}
+                onDirtyChange={onDirtyChange}
                 onFeedbackSendingChange={onFeedbackSendingChange}
-                onFeedbackSent={(receipt) => dismissWorkspaceLinkToOrigin(
+                onFeedbackSent={(receipt) => guardDismiss(() => dismissWorkspaceLinkToOrigin(
                     router,
                     reference.originSessionId,
                     receipt.localId,
-                )}
+                ))}
             />
         </View>
     );

@@ -36,6 +36,16 @@ describe('JSON i18n runtime', () => {
     it('renders typed placeholders and plural cases from JSON', () => {
         expect(t('time.minutesAgo', { count: 1 })).toBe('1 minute ago');
         expect(t('time.minutesAgo', { count: 2 })).toBe('2 minutes ago');
+        expect(t('happyHerd.automations.automationCount', { count: 1 })).toBe('1 automation');
+        expect(t('happyHerd.automations.automationCount', { count: 2 })).toBe('2 automations');
+
+        setCurrentLanguage('de');
+        expect(t('happyHerd.automations.automationCount', { count: 1 })).toBe('1 Automatisierung');
+        expect(t('happyHerd.automations.automationCount', { count: 2 })).toBe('2 Automatisierungen');
+
+        setCurrentLanguage('cn');
+        expect(t('happyHerd.automations.automationCount', { count: 1 })).toBe('1 个自动化');
+        expect(t('happyHerd.automations.automationCount', { count: 2 })).toBe('2 个自动化');
     });
 
     it('preserves literal double-brace provider variables', () => {

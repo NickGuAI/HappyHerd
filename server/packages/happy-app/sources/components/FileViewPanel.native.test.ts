@@ -110,7 +110,54 @@ async function renderPanel(overrides: Partial<FileContentPanelProps>) {
     };
 }
 
+function findPressableByText(renderer: ReactTestRenderer, label: string) {
+    return renderer.root.findAllByType('Pressable' as any).find((button: any) => (
+        button.findAllByType('Text' as any).some((text: any) => text.props.children === label)
+    ));
+}
+
+function renderedText(renderer: ReactTestRenderer): unknown[] {
+    return renderer.root.findAllByType('Text' as any).map((node: any) => node.props.children);
+}
+
+function renderHeader(panel: Awaited<ReturnType<typeof renderPanel>>): ReactTestRenderer {
+    let header!: ReactTestRenderer;
+    act(() => { header = create(panel.getHeaderSlot() as React.ReactElement); });
+    return header;
+}
+
+async function waitForEditor(renderer: ReactTestRenderer) {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+        await act(async () => {
+            await vi.dynamicImportSettled();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+        });
+        if (renderer.root.findAllByType('TextInput' as any).length > 0) return;
+    }
+    throw new Error('Editor did not load');
+}
+
 describe('FileContentPanel native editing', () => {
+    it('edits a plain .txt file through the shared Source and Edit controls', async () => {
+        const original = Buffer.from('before\n');
+        const panel = await renderPanel({
+            filePath: '/workspace/notes.txt',
+            readFile: vi.fn(async () => ({ success: true, content: original.toString('base64') })),
+        });
+
+        let header = renderHeader(panel);
+        expect(renderedText(header)).toEqual(expect.arrayContaining(['uiCopy.source', 'files.editFile']));
+        act(() => findPressableByText(header, 'files.editFile')!.props.onPress());
+        act(() => header.unmount());
+        await waitForEditor(panel.renderer);
+
+        const input = panel.renderer.root.findByType('TextInput' as any);
+        expect(input.props).toMatchObject({ editable: true, value: 'before\n' });
+        act(() => input.props.onChangeText('after\n'));
+        expect(renderedText(panel.renderer)).toContain('uiCopy.unsaved');
+        act(() => panel.renderer.unmount());
+    });
+
     it.each(['notes.png', 'notes.pdf', 'settings.bmp', 'sentinel.gif', 'notes.svg'])(
         'routes valid UTF-8 named %s to the editor instead of a rich preview',
         async (fileName) => {
@@ -130,28 +177,126 @@ describe('FileContentPanel native editing', () => {
         const updated = Buffer.from([0xef, 0xbb, 0xbf, ...Buffer.from('TOKEN=after\n')]);
         const readFile = vi.fn(async () => ({ success: true, content: original.toString('base64') }));
         const writeFile = vi.fn(async () => ({ success: true }));
-        const panel = await renderPanel({ readFile, writeFile });
+        const onDirtyChange = vi.fn();
+        const panel = await renderPanel({ readFile, writeFile, onDirtyChange });
 
-        const input = panel.renderer.root.findByType('TextInput' as any);
+        let input = panel.renderer.root.findByType('TextInput' as any);
+        expect(input.props).toMatchObject({ editable: false, value: 'TOKEN=before\n' });
+
+        let header = renderHeader(panel);
+        expect(renderedText(header)).toEqual(expect.arrayContaining(['uiCopy.source', 'files.editFile']));
+        await act(async () => {
+            findPressableByText(header, 'files.editFile')!.props.onPress();
+        });
+        act(() => header.unmount());
+        await waitForEditor(panel.renderer);
+
+        input = panel.renderer.root.findByType('TextInput' as any);
         expect(input.props).toMatchObject({ editable: true, value: 'TOKEN=before\n' });
 
         act(() => input.props.onChangeText('TOKEN=after\n'));
 
-        let header!: ReactTestRenderer;
-        act(() => { header = create(panel.getHeaderSlot() as React.ReactElement); });
-        const save = header.root.findByType('Pressable' as any);
-        await act(async () => { await save.props.onPress(); });
+        expect(renderedText(panel.renderer)).toContain('uiCopy.unsaved');
+        expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+        const save = findPressableByText(panel.renderer, 'files.saveFile');
+        await act(async () => { await save!.props.onPress(); });
 
         expect(writeFile).toHaveBeenCalledWith(
             '/workspace/.xxenv',
             updated.toString('base64'),
             createHash('sha256').update(original).digest('hex'),
         );
+        expect(renderedText(panel.renderer)).toContain('uiCopy.saved');
+        expect(onDirtyChange).toHaveBeenLastCalledWith(false);
 
         act(() => {
-            header.unmount();
             panel.renderer.unmount();
         });
+    });
+
+    it('cancels a dirty edit without writing and returns to the saved source', async () => {
+        const original = Buffer.from('before\n');
+        const writeFile = vi.fn(async () => ({ success: true }));
+        const onDirtyChange = vi.fn();
+        const panel = await renderPanel({
+            readFile: vi.fn(async () => ({ success: true, content: original.toString('base64') })),
+            writeFile,
+            onDirtyChange,
+        });
+
+        let header = renderHeader(panel);
+        await act(async () => {
+            findPressableByText(header, 'files.editFile')!.props.onPress();
+            await vi.dynamicImportSettled();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+        });
+        act(() => header.unmount());
+
+        act(() => panel.renderer.root.findByType('TextInput' as any).props.onChangeText('after\n'));
+        expect(renderedText(panel.renderer)).toContain('uiCopy.unsaved');
+        expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+
+        act(() => findPressableByText(panel.renderer, 'common.cancel')!.props.onPress());
+
+        expect(writeFile).not.toHaveBeenCalled();
+        expect(panel.renderer.root.findByType('TextInput' as any).props).toMatchObject({
+            editable: false,
+            value: 'before\n',
+        });
+        expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+        expect(renderedText(panel.renderer)).not.toContain('uiCopy.unsaved');
+        act(() => panel.renderer.unmount());
+    });
+
+    it('keeps saved Markdown current in both Preview and Source', async () => {
+        const original = Buffer.from('# Before\n');
+        const updated = Buffer.from('# After\n');
+        const writeFile = vi.fn(async () => ({ success: true, hash: 'saved-hash' }));
+        const panel = await renderPanel({
+            filePath: '/workspace/notes.md',
+            readFile: vi.fn(async () => ({ success: true, content: original.toString('base64') })),
+            writeFile,
+        });
+
+        expect(panel.renderer.root.findByType('MarkdownView' as any).props.markdown).toBe('# Before\n');
+        let header = renderHeader(panel);
+        expect(renderedText(header)).toEqual(expect.arrayContaining([
+            'uiCopy.source',
+            'uiCopy.preview',
+            'files.editFile',
+        ]));
+        await act(async () => {
+            findPressableByText(header, 'files.editFile')!.props.onPress();
+            await vi.dynamicImportSettled();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+        });
+        act(() => header.unmount());
+
+        act(() => panel.renderer.root.findByType('TextInput' as any).props.onChangeText('# After\n'));
+        header = renderHeader(panel);
+        act(() => findPressableByText(header, 'uiCopy.preview')!.props.onPress());
+        act(() => header.unmount());
+        expect(panel.renderer.root.findByType('MarkdownView' as any).props.markdown).toBe('# After\n');
+
+        await act(async () => {
+            await findPressableByText(panel.renderer, 'files.saveFile')!.props.onPress();
+        });
+        expect(writeFile).toHaveBeenCalledWith(
+            '/workspace/notes.md',
+            updated.toString('base64'),
+            createHash('sha256').update(original).digest('hex'),
+        );
+        expect(renderedText(panel.renderer)).toContain('uiCopy.saved');
+
+        header = renderHeader(panel);
+        act(() => findPressableByText(header, 'uiCopy.source')!.props.onPress());
+        act(() => header.unmount());
+        await waitForEditor(panel.renderer);
+        expect(panel.renderer.root.findByType('TextInput' as any).props).toMatchObject({
+            editable: false,
+            value: '# After\n',
+        });
+        act(() => panel.renderer.unmount());
     });
 
     it('loads the same editor in read-only mode without publishing a save action', async () => {
@@ -171,6 +316,25 @@ describe('FileContentPanel native editing', () => {
         let header!: ReactTestRenderer;
         act(() => { header = create(panel.getHeaderSlot() as React.ReactElement); });
         expect(header.root.findAllByType('Pressable' as any)).toHaveLength(0);
+
+        act(() => {
+            header.unmount();
+            panel.renderer.unmount();
+        });
+    });
+
+    it('does not expose Edit or Save for binary content', async () => {
+        const binary = Buffer.from([0x00, 0xff, 0x01, 0x02]);
+        const panel = await renderPanel({
+            filePath: '/workspace/archive.bin',
+            readFile: vi.fn(async () => ({ success: true, content: binary.toString('base64') })),
+        });
+
+        expect(panel.renderer.root.findAllByType('TextInput' as any)).toHaveLength(0);
+        expect(renderedText(panel.renderer)).toContain('files.cannotDisplayBinary');
+        const header = renderHeader(panel);
+        expect(renderedText(header)).not.toContain('files.editFile');
+        expect(findPressableByText(panel.renderer, 'files.saveFile')).toBeUndefined();
 
         act(() => {
             header.unmount();

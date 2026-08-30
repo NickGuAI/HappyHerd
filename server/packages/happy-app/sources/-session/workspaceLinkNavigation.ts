@@ -1,7 +1,9 @@
 import * as React from 'react';
-import { usePreventRemove } from '@react-navigation/native';
+import { useNavigation, usePreventRemove } from '@react-navigation/native';
 import type { Router } from 'expo-router';
 
+import { Modal } from '@/modal';
+import { t } from '@/text';
 import type { WorkspaceLinkRoute } from '@/utils/markdownWorkspaceLink';
 
 export type WorkspaceLinkPressHandler = (route: WorkspaceLinkRoute) => void;
@@ -31,20 +33,51 @@ export function openWorkspaceLinkFromSession(input: Readonly<{
 }
 
 export function useWorkspaceLinkDismissGuard() {
+    const navigation = useNavigation();
     const sendingRef = React.useRef(false);
+    const dirtyRef = React.useRef(false);
     const [preventRemove, setPreventRemove] = React.useState(false);
     const onSendingChange = React.useCallback((sending: boolean) => {
         sendingRef.current = sending;
-        setPreventRemove(sending);
+        setPreventRemove(sending || dirtyRef.current);
     }, []);
-    const reset = React.useCallback(() => onSendingChange(false), [onSendingChange]);
+    const onDirtyChange = React.useCallback((dirty: boolean) => {
+        dirtyRef.current = dirty;
+        setPreventRemove(dirty || sendingRef.current);
+    }, []);
+    const guardDismiss = React.useCallback((action: () => void) => {
+        if (sendingRef.current) return;
+        if (!dirtyRef.current) {
+            action();
+            return;
+        }
+        void Modal.confirm(
+            t('uiCopy.discardUnsavedChanges'),
+            t('uiCopy.yourCurrentFileEditsHaveNotBeenSaved'),
+            { cancelText: t('common.cancel'), confirmText: t('common.discard'), destructive: true },
+        ).then((confirmed) => {
+            if (!confirmed) return;
+            dirtyRef.current = false;
+            setPreventRemove(sendingRef.current);
+            // Let usePreventRemove commit false before dispatching a native
+            // back action, matching the feedback-send dismissal lifecycle.
+            setTimeout(action, 0);
+        });
+    }, []);
+    const reset = React.useCallback(() => {
+        sendingRef.current = false;
+        dirtyRef.current = false;
+        setPreventRemove(false);
+    }, []);
 
     // Native-stack reads the PreventRemove context to set iOS
     // preventNativeDismiss. A raw beforeRemove listener cannot protect a
-    // pending Viewer from an interactive native back-swipe.
-    usePreventRemove(preventRemove, React.useCallback(() => undefined, []));
+    // pending Viewer or dirty editor from an interactive native back-swipe.
+    usePreventRemove(preventRemove, React.useCallback((event) => {
+        guardDismiss(() => navigation.dispatch(event.data.action));
+    }, [guardDismiss, navigation]));
 
-    return { sendingRef, onSendingChange, reset };
+    return { sendingRef, dirtyRef, onSendingChange, onDirtyChange, guardDismiss, reset };
 }
 
 export function dismissWorkspaceLinkToOrigin(

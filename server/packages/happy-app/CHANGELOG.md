@@ -1,3 +1,29 @@
+# August 30 — Web Mobile session back navigation
+
+- On Web Mobile, tapping back from an active session now reliably returns directly to the session list in a single tap—even when deep-linked or navigating multiple pages—while preserving native mobile back behavior and standard desktop browser history.
+
+# August 30 — Side-by-side file workspace and tabbed navigation
+
+- Opening files from All Files on wide Web Desktop and Mac displays files in a right workspace beside the visible Main Agent chat and composer with a bounded, draggable divider, while Web Mobile retains full-width file behavior.
+- Open unique file paths into filename tabs with close buttons and a plus button to reopen the file picker, preserving existing preview, edit, save, and unsaved-changes confirmation flows.
+- Viewing Changes or All Files temporarily replaces the file pane without unmounting open tabs or losing unsaved edits; closing Changes restores the active file, and choosing a file from All Files collapses the temporary navigation and focuses the selected tab.
+- Collapse and expand the permanent left navigation using a dedicated chevron that operates independently of browser navigation controls and Zen mode.
+
+# August 30 — Dedicated dictation beside Send
+
+- Active chat composers on desktop and mobile now include a dedicated speech-to-text dictation microphone beside Send, while Send remains an arrow dedicated strictly to sending during idle, recording, transcribing, and retry states.
+- The microphone controls recording, finishing, transcription progress, retries, and cancellation, appending successful OpenAI transcriptions directly into the editable draft without starting realtime voice chat.
+- Enabled the dedicated microphone automatically across Main Agent and Side chat composers on Web Desktop and Web Mobile whenever an account or deployment OpenAI transcription key is configured.
+
+# August 30 — Edit workspace files
+
+- Edit workspace text and Markdown files directly in the linked file viewer on Web Desktop and Web Mobile, with Source, Preview when supported, and Edit modes, clear save states, and saves to the selected machine path. Unsaved edits stay in place through transient refresh failures and require confirmation before leaving the file.
+
+# August 30 — Streamlined Automations Experience
+
+- Browse automations faster with a compact list powered by dynamic project-tag filters and search instead of repeating card sections.
+- Inspect automations in a desktop side panel or mobile full-width view with preserved search filters, collapsible Markdown instructions, compact rows showing localized, human-readable cadence and next-run information, and details featuring localized automation kinds, run states, run history, and controls.
+
 # August 29 — Side chats open consistently
 
 - The `Side chats` control opens the exact parent session's conversations in the desktop right panel and the narrow or mobile full-screen view, with the same selected conversation on either surface.

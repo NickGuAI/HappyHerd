@@ -1,3 +1,3 @@
-export function resolveVoiceInputAvailability(enabled: boolean, configured: boolean): boolean {
-    return enabled && configured;
+export function resolveVoiceInputAvailability(configured: boolean): boolean {
+    return configured;
 }

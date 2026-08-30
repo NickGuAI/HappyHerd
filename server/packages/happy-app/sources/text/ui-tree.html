@@ -11,7 +11,7 @@
 <body><main>
   <p>HappyHerd · generated artifact</p>
   <h1>UI Surface Inventory</h1>
-  <p class="meta">Schema 1 · source 4c979f81f09274a3 · 36 routes · 246 UI owners · 0 hardcoded findings</p>
+  <p class="meta">Schema 1 · source 65baa0876fd8e8d8 · 36 routes · 250 UI owners · 0 hardcoded findings</p>
   <h2>Production routes</h2><div class="table-wrap"><table><thead><tr><th>Route</th><th>Source owner</th><th>Keys</th><th>States</th></tr></thead><tbody>
     <tr>
       <td><code>/artifacts/[id]</code></td>
@@ -40,7 +40,7 @@
     <tr>
       <td><code>/automations</code></td>
       <td><code>sources/app/(app)/automations/index.tsx</code></td>
-      <td>37</td>
+      <td>45</td>
       <td>—</td>
     </tr>
     <tr>
@@ -166,7 +166,7 @@
     <tr>
       <td><code>/settings/features</code></td>
       <td><code>sources/app/(app)/settings/features.tsx</code></td>
-      <td>19</td>
+      <td>17</td>
       <td>—</td>
     </tr>
     <tr>
@@ -234,8 +234,15 @@
       <td>component</td>
       <td><code>sources/-session/SessionView.tsx</code></td>
       <td>SessionView, SessionViewLoaded</td>
-      <td>26</td>
+      <td>27</td>
       <td>error</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/-session/workspaceLinkNavigation.ts</code></td>
+      <td>WorkspaceLinkPressContext, dismissWorkspaceLinkToOrigin, openWorkspaceLinkFromSession, useWorkspaceLinkDismissGuard, useWorkspaceLinkPress</td>
+      <td>4</td>
+      <td>—</td>
     </tr>
     <tr>
       <td>component</td>
@@ -283,7 +290,7 @@
       <td>route</td>
       <td><code>sources/app/(app)/automations/index.tsx</code></td>
       <td>AutomationsScreen</td>
-      <td>37</td>
+      <td>45</td>
       <td>—</td>
     </tr>
     <tr>
@@ -430,7 +437,7 @@
       <td>route</td>
       <td><code>sources/app/(app)/settings/features.tsx</code></td>
       <td>FeaturesSettingsScreen</td>
-      <td>19</td>
+      <td>17</td>
       <td>—</td>
     </tr>
     <tr>
@@ -563,7 +570,7 @@
       <td>component</td>
       <td><code>sources/components/AgentInput.tsx</code></td>
       <td>AgentInput</td>
-      <td>28</td>
+      <td>29</td>
       <td>—</td>
     </tr>
     <tr>
@@ -806,6 +813,13 @@
     </tr>
     <tr>
       <td>component</td>
+      <td><code>sources/components/DesktopFileWorkspace.tsx</code></td>
+      <td>DesktopFileWorkspace, DesktopFileWorkspaceDivider, DesktopFileWorkspaceSplit</td>
+      <td>7</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
       <td><code>sources/components/diff/DiffView.tsx</code></td>
       <td>DiffView</td>
       <td>0</td>
@@ -898,7 +912,7 @@
     <tr>
       <td>sidebar</td>
       <td><code>sources/components/FilesSidebar.tsx</code></td>
-      <td>FilesSidebar</td>
+      <td>AllFilesPicker, FilesSidebar</td>
       <td>12</td>
       <td>—</td>
     </tr>
@@ -906,7 +920,7 @@
       <td>panel</td>
       <td><code>sources/components/FileViewPanel.tsx</code></td>
       <td>FileContentPanel, FileViewPanel</td>
-      <td>14</td>
+      <td>18</td>
       <td>error</td>
     </tr>
     <tr>
@@ -935,6 +949,20 @@
       <td><code>sources/components/HappyHerdAutomationCard.tsx</code></td>
       <td>HappyHerdAutomationCard</td>
       <td>13</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/HappyHerdAutomationDetail.tsx</code></td>
+      <td>HappyHerdAutomationDetail</td>
+      <td>37</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>ui-module</td>
+      <td><code>sources/components/happyHerdAutomationPresentation.ts</code></td>
+      <td>happyHerdAutomationKindLabel, happyHerdAutomationRowMeta, happyHerdAutomationRunStatusLabel</td>
+      <td>17</td>
       <td>—</td>
     </tr>
     <tr>
@@ -1396,7 +1424,7 @@
       <td>sidebar</td>
       <td><code>sources/components/SidebarNavigator.tsx</code></td>
       <td>SidebarNavigator</td>
-      <td>1</td>
+      <td>3</td>
       <td>—</td>
     </tr>
     <tr>
@@ -1746,7 +1774,7 @@
       <td>component</td>
       <td><code>sources/components/WorkspaceLinkViewer.tsx</code></td>
       <td>WorkspaceLinkViewer</td>
-      <td>17</td>
+      <td>21</td>
       <td>—</td>
     </tr>
     <tr>
@@ -1920,7 +1948,7 @@
     <tr>
       <td>component</td>
       <td><code>sources/utils/heartbeatCommand.ts</code></td>
-      <td>HEARTBEAT_COMMAND, formatHeartbeatControlResult, formatHeartbeatStatusPresentation</td>
+      <td>HEARTBEAT_COMMAND, formatCompactCountdown, formatCompactInterval, formatHeartbeatControlResult, formatHeartbeatStatusPresentation</td>
       <td>16</td>
       <td>—</td>
     </tr>
