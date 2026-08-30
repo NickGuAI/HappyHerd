@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 30 — Side-by-side file workspace and tabbed navigation",
+      "summary": "",
+      "markdown": "- Opening files from All Files on wide Web Desktop and Mac displays files in a right workspace beside the visible Main Agent chat and composer with a bounded, draggable divider, while Web Mobile retains full-width file behavior.\n- Open unique file paths into filename tabs with close buttons and a plus button to reopen the file picker, preserving existing preview, edit, save, and unsaved-changes confirmation flows.\n- Collapse and expand the permanent left navigation using a dedicated chevron that operates independently of browser navigation controls and Zen mode."
+    },
+    {
       "title": "August 29 — Side chats open consistently",
       "summary": "",
       "markdown": "- The `Side chats` control opens the exact parent session's conversations in the desktop right panel and the narrow or mobile full-screen view, with the same selected conversation on either surface.\n- Humans can again create and open an empty side chat in one click, then type normally in its composer.\n- Main Agents continue to create side chats with the structured six-field `happyherd session side-chat create` CLI flow."
@@ -356,5 +361,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 29 — Side chats open consistently"
+  "latestTitle": "August 30 — Side-by-side file workspace and tabbed navigation"
 }

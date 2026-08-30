@@ -43,6 +43,16 @@ describe('resolveSessionSidebarPresentation', () => {
         expect(presentation({ fileDiffsSidebarEnabled: true, canUseFilePanels: true }).fileSidebarAvailable).toBe(true);
         expect(presentation({ fileDiffsSidebarEnabled: true, canUseFilePanels: false }).fileSidebarAvailable).toBe(false);
     });
+
+    it('offers the same wide file workspace frame on Mac', () => {
+        expect(presentation({
+            platform: 'ios',
+            runningOnMac: true,
+            windowWidth: 1100,
+            fileDiffsSidebarEnabled: true,
+            canUseFilePanels: true,
+        }).fileSidebarAvailable).toBe(true);
+    });
 });
 
 describe('resolveActiveSideChatId', () => {

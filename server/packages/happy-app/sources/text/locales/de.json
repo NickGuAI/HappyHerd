@@ -875,6 +875,10 @@
     "allFiles": "Alle Dateien",
     "addPanel": "Panel hinzufügen",
     "closePanel": "Panel schließen",
+    "openFileTab": "Datei-Tab {name} öffnen",
+    "closeFileTab": "Datei-Tab {name} schließen",
+    "openExistingFile": "Vorhandene Datei öffnen",
+    "resizeWorkspace": "Dateiarbeitsbereich anpassen",
     "editFile": "Bearbeiten",
     "saveFile": "Speichern",
     "failedToRead": "Datei konnte nicht gelesen werden",
@@ -1044,7 +1048,9 @@
     "linkNewDevice": "Neues Gerät verknüpfen",
     "restoreWithSecretKey": "Mit Secret Key wiederherstellen",
     "whatsNew": "Was ist neu",
-    "friends": "Freunde"
+    "friends": "Freunde",
+    "expandSidebar": "Navigationsseitenleiste ausklappen",
+    "collapseSidebar": "Navigationsseitenleiste einklappen"
   },
   "welcome": {
     "title": "Mobiler Codex- und Claude Code-Client",

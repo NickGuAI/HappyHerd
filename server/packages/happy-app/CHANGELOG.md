@@ -1,3 +1,9 @@
+# August 30 — Side-by-side file workspace and tabbed navigation
+
+- Opening files from All Files on wide Web Desktop and Mac displays files in a right workspace beside the visible Main Agent chat and composer with a bounded, draggable divider, while Web Mobile retains full-width file behavior.
+- Open unique file paths into filename tabs with close buttons and a plus button to reopen the file picker, preserving existing preview, edit, save, and unsaved-changes confirmation flows.
+- Collapse and expand the permanent left navigation using a dedicated chevron that operates independently of browser navigation controls and Zen mode.
+
 # August 29 — Side chats open consistently
 
 - The `Side chats` control opens the exact parent session's conversations in the desktop right panel and the narrow or mobile full-screen view, with the same selected conversation on either surface.

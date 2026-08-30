@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "4c979f81f09274a3354c97f7988d73ce4dc68c8a47b51b880dc81f773c477717",
+  "sourceFingerprint": "1aa7e22af104912a8659824d1595ecae2885f031f197062a80bd07affa14f40e",
   "routeCount": 36,
-  "surfaceCount": 246,
+  "surfaceCount": 247,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -1002,6 +1002,7 @@
       ],
       "translationKeys": [
         "common.cancel",
+        "common.discard",
         "common.error",
         "common.save",
         "components.agentGoalBar.currentGoal",
@@ -2861,6 +2862,26 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/DesktopFileWorkspace.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "DesktopFileWorkspace",
+        "DesktopFileWorkspaceDivider",
+        "DesktopFileWorkspaceSplit"
+      ],
+      "translationKeys": [
+        "common.back",
+        "files.allFiles",
+        "files.closeFileTab",
+        "files.openExistingFile",
+        "files.openFileTab",
+        "files.resizeWorkspace"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/diff/DiffView.tsx",
       "kind": "component",
       "route": null,
@@ -3074,6 +3095,7 @@
       "kind": "sidebar",
       "route": null,
       "exports": [
+        "AllFilesPicker",
         "FilesSidebar"
       ],
       "translationKeys": [
@@ -4246,6 +4268,8 @@
         "SidebarNavigator"
       ],
       "translationKeys": [
+        "navigation.collapseSidebar",
+        "navigation.expandSidebar",
         "zen.toggle"
       ],
       "states": [],

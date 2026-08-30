@@ -220,6 +220,7 @@ export type TranslationKey =
     | "files.cannotDisplayBinary"
     | "files.changedFiles"
     | "files.changes"
+    | "files.closeFileTab"
     | "files.closePanel"
     | "files.deleted"
     | "files.detachedHead"
@@ -239,9 +240,12 @@ export type TranslationKey =
     | "files.noFilesInProject"
     | "files.notRepo"
     | "files.notUnderGit"
+    | "files.openExistingFile"
+    | "files.openFileTab"
     | "files.overwrite"
     | "files.projectRoot"
     | "files.reload"
+    | "files.resizeWorkspace"
     | "files.saveFile"
     | "files.searchPlaceholder"
     | "files.searchResults"
@@ -524,7 +528,9 @@ export type TranslationKey =
     | "modals.terminalConnectedSuccessfully"
     | "modelMode.savedModelUnavailableDaemon"
     | "modelMode.unavailableSelectedDaemon"
+    | "navigation.collapseSidebar"
     | "navigation.connectTerminal"
+    | "navigation.expandSidebar"
     | "navigation.friends"
     | "navigation.linkNewDevice"
     | "navigation.restoreWithSecretKey"
@@ -1334,7 +1340,9 @@ export interface TranslationParamsByKey {
     "feed.friendAccepted": { name: string };
     "feed.friendRequestFrom": { name: string };
     "files.changedFiles": { count: number };
+    "files.closeFileTab": { name: string };
     "files.loadingFile": { fileName: string };
+    "files.openFileTab": { name: string };
     "files.searchResults": { count: number };
     "files.stagedChanges": { count: number };
     "files.summary": { staged: number; unstaged: number };

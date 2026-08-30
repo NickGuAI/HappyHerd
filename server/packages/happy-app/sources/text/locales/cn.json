@@ -805,6 +805,10 @@
     "allFiles": "所有文件",
     "addPanel": "添加面板",
     "closePanel": "关闭面板",
+    "openFileTab": "打开文件标签页 {name}",
+    "closeFileTab": "关闭文件标签页 {name}",
+    "openExistingFile": "打开现有文件",
+    "resizeWorkspace": "调整文件工作区大小",
     "editFile": "编辑",
     "saveFile": "保存",
     "failedToRead": "读取文件失败",
@@ -974,7 +978,9 @@
     "linkNewDevice": "链接新设备",
     "restoreWithSecretKey": "通过密钥恢复",
     "whatsNew": "更新日志",
-    "friends": "好友"
+    "friends": "好友",
+    "expandSidebar": "展开导航侧边栏",
+    "collapseSidebar": "折叠导航侧边栏"
   },
   "welcome": {
     "title": "Codex 和 Claude Code 移动客户端",
