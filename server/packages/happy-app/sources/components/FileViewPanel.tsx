@@ -11,13 +11,13 @@ import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { MarkdownView } from '@/components/markdown/MarkdownView';
 import { PierreDiffView } from '@/components/diff/PierreDiffView';
-import { sessionReadFile, sessionWriteFile } from '@/sync/ops';
+import { sessionDeleteFile, sessionReadFile, sessionWriteFile } from '@/sync/ops';
 import { Modal } from '@/modal';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
 import { layout } from '@/components/layout';
-import { useSession } from '@/sync/storage';
-import { rigCanWriteFiles } from '@/sync/rig';
+import { useMachine, useSession } from '@/sync/storage';
+import { rigCanWriteFiles, sessionCanDeleteFiles } from '@/sync/rig';
 import {
     classifyFilePreview,
     decodeEditableText,
@@ -36,9 +36,11 @@ interface FileViewPanelProps {
     sessionId: string;
     filePath: string;
     active?: boolean;
-    /** Publishes the right-side controls (edit/preview toggle, save button) into the chat header. */
+    headerVariant?: 'standard' | 'desktop-workspace';
+    /** Publishes the right-side file controls into the host header. */
     onHeaderRightSlotChange: (slot: React.ReactNode) => void;
     onDirtyChange?: (dirty: boolean) => void;
+    onDeleted?: (filePath: string) => void;
 }
 
 export type FileContentReadResult = {
@@ -53,6 +55,11 @@ export type FileContentWriteResult = {
     error?: string;
 };
 
+export type FileContentDeleteResult = {
+    success: boolean;
+    error?: string;
+};
+
 export interface FileContentPanelProps {
     /** Changes whenever the backing transport/resource changes. */
     resourceKey: string;
@@ -63,11 +70,14 @@ export interface FileContentPanelProps {
         content: string,
         expectedHash?: string | null,
     ) => Promise<FileContentWriteResult>;
+    deleteFile?: (filePath: string) => Promise<FileContentDeleteResult>;
     canWrite: boolean;
     markdownSessionId?: string;
     active?: boolean;
     onHeaderRightSlotChange: (slot: React.ReactNode) => void;
     onDirtyChange?: (dirty: boolean) => void;
+    onDeleted?: () => void;
+    headerVariant?: 'standard' | 'desktop-workspace';
 }
 
 type FileState =
@@ -177,16 +187,20 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     filePath,
     readFile,
     writeFile,
+    deleteFile,
     canWrite,
     markdownSessionId,
     active = true,
+    headerVariant = 'standard',
     onHeaderRightSlotChange,
     onDirtyChange,
+    onDeleted,
 }: FileContentPanelProps) {
     const { theme } = useUnistyles();
     const [fileState, setFileState] = React.useState<FileState>({ kind: 'loading' });
     const [editContent, setEditContent] = React.useState('');
     const [isSaving, setIsSaving] = React.useState(false);
+    const [isDeleting, setIsDeleting] = React.useState(false);
     const [displayMode, setDisplayMode] = React.useState<FileDisplayMode>('source');
     const [saveStatus, setSaveStatus] = React.useState<FileSaveStatus>('idle');
     const [reloadRevision, setReloadRevision] = React.useState(0);
@@ -420,7 +434,33 @@ export const FileContentPanel = React.memo(function FileContentPanel({
         }
     }, [filePath, editContent, fileState, canWrite, readFile, writeFile]);
 
-    // Publish the shared Source/Preview/Edit mode control into the host header.
+    const handleDelete = React.useCallback(async () => {
+        if (!canWrite || !deleteFile || isDeleting) return;
+        const confirmed = await Modal.confirm(
+            t('files.deleteFileTitle'),
+            t('files.deleteFileDescription'),
+            {
+                cancelText: t('common.cancel'),
+                confirmText: t('files.deleteFile'),
+                destructive: true,
+            },
+        );
+        if (!confirmed) return;
+
+        setIsDeleting(true);
+        try {
+            const response = await deleteFile(filePath);
+            if (!response.success) {
+                Modal.alert(t('common.error'), response.error || t('files.failedToDelete'));
+                return;
+            }
+            onDeleted?.();
+        } finally {
+            setIsDeleting(false);
+        }
+    }, [canWrite, deleteFile, filePath, isDeleting, onDeleted]);
+
+    // Publish the focused Source/Edit/Delete controls into the host header.
     const isLoaded = fileState.kind === 'loaded';
     React.useEffect(() => {
         if (!active) {
@@ -430,14 +470,18 @@ export const FileContentPanel = React.memo(function FileContentPanel({
         onHeaderRightSlotChange(
             <FileHeaderRight
                 hasSourcePreview={hasSourcePreview}
+                showPreviewControl={headerVariant === 'standard'}
                 isLoaded={isLoaded}
                 displayMode={displayMode}
                 onDisplayModeChange={handleDisplayModeChange}
                 canWrite={canWrite}
+                canDelete={headerVariant === 'desktop-workspace' && canWrite && Boolean(deleteFile)}
+                deleting={isDeleting}
+                onDelete={handleDelete}
             />
         );
         return () => onHeaderRightSlotChange(null);
-    }, [active, hasSourcePreview, isLoaded, displayMode, handleDisplayModeChange, onHeaderRightSlotChange, canWrite]);
+    }, [active, canWrite, deleteFile, displayMode, handleDelete, handleDisplayModeChange, hasSourcePreview, headerVariant, isDeleting, isLoaded, onHeaderRightSlotChange]);
 
     const saveStatusLabel = isSaving
         ? t('uiCopy.saving')
@@ -657,10 +701,15 @@ export const FileViewPanel = React.memo(function FileViewPanel({
     sessionId,
     filePath,
     active = true,
+    headerVariant = 'standard',
     onHeaderRightSlotChange,
     onDirtyChange,
+    onDeleted,
 }: FileViewPanelProps) {
     const session = useSession(sessionId);
+    const machine = useMachine(session?.metadata?.machineId ?? '');
+    const canWrite = rigCanWriteFiles(session?.metadata);
+    const canDelete = sessionCanDeleteFiles(session?.metadata, machine?.metadata);
     const readFile = React.useCallback(
         (path: string) => sessionReadFile(sessionId, path),
         [sessionId],
@@ -671,6 +720,10 @@ export const FileViewPanel = React.memo(function FileViewPanel({
         ),
         [sessionId],
     );
+    const deleteFile = React.useCallback(
+        (path: string) => sessionDeleteFile(sessionId, path),
+        [sessionId],
+    );
 
     return (
         <FileContentPanel
@@ -678,11 +731,14 @@ export const FileViewPanel = React.memo(function FileViewPanel({
             filePath={filePath}
             readFile={readFile}
             writeFile={writeFile}
-            canWrite={rigCanWriteFiles(session?.metadata)}
+            deleteFile={canDelete && headerVariant === 'desktop-workspace' ? deleteFile : undefined}
+            canWrite={canWrite}
             markdownSessionId={sessionId}
             active={active}
+            headerVariant={headerVariant}
             onHeaderRightSlotChange={onHeaderRightSlotChange}
             onDirtyChange={onDirtyChange}
+            onDeleted={() => onDeleted?.(filePath)}
         />
     );
 });
@@ -690,27 +746,39 @@ export const FileViewPanel = React.memo(function FileViewPanel({
 /** Right-side header controls for the file-view overlay. */
 const FileHeaderRight = React.memo(function FileHeaderRight({
     hasSourcePreview,
+    showPreviewControl,
     isLoaded,
     displayMode,
     onDisplayModeChange,
     canWrite,
+    canDelete,
+    deleting,
+    onDelete,
 }: {
     hasSourcePreview: boolean;
+    showPreviewControl: boolean;
     isLoaded: boolean;
     displayMode: FileDisplayMode;
     onDisplayModeChange: (mode: FileDisplayMode) => void;
     canWrite: boolean;
+    canDelete: boolean;
+    deleting: boolean;
+    onDelete: () => void;
 }) {
     const { theme } = useUnistyles();
-    const showModeControls = isLoaded && (hasSourcePreview || canWrite);
+    const showControls = (isLoaded && (hasSourcePreview || canWrite)) || canDelete;
     return (
         <>
-            {showModeControls && (
+            {showControls && (
                 <View style={[styles.toggleRow, { backgroundColor: theme.colors.groupped.background, borderColor: theme.colors.divider }]}>
-                    <Pressable
+                    {isLoaded && <Pressable
                         accessibilityRole="button"
                         accessibilityState={{ selected: displayMode === 'source' }}
-                        onPress={() => onDisplayModeChange('source')}
+                        onPress={() => onDisplayModeChange(
+                            !showPreviewControl && hasSourcePreview && displayMode === 'source'
+                                ? 'preview'
+                                : 'source',
+                        )}
                         style={[
                             styles.toggleButton,
                             displayMode === 'source' && { backgroundColor: theme.colors.surface },
@@ -724,8 +792,8 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
                         ]}>
                             {t('uiCopy.source')}
                         </Text>
-                    </Pressable>
-                    {hasSourcePreview && (
+                    </Pressable>}
+                    {showPreviewControl && hasSourcePreview && (
                         <Pressable
                             accessibilityRole="button"
                             accessibilityState={{ selected: displayMode === 'preview' }}
@@ -745,7 +813,7 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
                             </Text>
                         </Pressable>
                     )}
-                    {canWrite && (
+                    {canWrite && isLoaded && (
                         <Pressable
                             accessibilityRole="button"
                             accessibilityState={{ selected: displayMode === 'edit' }}
@@ -762,6 +830,24 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
                                 displayMode === 'edit' && { color: theme.colors.text },
                             ]}>
                                 {t('files.editFile')}
+                            </Text>
+                        </Pressable>
+                    )}
+                    {canDelete && (
+                        <Pressable
+                            accessibilityRole="button"
+                            disabled={deleting}
+                            onPress={onDelete}
+                            style={[
+                                styles.toggleButton,
+                                deleting && { opacity: 0.5 },
+                            ]}
+                        >
+                            <Text style={[
+                                styles.toggleText,
+                                { color: theme.colors.textDestructive },
+                            ]}>
+                                {t('files.deleteFile')}
                             </Text>
                         </Pressable>
                     )}

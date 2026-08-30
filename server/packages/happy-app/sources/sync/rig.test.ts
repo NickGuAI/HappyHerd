@@ -17,6 +17,7 @@ import {
     rigCanSearchFiles,
     rigCanUseShell,
     rigCanWriteFiles,
+    sessionCanDeleteFiles,
     usesControlledSessionUi,
 } from './rig';
 
@@ -55,6 +56,18 @@ describe('Rig metadata', () => {
         expect(rigCanWriteFiles(rigMetadataFixture)).toBe(true);
         expect(rigCanSearchFiles(rigMetadataFixture)).toBe(true);
         expect(rigCanUseShell(rigMetadataFixture)).toBe(true);
+        expect(sessionCanDeleteFiles(rigMetadataFixture)).toBe(false);
+        expect(sessionCanDeleteFiles({
+            ...rigMetadataFixture,
+            capabilities: {
+                ...rigMetadataFixture.capabilities!,
+                rpcMethods: [...rigMetadataFixture.capabilities!.rpcMethods, 'deleteFile'],
+            },
+        })).toBe(true);
+        expect(sessionCanDeleteFiles(
+            { path: '/tmp', host: 'legacy', machineId: 'machine-1' },
+            { supportsFileDelete: true } as any,
+        )).toBe(true);
 
         const refreshed = {
             ...rigMetadataFixture,
@@ -119,6 +132,8 @@ describe('Rig metadata', () => {
         const legacy = MetadataSchema.parse({ path: '/tmp/legacy', host: 'legacy', flavor: 'claude' });
         expect(isRigMetadata(legacy)).toBe(false);
         expect(rigCanWriteFiles(legacy)).toBe(true);
+        expect(sessionCanDeleteFiles(legacy)).toBe(false);
+        expect(sessionCanDeleteFiles(legacy, { supportsFileDelete: true } as any)).toBe(true);
 
         const brandedBeforeV1 = MetadataSchema.parse({
             ...legacy,
@@ -127,5 +142,6 @@ describe('Rig metadata', () => {
         expect(isRigMetadata(brandedBeforeV1)).toBe(true);
         expect(rigCanAbort(brandedBeforeV1)).toBe(true);
         expect(rigCanWriteFiles(brandedBeforeV1)).toBe(true);
+        expect(sessionCanDeleteFiles(brandedBeforeV1)).toBe(false);
     });
 });

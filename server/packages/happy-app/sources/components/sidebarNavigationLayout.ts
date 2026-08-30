@@ -10,3 +10,14 @@ export function resolveDesktopNavigationDrawerWidth(input: {
         ? input.fullDrawerWidth
         : 0;
 }
+
+export function resolveDesktopNavigationBoundaryToggleLeft(drawerWidth: number): number {
+    return Math.max(8, drawerWidth - 14);
+}
+
+export function resolveDesktopPersistentHeaderControlsLeft(
+    drawerWidth: number,
+    preferredLeft: number,
+): number {
+    return drawerWidth === 0 ? Math.max(56, preferredLeft) : preferredLeft;
+}

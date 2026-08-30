@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 30 — Enhanced file workspaces",
+      "summary": "",
+      "markdown": "- Desktop file workspaces now feature a boundary sidebar toggle, a pointer-draggable divider, and focused Source, Edit, and Delete controls."
+    },
+    {
       "title": "August 30 — Side chats open reliably",
       "summary": "",
       "markdown": "- Clicking the Side chats count now opens the selected parent session's newest Side chat on Web Desktop, even when another session remains loaded in the background.\n- Switching Side chats and collapsing the panel now behave consistently across Web Desktop and Web Mobile without creating an extra chat."
@@ -391,5 +396,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 30 — Side chats open reliably"
+  "latestTitle": "August 30 — Enhanced file workspaces"
 }
