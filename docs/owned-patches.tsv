@@ -169,3 +169,5 @@ DEDICATED_DICTATION_CONTROL	accepted	fix(app): separate dictation from Send (#17
 CONFIGURED_DICTATION_COMPOSERS	accepted	fix(app): expose configured dictation across composers (#179)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 DICTATION_DRAFT_RESUME_REPAIR	accepted	fix(app): harden configured dictation composers (#179)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 DICTATION_HEARTBEAT_DRAFT_REPAIR	accepted	fix(app): preserve late dictation after heartbeat sends (#179)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
+DESKTOP_FILE_WORKSPACE	accepted	feat(app): add desktop multi-file workspace (#181)	server/packages/happy-app/sources/components/DesktopFileWorkspace.test.ts
+DESKTOP_FILE_WORKSPACE_NAVIGATION	accepted	fix(app): retain file workspace navigation controls (#181)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts

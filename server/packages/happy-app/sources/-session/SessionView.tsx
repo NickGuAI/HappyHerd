@@ -43,7 +43,14 @@ import { isRunningOnMac } from '@/utils/platform';
 import { useDeviceType, useHeaderHeight, useIsLandscape, useIsTablet } from '@/utils/responsive';
 import { resolveStatusBarGitBranch } from '@/utils/sessionStatusBar';
 import { visibleRigGitLineChanges } from '@/utils/rigGitLineChanges';
-import { FilesSidebar, SidebarMode } from '@/components/FilesSidebar';
+import { AllFilesPicker, FilesSidebar, SidebarMode } from '@/components/FilesSidebar';
+import { DesktopFileWorkspace, DesktopFileWorkspaceSplit } from '@/components/DesktopFileWorkspace';
+import {
+    closeDesktopFile,
+    EMPTY_DESKTOP_FILE_WORKSPACE,
+    openDesktopFile,
+    selectDesktopFile,
+} from '@/components/desktopFileWorkspaceModel';
 import { SideChatAccessButton, SideChatFullscreen } from '@/components/SideChatPanel';
 import {
     resolveActiveSideChatId,
@@ -191,6 +198,15 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
 
     // Match left sidebar width: 30% of window, clamped to 250–360px
     const sidebarWidth = Math.min(Math.max(Math.floor(windowWidth * 0.3), 250), 360);
+    const [desktopFileWorkspace, setDesktopFileWorkspace] = React.useState(EMPTY_DESKTOP_FILE_WORKSPACE);
+    const [desktopFilePickerOpen, setDesktopFilePickerOpen] = React.useState(false);
+    const [desktopDirtyPaths, setDesktopDirtyPaths] = React.useState<Set<string>>(() => new Set());
+
+    React.useEffect(() => {
+        setDesktopFileWorkspace(EMPTY_DESKTOP_FILE_WORKSPACE);
+        setDesktopFilePickerOpen(false);
+        setDesktopDirtyPaths(new Set());
+    }, [sessionId]);
 
     // Sidebar panels are user-managed and persisted in local settings so the
     // layout (which panels are open + which is active) survives reloads and
@@ -226,6 +242,9 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             ? (open[open.length - 1] ?? null)
             : (state.sidebarPanelActive as SidebarMode | null);
         storage.getState().applyLocalSettings({ sidebarPanelsOpen: open, sidebarPanelActive: active });
+    }, []);
+    const collapseSidebarPanels = React.useCallback(() => {
+        storage.getState().applyLocalSettings({ sidebarPanelsOpen: [], sidebarPanelActive: null });
     }, []);
 
     // Side chats hydrate into one switchable panel. Focus lives
@@ -302,6 +321,26 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     const sideChatSidebarExpanded = sidebarPresentation.sideChatSurface === 'sidebar'
         && sidebarPanelActive === 'sideChat'
         && sideChats.length > 0;
+    const sideChatFullscreenTransitionPending = sidebarPresentation.sideChatSurface === 'fullscreen'
+        && sidebarPanelActive === 'sideChat'
+        && sidebarPanelsOpen.includes('sideChat')
+        && sideChats.length > 0;
+    const fileSidebarPanelExpanded = canShowFileSidebar
+        && (sidebarPanelActive === 'changes' || sidebarPanelActive === 'allFiles')
+        && sidebarPanelsOpen.includes(sidebarPanelActive);
+    const desktopFileWorkspaceVisible = canShowFileSidebar
+        && desktopFileWorkspace.paths.length > 0
+        && !fileSidebarPanelExpanded
+        && !sideChatSidebarExpanded
+        && !sideChatFullscreenOpen
+        && !zenMode
+        && !showWorkspaceLinkPanel;
+    const desktopFileWorkspaceFullscreen = desktopFileWorkspace.paths.length > 0
+        && !sidebarPresentation.sideChatSidebarAvailable
+        && (Platform.OS === 'web' || isRunningOnMac())
+        && !sideChatFullscreenOpen
+        && !sideChatFullscreenTransitionPending
+        && !showWorkspaceLinkPanel;
     const showSidebar = !zenMode
         && !showWorkspaceLinkPanel
         && (canShowFileSidebar || sideChatSidebarExpanded);
@@ -395,6 +434,11 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     }, [activeSideChatId, createSideChat, openSidebarPanel, removeSidebarPanel, sideChatIds, sideChatSidebarExpanded, sidebarPresentation.sideChatSurface]);
 
     React.useEffect(() => {
+        if (sideChatFullscreenTransitionPending) {
+            removeSidebarPanel('sideChat');
+            setSideChatFullscreenOpen(true);
+            return;
+        }
         if (
             sideChatFullscreenOpen
             && sidebarPresentation.sideChatSurface === 'sidebar'
@@ -403,7 +447,14 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             setSideChatFullscreenOpen(false);
             openSidebarPanel('sideChat');
         }
-    }, [openSidebarPanel, sideChatFullscreenOpen, sideChats.length, sidebarPresentation.sideChatSurface]);
+    }, [
+        openSidebarPanel,
+        removeSidebarPanel,
+        sideChatFullscreenOpen,
+        sideChatFullscreenTransitionPending,
+        sideChats.length,
+        sidebarPresentation.sideChatSurface,
+    ]);
 
     // Tab close is durable: stop the process and always archive the server
     // session. Panel collapse/removal never calls this path.
@@ -525,10 +576,55 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         if (file.status === 'deleted') return;
         withFileDiscardConfirmation(() => pushOverlayNow({ kind: 'diff', file: file.fullPath }));
     }, [pushOverlayNow, withFileDiscardConfirmation]);
+
+    const handleDesktopFileSelect = React.useCallback((path: string) => {
+        setDesktopFileWorkspace((current) => selectDesktopFile(current, path));
+        setDesktopFilePickerOpen(false);
+    }, []);
+    const handleDesktopDirtyChange = React.useCallback((path: string, dirty: boolean) => {
+        setDesktopDirtyPaths((current) => {
+            if (current.has(path) === dirty) return current;
+            const next = new Set(current);
+            if (dirty) next.add(path);
+            else next.delete(path);
+            return next;
+        });
+    }, []);
+    const handleDesktopFileClose = React.useCallback((path: string) => {
+        const close = () => {
+            setDesktopFileWorkspace((current) => closeDesktopFile(current, path));
+            if (desktopFileWorkspace.paths.length === 1 && desktopFileWorkspace.paths[0] === path) {
+                setDesktopFilePickerOpen(false);
+            }
+            setDesktopDirtyPaths((current) => {
+                if (!current.has(path)) return current;
+                const next = new Set(current);
+                next.delete(path);
+                return next;
+            });
+        };
+        if (!desktopDirtyPaths.has(path)) {
+            close();
+            return;
+        }
+        void Modal.confirm(
+            t('uiCopy.discardUnsavedChanges'),
+            t('uiCopy.yourEditsToValueHaveNotBeenSaved', { value1: path.split(/[/\\]/).pop() || t('uiCopy.thisFile') }),
+            { confirmText: t('common.discard'), destructive: true },
+        ).then((confirmed) => {
+            if (confirmed) close();
+        });
+    }, [desktopDirtyPaths, desktopFileWorkspace.paths]);
     const handleAllFilesFilePress = React.useCallback((filePath: string) => {
+        if (canShowFileSidebar) {
+            setDesktopFileWorkspace((current) => openDesktopFile(current, filePath));
+            setDesktopFilePickerOpen(false);
+            collapseSidebarPanels();
+            return;
+        }
         if (filePath === fileViewPath) return;
         withFileDiscardConfirmation(() => pushOverlayNow({ kind: 'file', path: filePath }));
-    }, [fileViewPath, pushOverlayNow, withFileDiscardConfirmation]);
+    }, [canShowFileSidebar, fileViewPath, pushOverlayNow, collapseSidebarPanels, withFileDiscardConfirmation]);
     const handleAllFilesFileAttach = React.useCallback((filePath: string) => {
         if (!addWorkspaceContextFile(sessionId, filePath)) {
             Modal.alert(t("uiCopy.workspaceContext"), t("uiCopy.youCanAttachUpTo8FilesToOneMessage"));
@@ -774,107 +870,150 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         </WorkspaceLinkPressContext.Provider>
     );
 
-    if (!canRenderSidebar && !showWorkspaceLinkPanel) {
+    if (!canRenderSidebar && !showWorkspaceLinkPanel && desktopFileWorkspace.paths.length === 0) {
         return sessionContent;
     }
 
-    // Desktop layout: chat + animated sidebar at the same level (full height).
-    // When a sidebar file is selected, InlineFileDiff overlays the main content
-    // (chat stays mounted underneath so state is preserved).
+    const chatSurface = (
+        <View
+            style={{
+                flex: 1,
+                // Web-only: isolate the chat subtree's layout from the
+                // parent flex-row so divider movement does not leak layout
+                // work through the mounted conversation tree.
+                ...(Platform.OS === 'web' ? { contain: 'layout style paint' as any } : {}),
+            }}
+        >
+            {sessionContent}
+            {diffViewOpen && canShowFileSidebar && !showWorkspaceLinkPanel && (
+                <View
+                    pointerEvents="box-none"
+                    style={{
+                        position: 'absolute',
+                        top: safeArea.top + mobileHeaderHeight,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: theme.colors.surface,
+                    }}
+                >
+                    <AllFilesDiffView
+                        sessionId={sessionId}
+                        scrollToFile={scrollToFile}
+                        onHeaderRightSlotChange={setHeaderRightSlot}
+                    />
+                </View>
+            )}
+            {fileViewPath && canShowFileSidebar && !showWorkspaceLinkPanel && (
+                <View
+                    pointerEvents="box-none"
+                    style={{
+                        position: 'absolute',
+                        top: safeArea.top + mobileHeaderHeight,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: theme.colors.surface,
+                    }}
+                >
+                    <FileViewPanel
+                        sessionId={sessionId}
+                        filePath={fileViewPath}
+                        onHeaderRightSlotChange={setHeaderRightSlot}
+                        onDirtyChange={setFileViewDirty}
+                    />
+                </View>
+            )}
+        </View>
+    );
+
+    const fallbackRightSurface = showWorkspaceLinkPanel && workspaceLinkRoute ? (
+        <WorkspaceLinkSidePanel
+            reference={workspaceLinkRoute.params}
+            windowWidth={windowWidth}
+            onBack={() => guardWorkspaceLinkDismiss(() => setWorkspaceLinkRoute(null))}
+            onDirtyChange={onWorkspaceLinkDirtyChange}
+            onFeedbackSendingChange={onWorkspaceLinkFeedbackSendingChange}
+            onFeedbackSent={(receipt) => {
+                guardWorkspaceLinkDismiss(() => {
+                    setWorkspaceLinkRoute(null);
+                    setFocusMessageId(receipt.localId);
+                });
+            }}
+        />
+    ) : (
+        <Animated.View style={[{ minWidth: 0, alignSelf: 'stretch' }, animatedSidebarStyle]}>
+            <View style={{ width: sidebarWidth, flex: 1 }}>
+                <FilesSidebar
+                    sessionId={sessionId}
+                    selectedPath={sidebarPanelActive === 'changes'
+                        ? scrollToFile
+                        : sidebarPanelActive === 'allFiles'
+                            ? (desktopFileWorkspace.activePath ?? fileViewPath)
+                            : null}
+                    onFilePress={handleSidebarFilePress}
+                    openPanels={visibleSidebarPanels}
+                    activePanel={visibleSidebarPanelActive}
+                    onOpenPanel={openSidebarPanel}
+                    onSelectPanel={selectSidebarPanel}
+                    onClosePanel={removeSidebarPanel}
+                    onAllFilesFilePress={handleAllFilesFilePress}
+                    onAllFilesFileAttach={handleAllFilesFileAttach}
+                    canOpenFilePanels={canShowFileSidebar}
+                    sideChats={sideChats}
+                    activeSideChatId={activeSideChatId}
+                    onSelectSideChat={setActiveSideChatId}
+                    onCloseSideChat={closeSideChat}
+                    creatingSideChat={creatingSideChat || Boolean(pendingSideChatId)}
+                    canCreateSideChat={canCreateSideChat}
+                    onCreateSideChat={createSideChat}
+                />
+            </View>
+        </Animated.View>
+    );
+
+    // Wide layout keeps the Main Agent chat mounted beside a stable right-pane
+    // host. Side chats, file picking, and Workspace links may temporarily own
+    // the visible right surface without unmounting dirty file editors.
+    if (desktopFileWorkspace.paths.length > 0) {
+        return (
+            <DesktopFileWorkspaceSplit
+                workspaceVisible={desktopFileWorkspaceVisible}
+                workspaceFullscreen={desktopFileWorkspaceFullscreen}
+                workspace={(
+                    <DesktopFileWorkspace
+                        sessionId={sessionId}
+                        paths={desktopFileWorkspace.paths}
+                        activePath={desktopFileWorkspace.activePath}
+                        dirtyPaths={desktopDirtyPaths}
+                        pickerOpen={desktopFilePickerOpen}
+                        compact={desktopFileWorkspaceFullscreen}
+                        picker={(
+                            <AllFilesPicker
+                                sessionId={sessionId}
+                                selectedPath={desktopFileWorkspace.activePath}
+                                onFilePress={handleAllFilesFilePress}
+                                onFileAttach={handleAllFilesFileAttach}
+                            />
+                        )}
+                        onSelect={handleDesktopFileSelect}
+                        onRequestClose={handleDesktopFileClose}
+                        onOpenChanges={() => openSidebarPanel('changes')}
+                        onOpenPicker={() => setDesktopFilePickerOpen(true)}
+                        onDirtyChange={handleDesktopDirtyChange}
+                    />
+                )}
+                fallback={fallbackRightSurface}
+            >
+                {chatSurface}
+            </DesktopFileWorkspaceSplit>
+        );
+    }
+
     return (
         <View style={{ flex: 1, flexDirection: 'row' }}>
-            <View
-                style={{
-                    flex: 1,
-                    // Web-only: isolate the chat subtree's layout from the
-                    // parent flex-row. If we ever bring back a width
-                    // animation on the right sidebar, `contain` prevents
-                    // layout work from leaking up to the chat tree on
-                    // every frame.
-                    ...(Platform.OS === 'web' ? { contain: 'layout style paint' as any } : {}),
-                }}
-            >
-                {sessionContent}
-                {diffViewOpen && canShowFileSidebar && !showWorkspaceLinkPanel && (
-                    <View
-                        pointerEvents="box-none"
-                        style={{
-                            position: 'absolute',
-                            top: safeArea.top + mobileHeaderHeight,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            backgroundColor: theme.colors.surface,
-                        }}
-                    >
-                        <AllFilesDiffView
-                            sessionId={sessionId}
-                            scrollToFile={scrollToFile}
-                            onHeaderRightSlotChange={setHeaderRightSlot}
-                        />
-                    </View>
-                )}
-                {fileViewPath && canShowFileSidebar && !showWorkspaceLinkPanel && (
-                    <View
-                        pointerEvents="box-none"
-                        style={{
-                            position: 'absolute',
-                            top: safeArea.top + mobileHeaderHeight,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            backgroundColor: theme.colors.surface,
-                        }}
-                    >
-                        <FileViewPanel
-                            sessionId={sessionId}
-                            filePath={fileViewPath}
-                            onHeaderRightSlotChange={setHeaderRightSlot}
-                            onDirtyChange={setFileViewDirty}
-                        />
-                    </View>
-                )}
-            </View>
-            {showWorkspaceLinkPanel && workspaceLinkRoute ? (
-                <WorkspaceLinkSidePanel
-                    reference={workspaceLinkRoute.params}
-                    windowWidth={windowWidth}
-                    onBack={() => guardWorkspaceLinkDismiss(() => setWorkspaceLinkRoute(null))}
-                    onDirtyChange={onWorkspaceLinkDirtyChange}
-                    onFeedbackSendingChange={onWorkspaceLinkFeedbackSendingChange}
-                    onFeedbackSent={(receipt) => {
-                        guardWorkspaceLinkDismiss(() => {
-                            setWorkspaceLinkRoute(null);
-                            setFocusMessageId(receipt.localId);
-                        });
-                    }}
-                />
-            ) : (
-                <Animated.View style={[{ minWidth: 0, alignSelf: 'stretch' }, animatedSidebarStyle]}>
-                    <View style={{ width: sidebarWidth, flex: 1 }}>
-                        <FilesSidebar
-                            sessionId={sessionId}
-                            selectedPath={sidebarPanelActive === 'changes' ? scrollToFile : sidebarPanelActive === 'allFiles' ? fileViewPath : null}
-                            onFilePress={handleSidebarFilePress}
-                            openPanels={visibleSidebarPanels}
-                            activePanel={visibleSidebarPanelActive}
-                            onOpenPanel={openSidebarPanel}
-                            onSelectPanel={selectSidebarPanel}
-                            onClosePanel={removeSidebarPanel}
-                            onAllFilesFilePress={handleAllFilesFilePress}
-                            onAllFilesFileAttach={handleAllFilesFileAttach}
-                            canOpenFilePanels={canShowFileSidebar}
-                            sideChats={sideChats}
-                            activeSideChatId={activeSideChatId}
-                            onSelectSideChat={setActiveSideChatId}
-                            onCloseSideChat={closeSideChat}
-                            creatingSideChat={creatingSideChat || Boolean(pendingSideChatId)}
-                            canCreateSideChat={canCreateSideChat}
-                            onCreateSideChat={createSideChat}
-                        />
-                    </View>
-                </Animated.View>
-            )}
+            {chatSurface}
+            {fallbackRightSurface}
         </View>
     );
 });

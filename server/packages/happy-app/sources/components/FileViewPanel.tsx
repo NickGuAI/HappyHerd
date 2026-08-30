@@ -35,6 +35,7 @@ import { FileDocumentPreview } from '@/components/FileDocumentPreview';
 interface FileViewPanelProps {
     sessionId: string;
     filePath: string;
+    active?: boolean;
     /** Publishes the right-side controls (edit/preview toggle, save button) into the chat header. */
     onHeaderRightSlotChange: (slot: React.ReactNode) => void;
     onDirtyChange?: (dirty: boolean) => void;
@@ -64,6 +65,7 @@ export interface FileContentPanelProps {
     ) => Promise<FileContentWriteResult>;
     canWrite: boolean;
     markdownSessionId?: string;
+    active?: boolean;
     onHeaderRightSlotChange: (slot: React.ReactNode) => void;
     onDirtyChange?: (dirty: boolean) => void;
 }
@@ -177,6 +179,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     writeFile,
     canWrite,
     markdownSessionId,
+    active = true,
     onHeaderRightSlotChange,
     onDirtyChange,
 }: FileContentPanelProps) {
@@ -309,7 +312,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
 
     // Poll for external changes every 5s
     React.useEffect(() => {
-        if (fileState.kind !== 'loaded' || !fileState.originalHash) return;
+        if (!active || fileState.kind !== 'loaded' || !fileState.originalHash) return;
         const originalHash = fileState.originalHash;
 
         const interval = setInterval(async () => {
@@ -320,7 +323,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
         }, 5000);
 
         return () => clearInterval(interval);
-    }, [resourceKey, filePath, fileState, readFile]);
+    }, [active, resourceKey, filePath, fileState, readFile]);
 
     const handleReload = React.useCallback(() => {
         if (externalChange === null) return;
@@ -420,6 +423,10 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     // Publish the shared Source/Preview/Edit mode control into the host header.
     const isLoaded = fileState.kind === 'loaded';
     React.useEffect(() => {
+        if (!active) {
+            onHeaderRightSlotChange(null);
+            return;
+        }
         onHeaderRightSlotChange(
             <FileHeaderRight
                 hasSourcePreview={hasSourcePreview}
@@ -430,7 +437,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
             />
         );
         return () => onHeaderRightSlotChange(null);
-    }, [hasSourcePreview, isLoaded, displayMode, handleDisplayModeChange, onHeaderRightSlotChange, canWrite]);
+    }, [active, hasSourcePreview, isLoaded, displayMode, handleDisplayModeChange, onHeaderRightSlotChange, canWrite]);
 
     const saveStatusLabel = isSaving
         ? t('uiCopy.saving')
@@ -649,6 +656,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
 export const FileViewPanel = React.memo(function FileViewPanel({
     sessionId,
     filePath,
+    active = true,
     onHeaderRightSlotChange,
     onDirtyChange,
 }: FileViewPanelProps) {
@@ -672,6 +680,7 @@ export const FileViewPanel = React.memo(function FileViewPanel({
             writeFile={writeFile}
             canWrite={rigCanWriteFiles(session?.metadata)}
             markdownSessionId={sessionId}
+            active={active}
             onHeaderRightSlotChange={onHeaderRightSlotChange}
             onDirtyChange={onDirtyChange}
         />

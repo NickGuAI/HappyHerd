@@ -1,3 +1,10 @@
+# August 30 — Side-by-side file workspace and tabbed navigation
+
+- Opening files from All Files on wide Web Desktop and Mac displays files in a right workspace beside the visible Main Agent chat and composer with a bounded, draggable divider, while Web Mobile retains full-width file behavior.
+- Open unique file paths into filename tabs with close buttons and a plus button to reopen the file picker, preserving existing preview, edit, save, and unsaved-changes confirmation flows.
+- Viewing Changes or All Files temporarily replaces the file pane without unmounting open tabs or losing unsaved edits; closing Changes restores the active file, and choosing a file from All Files collapses the temporary navigation and focuses the selected tab.
+- Collapse and expand the permanent left navigation using a dedicated chevron that operates independently of browser navigation controls and Zen mode.
+
 # August 30 — Dedicated dictation beside Send
 
 - Active chat composers on desktop and mobile now include a dedicated speech-to-text dictation microphone beside Send, while Send remains an arrow dedicated strictly to sending during idle, recording, transcribing, and retry states.

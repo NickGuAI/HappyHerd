@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 30 — Side-by-side file workspace and tabbed navigation",
+      "summary": "",
+      "markdown": "- Opening files from All Files on wide Web Desktop and Mac displays files in a right workspace beside the visible Main Agent chat and composer with a bounded, draggable divider, while Web Mobile retains full-width file behavior.\n- Open unique file paths into filename tabs with close buttons and a plus button to reopen the file picker, preserving existing preview, edit, save, and unsaved-changes confirmation flows.\n- Viewing Changes or All Files temporarily replaces the file pane without unmounting open tabs or losing unsaved edits; closing Changes restores the active file, and choosing a file from All Files collapses the temporary navigation and focuses the selected tab.\n- Collapse and expand the permanent left navigation using a dedicated chevron that operates independently of browser navigation controls and Zen mode."
+    },
+    {
       "title": "August 30 — Dedicated dictation beside Send",
       "summary": "",
       "markdown": "- Active chat composers on desktop and mobile now include a dedicated speech-to-text dictation microphone beside Send, while Send remains an arrow dedicated strictly to sending during idle, recording, transcribing, and retry states.\n- The microphone controls recording, finishing, transcription progress, retries, and cancellation, appending successful OpenAI transcriptions directly into the editable draft without starting realtime voice chat.\n- Enabled the dedicated microphone automatically across Main Agent and Side chat composers on Web Desktop and Web Mobile whenever an account or deployment OpenAI transcription key is configured."
@@ -371,5 +376,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 30 — Dedicated dictation beside Send"
+  "latestTitle": "August 30 — Side-by-side file workspace and tabbed navigation"
 }
