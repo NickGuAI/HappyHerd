@@ -511,8 +511,11 @@ vi.mock('@/-session/workspaceLinkNavigation', async () => {
         openWorkspaceLinkFromSession: vi.fn(),
         useWorkspaceLinkDismissGuard: () => ({
             onSendingChange: vi.fn(),
+            onDirtyChange: vi.fn(),
+            guardDismiss: (action: () => void) => action(),
             reset: vi.fn(),
             sendingRef: { current: false },
+            dirtyRef: { current: false },
         }),
     };
 });

@@ -163,3 +163,5 @@ SIDE_CHAT_DESKTOP_PARITY	accepted	fix(side-chats): name and verify desktop side 
 AUTOMATIONS_MASTER_DETAIL	accepted	feat(automations): add compact master-detail view (#178)	server/packages/happy-app/sources/app/(app)/automations/index.tsx
 AUTOMATIONS_MASTER_DETAIL_POLISH	accepted	fix(automations): polish master-detail presentation (#178)	server/packages/happy-app/sources/components/happyHerdAutomationPresentation.ts
 AUTOMATIONS_HEARTBEAT_CADENCE	accepted	fix(automations): preserve exact heartbeat cadence (#178)	server/packages/happy-app/sources/components/happyHerdAutomationPresentation.ts
+WORKSPACE_FILE_EDIT	accepted	feat(workspace): edit linked files in place	server/packages/happy-app/sources/components/FileViewPanel.native.test.ts
+WORKSPACE_LINK_DIRTY_GUARD	accepted	fix(workspace): preserve unsaved linked-file edits (#177)	server/packages/happy-app/sources/components/WorkspaceLinkViewer.native.test.ts

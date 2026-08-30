@@ -1184,6 +1184,7 @@ export type TranslationKey =
     | "uiCopy.runTheFollowingCommandInYourTerminal"
     | "uiCopy.runningAndQueued"
     | "uiCopy.sandbox"
+    | "uiCopy.saved"
     | "uiCopy.saving"
     | "uiCopy.search"
     | "uiCopy.searchAgents"

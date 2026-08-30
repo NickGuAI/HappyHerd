@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "055b157db51366fbf34b5ebfc5cbd072ed2e35e9a9bc1286edf87515a168bfb0",
+  "sourceFingerprint": "bfc80501078f3337bc9ad2b622016f9f4f530a00f43b6b96769d51c8a7be9a96",
   "routeCount": 36,
-  "surfaceCount": 248,
+  "surfaceCount": 249,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -1039,6 +1039,26 @@
       "states": [
         "error"
       ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/-session/workspaceLinkNavigation.ts",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "WorkspaceLinkPressContext",
+        "dismissWorkspaceLinkToOrigin",
+        "openWorkspaceLinkFromSession",
+        "useWorkspaceLinkDismissGuard",
+        "useWorkspaceLinkPress"
+      ],
+      "translationKeys": [
+        "common.cancel",
+        "common.discard",
+        "uiCopy.discardUnsavedChanges",
+        "uiCopy.yourCurrentFileEditsHaveNotBeenSaved"
+      ],
+      "states": [],
       "hardcodedCopy": []
     },
     {
@@ -3118,6 +3138,7 @@
         "FileViewPanel"
       ],
       "translationKeys": [
+        "common.cancel",
         "common.error",
         "files.cannotDisplayBinary",
         "files.diff",
@@ -3131,7 +3152,10 @@
         "files.saveFile",
         "uiCopy.preview",
         "uiCopy.previewOfValue",
-        "uiCopy.source"
+        "uiCopy.saved",
+        "uiCopy.saving",
+        "uiCopy.source",
+        "uiCopy.unsaved"
       ],
       "states": [
         "error"
@@ -5054,11 +5078,15 @@
       ],
       "translationKeys": [
         "common.back",
+        "common.cancel",
+        "common.discard",
         "common.fileViewer",
         "common.retry",
         "errors.tryAgain",
+        "uiCopy.discardUnsavedChanges",
         "uiCopy.machineNotFound",
         "uiCopy.openFolderValue",
+        "uiCopy.yourCurrentFileEditsHaveNotBeenSaved",
         "workspace.emptyFolder",
         "workspace.linkMachineMissingDescription",
         "workspace.linkPathMissingDescription",

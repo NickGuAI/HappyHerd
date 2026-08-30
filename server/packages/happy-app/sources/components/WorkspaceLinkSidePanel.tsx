@@ -6,7 +6,7 @@ import { workspaceLinkViewerKey } from './WorkspaceLinkViewerModel';
 
 export type WorkspaceLinkSidePanelProps = Pick<
     WorkspaceLinkViewerProps,
-    'reference' | 'onBack' | 'onFeedbackSendingChange' | 'onFeedbackSent'
+    'reference' | 'onBack' | 'onDirtyChange' | 'onFeedbackSendingChange' | 'onFeedbackSent'
 > & {
     windowWidth: number;
 };
@@ -20,6 +20,7 @@ export function WorkspaceLinkSidePanel({
     reference,
     windowWidth,
     onBack,
+    onDirtyChange,
     onFeedbackSendingChange,
     onFeedbackSent,
 }: WorkspaceLinkSidePanelProps) {
@@ -39,6 +40,7 @@ export function WorkspaceLinkSidePanel({
                 key={workspaceLinkViewerKey(reference)}
                 reference={reference}
                 onBack={onBack}
+                onDirtyChange={onDirtyChange}
                 onFeedbackSendingChange={onFeedbackSendingChange}
                 onFeedbackSent={onFeedbackSent}
             />
