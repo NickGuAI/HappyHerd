@@ -64,6 +64,7 @@ beforeEach(() => {
 describe('WorkspaceLinkSidePanel', () => {
     it('keeps the same feedback composer mounted through a breakpoint crossing and late send failure', () => {
         const sendingStates: boolean[] = [];
+        const dirtyStates: boolean[] = [];
         const reference = {
             mode: 'link' as const,
             originSessionId: 'origin-session',
@@ -73,6 +74,7 @@ describe('WorkspaceLinkSidePanel', () => {
         const baseProps: Omit<WorkspaceLinkSidePanelProps, 'windowWidth'> = {
             reference,
             onBack: vi.fn(),
+            onDirtyChange: (dirty) => dirtyStates.push(dirty),
             onFeedbackSendingChange: (sending) => sendingStates.push(sending),
             onFeedbackSent: vi.fn(),
         };
@@ -85,6 +87,7 @@ describe('WorkspaceLinkSidePanel', () => {
             }));
         });
         const originalViewer = renderer.root.findByType('WorkspaceLinkViewer' as any);
+        act(() => originalViewer.props.onDirtyChange(true));
         let finishFailure!: () => void;
         act(() => {
             finishFailure = originalViewer.props.beginFailingSend();
@@ -108,6 +111,7 @@ describe('WorkspaceLinkSidePanel', () => {
         expect(failedViewer.props.draft).toBe('keep this feedback');
         expect(failedViewer.props.error).toBe('delivery failed');
         expect(sendingStates).toEqual([true, false]);
+        expect(dirtyStates).toEqual([true]);
 
         act(() => renderer.unmount());
     });
