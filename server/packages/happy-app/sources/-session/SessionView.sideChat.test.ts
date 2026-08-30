@@ -13,7 +13,6 @@ const mocks = vi.hoisted(() => ({
     sessions: {} as Record<string, Session>,
     localSettings: {
         acknowledgedCliVersions: {} as Record<string, string>,
-        navigationSidebarCollapsed: false,
         sidebarPanelActive: null as 'changes' | 'allFiles' | 'sideChat' | null,
         sidebarPanelsOpen: [] as Array<'changes' | 'allFiles' | 'sideChat'>,
         zenMode: false,
@@ -22,9 +21,11 @@ const mocks = vi.hoisted(() => ({
     emptyArray: [] as unknown[],
     emptyObject: {} as Record<string, unknown>,
     closeSideChatSession: vi.fn(),
-    modalConfirm: vi.fn(),
+    buildWorkspaceContextMessage: vi.fn(),
+    heartbeatDispatch: vi.fn(),
     machineCreateSideChat: vi.fn(),
     resumeSession: vi.fn(),
+    resumeSessionWithQueuedTurn: vi.fn(),
     sessionArchive: vi.fn(),
     sessionKill: vi.fn(),
     sessionVisible: vi.fn(),
@@ -44,10 +45,6 @@ const mocks = vi.hoisted(() => ({
 vi.mock('react-native', async () => {
     const ReactModule = await import('react');
     const host = (name: string) => (props: any) => ReactModule.createElement(name, props, props.children);
-    const subscribeToWidth = (listener: () => void) => {
-        mocks.listeners.add(listener);
-        return () => mocks.listeners.delete(listener);
-    };
     const Platform = {
         get OS() {
             return mocks.platform;
@@ -64,14 +61,7 @@ vi.mock('react-native', async () => {
         Text: host('Text'),
         TextInput: host('TextInput'),
         View: host('View'),
-        useWindowDimensions: () => ({
-            width: ReactModule.useSyncExternalStore(
-                subscribeToWidth,
-                () => mocks.width,
-                () => mocks.width,
-            ),
-            height: 900,
-        }),
+        useWindowDimensions: () => ({ width: mocks.width, height: 900 }),
     };
 });
 
@@ -248,26 +238,6 @@ vi.mock('@/components/FileViewPanel', async () => {
     const ReactModule = await import('react');
     return { FileViewPanel: (props: any) => ReactModule.createElement('FileViewPanel', props) };
 });
-vi.mock('@/components/DesktopFileWorkspace', async () => {
-    const ReactModule = await import('react');
-    return {
-        DesktopFileWorkspace: (props: any) => ReactModule.createElement(
-            'DesktopFileWorkspace',
-            props,
-            props.picker,
-        ),
-        DesktopFileWorkspaceSplit: (props: any) => ReactModule.createElement(
-            'DesktopFileWorkspaceSplit',
-            props,
-            props.children,
-            ReactModule.createElement('DesktopFileWorkspaceSlot', {
-                visible: props.workspaceVisible,
-                fullscreen: props.workspaceFullscreen,
-            }, props.workspace),
-            props.workspaceVisible || props.workspaceFullscreen ? null : props.fallback,
-        ),
-    };
-});
 vi.mock('@/components/WorkspaceLinkSidePanel', async () => {
     const ReactModule = await import('react');
     return { WorkspaceLinkSidePanel: (props: any) => ReactModule.createElement('WorkspaceLinkSidePanel', props) };
@@ -326,6 +296,7 @@ vi.mock('@/hooks/useSessionQuickActions', () => ({
     useSessionQuickActions: (session: Session) => ({
         canResume: !session.active,
         resumeSession: () => mocks.resumeSession(session.id),
+        resumeSessionWithQueuedTurn: mocks.resumeSessionWithQueuedTurn,
         resumingSession: false,
     }),
 }));
@@ -354,7 +325,7 @@ vi.mock('@/hooks/useVoiceDictation', () => ({
 vi.mock('@/modal', () => ({
     Modal: {
         alert: vi.fn(),
-        confirm: mocks.modalConfirm,
+        confirm: vi.fn(async () => true),
         prompt: vi.fn(),
         show: vi.fn(),
     },
@@ -494,7 +465,7 @@ vi.mock('@/sync/rig', () => ({
 vi.mock('@/sync/workspaceContext', () => ({
     MAX_WORKSPACE_CONTEXT_ITEMS: 8,
     addWorkspaceContextFile: () => true,
-    buildWorkspaceContextMessage: vi.fn(),
+    buildWorkspaceContextMessage: mocks.buildWorkspaceContextMessage,
     clearWorkspaceContextFiles: vi.fn(),
     getWorkspaceContextEntries: () => mocks.emptyArray,
     removeWorkspaceContextEntry: vi.fn(),
@@ -531,7 +502,7 @@ vi.mock('@/utils/sessionUtils', () => ({
 vi.mock('@/utils/versionUtils', () => ({ MINIMUM_CLI_VERSION: '0.0.0', isVersionSupported: () => true }));
 vi.mock('@/utils/machineWorkspace', () => ({ buildWorkspaceAttachmentParams: () => null }));
 vi.mock('@/utils/errors', () => ({ HappyError: class HappyError extends Error {} }));
-vi.mock('@/utils/heartbeatCommand', () => ({ HEARTBEAT_COMMAND: { dispatch: vi.fn() } }));
+vi.mock('@/utils/heartbeatCommand', () => ({ HEARTBEAT_COMMAND: { dispatch: mocks.heartbeatDispatch } }));
 
 vi.mock('@/-session/sessionOverlayNav', () => ({
     useOverlayNav: { getState: () => ({ publish: vi.fn(), reset: vi.fn() }) },
@@ -544,8 +515,11 @@ vi.mock('@/-session/workspaceLinkNavigation', async () => {
         openWorkspaceLinkFromSession: vi.fn(),
         useWorkspaceLinkDismissGuard: () => ({
             onSendingChange: vi.fn(),
+            onDirtyChange: vi.fn(),
+            guardDismiss: (action: () => void) => action(),
             reset: vi.fn(),
             sendingRef: { current: false },
+            dirtyRef: { current: false },
         }),
     };
 });
@@ -641,19 +615,25 @@ beforeEach(() => {
     mocks.platform = 'web';
     mocks.fileDiffsSidebarEnabled = true;
     mocks.localSettings.acknowledgedCliVersions = {};
-    mocks.localSettings.navigationSidebarCollapsed = false;
     mocks.localSettings.sidebarPanelActive = null;
     mocks.localSettings.sidebarPanelsOpen = [];
     mocks.localSettings.zenMode = false;
     mocks.closeSideChatSession.mockReset();
-    mocks.modalConfirm.mockReset();
-    mocks.modalConfirm.mockResolvedValue(true);
+    mocks.buildWorkspaceContextMessage.mockReset();
+    mocks.buildWorkspaceContextMessage.mockImplementation(async (_sessionId: string, text: string) => ({
+        displayText: text,
+        promptText: text,
+    }));
+    mocks.heartbeatDispatch.mockReset();
+    mocks.heartbeatDispatch.mockResolvedValue({ handled: false });
     mocks.machineCreateSideChat.mockReset();
     mocks.resumeSession.mockReset();
+    mocks.resumeSessionWithQueuedTurn.mockReset();
     mocks.sessionArchive.mockReset();
     mocks.sessionKill.mockReset();
     mocks.sessionVisible.mockReset();
     mocks.sendMessage.mockReset();
+    mocks.sendMessage.mockResolvedValue(undefined);
     mocks.startRealtimeSession.mockReset();
     mocks.voiceAvailable = false;
     mocks.voiceCanRetry = false;
@@ -737,8 +717,8 @@ describe('SessionView side-chat integration', () => {
     it('appends OpenAI dictation to the active draft without sending or starting realtime voice', () => {
         mocks.voiceAvailable = true;
         mocks.sessions.parent.draft = 'Keep this draft';
-        const renderer = renderParent();
-        const composer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
+        let renderer = renderParent();
+        let composer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
             node.props.sessionId === 'parent'
         ));
 
@@ -749,182 +729,128 @@ describe('SessionView side-chat integration', () => {
         act(() => composer?.props.onMicPress());
         expect(mocks.voiceToggle).toHaveBeenCalledOnce();
 
+        const remountComposer = () => {
+            act(() => renderer.unmount());
+            renderer = renderParent();
+            return renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
+                node.props.sessionId === 'parent'
+            ));
+        };
+
+        mocks.voicePhase = 'recording';
+        composer = remountComposer();
+        expect(composer?.props.dictationPhase).toBe('recording');
+        act(() => composer?.props.onDictationCancel());
+        expect(mocks.voiceCancel).toHaveBeenCalledOnce();
+
+        mocks.voicePhase = 'transcribing';
+        composer = remountComposer();
+        expect(composer?.props.dictationPhase).toBe('transcribing');
+
+        mocks.voicePhase = 'error';
+        mocks.voiceCanRetry = true;
+        mocks.voiceError = 'OpenAI transcription failed';
+        composer = remountComposer();
+        expect(composer?.props.dictationError).toBe('OpenAI transcription failed');
+        act(() => composer?.props.onDictationRetry());
+        expect(mocks.voiceRetry).toHaveBeenCalledOnce();
+
         act(() => mocks.voiceOnTranscript?.('dictated words'));
         expect(mocks.composerText.parent).toBe('Keep this draft dictated words');
         expect(mocks.sendMessage).not.toHaveBeenCalled();
         expect(mocks.startRealtimeSession).not.toHaveBeenCalled();
     });
 
-    it('keeps the Main Agent composer mounted while desktop file tabs open, dedupe, focus, and close', async () => {
+    it('preserves a transcript that arrives while the draft snapshot is being delivered', async () => {
+        mocks.voiceAvailable = true;
+        mocks.sessions.parent.draft = 'Send this draft';
+        let acceptDelivery!: () => void;
+        mocks.sendMessage.mockImplementation(() => new Promise<void>((resolve) => {
+            acceptDelivery = resolve;
+        }));
         const renderer = renderParent();
-        const initialSidebar = desktopSideChatHosts(renderer)[0];
+        const composer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
+            node.props.sessionId === 'parent'
+        ));
 
-        expect(initialSidebar).toBeDefined();
-        act(() => initialSidebar?.props.onAllFilesFilePress('/work/a.ts'));
-
-        let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(workspace.props.paths).toEqual(['/work/a.ts']);
-        expect(workspace.props.activePath).toBe('/work/a.ts');
-        expect(renderedComposerSessions(renderer)).toEqual(['parent']);
-
-        act(() => workspace.props.onOpenPicker());
-        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(workspace.props.pickerOpen).toBe(true);
-        act(() => workspace.props.picker.props.onFilePress('/work/b.md'));
-
-        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(workspace.props.paths).toEqual(['/work/a.ts', '/work/b.md']);
-        expect(workspace.props.activePath).toBe('/work/b.md');
-
-        act(() => workspace.props.onOpenPicker());
-        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        act(() => workspace.props.picker.props.onFilePress('/work/a.ts'));
-
-        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(workspace.props.paths).toEqual(['/work/a.ts', '/work/b.md']);
-        expect(workspace.props.activePath).toBe('/work/a.ts');
-
-        act(() => workspace.props.onDirtyChange('/work/a.ts', true));
-        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(workspace.props.dirtyPaths.has('/work/a.ts')).toBe(true);
-
-        mocks.modalConfirm.mockResolvedValueOnce(false);
+        let sendPromise!: Promise<void>;
         await act(async () => {
-            workspace.props.onRequestClose('/work/a.ts');
-            await Promise.resolve();
+            sendPromise = composer?.props.onSend();
+            await vi.waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledOnce());
         });
-        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(workspace.props.paths).toEqual(['/work/a.ts', '/work/b.md']);
 
-        mocks.modalConfirm.mockResolvedValueOnce(true);
+        act(() => mocks.voiceOnTranscript?.('late transcript'));
+        expect(mocks.composerText.parent).toBe('Send this draft late transcript');
+
         await act(async () => {
-            workspace.props.onRequestClose('/work/a.ts');
-            await Promise.resolve();
+            acceptDelivery();
+            await sendPromise;
         });
-        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(workspace.props.paths).toEqual(['/work/b.md']);
-        expect(workspace.props.activePath).toBe('/work/b.md');
-        expect(renderedComposerSessions(renderer)).toEqual(['parent']);
 
-        act(() => workspace.props.onRequestClose('/work/b.md'));
-        expect(renderer.root.findAllByType('DesktopFileWorkspace' as any)).toHaveLength(0);
-        expect(renderedComposerSessions(renderer)).toEqual(['parent']);
-        expect(desktopSideChatHosts(renderer)).toHaveLength(1);
+        expect(mocks.sendMessage).toHaveBeenCalledWith(
+            'parent',
+            'Send this draft',
+            expect.objectContaining({ source: 'chat' }),
+        );
+        expect(mocks.composerText.parent).toBe('late transcript');
+        expect(mocks.startRealtimeSession).not.toHaveBeenCalled();
     });
 
-    it('lets Changes temporarily replace the visible file workspace without unmounting its tabs', () => {
+    it('preserves a transcript that arrives while a heartbeat command is being handled', async () => {
+        mocks.voiceAvailable = true;
+        mocks.sessions.parent.draft = '/heartbeat status';
+        let acceptHeartbeat!: () => void;
+        mocks.heartbeatDispatch.mockImplementation(() => new Promise((resolve) => {
+            acceptHeartbeat = () => resolve({
+                handled: true,
+                clearComposer: true,
+                message: 'Heartbeat status',
+            });
+        }));
         const renderer = renderParent();
-        const initialSidebar = desktopSideChatHosts(renderer)[0];
+        const composer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
+            node.props.sessionId === 'parent'
+        ));
 
-        act(() => initialSidebar?.props.onAllFilesFilePress('/work/a.ts'));
-        let split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
-        let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(split.props.workspaceVisible).toBe(true);
+        let sendPromise!: Promise<void>;
+        await act(async () => {
+            sendPromise = composer?.props.onSend();
+            await vi.waitFor(() => expect(mocks.heartbeatDispatch).toHaveBeenCalledOnce());
+        });
 
-        act(() => workspace.props.onOpenChanges());
-        split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
-        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(split.props.workspaceVisible).toBe(false);
-        expect(workspace.props.paths).toEqual(['/work/a.ts']);
-        expect(desktopSideChatHosts(renderer)[0]?.props.activePanel).toBe('changes');
+        act(() => mocks.voiceOnTranscript?.('late transcript'));
+        expect(mocks.composerText.parent).toBe('/heartbeat status late transcript');
 
-        act(() => desktopSideChatHosts(renderer)[0]?.props.onClosePanel('changes'));
-        split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
-        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(split.props.workspaceVisible).toBe(true);
-        expect(workspace.props.paths).toEqual(['/work/a.ts']);
-        expect(workspace.props.activePath).toBe('/work/a.ts');
+        await act(async () => {
+            acceptHeartbeat();
+            await sendPromise;
+        });
+
+        expect(mocks.heartbeatDispatch).toHaveBeenCalledWith(expect.objectContaining({
+            text: '/heartbeat status',
+        }));
+        expect(mocks.composerText.parent).toBe('late transcript');
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+        expect(mocks.startRealtimeSession).not.toHaveBeenCalled();
     });
 
-    it('returns from stacked Changes and All Files panels to the selected desktop tab', () => {
+    it('keeps finish and cancel wired when availability changes during recording', () => {
+        mocks.voiceAvailable = false;
+        mocks.voicePhase = 'recording';
+        mocks.sessions.parent.active = false;
+
         const renderer = renderParent();
-        const initialSidebar = desktopSideChatHosts(renderer)[0];
+        const composer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
+            node.props.sessionId === 'parent'
+        ));
 
-        act(() => initialSidebar?.props.onAllFilesFilePress('/work/a.ts'));
-        act(() => {
-            mocks.localSettings.sidebarPanelsOpen = ['changes', 'allFiles'];
-            mocks.localSettings.sidebarPanelActive = 'allFiles';
-            for (const listener of mocks.listeners) listener();
-        });
-        expect(renderer.root.findByType('DesktopFileWorkspaceSplit' as any).props.workspaceVisible).toBe(false);
-
-        act(() => desktopSideChatHosts(renderer)[0]?.props.onAllFilesFilePress('/work/b.md'));
-        const split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
-        const workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(split.props.workspaceVisible).toBe(true);
-        expect(workspace.props.paths).toEqual(['/work/a.ts', '/work/b.md']);
-        expect(workspace.props.activePath).toBe('/work/b.md');
-        expect(mocks.localSettings.sidebarPanelsOpen).toEqual([]);
-        expect(mocks.localSettings.sidebarPanelActive).toBeNull();
-    });
-
-    it('presents the active desktop file full-width on narrow layouts and restores tabs without state loss', () => {
-        const renderer = renderParent();
-        const initialSidebar = desktopSideChatHosts(renderer)[0];
-
-        act(() => initialSidebar?.props.onAllFilesFilePress('/work/a.ts'));
-        let split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
-        let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(split.props.workspaceVisible).toBe(true);
-        expect(workspace.props.paths).toEqual(['/work/a.ts']);
-
-        mocks.width = 390;
-        act(() => {
-            mocks.localSettings.sidebarPanelsOpen = ['allFiles'];
-            mocks.localSettings.sidebarPanelActive = 'allFiles';
-            for (const listener of mocks.listeners) listener();
-        });
-        split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
-        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(split.props.workspaceVisible).toBe(false);
-        expect(split.props.workspaceFullscreen).toBe(true);
-        expect(workspace.props.compact).toBe(true);
-        expect(workspace.props.paths).toEqual(['/work/a.ts']);
-        expect(renderedComposerSessions(renderer)).toEqual(['parent']);
-
-        mocks.width = 1280;
-        act(() => {
-            mocks.localSettings.sidebarPanelsOpen = [];
-            mocks.localSettings.sidebarPanelActive = null;
-            for (const listener of mocks.listeners) listener();
-        });
-        split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
-        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(split.props.workspaceVisible).toBe(true);
-        expect(split.props.workspaceFullscreen).toBe(false);
-        expect(workspace.props.compact).toBe(false);
-        expect(workspace.props.paths).toEqual(['/work/a.ts']);
-        expect(workspace.props.activePath).toBe('/work/a.ts');
-    });
-
-    it('moves an open desktop Side chat to the narrow full-screen host before restoring the active file', () => {
-        const renderer = renderParent();
-        const initialSidebar = desktopSideChatHosts(renderer)[0];
-
-        act(() => initialSidebar?.props.onAllFilesFilePress('/work/a.ts'));
-        pressByLabel(renderer, 'Open side chats (3)');
-        expect(desktopSideChatHosts(renderer)[0]?.props.activePanel).toBe('sideChat');
-
-        mocks.width = 390;
-        act(() => {
-            for (const listener of mocks.listeners) listener();
-        });
-
-        let split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
-        let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(fullscreenSideChatHosts(renderer)).toHaveLength(1);
-        expect(split.props.workspaceVisible).toBe(false);
-        expect(split.props.workspaceFullscreen).toBe(false);
-        expect(workspace.props.paths).toEqual(['/work/a.ts']);
-
-        act(() => fullscreenSideChatHosts(renderer)[0]?.props.onCollapse());
-        split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
-        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(fullscreenSideChatHosts(renderer)).toHaveLength(0);
-        expect(split.props.workspaceFullscreen).toBe(true);
-        expect(workspace.props.compact).toBe(true);
-        expect(workspace.props.paths).toEqual(['/work/a.ts']);
-        expect(workspace.props.activePath).toBe('/work/a.ts');
+        expect(composer?.props.dictationPhase).toBe('recording');
+        expect(composer?.props.onMicPress).toBe(mocks.voiceToggle);
+        expect(composer?.props.onDictationCancel).toBe(mocks.voiceCancel);
+        act(() => composer?.props.onMicPress());
+        act(() => composer?.props.onDictationCancel());
+        expect(mocks.voiceToggle).toHaveBeenCalledOnce();
+        expect(mocks.voiceCancel).toHaveBeenCalledOnce();
     });
 
     it('opens the exact-parent side chats in the desktop right panel and renders the selected child', () => {
@@ -965,6 +891,52 @@ describe('SessionView side-chat integration', () => {
         expect(mocks.closeSideChatSession).not.toHaveBeenCalled();
         expect(mocks.sessionArchive).not.toHaveBeenCalled();
         expect(mocks.sessionKill).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        { surface: 'desktop right panel', width: 1200 },
+        { surface: 'mobile full screen', width: 700 },
+    ])('keeps configured dictation available in the $surface Side chat composer', ({ width }) => {
+        mocks.width = width;
+        mocks.voiceAvailable = true;
+        const renderer = renderParent();
+
+        pressByLabel(renderer, 'Open side chats (3)');
+        const childComposer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
+            node.props.sessionId === 'newest'
+        ));
+
+        expect(childComposer?.props.onMicPress).toBe(mocks.voiceToggle);
+        act(() => childComposer?.props.onMicPress());
+        expect(mocks.voiceToggle).toHaveBeenCalledOnce();
+        expect(mocks.startRealtimeSession).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        { surface: 'Web Desktop', width: 1200 },
+        { surface: 'Web Mobile', width: 700 },
+    ])('keeps configured dictation available in disconnected Main Agent and Side chat composers on $surface', ({ width }) => {
+        mocks.width = width;
+        mocks.voiceAvailable = true;
+        mocks.sessions.parent.active = false;
+        const renderer = renderParent();
+
+        const mainComposer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
+            node.props.sessionId === 'parent'
+        ));
+        expect(mainComposer?.props.onMicPress).toBe(mocks.voiceToggle);
+
+        pressByLabel(renderer, 'Open side chats (3)');
+        pressTab(renderer, 'stopped');
+        const sideChatComposer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
+            node.props.sessionId === 'stopped'
+        ));
+        expect(sideChatComposer?.props.onMicPress).toBe(mocks.voiceToggle);
+
+        act(() => mainComposer?.props.onMicPress());
+        act(() => sideChatComposer?.props.onMicPress());
+        expect(mocks.voiceToggle).toHaveBeenCalledTimes(2);
+        expect(mocks.startRealtimeSession).not.toHaveBeenCalled();
     });
 
     it('opens the same children in the narrow full-screen host and switches tabs before collapse', () => {

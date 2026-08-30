@@ -1,9 +1,7 @@
-# August 30 — Side-by-side file workspace and tabbed navigation
+# August 30 — Streamlined Automations Experience
 
-- Opening files from All Files on wide Web Desktop and Mac displays files in a right workspace beside the visible Main Agent chat and composer with a bounded, draggable divider, while Web Mobile retains full-width file behavior.
-- Open unique file paths into filename tabs with close buttons and a plus button to reopen the file picker, preserving existing preview, edit, save, and unsaved-changes confirmation flows.
-- Viewing Changes or All Files temporarily replaces the file pane without unmounting open tabs or losing unsaved edits; closing Changes restores the active file, and choosing a file from All Files collapses the temporary navigation and focuses the selected tab.
-- Collapse and expand the permanent left navigation using a dedicated chevron that operates independently of browser navigation controls and Zen mode.
+- Browse automations faster with a compact list powered by dynamic project-tag filters and search instead of repeating card sections.
+- Inspect automations in a desktop side panel or mobile full-width view with preserved search filters, collapsible Markdown instructions, compact rows showing localized, human-readable cadence and next-run information, and details featuring localized automation kinds, run states, run history, and controls.
 
 # August 29 — Side chats open consistently
 
