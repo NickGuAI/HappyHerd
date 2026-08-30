@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "58367a7510c54f722b2098f6069a8f6ea8b3683cd9b143426396700a2cc7e2c8",
+  "sourceFingerprint": "055b157db51366fbf34b5ebfc5cbd072ed2e35e9a9bc1286edf87515a168bfb0",
   "routeCount": 36,
   "surfaceCount": 248,
   "hardcodedCopyCount": 0,
@@ -5558,6 +5558,7 @@
       "exports": [
         "HEARTBEAT_COMMAND",
         "formatCompactCountdown",
+        "formatCompactInterval",
         "formatHeartbeatControlResult",
         "formatHeartbeatStatusPresentation"
       ],

@@ -115,4 +115,20 @@ describe('HappyHerd automation presentation', () => {
             schedule: '*/15 * * * *',
         }), translate, 'en', now)).toBe('Scheduled');
     });
+
+    it('keeps a heartbeat cadence exact while rounding only its next-run countdown', () => {
+        const now = Date.parse('2026-08-30T10:00:00.000Z');
+        const heartbeat = {
+            ...scheduledAutomation(),
+            kind: 'heartbeat',
+            schedule: null,
+            targetSessionId: 'session-1',
+            intervalSeconds: 90,
+            nextDueAt: '2026-08-30T10:01:30.000Z',
+            maxRetries: 0,
+        } as HappyHerdAutomation;
+
+        expect(happyHerdAutomationRowMeta(heartbeat, translate, 'en', now))
+            .toBe('Every 90s · Next run in 2m');
+    });
 });

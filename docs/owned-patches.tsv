@@ -162,3 +162,4 @@ HUMAN_ONE_CLICK_SIDE_CHAT	accepted	fix(side-chats): restore one-click Human crea
 SIDE_CHAT_DESKTOP_PARITY	accepted	fix(side-chats): name and verify desktop side chats	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 AUTOMATIONS_MASTER_DETAIL	accepted	feat(automations): add compact master-detail view (#178)	server/packages/happy-app/sources/app/(app)/automations/index.tsx
 AUTOMATIONS_MASTER_DETAIL_POLISH	accepted	fix(automations): polish master-detail presentation (#178)	server/packages/happy-app/sources/components/happyHerdAutomationPresentation.ts
+AUTOMATIONS_HEARTBEAT_CADENCE	accepted	fix(automations): preserve exact heartbeat cadence (#178)	server/packages/happy-app/sources/components/happyHerdAutomationPresentation.ts

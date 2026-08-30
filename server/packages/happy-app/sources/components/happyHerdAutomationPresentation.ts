@@ -3,7 +3,7 @@ import type {
     HappyHerdAutomationRun,
 } from '@slopus/happy-wire';
 
-import { formatCompactCountdown } from '@/utils/heartbeatCommand';
+import { formatCompactCountdown, formatCompactInterval } from '@/utils/heartbeatCommand';
 
 type Translate = (key: any, params?: Record<string, string | number>) => string;
 type SupportedLocale = 'en' | 'cn' | 'de';
@@ -254,7 +254,7 @@ export function happyHerdAutomationRowMeta(
         ? null
         : parseSimpleSchedule(automation.schedule);
     const cadence = automation.kind === 'heartbeat'
-        ? `${translate('happyHerd.heartbeat.every')} ${formatCompactCountdown(automation.intervalSeconds)}`
+        ? `${translate('happyHerd.heartbeat.every')} ${formatCompactInterval(automation.intervalSeconds)}`
         : simpleSchedule?.cadence(translate, locale)
             ?? translate('happyHerd.automations.cadenceScheduled');
 
