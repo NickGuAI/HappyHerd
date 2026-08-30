@@ -16,6 +16,7 @@ import { useOverlayNav } from '@/-session/sessionOverlayNav';
 import { DEFAULT_APP_ZOOM } from '@/hooks/useTauriZoom';
 import { canRouteForward, canUseRouteBack, getNavigatorCanGoBack } from '@/navigation/browserNavigation';
 import { useBrowserNavigationStore } from '@/navigation/browserNavigationStore';
+import { resolveDesktopNavigationDrawerWidth } from './sidebarNavigationLayout';
 
 const TAURI_HEADER_CONTROL_LEFT = Math.ceil(92 / DEFAULT_APP_ZOOM);
 
@@ -23,8 +24,8 @@ export const SidebarNavigator = React.memo(() => {
     const auth = useAuth();
     const isTablet = useIsTablet();
     const zenMode = useLocalSetting('zenMode');
+    const navigationSidebarCollapsed = useLocalSetting('navigationSidebarCollapsed');
     const isDesktopLayout = auth.isAuthenticated && isTablet;
-    const showSidebar = isDesktopLayout && !zenMode;
     const { width: windowWidth } = useWindowDimensions();
 
     // Calculate target drawer width
@@ -32,7 +33,12 @@ export const SidebarNavigator = React.memo(() => {
         if (!isDesktopLayout) return 280;
         return Math.min(Math.max(Math.floor(windowWidth * 0.3), 250), 360);
     }, [windowWidth, isDesktopLayout]);
-    const drawerWidth = showSidebar ? fullDrawerWidth : 0;
+    const drawerWidth = resolveDesktopNavigationDrawerWidth({
+        isDesktopLayout,
+        zenMode,
+        navigationSidebarCollapsed,
+        fullDrawerWidth,
+    });
 
     const drawerNavigationOptions = React.useMemo(() => {
         if (!isDesktopLayout) {
@@ -100,6 +106,7 @@ const PersistentHeader = React.memo(() => {
     const headerHeight = useHeaderHeight();
     const router = useRouter();
     const [zenMode, setZenMode] = useLocalSettingMutable('zenMode');
+    const [navigationSidebarCollapsed, setNavigationSidebarCollapsed] = useLocalSettingMutable('navigationSidebarCollapsed');
     const inTauri = isTauri();
     const isMacTauri = inTauri && typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
 
@@ -114,6 +121,10 @@ const PersistentHeader = React.memo(() => {
     const handleZenToggle = React.useCallback(() => {
         setZenMode(!zenMode);
     }, [zenMode, setZenMode]);
+
+    const handleNavigationSidebarToggle = React.useCallback(() => {
+        setNavigationSidebarCollapsed(!navigationSidebarCollapsed);
+    }, [navigationSidebarCollapsed, setNavigationSidebarCollapsed]);
 
     const handleBack = React.useCallback(() => {
         // Intra-session overlay (file diff / file view) consumes back first,
@@ -183,6 +194,22 @@ const PersistentHeader = React.memo(() => {
                         <Ionicons name="chevron-forward" size={20} color={theme.colors.header.tint} />
                     </Pressable>
                 )}
+                <Pressable
+                    onPress={handleNavigationSidebarToggle}
+                    hitSlop={10}
+                    accessibilityLabel={navigationSidebarCollapsed
+                        ? t('navigation.expandSidebar')
+                        : t('navigation.collapseSidebar')}
+                    accessibilityState={{ expanded: !navigationSidebarCollapsed }}
+                    testID="navigation-sidebar-toggle"
+                    style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center' }}
+                >
+                    <Ionicons
+                        name={navigationSidebarCollapsed ? 'chevron-forward' : 'chevron-back'}
+                        size={20}
+                        color={theme.colors.header.tint}
+                    />
+                </Pressable>
             </View>
         </View>
     );

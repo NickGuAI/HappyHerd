@@ -875,6 +875,10 @@
     "allFiles": "All Files",
     "addPanel": "Add panel",
     "closePanel": "Close panel",
+    "openFileTab": "Open file tab {name}",
+    "closeFileTab": "Close file tab {name}",
+    "openExistingFile": "Open existing file",
+    "resizeWorkspace": "Resize file workspace",
     "editFile": "Edit",
     "saveFile": "Save",
     "failedToRead": "Failed to read file",
@@ -1044,7 +1048,9 @@
     "linkNewDevice": "Link New Device",
     "restoreWithSecretKey": "Restore with Secret Key",
     "whatsNew": "What's New",
-    "friends": "Friends"
+    "friends": "Friends",
+    "expandSidebar": "Expand navigation sidebar",
+    "collapseSidebar": "Collapse navigation sidebar"
   },
   "welcome": {
     "title": "Codex and Claude Code mobile client",
