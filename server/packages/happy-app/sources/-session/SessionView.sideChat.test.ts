@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
     sessions: {} as Record<string, Session>,
     localSettings: {
         acknowledgedCliVersions: {} as Record<string, string>,
+        navigationSidebarCollapsed: false,
         sidebarPanelActive: null as 'changes' | 'allFiles' | 'sideChat' | null,
         sidebarPanelsOpen: [] as Array<'changes' | 'allFiles' | 'sideChat'>,
         zenMode: false,
@@ -25,6 +26,7 @@ const mocks = vi.hoisted(() => ({
     closeSideChatSession: vi.fn(),
     buildWorkspaceContextMessage: vi.fn(),
     heartbeatDispatch: vi.fn(),
+    modalConfirm: vi.fn(),
     machineCreateSideChat: vi.fn(),
     routerBack: vi.fn(),
     routerDismissTo: vi.fn(),
@@ -50,6 +52,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock('react-native', async () => {
     const ReactModule = await import('react');
     const host = (name: string) => (props: any) => ReactModule.createElement(name, props, props.children);
+    const subscribeToWidth = (listener: () => void) => {
+        mocks.listeners.add(listener);
+        return () => mocks.listeners.delete(listener);
+    };
     const Platform = {
         get OS() {
             return mocks.platform;
@@ -66,7 +72,14 @@ vi.mock('react-native', async () => {
         Text: host('Text'),
         TextInput: host('TextInput'),
         View: host('View'),
-        useWindowDimensions: () => ({ width: mocks.width, height: mocks.height }),
+        useWindowDimensions: () => ({
+            width: ReactModule.useSyncExternalStore(
+                subscribeToWidth,
+                () => mocks.width,
+                () => mocks.width,
+            ),
+            height: mocks.height,
+        }),
     };
 });
 
@@ -247,6 +260,26 @@ vi.mock('@/components/FileViewPanel', async () => {
     const ReactModule = await import('react');
     return { FileViewPanel: (props: any) => ReactModule.createElement('FileViewPanel', props) };
 });
+vi.mock('@/components/DesktopFileWorkspace', async () => {
+    const ReactModule = await import('react');
+    return {
+        DesktopFileWorkspace: (props: any) => ReactModule.createElement(
+            'DesktopFileWorkspace',
+            props,
+            props.picker,
+        ),
+        DesktopFileWorkspaceSplit: (props: any) => ReactModule.createElement(
+            'DesktopFileWorkspaceSplit',
+            props,
+            props.children,
+            ReactModule.createElement('DesktopFileWorkspaceSlot', {
+                visible: props.workspaceVisible,
+                fullscreen: props.workspaceFullscreen,
+            }, props.workspace),
+            props.workspaceVisible || props.workspaceFullscreen ? null : props.fallback,
+        ),
+    };
+});
 vi.mock('@/components/WorkspaceLinkSidePanel', async () => {
     const ReactModule = await import('react');
     return { WorkspaceLinkSidePanel: (props: any) => ReactModule.createElement('WorkspaceLinkSidePanel', props) };
@@ -334,7 +367,7 @@ vi.mock('@/hooks/useVoiceDictation', () => ({
 vi.mock('@/modal', () => ({
     Modal: {
         alert: vi.fn(),
-        confirm: vi.fn(async () => true),
+        confirm: mocks.modalConfirm,
         prompt: vi.fn(),
         show: vi.fn(),
     },
@@ -643,6 +676,7 @@ beforeEach(() => {
     mocks.landscape = false;
     mocks.fileDiffsSidebarEnabled = true;
     mocks.localSettings.acknowledgedCliVersions = {};
+    mocks.localSettings.navigationSidebarCollapsed = false;
     mocks.localSettings.sidebarPanelActive = null;
     mocks.localSettings.sidebarPanelsOpen = [];
     mocks.localSettings.zenMode = false;
@@ -654,6 +688,8 @@ beforeEach(() => {
     }));
     mocks.heartbeatDispatch.mockReset();
     mocks.heartbeatDispatch.mockResolvedValue({ handled: false });
+    mocks.modalConfirm.mockReset();
+    mocks.modalConfirm.mockResolvedValue(true);
     mocks.machineCreateSideChat.mockReset();
     mocks.routerBack.mockReset();
     mocks.routerDismissTo.mockReset();
@@ -959,6 +995,178 @@ describe('SessionView side-chat integration', () => {
         act(() => composer?.props.onDictationCancel());
         expect(mocks.voiceToggle).toHaveBeenCalledOnce();
         expect(mocks.voiceCancel).toHaveBeenCalledOnce();
+    });
+
+    it('keeps the Main Agent composer mounted while desktop file tabs open, dedupe, focus, and close', async () => {
+        const renderer = renderParent();
+        const initialSidebar = desktopSideChatHosts(renderer)[0];
+
+        expect(initialSidebar).toBeDefined();
+        act(() => initialSidebar?.props.onAllFilesFilePress('/work/a.ts'));
+
+        let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props.paths).toEqual(['/work/a.ts']);
+        expect(workspace.props.activePath).toBe('/work/a.ts');
+        expect(renderedComposerSessions(renderer)).toEqual(['parent']);
+
+        act(() => workspace.props.onOpenPicker());
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props.pickerOpen).toBe(true);
+        act(() => workspace.props.picker.props.onFilePress('/work/b.md'));
+
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props.paths).toEqual(['/work/a.ts', '/work/b.md']);
+        expect(workspace.props.activePath).toBe('/work/b.md');
+
+        act(() => workspace.props.onOpenPicker());
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        act(() => workspace.props.picker.props.onFilePress('/work/a.ts'));
+
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props.paths).toEqual(['/work/a.ts', '/work/b.md']);
+        expect(workspace.props.activePath).toBe('/work/a.ts');
+
+        act(() => workspace.props.onDirtyChange('/work/a.ts', true));
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props.dirtyPaths.has('/work/a.ts')).toBe(true);
+
+        mocks.modalConfirm.mockResolvedValueOnce(false);
+        await act(async () => {
+            workspace.props.onRequestClose('/work/a.ts');
+            await Promise.resolve();
+        });
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props.paths).toEqual(['/work/a.ts', '/work/b.md']);
+
+        mocks.modalConfirm.mockResolvedValueOnce(true);
+        await act(async () => {
+            workspace.props.onRequestClose('/work/a.ts');
+            await Promise.resolve();
+        });
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props.paths).toEqual(['/work/b.md']);
+        expect(workspace.props.activePath).toBe('/work/b.md');
+        expect(renderedComposerSessions(renderer)).toEqual(['parent']);
+
+        act(() => workspace.props.onRequestClose('/work/b.md'));
+        expect(renderer.root.findAllByType('DesktopFileWorkspace' as any)).toHaveLength(0);
+        expect(renderedComposerSessions(renderer)).toEqual(['parent']);
+        expect(desktopSideChatHosts(renderer)).toHaveLength(1);
+    });
+
+    it('lets Changes temporarily replace the visible file workspace without unmounting its tabs', () => {
+        const renderer = renderParent();
+        const initialSidebar = desktopSideChatHosts(renderer)[0];
+
+        act(() => initialSidebar?.props.onAllFilesFilePress('/work/a.ts'));
+        let split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(split.props.workspaceVisible).toBe(true);
+
+        act(() => workspace.props.onOpenChanges());
+        split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(split.props.workspaceVisible).toBe(false);
+        expect(workspace.props.paths).toEqual(['/work/a.ts']);
+        expect(desktopSideChatHosts(renderer)[0]?.props.activePanel).toBe('changes');
+
+        act(() => desktopSideChatHosts(renderer)[0]?.props.onClosePanel('changes'));
+        split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(split.props.workspaceVisible).toBe(true);
+        expect(workspace.props.paths).toEqual(['/work/a.ts']);
+        expect(workspace.props.activePath).toBe('/work/a.ts');
+    });
+
+    it('returns from stacked Changes and All Files panels to the selected desktop tab', () => {
+        const renderer = renderParent();
+        const initialSidebar = desktopSideChatHosts(renderer)[0];
+
+        act(() => initialSidebar?.props.onAllFilesFilePress('/work/a.ts'));
+        act(() => {
+            mocks.localSettings.sidebarPanelsOpen = ['changes', 'allFiles'];
+            mocks.localSettings.sidebarPanelActive = 'allFiles';
+            for (const listener of mocks.listeners) listener();
+        });
+        expect(renderer.root.findByType('DesktopFileWorkspaceSplit' as any).props.workspaceVisible).toBe(false);
+
+        act(() => desktopSideChatHosts(renderer)[0]?.props.onAllFilesFilePress('/work/b.md'));
+        const split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        const workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(split.props.workspaceVisible).toBe(true);
+        expect(workspace.props.paths).toEqual(['/work/a.ts', '/work/b.md']);
+        expect(workspace.props.activePath).toBe('/work/b.md');
+        expect(mocks.localSettings.sidebarPanelsOpen).toEqual([]);
+        expect(mocks.localSettings.sidebarPanelActive).toBeNull();
+    });
+
+    it('presents the active desktop file full-width on narrow layouts and restores tabs without state loss', () => {
+        const renderer = renderParent();
+        const initialSidebar = desktopSideChatHosts(renderer)[0];
+
+        act(() => initialSidebar?.props.onAllFilesFilePress('/work/a.ts'));
+        let split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(split.props.workspaceVisible).toBe(true);
+        expect(workspace.props.paths).toEqual(['/work/a.ts']);
+
+        mocks.width = 390;
+        act(() => {
+            mocks.localSettings.sidebarPanelsOpen = ['allFiles'];
+            mocks.localSettings.sidebarPanelActive = 'allFiles';
+            for (const listener of mocks.listeners) listener();
+        });
+        split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(split.props.workspaceVisible).toBe(false);
+        expect(split.props.workspaceFullscreen).toBe(true);
+        expect(workspace.props.compact).toBe(true);
+        expect(workspace.props.paths).toEqual(['/work/a.ts']);
+        expect(renderedComposerSessions(renderer)).toEqual(['parent']);
+
+        mocks.width = 1280;
+        act(() => {
+            mocks.localSettings.sidebarPanelsOpen = [];
+            mocks.localSettings.sidebarPanelActive = null;
+            for (const listener of mocks.listeners) listener();
+        });
+        split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(split.props.workspaceVisible).toBe(true);
+        expect(split.props.workspaceFullscreen).toBe(false);
+        expect(workspace.props.compact).toBe(false);
+        expect(workspace.props.paths).toEqual(['/work/a.ts']);
+        expect(workspace.props.activePath).toBe('/work/a.ts');
+    });
+
+    it('moves an open desktop Side chat to the narrow full-screen host before restoring the active file', () => {
+        const renderer = renderParent();
+        const initialSidebar = desktopSideChatHosts(renderer)[0];
+
+        act(() => initialSidebar?.props.onAllFilesFilePress('/work/a.ts'));
+        pressByLabel(renderer, 'Open side chats (3)');
+        expect(desktopSideChatHosts(renderer)[0]?.props.activePanel).toBe('sideChat');
+
+        mocks.width = 390;
+        act(() => {
+            for (const listener of mocks.listeners) listener();
+        });
+
+        let split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(fullscreenSideChatHosts(renderer)).toHaveLength(1);
+        expect(split.props.workspaceVisible).toBe(false);
+        expect(split.props.workspaceFullscreen).toBe(false);
+        expect(workspace.props.paths).toEqual(['/work/a.ts']);
+
+        act(() => fullscreenSideChatHosts(renderer)[0]?.props.onCollapse());
+        split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(fullscreenSideChatHosts(renderer)).toHaveLength(0);
+        expect(split.props.workspaceFullscreen).toBe(true);
+        expect(workspace.props.compact).toBe(true);
+        expect(workspace.props.paths).toEqual(['/work/a.ts']);
+        expect(workspace.props.activePath).toBe('/work/a.ts');
     });
 
     it('opens the exact-parent side chats in the desktop right panel and renders the selected child', () => {

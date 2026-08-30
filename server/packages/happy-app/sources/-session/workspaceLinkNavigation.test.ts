@@ -161,6 +161,7 @@ describe('workspace link navigation', () => {
         mocks.confirm.mockResolvedValueOnce(true);
         await act(async () => {
             renderer.root.findByType('DismissGuardHarness' as any).props.guardDismiss(dismiss);
+            await Promise.resolve();
             await new Promise((resolve) => setTimeout(resolve, 0));
         });
         expect(dismiss).toHaveBeenCalledOnce();

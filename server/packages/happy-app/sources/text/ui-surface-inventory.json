@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "055b157db51366fbf34b5ebfc5cbd072ed2e35e9a9bc1286edf87515a168bfb0",
+  "sourceFingerprint": "65baa0876fd8e8d89c8cb3f0fa2c93164be597249e72520c27d8128186b8a103",
   "routeCount": 36,
-  "surfaceCount": 248,
+  "surfaceCount": 250,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -747,8 +747,6 @@
         "happyHerd.features.commanderProfilePicturesSubtitle",
         "happyHerd.features.interface",
         "happyHerd.features.interfaceFooter",
-        "happyHerd.features.voiceInput",
-        "happyHerd.features.voiceInputSubtitle",
         "settingsFeatures.experimentalFeatures",
         "settingsFeatures.experimentalFeaturesDisabled",
         "settingsFeatures.experimentalFeaturesEnabled",
@@ -1010,6 +1008,7 @@
       ],
       "translationKeys": [
         "common.cancel",
+        "common.discard",
         "common.error",
         "common.save",
         "components.agentGoalBar.currentGoal",
@@ -1039,6 +1038,26 @@
       "states": [
         "error"
       ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/-session/workspaceLinkNavigation.ts",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "WorkspaceLinkPressContext",
+        "dismissWorkspaceLinkToOrigin",
+        "openWorkspaceLinkFromSession",
+        "useWorkspaceLinkDismissGuard",
+        "useWorkspaceLinkPress"
+      ],
+      "translationKeys": [
+        "common.cancel",
+        "common.discard",
+        "uiCopy.discardUnsavedChanges",
+        "uiCopy.yourCurrentFileEditsHaveNotBeenSaved"
+      ],
+      "states": [],
       "hardcodedCopy": []
     },
     {
@@ -1947,8 +1966,6 @@
         "happyHerd.features.commanderProfilePicturesSubtitle",
         "happyHerd.features.interface",
         "happyHerd.features.interfaceFooter",
-        "happyHerd.features.voiceInput",
-        "happyHerd.features.voiceInputSubtitle",
         "settingsFeatures.experimentalFeatures",
         "settingsFeatures.experimentalFeaturesDisabled",
         "settingsFeatures.experimentalFeaturesEnabled",
@@ -2393,6 +2410,7 @@
         "happyHerd.composer.send",
         "happyHerd.composer.startVoice",
         "happyHerd.composer.stop",
+        "happyHerd.composer.transcribingVoice",
         "settings.title",
         "uiCopy.claude",
         "uiCopy.codex",
@@ -2877,6 +2895,27 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/DesktopFileWorkspace.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "DesktopFileWorkspace",
+        "DesktopFileWorkspaceDivider",
+        "DesktopFileWorkspaceSplit"
+      ],
+      "translationKeys": [
+        "common.back",
+        "files.allFiles",
+        "files.changes",
+        "files.closeFileTab",
+        "files.openExistingFile",
+        "files.openFileTab",
+        "files.resizeWorkspace"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/diff/DiffView.tsx",
       "kind": "component",
       "route": null,
@@ -3090,6 +3129,7 @@
       "kind": "sidebar",
       "route": null,
       "exports": [
+        "AllFilesPicker",
         "FilesSidebar"
       ],
       "translationKeys": [
@@ -3118,6 +3158,7 @@
         "FileViewPanel"
       ],
       "translationKeys": [
+        "common.cancel",
         "common.error",
         "files.cannotDisplayBinary",
         "files.diff",
@@ -3131,7 +3172,10 @@
         "files.saveFile",
         "uiCopy.preview",
         "uiCopy.previewOfValue",
-        "uiCopy.source"
+        "uiCopy.saved",
+        "uiCopy.saving",
+        "uiCopy.source",
+        "uiCopy.unsaved"
       ],
       "states": [
         "error"
@@ -4342,6 +4386,8 @@
         "SidebarNavigator"
       ],
       "translationKeys": [
+        "navigation.collapseSidebar",
+        "navigation.expandSidebar",
         "zen.toggle"
       ],
       "states": [],
@@ -5054,11 +5100,15 @@
       ],
       "translationKeys": [
         "common.back",
+        "common.cancel",
+        "common.discard",
         "common.fileViewer",
         "common.retry",
         "errors.tryAgain",
+        "uiCopy.discardUnsavedChanges",
         "uiCopy.machineNotFound",
         "uiCopy.openFolderValue",
+        "uiCopy.yourCurrentFileEditsHaveNotBeenSaved",
         "workspace.emptyFolder",
         "workspace.linkMachineMissingDescription",
         "workspace.linkPathMissingDescription",
