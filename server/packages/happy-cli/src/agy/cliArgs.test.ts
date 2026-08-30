@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildAgyArgs } from './cliArgs';
+import { buildAgyArgs, parseAgyPermissionMode } from './cliArgs';
 
 describe('buildAgyArgs', () => {
   it('uses --sandbox for non-skip permission modes and puts the prompt last', () => {
@@ -11,12 +11,18 @@ describe('buildAgyArgs', () => {
     expect(args.slice(-2)).toEqual(['--print', 'hello world']);
   });
 
-  it('uses --dangerously-skip-permissions for yolo-style modes', () => {
-    for (const mode of ['yolo', 'safe-yolo', 'bypassPermissions', 'acceptEdits'] as const) {
-      const args = buildAgyArgs({ prompt: 'p', permissionMode: mode });
-      expect(args).toContain('--dangerously-skip-permissions');
-      expect(args).not.toContain('--sandbox');
-    }
+  it('uses --dangerously-skip-permissions only for the advertised bypass mode', () => {
+    const args = buildAgyArgs({ prompt: 'p', permissionMode: 'bypassPermissions' });
+    expect(args).toContain('--dangerously-skip-permissions');
+    expect(args).not.toContain('--sandbox');
+  });
+
+  it.each(['yolo', 'safe-yolo', 'acceptEdits', 'plan'])('rejects unsupported direct mode %s', (mode) => {
+    expect(() => parseAgyPermissionMode(mode)).toThrow(`Unsupported Antigravity permission mode: ${mode}`);
+    expect(() => buildAgyArgs({
+      prompt: 'p',
+      permissionMode: mode as never,
+    })).toThrow(`Unsupported Antigravity permission mode: ${mode}`);
   });
 
   it('passes the model via --model', () => {

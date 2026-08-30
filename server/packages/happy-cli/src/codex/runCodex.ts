@@ -43,7 +43,7 @@ import { connectionState } from '@/utils/serverConnectionErrors';
 import { setupOfflineReconnection } from '@/utils/setupOfflineReconnection';
 import type { PermissionMode } from '@/api/types';
 import type { ApiSessionClient } from '@/api/apiSession';
-import { resolveCodexExecutionPolicy, shouldAutoApproveCodexApproval } from './executionPolicy';
+import { resolveCodexApprovalDisposition, resolveCodexExecutionPolicy } from './executionPolicy';
 import {
     mapCodexMcpMessageToSessionEnvelopes,
     mapCodexProcessorMessageToSessionEnvelopes,
@@ -51,7 +51,11 @@ import {
 import { resumeExistingThread } from './resumeExistingThread';
 import { emitReadyIfIdle } from './emitReadyIfIdle';
 import { enqueueCodexUserText, isCodexClearText } from './codexClearCommand';
-import { deliverCodexActiveTurnInput, shouldSteerCodexUserInput } from './codexTurnRouting';
+import {
+    deliverCodexActiveTurnInput,
+    parseCodexRemotePermissionMode,
+    shouldSteerCodexUserInput,
+} from './codexTurnRouting';
 import { downloadCodexFileEventAttachment } from './utils/attachmentEvents';
 import { prepareCodexImageInputItems } from './utils/imageInput';
 import { createSerialAsyncHandler } from './utils/serialAsyncHandler';
@@ -84,6 +88,7 @@ import { buildHappyHerdAgentMcpServerConfig, readHappyHerdAgentSessionEnvironmen
 import { classifyCodexHardLimit } from '@/credentialPool/providerLimits';
 import { reportProviderHardLimitOnce } from '@/credentialPool/providerLimitNotice';
 import { persistActiveCodexCredential } from '@/credentialPool/codexAuth';
+import { machineSessionSettingsMetadataFromEnvironment } from '@/daemon/sessionLaunchSettings';
 
 /**
  * Extracts a human-readable error from a codex task_complete/turn_aborted event.
@@ -188,7 +193,36 @@ export async function runCodex(opts: {
     // Create session
     //
 
-    const initialPermissionMode = opts.permissionMode ?? DEFAULT_CODEX_PERMISSION_MODE;
+    const daemonLaunchSettings = machineSessionSettingsMetadataFromEnvironment().spawnSettings;
+    const codexDaemonLaunchSettings = daemonLaunchSettings?.provider === 'codex'
+        ? daemonLaunchSettings
+        : null;
+    const optionPermission = opts.permissionMode
+        ? parseCodexRemotePermissionMode(opts.permissionMode)
+        : null;
+    if (opts.permissionMode && !optionPermission) {
+        throw new Error(`Unsupported Codex permission mode: ${opts.permissionMode}`);
+    }
+    const daemonPermission = codexDaemonLaunchSettings?.permission;
+    const parsedDaemonPermission = daemonPermission
+        ? parseCodexRemotePermissionMode(daemonPermission)
+        : null;
+    if (daemonPermission && !parsedDaemonPermission) {
+        throw new Error(`Unsupported Codex permission mode: ${daemonPermission}`);
+    }
+    const initialPermissionMode = parsedDaemonPermission
+        ?? optionPermission
+        ?? DEFAULT_CODEX_PERMISSION_MODE;
+    const initialModel = codexDaemonLaunchSettings?.model
+        ?? opts.model
+        ?? DEFAULT_CODEX_MODEL;
+    const daemonEffort = codexDaemonLaunchSettings?.effort;
+    if (daemonEffort !== null && daemonEffort !== undefined && !isReasoningEffort(daemonEffort)) {
+        throw new Error(`Unsupported Codex effort level: ${daemonEffort}`);
+    }
+    const initialEffort = initialCodexReasoningEffort(
+        (daemonEffort ?? opts.effort) as ReasoningEffort | undefined,
+    );
     if (agentSession && initialPermissionMode !== 'read-only') {
         throw new Error('HappyHerd Agent Codex sessions must start in read-only permission mode');
     }
@@ -206,10 +240,22 @@ export async function runCodex(opts: {
         startedBy: opts.startedBy,
         sandbox: sandboxConfig,
         dangerouslySkipPermissions: initialPermissionMode === 'yolo' || initialPermissionMode === 'bypassPermissions',
+        spawnSettings: {
+            provider: 'codex',
+            model: initialModel,
+            effort: initialEffort,
+            permission: initialPermissionMode,
+        },
         ...(forkedFromSessionId ? { parentSessionId: forkedFromSessionId } : {}),
         ...(forkedFromMessageId ? { forkedFromMessageId } : {}),
         ...(isSideChat ? { isSideChat: true } : {}),
     });
+    const effectiveLaunchSettings = metadata.spawnSettings?.provider === 'codex'
+        ? metadata.spawnSettings
+        : null;
+    metadata.permissionMode = effectiveLaunchSettings?.permission ?? initialPermissionMode;
+    metadata.modelMode = effectiveLaunchSettings?.model ?? initialModel;
+    metadata.effortLevel = effectiveLaunchSettings?.effort ?? initialEffort;
 
     const skillCommands = await discoverCodexSkillCommands();
     if (skillCommands.length > 0) {
@@ -345,51 +391,36 @@ export async function runCodex(opts: {
     // Track current overrides to apply per message
     // Use shared PermissionMode type from api/types for cross-agent compatibility
     let currentPermissionMode: PermissionMode | undefined = initialPermissionMode;
-    // True only while currentPermissionMode reflects an explicit user pick
-    // (message meta), not the launch default or an abort-reset. The approval
-    // handler's latest-mode check trusts only explicit picks — the launch
-    // default for plain codex is yolo, and it must not wave through a
-    // straggler approval after an abort.
-    let currentPermissionModeExplicitlySet = false;
-    let currentModel: string | undefined = opts.model ?? DEFAULT_CODEX_MODEL;
-    let currentEffort: ReasoningEffort = initialCodexReasoningEffort(opts.effort);
+    let activeTurnPermissionMode: PermissionMode | undefined = undefined;
+    let currentModel: string | undefined = initialModel;
+    let currentEffort: ReasoningEffort = initialEffort;
     let currentAppendSystemPrompt: string | undefined;
 
     const resetCurrentModeDefaults = () => {
         // Reset permission mode and prompts to what the session was launched
-        // with. Note this is NOT
-        // a safety guarantee by itself — for plain `happy codex` the launch
-        // mode IS yolo; the post-abort grace window is protected by the
-        // approval handler only trusting explicitly-picked modes.
+        // with. The post-abort grace window remains pinned to
+        // activeTurnPermissionMode until the running turn finishes.
         // Model and effort are deliberately NOT reset here. The app sends them
         // only when the user changes the picker, so resetting them on abort
         // silently desyncs the picker from what the next turn actually runs.
         currentPermissionMode = initialPermissionMode;
-        currentPermissionModeExplicitlySet = false;
         currentAppendSystemPrompt = undefined;
         logger.debug('[Codex] Reset current mode defaults after abort');
     };
 
-    // Valid Codex permission modes from remote messages. Matches the modes
-    // the mobile UI exposes for Codex sessions (see modelModeOptions.ts:
-    // getCodexPermissionModes) and mirrors the Gemini validation pattern at
-    // runGemini.ts:222. Anything outside this set is silently ignored — the
-    // previous code blindly cast `message.meta.permissionMode as PermissionMode`
-    // at runtime, meaning a crafted value like `'totally_unsafe'` would be
-    // accepted and then fall through to the `default` branch in
-    // resolveCodexExecutionPolicy() — or worse, an attacker-chosen valid value
-    // could escalate sandbox scope (issue #1092).
-    const VALID_REMOTE_PERMISSION_MODES: readonly PermissionMode[] = [
-        'default',
-        'auto',
-        'read-only',
-        'safe-yolo',
-        'yolo',
-    ];
     const handleUserMessage = createSerialAsyncHandler<UserMessage>(async (message) => {
         const queueMessageId = message.meta?.deliveryMode === 'queue'
             ? message.localKey ?? message.meta.queueMessageId
             : undefined;
+        const incomingPermission = message.meta?.permissionMode
+            ? parseCodexRemotePermissionMode(message.meta.permissionMode)
+            : undefined;
+        if (message.meta?.permissionMode && !incomingPermission) {
+            const error = `Unsupported Codex permission mode: ${message.meta.permissionMode}`;
+            logger.debug(`[Codex] ${error}`);
+            session.sendSessionEvent({ type: 'message', message: error });
+            return;
+        }
         const attachmentsForThisMessage = await session.drainAttachmentsForUserMessage(queueMessageId);
 
         // Resolve permission mode (validate against Codex-native modes)
@@ -397,17 +428,10 @@ export async function runCodex(opts: {
         if (agentSession) {
             messagePermissionMode = 'read-only';
             currentPermissionMode = 'read-only';
-            currentPermissionModeExplicitlySet = true;
-        } else if (message.meta?.permissionMode) {
-            const incoming = message.meta.permissionMode as PermissionMode;
-            if (VALID_REMOTE_PERMISSION_MODES.includes(incoming)) {
-                messagePermissionMode = incoming;
-                currentPermissionMode = messagePermissionMode;
-                currentPermissionModeExplicitlySet = true;
-                logger.debug(`[Codex] Permission mode updated from user message to: ${currentPermissionMode}`);
-            } else {
-                logger.debug(`[Codex] Ignoring invalid permission mode from user message: ${String(message.meta.permissionMode)}`);
-            }
+        } else if (incomingPermission) {
+            messagePermissionMode = incomingPermission;
+            currentPermissionMode = messagePermissionMode;
+            logger.debug(`[Codex] Permission mode updated from user message to: ${currentPermissionMode}`);
         } else {
             logger.debug(`[Codex] User message received with no permission mode override, using current: ${currentPermissionMode ?? 'default (effective)'}`);
         }
@@ -479,7 +503,14 @@ export async function runCodex(opts: {
         }
 
         const activeTurnId = client?.activeTurnId ?? null;
-        if (shouldSteerCodexUserInput(message.content.text, activeTurnId, message.meta?.deliveryMode)) {
+        if (shouldSteerCodexUserInput(
+            message.content.text,
+            activeTurnId,
+            message.meta?.deliveryMode,
+            activeTurnPermissionMode,
+            enhancedMode.permissionMode,
+            messageQueue.size() > 0,
+        )) {
             const imageInputs = await prepareCodexImageInputItems(attachmentsForThisMessage, {
                 sessionId: session.sessionId,
             });
@@ -567,7 +598,6 @@ export async function runCodex(opts: {
     let codexCollabReceiverThreadIdsByCall = new Map<string, string[]>();
     let codexCollabTurnIdsByCall = new Map<string, string>();
     let codexCollabToolByCall = new Map<string, string>();
-    let activeTurnPermissionMode: PermissionMode | undefined = undefined;
     let automationTerminalEvent: { status: 'completed' | 'failed'; message: string | null } | null = null;
     session.keepAlive(thinking, 'remote');
     // Periodic keep-alive; store handle so we can clear on exit
@@ -913,20 +943,10 @@ export async function runCodex(opts: {
                 ? { changes: params.fileChanges }
                 : (params.input ?? {});
         const activePermissionMode = activeTurnPermissionMode ?? currentPermissionMode ?? DEFAULT_CODEX_PERMISSION_MODE;
-        // Check the latest session mode too: a turn pinned under an untrusted
-        // policy keeps prompting after the user flips to yolo mid-turn
-        // otherwise. Only when the mode was EXPLICITLY picked by the user —
-        // the abort-reset restores the launch default (yolo for plain codex),
-        // and a straggler approval from the dying turn (the ~3s abort grace
-        // window, when the pinned turn mode is still set) must not be waved
-        // through by that reset value.
-        const latestPermissionMode = currentPermissionModeExplicitlySet
-            ? currentPermissionMode ?? DEFAULT_CODEX_PERMISSION_MODE
-            : undefined;
+        const approvalDisposition = resolveCodexApprovalDisposition(activePermissionMode, client.sandboxEnabled);
 
-        if (shouldAutoApproveCodexApproval(activePermissionMode, client.sandboxEnabled)
-            || (latestPermissionMode !== undefined && shouldAutoApproveCodexApproval(latestPermissionMode, client.sandboxEnabled))) {
-            logger.debug(`[Codex] Auto-approving ${params.type} approval in ${activePermissionMode} mode (latest: ${latestPermissionMode ?? 'n/a'})`);
+        if (approvalDisposition === 'approved') {
+            logger.debug(`[Codex] Auto-approving ${params.type} approval in ${activePermissionMode} mode`);
             return 'approved';
         }
 
@@ -937,6 +957,11 @@ export async function runCodex(opts: {
             // Returning abort asks the provider to end this exact turn without
             // ever publishing a pending approval that nobody can answer.
             return 'abort';
+        }
+
+        if (approvalDisposition === 'denied') {
+            logger.debug(`[Codex] Denying late ${params.type} approval without prompting in ${activePermissionMode} mode`);
+            return 'denied';
         }
 
         try {
@@ -1194,14 +1219,21 @@ export async function runCodex(opts: {
         }
 
         if (opts.resumeThreadId) {
+            const resumeExecutionPolicy = resolveCodexExecutionPolicy(
+                initialPermissionMode,
+                client.sandboxEnabled,
+            );
             await resumeExistingThread({
                 client,
                 session,
                 messageBuffer,
                 threadId: opts.resumeThreadId,
+                model: initialModel,
                 cwd: process.cwd(),
                 mcpServers,
                 developerInstructions: happyHerdContextPrompt,
+                approvalPolicy: resumeExecutionPolicy.approvalPolicy,
+                sandbox: resumeExecutionPolicy.sandbox,
                 // Side chats start empty — keep the resume notice out of the UI.
                 announce: !isSideChat,
             });

@@ -13,7 +13,12 @@ import { HappyError } from '@/utils/errors';
 import { copySessionMetadataToClipboard, copySessionMetadataAndLogsToClipboard } from '@/utils/copySessionMetadataToClipboard';
 import { useSessionStatus } from '@/utils/sessionUtils';
 import { isMachineOnline } from '@/utils/machineUtils';
-import { getGrokResumePermissionMode, getResumeAvailability } from '@/utils/sessionResume';
+import {
+    getClaudeResumeModes,
+    getCodexResumeModes,
+    getGrokResumePermissionMode,
+    getResumeAvailability,
+} from '@/utils/sessionResume';
 import { getSessionForkSource } from '@/utils/sessionFork';
 import { useRouter } from 'expo-router';
 import { useSession } from '@/sync/storage';
@@ -128,7 +133,10 @@ export function useSessionQuickActions(
 
         let modeMeta: ReturnType<typeof resolveMessageModeMeta>;
         try {
-            modeMeta = resolveMessageModeMeta(session, currentState.settings);
+            const agentKey = session.metadata?.flavor ?? 'claude';
+            const availablePermissions = latestMachine?.metadata?.agentCapabilities?.[agentKey]
+                ?.permissionModes.map((mode) => ({ key: mode.code }));
+            modeMeta = resolveMessageModeMeta(session, currentState.settings, { availablePermissions });
         } catch (error) {
             if (error instanceof UnsupportedPermissionModeError) {
                 // Refuse loudly instead of substituting a mode: swapping in a
@@ -140,13 +148,21 @@ export function useSessionQuickActions(
             }
             throw error;
         }
+        const providerResumeModes = session.metadata?.flavor === 'codex'
+            ? getCodexResumeModes(session, latestMachine)
+            : session.metadata?.flavor === 'claude'
+                ? getClaudeResumeModes(session, latestMachine)
+                : undefined;
+        const persistedResumePermissionMode = providerResumeModes?.permissionMode
+            ?? (session.metadata?.flavor === 'grok'
+                ? getGrokResumePermissionMode(session, latestMachine)
+                : undefined);
         const result = await machineResumeSession({
             machineId,
             sessionId: session.id,
-            model: modeMeta.model ?? undefined,
-            permissionMode: session.metadata?.flavor === 'grok'
-                ? getGrokResumePermissionMode(session, latestMachine)
-                : modeMeta.permissionMode,
+            model: providerResumeModes?.modelMode ?? modeMeta.model ?? undefined,
+            effortLevel: providerResumeModes?.effortLevel ?? modeMeta.effort ?? undefined,
+            permissionMode: persistedResumePermissionMode ?? modeMeta.permissionMode,
             replayQueueMessageId,
         });
 
@@ -156,11 +172,26 @@ export function useSessionQuickActions(
                 // Refresh to pick up the updated session state.
                 await sync.refreshSessions();
 
-                if (session.permissionMode) {
+                if (
+                    result.settings
+                    && (result.settings.provider === 'claude' || result.settings.provider === 'codex')
+                ) {
+                    // The daemon validates against the target machine and is
+                    // the launch authority. Mirror its exact confirmed tuple.
+                    sessionSetAgentModes(result.sessionId, {
+                        permissionMode: result.settings.permission,
+                        modelMode: result.settings.model,
+                        effortLevel: result.settings.effort,
+                    });
+                } else if (providerResumeModes) {
+                    // Compatibility with a daemon that validates the tuple but
+                    // predates returning its settings receipt over the RPC.
+                    sessionSetAgentModes(result.sessionId, providerResumeModes);
+                } else if (persistedResumePermissionMode) {
+                    sessionSetAgentModes(result.sessionId, { permissionMode: persistedResumePermissionMode });
+                } else if (session.permissionMode) {
                     sessionSetAgentModes(result.sessionId, { permissionMode: session.permissionMode });
                 }
-                // Model / effort picks survive resume on their own — they live
-                // in the session's synced metadata (#1492).
 
                 navigateToSession(result.sessionId);
                 return;

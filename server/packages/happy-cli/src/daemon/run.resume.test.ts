@@ -120,6 +120,43 @@ vi.mock('@/utils/detectCLI', () => ({
 
 vi.mock('@/capabilities/agentCapabilities', () => ({
   buildBaselineAgentCapabilities: vi.fn(() => ({
+    claude: {
+      detectedAt: 1,
+      sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
+      models: [
+        { code: 'default', value: 'Default' },
+        { code: 'claude-opus-test', value: 'Claude Opus Test' },
+      ],
+      effortLevels: [
+        { code: 'max', value: 'Max', isDefault: true },
+        { code: 'high', value: 'High' },
+      ],
+      permissionModes: [
+        { code: 'default', value: 'Default', isDefault: true },
+        { code: 'bypassPermissions', value: 'Bypass permissions' },
+        { code: 'plan', value: 'Plan' },
+        { code: 'dontAsk', value: 'Deny without asking' },
+      ],
+    },
+    codex: {
+      detectedAt: 1,
+      sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
+      models: [
+        { code: 'gpt-5.6-codex', value: 'GPT-5.6 Codex', isDefault: true },
+        { code: 'gpt-custom', value: 'GPT Custom' },
+      ],
+      effortLevels: [
+        { code: 'xhigh', value: 'Extra high', isDefault: true },
+        { code: 'high', value: 'High' },
+      ],
+      permissionModes: [
+        { code: 'default', value: 'Ask first' },
+        { code: 'auto', value: 'Auto' },
+        { code: 'read-only', value: 'Read only' },
+        { code: 'safe-yolo', value: 'Workspace', isDefault: true },
+        { code: 'yolo', value: 'Full access' },
+      ],
+    },
     grok: {
       detectedAt: 1,
       sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
@@ -182,8 +219,13 @@ type CapturedRpcHandlers = {
   requestShutdown: () => void;
   resumeSession: (
     sessionId: string,
-    options?: { permissionMode?: string; replayQueueMessageId?: string },
-  ) => Promise<{ type: string; sessionId?: string; errorMessage?: string }>;
+    options?: {
+      model?: string;
+      effortLevel?: string;
+      permissionMode?: string;
+      replayQueueMessageId?: string;
+    },
+  ) => Promise<{ type: string; sessionId?: string; errorMessage?: string; settings?: unknown }>;
   changeGrokPermissionMode: (request: {
     sessionId: string;
     permissionMode: string;
@@ -209,6 +251,12 @@ const sideChatBrief: SideChatDelegationBrief = {
   writeOwnership: '/srv/project/owned.ts',
   verification: 'Run the focused checks.',
   handoff: 'Return result, evidence, blockers, and remaining work.',
+};
+const codexAdvertisedDefaultSettings = {
+  provider: 'codex' as const,
+  model: 'gpt-5.6-codex',
+  effort: 'xhigh',
+  permission: 'safe-yolo',
 };
 
 describe('daemon session continuity', () => {
@@ -333,9 +381,13 @@ describe('daemon session continuity', () => {
 
     const resume = rpc.resumeSession(resolvedSessionId);
     await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
-    control.onHappySessionWebhook(resolvedSessionId, { ...metadata, hostPid: 4321 }, encryption);
+    control.onHappySessionWebhook(resolvedSessionId, {
+      ...metadata,
+      hostPid: 4321,
+      spawnSettings: codexAdvertisedDefaultSettings,
+    }, encryption);
 
-    await expect(resume).resolves.toEqual({ type: 'success', sessionId: resolvedSessionId });
+    await expect(resume).resolves.toMatchObject({ type: 'success', sessionId: resolvedSessionId });
     expect(mocks.backfillReconnectableSessionForMachine).toHaveBeenCalledWith(resolvedSessionId, 'machine-1');
     expect(mocks.hasProviderProcessExited).not.toHaveBeenCalled();
 
@@ -343,7 +395,14 @@ describe('daemon session continuity', () => {
       string[],
       { cwd: string; env: NodeJS.ProcessEnv },
     ];
-    expect(args).toEqual(['codex', '--resume', metadata.codexThreadId, '--started-by', 'daemon']);
+    expect(args).toEqual([
+      'codex',
+      '--resume', metadata.codexThreadId,
+      '--started-by', 'daemon',
+      '--permission-mode', 'safe-yolo',
+      '--model', 'gpt-5.6-codex',
+      '--effort', 'xhigh',
+    ]);
     expect(spawnOptions.cwd).toBe(metadata.path);
     expect(mocks.resolveCredentialAccountEnvironment).toHaveBeenCalledWith('codex', {
       preferred: 'account-one',
@@ -357,6 +416,9 @@ describe('daemon session continuity', () => {
     expect(spawnOptions.env.HAPPY_RECONNECT_SEQ).toBe(String(encryption.seq));
     expect(spawnOptions.env.HAPPY_RECONNECT_METADATA_VERSION).toBe(String(encryption.metadataVersion));
     expect(spawnOptions.env.HAPPY_RECONNECT_AGENT_STATE_VERSION).toBe(String(encryption.agentStateVersion));
+    expect(JSON.parse(spawnOptions.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON!)).toEqual(
+      codexAdvertisedDefaultSettings,
+    );
   });
 
   it('replays the next archived turn from an older retained record without changing session identity or encryption', async () => {
@@ -404,16 +466,27 @@ describe('daemon session continuity', () => {
       replayQueueMessageId: 'archived-next-turn',
     });
     await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
-    control.onHappySessionWebhook(sessionId, { ...metadata, hostPid: 4324 }, encryption);
+    control.onHappySessionWebhook(sessionId, {
+      ...metadata,
+      hostPid: 4324,
+      spawnSettings: codexAdvertisedDefaultSettings,
+    }, encryption);
 
-    await expect(resume).resolves.toEqual({ type: 'success', sessionId });
+    await expect(resume).resolves.toMatchObject({ type: 'success', sessionId });
     expect(mocks.backfillReconnectableSessionForMachine).not.toHaveBeenCalled();
 
     const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
       string[],
       { cwd: string; env: NodeJS.ProcessEnv },
     ];
-    expect(args).toEqual(['codex', '--resume', metadata.codexThreadId, '--started-by', 'daemon']);
+    expect(args).toEqual([
+      'codex',
+      '--resume', metadata.codexThreadId,
+      '--started-by', 'daemon',
+      '--permission-mode', 'safe-yolo',
+      '--model', 'gpt-5.6-codex',
+      '--effort', 'xhigh',
+    ]);
     expect(spawnOptions.cwd).toBe(metadata.path);
     expect(spawnOptions.env.HAPPY_RECONNECT_SESSION_ID).toBe(sessionId);
     expect(spawnOptions.env.HAPPY_RECONNECT_QUEUE_MESSAGE_ID).toBe('archived-next-turn');
@@ -422,6 +495,178 @@ describe('daemon session continuity', () => {
     expect(spawnOptions.env.HAPPY_RECONNECT_SEQ).toBe(String(encryption.seq));
     expect(spawnOptions.env.HAPPY_RECONNECT_METADATA_VERSION).toBe(String(encryption.metadataVersion));
     expect(spawnOptions.env.HAPPY_RECONNECT_AGENT_STATE_VERSION).toBe(String(encryption.agentStateVersion));
+  });
+
+  it('launches and returns the latest complete Codex tuple from the resume RPC', async () => {
+    const sessionId = 'codex-explicit-resume-mode';
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array([11, 12, 13, 14]),
+      encryptionVariant: 'dataKey',
+      seq: 5,
+      metadataVersion: 6,
+      agentStateVersion: 7,
+    };
+    const metadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'codex',
+      codexThreadId: 'thread-explicit-resume-mode',
+      permissionMode: 'read-only',
+      spawnSettings: {
+        ...codexAdvertisedDefaultSettings,
+        model: 'gpt-custom',
+        effort: 'high',
+        permission: 'yolo',
+      },
+      host: 'test-host',
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happy',
+      happyToolsDir: '/srv/happy/tools',
+    };
+    mocks.backfillReconnectableSessionForMachine.mockResolvedValue({
+      session: { id: sessionId, active: false, metadata, ...encryption },
+      persisted: {
+        encryptionKey: Buffer.from(encryption.encryptionKey).toString('base64'),
+        encryptionVariant: encryption.encryptionVariant,
+        seq: encryption.seq,
+        metadataVersion: encryption.metadataVersion,
+        agentStateVersion: encryption.agentStateVersion,
+        metadata,
+        savedAt: Date.now(),
+      },
+    });
+    mocks.spawnHappyCLI.mockReturnValue({ pid: 4325, kill: vi.fn(), on: vi.fn() });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const resume = rpc.resumeSession(sessionId, {
+      model: 'gpt-5.6-codex',
+      effortLevel: 'xhigh',
+      permissionMode: 'read-only',
+    });
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+
+    const expectedSettings = {
+      ...codexAdvertisedDefaultSettings,
+      model: 'gpt-5.6-codex',
+      effort: 'xhigh',
+      permission: 'read-only',
+    };
+    control.onHappySessionWebhook(sessionId, {
+      ...metadata,
+      hostPid: 4325,
+      spawnSettings: expectedSettings,
+    }, encryption);
+
+    await expect(resume).resolves.toEqual({
+      type: 'success',
+      sessionId,
+      settings: expectedSettings,
+    });
+    const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
+      string[],
+      { cwd: string; env: NodeJS.ProcessEnv },
+    ];
+    expect(args).toEqual([
+      'codex',
+      '--resume', metadata.codexThreadId,
+      '--started-by', 'daemon',
+      '--permission-mode', 'read-only',
+      '--model', 'gpt-5.6-codex',
+      '--effort', 'xhigh',
+    ]);
+    expect(JSON.parse(spawnOptions.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON!)).toEqual(expectedSettings);
+  });
+
+  it('launches and returns the complete Claude tuple with the advertised effort default on resume', async () => {
+    const sessionId = 'claude-complete-resume-mode';
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array([21, 22, 23, 24]),
+      encryptionVariant: 'dataKey',
+      seq: 8,
+      metadataVersion: 9,
+      agentStateVersion: 10,
+    };
+    const metadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'claude',
+      claudeSessionId: '11111111-1111-4111-8111-111111111111',
+      permissionMode: 'plan',
+      modelMode: 'default',
+      effortLevel: null,
+      spawnSettings: {
+        provider: 'claude',
+        model: 'default',
+        effort: null,
+        permission: 'default',
+      },
+      host: 'test-host',
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happy',
+      happyToolsDir: '/srv/happy/tools',
+    };
+    mocks.backfillReconnectableSessionForMachine.mockResolvedValue({
+      session: { id: sessionId, active: false, metadata, ...encryption },
+      persisted: {
+        encryptionKey: Buffer.from(encryption.encryptionKey).toString('base64'),
+        encryptionVariant: encryption.encryptionVariant,
+        seq: encryption.seq,
+        metadataVersion: encryption.metadataVersion,
+        agentStateVersion: encryption.agentStateVersion,
+        metadata,
+        savedAt: Date.now(),
+      },
+    });
+    mocks.spawnHappyCLI.mockReturnValue({ pid: 4326, kill: vi.fn(), on: vi.fn() });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const expectedSettings = {
+      provider: 'claude' as const,
+      model: 'claude-opus-test',
+      effort: 'max',
+      permission: 'bypassPermissions',
+    };
+    const resume = rpc.resumeSession(sessionId, {
+      model: expectedSettings.model,
+      permissionMode: expectedSettings.permission,
+    });
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    control.onHappySessionWebhook(sessionId, {
+      ...metadata,
+      hostPid: 4326,
+      permissionMode: expectedSettings.permission,
+      modelMode: expectedSettings.model,
+      effortLevel: expectedSettings.effort,
+      spawnSettings: expectedSettings,
+    }, encryption);
+
+    await expect(resume).resolves.toEqual({
+      type: 'success',
+      sessionId,
+      settings: expectedSettings,
+    });
+    const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
+      string[],
+      { env: NodeJS.ProcessEnv },
+    ];
+    expect(args).toEqual([
+      'claude',
+      '--happy-starting-mode', 'remote',
+      '--started-by', 'daemon',
+      '--resume', metadata.claudeSessionId,
+      '--permission-mode', 'bypassPermissions',
+      '--model', 'claude-opus-test',
+      '--effort', 'max',
+    ]);
+    expect(JSON.parse(spawnOptions.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON!)).toEqual(expectedSettings);
   });
 
   it('keeps the persisted Grok policy authoritative over a mismatched resume RPC', async () => {
@@ -476,7 +721,7 @@ describe('daemon session continuity', () => {
     await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
     control.onHappySessionWebhook(resolvedSessionId, { ...metadata, hostPid: 4322 }, encryption);
 
-    await expect(resume).resolves.toEqual({ type: 'success', sessionId: resolvedSessionId });
+    await expect(resume).resolves.toMatchObject({ type: 'success', sessionId: resolvedSessionId });
     const [args] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [string[]];
     expect(args).toEqual([
       'grok',
@@ -545,7 +790,7 @@ describe('daemon session continuity', () => {
       },
     }, encryption);
 
-    await expect(legacyResume).resolves.toEqual({ type: 'success', sessionId: 'grok-legacy-session' });
+    await expect(legacyResume).resolves.toMatchObject({ type: 'success', sessionId: 'grok-legacy-session' });
     expect(mocks.spawnHappyCLI.mock.calls[0]?.[0]).toEqual([
       'grok',
       '--started-by', 'daemon',

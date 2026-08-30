@@ -84,13 +84,13 @@ describe('agent defaults', () => {
         expect(resolveAgentDefaultConfig(overrides, 'claude').modelMode).toBe('claude-opus-5');
     });
 
-    it('retains GrokBuild dontAsk as its provider-owned launch token', () => {
+    it('retains provider-owned dontAsk tokens for GrokBuild and Claude', () => {
         const overrides = setAgentDefaultOverride({}, 'grok', 'permissionMode', 'dontAsk');
 
         expect(resolveAgentDefaultConfig(overrides, 'grok').permissionMode).toBe('dontAsk');
         expect(resolveAgentDefaultConfig({
             claude: { permissionMode: 'dontAsk' },
-        }, 'claude').permissionMode).toBe('acceptEdits');
+        }, 'claude').permissionMode).toBe('dontAsk');
     });
 
     it('only forwards a saved GrokBuild effort while ACP advertises it', () => {

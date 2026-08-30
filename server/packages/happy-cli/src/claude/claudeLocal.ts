@@ -287,7 +287,13 @@ export async function claudeLocal(opts: {
                         try {
                             cleanupSandbox = await initializeSandbox(opts.sandboxConfig, opts.path);
 
-                            if (!spawnArgs.includes('--dangerously-skip-permissions')) {
+                            const hasExplicitPermissionMode = spawnArgs.some((arg) => (
+                                arg === '--permission-mode' || arg.startsWith('--permission-mode=')
+                            ));
+                            if (
+                                !hasExplicitPermissionMode
+                                && !spawnArgs.includes('--dangerously-skip-permissions')
+                            ) {
                                 spawnArgs = [...spawnArgs, '--dangerously-skip-permissions'];
                             }
 

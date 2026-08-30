@@ -79,6 +79,33 @@ describe('modelModeOptions', () => {
         ]);
     });
 
+    it('exposes Claude dontAsk only when the selected machine advertises it', () => {
+        const machineMetadata = {
+            agentCapabilities: {
+                claude: {
+                    detectedAt: 1,
+                    sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'provider' },
+                    models: [],
+                    effortLevels: [],
+                    permissionModes: [
+                        { code: 'default', value: 'default', isDefault: true },
+                        { code: 'dontAsk', value: 'dontAsk', description: 'Deny unapproved calls.' },
+                    ],
+                },
+            },
+        } as any;
+
+        expect(getMachineAdvertisedPermissionModes(machineMetadata, 'claude', translate).map((mode) => mode.key))
+            .toEqual(['default', 'dontAsk']);
+        expect(getSessionAvailablePermissionModes(
+            'claude',
+            { flavor: 'claude' } as any,
+            machineMetadata,
+            translate,
+        ).map((mode) => mode.key)).toEqual(['default', 'dontAsk']);
+        expect(getClaudePermissionModes(translate).map((mode) => mode.key)).not.toContain('dontAsk');
+    });
+
     it('shows all machine-advertised GrokBuild launch permission modes in New Session', () => {
         const machineMetadata = {
             cliAvailability: {
@@ -397,10 +424,7 @@ describe('modelModeOptions', () => {
         expect(modes[0].description).toBe('tr:agentInput.permissionMode.auto');
     });
 
-    // auto belongs to the Agent SDK's own PermissionMode union and is carried
-    // by MessageMetaSchema. dontAsk is in neither, so sending it fails
-    // UserMessageSchema.safeParse and drops the whole prompt.
-    it('offers auto and still drops dontAsk, which the CLI rejects', () => {
+    it('keeps dontAsk out of the catalog-less fallback for old same-version daemons', () => {
         const keys = getClaudePermissionModes(translate).map((mode) => mode.key);
         expect(keys).toContain('auto');
         expect(keys).not.toContain('dontAsk');

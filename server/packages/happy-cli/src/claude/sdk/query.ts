@@ -36,6 +36,12 @@ export function query(params: { prompt: QueryPrompt; options?: QueryOptions }): 
         fallbackModel: opts?.fallbackModel,
         maxTurns: opts?.maxTurns,
         permissionMode: opts?.permissionMode,
+        // The official SDK rejects bypassPermissions unless its companion
+        // opt-in is set. Infer it for direct adapter callers; claudeRemote can
+        // also opt in while starting in another mode so a live mode switch is
+        // permitted later in the same query.
+        allowDangerouslySkipPermissions: opts?.allowDangerouslySkipPermissions
+            ?? (opts?.permissionMode === 'bypassPermissions' ? true : undefined),
         allowedTools: opts?.allowedTools,
         disallowedTools: opts?.disallowedTools,
         mcpServers: opts?.mcpServers as Options['mcpServers'],

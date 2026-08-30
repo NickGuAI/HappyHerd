@@ -19,6 +19,32 @@ describe('resolveMessageModeMeta', () => {
         });
     });
 
+    it('reasserts a non-default Codex launch receipt before stale synced overrides after abort', () => {
+        const meta = resolveMessageModeMeta({
+            permissionMode: null,
+            modelMode: null,
+            effortLevel: null,
+            metadata: {
+                flavor: 'codex',
+                permissionMode: 'yolo',
+                modelMode: 'stale-model',
+                effortLevel: 'max',
+                spawnSettings: {
+                    provider: 'codex',
+                    model: 'gpt-test',
+                    effort: 'high',
+                    permission: 'read-only',
+                },
+            },
+        } as any);
+
+        expect(meta).toEqual({
+            permissionMode: 'read-only',
+            model: 'gpt-test',
+            effort: 'high',
+        });
+    });
+
     it('keeps the approved Codex YOLO default on an old CLI', () => {
         const meta = resolveMessageModeMeta({
             permissionMode: null,
@@ -54,21 +80,98 @@ describe('resolveMessageModeMeta', () => {
         expect(meta.permissionMode).toBe('yolo');
     });
 
-    // The composer resolves a saved `dontAsk` to Auto because the key is gone
-    // from the catalog. Without retiring it at the read path the wire kept
-    // sending `dontAsk`, which the CLI's message schema rejects outright.
-    it('retires a dontAsk left on an existing session instead of sending it', () => {
+    it('sends an existing Claude dontAsk selection when the exact machine advertises it', () => {
         const meta = resolveMessageModeMeta({
             permissionMode: 'dontAsk',
             modelMode: null,
             effortLevel: null,
             metadata: { flavor: 'claude' },
-        } as any);
+        } as any, undefined, { availablePermissions: [{ key: 'dontAsk' }] });
 
-        expect(meta.permissionMode).toBe('acceptEdits');
+        expect(meta.permissionMode).toBe('dontAsk');
     });
 
-    it('retires a saved dontAsk default instead of sending it', () => {
+    it.each(['claude', null] as const)('refuses stale dontAsk for %s without exact-machine support', (flavor) => {
+        expect(() => resolveMessageModeMeta({
+            permissionMode: 'dontAsk',
+            modelMode: null,
+            effortLevel: null,
+            metadata: { flavor },
+        } as any, undefined, { availablePermissions: [{ key: 'default' }] })).toThrow(UnsupportedPermissionModeError);
+    });
+
+    it('sends an explicit Claude default so a live bypass session can downgrade', () => {
+        const meta = resolveMessageModeMeta({
+            permissionMode: 'default',
+            modelMode: null,
+            effortLevel: null,
+            metadata: { flavor: 'claude' },
+        } as any);
+
+        expect(meta.permissionMode).toBe('default');
+    });
+
+    it('reasserts the Claude launch receipt after abort clears the session override', () => {
+        const meta = resolveMessageModeMeta({
+            permissionMode: null,
+            modelMode: null,
+            effortLevel: null,
+            metadata: {
+                flavor: 'claude',
+                permissionMode: null,
+                spawnSettings: {
+                    provider: 'claude',
+                    model: 'claude-sonnet-4-6',
+                    effort: 'high',
+                    permission: 'plan',
+                },
+            },
+        } as any, {
+            agentDefaultOverrides: { claude: { permissionMode: 'bypassPermissions' } },
+        } as any, { availablePermissions: [{ key: 'plan' }, { key: 'bypassPermissions' }] });
+
+        expect(meta.permissionMode).toBe('plan');
+    });
+
+    it('preserves an ambient null Claude launch receipt without inventing picker defaults', () => {
+        const meta = resolveMessageModeMeta({
+            permissionMode: null,
+            modelMode: null,
+            effortLevel: null,
+            metadata: {
+                flavor: 'claude',
+                spawnSettings: {
+                    provider: 'claude',
+                    model: null,
+                    effort: null,
+                    permission: null,
+                },
+            },
+        } as any, {
+            agentDefaultOverrides: {
+                claude: {
+                    permissionMode: 'bypassPermissions',
+                    modelMode: 'claude-opus-5',
+                    effortLevel: 'max',
+                },
+            },
+        } as any, { availablePermissions: [{ key: 'default' }] });
+
+        expect(meta).toEqual({});
+    });
+
+    it('refuses an unvalidated saved Claude dontAsk default', () => {
+        expect(() => resolveMessageModeMeta({
+            permissionMode: null,
+            modelMode: null,
+            effortLevel: null,
+            metadata: { flavor: 'claude' },
+        } as any, {
+            agentDefaultOverrides: { claude: { permissionMode: 'dontAsk' } },
+        } as any)).toThrow(UnsupportedPermissionModeError);
+    });
+
+    it('sends a saved Claude dontAsk default when the exact machine advertises it', () => {
         const meta = resolveMessageModeMeta({
             permissionMode: null,
             modelMode: null,
@@ -76,9 +179,9 @@ describe('resolveMessageModeMeta', () => {
             metadata: { flavor: 'claude' },
         } as any, {
             agentDefaultOverrides: { claude: { permissionMode: 'dontAsk' } },
-        } as any);
+        } as any, { availablePermissions: [{ key: 'dontAsk' }] });
 
-        expect(meta.permissionMode).toBe('acceptEdits');
+        expect(meta.permissionMode).toBe('dontAsk');
     });
 
     // A session on an old CLI can still carry `auto` — saved before the gate
@@ -173,13 +276,13 @@ describe('resolveMessageModeMeta', () => {
         });
     });
 
-    it('omits Claude default permission but forwards Codex default permission', () => {
+    it('forwards explicit default permission for both Claude and Codex', () => {
         expect(resolveMessageModeMeta({
             permissionMode: 'default',
             modelMode: null,
             effortLevel: null,
             metadata: { flavor: 'claude' },
-        } as any)).toEqual({});
+        } as any)).toEqual({ permissionMode: 'default' });
 
         expect(resolveMessageModeMeta({
             permissionMode: 'default',
@@ -354,7 +457,7 @@ describe('resolveMessageModeMeta', () => {
         });
     });
 
-    it('omits an explicit default model sentinel', () => {
+    it('omits an explicit default model sentinel while carrying effective Claude permission', () => {
         const meta = resolveMessageModeMeta({
             permissionMode: null,
             modelMode: 'default',
@@ -362,7 +465,7 @@ describe('resolveMessageModeMeta', () => {
             metadata: { flavor: 'claude' },
         } as any);
 
-        expect(meta).toEqual({});
+        expect(meta).toEqual({ permissionMode: 'bypassPermissions' });
     });
 
     it('keeps GrokBuild permission launch-only while retaining runtime model and effort controls', () => {

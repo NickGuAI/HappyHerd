@@ -82,10 +82,9 @@ export function getCodeAgentDefaults(flavor: string | null | undefined): AgentDe
 }
 
 /**
- * Permission keys that were offered once and are no longer accepted, mapped to
- * what they meant. `dontAsk` never passed the CLI's message schema, so it was
- * already dropped on the wire; it is retired here so a saved copy cannot make
- * the composer show one mode while sending another.
+ * Legacy permission keys for providers that do not support them, mapped to
+ * what those old selections meant. Claude, GrokBuild, and Rig all own an exact
+ * dontAsk token, so it must remain byte-faithful for those providers.
  */
 const RETIRED_PERMISSION_MODES: Record<string, string> = {
     dontAsk: 'acceptEdits',
@@ -96,7 +95,13 @@ const RETIRED_PERMISSION_MODES: Record<string, string> = {
  * flavor-based agents only: a harness that publishes its own catalog owns its
  * codes, and none of them collide with a retired Claude key.
  */
-export function retirePermissionMode<T extends string | null | undefined>(mode: T): T | string {
+export function retirePermissionMode<T extends string | null | undefined>(
+    mode: T,
+    flavor: string | null | undefined,
+): T | string {
+    if (flavor === null || flavor === undefined || flavor === 'claude' || flavor === 'grok' || flavor === 'rig') {
+        return mode;
+    }
     return mode ? RETIRED_PERMISSION_MODES[mode] ?? mode : mode;
 }
 
@@ -107,11 +112,7 @@ export function getAgentDefaultOverride(
     const agent = normalizeAgentKey(flavor);
     if (!agent) return {};
     const override = overrides?.[agent] ?? {};
-    // `dontAsk` is retired only for providers whose message protocol cannot
-    // carry it. GrokBuild owns that exact launch token and must retain it.
-    const permissionMode = agent === 'grok' || agent === 'rig'
-        ? override.permissionMode
-        : retirePermissionMode(override.permissionMode);
+    const permissionMode = retirePermissionMode(override.permissionMode, agent);
     return permissionMode === override.permissionMode
         ? override
         : { ...override, permissionMode };

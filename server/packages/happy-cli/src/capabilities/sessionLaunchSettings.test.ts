@@ -104,6 +104,51 @@ describe('resolveEffectiveSessionSettings', () => {
         });
     });
 
+    it('keeps Claude effort ambient when the valid catalog does not advertise max or another default', () => {
+        const target = metadata();
+        target.cliAvailability = {
+            ...target.cliAvailability!,
+            codex: false,
+            claude: true,
+        };
+        target.agentCapabilities = {
+            claude: {
+                detectedAt: 1,
+                sources: { models: 'test', effortLevels: 'cli-help', permissionModes: 'test' },
+                models: [{ code: 'default', value: 'Provider default', isDefault: true }],
+                effortLevels: [
+                    { code: 'low', value: 'Low' },
+                    { code: 'high', value: 'High' },
+                ],
+                permissionModes: [{ code: 'default', value: 'Default', isDefault: true }],
+            },
+        };
+
+        expect(resolveEffectiveSessionSettings(target, 'machine-1', { provider: 'claude' })).toEqual({
+            provider: 'claude',
+            model: 'default',
+            effort: null,
+            permission: 'default',
+        });
+    });
+
+    it('returns an all-ambient receipt when a catalogless provider launch omits every selection', () => {
+        const target = metadata();
+        target.cliAvailability = {
+            ...target.cliAvailability!,
+            codex: false,
+            claude: true,
+        };
+        target.agentCapabilities = undefined;
+
+        expect(resolveEffectiveSessionSettings(target, 'machine-1', { provider: 'claude' })).toEqual({
+            provider: 'claude',
+            model: null,
+            effort: null,
+            permission: null,
+        });
+    });
+
     it('returns exact explicit values and never falls back to another provider', () => {
         expect(resolveEffectiveSessionSettings(metadata(), 'machine-1', {
             provider: 'codex',

@@ -23,6 +23,10 @@ function machineClient() {
         effortLevels: [],
         permissionModes: [{ code: 'default', value: 'Default', isDefault: true }],
     };
+    const claudeCatalog = {
+        ...catalog,
+        effortLevels: [{ code: 'max', value: 'Max', isDefault: true }],
+    };
     return {
         id: 'machine-1',
         encryptionKey: new Uint8Array(32),
@@ -42,7 +46,7 @@ function machineClient() {
                 agy: false,
                 detectedAt: 1,
             },
-            agentCapabilities: { claude: catalog, codex: catalog },
+            agentCapabilities: { claude: claudeCatalog, codex: catalog },
         },
     } as any;
 }
@@ -256,8 +260,8 @@ describe('ApiMachineClient Codex fork RPCs', () => {
         expect(sideChat).not.toHaveBeenCalled();
     });
 
-    it('forwards Commander identity through the spawn RPC', async () => {
-        const settings = { provider: 'claude', model: 'default', effort: null, permission: 'default' };
+    it('forwards Commander identity and the advertised Claude effort default through a fresh spawn', async () => {
+        const settings = { provider: 'claude', model: 'default', effort: 'max', permission: 'default' };
         const spawnSession = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'happy-commander', settings });
         const { ApiMachineClient } = await import('./apiMachine');
         const client = new ApiMachineClient('token', machineClient());

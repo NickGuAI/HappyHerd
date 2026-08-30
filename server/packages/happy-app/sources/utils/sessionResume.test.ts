@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Machine, Session } from '@/sync/storageTypes';
-import { getGrokResumePermissionMode, getResumeAvailability } from './sessionResume';
+import {
+    getClaudeResumeModes,
+    getCodexResumeModes,
+    getCodexResumePermissionMode,
+    getGrokResumePermissionMode,
+    getResumeAvailability,
+} from './sessionResume';
 
 function resumableSession(): Session {
     return {
@@ -34,7 +40,60 @@ function onlineMachine(): Machine {
         updatedAt: 1,
         active: true,
         activeAt: 1,
-        metadata: null,
+        metadata: {
+            host: 'target',
+            platform: 'linux',
+            happyCliVersion: '1.0.0',
+            homeDir: '/home/test',
+            happyHomeDir: '/home/test/.happyherd',
+            happyLibDir: '/srv/happy',
+            cliAvailability: {
+                claude: true,
+                codex: true,
+                gemini: false,
+                grok: false,
+                agy: false,
+                detectedAt: 1,
+            },
+            agentCapabilities: {
+                claude: {
+                    detectedAt: 1,
+                    sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
+                    models: [
+                        { code: 'default', value: 'Default', isDefault: true },
+                        { code: 'claude-opus-test', value: 'Claude Opus Test' },
+                    ],
+                    effortLevels: [
+                        { code: 'max', value: 'Max', isDefault: true },
+                        { code: 'high', value: 'High' },
+                    ],
+                    permissionModes: [
+                        { code: 'default', value: 'Default', isDefault: true },
+                        { code: 'plan', value: 'Plan' },
+                        { code: 'bypassPermissions', value: 'Bypass permissions' },
+                    ],
+                },
+                codex: {
+                    detectedAt: 1,
+                    sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
+                    models: [{
+                        code: 'gpt-test',
+                        value: 'GPT Test',
+                        isDefault: true,
+                        effortLevels: [
+                            { code: 'medium', value: 'Medium', isDefault: true },
+                            { code: 'high', value: 'High' },
+                        ],
+                    }],
+                    effortLevels: [{ code: 'fallback', value: 'Fallback', isDefault: true }],
+                    permissionModes: [
+                        { code: 'safe-yolo', value: 'Workspace', isDefault: true },
+                        { code: 'read-only', value: 'Read only' },
+                        { code: 'yolo', value: 'Full access' },
+                    ],
+                },
+            },
+        },
         metadataVersion: 1,
         daemonState: null,
         daemonStateVersion: 1,
@@ -51,6 +110,120 @@ describe('getResumeAvailability', () => {
 
     it('keeps resume unavailable while the provider session is connected', () => {
         expect(getResumeAvailability(resumableSession(), onlineMachine(), true)).toMatchObject({
+            canResume: false,
+            canShowResume: false,
+        });
+    });
+
+    it('restores and displays the latest Codex selection ahead of its launch receipt', () => {
+        const session = resumableSession();
+        session.permissionMode = 'read-only';
+        session.modelMode = 'gpt-test';
+        session.effortLevel = 'medium';
+        session.metadata = {
+            ...session.metadata,
+            permissionMode: 'read-only',
+            spawnSettings: {
+                provider: 'codex',
+                model: 'gpt-test',
+                effort: 'high',
+                permission: 'yolo',
+            },
+        } as Session['metadata'];
+        const machine = onlineMachine();
+
+        expect(getCodexResumePermissionMode(session, machine)).toBe('read-only');
+        expect(getCodexResumeModes(session, machine)).toEqual({
+            permissionMode: 'read-only',
+            modelMode: 'gpt-test',
+            effortLevel: 'medium',
+        });
+        expect(getResumeAvailability(session, machine, false)).toMatchObject({
+            canResume: true,
+            canShowResume: true,
+        });
+    });
+
+    it('uses a persisted Codex selection for a receipt-less legacy session', () => {
+        const session = resumableSession();
+        session.permissionMode = 'read-only';
+
+        expect(getCodexResumePermissionMode(session, onlineMachine())).toBe('read-only');
+        expect(getCodexResumeModes(session, onlineMachine())).toEqual({
+            permissionMode: 'read-only',
+            modelMode: 'gpt-test',
+            effortLevel: 'medium',
+        });
+    });
+
+    it('falls back to the validated Codex launch receipt after an abort clears the override', () => {
+        const session = resumableSession();
+        session.permissionMode = null;
+        session.modelMode = null;
+        session.effortLevel = null;
+        session.metadata = {
+            ...session.metadata,
+            permissionMode: 'read-only',
+            modelMode: 'gpt-test',
+            effortLevel: 'medium',
+            spawnSettings: {
+                provider: 'codex',
+                model: 'gpt-test',
+                effort: 'high',
+                permission: 'yolo',
+            },
+        } as Session['metadata'];
+
+        expect(getCodexResumeModes(session, onlineMachine())).toEqual({
+            permissionMode: 'yolo',
+            modelMode: 'gpt-test',
+            effortLevel: 'high',
+        });
+    });
+
+    it('restores the latest complete Claude selection ahead of its launch receipt', () => {
+        const session = resumableSession();
+        session.permissionMode = 'bypassPermissions';
+        session.modelMode = 'claude-opus-test';
+        session.effortLevel = 'high';
+        session.metadata = {
+            ...session.metadata,
+            flavor: 'claude',
+            codexThreadId: undefined,
+            claudeSessionId: '11111111-1111-4111-8111-111111111111',
+            spawnSettings: {
+                provider: 'claude',
+                model: 'default',
+                effort: 'max',
+                permission: 'default',
+            },
+        } as Session['metadata'];
+
+        expect(getClaudeResumeModes(session, onlineMachine())).toEqual({
+            permissionMode: 'bypassPermissions',
+            modelMode: 'claude-opus-test',
+            effortLevel: 'high',
+        });
+        expect(getResumeAvailability(session, onlineMachine(), false)).toMatchObject({
+            canResume: true,
+            canShowResume: true,
+        });
+    });
+
+    it('rejects a Codex receipt when any persisted dimension is no longer advertised', () => {
+        const session = resumableSession();
+        session.metadata = {
+            ...session.metadata,
+            spawnSettings: {
+                provider: 'codex',
+                model: 'gpt-test',
+                effort: 'retired-effort',
+                permission: 'safe-yolo',
+            },
+        } as Session['metadata'];
+
+        expect(getCodexResumeModes(session, onlineMachine())).toBeUndefined();
+        expect(getResumeAvailability(session, onlineMachine(), false)).toMatchObject({
             canResume: false,
             canShowResume: false,
         });

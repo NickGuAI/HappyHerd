@@ -789,6 +789,9 @@ class Sync {
         const hasAuthoritativeEffortCatalog = Boolean(
             agentKey && machine?.metadata?.agentCapabilities?.[agentKey],
         );
+        const availablePermissions = agentKey
+            ? machine?.metadata?.agentCapabilities?.[agentKey]?.permissionModes.map((mode) => ({ key: mode.code }))
+            : undefined;
         const selectedModel = session.modelMode
             ?? resolveAgentDefaultConfig(settings.agentDefaultOverrides, flavor).modelMode;
         const availableEfforts = hasAuthoritativeEffortCatalog
@@ -796,7 +799,7 @@ class Sync {
             : undefined;
         let modeMeta: ReturnType<typeof resolveMessageModeMeta>;
         try {
-            modeMeta = resolveMessageModeMeta(session, settings, { availableEfforts });
+            modeMeta = resolveMessageModeMeta(session, settings, { availableEfforts, availablePermissions });
         } catch (error) {
             if (error instanceof UnsupportedPermissionModeError) {
                 Modal.alert(t('common.error'), t('errors.unsupportedPermissionMode', {

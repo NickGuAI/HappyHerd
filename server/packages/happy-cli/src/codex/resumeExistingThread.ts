@@ -1,11 +1,15 @@
 import { trimIdent } from '@/utils/trimIdent';
+import type { ApprovalPolicy, SandboxMode } from './codexAppServerTypes';
 
 type ResumeThreadClient = {
     resumeThread: (opts: {
         threadId: string;
+        model?: string;
         cwd: string;
         mcpServers: Record<string, unknown>;
         developerInstructions?: string;
+        approvalPolicy?: ApprovalPolicy;
+        sandbox?: SandboxMode;
     }) => Promise<{ threadId: string; model: string }>;
 };
 
@@ -23,9 +27,12 @@ export async function resumeExistingThread(opts: {
     session: ResumeThreadSession;
     messageBuffer: ResumeThreadMessageBuffer;
     threadId: string;
+    model?: string;
     cwd: string;
     mcpServers: Record<string, unknown>;
     developerInstructions?: string;
+    approvalPolicy?: ApprovalPolicy;
+    sandbox?: SandboxMode;
     /**
      * Whether to surface a "Resumed Codex thread …" message in the chat UI.
      * Side chats open empty on purpose, so they pass `false` to keep this
@@ -36,9 +43,12 @@ export async function resumeExistingThread(opts: {
     try {
         const resumedThread = await opts.client.resumeThread({
             threadId: opts.threadId,
+            ...(opts.model ? { model: opts.model } : {}),
             cwd: opts.cwd,
             mcpServers: opts.mcpServers,
             ...(opts.developerInstructions ? { developerInstructions: opts.developerInstructions } : {}),
+            ...(opts.approvalPolicy ? { approvalPolicy: opts.approvalPolicy } : {}),
+            ...(opts.sandbox ? { sandbox: opts.sandbox } : {}),
         });
 
         opts.session.updateMetadata((currentMetadata) => ({

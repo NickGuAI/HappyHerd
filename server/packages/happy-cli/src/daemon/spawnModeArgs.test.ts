@@ -27,7 +27,7 @@ describe('daemon spawn mode arguments', () => {
         expect(args).toEqual(['claude']);
     });
 
-    it('omits ambient Claude default permission but forwards concrete Codex default', () => {
+    it('forwards an explicit default permission for Claude and Codex', () => {
         const claudeArgs = ['claude'];
         const codexArgs = ['codex'];
 
@@ -42,8 +42,33 @@ describe('daemon spawn mode arguments', () => {
             permissionMode: 'default',
         }, 'codex');
 
-        expect(claudeArgs).toEqual(['claude']);
+        expect(claudeArgs).toEqual(['claude', '--permission-mode', 'default']);
         expect(codexArgs).toEqual(['codex', '--permission-mode', 'default']);
+    });
+
+    it('uses the target-daemon validated tuple instead of stale raw request fields', () => {
+        const args = ['codex'];
+
+        appendDaemonSpawnModeArgs(args, {
+            directory: '/workspace',
+            agent: 'codex',
+            permissionMode: 'default',
+            modelMode: 'stale-model',
+            effortLevel: 'low',
+            effectiveSettings: {
+                provider: 'codex',
+                permission: 'safe-yolo',
+                model: 'target-model',
+                effort: 'high',
+            },
+        }, 'codex');
+
+        expect(args).toEqual([
+            'codex',
+            '--permission-mode', 'safe-yolo',
+            '--model', 'target-model',
+            '--effort', 'high',
+        ]);
     });
 
     it('forwards explicit Auto permission and effort values byte-for-byte', () => {

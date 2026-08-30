@@ -31,22 +31,22 @@ export type {
 /**
  * Permission mode type - includes both Claude and Codex modes
  * The wire schema (MessageMetaSchema.permissionMode) deliberately accepts any
- * string; each harness narrows to this union itself and ignores the rest.
+ * string; each harness narrows it against its own provider-native set and
+ * rejects an explicit unsupported value instead of changing policy silently.
  *
  * Shared: auto — the harness reviews each call itself
- * Claude modes: default, acceptEdits, bypassPermissions, plan
+ * Claude modes: default, acceptEdits, bypassPermissions, plan, dontAsk
  * Codex modes: read-only, safe-yolo, yolo
  *
  * `auto` is the one mode both harnesses implement natively: Claude ships it
  * in the Agent SDK's own PermissionMode union, and Codex spells it as the
  * `on-request` approval policy inside the workspace sandbox.
  *
- * When calling Claude SDK, Codex modes are mapped at the SDK boundary:
- * - yolo → bypassPermissions
- * - safe-yolo → default
- * - read-only → default
+ * Each provider validates this wire value against its own advertised subset.
+ * A mode from another provider is rejected instead of being silently mapped
+ * to a different runtime policy.
  */
-export type PermissionMode = 'auto' | 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'read-only' | 'safe-yolo' | 'yolo'
+export type PermissionMode = 'auto' | 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'dontAsk' | 'read-only' | 'safe-yolo' | 'yolo'
 
 /**
  * Usage data type from Claude
@@ -403,6 +403,10 @@ export type Metadata = {
   spawnSettings?: HappyHerdMachineSessionSettings
   /** Synced client-side selection retained for sessions created before spawn receipts. */
   permissionMode?: string | null
+  /** Provider model selected for this session, mirrored for UI consumers. */
+  modelMode?: string | null
+  /** Provider effort selected for this session, mirrored for UI consumers. */
+  effortLevel?: string | null
   sandbox?: SandboxConfig | null
   dangerouslySkipPermissions?: boolean | null
   /** Lineage for sessions created via the fork / duplicate flow. */

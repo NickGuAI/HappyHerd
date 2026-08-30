@@ -283,6 +283,34 @@ describe('claudeLocal --continue handling', () => {
         expect(mockSandboxCleanup).toHaveBeenCalledTimes(1);
     });
 
+    it('keeps an explicit native permission when wrapping local Claude in the OS sandbox', async () => {
+        await claudeLocal({
+            abort: new AbortController().signal,
+            sessionId: null,
+            path: '/tmp/workspace',
+            onSessionFound,
+            claudeArgs: ['--permission-mode', 'plan', '--model', 'claude-opus-test', '--effort', 'high'],
+            sandboxConfig: {
+                enabled: true,
+                sessionIsolation: 'workspace',
+                customWritePaths: [],
+                denyReadPaths: [],
+                extraWritePaths: [],
+                denyWritePaths: [],
+                networkMode: 'allowed',
+                allowedDomains: [],
+                deniedDomains: [],
+                allowLocalBinding: true,
+            },
+        });
+
+        const wrappedCommand = mockWrapCommand.mock.calls[0][0] as string;
+        expect(wrappedCommand).toContain("'--permission-mode' 'plan'");
+        expect(wrappedCommand).toContain("'--model' 'claude-opus-test'");
+        expect(wrappedCommand).toContain("'--effort' 'high'");
+        expect(wrappedCommand).not.toContain('--dangerously-skip-permissions');
+    });
+
     it('delivers Commander context as an appended system instruction without project discovery', async () => {
         await claudeLocal({
             abort: new AbortController().signal,

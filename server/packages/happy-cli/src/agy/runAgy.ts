@@ -29,21 +29,22 @@ import { connectionState } from '@/utils/serverConnectionErrors';
 import { MessageBuffer } from '@/ui/ink/messageBuffer';
 import { AgyDisplay } from '@/ui/ink/AgyDisplay';
 import type { AgentMessage } from '@/agent/core';
-import type { PermissionMode } from '@/api/types';
 import { AgyBackend } from './AgyBackend';
 import { DEFAULT_AGY_MODEL } from './constants';
-
-const AGY_REMOTE_PERMISSION_MODES = new Set<PermissionMode>([
-  'default',
-  'bypassPermissions',
-]);
+import {
+  buildAgyLaunchMetadata,
+  hashAgyTurnMode,
+  resolveAgyIncomingPermissionMode,
+  type AgyTurnMode,
+} from './turnMode';
+import { isAgyPermissionMode, type AgyPermissionMode } from './cliArgs';
 
 export interface RunAgyOptions {
   credentials: Credentials;
   startedBy?: 'daemon' | 'terminal';
   verbose?: boolean;
   model?: string;
-  permissionMode?: PermissionMode;
+  permissionMode?: AgyPermissionMode;
 }
 
 export async function runAgy(opts: RunAgyOptions): Promise<void> {
@@ -69,11 +70,29 @@ export async function runAgy(opts: RunAgyOptions): Promise<void> {
     metadata: initialMachineMetadata,
   });
 
+  let selectedPermissionMode = opts.permissionMode ?? 'default';
+  let displayedModel = opts.model ?? DEFAULT_AGY_MODEL;
+  const launchMetadata = buildAgyLaunchMetadata(selectedPermissionMode, displayedModel);
+
   const { state, metadata } = createSessionMetadata({
     flavor: 'agy',
     machineId: settings.machineId,
     startedBy: opts.startedBy,
+    spawnSettings: launchMetadata.spawnSettings,
   });
+  const effectiveLaunchSettings = metadata.spawnSettings?.provider === 'agy'
+    ? metadata.spawnSettings
+    : launchMetadata.spawnSettings;
+  if (!isAgyPermissionMode(effectiveLaunchSettings.permission)) {
+    throw new Error(`Unsupported Antigravity permission mode: ${effectiveLaunchSettings.permission}`);
+  }
+  if (!effectiveLaunchSettings.model) {
+    throw new Error('Antigravity requires a concrete model');
+  }
+  selectedPermissionMode = effectiveLaunchSettings.permission;
+  displayedModel = effectiveLaunchSettings.model;
+  metadata.permissionMode = selectedPermissionMode;
+  metadata.modelMode = displayedModel;
   const response = await api.getOrCreateSession({ tag: sessionTag, metadata, state });
   if (response) {
     log(`Happy Session ID: ${response.id}`);
@@ -107,16 +126,14 @@ export async function runAgy(opts: RunAgyOptions): Promise<void> {
   }
 
   const sessionManager = new AcpSessionManager();
-  const messageQueue = new MessageQueue2<Record<string, never>>(() => '');
+  const messageQueue = new MessageQueue2<AgyTurnMode>(hashAgyTurnMode);
   let shouldExit = false;
   let abortController = new AbortController();
   let thinking = false;
 
-  let displayedModel = opts.model ?? DEFAULT_AGY_MODEL;
-
   const backend = new AgyBackend({
     cwd: process.cwd(),
-    permissionMode: opts.permissionMode ?? 'default',
+    permissionMode: selectedPermissionMode,
     model: displayedModel,
     log,
   });
@@ -184,14 +201,16 @@ export async function runAgy(opts: RunAgyOptions): Promise<void> {
   session.onUserMessage((message) => {
     if (!message.content.text) return;
 
-    if (message.meta?.permissionMode) {
-      const mode = message.meta.permissionMode;
-      if (AGY_REMOTE_PERMISSION_MODES.has(mode as PermissionMode)) {
-        backend.setPermissionMode(mode as PermissionMode);
-      } else {
-        logger.debug(`[agy] Ignoring unsupported permission mode from app: ${mode}`);
-      }
+    const permission = resolveAgyIncomingPermissionMode(
+      selectedPermissionMode,
+      message.meta?.permissionMode,
+    );
+    if (!permission.ok) {
+      logger.debug(`[agy] ${permission.error}`);
+      session.sendSessionEvent({ type: 'message', message: permission.error });
+      return;
     }
+    selectedPermissionMode = permission.permissionMode;
     if (message.meta?.hasOwnProperty('model') && message.meta.model) {
       backend.setModel(message.meta.model);
       displayedModel = message.meta.model;
@@ -201,7 +220,10 @@ export async function runAgy(opts: RunAgyOptions): Promise<void> {
     }
 
     messageBuffer.addMessage(message.content.text, 'user');
-    messageQueue.push(message.content.text, {});
+    messageQueue.push(message.content.text, {
+      permissionMode: selectedPermissionMode,
+      model: displayedModel,
+    });
   });
   session.keepAlive(thinking, 'remote');
 
@@ -245,6 +267,10 @@ export async function runAgy(opts: RunAgyOptions): Promise<void> {
       log(`Incoming prompt: ${batch.message.slice(0, 200)}`);
       sendEnvelopes(sessionManager.startTurn());
       try {
+        // Apply the immutable settings captured with this batch. Later remote
+        // picks may already be queued but cannot change this child process.
+        backend.setPermissionMode(batch.mode.permissionMode);
+        backend.setModel(batch.mode.model);
         await backend.sendPrompt(process.cwd(), batch.message);
         sendEnvelopes(sessionManager.endTurn('completed'));
       } catch (error) {

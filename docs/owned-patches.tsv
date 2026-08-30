@@ -176,6 +176,7 @@ MOBILE_SESSION_BACK	accepted	fix(app): make mobile session back deterministic (#
 MOBILE_SESSION_BACK_DESKTOP	accepted	fix(app): preserve desktop session back semantics (#180)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 MOBILE_SESSION_BACK_RESPONSIVE	accepted	fix(app): align mobile back with responsive layout (#180)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 MOBILE_SESSION_BACK_INVENTORY	accepted	chore(app): refresh mobile back UI inventory (#180)	server/packages/happy-app/sources/text/ui-surface-inventory.json
+PROVIDER_PERMISSION_CONTRACT	accepted	fix(providers): preserve permission contracts	server/packages/happy-cli/src/claude/utils/permissionHandler.test.ts
 AGENTWORK_177_ADAPTER	accepted	chore(integration): prepare file editor merge adapter (#177)	docs/owned-patches.tsv
 AGENTWORK_179_ADAPTER	accepted	chore(integration): prepare dictation merge adapter (#179)	docs/owned-patches.tsv
 AGENTWORK_181_ADAPTER	accepted	chore(integration): prepare desktop workspace merge adapter (#181)	docs/owned-patches.tsv

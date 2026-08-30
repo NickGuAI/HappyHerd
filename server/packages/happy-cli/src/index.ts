@@ -9,6 +9,7 @@
 
 import chalk from 'chalk'
 import { runClaude, StartOptions } from '@/claude/runClaude'
+import { parseAgyPermissionMode, type AgyPermissionMode } from '@/agy/cliArgs'
 import { logger } from './ui/logger'
 import { readCredentials, readSettings } from './persistence'
 import { authAndSetupMachineIfNeeded } from './ui/auth'
@@ -448,7 +449,7 @@ Conversation history is preserved on the server, but in-flight tool calls are in
       let startedBy: 'daemon' | 'terminal' | undefined = undefined;
       let verbose = false;
       let model: string | undefined;
-      let permissionMode: StartOptions['permissionMode'];
+      let permissionMode: AgyPermissionMode | undefined;
       for (let i = 1; i < args.length; i++) {
         if (args[i] === '--started-by') {
           startedBy = args[++i] as 'daemon' | 'terminal';
@@ -457,7 +458,7 @@ Conversation history is preserved on the server, but in-flight tool calls are in
         } else if (args[i] === '--model') {
           model = args[++i];
         } else if (args[i] === '--permission-mode') {
-          permissionMode = args[++i] as StartOptions['permissionMode'];
+          permissionMode = parseAgyPermissionMode(args[++i]);
         }
       }
 

@@ -39,6 +39,7 @@ vi.mock('./utils/permissionHandler', () => ({
         isAborted = vi.fn(() => false);
         handleModeChange = vi.fn();
         setPermissionModeUpdater = vi.fn();
+        clearPermissionModeUpdater = vi.fn();
         getResponseForToolUseId = vi.fn();
     },
 }));

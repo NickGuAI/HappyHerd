@@ -437,6 +437,10 @@ export class AcpBackend implements AgentBackend {
 
   /** @internal ACP requestPermission callback, public for contract-level tests. */
   async handlePermissionRequest(params: RequestPermissionRequest): Promise<RequestPermissionResponse> {
+    if (this.disposed) {
+      return { outcome: { outcome: 'cancelled' } };
+    }
+
     const extendedParams = params as ExtendedRequestPermissionRequest;
     const toolCall = extendedParams.toolCall;
     const providerTitle = nonEmptyPermissionString(toolCall?.title);

@@ -1093,7 +1093,7 @@ describe('runAcp', () => {
     expect(turnEnd).toEqual(expect.objectContaining({ status: 'failed' }));
   });
 
-  it('ignores ACP model and permission mode requests when values do not match advertised options', async () => {
+  it('rejects an unknown ACP permission mode instead of running under the previous mode', async () => {
     mocks.backendState.startSessionMessages = [
       {
         type: 'event',
@@ -1147,13 +1147,15 @@ describe('runAcp', () => {
       },
     });
 
-    await vi.waitFor(() => {
-      expect(mocks.backendState.prompts).toHaveLength(1);
-    });
+    await vi.waitFor(() => expect(mocks.mockSession.sendSessionEvent).toHaveBeenCalledWith({
+      type: 'message',
+      message: 'Unsupported opencode permission mode: invalid-mode',
+    }));
 
     await mocks.getKillHandler()!();
     await runPromise;
 
+    expect(mocks.backendState.prompts).toEqual([]);
     expect(mocks.backendState.setConfigOptionCalls).toEqual([]);
     expect(mocks.backendState.setModeCalls).toEqual([]);
     expect(mocks.backendState.setModelCalls).toEqual([]);

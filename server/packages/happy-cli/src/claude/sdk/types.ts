@@ -36,7 +36,12 @@ export interface QueryOptions {
     disallowedTools?: string[]
     maxTurns?: number
     mcpServers?: Record<string, unknown>
-    permissionMode?: 'auto' | 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'
+    permissionMode?: 'auto' | 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'dontAsk'
+    /**
+     * Explicit SDK opt-in required before a query may enter
+     * `bypassPermissions`, including through Query.setPermissionMode().
+     */
+    allowDangerouslySkipPermissions?: boolean
     continue?: boolean
     resume?: string
     model?: string

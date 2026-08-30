@@ -59,7 +59,11 @@ describe('agent capability discovery', () => {
             'acceptEdits',
             'auto',
             'bypassPermissions',
+            'dontAsk',
             'plan',
+        ]);
+        expect(catalog.effortLevels.filter((effort) => effort.isDefault)).toEqual([
+            expect.objectContaining({ code: 'max' }),
         ]);
     });
 

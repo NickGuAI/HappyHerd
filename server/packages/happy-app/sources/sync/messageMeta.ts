@@ -2,6 +2,7 @@ import type { Session } from './storageTypes';
 import type { Settings } from './settings';
 import {
     getAgentDefaultOverride,
+    normalizeAgentKey,
     resolveAgentDefaultConfig,
     resolveSupportedAgentEffortLevel,
     retirePermissionMode,
@@ -43,6 +44,7 @@ export class UnsupportedPermissionModeError extends Error {
 
 type MessageModeCapabilityContext = {
     availableEfforts?: ReadonlyArray<{ key: string }>;
+    availablePermissions?: ReadonlyArray<{ key: string }>;
 };
 
 export function resolveMessageModeMeta(
@@ -82,6 +84,7 @@ export function resolveMessageModeMeta(
     const agentOverrides = getAgentDefaultOverride(settings?.agentDefaultOverrides, session.metadata?.flavor);
     const meta: MessageModeMeta = {};
     const flavor = session.metadata?.flavor;
+    const agentKey = normalizeAgentKey(flavor);
 
     const cliVersion = session.metadata?.version;
     const assertSupportedPermissionMode = (mode: string | null | undefined) => {
@@ -97,15 +100,30 @@ export function resolveMessageModeMeta(
     // defaults execute as a different permission, model, or effort.
     if (flavor === 'codex') {
         const defaults = resolveAgentDefaultConfig(settings?.agentDefaultOverrides, flavor);
+        const launchSettings = session.metadata?.spawnSettings?.provider === 'codex'
+            ? session.metadata.spawnSettings
+            : undefined;
         const permissionMode = assertSupportedPermissionMode(
-            retirePermissionMode(session.permissionMode ?? defaults.permissionMode),
+            retirePermissionMode(
+                session.permissionMode
+                    ?? launchSettings?.permission
+                    ?? session.metadata?.permissionMode
+                    ?? defaults.permissionMode,
+                flavor,
+            ),
         );
         if (permissionMode) meta.permissionMode = permissionMode;
 
-        const modelMode = session.modelMode ?? defaults.modelMode;
+        const modelMode = session.modelMode
+            ?? launchSettings?.model
+            ?? session.metadata?.modelMode
+            ?? defaults.modelMode;
         meta.model = modelMode === 'default' ? null : modelMode;
 
-        const configuredEffort = session.effortLevel ?? defaults.effortLevel;
+        const configuredEffort = session.effortLevel
+            ?? launchSettings?.effort
+            ?? session.metadata?.effortLevel
+            ?? defaults.effortLevel;
         const effort = capabilities?.availableEfforts
             ? resolveSupportedAgentEffortLevel(
                 configuredEffort,
@@ -120,30 +138,56 @@ export function resolveMessageModeMeta(
     // GrokBuild permission is fixed by its process launch flag. ACP operating
     // modes and requestPermission responses are separate runtime concepts.
     if (flavor !== 'grok') {
+        const claudeLaunchSettings = agentKey === 'claude'
+            && session.metadata?.spawnSettings?.provider === 'claude'
+            ? session.metadata.spawnSettings
+            : undefined;
         let permissionMode: string | null | undefined;
         if (session.permissionMode !== null && session.permissionMode !== undefined) {
-            // A session picked before a mode was retired still carries the old key,
-            // and the CLI rejects the whole message envelope on an unknown one.
-            permissionMode = retirePermissionMode(session.permissionMode);
+            // New Session validates explicit selections against the exact
+            // machine catalog. Keep provider-owned codes such as Claude
+            // dontAsk exact; retire only keys unsupported by that provider.
+            permissionMode = retirePermissionMode(session.permissionMode, agentKey);
+        } else if (agentKey === 'claude') {
+            permissionMode = claudeLaunchSettings
+                ? claudeLaunchSettings.permission ?? undefined
+                : session.metadata?.permissionMode
+                    ?? resolveAgentDefaultConfig(settings?.agentDefaultOverrides, flavor).permissionMode;
         } else if (agentOverrides.permissionMode !== undefined) {
             permissionMode = agentOverrides.permissionMode;
         }
+        if (
+            agentKey === 'claude'
+            && permissionMode === 'dontAsk'
+            && !capabilities?.availablePermissions?.some((option) => option.key === 'dontAsk')
+        ) {
+            // dontAsk became available without a reliable CLI version gate.
+            // Only the exact machine catalog can authorize that native token.
+            // Substituting acceptEdits would silently widen a deny policy into
+            // one that can edit files, so refuse the turn instead.
+            throw new UnsupportedPermissionModeError(permissionMode, cliVersion ?? 'unknown');
+        }
         assertSupportedPermissionMode(permissionMode);
-        // Claude's `default` is ambient: omitting it lets the SDK apply the
-        // process/user configuration. Codex's `default` is a concrete ask-first
-        // execution policy and must stay on the wire.
-        if (permissionMode && !(flavor === 'claude' && permissionMode === 'default')) {
+        // An explicit Claude `default` is a real live-mode transition. Keep it
+        // on the wire so a Human can leave bypass/yolo without restarting.
+        if (permissionMode) {
             meta.permissionMode = permissionMode;
         }
     }
 
-    const modelMode = session.modelMode ?? agentOverrides.modelMode;
+    const claudeLaunchSettings = agentKey === 'claude'
+        && session.metadata?.spawnSettings?.provider === 'claude'
+        ? session.metadata.spawnSettings
+        : undefined;
+    const modelMode = session.modelMode
+        ?? (claudeLaunchSettings ? claudeLaunchSettings.model ?? undefined : agentOverrides.modelMode);
     // `default` is a product sentinel, not a provider model identifier.
     if (modelMode !== undefined && modelMode !== 'default') {
         meta.model = modelMode;
     }
 
-    const configuredEffort = session.effortLevel ?? agentOverrides.effortLevel;
+    const configuredEffort = session.effortLevel
+        ?? (claudeLaunchSettings ? claudeLaunchSettings.effort ?? undefined : agentOverrides.effortLevel);
     const effort = capabilities?.availableEfforts
         ? resolveSupportedAgentEffortLevel(
             configuredEffort,

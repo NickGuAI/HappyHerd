@@ -1,16 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { resolveCodexExecutionPolicy, shouldAutoApproveCodexApproval } from '../executionPolicy';
+import {
+    resolveCodexApprovalDisposition,
+    resolveCodexExecutionPolicy,
+    shouldAutoApproveCodexApproval,
+} from '../executionPolicy';
 
 describe('resolveCodexExecutionPolicy', () => {
-    it('keeps the approval bridge reachable when sandbox is managed by Happy', () => {
-        const policy = resolveCodexExecutionPolicy('default', true);
-
-        expect(policy).toEqual({
-            approvalPolicy: 'on-request',
-            sandbox: 'danger-full-access',
-        });
-    });
-
     it('maps codex default mode to untrusted + workspace-write without managed sandbox', () => {
         const policy = resolveCodexExecutionPolicy('default', false);
 
@@ -58,21 +53,30 @@ describe('resolveCodexExecutionPolicy', () => {
         expect(shouldAutoApproveCodexApproval('bypassPermissions', false)).toBe(true);
     });
 
-    it('auto-approves bridge prompts for no-prompt modes without managed sandbox', () => {
+    it('resolves every advertised mode when a late approval callback arrives', () => {
+        expect(resolveCodexApprovalDisposition('default', false)).toBe('prompt');
+        expect(resolveCodexApprovalDisposition('auto', false)).toBe('prompt');
+        expect(resolveCodexApprovalDisposition('read-only', false)).toBe('denied');
+        expect(resolveCodexApprovalDisposition('safe-yolo', false)).toBe('denied');
+        expect(resolveCodexApprovalDisposition('yolo', false)).toBe('approved');
+    });
+
+    it('auto-approves only full-access compatibility modes without managed sandbox', () => {
         expect(shouldAutoApproveCodexApproval('default', false)).toBe(false);
         expect(shouldAutoApproveCodexApproval('read-only', false)).toBe(false);
-        // safe-yolo must keep prompting: its turns run with approvalPolicy
-        // 'never' inside the workspace sandbox, so any approval codex still
-        // surfaces is a sandbox escalation — the one thing safe-yolo
-        // promises to ask the user about.
         expect(shouldAutoApproveCodexApproval('safe-yolo', false)).toBe(false);
         expect(shouldAutoApproveCodexApproval('yolo', false)).toBe(true);
         expect(shouldAutoApproveCodexApproval('bypassPermissions', false)).toBe(true);
     });
 
-    it('auto-approves bridge prompts when Happy owns sandboxing', () => {
-        expect(shouldAutoApproveCodexApproval('default', true)).toBe(true);
-        expect(shouldAutoApproveCodexApproval('read-only', true)).toBe(true);
-        expect(shouldAutoApproveCodexApproval('safe-yolo', true)).toBe(true);
+    it.each([
+        ['default', { approvalPolicy: 'untrusted', sandbox: 'workspace-write' }, 'prompt'],
+        ['auto', { approvalPolicy: 'on-request', sandbox: 'workspace-write' }, 'prompt'],
+        ['read-only', { approvalPolicy: 'never', sandbox: 'read-only' }, 'denied'],
+        ['safe-yolo', { approvalPolicy: 'never', sandbox: 'workspace-write' }, 'denied'],
+        ['yolo', { approvalPolicy: 'on-request', sandbox: 'danger-full-access' }, 'approved'],
+    ] as const)('keeps %s semantics when Happy adds an outer sandbox', (permissionMode, policy, disposition) => {
+        expect(resolveCodexExecutionPolicy(permissionMode, true)).toEqual(policy);
+        expect(resolveCodexApprovalDisposition(permissionMode, true)).toBe(disposition);
     });
 });

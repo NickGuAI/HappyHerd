@@ -1,3 +1,9 @@
+# August 30 — Provider permissions stay consistent
+
+- Claude `bypassPermissions` no longer prompts for executable tool approvals, including `ExitPlanMode`, while `AskUserQuestion` remains interactive input. `dontAsk` is available only when the exact machine advertises it and denies escalation without prompting; selecting explicit `default` exits bypass mode.
+- Codex permission, model, and effort choices survive app or terminal resume after exact-machine validation. Permission-changing followups submitted during active turns queue, `read-only` and `safe-yolo` deny late callbacks without approval UI, and `yolo` allows them without prompting.
+- GrokBuild, Antigravity, and retired Gemini permission displays remain aligned after an abort, and retired Gemini `yolo` no longer presents approval UI.
+
 # August 30 — Web Mobile session back navigation
 
 - On Web Mobile, tapping back from an active session now reliably returns directly to the session list in a single tap—even when deep-linked or navigating multiple pages—while preserving native mobile back behavior and standard desktop browser history.

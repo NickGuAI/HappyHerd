@@ -33,7 +33,14 @@ import {
 } from '@/claude/claudeGoalStatus';
 import { Session } from './session';
 import { machineSessionSettingsMetadataFromEnvironment } from '@/daemon/sessionLaunchSettings';
-import { applySandboxPermissionPolicy, normalizeRemotePermissionMode, resolveInitialClaudePermissionMode, resolveRemoteClaudePermissionMode } from './utils/permissionMode';
+import {
+    applySandboxPermissionPolicy,
+    buildClaudeNativeCliArgs,
+    isClaudePermissionMode,
+    normalizeRemotePermissionMode,
+    resolveInitialClaudePermissionMode,
+    resolveRemoteClaudePermissionMode,
+} from './utils/permissionMode';
 import { decodeBase64, encodeBase64 } from '@/api/encryption';
 import type { Session as ApiSession } from '@/api/types';
 import { getProjectPath } from './utils/path';
@@ -119,18 +126,29 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     let machineId = settings?.machineId
     const sandboxConfig = options.noSandbox ? undefined : settings?.sandboxConfig;
     const sandboxEnabled = Boolean(sandboxConfig?.enabled);
-    const initialPermissionMode = applySandboxPermissionPolicy(
-        resolveInitialClaudePermissionMode(
-            automationBootstrap ? 'bypassPermissions' : options.permissionMode,
-            options.claudeArgs,
-        ),
-        sandboxEnabled,
+    const daemonLaunchSettings = machineSessionSettingsMetadataFromEnvironment().spawnSettings;
+    const claudeDaemonLaunchSettings = daemonLaunchSettings?.provider === 'claude'
+        ? daemonLaunchSettings
+        : null;
+    const hasClaudeDaemonLaunchReceipt = claudeDaemonLaunchSettings !== null;
+    const daemonPermissionMode = claudeDaemonLaunchSettings?.permission;
+    if (daemonPermissionMode != null && !isClaudePermissionMode(daemonPermissionMode)) {
+        throw new Error(`Unsupported Claude permission mode: ${daemonPermissionMode}`);
+    }
+    const requestedInitialPermissionMode = resolveInitialClaudePermissionMode(
+        hasClaudeDaemonLaunchReceipt
+            ? daemonPermissionMode ?? undefined
+            : automationBootstrap
+                ? 'bypassPermissions'
+                : options.permissionMode,
+        hasClaudeDaemonLaunchReceipt ? undefined : options.claudeArgs,
     );
-    const dangerouslySkipPermissions =
-        initialPermissionMode === 'bypassPermissions' ||
-        initialPermissionMode === 'yolo' ||
-        sandboxEnabled ||
-        Boolean(options.claudeArgs?.includes('--dangerously-skip-permissions'));
+    if (requestedInitialPermissionMode != null && !isClaudePermissionMode(requestedInitialPermissionMode)) {
+        throw new Error(`Unsupported Claude permission mode: ${requestedInitialPermissionMode}`);
+    }
+    const initialPermissionMode = hasClaudeDaemonLaunchReceipt
+        ? requestedInitialPermissionMode
+        : applySandboxPermissionPolicy(requestedInitialPermissionMode, sandboxEnabled);
     if (!machineId) {
         console.error(`[START] No machine ID found in settings, which is unexpected since authAndSetupMachineIfNeeded should have created it. Please report this issue on https://github.com/slopus/happy-cli/issues`);
         process.exit(1);
@@ -169,7 +187,13 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
             ? { providerAccount: process.env.HAPPYHERD_PROVIDER_ACCOUNT }
             : {}),
         sandbox: sandboxConfig?.enabled ? sandboxConfig : null,
-        dangerouslySkipPermissions,
+        dangerouslySkipPermissions: null,
+        spawnSettings: {
+            provider: 'claude',
+            model: options.model ?? null,
+            effort: options.effort ?? DEFAULT_CLAUDE_EFFORT,
+            permission: initialPermissionMode ?? null,
+        },
         ...(forkedFromSessionId ? { parentSessionId: forkedFromSessionId } : {}),
         ...(forkedFromMessageId ? { forkedFromMessageId } : {}),
         ...(isSideChat ? { isSideChat: true } : {}),
@@ -177,6 +201,49 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         ...automationMetadataFromEnvironment(),
         ...machineSessionSettingsMetadataFromEnvironment(),
     };
+    const effectiveLaunchSettings = metadata.spawnSettings?.provider === 'claude'
+        ? metadata.spawnSettings
+        : null;
+    const nativePermissionMode = hasClaudeDaemonLaunchReceipt
+        ? effectiveLaunchSettings?.permission ?? undefined
+        : initialPermissionMode;
+    const effectiveModel = hasClaudeDaemonLaunchReceipt
+        ? effectiveLaunchSettings?.model ?? undefined
+        : options.model;
+    const nativeEffort = hasClaudeDaemonLaunchReceipt
+        ? effectiveLaunchSettings?.effort ?? undefined
+        : options.effort ?? DEFAULT_CLAUDE_EFFORT;
+    metadata.permissionMode = hasClaudeDaemonLaunchReceipt
+        ? effectiveLaunchSettings?.permission ?? null
+        : initialPermissionMode ?? null;
+    metadata.modelMode = hasClaudeDaemonLaunchReceipt
+        ? effectiveLaunchSettings?.model ?? null
+        : options.model ?? null;
+    metadata.effortLevel = hasClaudeDaemonLaunchReceipt
+        ? effectiveLaunchSettings?.effort ?? null
+        : nativeEffort ?? null;
+    if (nativePermissionMode != null && !isClaudePermissionMode(nativePermissionMode)) {
+        throw new Error(`Unsupported Claude permission mode: ${nativePermissionMode}`);
+    }
+    const effectivePermissionMode = nativePermissionMode ?? undefined;
+    if (
+        nativeEffort !== undefined
+        && nativeEffort !== null
+        && !(['low', 'medium', 'high', 'xhigh', 'max'] as const).includes(nativeEffort as never)
+    ) {
+        throw new Error(`Unsupported Claude effort level: ${nativeEffort}`);
+    }
+    const nativeClaudeArgs = buildClaudeNativeCliArgs(options.claudeArgs, {
+        permissionMode: effectivePermissionMode,
+        model: effectiveModel,
+        effort: nativeEffort as StartOptions['effort'],
+    });
+    // This field is a receipt for the provider's effective permission policy,
+    // not for HappyHerd's independent OS sandbox. Derive it only after the
+    // exact native args have removed stale or conflicting launch flags.
+    metadata.dangerouslySkipPermissions =
+        effectivePermissionMode === 'bypassPermissions'
+        || nativeClaudeArgs.includes('--dangerously-skip-permissions');
 
     // Check for session reconnection env vars (set by daemon for resume-in-place)
     const reconnectSessionId = process.env.HAPPY_RECONNECT_SESSION_ID;
@@ -285,7 +352,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
                 onThinkingChange: () => {},
                 abort: new AbortController().signal,
                 claudeEnvVars: options.claudeEnvVars,
-                claudeArgs: options.claudeArgs,
+                claudeArgs: nativeClaudeArgs,
                 mcpServers: {},
                 allowedTools: [],
                 appendSystemPrompt: happyHerdContextPrompt,
@@ -568,7 +635,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
 
     // Import MessageQueue2 and create message queue
     const messageQueue = new MessageQueue2<EnhancedMode>(mode => hashObject({
-        isPlan: mode.permissionMode === 'plan',
+        permissionMode: mode.permissionMode,
         model: mode.model,
         fallbackModel: mode.fallbackModel,
         customSystemPrompt: mode.customSystemPrompt,
@@ -594,23 +661,24 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     }));
 
     // Forward messages to the queue
-    // Permission modes: Use the unified 7-mode type, mapping happens at SDK boundary in claudeRemote.ts
-    let currentPermissionMode: PermissionMode | undefined = initialPermissionMode;
+    // The wire type is shared, but Claude-native validation has already run at
+    // the provider boundary and every value below reaches the SDK unchanged.
+    let currentPermissionMode: PermissionMode | undefined = effectivePermissionMode;
     // Undefined preserves Claude's own configured model. An explicit app or
     // launch selection still becomes the sticky model for later turns.
-    let currentModel: string | undefined = options.model;
+    let currentModel: string | undefined = effectiveModel;
     let currentFallbackModel: string | undefined = undefined; // Track current fallback model
     let currentCustomSystemPrompt: string | undefined = undefined; // Track current custom system prompt
     let currentAppendSystemPrompt: string | undefined = happyHerdContextPrompt; // Commander context is an invariant
     let currentAllowedTools: string[] | undefined = undefined; // Track current allowed tools
     let currentDisallowedTools: string[] | undefined = undefined; // Track current disallowed tools
-    let currentEffort: 'low' | 'medium' | 'high' | 'xhigh' | 'max' | undefined = options.effort ?? DEFAULT_CLAUDE_EFFORT; // Track current Claude effort (thinking depth)
+    let currentEffort: 'low' | 'medium' | 'high' | 'xhigh' | 'max' | undefined = nativeEffort as StartOptions['effort']; // Track current Claude effort (thinking depth)
 
     const resetCurrentModeDefaults = () => {
         // Model and effort are deliberately NOT reset here. The app sends them
         // only when the user changes the picker, so resetting them on abort
         // silently desyncs the picker from what the next turn actually runs.
-        currentPermissionMode = initialPermissionMode;
+        currentPermissionMode = effectivePermissionMode;
         currentFallbackModel = undefined;
         currentCustomSystemPrompt = undefined;
         currentAppendSystemPrompt = happyHerdContextPrompt;
@@ -721,6 +789,12 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         const queueMessageId = message.meta?.deliveryMode === 'queue'
             ? message.localKey ?? message.meta.queueMessageId
             : undefined;
+        if (message.meta?.permissionMode && !isClaudePermissionMode(message.meta.permissionMode)) {
+            const error = `Unsupported Claude permission mode: ${message.meta.permissionMode}`;
+            logger.debug(`[loop] ${error}`);
+            session.sendSessionEvent({ type: 'message', message: error });
+            return;
+        }
 
         // Stamp the prompt so the remote-mode JSONL scanner can dedupe
         // it later — the SDK is about to write this same text to disk
@@ -733,25 +807,16 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         // New file events from this point on belong to the next user message.
         const attachmentsForThisMessage = await session.drainAttachmentsForUserMessage(queueMessageId);
 
-        // Resolve permission mode from meta - pass through as-is, mapping happens at SDK boundary
+        // Resolve a provider-native permission mode from message metadata.
         let messagePermissionMode: PermissionMode | undefined = currentPermissionMode;
         if (message.meta?.permissionMode) {
-            const previousPermissionMode = currentPermissionMode;
             messagePermissionMode = resolveRemoteClaudePermissionMode(
                 currentPermissionMode,
                 normalizeRemotePermissionMode(message.meta.permissionMode),
                 sandboxEnabled,
             );
             currentPermissionMode = messagePermissionMode;
-            const ignoredDefaultDowngrade =
-                (previousPermissionMode === 'bypassPermissions' || previousPermissionMode === 'yolo')
-                && message.meta.permissionMode === 'default'
-                && currentPermissionMode === previousPermissionMode;
-            if (ignoredDefaultDowngrade) {
-                logger.debug(`[loop] Ignoring permission mode downgrade from ${previousPermissionMode} to default`);
-            } else {
-                logger.debug(`[loop] Permission mode updated from user message to: ${currentPermissionMode}`);
-            }
+            logger.debug(`[loop] Permission mode updated from user message to: ${currentPermissionMode}`);
         } else {
             logger.debug(`[loop] User message received with no permission mode override, using current: ${currentPermissionMode}`);
         }
@@ -1030,8 +1095,8 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     try {
         exitCode = await loop({
             path: workingDirectory,
-            model: options.model,
-            permissionMode: initialPermissionMode,
+            model: effectiveModel,
+            permissionMode: effectivePermissionMode,
             startingMode: options.startingMode,
             messageQueue,
             api,
@@ -1061,7 +1126,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
             },
             session,
             claudeEnvVars: options.claudeEnvVars,
-            claudeArgs: options.claudeArgs,
+            claudeArgs: nativeClaudeArgs,
             sandboxConfig,
             hookSettingsPath,
             jsRuntime: options.jsRuntime

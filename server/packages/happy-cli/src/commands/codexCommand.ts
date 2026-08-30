@@ -7,6 +7,7 @@ import type { PermissionMode } from '@/api/types'
 import type { ReasoningEffort } from '@/codex/codexAppServerTypes'
 import spawn from 'cross-spawn'
 import { activateCredentialAccount } from '@/credentialPool/activate'
+import { parseCodexRemotePermissionMode } from '@/codex/codexTurnRouting'
 
 export interface CodexCommandDependencies {
   showNativeHelp?: () => void
@@ -36,7 +37,10 @@ export async function handleCodexCommand(
     if (codexArgs.args[i] === '--started-by') {
       startedBy = codexArgs.args[++i] as 'daemon' | 'terminal'
     } else if (codexArgs.args[i] === '--permission-mode') {
-      permissionMode = codexArgs.args[++i] as PermissionMode
+      const value = codexArgs.args[++i]
+      const parsed = value ? parseCodexRemotePermissionMode(value) : null
+      if (!parsed) throw new Error(`Unsupported Codex permission mode: ${value ?? ''}`)
+      permissionMode = parsed
     } else if (codexArgs.args[i] === '--model') {
       model = codexArgs.args[++i]
     } else if (codexArgs.args[i] === '--effort') {

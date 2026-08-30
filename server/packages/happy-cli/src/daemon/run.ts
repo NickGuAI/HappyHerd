@@ -1108,6 +1108,7 @@ export async function startDaemon(): Promise<void> {
 
     type DaemonResumeSessionOptions = {
       model?: string;
+      effortLevel?: string;
       permissionMode?: string;
       agentRuntimeContext?: unknown;
       replayQueueMessageId?: string;
@@ -1179,6 +1180,32 @@ export async function startDaemon(): Promise<void> {
         const persistedGrokPermission = resumeAgent === 'grok'
           ? persistedProviderPermissionMode(metadata, 'grok')
           : undefined;
+        const parsedProviderReceipt = HappyHerdMachineSessionSettingsSchema.safeParse(metadata.spawnSettings);
+        const persistedProviderSettings = (resumeAgent === 'claude' || resumeAgent === 'codex')
+          && parsedProviderReceipt.success
+          && parsedProviderReceipt.data.provider === resumeAgent
+          ? parsedProviderReceipt.data
+          : undefined;
+        const providerResumeSettings = resumeAgent === 'claude' || resumeAgent === 'codex'
+          ? resolveEffectiveSessionSettings(machine.metadata, machine.id, {
+            provider: resumeAgent,
+            // An app resume sends its latest complete picker tuple. Terminal
+            // and legacy callers fall back through synced current metadata to
+            // the immutable launch receipt, then exact-machine defaults.
+            model: options?.model
+              ?? metadata.modelMode
+              ?? persistedProviderSettings?.model
+              ?? undefined,
+            effort: options?.effortLevel
+              ?? metadata.effortLevel
+              ?? persistedProviderSettings?.effort
+              ?? undefined,
+            permission: options?.permissionMode
+              ?? metadata.permissionMode
+              ?? persistedProviderSettings?.permission
+              ?? undefined,
+          })
+          : undefined;
         const grokResumeSettings = resumeAgent === 'grok'
           ? options?.grokPermissionTransitionSettings
             ?? resolveEffectiveSessionSettings(machine.metadata, machine.id, {
@@ -1195,10 +1222,11 @@ export async function startDaemon(): Promise<void> {
         appendDaemonSpawnModeArgs(launch.args, {
           directory: launch.cwd,
           agent: resumeAgent,
-          modelMode: options?.model,
+          modelMode: providerResumeSettings?.model ?? options?.model,
+          effortLevel: providerResumeSettings?.effort ?? options?.effortLevel,
           permissionMode: resumeAgent === 'grok'
             ? grokResumePermission
-            : options?.permissionMode,
+            : providerResumeSettings?.permission ?? options?.permissionMode,
         }, resumeAgent);
 
         await fs.access(launch.cwd);
@@ -1213,7 +1241,7 @@ export async function startDaemon(): Promise<void> {
             ...agentRuntimeEnvironment,
             ...credentialResolution.env,
             ...(codexHome ? { CODEX_HOME: codexHome } : {}),
-            ...machineSessionSettingsEnvironment(grokResumeSettings),
+            ...machineSessionSettingsEnvironment(providerResumeSettings ?? grokResumeSettings),
             HAPPY_RECONNECT_SESSION_ID: resolvedSessionId,
             HAPPY_RECONNECT_ENCRYPTION_KEY: encodeBase64(tracked.encryption.encryptionKey),
             HAPPY_RECONNECT_ENCRYPTION_VARIANT: tracked.encryption.encryptionVariant,
@@ -1224,11 +1252,11 @@ export async function startDaemon(): Promise<void> {
               ? { HAPPY_RECONNECT_QUEUE_MESSAGE_ID: options.replayQueueMessageId }
               : {}),
           }),
-          settings: grokResumeSettings,
+          settings: providerResumeSettings ?? grokResumeSettings,
           deferSettingsReceipt: resumeAgent === 'grok',
         });
         if (resumed.type === 'success' && !options?.grokPermissionTransitionSettings) {
-          return { type: 'success', sessionId: resumed.sessionId };
+          return resumed;
         }
         return resumed;
       } catch (error) {
