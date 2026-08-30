@@ -1,8 +1,7 @@
-# August 30 — Dedicated dictation beside Send
+# August 30 — Streamlined Automations Experience
 
-- Active chat composers on desktop and mobile now include a dedicated speech-to-text dictation microphone beside Send, while Send remains an arrow dedicated strictly to sending during idle, recording, transcribing, and retry states.
-- The microphone controls recording, finishing, transcription progress, retries, and cancellation, appending successful OpenAI transcriptions directly into the editable draft without starting realtime voice chat.
-- Enabled the dedicated microphone automatically across Main Agent and Side chat composers on Web Desktop and Web Mobile whenever an account or deployment OpenAI transcription key is configured.
+- Browse automations faster with a compact list powered by dynamic project-tag filters and search instead of repeating card sections.
+- Inspect automations in a desktop side panel or mobile full-width view with preserved search filters, collapsible Markdown instructions, compact rows showing localized, human-readable cadence and next-run information, and details featuring localized automation kinds, run states, run history, and controls.
 
 # August 29 — Side chats open consistently
 
