@@ -165,7 +165,39 @@ describe('ApiMachineClient Codex fork RPCs', () => {
         expect(spawnSession).not.toHaveBeenCalled();
     });
 
-    it('routes a complete Human brief through the dedicated side-chat lifecycle RPC', async () => {
+    it('routes a one-click Human creation through the dedicated side-chat RPC without a brief', async () => {
+        const sideChat = vi.fn().mockResolvedValue({
+            schemaVersion: 1,
+            type: 'side-chat',
+            action: 'create',
+            success: true,
+            parentSessionId: 'happy-source',
+            sessionId: 'happy-child',
+            child: null,
+            phases: [],
+        });
+        const { ApiMachineClient } = await import('./apiMachine');
+        const client = new ApiMachineClient('token', machineClient());
+        client.setRPCHandlers({
+            spawnSession: vi.fn(),
+            stopSession: vi.fn(),
+            requestShutdown: vi.fn(),
+            sideChat,
+        });
+
+        const result = await handlersFrom(client).get('machine-1:happyherd-side-chat-create')?.({
+            parentSessionId: 'happy-source',
+        });
+
+        expect(result).toMatchObject({ success: true, sessionId: 'happy-child' });
+        expect(sideChat).toHaveBeenCalledWith({
+            action: 'create',
+            parentSessionId: 'happy-source',
+            brief: null,
+        });
+    });
+
+    it('still forwards a complete Main Agent brief through the dedicated lifecycle RPC', async () => {
         const sideChat = vi.fn().mockResolvedValue({
             schemaVersion: 1,
             type: 'side-chat',
@@ -206,7 +238,7 @@ describe('ApiMachineClient Codex fork RPCs', () => {
         });
     });
 
-    it('rejects an incomplete Human brief before entering the side-chat lifecycle', async () => {
+    it('rejects an explicitly supplied partial brief before entering the side-chat lifecycle', async () => {
         const sideChat = vi.fn();
         const { ApiMachineClient } = await import('./apiMachine');
         const client = new ApiMachineClient('token', machineClient());

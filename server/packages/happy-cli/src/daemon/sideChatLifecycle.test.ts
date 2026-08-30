@@ -40,6 +40,9 @@ function harness(initial: DaemonSideChatRecord[]) {
       const created = child('created-child', 'running', { parentSessionId });
       records.set(created.sessionId, created);
       calls.push(`create:${parentSessionId}`);
+      if (deliveredBrief === null) {
+        return { sessionId: created.sessionId, briefDelivery: null };
+      }
       calls.push(`brief:${deliveredBrief.outcome}`);
       return { sessionId: created.sessionId, briefDelivery: { success: true } };
     }),
@@ -84,6 +87,28 @@ function harness(initial: DaemonSideChatRecord[]) {
 }
 
 describe('DaemonSideChatLifecycle', () => {
+  it('creates an unbriefed Human child and records brief delivery as skipped', async () => {
+    const { lifecycle, dependencies, calls } = harness([]);
+
+    await expect(lifecycle.execute({ action: 'create', parentSessionId: 'parent', brief: null }))
+      .resolves.toMatchObject({
+        schemaVersion: 1,
+        type: 'side-chat',
+        action: 'create',
+        success: true,
+        parentSessionId: 'parent',
+        sessionId: 'created-child',
+        child: { status: 'running', providerRunning: true, active: true },
+        phases: [
+          { phase: 'resolve', status: 'succeeded' },
+          { phase: 'deliver-brief', status: 'skipped' },
+          { phase: 'readback', status: 'succeeded' },
+        ],
+      });
+    expect(dependencies.create).toHaveBeenCalledWith('parent', null);
+    expect(calls).toEqual(['create:parent', 'read:created-child']);
+  });
+
   it('creates a child and returns daemon-read lineage and running state', async () => {
     const { lifecycle } = harness([]);
 
@@ -139,6 +164,24 @@ describe('DaemonSideChatLifecycle', () => {
         phases: [
           { phase: 'resolve', status: 'succeeded' },
           { phase: 'deliver-brief', status: 'succeeded' },
+          { phase: 'readback', status: 'failed', message: 'read-back unavailable' },
+        ],
+      });
+  });
+
+  it('keeps brief delivery skipped when unbriefed Human creation fails read-back', async () => {
+    const { lifecycle, dependencies } = harness([]);
+    vi.mocked(dependencies.read).mockRejectedValueOnce(new Error('read-back unavailable'));
+
+    await expect(lifecycle.execute({ action: 'create', parentSessionId: 'parent', brief: null }))
+      .resolves.toMatchObject({
+        success: false,
+        parentSessionId: 'parent',
+        sessionId: 'created-child',
+        child: null,
+        phases: [
+          { phase: 'resolve', status: 'succeeded' },
+          { phase: 'deliver-brief', status: 'skipped' },
           { phase: 'readback', status: 'failed', message: 'read-back unavailable' },
         ],
       });

@@ -140,9 +140,13 @@ while receipts retain canonical action names. `reopen` resumes the same Happy
 session and parent lineage. Stopped and archived children remain discoverable
 after daemon restarts through the daemon's durable encrypted reconnect store.
 
-The app discovers, renders, switches, resumes, and closes existing side chats;
-it cannot create an unbriefed Worker Agent. Generic `spawn-happy-session`
-rejects `isSideChat` before provider launch.
+The Human starts a side chat in the app with one click and no fields. The app
+sends only `parentSessionId` through the dedicated
+`happyherd-side-chat-create` RPC, then opens an empty child with its normal
+composer. The Main Agent CLI still requires the six fields above and delivers
+the brief as the child's first encrypted queued message. Both paths share the
+dedicated daemon lifecycle; generic `spawn-happy-session` rejects `isSideChat`
+before provider launch.
 
 Then discover the online and offline machines registered to the linked
 account:

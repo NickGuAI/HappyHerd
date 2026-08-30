@@ -749,7 +749,11 @@ describe('SessionView side-chat integration', () => {
         expect(mocks.sessionKill).not.toHaveBeenCalled();
     });
 
-    it('creates from the zero-child right-panel picker and focuses the hydrated child', async () => {
+    it.each([
+        { surface: 'wide right sidebar', width: 1280, trigger: 'text' as const },
+        { surface: 'narrow full-screen host', width: 700, trigger: 'label' as const },
+    ])('creates with one click and focuses the hydrated child in the $surface', async ({ width, trigger }) => {
+        mocks.width = width;
         mocks.sessions = {
             parent: makeSession('parent', 1, {
                 machineId: 'machine-1',
@@ -783,25 +787,78 @@ describe('SessionView side-chat integration', () => {
         });
         const renderer = renderParent();
 
-        pressByText(renderer, 'sideChat.newChat');
-        const inputs = renderer.root.findAllByType('TextInput' as any)
-            .filter((node: any) => node.props.multiline === true);
-        expect(inputs).toHaveLength(6);
-        for (let index = 0; index < inputs.length; index += 1) {
-            act(() => inputs[index].props.onChangeText(`brief ${index + 1}`));
-        }
-        const submit = pressables(renderer)
-            .find((node: any) => node.props.accessibilityLabel === 'sideChat.create');
-        await act(async () => submit?.props.onPress());
+        expect(renderer.root.findAllByType('TextInput' as any)).toHaveLength(0);
+        expect(pressables(renderer)
+            .some((node: any) => node.props.accessibilityLabel === 'sideChat.create')).toBe(false);
 
-        expect(mocks.machineCreateSideChat).toHaveBeenCalledWith('machine-1', 'parent', {
-            outcome: 'brief 1',
-            scope: 'brief 2',
-            dependencies: 'brief 3',
-            writeOwnership: 'brief 4',
-            verification: 'brief 5',
-            handoff: 'brief 6',
+        const createAction = pressables(renderer).find((node: any) => trigger === 'label'
+            ? node.props.accessibilityLabel === 'sideChat.newChat'
+            : node.findAllByType('Text' as any)
+                .some((textNode: any) => textNode.props.children === 'sideChat.newChat'));
+        expect(createAction, 'missing one-click New side chat action').toBeDefined();
+        await act(async () => {
+            await createAction?.props.onPress();
         });
+
+        expect(mocks.machineCreateSideChat).toHaveBeenCalledOnce();
+        expect(mocks.machineCreateSideChat).toHaveBeenCalledWith('machine-1', 'parent');
+        expect(renderer.root.findAllByType('TextInput' as any)).toHaveLength(0);
+        expect(pressables(renderer)
+            .some((node: any) => node.props.accessibilityLabel === 'sideChat.create')).toBe(false);
+        expect(renderedComposerSessions(renderer)).toEqual(expect.arrayContaining(['parent', 'created']));
+        expect(textValues(renderer)).toContain('created');
+    });
+
+    it.each([
+        { surface: 'wide right sidebar', width: 1280, trigger: 'text' as const },
+        { surface: 'narrow full-screen host', width: 700, trigger: 'label' as const },
+    ])('preserves the created child focus until delayed hydration reaches the $surface', async ({ width, trigger }) => {
+        mocks.width = width;
+        mocks.sessions = {
+            parent: makeSession('parent', 1, {
+                machineId: 'machine-1',
+                flavor: 'codex',
+                codexThreadId: 'thread-parent',
+            }),
+        };
+        mocks.revision += 1;
+        mocks.machineCreateSideChat.mockResolvedValue({
+            schemaVersion: 1,
+            type: 'side-chat',
+            action: 'create',
+            success: true,
+            parentSessionId: 'parent',
+            sessionId: 'created',
+            phases: [],
+        });
+        const renderer = renderParent();
+        const createAction = pressables(renderer).find((node: any) => trigger === 'label'
+            ? node.props.accessibilityLabel === 'sideChat.newChat'
+            : node.findAllByType('Text' as any)
+                .some((textNode: any) => textNode.props.children === 'sideChat.newChat'));
+        expect(createAction, 'missing one-click New side chat action').toBeDefined();
+
+        await act(async () => {
+            await createAction?.props.onPress();
+        });
+        expect(mocks.machineCreateSideChat).toHaveBeenCalledOnce();
+        expect(renderedComposerSessions(renderer)).toEqual(['parent']);
+
+        act(() => {
+            mocks.sessions = {
+                ...mocks.sessions,
+                created: makeSession('created', 50, {
+                    isSideChat: true,
+                    parentSessionId: 'parent',
+                    machineId: 'machine-1',
+                    flavor: 'codex',
+                    codexThreadId: 'thread-created',
+                }),
+            };
+            mocks.revision += 1;
+            for (const listener of mocks.listeners) listener();
+        });
+
         expect(renderedComposerSessions(renderer)).toEqual(expect.arrayContaining(['parent', 'created']));
         expect(textValues(renderer)).toContain('created');
     });

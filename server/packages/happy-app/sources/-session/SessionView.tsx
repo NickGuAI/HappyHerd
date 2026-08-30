@@ -32,7 +32,6 @@ import { useVoiceDictation } from '@/hooks/useVoiceDictation';
 import { Modal } from '@/modal';
 import { gitStatusSync } from '@/sync/gitStatusSync';
 import { machineControlHeartbeat, machineCreateSideChat, machineStopSession, sessionAbort, sessionCancelCommunication, sessionGoalAction, sessionSetAgentModes, sessionKill, sessionArchive } from '@/sync/ops';
-import type { SideChatDelegationBrief } from '@/sync/ops';
 import { closeSideChatSession, resolveSideChatCloseReconciliation } from '@/sync/sideChatLifecycle';
 import { storage, useIsDataReady, useLocalSetting, useMachine, useRealtimeStatus, useSessionGitStatus, useSessionMessages, useSessionPendingCommunications, useSessionUsage, useSetting, useSettingMutable, useSideChatSessions } from '@/sync/storage';
 import { useSession } from '@/sync/storage';
@@ -227,12 +226,12 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         storage.getState().applyLocalSettings({ sidebarPanelsOpen: open, sidebarPanelActive: active });
     }, []);
 
-    // Already-briefed side chats hydrate into one switchable panel. Focus lives
+    // Side chats hydrate into one switchable panel. Focus lives
     // here (not in the panel) so wide and narrow hosts share one selection.
     const rawSideChats = useSideChatSessions(sessionId);
     const [activeSideChatId, setActiveSideChatId] = React.useState<string | null>(null);
-    const [sideChatCreateOpen, setSideChatCreateOpen] = React.useState(false);
     const [creatingSideChat, setCreatingSideChat] = React.useState(false);
+    const [pendingSideChatId, setPendingSideChatId] = React.useState<string | null>(null);
     // Optimistically hide a side chat the instant it's closed. The server's
     // /archive only flips active=false (not lifecycleState), so if the CLI is
     // already dead the fallback archive wouldn't drop the tab via
@@ -248,8 +247,8 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     React.useEffect(() => {
         setClosedSideChatIds(new Set());
         setActiveSideChatId(null);
+        setPendingSideChatId(null);
         setSideChatFullscreenOpen(false);
-        setSideChatCreateOpen(false);
     }, [sessionId]);
 
     // Prune closed ids once the underlying sessions actually leave the store, so
@@ -268,17 +267,26 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     // Hydrated children created from another app or the CLI have no local UI selection. Focus the
     // newest one without creating another, and remove stale empty panel state.
     React.useEffect(() => {
+        // Creation receipts arrive before the child is guaranteed to hydrate. Preserve the exact
+        // child selection and the open surface until the store catches up through refresh or the
+        // normal websocket event.
+        if (pendingSideChatId && !sideChatIds.includes(pendingSideChatId)) {
+            return;
+        }
+        if (pendingSideChatId) {
+            setPendingSideChatId(null);
+        }
         const resolvedId = resolveActiveSideChatId(sideChatIds, activeSideChatId);
         if (resolvedId !== activeSideChatId) {
             setActiveSideChatId(resolvedId);
         }
-        if (!resolvedId && !sideChatCreateOpen) {
+        if (!resolvedId) {
             setSideChatFullscreenOpen(false);
             if (sidebarPanelsOpen.includes('sideChat')) {
                 removeSidebarPanel('sideChat');
             }
         }
-    }, [activeSideChatId, removeSidebarPanel, sideChatCreateOpen, sideChatIds, sidebarPanelsOpen]);
+    }, [activeSideChatId, pendingSideChatId, removeSidebarPanel, sideChatIds, sidebarPanelsOpen]);
 
     const canCreateSideChat = React.useMemo(() => {
         if (!session || !sideChatMachineId || !sideChatMachine?.active) return false;
@@ -291,14 +299,14 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
 
     const sideChatSidebarExpanded = sidebarPresentation.sideChatSurface === 'sidebar'
         && sidebarPanelActive === 'sideChat'
-        && (sideChats.length > 0 || sideChatCreateOpen);
+        && sideChats.length > 0;
     const showSidebar = !zenMode
         && !showWorkspaceLinkPanel
         && (canShowFileSidebar || sideChatSidebarExpanded);
     const canRenderSidebar = canShowFileSidebar
         || (canShowSideChatSidebar
             && sidebarPanelsOpen.includes('sideChat')
-            && (sideChats.length > 0 || sideChatCreateOpen));
+            && sideChats.length > 0);
     const visibleSidebarPanels = React.useMemo(
         () => canShowFileSidebar
             ? sidebarPanelsOpen
@@ -324,56 +332,11 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         overflow: 'hidden' as const,
     }));
 
-    const startSideChatCreate = React.useCallback(() => {
-        setSideChatCreateOpen(true);
-        if (sidebarPresentation.sideChatSurface === 'sidebar') {
-            setSideChatFullscreenOpen(false);
-            openSidebarPanel('sideChat');
-            return;
-        }
-        removeSidebarPanel('sideChat');
-        setSideChatFullscreenOpen(true);
-    }, [openSidebarPanel, removeSidebarPanel, sidebarPresentation.sideChatSurface]);
-
-    const toggleSideChats = React.useCallback(() => {
-        const focusId = resolveActiveSideChatId(sideChatIds, activeSideChatId);
-        if (!focusId) {
-            startSideChatCreate();
-            return;
-        }
-        setSideChatCreateOpen(false);
-        setActiveSideChatId(focusId);
-
-        if (sidebarPresentation.sideChatSurface === 'sidebar') {
-            setSideChatFullscreenOpen(false);
-            if (sideChatSidebarExpanded) {
-                removeSidebarPanel('sideChat');
-            } else {
-                openSidebarPanel('sideChat');
-            }
-            return;
-        }
-
-        removeSidebarPanel('sideChat');
-        setSideChatFullscreenOpen((open) => !open);
-    }, [activeSideChatId, openSidebarPanel, removeSidebarPanel, sideChatIds, sideChatSidebarExpanded, sidebarPresentation.sideChatSurface, startSideChatCreate]);
-
-    React.useEffect(() => {
-        if (
-            sideChatFullscreenOpen
-            && sidebarPresentation.sideChatSurface === 'sidebar'
-            && (sideChats.length > 0 || sideChatCreateOpen)
-        ) {
-            setSideChatFullscreenOpen(false);
-            openSidebarPanel('sideChat');
-        }
-    }, [openSidebarPanel, sideChatCreateOpen, sideChatFullscreenOpen, sideChats.length, sidebarPresentation.sideChatSurface]);
-
-    const createSideChat = React.useCallback(async (brief: SideChatDelegationBrief): Promise<boolean> => {
-        if (!canCreateSideChat || !sideChatMachineId || creatingSideChat) return false;
+    const createSideChat = React.useCallback(async (): Promise<boolean> => {
+        if (!canCreateSideChat || !sideChatMachineId || creatingSideChat || pendingSideChatId) return false;
         setCreatingSideChat(true);
         try {
-            const receipt = await machineCreateSideChat(sideChatMachineId, sessionId, brief);
+            const receipt = await machineCreateSideChat(sideChatMachineId, sessionId);
             if (!receipt.success || !receipt.sessionId) {
                 const detail = receipt.phases.find((phase) => phase.status === 'failed')?.message;
                 Modal.alert(
@@ -388,8 +351,8 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                 next.delete(receipt.sessionId!);
                 return next;
             });
+            setPendingSideChatId(receipt.sessionId);
             setActiveSideChatId(receipt.sessionId);
-            setSideChatCreateOpen(false);
             if (sidebarPresentation.sideChatSurface === 'sidebar') {
                 setSideChatFullscreenOpen(false);
                 openSidebarPanel('sideChat');
@@ -405,7 +368,40 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         } finally {
             setCreatingSideChat(false);
         }
-    }, [canCreateSideChat, creatingSideChat, openSidebarPanel, removeSidebarPanel, sessionId, sideChatMachineId, sidebarPresentation.sideChatSurface]);
+    }, [canCreateSideChat, creatingSideChat, openSidebarPanel, pendingSideChatId, removeSidebarPanel, sessionId, sideChatMachineId, sidebarPresentation.sideChatSurface]);
+
+    const toggleSideChats = React.useCallback(() => {
+        const focusId = resolveActiveSideChatId(sideChatIds, activeSideChatId);
+        if (!focusId) {
+            void createSideChat();
+            return;
+        }
+        setActiveSideChatId(focusId);
+
+        if (sidebarPresentation.sideChatSurface === 'sidebar') {
+            setSideChatFullscreenOpen(false);
+            if (sideChatSidebarExpanded) {
+                removeSidebarPanel('sideChat');
+            } else {
+                openSidebarPanel('sideChat');
+            }
+            return;
+        }
+
+        removeSidebarPanel('sideChat');
+        setSideChatFullscreenOpen((open) => !open);
+    }, [activeSideChatId, createSideChat, openSidebarPanel, removeSidebarPanel, sideChatIds, sideChatSidebarExpanded, sidebarPresentation.sideChatSurface]);
+
+    React.useEffect(() => {
+        if (
+            sideChatFullscreenOpen
+            && sidebarPresentation.sideChatSurface === 'sidebar'
+            && sideChats.length > 0
+        ) {
+            setSideChatFullscreenOpen(false);
+            openSidebarPanel('sideChat');
+        }
+    }, [openSidebarPanel, sideChatFullscreenOpen, sideChats.length, sidebarPresentation.sideChatSurface]);
 
     // Tab close is durable: stop the process and always archive the server
     // session. Panel collapse/removal never calls this path.
@@ -731,7 +727,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                 </View>
             )}
 
-            {sideChatFullscreenOpen && (sideChats.length > 0 || sideChatCreateOpen) && (
+            {sideChatFullscreenOpen && sideChats.length > 0 && (
                 <View
                     style={{
                         position: 'absolute',
@@ -747,12 +743,9 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                         activeSideChatId={activeSideChatId}
                         onSelectSideChat={setActiveSideChatId}
                         onCloseSideChat={closeSideChat}
-                        createOpen={sideChatCreateOpen}
-                        creating={creatingSideChat}
-                        canCreate={canCreateSideChat}
-                        onStartCreate={startSideChatCreate}
-                        onCancelCreate={() => setSideChatCreateOpen(false)}
-                        onCreate={createSideChat}
+                        creatingSideChat={creatingSideChat || Boolean(pendingSideChatId)}
+                        canCreateSideChat={canCreateSideChat}
+                        onCreateSideChat={createSideChat}
                         onCollapse={() => setSideChatFullscreenOpen(false)}
                     />
                 </View>
@@ -859,11 +852,8 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                             activeSideChatId={activeSideChatId}
                             onSelectSideChat={setActiveSideChatId}
                             onCloseSideChat={closeSideChat}
-                            sideChatCreateOpen={sideChatCreateOpen}
-                            creatingSideChat={creatingSideChat}
+                            creatingSideChat={creatingSideChat || Boolean(pendingSideChatId)}
                             canCreateSideChat={canCreateSideChat}
-                            onStartSideChatCreate={startSideChatCreate}
-                            onCancelSideChatCreate={() => setSideChatCreateOpen(false)}
                             onCreateSideChat={createSideChat}
                         />
                     </View>

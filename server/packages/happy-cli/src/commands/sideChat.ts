@@ -72,7 +72,7 @@ export type SideChatPhaseReceipt = {
 };
 
 export type SideChatLifecycleRequest =
-  | { action: 'create'; parentSessionId: string; brief: SideChatDelegationBrief }
+  | { action: 'create'; parentSessionId: string; brief: SideChatDelegationBrief | null }
   | { action: 'list'; parentSessionId: string }
   | { action: 'status' | 'stop' | 'close' | 'reopen'; sessionId: string }
   | { action: 'close-all'; parentSessionId: string };

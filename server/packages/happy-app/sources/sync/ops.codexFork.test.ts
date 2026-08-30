@@ -92,15 +92,7 @@ describe('codex fork ops', () => {
         await expect(machineListAutomations('machine-1')).rejects.toThrow('Invalid or unsafe cron expression');
     });
 
-    it('creates a side chat through the dedicated brief lifecycle RPC and hydrates sessions', async () => {
-        const brief = {
-            outcome: 'Deliver the result.',
-            scope: 'Only the assigned files.',
-            dependencies: 'None.',
-            writeOwnership: 'src/owned.ts',
-            verification: 'Run the focused test.',
-            handoff: 'Return the commit and evidence.',
-        };
+    it('creates a Human side chat through the dedicated RPC without a brief and hydrates sessions', async () => {
         machineRPC.mockResolvedValue({
             schemaVersion: 1,
             type: 'side-chat',
@@ -112,13 +104,31 @@ describe('codex fork ops', () => {
         });
         const { machineCreateSideChat } = await import('./ops');
 
-        const result = await machineCreateSideChat('machine-1', 'happy-source', brief);
+        const result = await machineCreateSideChat('machine-1', 'happy-source');
 
         expect(result).toMatchObject({ success: true, sessionId: 'happy-child' });
         expect(machineRPC).toHaveBeenCalledWith('machine-1', 'happyherd-side-chat-create', {
             parentSessionId: 'happy-source',
-            brief,
         });
+        expect(refreshSessions).toHaveBeenCalledOnce();
+    });
+
+    it('keeps a successful Human creation receipt when immediate session hydration fails', async () => {
+        machineRPC.mockResolvedValue({
+            schemaVersion: 1,
+            type: 'side-chat',
+            action: 'create',
+            success: true,
+            parentSessionId: 'happy-source',
+            sessionId: 'happy-child',
+            phases: [],
+        });
+        refreshSessions.mockRejectedValueOnce(new Error('refresh unavailable'));
+        const { machineCreateSideChat } = await import('./ops');
+
+        const result = await machineCreateSideChat('machine-1', 'happy-source');
+
+        expect(result).toMatchObject({ success: true, sessionId: 'happy-child' });
         expect(refreshSessions).toHaveBeenCalledOnce();
     });
 
@@ -134,14 +144,7 @@ describe('codex fork ops', () => {
         });
         const { machineCreateSideChat } = await import('./ops');
 
-        const result = await machineCreateSideChat('machine-1', 'happy-source', {
-            outcome: 'Deliver.',
-            scope: 'Only this.',
-            dependencies: 'None.',
-            writeOwnership: 'None.',
-            verification: 'Inspect.',
-            handoff: 'Report.',
-        });
+        const result = await machineCreateSideChat('machine-1', 'happy-source');
 
         expect(result.success).toBe(false);
         expect(refreshSessions).not.toHaveBeenCalled();

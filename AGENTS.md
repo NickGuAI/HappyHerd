@@ -55,17 +55,22 @@ live source remain authoritative.
   with stable parent lineage. Use it when work needs persistence, inspection,
   or multiple turns.
 
-An Orchestrating Agent explicitly creates every delegated task. A HappyHerd
-side-chat brief must state the outcome, scope, dependencies, write ownership,
-verification, and handoff. The Orchestrating Agent owns child lifecycle and
-reviews the final handoff. Side chats do not create more side chats by default;
-use provider-native subagents for bounded fan-out inside a child.
+An Orchestrating Agent explicitly creates every delegated task. When the Main
+Agent delegates through the CLI, its HappyHerd side-chat brief must state the
+outcome, scope, dependencies, write ownership, verification, and handoff. The
+Orchestrating Agent owns child lifecycle and reviews the final handoff. Side
+chats do not create more side chats by default; use provider-native subagents
+for bounded fan-out inside a child.
 
-The Human may launch a delegated Worker Agent from the app's New side chat
-form. The Main Agent may launch one through `happyherd session side-chat
-create`. Both surfaces require the complete structured brief and enter the
-same daemon-owned lifecycle. Generic session spawn must not set `isSideChat`
-or bypass that lifecycle.
+The Human launches a side chat from the app's New side chat action with one
+click and no fields. The app sends only the parent session ID through the
+dedicated `happyherd-side-chat-create` machine RPC, creates an empty durable
+child conversation, focuses and opens it, and exposes its normal composer. The
+Main Agent launches a delegated Worker Agent through `happyherd session
+side-chat create`; that CLI path requires all six non-empty brief fields and
+delivers the brief as the child's first queued message. Both paths enter the
+same daemon-owned lifecycle. Human creation skips `deliver-brief`; generic
+session spawn must not set `isSideChat` or bypass the dedicated lifecycle.
 
 ## Package manager and verification
 

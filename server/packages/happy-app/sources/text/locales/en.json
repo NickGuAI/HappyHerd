@@ -887,31 +887,12 @@
   "sideChat": {
     "panelTitle": "Sub-workers",
     "newChat": "New side chat",
-    "emptyTitle": "No side chats",
-    "emptyDescription": "Create a side chat to delegate focused work with clear boundaries.",
-    "createTitle": "Create side chat",
-    "createDescription": "Define a structured brief for durable delegation across the Human UI and Main Agent CLI.",
-    "create": "Create",
+    "emptyTitle": "No side chats yet",
+    "emptyDescription": "Click New side chat to open an empty side chat, then type normally in its composer.",
     "creating": "Creating…",
     "createFailed": "Failed to create side chat.",
     "createFailedWithDetail": "Failed to create side chat: {detail}",
     "unavailable": "Side chats are unavailable for this session or its machine is offline.",
-    "fields": {
-      "outcome": "Expected outcome",
-      "scope": "Scope and boundaries",
-      "dependencies": "Dependencies",
-      "writeOwnership": "Write ownership",
-      "verification": "Verification steps",
-      "handoff": "Handoff criteria"
-    },
-    "placeholders": {
-      "outcome": "What should this side chat achieve?",
-      "scope": "Files, modules, or tasks in scope",
-      "dependencies": "Required tasks, services, or prerequisites",
-      "writeOwnership": "Files or paths permitted to modify",
-      "verification": "Commands or tests to verify completion",
-      "handoff": "Expected deliverables and return format"
-    },
     "composerPlaceholder": "Message side chat…",
     "expand": "Open full screen",
     "tabLabel": "Side chat {index}",
