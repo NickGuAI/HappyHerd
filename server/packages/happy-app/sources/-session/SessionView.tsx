@@ -718,7 +718,9 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                         extraPathSegment={fileViewPath ?? undefined}
                         rightSlot={(diffViewOpen || !!fileViewPath) ? headerRightSlot : headerRight}
                         onTitlePress={session ? () => router.push(`/session/${sessionId}/info`) : undefined}
-                        onBackPress={() => router.back()}
+                        onBackPress={() => Platform.OS === 'web' && deviceType === 'phone'
+                            ? router.dismissTo('/')
+                            : router.back()}
                     />
                     {/* Voice status bar below header - not on tablet (shown in sidebar) */}
                     {!isTablet && realtimeStatus !== 'disconnected' && (
@@ -1729,7 +1731,9 @@ export function SessionViewLoaded({
             {
                 isLandscape && deviceType === 'phone' && (
                     <Pressable
-                        onPress={() => router.back()}
+                        onPress={() => Platform.OS === 'web'
+                            ? router.dismissTo('/')
+                            : router.back()}
                         style={{
                             position: 'absolute',
                             top: safeArea.top + 8,

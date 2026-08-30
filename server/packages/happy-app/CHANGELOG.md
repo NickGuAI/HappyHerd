@@ -1,3 +1,7 @@
+# August 30 — Web Mobile session back navigation
+
+- On Web Mobile, tapping back from an active session now reliably returns directly to the session list in a single tap—even when deep-linked or navigating multiple pages—while preserving native mobile back behavior and standard desktop browser history.
+
 # August 29 — Side chats open consistently
 
 - The `Side chats` control opens the exact parent session's conversations in the desktop right panel and the narrow or mobile full-screen view, with the same selected conversation on either surface.
