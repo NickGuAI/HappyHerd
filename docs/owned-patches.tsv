@@ -197,3 +197,4 @@ RESPONSIVE_WORKSPACE_SESSION_CONTEXT	accepted	fix(app): bind responsive workspac
 WORKSPACE_IMAGE_RECOVERY	accepted	fix(app): recover inline workspace images	server/packages/happy-app/sources/components/markdown/MarkdownView.workspaceLinks.test.ts
 COMMANDER_SESSION_CLI	accepted	feat(commanders): reassign sessions from the CLI	server/packages/happy-cli/src/commands/machine.test.ts
 PROVIDER_CONTINUATION_MOCK	accepted	docs(mock): explain cross-provider continuation	docs/mocks/happyherd-provider-continuation/index.html
+PROVIDER_CONTINUATION_MOCK_V2	accepted	docs(mock): simplify cross-provider continuation	docs/mocks/happyherd-provider-continuation/index.html
