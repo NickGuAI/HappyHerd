@@ -1,3 +1,7 @@
+# August 30 — Web Mobile session back navigation
+
+- On Web Mobile, tapping back from an active session now reliably returns directly to the session list in a single tap—even when deep-linked or navigating multiple pages—while preserving native mobile back behavior and standard desktop browser history.
+
 # August 30 — Side-by-side file workspace and tabbed navigation
 
 - Opening files from All Files on wide Web Desktop and Mac displays files in a right workspace beside the visible Main Agent chat and composer with a bounded, draggable divider, while Web Mobile retains full-width file behavior.

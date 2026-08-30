@@ -171,3 +171,7 @@ DICTATION_DRAFT_RESUME_REPAIR	accepted	fix(app): harden configured dictation com
 DICTATION_HEARTBEAT_DRAFT_REPAIR	accepted	fix(app): preserve late dictation after heartbeat sends (#179)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 DESKTOP_FILE_WORKSPACE	accepted	feat(app): add desktop multi-file workspace (#181)	server/packages/happy-app/sources/components/DesktopFileWorkspace.test.ts
 DESKTOP_FILE_WORKSPACE_NAVIGATION	accepted	fix(app): retain file workspace navigation controls (#181)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
+MOBILE_SESSION_BACK	accepted	fix(app): make mobile session back deterministic (#180)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
+MOBILE_SESSION_BACK_DESKTOP	accepted	fix(app): preserve desktop session back semantics (#180)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
+MOBILE_SESSION_BACK_RESPONSIVE	accepted	fix(app): align mobile back with responsive layout (#180)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
+MOBILE_SESSION_BACK_INVENTORY	accepted	chore(app): refresh mobile back UI inventory (#180)	server/packages/happy-app/sources/text/ui-surface-inventory.json
