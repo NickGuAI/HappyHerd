@@ -51,6 +51,10 @@ import {
   formatOptionsXml,
 } from '@/gemini/utils/optionsParser';
 import { ConversationHistory } from '@/gemini/utils/conversationHistory';
+import {
+  abortGeminiPermissionRequests,
+  GeminiPermissionTurnState,
+} from '@/gemini/permissionTurnState';
 
 
 /**
@@ -208,37 +212,25 @@ export async function runGemini(opts: {
     permissionMode: mode.permissionMode,
     model: mode.model,
   }));
+  const permissionTurnState = new GeminiPermissionTurnState();
 
   // Conversation history for context preservation across model changes
   const conversationHistory = new ConversationHistory({ maxMessages: 20, maxCharacters: 50000 });
 
   // Track current overrides to apply per message
-  let currentPermissionMode: PermissionMode | undefined = undefined;
   let currentModel: string | undefined = undefined;
 
   session.onUserMessage((message) => {
-    // Resolve permission mode (validate) - same as Codex
-    let messagePermissionMode = currentPermissionMode;
-    if (message.meta?.permissionMode) {
-      const validModes: PermissionMode[] = ['default', 'read-only', 'safe-yolo', 'yolo'];
-      if (validModes.includes(message.meta.permissionMode as PermissionMode)) {
-        messagePermissionMode = message.meta.permissionMode as PermissionMode;
-        currentPermissionMode = messagePermissionMode;
-        // Update permission handler with new mode
-        updatePermissionMode(messagePermissionMode);
-        logger.debug(`[Gemini] Permission mode updated from user message to: ${currentPermissionMode}`);
-      } else {
-        logger.debug(`[Gemini] Invalid permission mode received: ${message.meta.permissionMode}`);
-      }
-    } else {
-      logger.debug(`[Gemini] User message received with no permission mode override, using current: ${currentPermissionMode ?? 'default (effective)'}`);
+    let messagePermissionMode: PermissionMode;
+    try {
+      messagePermissionMode = permissionTurnState.selectForQueue(message.meta?.permissionMode);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      logger.debug(`[Gemini] ${detail}`);
+      session.sendSessionEvent({ type: 'message', message: detail });
+      return;
     }
-    
-    // Initialize permission mode if not set yet
-    if (currentPermissionMode === undefined) {
-      currentPermissionMode = 'default';
-      updatePermissionMode('default');
-    }
+    logger.debug(`[Gemini] Queued user message with permission mode: ${messagePermissionMode}`);
 
     // Resolve model; explicit null resets to default (undefined)
     let messageModel = currentModel;
@@ -366,9 +358,12 @@ export async function runGemini(opts: {
     try {
       abortController.abort();
       messageQueue.reset();
-      if (geminiBackend && acpSessionId) {
-        await geminiBackend.cancel(acpSessionId);
-      }
+      await abortGeminiPermissionRequests(
+        permissionHandler,
+        geminiBackend && acpSessionId
+          ? () => geminiBackend!.cancel(acpSessionId!)
+          : null,
+      );
       logger.debug('[Gemini] Abort completed - session remains active');
     } catch (error) {
       logger.debug('[Gemini] Error during abort:', error);
@@ -527,11 +522,6 @@ export async function runGemini(opts: {
     session.sendAgentMessage('gemini', message);
   });
   
-  // Update permission handler when permission mode changes
-  const updatePermissionMode = (mode: PermissionMode) => {
-    permissionHandler.setPermissionMode(mode);
-  };
-
   // Accumulate Gemini response text for sending complete message to mobile
   let accumulatedResponse = '';
   let isResponseInProgress = false;
@@ -926,6 +916,7 @@ export async function runGemini(opts: {
 
       // Track if we need to inject conversation history (after model change)
       let injectHistoryContext = false;
+      let permissionAppliedForTurn = false;
       
       // Handle mode change (like Codex) - restart session if permission mode or model changed
       if (wasSessionCreated && currentModeHash && message.hash !== currentModeHash) {
@@ -946,10 +937,14 @@ export async function runGemini(opts: {
         reasoningProcessor.abort();
         
         // Dispose old backend and create new one with new model
-        if (geminiBackend) {
-          await geminiBackend.dispose();
-          geminiBackend = null;
-        }
+        const previousBackend = geminiBackend;
+        await permissionTurnState.applyAfterPreviousTurn(
+          message.mode.permissionMode,
+          permissionHandler,
+          previousBackend ? () => previousBackend.dispose() : null,
+        );
+        permissionAppliedForTurn = true;
+        geminiBackend = null;
 
         // Create new backend with new model
         const modelToUse = message.mode?.model === undefined ? undefined : (message.mode.model || null);
@@ -985,12 +980,16 @@ export async function runGemini(opts: {
         updateDisplayedModel(actualModel, false);
         // Don't add "Using model" message - model is shown in status bar
         
-        // Update permission handler with current permission mode
-        updatePermissionMode(message.mode.permissionMode);
-        
         wasSessionCreated = true;
         currentModeHash = message.hash;
         first = false; // Not first message anymore
+      }
+
+      if (!permissionAppliedForTurn) {
+        await permissionTurnState.applyAfterPreviousTurn(
+          message.mode.permissionMode,
+          permissionHandler,
+        );
       }
 
       currentModeHash = message.hash;
@@ -1034,8 +1033,6 @@ export async function runGemini(opts: {
           // Start session if not started
           if (!acpSessionId) {
             logger.debug('[gemini] Starting ACP session...');
-            // Update permission handler with current permission mode before starting session
-            updatePermissionMode(message.mode.permissionMode);
             const { sessionId } = await geminiBackend.startSession();
             acpSessionId = sessionId;
             logger.debug(`[gemini] ACP session started: ${acpSessionId}`);

@@ -24,9 +24,12 @@ describe('resumeExistingThread', () => {
             session,
             messageBuffer,
             threadId: '019ccca2-1a77-7481-9873-de72f3464372',
+            model: 'gpt-5.6-sol',
             cwd: '/tmp/project',
             mcpServers: { happy: { command: 'happy-mcp' } },
             developerInstructions: 'global + commander + project',
+            approvalPolicy: 'never',
+            sandbox: 'read-only',
         });
 
         expect(result).toEqual({
@@ -35,9 +38,12 @@ describe('resumeExistingThread', () => {
         });
         expect(client.resumeThread).toHaveBeenCalledWith({
             threadId: '019ccca2-1a77-7481-9873-de72f3464372',
+            model: 'gpt-5.6-sol',
             cwd: '/tmp/project',
             mcpServers: { happy: { command: 'happy-mcp' } },
             developerInstructions: 'global + commander + project',
+            approvalPolicy: 'never',
+            sandbox: 'read-only',
         });
         expect(metadataHandlers).toHaveLength(1);
         expect(metadataHandlers[0]({ existing: true })).toEqual({

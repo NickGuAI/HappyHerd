@@ -32,6 +32,7 @@ import {
     type HappyHerdHeartbeatControlResponse,
 } from '@slopus/happy-wire';
 import { formatHeartbeatStatusPresentation } from '@/utils/heartbeatCommand';
+import { formatDangerouslySkipPermissionsMetadata } from '@/utils/sessionPermissionMetadata';
 
 const DEFAULT_RIG_NAME = 'Rig';
 
@@ -108,30 +109,6 @@ function formatSandboxMetadata(sandbox: unknown, homeDir?: string): string {
     }
 
     return parts.join(' | ');
-}
-
-function formatDangerouslySkipPermissionsMetadata(
-    value: unknown,
-    flavor: string | null | undefined,
-    permissionMode: Session['permissionMode'],
-    sandbox: unknown,
-): string {
-    if (typeof value === 'boolean') {
-        return value ? 'Enabled' : 'Disabled';
-    }
-
-    if (permissionMode === 'bypassPermissions' || permissionMode === 'yolo') {
-        return 'Enabled';
-    }
-
-    if (flavor === 'claude' && sandbox && typeof sandbox === 'object') {
-        const sandboxValue = sandbox as Record<string, unknown>;
-        if (sandboxValue.enabled === true) {
-            return 'Enabled';
-        }
-    }
-
-    return 'Unknown';
 }
 
 function SessionInfoContent({ session }: { session: Session }) {
@@ -690,9 +667,7 @@ function SessionInfoContent({ session }: { session: Session }) {
                             title={t("uiCopy.dangerouslySkipPermissions")}
                             subtitle={formatDangerouslySkipPermissionsMetadata(
                                 session.metadata.dangerouslySkipPermissions,
-                                session.metadata.flavor,
                                 session.permissionMode,
-                                session.metadata.sandbox,
                             )}
                             icon={<Ionicons name="warning-outline" size={29} color="#5856D6" />}
                             showChevron={false}

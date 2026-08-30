@@ -135,6 +135,11 @@ export async function claudeRemote(opts: {
         resume: startFrom ?? undefined,
         mcpServers: opts.mcpServers,
         permissionMode: mapToClaudeMode(initial.mode.permissionMode),
+        // The same SDK query serves later messages and can change mode through
+        // Query.setPermissionMode(). Opt in at spawn so a later switch into
+        // bypassPermissions is effective as well as an initial bypass turn.
+        // This flag enables the mode; it does not select it.
+        allowDangerouslySkipPermissions: true,
         model: initial.mode.model,
         fallbackModel: initial.mode.fallbackModel,
         customSystemPrompt: customInstructions,
@@ -162,6 +167,8 @@ export async function claudeRemote(opts: {
 
     // Push initial message
     let messages = new PushableAsyncIterable<SDKUserMessage>();
+    let nextMessageFailed = false;
+    let nextMessageFailure: unknown;
     messages.push({
         type: 'user',
         parent_tool_use_id: null,
@@ -367,7 +374,9 @@ export async function claudeRemote(opts: {
                         mode = next.mode;
                         messages.push({ type: 'user', parent_tool_use_id: null, message: { role: 'user', content: next.message } });
                     }
-                }).catch(() => {
+                }).catch((error) => {
+                    nextMessageFailed = true;
+                    nextMessageFailure = error;
                     messages.end();
                 });
             }
@@ -384,6 +393,10 @@ export async function claudeRemote(opts: {
                     }
                 }
             }
+        }
+
+        if (nextMessageFailed) {
+            throw nextMessageFailure;
         }
     } catch (e) {
         if (e instanceof AbortError) {

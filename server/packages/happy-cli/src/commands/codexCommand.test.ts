@@ -132,6 +132,14 @@ describe('handleCodexCommand', () => {
     })
   })
 
+  it('rejects a Claude-only permission mode before starting Codex', async () => {
+    await expect(handleCodexCommand(['--permission-mode', 'plan']))
+      .rejects.toThrow('Unsupported Codex permission mode: plan')
+
+    expect(mocks.mockAuthAndSetupMachineIfNeeded).not.toHaveBeenCalled()
+    expect(mocks.mockRunCodex).not.toHaveBeenCalled()
+  })
+
   it('maps --yolo to codex yolo permission mode', async () => {
     await handleCodexCommand(['--yolo'])
 

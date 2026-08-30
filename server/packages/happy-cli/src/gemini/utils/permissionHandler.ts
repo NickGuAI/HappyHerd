@@ -103,6 +103,11 @@ export class GeminiPermissionHandler extends BasePermissionHandler {
         }
     }
 
+    /** Tell ACP whether to publish a Human-facing request before resolving it. */
+    requiresUserInput(toolCallId: string, toolName: string, input: unknown): boolean {
+        return !this.shouldAutoApprove(toolName, toolCallId, input);
+    }
+
     /**
      * Handle a tool permission request
      * @param toolCallId - The unique ID of the tool call
@@ -116,7 +121,7 @@ export class GeminiPermissionHandler extends BasePermissionHandler {
         toolName: string,
         input: unknown,
         displayTitle?: string,
-    ): Promise<PermissionResult> {
+    ): Promise<PermissionResult | { decision: 'approved_without_prompt' }> {
         const pendingTitle = displayTitle?.trim() || toolName;
         // Check if we should auto-approve based on permission mode
         // Pass toolCallId to check by ID (e.g., change_title-* even if toolName is "other")
@@ -140,7 +145,11 @@ export class GeminiPermissionHandler extends BasePermissionHandler {
             }));
 
             return {
-                decision: this.currentPermissionMode === 'yolo' ? 'approved_for_session' : 'approved'
+                // ACP providers are not required to advertise allow_always.
+                // Yolo auto-approves each callback locally, so a no-prompt
+                // allow_once response is sufficient and can fall back to an
+                // advertised allow_always option when needed.
+                decision: this.currentPermissionMode === 'yolo' ? 'approved_without_prompt' : 'approved'
             };
         }
 

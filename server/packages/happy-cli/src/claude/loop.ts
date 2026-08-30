@@ -10,7 +10,7 @@ import type { SandboxConfig } from "@/persistence"
 import type { HappyHerdHeartbeatMessageMarker } from '@slopus/happy-wire'
 
 // Re-export permission mode type from api/types
-// Single unified type with 7 modes - Codex modes mapped at SDK boundary
+// Cross-provider modes are mapped at each provider SDK boundary.
 export type { PermissionMode } from "@/api/types"
 import type { PermissionMode } from "@/api/types"
 

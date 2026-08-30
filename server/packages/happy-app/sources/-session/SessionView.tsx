@@ -1257,11 +1257,16 @@ export function SessionViewLoaded({
                 session.metadata?.permissionMode,
                 session.metadata?.session?.permissionMode,
                 ] : [
+                    (flavor === 'claude' || flavor === 'codex')
+                        && session.metadata?.spawnSettings?.provider === flavor
+                        ? session.metadata.spawnSettings.permission
+                        : undefined,
+                    session.metadata?.permissionMode,
                     effectiveAgentDefaults.permissionMode,
                     session.metadata?.currentOperatingModeCode,
                 ]),
             ])
-    ), [availableModes, session.permissionMode, effectiveAgentDefaults.permissionMode, session.metadata?.currentOperatingModeCode, session.metadata?.permissionMode, session.metadata?.session?.permissionMode, isGrok, isRig]);
+    ), [availableModes, session.permissionMode, effectiveAgentDefaults.permissionMode, session.metadata?.currentOperatingModeCode, session.metadata?.permissionMode, session.metadata?.session?.permissionMode, session.metadata?.spawnSettings, isGrok, isRig]);
 
     const modelMode = React.useMemo<ModelMode | null>(() => (
         resolveCurrentOption(availableModels, isGrok
@@ -1546,15 +1551,15 @@ export function SessionViewLoaded({
     const handleQueueMessage = React.useCallback(() => sendComposerMessage('queue'), [sendComposerMessage]);
 
     const handleAbort = React.useCallback(() => {
-        // Permission is turn-scoped and returns to the launch policy after an
-        // abort. Model and effort are session preferences: the Codex runtime
-        // retains them, so clearing them here would desynchronize the picker
-        // from the next resumed turn.
-        if (!isRig) {
+        // Claude and Codex reset their turn-scoped permission override after an
+        // abort. Grok's launch policy, Antigravity's per-session child policy,
+        // and the retired Gemini runtime selection all persist across aborts;
+        // clearing those would make the picker disagree with the next turn.
+        if (!isRig && (flavor === null || flavor === undefined || flavor === 'claude' || flavor === 'codex')) {
             sessionSetAgentModes(sessionId, { permissionMode: null });
         }
         sessionAbort(sessionId);
-    }, [sessionId]);
+    }, [flavor, isRig, sessionId]);
 
     const handleFileViewerPress = React.useCallback(() => {
         const params = buildWorkspaceAttachmentParams(sessionId, session?.metadata);

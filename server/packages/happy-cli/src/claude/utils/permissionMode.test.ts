@@ -1,19 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { applySandboxPermissionPolicy, extractPermissionModeFromClaudeArgs, mapToClaudeMode, normalizeRemotePermissionMode, resolveInitialClaudePermissionMode, resolveRemoteClaudePermissionMode } from './permissionMode';
+import {
+    applySandboxPermissionPolicy,
+    buildClaudeNativeCliArgs,
+    extractPermissionModeFromClaudeArgs,
+    mapToClaudeMode,
+    normalizeRemotePermissionMode,
+    resolveInitialClaudePermissionMode,
+    resolveRemoteClaudePermissionMode,
+} from './permissionMode';
 import { MessageMetaSchema, type PermissionMode } from '@/api/types';
 
 describe('mapToClaudeMode', () => {
-    describe('Codex modes are mapped to Claude equivalents', () => {
-        it('maps yolo → bypassPermissions', () => {
-            expect(mapToClaudeMode('yolo')).toBe('bypassPermissions');
-        });
-
-        it('maps safe-yolo → default', () => {
-            expect(mapToClaudeMode('safe-yolo')).toBe('default');
-        });
-
-        it('maps read-only → default', () => {
-            expect(mapToClaudeMode('read-only')).toBe('default');
+    describe('Codex-only modes are rejected', () => {
+        it.each(['yolo', 'safe-yolo', 'read-only'] as const)('rejects %s', (mode) => {
+            expect(() => mapToClaudeMode(mode)).toThrow(`Unsupported Claude permission mode: ${mode}`);
         });
     });
 
@@ -33,23 +33,13 @@ describe('mapToClaudeMode', () => {
         it('passes through plan', () => {
             expect(mapToClaudeMode('plan')).toBe('plan');
         });
+
+        it('passes through dontAsk', () => {
+            expect(mapToClaudeMode('dontAsk')).toBe('dontAsk');
+        });
     });
 
-    describe('all 8 PermissionMode values are handled', () => {
-        const allModes: PermissionMode[] = [
-            'auto', 'default', 'acceptEdits', 'bypassPermissions', 'plan',  // Claude modes
-            'read-only', 'safe-yolo', 'yolo'  // Codex modes
-        ];
-
-        it('returns a valid Claude mode for every PermissionMode', () => {
-            const validClaudeModes = ['auto', 'default', 'acceptEdits', 'bypassPermissions', 'plan'];
-
-            allModes.forEach(mode => {
-                const result = mapToClaudeMode(mode);
-                expect(validClaudeModes).toContain(result);
-            });
-        });
-
+    describe('Claude SDK modes', () => {
         // auto is Claude's own mode, not a Codex one, so it must not be
         // rewritten on the way to the SDK.
         it('passes through auto', () => {
@@ -90,8 +80,9 @@ describe('extractPermissionModeFromClaudeArgs', () => {
         expect(extractPermissionModeFromClaudeArgs(['--foo', '--permission-mode=plan'])).toBe('plan');
     });
 
-    it('returns undefined for invalid mode', () => {
-        expect(extractPermissionModeFromClaudeArgs(['--permission-mode', 'invalid'])).toBeUndefined();
+    it('rejects an invalid provider mode', () => {
+        expect(() => extractPermissionModeFromClaudeArgs(['--permission-mode', 'read-only']))
+            .toThrow('Unsupported Claude permission mode: read-only');
     });
 });
 
@@ -109,14 +100,37 @@ describe('resolveInitialClaudePermissionMode', () => {
     });
 });
 
+describe('buildClaudeNativeCliArgs', () => {
+    it('passes an exact bypass selection to local Claude with its required companion flag', () => {
+        expect(buildClaudeNativeCliArgs(
+            ['--permission-mode=plan', '--chrome'],
+            { permissionMode: 'bypassPermissions', model: 'claude-opus-4-1', effort: 'high' },
+        )).toEqual([
+            '--chrome',
+            '--permission-mode', 'bypassPermissions',
+            '--dangerously-skip-permissions',
+            '--model', 'claude-opus-4-1',
+            '--effort', 'high',
+        ]);
+    });
+
+    it('passes explicit default so local Claude leaves a prior non-default mode', () => {
+        expect(buildClaudeNativeCliArgs([], {
+            permissionMode: 'default',
+            model: 'default',
+            effort: 'max',
+        })).toEqual(['--permission-mode', 'default', '--effort', 'max']);
+    });
+});
+
 describe('applySandboxPermissionPolicy', () => {
-    it('forces bypassPermissions when sandbox is enabled', () => {
-        expect(applySandboxPermissionPolicy('default', true)).toBe('bypassPermissions');
+    it('uses bypassPermissions only for an ambient mode when sandbox is enabled', () => {
         expect(applySandboxPermissionPolicy(undefined, true)).toBe('bypassPermissions');
     });
 
-    it('forces bypassPermissions for plan mode when sandbox is enabled', () => {
-        expect(applySandboxPermissionPolicy('plan', true)).toBe('bypassPermissions');
+    it('preserves exact Human selections when sandbox is enabled', () => {
+        expect(applySandboxPermissionPolicy('default', true)).toBe('default');
+        expect(applySandboxPermissionPolicy('plan', true)).toBe('plan');
     });
 
     it('returns original mode when sandbox is disabled', () => {
@@ -125,39 +139,40 @@ describe('applySandboxPermissionPolicy', () => {
 });
 
 describe('resolveRemoteClaudePermissionMode', () => {
-    it('preserves bypassPermissions when an app message sends the default mode', () => {
-        expect(resolveRemoteClaudePermissionMode('bypassPermissions', 'default', false)).toBe('bypassPermissions');
+    it('applies explicit default after bypassPermissions', () => {
+        expect(resolveRemoteClaudePermissionMode('bypassPermissions', 'default', false)).toBe('default');
     });
 
-    it('preserves yolo when an app message sends the default mode', () => {
-        expect(resolveRemoteClaudePermissionMode('yolo', 'default', false)).toBe('yolo');
+    it('applies explicit default after bypassPermissions when the OS sandbox is enabled', () => {
+        expect(resolveRemoteClaudePermissionMode('bypassPermissions', 'default', true)).toBe('default');
     });
 
     it('still allows explicit plan mode after bypassPermissions was active', () => {
         expect(resolveRemoteClaudePermissionMode('bypassPermissions', 'plan', false)).toBe('plan');
     });
 
-    it('applies sandbox policy to incoming modes', () => {
-        expect(resolveRemoteClaudePermissionMode('default', 'plan', true)).toBe('bypassPermissions');
+    it('keeps an explicit incoming mode exact when the OS sandbox is enabled', () => {
+        expect(resolveRemoteClaudePermissionMode('default', 'plan', true)).toBe('plan');
     });
 });
 
 // The wire schema accepts any string so a newer app can name a mode this CLI
 // does not know yet; the unknown value is dropped here rather than the message.
 describe('normalizeRemotePermissionMode', () => {
-    it('passes through every known mode', () => {
+    it('passes through every Claude-native mode', () => {
         const allModes: PermissionMode[] = [
-            'auto', 'default', 'acceptEdits', 'bypassPermissions', 'plan',
-            'read-only', 'safe-yolo', 'yolo',
+            'auto', 'default', 'acceptEdits', 'bypassPermissions', 'plan', 'dontAsk',
         ];
         allModes.forEach(mode => {
             expect(normalizeRemotePermissionMode(mode)).toBe(mode);
         });
     });
 
-    it('drops an unknown mode instead of the whole message', () => {
-        expect(normalizeRemotePermissionMode('mode-from-the-future')).toBeUndefined();
-    });
+    it.each(['mode-from-the-future', 'read-only', 'safe-yolo', 'yolo'])(
+      'drops unsupported mode %s instead of the whole message', (mode) => {
+        expect(normalizeRemotePermissionMode(mode)).toBeUndefined();
+      },
+    );
 
     it('leaves an absent mode absent', () => {
         expect(normalizeRemotePermissionMode(undefined)).toBeUndefined();

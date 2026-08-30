@@ -71,6 +71,34 @@ function createBackend(permissionHandler: object, agentName = 'grok') {
 }
 
 describe('ACP permission callback handling', () => {
+  it('cancels callbacks that arrive while the previous backend is disposing', async () => {
+    let finishCancel: (() => void) | undefined;
+    const cancel = vi.fn(() => new Promise<void>((resolve) => {
+      finishCancel = resolve;
+    }));
+    const handleToolCall = vi.fn(async () => ({ decision: 'approved' as const }));
+    const { backend, messages } = createBackend({
+      requiresUserInput: () => true,
+      handleToolCall,
+    });
+    Object.assign(backend as unknown as Record<string, unknown>, {
+      connection: { cancel },
+      acpSessionId: 'provider-session-1',
+    });
+
+    const disposal = backend.dispose();
+    expect(cancel).toHaveBeenCalledWith({ sessionId: 'provider-session-1' });
+
+    await expect(backend.handlePermissionRequest(rawPermissionRequest)).resolves.toEqual({
+      outcome: { outcome: 'cancelled' },
+    });
+    expect(handleToolCall).not.toHaveBeenCalled();
+    expect(messages.filter((message) => message.type === 'permission-request')).toHaveLength(0);
+
+    finishCancel?.();
+    await disposal;
+  });
+
   it('auto-approves bypass without emitting or storing a pending prompt', async () => {
     const handleToolCall = vi.fn(async () => ({ decision: 'approved_without_prompt' as const }));
     const { backend, messages } = createBackend({
@@ -90,6 +118,50 @@ describe('ACP permission callback handling', () => {
     );
     expect(messages.filter((message) => message.type === 'permission-request')).toHaveLength(0);
     expect(messages.filter((message) => message.type === 'tool-result')).toHaveLength(0);
+  });
+
+  it('auto-approves retired Gemini yolo without emitting or storing a pending prompt', async () => {
+    let state: Record<string, any> = {};
+    const session = {
+      rpcHandlerManager: {
+        registerHandler: vi.fn(),
+      },
+      updateAgentState: vi.fn((updater: (currentState: Record<string, any>) => Record<string, any>) => {
+        state = updater(state);
+        return state;
+      }),
+    };
+    const permissionHandler = new GeminiPermissionHandler(session as never);
+    permissionHandler.setPermissionMode('yolo');
+    const { backend, messages } = createBackend(permissionHandler, 'gemini');
+
+    const response = await backend.handlePermissionRequest(rawPermissionRequest);
+
+    expect(response).toEqual({ outcome: { outcome: 'selected', optionId: 'provider-once' } });
+    expect(messages.filter((message) => message.type === 'permission-request')).toHaveLength(0);
+    expect(state.requests).toBeUndefined();
+    expect(state.completedRequests?.['grok-tool-17']).toMatchObject({
+      status: 'approved',
+      decision: 'approved_for_session',
+    });
+  });
+
+  it('auto-approves retired Gemini yolo when ACP advertises only allow_once', async () => {
+    const session = {
+      rpcHandlerManager: { registerHandler: vi.fn() },
+      updateAgentState: vi.fn((updater: (currentState: Record<string, any>) => Record<string, any>) => updater({})),
+    };
+    const permissionHandler = new GeminiPermissionHandler(session as never);
+    permissionHandler.setPermissionMode('yolo');
+    const { backend, messages } = createBackend(permissionHandler, 'gemini');
+
+    const response = await backend.handlePermissionRequest({
+      ...rawPermissionRequest,
+      options: [{ optionId: 'provider-once', name: 'Approve once', kind: 'allow_once' }],
+    });
+
+    expect(response).toEqual({ outcome: { outcome: 'selected', optionId: 'provider-once' } });
+    expect(messages.filter((message) => message.type === 'permission-request')).toHaveLength(0);
   });
 
   it('emits one prompt for an interactive callback and no synthetic tool result', async () => {

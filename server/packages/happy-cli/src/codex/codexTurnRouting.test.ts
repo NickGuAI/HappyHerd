@@ -2,9 +2,17 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { MessageQueue2, type PendingAttachment } from '@/utils/MessageQueue2';
 import type { CodexEnhancedMode } from './codexPrompt';
-import { deliverCodexActiveTurnInput, shouldSteerCodexUserInput } from './codexTurnRouting';
+import {
+    deliverCodexActiveTurnInput,
+    parseCodexRemotePermissionMode,
+    shouldSteerCodexUserInput,
+} from './codexTurnRouting';
 
 describe('Codex turn routing', () => {
+    it('rejects an explicit unknown permission instead of retaining the previous turn policy', () => {
+        expect(parseCodexRemotePermissionMode('yolo')).toBe('yolo');
+        expect(parseCodexRemotePermissionMode('mode-from-the-future')).toBeNull();
+    });
     it('starts a new turn when Codex is idle', () => {
         expect(shouldSteerCodexUserInput('follow up', null)).toBe(false);
     });
@@ -22,6 +30,34 @@ describe('Codex turn routing', () => {
 
     it('keeps an explicitly queued follow-up on the existing provider queue rail', () => {
         expect(shouldSteerCodexUserInput('run this after the current turn', 'turn-1', 'queue')).toBe(false);
+    });
+
+    it('queues a permission-mode change because turn/steer cannot carry execution policy', () => {
+        expect(shouldSteerCodexUserInput(
+            'continue with read-only access',
+            'turn-1',
+            undefined,
+            'yolo',
+            'read-only',
+        )).toBe(false);
+        expect(shouldSteerCodexUserInput(
+            'continue under the same policy',
+            'turn-1',
+            undefined,
+            'safe-yolo',
+            'safe-yolo',
+        )).toBe(true);
+    });
+
+    it('keeps later input behind an already queued mode-changing follow-up', () => {
+        expect(shouldSteerCodexUserInput(
+            'do not overtake the queued read-only turn',
+            'turn-1',
+            undefined,
+            'yolo',
+            'yolo',
+            true,
+        )).toBe(false);
     });
 
     it('leaves a successfully steered follow-up out of the local queue', async () => {

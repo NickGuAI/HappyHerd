@@ -27,7 +27,7 @@ import { reportProviderHardLimitOnce } from '@/credentialPool/providerLimitNotic
 interface PermissionsField {
     date: number;
     result: 'approved' | 'denied';
-    mode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan';
+    mode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'dontAsk';
     allowedTools?: string[];
 }
 
@@ -354,6 +354,9 @@ export async function claudeRemoteLauncher(
             let modeHash: string | null = null;
             let mode: EnhancedMode | null = null;
             try {
+                // A previous query has ended. Its setter must never receive an
+                // initial mode for the next resumptive query.
+                permissionHandler.clearPermissionModeUpdater();
                 const remoteResult = await claudeRemote({
                     sessionId: session.sessionId,
                     path: session.path,
@@ -369,8 +372,8 @@ export async function claudeRemoteLauncher(
                         if (pending) {
                             let p = pending;
                             pending = null;
-                            permissionHandler.handleModeChange(p.mode.permissionMode);
                             await markBatchStarted(p);
+                            await permissionHandler.handleModeChange(p.mode.permissionMode);
                             return p;
                         }
 
@@ -385,7 +388,8 @@ export async function claudeRemoteLauncher(
                             }
                             modeHash = msg.hash;
                             mode = msg.mode;
-                            permissionHandler.handleModeChange(mode.permissionMode);
+                            await markBatchStarted(msg);
+                            await permissionHandler.handleModeChange(mode.permissionMode);
 
                             // Per-message attachments are already claimed by the message
                             // when it was pushed onto the queue, so there is no race window
@@ -417,7 +421,6 @@ export async function claudeRemoteLauncher(
                                 }
                                 contentBlocks.push({ type: 'text' as const, text: msg.message });
                                 logger.debug(`[remote] Combined ${contentBlocks.length - 1} image(s) with text message`);
-                                await markBatchStarted(msg);
                                 return {
                                     message: contentBlocks,
                                     mode: msg.mode,
@@ -425,7 +428,6 @@ export async function claudeRemoteLauncher(
                                 };
                             }
 
-                            await markBatchStarted(msg);
                             return {
                                 message: msg.message,
                                 mode: msg.mode,

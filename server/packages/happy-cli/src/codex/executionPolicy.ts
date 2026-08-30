@@ -3,18 +3,8 @@ import type { PermissionMode } from '@/api/types';
 
 export function resolveCodexExecutionPolicy(
     permissionMode: PermissionMode,
-    sandboxManagedByHappy: boolean,
+    _sandboxManagedByHappy: boolean,
 ): { approvalPolicy: ApprovalPolicy; sandbox: SandboxMode } {
-    if (sandboxManagedByHappy) {
-        return {
-            // Happy owns the approval decision in this mode. Keep Codex's
-            // request channel open so the host can approve policy-gated
-            // commands; `never` rejects them before our handler can run.
-            approvalPolicy: 'on-request',
-            sandbox: 'danger-full-access',
-        };
-    }
-
     const approvalPolicy: ApprovalPolicy = (() => {
         switch (permissionMode) {
             // Codex native modes
@@ -58,13 +48,29 @@ export function shouldAutoApproveCodexApproval(
     permissionMode: PermissionMode,
     sandboxManagedByHappy: boolean,
 ): boolean {
-    if (sandboxManagedByHappy) {
-        return true;
-    }
+    return resolveCodexApprovalDisposition(permissionMode, sandboxManagedByHappy) === 'approved';
+}
 
-    // safe-yolo is deliberately absent: its turns run with approvalPolicy
-    // 'never' inside the workspace sandbox, so any approval codex still
-    // surfaces (a sandbox-escalation retry or an MCP elicitation) is exactly
-    // what safe-yolo promises to ask the user about.
-    return permissionMode === 'yolo' || permissionMode === 'bypassPermissions';
+/**
+ * Resolve a late app-server approval callback against the permission policy
+ * pinned to the active turn.
+ *
+ * `read-only` and `safe-yolo` both use Codex's native `never` policy. They are
+ * no-prompt modes: if a callback still arrives because it was already in
+ * flight, it must be denied without creating a pending user approval.
+ */
+export function resolveCodexApprovalDisposition(
+    permissionMode: PermissionMode,
+    _sandboxManagedByHappy: boolean,
+): 'approved' | 'denied' | 'prompt' {
+    switch (permissionMode) {
+        case 'yolo':
+        case 'bypassPermissions':
+            return 'approved';
+        case 'read-only':
+        case 'safe-yolo':
+            return 'denied';
+        default:
+            return 'prompt';
+    }
 }

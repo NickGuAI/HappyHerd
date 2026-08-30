@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { HAPPYHERD_MACHINE_SESSION_SETTINGS_ENV } from '@slopus/happy-wire';
 
 const mocks = vi.hoisted(() => {
     const events: string[] = [];
@@ -8,6 +9,9 @@ const mocks = vi.hoisted(() => {
     let approvalHandler: ((params: Record<string, unknown>) => Promise<string>) | null = null;
     let requestInteractiveApproval = false;
     const permissionHandleToolCall = vi.fn(async () => ({ decision: 'approved' }));
+    const startThreadCalls: Array<Record<string, unknown>> = [];
+    const resumeThreadCalls: Array<Record<string, unknown>> = [];
+    const sendTurnCalls: Array<Record<string, unknown>> = [];
 
     const session = {
         sessionId: 'session-one',
@@ -73,8 +77,14 @@ const mocks = vi.hoisted(() => {
             requestInteractiveApproval = false;
             approvalHandler = null;
             permissionHandleToolCall.mockClear();
+            startThreadCalls.length = 0;
+            resumeThreadCalls.length = 0;
+            sendTurnCalls.length = 0;
         },
         permissionHandleToolCall,
+        startThreadCalls,
+        resumeThreadCalls,
+        sendTurnCalls,
     };
 });
 
@@ -115,7 +125,7 @@ vi.mock('@/daemon/run', () => ({
 }));
 
 vi.mock('@/utils/createSessionMetadata', () => ({
-    createSessionMetadata: vi.fn(() => {
+    createSessionMetadata: vi.fn((options: { spawnSettings?: Record<string, unknown> }) => {
         const metadata = {
             path: '/srv/app',
             host: 'host',
@@ -126,6 +136,7 @@ vi.mock('@/utils/createSessionMetadata', () => ({
             startedFromDaemon: true,
             hostPid: 42,
             flavor: 'codex',
+            ...(options.spawnSettings ? { spawnSettings: options.spawnSettings } : {}),
         };
         mocks.setMetadata(metadata);
         return {
@@ -226,11 +237,18 @@ vi.mock('./codexAppServerClient', () => ({
         listModels = vi.fn(async () => []);
         supportsGoalActions = vi.fn(() => false);
         hasActiveThread = vi.fn(() => this.threadId !== null);
-        startThread = vi.fn(async () => {
+        startThread = vi.fn(async (options: Record<string, unknown>) => {
+            mocks.startThreadCalls.push(options);
             this.threadId = 'thread-one';
             return { threadId: this.threadId };
         });
-        sendTurnAndWait = vi.fn(async () => {
+        resumeThread = vi.fn(async (options: Record<string, unknown>) => {
+            mocks.resumeThreadCalls.push(options);
+            this.threadId = String(options.threadId);
+            return { threadId: this.threadId, model: String(options.model) };
+        });
+        sendTurnAndWait = vi.fn(async (_prompt: unknown, options: Record<string, unknown>) => {
+            mocks.sendTurnCalls.push(options);
             const decision = await mocks.maybeRequestInteractiveApproval();
             if (decision) {
                 mocks.events.push(`approval:${decision}`);
@@ -256,6 +274,7 @@ describe('runCodex automation process lifecycle', () => {
         delete process.env.HAPPY_RECONNECT_ENCRYPTION_KEY;
         delete process.env.HAPPY_RECONNECT_ENCRYPTION_VARIANT;
         delete process.env.HAPPY_RECONNECT_QUEUE_MESSAGE_ID;
+        delete process.env[HAPPYHERD_MACHINE_SESSION_SETTINGS_ENV];
     });
 
     it('persists completion, finalizes the session, then exits with the terminal status', async () => {
@@ -274,6 +293,11 @@ describe('runCodex automation process lifecycle', () => {
             runId: '22222222-2222-4222-8222-222222222222',
             status: 'completed',
         });
+        expect(mocks.getMetadata()).toMatchObject({
+            permissionMode: 'yolo',
+            modelMode: 'gpt-5.6-sol',
+            effortLevel: 'max',
+        });
         expect(exit).toHaveBeenCalledWith(0);
         expect(mocks.events).toEqual([
             'outcome:completed',
@@ -285,6 +309,69 @@ describe('runCodex automation process lifecycle', () => {
             'mcp-stop',
             'exit:0',
         ]);
+    });
+
+    it('publishes a non-default Codex launch receipt for the UI', async () => {
+        vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+
+        await runCodex({
+            credentials: { token: 'test-token' } as never,
+            startedBy: 'daemon',
+            permissionMode: 'safe-yolo',
+            model: 'gpt-5.6-terra',
+            effort: 'high',
+        });
+
+        expect(mocks.getMetadata()).toMatchObject({
+            permissionMode: 'safe-yolo',
+            modelMode: 'gpt-5.6-terra',
+            effortLevel: 'high',
+        });
+    });
+
+    it.each([
+        ['first thread', undefined],
+        ['resumed thread', 'provider-thread-existing'],
+    ])('runs the %s with the target-daemon validated receipt tuple', async (_label, resumeThreadId) => {
+        vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+        process.env[HAPPYHERD_MACHINE_SESSION_SETTINGS_ENV] = JSON.stringify({
+            provider: 'codex',
+            permission: 'safe-yolo',
+            model: 'target-codex-model',
+            effort: 'high',
+        });
+
+        await runCodex({
+            credentials: { token: 'test-token' } as never,
+            startedBy: 'daemon',
+            ...(resumeThreadId ? { resumeThreadId } : {}),
+        });
+
+        expect(mocks.getMetadata()).toMatchObject({
+            spawnSettings: {
+                provider: 'codex',
+                permission: 'safe-yolo',
+                model: 'target-codex-model',
+                effort: 'high',
+            },
+            permissionMode: 'safe-yolo',
+            modelMode: 'target-codex-model',
+            effortLevel: 'high',
+        });
+        const threadSettings = resumeThreadId
+            ? mocks.resumeThreadCalls[0]
+            : mocks.startThreadCalls[0];
+        expect(threadSettings).toMatchObject({
+            model: 'target-codex-model',
+            approvalPolicy: 'never',
+            sandbox: 'workspace-write',
+        });
+        expect(mocks.sendTurnCalls[0]).toMatchObject({
+            model: 'target-codex-model',
+            effort: 'high',
+            approvalPolicy: 'never',
+            sandbox: 'workspace-write',
+        });
     });
 
     it('replays the requested heartbeat occurrence when resuming the exact Codex session', async () => {

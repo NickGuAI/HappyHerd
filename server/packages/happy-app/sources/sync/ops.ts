@@ -34,6 +34,7 @@ import type {
     HappyHerdHeartbeatControlInput,
     HappyHerdHeartbeatControlResponse,
     HappyHerdCommanderListResponse,
+    HappyHerdMachineSessionSettings,
     WorkspaceFileHashRequest,
     WorkspaceFileHashResponse,
     WorkspaceUploadAbortResponse,
@@ -231,7 +232,7 @@ interface SessionKillResponse {
 
 // Response types for spawn session
 export type SpawnSessionResult =
-    | { type: 'success'; sessionId: string }
+    | { type: 'success'; sessionId: string; settings?: HappyHerdMachineSessionSettings }
     | { type: 'pending'; clientRequestId: string; retryAfterMs: number }
     | { type: 'requestToApproveDirectoryCreation'; directory: string }
     | { type: 'error'; errorMessage: string };
@@ -663,19 +664,24 @@ export async function codexListRewindPoints(
     }
 }
 
-export async function machineResumeSession(options: ResumeSessionOptions & { model?: string; permissionMode?: string }): Promise<SpawnSessionResult> {
-    const { machineId, sessionId, model, permissionMode, replayQueueMessageId } = options;
+export async function machineResumeSession(options: ResumeSessionOptions & {
+    model?: string;
+    effortLevel?: string;
+    permissionMode?: string;
+}): Promise<SpawnSessionResult> {
+    const { machineId, sessionId, model, effortLevel, permissionMode, replayQueueMessageId } = options;
 
     try {
         const result = await apiSocket.machineRPC<SpawnSessionResult, {
             sessionId: string;
             model?: string;
+            effortLevel?: string;
             permissionMode?: string;
             replayQueueMessageId?: string;
         }>(
             machineId,
             'resume-happy-session',
-            { sessionId, model, permissionMode, replayQueueMessageId },
+            { sessionId, model, effortLevel, permissionMode, replayQueueMessageId },
         );
         return result;
     } catch (error) {

@@ -66,15 +66,18 @@ provider advertised; a deny-without-prompt mode selects an advertised reject
 or cancels. An unknown provider or mode fails safe rather than inheriting
 another provider's policy. Launch flags alone do not prove this behavior.
 
-If the provider supports resume, persist the exact launch policy in session
-metadata and restore it through both app and terminal resume. Revalidate it
-against the current catalog on the exact owning machine before relaunch; never
-derive a launch policy from runtime message-mode metadata or ACP operating
-mode, and never let a resume caller replace the persisted policy. A legacy
-session without a persisted launch policy uses the provider's currently
-advertised default after the same exact-machine validation. Repeat the
-late-callback matrix after resume so an allow-without-prompt or
-deny-without-prompt policy cannot silently become interactive.
+Session metadata preserves an immutable launch receipt alongside the synced
+current permission, model, and effort selected by the Human. For Claude and
+Codex resume, resolve the latest complete current tuple, falling back per
+missing dimension to the launch receipt and then to exact-machine advertised
+defaults for legacy gaps. The target daemon validates that tuple against its
+live catalog, launches it without silent substitution, returns an
+authoritative settings receipt, and the app mirrors that receipt. Reject an
+invalid tuple rather than executing a different one. Repeat the late-callback
+matrix after resume so an allow-without-prompt or deny-without-prompt policy
+cannot silently become interactive. GrokBuild permission remains launch-only:
+its receipt governs the running process unless the dedicated validated
+transition RPC restarts that exact process and returns a matching receipt.
 
 For GrokBuild specifically, `server/packages/happy-cli/src/capabilities/agentCapabilities.ts`
 discovers permission modes from `grok --help`,

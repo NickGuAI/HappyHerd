@@ -10,13 +10,13 @@ import type { CanCallToolOptions, PermissionResult } from "../sdk/types";
 import { Session } from "../session";
 import { EnhancedMode, PermissionMode } from "../loop";
 import { getToolDescriptor } from "./getToolDescriptor";
-import { isClaudeBypassEquivalent, mapToClaudeMode } from "./permissionMode";
+import { isClaudeBypassEquivalent, isClaudePermissionMode, mapToClaudeMode } from "./permissionMode";
 
 export interface PermissionResponse {
     id: string;
     approved: boolean;
     reason?: string;
-    mode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan';
+    mode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan' | 'dontAsk';
     allowTools?: string[];
     updatedInput?: Record<string, unknown>;
     receivedAt?: number;
@@ -61,28 +61,29 @@ export class PermissionHandler {
         this.onPermissionRequestCallback = callback;
     }
 
-    handleModeChange(mode: PermissionMode | undefined) {
+    async handleModeChange(mode: PermissionMode | undefined): Promise<void> {
+        if (mode !== undefined && !isClaudePermissionMode(mode)) {
+            throw new Error(`Unsupported Claude permission mode: ${mode}`);
+        }
         const previousMode = this.permissionMode;
+        const nextMode = mode ?? 'default';
         // An unset mode means "use Claude's own configuration", which this
         // handler cannot read. It is treated as 'default' for Happy's own
         // auto-approval decisions so an unknown mode can only make us ask more,
         // never less; the SDK still applies the real configured mode.
-        this.permissionMode = mode ?? 'default';
-
-        // The message-queue hash excludes permissionMode, so a default -> yolo
-        // switch never restarts the SDK query. Push the mapped mode into the
-        // live query so the SDK stops consulting canUseTool on its own.
         //
-        // Only a concrete mode is pushed: setPermissionMode has no way to say
-        // "go back to inheriting", so switching to Default leaves the running
-        // query where it is and takes effect on the next one.
+        // Commit the local callback policy only after the native SDK accepts
+        // the same transition. Otherwise the UI/bridge can claim bypass while
+        // Claude is still enforcing its previous mode (or vice versa).
+        //
+        // Only a concrete mode is pushed. `default` is concrete too: it leaves
+        // bypass/yolo immediately and restores the SDK's normal ask policy.
         if (mode !== undefined
             && this.setPermissionModeCallback
             && mapToClaudeMode(previousMode) !== mapToClaudeMode(mode)) {
-            this.setPermissionModeCallback(mapToClaudeMode(mode)).catch((err) => {
-                logger.debug('Failed to sync permission mode via SDK:', err);
-            });
+            await this.setPermissionModeCallback(mapToClaudeMode(mode));
         }
+        this.permissionMode = nextMode;
     }
 
     /**
@@ -93,53 +94,52 @@ export class PermissionHandler {
         this.setPermissionModeCallback = callback;
     }
 
+    clearPermissionModeUpdater(): void {
+        this.setPermissionModeCallback = undefined;
+    }
+
     /**
      * Handler response
      */
-    private handlePermissionResponse(
+    private async handlePermissionResponse(
         response: PermissionResponse,
         pending: PendingRequest
-    ): void {
-
-        // Update allowed tools
-        if (response.allowTools && response.allowTools.length > 0) {
-            response.allowTools.forEach(tool => {
-                if (tool.startsWith('Bash(') || tool === 'Bash') {
-                    this.parseBashPermission(tool);
-                } else {
-                    this.allowedTools.add(tool);
-                }
-            });
-        }
-
-        // Update permission mode
-        if (response.mode) {
-            this.permissionMode = response.mode;
-        }
+    ): Promise<void> {
 
         // Handle
         if (pending.toolName === 'exit_plan_mode' || pending.toolName === 'ExitPlanMode') {
             logger.debug('Plan mode result received', response);
             if (response.approved) {
                 // Switch permission mode via SDK before allowing ExitPlanMode
-                const newMode = (response.mode && ['default', 'acceptEdits', 'bypassPermissions'].includes(response.mode))
+                const newMode = (response.mode && ['default', 'acceptEdits', 'bypassPermissions', 'dontAsk'].includes(response.mode))
                     ? response.mode
                     : 'default';
 
                 logger.debug(`Plan approved - switching to ${newMode} mode and allowing ExitPlanMode`);
 
-                if (this.setPermissionModeCallback) {
-                    this.setPermissionModeCallback(newMode).catch((err) => {
-                        logger.debug('Failed to set permission mode via SDK:', err);
-                    });
-                }
-                this.permissionMode = newMode;
+                await this.handleModeChange(newMode);
 
                 pending.resolve({ behavior: 'allow', updatedInput: (pending.input as Record<string, unknown>) || {} });
             } else {
                 pending.resolve({ behavior: 'deny', message: response.reason || 'Plan rejected' });
             }
         } else {
+            if (response.mode) {
+                await this.handleModeChange(response.mode);
+            }
+
+            // Apply durable tool grants only after any requested native mode
+            // transition succeeds.
+            if (response.allowTools && response.allowTools.length > 0) {
+                response.allowTools.forEach(tool => {
+                    if (tool.startsWith('Bash(') || tool === 'Bash') {
+                        this.parseBashPermission(tool);
+                    } else {
+                        this.allowedTools.add(tool);
+                    }
+                });
+            }
+
             // Handle default case for all other tools
             const originalInput = (pending.input as Record<string, unknown>) || {};
             const updatedInput = response.updatedInput
@@ -188,7 +188,24 @@ export class PermissionHandler {
         // Calculate descriptor
         const descriptor = getToolDescriptor(toolName);
 
-        // ExitPlanMode always requires user approval — never auto-approve it.
+        // bypassPermissions is a no-prompt allow policy for every executable
+        // tool callback, including ExitPlanMode. AskUserQuestion was handled
+        // above because it is Human input rather than execution approval.
+        if (isClaudeBypassEquivalent(this.permissionMode)) {
+            return { behavior: 'allow', updatedInput: input as Record<string, unknown> };
+        }
+
+        // dontAsk is the provider's deny-without-prompt policy. A late SDK
+        // callback must preserve that promise rather than creating a pending
+        // Human approval request.
+        if (this.permissionMode === 'dontAsk') {
+            return {
+                behavior: 'deny',
+                message: 'Claude permission mode dontAsk denied this unapproved tool call.',
+            };
+        }
+
+        // Outside bypass, leaving plan mode remains an explicit Human choice.
         if (descriptor.exitPlan) {
             return this.handlePermissionRequest(toolCallId, toolName, input, options.signal, options.toolUseID);
         }
@@ -196,10 +213,6 @@ export class PermissionHandler {
         //
         // Handle special cases
         //
-
-        if (isClaudeBypassEquivalent(this.permissionMode)) {
-            return { behavior: 'allow', updatedInput: input as Record<string, unknown> };
-        }
 
         if (this.permissionMode === 'acceptEdits' && descriptor.edit) {
             return { behavior: 'allow', updatedInput: input as Record<string, unknown> };
@@ -347,6 +360,7 @@ export class PermissionHandler {
         this.allowedBashLiterals.clear();
         this.allowedBashPrefixes.clear();
         this.permissionMode = 'default';
+        this.setPermissionModeCallback = undefined;
 
         // Cancel all pending requests
         for (const [, pending] of this.pendingRequests.entries()) {
@@ -392,12 +406,39 @@ export class PermissionHandler {
                 return;
             }
 
-            // Store the response with timestamp
-            this.responses.set(id, { ...message, receivedAt: Date.now() });
             this.pendingRequests.delete(id);
 
             // Handle the permission response based on tool type
-            this.handlePermissionResponse(message, pending);
+            try {
+                await this.handlePermissionResponse(message, pending);
+            } catch (error) {
+                const failure = error instanceof Error ? error : new Error(String(error));
+                pending.reject(failure);
+                this.session.client.updateAgentState((currentState) => {
+                    const request = currentState.requests?.[id];
+                    if (!request) return currentState;
+                    const requests = { ...currentState.requests };
+                    delete requests[id];
+                    return {
+                        ...currentState,
+                        requests,
+                        completedRequests: {
+                            ...currentState.completedRequests,
+                            [id]: {
+                                ...request,
+                                completedAt: Date.now(),
+                                status: 'denied',
+                                reason: `Provider permission-mode update failed: ${failure.message}`,
+                            },
+                        },
+                    };
+                });
+                throw failure;
+            }
+
+            // A response is authoritative only after every required provider
+            // transition has succeeded.
+            this.responses.set(id, { ...message, receivedAt: Date.now() });
 
             // Move processed request to completedRequests
             this.session.client.updateAgentState((currentState) => {

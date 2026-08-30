@@ -5,21 +5,7 @@ import { logger } from '@/ui/logger';
 /** Derived from SDK's QueryOptions - the modes Claude actually supports */
 export type ClaudeSdkPermissionMode = NonNullable<QueryOptions['permissionMode']>;
 
-/**
- * Map any cross-provider PermissionMode to a Claude-compatible mode.
- * This is the ONLY place where Codex modes are mapped to Claude equivalents.
- *
- * Mapping:
- * - yolo → bypassPermissions (both skip all permissions)
- * - safe-yolo → default (ask for permissions)
- * - read-only → default (Claude doesn't support read-only)
- *
- * Claude modes pass through unchanged:
- * - auto, default, acceptEdits, bypassPermissions, plan
- *
- * `auto` is a first-class mode in the Agent SDK's own PermissionMode union,
- * so it passes straight through rather than being mapped onto `default`.
- */
+/** Pass a provider-native Claude permission mode to the SDK unchanged. */
 export function mapToClaudeMode(mode: undefined): undefined;
 export function mapToClaudeMode(mode: PermissionMode): ClaudeSdkPermissionMode;
 export function mapToClaudeMode(mode: PermissionMode | undefined): ClaudeSdkPermissionMode | undefined;
@@ -29,27 +15,23 @@ export function mapToClaudeMode(mode: PermissionMode | undefined): ClaudeSdkPerm
     if (mode === undefined) {
         return undefined;
     }
-    const codexToClaudeMap: Record<string, ClaudeSdkPermissionMode> = {
-        'yolo': 'bypassPermissions',
-        'safe-yolo': 'default',
-        'read-only': 'default',
-    };
-    return codexToClaudeMap[mode] ?? (mode as ClaudeSdkPermissionMode);
+    if (!isClaudePermissionMode(mode)) {
+        throw new Error(`Unsupported Claude permission mode: ${mode}`);
+    }
+    return mode;
 }
 
-const VALID_PERMISSION_MODES: readonly PermissionMode[] = [
+const CLAUDE_PERMISSION_MODES: readonly ClaudeSdkPermissionMode[] = [
     'auto',
     'default',
     'acceptEdits',
     'bypassPermissions',
     'plan',
-    'read-only',
-    'safe-yolo',
-    'yolo',
+    'dontAsk',
 ] as const;
 
-export function isPermissionMode(value: string | undefined): value is PermissionMode {
-    return !!value && VALID_PERMISSION_MODES.includes(value as PermissionMode);
+export function isClaudePermissionMode(value: string | undefined): value is ClaudeSdkPermissionMode {
+    return !!value && CLAUDE_PERMISSION_MODES.includes(value as ClaudeSdkPermissionMode);
 }
 
 /**
@@ -58,11 +40,11 @@ export function isPermissionMode(value: string | undefined): value is Permission
  * yet; an unknown one is dropped here with a warning, keeping the message
  * itself deliverable and the session on its current mode.
  */
-export function normalizeRemotePermissionMode(value: string | undefined): PermissionMode | undefined {
+export function normalizeRemotePermissionMode(value: string | undefined): ClaudeSdkPermissionMode | undefined {
     if (value === undefined) {
         return undefined;
     }
-    if (isPermissionMode(value)) {
+    if (isClaudePermissionMode(value)) {
         return value;
     }
     logger.info(`[permissionMode] Ignoring unknown permission mode '${value}' from app; this CLI version does not support it`);
@@ -75,28 +57,30 @@ export function normalizeRemotePermissionMode(value: string | undefined): Permis
  * - --permission-mode VALUE
  * - --permission-mode=VALUE
  */
-export function extractPermissionModeFromClaudeArgs(claudeArgs?: string[]): PermissionMode | undefined {
+export function extractPermissionModeFromClaudeArgs(claudeArgs?: string[]): ClaudeSdkPermissionMode | undefined {
     if (!claudeArgs || claudeArgs.length === 0) {
         return undefined;
     }
 
-    let found: PermissionMode | undefined = undefined;
+    let found: ClaudeSdkPermissionMode | undefined = undefined;
     for (let i = 0; i < claudeArgs.length; i++) {
         const arg = claudeArgs[i];
         if (arg === '--permission-mode') {
             const next = claudeArgs[i + 1];
-            if (isPermissionMode(next)) {
-                found = next;
+            if (!isClaudePermissionMode(next)) {
+                throw new Error(`Unsupported Claude permission mode: ${next ?? ''}`);
             }
+            found = next;
             i += 1;
             continue;
         }
 
         if (arg.startsWith('--permission-mode=')) {
             const value = arg.slice('--permission-mode='.length);
-            if (isPermissionMode(value)) {
-                found = value;
+            if (!isClaudePermissionMode(value)) {
+                throw new Error(`Unsupported Claude permission mode: ${value}`);
             }
+            found = value;
         }
     }
 
@@ -117,46 +101,84 @@ export function resolveInitialClaudePermissionMode(
     return extractPermissionModeFromClaudeArgs(claudeArgs) ?? optionMode;
 }
 
+/** Build the native Claude Code CLI policy/settings flags for local execution. */
+export function buildClaudeNativeCliArgs(
+    baseArgs: string[] | undefined,
+    settings: {
+        permissionMode?: PermissionMode;
+        model?: string | null;
+        effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max' | null;
+    },
+): string[] {
+    const args: string[] = [];
+    for (let index = 0; index < (baseArgs?.length ?? 0); index += 1) {
+        const arg = baseArgs![index];
+        if (arg === '--permission-mode') {
+            index += 1;
+            continue;
+        }
+        if (arg.startsWith('--permission-mode=') || arg === '--dangerously-skip-permissions') {
+            continue;
+        }
+        args.push(arg);
+    }
+
+    if (settings.permissionMode) {
+        if (!isClaudePermissionMode(settings.permissionMode)) {
+            throw new Error(`Unsupported Claude permission mode: ${settings.permissionMode}`);
+        }
+        const nativeMode = mapToClaudeMode(settings.permissionMode);
+        args.push('--permission-mode', nativeMode);
+        if (nativeMode === 'bypassPermissions') {
+            args.push('--dangerously-skip-permissions');
+        }
+    }
+    if (settings.model && settings.model !== 'default') {
+        args.push('--model', settings.model);
+    }
+    if (settings.effort) {
+        args.push('--effort', settings.effort);
+    }
+    return args;
+}
+
 /**
- * Enforce sandbox permission policy for Claude.
- * When sandbox is enabled, we always force bypass permissions.
+ * Avoid a second provider prompt only when the Human did not choose a native
+ * Claude permission. An explicit selection remains exact even when HappyHerd
+ * also wraps the process in its own OS sandbox.
  */
 export function applySandboxPermissionPolicy(
     mode: PermissionMode | undefined,
     sandboxEnabled: boolean,
 ): PermissionMode | undefined {
-    if (!sandboxEnabled) {
-        return mode;
+    if (sandboxEnabled && mode === undefined) {
+        return 'bypassPermissions';
     }
-    return 'bypassPermissions';
+    return mode;
 }
 
 export function isClaudeBypassEquivalent(mode: PermissionMode | undefined): boolean {
-    return mode === 'bypassPermissions' || mode === 'yolo';
+    return mode === 'bypassPermissions';
 }
 
 /**
  * Resolve permission mode overrides from remote app messages.
  *
- * Happy app versions can send `permissionMode: "default"` with every message
- * even when the CLI process was started in yolo/bypass mode. Since Claude maps
- * both `yolo` and `bypassPermissions` to bypass at the SDK boundary, do not let
- * that ambient default downgrade either mode, but still allow explicit modes
- * such as plan to take effect.
+ * Every concrete app selection is an exact live-mode transition. An absent
+ * value retains the current mode; an explicit `default` leaves bypass/yolo and
+ * restores Claude's normal ask-first policy.
  */
 export function resolveRemoteClaudePermissionMode(
     currentMode: PermissionMode | undefined,
     incomingMode: PermissionMode | undefined,
-    sandboxEnabled: boolean,
+    _sandboxEnabled: boolean,
 ): PermissionMode | undefined {
     if (!incomingMode) {
         return currentMode;
     }
 
-    const nextMode = applySandboxPermissionPolicy(incomingMode, sandboxEnabled);
-    if (isClaudeBypassEquivalent(currentMode) && nextMode === 'default') {
-        return currentMode;
-    }
-
-    return nextMode;
+    // The OS sandbox only chooses the initial no-double-prompt policy. A
+    // concrete Human selection is an exact live transition and must not be
+    // rewritten behind the UI.
+    return incomingMode;
 }

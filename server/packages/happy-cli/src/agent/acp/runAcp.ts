@@ -738,47 +738,45 @@ export async function runAcp(opts: {
     }
   };
 
-  const switchPermissionModeIfRequested = async (requestedMode: string): Promise<void> => {
+  const switchPermissionModeIfRequested = async (requestedMode: string): Promise<boolean> => {
     if (!requestedMode) {
-      return;
+      return true;
     }
 
     if (modeSelector) {
       const resolved = resolveRequestedCode(modeSelector.options, requestedMode);
-      if (!resolved) {
-        logger.debug(`[${opts.agentName}] Ignoring unknown ACP permission mode request: ${requestedMode}`);
-        return;
-      }
-      if (resolved === modeSelector.currentCode) {
-        return;
-      }
-      const switched = await backend.setSessionConfigOption(modeSelector.configId, resolved);
-      if (switched) {
-        modeSelector.currentCode = resolved;
-        return;
+      if (resolved) {
+        if (resolved === modeSelector.currentCode) {
+          return true;
+        }
+        const switched = await backend.setSessionConfigOption(modeSelector.configId, resolved);
+        if (switched) {
+          modeSelector.currentCode = resolved;
+          return true;
+        }
       }
     }
 
-    if (!legacyModes) {
-      return;
+    if (legacyModes) {
+      const resolvedLegacyMode = resolveRequestedLegacyModeCode(legacyModes, requestedMode);
+      if (resolvedLegacyMode) {
+        if (resolvedLegacyMode === legacyModes.currentModeId) {
+          return true;
+        }
+
+        const switched = await backend.setSessionMode(resolvedLegacyMode);
+        if (switched) {
+          legacyModes = {
+            ...legacyModes,
+            currentModeId: resolvedLegacyMode,
+          };
+          return true;
+        }
+      }
     }
 
-    const resolvedLegacyMode = resolveRequestedLegacyModeCode(legacyModes, requestedMode);
-    if (!resolvedLegacyMode) {
-      logger.debug(`[${opts.agentName}] Ignoring unknown ACP legacy mode request: ${requestedMode}`);
-      return;
-    }
-    if (resolvedLegacyMode === legacyModes.currentModeId) {
-      return;
-    }
-
-    const switched = await backend.setSessionMode(resolvedLegacyMode);
-    if (switched) {
-      legacyModes = {
-        ...legacyModes,
-        currentModeId: resolvedLegacyMode,
-      };
-    }
+    logger.debug(`[${opts.agentName}] Rejecting unsupported ACP permission mode request: ${requestedMode}`);
+    return false;
   };
 
   const switchModelAndEffortIfRequested = async (
@@ -1134,7 +1132,14 @@ export async function runAcp(opts: {
       sendEnvelopes(sessionManager.startTurn());
       try {
         if (supportsRuntimePermissionSelection && typeof batch.mode.permissionMode === 'string' && batch.mode.permissionMode.length > 0) {
-          await switchPermissionModeIfRequested(batch.mode.permissionMode);
+          const switched = await switchPermissionModeIfRequested(batch.mode.permissionMode);
+          if (!switched) {
+            const error = `Unsupported ${opts.agentName} permission mode: ${batch.mode.permissionMode}`;
+            session.sendSessionEvent({ type: 'message', message: error });
+            sendEnvelopes(sessionManager.endTurn('failed'));
+            session.sendSessionEvent({ type: 'ready' });
+            continue;
+          }
         }
         await switchModelAndEffortIfRequested(batch.mode.model, batch.mode.effort);
         const promptResult = await backend.sendPromptAndGetResult(acpSessionId, batch.message);

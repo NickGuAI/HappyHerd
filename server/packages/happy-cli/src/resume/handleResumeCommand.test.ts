@@ -124,8 +124,8 @@ beforeEach(() => {
     );
     mocks.mockHasLocalHappyAgentAuth.mockReturnValue(false);
     mocks.mockDetectCLIAvailability.mockReturnValue({
-        claude: false,
-        codex: false,
+        claude: true,
+        codex: true,
         gemini: false,
         grok: true,
         agy: false,
@@ -133,6 +133,42 @@ beforeEach(() => {
     });
     mocks.mockDetectAgentCapabilities.mockResolvedValue({
         capabilities: {
+            claude: {
+                detectedAt: 1,
+                sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
+                models: [
+                    { code: 'default', value: 'Default' },
+                    { code: 'claude-opus-test', value: 'Claude Opus Test' },
+                ],
+                effortLevels: [
+                    { code: 'max', value: 'Max', isDefault: true },
+                    { code: 'high', value: 'High' },
+                ],
+                permissionModes: [
+                    { code: 'default', value: 'Default', isDefault: true },
+                    { code: 'bypassPermissions', value: 'Bypass permissions' },
+                    { code: 'plan', value: 'Plan' },
+                ],
+            },
+            codex: {
+                detectedAt: 1,
+                sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
+                models: [
+                    { code: 'gpt-5.6-codex', value: 'GPT-5.6 Codex', isDefault: true },
+                    { code: 'gpt-custom', value: 'GPT Custom' },
+                ],
+                effortLevels: [
+                    { code: 'xhigh', value: 'Extra high', isDefault: true },
+                    { code: 'high', value: 'High' },
+                ],
+                permissionModes: [
+                    { code: 'default', value: 'Ask first' },
+                    { code: 'auto', value: 'Auto' },
+                    { code: 'read-only', value: 'Read only' },
+                    { code: 'safe-yolo', value: 'Workspace', isDefault: true },
+                    { code: 'yolo', value: 'Full access' },
+                ],
+            },
             grok: {
                 detectedAt: 1,
                 sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
@@ -319,6 +355,84 @@ describe('handleResumeCommand', () => {
         );
     });
 
+    it('restores the latest persisted Codex mode with receipt fallbacks for unchanged dimensions', async () => {
+        const session = createReconnectableSession();
+        session.metadata.permissionMode = 'read-only';
+        session.metadata.spawnSettings = {
+            provider: 'codex',
+            model: 'gpt-custom',
+            effort: 'high',
+            permission: 'yolo',
+        };
+        mocks.mockResolveLocalReconnectableSession.mockResolvedValue(session);
+
+        await handleResumeCommand(['session-1']);
+
+        expect(spawnHappyCLI).toHaveBeenCalledWith(
+            [
+                'codex',
+                '--resume', session.metadata.codexThreadId,
+                '--permission-mode', 'read-only',
+                '--model', 'gpt-custom',
+                '--effort', 'high',
+            ],
+            expect.objectContaining({
+                cwd: '/tmp/repo',
+                env: expect.objectContaining({
+                    HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON: JSON.stringify({
+                        provider: 'codex',
+                        model: 'gpt-custom',
+                        effort: 'high',
+                        permission: 'read-only',
+                    }),
+                }),
+            }),
+        );
+    });
+
+    it('revalidates and restores the complete Claude tuple on terminal resume', async () => {
+        const session = createReconnectableSession();
+        session.metadata = {
+            ...session.metadata,
+            flavor: 'claude',
+            codexThreadId: undefined,
+            claudeSessionId: '11111111-1111-4111-8111-111111111111',
+            permissionMode: 'bypassPermissions',
+            modelMode: 'claude-opus-test',
+            effortLevel: 'high',
+            spawnSettings: {
+                provider: 'claude',
+                model: 'default',
+                effort: 'max',
+                permission: 'default',
+            },
+        };
+        mocks.mockResolveLocalReconnectableSession.mockResolvedValue(session);
+
+        await handleResumeCommand(['session-1']);
+
+        expect(spawnHappyCLI).toHaveBeenCalledWith(
+            [
+                'claude',
+                '--resume', session.metadata.claudeSessionId,
+                '--permission-mode', 'bypassPermissions',
+                '--model', 'claude-opus-test',
+                '--effort', 'high',
+            ],
+            expect.objectContaining({
+                cwd: '/tmp/repo',
+                env: expect.objectContaining({
+                    HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON: JSON.stringify({
+                        provider: 'claude',
+                        model: 'claude-opus-test',
+                        effort: 'high',
+                        permission: 'bypassPermissions',
+                    }),
+                }),
+            }),
+        );
+    });
+
     it('resumes from local persisted encryption data', async () => {
         const session = createReconnectableSession();
         session.metadata.codexHome = '/tmp';
@@ -334,7 +448,13 @@ describe('handleResumeCommand', () => {
         expect(mocks.mockResolveHappySession).not.toHaveBeenCalled();
         expect(spawnHappyCLI).toHaveBeenCalledOnce();
         const [spawnArgs, spawnOptions] = mocks.mockSpawnHappyCLI.mock.calls[0];
-        expect(spawnArgs).toEqual(['codex', '--resume', session.metadata.codexThreadId]);
+        expect(spawnArgs).toEqual([
+            'codex',
+            '--resume', session.metadata.codexThreadId,
+            '--permission-mode', 'safe-yolo',
+            '--model', 'gpt-5.6-codex',
+            '--effort', 'xhigh',
+        ]);
         expect(spawnOptions.cwd).toBe('/tmp/repo');
         expect(spawnOptions.stdio).toBe('inherit');
         const expectedEnv = {
@@ -347,6 +467,12 @@ describe('handleResumeCommand', () => {
             HAPPYHERD_CONTEXT_BUNDLE_PATH: '/tmp/current-agentcontext.md',
             HAPPYHERD_CONTEXT_HASH: 'current-context-hash',
             CODEX_HOME: '/tmp',
+            HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON: JSON.stringify({
+                provider: 'codex',
+                model: 'gpt-5.6-codex',
+                effort: 'xhigh',
+                permission: 'safe-yolo',
+            }),
         };
         for (const [key, value] of Object.entries(expectedEnv)) {
             expect(spawnOptions.env[key]).toBe(value);
@@ -401,7 +527,12 @@ describe('handleResumeCommand', () => {
 
         expect(mocks.mockResolveHappySession).toHaveBeenCalledWith('legacy-session');
         expect(spawnHappyCLI).toHaveBeenCalledWith(
-            ['claude', '--resume', '93a9705e-bc6a-406d-8dce-8acc014dedbd'],
+            [
+                'claude',
+                '--resume', '93a9705e-bc6a-406d-8dce-8acc014dedbd',
+                '--permission-mode', 'default',
+                '--effort', 'max',
+            ],
             expect.objectContaining({
                 cwd: '/tmp/repo',
                 env: expect.any(Object),
@@ -410,7 +541,14 @@ describe('handleResumeCommand', () => {
         );
         const spawnedEnv = mocks.mockSpawnHappyCLI.mock.calls[0][1].env;
         for (const key of SESSION_SCOPED_ENV_KEYS) {
+            if (key === 'HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON') continue;
             expect(spawnedEnv).not.toHaveProperty(key);
         }
+        expect(JSON.parse(spawnedEnv.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON)).toEqual({
+            provider: 'claude',
+            model: 'default',
+            effort: 'max',
+            permission: 'default',
+        });
     });
 });

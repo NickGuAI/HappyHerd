@@ -12,6 +12,11 @@ import {
     resolveEffectiveSessionSettings,
 } from '@/capabilities/sessionLaunchSettings';
 import { detectCLIAvailability } from '@/utils/detectCLI';
+import { machineSessionSettingsEnvironment } from '@/daemon/sessionLaunchSettings';
+import {
+    HappyHerdMachineSessionSettingsSchema,
+    type HappyHerdMachineSessionSettings,
+} from '@slopus/happy-wire';
 
 import { LocalResumeSessionError, resolveLocalReconnectableSession } from './localResumeStore';
 import { resolveHappySession, type ReconnectableHappySession, type ResumableHappySession } from './resolveHappySession';
@@ -20,6 +25,7 @@ import { resolveCodexHomeForResume } from './codexHome';
 export type ResumeLaunch = {
     cwd: string;
     args: string[];
+    settings?: HappyHerdMachineSessionSettings;
 };
 
 export type ResumeLaunchOptions = {
@@ -128,12 +134,16 @@ export function formatResumeHelp(): string {
     ].join('\n');
 }
 
-async function buildReconnectEnv(session: ReconnectableHappySession): Promise<NodeJS.ProcessEnv> {
+async function buildReconnectEnv(
+    session: ReconnectableHappySession,
+    settings?: HappyHerdMachineSessionSettings,
+): Promise<NodeJS.ProcessEnv> {
     const contextBundle = await prepareCommanderContext(session.metadata.commanderId, session.metadata.path);
     const codexHome = await resolveCodexHomeForResume(session.metadata);
     return buildSessionChildEnvironment(process.env, {
         ...contextEnvironment(contextBundle),
         ...(codexHome ? { CODEX_HOME: codexHome } : {}),
+        ...machineSessionSettingsEnvironment(settings),
         HAPPY_RECONNECT_SESSION_ID: session.id,
         HAPPY_RECONNECT_ENCRYPTION_KEY: encodeBase64(session.encryptionKey),
         HAPPY_RECONNECT_ENCRYPTION_VARIANT: session.encryptionVariant,
@@ -162,14 +172,23 @@ function spawnResumeChild(launch: ResumeLaunch, env: NodeJS.ProcessEnv = sanitiz
     });
 }
 
-/** Rebuild a local Grok resume from the saved launch receipt and today's local provider catalog. */
+/** Rebuild a local provider resume from saved policy and today's local catalog. */
 export async function buildValidatedTerminalResumeLaunch(
     session: ResumableHappySession,
 ): Promise<ResumeLaunch> {
     const launch = buildResumeLaunch(session);
-    if (resolveFlavor(session.metadata) !== 'grok') return launch;
+    const flavor = resolveFlavor(session.metadata);
+    if (flavor !== 'claude' && flavor !== 'codex' && flavor !== 'grok') return launch;
 
-    const permissionMode = persistedProviderPermissionMode(session.metadata, 'grok');
+    const parsedReceipt = HappyHerdMachineSessionSettingsSchema.safeParse(session.metadata.spawnSettings);
+    const receipt = parsedReceipt.success && parsedReceipt.data.provider === flavor
+        ? parsedReceipt.data
+        : undefined;
+    const permissionMode = flavor === 'grok'
+        ? persistedProviderPermissionMode(session.metadata, flavor)
+        : session.metadata.permissionMode
+            ?? receipt?.permission
+            ?? undefined;
 
     const availability = detectCLIAvailability();
     const discovery = await detectAgentCapabilities(availability);
@@ -184,12 +203,21 @@ export async function buildValidatedTerminalResumeLaunch(
         agentCapabilities: discovery.capabilities,
         ...(discovery.grokCapabilityError ? { grokCapabilityError: discovery.grokCapabilityError } : {}),
     }, 'local', {
-        provider: 'grok',
+        provider: flavor,
+        model: session.metadata.modelMode ?? receipt?.model ?? undefined,
+        effort: session.metadata.effortLevel ?? receipt?.effort ?? undefined,
         permission: permissionMode,
     });
     if (settings.permission) {
         launch.args.push('--permission-mode', settings.permission);
     }
+    if ((flavor === 'claude' || flavor === 'codex') && settings.model && settings.model !== 'default') {
+        launch.args.push('--model', settings.model);
+    }
+    if ((flavor === 'claude' || flavor === 'codex') && settings.effort) {
+        launch.args.push('--effort', settings.effort);
+    }
+    launch.settings = settings;
     return launch;
 }
 
@@ -225,7 +253,10 @@ export async function handleResumeCommand(args: string[]): Promise<void> {
             throw new Error(`Saved session path does not exist: ${launch.cwd}`);
         }
 
-        const exitCode = await spawnResumeChild(launch, await buildReconnectEnv(reconnectableSession));
+        const exitCode = await spawnResumeChild(
+            launch,
+            await buildReconnectEnv(reconnectableSession, launch.settings),
+        );
         if (typeof exitCode === 'number' && exitCode !== 0) {
             process.exit(exitCode);
         }
@@ -242,7 +273,10 @@ export async function handleResumeCommand(args: string[]): Promise<void> {
         throw new Error(`Saved session path does not exist: ${launch.cwd}`);
     }
 
-    const exitCode = await spawnResumeChild(launch);
+    const exitCode = await spawnResumeChild(
+        launch,
+        buildSessionChildEnvironment(process.env, machineSessionSettingsEnvironment(launch.settings)),
+    );
     if (typeof exitCode === 'number' && exitCode !== 0) {
         process.exit(exitCode);
     }

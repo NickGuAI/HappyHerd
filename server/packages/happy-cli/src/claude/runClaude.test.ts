@@ -92,7 +92,7 @@ vi.mock('@/claude/claudeLocal', () => ({
     claudeLocal: vi.fn(),
 }));
 
-import { runClaude } from './runClaude';
+import { runClaude, type StartOptions } from './runClaude';
 
 const automationTemporaryDirectories: string[] = [];
 
@@ -143,6 +143,7 @@ async function startRemoteRunClaudeHarness(opts: {
     reconnectAgentState?: Record<string, unknown>;
     updateAgentState?: ReturnType<typeof vi.fn>;
     registerHandler?: ReturnType<typeof vi.fn>;
+    runOptions?: Partial<StartOptions>;
 } = {}) {
     let metadata = opts.metadata ?? {
         claudeSessionId: 'claude-session-1',
@@ -205,6 +206,7 @@ async function startRemoteRunClaudeHarness(opts: {
     } as any, {
         startingMode: 'remote',
         shouldStartDaemon: false,
+        ...opts.runOptions,
     });
 
     await vi.waitFor(() => {
@@ -291,6 +293,7 @@ describe('runClaude remote JSONL scanner', () => {
         delete process.env.HAPPYHERD_AUTOMATION_KIND;
         delete process.env.HAPPYHERD_AUTOMATION_BOOTSTRAP_PATH;
         delete process.env.HAPPYHERD_AUTOMATION_BOOTSTRAP_HASH;
+        delete process.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON;
 
         mockReadSettings.mockResolvedValue({
             machineId: 'machine-1',
@@ -325,6 +328,7 @@ describe('runClaude remote JSONL scanner', () => {
         delete process.env.HAPPYHERD_AUTOMATION_KIND;
         delete process.env.HAPPYHERD_AUTOMATION_BOOTSTRAP_PATH;
         delete process.env.HAPPYHERD_AUTOMATION_BOOTSTRAP_HASH;
+        delete process.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON;
         await Promise.all(automationTemporaryDirectories.splice(0).map((directory) => (
             rm(directory, { recursive: true, force: true })
         )));
@@ -945,6 +949,53 @@ describe('runClaude remote JSONL scanner', () => {
         await harness.finish();
     });
 
+    it('publishes explicit terminal launch modes for the UI', async () => {
+        const harness = await startRemoteRunClaudeHarness({
+            runOptions: {
+                permissionMode: 'plan',
+                model: 'claude-fable-5-20260115',
+                effort: 'high',
+            },
+        });
+
+        expect(harness.api.getOrCreateSession).toHaveBeenCalledWith(expect.objectContaining({
+            metadata: expect.objectContaining({
+                permissionMode: 'plan',
+                modelMode: 'claude-fable-5-20260115',
+                effortLevel: 'high',
+            }),
+        }));
+        await harness.finish();
+    });
+
+    it('keeps queued prompts with different permissions in separate FIFO batches', async () => {
+        const harness = await startRemoteRunClaudeHarness();
+        const userMessageHandler = harness.sessionClient.onUserMessage.mock.calls[0][0];
+
+        await userMessageHandler({
+            content: { text: 'ask before acting' },
+            meta: { permissionMode: 'default', deliveryMode: 'queue' },
+        });
+        await userMessageHandler({
+            content: { text: 'skip approvals' },
+            meta: { permissionMode: 'bypassPermissions', deliveryMode: 'queue' },
+        });
+
+        const first = await harness.loopOptions.messageQueue.waitForMessagesAndGetAsString();
+        expect(first).toMatchObject({
+            message: 'ask before acting',
+            mode: { permissionMode: 'default' },
+        });
+        harness.loopOptions.messageQueue.completeCurrentBatch();
+        const second = await harness.loopOptions.messageQueue.waitForMessagesAndGetAsString();
+        expect(second).toMatchObject({
+            message: 'skip approvals',
+            mode: { permissionMode: 'bypassPermissions' },
+        });
+        harness.loopOptions.messageQueue.completeCurrentBatch();
+        await harness.finish();
+    });
+
     it('keeps an explicit Queue Msg local ID and publishes it as pending', async () => {
         const harness = await startRemoteRunClaudeHarness();
         const userMessageHandler = harness.sessionClient.onUserMessage.mock.calls[0][0];
@@ -987,6 +1038,88 @@ describe('runClaude remote JSONL scanner', () => {
 
         expect(harness.loopOptions.messageQueue.queue[1].mode).toMatchObject({
             effort: 'max',
+        });
+        await harness.finish();
+    });
+
+    it('keeps an explicit Claude permission exact when HappyHerd sandboxing is enabled', async () => {
+        mockReadSettings.mockResolvedValue({
+            machineId: 'machine-1',
+            sandboxConfig: { enabled: true },
+        });
+        const harness = await startRemoteRunClaudeHarness({
+            runOptions: {
+                permissionMode: 'plan',
+                model: 'claude-opus-test',
+                effort: 'high',
+            },
+        });
+
+        expect(harness.loopOptions).toMatchObject({
+            permissionMode: 'plan',
+            model: 'claude-opus-test',
+            claudeArgs: [
+                '--permission-mode', 'plan',
+                '--model', 'claude-opus-test',
+                '--effort', 'high',
+            ],
+        });
+        expect(harness.api.getOrCreateSession).toHaveBeenCalledWith(expect.objectContaining({
+            metadata: expect.objectContaining({
+                sandbox: { enabled: true },
+                permissionMode: 'plan',
+                dangerouslySkipPermissions: false,
+            }),
+        }));
+        await harness.finish();
+    });
+
+    it('preserves every ambient null in a target-daemon launch receipt', async () => {
+        process.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON = JSON.stringify({
+            provider: 'claude',
+            model: null,
+            effort: null,
+            permission: null,
+        });
+        mockReadSettings.mockResolvedValue({
+            machineId: 'machine-1',
+            sandboxConfig: { enabled: true },
+        });
+        const harness = await startRemoteRunClaudeHarness({
+            runOptions: {
+                permissionMode: 'plan',
+                model: 'claude-opus-test',
+                effort: 'high',
+                claudeArgs: ['--dangerously-skip-permissions'],
+            },
+        });
+
+        expect(harness.loopOptions).toMatchObject({
+            model: undefined,
+            permissionMode: undefined,
+            claudeArgs: [],
+        });
+        expect(harness.api.getOrCreateSession).toHaveBeenCalledWith(expect.objectContaining({
+            metadata: expect.objectContaining({
+                permissionMode: null,
+                modelMode: null,
+                effortLevel: null,
+                dangerouslySkipPermissions: false,
+                spawnSettings: {
+                    provider: 'claude',
+                    model: null,
+                    effort: null,
+                    permission: null,
+                },
+            }),
+        }));
+
+        const userMessageHandler = harness.sessionClient.onUserMessage.mock.calls[0][0];
+        await userMessageHandler({ content: { text: 'use provider ambient settings' }, meta: {} });
+        expect(harness.loopOptions.messageQueue.queue[0].mode).toMatchObject({
+            permissionMode: undefined,
+            model: undefined,
+            effort: undefined,
         });
         await harness.finish();
     });

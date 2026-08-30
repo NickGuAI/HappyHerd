@@ -16,7 +16,6 @@
  */
 
 import { spawn, type ChildProcess } from 'node:child_process';
-import type { PermissionMode } from '@/api/types';
 import type {
   AgentBackend,
   AgentMessage,
@@ -25,7 +24,7 @@ import type {
   StartSessionResult,
 } from '@/agent/core/AgentBackend';
 import { resolveAgyBin, AGY_PRINT_TIMEOUT } from './constants';
-import { buildAgyArgs } from './cliArgs';
+import { buildAgyArgs, type AgyPermissionMode } from './cliArgs';
 import { readAgyConversationId } from './conversationStore';
 
 /** Signature of node's `spawn`, injectable so tests can supply a fake process. */
@@ -35,7 +34,7 @@ export interface AgyBackendOptions {
   /** Working directory the agy process runs in (and the conversation cache key). */
   cwd: string;
   /** Initial permission mode; updated per turn from message meta. */
-  permissionMode: PermissionMode;
+  permissionMode: AgyPermissionMode;
   /** Initial model display name; updated per turn from message meta. */
   model?: string;
   /** Value for `--print-timeout`. Defaults to AGY_PRINT_TIMEOUT. */
@@ -64,7 +63,7 @@ export class AgyBackend implements AgentBackend {
   private readonly spawnFn: SpawnFn;
   private readonly resolveConversationId: (cwd: string) => string | null;
 
-  private permissionMode: PermissionMode;
+  private permissionMode: AgyPermissionMode;
   private model?: string;
   private conversationId: string | null = null;
   private child: ChildProcess | null = null;
@@ -80,7 +79,7 @@ export class AgyBackend implements AgentBackend {
   }
 
   /** Update the permission mode applied to subsequent turns. */
-  setPermissionMode(mode: PermissionMode): void {
+  setPermissionMode(mode: AgyPermissionMode): void {
     this.permissionMode = mode;
   }
 

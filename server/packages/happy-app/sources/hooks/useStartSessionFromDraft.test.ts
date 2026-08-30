@@ -361,6 +361,63 @@ describe('useStartSessionFromDraft', () => {
         expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
     });
 
+    it.each([
+        {
+            name: 'uses dontAsk when the exact Claude machine advertises the saved default',
+            permissionModes: [
+                { key: 'dontAsk', name: 'Deny' },
+                { key: 'bypassPermissions', name: 'Yolo' },
+            ],
+            expected: 'dontAsk',
+        },
+        {
+            name: 'falls back when the exact Claude machine does not advertise the saved default',
+            permissionModes: [
+                { key: 'bypassPermissions', name: 'Yolo' },
+                { key: 'default', name: 'Default' },
+            ],
+            expected: 'bypassPermissions',
+        },
+    ])('$name', async ({ permissionModes, expected }) => {
+        mocks.machines = [{
+            id: 'machine-1',
+            online: true,
+            metadata: {
+                homeDir: '/Users/dev',
+                cliAvailability: { claude: true, codex: true, gemini: false },
+                agentCapabilities: {
+                    claude: {
+                        detectedAt: 1,
+                        sources: { models: 'provider', effortLevels: 'provider', permissionModes: 'provider' },
+                        models: [],
+                        effortLevels: [],
+                        permissionModes: [],
+                    },
+                },
+            },
+        }];
+        mocks.defaultOverrides = {
+            claude: {
+                permissionMode: 'dontAsk',
+                modelMode: 'claude-model',
+                effortLevel: 'high',
+            },
+        };
+        mocks.draft = createDraft({ agentType: 'claude' });
+        mocks.getMachineAdvertisedPermissionModes.mockReturnValue(permissionModes);
+        mocks.getMachineAdvertisedModels.mockReturnValue([{ key: 'claude-model', name: 'Claude' }]);
+        mocks.getMachineAdvertisedEffortLevels.mockReturnValue([{ key: 'high', name: 'High' }]);
+
+        const { startSession } = useStartSessionFromDraft();
+        await expect(startSession()).resolves.toBe(true);
+
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            machineId: 'machine-1',
+            agent: 'claude',
+            permissionMode: expected,
+        }));
+    });
+
     it('starts GrokBuild only from the selected machine capability catalog', async () => {
         mocks.machines = [{
             id: 'machine-1',

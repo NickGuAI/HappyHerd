@@ -113,6 +113,7 @@ type MachineRpcHandlers = {
     spawnSession: (options: SpawnSessionOptions) => Promise<SpawnSessionResult>;
     resumeSession?: (sessionId: string, options?: {
         model?: string;
+        effortLevel?: string;
         permissionMode?: string;
         agentRuntimeContext?: unknown;
         replayQueueMessageId?: string;
@@ -468,7 +469,7 @@ export class ApiMachineClient {
         if (this.resumeSessionHandler) {
             if (!this.rpcHandlerManager.hasHandler(method)) {
                 this.rpcHandlerManager.registerHandler(method, async (params: any) => {
-                    const { sessionId, model, permissionMode, runtimeContext, replayQueueMessageId } = params || {};
+                    const { sessionId, model, effortLevel, permissionMode, runtimeContext, replayQueueMessageId } = params || {};
 
                     if (!sessionId || typeof sessionId !== 'string') {
                         throw new Error('Session ID is required');
@@ -481,13 +482,18 @@ export class ApiMachineClient {
 
                     const result = await handler(sessionId, {
                         model,
+                        effortLevel,
                         permissionMode,
                         agentRuntimeContext: runtimeContext,
                         replayQueueMessageId,
                     });
                     switch (result.type) {
                         case 'success':
-                            return { type: 'success', sessionId: result.sessionId };
+                            return {
+                                type: 'success',
+                                sessionId: result.sessionId,
+                                ...(result.settings ? { settings: result.settings } : {}),
+                            };
                         case 'requestToApproveDirectoryCreation':
                             return result;
                         case 'error':

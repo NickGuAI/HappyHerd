@@ -132,12 +132,13 @@ export function buildClaudeCapabilityCatalog(
     providerVersion?: string,
 ): AgentCapabilityCatalog {
     const parsed = parseClaudeHelp(help);
-    const efforts = parsed.effortLevels.length > 0
+    const efforts = (parsed.effortLevels.length > 0
         ? parsed.effortLevels
-        : uniqueOptions(['low', 'medium', 'high', 'xhigh', 'max']);
+        : uniqueOptions(['low', 'medium', 'high', 'xhigh', 'max']))
+        .map((entry) => ({ ...entry, isDefault: entry.code === 'max' }));
     const permissions = parsed.permissionModes.length > 0
         ? parsed.permissionModes
-        : uniqueOptions(['acceptEdits', 'auto', 'bypassPermissions', 'plan']);
+        : uniqueOptions(['acceptEdits', 'auto', 'dontAsk', 'bypassPermissions', 'plan']);
 
     return {
         detectedAt,
@@ -152,12 +153,12 @@ export function buildClaudeCapabilityCatalog(
             ...uniqueOptions([...HAPPYHERD_CLAUDE_MODEL_SLUGS]),
         ],
         effortLevels: efforts,
-        // `manual` is CLI-only and `dontAsk` is retired by the embedded SDK.
+        // `manual` is a Claude Code CLI-only value. HappyHerd executes Claude
+        // through the Agent SDK, whose PermissionMode union does not include it.
         permissionModes: [
             option('default', 'default', null),
             ...permissions.filter((entry) => (
                 entry.code !== 'manual'
-                && entry.code !== 'dontAsk'
                 && entry.code !== 'default'
             )),
         ],

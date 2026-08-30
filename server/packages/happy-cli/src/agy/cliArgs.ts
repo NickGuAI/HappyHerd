@@ -7,19 +7,18 @@
 
 import type { PermissionMode } from '@/api/types';
 
-/**
- * Happy permission modes that map to agy's `--dangerously-skip-permissions`
- * (auto-approve every tool). Everything else falls back to `--sandbox`, letting
- * agy's own settings.json govern. Note: agy `--print` is one-shot and cannot
- * surface an interactive approval prompt, so non-skip modes auto-proceed under
- * agy's policy rather than gating per-tool in Happy.
- */
-const SKIP_PERMISSION_MODES: ReadonlySet<PermissionMode> = new Set<PermissionMode>([
-  'yolo',
-  'safe-yolo',
-  'bypassPermissions',
-  'acceptEdits',
-]);
+export type AgyPermissionMode = Extract<PermissionMode, 'default' | 'bypassPermissions'>;
+
+export function isAgyPermissionMode(value: unknown): value is AgyPermissionMode {
+  return value === 'default' || value === 'bypassPermissions';
+}
+
+export function parseAgyPermissionMode(value: string): AgyPermissionMode {
+  if (!isAgyPermissionMode(value)) {
+    throw new Error(`Unsupported Antigravity permission mode: ${value}`);
+  }
+  return value;
+}
 
 export interface BuildAgyArgsOptions {
   /** The user prompt for this turn. */
@@ -29,7 +28,7 @@ export interface BuildAgyArgsOptions {
   /** Conversation id to resume via `--conversation`; omit/null for a fresh conversation. */
   conversationId?: string | null;
   /** Happy permission mode for this turn. */
-  permissionMode: PermissionMode;
+  permissionMode: AgyPermissionMode;
   /** Directories to expose to agy via repeatable `--add-dir`. */
   addDirs?: string[];
   /** Value for `--print-timeout` (e.g. "10m"). */
@@ -41,6 +40,9 @@ export interface BuildAgyArgsOptions {
  * last (as the value of `--print`) so all preceding flags parse cleanly.
  */
 export function buildAgyArgs(opts: BuildAgyArgsOptions): string[] {
+  if (!isAgyPermissionMode(opts.permissionMode)) {
+    throw new Error(`Unsupported Antigravity permission mode: ${String(opts.permissionMode)}`);
+  }
   const args: string[] = [];
 
   if (opts.conversationId) {
@@ -49,7 +51,7 @@ export function buildAgyArgs(opts: BuildAgyArgsOptions): string[] {
   if (opts.model) {
     args.push('--model', opts.model);
   }
-  if (SKIP_PERMISSION_MODES.has(opts.permissionMode)) {
+  if (opts.permissionMode === 'bypassPermissions') {
     args.push('--dangerously-skip-permissions');
   } else {
     args.push('--sandbox');

@@ -8,18 +8,25 @@ export function appendDaemonSpawnModeArgs(
     if (agent !== 'claude' && agent !== 'codex' && agent !== 'grok' && agent !== 'agy') {
         return;
     }
-    // For Claude, `default` is the app's ambient no-override value. For Codex,
-    // it is a concrete ask-first mode and therefore must be forwarded.
-    if (options.permissionMode && (agent === 'codex' || agent === 'grok' || options.permissionMode !== 'default')) {
-        args.push('--permission-mode', options.permissionMode);
+    const validated = options.effectiveSettings?.provider === agent
+        ? options.effectiveSettings
+        : null;
+    const permissionMode = validated ? validated.permission : options.permissionMode;
+    const modelMode = validated ? validated.model : options.modelMode;
+    const effortLevel = validated ? validated.effort : options.effortLevel;
+    // Every advertised permission is a concrete Human selection. Missing is
+    // ambient provider configuration; explicit `default` must still leave a
+    // prior bypass/plan mode at launch and on resume.
+    if (permissionMode) {
+        args.push('--permission-mode', permissionMode);
     }
-    if (options.modelMode && options.modelMode !== 'default') {
-        args.push('--model', options.modelMode);
+    if (modelMode && modelMode !== 'default') {
+        args.push('--model', modelMode);
     }
-    if (options.effortLevel) {
+    if (effortLevel) {
         if (agent === 'agy') {
             return;
         }
-        args.push('--effort', options.effortLevel);
+        args.push('--effort', effortLevel);
     }
 }

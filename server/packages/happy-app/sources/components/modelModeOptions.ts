@@ -192,8 +192,9 @@ export function getAdvertisedDefaultOptionKey(
 // and stops only when it actually wants a human. Claude ships it in the Agent
 // SDK's PermissionMode union, and it is carried end to end — the CLI's
 // PermissionMode type, MessageMetaSchema, and the SDK adapter's QueryOptions.
-// `dontAsk` stays absent: that one really is missing from MessageMetaSchema, so
-// sending it fails UserMessageSchema.safeParse and drops the whole prompt.
+// dontAsk is deliberately absent from this legacy fallback. It became usable
+// without a CLI version bump, so only an exact-machine capability catalog can
+// prove that the receiving daemon supports it.
 export function getClaudePermissionModes(translate: Translate): PermissionMode[] {
     return [
         { key: 'auto', name: 'Auto', description: translate('agentInput.permissionMode.auto'), sinceCliVersion: CLI_VERSION_WITH_AUTO },

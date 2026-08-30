@@ -62,20 +62,21 @@ Happy forwards the selection verbatim and starts
 | `bypassPermissions` | Generally approve tool calls; deny rules, hooks, and shell ask rules still apply. |
 | `plan` | Compatibility permission value forwarded as-is; GrokBuild's live plan operating mode is separate. |
 
-This is a launch-only choice: an active GrokBuild session cannot change it from
-Happy. ACP per-tool permission responses, GrokBuild's plan/build operating mode,
-and Happy's optional OS sandbox are separate controls. Resume loads the same ACP
-conversation on its original online machine. The current GrokBuild integration
-does not expose image or audio attachments or session fork.
+When an active GrokBuild permission mode changes, Happy validates it against the
+original machine's current catalog, restarts the tracked Grok process, and
+resumes the same ACP conversation. The visible mode changes only after the
+relaunch is confirmed. ACP plan/build operating mode and Happy's optional OS
+sandbox remain separate controls. Resume restores the saved launch policy on
+the original online machine after exact-machine validation. The current
+GrokBuild integration does not expose image or audio attachments or session
+fork.
 
 > **Note on agy permissions:** the agy backend runs `agy --print`, which is
-> one-shot and has no interactive approval surface — tool calls proceed
-> automatically without ever prompting you. The permission mode you pick in
-> Happy only chooses which flag is passed to agy: the default modes use
-> `--sandbox`, and the bypass/yolo-style modes (including `acceptEdits`) use
-> `--dangerously-skip-permissions`. Neither adds a per-tool approval gate
-> inside Happy, so selecting "default" for an agy session does **not** give
-> you an approval prompt the way it does for Claude Code.
+> one-shot and supports only two modes. `default` passes `--sandbox`, while
+> `bypassPermissions` passes `--dangerously-skip-permissions`. There is no
+> HappyHerd per-tool permission callback channel, so neither mode creates Human
+> approval prompts. Changing the mode applies to the next child process, and
+> aborting cancels the current child while preserving the selected mode.
 
 ## Daemon
 

@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
     platform: 'web',
     landscape: false,
     fileDiffsSidebarEnabled: true,
+    canAbort: false,
+    isRig: false,
     revision: 0,
     sessions: {} as Record<string, Session>,
     localSettings: {
@@ -34,7 +36,9 @@ const mocks = vi.hoisted(() => ({
     resumeSession: vi.fn(),
     resumeSessionWithQueuedTurn: vi.fn(),
     sessionArchive: vi.fn(),
+    sessionAbort: vi.fn(),
     sessionKill: vi.fn(),
+    sessionSetAgentModes: vi.fn(),
     sessionVisible: vi.fn(),
     sendMessage: vi.fn(),
     startRealtimeSession: vi.fn(),
@@ -391,12 +395,12 @@ vi.mock('@/sync/ops', () => ({
     machineControlHeartbeat: vi.fn(),
     machineCreateSideChat: mocks.machineCreateSideChat,
     machineStopSession: vi.fn(),
-    sessionAbort: vi.fn(),
+    sessionAbort: mocks.sessionAbort,
     sessionArchive: mocks.sessionArchive,
     sessionCancelCommunication: vi.fn(),
     sessionGoalAction: vi.fn(),
     sessionKill: mocks.sessionKill,
-    sessionSetAgentModes: vi.fn(),
+    sessionSetAgentModes: mocks.sessionSetAgentModes,
 }));
 
 vi.mock('@/sync/sideChatLifecycle', () => ({
@@ -494,11 +498,11 @@ vi.mock('@/sync/agentDefaults', () => ({
 vi.mock('@/sync/rig', () => ({
     getRigGitSummary: () => null,
     getRigReasoningSelection: () => undefined,
-    isRigMetadata: () => false,
+    isRigMetadata: () => mocks.isRig,
     isRigModelSelectionEnabled: () => false,
     isRigPermissionSelectionEnabled: () => false,
     isRigReasoningSelectionEnabled: () => false,
-    rigCanAbort: () => false,
+    rigCanAbort: () => mocks.canAbort,
     rigCanBrowseFiles: () => true,
     rigCanReadFiles: () => false,
     rigCanUseAttachments: () => false,
@@ -675,6 +679,8 @@ beforeEach(() => {
     mocks.platform = 'web';
     mocks.landscape = false;
     mocks.fileDiffsSidebarEnabled = true;
+    mocks.canAbort = false;
+    mocks.isRig = false;
     mocks.localSettings.acknowledgedCliVersions = {};
     mocks.localSettings.navigationSidebarCollapsed = false;
     mocks.localSettings.sidebarPanelActive = null;
@@ -697,7 +703,9 @@ beforeEach(() => {
     mocks.resumeSession.mockReset();
     mocks.resumeSessionWithQueuedTurn.mockReset();
     mocks.sessionArchive.mockReset();
+    mocks.sessionAbort.mockReset();
     mocks.sessionKill.mockReset();
+    mocks.sessionSetAgentModes.mockReset();
     mocks.sessionVisible.mockReset();
     mocks.sendMessage.mockReset();
     mocks.sendMessage.mockResolvedValue(undefined);
@@ -858,6 +866,35 @@ describe('SessionView mobile back navigation', () => {
 });
 
 describe('SessionView side-chat integration', () => {
+    it.each([
+        { label: 'Grok', flavor: 'grok', permissionMode: 'bypassPermissions', clearsPermission: false },
+        { label: 'Antigravity', flavor: 'agy', permissionMode: 'bypassPermissions', clearsPermission: false },
+        { label: 'retired Gemini', flavor: 'gemini', permissionMode: 'yolo', clearsPermission: false },
+        { label: 'Happy/Rig', flavor: 'rig', permissionMode: 'native-mode', clearsPermission: false, isRig: true },
+        { label: 'Claude', flavor: 'claude', permissionMode: 'bypassPermissions', clearsPermission: true },
+        { label: 'legacy null-flavor Claude', flavor: null, permissionMode: 'bypassPermissions', clearsPermission: true },
+        { label: 'Codex', flavor: 'codex', permissionMode: 'yolo', clearsPermission: true },
+    ] as const)('$label abort keeps only provider-persistent permission state', ({ flavor, permissionMode, clearsPermission, isRig = false }) => {
+        mocks.canAbort = true;
+        mocks.isRig = isRig;
+        mocks.sessions.parent.metadata!.flavor = flavor;
+        mocks.sessions.parent.permissionMode = permissionMode;
+        const renderer = renderParent();
+        const composer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
+            node.props.sessionId === 'parent'
+        ));
+
+        expect(composer?.props.onAbort).toEqual(expect.any(Function));
+        act(() => composer?.props.onAbort());
+
+        expect(mocks.sessionAbort).toHaveBeenCalledWith('parent');
+        if (clearsPermission) {
+            expect(mocks.sessionSetAgentModes).toHaveBeenCalledWith('parent', { permissionMode: null });
+        } else {
+            expect(mocks.sessionSetAgentModes).not.toHaveBeenCalled();
+        }
+    });
+
     it('appends OpenAI dictation to the active draft without sending or starting realtime voice', () => {
         mocks.voiceAvailable = true;
         mocks.sessions.parent.draft = 'Keep this draft';
