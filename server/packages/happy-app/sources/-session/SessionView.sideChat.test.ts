@@ -812,6 +812,52 @@ describe('SessionView side-chat integration', () => {
         expect(desktopSideChatHosts(renderer)).toHaveLength(1);
     });
 
+    it('lets Changes temporarily replace the visible file workspace without unmounting its tabs', () => {
+        const renderer = renderParent();
+        const initialSidebar = desktopSideChatHosts(renderer)[0];
+
+        act(() => initialSidebar?.props.onAllFilesFilePress('/work/a.ts'));
+        let split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(split.props.workspaceVisible).toBe(true);
+
+        act(() => workspace.props.onOpenChanges());
+        split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(split.props.workspaceVisible).toBe(false);
+        expect(workspace.props.paths).toEqual(['/work/a.ts']);
+        expect(desktopSideChatHosts(renderer)[0]?.props.activePanel).toBe('changes');
+
+        act(() => desktopSideChatHosts(renderer)[0]?.props.onClosePanel('changes'));
+        split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(split.props.workspaceVisible).toBe(true);
+        expect(workspace.props.paths).toEqual(['/work/a.ts']);
+        expect(workspace.props.activePath).toBe('/work/a.ts');
+    });
+
+    it('returns from stacked Changes and All Files panels to the selected desktop tab', () => {
+        const renderer = renderParent();
+        const initialSidebar = desktopSideChatHosts(renderer)[0];
+
+        act(() => initialSidebar?.props.onAllFilesFilePress('/work/a.ts'));
+        act(() => {
+            mocks.localSettings.sidebarPanelsOpen = ['changes', 'allFiles'];
+            mocks.localSettings.sidebarPanelActive = 'allFiles';
+            for (const listener of mocks.listeners) listener();
+        });
+        expect(renderer.root.findByType('DesktopFileWorkspaceSplit' as any).props.workspaceVisible).toBe(false);
+
+        act(() => desktopSideChatHosts(renderer)[0]?.props.onAllFilesFilePress('/work/b.md'));
+        const split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        const workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(split.props.workspaceVisible).toBe(true);
+        expect(workspace.props.paths).toEqual(['/work/a.ts', '/work/b.md']);
+        expect(workspace.props.activePath).toBe('/work/b.md');
+        expect(mocks.localSettings.sidebarPanelsOpen).toEqual([]);
+        expect(mocks.localSettings.sidebarPanelActive).toBeNull();
+    });
+
     it('presents the active desktop file full-width on narrow layouts and restores tabs without state loss', () => {
         const renderer = renderParent();
         const initialSidebar = desktopSideChatHosts(renderer)[0];

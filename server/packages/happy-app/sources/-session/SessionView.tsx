@@ -241,6 +241,9 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             : (state.sidebarPanelActive as SidebarMode | null);
         storage.getState().applyLocalSettings({ sidebarPanelsOpen: open, sidebarPanelActive: active });
     }, []);
+    const collapseSidebarPanels = React.useCallback(() => {
+        storage.getState().applyLocalSettings({ sidebarPanelsOpen: [], sidebarPanelActive: null });
+    }, []);
 
     // Side chats hydrate into one switchable panel. Focus lives
     // here (not in the panel) so wide and narrow hosts share one selection.
@@ -320,8 +323,12 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         && sidebarPanelActive === 'sideChat'
         && sidebarPanelsOpen.includes('sideChat')
         && sideChats.length > 0;
+    const fileSidebarPanelExpanded = canShowFileSidebar
+        && (sidebarPanelActive === 'changes' || sidebarPanelActive === 'allFiles')
+        && sidebarPanelsOpen.includes(sidebarPanelActive);
     const desktopFileWorkspaceVisible = canShowFileSidebar
         && desktopFileWorkspace.paths.length > 0
+        && !fileSidebarPanelExpanded
         && !sideChatSidebarExpanded
         && !sideChatFullscreenOpen
         && !zenMode
@@ -599,11 +606,12 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         if (canShowFileSidebar) {
             setDesktopFileWorkspace((current) => openDesktopFile(current, filePath));
             setDesktopFilePickerOpen(false);
+            collapseSidebarPanels();
             return;
         }
         if (filePath === fileViewPath) return;
         withFileDiscardConfirmation(() => pushOverlayNow({ kind: 'file', path: filePath }));
-    }, [canShowFileSidebar, fileViewPath, pushOverlayNow, withFileDiscardConfirmation]);
+    }, [canShowFileSidebar, fileViewPath, pushOverlayNow, collapseSidebarPanels, withFileDiscardConfirmation]);
     const handleAllFilesFileAttach = React.useCallback((filePath: string) => {
         if (!addWorkspaceContextFile(sessionId, filePath)) {
             Modal.alert(t("uiCopy.workspaceContext"), t("uiCopy.youCanAttachUpTo8FilesToOneMessage"));
@@ -974,6 +982,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                         )}
                         onSelect={handleDesktopFileSelect}
                         onRequestClose={handleDesktopFileClose}
+                        onOpenChanges={() => openSidebarPanel('changes')}
                         onOpenPicker={() => setDesktopFilePickerOpen(true)}
                         onDirtyChange={handleDesktopDirtyChange}
                     />

@@ -115,6 +115,7 @@ function workspaceElement(overrides: Record<string, unknown> = {}) {
         picker: React.createElement('Picker'),
         onSelect: vi.fn(),
         onRequestClose: vi.fn(),
+        onOpenChanges: vi.fn(),
         onOpenPicker: vi.fn(),
         onDirtyChange: vi.fn(),
         ...overrides,
@@ -157,12 +158,18 @@ describe('DesktopFileWorkspace', () => {
         expect(renderer.root.findAllByType('HeaderControl' as any)).toHaveLength(1);
     });
 
-    it('uses plus only for the existing picker and closes only the requested tab', () => {
+    it('keeps Changes available, uses plus only for the existing picker, and closes only the requested tab', () => {
+        const onOpenChanges = vi.fn();
         const onOpenPicker = vi.fn();
         const onRequestClose = vi.fn();
         const onSelect = vi.fn();
         let renderer!: ReactTestRenderer;
-        act(() => { renderer = create(workspaceElement({ onOpenPicker, onRequestClose, onSelect })); });
+        act(() => { renderer = create(workspaceElement({ onOpenChanges, onOpenPicker, onRequestClose, onSelect })); });
+
+        const changes = renderer.root.findAllByType('Pressable' as any)
+            .find((node: any) => node.props.accessibilityLabel === 'files.changes');
+        act(() => changes?.props.onPress());
+        expect(onOpenChanges).toHaveBeenCalledOnce();
 
         const plus = renderer.root.findAllByType('Pressable' as any)
             .find((node: any) => node.props.accessibilityLabel === 'files.openExistingFile');

@@ -161,3 +161,4 @@ HUMAN_SIDE_CHAT_CREATION	accepted	fix(side-chats): restore Human creation flow (
 HUMAN_ONE_CLICK_SIDE_CHAT	accepted	fix(side-chats): restore one-click Human creation (#170)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 SIDE_CHAT_DESKTOP_PARITY	accepted	fix(side-chats): name and verify desktop side chats	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 DESKTOP_FILE_WORKSPACE	accepted	feat(app): add desktop multi-file workspace (#181)	server/packages/happy-app/sources/components/DesktopFileWorkspace.test.ts
+DESKTOP_FILE_WORKSPACE_NAVIGATION	accepted	fix(app): retain file workspace navigation controls (#181)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts

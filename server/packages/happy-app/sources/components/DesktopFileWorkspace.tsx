@@ -83,6 +83,7 @@ type DesktopFileWorkspaceProps = {
     picker: React.ReactNode;
     onSelect: (path: string) => void;
     onRequestClose: (path: string) => void;
+    onOpenChanges: () => void;
     onOpenPicker: () => void;
     onDirtyChange: (path: string, dirty: boolean) => void;
 };
@@ -97,6 +98,7 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
     picker,
     onSelect,
     onRequestClose,
+    onOpenChanges,
     onOpenPicker,
     onDirtyChange,
 }: DesktopFileWorkspaceProps) {
@@ -198,6 +200,16 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
                         );
                     })}
                 </ScrollView>
+                <Pressable
+                    onPress={onOpenChanges}
+                    accessibilityLabel={t('files.changes')}
+                    style={({ pressed, hovered }: any) => [
+                        styles.addButton,
+                        (pressed || hovered) && styles.addButtonHovered,
+                    ]}
+                >
+                    <Octicons name="git-branch" size={15} color={theme.colors.textSecondary} />
+                </Pressable>
                 <Pressable
                     onPress={onOpenPicker}
                     accessibilityLabel={t('files.openExistingFile')}

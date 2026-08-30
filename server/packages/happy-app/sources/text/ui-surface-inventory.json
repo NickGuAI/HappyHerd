@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "1aa7e22af104912a8659824d1595ecae2885f031f197062a80bd07affa14f40e",
+  "sourceFingerprint": "8048eeb2d28002480f006becfa80758b7381c5a3a579c954e451f10fd05fbd50",
   "routeCount": 36,
   "surfaceCount": 247,
   "hardcodedCopyCount": 0,
@@ -2873,6 +2873,7 @@
       "translationKeys": [
         "common.back",
         "files.allFiles",
+        "files.changes",
         "files.closeFileTab",
         "files.openExistingFile",
         "files.openFileTab",
