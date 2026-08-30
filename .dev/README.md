@@ -74,6 +74,11 @@ bounded change → exact-head review → PR → merge
    product-owned choice menus through coherent responsive surfaces: anchored
    popovers on Web and desktop, and safe-area-aware sheets on native. Preserve
    operating-system pickers as the final platform handoff.
+8. **Prove interactive UI through the rendered surface.** Every
+   user-interactive UI change must update the applicable Web Desktop and Web
+   Mobile surfaces and be proved by exercising the real rendered user gesture.
+   Direct prop invocation, source or bundle strings, builds, and unit tests
+   alone are not interaction proof.
 
 ## Navigate
 

@@ -215,8 +215,17 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     // Sidebar panels are user-managed and persisted in local settings so the
     // layout (which panels are open + which is active) survives reloads and
     // long absences. State is device-local, shared across sessions.
-    const sidebarPanelsOpen = useLocalSetting('sidebarPanelsOpen') as SidebarMode[];
+    const sidebarPanelsOpenRaw = useLocalSetting('sidebarPanelsOpen') as SidebarMode[];
     const sidebarPanelActiveRaw = useLocalSetting('sidebarPanelActive') as SidebarMode | null;
+    const sidebarSideChatSessionId = useLocalSetting('sidebarSideChatSessionId');
+    // File-panel preferences are device-global, but a Side chat panel belongs
+    // to one parent session. React Navigation may retain other SessionViews;
+    // they must neither render nor clear the foreground parent's panel.
+    const sidebarPanelsOpen = React.useMemo<SidebarMode[]>(() => (
+        sidebarPanelsOpenRaw.filter((panel) => (
+            panel !== 'sideChat' || sidebarSideChatSessionId === sessionId
+        ))
+    ), [sessionId, sidebarPanelsOpenRaw, sidebarSideChatSessionId]);
     // Guard against an inconsistent persisted value: the active panel must be
     // one of the open panels, otherwise fall back to the last opened (or none).
     const sidebarPanelActive = React.useMemo<SidebarMode | null>(() => {
@@ -229,27 +238,53 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     const openSidebarPanel = React.useCallback((panel: SidebarMode) => {
         const cur = storage.getState().localSettings.sidebarPanelsOpen as SidebarMode[];
         const open = cur.includes(panel) ? cur : [...cur, panel];
-        storage.getState().applyLocalSettings({ sidebarPanelsOpen: open, sidebarPanelActive: panel });
-    }, []);
+        storage.getState().applyLocalSettings({
+            sidebarPanelsOpen: open,
+            sidebarPanelActive: panel,
+            ...(panel === 'sideChat' ? { sidebarSideChatSessionId: sessionId } : {}),
+        });
+    }, [sessionId]);
     const selectSidebarPanel = React.useCallback((panel: SidebarMode) => {
-        const cur = storage.getState().localSettings.sidebarPanelsOpen as SidebarMode[];
+        const state = storage.getState().localSettings;
+        const cur = state.sidebarPanelsOpen as SidebarMode[];
+        if (panel === 'sideChat' && state.sidebarSideChatSessionId !== sessionId) {
+            return;
+        }
         if (cur.includes(panel)) {
             storage.getState().applyLocalSettings({ sidebarPanelActive: panel });
         }
-    }, []);
+    }, [sessionId]);
     // Panel removal is always a non-destructive collapse. Side-chat teardown is
     // owned only by each child tab's explicit close action.
     const removeSidebarPanel = React.useCallback((panel: SidebarMode) => {
         const state = storage.getState().localSettings;
+        if (panel === 'sideChat' && state.sidebarSideChatSessionId !== sessionId) {
+            return;
+        }
         const open = (state.sidebarPanelsOpen as SidebarMode[]).filter((p) => p !== panel);
         const active = state.sidebarPanelActive === panel
             ? (open[open.length - 1] ?? null)
             : (state.sidebarPanelActive as SidebarMode | null);
-        storage.getState().applyLocalSettings({ sidebarPanelsOpen: open, sidebarPanelActive: active });
-    }, []);
+        storage.getState().applyLocalSettings({
+            sidebarPanelsOpen: open,
+            sidebarPanelActive: active,
+            ...(panel === 'sideChat' ? { sidebarSideChatSessionId: null } : {}),
+        });
+    }, [sessionId]);
     const collapseSidebarPanels = React.useCallback(() => {
-        storage.getState().applyLocalSettings({ sidebarPanelsOpen: [], sidebarPanelActive: null });
-    }, []);
+        const state = storage.getState().localSettings;
+        const ownsSideChat = state.sidebarSideChatSessionId === sessionId;
+        const open: SidebarMode[] = ownsSideChat
+            ? []
+            : (state.sidebarPanelsOpen as SidebarMode[]).filter((panel) => panel === 'sideChat');
+        storage.getState().applyLocalSettings({
+            sidebarPanelsOpen: open,
+            sidebarPanelActive: open.includes(state.sidebarPanelActive as SidebarMode)
+                ? state.sidebarPanelActive
+                : null,
+            ...(ownsSideChat ? { sidebarSideChatSessionId: null } : {}),
+        });
+    }, [sessionId]);
 
     // Side chats hydrate into one switchable panel. Focus lives
     // here (not in the panel) so wide and narrow hosts share one selection.

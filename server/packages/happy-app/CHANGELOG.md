@@ -1,3 +1,8 @@
+# August 30 — Side chats open reliably
+
+- Clicking the Side chats count now opens the selected parent session's newest Side chat on Web Desktop, even when another session remains loaded in the background.
+- Switching Side chats and collapsing the panel now behave consistently across Web Desktop and Web Mobile without creating an extra chat.
+
 # August 30 — Provider permissions stay consistent
 
 - Claude `bypassPermissions` no longer prompts for executable tool approvals, including `ExitPlanMode`, while `AskUserQuestion` remains interactive input. `dontAsk` is available only when the exact machine advertises it and denies escalation without prompting; selecting explicit `default` exits bypass mode.

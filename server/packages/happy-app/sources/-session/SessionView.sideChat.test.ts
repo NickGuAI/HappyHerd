@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
         navigationSidebarCollapsed: false,
         sidebarPanelActive: null as 'changes' | 'allFiles' | 'sideChat' | null,
         sidebarPanelsOpen: [] as Array<'changes' | 'allFiles' | 'sideChat'>,
+        sidebarSideChatSessionId: null as string | null,
         zenMode: false,
     },
     listeners: new Set<() => void>(),
@@ -685,6 +686,7 @@ beforeEach(() => {
     mocks.localSettings.navigationSidebarCollapsed = false;
     mocks.localSettings.sidebarPanelActive = null;
     mocks.localSettings.sidebarPanelsOpen = [];
+    mocks.localSettings.sidebarSideChatSessionId = null;
     mocks.localSettings.zenMode = false;
     mocks.closeSideChatSession.mockReset();
     mocks.buildWorkspaceContextMessage.mockReset();
