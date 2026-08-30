@@ -885,7 +885,7 @@
     "overwrite": "Überschreiben"
   },
   "sideChat": {
-    "panelTitle": "Untergeordnete Agenten",
+    "panelTitle": "Side-Chats",
     "newChat": "Neuer Side-Chat",
     "emptyTitle": "Noch keine Side-Chats",
     "emptyDescription": "Klicken Sie auf „Neuer Side-Chat“, um einen leeren Side-Chat zu öffnen, und schreiben Sie anschließend wie gewohnt in dessen Eingabefeld.",
@@ -893,14 +893,14 @@
     "createFailed": "Side-Chat konnte nicht erstellt werden.",
     "createFailedWithDetail": "Side-Chat konnte nicht erstellt werden: {detail}",
     "unavailable": "Side-Chats sind für diese Sitzung nicht verfügbar oder der zugehörige Rechner ist offline.",
-    "composerPlaceholder": "Nachrichtenseitenchat…",
+    "composerPlaceholder": "Nachricht an Side-Chat…",
     "expand": "Vollbild öffnen",
-    "tabLabel": "Nebenchat {index}",
+    "tabLabel": "Side-Chat {index}",
     "close": "Side-Chat schließen",
-    "collapse": "Untergeordnete Agenten einklappen",
-    "archiveFailed": "Dieser untergeordnete Agent konnte nicht archiviert werden. Sein Tab wurde wiederhergestellt, damit du es erneut versuchen kannst.",
-    "openCount": "Untergeordnete Agenten öffnen ({count})",
-    "stopUnconfirmed": "Der untergeordnete Agent {sessionId} wurde archiviert, aber HappyHerd konnte das Beenden seines Prozesses nicht bestätigen. Prüfe den zugehörigen Rechner, falls die Arbeit fortgesetzt wird."
+    "collapse": "Side-Chats einklappen",
+    "archiveFailed": "Dieser Side-Chat konnte nicht archiviert werden. Sein Tab wurde wiederhergestellt, damit du es erneut versuchen kannst.",
+    "openCount": "Side-Chats öffnen ({count})",
+    "stopUnconfirmed": "Der Side-Chat {sessionId} wurde archiviert, aber HappyHerd konnte das Beenden seines Prozesses nicht bestätigen. Prüfe den zugehörigen Rechner, falls die Arbeit fortgesetzt wird."
   },
   "settingsVoice": {
     "languageTitle": "Sprache",

@@ -8,6 +8,7 @@ import type { Session } from '@/sync/storageTypes';
 const mocks = vi.hoisted(() => ({
     width: 1280,
     platform: 'web',
+    fileDiffsSidebarEnabled: true,
     revision: 0,
     sessions: {} as Record<string, Session>,
     localSettings: {
@@ -408,7 +409,9 @@ vi.mock('@/sync/storage', async () => {
         useSessionUsage: () => null,
         useSetting: (key: string) => key === 'sessionStatusBarDisplay'
             ? 'hidden'
-            : key === 'fileDiffsSidebar',
+            : key === 'fileDiffsSidebar'
+                ? mocks.fileDiffsSidebarEnabled
+                : undefined,
         useSettingMutable: () => [mocks.emptyObject, vi.fn()],
         useSideChatSessions: (parentSessionId: string | null) => {
             const revision = ReactModule.useSyncExternalStore(
@@ -530,9 +533,9 @@ vi.mock('@/keyboard/shortcuts', () => ({
 
 vi.mock('@/text', () => ({
     t: (key: string, params?: { count?: number; index?: number }) => {
-        if (key === 'sideChat.collapse') return 'Collapse sub-workers';
-        if (key === 'sideChat.openCount') return `Open sub-workers (${params?.count})`;
-        if (key === 'sideChat.panelTitle') return 'Sub-workers';
+        if (key === 'sideChat.collapse') return 'Collapse side chats';
+        if (key === 'sideChat.openCount') return `Open side chats (${params?.count})`;
+        if (key === 'sideChat.panelTitle') return 'Side chats';
         if (key === 'sideChat.tabLabel') return `Side chat ${params?.index}`;
         if (key === 'sessionInfo.resumeSession') return 'Resume session';
         return key;
@@ -603,6 +606,7 @@ beforeEach(() => {
     mocks.listeners.clear();
     mocks.width = 1280;
     mocks.platform = 'web';
+    mocks.fileDiffsSidebarEnabled = true;
     mocks.localSettings.acknowledgedCliVersions = {};
     mocks.localSettings.sidebarPanelActive = null;
     mocks.localSettings.sidebarPanelsOpen = [];
@@ -637,6 +641,22 @@ function renderParent(): ReactTestRenderer {
 
 function pressables(renderer: ReactTestRenderer) {
     return renderer.root.findAllByType('Pressable' as any);
+}
+
+function desktopSideChatHosts(renderer: ReactTestRenderer) {
+    return renderer.root.findAll((node: any) => (
+        node.props.sessionId === 'parent'
+        && Array.isArray(node.props.openPanels)
+        && Array.isArray(node.props.sideChats)
+        && typeof node.props.onOpenPanel === 'function'
+    ));
+}
+
+function fullscreenSideChatHosts(renderer: ReactTestRenderer) {
+    return renderer.root.findAll((node: any) => (
+        Array.isArray(node.props.sideChats)
+        && typeof node.props.onCollapse === 'function'
+    ));
 }
 
 function textValues(renderer: ReactTestRenderer): unknown[] {
@@ -699,25 +719,40 @@ describe('SessionView side-chat integration', () => {
         expect(mocks.startRealtimeSession).not.toHaveBeenCalled();
     });
 
-    it('opens the exact parent children in the wide sidebar and keeps collapse non-destructive', () => {
+    it('opens the exact-parent side chats in the desktop right panel and renders the selected child', () => {
+        mocks.fileDiffsSidebarEnabled = false;
         const renderer = renderParent();
 
-        expect(textValues(renderer)).toContain('sideChat.newChat');
-        pressByLabel(renderer, 'Open sub-workers (3)');
+        expect(desktopSideChatHosts(renderer)).toHaveLength(0);
+        expect(fullscreenSideChatHosts(renderer)).toHaveLength(0);
+        expect(renderedComposerSessions(renderer)).toEqual(['parent']);
+
+        pressByLabel(renderer, 'Open side chats (3)');
+
+        const [sidebar] = desktopSideChatHosts(renderer);
+        expect(sidebar).toBeDefined();
+        expect(sidebar.props.sessionId).toBe('parent');
+        expect(sidebar.props.openPanels).toEqual(['sideChat']);
+        expect(sidebar.props.activePanel).toBe('sideChat');
+        expect(sidebar.props.sideChats.map((sideChat: Session) => sideChat.id))
+            .toEqual(['oldest', 'stopped', 'newest']);
+        expect(sidebar.props.activeSideChatId).toBe('newest');
+        expect(fullscreenSideChatHosts(renderer)).toHaveLength(0);
         expectExactParentTabs(renderer);
         expect(textValues(renderer)).toContain('sideChat.newChat');
-        expect(renderedComposerSessions(renderer)).toEqual(expect.arrayContaining(['parent', 'newest']));
-        expect(renderedComposerSessions(renderer)).not.toContain('oldest');
+        expect(renderedComposerSessions(renderer)).toEqual(['parent', 'newest']);
 
         pressTab(renderer, 'stopped');
-        expect(renderedComposerSessions(renderer)).toEqual(expect.arrayContaining(['parent', 'stopped']));
+        expect(desktopSideChatHosts(renderer)[0]?.props.activeSideChatId).toBe('stopped');
+        expect(renderedComposerSessions(renderer)).toEqual(['parent', 'stopped']);
+        expect(mocks.sessionVisible).toHaveBeenCalledWith('stopped');
         pressByText(renderer, 'Resume session');
         expect(mocks.resumeSession).toHaveBeenCalledWith('stopped');
 
         expect(filterSessionsForTopLevelLists(Object.values(mocks.sessions)).map((session) => session.id))
             .toEqual(['parent', 'ordinary', 'otherParent']);
 
-        pressByLabel(renderer, 'Collapse sub-workers');
+        pressByLabel(renderer, 'Collapse side chats');
         expect(textValues(renderer)).not.toContain('stopped');
         expect(mocks.closeSideChatSession).not.toHaveBeenCalled();
         expect(mocks.sessionArchive).not.toHaveBeenCalled();
@@ -729,7 +764,7 @@ describe('SessionView side-chat integration', () => {
         const renderer = renderParent();
 
         expect(textValues(renderer)).not.toContain('sideChat.newChat');
-        pressByLabel(renderer, 'Open sub-workers (3)');
+        pressByLabel(renderer, 'Open side chats (3)');
         expectExactParentTabs(renderer);
         expect(textValues(renderer)).toContain('sideChat.newChat');
         expect(renderedComposerSessions(renderer)).toEqual(expect.arrayContaining(['parent', 'newest']));

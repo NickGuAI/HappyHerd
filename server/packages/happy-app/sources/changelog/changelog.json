@@ -1,9 +1,9 @@
 {
   "entries": [
     {
-      "title": "August 29 — Side chats open in one click",
+      "title": "August 29 — Side chats open consistently",
       "summary": "",
-      "markdown": "- Humans can again create and open an empty side chat in one click, then type normally in its composer.\n- Main Agents continue to create side chats with the structured six-field `happyherd session side-chat create` CLI flow."
+      "markdown": "- The `Side chats` control opens the exact parent session's conversations in the desktop right panel and the narrow or mobile full-screen view, with the same selected conversation on either surface.\n- Humans can again create and open an empty side chat in one click, then type normally in its composer.\n- Main Agents continue to create side chats with the structured six-field `happyherd session side-chat create` CLI flow."
     },
     {
       "title": "August 29 — Chat microphone dictation drafts",
@@ -68,7 +68,7 @@
     {
       "title": "August 26 — Child side chats from the command line",
       "summary": "",
-      "markdown": "- Commanders and agents can create a Claude or Codex side chat beneath an existing session while keeping the parent conversation unchanged.\n- Side-chat creation now reuses the parent machine's already-authenticated local daemon; it no longer asks for a second account-control link or QR approval.\n- Child conversations stay out of top-level lists and remain discoverable beneath their parent in the collapsible sub-worker view on wide, narrow, and mobile screens; unsupported providers and unavailable source metadata fail explicitly."
+      "markdown": "- Commanders and agents can create a Claude or Codex side chat beneath an existing session while keeping the parent conversation unchanged.\n- Side-chat creation now reuses the parent machine's already-authenticated local daemon; it no longer asks for a second account-control link or QR approval.\n- Child conversations stay out of top-level lists and remain discoverable beneath their parent in the collapsible side-chat view on wide, narrow, and mobile screens; unsupported providers and unavailable source metadata fail explicitly."
     },
     {
       "title": "August 26 — Start sessions on a selected machine",
@@ -356,5 +356,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 29 — Side chats open in one click"
+  "latestTitle": "August 29 — Side chats open consistently"
 }
