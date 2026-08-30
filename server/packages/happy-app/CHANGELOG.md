@@ -1,6 +1,7 @@
-# August 30 — Edit workspace files
+# August 30 — Streamlined Automations Experience
 
-- Edit workspace text and Markdown files directly in the linked file viewer on Web Desktop and Web Mobile, with Source, Preview when supported, and Edit modes, clear save states, and saves to the selected machine path. Unsaved edits stay in place through transient refresh failures and require confirmation before leaving the file.
+- Browse automations faster with a compact list powered by dynamic project-tag filters and search instead of repeating card sections.
+- Inspect automations in a desktop side panel or mobile full-width view with preserved search filters, collapsible Markdown instructions, compact rows showing localized, human-readable cadence and next-run information, and details featuring localized automation kinds, run states, run history, and controls.
 
 # August 29 — Side chats open consistently
 
