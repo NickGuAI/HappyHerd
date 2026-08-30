@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { LayoutChangeEvent, PanResponder, Pressable, ScrollView, View } from 'react-native';
+import { LayoutChangeEvent, PanResponder, Platform, Pressable, ScrollView, View } from 'react-native';
 import { Octicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
@@ -83,7 +83,7 @@ type DesktopFileWorkspaceProps = {
     picker: React.ReactNode;
     onSelect: (path: string) => void;
     onRequestClose: (path: string) => void;
-    onOpenChanges: () => void;
+    onFileDeleted: (path: string) => void;
     onOpenPicker: () => void;
     onDirtyChange: (path: string, dirty: boolean) => void;
 };
@@ -98,7 +98,7 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
     picker,
     onSelect,
     onRequestClose,
-    onOpenChanges,
+    onFileDeleted,
     onOpenPicker,
     onDirtyChange,
 }: DesktopFileWorkspaceProps) {
@@ -201,16 +201,6 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
                     })}
                 </ScrollView>
                 <Pressable
-                    onPress={onOpenChanges}
-                    accessibilityLabel={t('files.changes')}
-                    style={({ pressed, hovered }: any) => [
-                        styles.addButton,
-                        (pressed || hovered) && styles.addButtonHovered,
-                    ]}
-                >
-                    <Octicons name="git-branch" size={15} color={theme.colors.textSecondary} />
-                </Pressable>
-                <Pressable
                     onPress={onOpenPicker}
                     accessibilityLabel={t('files.openExistingFile')}
                     style={({ pressed, hovered }: any) => [
@@ -243,6 +233,8 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
                             active={active}
                             onHeaderSlotChange={handleHeaderSlotChange}
                             onDirtyChange={onDirtyChange}
+                            onDeleted={onFileDeleted}
+                            headerVariant={compact ? 'standard' : 'desktop-workspace'}
                         />
                     );
                 })}
@@ -257,12 +249,16 @@ const MountedFilePanel = React.memo(function MountedFilePanel({
     active,
     onHeaderSlotChange,
     onDirtyChange,
+    onDeleted,
+    headerVariant,
 }: {
     sessionId: string;
     path: string;
     active: boolean;
     onHeaderSlotChange: (path: string, slot: React.ReactNode) => void;
     onDirtyChange: (path: string, dirty: boolean) => void;
+    onDeleted: (path: string) => void;
+    headerVariant: 'standard' | 'desktop-workspace';
 }) {
     const publishHeaderSlot = React.useCallback(
         (slot: React.ReactNode) => onHeaderSlotChange(path, slot),
@@ -283,8 +279,10 @@ const MountedFilePanel = React.memo(function MountedFilePanel({
                 sessionId={sessionId}
                 filePath={path}
                 active={active}
+                headerVariant={headerVariant}
                 onHeaderRightSlotChange={publishHeaderSlot}
                 onDirtyChange={publishDirty}
+                onDeleted={() => onDeleted(path)}
             />
         </View>
     );
@@ -300,6 +298,8 @@ export const DesktopFileWorkspaceDivider = React.memo(function DesktopFileWorksp
     const { theme } = useUnistyles();
     const widthRef = React.useRef(width);
     const dragStartWidthRef = React.useRef(width);
+    const dragStartClientXRef = React.useRef(0);
+    const activePointerIdRef = React.useRef<number | null>(null);
     const [dragging, setDragging] = React.useState(false);
     widthRef.current = width;
 
@@ -317,9 +317,47 @@ export const DesktopFileWorkspaceDivider = React.memo(function DesktopFileWorksp
         onPanResponderTerminate: () => setDragging(false),
     }), [onWidthChange]);
 
+    const webPointerHandlers = React.useMemo(() => ({
+        onPointerDown: (event: any) => {
+            const pointerEvent = event.nativeEvent ?? event;
+            if (pointerEvent.button !== undefined && pointerEvent.button !== 0) return;
+            activePointerIdRef.current = pointerEvent.pointerId;
+            dragStartClientXRef.current = pointerEvent.clientX;
+            dragStartWidthRef.current = widthRef.current;
+            event.currentTarget?.setPointerCapture?.(pointerEvent.pointerId);
+            event.preventDefault?.();
+            setDragging(true);
+        },
+        onPointerMove: (event: any) => {
+            const pointerEvent = event.nativeEvent ?? event;
+            if (activePointerIdRef.current !== pointerEvent.pointerId) return;
+            onWidthChange(dragStartWidthRef.current - (pointerEvent.clientX - dragStartClientXRef.current));
+            event.preventDefault?.();
+        },
+        onPointerUp: (event: any) => {
+            const pointerEvent = event.nativeEvent ?? event;
+            if (activePointerIdRef.current !== pointerEvent.pointerId) return;
+            event.currentTarget?.releasePointerCapture?.(pointerEvent.pointerId);
+            activePointerIdRef.current = null;
+            setDragging(false);
+        },
+        onPointerCancel: (event: any) => {
+            const pointerEvent = event.nativeEvent ?? event;
+            if (activePointerIdRef.current !== pointerEvent.pointerId) return;
+            activePointerIdRef.current = null;
+            setDragging(false);
+        },
+        onLostPointerCapture: (event: any) => {
+            const pointerEvent = event.nativeEvent ?? event;
+            if (activePointerIdRef.current !== pointerEvent.pointerId) return;
+            activePointerIdRef.current = null;
+            setDragging(false);
+        },
+    }), [onWidthChange]);
+
     return (
         <View
-            {...panResponder.panHandlers}
+            {...(Platform.OS === 'web' ? webPointerHandlers : panResponder.panHandlers)}
             accessibilityRole="adjustable"
             accessibilityLabel={t('files.resizeWorkspace')}
             accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
@@ -493,6 +531,7 @@ const styles = StyleSheet.create((theme) => ({
         justifyContent: 'center',
         cursor: 'col-resize',
         userSelect: 'none',
+        touchAction: 'none',
     } as any,
     dividerGrip: {
         width: 2,

@@ -16,6 +16,7 @@ import {
     rigCanUseShell,
     rigCanWriteFiles,
     rigHasRpcMethod,
+    sessionCanDeleteFiles,
 } from './rig';
 import type { HappyAgentSpawnTarget } from './happyAgentSpawn';
 import {
@@ -127,6 +128,15 @@ interface SessionWriteFileRequest {
 interface SessionWriteFileResponse {
     success: boolean;
     hash?: string;
+    error?: string;
+}
+
+interface SessionDeleteFileRequest {
+    path: string;
+}
+
+interface SessionDeleteFileResponse {
+    success: boolean;
     error?: string;
 }
 
@@ -1445,6 +1455,42 @@ export async function sessionWriteFile(
 }
 
 /**
+ * Delete a file from the session workspace.
+ */
+export async function sessionDeleteFile(sessionId: string, path: string): Promise<SessionDeleteFileResponse> {
+    try {
+        const state = storage.getState();
+        const metadata = state.sessions[sessionId]?.metadata;
+        if (isRigMetadata(metadata)) {
+            if (!sessionCanDeleteFiles(metadata)) {
+                throw new Error('File deletion is not advertised by this Rig session');
+            }
+            return await apiSocket.sessionRPC<SessionDeleteFileResponse, SessionDeleteFileRequest>(
+                sessionId,
+                'deleteFile',
+                { path },
+            );
+        }
+
+        const machineId = metadata?.machineId;
+        const machineMetadata = machineId ? state.machines[machineId]?.metadata : null;
+        if (!machineId || !sessionCanDeleteFiles(metadata, machineMetadata)) {
+            throw new Error('File deletion is not available for this session');
+        }
+        return await apiSocket.machineRPC<SessionDeleteFileResponse, SessionDeleteFileRequest>(
+            machineId,
+            'deleteFile',
+            { path },
+        );
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        };
+    }
+}
+
+/**
  * List directory contents in the session
  */
 export async function sessionListDirectory(sessionId: string, path: string): Promise<SessionListDirectoryResponse> {
@@ -1770,6 +1816,7 @@ export type {
     SessionBashResponse,
     SessionReadFileResponse,
     SessionWriteFileResponse,
+    SessionDeleteFileResponse,
     SessionListDirectoryResponse,
     DirectoryEntry,
     SessionGetDirectoryTreeResponse,

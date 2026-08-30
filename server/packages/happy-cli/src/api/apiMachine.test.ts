@@ -189,6 +189,93 @@ describe('ApiMachineClient socket reconnection', () => {
         client.shutdown();
     });
 
+    it('adds machine-scoped file deletion when a new daemon connects to old metadata', async () => {
+        const machine = makeMachine();
+        machine.metadata = {
+            ...machine.metadata!,
+            cliAvailability: mockDetectCLIAvailability(),
+            resumeSupport: {
+                rpcAvailable: false,
+                requiresSameMachine: false,
+                requiresHappyAgentAuth: false,
+                happyAgentAuthenticated: false,
+                detectedAt: 1,
+            },
+            agentCapabilities: {},
+        };
+        expect(machine.metadata?.supportsFileDelete).toBeUndefined();
+        mockSocket.emitWithAck.mockImplementation(async (event: string, payload: any) => {
+            if (event === 'machine-update-metadata') {
+                return {
+                    result: 'success',
+                    metadata: payload.metadata,
+                    version: machine.metadataVersion + 1,
+                };
+            }
+            return {
+                result: 'success',
+                daemonState: payload.daemonState,
+                version: machine.daemonStateVersion + 1,
+            };
+        });
+
+        const client = new ApiMachineClient('fake-token', machine);
+        client.connect();
+        emitSocketEvent('connect');
+
+        await vi.waitFor(() => {
+            expect(machine.metadata?.supportsFileDelete).toBe(true);
+        });
+        expect(mockSocket.emitWithAck).toHaveBeenCalledWith(
+            'machine-update-metadata',
+            expect.objectContaining({ machineId: 'test-machine-id', expectedVersion: 0 }),
+        );
+        client.shutdown();
+    });
+
+    it('publishes file deletion after connect even when offline fallback metadata already claims support', async () => {
+        const machine = makeMachine();
+        machine.metadata = {
+            ...machine.metadata!,
+            supportsFileDelete: true,
+            cliAvailability: mockDetectCLIAvailability(),
+            resumeSupport: {
+                rpcAvailable: false,
+                requiresSameMachine: false,
+                requiresHappyAgentAuth: false,
+                happyAgentAuthenticated: false,
+                detectedAt: 1,
+            },
+            agentCapabilities: {},
+        };
+        mockSocket.emitWithAck.mockImplementation(async (event: string, payload: any) => {
+            if (event === 'machine-update-metadata') {
+                return {
+                    result: 'success',
+                    metadata: payload.metadata,
+                    version: machine.metadataVersion + 1,
+                };
+            }
+            return {
+                result: 'success',
+                daemonState: payload.daemonState,
+                version: machine.daemonStateVersion + 1,
+            };
+        });
+
+        const client = new ApiMachineClient('fake-token', machine);
+        client.connect();
+        emitSocketEvent('connect');
+
+        await vi.waitFor(() => {
+            expect(mockSocket.emitWithAck).toHaveBeenCalledWith(
+                'machine-update-metadata',
+                expect.objectContaining({ machineId: 'test-machine-id', expectedVersion: 0 }),
+            );
+        });
+        client.shutdown();
+    });
+
     it('publishes the Grok error while retaining this run\'s fresh Codex catalog', async () => {
         const availability = {
             claude: false,

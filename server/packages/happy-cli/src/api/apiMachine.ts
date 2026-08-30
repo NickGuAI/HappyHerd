@@ -598,6 +598,18 @@ export class ApiMachineClient {
                 startedAt: Date.now()
             }));
 
+            // Publish this on every successful socket connection. An offline
+            // getOrCreateMachine fallback can carry this daemon's initial
+            // metadata locally even though the server still has an older
+            // capability document, so the local value is not proof that the
+            // Human-facing app can see file deletion yet.
+            void this.updateMachineMetadata((metadata) => {
+                if (!metadata) throw new Error('Machine metadata is unavailable');
+                return { ...metadata, supportsFileDelete: true };
+            }).catch((error) => {
+                logger.debug('[API MACHINE] Failed to advertise machine file deletion:', error);
+            });
+
             this.rpcHandlerManager.onSocketConnect(this.socket);
             this.syncResumeSessionRpcRegistration();
             this.startKeepAlive();

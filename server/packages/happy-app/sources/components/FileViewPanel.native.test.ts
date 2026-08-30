@@ -2,7 +2,9 @@ import * as React from 'react';
 import { createHash } from 'node:crypto';
 // @ts-expect-error react-test-renderer has no declarations in this workspace.
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const modalMocks = vi.hoisted(() => ({ alert: vi.fn(), confirm: vi.fn() }));
 
 vi.mock('react-native', async () => {
     const ReactModule = await import('react');
@@ -44,10 +46,10 @@ vi.mock('@/components/FileDocumentPreview', async () => {
     return { FileDocumentPreview: (props: any) => ReactModule.createElement('FileDocumentPreview', props) };
 });
 vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}) } }));
-vi.mock('@/sync/ops', () => ({ sessionReadFile: vi.fn(), sessionWriteFile: vi.fn() }));
-vi.mock('@/sync/storage', () => ({ useSession: vi.fn() }));
+vi.mock('@/sync/ops', () => ({ sessionDeleteFile: vi.fn(), sessionReadFile: vi.fn(), sessionWriteFile: vi.fn() }));
+vi.mock('@/sync/storage', () => ({ useMachine: vi.fn(), useSession: vi.fn() }));
 vi.mock('@/sync/rig', () => ({ rigCanWriteFiles: vi.fn(() => true) }));
-vi.mock('@/modal', () => ({ Modal: { alert: vi.fn() } }));
+vi.mock('@/modal', () => ({ Modal: modalMocks }));
 vi.mock('@/text', () => ({ t: (key: string) => key }));
 vi.mock('@/components/layout', () => ({ layout: { maxWidth: 1200 } }));
 vi.mock('react-native-unistyles', () => {
@@ -79,6 +81,11 @@ beforeAll(() => {
 
 afterAll(() => vi.restoreAllMocks());
 
+beforeEach(() => {
+    vi.clearAllMocks();
+    modalMocks.confirm.mockResolvedValue(true);
+});
+
 async function renderPanel(overrides: Partial<FileContentPanelProps>) {
     let headerSlot: React.ReactNode = null;
     let renderer!: ReactTestRenderer;
@@ -87,6 +94,7 @@ async function renderPanel(overrides: Partial<FileContentPanelProps>) {
         filePath: '/workspace/.xxenv',
         readFile: vi.fn(),
         writeFile: vi.fn(),
+        deleteFile: vi.fn(),
         canWrite: true,
         onHeaderRightSlotChange: (slot) => { headerSlot = slot; },
         ...overrides,
@@ -147,6 +155,7 @@ describe('FileContentPanel native editing', () => {
 
         let header = renderHeader(panel);
         expect(renderedText(header)).toEqual(expect.arrayContaining(['uiCopy.source', 'files.editFile']));
+        expect(renderedText(header)).not.toContain('uiCopy.preview');
         act(() => findPressableByText(header, 'files.editFile')!.props.onPress());
         act(() => header.unmount());
         await waitForEditor(panel.renderer);
@@ -248,7 +257,7 @@ describe('FileContentPanel native editing', () => {
         act(() => panel.renderer.unmount());
     });
 
-    it('keeps saved Markdown current in both Preview and Source', async () => {
+    it('preserves Preview navigation in the standard narrow and mobile header', async () => {
         const original = Buffer.from('# Before\n');
         const updated = Buffer.from('# After\n');
         const writeFile = vi.fn(async () => ({ success: true, hash: 'saved-hash' }));
@@ -299,12 +308,113 @@ describe('FileContentPanel native editing', () => {
         act(() => panel.renderer.unmount());
     });
 
+    it('limits the desktop workspace header to Source, Edit, and Delete while Source toggles Preview', async () => {
+        const content = Buffer.from('# Desktop\n');
+        const panel = await renderPanel({
+            filePath: '/workspace/desktop.md',
+            headerVariant: 'desktop-workspace',
+            readFile: vi.fn(async () => ({ success: true, content: content.toString('base64') })),
+        });
+        const header = renderHeader(panel);
+
+        expect(renderedText(header)).toEqual(expect.arrayContaining([
+            'uiCopy.source',
+            'files.editFile',
+            'files.deleteFile',
+        ]));
+        expect(renderedText(header)).not.toContain('uiCopy.preview');
+        expect(panel.renderer.root.findByType('MarkdownView' as any).props.markdown).toBe('# Desktop\n');
+
+        act(() => findPressableByText(header, 'uiCopy.source')!.props.onPress());
+        act(() => header.unmount());
+        await waitForEditor(panel.renderer);
+        expect(panel.renderer.root.findByType('TextInput' as any).props).toMatchObject({
+            editable: false,
+            value: '# Desktop\n',
+        });
+
+        const sourceHeader = renderHeader(panel);
+        expect(renderedText(sourceHeader)).toEqual(expect.arrayContaining([
+            'uiCopy.source',
+            'files.editFile',
+            'files.deleteFile',
+        ]));
+        expect(renderedText(sourceHeader)).not.toContain('uiCopy.preview');
+        act(() => findPressableByText(sourceHeader, 'uiCopy.source')!.props.onPress());
+        act(() => sourceHeader.unmount());
+        expect(panel.renderer.root.findByType('MarkdownView' as any).props.markdown).toBe('# Desktop\n');
+
+        act(() => {
+            panel.renderer.unmount();
+        });
+    });
+
+    it('confirms and deletes the selected file before notifying its host', async () => {
+        const content = Buffer.from('delete me\n');
+        const deleteFile = vi.fn(async () => ({ success: true }));
+        const onDeleted = vi.fn();
+        const panel = await renderPanel({
+            filePath: '/workspace/remove.txt',
+            headerVariant: 'desktop-workspace',
+            readFile: vi.fn(async () => ({ success: true, content: content.toString('base64') })),
+            deleteFile,
+            onDeleted,
+        });
+        const header = renderHeader(panel);
+
+        await act(async () => {
+            await findPressableByText(header, 'files.deleteFile')!.props.onPress();
+        });
+
+        expect(modalMocks.confirm).toHaveBeenCalledWith(
+            'files.deleteFileTitle',
+            'files.deleteFileDescription',
+            {
+                cancelText: 'common.cancel',
+                confirmText: 'files.deleteFile',
+                destructive: true,
+            },
+        );
+        expect(deleteFile).toHaveBeenCalledWith('/workspace/remove.txt');
+        expect(onDeleted).toHaveBeenCalledOnce();
+        expect(modalMocks.alert).not.toHaveBeenCalled();
+
+        act(() => {
+            header.unmount();
+            panel.renderer.unmount();
+        });
+    });
+
+    it('does not delete when confirmation is cancelled', async () => {
+        modalMocks.confirm.mockResolvedValueOnce(false);
+        const content = Buffer.from('keep me\n');
+        const deleteFile = vi.fn(async () => ({ success: true }));
+        const panel = await renderPanel({
+            filePath: '/workspace/keep.txt',
+            headerVariant: 'desktop-workspace',
+            readFile: vi.fn(async () => ({ success: true, content: content.toString('base64') })),
+            deleteFile,
+        });
+        const header = renderHeader(panel);
+
+        await act(async () => {
+            await findPressableByText(header, 'files.deleteFile')!.props.onPress();
+        });
+        expect(deleteFile).not.toHaveBeenCalled();
+
+        act(() => {
+            header.unmount();
+            panel.renderer.unmount();
+        });
+    });
+
     it('loads the same editor in read-only mode without publishing a save action', async () => {
         const content = Buffer.from('{"mcpServers":{}}\n');
         const panel = await renderPanel({
             filePath: '/workspace/.mcp.json',
             canWrite: false,
             writeFile: undefined,
+            deleteFile: undefined,
             readFile: vi.fn(async () => ({ success: true, content: content.toString('base64') })),
         });
 

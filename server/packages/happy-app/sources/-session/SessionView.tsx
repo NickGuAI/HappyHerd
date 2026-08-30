@@ -654,6 +654,23 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             if (confirmed) close();
         });
     }, [desktopDirtyPaths, desktopFileWorkspace.paths]);
+    const handleDesktopFileDeleted = React.useCallback((path: string) => {
+        setDesktopFileWorkspace((current) => closeDesktopFile(current, path));
+        if (desktopFileWorkspace.paths.length === 1 && desktopFileWorkspace.paths[0] === path) {
+            setDesktopFilePickerOpen(false);
+        }
+        setDesktopDirtyPaths((current) => {
+            if (!current.has(path)) return current;
+            const next = new Set(current);
+            next.delete(path);
+            return next;
+        });
+    }, [desktopFileWorkspace.paths]);
+    const handleOverlayFileDeleted = React.useCallback(() => {
+        setFileViewDirty(false);
+        setHeaderRightSlot(null);
+        setOverlayHistory({ stack: [{ kind: 'none' }], cursor: 0 });
+    }, []);
     const handleAllFilesFilePress = React.useCallback((filePath: string) => {
         if (canShowFileSidebar) {
             setDesktopFileWorkspace((current) => openDesktopFile(current, filePath));
@@ -962,6 +979,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                         filePath={fileViewPath}
                         onHeaderRightSlotChange={setHeaderRightSlot}
                         onDirtyChange={setFileViewDirty}
+                        onDeleted={handleOverlayFileDeleted}
                     />
                 </View>
             )}
@@ -1039,7 +1057,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                         )}
                         onSelect={handleDesktopFileSelect}
                         onRequestClose={handleDesktopFileClose}
-                        onOpenChanges={() => openSidebarPanel('changes')}
+                        onFileDeleted={handleDesktopFileDeleted}
                         onOpenPicker={() => setDesktopFilePickerOpen(true)}
                         onDirtyChange={handleDesktopDirtyChange}
                     />

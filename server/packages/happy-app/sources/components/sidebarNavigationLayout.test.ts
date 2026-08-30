@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveDesktopNavigationDrawerWidth } from './sidebarNavigationLayout';
+import {
+    resolveDesktopNavigationBoundaryToggleLeft,
+    resolveDesktopNavigationDrawerWidth,
+    resolveDesktopPersistentHeaderControlsLeft,
+} from './sidebarNavigationLayout';
 
 describe('desktop navigation drawer layout', () => {
     const width = (overrides: Partial<Parameters<typeof resolveDesktopNavigationDrawerWidth>[0]> = {}) => (
@@ -29,5 +33,19 @@ describe('desktop navigation drawer layout', () => {
 
     it('never exposes the permanent drawer on a narrow layout', () => {
         expect(width({ isDesktopLayout: false })).toBe(0);
+    });
+
+    it('pins the toggle to the visible navigation boundary', () => {
+        expect(resolveDesktopNavigationBoundaryToggleLeft(360)).toBe(346);
+        expect(resolveDesktopNavigationBoundaryToggleLeft(0)).toBe(8);
+    });
+
+    it('keeps collapsed navigation and persistent header hit targets separate', () => {
+        const toggleHitTargetRight = resolveDesktopNavigationBoundaryToggleLeft(0) + 28 + 8;
+        const persistentControlsHitTargetLeft = resolveDesktopPersistentHeaderControlsLeft(0, 16) - 10;
+
+        expect(toggleHitTargetRight).toBeLessThan(persistentControlsHitTargetLeft);
+        expect(resolveDesktopPersistentHeaderControlsLeft(360, 16)).toBe(16);
+        expect(resolveDesktopPersistentHeaderControlsLeft(0, 117)).toBe(117);
     });
 });

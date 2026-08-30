@@ -202,6 +202,7 @@ export const initialMachineMetadata: MachineMetadata = {
   cliAvailability: initialCLIAvailability,
   resumeSupport: { ...detectResumeSupport(), rpcAvailable: true },
   agentCapabilities: buildBaselineAgentCapabilities(initialCLIAvailability),
+  supportsFileDelete: true,
 };
 
 export async function startDaemon(): Promise<void> {

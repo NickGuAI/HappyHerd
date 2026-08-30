@@ -61,6 +61,7 @@ describe('MachineMetadataSchema', () => {
             happyCliVersion: '1.2.1',
             happyHomeDir: '/srv/agent-home/project/.happy',
             homeDir: '/srv/agent-home/project',
+            supportsFileDelete: true,
             grokCapabilityError: 'Run `grok login`.',
             agentCapabilities: {
                 grok: {
@@ -94,6 +95,7 @@ describe('MachineMetadataSchema', () => {
         expect(metadata.agentCapabilities?.grok.acp?.loadSession).toBe(true);
         expect(metadata.agentCapabilities?.grok.effortLevels[1].isDefault).toBe(true);
         expect(metadata.grokCapabilityError).toBe('Run `grok login`.');
+        expect(metadata.supportsFileDelete).toBe(true);
     });
 
     it('preserves the Rig creation catalog and future machine fields', () => {

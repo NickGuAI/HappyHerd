@@ -182,4 +182,5 @@ AGENTWORK_179_ADAPTER	accepted	chore(integration): prepare dictation merge adapt
 AGENTWORK_181_ADAPTER	accepted	chore(integration): prepare desktop workspace merge adapter (#181)	docs/owned-patches.tsv
 AGENTWORK_180_ADAPTER	accepted	chore(integration): prepare mobile navigation merge adapter (#180)	docs/owned-patches.tsv
 AGENTWORK_UI_RECONCILIATION	accepted	fix(app): reconcile AgentWork UI delivery	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
+DESKTOP_FILE_WORKSPACE_INTERACTIONS	accepted	fix(app): repair desktop workspace interactions (#181)	server/packages/happy-app/sources/components/DesktopFileWorkspace.test.ts
 SIDE_CHAT_PANEL_OWNERSHIP	accepted	fix(app): scope side chat panels to their parent (#160)	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts

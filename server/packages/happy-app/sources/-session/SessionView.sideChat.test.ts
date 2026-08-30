@@ -1093,28 +1093,39 @@ describe('SessionView side-chat integration', () => {
         expect(desktopSideChatHosts(renderer)).toHaveLength(1);
     });
 
-    it('lets Changes temporarily replace the visible file workspace without unmounting its tabs', () => {
+    it('removes a deleted desktop file and selects its deterministic neighbor without a discard prompt', () => {
         const renderer = renderParent();
         const initialSidebar = desktopSideChatHosts(renderer)[0];
 
         act(() => initialSidebar?.props.onAllFilesFilePress('/work/a.ts'));
-        let split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
         let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(split.props.workspaceVisible).toBe(true);
-
-        act(() => workspace.props.onOpenChanges());
-        split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        act(() => workspace.props.onOpenPicker());
         workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(split.props.workspaceVisible).toBe(false);
-        expect(workspace.props.paths).toEqual(['/work/a.ts']);
-        expect(desktopSideChatHosts(renderer)[0]?.props.activePanel).toBe('changes');
-
-        act(() => desktopSideChatHosts(renderer)[0]?.props.onClosePanel('changes'));
-        split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        act(() => workspace.props.picker.props.onFilePress('/work/b.md'));
         workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(split.props.workspaceVisible).toBe(true);
+        act(() => workspace.props.onDirtyChange('/work/b.md', true));
+
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        act(() => workspace.props.onFileDeleted('/work/b.md'));
+
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
         expect(workspace.props.paths).toEqual(['/work/a.ts']);
         expect(workspace.props.activePath).toBe('/work/a.ts');
+        expect(workspace.props.dirtyPaths.has('/work/b.md')).toBe(false);
+        expect(mocks.modalConfirm).not.toHaveBeenCalled();
+        expect(renderedComposerSessions(renderer)).toEqual(['parent']);
+    });
+
+    it('keeps the desktop workspace header free of the removed Changes action', () => {
+        const renderer = renderParent();
+        const initialSidebar = desktopSideChatHosts(renderer)[0];
+
+        act(() => initialSidebar?.props.onAllFilesFilePress('/work/a.ts'));
+        const split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        const workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(split.props.workspaceVisible).toBe(true);
+        expect(workspace.props.paths).toEqual(['/work/a.ts']);
+        expect(workspace.props.onOpenChanges).toBeUndefined();
     });
 
     it('returns from stacked Changes and All Files panels to the selected desktop tab', () => {

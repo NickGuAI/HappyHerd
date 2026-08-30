@@ -16,7 +16,11 @@ import { useOverlayNav } from '@/-session/sessionOverlayNav';
 import { DEFAULT_APP_ZOOM } from '@/hooks/useTauriZoom';
 import { canRouteForward, canUseRouteBack, getNavigatorCanGoBack } from '@/navigation/browserNavigation';
 import { useBrowserNavigationStore } from '@/navigation/browserNavigationStore';
-import { resolveDesktopNavigationDrawerWidth } from './sidebarNavigationLayout';
+import {
+    resolveDesktopNavigationBoundaryToggleLeft,
+    resolveDesktopNavigationDrawerWidth,
+    resolveDesktopPersistentHeaderControlsLeft,
+} from './sidebarNavigationLayout';
 
 const TAURI_HEADER_CONTROL_LEFT = Math.ceil(92 / DEFAULT_APP_ZOOM);
 
@@ -93,20 +97,71 @@ export const SidebarNavigator = React.memo(() => {
             />
             {/* Persistent header overlay — always visible on desktop, same position regardless of zen mode */}
             {isDesktopLayout && (
-                <PersistentHeader />
+                <PersistentHeader drawerWidth={drawerWidth} />
+            )}
+            {isDesktopLayout && (
+                <DesktopNavigationBoundaryToggle drawerWidth={drawerWidth} />
             )}
         </View>
     );
 });
 
+const DesktopNavigationBoundaryToggle = React.memo(function DesktopNavigationBoundaryToggle({
+    drawerWidth,
+}: {
+    drawerWidth: number;
+}) {
+    const { theme } = useUnistyles();
+    const safeArea = useSafeAreaInsets();
+    const headerHeight = useHeaderHeight();
+    const [navigationSidebarCollapsed, setNavigationSidebarCollapsed] = useLocalSettingMutable('navigationSidebarCollapsed');
+    const handlePress = React.useCallback(() => {
+        setNavigationSidebarCollapsed(!navigationSidebarCollapsed);
+    }, [navigationSidebarCollapsed, setNavigationSidebarCollapsed]);
+
+    return (
+        <Pressable
+            onPress={handlePress}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={navigationSidebarCollapsed
+                ? t('navigation.expandSidebar')
+                : t('navigation.collapseSidebar')}
+            accessibilityState={{ expanded: !navigationSidebarCollapsed }}
+            testID="navigation-sidebar-toggle"
+            style={({ pressed, hovered }: any) => ({
+                position: 'absolute',
+                top: safeArea.top + (headerHeight - 34) / 2,
+                left: resolveDesktopNavigationBoundaryToggleLeft(drawerWidth),
+                width: 28,
+                height: 34,
+                zIndex: 1200,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 9,
+                borderWidth: 1,
+                borderColor: theme.colors.divider,
+                backgroundColor: pressed || hovered
+                    ? theme.colors.surfaceHigh
+                    : theme.colors.surface,
+            })}
+        >
+            <Ionicons
+                name={navigationSidebarCollapsed ? 'chevron-forward' : 'chevron-back'}
+                size={18}
+                color={theme.colors.header.tint}
+            />
+        </Pressable>
+    );
+});
+
 // Header block that stays in the same position whether zen mode is on or off
-const PersistentHeader = React.memo(() => {
+const PersistentHeader = React.memo(function PersistentHeader({ drawerWidth }: { drawerWidth: number }) {
     const { theme } = useUnistyles();
     const safeArea = useSafeAreaInsets();
     const headerHeight = useHeaderHeight();
     const router = useRouter();
     const [zenMode, setZenMode] = useLocalSettingMutable('zenMode');
-    const [navigationSidebarCollapsed, setNavigationSidebarCollapsed] = useLocalSettingMutable('navigationSidebarCollapsed');
     const inTauri = isTauri();
     const isMacTauri = inTauri && typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
 
@@ -121,10 +176,6 @@ const PersistentHeader = React.memo(() => {
     const handleZenToggle = React.useCallback(() => {
         setZenMode(!zenMode);
     }, [zenMode, setZenMode]);
-
-    const handleNavigationSidebarToggle = React.useCallback(() => {
-        setNavigationSidebarCollapsed(!navigationSidebarCollapsed);
-    }, [navigationSidebarCollapsed, setNavigationSidebarCollapsed]);
 
     const handleBack = React.useCallback(() => {
         // Intra-session overlay (file diff / file view) consumes back first,
@@ -157,7 +208,10 @@ const PersistentHeader = React.memo(() => {
                 left: 0,
                 right: 0,
                 paddingTop: safeArea.top,
-                paddingLeft: isMacTauri ? TAURI_HEADER_CONTROL_LEFT : 16,
+                paddingLeft: resolveDesktopPersistentHeaderControlsLeft(
+                    drawerWidth,
+                    isMacTauri ? TAURI_HEADER_CONTROL_LEFT : 16,
+                ),
                 paddingRight: 16,
                 height: safeArea.top + headerHeight,
                 flexDirection: 'row',
@@ -194,22 +248,6 @@ const PersistentHeader = React.memo(() => {
                         <Ionicons name="chevron-forward" size={20} color={theme.colors.header.tint} />
                     </Pressable>
                 )}
-                <Pressable
-                    onPress={handleNavigationSidebarToggle}
-                    hitSlop={10}
-                    accessibilityLabel={navigationSidebarCollapsed
-                        ? t('navigation.expandSidebar')
-                        : t('navigation.collapseSidebar')}
-                    accessibilityState={{ expanded: !navigationSidebarCollapsed }}
-                    testID="navigation-sidebar-toggle"
-                    style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center' }}
-                >
-                    <Ionicons
-                        name={navigationSidebarCollapsed ? 'chevron-forward' : 'chevron-back'}
-                        size={20}
-                        color={theme.colors.header.tint}
-                    />
-                </Pressable>
             </View>
         </View>
     );

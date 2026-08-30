@@ -1,3 +1,7 @@
+# August 30 — Enhanced file workspaces
+
+- Desktop file workspaces now feature a boundary sidebar toggle, a pointer-draggable divider, and focused Source, Edit, and Delete controls.
+
 # August 30 — Side chats open reliably
 
 - Clicking the Side chats count now opens the selected parent session's newest Side chat on Web Desktop, even when another session remains loaded in the background.
