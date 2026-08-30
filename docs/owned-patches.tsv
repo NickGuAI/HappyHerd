@@ -163,3 +163,4 @@ SIDE_CHAT_DESKTOP_PARITY	accepted	fix(side-chats): name and verify desktop side 
 MOBILE_SESSION_BACK	accepted	fix(app): make mobile session back deterministic (#180)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 MOBILE_SESSION_BACK_DESKTOP	accepted	fix(app): preserve desktop session back semantics (#180)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 MOBILE_SESSION_BACK_RESPONSIVE	accepted	fix(app): align mobile back with responsive layout (#180)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
+MOBILE_SESSION_BACK_INVENTORY	accepted	chore(app): refresh mobile back UI inventory (#180)	server/packages/happy-app/sources/text/ui-surface-inventory.json
