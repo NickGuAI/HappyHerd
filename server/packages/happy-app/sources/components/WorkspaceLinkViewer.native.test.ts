@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
     getTree: vi.fn(),
     readFile: vi.fn(),
     writeFile: vi.fn(),
+    confirm: vi.fn(),
     composerMounted: vi.fn(),
 }));
 
@@ -69,6 +70,7 @@ vi.mock('@/components/WorkspaceFeedbackComposer', async () => {
 vi.mock('@/constants/Typography', () => ({
     Typography: { default: () => ({}), mono: () => ({}) },
 }));
+vi.mock('@/modal', () => ({ Modal: { confirm: mocks.confirm } }));
 vi.mock('@/sync/ops', () => ({
     machineGetDirectoryTree: mocks.getTree,
     machineReadFile: mocks.readFile,
@@ -119,6 +121,8 @@ beforeEach(() => {
     mocks.getTree.mockReset();
     mocks.readFile.mockReset();
     mocks.writeFile.mockReset();
+    mocks.confirm.mockReset();
+    mocks.confirm.mockResolvedValue(false);
     mocks.composerMounted.mockReset();
 });
 
@@ -129,12 +133,15 @@ const reference = {
     absolutePath: '/work/report.md',
 };
 
-async function renderViewer(): Promise<ReactTestRenderer> {
+async function renderViewer(
+    overrides: Partial<React.ComponentProps<typeof WorkspaceLinkViewer>> = {},
+): Promise<ReactTestRenderer> {
     let renderer!: ReactTestRenderer;
     await act(async () => {
         renderer = create(React.createElement(WorkspaceLinkViewer, {
             reference,
             onFeedbackSent: vi.fn(),
+            ...overrides,
         }));
         await Promise.resolve();
     });
@@ -217,6 +224,55 @@ describe('WorkspaceLinkViewer', () => {
             machineLabel: 'Owner Machine',
             absolutePath: '/work/report.md',
         });
+        act(() => renderer.unmount());
+    });
+
+    it('keeps a dirty file mounted when discard is cancelled and returns to files after confirmation', async () => {
+        mockExactFileAndParent();
+        const onDirtyChange = vi.fn();
+        const renderer = await renderViewer({ onDirtyChange });
+        const panel = renderer.root.findByType('FileContentPanel' as any);
+
+        act(() => panel.props.onDirtyChange(true));
+        expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+
+        const backToFiles = renderer.root.findByProps({ accessibilityLabel: 'workspace.mobileBackToFiles' });
+        await act(async () => {
+            backToFiles.props.onPress();
+            await Promise.resolve();
+        });
+        expect(mocks.confirm).toHaveBeenCalledWith(
+            'uiCopy.discardUnsavedChanges',
+            'uiCopy.yourCurrentFileEditsHaveNotBeenSaved',
+            { cancelText: 'common.cancel', confirmText: 'common.discard', destructive: true },
+        );
+        expect(renderer.root.findAllByType('FileContentPanel' as any)).toHaveLength(1);
+
+        mocks.confirm.mockResolvedValueOnce(true);
+        await act(async () => {
+            backToFiles.props.onPress();
+            await Promise.resolve();
+        });
+        expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+        expect(renderer.root.findAllByType('FileContentPanel' as any)).toHaveLength(0);
+        act(() => renderer.unmount());
+    });
+
+    it('preserves a dirty editor when a passive file read fails', async () => {
+        mockExactFileAndParent();
+        mocks.readFile.mockResolvedValue({ success: false, error: 'EIO: transient poll failure' });
+        const renderer = await renderViewer();
+        const panel = renderer.root.findByType('FileContentPanel' as any);
+
+        act(() => panel.props.onDirtyChange(true));
+        await act(async () => {
+            await panel.props.readFile('/work/report.md');
+        });
+
+        expect(renderer.root.findByType('FileContentPanel' as any)).toBe(panel);
+        const text = renderer.root.findAllByType('Text' as any).map((node: any) => node.props.children);
+        expect(text).not.toContain('workspace.linkReadErrorTitle');
+        expect(text).not.toContain('EIO: transient poll failure');
         act(() => renderer.unmount());
     });
 

@@ -138,6 +138,26 @@ async function waitForEditor(renderer: ReactTestRenderer) {
 }
 
 describe('FileContentPanel native editing', () => {
+    it('edits a plain .txt file through the shared Source and Edit controls', async () => {
+        const original = Buffer.from('before\n');
+        const panel = await renderPanel({
+            filePath: '/workspace/notes.txt',
+            readFile: vi.fn(async () => ({ success: true, content: original.toString('base64') })),
+        });
+
+        let header = renderHeader(panel);
+        expect(renderedText(header)).toEqual(expect.arrayContaining(['uiCopy.source', 'files.editFile']));
+        act(() => findPressableByText(header, 'files.editFile')!.props.onPress());
+        act(() => header.unmount());
+        await waitForEditor(panel.renderer);
+
+        const input = panel.renderer.root.findByType('TextInput' as any);
+        expect(input.props).toMatchObject({ editable: true, value: 'before\n' });
+        act(() => input.props.onChangeText('after\n'));
+        expect(renderedText(panel.renderer)).toContain('uiCopy.unsaved');
+        act(() => panel.renderer.unmount());
+    });
+
     it.each(['notes.png', 'notes.pdf', 'settings.bmp', 'sentinel.gif', 'notes.svg'])(
         'routes valid UTF-8 named %s to the editor instead of a rich preview',
         async (fileName) => {
@@ -296,6 +316,25 @@ describe('FileContentPanel native editing', () => {
         let header!: ReactTestRenderer;
         act(() => { header = create(panel.getHeaderSlot() as React.ReactElement); });
         expect(header.root.findAllByType('Pressable' as any)).toHaveLength(0);
+
+        act(() => {
+            header.unmount();
+            panel.renderer.unmount();
+        });
+    });
+
+    it('does not expose Edit or Save for binary content', async () => {
+        const binary = Buffer.from([0x00, 0xff, 0x01, 0x02]);
+        const panel = await renderPanel({
+            filePath: '/workspace/archive.bin',
+            readFile: vi.fn(async () => ({ success: true, content: binary.toString('base64') })),
+        });
+
+        expect(panel.renderer.root.findAllByType('TextInput' as any)).toHaveLength(0);
+        expect(renderedText(panel.renderer)).toContain('files.cannotDisplayBinary');
+        const header = renderHeader(panel);
+        expect(renderedText(header)).not.toContain('files.editFile');
+        expect(findPressableByText(panel.renderer, 'files.saveFile')).toBeUndefined();
 
         act(() => {
             header.unmount();

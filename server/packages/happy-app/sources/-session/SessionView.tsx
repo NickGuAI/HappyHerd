@@ -156,6 +156,8 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     const {
         sendingRef: workspaceLinkFeedbackSendingRef,
         onSendingChange: onWorkspaceLinkFeedbackSendingChange,
+        onDirtyChange: onWorkspaceLinkDirtyChange,
+        guardDismiss: guardWorkspaceLinkDismiss,
         reset: resetWorkspaceLinkDismissGuard,
     } = useWorkspaceLinkDismissGuard();
     const [focusMessageId, setFocusMessageId] = React.useState<string | undefined>(props.focusMessageId);
@@ -498,7 +500,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     }, [fileViewDirty, fileViewPath]);
 
     const handleWorkspaceLinkPress = React.useCallback((route: WorkspaceLinkRoute) => {
-        openWorkspaceLinkFromSession({
+        const openLink = () => openWorkspaceLinkFromSession({
             route,
             sessionId,
             feedbackSending: workspaceLinkFeedbackSendingRef.current,
@@ -506,7 +508,18 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             pushRoute: (nextRoute) => router.push(nextRoute),
             showSidePanel: setWorkspaceLinkRoute,
         });
-    }, [router, sessionId, withFileDiscardConfirmation]);
+        if (workspaceLinkRoute) {
+            guardWorkspaceLinkDismiss(openLink);
+            return;
+        }
+        openLink();
+    }, [
+        guardWorkspaceLinkDismiss,
+        router,
+        sessionId,
+        withFileDiscardConfirmation,
+        workspaceLinkRoute,
+    ]);
 
     const handleSidebarFilePress = React.useCallback((file: GitFileStatus) => {
         if (file.status === 'deleted') return;
@@ -826,11 +839,14 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                 <WorkspaceLinkSidePanel
                     reference={workspaceLinkRoute.params}
                     windowWidth={windowWidth}
-                    onBack={() => setWorkspaceLinkRoute(null)}
+                    onBack={() => guardWorkspaceLinkDismiss(() => setWorkspaceLinkRoute(null))}
+                    onDirtyChange={onWorkspaceLinkDirtyChange}
                     onFeedbackSendingChange={onWorkspaceLinkFeedbackSendingChange}
                     onFeedbackSent={(receipt) => {
-                        setWorkspaceLinkRoute(null);
-                        setFocusMessageId(receipt.localId);
+                        guardWorkspaceLinkDismiss(() => {
+                            setWorkspaceLinkRoute(null);
+                            setFocusMessageId(receipt.localId);
+                        });
                     }}
                 />
             ) : (

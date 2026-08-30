@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "375ab5017bcab224f39f36d658d77e2063b1a0fd0d64e848e9ce70b01379deaa",
+  "sourceFingerprint": "68fbe3036407eecfb8051b8313bd31106ea719884e9ec7ea9c7237d41a24ce14",
   "routeCount": 36,
-  "surfaceCount": 246,
+  "surfaceCount": 247,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -1031,6 +1031,26 @@
       "states": [
         "error"
       ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/-session/workspaceLinkNavigation.ts",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "WorkspaceLinkPressContext",
+        "dismissWorkspaceLinkToOrigin",
+        "openWorkspaceLinkFromSession",
+        "useWorkspaceLinkDismissGuard",
+        "useWorkspaceLinkPress"
+      ],
+      "translationKeys": [
+        "common.cancel",
+        "common.discard",
+        "uiCopy.discardUnsavedChanges",
+        "uiCopy.yourCurrentFileEditsHaveNotBeenSaved"
+      ],
+      "states": [],
       "hardcodedCopy": []
     },
     {
@@ -4962,11 +4982,15 @@
       ],
       "translationKeys": [
         "common.back",
+        "common.cancel",
+        "common.discard",
         "common.fileViewer",
         "common.retry",
         "errors.tryAgain",
+        "uiCopy.discardUnsavedChanges",
         "uiCopy.machineNotFound",
         "uiCopy.openFolderValue",
+        "uiCopy.yourCurrentFileEditsHaveNotBeenSaved",
         "workspace.emptyFolder",
         "workspace.linkMachineMissingDescription",
         "workspace.linkPathMissingDescription",

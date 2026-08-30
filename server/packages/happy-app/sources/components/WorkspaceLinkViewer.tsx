@@ -9,6 +9,7 @@ import { FileIcon } from '@/components/FileIcon';
 import { Text } from '@/components/StyledText';
 import { WorkspaceFeedbackComposer } from '@/components/WorkspaceFeedbackComposer';
 import { Typography } from '@/constants/Typography';
+import { Modal } from '@/modal';
 import { machineGetDirectoryTree, machineReadFile, machineWriteFile } from '@/sync/ops';
 import { useAllMachines, useIsDataReady } from '@/sync/storage';
 import type { Machine } from '@/sync/storageTypes';
@@ -55,6 +56,7 @@ export type WorkspaceLinkViewerProps = {
     reference: WorkspaceLinkRouteParams;
     headerTopInset?: number;
     onBack?: () => void;
+    onDirtyChange?: (dirty: boolean) => void;
     onFeedbackSent: (receipt: SendMessageReceipt) => void;
     onFeedbackSendingChange?: (sending: boolean) => void;
 };
@@ -91,6 +93,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
     reference,
     headerTopInset = 0,
     onBack,
+    onDirtyChange,
     onFeedbackSent,
     onFeedbackSendingChange,
 }: WorkspaceLinkViewerProps) {
@@ -107,6 +110,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
     const [state, setState] = React.useState<WorkspaceLinkViewerState>({ status: 'loading' });
     const [headerRightSlot, setHeaderRightSlot] = React.useState<React.ReactNode>(null);
     const [feedbackSending, setFeedbackSending] = React.useState(false);
+    const fileDirtyRef = React.useRef(false);
     const activeFilePathRef = React.useRef<string | null>(null);
     const activeFileReadGenerationRef = React.useRef(0);
     const activeDirectoryReadGenerationRef = React.useRef(0);
@@ -115,6 +119,27 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
         setFeedbackSending(sending);
         onFeedbackSendingChange?.(sending);
     }, [onFeedbackSendingChange]);
+
+    const handleFileDirtyChange = React.useCallback((dirty: boolean) => {
+        fileDirtyRef.current = dirty;
+        onDirtyChange?.(dirty);
+    }, [onDirtyChange]);
+
+    const guardFileNavigation = React.useCallback((action: () => void) => {
+        if (!fileDirtyRef.current) {
+            action();
+            return;
+        }
+        void Modal.confirm(
+            t('uiCopy.discardUnsavedChanges'),
+            t('uiCopy.yourCurrentFileEditsHaveNotBeenSaved'),
+            { cancelText: t('common.cancel'), confirmText: t('common.discard'), destructive: true },
+        ).then((confirmed) => {
+            if (!confirmed) return;
+            handleFileDirtyChange(false);
+            action();
+        });
+    }, [handleFileDirtyChange]);
 
     const loadDirectory = React.useCallback(async (directoryPath: string, selectedFile: string | null = null) => {
         const directoryReadGeneration = ++activeDirectoryReadGenerationRef.current;
@@ -283,6 +308,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
         const response = await machineReadFile(reference.machineId, path);
         if (
             !response.success
+            && !fileDirtyRef.current
             && activeFilePathRef.current === path
             && activeFileReadGenerationRef.current === readGeneration
         ) {
@@ -344,8 +370,9 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
             readFile={readFile}
             writeFile={writeFile}
             canWrite={machineOnline}
-            onBack={showDirectory}
+            onBack={() => guardFileNavigation(showDirectory)}
             onHeaderRightSlotChange={setHeaderRightSlot}
+            onDirtyChange={handleFileDirtyChange}
         />
     ) : (
         <WorkspaceLinkDirectory
@@ -427,6 +454,7 @@ function WorkspaceLinkFile({
     canWrite,
     onBack,
     onHeaderRightSlotChange,
+    onDirtyChange,
 }: {
     machineId: string;
     filePath: string;
@@ -441,6 +469,7 @@ function WorkspaceLinkFile({
     canWrite: boolean;
     onBack: () => void;
     onHeaderRightSlotChange: (slot: React.ReactNode) => void;
+    onDirtyChange: (dirty: boolean) => void;
 }) {
     const { theme } = useUnistyles();
     return (
@@ -474,6 +503,7 @@ function WorkspaceLinkFile({
                     writeFile={writeFile}
                     canWrite={canWrite}
                     onHeaderRightSlotChange={onHeaderRightSlotChange}
+                    onDirtyChange={onDirtyChange}
                 />
             </View>
         </View>

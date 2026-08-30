@@ -1,6 +1,6 @@
 # August 30 — Edit workspace files
 
-- Edit workspace text and Markdown files directly in the linked file viewer on Web Desktop and Web Mobile, with Source, Preview when supported, and Edit modes, clear save states, and saves to the selected machine path.
+- Edit workspace text and Markdown files directly in the linked file viewer on Web Desktop and Web Mobile, with Source, Preview when supported, and Edit modes, clear save states, and saves to the selected machine path. Unsaved edits stay in place through transient refresh failures and require confirmation before leaving the file.
 
 # August 29 — Side chats open consistently
 
