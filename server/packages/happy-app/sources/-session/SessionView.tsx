@@ -49,6 +49,7 @@ import {
     resolveActiveSideChatId,
     resolveSideChatSelectionAfterClose,
     resolveSessionSidebarPresentation,
+    SIDE_CHAT_SIDEBAR_MIN_WINDOW_WIDTH,
     shouldShowLandscapeSideChatAccess,
 } from '@/components/sideChatPresentation';
 import { AllFilesDiffView } from '@/components/AllFilesDiffView';
@@ -139,9 +140,10 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         && !isLandscape;
     const realtimeStatus = useRealtimeStatus();
     const isTablet = useIsTablet();
-    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+    const { width: windowWidth } = useWindowDimensions();
     const isWebMobileSessionViewport = Platform.OS === 'web'
-        && Math.min(windowWidth, windowHeight) < 720;
+        && deviceType === 'phone'
+        && windowWidth < SIDE_CHAT_SIDEBAR_MIN_WINDOW_WIDTH;
     const fileDiffsSidebarEnabled = useSetting('fileDiffsSidebar');
     const zenMode = useLocalSetting('zenMode');
     const [headerBackdropVisible, setHeaderBackdropVisible] = React.useState(false);
@@ -963,9 +965,10 @@ export function SessionViewLoaded({
     const isLandscape = useIsLandscape();
     const deviceType = useDeviceType();
     const isTablet = useIsTablet();
-    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+    const { width: windowWidth } = useWindowDimensions();
     const isWebMobileSessionViewport = Platform.OS === 'web'
-        && Math.min(windowWidth, windowHeight) < 720;
+        && deviceType === 'phone'
+        && windowWidth < SIDE_CHAT_SIDEBAR_MIN_WINDOW_WIDTH;
     // Only the portrait phone chat uses an overlay dock. Tablet, desktop,
     // landscape, and embedded views retain their existing split layout.
     const usesFloatingMobileDock = !embedded

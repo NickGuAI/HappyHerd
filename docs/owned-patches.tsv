@@ -162,3 +162,4 @@ HUMAN_ONE_CLICK_SIDE_CHAT	accepted	fix(side-chats): restore one-click Human crea
 SIDE_CHAT_DESKTOP_PARITY	accepted	fix(side-chats): name and verify desktop side chats	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 MOBILE_SESSION_BACK	accepted	fix(app): make mobile session back deterministic (#180)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 MOBILE_SESSION_BACK_DESKTOP	accepted	fix(app): preserve desktop session back semantics (#180)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
+MOBILE_SESSION_BACK_RESPONSIVE	accepted	fix(app): align mobile back with responsive layout (#180)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts

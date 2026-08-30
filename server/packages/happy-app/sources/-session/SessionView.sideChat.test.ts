@@ -10,7 +10,6 @@ const mocks = vi.hoisted(() => ({
     height: 900,
     platform: 'web',
     landscape: false,
-    deviceType: null as 'phone' | 'tablet' | null,
     fileDiffsSidebarEnabled: true,
     revision: 0,
     sessions: {} as Record<string, Session>,
@@ -480,12 +479,29 @@ vi.mock('@/sync/workspaceContext', () => ({
 vi.mock('@/sync/queueProjection', () => ({ projectSessionQueue: () => ({ items: mocks.emptyArray }) }));
 
 vi.mock('@/utils/platform', () => ({ isRunningOnMac: () => false }));
-vi.mock('@/utils/responsive', () => ({
-    useDeviceType: () => mocks.deviceType ?? (Math.min(mocks.width, mocks.height) < 720 ? 'phone' : 'tablet'),
-    useHeaderHeight: () => 48,
-    useIsLandscape: () => mocks.landscape,
-    useIsTablet: () => false,
-}));
+vi.mock('@/utils/responsive', async () => {
+    const {
+        calculateDeviceDimensions,
+        determineDeviceType,
+    } = await vi.importActual<typeof import('@/utils/deviceCalculations')>('@/utils/deviceCalculations');
+
+    const productionDeviceType = () => determineDeviceType({
+        diagonalInches: calculateDeviceDimensions({
+            widthPoints: mocks.width,
+            heightPoints: mocks.height,
+            pointsPerInch: mocks.platform === 'ios' ? 163 : 160,
+        }).diagonalInches,
+        platform: mocks.platform,
+        isPad: false,
+    });
+
+    return {
+        useDeviceType: productionDeviceType,
+        useHeaderHeight: () => 48,
+        useIsLandscape: () => mocks.landscape,
+        useIsTablet: () => productionDeviceType() === 'tablet',
+    };
+});
 vi.mock('@/utils/sessionFork', () => ({ getSessionForkSource: () => ({ sessionId: 'parent' }) }));
 vi.mock('@/utils/sessionStatusBar', () => ({ resolveStatusBarGitBranch: () => null }));
 vi.mock('@/utils/rigGitLineChanges', () => ({ visibleRigGitLineChanges: () => null }));
@@ -618,7 +634,6 @@ beforeEach(() => {
     mocks.height = 900;
     mocks.platform = 'web';
     mocks.landscape = false;
-    mocks.deviceType = null;
     mocks.fileDiffsSidebarEnabled = true;
     mocks.localSettings.acknowledgedCliVersions = {};
     mocks.localSettings.sidebarPanelActive = null;
@@ -754,10 +769,11 @@ describe('SessionView mobile back navigation', () => {
     });
 
     it.each([
-        { orientation: 'portrait', landscape: false },
-        { orientation: 'landscape', landscape: true },
-    ])('keeps native $orientation navigation on router.back()', ({ landscape }) => {
-        mocks.width = 700;
+        { orientation: 'portrait', width: 390, height: 844, landscape: false },
+        { orientation: 'landscape', width: 844, height: 390, landscape: true },
+    ])('keeps native $orientation navigation on router.back()', ({ width, height, landscape }) => {
+        mocks.width = width;
+        mocks.height = height;
         mocks.platform = 'ios';
         mocks.landscape = landscape;
         const renderer = renderParent();
@@ -774,10 +790,12 @@ describe('SessionView mobile back navigation', () => {
         expect(mocks.routerDismissTo).not.toHaveBeenCalled();
     });
 
-    it('keeps Web Desktop navigation on router.back()', () => {
-        mocks.width = 1100;
-        mocks.height = 800;
-        mocks.deviceType = 'phone';
+    it.each([
+        { label: 'production-phone at the desktop boundary', width: 1100, height: 800 },
+        { label: 'wide short desktop', width: 1440, height: 600 },
+    ])('keeps Web Desktop navigation on router.back() for $label', ({ width, height }) => {
+        mocks.width = width;
+        mocks.height = height;
         const renderer = renderParent();
 
         act(() => chatHeader(renderer).props.onBackPress());
