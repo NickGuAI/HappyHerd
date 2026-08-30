@@ -804,6 +804,25 @@ describe('SessionView side-chat integration', () => {
         expect(mocks.sessionKill).not.toHaveBeenCalled();
     });
 
+    it.each([
+        { surface: 'desktop right panel', width: 1200 },
+        { surface: 'mobile full screen', width: 700 },
+    ])('keeps configured dictation available in the $surface Side chat composer', ({ width }) => {
+        mocks.width = width;
+        mocks.voiceAvailable = true;
+        const renderer = renderParent();
+
+        pressByLabel(renderer, 'Open side chats (3)');
+        const childComposer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
+            node.props.sessionId === 'newest'
+        ));
+
+        expect(childComposer?.props.onMicPress).toBe(mocks.voiceToggle);
+        act(() => childComposer?.props.onMicPress());
+        expect(mocks.voiceToggle).toHaveBeenCalledOnce();
+        expect(mocks.startRealtimeSession).not.toHaveBeenCalled();
+    });
+
     it('opens the same children in the narrow full-screen host and switches tabs before collapse', () => {
         mocks.width = 700;
         const renderer = renderParent();

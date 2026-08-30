@@ -3,7 +3,7 @@
     {
       "title": "August 30 — Dedicated dictation beside Send",
       "summary": "",
-      "markdown": "- Active chat composers on desktop and mobile now include a dedicated speech-to-text dictation microphone beside Send, while Send remains an arrow dedicated strictly to sending during idle, recording, transcribing, and retry states.\n- The microphone controls recording, finishing, transcription progress, retries, and cancellation, appending successful OpenAI transcriptions directly into the editable draft without starting realtime voice chat."
+      "markdown": "- Active chat composers on desktop and mobile now include a dedicated speech-to-text dictation microphone beside Send, while Send remains an arrow dedicated strictly to sending during idle, recording, transcribing, and retry states.\n- The microphone controls recording, finishing, transcription progress, retries, and cancellation, appending successful OpenAI transcriptions directly into the editable draft without starting realtime voice chat.\n- Enabled the dedicated microphone automatically across Main Agent and Side chat composers on Web Desktop and Web Mobile whenever an account or deployment OpenAI transcription key is configured."
     },
     {
       "title": "August 29 — Side chats open consistently",

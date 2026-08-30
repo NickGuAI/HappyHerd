@@ -2,23 +2,20 @@ import * as React from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '@/auth/AuthContext';
 import { fetchVoiceTranscriptionKeyStatus } from '@/sync/apiVoice';
-import { useSetting } from '@/sync/storage';
 import { resolveVoiceInputAvailability } from './voiceInputAvailability';
 
 /**
- * Voice dictation is an explicit two-part capability: the synchronized feature
- * switch must be enabled and the server must confirm that an encrypted OpenAI
- * transcription key exists. The app receives only masked status, never the key.
+ * Voice dictation follows the server-owned OpenAI transcription-key status.
+ * The app receives only masked status, never the key itself.
  */
 export function useVoiceInputAvailability() {
     const auth = useAuth();
-    const enabled = useSetting('voiceInputEnabled');
     const [configured, setConfigured] = React.useState(false);
-    const [loading, setLoading] = React.useState(enabled);
+    const [loading, setLoading] = React.useState(Boolean(auth.credentials));
 
     useFocusEffect(React.useCallback(() => {
         let cancelled = false;
-        if (!enabled || !auth.credentials) {
+        if (!auth.credentials) {
             setConfigured(false);
             setLoading(false);
             return () => { cancelled = true; };
@@ -37,12 +34,11 @@ export function useVoiceInputAvailability() {
             });
 
         return () => { cancelled = true; };
-    }, [auth.credentials, enabled]));
+    }, [auth.credentials]));
 
     return {
-        enabled,
         configured,
         loading,
-        available: resolveVoiceInputAvailability(enabled, configured),
+        available: resolveVoiceInputAvailability(configured),
     };
 }

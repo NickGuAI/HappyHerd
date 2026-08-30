@@ -2,6 +2,7 @@
 
 - Active chat composers on desktop and mobile now include a dedicated speech-to-text dictation microphone beside Send, while Send remains an arrow dedicated strictly to sending during idle, recording, transcribing, and retry states.
 - The microphone controls recording, finishing, transcription progress, retries, and cancellation, appending successful OpenAI transcriptions directly into the editable draft without starting realtime voice chat.
+- Enabled the dedicated microphone automatically across Main Agent and Side chat composers on Web Desktop and Web Mobile whenever an account or deployment OpenAI transcription key is configured.
 
 # August 29 — Side chats open consistently
 

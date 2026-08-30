@@ -1549,7 +1549,7 @@ export function SessionViewLoaded({
                 onSend={handleSend}
                 onQueueMessage={handleQueueMessage}
                 onMicPress={(voiceDictation.phase !== 'recording'
-                    && (embedded || isDisconnected || voiceSessionActive || !voiceInputAvailability.available))
+                    && (isDisconnected || voiceSessionActive || !voiceInputAvailability.available))
                     ? undefined
                     : voiceDictation.toggle}
                 dictationPhase={voiceDictation.phase}
