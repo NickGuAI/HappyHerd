@@ -793,6 +793,44 @@ describe('SessionView side-chat integration', () => {
         expect(mocks.startRealtimeSession).not.toHaveBeenCalled();
     });
 
+    it('preserves a transcript that arrives while a heartbeat command is being handled', async () => {
+        mocks.voiceAvailable = true;
+        mocks.sessions.parent.draft = '/heartbeat status';
+        let acceptHeartbeat!: () => void;
+        mocks.heartbeatDispatch.mockImplementation(() => new Promise((resolve) => {
+            acceptHeartbeat = () => resolve({
+                handled: true,
+                clearComposer: true,
+                message: 'Heartbeat status',
+            });
+        }));
+        const renderer = renderParent();
+        const composer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
+            node.props.sessionId === 'parent'
+        ));
+
+        let sendPromise!: Promise<void>;
+        await act(async () => {
+            sendPromise = composer?.props.onSend();
+            await vi.waitFor(() => expect(mocks.heartbeatDispatch).toHaveBeenCalledOnce());
+        });
+
+        act(() => mocks.voiceOnTranscript?.('late transcript'));
+        expect(mocks.composerText.parent).toBe('/heartbeat status late transcript');
+
+        await act(async () => {
+            acceptHeartbeat();
+            await sendPromise;
+        });
+
+        expect(mocks.heartbeatDispatch).toHaveBeenCalledWith(expect.objectContaining({
+            text: '/heartbeat status',
+        }));
+        expect(mocks.composerText.parent).toBe('late transcript');
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+        expect(mocks.startRealtimeSession).not.toHaveBeenCalled();
+    });
+
     it('keeps finish and cancel wired when availability changes during recording', () => {
         mocks.voiceAvailable = false;
         mocks.voicePhase = 'recording';

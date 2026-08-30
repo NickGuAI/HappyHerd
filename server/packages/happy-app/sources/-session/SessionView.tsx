@@ -1322,7 +1322,7 @@ export function SessionViewLoaded({
                 },
             });
             if (heartbeatCommand.handled) {
-                if (heartbeatCommand.clearComposer) composerHandleRef.current?.clearMessage();
+                if (heartbeatCommand.clearComposer) composerHandleRef.current?.clearSentMessage(liveMessage);
                 if (heartbeatCommand.message) {
                     Modal.alert(t('happyHerd.heartbeat.title'), heartbeatCommand.message);
                 }
