@@ -9,7 +9,7 @@ import { FileIcon } from '@/components/FileIcon';
 import { Text } from '@/components/StyledText';
 import { WorkspaceFeedbackComposer } from '@/components/WorkspaceFeedbackComposer';
 import { Typography } from '@/constants/Typography';
-import { machineGetDirectoryTree, machineReadFile } from '@/sync/ops';
+import { machineGetDirectoryTree, machineReadFile, machineWriteFile } from '@/sync/ops';
 import { useAllMachines, useIsDataReady } from '@/sync/storage';
 import type { Machine } from '@/sync/storageTypes';
 import { t } from '@/text';
@@ -301,6 +301,12 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
         return response;
     }, [machineOnline, machinePlatform, reference.machineId]);
 
+    const writeFile = React.useCallback((
+        path: string,
+        content: string,
+        expectedHash?: string | null,
+    ) => machineWriteFile(reference.machineId, path, content, expectedHash), [reference.machineId]);
+
     const openDirectory = React.useCallback((path: string) => {
         void loadDirectory(path);
     }, [loadDirectory]);
@@ -336,6 +342,8 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
             directoryPath={state.directoryPath}
             revision={revision}
             readFile={readFile}
+            writeFile={writeFile}
+            canWrite={machineOnline}
             onBack={showDirectory}
             onHeaderRightSlotChange={setHeaderRightSlot}
         />
@@ -415,6 +423,8 @@ function WorkspaceLinkFile({
     directoryPath,
     revision,
     readFile,
+    writeFile,
+    canWrite,
     onBack,
     onHeaderRightSlotChange,
 }: {
@@ -423,6 +433,12 @@ function WorkspaceLinkFile({
     directoryPath: string;
     revision: number;
     readFile: (path: string) => ReturnType<typeof machineReadFile>;
+    writeFile: (
+        path: string,
+        content: string,
+        expectedHash?: string | null,
+    ) => ReturnType<typeof machineWriteFile>;
+    canWrite: boolean;
     onBack: () => void;
     onHeaderRightSlotChange: (slot: React.ReactNode) => void;
 }) {
@@ -455,7 +471,8 @@ function WorkspaceLinkFile({
                     resourceKey={`machine:${machineId}`}
                     filePath={filePath}
                     readFile={readFile}
-                    canWrite={false}
+                    writeFile={writeFile}
+                    canWrite={canWrite}
                     onHeaderRightSlotChange={onHeaderRightSlotChange}
                 />
             </View>

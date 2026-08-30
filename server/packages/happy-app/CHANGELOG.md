@@ -1,3 +1,7 @@
+# August 30 — Edit workspace files
+
+- Edit workspace text and Markdown files directly in the linked file viewer on Web Desktop and Web Mobile, with Source, Preview when supported, and Edit modes, clear save states, and saves to the selected machine path.
+
 # August 29 — Side chats open consistently
 
 - The `Side chats` control opens the exact parent session's conversations in the desktop right panel and the narrow or mobile full-screen view, with the same selected conversation on either surface.

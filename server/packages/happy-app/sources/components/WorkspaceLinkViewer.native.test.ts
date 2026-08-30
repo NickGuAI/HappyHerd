@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
     dataReady: true,
     getTree: vi.fn(),
     readFile: vi.fn(),
+    writeFile: vi.fn(),
     composerMounted: vi.fn(),
 }));
 
@@ -71,6 +72,7 @@ vi.mock('@/constants/Typography', () => ({
 vi.mock('@/sync/ops', () => ({
     machineGetDirectoryTree: mocks.getTree,
     machineReadFile: mocks.readFile,
+    machineWriteFile: mocks.writeFile,
 }));
 vi.mock('@/sync/storage', () => ({
     useAllMachines: () => mocks.machines,
@@ -116,6 +118,7 @@ beforeEach(() => {
     mocks.dataReady = true;
     mocks.getTree.mockReset();
     mocks.readFile.mockReset();
+    mocks.writeFile.mockReset();
     mocks.composerMounted.mockReset();
 });
 
@@ -166,9 +169,10 @@ function mockExactFileAndParent() {
 }
 
 describe('WorkspaceLinkViewer', () => {
-    it('opens an exact file from its containing directory on only the pinned machine in read-only mode', async () => {
+    it('opens and writes an exact file on only the pinned online machine', async () => {
         mockExactFileAndParent();
         mocks.readFile.mockResolvedValue({ success: true, content: 'cmVwb3J0' });
+        mocks.writeFile.mockResolvedValue({ success: true, hash: 'saved-hash' });
         const renderer = await renderViewer();
 
         expect(mocks.getTree).toHaveBeenNthCalledWith(1, 'owner-machine', '/work/report.md', 1);
@@ -177,13 +181,23 @@ describe('WorkspaceLinkViewer', () => {
         expect(panel.props).toMatchObject({
             resourceKey: 'machine:owner-machine',
             filePath: '/work/report.md',
-            canWrite: false,
+            canWrite: true,
         });
 
         await act(async () => {
             await panel.props.readFile('/work/report.md');
         });
         expect(mocks.readFile).toHaveBeenCalledWith('owner-machine', '/work/report.md');
+
+        await act(async () => {
+            await panel.props.writeFile('/work/report.md', 'dXBkYXRlZA==', 'original-hash');
+        });
+        expect(mocks.writeFile).toHaveBeenCalledWith(
+            'owner-machine',
+            '/work/report.md',
+            'dXBkYXRlZA==',
+            'original-hash',
+        );
 
         const backToFiles = renderer.root.findByProps({ accessibilityLabel: 'workspace.mobileBackToFiles' });
         act(() => backToFiles.props.onPress());

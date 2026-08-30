@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "4c979f81f09274a3354c97f7988d73ce4dc68c8a47b51b880dc81f773c477717",
+  "sourceFingerprint": "375ab5017bcab224f39f36d658d77e2063b1a0fd0d64e848e9ce70b01379deaa",
   "routeCount": 36,
   "surfaceCount": 246,
   "hardcodedCopyCount": 0,
@@ -3102,6 +3102,7 @@
         "FileViewPanel"
       ],
       "translationKeys": [
+        "common.cancel",
         "common.error",
         "files.cannotDisplayBinary",
         "files.diff",
@@ -3115,7 +3116,10 @@
         "files.saveFile",
         "uiCopy.preview",
         "uiCopy.previewOfValue",
-        "uiCopy.source"
+        "uiCopy.saved",
+        "uiCopy.saving",
+        "uiCopy.source",
+        "uiCopy.unsaved"
       ],
       "states": [
         "error"
