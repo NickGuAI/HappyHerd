@@ -1548,10 +1548,10 @@ export function SessionViewLoaded({
                 blockSend={isRig && session.thinking && session.metadata?.capabilities?.steering !== true}
                 onSend={handleSend}
                 onQueueMessage={handleQueueMessage}
-                onMicPress={(embedded || isDisconnected || voiceSessionActive || !voiceInputAvailability.available)
+                onMicPress={(voiceDictation.phase !== 'recording'
+                    && (embedded || isDisconnected || voiceSessionActive || !voiceInputAvailability.available))
                     ? undefined
                     : voiceDictation.toggle}
-                isMicActive={!embedded && !isDisconnected && voiceDictation.phase === 'recording'}
                 dictationPhase={voiceDictation.phase}
                 dictationError={voiceDictation.error}
                 onDictationCancel={voiceDictation.cancel}

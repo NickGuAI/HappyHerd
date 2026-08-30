@@ -1,3 +1,8 @@
+# August 30 — Dedicated dictation beside Send
+
+- Active chat composers on desktop and mobile now include a dedicated speech-to-text dictation microphone beside Send, while Send remains an arrow dedicated strictly to sending during idle, recording, transcribing, and retry states.
+- The microphone controls recording, finishing, transcription progress, retries, and cancellation, appending successful OpenAI transcriptions directly into the editable draft without starting realtime voice chat.
+
 # August 29 — Side chats open consistently
 
 - The `Side chats` control opens the exact parent session's conversations in the desktop right panel and the narrow or mobile full-screen view, with the same selected conversation on either surface.

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "4c979f81f09274a3354c97f7988d73ce4dc68c8a47b51b880dc81f773c477717",
+  "sourceFingerprint": "9e6d20fc00cbed7f44d4d4c2524a5b0732baa9aa8682c7afb6e0c0c45e7cd0c2",
   "routeCount": 36,
   "surfaceCount": 246,
   "hardcodedCopyCount": 0,
@@ -2377,6 +2377,7 @@
         "happyHerd.composer.send",
         "happyHerd.composer.startVoice",
         "happyHerd.composer.stop",
+        "happyHerd.composer.transcribingVoice",
         "settings.title",
         "uiCopy.claude",
         "uiCopy.codex",

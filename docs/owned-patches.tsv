@@ -160,3 +160,4 @@ OPENAI_SESSION_DICTATION	accepted	fix(app): restore OpenAI composer dictation (#
 HUMAN_SIDE_CHAT_CREATION	accepted	fix(side-chats): restore Human creation flow (#170)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 HUMAN_ONE_CLICK_SIDE_CHAT	accepted	fix(side-chats): restore one-click Human creation (#170)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 SIDE_CHAT_DESKTOP_PARITY	accepted	fix(side-chats): name and verify desktop side chats	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
+DEDICATED_DICTATION_CONTROL	accepted	fix(app): separate dictation from Send (#179)	server/packages/happy-app/sources/components/voiceDictationControl.test.ts

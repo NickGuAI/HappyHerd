@@ -701,8 +701,8 @@ describe('SessionView side-chat integration', () => {
     it('appends OpenAI dictation to the active draft without sending or starting realtime voice', () => {
         mocks.voiceAvailable = true;
         mocks.sessions.parent.draft = 'Keep this draft';
-        const renderer = renderParent();
-        const composer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
+        let renderer = renderParent();
+        let composer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
             node.props.sessionId === 'parent'
         ));
 
@@ -713,10 +713,55 @@ describe('SessionView side-chat integration', () => {
         act(() => composer?.props.onMicPress());
         expect(mocks.voiceToggle).toHaveBeenCalledOnce();
 
+        const remountComposer = () => {
+            act(() => renderer.unmount());
+            renderer = renderParent();
+            return renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
+                node.props.sessionId === 'parent'
+            ));
+        };
+
+        mocks.voicePhase = 'recording';
+        composer = remountComposer();
+        expect(composer?.props.dictationPhase).toBe('recording');
+        act(() => composer?.props.onDictationCancel());
+        expect(mocks.voiceCancel).toHaveBeenCalledOnce();
+
+        mocks.voicePhase = 'transcribing';
+        composer = remountComposer();
+        expect(composer?.props.dictationPhase).toBe('transcribing');
+
+        mocks.voicePhase = 'error';
+        mocks.voiceCanRetry = true;
+        mocks.voiceError = 'OpenAI transcription failed';
+        composer = remountComposer();
+        expect(composer?.props.dictationError).toBe('OpenAI transcription failed');
+        act(() => composer?.props.onDictationRetry());
+        expect(mocks.voiceRetry).toHaveBeenCalledOnce();
+
         act(() => mocks.voiceOnTranscript?.('dictated words'));
         expect(mocks.composerText.parent).toBe('Keep this draft dictated words');
         expect(mocks.sendMessage).not.toHaveBeenCalled();
         expect(mocks.startRealtimeSession).not.toHaveBeenCalled();
+    });
+
+    it('keeps finish and cancel wired when availability changes during recording', () => {
+        mocks.voiceAvailable = false;
+        mocks.voicePhase = 'recording';
+        mocks.sessions.parent.active = false;
+
+        const renderer = renderParent();
+        const composer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
+            node.props.sessionId === 'parent'
+        ));
+
+        expect(composer?.props.dictationPhase).toBe('recording');
+        expect(composer?.props.onMicPress).toBe(mocks.voiceToggle);
+        expect(composer?.props.onDictationCancel).toBe(mocks.voiceCancel);
+        act(() => composer?.props.onMicPress());
+        act(() => composer?.props.onDictationCancel());
+        expect(mocks.voiceToggle).toHaveBeenCalledOnce();
+        expect(mocks.voiceCancel).toHaveBeenCalledOnce();
     });
 
     it('opens the exact-parent side chats in the desktop right panel and renders the selected child', () => {

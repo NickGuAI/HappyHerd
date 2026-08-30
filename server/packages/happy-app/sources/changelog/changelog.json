@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 30 — Dedicated dictation beside Send",
+      "summary": "",
+      "markdown": "- Active chat composers on desktop and mobile now include a dedicated speech-to-text dictation microphone beside Send, while Send remains an arrow dedicated strictly to sending during idle, recording, transcribing, and retry states.\n- The microphone controls recording, finishing, transcription progress, retries, and cancellation, appending successful OpenAI transcriptions directly into the editable draft without starting realtime voice chat."
+    },
+    {
       "title": "August 29 — Side chats open consistently",
       "summary": "",
       "markdown": "- The `Side chats` control opens the exact parent session's conversations in the desktop right panel and the narrow or mobile full-screen view, with the same selected conversation on either surface.\n- Humans can again create and open an empty side chat in one click, then type normally in its composer.\n- Main Agents continue to create side chats with the structured six-field `happyherd session side-chat create` CLI flow."
@@ -356,5 +361,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 29 — Side chats open consistently"
+  "latestTitle": "August 30 — Dedicated dictation beside Send"
 }

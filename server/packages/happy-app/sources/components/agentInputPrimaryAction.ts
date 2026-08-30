@@ -2,6 +2,18 @@ export type AgentInputPrimaryAction = 'send' | 'stop' | 'blocked' | 'voice' | 'i
 
 type DictationPhase = 'idle' | 'recording' | 'transcribing' | 'error';
 
+export function resolveAgentInputSendPressAvailability({
+    isAborting,
+    isSending,
+    isSendDisabled,
+}: {
+    isAborting: boolean;
+    isSending: boolean;
+    isSendDisabled: boolean;
+}): boolean {
+    return !isAborting && !isSending && !isSendDisabled;
+}
+
 export function doesVoiceOwnPrimaryPress({
     primaryAction,
     dictationPhase,
@@ -24,6 +36,7 @@ export function resolveAgentInputPrimaryAction({
     canVoice = false,
     dictationPhase = 'idle',
     canRetryVoice = false,
+    voiceControlPlacement = 'primary',
 }: {
     hasComposerContent: boolean;
     isSendBlocked: boolean;
@@ -33,14 +46,16 @@ export function resolveAgentInputPrimaryAction({
     canVoice?: boolean;
     dictationPhase?: DictationPhase;
     canRetryVoice?: boolean;
+    voiceControlPlacement?: 'primary' | 'dedicated';
 }): AgentInputPrimaryAction {
+    const voiceOwnsPrimaryAction = canVoice && voiceControlPlacement === 'primary';
     // Once recording starts, the primary control must keep owning that
     // lifecycle even if the Human types or attaches content in parallel.
     // Transcribing retains the same position as a disabled progress control.
-    if (canVoice && (dictationPhase === 'recording' || dictationPhase === 'transcribing')) {
+    if (voiceOwnsPrimaryAction && (dictationPhase === 'recording' || dictationPhase === 'transcribing')) {
         return 'voice';
     }
-    if (canVoice && canRetryVoice && dictationPhase === 'error' && !hasComposerContent) {
+    if (voiceOwnsPrimaryAction && canRetryVoice && dictationPhase === 'error' && !hasComposerContent) {
         return 'voice';
     }
     // A blank composer while the agent is working is the one case where the
@@ -59,7 +74,7 @@ export function resolveAgentInputPrimaryAction({
     }
     // An empty composer with dictation available falls back to voice rather
     // than to a dead button, which is what the separate mic button used to do.
-    if (!isSendDisabled && canVoice) {
+    if (!isSendDisabled && voiceOwnsPrimaryAction) {
         return 'voice';
     }
     return 'idle';
