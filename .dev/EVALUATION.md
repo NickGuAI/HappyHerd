@@ -116,6 +116,29 @@ Re-run the evidence scan and all fixture routes whenever an update trigger in
 `.dev/README.md` fires. Record disproven assumptions and remaining gaps rather
 than silently copying prior prose.
 
+## Focused refresh — 2026-08-31: workspace consolidation
+
+- **Evidence inputs:** task `6a951e3e8f0869c1518e18b0`; `AGENTS.md`; the
+  existing `.dev` context; and implementation commit `fa29c89e`, especially
+  `SessionView.tsx`, `DesktopFileWorkspace.tsx`, `FileViewPanel.tsx`,
+  `WorkspaceLinkViewer.tsx`, `WorkspaceFeedbackComposer.tsx`,
+  `app/(app)/workspace/index.tsx`, `utils/markdownWorkspaceLink.ts`,
+  `sync/ops.ts`, `MainView.tsx`, and their focused browser/unit fixtures.
+- **Drafting and review:** Gemini `gemini-3.7-flash` drafted the implemented
+  architecture summary. It was corrected and fact-checked against the source:
+  line and column are retained for feedback, not used for scrolling or
+  highlighting.
+- **Observed architecture:** `SessionView` owns one `DesktopFileWorkspace`
+  state keyed by machine ID and absolute path. Chat Workspace, the embedded
+  Machine Workspace browser, and current-session reply links converge on that
+  host. Directories open the embedded browser; read failures remain in the
+  canonical panel. `WorkspaceLinkViewer` remains only for cross-session or
+  unavailable-host fallback.
+- **Verification:** app typecheck and `i18n:check` passed; the full app suite
+  passed 191 files and 1,764 tests. Rendered browser coverage exercises the
+  desktop Machine Workspace open/back/select flow, compact 390 × 844 zero-tab
+  open/back flow, tab state, and divider drag without page errors.
+
 ## Focused refresh — 2026-08-26
 
 - **Evidence inputs:** the owner-approved prospective task contract;

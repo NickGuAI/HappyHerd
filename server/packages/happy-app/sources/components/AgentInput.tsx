@@ -4,7 +4,6 @@ import * as React from 'react';
 import { Keyboard, View, Platform, useWindowDimensions, Text, ActivityIndicator, Pressable, TouchableWithoutFeedback, LayoutChangeEvent } from 'react-native';
 import { AgentInputAttachmentStrip } from './AgentInputAttachmentStrip';
 import { WorkspaceContextStrip } from './WorkspaceContextStrip';
-import { CompactWorkspaceContextButton } from './CompactWorkspaceContextButton';
 import type { AttachmentPreview } from '@/sync/attachmentTypes';
 import { AttachmentInputButton } from '@/components/AttachmentInputButton';
 import type { WorkspaceContextEntry } from '@/sync/workspaceContext';
@@ -23,7 +22,6 @@ import { AgentInputAutocomplete } from './AgentInputAutocomplete';
 import { FloatingOverlay } from './FloatingOverlay';
 import { TextInputState, MultiTextInputHandle } from './MultiTextInput';
 import { applySuggestion } from './autocomplete/applySuggestion';
-import { GitStatusBadge, useHasMeaningfulGitStatus } from './GitStatusBadge';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useSetting } from '@/sync/storage';
 import { hackMode, hackModes } from '@/sync/modeHacks';
@@ -113,7 +111,6 @@ interface AgentInputProps {
     sessionStatusGitChanges?: { insertions: number; deletions: number; approximate: boolean } | null;
     /** Plan quota windows from agent state, for the week stat and its popup. */
     sessionStatusUsageLimits?: UsageLimitsLike | null;
-    onFileViewerPress?: () => void;
     agentType?: 'claude' | 'codex' | 'grok' | 'gemini' | 'agy';
     onAgentClick?: () => void;
     machineName?: string | null;
@@ -1534,8 +1531,6 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             </Shaker>
                         )}
 
-                        <GitStatusButton sessionId={props.sessionId} onPress={props.onFileViewerPress} />
-
                         {props.onQueueMessage && (
                             <Pressable
                                 onPress={props.onQueueMessage}
@@ -2202,16 +2197,6 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             />
                         )}
 
-                        {!props.zenMode && (
-                            <CompactWorkspaceContextButton
-                                onPress={props.onFileViewerPress}
-                                active={(props.selectedContextEntries?.length ?? 0) > 0}
-                                color={theme.colors.text}
-                                activeColor={theme.colors.radio.active}
-                                style={styles.mobileIconButton}
-                            />
-                        )}
-
                         {/* Named in words rather than hidden behind a gear: the
                             permission mode is the one control here that changes
                             what the agent may do to the machine. Matches the
@@ -2336,10 +2321,6 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             >
                                 <Octicons name="cpu" size={14} color={theme.colors.text} />
                             </BubblePressable>
-                        )}
-
-                        {!compactMobileComposer && (
-                            <GitStatusButton sessionId={props.sessionId} onPress={props.onFileViewerPress} />
                         )}
 
                         {shouldShowStopButton && props.onAbort && (
@@ -2551,47 +2532,5 @@ function VoiceDictationControls({
                 </BubblePressable>
             )}
         </View>
-    );
-}
-
-// Git Status Button Component
-function GitStatusButton({ sessionId, onPress }: { sessionId?: string, onPress?: () => void }) {
-    const hasMeaningfulGitStatus = useHasMeaningfulGitStatus(sessionId || '');
-    const styles = stylesheet;
-    const { theme } = useUnistyles();
-
-    if (!sessionId || !onPress) {
-        return null;
-    }
-
-    return (
-        <BubblePressable
-            style={(p) => ({
-                flexDirection: 'row',
-                alignItems: 'center',
-                borderRadius: Platform.select({ default: 16, android: 20 }),
-                paddingHorizontal: 8,
-                paddingVertical: 6,
-                height: 32,
-                opacity: p.pressed ? 0.7 : 1,
-                flex: 1,
-                overflow: 'hidden',
-            })}
-            hitSlop={{ top: 5, bottom: 10, left: 0, right: 0 }}
-            onPress={() => {
-                hapticsLight();
-                onPress?.();
-            }}
-        >
-            {hasMeaningfulGitStatus ? (
-                <GitStatusBadge sessionId={sessionId} />
-            ) : (
-                <Octicons
-                    name="git-branch"
-                    size={16}
-                    color={theme.colors.button.secondary.tint}
-                />
-            )}
-        </BubblePressable>
     );
 }

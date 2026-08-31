@@ -67,7 +67,13 @@ vi.mock('@/components/FileViewPanel', async () => {
             const mountId = ReactModule.useRef(++mocks.mountCounter).current;
             return ReactModule.createElement('FileViewPanel', { ...props, mountId });
         },
+        MachineFileViewPanel: (props: any) => ReactModule.createElement('MachineFileViewPanel', props),
     };
+});
+
+vi.mock('@/components/WorkspaceFeedbackComposer', async () => {
+    const ReactModule = await import('react');
+    return { WorkspaceFeedbackComposer: (props: any) => ReactModule.createElement('WorkspaceFeedbackComposer', props) };
 });
 
 vi.mock('@/components/StyledText', async () => {
@@ -118,6 +124,7 @@ function workspaceElement(overrides: Record<string, unknown> = {}) {
         onRequestClose: vi.fn(),
         onFileDeleted: vi.fn(),
         onOpenPicker: vi.fn(),
+        onClosePicker: vi.fn(),
         onDirtyChange: vi.fn(),
         ...overrides,
     });
@@ -166,10 +173,11 @@ describe('DesktopFileWorkspace', () => {
 
     it('keeps the header focused on file tabs and the existing picker, and closes only the requested tab', () => {
         const onOpenPicker = vi.fn();
+        const onOpenMachinePicker = vi.fn();
         const onRequestClose = vi.fn();
         const onSelect = vi.fn();
         let renderer!: ReactTestRenderer;
-        act(() => { renderer = create(workspaceElement({ onOpenPicker, onRequestClose, onSelect })); });
+        act(() => { renderer = create(workspaceElement({ onOpenPicker, onOpenMachinePicker, onRequestClose, onSelect })); });
 
         expect(renderer.root.findAllByProps({ accessibilityLabel: 'files.changes' })).toHaveLength(0);
 
@@ -179,6 +187,11 @@ describe('DesktopFileWorkspace', () => {
         expect(onOpenPicker).toHaveBeenCalledOnce();
         expect(onSelect).not.toHaveBeenCalled();
 
+        const machineWorkspace = renderer.root.findAllByType('Pressable' as any)
+            .find((node: any) => node.props.accessibilityLabel === 'workspace.title');
+        act(() => machineWorkspace?.props.onPress());
+        expect(onOpenMachinePicker).toHaveBeenCalledOnce();
+
         const close = renderer.root.findAllByType('Pressable' as any)
             .find((node: any) => node.props.accessibilityLabel === 'files.closeFileTab:a.ts');
         const stopPropagation = vi.fn();
@@ -186,6 +199,22 @@ describe('DesktopFileWorkspace', () => {
         expect(stopPropagation).toHaveBeenCalledOnce();
         expect(onRequestClose).toHaveBeenCalledWith('/work/a.ts');
         expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it('uses the machine-wide viewer and feedback reference for an active machine tab', () => {
+        const identity = JSON.stringify(['machine-2', '/work/a.ts']);
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(workspaceElement({
+                paths: [identity],
+                activePath: identity,
+                references: { [identity]: { machineId: 'machine-2', source: 'machine', line: 12, column: 4 } },
+            }));
+        });
+
+        expect(renderer.root.findByType('MachineFileViewPanel' as any).props.machineId).toBe('machine-2');
+        const feedback = renderer.root.findByType('WorkspaceFeedbackComposer' as any);
+        expect(feedback.props).toMatchObject({ machineId: 'machine-2', absolutePath: '/work/a.ts', line: 12, column: 4 });
     });
 
     it('switches to a single full-width header without remounting file panels', () => {
@@ -207,6 +236,23 @@ describe('DesktopFileWorkspace', () => {
         const back = renderer.root.findAllByProps({ accessibilityLabel: 'common.back' }).at(-1)!;
         act(() => back.props.onPress());
         expect(onRequestClose).toHaveBeenCalledWith('/work/a.ts');
+    });
+
+    it('closes either picker without closing its active tab', () => {
+        const onClosePicker = vi.fn();
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(workspaceElement({
+                machinePickerOpen: true,
+                machinePicker: React.createElement('MachinePicker'),
+                onClosePicker,
+            }));
+        });
+
+        const close = renderer.root.findAllByProps({ accessibilityLabel: 'common.back' }).at(-1)!;
+        act(() => close.props.onPress());
+        expect(onClosePicker).toHaveBeenCalledOnce();
+        expect(renderer.root.findAllByType('FileViewPanel' as any)).toHaveLength(2);
     });
 });
 

@@ -5,6 +5,8 @@ export type WorkspaceFeedbackReference = {
     machineId: string;
     machineLabel?: string | null;
     absolutePath: string;
+    line?: number;
+    column?: number;
 };
 
 export type WorkspaceFeedbackMessage = {
@@ -29,13 +31,15 @@ export function buildWorkspaceFeedbackMessage(
         `Machine: ${machineLabel}`,
         `Machine ID: ${reference.machineId}`,
         `Absolute path: ${reference.absolutePath}`,
+        ...(reference.line === undefined ? [] : [`Line: ${reference.line}`]),
+        ...(reference.column === undefined ? [] : [`Column: ${reference.column}`]),
         '',
         'Feedback:',
         feedback,
     ].join('\n');
     const displayText = [
         machineLabel,
-        reference.absolutePath,
+        `${reference.absolutePath}${reference.line === undefined ? '' : `:${reference.line}${reference.column === undefined ? '' : `:${reference.column}`}`}`,
         '',
         feedback,
     ].join('\n');

@@ -102,7 +102,7 @@ export default function MachineWorkspaceScreen() {
     if (param(params.mode) === 'link') {
         return <WorkspaceLinkRouteScreen params={params} />;
     }
-    return <MachineWorkspaceBrowserScreen />;
+    return <MachineWorkspaceBrowser />;
 }
 
 function WorkspaceLinkRouteScreen({ params }: {
@@ -169,7 +169,17 @@ function WorkspaceLinkRouteScreen({ params }: {
     );
 }
 
-function MachineWorkspaceBrowserScreen() {
+export function MachineWorkspaceBrowser({
+    embedded = false,
+    initialMachineId,
+    initialPath,
+    onFilePress,
+}: {
+    embedded?: boolean;
+    initialMachineId?: string;
+    initialPath?: string;
+    onFilePress?: (file: { machineId: string; path: string }) => void;
+}) {
     const router = useRouter();
     const params = useLocalSearchParams<{
         mode?: string | string[];
@@ -186,8 +196,8 @@ function MachineWorkspaceBrowserScreen() {
 
     const mode = param(params.mode);
     const sessionId = param(params.sessionId);
-    const requestedMachineId = param(params.machineId);
-    const requestedPath = param(params.path);
+    const requestedMachineId = initialMachineId ?? param(params.machineId);
+    const requestedPath = initialPath ?? param(params.path);
     const attachmentMode = mode === 'attach' && !!sessionId;
     const desktopSplit = (Platform.OS === 'web' || Platform.OS === 'macos') && width >= 900;
 
@@ -347,8 +357,14 @@ function MachineWorkspaceBrowserScreen() {
     }, [selectedMachine]);
 
     const selectFile = React.useCallback((path: string) => {
-        guardUnsavedChanges(() => setSelectedFile(path));
-    }, [guardUnsavedChanges]);
+        guardUnsavedChanges(() => {
+            if (selectedMachine && onFilePress) {
+                onFilePress({ machineId: selectedMachine.id, path });
+                return;
+            }
+            setSelectedFile(path);
+        });
+    }, [guardUnsavedChanges, onFilePress, selectedMachine]);
 
     const toggleStagedEntry = React.useCallback((path: string, kind: 'file' | 'directory') => {
         if (!selectedMachineId) return;
@@ -634,6 +650,18 @@ function MachineWorkspaceBrowserScreen() {
     );
 
     const gated = !workspaceEnabled && !attachmentMode;
+
+    if (embedded) {
+        return gated ? (
+            <View style={[styles.gate, { maxWidth: layout.maxWidth }]}>
+                <EmptyState
+                    icon="lock-closed-outline"
+                    title={t('workspace.featureDisabled')}
+                    description={t('workspace.featureDisabledDescription')}
+                />
+            </View>
+        ) : browser;
+    }
 
     return (
         <View style={[styles.screen, { backgroundColor: theme.colors.groupped.background }]}>

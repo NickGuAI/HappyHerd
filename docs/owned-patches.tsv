@@ -189,3 +189,4 @@ DESKTOP_FILE_WORKSPACE_STATE_RETENTION	accepted	test(app): cover workspace state
 DESKTOP_FILE_WORKSPACE_NAV_RETENTION	accepted	test(app): integrate navigation retention coverage	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 DESKTOP_FILE_WORKSPACE_LINKS	accepted	fix(app): unify session file workspaces (#181)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 DESKTOP_FILE_WORKSPACE_PATCH_MANIFEST	accepted	chore(integration): register workspace verification patches	docs/owned-patches.tsv
+WORKSPACE_UNIFICATION	accepted	feat(workspace): unify chat and machine files	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts

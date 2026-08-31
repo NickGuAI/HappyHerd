@@ -11,7 +11,7 @@ import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { MarkdownView } from '@/components/markdown/MarkdownView';
 import { PierreDiffView } from '@/components/diff/PierreDiffView';
-import { sessionDeleteFile, sessionReadFile, sessionWriteFile } from '@/sync/ops';
+import { machineDeleteFile, machineReadFile, machineWriteFile, sessionDeleteFile, sessionReadFile, sessionWriteFile } from '@/sync/ops';
 import { Modal } from '@/modal';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
@@ -735,6 +735,52 @@ export const FileViewPanel = React.memo(function FileViewPanel({
             deleteFile={canDelete && headerVariant === 'desktop-workspace' ? deleteFile : undefined}
             canWrite={canWrite}
             markdownSessionId={sessionId}
+            active={active}
+            headerVariant={headerVariant}
+            onHeaderRightSlotChange={onHeaderRightSlotChange}
+            onDirtyChange={onDirtyChange}
+            onDeleted={() => onDeleted?.(filePath)}
+        />
+    );
+});
+
+/** The same editor/viewer surface backed by a machine-wide file RPC. */
+export const MachineFileViewPanel = React.memo(function MachineFileViewPanel({
+    machineId,
+    filePath,
+    active = true,
+    headerVariant = 'standard',
+    onHeaderRightSlotChange,
+    onDirtyChange,
+    onDeleted,
+}: Omit<FileViewPanelProps, 'sessionId'> & { machineId: string }) {
+    const machine = useMachine(machineId);
+    const canWrite = Boolean(machine?.active);
+    const readFile = React.useCallback(
+        (path: string) => machineReadFile(machineId, path),
+        [machineId],
+    );
+    const deleteFile = React.useCallback(
+        (path: string) => machineDeleteFile(machineId, path),
+        [machineId],
+    );
+    const writeFile = React.useCallback(
+        (path: string, content: string, expectedHash?: string | null) => (
+            machineWriteFile(machineId, path, content, expectedHash)
+        ),
+        [machineId],
+    );
+
+    return (
+        <FileContentPanel
+            resourceKey={`machine:${machineId}`}
+            filePath={filePath}
+            readFile={readFile}
+            writeFile={writeFile}
+            deleteFile={machine?.metadata?.supportsFileDelete === true && headerVariant === 'desktop-workspace'
+                ? deleteFile
+                : undefined}
+            canWrite={canWrite}
             active={active}
             headerVariant={headerVariant}
             onHeaderRightSlotChange={onHeaderRightSlotChange}

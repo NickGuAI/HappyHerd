@@ -6,14 +6,28 @@ The root cause was two separate same-session file workspace implementations: All
 
 ## Implemented contract
 
-- **Sole same-session plain-file workspace:** `DesktopFileWorkspace` is the only same-session plain-file workspace. Chat file links and All Files converge on the same deduplicated state.
-- **Wide Web Desktop:** Tabs, the file picker, and the draggable divider remain available while the Main Agent composer mount and draft persist.
-- **390 × 844 Web Mobile:** The same state renders as the canonical compact full-screen workspace, without desktop tabs or a divider.
-- **Standalone route retention:** Directory, cross-session, failed-resolution, and line/column links continue to use the standalone `WorkspaceLinkViewer` route.
+- **One current-session workspace:** Chat Workspace, embedded Machine Workspace,
+  and current-session reply links share `DesktopFileWorkspace` state keyed by
+  machine ID and absolute path.
+- **Wide Web Desktop:** Tabs, both file pickers, and the draggable divider remain
+  available while the Main Agent composer mount and draft persist.
+- **390 × 844 Web Mobile:** The same state renders as the canonical compact
+  full-screen workspace, including zero-tab Machine Workspace open/back,
+  without desktop tabs or a divider.
+- **Reply-link routing:** Current-session files and read failures remain in the
+  canonical panel; directories open its embedded machine browser. Line and
+  column metadata is retained for feedback. `WorkspaceLinkViewer` is limited
+  to cross-session or unavailable-host fallback.
+- **Shared file surface:** Session and machine transports both use
+  `FileContentPanel` for Preview, Edit, and supported Delete actions.
 - **Removed duplicate:** `WorkspaceLinkSidePanel` and its separate in-session header and composer were deleted.
 
 ## Local evidence
 
-- Focused SessionView and navigation tests: 43 passed, including sequential distinct links, out-of-order probe rejection, and session-change invalidation.
-- Rendered Playwright interaction tests: 4 passed, including a default-off 1000 px Zen-mode link click, deduplication, divider drag, preserved Main Agent mount and draft, and direct compact mobile opening with the same mount and draft preserved.
-- Full verification and deployed-domain proof remain release gates.
+- Focused workspace tests passed, including current-session link routing,
+  machine/path deduplication, location replacement, and stale-probe rejection.
+- Rendered browser tests passed for desktop Machine Workspace open/back/select,
+  compact zero-tab open/back, tabs, preserved unsaved draft and scroll, and
+  divider drag.
+- App typecheck, UI/i18n checks, and the full 191-file, 1,764-test suite passed.
+- Production export and deployed-domain proof remain release gates.

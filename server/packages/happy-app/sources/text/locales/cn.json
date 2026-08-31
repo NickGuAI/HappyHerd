@@ -802,7 +802,7 @@
         }
       }
     },
-    "allFiles": "所有文件",
+    "allFiles": "聊天工作区",
     "addPanel": "添加面板",
     "closePanel": "关闭面板",
     "openFileTab": "打开文件标签页 {name}",

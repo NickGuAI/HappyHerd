@@ -1,11 +1,20 @@
 export type DesktopFileWorkspaceState = {
     paths: string[];
     activePath: string | null;
+    references: Record<string, DesktopFileReference>;
+};
+
+export type DesktopFileReference = {
+    machineId: string;
+    source: 'session' | 'machine';
+    line?: number;
+    column?: number;
 };
 
 export const EMPTY_DESKTOP_FILE_WORKSPACE: DesktopFileWorkspaceState = {
     paths: [],
     activePath: null,
+    references: {},
 };
 
 export const DESKTOP_FILE_WORKSPACE_MIN_WIDTH = 360;
@@ -16,13 +25,41 @@ export const DESKTOP_FILE_WORKSPACE_DIVIDER_WIDTH = 8;
 export function openDesktopFile(
     state: DesktopFileWorkspaceState,
     path: string,
+    reference: DesktopFileReference,
 ): DesktopFileWorkspaceState {
-    if (state.paths.includes(path)) {
-        return state.activePath === path ? state : { ...state, activePath: path };
+    const identity = desktopFileIdentity(path, reference.machineId);
+    const paths = state.paths.includes(identity) ? state.paths : [...state.paths, identity];
+    const current = state.references[identity];
+    // Identity is the machine and absolute path. Preserve the established
+    // transport for a tab reopened by another workspace entry point, while
+    // retaining the newest link position for feedback.
+    const next = current
+        ? reference.line === undefined
+            // Chat and Machine Workspace reopens retain an existing link
+            // location. A new located link replaces the whole location so a
+            // stale column cannot accompany its newer line.
+            ? current
+            : {
+                machineId: current.machineId,
+                source: current.source,
+                line: reference.line,
+                ...(reference.column === undefined ? {} : { column: reference.column }),
+            }
+        : reference;
+    const nextReference = current
+        && current.source === next.source
+        && current.machineId === next.machineId
+        && current.line === next.line
+        && current.column === next.column
+        ? state.references
+        : { ...state.references, [identity]: next };
+    if (state.activePath === identity && paths === state.paths && nextReference === state.references) {
+        return state;
     }
     return {
-        paths: [...state.paths, path],
-        activePath: path,
+        paths,
+        activePath: identity,
+        references: nextReference,
     };
 }
 
@@ -42,14 +79,29 @@ export function closeDesktopFile(
     if (closingIndex === -1) return state;
 
     const paths = state.paths.filter((candidate) => candidate !== path);
+    const { [path]: _closedReference, ...references } = state.references;
     if (state.activePath !== path) {
-        return { paths, activePath: state.activePath };
+        return { paths, activePath: state.activePath, references };
     }
 
     return {
         paths,
         activePath: paths[closingIndex - 1] ?? paths[closingIndex] ?? null,
+        references,
     };
+}
+
+export function desktopFileIdentity(path: string, machineId: string): string {
+    return JSON.stringify([machineId, path]);
+}
+
+export function desktopFilePath(identity: string): string {
+    try {
+        const parsed = JSON.parse(identity);
+        return Array.isArray(parsed) && typeof parsed[1] === 'string' ? parsed[1] : identity;
+    } catch {
+        return identity;
+    }
 }
 
 export function resolveDesktopFileWorkspaceWidth(

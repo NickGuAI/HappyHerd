@@ -272,14 +272,40 @@ vi.mock('@/components/FileViewPanel', async () => {
     const ReactModule = await import('react');
     return { FileViewPanel: (props: any) => ReactModule.createElement('FileViewPanel', props) };
 });
+vi.mock('@/app/(app)/workspace/index', async () => {
+    const ReactModule = await import('react');
+    return { MachineWorkspaceBrowser: (props: any) => ReactModule.createElement('MachineWorkspaceBrowser', props) };
+});
 vi.mock('@/components/DesktopFileWorkspace', async () => {
     const ReactModule = await import('react');
+    const displayPath = (identity: string | null) => {
+        if (!identity) return identity;
+        try {
+            const parsed = JSON.parse(identity);
+            return Array.isArray(parsed) && typeof parsed[1] === 'string' ? parsed[1] : identity;
+        } catch {
+            return identity;
+        }
+    };
     return {
-        DesktopFileWorkspace: (props: any) => ReactModule.createElement(
-            'DesktopFileWorkspace',
-            props,
-            props.picker,
-        ),
+        DesktopFileWorkspace: (props: any) => {
+            const identityFor = (path: string) => props.paths.find((candidate: string) => displayPath(candidate) === path) ?? path;
+            return ReactModule.createElement(
+                'DesktopFileWorkspace',
+                {
+                    ...props,
+                    paths: props.paths.map(displayPath),
+                    activePath: displayPath(props.activePath),
+                    dirtyPaths: new Set([...props.dirtyPaths].map(displayPath)),
+                    onSelect: (path: string) => props.onSelect(identityFor(path)),
+                    onRequestClose: (path: string) => props.onRequestClose(identityFor(path)),
+                    onFileDeleted: (path: string) => props.onFileDeleted(identityFor(path)),
+                    onDirtyChange: (path: string, dirty: boolean) => props.onDirtyChange(identityFor(path), dirty),
+                },
+                props.picker,
+                props.machinePicker,
+            );
+        },
         DesktopFileWorkspaceSplit: (props: any) => ReactModule.createElement(
             'DesktopFileWorkspaceSplit',
             props,
@@ -1056,6 +1082,13 @@ describe('SessionView side-chat integration', () => {
         expect(mocks.voiceCancel).toHaveBeenCalledOnce();
     });
 
+    it('does not expose the retired composer workspace shortcut', () => {
+        const renderer = renderParent();
+        const composer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => node.props.sessionId === 'parent');
+
+        expect(composer?.props.onFileViewerPress).toBeUndefined();
+    });
+
     it('opens and focuses same-session file links in the canonical deduplicated workspace', async () => {
         mocks.width = 1000;
         mocks.fileDiffsSidebarEnabled = false;
@@ -1074,6 +1107,8 @@ describe('SessionView side-chat integration', () => {
                 originSessionId: 'parent',
                 machineId: 'machine-1',
                 absolutePath: '/work/report.md',
+                line: '7',
+                column: '2',
             },
         };
 
@@ -1089,6 +1124,8 @@ describe('SessionView side-chat integration', () => {
         expect(split.props.workspaceFullscreen).toBe(false);
         expect(workspace.props.paths).toEqual(['/work/report.md']);
         expect(workspace.props.activePath).toBe('/work/report.md');
+        expect(workspace.props.references[JSON.stringify(['machine-1', '/work/report.md'])])
+            .toMatchObject({ machineId: 'machine-1', line: 7, column: 2 });
         expect(renderer.root.findAll((node: any) => node.props.testID === 'workspace-link-side-panel')).toHaveLength(0);
         expect(renderedComposerSessions(renderer)).toEqual(['parent']);
 
@@ -1211,7 +1248,7 @@ describe('SessionView side-chat integration', () => {
         expect(mocks.routerPush).not.toHaveBeenCalled();
     });
 
-    it('keeps directory and cross-session links on the existing full Viewer route', async () => {
+    it('keeps same-session directories in Machine Workspace while cross-session links retain the Viewer route', async () => {
         const renderer = renderParent();
         const emptyMessages = renderer.root.findAllByType('EmptyMessages' as any).find((node: any) => (
             typeof node.props.onWorkspaceLinkPress === 'function'
@@ -1234,7 +1271,16 @@ describe('SessionView side-chat integration', () => {
             emptyMessages?.props.onWorkspaceLinkPress(directoryRoute);
             await Promise.resolve();
         });
-        expect(mocks.routerPush).toHaveBeenCalledWith(directoryRoute);
+        expect(mocks.routerPush).not.toHaveBeenCalled();
+        const directoryWorkspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(directoryWorkspace.props.paths).toEqual([]);
+        expect(directoryWorkspace.props.machinePickerOpen).toBe(true);
+        expect(renderer.root.findByType('MachineWorkspaceBrowser' as any).props).toMatchObject({
+            initialMachineId: 'machine-1',
+            initialPath: '/work/reports',
+        });
+
+        act(() => directoryWorkspace.props.onClosePicker());
         expect(renderer.root.findAllByType('DesktopFileWorkspace' as any)).toHaveLength(0);
 
         const crossSessionRoute = {
@@ -1249,8 +1295,8 @@ describe('SessionView side-chat integration', () => {
             params: { ...directoryRoute.params, absolutePath: '/work/report.md', line: '12' },
         };
         act(() => emptyMessages?.props.onWorkspaceLinkPress(locatedFileRoute));
-        expect(mocks.routerPush).toHaveBeenLastCalledWith(locatedFileRoute);
-        expect(mocks.machineGetDirectoryTree).toHaveBeenCalledOnce();
+        expect(mocks.routerPush).toHaveBeenCalledWith(crossSessionRoute);
+        expect(mocks.machineGetDirectoryTree).toHaveBeenCalledTimes(2);
     });
 
     it('opens a first same-session file link directly in the compact mobile workspace', async () => {
@@ -1283,6 +1329,41 @@ describe('SessionView side-chat integration', () => {
         expect(workspace.props.activePath).toBe('/work/mobile.md');
         expect(mocks.routerPush).not.toHaveBeenCalled();
         expect(renderer.root.findAll((node: any) => node.props.testID === 'workspace-link-side-panel')).toHaveLength(0);
+        expect(renderedComposerSessions(renderer)).toEqual(['parent']);
+    });
+
+    it('shows and closes a zero-tab Machine Workspace picker full-screen on compact Web', async () => {
+        mocks.width = 390;
+        const renderer = renderParent();
+        const emptyMessages = renderer.root.findAllByType('EmptyMessages' as any).find((node: any) => (
+            typeof node.props.onWorkspaceLinkPress === 'function'
+        ));
+        mocks.machineGetDirectoryTree.mockResolvedValueOnce({
+            success: true,
+            tree: { type: 'directory', name: 'reports', path: '/work/reports', children: [] },
+        });
+
+        await act(async () => {
+            emptyMessages?.props.onWorkspaceLinkPress({
+                pathname: '/workspace',
+                params: {
+                    mode: 'link',
+                    originSessionId: 'parent',
+                    machineId: 'machine-1',
+                    absolutePath: '/work/reports',
+                },
+            });
+            await Promise.resolve();
+        });
+
+        const split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        const workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(split.props.workspaceVisible).toBe(false);
+        expect(split.props.workspaceFullscreen).toBe(true);
+        expect(workspace.props).toMatchObject({ paths: [], compact: true, machinePickerOpen: true });
+
+        act(() => workspace.props.onClosePicker());
+        expect(renderer.root.findAllByType('DesktopFileWorkspace' as any)).toHaveLength(0);
         expect(renderedComposerSessions(renderer)).toEqual(['parent']);
     });
 
@@ -1376,6 +1457,20 @@ describe('SessionView side-chat integration', () => {
         expect(split.props.workspaceVisible).toBe(true);
         expect(workspace.props.paths).toEqual(['/work/a.ts']);
         expect(workspace.props.onOpenChanges).toBeUndefined();
+    });
+
+    it('opens a Machine Workspace selection in the canonical tab host', () => {
+        const renderer = renderParent();
+        act(() => desktopSideChatHosts(renderer)[0]?.props.onOpenMachineWorkspace());
+
+        const machineWorkspace = renderer.root.findByType('MachineWorkspaceBrowser' as any);
+        act(() => machineWorkspace.props.onFilePress({ machineId: 'machine-2', path: '/work/remote.md' }));
+
+        const workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props.paths).toEqual(['/work/remote.md']);
+        expect(workspace.props.references[JSON.stringify(['machine-2', '/work/remote.md'])])
+            .toMatchObject({ machineId: 'machine-2', source: 'machine' });
+        expect(mocks.routerPush).not.toHaveBeenCalled();
     });
 
     it('returns from stacked Changes and All Files panels to the selected desktop tab', () => {

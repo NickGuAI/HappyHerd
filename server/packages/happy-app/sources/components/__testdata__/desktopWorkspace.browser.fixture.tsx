@@ -74,15 +74,18 @@ function IntegratedDesktopDemo() {
 }
 
 function FileWorkspaceContent({ compact }: { compact: boolean }) {
+    const reference = { machineId: 'machine-1', source: 'session' as const };
     const [workspace, setWorkspace] = React.useState(() => (
-        openDesktopFile(EMPTY_DESKTOP_FILE_WORKSPACE, '/workspace/demo.md')
+        openDesktopFile(EMPTY_DESKTOP_FILE_WORKSPACE, '/workspace/demo.md', reference)
     ));
     const [pickerOpen, setPickerOpen] = React.useState(false);
+    const [machinePickerOpen, setMachinePickerOpen] = React.useState(false);
     const [dirtyPaths, setDirtyPaths] = React.useState<Set<string>>(() => new Set());
 
     const openFile = React.useCallback((path: string) => {
-        setWorkspace((current) => openDesktopFile(current, path));
+        setWorkspace((current) => openDesktopFile(current, path, reference));
         setPickerOpen(false);
+        setMachinePickerOpen(false);
     }, []);
     const closeFile = React.useCallback((path: string) => {
         setWorkspace((current) => closeDesktopFile(current, path));
@@ -95,6 +98,13 @@ function FileWorkspaceContent({ compact }: { compact: boolean }) {
     const selectFile = React.useCallback((path: string) => {
         setWorkspace((current) => selectDesktopFile(current, path));
         setPickerOpen(false);
+        setMachinePickerOpen(false);
+    }, []);
+    const openMachineFile = React.useCallback((path: string) => {
+        setWorkspace((current) => openDesktopFile(current, path, {
+            machineId: 'machine-2', source: 'machine',
+        }));
+        setMachinePickerOpen(false);
     }, []);
     const handleFileDeleted = React.useCallback(() => {
         window.__WORKSPACE_FILE_DELETED_COUNT__ = (window.__WORKSPACE_FILE_DELETED_COUNT__ ?? 0) + 1;
@@ -114,8 +124,10 @@ function FileWorkspaceContent({ compact }: { compact: boolean }) {
             sessionId="ordinary-session"
             paths={workspace.paths}
             activePath={workspace.activePath}
+            references={workspace.references}
             dirtyPaths={dirtyPaths}
             pickerOpen={pickerOpen}
+            machinePickerOpen={machinePickerOpen}
             compact={compact}
             picker={(
                 <div data-testid="file-picker">
@@ -123,12 +135,57 @@ function FileWorkspaceContent({ compact }: { compact: boolean }) {
                     <button onClick={() => openFile('/workspace/second.md')}>Open second.md</button>
                 </div>
             )}
+            machinePicker={(
+                <div data-testid="machine-picker">
+                    <button onClick={() => openMachineFile('/workspace/remote.md')}>Open remote.md</button>
+                </div>
+            )}
             onSelect={selectFile}
             onRequestClose={closeFile}
             onFileDeleted={handleFileDeleted}
-            onOpenPicker={() => setPickerOpen(true)}
+            onOpenPicker={() => {
+                setMachinePickerOpen(false);
+                setPickerOpen(true);
+            }}
+            onOpenMachinePicker={() => {
+                setPickerOpen(false);
+                setMachinePickerOpen(true);
+            }}
+            onClosePicker={() => {
+                setPickerOpen(false);
+                setMachinePickerOpen(false);
+            }}
             onDirtyChange={handleDirtyChange}
         />
+    );
+}
+
+function ZeroTabMachineWorkspaceDemo() {
+    const [machinePickerOpen, setMachinePickerOpen] = React.useState(false);
+    return (
+        <div data-testid="zero-tab-machine-workspace" style={{ width: 390, height: 320 }}>
+            <button onClick={() => setMachinePickerOpen(true)}>Open Machine Workspace</button>
+            {machinePickerOpen ? (
+                <DesktopFileWorkspace
+                    sessionId="ordinary-session"
+                    paths={[]}
+                    activePath={null}
+                    dirtyPaths={new Set()}
+                    pickerOpen={false}
+                    machinePickerOpen
+                    compact
+                    picker={null}
+                    machinePicker={<div data-testid="zero-tab-machine-picker">Machine files</div>}
+                    onSelect={() => undefined}
+                    onRequestClose={() => undefined}
+                    onFileDeleted={() => undefined}
+                    onOpenPicker={() => undefined}
+                    onOpenMachinePicker={() => undefined}
+                    onClosePicker={() => setMachinePickerOpen(false)}
+                    onDirtyChange={() => undefined}
+                />
+            ) : null}
+        </div>
     );
 }
 
@@ -172,5 +229,6 @@ createRoot(document.getElementById('root')!).render(
         <IntegratedDesktopDemo />
         <FileWorkspaceDemo compact={false} testId="wide-file-workspace" />
         <FileWorkspaceDemo compact testId="narrow-file-workspace" />
+        <ZeroTabMachineWorkspaceDemo />
     </div>,
 );

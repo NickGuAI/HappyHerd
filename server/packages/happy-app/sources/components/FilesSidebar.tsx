@@ -69,6 +69,7 @@ interface FilesSidebarProps {
     onClosePanel: (panel: SidebarMode) => void;
     onAllFilesFilePress?: (filePath: string) => void;
     onAllFilesFileAttach?: (filePath: string) => void;
+    onOpenMachineWorkspace?: () => void;
     canOpenFilePanels: boolean;
     sideChats: Session[];
     activeSideChatId: string | null;
@@ -208,6 +209,7 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
     onClosePanel,
     onAllFilesFilePress,
     onAllFilesFileAttach,
+    onOpenMachineWorkspace,
     canOpenFilePanels,
     sideChats,
     activeSideChatId,
@@ -346,6 +348,15 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
                             </Text>
                         </Pressable>
                     ))}
+                    {onOpenMachineWorkspace && (
+                        <Pressable
+                            onPress={onOpenMachineWorkspace}
+                            style={({ pressed, hovered }: any) => [styles.pickerCard, (pressed || hovered) && styles.pickerCardPressed]}
+                        >
+                            <Octicons name="device-desktop" size={15} color={theme.colors.textSecondary} />
+                            <Text style={styles.pickerCardText} numberOfLines={1}>{t('workspace.title')}</Text>
+                        </Pressable>
+                    )}
                     <Pressable
                         onPress={() => void onCreateSideChat()}
                         disabled={creatingSideChat || !canCreateSideChat}
@@ -386,6 +397,18 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
                     </Text>
                 </Pressable>
             ))}
+            {onOpenMachineWorkspace && (
+                <Pressable
+                    onPress={() => {
+                        setAddMenuOpen(false);
+                        onOpenMachineWorkspace();
+                    }}
+                    style={({ pressed, hovered }: any) => [styles.menuAddRow, (pressed || hovered) && { backgroundColor: theme.colors.surfaceSelected }]}
+                >
+                    <Octicons name="device-desktop" size={13} color={theme.colors.textSecondary} />
+                    <Text style={styles.menuRowText} numberOfLines={1}>{t('workspace.title')}</Text>
+                </Pressable>
+            )}
             <Pressable
                 disabled={creatingSideChat || !canCreateSideChat}
                 onPress={() => {
