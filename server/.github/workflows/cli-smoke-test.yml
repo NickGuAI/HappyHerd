@@ -45,6 +45,7 @@ jobs:
     - name: Build packages
       run: |
         pnpm --filter @slopus/happy-wire --fail-if-no-match build
+        pnpm --filter happy-agent --fail-if-no-match build
         pnpm --filter @happyherd/cli --fail-if-no-match build
 
     # happy-server-self-host ships only a bundled runtime (no sources), and the
@@ -157,6 +158,7 @@ jobs:
     - name: Build packages
       run: |
         pnpm --filter @slopus/happy-wire --fail-if-no-match build
+        pnpm --filter happy-agent --fail-if-no-match build
         pnpm --filter @happyherd/cli --fail-if-no-match build
 
     - name: Pack packages

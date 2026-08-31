@@ -64,6 +64,8 @@ grep -Fq "ln -sfn \"\$TARGET/bin/happy.mjs\" \"\$HAPPYHERD_LINK\"" "$ROOT/script
     fail 'host happyherd command does not point directly to the CLI entry'
 grep -Fq -- '--filter @happyherd/cli --fail-if-no-match build' "$ROOT/scripts/install-host-cli.sh" || \
     fail 'host installer does not build the public CLI package'
+grep -Fq -- '--filter happy-agent --fail-if-no-match build' "$ROOT/scripts/install-host-cli.sh" || \
+    fail 'host installer does not build the CLI workspace dependency'
 # shellcheck disable=SC2016
 grep -Fq 'remove_exact_legacy_happy_link "$LEGACY_HAPPY_LINK" "$TARGET"' "$ROOT/scripts/install-host-cli.sh" || \
     fail 'host installer does not apply exact legacy-link cleanup'

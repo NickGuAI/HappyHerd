@@ -11,6 +11,8 @@ const manifest = JSON.parse(readFileSync(join(cliRoot, 'package.json'), 'utf8'))
 const workspaceManifest = JSON.parse(readFileSync(join(root, 'server/package.json'), 'utf8'));
 const workspaceYaml = readFileSync(join(root, 'server/pnpm-workspace.yaml'), 'utf8');
 const cliSmokeWorkflow = readFileSync(join(root, 'server/.github/workflows/cli-smoke-test.yml'), 'utf8');
+const qualityWorkflow = readFileSync(join(root, '.github/workflows/quality-gates.yml'), 'utf8');
+const hostInstaller = readFileSync(join(root, 'scripts/install-host-cli.sh'), 'utf8');
 
 assert.equal(manifest.name, '@happyherd/cli', 'the maintained CLI must own @happyherd/cli');
 assert.equal(manifest.publishConfig?.access, 'public', '@happyherd/cli must publish publicly');
@@ -35,6 +37,23 @@ assert(cliSmokeWorkflow.includes('happyherd-cli-prefix/bin/happy'), 'Linux pack 
 assert(cliSmokeWorkflow.includes('%NPM_PREFIX%\\happy.cmd'), 'Windows pack smoke must inspect its isolated prefix');
 assert(!cliSmokeWorkflow.includes('command -v happy >/dev/null'), 'Linux smoke must preserve unrelated happy commands');
 assert(!cliSmokeWorkflow.includes('where happy >nul'), 'Windows smoke must preserve unrelated happy commands');
+assert.equal(
+  cliSmokeWorkflow.match(/pnpm --filter happy-agent --fail-if-no-match build/g)?.length,
+  2,
+  'Linux and Windows pack smoke must build the CLI workspace dependency',
+);
+assert(
+  qualityWorkflow.includes(
+    'pnpm --filter @slopus/happy-wire --fail-if-no-match build\n' +
+      '          pnpm --filter happy-agent --fail-if-no-match build\n' +
+      '          pnpm --filter @happyherd/cli --fail-if-no-match typecheck',
+  ),
+  'clean quality typecheck must build CLI workspace dependencies in dependency order',
+);
+assert(
+  hostInstaller.includes('--filter happy-agent --fail-if-no-match build'),
+  'host CLI installation must build the CLI workspace dependency',
+);
 
 const scanRoots = [
   '.dev',

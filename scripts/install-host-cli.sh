@@ -44,6 +44,7 @@ run_build() {
 # Build as the checkout owner so a root installation never leaves root-owned
 # artifacts in the source tree. Only the final stable installation is root-owned.
 (cd "$ROOT/server" && run_build "${PNPM[@]}" --filter @slopus/happy-wire --fail-if-no-match build)
+(cd "$ROOT/server" && run_build "${PNPM[@]}" --filter happy-agent --fail-if-no-match build)
 (cd "$ROOT/server" && run_build "${PNPM[@]}" --filter @happyherd/cli --fail-if-no-match build)
 stage="$(mktemp -d /tmp/happyherd-cli.stage.XXXXXX)"
 chown "$BUILD_USER:$BUILD_GROUP" "$stage"

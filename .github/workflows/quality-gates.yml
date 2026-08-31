@@ -125,7 +125,8 @@ jobs:
         working-directory: server
         run: |
           pnpm --filter happy-app --fail-if-no-match typecheck
-          pnpm --filter @slopus/happy-wire --fail-if-no-match typecheck
+          pnpm --filter @slopus/happy-wire --fail-if-no-match build
+          pnpm --filter happy-agent --fail-if-no-match build
           pnpm --filter @happyherd/cli --fail-if-no-match typecheck
           pnpm --filter ./packages/happy-server --fail-if-no-match typecheck
       - name: Enforce interface inventory and localization

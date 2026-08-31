@@ -201,3 +201,4 @@ PROVIDER_CONTINUATION_MOCK_V2	accepted	docs(mock): simplify cross-provider conti
 PROVIDER_CONTINUATION	accepted	feat(sessions): continue across Claude and Codex	server/packages/happy-app/sources/utils/providerContinuation.test.ts
 AUTOMATION_EXEC	accepted	feat(automations): add direct exec rail	server/packages/happy-cli/src/automations/service.test.ts
 CLI_PUBLIC_COMMAND	accepted	chore: migrate CLI to public @happyherd/cli package and happyherd command	scripts/verify-cli-public-command.mjs
+CLI_PUBLIC_COMMAND	accepted	fix: build happy-agent before CLI typecheck, pack smoke, and install	scripts/verify-cli-public-command.mjs
