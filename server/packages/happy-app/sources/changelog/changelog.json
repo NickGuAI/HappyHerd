@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 31 — Resizable linked file workspace",
+      "summary": "",
+      "markdown": "- On wide Web Desktop and Mac, files opened through links now share the same visibly draggable right-workspace divider as tabbed files while the Main Agent chat and composer remain visible; on narrow screens, the file view remains full-screen with no divider.\n- File viewing modes are now labeled Preview and Edit on desktop and mobile, with Delete remaining a separate action."
+    },
+    {
       "title": "August 30 — Enhanced file workspaces",
       "summary": "",
       "markdown": "- Desktop file workspaces now feature a boundary sidebar toggle, a pointer-draggable divider, and focused Source, Edit, and Delete controls."
@@ -396,5 +401,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 30 — Enhanced file workspaces"
+  "latestTitle": "August 31 — Resizable linked file workspace"
 }

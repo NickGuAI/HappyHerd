@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "b5eb291e484abb280f346c0676e034185fd99e580b53c4773172c0c610ee761a",
+  "sourceFingerprint": "b5a85b0ecb4c4a486f1ac359803d7e093ab20f0f59473df348576ae84af0790c",
   "routeCount": 36,
   "surfaceCount": 250,
   "hardcodedCopyCount": 0,
@@ -3177,7 +3177,6 @@
         "uiCopy.previewOfValue",
         "uiCopy.saved",
         "uiCopy.saving",
-        "uiCopy.source",
         "uiCopy.unsaved"
       ],
       "states": [

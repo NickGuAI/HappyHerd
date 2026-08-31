@@ -275,26 +275,31 @@ describe('Desktop workspace browser interaction', () => {
         expect(Math.abs(collapseBox.x + collapseBox.width / 2 - drawerBox.x - drawerBox.width)).toBeLessThan(2);
         expect(Math.abs(collapseBox.y - sidebarBox.y - 15)).toBeLessThan(2);
 
-        await collapse.click();
-        const expand = page.getByTestId('navigation-sidebar-toggle');
-        await expand.waitFor();
-        await expect(expand.getAttribute('aria-label')).resolves.toBe('Expand navigation');
-        const expandBox = await expand.boundingBox();
-        const zenBox = await page.getByLabel('Toggle Zen mode').boundingBox();
-        if (!expandBox || !zenBox) throw new Error('collapsed controls have no layout');
-        expect(expandBox.x + expandBox.width).toBeLessThanOrEqual(zenBox.x);
-        await expand.click();
-        await expect(collapse.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
-
         const splitDemo = page.getByTestId('split-demo');
         const host = splitDemo.getByTestId('desktop-file-workspace-host');
         const divider = splitDemo.getByTestId('desktop-file-workspace-divider');
         const input = splitDemo.getByTestId('mounted-workspace-input');
+        const editorPanel = splitDemo.getByTestId('desktop-file-panel:/workspace/demo.md');
+        await splitDemo.getByRole('button', { name: 'Edit' }).click();
+        const editor = editorPanel.getByTestId('code-editor');
+        const unsavedValue = '# Unsaved editor state\n'.repeat(40);
+        await editor.fill(unsavedValue);
+        await editor.evaluate((element) => { element.scrollTop = 120; });
+        const initialEditorScrollTop = await editor.evaluate((element) => element.scrollTop);
+        const editorMountId = `editor-${Date.now()}`;
+        await editor.evaluate((element, mountId) => {
+            element.setAttribute('data-retention-mount-id', mountId);
+        }, editorMountId);
+        expect(initialEditorScrollTop).toBeGreaterThan(0);
+
         await input.fill('human draft survives');
+        const initialSplitBox = await splitDemo.boundingBox();
         const initialHostBox = await host.boundingBox();
         const initialDividerBox = await divider.boundingBox();
         const initialMountId = await splitDemo.getByTestId('mounted-workspace-probe').getAttribute('data-mount-id');
-        if (!initialHostBox || !initialDividerBox || !initialMountId) throw new Error('split fixture has no layout');
+        if (!initialSplitBox || !initialHostBox || !initialDividerBox || !initialMountId) {
+            throw new Error('split fixture has no layout');
+        }
 
         await page.mouse.move(
             initialDividerBox.x + initialDividerBox.width / 2,
@@ -309,10 +314,37 @@ describe('Desktop workspace browser interaction', () => {
         expect(resizedHostBox.width).toBeGreaterThan(initialHostBox.width + 100);
         await expect(splitDemo.getByTestId('mounted-workspace-probe').getAttribute('data-mount-id')).resolves.toBe(initialMountId);
         await expect(input.inputValue()).resolves.toBe('human draft survives');
+        await expect(editor.getAttribute('data-retention-mount-id')).resolves.toBe(editorMountId);
+        await expect(editor.inputValue()).resolves.toBe(unsavedValue);
+        await expect(editor.evaluate((element) => element.scrollTop)).resolves.toBe(initialEditorScrollTop);
+
+        await collapse.click();
+        const expand = page.getByTestId('navigation-sidebar-toggle');
+        await expand.waitFor();
+        await expect(expand.getAttribute('aria-label')).resolves.toBe('Expand navigation');
+        const expandBox = await expand.boundingBox();
+        const zenBox = await page.getByLabel('Toggle Zen mode').boundingBox();
+        if (!expandBox || !zenBox) throw new Error('collapsed controls have no layout');
+        expect(expandBox.x + expandBox.width).toBeLessThanOrEqual(zenBox.x);
+        const collapsedSplitBox = await splitDemo.boundingBox();
+        if (!collapsedSplitBox) throw new Error('collapsed split has no layout');
+        expect(collapsedSplitBox.width).toBeGreaterThan(initialSplitBox.width + 300);
+        await expect(editor.getAttribute('data-retention-mount-id')).resolves.toBe(editorMountId);
+        await expect(editor.inputValue()).resolves.toBe(unsavedValue);
+        await expect(editor.evaluate((element) => element.scrollTop)).resolves.toBe(initialEditorScrollTop);
+
+        await expand.click();
+        await expect(collapse.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
+        const reopenedSplitBox = await splitDemo.boundingBox();
+        if (!reopenedSplitBox) throw new Error('reopened split has no layout');
+        expect(Math.abs(reopenedSplitBox.width - initialSplitBox.width)).toBeLessThan(2);
+        await expect(editor.getAttribute('data-retention-mount-id')).resolves.toBe(editorMountId);
+        await expect(editor.inputValue()).resolves.toBe(unsavedValue);
+        await expect(editor.evaluate((element) => element.scrollTop)).resolves.toBe(initialEditorScrollTop);
         await expect(splitDemo.getByTestId('main-agent-chat').isVisible()).resolves.toBe(true);
         expect(pageErrors).toEqual([]);
         await page.close();
-    }, 10_000);
+    }, 15_000);
 
     it('keeps wide controls focused and narrow controls complete in the real file workspace', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1200 } });
@@ -322,19 +354,16 @@ describe('Desktop workspace browser interaction', () => {
         if (pageErrors.length > 0) throw new Error(`Browser fixture failed to render: ${pageErrors.join('\n')}`);
 
         const wide = page.getByTestId('wide-file-workspace');
-        await wide.getByRole('button', { name: 'Source' }).waitFor();
-        await expect(wide.getByRole('button', { name: 'Preview' }).count()).resolves.toBe(0);
+        await wide.getByRole('button', { name: 'Preview' }).waitFor();
+        await expect(wide.getByRole('button', { name: 'Source' }).count()).resolves.toBe(0);
         await expect(wide.getByRole('button', { name: 'Edit' }).count()).resolves.toBe(1);
         await expect(wide.getByRole('button', { name: 'Delete' }).count()).resolves.toBe(1);
         await expect(wide.getByTestId('markdown-preview').isVisible()).resolves.toBe(true);
 
-        await wide.getByRole('button', { name: 'Source' }).click();
-        await wide.getByTestId('code-editor').waitFor();
-        await expect(wide.getByTestId('code-editor').getAttribute('data-read-only')).resolves.toBe('true');
-        await wide.getByRole('button', { name: 'Source' }).click();
-        await expect(wide.getByTestId('markdown-preview').isVisible()).resolves.toBe(true);
         await wide.getByRole('button', { name: 'Edit' }).click();
         await expect(wide.getByTestId('code-editor').getAttribute('data-read-only')).resolves.toBe('false');
+        await wide.getByRole('button', { name: 'Preview' }).click();
+        await expect(wide.getByTestId('markdown-preview').isVisible()).resolves.toBe(true);
         await wide.getByRole('button', { name: 'Delete' }).click();
         await expect(page.evaluate(() => (window as any).__DELETE_RPC_COUNT__ ?? 0)).resolves.toBe(1);
         await expect(page.evaluate(() => (window as any).__WORKSPACE_FILE_DELETED_COUNT__ ?? 0)).resolves.toBe(1);
@@ -343,12 +372,12 @@ describe('Desktop workspace browser interaction', () => {
         await narrow.getByTestId('desktop-file-workspace-fullscreen-header').waitFor();
         await expect(narrow.getByTestId('desktop-file-workspace-divider').count()).resolves.toBe(0);
         await expect(narrow.getByRole('tab').count()).resolves.toBe(0);
-        await narrow.getByRole('button', { name: 'Source' }).waitFor();
-        await expect(narrow.getByRole('button', { name: 'Preview' }).count()).resolves.toBe(1);
+        await narrow.getByRole('button', { name: 'Preview' }).waitFor();
+        await expect(narrow.getByRole('button', { name: 'Source' }).count()).resolves.toBe(0);
         await expect(narrow.getByRole('button', { name: 'Edit' }).count()).resolves.toBe(1);
         await expect(narrow.getByRole('button', { name: 'Delete' }).count()).resolves.toBe(0);
-        await narrow.getByRole('button', { name: 'Source' }).click();
-        await narrow.getByTestId('code-editor').waitFor();
+        await narrow.getByRole('button', { name: 'Edit' }).click();
+        await expect(narrow.getByTestId('code-editor').getAttribute('data-read-only')).resolves.toBe('false');
         await narrow.getByRole('button', { name: 'Preview' }).click();
         await expect(narrow.getByTestId('markdown-preview').isVisible()).resolves.toBe(true);
 
@@ -358,6 +387,40 @@ describe('Desktop workspace browser interaction', () => {
             await page.getByTestId('split-demo').screenshot({ path: resolve(evidenceDirectory, 'issue-181-wide.png') });
             await narrow.screenshot({ path: resolve(evidenceDirectory, 'issue-181-mobile.png') });
         }
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 10_000);
+
+    it('opens, deduplicates, switches, and closes real tabs without losing an unsaved draft', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1200 } });
+        const pageErrors = recordPageErrors(page);
+        await page.goto(origin);
+
+        const wide = page.getByTestId('wide-file-workspace');
+        await wide.getByLabel('Open existing file').click();
+        await wide.getByRole('button', { name: 'Open second.md' }).click();
+        await expect(wide.getByRole('tab').count()).resolves.toBe(2);
+
+        await wide.getByRole('tab', { name: 'Open demo.md' }).click();
+        await wide.getByRole('button', { name: 'Edit' }).click();
+        const demoEditor = wide
+            .getByTestId('desktop-file-panel:/workspace/demo.md')
+            .getByTestId('code-editor');
+        await demoEditor.fill('# Unsaved draft\n'.repeat(40));
+        await demoEditor.evaluate((element) => { element.scrollTop = 120; });
+
+        await wide.getByLabel('Open existing file').click();
+        await wide.getByRole('button', { name: 'Open second.md' }).click();
+        await expect(wide.getByRole('tab').count()).resolves.toBe(2);
+        await wide.getByRole('tab', { name: 'Open demo.md' }).click();
+        await expect(demoEditor.inputValue()).resolves.toBe('# Unsaved draft\n'.repeat(40));
+        await expect(demoEditor.evaluate((element) => element.scrollTop)).resolves.toBe(120);
+
+        await wide.getByLabel('Close second.md').click();
+        await expect(wide.getByRole('tab').count()).resolves.toBe(1);
+        await expect(wide.getByRole('tab', { name: 'Open demo.md' }).count()).resolves.toBe(1);
+        await expect(page.evaluate(() => (window as any).__DELETE_RPC_COUNT__ ?? 0)).resolves.toBe(0);
+        await expect(page.evaluate(() => (window as any).__WORKSPACE_FILE_DELETED_COUNT__ ?? 0)).resolves.toBe(0);
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 10_000);

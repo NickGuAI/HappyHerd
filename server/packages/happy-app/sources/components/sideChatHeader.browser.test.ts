@@ -15,13 +15,14 @@ const virtualModules: Record<string, string> = {
             dark: false,
             colors: {
                 text: '#111', textSecondary: '#666', divider: '#ddd', surface: '#f5f5f5',
-                surfaceSelected: '#e5e5e5', groupped: { background: '#fff' },
+                textLink: '#06c', surfaceHigh: '#eee', surfaceSelected: '#e5e5e5', groupped: { background: '#fff' },
                 header: { background: '#fff', tint: '#111' }, glass: { backgroundStrong: '#fff' }, shadow: { color: '#000', opacity: 0.1 },
                 button: { primary: { tint: '#fff', background: '#111' } },
             },
         };
         export const StyleSheet = {
             hairlineWidth: 1,
+            absoluteFillObject: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
             create: (factory) => typeof factory === 'function' ? factory(theme) : factory,
         };
         export const useUnistyles = () => ({ theme });
@@ -113,6 +114,7 @@ const virtualModules: Record<string, string> = {
             'files.changes': 'Changes',
             'files.allFiles': 'All Files',
             'files.addPanel': 'Add panel',
+            'files.resizeWorkspace': 'Resize file workspace',
         }[key] ?? key);
     `,
     '@/keyboard/shortcuts': `
@@ -148,13 +150,54 @@ const virtualModules: Record<string, string> = {
     '@/modal': `export const Modal = { alert() {}, confirm: async () => true, prompt() {}, show() {} };`,
     '@/components/AgentContentView': `
         import React from 'react';
-        export const AgentContentView = (props) => React.createElement(React.Fragment, null, props.content, props.placeholder, props.input);
+        import { WorkspaceLinkPressContext } from '@/-session/workspaceLinkNavigation';
+        export const AgentContentView = (props) => {
+            const openWorkspaceLink = React.useContext(WorkspaceLinkPressContext);
+            return React.createElement(
+                React.Fragment,
+                null,
+                props.content,
+                props.placeholder,
+                props.input,
+                React.createElement('button', {
+                    type: 'button',
+                    'aria-label': 'Open same-session workspace link',
+                    onClick: () => openWorkspaceLink?.({
+                        pathname: '/workspace',
+                        params: {
+                            mode: 'link',
+                            originSessionId: 'parent',
+                            machineId: 'machine-1',
+                            absolutePath: '/work/project/notes.md',
+                        },
+                    }),
+                }, 'Open workspace link'),
+            );
+        };
     `,
     '@/components/AgentInput': `
         import React from 'react';
+        let mountCounter = 0;
         export const AgentInput = React.forwardRef((props, ref) => {
-            React.useImperativeHandle(ref, () => ({ focus() {}, getText: () => '', setTextAndSelection() {} }));
-            return React.createElement('div', { 'data-testid': 'session-composer', 'data-session-id': props.sessionId }, props.sessionId);
+            const mountId = React.useRef('composer-' + (++mountCounter)).current;
+            const [draft, setDraft] = React.useState('');
+            React.useImperativeHandle(ref, () => ({
+                focus() {},
+                getText: () => draft,
+                setTextAndSelection(text) { setDraft(text); },
+            }), [draft]);
+            return React.createElement('div', {
+                'data-testid': 'session-composer',
+                'data-session-id': props.sessionId,
+                'data-mount-id': mountId,
+            }, props.sessionId, React.createElement('input', {
+                'data-testid': 'session-composer-draft',
+                value: draft,
+                onChange: (event) => {
+                    setDraft(event.currentTarget.value);
+                    props.onChangeText?.(event.currentTarget.value);
+                },
+            }));
         });
     `,
     '@/components/AgentGoalBar': `export const AgentGoalBar = () => null;`,
@@ -169,12 +212,23 @@ const virtualModules: Record<string, string> = {
     '@/components/VoiceAssistantStatusBar': `export const VoiceAssistantStatusBar = () => null; export const VOICE_PILL_TOTAL_HEIGHT = 0;`,
     '@/components/AllFilesDiffView': `export const AllFilesDiffView = () => null;`,
     '@/components/FileViewPanel': `export const FileViewPanel = () => null;`,
-    '@/components/DesktopFileWorkspace': `
+    '@/components/WorkspaceLinkViewer': `
         import React from 'react';
-        export const DesktopFileWorkspace = ({ picker }) => picker;
-        export const DesktopFileWorkspaceSplit = ({ children, fallback, workspace, workspaceVisible, workspaceFullscreen }) => React.createElement(React.Fragment, null, children, workspaceVisible || workspaceFullscreen ? workspace : fallback);
+        let mountCounter = 0;
+        export const WorkspaceLinkViewer = () => {
+            const mountId = React.useRef('workspace-panel-' + (++mountCounter)).current;
+            const [draft, setDraft] = React.useState('');
+            return React.createElement('div', {
+                'data-testid': 'workspace-link-panel',
+                'data-mount-id': mountId,
+                style: { display: 'flex', flex: 1, minWidth: 0, height: '100%', flexDirection: 'column' },
+            }, React.createElement('input', {
+                'data-testid': 'workspace-link-draft',
+                value: draft,
+                onChange: (event) => setDraft(event.currentTarget.value),
+            }));
+        };
     `,
-    '@/components/WorkspaceLinkSidePanel': `export const WorkspaceLinkSidePanel = () => null;`,
     '@/components/RigActivityBar': `export const RigActivityBar = () => null;`,
     '@/components/agentGoalStatus': `export const resolveVisibleAgentGoalStatus = () => null;`,
     '@/components/modelModeOptions': `
@@ -247,9 +301,25 @@ const virtualModules: Record<string, string> = {
     '@/-session/agentGoalActionHandler': `export const performAgentGoalAction = async () => {};`,
     '@/-session/workspaceLinkNavigation': `
         import React from 'react'; export const WorkspaceLinkPressContext = React.createContext(undefined);
-        export const openWorkspaceLinkFromSession = () => {}; export const useWorkspaceLinkDismissGuard = () => ({ sendingRef: { current: false }, dirtyRef: { current: false }, onSendingChange() {}, onDirtyChange() {}, guardDismiss: (action) => action(), reset() {} });
+        const dismissGuard = {
+            sendingRef: { current: false }, dirtyRef: { current: false },
+            onSendingChange() {}, onDirtyChange() {}, guardDismiss: (action) => action(), reset() {},
+        };
+        export const openWorkspaceLinkFromSession = (input) => {
+            if (input.feedbackSending) return;
+            input.withFileDiscardConfirmation(() => {
+                if (input.route.params.originSessionId === input.sessionId) {
+                    input.showSidePanel(input.route);
+                }
+                else input.pushRoute(input.route);
+            });
+        };
+        export const useWorkspaceLinkDismissGuard = () => dismissGuard;
     `,
-    '@/components/WorkspaceLinkViewerModel': `export const resolveActiveWorkspaceLinkPresentation = () => 'route'; export const resolveWorkspaceLinkPresentation = () => 'route';`,
+    '@/components/WorkspaceLinkViewerModel': `
+        export const resolveWorkspaceLinkPresentation = ({ width }) => width >= 900 ? 'side-panel' : 'full-screen';
+        export const resolveActiveWorkspaceLinkPresentation = (requested, hasOpenPanel) => hasOpenPanel ? 'side-panel' : requested;
+    `,
     'expo-clipboard': `export const setStringAsync = async () => {};`,
 };
 
@@ -262,6 +332,9 @@ const fixturePlugin: Plugin = {
             if (args.path === './BubblePressable') return { path: '@/components/BubblePressable', namespace: 'fixture-stub' };
             if (args.path === './navigation/MobileHeaderScrim') return { path: '@/components/navigation/MobileHeaderScrim', namespace: 'fixture-stub' };
             if (args.path === './AnimatedOverlay') return { path: '@/components/AnimatedOverlay', namespace: 'fixture-stub' };
+            if (args.path === './WorkspaceLinkViewer' && args.importer.endsWith('WorkspaceLinkSidePanel.tsx')) {
+                return { path: '@/components/WorkspaceLinkViewer', namespace: 'fixture-stub' };
+            }
             if (args.path === './workspaceLinkNavigation') return { path: '@/-session/workspaceLinkNavigation', namespace: 'fixture-stub' };
             if (args.path === './agentGoalActionHandler') return { path: '@/-session/agentGoalActionHandler', namespace: 'fixture-stub' };
             if (args.path.startsWith('@/')) {
@@ -332,7 +405,10 @@ describe('Side chats browser interaction', () => {
         const pageErrors: string[] = [];
         page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
         page.on('console', (message) => {
-            if (message.type() === 'error' || message.type() === 'warning') pageErrors.push(message.text());
+            if (
+                (message.type() === 'error' || message.type() === 'warning')
+                && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+            ) pageErrors.push(message.text());
         });
         await page.goto(origin);
 
@@ -361,12 +437,122 @@ describe('Side chats browser interaction', () => {
         await page.close();
     }, 10_000);
 
+    it('resizes a same-session workspace link through the real SessionView split host', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        const pageErrors: string[] = [];
+        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+        page.on('console', (message) => {
+            if (
+                (message.type() === 'error' || message.type() === 'warning')
+                && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+            ) {
+                pageErrors.push(message.text());
+            }
+        });
+        await page.goto(origin);
+
+        const foreground = page.getByTestId('foreground-session');
+        const composer = foreground.locator('[data-testid="session-composer"][data-session-id="parent"]');
+        const composerDraft = composer.getByTestId('session-composer-draft');
+        await composer.waitFor({ state: 'visible', timeout: 3_000 });
+        await composerDraft.fill('main draft survives first open');
+        const composerMountId = await composer.getAttribute('data-mount-id');
+        if (!composerMountId) throw new Error('Main Agent composer has no mount identity');
+
+        const workspaceLink = foreground.getByRole('button', { name: 'Open same-session workspace link' });
+        await workspaceLink.click();
+        const panel = foreground.getByTestId('workspace-link-panel');
+        const sidePanel = foreground.getByTestId('workspace-link-side-panel');
+        const panelDraft = foreground.getByTestId('workspace-link-draft');
+        const host = foreground.getByTestId('desktop-file-workspace-host');
+        const divider = foreground.getByTestId('desktop-file-workspace-divider');
+        await panel.waitFor({ state: 'visible', timeout: 3_000 });
+        await panelDraft.fill('draft survives resize');
+
+        const panelMountId = await panel.getAttribute('data-mount-id');
+        const initialHostBox = await host.boundingBox();
+        const initialSidePanelBox = await sidePanel.boundingBox();
+        const initialDividerBox = await divider.boundingBox();
+        if (!panelMountId || !initialHostBox || !initialSidePanelBox || !initialDividerBox) {
+            throw new Error('workspace link split has no measurable layout');
+        }
+        expect(Math.abs(initialSidePanelBox.width - initialHostBox.width)).toBeLessThan(2);
+        await expect(composerDraft.inputValue()).resolves.toBe('main draft survives first open');
+
+        await page.mouse.move(
+            initialDividerBox.x + initialDividerBox.width / 2,
+            initialDividerBox.y + initialDividerBox.height / 2,
+        );
+        await page.mouse.down();
+        await page.mouse.move(
+            initialDividerBox.x - 140,
+            initialDividerBox.y + initialDividerBox.height / 2,
+            { steps: 8 },
+        );
+        await page.mouse.up();
+
+        const resizedHostBox = await host.boundingBox();
+        const resizedSidePanelBox = await sidePanel.boundingBox();
+        if (!resizedHostBox || !resizedSidePanelBox) throw new Error('resized workspace link host has no layout');
+        expect(resizedHostBox.width).toBeGreaterThan(initialHostBox.width + 100);
+        expect(Math.abs(resizedSidePanelBox.width - resizedHostBox.width)).toBeLessThan(2);
+        await expect(composer.isVisible()).resolves.toBe(true);
+        await expect(composer.getAttribute('data-mount-id')).resolves.toBe(composerMountId);
+        await expect(composerDraft.inputValue()).resolves.toBe('main draft survives first open');
+        await expect(panel.getAttribute('data-mount-id')).resolves.toBe(panelMountId);
+        await expect(panelDraft.inputValue()).resolves.toBe('draft survives resize');
+
+        await page.setViewportSize({ width: 390, height: 844 });
+        await foreground.getByTestId('desktop-file-workspace-divider').waitFor({ state: 'detached', timeout: 3_000 });
+        const narrowHostBox = await host.boundingBox();
+        const narrowForegroundBox = await foreground.boundingBox();
+        if (!narrowHostBox || !narrowForegroundBox) throw new Error('fullscreen workspace link has no layout');
+        expect(Math.abs(narrowHostBox.width - narrowForegroundBox.width)).toBeLessThan(2);
+        expect(Math.abs(narrowHostBox.height - narrowForegroundBox.height)).toBeLessThan(2);
+        await expect(panel.getAttribute('data-mount-id')).resolves.toBe(panelMountId);
+        await expect(panelDraft.inputValue()).resolves.toBe('draft survives resize');
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 10_000);
+
+    it('preserves the Main Agent draft on first open below the file-sidebar breakpoint', async () => {
+        const page = await browser.newPage({ viewport: { width: 1000, height: 844 } });
+        const pageErrors: string[] = [];
+        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+        page.on('console', (message) => {
+            if (
+                (message.type() === 'error' || message.type() === 'warning')
+                && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+            ) pageErrors.push(message.text());
+        });
+        await page.goto(origin);
+
+        const foreground = page.getByTestId('foreground-session');
+        const composer = foreground.locator('[data-testid="session-composer"][data-session-id="parent"]');
+        const composerDraft = composer.getByTestId('session-composer-draft');
+        await composer.waitFor({ state: 'visible', timeout: 3_000 });
+        await composerDraft.fill('intermediate-width draft');
+        const composerMountId = await composer.getAttribute('data-mount-id');
+        if (!composerMountId) throw new Error('Main Agent composer has no mount identity');
+
+        await foreground.getByRole('button', { name: 'Open same-session workspace link' }).click();
+        await foreground.getByTestId('workspace-link-side-panel').waitFor({ state: 'visible', timeout: 3_000 });
+        await foreground.getByTestId('desktop-file-workspace-divider').waitFor({ state: 'visible', timeout: 3_000 });
+        await expect(composer.getAttribute('data-mount-id')).resolves.toBe(composerMountId);
+        await expect(composerDraft.inputValue()).resolves.toBe('intermediate-width draft');
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 10_000);
+
     it('opens the same newest child in the narrow full-screen host and collapses it', async () => {
         const page = await browser.newPage({ viewport: { width: 700, height: 900 } });
         const pageErrors: string[] = [];
         page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
         page.on('console', (message) => {
-            if (message.type() === 'error' || message.type() === 'warning') pageErrors.push(message.text());
+            if (
+                (message.type() === 'error' || message.type() === 'warning')
+                && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+            ) pageErrors.push(message.text());
         });
         await page.goto(origin);
 

@@ -460,7 +460,9 @@ export const FileContentPanel = React.memo(function FileContentPanel({
         }
     }, [canWrite, deleteFile, filePath, isDeleting, onDeleted]);
 
-    // Publish the focused Source/Edit/Delete controls into the host header.
+    // Publish the focused Preview/Edit controls and the separate Delete action
+    // into the host header. Internally, plain text still uses the read-only
+    // source renderer for Preview; the user-facing mode remains Preview.
     const isLoaded = fileState.kind === 'loaded';
     React.useEffect(() => {
         if (!active) {
@@ -470,7 +472,6 @@ export const FileContentPanel = React.memo(function FileContentPanel({
         onHeaderRightSlotChange(
             <FileHeaderRight
                 hasSourcePreview={hasSourcePreview}
-                showPreviewControl={headerVariant === 'standard'}
                 isLoaded={isLoaded}
                 displayMode={displayMode}
                 onDisplayModeChange={handleDisplayModeChange}
@@ -746,7 +747,6 @@ export const FileViewPanel = React.memo(function FileViewPanel({
 /** Right-side header controls for the file-view overlay. */
 const FileHeaderRight = React.memo(function FileHeaderRight({
     hasSourcePreview,
-    showPreviewControl,
     isLoaded,
     displayMode,
     onDisplayModeChange,
@@ -756,7 +756,6 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
     onDelete,
 }: {
     hasSourcePreview: boolean;
-    showPreviewControl: boolean;
     isLoaded: boolean;
     displayMode: FileDisplayMode;
     onDisplayModeChange: (mode: FileDisplayMode) => void;
@@ -767,52 +766,30 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
 }) {
     const { theme } = useUnistyles();
     const showControls = (isLoaded && (hasSourcePreview || canWrite)) || canDelete;
+    const previewMode: Exclude<FileDisplayMode, 'edit'> = hasSourcePreview ? 'preview' : 'source';
+    const previewSelected = isLoaded && displayMode !== 'edit';
     return (
         <>
             {showControls && (
                 <View style={[styles.toggleRow, { backgroundColor: theme.colors.groupped.background, borderColor: theme.colors.divider }]}>
                     {isLoaded && <Pressable
                         accessibilityRole="button"
-                        accessibilityState={{ selected: displayMode === 'source' }}
-                        onPress={() => onDisplayModeChange(
-                            !showPreviewControl && hasSourcePreview && displayMode === 'source'
-                                ? 'preview'
-                                : 'source',
-                        )}
+                        accessibilityState={{ selected: previewSelected }}
+                        onPress={() => onDisplayModeChange(previewMode)}
                         style={[
                             styles.toggleButton,
-                            displayMode === 'source' && { backgroundColor: theme.colors.surface },
+                            previewSelected && { backgroundColor: theme.colors.surface },
                         ]}
                     >
                         <Text style={[
                             styles.toggleText,
                             { color: theme.colors.textSecondary },
-                            displayMode === 'source' && styles.toggleTextActive,
-                            displayMode === 'source' && { color: theme.colors.text },
+                            previewSelected && styles.toggleTextActive,
+                            previewSelected && { color: theme.colors.text },
                         ]}>
-                            {t('uiCopy.source')}
+                            {t('uiCopy.preview')}
                         </Text>
                     </Pressable>}
-                    {showPreviewControl && hasSourcePreview && (
-                        <Pressable
-                            accessibilityRole="button"
-                            accessibilityState={{ selected: displayMode === 'preview' }}
-                            onPress={() => onDisplayModeChange('preview')}
-                            style={[
-                                styles.toggleButton,
-                                displayMode === 'preview' && { backgroundColor: theme.colors.surface },
-                            ]}
-                        >
-                            <Text style={[
-                                styles.toggleText,
-                                { color: theme.colors.textSecondary },
-                                displayMode === 'preview' && styles.toggleTextActive,
-                                displayMode === 'preview' && { color: theme.colors.text },
-                            ]}>
-                                {t('uiCopy.preview')}
-                            </Text>
-                        </Pressable>
-                    )}
                     {canWrite && isLoaded && (
                         <Pressable
                             accessibilityRole="button"

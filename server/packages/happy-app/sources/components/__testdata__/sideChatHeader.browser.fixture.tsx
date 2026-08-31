@@ -4,7 +4,7 @@ import { SessionView } from '@/-session/SessionView';
 
 createRoot(document.getElementById('root')!).render(
     <>
-        <div data-testid="foreground-session" style={{ height: '100%' }}>
+        <div data-testid="foreground-session" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <SessionView id="parent" />
         </div>
         <div style={{ display: 'none' }} aria-hidden="true">

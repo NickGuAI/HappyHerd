@@ -62,7 +62,7 @@ beforeEach(() => {
 });
 
 describe('WorkspaceLinkSidePanel', () => {
-    it('keeps the same feedback composer mounted through a breakpoint crossing and late send failure', () => {
+    it('fills its split host and keeps the same feedback composer mounted through host rerenders', () => {
         const sendingStates: boolean[] = [];
         const dirtyStates: boolean[] = [];
         const reference = {
@@ -71,7 +71,7 @@ describe('WorkspaceLinkSidePanel', () => {
             machineId: 'owner-machine',
             absolutePath: '/work/report.md',
         };
-        const baseProps: Omit<WorkspaceLinkSidePanelProps, 'windowWidth'> = {
+        const baseProps: WorkspaceLinkSidePanelProps = {
             reference,
             onBack: vi.fn(),
             onDirtyChange: (dirty) => dirtyStates.push(dirty),
@@ -81,10 +81,7 @@ describe('WorkspaceLinkSidePanel', () => {
         let renderer!: ReactTestRenderer;
 
         act(() => {
-            renderer = create(React.createElement(WorkspaceLinkSidePanel, {
-                ...baseProps,
-                windowWidth: 1200,
-            }));
+            renderer = create(React.createElement(WorkspaceLinkSidePanel, baseProps));
         });
         const originalViewer = renderer.root.findByType('WorkspaceLinkViewer' as any);
         act(() => originalViewer.props.onDirtyChange(true));
@@ -94,13 +91,14 @@ describe('WorkspaceLinkSidePanel', () => {
         });
 
         act(() => {
-            renderer.update(React.createElement(WorkspaceLinkSidePanel, {
-                ...baseProps,
-                windowWidth: 320,
-            }));
+            renderer.update(React.createElement(WorkspaceLinkSidePanel, baseProps));
         });
         const resizedViewer = renderer.root.findByType('WorkspaceLinkViewer' as any);
-        expect(renderer.root.findByType('View' as any).props.style.width).toBe(320);
+        expect(renderer.root.findByType('View' as any).props.style).toMatchObject({
+            flex: 1,
+            minWidth: 0,
+            alignSelf: 'stretch',
+        });
         expect(mocks.mounts).toBe(1);
         expect(resizedViewer.props.draft).toBe('keep this feedback');
         expect(resizedViewer.props.error).toBeNull();
