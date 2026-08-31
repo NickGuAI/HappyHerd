@@ -286,13 +286,20 @@ describe('Desktop workspace browser interaction', () => {
         await editor.fill(unsavedValue);
         await editor.evaluate((element) => { element.scrollTop = 120; });
         const initialEditorScrollTop = await editor.evaluate((element) => element.scrollTop);
+        const editorMountId = `editor-${Date.now()}`;
+        await editor.evaluate((element, mountId) => {
+            element.setAttribute('data-retention-mount-id', mountId);
+        }, editorMountId);
         expect(initialEditorScrollTop).toBeGreaterThan(0);
 
         await input.fill('human draft survives');
+        const initialSplitBox = await splitDemo.boundingBox();
         const initialHostBox = await host.boundingBox();
         const initialDividerBox = await divider.boundingBox();
         const initialMountId = await splitDemo.getByTestId('mounted-workspace-probe').getAttribute('data-mount-id');
-        if (!initialHostBox || !initialDividerBox || !initialMountId) throw new Error('split fixture has no layout');
+        if (!initialSplitBox || !initialHostBox || !initialDividerBox || !initialMountId) {
+            throw new Error('split fixture has no layout');
+        }
 
         await page.mouse.move(
             initialDividerBox.x + initialDividerBox.width / 2,
@@ -307,6 +314,7 @@ describe('Desktop workspace browser interaction', () => {
         expect(resizedHostBox.width).toBeGreaterThan(initialHostBox.width + 100);
         await expect(splitDemo.getByTestId('mounted-workspace-probe').getAttribute('data-mount-id')).resolves.toBe(initialMountId);
         await expect(input.inputValue()).resolves.toBe('human draft survives');
+        await expect(editor.getAttribute('data-retention-mount-id')).resolves.toBe(editorMountId);
         await expect(editor.inputValue()).resolves.toBe(unsavedValue);
         await expect(editor.evaluate((element) => element.scrollTop)).resolves.toBe(initialEditorScrollTop);
 
@@ -318,11 +326,19 @@ describe('Desktop workspace browser interaction', () => {
         const zenBox = await page.getByLabel('Toggle Zen mode').boundingBox();
         if (!expandBox || !zenBox) throw new Error('collapsed controls have no layout');
         expect(expandBox.x + expandBox.width).toBeLessThanOrEqual(zenBox.x);
+        const collapsedSplitBox = await splitDemo.boundingBox();
+        if (!collapsedSplitBox) throw new Error('collapsed split has no layout');
+        expect(collapsedSplitBox.width).toBeGreaterThan(initialSplitBox.width + 300);
+        await expect(editor.getAttribute('data-retention-mount-id')).resolves.toBe(editorMountId);
         await expect(editor.inputValue()).resolves.toBe(unsavedValue);
         await expect(editor.evaluate((element) => element.scrollTop)).resolves.toBe(initialEditorScrollTop);
 
         await expand.click();
         await expect(collapse.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
+        const reopenedSplitBox = await splitDemo.boundingBox();
+        if (!reopenedSplitBox) throw new Error('reopened split has no layout');
+        expect(Math.abs(reopenedSplitBox.width - initialSplitBox.width)).toBeLessThan(2);
+        await expect(editor.getAttribute('data-retention-mount-id')).resolves.toBe(editorMountId);
         await expect(editor.inputValue()).resolves.toBe(unsavedValue);
         await expect(editor.evaluate((element) => element.scrollTop)).resolves.toBe(initialEditorScrollTop);
         await expect(splitDemo.getByTestId('main-agent-chat').isVisible()).resolves.toBe(true);

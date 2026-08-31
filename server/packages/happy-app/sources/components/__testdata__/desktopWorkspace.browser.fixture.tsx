@@ -9,6 +9,7 @@ import {
     selectDesktopFile,
 } from '@/components/desktopFileWorkspaceModel';
 import { SidebarNavigator } from '@/components/SidebarNavigator';
+import { useLocalSetting } from '@/sync/storage';
 
 function MountedWorkspaceProbe() {
     const [mountId] = React.useState(() => `mount-${Math.random()}`);
@@ -28,7 +29,7 @@ function WorkspaceSplitDemo() {
     return (
         <div
             data-testid="split-demo"
-            style={{ display: 'flex', flexDirection: 'column', width: 1100, height: 480 }}
+            style={{ display: 'flex', flex: 1, flexDirection: 'column', minWidth: 0, height: 480 }}
         >
             <DesktopFileWorkspaceSplit
                 workspaceVisible
@@ -43,6 +44,31 @@ function WorkspaceSplitDemo() {
             >
                 <div data-testid="main-agent-chat">Main Agent chat remains mounted</div>
             </DesktopFileWorkspaceSplit>
+        </div>
+    );
+}
+
+function IntegratedDesktopDemo() {
+    const navigationSidebarCollapsed = useLocalSetting('navigationSidebarCollapsed');
+
+    return (
+        <div
+            data-testid="integrated-desktop-demo"
+            style={{ display: 'flex', width: 1400, height: 480 }}
+        >
+            <div
+                data-testid="sidebar-demo"
+                style={{
+                    position: 'relative',
+                    flex: '0 0 auto',
+                    width: navigationSidebarCollapsed ? 0 : 360,
+                    height: 480,
+                    zIndex: 1,
+                }}
+            >
+                <SidebarNavigator />
+            </div>
+            <WorkspaceSplitDemo />
         </div>
     );
 }
@@ -143,10 +169,7 @@ declare global {
 
 createRoot(document.getElementById('root')!).render(
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-        <div data-testid="sidebar-demo" style={{ position: 'relative', width: 600, height: 96, overflow: 'hidden' }}>
-            <SidebarNavigator />
-        </div>
-        <WorkspaceSplitDemo />
+        <IntegratedDesktopDemo />
         <FileWorkspaceDemo compact={false} testId="wide-file-workspace" />
         <FileWorkspaceDemo compact testId="narrow-file-workspace" />
     </div>,
