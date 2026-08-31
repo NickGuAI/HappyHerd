@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "b5a85b0ecb4c4a486f1ac359803d7e093ab20f0f59473df348576ae84af0790c",
+  "sourceFingerprint": "e1ffe02e693eb04f2523158655db41d951b70c48e42ac2a326be6ea98fdd3d88",
   "routeCount": 36,
-  "surfaceCount": 250,
+  "surfaceCount": 249,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -1047,7 +1047,6 @@
       "exports": [
         "WorkspaceLinkPressContext",
         "dismissWorkspaceLinkToOrigin",
-        "openWorkspaceLinkFromSession",
         "useWorkspaceLinkDismissGuard",
         "useWorkspaceLinkPress"
       ],
@@ -5079,17 +5078,6 @@
         "happyHerd.composer.startVoice",
         "review.feedbackPrompt"
       ],
-      "states": [],
-      "hardcodedCopy": []
-    },
-    {
-      "owner": "sources/components/WorkspaceLinkSidePanel.tsx",
-      "kind": "panel",
-      "route": null,
-      "exports": [
-        "WorkspaceLinkSidePanel"
-      ],
-      "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
     },

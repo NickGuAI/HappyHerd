@@ -77,7 +77,7 @@ WORKSPACE_LINKS	accepted	fix(workspace): retain strict feedback until delivery	s
 WORKSPACE_LINKS	accepted	fix(workspace): preserve live viewer context	server/packages/happy-app/sources/components/WorkspaceLinkViewer.native.test.ts
 WORKSPACE_LINKS	accepted	fix(workspace): enforce live viewer delivery boundaries	server/packages/happy-app/sources/sync/strictOutboxBatchTracker.test.ts
 WORKSPACE_LINKS	accepted	fix(workspace): preserve linked feedback navigation	server/packages/happy-app/sources/components/chatLatestNavigation.test.ts
-WORKSPACE_LINKS	accepted	fix(workspace): complete link parsing and layout continuity	server/packages/happy-app/sources/components/WorkspaceLinkSidePanel.native.test.ts
+WORKSPACE_LINKS	accepted	fix(workspace): complete link parsing and layout continuity	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 WORKSPACE_LINKS	accepted	fix(workspace): block native viewer dismissal	server/packages/happy-app/sources/-session/workspaceLinkNavigation.test.ts
 WORKSPACE_LINKS	accepted	fix(workspace): close final delivery edge cases	server/packages/happy-app/sources/sync/strictOutboxBatchTracker.test.ts
 WORKSPACE_LINKS	accepted	fix(workspace): reject stale feedback preparation	server/packages/happy-app/sources/sync/sendMessageLocalBatch.test.ts
@@ -187,4 +187,5 @@ SIDE_CHAT_PANEL_OWNERSHIP	accepted	fix(app): scope side chat panels to their par
 DESKTOP_FILE_WORKSPACE_COMPLETE	accepted	fix(app): complete file workspace interactions (#181)	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 DESKTOP_FILE_WORKSPACE_STATE_RETENTION	accepted	test(app): cover workspace state through resize	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 DESKTOP_FILE_WORKSPACE_NAV_RETENTION	accepted	test(app): integrate navigation retention coverage	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
+DESKTOP_FILE_WORKSPACE_LINKS	accepted	fix(app): unify session file workspaces (#181)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 DESKTOP_FILE_WORKSPACE_PATCH_MANIFEST	accepted	chore(integration): register workspace verification patches	docs/owned-patches.tsv

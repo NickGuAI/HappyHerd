@@ -31,7 +31,7 @@ import { useMachineFileUpload } from '@/hooks/useMachineFileUpload';
 import { useVoiceDictation } from '@/hooks/useVoiceDictation';
 import { Modal } from '@/modal';
 import { gitStatusSync } from '@/sync/gitStatusSync';
-import { machineControlHeartbeat, machineCreateSideChat, machineStopSession, sessionAbort, sessionCancelCommunication, sessionGoalAction, sessionSetAgentModes, sessionKill, sessionArchive } from '@/sync/ops';
+import { machineControlHeartbeat, machineCreateSideChat, machineGetDirectoryTree, machineStopSession, sessionAbort, sessionCancelCommunication, sessionGoalAction, sessionSetAgentModes, sessionKill, sessionArchive } from '@/sync/ops';
 import { closeSideChatSession, resolveSideChatCloseReconciliation } from '@/sync/sideChatLifecycle';
 import { storage, useIsDataReady, useLocalSetting, useMachine, useRealtimeStatus, useSessionGitStatus, useSessionMessages, useSessionPendingCommunications, useSessionUsage, useSetting, useSettingMutable, useSideChatSessions } from '@/sync/storage';
 import { useSession } from '@/sync/storage';
@@ -112,20 +112,15 @@ import {
 import { buildWorkspaceAttachmentParams } from '@/utils/machineWorkspace';
 import { projectSessionQueue } from '@/sync/queueProjection';
 import { transitionGrokPermissionModeAndCommit } from '@/sync/grokPermissionModeTransition';
-import { WorkspaceLinkSidePanel } from '@/components/WorkspaceLinkSidePanel';
 import {
-    resolveActiveWorkspaceLinkPresentation,
-    resolveWorkspaceLinkPresentation,
-} from '@/components/WorkspaceLinkViewerModel';
-import {
-    openWorkspaceLinkFromSession,
-    useWorkspaceLinkDismissGuard,
     WorkspaceLinkPressContext,
 } from './workspaceLinkNavigation';
 import type { WorkspaceLinkRoute } from '@/utils/markdownWorkspaceLink';
 import { AnimatedFade } from '@/components/AnimatedOverlay';
 import { HEARTBEAT_COMMAND } from '@/utils/heartbeatCommand';
 import { deliverSessionTurn } from '@/utils/sessionContinuation';
+
+const SESSION_FILE_WORKSPACE_SPLIT_MIN_WINDOW_WIDTH = 900;
 
 export const SessionView = React.memo((props: { id: string; focusMessageId?: string }) => {
     const sessionId = props.id;
@@ -154,29 +149,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     const fileDiffsSidebarEnabled = useSetting('fileDiffsSidebar');
     const zenMode = useLocalSetting('zenMode');
     const [headerBackdropVisible, setHeaderBackdropVisible] = React.useState(false);
-    const workspaceLinkPresentation = resolveWorkspaceLinkPresentation({
-        width: windowWidth,
-        platform: Platform.OS,
-        runningOnMac: isRunningOnMac(),
-    });
-    const [workspaceLinkRoute, setWorkspaceLinkRoute] = React.useState<WorkspaceLinkRoute | null>(null);
-    const activeWorkspaceLinkPresentation = resolveActiveWorkspaceLinkPresentation(
-        workspaceLinkPresentation,
-        workspaceLinkRoute !== null,
-    );
-    const {
-        sendingRef: workspaceLinkFeedbackSendingRef,
-        onSendingChange: onWorkspaceLinkFeedbackSendingChange,
-        onDirtyChange: onWorkspaceLinkDirtyChange,
-        guardDismiss: guardWorkspaceLinkDismiss,
-        reset: resetWorkspaceLinkDismissGuard,
-    } = useWorkspaceLinkDismissGuard();
     const [focusMessageId, setFocusMessageId] = React.useState<string | undefined>(props.focusMessageId);
-
-    React.useEffect(() => {
-        resetWorkspaceLinkDismissGuard();
-        setWorkspaceLinkRoute(null);
-    }, [resetWorkspaceLinkDismissGuard, sessionId]);
 
     React.useEffect(() => {
         setFocusMessageId(props.focusMessageId);
@@ -186,17 +159,23 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         setHeaderBackdropVisible(false);
     }, [sessionId]);
 
-    const showWorkspaceLinkPanel = activeWorkspaceLinkPresentation === 'side-panel' && workspaceLinkRoute !== null;
     const sidebarPresentation = resolveSessionSidebarPresentation({
         platform: Platform.OS,
         runningOnMac: isRunningOnMac(),
         windowWidth,
         zenMode,
-        workspaceLinkPanelOpen: showWorkspaceLinkPanel,
+        workspaceLinkPanelOpen: false,
         fileDiffsSidebarEnabled,
         canUseFilePanels: !session
             || (rigCanBrowseFiles(session.metadata) && rigCanUseShell(session.metadata)),
     });
+    const canUseSessionFileWorkspace = isDataReady
+        && !!session
+        && (Platform.OS === 'web' || isRunningOnMac())
+        && rigCanBrowseFiles(session.metadata)
+        && rigCanUseShell(session.metadata);
+    const canShowSessionFileWorkspaceSplit = canUseSessionFileWorkspace
+        && windowWidth >= SESSION_FILE_WORKSPACE_SPLIT_MIN_WINDOW_WIDTH;
     const canShowFileSidebar = sidebarPresentation.fileSidebarAvailable && isDataReady && !!session;
     const canShowSideChatSidebar = sidebarPresentation.sideChatSidebarAvailable && isDataReady && !!session;
 
@@ -205,11 +184,16 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     const [desktopFileWorkspace, setDesktopFileWorkspace] = React.useState(EMPTY_DESKTOP_FILE_WORKSPACE);
     const [desktopFilePickerOpen, setDesktopFilePickerOpen] = React.useState(false);
     const [desktopDirtyPaths, setDesktopDirtyPaths] = React.useState<Set<string>>(() => new Set());
+    const workspaceLinkRequestGeneration = React.useRef(0);
 
     React.useEffect(() => {
+        workspaceLinkRequestGeneration.current += 1;
         setDesktopFileWorkspace(EMPTY_DESKTOP_FILE_WORKSPACE);
         setDesktopFilePickerOpen(false);
         setDesktopDirtyPaths(new Set());
+        return () => {
+            workspaceLinkRequestGeneration.current += 1;
+        };
     }, [sessionId]);
 
     // Sidebar panels are user-managed and persisted in local settings so the
@@ -364,32 +348,23 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         && sidebarPanelActive === 'sideChat'
         && sidebarPanelsOpen.includes('sideChat')
         && sideChats.length > 0;
-    const fileSidebarPanelExpanded = canShowFileSidebar
+    const fileSidebarPanelExpanded = !zenMode
+        && canShowFileSidebar
         && (sidebarPanelActive === 'changes' || sidebarPanelActive === 'allFiles')
         && sidebarPanelsOpen.includes(sidebarPanelActive);
-    const desktopFileWorkspaceVisible = canShowFileSidebar
+    const desktopFileWorkspaceVisible = canShowSessionFileWorkspaceSplit
         && desktopFileWorkspace.paths.length > 0
         && !fileSidebarPanelExpanded
         && !sideChatSidebarExpanded
-        && !sideChatFullscreenOpen
-        && !zenMode
-        && !showWorkspaceLinkPanel;
+        && !sideChatFullscreenOpen;
     const desktopFileWorkspaceFullscreen = desktopFileWorkspace.paths.length > 0
-        && !sidebarPresentation.sideChatSidebarAvailable
-        && (Platform.OS === 'web' || isRunningOnMac())
+        && canUseSessionFileWorkspace
+        && !canShowSessionFileWorkspaceSplit
         && !sideChatFullscreenOpen
-        && !sideChatFullscreenTransitionPending
-        && !showWorkspaceLinkPanel;
-    const workspaceLinkPanelFullscreen = showWorkspaceLinkPanel
-        && workspaceLinkPresentation === 'full-screen';
-    const rightWorkspaceVisible = showWorkspaceLinkPanel
-        ? !workspaceLinkPanelFullscreen
-        : desktopFileWorkspaceVisible;
-    const rightWorkspaceFullscreen = showWorkspaceLinkPanel
-        ? workspaceLinkPanelFullscreen
-        : desktopFileWorkspaceFullscreen;
+        && !sideChatFullscreenTransitionPending;
+    const rightWorkspaceVisible = desktopFileWorkspaceVisible;
+    const rightWorkspaceFullscreen = desktopFileWorkspaceFullscreen;
     const showSidebar = !zenMode
-        && !showWorkspaceLinkPanel
         && (canShowFileSidebar || sideChatSidebarExpanded);
     const canRenderSidebar = canShowFileSidebar
         || (canShowSideChatSidebar
@@ -598,25 +573,45 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     }, [fileViewDirty, fileViewPath]);
 
     const handleWorkspaceLinkPress = React.useCallback((route: WorkspaceLinkRoute) => {
-        const openLink = () => openWorkspaceLinkFromSession({
-            route,
-            sessionId,
-            feedbackSending: workspaceLinkFeedbackSendingRef.current,
-            withFileDiscardConfirmation,
-            pushRoute: (nextRoute) => router.push(nextRoute),
-            showSidePanel: setWorkspaceLinkRoute,
+        const requestGeneration = ++workspaceLinkRequestGeneration.current;
+        withFileDiscardConfirmation(() => {
+            if (workspaceLinkRequestGeneration.current !== requestGeneration) return;
+            if (
+                route.params.originSessionId !== sessionId
+                || !canUseSessionFileWorkspace
+                || route.params.line !== undefined
+                || route.params.column !== undefined
+            ) {
+                router.push(route);
+                return;
+            }
+
+            void machineGetDirectoryTree(
+                route.params.machineId,
+                route.params.absolutePath,
+                1,
+            ).then((response) => {
+                if (workspaceLinkRequestGeneration.current !== requestGeneration) return;
+                if (!response.success || response.tree?.type !== 'file') {
+                    // Directory links and read failures retain the existing
+                    // full Viewer route, including its browse and retry states.
+                    router.push(route);
+                    return;
+                }
+                setDesktopFileWorkspace((current) => openDesktopFile(
+                    current,
+                    route.params.absolutePath,
+                ));
+                setDesktopFilePickerOpen(false);
+                collapseSidebarPanels();
+            });
         });
-        if (workspaceLinkRoute) {
-            guardWorkspaceLinkDismiss(openLink);
-            return;
-        }
-        openLink();
     }, [
-        guardWorkspaceLinkDismiss,
+        canUseSessionFileWorkspace,
+        collapseSidebarPanels,
         router,
         sessionId,
         withFileDiscardConfirmation,
-        workspaceLinkRoute,
     ]);
 
     const handleSidebarFilePress = React.useCallback((file: GitFileStatus) => {
@@ -680,7 +675,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         setOverlayHistory({ stack: [{ kind: 'none' }], cursor: 0 });
     }, []);
     const handleAllFilesFilePress = React.useCallback((filePath: string) => {
-        if (canShowFileSidebar) {
+        if (canUseSessionFileWorkspace) {
             setDesktopFileWorkspace((current) => openDesktopFile(current, filePath));
             setDesktopFilePickerOpen(false);
             collapseSidebarPanels();
@@ -688,7 +683,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         }
         if (filePath === fileViewPath) return;
         withFileDiscardConfirmation(() => pushOverlayNow({ kind: 'file', path: filePath }));
-    }, [canShowFileSidebar, fileViewPath, pushOverlayNow, collapseSidebarPanels, withFileDiscardConfirmation]);
+    }, [canUseSessionFileWorkspace, fileViewPath, pushOverlayNow, collapseSidebarPanels, withFileDiscardConfirmation]);
     const handleAllFilesFileAttach = React.useCallback((filePath: string) => {
         if (!addWorkspaceContextFile(sessionId, filePath)) {
             Modal.alert(t("uiCopy.workspaceContext"), t("uiCopy.youCanAttachUpTo8FilesToOneMessage"));
@@ -930,15 +925,14 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
 
     const sessionContent = (
         <WorkspaceLinkPressContext.Provider
-            value={activeWorkspaceLinkPresentation === 'side-panel' ? handleWorkspaceLinkPress : undefined}
+            value={canUseSessionFileWorkspace ? handleWorkspaceLinkPress : undefined}
         >
             {mainContent}
         </WorkspaceLinkPressContext.Provider>
     );
 
-    const keepWorkspaceSplitMounted = workspaceLinkPresentation === 'side-panel'
+    const keepWorkspaceSplitMounted = canUseSessionFileWorkspace
         || canRenderSidebar
-        || showWorkspaceLinkPanel
         || desktopFileWorkspace.paths.length > 0;
 
     if (!keepWorkspaceSplitMounted) {
@@ -956,7 +950,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             }}
         >
             {sessionContent}
-            {diffViewOpen && canShowFileSidebar && !showWorkspaceLinkPanel && (
+            {diffViewOpen && canShowFileSidebar && (
                 <View
                     pointerEvents="box-none"
                     style={{
@@ -975,7 +969,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                     />
                 </View>
             )}
-            {fileViewPath && canShowFileSidebar && !showWorkspaceLinkPanel && (
+            {fileViewPath && canShowFileSidebar && (
                 <View
                     pointerEvents="box-none"
                     style={{
@@ -1033,12 +1027,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     const workspaceSurface = (
         <View style={{ flex: 1, minWidth: 0, position: 'relative' }}>
             {desktopFileWorkspace.paths.length > 0 ? (
-                <View
-                    style={[
-                        StyleSheet.absoluteFillObject,
-                        showWorkspaceLinkPanel ? { display: 'none' } : null,
-                    ]}
-                >
+                <View style={StyleSheet.absoluteFillObject}>
                     <DesktopFileWorkspace
                         sessionId={sessionId}
                         paths={desktopFileWorkspace.paths}
@@ -1062,28 +1051,12 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                     />
                 </View>
             ) : null}
-            {showWorkspaceLinkPanel && workspaceLinkRoute ? (
-                <View style={StyleSheet.absoluteFillObject}>
-                    <WorkspaceLinkSidePanel
-                        reference={workspaceLinkRoute.params}
-                        onBack={() => guardWorkspaceLinkDismiss(() => setWorkspaceLinkRoute(null))}
-                        onDirtyChange={onWorkspaceLinkDirtyChange}
-                        onFeedbackSendingChange={onWorkspaceLinkFeedbackSendingChange}
-                        onFeedbackSent={(receipt) => {
-                            guardWorkspaceLinkDismiss(() => {
-                                setWorkspaceLinkRoute(null);
-                                setFocusMessageId(receipt.localId);
-                            });
-                        }}
-                    />
-                </View>
-            ) : null}
         </View>
     );
 
     // Wide layout keeps the Main Agent chat mounted beside a stable right-pane
-    // host. Side chats, file picking, and Workspace links may temporarily own
-    // the visible right surface without unmounting dirty file editors.
+    // host. Side chats and file picking may temporarily own the visible right
+    // surface without unmounting dirty file editors.
     return (
         <DesktopFileWorkspaceSplit
             workspaceVisible={rightWorkspaceVisible}

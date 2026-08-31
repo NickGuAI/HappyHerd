@@ -18,19 +18,8 @@ vi.mock('@/text', () => ({ t: (key: string) => key }));
 
 import {
     dismissWorkspaceLinkToOrigin,
-    openWorkspaceLinkFromSession,
     useWorkspaceLinkDismissGuard,
 } from './workspaceLinkNavigation';
-
-const workspaceRoute = {
-    pathname: '/workspace' as const,
-    params: {
-        mode: 'link' as const,
-        originSessionId: 'origin-session',
-        machineId: 'owner-machine',
-        absolutePath: '/work/report.md',
-    },
-};
 
 const originalConsoleError = console.error;
 
@@ -57,44 +46,6 @@ function DismissGuardHarness() {
 }
 
 describe('workspace link navigation', () => {
-    it('opens the side-panel Viewer only through the existing unsaved-file guard', () => {
-        const showSidePanel = vi.fn();
-        const pushRoute = vi.fn();
-        let confirmedAction: (() => void) | undefined;
-
-        openWorkspaceLinkFromSession({
-            route: workspaceRoute,
-            sessionId: 'origin-session',
-            feedbackSending: false,
-            withFileDiscardConfirmation: (action) => {
-                confirmedAction = action;
-            },
-            pushRoute,
-            showSidePanel,
-        });
-
-        expect(showSidePanel).not.toHaveBeenCalled();
-        expect(pushRoute).not.toHaveBeenCalled();
-        confirmedAction?.();
-        expect(showSidePanel).toHaveBeenCalledWith(workspaceRoute);
-        expect(pushRoute).not.toHaveBeenCalled();
-    });
-
-    it('does not request file discard while strict Viewer feedback is pending', () => {
-        const withFileDiscardConfirmation = vi.fn();
-
-        openWorkspaceLinkFromSession({
-            route: workspaceRoute,
-            sessionId: 'origin-session',
-            feedbackSending: true,
-            withFileDiscardConfirmation,
-            pushRoute: vi.fn(),
-            showSidePanel: vi.fn(),
-        });
-
-        expect(withFileDiscardConfirmation).not.toHaveBeenCalled();
-    });
-
     it('dismisses the Viewer to the existing origin session with the accepted message focused', () => {
         const dismissTo = vi.fn();
 

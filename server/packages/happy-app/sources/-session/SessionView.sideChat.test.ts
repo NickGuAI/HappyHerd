@@ -31,6 +31,7 @@ const mocks = vi.hoisted(() => ({
     heartbeatDispatch: vi.fn(),
     modalConfirm: vi.fn(),
     machineCreateSideChat: vi.fn(),
+    machineGetDirectoryTree: vi.fn(),
     routerBack: vi.fn(),
     routerDismissTo: vi.fn(),
     routerPush: vi.fn(),
@@ -52,7 +53,6 @@ const mocks = vi.hoisted(() => ({
     voiceRetry: vi.fn(),
     voiceToggle: vi.fn(),
     composerText: {} as Record<string, string>,
-    workspaceLinkPanelMounts: 0,
 }));
 
 vi.mock('react-native', async () => {
@@ -292,18 +292,6 @@ vi.mock('@/components/DesktopFileWorkspace', async () => {
         ),
     };
 });
-vi.mock('@/components/WorkspaceLinkSidePanel', async () => {
-    const ReactModule = await import('react');
-    return {
-        WorkspaceLinkSidePanel: (props: any) => {
-            const [mountId] = ReactModule.useState(() => {
-                mocks.workspaceLinkPanelMounts += 1;
-                return mocks.workspaceLinkPanelMounts;
-            });
-            return ReactModule.createElement('WorkspaceLinkSidePanel', { ...props, mountId });
-        },
-    };
-});
 vi.mock('@/components/RigActivityBar', async () => {
     const ReactModule = await import('react');
     return { RigActivityBar: (props: any) => ReactModule.createElement('RigActivityBar', props) };
@@ -410,6 +398,7 @@ vi.mock('@/sync/projectFiles', () => ({ getProjectFiles: vi.fn(async () => ({ fi
 vi.mock('@/sync/ops', () => ({
     machineControlHeartbeat: vi.fn(),
     machineCreateSideChat: mocks.machineCreateSideChat,
+    machineGetDirectoryTree: mocks.machineGetDirectoryTree,
     machineStopSession: vi.fn(),
     sessionAbort: mocks.sessionAbort,
     sessionArchive: mocks.sessionArchive,
@@ -592,16 +581,6 @@ vi.mock('@/-session/workspaceLinkNavigation', async () => {
     const WorkspaceLinkPressContext = ReactModule.createContext(undefined);
     return {
         WorkspaceLinkPressContext,
-        openWorkspaceLinkFromSession: (input: any) => {
-            if (input.feedbackSending) return;
-            input.withFileDiscardConfirmation(() => {
-                if (input.route.params.originSessionId !== input.sessionId) {
-                    input.pushRoute(input.route);
-                    return;
-                }
-                input.showSidePanel(input.route);
-            });
-        },
         useWorkspaceLinkPress: () => ReactModule.useContext(WorkspaceLinkPressContext),
         useWorkspaceLinkDismissGuard: () => {
             const sendingRef = ReactModule.useRef(false);
@@ -628,17 +607,6 @@ vi.mock('@/-session/workspaceLinkNavigation', async () => {
         },
     };
 });
-vi.mock('@/components/WorkspaceLinkViewerModel', () => ({
-    resolveActiveWorkspaceLinkPresentation: (requested: string, hasOpenSidePanel: boolean) => (
-        hasOpenSidePanel ? 'side-panel' : requested
-    ),
-    resolveWorkspaceLinkPresentation: ({ width, platform, runningOnMac }: any) => (
-        (platform === 'web' || platform === 'macos' || runningOnMac) && width >= 900
-            ? 'side-panel'
-            : 'full-screen'
-    ),
-}));
-
 vi.mock('@/keyboard/shortcuts', () => ({
     SIDEBAR_PICKER_SHORTCUTS: {
         allFiles: { key: 'f' },
@@ -746,6 +714,11 @@ beforeEach(() => {
     mocks.modalConfirm.mockReset();
     mocks.modalConfirm.mockResolvedValue(true);
     mocks.machineCreateSideChat.mockReset();
+    mocks.machineGetDirectoryTree.mockReset();
+    mocks.machineGetDirectoryTree.mockImplementation(async (_machineId: string, path: string) => ({
+        success: true,
+        tree: { type: 'file', name: path.split('/').pop() || path, path },
+    }));
     mocks.routerBack.mockReset();
     mocks.routerDismissTo.mockReset();
     mocks.routerPush.mockReset();
@@ -768,7 +741,6 @@ beforeEach(() => {
     mocks.voiceRetry.mockReset();
     mocks.voiceToggle.mockReset();
     mocks.composerText = {};
-    mocks.workspaceLinkPanelMounts = 0;
     seedSessions();
 });
 
@@ -1084,14 +1056,18 @@ describe('SessionView side-chat integration', () => {
         expect(mocks.voiceCancel).toHaveBeenCalledOnce();
     });
 
-    it('opens a same-session Workspace link in the resizable split and preserves it across narrow layout', () => {
+    it('opens and focuses same-session file links in the canonical deduplicated workspace', async () => {
+        mocks.width = 1000;
+        mocks.fileDiffsSidebarEnabled = false;
+        mocks.localSettings.zenMode = true;
         const renderer = renderParent();
+        const initialComposer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
+            node.props.sessionId === 'parent'
+        ));
         const emptyMessages = renderer.root.findAllByType('EmptyMessages' as any).find((node: any) => (
             typeof node.props.onWorkspaceLinkPress === 'function'
         ));
-
-        expect(emptyMessages).toBeDefined();
-        act(() => emptyMessages?.props.onWorkspaceLinkPress({
+        const route = {
             pathname: '/workspace',
             params: {
                 mode: 'link',
@@ -1099,16 +1075,46 @@ describe('SessionView side-chat integration', () => {
                 machineId: 'machine-1',
                 absolutePath: '/work/report.md',
             },
-        }));
+        };
+
+        expect(emptyMessages).toBeDefined();
+        await act(async () => {
+            emptyMessages?.props.onWorkspaceLinkPress(route);
+            await Promise.resolve();
+        });
 
         let split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
-        let panel = renderer.root.findByType('WorkspaceLinkSidePanel' as any);
-        const panelMountId = panel.props.mountId;
+        let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
         expect(split.props.workspaceVisible).toBe(true);
         expect(split.props.workspaceFullscreen).toBe(false);
-        expect(panel.props.reference.absolutePath).toBe('/work/report.md');
-        expect(panel.props.windowWidth).toBeUndefined();
+        expect(workspace.props.paths).toEqual(['/work/report.md']);
+        expect(workspace.props.activePath).toBe('/work/report.md');
+        expect(renderer.root.findAll((node: any) => node.props.testID === 'workspace-link-side-panel')).toHaveLength(0);
         expect(renderedComposerSessions(renderer)).toEqual(['parent']);
+
+        const secondRoute = {
+            ...route,
+            params: { ...route.params, absolutePath: '/work/other.md' },
+        };
+        await act(async () => {
+            emptyMessages?.props.onWorkspaceLinkPress(secondRoute);
+            await Promise.resolve();
+        });
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props.paths).toEqual(['/work/report.md', '/work/other.md']);
+        expect(workspace.props.activePath).toBe('/work/other.md');
+
+        await act(async () => {
+            emptyMessages?.props.onWorkspaceLinkPress(route);
+            await Promise.resolve();
+        });
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props.paths).toEqual(['/work/report.md', '/work/other.md']);
+        expect(workspace.props.activePath).toBe('/work/report.md');
+        expect(mocks.routerPush).not.toHaveBeenCalled();
+        expect(renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
+            node.props.sessionId === 'parent'
+        ))).toBe(initialComposer);
 
         mocks.width = 390;
         act(() => {
@@ -1116,24 +1122,168 @@ describe('SessionView side-chat integration', () => {
         });
 
         split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
-        panel = renderer.root.findByType('WorkspaceLinkSidePanel' as any);
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
         expect(split.props.workspaceVisible).toBe(false);
         expect(split.props.workspaceFullscreen).toBe(true);
-        expect(panel.props.mountId).toBe(panelMountId);
-        expect(mocks.workspaceLinkPanelMounts).toBe(1);
+        expect(workspace.props.compact).toBe(true);
+        expect(workspace.props.paths).toEqual(['/work/report.md', '/work/other.md']);
+        expect(workspace.props.activePath).toBe('/work/report.md');
         expect(renderedComposerSessions(renderer)).toEqual(['parent']);
+    });
 
-        mocks.width = 1280;
-        act(() => {
-            for (const listener of mocks.listeners) listener();
+    it('ignores stale same-session file probes when a newer link resolves first', async () => {
+        let resolveFirst!: (value: any) => void;
+        let resolveSecond!: (value: any) => void;
+        mocks.machineGetDirectoryTree
+            .mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve; }))
+            .mockImplementationOnce(() => new Promise((resolve) => { resolveSecond = resolve; }));
+        const renderer = renderParent();
+        const emptyMessages = renderer.root.findAllByType('EmptyMessages' as any).find((node: any) => (
+            typeof node.props.onWorkspaceLinkPress === 'function'
+        ));
+        const route = (absolutePath: string) => ({
+            pathname: '/workspace',
+            params: {
+                mode: 'link',
+                originSessionId: 'parent',
+                machineId: 'machine-1',
+                absolutePath,
+            },
         });
 
-        split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
-        panel = renderer.root.findByType('WorkspaceLinkSidePanel' as any);
-        expect(split.props.workspaceVisible).toBe(true);
-        expect(split.props.workspaceFullscreen).toBe(false);
-        expect(panel.props.mountId).toBe(panelMountId);
-        expect(mocks.workspaceLinkPanelMounts).toBe(1);
+        act(() => {
+            emptyMessages?.props.onWorkspaceLinkPress(route('/work/first.md'));
+            emptyMessages?.props.onWorkspaceLinkPress(route('/work/second.md'));
+        });
+        await act(async () => {
+            resolveSecond({
+                success: true,
+                tree: { type: 'file', name: 'second.md', path: '/work/second.md' },
+            });
+            await Promise.resolve();
+        });
+        let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props.paths).toEqual(['/work/second.md']);
+        expect(workspace.props.activePath).toBe('/work/second.md');
+
+        await act(async () => {
+            resolveFirst({
+                success: true,
+                tree: { type: 'file', name: 'first.md', path: '/work/first.md' },
+            });
+            await Promise.resolve();
+        });
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props.paths).toEqual(['/work/second.md']);
+        expect(workspace.props.activePath).toBe('/work/second.md');
+        expect(mocks.routerPush).not.toHaveBeenCalled();
+    });
+
+    it('ignores a same-session file probe after the SessionView changes sessions', async () => {
+        let resolveProbe!: (value: any) => void;
+        mocks.machineGetDirectoryTree.mockImplementationOnce(() => new Promise((resolve) => {
+            resolveProbe = resolve;
+        }));
+        const renderer = renderParent();
+        const emptyMessages = renderer.root.findAllByType('EmptyMessages' as any).find((node: any) => (
+            typeof node.props.onWorkspaceLinkPress === 'function'
+        ));
+
+        act(() => emptyMessages?.props.onWorkspaceLinkPress({
+            pathname: '/workspace',
+            params: {
+                mode: 'link',
+                originSessionId: 'parent',
+                machineId: 'machine-1',
+                absolutePath: '/work/old-session.md',
+            },
+        }));
+        act(() => renderer.update(React.createElement(SessionView, { id: 'ordinary' })));
+        await act(async () => {
+            resolveProbe({
+                success: true,
+                tree: { type: 'file', name: 'old-session.md', path: '/work/old-session.md' },
+            });
+            await Promise.resolve();
+        });
+
+        expect(renderer.root.findAllByType('DesktopFileWorkspace' as any)).toHaveLength(0);
+        expect(mocks.routerPush).not.toHaveBeenCalled();
+    });
+
+    it('keeps directory and cross-session links on the existing full Viewer route', async () => {
+        const renderer = renderParent();
+        const emptyMessages = renderer.root.findAllByType('EmptyMessages' as any).find((node: any) => (
+            typeof node.props.onWorkspaceLinkPress === 'function'
+        ));
+        const directoryRoute = {
+            pathname: '/workspace',
+            params: {
+                mode: 'link',
+                originSessionId: 'parent',
+                machineId: 'machine-1',
+                absolutePath: '/work/reports',
+            },
+        };
+        mocks.machineGetDirectoryTree.mockResolvedValueOnce({
+            success: true,
+            tree: { type: 'directory', name: 'reports', path: '/work/reports', children: [] },
+        });
+
+        await act(async () => {
+            emptyMessages?.props.onWorkspaceLinkPress(directoryRoute);
+            await Promise.resolve();
+        });
+        expect(mocks.routerPush).toHaveBeenCalledWith(directoryRoute);
+        expect(renderer.root.findAllByType('DesktopFileWorkspace' as any)).toHaveLength(0);
+
+        const crossSessionRoute = {
+            ...directoryRoute,
+            params: { ...directoryRoute.params, originSessionId: 'ordinary', absolutePath: '/work/other.md' },
+        };
+        act(() => emptyMessages?.props.onWorkspaceLinkPress(crossSessionRoute));
+        expect(mocks.routerPush).toHaveBeenLastCalledWith(crossSessionRoute);
+
+        const locatedFileRoute = {
+            ...directoryRoute,
+            params: { ...directoryRoute.params, absolutePath: '/work/report.md', line: '12' },
+        };
+        act(() => emptyMessages?.props.onWorkspaceLinkPress(locatedFileRoute));
+        expect(mocks.routerPush).toHaveBeenLastCalledWith(locatedFileRoute);
+        expect(mocks.machineGetDirectoryTree).toHaveBeenCalledOnce();
+    });
+
+    it('opens a first same-session file link directly in the compact mobile workspace', async () => {
+        mocks.width = 390;
+        mocks.fileDiffsSidebarEnabled = false;
+        const renderer = renderParent();
+        const emptyMessages = renderer.root.findAllByType('EmptyMessages' as any).find((node: any) => (
+            typeof node.props.onWorkspaceLinkPress === 'function'
+        ));
+
+        await act(async () => {
+            emptyMessages?.props.onWorkspaceLinkPress({
+                pathname: '/workspace',
+                params: {
+                    mode: 'link',
+                    originSessionId: 'parent',
+                    machineId: 'machine-1',
+                    absolutePath: '/work/mobile.md',
+                },
+            });
+            await Promise.resolve();
+        });
+
+        const split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        const workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(split.props.workspaceVisible).toBe(false);
+        expect(split.props.workspaceFullscreen).toBe(true);
+        expect(workspace.props.compact).toBe(true);
+        expect(workspace.props.paths).toEqual(['/work/mobile.md']);
+        expect(workspace.props.activePath).toBe('/work/mobile.md');
+        expect(mocks.routerPush).not.toHaveBeenCalled();
+        expect(renderer.root.findAll((node: any) => node.props.testID === 'workspace-link-side-panel')).toHaveLength(0);
+        expect(renderedComposerSessions(renderer)).toEqual(['parent']);
     });
 
     it('keeps the Main Agent composer mounted while desktop file tabs open, dedupe, focus, and close', async () => {
@@ -1248,6 +1398,30 @@ describe('SessionView side-chat integration', () => {
         expect(workspace.props.activePath).toBe('/work/b.md');
         expect(mocks.localSettings.sidebarPanelsOpen).toEqual([]);
         expect(mocks.localSettings.sidebarPanelActive).toBeNull();
+    });
+
+    it('restores the canonical file workspace when Zen hides an active file sidebar panel', () => {
+        const renderer = renderParent();
+        const initialSidebar = desktopSideChatHosts(renderer)[0];
+
+        act(() => initialSidebar?.props.onAllFilesFilePress('/work/a.ts'));
+        act(() => {
+            mocks.localSettings.sidebarPanelsOpen = ['allFiles'];
+            mocks.localSettings.sidebarPanelActive = 'allFiles';
+            for (const listener of mocks.listeners) listener();
+        });
+        expect(renderer.root.findByType('DesktopFileWorkspaceSplit' as any).props.workspaceVisible).toBe(false);
+
+        act(() => {
+            mocks.localSettings.zenMode = true;
+            for (const listener of mocks.listeners) listener();
+        });
+        const split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        const workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(split.props.workspaceVisible).toBe(true);
+        expect(workspace.props.paths).toEqual(['/work/a.ts']);
+        expect(workspace.props.activePath).toBe('/work/a.ts');
+        expect(renderedComposerSessions(renderer)).toEqual(['parent']);
     });
 
     it('presents the active desktop file full-width on narrow layouts and restores tabs without state loss', () => {
