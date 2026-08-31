@@ -185,3 +185,6 @@ AGENTWORK_UI_RECONCILIATION	accepted	fix(app): reconcile AgentWork UI delivery	s
 DESKTOP_FILE_WORKSPACE_INTERACTIONS	accepted	fix(app): repair desktop workspace interactions (#181)	server/packages/happy-app/sources/components/DesktopFileWorkspace.test.ts
 SIDE_CHAT_PANEL_OWNERSHIP	accepted	fix(app): scope side chat panels to their parent (#160)	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 DESKTOP_FILE_WORKSPACE_COMPLETE	accepted	fix(app): complete file workspace interactions (#181)	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
+DESKTOP_FILE_WORKSPACE_STATE_RETENTION	accepted	test(app): cover workspace state through resize	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
+DESKTOP_FILE_WORKSPACE_NAV_RETENTION	accepted	test(app): integrate navigation retention coverage	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
+DESKTOP_FILE_WORKSPACE_PATCH_MANIFEST	accepted	chore(integration): register workspace verification patches	docs/owned-patches.tsv
