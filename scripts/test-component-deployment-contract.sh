@@ -160,4 +160,22 @@ const s = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
 if (s.serverUrl !== "https://remote.example" || s.webappUrl !== "https://remote.example") process.exit(1);
 ' "$fixture/home/.happyherd/settings.json"
 
+cat > "$fixture/bin/docker" <<'SH'
+#!/bin/sh
+printf '%s\n' "$*" >> "$HAPPYHERD_TEST_DOCKER_LOG"
+if [ "$1" = buildx ] && [ "$2" = rm ]; then
+    exit 1
+fi
+SH
+chmod 755 "$fixture/bin/docker"
+HAPPYHERD_TEST_DOCKER_LOG="$fixture/docker.log" PATH="$fixture/bin:$PATH" \
+    "$ROOT/scripts/build-server-image.sh" \
+    --image ghcr.io/example/happyherd:contract \
+    --push > "$fixture/build.log" 2>&1
+grep -Fq 'buildx build' "$fixture/docker.log"
+grep -Fxq 'push ghcr.io/example/happyherd:contract' "$fixture/docker.log"
+grep -Fq 'buildx rm happyherd-server-' "$fixture/docker.log"
+[[ "$(grep -Fc 'buildx rm happyherd-server-' "$fixture/docker.log")" -eq 1 ]]
+grep -Fq 'warning: failed to remove disposable Buildx builder:' "$fixture/build.log"
+
 printf 'Component deployment contract tests passed.\n'

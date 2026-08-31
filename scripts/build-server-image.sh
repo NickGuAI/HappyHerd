@@ -51,7 +51,9 @@ VERSION="${IMAGE##*:}"
 BUILDER="happyherd-server-${BASHPID}"
 
 cleanup_builder() {
-    docker buildx rm "$BUILDER" >/dev/null
+    if ! docker buildx rm "$BUILDER" >/dev/null; then
+        printf 'warning: failed to remove disposable Buildx builder: %s\n' "$BUILDER" >&2
+    fi
 }
 
 docker buildx create --name "$BUILDER" --driver docker-container >/dev/null
