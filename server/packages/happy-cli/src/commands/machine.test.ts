@@ -5,7 +5,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { DecryptedMachine, DecryptedSession } from 'happy-agent/control';
 import { authLogout, authStatus } from 'happy-agent/auth';
-import { HAPPYHERD_MACHINE_SESSION_PROTOCOL_VERSION } from '@slopus/happy-wire';
+import {
+  HAPPYHERD_MACHINE_SESSION_PROTOCOL_VERSION,
+  type HappyHerdCommanderListResponse,
+  type HappyHerdCommanderSummary,
+} from '@slopus/happy-wire';
 
 import type { AgentCapabilityCatalog, MachineMetadata } from '@/api/types';
 import { configuration } from '@/configuration';
@@ -38,6 +42,14 @@ const sideChatBriefArgs = [
   '--verification', sideChatBrief.verification,
   '--handoff', sideChatBrief.handoff,
 ];
+
+const targetAthena: HappyHerdCommanderSummary = {
+  id: 'athena',
+  name: 'Athena on target',
+  workspace: '/remote/project',
+  commanderPath: '/remote/.happyherd/commanders/athena/COMMANDER.md',
+  agentContextPath: '/remote/.happyherd/commanders/athena/agentcontext',
+};
 
 function option(code: string, extra: Record<string, unknown> = {}) {
   return { code, value: code, description: null, ...extra };
@@ -163,6 +175,7 @@ function session(
     active: true,
     activeAt: 3,
     metadata: metadataValue,
+    metadataVersion: 1,
     agentState: null,
     dataEncryptionKey: null,
     encryption: { key: new Uint8Array(32).fill(5), variant: 'dataKey' },
@@ -174,6 +187,8 @@ function fakeClient(options: {
   refreshed?: DecryptedMachine;
   parent?: DecryptedSession;
   forkResult?: unknown;
+  commanderList?: HappyHerdCommanderListResponse;
+  createdCommander?: HappyHerdCommanderSummary;
   sessionId?: string;
   settings?: { provider: 'claude' | 'codex' | 'gemini' | 'grok' | 'agy'; model: string | null; effort: string | null; permission: string | null };
 } = {}) {
@@ -182,22 +197,50 @@ function fakeClient(options: {
   const listMachines = vi.fn(async () => listed);
   const resolveMachine = vi.fn(async (_machineId: string) => refreshed);
   const resolveSession = vi.fn(async (_sessionId: string) => options.parent ?? session());
-  const callMachineRpc = vi.fn(async () => options.forkResult ?? ({
-    type: 'success',
-    newClaudeSessionId: '22222222-2222-4222-8222-222222222222',
-  }));
-  const spawnSessionOnMachineConfirmed = vi.fn(async (
+  const callMachineRpc = vi.fn(async (
     _machine: DecryptedMachine,
+    method: string,
+  ) => method === 'happyherd-list-commanders'
+    ? options.commanderList ?? {
+      commanders: [targetAthena],
+      globalAgentsPath: '/remote/.happyherd/AGENTS.md',
+    }
+    : options.forkResult ?? {
+      type: 'success',
+      newClaudeSessionId: '22222222-2222-4222-8222-222222222222',
+    });
+  const spawnSessionOnMachineConfirmed = vi.fn(async (
+    targetMachine: DecryptedMachine,
     launch: Parameters<MachineControlClient['spawnSessionOnMachineConfirmed']>[1],
-  ) => ({
-    session: { id: options.sessionId ?? 'session-real' },
-    settings: options.settings ?? {
+  ) => {
+    const settings = options.settings ?? {
       provider: launch.agent,
       model: launch.modelMode ?? 'gpt-5.6',
       effort: launch.effortLevel ?? null,
       permission: launch.permissionMode ?? 'yolo',
-    },
-  }));
+    };
+    const createdCommander = options.createdCommander
+      ?? (launch.commanderId === targetAthena.id ? targetAthena : null);
+    return {
+      session: session(options.sessionId ?? 'session-real', {
+        machineId: targetMachine.id,
+        path: launch.directory,
+        spawnSettings: settings,
+        ...(createdCommander ? {
+          commanderId: createdCommander.id,
+          commanderName: createdCommander.name,
+          commanderPath: createdCommander.commanderPath,
+          commanderWorkspace: createdCommander.workspace,
+          commanderAgentContextPath: createdCommander.agentContextPath,
+        } : {}),
+      }),
+      settings,
+    };
+  });
+  const updateSessionMetadata = vi.fn(async (
+    target: DecryptedSession,
+    update: Parameters<MachineControlClient['updateSessionMetadata']>[1],
+  ) => ({ ...target, metadata: update(target.metadata) }));
   return {
     client: {
       listMachines,
@@ -205,12 +248,14 @@ function fakeClient(options: {
       resolveSession,
       callMachineRpc,
       spawnSessionOnMachineConfirmed,
+      updateSessionMetadata,
     } as unknown as MachineControlClient,
     listMachines,
     resolveMachine,
     resolveSession,
     callMachineRpc,
     spawnSessionOnMachineConfirmed,
+    updateSessionMetadata,
   };
 }
 
@@ -226,6 +271,7 @@ describe('machine and session command parsing', () => {
     expect(createClient).not.toHaveBeenCalled();
     expect(output.mock.calls.join('\n')).toContain('happy machine list');
     expect(output.mock.calls.join('\n')).toContain('happy session create');
+    expect(output.mock.calls.join('\n')).toContain('happyherd session set-commander');
     expect(output.mock.calls.join('\n')).toContain('happyherd session side-chat');
   });
 
@@ -485,6 +531,50 @@ describe('remote tracked session creation', () => {
       machine: { id: 'machine-1', host: 'workstation-latest', platform: 'linux' },
       path: '/srv/project',
       settings: { provider: 'codex', model: 'gpt-5.6', effort: 'high', permission: 'plan' },
+      commander: null,
+    });
+  });
+
+  it('lets the target validate creation and reports the target canonical Commander metadata', async () => {
+    const fake = fakeClient({ createdCommander: targetAthena });
+    const output = vi.fn();
+
+    await handleSessionCommand(['create', ...sessionArgs(
+      '--commander', 'athena',
+      '--json',
+    )], {
+      createClient: async () => fake.client,
+      output,
+    });
+
+    expect(fake.spawnSessionOnMachineConfirmed.mock.calls[0][1]).toMatchObject({
+      commanderId: 'athena',
+    });
+    expect(fake.callMachineRpc).not.toHaveBeenCalled();
+    expect(JSON.parse(output.mock.calls[0][0] as string).commander).toEqual({
+      id: 'athena',
+      name: 'Athena on target',
+      path: targetAthena.commanderPath,
+      workspace: targetAthena.workspace,
+      agentContextPath: targetAthena.agentContextPath,
+    });
+  });
+
+  it('preserves the target daemon error for an unknown Commander', async () => {
+    const fake = fakeClient();
+    fake.spawnSessionOnMachineConfirmed.mockRejectedValueOnce(
+      new Error('Commander "missing" was not found'),
+    );
+
+    await expect(handleSessionCommand(['create', ...sessionArgs(
+      '--commander', 'missing',
+    )], {
+      createClient: async () => fake.client,
+      output: vi.fn(),
+    })).rejects.toThrow('Commander "missing" was not found');
+
+    expect(fake.spawnSessionOnMachineConfirmed.mock.calls[0][1]).toMatchObject({
+      commanderId: 'missing',
     });
   });
 
@@ -584,6 +674,113 @@ describe('remote tracked session creation', () => {
     })).rejects.toThrow('Rig machine; native happy session create supports Happy CLI daemon machines only');
     expect(fake.resolveMachine).toHaveBeenCalledWith('rig-machine');
     expect(fake.spawnSessionOnMachineConfirmed).not.toHaveBeenCalled();
+  });
+});
+
+describe('session Commander reassignment', () => {
+  it('persists the canonical Commander fields and reports that live context is unchanged', async () => {
+    const target = session('session-real', {
+      machineId: 'machine-B',
+      path: '/srv/project',
+      commanderId: 'old',
+      commanderName: 'Old',
+      commanderPath: '/old/COMMANDER.md',
+      commanderWorkspace: '/old',
+      commanderAgentContextPath: '/old/agentcontext',
+      contextHash: 'live-context-hash',
+    });
+    const owningMachine = machine('machine-B');
+    const fake = fakeClient({
+      parent: target,
+      refreshed: owningMachine,
+      commanderList: {
+        commanders: [targetAthena],
+        globalAgentsPath: '/remote/.happyherd/AGENTS.md',
+      },
+    });
+    const output = vi.fn();
+
+    await handleSessionCommand(['set-commander', 'session-real', 'athena', '--json'], {
+      createClient: async () => fake.client,
+      output,
+    });
+
+    expect(fake.resolveSession).toHaveBeenCalledWith('session-real');
+    expect(fake.resolveMachine).toHaveBeenCalledWith('machine-B');
+    expect(fake.callMachineRpc).toHaveBeenCalledWith(
+      owningMachine,
+      'happyherd-list-commanders',
+      {},
+    );
+    const update = fake.updateSessionMetadata.mock.calls[0][1];
+    expect(update(target.metadata))
+      .toMatchObject({
+        path: '/srv/project',
+        commanderId: 'athena',
+        commanderName: 'Athena on target',
+        commanderPath: targetAthena.commanderPath,
+        commanderWorkspace: targetAthena.workspace,
+        commanderAgentContextPath: targetAthena.agentContextPath,
+        contextHash: 'live-context-hash',
+      });
+    expect(JSON.parse(output.mock.calls[0][0] as string)).toMatchObject({
+      type: 'session-commander-updated',
+      sessionId: 'session-real',
+      commander: { id: 'athena', name: 'Athena on target' },
+      takesEffect: 'next-resume',
+    });
+  });
+
+  it('detaches cleanly without resolving a Commander', async () => {
+    const fake = fakeClient({
+      parent: session('session-real', {
+        path: '/srv/project',
+        commanderId: 'athena',
+        commanderName: 'Athena',
+        commanderPath: targetAthena.commanderPath,
+        commanderWorkspace: targetAthena.workspace,
+        commanderAgentContextPath: targetAthena.agentContextPath,
+      }),
+    });
+    const output = vi.fn();
+
+    await handleSessionCommand(['set-commander', 'session-real', 'none', '--json'], {
+      createClient: async () => fake.client,
+      output,
+    });
+
+    expect(fake.resolveMachine).not.toHaveBeenCalled();
+    expect(fake.callMachineRpc).not.toHaveBeenCalled();
+    const updated = await fake.updateSessionMetadata.mock.results[0].value;
+    expect(updated.metadata).toEqual({ path: '/srv/project' });
+    expect(JSON.parse(output.mock.calls[0][0] as string).commander).toBeNull();
+  });
+
+  it('rejects a Commander missing from the session owning machine', async () => {
+    const owningMachine = machine('machine-B');
+    const fake = fakeClient({
+      parent: session('session-real', {
+        machineId: 'machine-B',
+        path: '/srv/project',
+      }),
+      refreshed: owningMachine,
+      commanderList: {
+        commanders: [],
+        globalAgentsPath: '/remote/.happyherd/AGENTS.md',
+      },
+    });
+
+    await expect(handleSessionCommand(['set-commander', 'session-real', 'missing'], {
+      createClient: async () => fake.client,
+      output: vi.fn(),
+    })).rejects.toThrow('Commander "missing" was not found on machine machine-B');
+
+    expect(fake.callMachineRpc).toHaveBeenCalledWith(
+      owningMachine,
+      'happyherd-list-commanders',
+      {},
+    );
+    expect(fake.updateSessionMetadata).not.toHaveBeenCalled();
   });
 });
 

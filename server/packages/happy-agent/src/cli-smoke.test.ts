@@ -488,6 +488,7 @@ describe('Smoke: Output formatting', () => {
             active: raw.active,
             activeAt: raw.activeAt,
             metadata: { tag: 'my-project', path: '/home/user', summary: 'My Project' },
+            metadataVersion: raw.metadataVersion,
             agentState: null,
             dataEncryptionKey: raw.dataEncryptionKey,
             encryption,

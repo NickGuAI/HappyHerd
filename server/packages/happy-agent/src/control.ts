@@ -7,6 +7,7 @@ import { loadConfig } from './config';
 import type { Credentials } from './credentials';
 import { requireCredentials } from './credentials';
 import {
+    getSessionById,
     getSessionMessages,
     listActiveSessions,
     listMachines,
@@ -68,6 +69,8 @@ export type SendTurnOptions = {
     timeoutMs?: number;
 };
 
+export type SessionMetadataUpdater = (metadata: unknown | null) => unknown;
+
 function resolveById<T extends { id: string }>(items: T[], value: string, label: string): T {
     const exact = items.find((item) => item.id === value);
     if (exact) {
@@ -117,7 +120,16 @@ export class HappyControlClient {
     }
 
     async resolveSession(sessionId: string): Promise<DecryptedSession> {
-        return resolveById(await this.listSessions(), sessionId, 'session');
+        try {
+            return resolveById(await this.listSessions(), sessionId, 'session');
+        } catch (error) {
+            if (!(error instanceof Error) || !error.message.startsWith('No session found matching')) {
+                throw error;
+            }
+            const exact = await getSessionById(this.config, this.credentials, sessionId);
+            if (exact) return exact;
+            throw error;
+        }
     }
 
     async resolveMachine(machineId: string): Promise<DecryptedMachine> {
@@ -131,6 +143,8 @@ export class HappyControlClient {
             encryptionVariant: session.encryption.variant,
             token: this.credentials.token,
             serverUrl: this.config.serverUrl,
+            initialMetadata: session.metadata,
+            initialMetadataVersion: session.metadataVersion,
             initialAgentState: session.agentState,
             initialSequence: session.seq,
         });
@@ -208,6 +222,9 @@ export class HappyControlClient {
         if (JSON.stringify(persistedSettings.data) !== JSON.stringify(confirmedSettings.data)) {
             throw new Error(`Session ${result.sessionId} persisted settings that do not match the target daemon receipt`);
         }
+        if (options.commanderId && metadata?.commanderId !== options.commanderId) {
+            throw new Error(`Session ${result.sessionId} did not persist Commander ${options.commanderId}`);
+        }
         return { session, settings: confirmedSettings.data };
     }
 
@@ -268,6 +285,20 @@ export class HappyControlClient {
             throw new Error(`Unable to resume HappyHerd session ${session.id}: ${detail}`);
         }
         return this.waitForSession(result.sessionId);
+    }
+
+    async updateSessionMetadata(
+        session: DecryptedSession,
+        handler: SessionMetadataUpdater,
+    ): Promise<DecryptedSession> {
+        const client = this.createSessionClient(session);
+        try {
+            await client.waitForConnect();
+            await client.updateMetadata(handler);
+        } finally {
+            client.close();
+        }
+        return this.resolveSession(session.id);
     }
 
     async sendTurn(options: SendTurnOptions): Promise<TurnResult> {

@@ -46,6 +46,7 @@ export type DecryptedSession = {
     active: boolean;
     activeAt: number;
     metadata: unknown;
+    metadataVersion: number;
     agentState: unknown | null;
     dataEncryptionKey: string | null;
     encryption: RecordEncryption;
@@ -150,6 +151,7 @@ function decryptSession(raw: RawSession, creds: Credentials): DecryptedSession {
         active: raw.active,
         activeAt: raw.activeAt,
         metadata: decryptField(raw.metadata, encryption),
+        metadataVersion: raw.metadataVersion,
         agentState: decryptField(raw.agentState, encryption),
         dataEncryptionKey: raw.dataEncryptionKey,
         encryption,
@@ -224,6 +226,36 @@ export async function listSessions(
     }
 
     return data.sessions.map(raw => decryptSession(raw, creds));
+}
+
+export async function getSessionById(
+    config: Config,
+    creds: Credentials,
+    sessionId: string,
+): Promise<DecryptedSession | null> {
+    let cursor: string | undefined;
+
+    do {
+        let data: { sessions: RawSession[]; nextCursor?: string | null };
+        try {
+            const resp = await axios.get(`${config.serverUrl}/v2/sessions`, {
+                headers: authHeaders(creds),
+                params: {
+                    limit: 200,
+                    ...(cursor ? { cursor } : {}),
+                },
+            });
+            data = resp.data as { sessions: RawSession[]; nextCursor?: string | null };
+        } catch (err) {
+            handleApiError(err, `resolving session ${sessionId}`);
+        }
+
+        const matched = data.sessions.find(session => session.id === sessionId);
+        if (matched) return decryptSession(matched, creds);
+        cursor = data.nextCursor ?? undefined;
+    } while (cursor);
+
+    return null;
 }
 
 export async function listMachines(

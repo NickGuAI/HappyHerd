@@ -17,6 +17,8 @@ class MockSocket extends EventEmitter {
     readonly opts: unknown;
 
     emittedEvents: Array<{ event: string; args: unknown[] }> = [];
+    nextAckResponse: unknown = { result: 'error' };
+    timeoutMs: number | null = null;
 
     constructor(url: string, opts: unknown) {
         super();
@@ -33,6 +35,18 @@ class MockSocket extends EventEmitter {
     close() {
         this.connected = false;
         this.emit('disconnect', 'client namespace disconnect');
+    }
+
+    timeout(timeoutMs: number) {
+        this.timeoutMs = timeoutMs;
+        return {
+            emitWithAck: (event: string, ...args: unknown[]) => this.emitWithAck(event, ...args),
+        };
+    }
+
+    async emitWithAck(event: string, ...args: unknown[]): Promise<unknown> {
+        this.emittedEvents.push({ event, args });
+        return this.nextAckResponse;
     }
 
     // Override emit to track emitted events (but still call EventEmitter's emit for listeners)
@@ -530,6 +544,78 @@ describe('SessionClient', () => {
 
             expect(messages).toHaveLength(1);
             expect((messages[0] as Record<string, unknown>).content).toEqual(messageContent);
+
+            client.close();
+        });
+    });
+
+    describe('updateMetadata', () => {
+        it('encrypts an optimistic metadata update and caches the acknowledged version', async () => {
+            const opts = makeOptions({
+                initialMetadata: { path: '/project', commanderId: 'old' },
+                initialMetadataVersion: 7,
+            });
+            const client = new SessionClient(opts);
+            const acknowledged = { path: '/project', commanderId: 'athena' };
+            mockSocketInstance!.nextAckResponse = {
+                result: 'success',
+                version: 8,
+                metadata: encodeBase64(encrypt(
+                    opts.encryptionKey,
+                    opts.encryptionVariant,
+                    acknowledged,
+                )),
+            };
+
+            await client.updateMetadata((metadata) => ({
+                ...(metadata as Record<string, unknown>),
+                commanderId: 'athena',
+            }));
+
+            const event = mockSocketInstance!.emittedEvents.find(
+                (candidate) => candidate.event === 'update-metadata',
+            );
+            const payload = event?.args[0] as {
+                sid: string;
+                expectedVersion: number;
+                metadata: string;
+            };
+            expect(mockSocketInstance!.timeoutMs).toBe(10_000);
+            expect(payload.sid).toBe(opts.sessionId);
+            expect(payload.expectedVersion).toBe(7);
+            expect(decrypt(
+                opts.encryptionKey,
+                opts.encryptionVariant,
+                decodeBase64(payload.metadata),
+            )).toEqual(acknowledged);
+            expect(client.getMetadata()).toEqual(acknowledged);
+
+            client.close();
+        });
+
+        it('reports a version conflict without retrying or overwriting newer metadata', async () => {
+            const opts = makeOptions({
+                initialMetadata: { commanderId: 'old' },
+                initialMetadataVersion: 3,
+            });
+            const client = new SessionClient(opts);
+            const newer = { commanderId: 'gaia' };
+            mockSocketInstance!.nextAckResponse = {
+                result: 'version-mismatch',
+                version: 4,
+                metadata: encodeBase64(encrypt(
+                    opts.encryptionKey,
+                    opts.encryptionVariant,
+                    newer,
+                )),
+            };
+
+            await expect(client.updateMetadata(() => ({ commanderId: 'athena' })))
+                .rejects.toThrow('Metadata version mismatch');
+            expect(mockSocketInstance!.emittedEvents.filter(
+                (candidate) => candidate.event === 'update-metadata',
+            )).toHaveLength(1);
+            expect(client.getMetadata()).toEqual(newer);
 
             client.close();
         });

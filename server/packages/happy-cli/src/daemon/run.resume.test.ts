@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
     newCodexThreadId: 'thread-child',
   })),
   hasProviderProcessExited: vi.fn((_pid: number) => false),
+  inspectSessionAuthoritative: vi.fn(async (session: unknown) => ({ session, active: false })),
   persistSession: vi.fn(() => true),
   postSessionEvent: vi.fn(async () => undefined),
   postSideChatBrief: vi.fn(async () => undefined),
@@ -39,7 +40,7 @@ vi.mock('@/api/api', () => ({
   ApiClient: {
     create: vi.fn(async () => ({
       deactivateSession: vi.fn(),
-      inspectSessionAuthoritative: vi.fn(async (session: unknown) => ({ session, active: mocks.authoritativeActive })),
+      inspectSessionAuthoritative: mocks.inspectSessionAuthoritative,
       postSessionEvent: mocks.postSessionEvent,
       postSideChatBrief: mocks.postSideChatBrief,
       getOrCreateMachine: vi.fn(async ({ metadata }: { metadata: Metadata }) => ({
@@ -224,6 +225,7 @@ import {
   resolveDaemonResumeAgent,
   startDaemon,
 } from './run';
+import { prepareCommanderContext } from '@/agentContext/commanderContext';
 
 type CapturedRpcHandlers = {
   requestShutdown: () => void;
@@ -269,6 +271,22 @@ const codexAdvertisedDefaultSettings = {
   effort: 'xhigh',
   permission: 'safe-yolo',
 };
+const commanderResumeCases = [
+  {
+    label: 'uses a reassigned Commander from authoritative metadata',
+    commander: {
+      id: 'athena',
+      name: 'Athena',
+      path: '/home/test/.happyherd/commanders/athena/COMMANDER.md',
+      workspace: '/srv/project',
+      agentContextPath: '/home/test/.happyherd/commanders/athena/agentcontext',
+    },
+  },
+  {
+    label: 'honors authoritative Commander detachment',
+    commander: null,
+  },
+] as const;
 
 describe('daemon session continuity', () => {
   it('resolves GrokBuild for the shared tmux and direct-spawn command path', () => {
@@ -286,6 +304,12 @@ describe('daemon session continuity', () => {
     mocks.authoritativeActive = false;
     mocks.exitedPids.clear();
     mocks.hasProviderProcessExited.mockImplementation((pid: number) => mocks.exitedPids.has(pid));
+    mocks.inspectSessionAuthoritative.mockImplementation(async (session: unknown) => ({
+      session,
+      active: mocks.authoritativeActive,
+    }));
+    mocks.persistSession.mockReturnValue(true);
+    mocks.readPersistedSessions.mockReturnValue({});
     mocks.resolveCredentialAccountEnvironment.mockResolvedValue({
       selection: { type: 'unconfigured' },
       env: {},
@@ -342,6 +366,7 @@ describe('daemon session continuity', () => {
       happyHomeDir: '/home/test/.happy',
       happyLibDir: '/srv/happy',
       happyToolsDir: '/srv/happy/tools',
+      commanderId: 'athena',
     };
     const encryption: SessionEncryptionData = {
       encryptionKey,
@@ -408,6 +433,7 @@ describe('daemon session continuity', () => {
 
     await expect(resume).resolves.toMatchObject({ type: 'success', sessionId: resolvedSessionId });
     expect(mocks.backfillReconnectableSessionForMachine).toHaveBeenCalledWith(resolvedSessionId, 'machine-1');
+    expect(prepareCommanderContext).toHaveBeenCalledWith('athena', metadata.path);
     expect(mocks.hasProviderProcessExited).not.toHaveBeenCalled();
 
     const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
@@ -438,6 +464,170 @@ describe('daemon session continuity', () => {
     expect(JSON.parse(spawnOptions.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON!)).toEqual(
       codexAdvertisedDefaultSettings,
     );
+  });
+
+  it.each(commanderResumeCases)('$label on the next stopped-session resume', async ({ commander }) => {
+    const sessionId = `commander-refresh-${commander?.id ?? 'none'}`;
+    const encryptionKey = new Uint8Array(32).fill(7);
+    const workingDirectory = process.cwd();
+    const localMetadata: Metadata = {
+      path: workingDirectory,
+      flavor: 'codex',
+      codexThreadId: 'thread-continuity',
+      machineId: 'machine-1',
+      host: 'test-host',
+      hostPid: 9876,
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happy',
+      happyToolsDir: '/srv/happy/tools',
+      codexHome: '/unavailable/provider-home',
+      commanderId: 'old-commander',
+      commanderName: 'Old Commander',
+      commanderPath: '/old/COMMANDER.md',
+      commanderWorkspace: '/old/workspace',
+      commanderAgentContextPath: '/old/agentcontext',
+      spawnSettings: codexAdvertisedDefaultSettings,
+      gitBranch: 'preserve-me',
+    };
+    const authoritativeMetadata: Metadata = { ...localMetadata };
+    delete authoritativeMetadata.commanderId;
+    delete authoritativeMetadata.commanderName;
+    delete authoritativeMetadata.commanderPath;
+    delete authoritativeMetadata.commanderWorkspace;
+    delete authoritativeMetadata.commanderAgentContextPath;
+    if (commander) {
+      Object.assign(authoritativeMetadata, {
+        commanderId: commander.id,
+        commanderName: commander.name,
+        commanderPath: commander.path,
+        commanderWorkspace: commander.workspace,
+        commanderAgentContextPath: commander.agentContextPath,
+      });
+    }
+    const localEncryption: SessionEncryptionData = {
+      encryptionKey,
+      encryptionVariant: 'dataKey',
+      seq: 41,
+      metadataVersion: 7,
+      agentStateVersion: 8,
+    };
+    const refreshedEncryption: SessionEncryptionData = {
+      ...localEncryption,
+      seq: 84,
+      metadataVersion: 12,
+      agentStateVersion: 13,
+    };
+    mocks.readPersistedSessions.mockReturnValue({
+      [sessionId]: {
+        encryptionKey: Buffer.from(encryptionKey).toString('base64'),
+        encryptionVariant: localEncryption.encryptionVariant,
+        seq: localEncryption.seq,
+        metadataVersion: localEncryption.metadataVersion,
+        agentStateVersion: localEncryption.agentStateVersion,
+        metadata: localMetadata,
+        savedAt: 1,
+      },
+    });
+    mocks.inspectSessionAuthoritative.mockImplementationOnce(async (session: any) => ({
+      active: false,
+      session: {
+        ...session,
+        seq: refreshedEncryption.seq,
+        metadata: authoritativeMetadata,
+        metadataVersion: refreshedEncryption.metadataVersion,
+        agentStateVersion: refreshedEncryption.agentStateVersion,
+      },
+    }));
+    mocks.spawnHappyCLI.mockReturnValue({
+      pid: 4321,
+      kill: vi.fn(),
+      on: vi.fn(),
+    });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+
+    const resume = rpc.resumeSession(sessionId);
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    control.onHappySessionWebhook(sessionId, {
+      ...authoritativeMetadata,
+      hostPid: 4321,
+    }, refreshedEncryption);
+
+    await expect(resume).resolves.toMatchObject({ type: 'success', sessionId });
+    expect(prepareCommanderContext).toHaveBeenCalledWith(commander?.id, workingDirectory);
+    expect(mocks.inspectSessionAuthoritative).toHaveBeenCalledWith(expect.objectContaining({
+      id: sessionId,
+      seq: localEncryption.seq,
+      metadata: localMetadata,
+      metadataVersion: localEncryption.metadataVersion,
+      agentStateVersion: localEncryption.agentStateVersion,
+    }));
+    const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
+      string[],
+      { cwd: string; env: NodeJS.ProcessEnv },
+    ];
+    expect(args).toEqual([
+      'codex',
+      '--resume', 'thread-continuity',
+      '--started-by', 'daemon',
+      '--permission-mode', 'safe-yolo',
+      '--model', 'gpt-5.6-codex',
+      '--effort', 'xhigh',
+    ]);
+    expect(spawnOptions.cwd).toBe(workingDirectory);
+    expect(spawnOptions.env.HAPPY_RECONNECT_SESSION_ID).toBe(sessionId);
+    expect(spawnOptions.env.HAPPY_RECONNECT_SEQ).toBe(String(refreshedEncryption.seq));
+    expect(spawnOptions.env.HAPPY_RECONNECT_METADATA_VERSION).toBe(String(refreshedEncryption.metadataVersion));
+    expect(spawnOptions.env.HAPPY_RECONNECT_AGENT_STATE_VERSION).toBe(String(refreshedEncryption.agentStateVersion));
+    expect(mocks.persistSession.mock.calls[0]).toEqual([
+      sessionId,
+      expect.objectContaining({
+        seq: refreshedEncryption.seq,
+        metadataVersion: refreshedEncryption.metadataVersion,
+        agentStateVersion: refreshedEncryption.agentStateVersion,
+        metadata: authoritativeMetadata,
+      }),
+    ]);
+    expect(authoritativeMetadata.gitBranch).toBe('preserve-me');
+  });
+
+  it('fails before spawning when authoritative resume metadata cannot be refreshed', async () => {
+    const sessionId = 'commander-refresh-unavailable';
+    const encryptionKey = new Uint8Array(32).fill(9);
+    mocks.readPersistedSessions.mockReturnValue({
+      [sessionId]: {
+        encryptionKey: Buffer.from(encryptionKey).toString('base64'),
+        encryptionVariant: 'dataKey',
+        seq: 1,
+        metadataVersion: 2,
+        agentStateVersion: 3,
+        metadata: {
+          path: process.cwd(),
+          flavor: 'codex',
+          codexThreadId: 'thread-stale',
+          machineId: 'machine-1',
+          commanderId: 'old-commander',
+        },
+        savedAt: 1,
+      },
+    });
+    mocks.inspectSessionAuthoritative.mockRejectedValueOnce(new Error('authoritative metadata unavailable'));
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+
+    await expect(rpc.resumeSession(sessionId)).resolves.toMatchObject({
+      type: 'error',
+      errorMessage: expect.stringContaining('authoritative metadata unavailable'),
+    });
+    expect(prepareCommanderContext).not.toHaveBeenCalled();
+    expect(mocks.spawnHappyCLI).not.toHaveBeenCalled();
+    expect(mocks.persistSession).not.toHaveBeenCalled();
   });
 
   it('replays the next archived turn from an older retained record without changing session identity or encryption', async () => {

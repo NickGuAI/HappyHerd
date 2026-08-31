@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DecryptedMachine, DecryptedSession } from './api';
 
 const mocks = vi.hoisted(() => ({
+    getSessionById: vi.fn(),
     listMachines: vi.fn(),
     listSessions: vi.fn(),
     listActiveSessions: vi.fn(),
@@ -14,6 +15,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('./api', async (importOriginal) => ({
     ...(await importOriginal<typeof import('./api')>()),
+    getSessionById: mocks.getSessionById,
     listMachines: mocks.listMachines,
     listSessions: mocks.listSessions,
     listActiveSessions: mocks.listActiveSessions,
@@ -57,6 +59,7 @@ function session(spawnSettings: Record<string, unknown> = {
         active: true,
         activeAt: 1,
         metadata: { spawnSettings },
+        metadataVersion: 1,
         agentState: null,
         dataEncryptionKey: null,
         encryption: { key: new Uint8Array(32), variant: 'dataKey' },
@@ -70,12 +73,34 @@ function legacySession(): DecryptedSession {
 describe('HappyControlClient machine session creation', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mocks.getSessionById.mockResolvedValue(null);
         mocks.invokeSpawn.mockResolvedValue({
             type: 'success',
             sessionId: 'session-real',
             settings: { provider: 'grok', model: 'grok-4.6', effort: 'high', permission: 'plan' },
         });
         mocks.listSessions.mockResolvedValue([session()]);
+    });
+
+    it('falls back to exact paginated lookup for a session outside the recent window', async () => {
+        const historical = { ...session(), id: 'historical-session' };
+        mocks.listSessions.mockResolvedValueOnce([]);
+        mocks.getSessionById.mockResolvedValueOnce(historical);
+        const client = new HappyControlClient({
+            config: { serverUrl: 'https://happy.example', homeDir: '/tmp/happy', credentialPath: '/tmp/key' },
+            credentials: {
+                token: 'token',
+                secret: new Uint8Array(32),
+                contentKeyPair: { publicKey: new Uint8Array(32), secretKey: new Uint8Array(32) },
+            },
+        });
+
+        await expect(client.resolveSession('historical-session')).resolves.toBe(historical);
+        expect(mocks.getSessionById).toHaveBeenCalledWith(
+            client.config,
+            client.credentials,
+            'historical-session',
+        );
     });
 
     it('forwards the selected machine and returns its tracked Happy session', async () => {
@@ -273,6 +298,40 @@ describe('HappyControlClient machine session creation', () => {
             approvedNewDirectoryCreation: false,
             agent: 'grok',
         })).rejects.toThrow('persisted settings that do not match');
+    });
+
+    it('confirms a requested Commander from persisted session metadata', async () => {
+        const target = machine();
+        const client = new HappyControlClient({
+            config: { serverUrl: 'https://happy.example', homeDir: '/tmp/happy', credentialPath: '/tmp/key' },
+            credentials: {
+                token: 'token',
+                secret: new Uint8Array(32),
+                contentKeyPair: { publicKey: new Uint8Array(32), secretKey: new Uint8Array(32) },
+            },
+        });
+        mocks.listSessions.mockResolvedValueOnce([{
+            ...session(),
+            metadata: {
+                ...(session().metadata as Record<string, unknown>),
+                commanderId: 'athena',
+            },
+        }]);
+
+        await expect(client.spawnSessionOnMachineConfirmed(target, {
+            directory: '/srv/project',
+            approvedNewDirectoryCreation: false,
+            agent: 'grok',
+            commanderId: 'athena',
+        })).resolves.toMatchObject({ session: { id: 'session-real' } });
+
+        mocks.listSessions.mockResolvedValueOnce([session()]);
+        await expect(client.spawnSessionOnMachineConfirmed(target, {
+            directory: '/srv/project',
+            approvedNewDirectoryCreation: false,
+            agent: 'grok',
+            commanderId: 'athena',
+        })).rejects.toThrow('did not persist Commander athena');
     });
 
     it('keeps strict confirmation unavailable for a legacy success receipt', async () => {

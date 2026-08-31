@@ -12,6 +12,8 @@ export type SessionClientOptions = {
     encryptionVariant: EncryptionVariant;
     token: string;
     serverUrl: string;
+    initialMetadata?: unknown | null;
+    initialMetadataVersion?: number;
     initialAgentState?: unknown | null;
     initialSequence?: number;
 };
@@ -173,6 +175,10 @@ export class SessionClient extends EventEmitter {
         this.sessionId = opts.sessionId;
         this.encryptionKey = opts.encryptionKey;
         this.encryptionVariant = opts.encryptionVariant;
+        if (opts.initialMetadata !== undefined) {
+            this.metadata = opts.initialMetadata;
+        }
+        this.metadataVersion = opts.initialMetadataVersion ?? 0;
         if (opts.initialAgentState !== undefined) {
             this.agentState = opts.initialAgentState;
         }
@@ -289,6 +295,55 @@ export class SessionClient extends EventEmitter {
 
     getMetadata(): unknown | null {
         return this.metadata;
+    }
+
+    async updateMetadata(
+        handler: (metadata: unknown | null) => unknown,
+        ackTimeoutMs = 10_000,
+    ): Promise<void> {
+        const updated = handler(this.metadata);
+        const payload = {
+            sid: this.sessionId,
+            expectedVersion: this.metadataVersion,
+            metadata: encodeBase64(encrypt(
+                this.encryptionKey,
+                this.encryptionVariant,
+                updated,
+            )),
+        };
+        const answer = await this.socket
+            .timeout(ackTimeoutMs)
+            .emitWithAck('update-metadata', payload) as {
+                result: 'success' | 'version-mismatch' | 'error';
+                version?: number;
+                metadata?: string;
+            };
+
+        if (answer.result === 'success' && typeof answer.version === 'number' && answer.metadata) {
+            this.metadata = decrypt(
+                this.encryptionKey,
+                this.encryptionVariant,
+                decodeBase64(answer.metadata),
+            );
+            this.metadataVersion = answer.version;
+            return;
+        }
+        if (answer.result === 'version-mismatch') {
+            if (
+                typeof answer.version === 'number'
+                && answer.version > this.metadataVersion
+                && answer.metadata
+            ) {
+                this.metadata = decrypt(
+                    this.encryptionKey,
+                    this.encryptionVariant,
+                    decodeBase64(answer.metadata),
+                );
+                this.metadataVersion = answer.version;
+            }
+            throw new Error('Metadata version mismatch');
+        }
+        throw new Error('Server rejected the metadata update');
     }
 
     getAgentState(): unknown | null {

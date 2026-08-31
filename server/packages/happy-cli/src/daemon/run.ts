@@ -1143,20 +1143,39 @@ export async function startDaemon(): Promise<void> {
         if (!tracked.encryption) {
           return { type: 'error', errorMessage: `Session ${resolvedSessionId} has no stored encryption data. Cannot resume.` };
         }
-        // Webhook metadata may be stale (missing claudeSessionId/codexThreadId set after startup).
-        // Fetch fresh metadata from server if needed.
-        let metadata = tracked.happySessionMetadataFromLocalWebhook;
-        const needsFetch = (!metadata.claudeSessionId && (!metadata.flavor || metadata.flavor === 'claude'))
-          || (!metadata.codexThreadId && metadata.flavor === 'codex')
-          || (!metadata.acpSessionId && metadata.flavor === 'grok');
-        if (needsFetch) {
-          logger.debug(`[DAEMON RUN] Session ${resolvedSessionId} missing agent session ID in webhook metadata, fetching from server`);
-          const serverMetadata = await fetchServerSessionMetadata(resolvedSessionId, tracked.encryption.encryptionKey, tracked.encryption.encryptionVariant);
-          if (serverMetadata) {
-            metadata = serverMetadata;
-            tracked.happySessionMetadataFromLocalWebhook = serverMetadata;
-          }
+        const authoritative = (await api.inspectSessionAuthoritative({
+          id: resolvedSessionId,
+          seq: tracked.encryption.seq,
+          encryptionKey: tracked.encryption.encryptionKey,
+          encryptionVariant: tracked.encryption.encryptionVariant,
+          metadata: tracked.happySessionMetadataFromLocalWebhook,
+          metadataVersion: tracked.encryption.metadataVersion,
+          agentState: null,
+          agentStateVersion: tracked.encryption.agentStateVersion,
+        })).session;
+        const refreshedEncryption: SessionEncryptionData = {
+          encryptionKey: authoritative.encryptionKey,
+          encryptionVariant: authoritative.encryptionVariant,
+          seq: authoritative.seq,
+          metadataVersion: authoritative.metadataVersion,
+          agentStateVersion: authoritative.agentStateVersion,
+        };
+        const refreshedPersisted: PersistedSession = {
+          encryptionKey: encodeBase64(authoritative.encryptionKey),
+          encryptionVariant: authoritative.encryptionVariant,
+          seq: authoritative.seq,
+          metadataVersion: authoritative.metadataVersion,
+          agentStateVersion: authoritative.agentStateVersion,
+          metadata: authoritative.metadata,
+          savedAt: Date.now(),
+        };
+        if (!persistSession(resolvedSessionId, refreshedPersisted)) {
+          throw new Error(`Cannot recover Happy session "${resolvedSessionId}" because its reconnect record could not be persisted.`);
         }
+        persisted[resolvedSessionId] = refreshedPersisted;
+        tracked.happySessionMetadataFromLocalWebhook = authoritative.metadata;
+        tracked.encryption = refreshedEncryption;
+        const metadata = authoritative.metadata;
 
         const launch = buildResumeLaunch(
           { id: resolvedSessionId, active: true, metadata },

@@ -5,8 +5,10 @@ import {
   type DecryptedMachine,
 } from 'happy-agent/control';
 import {
+  HappyHerdCommanderListResponseSchema,
   HAPPYHERD_MACHINE_SESSION_PROTOCOL_VERSION,
   HAPPYHERD_MACHINE_SESSION_PROVIDERS,
+  type HappyHerdCommanderSummary,
   type HappyHerdMachineSessionProvider,
   type HappyHerdMachineSessionSettings,
 } from '@slopus/happy-wire';
@@ -49,6 +51,7 @@ export type MachineControlClient = Pick<
   | 'resolveSession'
   | 'callMachineRpc'
   | 'spawnSessionOnMachineConfirmed'
+  | 'updateSessionMetadata'
 >;
 
 export type MachineCommandDependencies = {
@@ -80,6 +83,7 @@ type SessionCreateOptions = {
   model?: string;
   effort?: string;
   permission?: string;
+  commanderId?: string;
   createDirectory: boolean;
   json: boolean;
 };
@@ -117,7 +121,9 @@ function sessionHelp(): string {
 
 Usage:
   happy session create --machine ID_OR_HOST --path ABSOLUTE_PATH --provider PROVIDER \\
-    [--model MODEL] [--effort EFFORT] [--permission MODE] [--create-dir] [--json]
+    [--model MODEL] [--effort EFFORT] [--permission MODE] [--commander ID] \\
+    [--create-dir] [--json]
+  happyherd session set-commander <session-id> <commander-id|none> [--json]
   happyherd session side-chat create <parent-session-id> <brief-options> [--json]
 
 Happy CLI daemon providers: ${DAEMON_PROVIDERS.join(', ')}
@@ -126,7 +132,11 @@ The selected machine must run a native Happy CLI daemon that advertises the
 target-confirmed machine-session protocol. Upgrade and restart older daemons.
 Rig machines use a separate, idempotent creation contract and are not accepted.
 The target path must already exist unless --create-dir explicitly approves
-directory creation on the selected machine.`;
+directory creation on the selected machine. The --commander flag is validated
+by the target daemon during session creation. For reassignment, set-commander
+resolves the ID on the owning machine's canonical registry, or none detaches the
+Commander. Reassignment or detachment takes effect when the session is next
+resumed, without altering any live conversation context.`;
 }
 
 function parseFlags(args: string[], allowedValueFlags: Set<string>, allowedBooleanFlags: Set<string>): ParsedFlags {
@@ -180,7 +190,7 @@ function optionalFlag(flags: ParsedFlags, name: string): string | undefined {
 export function parseSessionCreateOptions(args: string[]): SessionCreateOptions {
   const flags = parseFlags(
     args,
-    new Set(['machine', 'path', 'provider', 'model', 'effort', 'permission']),
+    new Set(['machine', 'path', 'provider', 'model', 'effort', 'permission', 'commander']),
     new Set(['create-dir', 'json']),
   );
   const machineSelector = requiredFlag(flags, 'machine');
@@ -196,6 +206,7 @@ export function parseSessionCreateOptions(args: string[]): SessionCreateOptions 
     model: optionalFlag(flags, 'model'),
     effort: optionalFlag(flags, 'effort'),
     permission: optionalFlag(flags, 'permission'),
+    commanderId: optionalFlag(flags, 'commander'),
     createDirectory: flags['create-dir'] === true,
     json: flags.json === true,
   };
@@ -415,6 +426,135 @@ async function clientFor(dependencies?: MachineCommandDependencies): Promise<Mac
   return (dependencies?.createClient ?? createDefaultClient)();
 }
 
+async function commanderForMachine(
+  client: MachineControlClient,
+  machine: DecryptedMachine,
+  commanderId: string,
+): Promise<HappyHerdCommanderSummary> {
+  const response = await controlCall(() => client.callMachineRpc<unknown>(
+    machine,
+    'happyherd-list-commanders',
+    {},
+  ));
+  const parsed = HappyHerdCommanderListResponseSchema.safeParse(response);
+  if (!parsed.success) {
+    throw new Error(`Machine ${machine.id} returned invalid Commander registry metadata`);
+  }
+  const commander = parsed.data.commanders.find((candidate) => candidate.id === commanderId);
+  if (!commander) {
+    throw new Error(`Commander "${commanderId}" was not found on machine ${machine.id}`);
+  }
+  return commander;
+}
+
+const COMMANDER_METADATA_KEYS = [
+  'commanderId',
+  'commanderName',
+  'commanderPath',
+  'commanderWorkspace',
+  'commanderAgentContextPath',
+] as const;
+
+function withCommanderBinding(
+  metadata: unknown,
+  commander: HappyHerdCommanderSummary | null,
+): Record<string, unknown> {
+  const current = record(metadata);
+  if (!current) throw new Error('Session metadata is not an object');
+  const updated = { ...current };
+  for (const key of COMMANDER_METADATA_KEYS) delete updated[key];
+  if (commander) {
+    Object.assign(updated, {
+      commanderId: commander.id,
+      commanderName: commander.name,
+      commanderPath: commander.commanderPath,
+      commanderWorkspace: commander.workspace,
+      commanderAgentContextPath: commander.agentContextPath,
+    });
+  }
+  return updated;
+}
+
+function commanderReceiptFromSession(
+  session: { id: string; metadata: unknown },
+  commanderId: string,
+) {
+  const metadata = record(session.metadata);
+  const receipt = {
+    id: stringField(metadata, 'commanderId'),
+    name: stringField(metadata, 'commanderName'),
+    path: stringField(metadata, 'commanderPath'),
+    workspace: stringField(metadata, 'commanderWorkspace'),
+    agentContextPath: stringField(metadata, 'commanderAgentContextPath'),
+  };
+  if (receipt.id !== commanderId
+    || !receipt.name
+    || !receipt.path
+    || !receipt.workspace
+    || !receipt.agentContextPath) {
+    throw new Error(`Session ${session.id} did not persist canonical metadata for Commander ${commanderId}`);
+  }
+  return receipt as {
+    id: string;
+    name: string;
+    path: string;
+    workspace: string;
+    agentContextPath: string;
+  };
+}
+
+async function handleSessionSetCommanderCommand(
+  args: string[],
+  dependencies?: MachineCommandDependencies,
+): Promise<void> {
+  if (args.length === 1 && (args[0] === '--help' || args[0] === '-h')) {
+    outputFor(dependencies)(sessionHelp());
+    return;
+  }
+  const [sessionSelector, requestedCommanderId, ...flagArgs] = args;
+  if (!sessionSelector) throw new Error('session-id is required');
+  if (!requestedCommanderId) throw new Error('commander-id or none is required');
+  const flags = parseFlags(flagArgs, new Set(), new Set(['json']));
+  const client = await controlCall(() => clientFor(dependencies));
+  const selected = await controlCall(() => client.resolveSession(sessionSelector));
+  let commander: HappyHerdCommanderSummary | null = null;
+  if (requestedCommanderId !== 'none') {
+    const machineId = stringField(selected.metadata, 'machineId');
+    if (!machineId) throw new Error(`Session ${selected.id} has no machine binding`);
+    const machine = await controlCall(() => client.resolveMachine(machineId));
+    if (machine.id !== machineId) {
+      throw new Error(`Machine ${machineId} could not be refreshed exactly`);
+    }
+    commander = await commanderForMachine(client, machine, requestedCommanderId);
+  }
+  const updated = await controlCall(() => client.updateSessionMetadata(
+    selected,
+    (metadata) => withCommanderBinding(metadata, commander),
+  ));
+  const updatedMetadata = record(updated.metadata);
+  if (!commander && COMMANDER_METADATA_KEYS.some((key) => updatedMetadata?.[key] !== undefined)) {
+    throw new Error(`Session ${selected.id} did not persist the requested Commander binding`);
+  }
+  const commanderReceipt = commander
+    ? commanderReceiptFromSession(updated, commander.id)
+    : null;
+  const receipt = {
+    schemaVersion: 1,
+    type: 'session-commander-updated' as const,
+    sessionId: updated.id,
+    commander: commanderReceipt,
+    takesEffect: 'next-resume' as const,
+  };
+  if (flags.json === true) {
+    outputFor(dependencies)(JSON.stringify(receipt));
+    return;
+  }
+  outputFor(dependencies)(commanderReceipt
+    ? `Session ${updated.id} will use Commander ${commanderReceipt.name} (${commanderReceipt.id}) on its next resume.`
+    : `Session ${updated.id} will resume without a Commander.`);
+  outputFor(dependencies)('The live conversation keeps its current context until then.');
+}
+
 async function controlCall<T>(operation: () => Promise<T>): Promise<T> {
   try {
     return await operation();
@@ -482,6 +622,10 @@ export async function handleSessionCommand(
     });
     return;
   }
+  if (action === 'set-commander') {
+    await handleSessionSetCommanderCommand(rest, dependencies);
+    return;
+  }
   if (action !== 'create') throw new Error(`Unknown session command: ${action}`);
   if (rest.length === 1 && (rest[0] === '--help' || rest[0] === '-h')) {
     outputFor(dependencies)(sessionHelp());
@@ -505,7 +649,11 @@ export async function handleSessionCommand(
     ...(options.model ? { modelMode: options.model } : {}),
     ...(options.effort ? { effortLevel: options.effort } : {}),
     ...(options.permission ? { permissionMode: options.permission } : {}),
+    ...(options.commanderId ? { commanderId: options.commanderId } : {}),
   }));
+  const commanderReceipt = options.commanderId
+    ? commanderReceiptFromSession(created.session, options.commanderId)
+    : null;
   const metadata = summaryMetadata(machine);
   const receipt = {
     schemaVersion: 1,
@@ -518,6 +666,7 @@ export async function handleSessionCommand(
     },
     path: options.directory,
     settings: created.settings,
+    commander: commanderReceipt,
   };
   if (options.json) {
     outputFor(dependencies)(JSON.stringify(receipt));
@@ -526,4 +675,5 @@ export async function handleSessionCommand(
   outputFor(dependencies)(`Created Happy session ${created.session.id} on ${metadata?.host ?? machine.id} (${machine.id})`);
   outputFor(dependencies)(`Path: ${options.directory}`);
   outputFor(dependencies)(`Settings: ${JSON.stringify(created.settings)}`);
+  if (commanderReceipt) outputFor(dependencies)(`Commander: ${commanderReceipt.name} (${commanderReceipt.id})`);
 }

@@ -1,3 +1,7 @@
+# August 31 — Session Commander assignment from the CLI
+
+- Support session creation with `create --commander` (validated on the target daemon), plus reassignment or detachment via `set-commander` (resolving IDs on the owning machine's canonical registry or using `none` to detach). Reassignment or detachment takes effect on next resume without altering live context.
+
 # August 31 — Machine Workspace routing and consolidated mobile actions
 
 - Machine Workspace opened from an active Main Agent or Side chat now starts on the exact session machine and current working directory even in non-Git folders, though explicit deep links still take precedence and normal browsing remains available.

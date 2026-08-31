@@ -34,6 +34,7 @@ vi.mock('axios', () => {
 
 import axios from 'axios';
 import {
+    getSessionById,
     listSessions,
     listActiveSessions,
     createSession,
@@ -208,6 +209,7 @@ describe('api', () => {
             expect(sessions).toHaveLength(1);
             expect(sessions[0].id).toBe('sess-1');
             expect(sessions[0].metadata).toEqual(metadata);
+            expect(sessions[0].metadataVersion).toBe(raw.metadataVersion);
             expect(sessions[0].agentState).toEqual(agentState);
             expect(sessions[0].encryption.variant).toBe('dataKey');
         });
@@ -301,6 +303,44 @@ describe('api', () => {
 
             const sessions = await listSessions(config, creds);
             expect(sessions).toEqual([]);
+        });
+    });
+
+    describe('getSessionById', () => {
+        it('paginates beyond the recent-session window and returns the exact encrypted session', async () => {
+            const metadata = { path: '/historical/project', marker: 'preserved' };
+            const { raw } = makeRawSessionWithDataKey(creds, metadata, null, {
+                id: 'historical-session',
+                active: false,
+                metadataVersion: 17,
+            });
+            mockedAxios.get
+                .mockResolvedValueOnce({
+                    data: {
+                        sessions: [makeRawSessionLegacy(creds, { path: '/recent' }, null, { id: 'recent-session' })],
+                        nextCursor: 'cursor_v1_recent-session',
+                    },
+                })
+                .mockResolvedValueOnce({
+                    data: { sessions: [raw], nextCursor: null },
+                });
+
+            const session = await getSessionById(config, creds, 'historical-session');
+
+            expect(session).toMatchObject({
+                id: 'historical-session',
+                active: false,
+                metadata,
+                metadataVersion: 17,
+            });
+            expect(mockedAxios.get).toHaveBeenNthCalledWith(1,
+                'https://test-server.example.com/v2/sessions',
+                { headers: authHeader, params: { limit: 200 } },
+            );
+            expect(mockedAxios.get).toHaveBeenNthCalledWith(2,
+                'https://test-server.example.com/v2/sessions',
+                { headers: authHeader, params: { limit: 200, cursor: 'cursor_v1_recent-session' } },
+            );
         });
     });
 
