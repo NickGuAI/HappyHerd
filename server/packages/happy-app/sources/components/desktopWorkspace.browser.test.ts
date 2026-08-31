@@ -275,21 +275,19 @@ describe('Desktop workspace browser interaction', () => {
         expect(Math.abs(collapseBox.x + collapseBox.width / 2 - drawerBox.x - drawerBox.width)).toBeLessThan(2);
         expect(Math.abs(collapseBox.y - sidebarBox.y - 15)).toBeLessThan(2);
 
-        await collapse.click();
-        const expand = page.getByTestId('navigation-sidebar-toggle');
-        await expand.waitFor();
-        await expect(expand.getAttribute('aria-label')).resolves.toBe('Expand navigation');
-        const expandBox = await expand.boundingBox();
-        const zenBox = await page.getByLabel('Toggle Zen mode').boundingBox();
-        if (!expandBox || !zenBox) throw new Error('collapsed controls have no layout');
-        expect(expandBox.x + expandBox.width).toBeLessThanOrEqual(zenBox.x);
-        await expand.click();
-        await expect(collapse.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
-
         const splitDemo = page.getByTestId('split-demo');
         const host = splitDemo.getByTestId('desktop-file-workspace-host');
         const divider = splitDemo.getByTestId('desktop-file-workspace-divider');
         const input = splitDemo.getByTestId('mounted-workspace-input');
+        const editorPanel = splitDemo.getByTestId('desktop-file-panel:/workspace/demo.md');
+        await splitDemo.getByRole('button', { name: 'Edit' }).click();
+        const editor = editorPanel.getByTestId('code-editor');
+        const unsavedValue = '# Unsaved editor state\n'.repeat(40);
+        await editor.fill(unsavedValue);
+        await editor.evaluate((element) => { element.scrollTop = 120; });
+        const initialEditorScrollTop = await editor.evaluate((element) => element.scrollTop);
+        expect(initialEditorScrollTop).toBeGreaterThan(0);
+
         await input.fill('human draft survives');
         const initialHostBox = await host.boundingBox();
         const initialDividerBox = await divider.boundingBox();
@@ -309,10 +307,28 @@ describe('Desktop workspace browser interaction', () => {
         expect(resizedHostBox.width).toBeGreaterThan(initialHostBox.width + 100);
         await expect(splitDemo.getByTestId('mounted-workspace-probe').getAttribute('data-mount-id')).resolves.toBe(initialMountId);
         await expect(input.inputValue()).resolves.toBe('human draft survives');
+        await expect(editor.inputValue()).resolves.toBe(unsavedValue);
+        await expect(editor.evaluate((element) => element.scrollTop)).resolves.toBe(initialEditorScrollTop);
+
+        await collapse.click();
+        const expand = page.getByTestId('navigation-sidebar-toggle');
+        await expand.waitFor();
+        await expect(expand.getAttribute('aria-label')).resolves.toBe('Expand navigation');
+        const expandBox = await expand.boundingBox();
+        const zenBox = await page.getByLabel('Toggle Zen mode').boundingBox();
+        if (!expandBox || !zenBox) throw new Error('collapsed controls have no layout');
+        expect(expandBox.x + expandBox.width).toBeLessThanOrEqual(zenBox.x);
+        await expect(editor.inputValue()).resolves.toBe(unsavedValue);
+        await expect(editor.evaluate((element) => element.scrollTop)).resolves.toBe(initialEditorScrollTop);
+
+        await expand.click();
+        await expect(collapse.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
+        await expect(editor.inputValue()).resolves.toBe(unsavedValue);
+        await expect(editor.evaluate((element) => element.scrollTop)).resolves.toBe(initialEditorScrollTop);
         await expect(splitDemo.getByTestId('main-agent-chat').isVisible()).resolves.toBe(true);
         expect(pageErrors).toEqual([]);
         await page.close();
-    }, 10_000);
+    }, 15_000);
 
     it('keeps wide controls focused and narrow controls complete in the real file workspace', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1200 } });

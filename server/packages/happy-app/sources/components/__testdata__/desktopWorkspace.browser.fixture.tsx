@@ -26,7 +26,10 @@ function MountedWorkspaceProbe() {
 
 function WorkspaceSplitDemo() {
     return (
-        <div data-testid="split-demo" style={{ width: 1100, height: 480 }}>
+        <div
+            data-testid="split-demo"
+            style={{ display: 'flex', flexDirection: 'column', width: 1100, height: 480 }}
+        >
             <DesktopFileWorkspaceSplit
                 workspaceVisible
                 workspaceFullscreen={false}
