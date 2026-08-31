@@ -14,24 +14,6 @@ export function useWorkspaceLinkPress(): WorkspaceLinkPressHandler | undefined {
     return React.useContext(WorkspaceLinkPressContext);
 }
 
-export function openWorkspaceLinkFromSession(input: Readonly<{
-    route: WorkspaceLinkRoute;
-    sessionId: string;
-    feedbackSending: boolean;
-    withFileDiscardConfirmation: (action: () => void) => void;
-    pushRoute: (route: WorkspaceLinkRoute) => void;
-    showSidePanel: (route: WorkspaceLinkRoute) => void;
-}>): void {
-    if (input.feedbackSending) return;
-    input.withFileDiscardConfirmation(() => {
-        if (input.route.params.originSessionId !== input.sessionId) {
-            input.pushRoute(input.route);
-            return;
-        }
-        input.showSidePanel(input.route);
-    });
-}
-
 export function useWorkspaceLinkDismissGuard() {
     const navigation = useNavigation();
     const sendingRef = React.useRef(false);
