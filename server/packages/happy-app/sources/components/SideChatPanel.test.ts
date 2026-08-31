@@ -67,7 +67,12 @@ vi.mock('@/-session/SessionView', async () => {
     const ReactModule = await import('react');
     return {
         SessionViewLoaded: (props: any) => ReactModule.createElement('SessionViewLoaded', props),
+        SessionWorkspaceControllerContext: ReactModule.createContext(null),
     };
+});
+vi.mock('@/-session/workspaceLinkNavigation', async () => {
+    const ReactModule = await import('react');
+    return { WorkspaceLinkPressContext: ReactModule.createContext(undefined) };
 });
 
 import {

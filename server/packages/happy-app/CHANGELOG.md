@@ -1,3 +1,8 @@
+# August 31 — Machine Workspace routing and consolidated mobile actions
+
+- Machine Workspace opened from an active Main Agent or Side chat now starts on the exact session machine and current working directory even in non-Git folders, though explicit deep links still take precedence and normal browsing remains available.
+- On Web Mobile, session workspace, permission, model, and effort settings, stop, queue, and attachment actions are consolidated into a single bottom-left plus menu, while the microphone and Send remain direct controls and Send remains send-only.
+
 # August 31 — Inline workspace images recover and retry
 
 - Inline workspace images now automatically retry on temporary read failures, with an option to manually retry in-place if a failure persists.

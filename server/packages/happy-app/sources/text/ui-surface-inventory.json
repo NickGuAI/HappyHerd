@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "65ead094849973e57a53e9f56396da7fcf52538111f5cd579e4d5544abe8c898",
+  "sourceFingerprint": "8028568c645b08009e5ab4fda2c0b2297cc4ba9b96e3523795fae46f81a3f011",
   "routeCount": 36,
   "surfaceCount": 249,
   "hardcodedCopyCount": 0,
@@ -1004,7 +1004,8 @@
       "route": null,
       "exports": [
         "SessionView",
-        "SessionViewLoaded"
+        "SessionViewLoaded",
+        "SessionWorkspaceControllerContext"
       ],
       "translationKeys": [
         "common.cancel",
@@ -1016,8 +1017,6 @@
         "errors.grokPermissionModeChangeFailed",
         "errors.sessionDeleted",
         "errors.sessionDeletedDescription",
-        "files.allFiles",
-        "files.changes",
         "happyHerd.composer.sendFailedBody",
         "happyHerd.composer.sendFailedTitle",
         "happyHerd.heartbeat.machineUnavailable",
@@ -1035,8 +1034,7 @@
         "uiCopy.thisFile",
         "uiCopy.workspaceContext",
         "uiCopy.youCanAttachUpTo8FilesToOneMessage",
-        "uiCopy.yourEditsToValueHaveNotBeenSaved",
-        "workspace.title"
+        "uiCopy.yourEditsToValueHaveNotBeenSaved"
       ],
       "states": [
         "error"
@@ -2406,8 +2404,13 @@
         "agentInput.usagePopup.resets",
         "agentInput.usagePopup.session",
         "agentInput.usagePopup.week",
+        "files.allFiles",
+        "files.changes",
         "happyHerd.composer.cancelVoice",
+        "happyHerd.composer.deviceFiles",
         "happyHerd.composer.finishVoice",
+        "happyHerd.composer.moreActions",
+        "happyHerd.composer.photos",
         "happyHerd.composer.queueMessage",
         "happyHerd.composer.retryVoice",
         "happyHerd.composer.send",
@@ -2417,7 +2420,8 @@
         "settings.title",
         "uiCopy.claude",
         "uiCopy.codex",
-        "uiCopy.gemini"
+        "uiCopy.gemini",
+        "workspace.title"
       ],
       "states": [],
       "hardcodedCopy": []

@@ -9,7 +9,12 @@ import { useSession, useSideChatSessions } from '@/sync/storage';
 import { sync } from '@/sync/sync';
 import { Modal } from '@/modal';
 import type { Session } from '@/sync/storageTypes';
-import { SessionViewLoaded } from '@/-session/SessionView';
+import {
+    SessionViewLoaded,
+    SessionWorkspaceControllerContext,
+    type SessionWorkspaceController,
+} from '@/-session/SessionView';
+import { WorkspaceLinkPressContext } from '@/-session/workspaceLinkNavigation';
 import { resolveActiveSideChatId } from './sideChatPresentation';
 
 export type SideChatPanelProps = {
@@ -152,11 +157,9 @@ export const SideChatPanel = React.memo(function SideChatPanel({
 /** Full-screen host for the same controlled panel used by the wide sidebar. */
 export const SideChatFullscreen = React.memo(function SideChatFullscreen({
     onCollapse,
-    workspaceAccess,
     ...panelProps
 }: SideChatPanelProps & {
     onCollapse: () => void;
-    workspaceAccess?: React.ReactNode;
 }) {
     const { theme } = useUnistyles();
     const safeArea = useSafeAreaInsets();
@@ -190,7 +193,6 @@ export const SideChatFullscreen = React.memo(function SideChatFullscreen({
                     <Octicons name="chevron-down" size={18} color={theme.colors.text} />
                 </Pressable>
             </View>
-            {workspaceAccess}
             <SideChatPanel {...panelProps} />
         </View>
     );
@@ -304,9 +306,10 @@ const SideChatTab = React.memo(function SideChatTab({
 /** Focused side chat inside the panel: the real chat body + an expand button. */
 const SideChatConversation = React.memo(function SideChatConversation({ session }: { session: Session }) {
     const { theme } = useUnistyles();
+    const workspaceController = React.useContext(SessionWorkspaceControllerContext);
     const openFullScreen = React.useCallback(() => {
-        Modal.show({ component: SideChatModal, props: { sessionId: session.id } });
-    }, [session.id]);
+        Modal.show({ component: SideChatModal, props: { sessionId: session.id, workspaceController } });
+    }, [session.id, workspaceController]);
 
     return (
         <View style={styles.conversationContainer}>
@@ -331,7 +334,15 @@ const SideChatConversation = React.memo(function SideChatConversation({ session 
 });
 
 /** Full-screen modal presentation of a single side chat. */
-const SideChatModal = React.memo(function SideChatModal({ sessionId, onClose }: { sessionId: string; onClose?: () => void }) {
+const SideChatModal = React.memo(function SideChatModal({
+    sessionId,
+    workspaceController,
+    onClose,
+}: {
+    sessionId: string;
+    workspaceController: SessionWorkspaceController | null;
+    onClose?: () => void;
+}) {
     const { theme } = useUnistyles();
     const { width, height } = useWindowDimensions();
     const session = useSession(sessionId);
@@ -346,6 +357,29 @@ const SideChatModal = React.memo(function SideChatModal({ sessionId, onClose }: 
     React.useEffect(() => {
         if (!stillOpen && onClose) onClose();
     }, [stillOpen, onClose]);
+
+    const visibleWorkspaceController = React.useMemo<SessionWorkspaceController | null>(() => {
+        if (!workspaceController) return null;
+        const dismiss = () => onClose?.();
+        return {
+            openChanges: (targetSessionId) => {
+                dismiss();
+                workspaceController.openChanges(targetSessionId);
+            },
+            openChatWorkspace: (targetSessionId) => {
+                dismiss();
+                workspaceController.openChatWorkspace(targetSessionId);
+            },
+            openMachineWorkspace: (targetSession) => {
+                dismiss();
+                workspaceController.openMachineWorkspace(targetSession);
+            },
+            openWorkspaceLink: (route) => {
+                dismiss();
+                workspaceController.openWorkspaceLink(route);
+            },
+        };
+    }, [onClose, workspaceController]);
 
     if (!stillOpen) return null;
 
@@ -369,7 +403,11 @@ const SideChatModal = React.memo(function SideChatModal({ sessionId, onClose }: 
                 </Pressable>
             </View>
             <View style={styles.chatWrap}>
-                <SessionViewLoaded sessionId={session.id} session={session} embedded />
+                <SessionWorkspaceControllerContext.Provider value={visibleWorkspaceController}>
+                    <WorkspaceLinkPressContext.Provider value={visibleWorkspaceController?.openWorkspaceLink}>
+                        <SessionViewLoaded sessionId={session.id} session={session} embedded />
+                    </WorkspaceLinkPressContext.Provider>
+                </SessionWorkspaceControllerContext.Provider>
             </View>
         </View>
     );

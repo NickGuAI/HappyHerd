@@ -62,6 +62,14 @@ interface AgentInputProps {
     sessionId?: string;
     onSend: () => void;
     onQueueMessage?: () => void;
+    /** Owns the single consolidated action menu in a Web Mobile session host. */
+    showWebMobileActionMenu?: boolean;
+    /** Session-scoped file surfaces consolidated into the Web Mobile composer menu. */
+    mobileWorkspaceActions?: {
+        onOpenChanges: () => void;
+        onOpenChatWorkspace: () => void;
+        onOpenMachineWorkspace: () => void;
+    };
     sendIcon?: React.ReactNode;
     onMicPress?: () => void;
     permissionMode?: PermissionMode | null;
@@ -239,6 +247,47 @@ const stylesheet = StyleSheet.create((theme, runtime) => ({
         right: 0,
         marginBottom: 12,
         zIndex: 1000,
+    },
+    mobileActionsOverlay: {
+        position: 'absolute',
+        bottom: '100%',
+        left: 0,
+        width: 320,
+        maxWidth: '100%',
+        marginBottom: 12,
+        zIndex: 1000,
+    },
+    mobileActionsMenu: {
+        paddingVertical: 6,
+    },
+    mobileActionsRow: {
+        minHeight: 46,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingHorizontal: 14,
+    },
+    mobileActionsRowPressed: {
+        backgroundColor: theme.colors.surfacePressed,
+    },
+    mobileActionsRowDisabled: {
+        opacity: 0.42,
+    },
+    mobileActionsLabel: {
+        flex: 1,
+        color: theme.colors.text,
+        fontSize: 15,
+        ...Typography.default(),
+    },
+    mobileActionsDestructiveLabel: {
+        color: theme.colors.textDestructive,
+    },
+    mobileActionsTrigger: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     overlayBackdrop: {
         position: 'absolute',
@@ -844,12 +893,16 @@ const AgentInputContextChips = React.memo(function AgentInputContextChips(p: Con
 export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, AgentInputProps>((props, ref) => {
     const styles = stylesheet;
     const { theme } = useUnistyles();
-    const screenWidth = useWindowDimensions().width;
+    const { width: screenWidth, height: screenHeight } = useWindowDimensions();
     // The compact action row is deliberately limited to the narrow native
     // layout. Desktop web, Mac Catalyst, and tablet-width canvases retain the
     // existing composer affordances rather than inheriting it.
     const runningOnMac = isRunningOnMac();
     const compactMobileComposer = Platform.OS !== 'web' && !runningOnMac && screenWidth <= 700;
+    // SessionView supplies this contract only while its Web Mobile session
+    // layout is active. Use that owning signal directly so the workspace
+    // actions cannot disappear between unrelated responsive breakpoints.
+    const webMobileActionMenu = Platform.OS === 'web' && !!props.showWebMobileActionMenu;
     // iOS only. On Android the settings/model/effort triggers are React Native
     // subtrees hosted inside a Jetpack Compose DropdownMenu, and expo-modules-core
     // pins such a child to `Modifier.size(view.width, view.height)` sampled once at
@@ -1141,6 +1194,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     // visible, including while we dismiss the keyboard on mobile.
     type ComposerPicker = 'permission' | 'model' | 'effort';
     const [openPicker, setOpenPicker] = React.useState<ComposerPicker | null>(null);
+    const [mobileActionMenuOpen, setMobileActionMenuOpen] = React.useState(false);
     const pickerOpeningRef = React.useRef<ComposerPicker | null>(null);
     const pickerKeyboardSubscriptionRef = React.useRef<ReturnType<typeof Keyboard.addListener> | null>(null);
     const pickerOpenTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1159,6 +1213,10 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         cancelPendingPickerOpen();
         setOpenPicker(null);
     }, [cancelPendingPickerOpen]);
+
+    const closeMobileActionMenu = React.useCallback(() => {
+        setMobileActionMenuOpen(false);
+    }, []);
 
     React.useEffect(() => cancelPendingPickerOpen, [cancelPendingPickerOpen]);
 
@@ -1192,6 +1250,16 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     const handleSettingsPress = React.useCallback(() => {
         handlePickerPress('permission');
     }, [handlePickerPress]);
+
+    const handleMobileActionMenuPress = React.useCallback(() => {
+        hapticsLight();
+        closePicker();
+        setMobileActionMenuOpen((visible) => !visible);
+    }, [closePicker]);
+
+    React.useEffect(() => {
+        closeMobileActionMenu();
+    }, [closeMobileActionMenu, props.sessionId]);
 
     const handleModelPress = React.useCallback(() => {
         if (!canOpenModelPicker) return;
@@ -1339,6 +1407,92 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
 
     const modelSettingsGroup = modelSettingsGroups.find((group) => group.key === 'model');
     const effortSettingsGroup = modelSettingsGroups.find((group) => group.key === 'effort');
+    const showPermissionSettingsSection = !webMobileActionMenu || permissionSettingsGroups.length > 0;
+    const showModelSettingsSection = !webMobileActionMenu || Boolean(modelSettingsGroup);
+    const showEffortSettingsSection = Boolean(effortSettingsGroup);
+
+    const mobileComposerActions = React.useMemo(() => {
+        const workspace = props.mobileWorkspaceActions;
+        const actions: Array<{
+            key: string;
+            label: string;
+            icon: React.ComponentProps<typeof Ionicons>['name'];
+            onPress: () => void;
+            disabled?: boolean;
+            destructive?: boolean;
+        }> = [];
+
+        if (workspace) {
+            actions.push({
+                key: 'changes',
+                label: t('files.changes'),
+                icon: 'git-compare-outline',
+                onPress: workspace.onOpenChanges,
+            }, {
+                key: 'chat-workspace',
+                label: t('files.allFiles'),
+                icon: 'folder-open-outline',
+                onPress: workspace.onOpenChatWorkspace,
+            }, {
+                key: 'machine-workspace',
+                label: t('workspace.title'),
+                icon: 'desktop-outline',
+                onPress: workspace.onOpenMachineWorkspace,
+            });
+        }
+
+        if (permissionSettingsGroups.length > 0 || modelSettingsGroups.length > 0) {
+            actions.push({
+                key: 'settings',
+                label: t('settings.title'),
+                icon: 'settings-outline',
+                onPress: handleSettingsPress,
+            });
+        }
+        if (shouldShowStopButton && props.onAbort) {
+            actions.push({
+                key: 'stop',
+                label: t('happyHerd.composer.stop'),
+                icon: 'stop-circle-outline',
+                onPress: () => void handleAbortPress(),
+                disabled: isAborting,
+                destructive: true,
+            });
+        }
+        if (props.onQueueMessage) {
+            actions.push({
+                key: 'queue',
+                label: t('happyHerd.composer.queueMessage'),
+                icon: 'list-outline',
+                onPress: props.onQueueMessage,
+                disabled: !hasComposerContent || props.isSendDisabled,
+            });
+        }
+        if (props.onPickImages) {
+            actions.push({
+                key: 'photos',
+                label: t('happyHerd.composer.photos'),
+                icon: 'images-outline',
+                onPress: props.onPickImages,
+            });
+        }
+        if (props.onPickDeviceFiles) {
+            actions.push({
+                key: 'device-files',
+                label: t('happyHerd.composer.deviceFiles'),
+                icon: 'document-outline',
+                onPress: props.onPickDeviceFiles,
+            });
+        }
+        return actions;
+    }, [handleAbortPress, handleSettingsPress, hasComposerContent, isAborting, modelSettingsGroups.length, permissionSettingsGroups.length, props.isSendDisabled, props.mobileWorkspaceActions, props.onAbort, props.onPickDeviceFiles, props.onPickImages, props.onQueueMessage, shouldShowStopButton]);
+
+    const invokeMobileComposerAction = React.useCallback((action: (typeof mobileComposerActions)[number]) => {
+        if (action.disabled) return;
+        closeMobileActionMenu();
+        hapticsLight();
+        action.onPress();
+    }, [closeMobileActionMenu]);
 
     const renderModelValue = () => (
         <Text style={styles.mobileModeText} numberOfLines={1}>
@@ -1435,8 +1589,31 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         <View style={styles.actionButtonsContainer}>
             <View style={{ flexDirection: 'column', flex: 1, gap: 2 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    {props.zenMode && <View style={{ flex: 1 }} />}
-                    {!props.zenMode && <View style={styles.actionButtonsLeft}>
+                    {props.zenMode && !webMobileActionMenu && <View style={{ flex: 1 }} />}
+                    {(!props.zenMode || webMobileActionMenu) && <View style={styles.actionButtonsLeft}>
+                        {webMobileActionMenu ? (
+                            <BubblePressable
+                                accessibilityLabel={t('happyHerd.composer.moreActions')}
+                                accessibilityRole="button"
+                                accessibilityState={{ expanded: mobileActionMenuOpen }}
+                                hitSlop={{ top: 5, bottom: 10, left: 0, right: 0 }}
+                                onPress={handleMobileActionMenuPress}
+                                style={(pressedState) => [
+                                    styles.mobileActionsTrigger,
+                                    pressedState.pressed && { opacity: 0.7 },
+                                ]}
+                                testID="mobile-composer-actions-trigger"
+                            >
+                                <Octicons
+                                    name="plus"
+                                    size={20}
+                                    color={(props.selectedImages?.length ?? 0) > 0 || hasContextEntries
+                                        ? theme.colors.radio.active
+                                        : theme.colors.button.secondary.tint}
+                                />
+                            </BubblePressable>
+                        ) : (
+                            <>
                         {props.onPermissionModeChange && (
                             useNativeSettingsMenus ? (
                                 <NativeSettingsMenu
@@ -1578,6 +1755,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 })}
                             />
                         )}
+                            </>
+                        )}
                     </View>}
 
                     <VoiceDictationControls
@@ -1698,63 +1877,72 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                 { paddingHorizontal: screenWidth > 700 ? 0 : 8 },
             ]}>
                 <FloatingOverlay maxHeight={400} keyboardShouldPersistTaps="always">
-                    <View style={styles.overlaySection}>
-                        <Text style={styles.overlaySectionTitle}>
-                            {isCodex
-                                ? t('agentInput.codexPermissionMode.title')
-                                : isGemini
-                                    ? t('agentInput.geminiPermissionMode.title')
-                                    : t('agentInput.permissionMode.title')}
-                        </Text>
-                        {availableModes.map((mode) => renderDesktopPickerOption(
-                            mode.key,
-                            permissionModeKey === mode.key,
-                            withSandboxSuffix(mode.name, mode.key),
-                            mode.description,
-                            () => handleSettingsSelect(mode),
-                        ))}
-                    </View>
-
-                    <View style={{ height: 1, backgroundColor: theme.colors.divider, marginHorizontal: 16 }} />
-
-                    <View style={{ flexDirection: 'row' }}>
-                        <View style={{ paddingVertical: 8, flex: 1 }}>
-                            <Text style={{
-                                fontSize: 12,
-                                fontWeight: '600',
-                                color: theme.colors.textSecondary,
-                                paddingHorizontal: 16,
-                                paddingBottom: 4,
-                                ...Typography.default('semiBold'),
-                            }}>
-                                {t('agentInput.model.title')}
+                    {showPermissionSettingsSection && (
+                        <View style={styles.overlaySection}>
+                            <Text style={styles.overlaySectionTitle}>
+                                {isCodex
+                                    ? t('agentInput.codexPermissionMode.title')
+                                    : isGemini
+                                        ? t('agentInput.geminiPermissionMode.title')
+                                        : t('agentInput.permissionMode.title')}
                             </Text>
-                            {availableModels.length > 0 ? availableModels.map((model) => renderDesktopPickerOption(
-                                model.key,
-                                props.modelMode?.key === model.key,
-                                model.name,
-                                model.description,
-                                () => {
-                                    hapticsLight();
-                                    props.onModelModeChange?.(model);
-                                    closePicker();
-                                },
-                            )) : (
-                                <Text style={{
-                                    fontSize: 13,
-                                    color: theme.colors.textSecondary,
-                                    paddingHorizontal: 16,
-                                    paddingVertical: 8,
-                                    ...Typography.default(),
-                                }}>
-                                    {t('agentInput.model.configureInCli')}
-                                </Text>
-                            )}
+                            {availableModes.map((mode) => renderDesktopPickerOption(
+                                mode.key,
+                                permissionModeKey === mode.key,
+                                withSandboxSuffix(mode.name, mode.key),
+                                mode.description,
+                                () => handleSettingsSelect(mode),
+                            ))}
                         </View>
+                    )}
 
-                        {availableEffortLevels.length > 0 && props.onEffortLevelChange && (
-                            <>
+                    {showPermissionSettingsSection && (showModelSettingsSection || showEffortSettingsSection) && (
+                        <View style={{ height: 1, backgroundColor: theme.colors.divider, marginHorizontal: 16 }} />
+                    )}
+
+                    {(showModelSettingsSection || showEffortSettingsSection) && (
+                        <View style={{ flexDirection: 'row' }}>
+                            {showModelSettingsSection && (
+                                <View style={{ paddingVertical: 8, flex: 1 }}>
+                                    <Text style={{
+                                        fontSize: 12,
+                                        fontWeight: '600',
+                                        color: theme.colors.textSecondary,
+                                        paddingHorizontal: 16,
+                                        paddingBottom: 4,
+                                        ...Typography.default('semiBold'),
+                                    }}>
+                                        {t('agentInput.model.title')}
+                                    </Text>
+                                    {availableModels.length > 0 ? availableModels.map((model) => renderDesktopPickerOption(
+                                        model.key,
+                                        props.modelMode?.key === model.key,
+                                        model.name,
+                                        model.description,
+                                        () => {
+                                            hapticsLight();
+                                            props.onModelModeChange?.(model);
+                                            closePicker();
+                                        },
+                                    )) : (
+                                        <Text style={{
+                                            fontSize: 13,
+                                            color: theme.colors.textSecondary,
+                                            paddingHorizontal: 16,
+                                            paddingVertical: 8,
+                                            ...Typography.default(),
+                                        }}>
+                                            {t('agentInput.model.configureInCli')}
+                                        </Text>
+                                    )}
+                                </View>
+                            )}
+
+                            {showModelSettingsSection && showEffortSettingsSection && (
                                 <View style={{ width: 1, backgroundColor: theme.colors.divider, marginVertical: 8 }} />
+                            )}
+
+                            {showEffortSettingsSection && (
                                 <View style={{ paddingVertical: 8, flex: 1 }}>
                                     <Text style={{
                                         fontSize: 12,
@@ -1778,9 +1966,9 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                         },
                                     ))}
                                 </View>
-                            </>
-                        )}
-                    </View>
+                            )}
+                        </View>
+                    )}
                 </FloatingOverlay>
             </View>
         </>
@@ -1814,6 +2002,60 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             itemHeight={48}
                         />
                     </View>
+                )}
+
+                {webMobileActionMenu && mobileActionMenuOpen && (
+                    <>
+                        <AnimatedClickAwayBackdrop
+                            onPress={closeMobileActionMenu}
+                            style={styles.overlayBackdrop}
+                        />
+                        <View style={styles.mobileActionsOverlay}>
+                            <FloatingOverlay
+                                maxHeight={Math.max(160, Math.min(520, screenHeight - 180))}
+                                showScrollIndicator
+                                keyboardShouldPersistTaps="always"
+                            >
+                                <View
+                                    accessibilityLabel={t('happyHerd.composer.moreActions')}
+                                    accessibilityRole="menu"
+                                    style={styles.mobileActionsMenu}
+                                    testID="mobile-composer-actions-menu"
+                                >
+                                    {mobileComposerActions.map((action) => (
+                                        <Pressable
+                                            key={action.key}
+                                            accessibilityLabel={action.label}
+                                            accessibilityRole="menuitem"
+                                            accessibilityState={{ disabled: action.disabled }}
+                                            disabled={action.disabled}
+                                            onPress={() => invokeMobileComposerAction(action)}
+                                            style={({ pressed }) => [
+                                                styles.mobileActionsRow,
+                                                pressed && styles.mobileActionsRowPressed,
+                                                action.disabled && styles.mobileActionsRowDisabled,
+                                            ]}
+                                            testID={`mobile-composer-action-${action.key}`}
+                                        >
+                                            <Ionicons
+                                                name={action.icon}
+                                                size={20}
+                                                color={action.destructive
+                                                    ? theme.colors.textDestructive
+                                                    : theme.colors.text}
+                                            />
+                                            <Text style={[
+                                                styles.mobileActionsLabel,
+                                                action.destructive && styles.mobileActionsDestructiveLabel,
+                                            ]}>
+                                                {action.label}
+                                            </Text>
+                                        </Pressable>
+                                    ))}
+                                </View>
+                            </FloatingOverlay>
+                        </View>
+                    </>
                 )}
 
                 {desktopSettingsOverlay}

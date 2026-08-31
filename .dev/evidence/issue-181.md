@@ -22,14 +22,19 @@ The root cause was two separate same-session file workspace implementations: All
   `FileContentPanel` for Preview, Edit, and supported Delete actions.
 - **Removed duplicate:** `WorkspaceLinkSidePanel` and its separate in-session header and composer were deleted.
 
-## Corrective follow-up
+## Active corrective follow-up contract
 
 - The embedded Machine Workspace now fills the chat host while the standalone route keeps its fixed rail, with the desktop workspace divider reaching 75 percent workspace and 25 percent chat.
-- Changes, Chat Workspace, and Machine Workspace are visibly clickable in production `SessionView` hosts on Web Desktop defaults and 390 × 844 Web Mobile, and the connected voice status does not cover Changes.
-- Real browser gestures preserve the chat mount, draft, chat scroll, file editor mount, unsaved content, and editor scroll.
-- All 192 app test files and 1,775 tests passed, the production web export passed, and the i18n inventory has 36 routes, 249 surfaces, and 72 smoke cases.
+- Embedded Machine Workspace entry must bind to the active session machine and
+  cwd, ignore a conflicting remembered path, work outside Git, preserve an
+  explicit link target, and allow later Human navigation.
+- Web Desktop retains visible session workspace controls. Web Mobile Main Agent
+  and Side chat hosts use one visible bottom-left `+` menu for session actions,
+  while microphone and Send remain direct and Send remains send-only.
+- Real browser gestures must preserve the chat mount, draft, chat scroll, file
+  editor mount, unsaved content, and editor scroll.
 
-## Local evidence
+## Prior local evidence
 
 - Focused workspace tests passed, including current-session link routing,
   machine/path deduplication, location replacement, and stale-probe rejection.
@@ -37,4 +42,6 @@ The root cause was two separate same-session file workspace implementations: All
   compact zero-tab open/back, tabs, preserved unsaved draft and scroll, and
   divider drag.
 - App typecheck, UI/i18n checks, and the full 192-file, 1,775-test suite passed.
-- Production export and deployed-domain proof remain release gates.
+- The session-cwd and mobile `+` follow-up requires fresh production-host
+  interaction evidence on its final commit; prior source, test, build, and
+  deployment evidence cannot satisfy that Human gate.
