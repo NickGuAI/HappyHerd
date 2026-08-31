@@ -9,7 +9,15 @@ The root cause was two separate same-session file workspace implementations: All
 - **Sole same-session plain-file workspace:** `DesktopFileWorkspace` is the only same-session plain-file workspace. Chat file links and All Files converge on the same deduplicated state.
 - **Wide Web Desktop:** Tabs, the file picker, and the draggable divider remain available while the Main Agent composer mount and draft persist.
 - **390 × 844 Web Mobile:** The same state renders as the canonical compact full-screen workspace, without desktop tabs or a divider.
-- **Standalone route retention:** Directory, cross-session, failed-resolution, and line/column links continue to use the standalone `WorkspaceLinkViewer` route.
+- **Historical baseline at `e1b1180a`:** Directory, cross-session,
+  failed-resolution, and line/column links still use standalone
+  `WorkspaceLinkViewer`. This was the limited scope of #181, not the enduring
+  workspace contract.
+- **Superseding target:** The owner-directed Chat Workspace/Machine Workspace
+  consolidation routes every reply-file link, including line/column, through
+  one canonical right-side tabs/viewer state; it must not retain a second
+  standalone file viewer or feedback composer. See
+  [`../playbooks/file-workspaces.md`](../playbooks/file-workspaces.md).
 - **Removed duplicate:** `WorkspaceLinkSidePanel` and its separate in-session header and composer were deleted.
 
 ## Local evidence

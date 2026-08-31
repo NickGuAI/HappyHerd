@@ -116,6 +116,30 @@ Re-run the evidence scan and all fixture routes whenever an update trigger in
 `.dev/README.md` fires. Record disproven assumptions and remaining gaps rather
 than silently copying prior prose.
 
+## Focused refresh — 2026-08-31: workspace consolidation target
+
+- **Evidence inputs:** task `6a951e3e8f0869c1518e18b0`; `AGENTS.md`; the
+  existing `.dev` context; and source at `e1b1180a`, especially
+  `SessionView.tsx`, `DesktopFileWorkspace.tsx`, `FileViewPanel.tsx`,
+  `WorkspaceLinkViewer.tsx`, `WorkspaceFeedbackComposer.tsx`,
+  `app/(app)/workspace/index.tsx`, `utils/markdownWorkspaceLink.ts`,
+  `sync/ops.ts`, `MainView.tsx`, and their focused browser/unit fixtures.
+- **Drafting and review:** Gemini `gemini-3.7-flash` drafted the concise
+  current-versus-target distinction. The result was fact-checked against the
+  source paths above before this `.dev` update.
+- **Observed baseline:** same-session plain reply links and All Files share
+  `DesktopFileWorkspace`; a line/column, cross-session, directory, or failed
+  reply link still navigates to standalone `WorkspaceLinkViewer`; Machine
+  Workspace is a separate selected-machine browser at `/workspace`.
+- **Rejected assumption:** the requested Chat Workspace/Machine Workspace
+  convergence already exists. It does not at this commit, so the new playbook
+  records it as an owner-directed implementation target rather than claiming a
+  completed architecture.
+- **Required future proof:** rendered desktop and 390 × 844 mobile gestures
+  must show one right-side viewer/composer across both named workspace sources
+  and line/column links, with deduplication, feedback, file actions, divider,
+  and draft/location preservation.
+
 ## Focused refresh — 2026-08-26
 
 - **Evidence inputs:** the owner-approved prospective task contract;

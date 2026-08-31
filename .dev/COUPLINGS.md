@@ -198,6 +198,41 @@ composer mic → useVoiceDictation → POST /v1/voice/transcriptions
 existing draft + transcript → editable MultiTextInput → useDraft persistence
 ```
 
+### File workspaces: current boundary and required consolidation
+
+At `e1b1180a`, these are separate surfaces, not one unified workspace:
+
+```text
+same-session plain reply file ─┐
+All Files ─────────────────────┼─► SessionView → DesktopFileWorkspace → FileViewPanel
+                               │       (session file transport)
+line/column, directory, cross-session, or failed reply link ─► /workspace → WorkspaceLinkViewer
+Machine Workspace header action ─────────────────────────────► /workspace → machine browser → FileContentPanel
+```
+
+`SessionView.tsx` owns the same-session plain-file admission and local tab
+state; it deliberately sends a link with `line` or `column` to `/workspace`.
+`DesktopFileWorkspace.tsx` owns the stable right split, tabs, compact host, and
+per-tab `FileViewPanel` mounts. `app/(app)/workspace/index.tsx` owns the
+selected-machine browser and separate `FileContentPanel` transport.
+`WorkspaceLinkViewer.tsx` owns the standalone link route and its separate
+`WorkspaceFeedbackComposer`. `utils/markdownWorkspaceLink.ts` creates the
+route and preserves a parsed line/column location. `sync/ops.ts` owns the
+machine RPC reads and writes. `MainView.tsx` exposes the current Machine
+Workspace action when `machineWorkspace` is enabled.
+
+The owner-directed consolidation target is one canonical right-side tabs and
+viewer state, supplied by exactly two named sources: **Chat Workspace** (the
+current Main Agent session cwd) and **Machine Workspace** (the selected
+machine-wide browser, which remains a left-navigation destination). Every
+reply file link, including line/column links, must open that state; Preview,
+Edit, Delete, and feedback must reuse the same file surface and current Main
+Agent destination. The existing source is not yet that target. Do not describe
+it as implemented, and do not preserve a second viewer or composer as a
+compatibility path when completing it. See
+[`playbooks/file-workspaces.md`](playbooks/file-workspaces.md) for the owner
+table and interaction gate.
+
 ## State owners
 
 | State | Canonical owner | Important boundary |

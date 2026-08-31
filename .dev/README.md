@@ -92,6 +92,7 @@ bounded change → exact-head review → PR → merge
 | Deliver through protected `main` and clean the branch | [`playbooks/development-lifecycle.md`](playbooks/development-lifecycle.md) |
 | Run a combined central-server and native-daemon update | [`playbooks/post-update-restart.md`](playbooks/post-update-restart.md) |
 | Delegate, operate, and verify side chats | [`playbooks/side-chat-lifecycle.md`](playbooks/side-chat-lifecycle.md) |
+| Maintain, inspect, and verify file workspaces | [`playbooks/file-workspaces.md`](playbooks/file-workspaces.md) |
 | Audit how this context was derived | [`EVALUATION.md`](EVALUATION.md) |
 
 ## System at a glance
