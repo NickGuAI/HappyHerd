@@ -19,6 +19,8 @@ export type UnboundRateLimit = {
 
 /** A per-turn delta emitted by claudeRemote, merged into agent state by the launcher. */
 export type UsageLimitsPatch = {
+    /** Named credential-pool account that produced this delta. */
+    providerAccount?: string,
     capturedAt: number,
     windows: UsageLimitWindow[],
     /** rate_limit_event without a rateLimitType: applies to whichever window currently binds. */
@@ -113,7 +115,10 @@ export function fromRateLimitEvent(info: RateLimitEventInfo): { window?: UsageLi
  * claudeRemote re-entries (mode switches, /clear, stream end).
  */
 export function mergeUsageLimits(current: UsageLimits | null | undefined, patch: UsageLimitsPatch): UsageLimits {
-    const windows: UsageLimitWindow[] = !patch.replace && Array.isArray(current?.windows) ? [...current.windows] : [];
+    const sameAccount = current?.providerAccount === patch.providerAccount;
+    const windows: UsageLimitWindow[] = !patch.replace && sameAccount && Array.isArray(current?.windows)
+        ? [...current.windows]
+        : [];
     for (const incoming of patch.windows) {
         const index = windows.findIndex(w => w.id === incoming.id);
         if (index >= 0) {
@@ -163,5 +168,23 @@ export function mergeUsageLimits(current: UsageLimits | null | undefined, patch:
             });
         }
     }
-    return { capturedAt: patch.capturedAt, windows };
+    return {
+        ...(patch.providerAccount ? { providerAccount: patch.providerAccount } : {}),
+        capturedAt: patch.capturedAt,
+        windows,
+    };
+}
+
+/**
+ * Returns only quota state owned by the account about to resume. Named
+ * accounts must never inherit a legacy-unscoped or differently scoped
+ * snapshot from the previous provider process.
+ */
+export function usageLimitsForProviderAccount(
+    current: UsageLimits | null | undefined,
+    account: string | null | undefined,
+): UsageLimits | undefined {
+    if (!current) return undefined;
+    if (!account) return current;
+    return current.providerAccount === account ? current : undefined;
 }

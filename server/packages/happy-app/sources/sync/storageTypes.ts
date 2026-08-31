@@ -276,6 +276,7 @@ export const AgentGoalStatusSchema = z.discriminatedUnion('status', [
 export type AgentGoalStatus = z.infer<typeof AgentGoalStatusSchema>;
 
 const UsageLimitsSchema = z.object({
+    providerAccount: z.string().trim().min(1).optional(),
     capturedAt: z.number(),
     windows: z.array(z.object({
         id: z.string(),

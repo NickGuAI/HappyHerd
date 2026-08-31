@@ -1,7 +1,11 @@
 import axios from 'axios'
 import { logger } from '@/ui/logger'
 import type { AgentState, CreateSessionResponse, Metadata, Session, Machine, MachineMetadata, DaemonState, UserMessage } from '@/api/types'
-import { ApiSessionClient } from './apiSession';
+import {
+  ApiSessionClient,
+  createSessionEventMessage,
+  type AgentSessionEvent,
+} from './apiSession';
 import { ApiMachineClient } from './apiMachine';
 import { decodeBase64, encodeBase64, getRandomBytes, encrypt, decrypt, libsodiumEncryptForPublicKey } from './encryption';
 import { PushNotificationClient } from './pushNotifications';
@@ -206,22 +210,17 @@ export class ApiClient {
     };
   }
 
-  private async postQueuedUserMessage(session: Session, input: {
-    localId: string;
-    text: string;
-    meta: NonNullable<UserMessage['meta']>;
-  }): Promise<void> {
-    const content: UserMessage = {
-      role: 'user',
-      content: { type: 'text', text: input.text },
-      meta: input.meta,
-    };
+  private async postEncryptedSessionMessage(
+    session: Session,
+    content: unknown,
+    localId: string,
+  ): Promise<void> {
     await axios.post(
       `${configuration.serverUrl}/v3/sessions/${encodeURIComponent(session.id)}/messages`,
       {
         messages: [{
           content: encodeBase64(encrypt(session.encryptionKey, session.encryptionVariant, content)),
-          localId: input.localId,
+          localId,
         }],
       },
       {
@@ -232,6 +231,31 @@ export class ApiClient {
         },
         timeout: 60000,
       },
+    );
+  }
+
+  private async postQueuedUserMessage(session: Session, input: {
+    localId: string;
+    text: string;
+    meta: NonNullable<UserMessage['meta']>;
+  }): Promise<void> {
+    const content: UserMessage = {
+      role: 'user',
+      content: { type: 'text', text: input.text },
+      meta: input.meta,
+    };
+    await this.postEncryptedSessionMessage(session, content, input.localId);
+  }
+
+  async postSessionEvent(
+    session: Session,
+    event: AgentSessionEvent,
+    incidentId: string,
+  ): Promise<void> {
+    await this.postEncryptedSessionMessage(
+      session,
+      createSessionEventMessage(event, incidentId),
+      incidentId,
     );
   }
 

@@ -1,3 +1,9 @@
+# August 31 — Credential pool follow-ups
+
+- When automatic rotation resumes a replacement account, the quota panel clears the previous account's data and then shows only updates from the selected account.
+- After the replacement account successfully resumes the same conversation, chat shows one localized system notice naming the provider and the account switch.
+- `happyherd connect` now rejects malformed account options before authentication and keeps Claude's browser sign-in instructions from repeating while it waits.
+
 # August 31 — Workspace access and resizing stay consistent
 
 - Changes, Chat Workspace, and Machine Workspace are now visibly accessible from sessions on Web Desktop and Web Mobile, and machine files open in the current chat's existing tabs.

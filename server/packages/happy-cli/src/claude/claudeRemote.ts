@@ -14,6 +14,11 @@ import { PermissionResult } from "./sdk/types";
 import type { JsRuntime } from "./runClaude";
 import { fromRateLimitEvent, windowsFromGetUsage, type UnboundRateLimit, type UsageLimitsPatch, type RateLimitEventInfo } from "./utils/usageLimits";
 import type { UsageLimitWindow } from "@/api/types";
+import {
+    classifyClaudeApiHardLimit,
+    classifyClaudeHardLimit,
+    type ProviderHardLimit,
+} from '@/credentialPool/providerLimits';
 
 export async function claudeRemote(opts: {
 
@@ -46,7 +51,9 @@ export async function claudeRemote(opts: {
     onSessionReset?: () => void,
     onSDKMetadata?: (metadata: { tools?: string[]; slashCommands?: string[]; mcpServers?: { name: string; status: string }[]; skills?: string[] }) => void,
     /** Per-turn plan rate-limit delta; the launcher merges it into agent state. */
-    onUsageLimits?: (patch: UsageLimitsPatch) => void
+    onUsageLimits?: (patch: UsageLimitsPatch) => void,
+    /** One coalesced hard-limit signal for credential-pool rotation. Return false when delivery failed and may be retried. */
+    onProviderHardLimit?: (limit: ProviderHardLimit) => boolean | void | Promise<boolean | void>,
 }) {
 
     // Check if session is valid
@@ -87,6 +94,7 @@ export async function claudeRemote(opts: {
             process.env[key] = value;
         });
     }
+    const providerAccount = process.env.HAPPYHERD_PROVIDER_ACCOUNT?.trim() || undefined;
 
     // Get initial message
     const initial = await opts.nextMessage();
@@ -200,6 +208,48 @@ export async function claudeRemote(opts: {
     let usageSeeded = false;
     let lastUsageSignature: string | null = null;
     let lastUsageEmittedAt = 0;
+    let pendingApiHardLimit: ProviderHardLimit | null = null;
+    let providerHardLimitDelivered = false;
+    let providerHardLimitFallbackTimer: ReturnType<typeof setTimeout> | null = null;
+    let providerHardLimitDelivery: Promise<void> = Promise.resolve();
+    const deliverProviderHardLimit = (limit: ProviderHardLimit): Promise<void> => {
+        if (providerHardLimitDelivered) return providerHardLimitDelivery;
+        if (providerHardLimitFallbackTimer) {
+            clearTimeout(providerHardLimitFallbackTimer);
+            providerHardLimitFallbackTimer = null;
+        }
+        pendingApiHardLimit = null;
+        providerHardLimitDelivery = providerHardLimitDelivery.then(async () => {
+            if (providerHardLimitDelivered) return;
+            try {
+                const accepted = await opts.onProviderHardLimit?.(limit);
+                providerHardLimitDelivered = accepted !== false;
+            } catch (error) {
+                logger.debug('[claudeRemote] provider hard-limit delivery failed (retry remains available)', error);
+            }
+        });
+        return providerHardLimitDelivery;
+    };
+    const scheduleProviderHardLimitFallback = () => {
+        if (providerHardLimitDelivered || !pendingApiHardLimit || providerHardLimitFallbackTimer) return;
+        // A typed rate_limit_event can trail the synthetic assistant/result
+        // frames. Give that authoritative signal a brief event-loop grace
+        // period before committing the compatibility fallback.
+        providerHardLimitFallbackTimer = setTimeout(() => {
+            providerHardLimitFallbackTimer = null;
+            if (pendingApiHardLimit) void deliverProviderHardLimit(pendingApiHardLimit);
+        }, 25);
+    };
+    const flushProviderHardLimitFallback = async () => {
+        if (providerHardLimitFallbackTimer) {
+            clearTimeout(providerHardLimitFallbackTimer);
+            providerHardLimitFallbackTimer = null;
+        }
+        if (!providerHardLimitDelivered && pendingApiHardLimit) {
+            await deliverProviderHardLimit(pendingApiHardLimit);
+        }
+        await providerHardLimitDelivery;
+    };
     // Identical data still gets re-written occasionally so the snapshot's
     // capturedAt (the app's "as of" footer) doesn't misreport freshness.
     const USAGE_REFRESH_INTERVAL_MS = 5 * 60_000;
@@ -239,6 +289,7 @@ export async function claudeRemote(opts: {
         }
         if (pendingUsageWindows.size === 0 && !pendingUnbound) return;
         const patch: UsageLimitsPatch = {
+            ...(providerAccount ? { providerAccount } : {}),
             capturedAt: Date.now(),
             windows: [...pendingUsageWindows.values()],
             unbound: pendingUnbound ?? undefined,
@@ -253,6 +304,10 @@ export async function claudeRemote(opts: {
         lastUsageSignature = signature;
         lastUsageEmittedAt = Date.now();
         opts.onUsageLimits(patch);
+        const hardLimit = classifyClaudeHardLimit(patch);
+        if (hardLimit) {
+            await deliverProviderHardLimit(hardLimit);
+        }
     };
     // Serialized: a second result must not interleave with a flush that is
     // still awaiting the seed, or it would drain the buffer mid-merge and
@@ -281,6 +336,15 @@ export async function claudeRemote(opts: {
                 ? { ...message, isCompactSummary: true } as SDKMessage
                 : message;
             opts.onMessage(outboundMessage);
+
+            // Some Claude SDK versions omit rate_limit_event and expose only
+            // their synthetic API-error assistant frame. Hold that narrow
+            // fallback until the turn boundary so a typed event from the same
+            // incident takes precedence and contributes its real reset time.
+            const apiHardLimit = classifyClaudeApiHardLimit(message);
+            if (apiHardLimit && !providerHardLimitDelivered) {
+                pendingApiHardLimit = apiHardLimit;
+            }
 
             // Handle special system messages
             if (message.type === 'system' && message.subtype === 'init') {
@@ -334,11 +398,17 @@ export async function claudeRemote(opts: {
                         pendingUnbound = normalized.unbound;
                     }
                     if (info.status === 'rejected') {
-                        opts.onUsageLimits?.({
+                        const rejectedPatch: UsageLimitsPatch = {
+                            ...(providerAccount ? { providerAccount } : {}),
                             capturedAt: Date.now(),
                             windows: normalized.window ? [normalized.window] : [],
                             unbound: normalized.unbound,
-                        });
+                        };
+                        opts.onUsageLimits?.(rejectedPatch);
+                        const typedHardLimit = classifyClaudeHardLimit(rejectedPatch);
+                        if (typedHardLimit) {
+                            await deliverProviderHardLimit(typedHardLimit);
+                        }
                     }
                 }
             }
@@ -363,6 +433,7 @@ export async function claudeRemote(opts: {
 
                 // Send ready event
                 await opts.onReady();
+                scheduleProviderHardLimitFallback();
 
                 // Wait for next user message without blocking the message loop.
                 // Background task messages (task_started, task_progress, task_notification)
@@ -406,6 +477,7 @@ export async function claudeRemote(opts: {
             throw e;
         }
     } finally {
+        await flushProviderHardLimitFallback();
         updateThinking(false);
     }
 }

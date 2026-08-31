@@ -851,6 +851,50 @@ describe('ApiSessionClient v3 messages API migration', () => {
         });
     });
 
+    it('keeps provider account switch incident identity stable through encrypted persistence', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        mockAxiosPost.mockResolvedValueOnce({
+            data: {
+                messages: [{ id: 'msg-switch', seq: 1, localId: 'incident-1', createdAt: 1, updatedAt: 1 }]
+            }
+        });
+
+        client.sendSessionEvent({
+            type: 'provider-account-switched',
+            provider: 'claude',
+            fromAccount: 'personal',
+            toAccount: 'work-primary',
+            incidentId: 'incident-1',
+        }, 'incident-1');
+
+        await waitForCheck(() => {
+            expect(mockAxiosPost).toHaveBeenCalledTimes(1);
+        });
+
+        const payload = mockAxiosPost.mock.calls[0][1];
+        expect(payload.messages[0].localId).toBe('incident-1');
+        const decrypted = decrypt(
+            session.encryptionKey,
+            session.encryptionVariant,
+            decodeBase64(payload.messages[0].content)
+        );
+
+        expect(decrypted).toEqual({
+            role: 'agent',
+            content: {
+                id: 'incident-1',
+                type: 'event',
+                data: {
+                    type: 'provider-account-switched',
+                    provider: 'claude',
+                    fromAccount: 'personal',
+                    toAccount: 'work-primary',
+                    incidentId: 'incident-1',
+                }
+            }
+        });
+    });
+
     it('fetchMessages uses after_seq=0 initially and routes user messages to callback', async () => {
         const client = new ApiSessionClient('fake-token', session);
         const onUserMessage = vi.fn();

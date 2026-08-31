@@ -334,10 +334,12 @@ describe('AgentGoalStatusSchema', () => {
         const state = AgentStateSchema.parse({
             controlledByUser: true,
             usageLimits: {
+                providerAccount: 'personal',
                 capturedAt: 1710000000000,
                 windows: [{ id: 'five_hour', status: 'allowed', utilization: 42, resetsAt: null }],
             },
         });
+        expect(state.usageLimits?.providerAccount).toBe('personal');
         expect(state.usageLimits?.windows[0].id).toBe('five_hour');
 
         const malformed = AgentStateSchema.parse({

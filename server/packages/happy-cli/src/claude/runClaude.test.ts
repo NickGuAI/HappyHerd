@@ -93,6 +93,7 @@ vi.mock('@/claude/claudeLocal', () => ({
 }));
 
 import { runClaude, type StartOptions } from './runClaude';
+import { mergeUsageLimits } from './utils/usageLimits';
 
 const automationTemporaryDirectories: string[] = [];
 
@@ -294,6 +295,8 @@ describe('runClaude remote JSONL scanner', () => {
         delete process.env.HAPPYHERD_AUTOMATION_BOOTSTRAP_PATH;
         delete process.env.HAPPYHERD_AUTOMATION_BOOTSTRAP_HASH;
         delete process.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON;
+        delete process.env.HAPPYHERD_PROVIDER_ACCOUNT;
+        delete process.env.HAPPYHERD_PROVIDER_ACCOUNT_TYPE;
 
         mockReadSettings.mockResolvedValue({
             machineId: 'machine-1',
@@ -329,6 +332,8 @@ describe('runClaude remote JSONL scanner', () => {
         delete process.env.HAPPYHERD_AUTOMATION_BOOTSTRAP_PATH;
         delete process.env.HAPPYHERD_AUTOMATION_BOOTSTRAP_HASH;
         delete process.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON;
+        delete process.env.HAPPYHERD_PROVIDER_ACCOUNT;
+        delete process.env.HAPPYHERD_PROVIDER_ACCOUNT_TYPE;
         await Promise.all(automationTemporaryDirectories.splice(0).map((directory) => (
             rm(directory, { recursive: true, force: true })
         )));
@@ -364,6 +369,56 @@ describe('runClaude remote JSONL scanner', () => {
                 pendingMessageIds: ['queue-interrupted', 'queue-pending', 'heartbeat-occurrence'],
                 currentMessageIds: [],
             },
+        });
+
+        await harness.finish();
+    });
+
+    it('clears account A quota before account B resumes and keeps only B partial data', async () => {
+        process.env.HAPPY_RECONNECT_SESSION_ID = 'happy-session-1';
+        process.env.HAPPY_RECONNECT_ENCRYPTION_KEY = Buffer.alloc(32).toString('base64');
+        process.env.HAPPY_RECONNECT_ENCRYPTION_VARIANT = 'legacy';
+        process.env.HAPPY_RECONNECT_SEQ = '42';
+        process.env.HAPPY_RECONNECT_METADATA_VERSION = '7';
+        process.env.HAPPY_RECONNECT_AGENT_STATE_VERSION = '8';
+        process.env.HAPPYHERD_PROVIDER_ACCOUNT = 'account-b';
+        process.env.HAPPYHERD_PROVIDER_ACCOUNT_TYPE = 'claude';
+
+        let persistedState: Record<string, any> = {
+            usageLimits: {
+                providerAccount: 'account-a',
+                capturedAt: 1,
+                windows: [{
+                    id: 'five_hour',
+                    status: 'rejected',
+                    utilization: 100,
+                    resetsAt: 2,
+                }],
+            },
+        };
+        const updateAgentState = vi.fn(async (
+            updater: (current: Record<string, any>) => Record<string, any>,
+        ) => {
+            persistedState = updater(persistedState);
+        });
+        const harness = await startRemoteRunClaudeHarness({
+            reconnectAgentState: persistedState,
+            updateAgentState,
+        });
+
+        expect(updateAgentState).toHaveBeenCalled();
+        expect(updateAgentState.mock.invocationCallOrder[0]).toBeLessThan(mockLoop.mock.invocationCallOrder[0]);
+        expect(persistedState.usageLimits).toBeUndefined();
+
+        persistedState.usageLimits = mergeUsageLimits(persistedState.usageLimits, {
+            providerAccount: 'account-b',
+            capturedAt: 3,
+            windows: [{ id: 'seven_day', status: 'allowed', utilization: 18, resetsAt: 4 }],
+        });
+        expect(persistedState.usageLimits).toEqual({
+            providerAccount: 'account-b',
+            capturedAt: 3,
+            windows: [{ id: 'seven_day', status: 'allowed', utilization: 18, resetsAt: 4 }],
         });
 
         await harness.finish();

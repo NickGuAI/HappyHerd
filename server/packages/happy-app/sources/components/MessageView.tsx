@@ -16,6 +16,7 @@ import { layout } from "./layout";
 import { parseLocalCommandMessage, isUserSlashCommandEcho } from './parseLocalCommandMessage';
 import { resolveUserMessageBubbleColor } from '@/utils/userMessageBubbleColor';
 import { LongPressCopyable } from './LongPressCopyable';
+import { getHarnessName } from '@/utils/harnessCatalog';
 
 
 export const MessageView = React.memo((props: {
@@ -270,6 +271,19 @@ function AgentEventBlock(props: {
       <View style={styles.agentEventContainer}>
         <Text style={styles.agentEventText}>
           {t('message.usageLimitUntil', { time: formatTime(props.event.endsAt) })}
+        </Text>
+      </View>
+    );
+  }
+  if (props.event.type === 'provider-account-switched') {
+    return (
+      <View style={styles.agentEventContainer}>
+        <Text style={styles.agentEventText}>
+          {t('message.providerAccountSwitched', {
+            provider: getHarnessName(props.event.provider),
+            fromAccount: props.event.fromAccount,
+            toAccount: props.event.toAccount,
+          })}
         </Text>
       </View>
     );

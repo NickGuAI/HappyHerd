@@ -1,4 +1,5 @@
 import type { UsageLimitsPatch } from '@/claude/utils/usageLimits';
+import { USAGE_LIMIT_ERROR_PREFIXES } from '@anthropic-ai/claude-agent-sdk';
 import type { CredentialProvider } from './types';
 
 export const UNKNOWN_LIMIT_COOLDOWN_MS = 5 * 60 * 1000;
@@ -77,6 +78,30 @@ export function classifyClaudeHardLimit(
       ? Math.min(...futureResets)
       : now + UNKNOWN_LIMIT_COOLDOWN_MS,
   };
+}
+
+/**
+ * Narrow compatibility fallback for Claude SDK builds that emit the
+ * provider's synthetic API-error assistant message without a typed
+ * rate_limit_event. The top-level `error` discriminator is provider-owned;
+ * ordinary assistant prose, user messages, and tool content never qualify.
+ */
+export function classifyClaudeApiHardLimit(
+  event: unknown,
+  now: number = Date.now(),
+): ProviderHardLimit | null {
+  const object = record(event);
+  if (object?.type !== 'assistant' || object.error !== 'rate_limit') return null;
+  const message = record(object.message);
+  if (message?.role !== 'assistant' || !Array.isArray(message.content)) return null;
+  const hasProviderLimitText = message.content.some((block) => {
+    const content = record(block);
+    if (content?.type !== 'text' || typeof content.text !== 'string') return false;
+    const text = content.text.trimStart();
+    return USAGE_LIMIT_ERROR_PREFIXES.some((prefix) => text.startsWith(prefix));
+  });
+  if (!hasProviderLimitText) return null;
+  return { provider: 'claude', limitedUntil: resetFrom(event, now) };
 }
 
 function codexSnapshotExhausted(value: unknown): boolean {

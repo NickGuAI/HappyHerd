@@ -458,6 +458,8 @@ export type UsageLimitWindow = {
 }
 
 export type UsageLimits = {
+  /** Named credential-pool account that produced this snapshot. */
+  providerAccount?: string,
   capturedAt: number,
   windows: UsageLimitWindow[],
 }

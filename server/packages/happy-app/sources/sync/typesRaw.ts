@@ -29,6 +29,12 @@ const agentEventSchema = z.discriminatedUnion('type', [z.object({
     type: z.literal('limit-reached'),
     endsAt: z.number(),
 }), z.object({
+    type: z.literal('provider-account-switched'),
+    provider: z.enum(['claude', 'codex', 'grok']),
+    fromAccount: z.string().min(1),
+    toAccount: z.string().min(1),
+    incidentId: z.string().min(1),
+}), z.object({
     type: z.literal('ready'),
 }), z.object({
     type: z.literal('turn-end'),

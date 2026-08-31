@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { fromRateLimitEvent, mergeUsageLimits, synthesizeStatus, windowsFromGetUsage } from './usageLimits';
+import {
+    fromRateLimitEvent,
+    mergeUsageLimits,
+    synthesizeStatus,
+    usageLimitsForProviderAccount,
+    windowsFromGetUsage,
+} from './usageLimits';
 
 describe('windowsFromGetUsage', () => {
     it('normalizes ISO resets_at to epoch ms and keeps 0-100 utilization as-is', () => {
@@ -139,6 +145,56 @@ describe('mergeUsageLimits', () => {
             windows: [{ id: 'five_hour', utilization: 10, resetsAt: null }],
         });
         expect(merged.windows).toHaveLength(1);
+    });
+
+    it('starts from empty windows when a patch belongs to another named account', () => {
+        const merged = mergeUsageLimits({
+            providerAccount: 'account-a',
+            capturedAt: 1,
+            windows: [{ id: 'five_hour', status: 'rejected', utilization: 100, resetsAt: 2 }],
+        }, {
+            providerAccount: 'account-b',
+            capturedAt: 3,
+            windows: [{ id: 'seven_day', status: 'allowed', utilization: 12, resetsAt: 4 }],
+        });
+
+        expect(merged).toEqual({
+            providerAccount: 'account-b',
+            capturedAt: 3,
+            windows: [{ id: 'seven_day', status: 'allowed', utilization: 12, resetsAt: 4 }],
+        });
+    });
+
+    it('preserves same-account windows across partial patches', () => {
+        const merged = mergeUsageLimits({
+            providerAccount: 'account-b',
+            capturedAt: 1,
+            windows: [{ id: 'five_hour', status: 'allowed', utilization: 20, resetsAt: 2 }],
+        }, {
+            providerAccount: 'account-b',
+            capturedAt: 3,
+            windows: [{ id: 'seven_day', status: 'allowed_warning', utilization: 95, resetsAt: 4 }],
+        });
+
+        expect(merged.windows.map(window => window.id)).toEqual(['five_hour', 'seven_day']);
+    });
+});
+
+describe('usageLimitsForProviderAccount', () => {
+    const exhausted = {
+        providerAccount: 'account-a',
+        capturedAt: 1,
+        windows: [{ id: 'five_hour', status: 'rejected' as const, utilization: 100, resetsAt: 2 }],
+    };
+
+    it('clears legacy-unscoped and mismatched snapshots for a named account resume', () => {
+        expect(usageLimitsForProviderAccount(exhausted, 'account-b')).toBeUndefined();
+        expect(usageLimitsForProviderAccount({ ...exhausted, providerAccount: undefined }, 'account-b')).toBeUndefined();
+    });
+
+    it('keeps a same-account snapshot and leaves unpooled sessions unchanged', () => {
+        expect(usageLimitsForProviderAccount(exhausted, 'account-a')).toBe(exhausted);
+        expect(usageLimitsForProviderAccount(exhausted, undefined)).toBe(exhausted);
     });
 });
 

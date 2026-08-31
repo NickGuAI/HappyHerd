@@ -19,12 +19,15 @@ export async function reportProviderHardLimitOnce(
   const key = `${input.sessionId}:${input.provider}:${account}`;
   if (reported.has(key)) return false;
   reported.add(key);
-  const result = await notifyDaemonProviderLimited({ ...input, account });
-  if (result?.error) {
+  try {
+    const result = await notifyDaemonProviderLimited({ ...input, account });
+    if (!result?.error) return true;
+    reported.delete(key);
+    return false;
+  } catch {
     reported.delete(key);
     return false;
   }
-  return true;
 }
 
 export function resetProviderLimitNoticeForTests(): void {

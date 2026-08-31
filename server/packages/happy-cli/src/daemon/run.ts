@@ -1486,6 +1486,7 @@ export async function startDaemon(): Promise<void> {
     const onProviderLimited = (notice: ProviderLimitNotice): void => {
       const key = `${notice.sessionId}:${notice.provider}:${notice.account}`;
       if (providerLimitRotations.has(key)) return;
+      const incidentId = randomUUID();
       const rotation = rotateProviderSessionAfterLimit(notice, {
         stopProvider: async (sessionId) => {
           const live = [...pidToTrackedSession.values()].find((candidate) => (
@@ -1507,6 +1508,37 @@ export async function startDaemon(): Promise<void> {
               ? result.errorMessage
               : `Provider resume unexpectedly requires directory approval for ${result.directory}`);
           }
+          if (result.sessionId !== sessionId) {
+            throw new Error(`Provider rotation resumed unexpected session ${result.sessionId}`);
+          }
+          const resumed = findTrackedSessionById(sessionId);
+          const providerAccount = resumed?.happySessionMetadataFromLocalWebhook?.providerAccount;
+          if (!providerAccount) {
+            throw new Error(`Resumed session ${sessionId} did not report its selected provider account`);
+          }
+          return providerAccount;
+        },
+        onAccountSwitched: async ({ sessionId, provider, fromAccount, toAccount }) => {
+          const resumed = findTrackedSessionById(sessionId);
+          if (!resumed?.happySessionMetadataFromLocalWebhook || !resumed.encryption) {
+            throw new Error(`Resumed session ${sessionId} is missing encrypted event persistence state`);
+          }
+          await api.postSessionEvent({
+            id: sessionId,
+            seq: resumed.encryption.seq,
+            encryptionKey: resumed.encryption.encryptionKey,
+            encryptionVariant: resumed.encryption.encryptionVariant,
+            metadata: resumed.happySessionMetadataFromLocalWebhook,
+            metadataVersion: resumed.encryption.metadataVersion,
+            agentState: null,
+            agentStateVersion: resumed.encryption.agentStateVersion,
+          }, {
+            type: 'provider-account-switched',
+            provider,
+            fromAccount,
+            toAccount,
+            incidentId,
+          }, incidentId);
         },
       }).then((result) => {
         logger.debug(`[CREDENTIAL POOL] ${notice.provider} rotation for ${notice.sessionId}: ${result.type}`);

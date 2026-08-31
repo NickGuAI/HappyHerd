@@ -62,6 +62,7 @@ import {
     persistAutomationProviderOutcome,
 } from '@/automations/providerOutcome';
 import { systemPrompt } from './utils/systemPrompt';
+import { usageLimitsForProviderAccount } from './utils/usageLimits';
 
 /** JavaScript runtime to use for spawning Claude Code */
 export type JsRuntime = 'node' | 'bun'
@@ -165,6 +166,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     const forkedFromSessionId = process.env.HAPPY_FORKED_FROM_SESSION_ID;
     const forkedFromMessageId = process.env.HAPPY_FORKED_FROM_MESSAGE_ID;
     const isSideChat = process.env.HAPPY_SIDE_CHAT === '1';
+    const providerAccount = process.env.HAPPYHERD_PROVIDER_ACCOUNT?.trim() || undefined;
 
     let metadata: Metadata = {
         path: workingDirectory,
@@ -183,8 +185,8 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         lifecycleState: 'running',
         lifecycleStateSince: Date.now(),
         flavor: 'claude',
-        ...(process.env.HAPPYHERD_PROVIDER_ACCOUNT
-            ? { providerAccount: process.env.HAPPYHERD_PROVIDER_ACCOUNT }
+        ...(providerAccount
+            ? { providerAccount }
             : {}),
         sandbox: sandboxConfig?.enabled ? sandboxConfig : null,
         dangerouslySkipPermissions: null,
@@ -390,6 +392,24 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
 
     // Create realtime session
     const session = api.sessionSyncClient(response);
+    if (
+        providerAccount
+        && response.agentState?.usageLimits
+        && !usageLimitsForProviderAccount(response.agentState.usageLimits, providerAccount)
+    ) {
+        // Credential rotation resumes the same Happy session under a new
+        // provider process. Clear the prior account's quota before the
+        // provider loop starts; if the new account cannot report usage, the
+        // old account's exhausted windows must remain absent.
+        await session.updateAgentState((currentState) => {
+            if (usageLimitsForProviderAccount(currentState.usageLimits, providerAccount)) {
+                return currentState;
+            }
+            const nextState = { ...currentState };
+            delete nextState.usageLimits;
+            return nextState;
+        });
+    }
     const reconnectQueueMessageIds = reconnectSessionId
         ? Array.from(new Set([
             ...queueMessageIdsForResume(response.agentState?.messageQueue),

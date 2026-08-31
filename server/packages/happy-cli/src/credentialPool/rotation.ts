@@ -9,7 +9,13 @@ export type ProviderLimitRotationDependencies = {
   paths?: CredentialPoolPaths;
   now?: () => number;
   stopProvider: (sessionId: string) => Promise<void>;
-  resumeProvider: (sessionId: string) => Promise<void>;
+  resumeProvider: (sessionId: string) => Promise<string>;
+  onAccountSwitched?: (switchEvent: {
+    sessionId: string;
+    provider: ProviderLimitNotice['provider'];
+    fromAccount: string;
+    toAccount: string;
+  }) => Promise<void>;
   waitUntil?: (timestamp: number) => Promise<void>;
 };
 
@@ -40,9 +46,20 @@ export async function rotateProviderSessionAfterLimit(
   if (rotation.type === 'ignored') return { type: 'ignored' };
 
   await dependencies.stopProvider(notice.sessionId);
+  const resumeAndAnnounce = async (): Promise<string> => {
+    const toAccount = await dependencies.resumeProvider(notice.sessionId);
+    if (toAccount === notice.account) return toAccount;
+    await dependencies.onAccountSwitched?.({
+      sessionId: notice.sessionId,
+      provider: notice.provider,
+      fromAccount: notice.account,
+      toAccount,
+    });
+    return toAccount;
+  };
   if (rotation.type === 'next-account') {
-    await dependencies.resumeProvider(notice.sessionId);
-    return { type: 'rotated', account: rotation.account.name };
+    const account = await resumeAndAnnounce();
+    return { type: 'rotated', account };
   }
 
   const waitUntil = dependencies.waitUntil ?? defaultWaitUntil;
@@ -54,8 +71,8 @@ export async function rotateProviderSessionAfterLimit(
       now: now(),
     });
     if (selection.type === 'available') {
-      await dependencies.resumeProvider(notice.sessionId);
-      return { type: 'waited-and-rotated', account: selection.account.name };
+      const account = await resumeAndAnnounce();
+      return { type: 'waited-and-rotated', account };
     }
     if (selection.type === 'unconfigured') return { type: 'ignored' };
     limitedUntil = selection.limitedUntil;

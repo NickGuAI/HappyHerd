@@ -281,3 +281,33 @@ than silently copying prior prose.
   tool smoke still depends on a usable Grok account/session. Deterministic ACP
   callback and protocol fixtures are the local proof when those external
   prerequisites are unavailable.
+
+## Focused refresh — 2026-08-31: credential-pool follow-ups
+
+- **Trigger:** after a quota-driven account switch, the quota panel retained
+  the previous account's exhausted windows and chat gave no successful-switch
+  receipt. Separately, malformed `connect` options could enter authentication,
+  and Claude's setup-token screen repeated each Ink redraw while browser sign-in
+  was pending.
+- **Evidence inputs:** CLI argument dispatch and setup-token child process;
+  Claude typed rate-limit and usage paths; credential-pool selection and daemon
+  resume; encrypted session-message persistence; app raw schema, reducer,
+  `MessageView`, and en/cn/de catalogs; and the reported terminal and quota-panel
+  behavior.
+- **Implemented repair:** connect arguments are validated before authentication
+  and Claude's repeated setup-token frames become one append-only transcript.
+  Claude usage snapshots carry `providerAccount`; legacy-unscoped or mismatched
+  quota is cleared before a replacement provider loop, and partial updates merge
+  only within one account. Rejected typed quota windows of any ID rotate through
+  the existing reactive pool, with a narrow provider-marked API-error fallback;
+  warnings do not rotate. After the same Happy session successfully resumes, one
+  encrypted provider/from/to event with a stable incident ID is persisted and
+  rendered as a localized system row.
+- **Deterministic evidence:** focused connect, Claude remote/run, usage merge,
+  hard-limit classifier, rotation ordering, API persistence, app schema,
+  reducer dedupe, locale, and desktop/native rendering fixtures cover both the
+  successful path and ignored, warning, failed stop/resume, and same-account
+  paths.
+- **Remaining live proof:** no real account was reconnected and no paid quota
+  was deliberately exhausted. A live OAuth and natural quota-trigger smoke can
+  confirm provider TUI and timing behavior when those external conditions arise.
