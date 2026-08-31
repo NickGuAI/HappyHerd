@@ -238,6 +238,76 @@ describe('MarkdownView workspace-link opt-in', () => {
         act(() => renderer.unmount());
     });
 
+    it('retries a transient workspace-image read and renders without a page refresh', async () => {
+        vi.useFakeTimers();
+        const base64 = onePixelPng.toString('base64');
+        mocks.machineReadFileWithinRoot
+            .mockResolvedValueOnce({ success: false, error: 'File is still being written' })
+            .mockResolvedValueOnce({ success: true, content: base64 });
+
+        let renderer!: ReactTestRenderer;
+        try {
+            await act(async () => {
+                renderer = create(React.createElement(MarkdownView, {
+                    markdown: '![chart](images/chart.png)',
+                    sessionId: 'session-one',
+                    enableWorkspaceLinks: true,
+                }));
+                await Promise.resolve();
+            });
+
+            expect(mocks.machineReadFileWithinRoot).toHaveBeenCalledOnce();
+            await act(async () => {
+                await vi.runAllTimersAsync();
+            });
+
+            expect(mocks.machineReadFileWithinRoot).toHaveBeenCalledTimes(2);
+            expect(renderer.root.findByType('Image' as any).props.source.uri).toBe(
+                `data:image/png;base64,${base64}`,
+            );
+        } finally {
+            act(() => renderer?.unmount());
+            vi.useRealTimers();
+        }
+    });
+
+    it('offers an inline retry after automatic workspace-image recovery is exhausted', async () => {
+        vi.useFakeTimers();
+        const base64 = onePixelPng.toString('base64');
+        mocks.machineReadFileWithinRoot.mockResolvedValue({ success: false, error: 'Not ready' });
+
+        let renderer!: ReactTestRenderer;
+        try {
+            await act(async () => {
+                renderer = create(React.createElement(MarkdownView, {
+                    markdown: '![chart](images/chart.png)',
+                    sessionId: 'session-one',
+                    enableWorkspaceLinks: true,
+                }));
+                await Promise.resolve();
+            });
+            await act(async () => {
+                await vi.runAllTimersAsync();
+            });
+
+            const retry = renderer.root.find((node: any) => (
+                node.props.accessibilityLabel === 'common.retry'
+            ));
+            mocks.machineReadFileWithinRoot.mockResolvedValue({ success: true, content: base64 });
+            await act(async () => {
+                retry.props.onPress();
+                await Promise.resolve();
+            });
+
+            expect(renderer.root.findByType('Image' as any).props.source.uri).toBe(
+                `data:image/png;base64,${base64}`,
+            );
+        } finally {
+            act(() => renderer?.unmount());
+            vi.useRealTimers();
+        }
+    });
+
     it('keeps an unresolved workspace image as inert Markdown without reading a machine', () => {
         mocks.resolveWorkspaceImage.mockReturnValueOnce(null);
         renderToStaticMarkup(React.createElement(MarkdownView, {
