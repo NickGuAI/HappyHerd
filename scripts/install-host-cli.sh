@@ -2,9 +2,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT/scripts/lib/cli-command-migration.sh"
 TARGET="${1:-/usr/local/lib/happyherd-cli}"
-LINK="${2:-/usr/local/bin/happy}"
-HAPPYHERD_LINK="${3:-/usr/local/bin/happyherd}"
+HAPPYHERD_LINK="${2:-/usr/local/bin/happyherd}"
+LEGACY_HAPPY_LINK="/usr/local/bin/happy"
 
 die() {
     printf 'error: %s\n' "$*" >&2
@@ -12,7 +13,7 @@ die() {
 }
 
 [[ "$(id -u)" -eq 0 ]] || die 'install-host-cli.sh must run as root'
-[[ "$TARGET" == /* && "$LINK" == /* && "$HAPPYHERD_LINK" == /* ]] || \
+[[ "$TARGET" == /* && "$HAPPYHERD_LINK" == /* ]] || \
     die 'target and executable links must be absolute paths'
 
 if command -v pnpm >/dev/null 2>&1; then
@@ -43,23 +44,25 @@ run_build() {
 # Build as the checkout owner so a root installation never leaves root-owned
 # artifacts in the source tree. Only the final stable installation is root-owned.
 (cd "$ROOT/server" && run_build "${PNPM[@]}" --filter @slopus/happy-wire --fail-if-no-match build)
-(cd "$ROOT/server" && run_build "${PNPM[@]}" --filter happy --fail-if-no-match build)
+(cd "$ROOT/server" && run_build "${PNPM[@]}" --filter happy-agent --fail-if-no-match build)
+(cd "$ROOT/server" && run_build "${PNPM[@]}" --filter @happyherd/cli --fail-if-no-match build)
 stage="$(mktemp -d /tmp/happyherd-cli.stage.XXXXXX)"
 chown "$BUILD_USER:$BUILD_GROUP" "$stage"
 cleanup() {
     rm -rf "$stage"
 }
 trap cleanup EXIT
-(cd "$ROOT/server" && run_build "${PNPM[@]}" --ignore-scripts --filter happy --fail-if-no-match \
+(cd "$ROOT/server" && run_build "${PNPM[@]}" --ignore-scripts --filter @happyherd/cli --fail-if-no-match \
     deploy --legacy --prod "$stage")
 node "$stage/scripts/unpack-tools.cjs"
 [[ -x "$stage/bin/happy.mjs" && -x "$stage/tools/unpacked/rg" ]] || \
     die 'deployed Happy CLI is missing its executable or bundled ripgrep'
 
+remove_exact_legacy_happy_link "$LEGACY_HAPPY_LINK" "$TARGET"
+
 rm -rf "$TARGET"
 mv "$stage" "$TARGET"
 trap - EXIT
-ln -sfn "$TARGET/bin/happy.mjs" "$LINK"
 ln -sfn "$TARGET/bin/happy.mjs" "$HAPPYHERD_LINK"
 
-printf 'Happy CLI and thin HappyHerd alias installed independently at %s\n' "$TARGET"
+printf 'HappyHerd CLI installed independently at %s\n' "$TARGET"

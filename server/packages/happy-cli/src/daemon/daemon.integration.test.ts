@@ -109,7 +109,7 @@ describe('Daemon Integration Tests', { timeout: 180_000 }, () => {
     expect(sessions).toHaveLength(1);
     
     const tracked = sessions[0];
-    expect(tracked.startedBy).toBe('happy directly - likely by user from terminal');
+    expect(tracked.startedBy).toBe('happyherd directly - likely by user from terminal');
     expect(tracked.happySessionId).toBe('test-session-123');
     expect(tracked.pid).toBe(99999);
   });
@@ -198,7 +198,7 @@ describe('Daemon Integration Tests', { timeout: 180_000 }, () => {
 
     expect(terminalSession).toBeDefined();
     if (!terminalSession) throw new Error('Terminal session was not tracked');
-    expect(terminalSession.startedBy).toBe('happy directly - likely by user from terminal');
+    expect(terminalSession.startedBy).toBe('happyherd directly - likely by user from terminal');
     
     expect(daemonSession).toBeDefined();
     if (!daemonSession) throw new Error('Daemon session was not tracked');
@@ -373,7 +373,7 @@ describe('Daemon Integration Tests', { timeout: 180_000 }, () => {
    * 7. New daemon starts, reads daemon.state.json, sees old version != its compiled version
    * 8. New daemon calls stopDaemon() to kill old daemon, then takes over
    * 
-   * This simulates what happens during `npm upgrade happy`:
+   * This simulates what happens during `npm upgrade @happyherd/cli`:
    * - Running daemon has OLD version loaded in memory (configuration.currentCliVersion)
    * - npm replaces node_modules/happy/ with NEW version files
    * - package.json on disk now has NEW version
@@ -453,7 +453,7 @@ describe('Daemon Integration Tests', { timeout: 180_000 }, () => {
 
   // TODO: Add a test to see if a corrupted file will work
   
-  // TODO: Test npm uninstall scenario - daemon should gracefully handle when happy is uninstalled
+  // TODO: Test npm uninstall scenario - daemon should gracefully handle when @happyherd/cli is uninstalled
   // Current behavior: daemon tries to spawn new daemon on version mismatch but dist/index.mjs is gone
   // Expected: daemon should detect missing entrypoint and either exit cleanly or at minimum not respawn infinitely
 });

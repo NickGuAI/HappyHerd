@@ -471,7 +471,7 @@
     "cliVersion": "CLI 版本",
     "cliVersionOutdated": "需要更新 CLI",
     "cliVersionOutdatedMessage": "已安装版本 {currentVersion}。请更新到 {requiredVersion} 或更高版本",
-    "updateCliInstructions": "请运行 npm install -g happy@latest",
+    "updateCliInstructions": "请运行 npm install -g @happyherd/cli@latest",
     "deleteSession": "删除会话",
     "deleteSessionSubtitle": "永久删除此会话",
     "deleteSessionConfirm": "永久删除会话？",
@@ -497,7 +497,7 @@
       "bringMachineOnline": "请先让一台机器上线，然后再启动会话。",
       "troubleshoot": "排查问题",
       "troubleshootConnection": "排查连接问题",
-      "troubleshootMessage": "1. 唤醒设备并检查网络连接。\n2. 再次运行 `happy`。\n3. 重新打开 Happy。\n\nAI 提示词：\n{aiPrompt}",
+      "troubleshootMessage": "1. 唤醒设备并检查网络连接。\n2. 再次运行 `happyherd`。\n3. 重新打开 Happy。\n\nAI 提示词：\n{aiPrompt}",
       "copyAiPrompt": "复制 AI 提示词",
       "copyAiPromptFailed": "无法复制 AI 提示词。"
     },
@@ -1016,7 +1016,7 @@
   "machine": {
     "launchNewSessionInDirectory": "在目录中启动新会话",
     "offlineUnableToSpawn": "设备离线时无法启动",
-    "offlineHelp": "• 确保您的计算机在线\n• 运行 `happy daemon status` 进行诊断\n• 您是否在运行最新的 CLI 版本？请使用 `npm install -g happy@latest` 升级",
+    "offlineHelp": "• 确保您的计算机在线\n• 运行 `happyherd daemon status` 进行诊断\n• 您是否在运行最新的 CLI 版本？请使用 `npm install -g @happyherd/cli@latest` 升级",
     "daemon": "守护进程",
     "status": "状态",
     "stopDaemon": "停止守护进程",
@@ -1263,7 +1263,7 @@
       "category": "Commander",
       "createTitle": "创建 Commander",
       "createSubtitle": "启动引导式入职会话",
-      "onboardingPrompt": "请帮我创建一个新的 HappyHerd Commander。每次只问一个问题，依次确认名称、角色与使命、机器上的绝对工作区路径、工作边界，以及必要的初始上下文。先给我一份简洁的最终摘要，必须等我明确确认后才能写入任何内容。确认后，由你亲自撰写语义内容：包含 identity_and_scope frontmatter 的完整 COMMANDER.md、有用的初始 observations JSONL、工作记忆、长期记忆，以及 rules/learnings/ 下确实有价值的 learning 文件。把这些原文写入临时 JSON manifest，字段为 id、name、workspace、role、commanderMarkdown、observationsJsonl、workingMemoryMarkdown、longTermMemoryMarkdown 和 learnings[{path,content}]。运行 `happy commander create --manifest <file>`，再用 `happy commander list` 验证，最后删除临时 manifest。不要创建第二套 registry，也不要写占位 seed 内容。"
+      "onboardingPrompt": "请帮我创建一个新的 HappyHerd Commander。每次只问一个问题，依次确认名称、角色与使命、机器上的绝对工作区路径、工作边界，以及必要的初始上下文。先给我一份简洁的最终摘要，必须等我明确确认后才能写入任何内容。确认后，由你亲自撰写语义内容：包含 identity_and_scope frontmatter 的完整 COMMANDER.md、有用的初始 observations JSONL、工作记忆、长期记忆，以及 rules/learnings/ 下确实有价值的 learning 文件。把这些原文写入临时 JSON manifest，字段为 id、name、workspace、role、commanderMarkdown、observationsJsonl、workingMemoryMarkdown、longTermMemoryMarkdown 和 learnings[{path,content}]。运行 `happyherd commander create --manifest <file>`，再用 `happyherd commander list` 验证，最后删除临时 manifest。不要创建第二套 registry，也不要写占位 seed 内容。"
     },
     "composer": {
       "queueMessage": "排队消息",
@@ -1616,8 +1616,8 @@
     "newMessagesJumpToLatest": "{count} 条新消息 · 跳到最新",
     "commandCompletedWithNoOutput": "[命令已完成但无输出]",
     "happyTerminal": "happy://terminal?...",
-    "npmIGHappy": "$ npm i -g happy",
-    "happy": "$ happy",
+    "npmIGHappy": "$ npm i -g @happyherd/cli",
+    "happy": "$ happyherd",
     "noMessagesYet": "还没有消息",
     "noActiveSessions": "没有活动会话",
     "startANewSessionOnAnyOfYourConnectedMachines": "在任何连接的计算机上启动新会话。",

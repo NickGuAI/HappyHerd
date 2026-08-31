@@ -1,5 +1,5 @@
 /**
- * Minimal persistence functions for happy CLI
+ * Minimal persistence functions for the HappyHerd CLI
  * 
  * Handles settings and private key storage in ~/.happy/ or local .happy/
  */
@@ -97,7 +97,7 @@ export async function readSettings(): Promise<Settings> {
     if (schemaVersion > SUPPORTED_SCHEMA_VERSION) {
       logger.warn(
         `⚠️ Settings schema v${schemaVersion} > supported v${SUPPORTED_SCHEMA_VERSION}. ` +
-        'Update happy-cli for full functionality.'
+        'Update @happyherd/cli for full functionality.'
       );
     }
 

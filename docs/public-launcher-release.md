@@ -1,8 +1,8 @@
 # Simple local installer
 
 HappyHerd's first installation phase is a user-owned local CLI bootstrap. It
-installs `happyherd`, the bundled upstream `happy` CLI, and the runtime needed
-by the existing Happy server and daemon. The native Orca-style macOS app is a
+installs the public `@happyherd/cli` package and the runtime needed by the
+existing Happy server and daemon. The native Orca-style macOS app is a
 follow-up phase and is not required for this installer.
 
 ## Install
@@ -15,12 +15,14 @@ curl -fsSL https://raw.githubusercontent.com/NickGuAI/HappyHerd/main/install.sh 
 
 The installer does not require a release manifest, checksum file, source
 receipt, issuer connection, privileged broker, credential vault, or exported
-server URL. `happyherd` forwards commands directly to the ordinary Happy CLI.
+server URL. `happyherd` is the package's sole primary command. The installer
+preserves unrelated `happy` commands and removes only the exact launcher it
+previously managed under that name.
 
 ## Local-first setup
 
 The local default starts the server and detached daemon. Inspect or restart
-them with native Happy commands through either command name:
+them with the HappyHerd command:
 
 ```sh
 happyherd daemon status

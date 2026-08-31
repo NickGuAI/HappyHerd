@@ -454,7 +454,7 @@ export async function startDaemon(): Promise<void> {
       } else if (!existingSession) {
         // New session started externally
         const trackedSession = trackedSessionWithAutomationProvenance({
-          startedBy: 'happy directly - likely by user from terminal',
+          startedBy: 'happyherd directly - likely by user from terminal',
           happySessionId: sessionId,
           happySessionMetadataFromLocalWebhook: sessionMetadata,
           encryption,
@@ -1598,7 +1598,7 @@ export async function startDaemon(): Promise<void> {
     logger.debug('[DAEMON RUN] Daemon state written');
 
     // Capture the bundled CLI's mtime at startup so the heartbeat can detect
-    // when npm replaces `dist/index.mjs` on disk (= the user ran `npm i -g happy`).
+    // when npm replaces `dist/index.mjs` on disk (= the user upgraded @happyherd/cli).
     // We previously compared disk `package.json.version` to our bundled version,
     // but that produced infinite restart loops (#1107) when the manifest version
     // diverged from the bundled version (e.g. `happy-coder@0.13.1` deprecation
@@ -1912,7 +1912,7 @@ export async function startDaemon(): Promise<void> {
         clearInterval(restartOnStaleVersionAndHeartbeat);
 
         // Release the daemon lock BEFORE spawning the new daemon. Otherwise the spawned
-        // `happy daemon start` reads our still-present daemon.state.json, sees
+        // `happyherd daemon start` reads our still-present daemon.state.json, sees
         // isDaemonRunningCurrentlyInstalledHappyVersion() === true, and exits —
         // leaving nothing running once we also exit.
         await automations.stop();

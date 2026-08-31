@@ -103,8 +103,8 @@ SESSION_UI_STATE	accepted	fix(app): prevent machine blink and show archive progr
 AUTOMATIONS_PROFILING	accepted	feat(metrics): profile automations page latency	docs/automations-profiling.md
 SESSION_HEARTBEAT	accepted	feat(automations): support resumable session heartbeats	server/packages/happy-cli/src/automations/service.test.ts
 AUTOMATION_NO_TIMEOUT	accepted	fix(automations): remove run deadlines (6a8db5ad)	server/packages/happy-cli/src/codex/runCodex.automation.test.ts
-PUBLIC_LAUNCHER_CONTRACT	accepted	feat(cli): forward native Happy commands	server/packages/happyherd-cli/src/cli.test.ts
-PUBLIC_LAUNCHER_CONTRACT	accepted	fix(cli): retain governed version precedence	server/packages/happyherd-cli/src/cli.test.ts
+PUBLIC_LAUNCHER_CONTRACT	accepted	feat(cli): forward native Happy commands	server/packages/happy-cli/package.json
+PUBLIC_LAUNCHER_CONTRACT	accepted	fix(cli): retain governed version precedence	server/packages/happy-cli/package.json
 AUTOMATION_NO_TIMEOUT	accepted	fix(automations): preserve legacy timed-out history	server/packages/happy-cli/src/automations/store.test.ts
 AUTOMATIONS_PROFILING	accepted	fix(metrics): bound external label values	server/packages/happy-server/sources/app/monitoring/metrics2.test.ts
 RUNTIME_CONTRACT	accepted	feat(grok): add ACP-backed GrokBuild sessions	server/packages/happy-cli/src/agent/acp/acpAgentConfig.test.ts
@@ -150,7 +150,7 @@ APP_TOOL_REPLAY_SEQUENCE	accepted	fix(app): order equal-time tool replays by seq
 PROVIDER_RESUME_VALIDATION	accepted	fix(grok): reject unvalidated resume policy	server/packages/happy-cli/src/daemon/run.resume.test.ts
 APP_TOOL_PAGED_RESULT	accepted	fix(app): reconcile paged tool results	server/packages/happy-app/sources/sync/reducer/reducer.spec.ts
 APP_TOOL_PAGED_AUTHORITY	accepted	fix(app): preserve authoritative paged tool result	server/packages/happy-app/sources/sync/reducer/reducer.spec.ts
-BUNDLED_RUNTIME_SYNC	accepted	fix(cli): sync bundled Happy before wrapper tests	server/packages/happyherd-cli/package.json
+BUNDLED_RUNTIME_SYNC	accepted	fix(cli): sync bundled Happy before wrapper tests	server/packages/happy-cli/package.json
 UPSTREAM_REVIEW_FIX	accepted	fix(upstream): address integration review findings	server/packages/happy-app/sources/-session/SessionView.tsx
 SIDE_CHAT_RENDER	accepted	test(app): cover side-chat rendering hosts	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 ATTACHMENT_PICKER_UI	accepted	fix(app): present attachment choices in-app (#159)	server/packages/happy-app/sources/components/AttachmentInputButton.test.ts
@@ -200,3 +200,6 @@ PROVIDER_CONTINUATION_MOCK	accepted	docs(mock): explain cross-provider continuat
 PROVIDER_CONTINUATION_MOCK_V2	accepted	docs(mock): simplify cross-provider continuation	docs/mocks/happyherd-provider-continuation/index.html
 PROVIDER_CONTINUATION	accepted	feat(sessions): continue across Claude and Codex	server/packages/happy-app/sources/utils/providerContinuation.test.ts
 AUTOMATION_EXEC	accepted	feat(automations): add direct exec rail	server/packages/happy-cli/src/automations/service.test.ts
+CLI_PUBLIC_COMMAND	accepted	chore: migrate CLI to public @happyherd/cli package and happyherd command	scripts/verify-cli-public-command.mjs
+CLI_PUBLIC_COMMAND	accepted	fix: build happy-agent before CLI typecheck, pack smoke, and install	scripts/verify-cli-public-command.mjs
+CLI_PUBLIC_COMMAND	accepted	fix: build @slopus/happy-wire then happy-agent before cli and assert order	scripts/verify-cli-public-command.mjs

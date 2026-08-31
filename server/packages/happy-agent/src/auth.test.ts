@@ -301,10 +301,10 @@ describe('auth', () => {
         });
 
         it('allows a supported caller to name its public login command', async () => {
-            await authStatus(config, { loginCommand: 'happy machine auth login' });
+            await authStatus(config, { loginCommand: 'happyherd machine auth login' });
 
             const calls = consoleSpy.mock.calls.map(c => String(c[0]));
-            expect(calls).toContain('- Action: Run `happy machine auth login` to authenticate.');
+            expect(calls).toContain('- Action: Run `happyherd machine auth login` to authenticate.');
             expect(calls.join('\n')).not.toContain('happy-agent auth login');
         });
 

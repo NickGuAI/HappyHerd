@@ -37,13 +37,13 @@ function buildResumeInvocation(metadata: ResumeCommandMetadata): string | null {
         return null;
     }
     if ((metadata.flavor === 'codex' || metadata.flavor === 'openai' || metadata.flavor === 'gpt') && metadata.codexThreadId) {
-        return `happy codex --resume ${metadata.codexThreadId}`;
+        return `happyherd codex --resume ${metadata.codexThreadId}`;
     }
     if (metadata.flavor === 'grok' && metadata.acpSessionId) {
-        return `happy grok --resume ${metadata.acpSessionId}`;
+        return `happyherd grok --resume ${metadata.acpSessionId}`;
     }
     if (metadata.claudeSessionId) {
-        return `happy claude --resume ${metadata.claudeSessionId}`;
+        return `happyherd claude --resume ${metadata.claudeSessionId}`;
     }
     return null;
 }

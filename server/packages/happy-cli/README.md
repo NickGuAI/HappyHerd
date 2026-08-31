@@ -1,25 +1,29 @@
-# Happy
+# HappyHerd CLI
 
-Code on the go — control AI coding agents from your phone, browser, or terminal.
+The official command-line interface for HappyHerd, published as `@happyherd/cli`.
+Control AI coding agents from your phone, browser, or terminal.
 
 Free. Open source. Code anywhere.
 
 ## Installation
 
 ```bash
-npm install -g happy
+npm install -g @happyherd/cli@latest
 ```
 
-> Migrated from the `happy-coder` package. Thanks to [@franciscop](https://github.com/franciscop) for donating the `happy` package name!
+HappyHerd preserves the full history of upstream Happy. The upstream project
+previously migrated from `happy-coder`; thanks to
+[@franciscop](https://github.com/franciscop) for donating its historical
+`happy` package name.
 
 ## Usage
 
 ### Claude Code (default)
 
 ```bash
-happy
+happyherd
 # or
-happy claude
+happyherd claude
 ```
 
 This will:
@@ -31,17 +35,17 @@ This will:
 ### More agents
 
 ```
-happy codex
-happy agy        # Antigravity CLI (Gemini's successor)
-happy gemini     # deprecated — use `happy agy`
-happy grok       # GrokBuild through its official ACP stdio interface
+happyherd codex
+happyherd agy        # Antigravity CLI (Gemini's successor)
+happyherd gemini     # deprecated — use `happyherd agy`
+happyherd grok       # GrokBuild through its official ACP stdio interface
 
 # or any ACP-compatible CLI
-happy acp opencode
-happy acp -- custom-agent --flag
+happyherd acp opencode
+happyherd acp -- custom-agent --flag
 ```
 
-`happy grok` uses the installed official GrokBuild CLI. Authenticate that CLI
+`happyherd grok` uses the installed official GrokBuild CLI. Authenticate that CLI
 with `grok login` before starting; Happy does not add another login or credential
 store. Model and reasoning-effort choices come from GrokBuild's live ACP
 catalog. Launch permission choices come from the installed `grok --help`, and
@@ -49,7 +53,7 @@ New Session offers them in that native order. If help does not advertise its
 choices, Happy exposes only the provider default.
 
 Use `grok --permission-mode MODE` with GrokBuild directly, or
-`happy grok --permission-mode MODE` through Happy. The default is `default`.
+`happyherd grok --permission-mode MODE` through Happy. The default is `default`.
 Happy forwards the selection verbatim and starts
 `grok --no-auto-update --permission-mode MODE agent stdio`.
 
@@ -83,13 +87,13 @@ fork.
 The daemon is a background service that stays running on your machine. It lets you spawn and manage coding sessions remotely — from your phone or the web app — without needing an open terminal.
 
 ```bash
-happy daemon start
-happy daemon stop
-happy daemon status
-happy daemon list
+happyherd daemon start
+happyherd daemon stop
+happyherd daemon status
+happyherd daemon list
 ```
 
-The daemon starts automatically when you run `happy`, so you usually don't need to manage it manually.
+The daemon starts automatically when you run `happyherd`, so you usually don't need to manage it manually.
 
 ### Account machines and remote sessions
 
@@ -102,9 +106,9 @@ owning machine and it reuses the already-authenticated local daemon, with no
 account-control link or QR approval:
 
 ```bash
-happy machine auth login
-happy machine auth status
-happy machine auth logout
+happyherd machine auth login
+happyherd machine auth status
+happyherd machine auth logout
 ```
 
 Create and manage a side chat through that local daemon:
@@ -128,7 +132,7 @@ happyherd session side-chat reopen <child-session-id>
 happyherd session side-chat resume <child-session-id>
 ```
 
-All six delegation fields are required. The parent-ID shorthand remains
+The six-field delegation brief is required. The parent-ID shorthand remains
 supported when it carries the same six options. The daemon persists the
 rendered brief as the child's first encrypted queued user message. Add
 `--json` to any action for a stable receipt. A failed receipt sets a nonzero
@@ -153,15 +157,15 @@ Then discover the online and offline machines registered to the linked
 account:
 
 ```bash
-happy machine list
-happy machine list --json
+happyherd machine list
+happyherd machine list --json
 ```
 
 Create a tracked Happy session on an explicitly selected machine and absolute
 path:
 
 ```bash
-happy session create \
+happyherd session create \
   --machine workstation \
   --path /srv/project \
   --provider codex \
@@ -200,17 +204,17 @@ conversation context.
 
 ### Keeping the daemon running across reboots
 
-If you want the daemon to come back automatically after a reboot — without opening a `happy` session first — start it from your shell profile so it inherits your normal user session context (PATH, keychain access, OAuth credentials):
+If you want the daemon to come back automatically after a reboot — without opening a `happyherd` session first — start it from your shell profile so it inherits your normal user session context (PATH, keychain access, OAuth credentials):
 
 ```bash
 # ~/.zshrc or ~/.bashrc
 if [[ -o interactive ]] && [[ -z "$HAPPY_DAEMON_CHECKED" ]]; then
     export HAPPY_DAEMON_CHECKED=1
     () {
-        local state=$HOME/.happy/daemon.state.json
+        local state=$HOME/.happyherd/daemon.state.json
         local pid=$(grep -oE '"pid"[[:space:]]*:[[:space:]]*[0-9]+' "$state" 2>/dev/null | grep -oE '[0-9]+')
         if [[ -z "$pid" ]] || ! kill -0 "$pid" 2>/dev/null; then
-            happy daemon start >/dev/null 2>&1
+            happyherd daemon start >/dev/null 2>&1
         fi
     } &!
 fi
@@ -223,8 +227,8 @@ The first interactive shell after a reboot triggers the start; subsequent shells
 ## Authentication
 
 ```bash
-happy auth login
-happy auth logout
+happyherd auth login
+happyherd auth logout
 ```
 
 Happy uses cryptographic key pairs for authentication — your private key stays on your machine. All session data is end-to-end encrypted before leaving your device.
@@ -232,10 +236,10 @@ Happy uses cryptographic key pairs for authentication — your private key stays
 To connect third-party agent APIs:
 
 ```bash
-happy connect gemini
-happy connect claude
-happy connect codex
-happy connect status
+happyherd connect gemini
+happyherd connect claude
+happyherd connect codex
+happyherd connect status
 ```
 
 ### Named provider accounts
@@ -269,21 +273,21 @@ account becomes eligible again.
 
 | Command | Description |
 |---------|-------------|
-| `happy` | Start Claude Code session (default) |
-| `happy codex` | Start Codex mode |
-| `happy agy` | Start agy (Antigravity CLI) session |
-| `happy gemini` | Start Gemini CLI session (**deprecated** — use `happy agy`) |
-| `happy grok` | Start GrokBuild through its official ACP interface |
-| `happy acp` | Start any ACP-compatible agent |
-| `happy resume <id>` | Resume a previous session |
+| `happyherd` | Start Claude Code session (default) |
+| `happyherd codex` | Start Codex mode |
+| `happyherd agy` | Start agy (Antigravity CLI) session |
+| `happyherd gemini` | Start Gemini CLI session (**deprecated** — use `happyherd agy`) |
+| `happyherd grok` | Start GrokBuild through its official ACP interface |
+| `happyherd acp` | Start any ACP-compatible agent |
+| `happyherd resume <id>` | Resume a previous session |
 | `happyherd session side-chat <action> <id> [brief options] [--all] [--json]` | Create a briefed Worker Agent conversation or list, status/inspect, stop/pause, close, and reopen/resume exact Claude/Codex child side chats on their local owning daemon |
-| `happy notify` | Send push notification to your devices |
-| `happy doctor` | Diagnostics & troubleshooting |
-| `happy commander list` | List Commanders available on this machine |
-| `happy commander create --manifest <file>` | Atomically install agent-authored Commander content |
-| `happy machine auth <login\|status\|logout>` | Manage the app-approved account-machine control link |
-| `happy machine list [--json]` | Discover machines on the current account |
-| `happy session create ... [--commander ID] [--json]` | Create a tracked session on a selected Happy CLI daemon machine |
+| `happyherd notify` | Send push notification to your devices |
+| `happyherd doctor` | Diagnostics & troubleshooting |
+| `happyherd commander list` | List Commanders available on this machine |
+| `happyherd commander create --manifest <file>` | Atomically install agent-authored Commander content |
+| `happyherd machine auth <login\|status\|logout>` | Manage the app-approved account-machine control link |
+| `happyherd machine list [--json]` | Discover machines on the current account |
+| `happyherd session create ... [--commander ID] [--json]` | Create a tracked session on a selected Happy CLI daemon machine |
 | `happyherd session set-commander <session-id> <commander-id\|none> [--json]` | Change the Commander used on the session's next resume |
 
 ---
@@ -311,7 +315,7 @@ for the manifest contract and failure guarantees.
 |----------|-------------|
 | `HAPPY_SERVER_URL` | Custom server URL (default: `https://api.cluster-fluster.com`) |
 | `HAPPY_WEBAPP_URL` | Custom web app URL (default: `https://app.happy.engineering`) |
-| `HAPPY_HOME_DIR` | Custom home directory for Happy data (default: `~/.happy`) |
+| `HAPPY_HOME_DIR` | Custom home directory for Happy data (default: `~/.happyherd`) |
 | `HAPPY_DISABLE_CAFFEINATE` | Disable macOS sleep prevention |
 | `HAPPY_EXPERIMENTAL` | Enable experimental features |
 
@@ -320,18 +324,18 @@ for the manifest contract and failure guarantees.
 Happy can run agents inside an OS-level sandbox to restrict file system and network access.
 
 ```bash
-happy sandbox configure
-happy sandbox status
-happy sandbox disable
+happyherd sandbox configure
+happyherd sandbox status
+happyherd sandbox disable
 ```
 
 ### Building from source
 
 ```bash
-git clone https://github.com/slopus/happy
-cd happy-cli
-yarn install
-yarn workspace happy cli --help
+git clone https://github.com/NickGuAI/HappyHerd
+cd HappyHerd/server
+pnpm install --frozen-lockfile
+pnpm --filter @happyherd/cli build
 ```
 
 ## Requirements
@@ -340,7 +344,7 @@ yarn workspace happy cli --help
 - For Claude: `claude` CLI installed & logged in
 - For Codex: `codex` CLI installed & logged in
 - For agy: install the Antigravity CLI (`agy`) and log in
-- For Gemini (**deprecated** — use agy): `npm install -g @google/gemini-cli` + `happy connect gemini`
+- For Gemini (**deprecated** — use agy): `npm install -g @google/gemini-cli` + `happyherd connect gemini`
 - For GrokBuild: install the official `grok` CLI and authenticate it with `grok login`
 
 ## License

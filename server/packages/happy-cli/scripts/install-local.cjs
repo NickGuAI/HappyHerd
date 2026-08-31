@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 
 /**
- * Install this workspace as the global `happy` binary for local development.
+ * Install this workspace as the global `happyherd` binary for local development.
  *
  * Steps:
  *   1. build
  *   2. stop any running daemon (ignores failure)
- *   3. npm link (replaces the globally-installed `happy` with a symlink to this workspace)
+ *   3. npm link (replaces the globally-installed `happyherd` with a symlink to this workspace)
  *   4. start the daemon again
- *   5. verify by running `happy --version`
+ *   5. verify by running `happyherd --version`
  *
- * Reuses ~/.happy/ — no separate dev home dir. Auth and sessions carry over.
- * To undo: `npm unlink -g happy && npm i -g happy@latest`.
+ * Reuses the configured HappyHerd home. Auth and sessions carry over.
+ * To undo: `npm unlink -g @happyherd/cli && npm i -g @happyherd/cli@latest`.
  */
 
 const { spawnSync } = require('child_process');
@@ -28,7 +28,7 @@ function run(cmd, args, { allowFailure = false, env = process.env } = {}) {
         cwd: PACKAGE_DIR,
         stdio: 'inherit',
         env,
-        // shell: true resolves `.cmd` shims on Windows so `pnpm` / `npm` / `happy` are found.
+        // shell: true resolves `.cmd` shims on Windows so `pnpm`, `npm`, and `happyherd` are found.
         shell: IS_WINDOWS,
     });
     if (result.error) {
@@ -58,15 +58,15 @@ function withoutWorkspaceBinPaths() {
 }
 
 run('pnpm', ['run', 'build']);
-run('happy', ['daemon', 'stop'], { allowFailure: true });
+run('happyherd', ['daemon', 'stop'], { allowFailure: true });
 run('npm', ['link']);
 // pnpm prepends workspace node_modules/.bin to PATH for lifecycle scripts.
 // A missing optional native agent package can leave a discoverable but broken
 // local shim there, shadowing the user's working global Codex/Claude binary in
 // every daemon-spawned session. The daemon should inherit the normal shell PATH.
 const daemonEnvironment = withoutWorkspaceBinPaths();
-run('happy', ['daemon', 'start'], { env: daemonEnvironment });
-run('happy', ['--version'], { env: daemonEnvironment });
+run('happyherd', ['daemon', 'start'], { env: daemonEnvironment });
+run('happyherd', ['--version'], { env: daemonEnvironment });
 
 console.log(`\n✓ Installed from ${PACKAGE_DIR}`);
-console.log('  To undo: npm unlink -g happy && npm i -g happy@latest');
+console.log('  To undo: npm unlink -g @happyherd/cli && npm i -g @happyherd/cli@latest');

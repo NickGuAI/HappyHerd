@@ -23,13 +23,13 @@ Useful helpers:
 
 - `yarn env:list` shows available environments
 - `yarn env:current` prints the active environment path
-- `yarn env:cli` starts `happy` inside the current environment
+- `pnpm env:cli` starts `happyherd` inside the current environment
 
 For daemon and agent work, use a sourced shell:
 
 ```bash
 source environments/data/envs/<name>/env.sh
-happy daemon start
+happyherd daemon start
 ```
 
 That shell now points at the local stack through:

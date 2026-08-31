@@ -32,7 +32,7 @@ export interface GeminiBackendOptions extends AgentFactoryOptions {
   /** API key for Gemini (defaults to GEMINI_API_KEY or GOOGLE_API_KEY env var) */
   apiKey?: string;
   
-  /** OAuth token from Happy cloud (via 'happy connect gemini') - highest priority */
+  /** OAuth token from Happy cloud (via 'happyherd connect gemini') - highest priority */
   cloudToken?: string;
   
   /** Current user email (from OAuth id_token) - used to match per-account project ID */
@@ -74,7 +74,7 @@ export interface GeminiBackendResult {
 export function createGeminiBackend(options: GeminiBackendOptions): GeminiBackendResult {
 
   // Resolve API key from multiple sources (in priority order):
-  // 1. Happy cloud OAuth token (via 'happy connect gemini') - highest priority
+  // 1. Happy cloud OAuth token (via 'happyherd connect gemini') - highest priority
   // 2. Local Gemini CLI config files (~/.gemini/)
   // 3. GEMINI_API_KEY environment variable
   // 4. GOOGLE_API_KEY environment variable - lowest priority
@@ -89,7 +89,7 @@ export function createGeminiBackend(options: GeminiBackendOptions): GeminiBacken
     || options.apiKey;                  // 5. Explicit apiKey option (fallback)
 
   if (!apiKey) {
-    logger.warn(`[Gemini] No API key found. Run 'happy connect gemini' to authenticate via Google OAuth, or set ${GEMINI_API_KEY_ENV} environment variable.`);
+    logger.warn(`[Gemini] No API key found. Run 'happyherd connect gemini' to authenticate via Google OAuth, or set ${GEMINI_API_KEY_ENV} environment variable.`);
   }
 
   // Command to run gemini
@@ -184,4 +184,3 @@ export function registerGeminiAgent(): void {
   agentRegistry.register('gemini', (opts) => createGeminiBackend(opts).backend);
   logger.debug('[Gemini] Registered with agent registry');
 }
-

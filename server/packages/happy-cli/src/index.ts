@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * CLI entry point for happy command
+ * CLI entry point for the happyherd command
  * 
  * Simple argument parsing without any CLI framework dependencies
  */
@@ -50,13 +50,13 @@ import { activateCredentialAccount } from './credentialPool/activate'
   // Top-level version is a Happy CLI query, not a Claude passthrough. Return
   // before authentication, daemon startup, or any provider launch.
   if (args.length === 1 && (args[0] === '--version' || args[0] === '-v')) {
-    console.log(`happy version: ${configuration.currentCliVersion}`)
+    console.log(`happyherd version: ${configuration.currentCliVersion}`)
     return
   }
 
   // If --version is passed - do not log, its likely daemon inquiring about our version
   if (!args.includes('--version')) {
-    logger.debug('Starting happy CLI with args: ', process.argv)
+    logger.debug('Starting HappyHerd CLI with args: ', process.argv)
   }
 
   // Check if first argument is a subcommand
@@ -71,10 +71,10 @@ import { activateCredentialAccount } from './credentialPool/activate'
     if (args[1] === 'clean') {
       if (args.slice(2).some(a => a === '--help' || a === '-h')) {
         console.log(`
-${chalk.bold('happy doctor clean')} - Kill all happy-related processes (daemon + sessions)
+${chalk.bold('happyherd doctor clean')} - Kill all HappyHerd-related processes (daemon + sessions)
 
 ${chalk.bold('Usage:')}
-  happy doctor clean
+  happyherd doctor clean
 
 ${chalk.bold('Warning:')} This is destructive — it terminates the daemon and every running session.
 Conversation history is preserved on the server, but in-flight tool calls are interrupted.
@@ -206,7 +206,7 @@ Conversation history is preserved on the server, but in-flight tool calls are in
     // Handle gemini subcommands
     const geminiSubcommand = args[1];
     
-    // Handle "happy gemini model set <model>" command
+    // Handle "happyherd gemini model set <model>" command
     if (geminiSubcommand === 'model' && args[2] === 'set' && args[3]) {
       const modelName = args[3];
       const validModels = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
@@ -256,7 +256,7 @@ Conversation history is preserved on the server, but in-flight tool calls are in
       }
     }
     
-    // Handle "happy gemini model get" command
+    // Handle "happyherd gemini model get" command
     if (geminiSubcommand === 'model' && args[2] === 'get') {
       try {
         const { existsSync, readFileSync } = require('fs');
@@ -295,7 +295,7 @@ Conversation history is preserved on the server, but in-flight tool calls are in
       }
     }
     
-    // Handle "happy gemini project set <project-id>" command
+    // Handle "happyherd gemini project set <project-id>" command
     if (geminiSubcommand === 'project' && args[2] === 'set' && args[3]) {
       const projectId = args[3];
       
@@ -336,7 +336,7 @@ Conversation history is preserved on the server, but in-flight tool calls are in
       }
     }
     
-    // Handle "happy gemini project get" command
+    // Handle "happyherd gemini project get" command
     if (geminiSubcommand === 'project' && args[2] === 'get') {
       try {
         const { readGeminiLocalConfig } = await import('@/gemini/utils/config');
@@ -355,7 +355,7 @@ Conversation history is preserved on the server, but in-flight tool calls are in
           console.log('No Google Cloud Project configured.');
           console.log('');
           console.log('If you see "Authentication required" error, you may need to set a project:');
-          console.log('  happy gemini project set <your-project-id>');
+          console.log('  happyherd gemini project set <your-project-id>');
           console.log('');
           console.log('This is required for Google Workspace accounts.');
           console.log('Guide: https://goo.gle/gemini-cli-auth-docs#workspace-gca');
@@ -367,9 +367,9 @@ Conversation history is preserved on the server, but in-flight tool calls are in
       }
     }
     
-    // Handle "happy gemini project" (no subcommand) - show help
+    // Handle "happyherd gemini project" (no subcommand) - show help
     if (geminiSubcommand === 'project' && !args[2]) {
-      console.log('Usage: happy gemini project <command>');
+      console.log('Usage: happyherd gemini project <command>');
       console.log('');
       console.log('Commands:');
       console.log('  set <project-id>   Set Google Cloud Project ID');
@@ -385,7 +385,7 @@ Conversation history is preserved on the server, but in-flight tool calls are in
     // Handle gemini command (ACP-based agent)
     try {
       // The standalone gemini CLI is EOL; agy (Antigravity CLI) is its successor.
-      console.warn(chalk.yellow('⚠ The gemini backend is deprecated and may be removed in a future release. Use `happy agy` (Antigravity CLI) instead.'));
+      console.warn(chalk.yellow('⚠ The gemini backend is deprecated and may be removed in a future release. Use `happyherd agy` (Antigravity CLI) instead.'));
 
       const { runGemini } = await import('@/gemini/runGemini');
 
@@ -482,7 +482,7 @@ Conversation history is preserved on the server, but in-flight tool calls are in
     return;
   } else if (subcommand === 'logout') {
     // Keep for backward compatibility - redirect to auth logout
-    console.log(chalk.yellow('Note: "happy logout" is deprecated. Use "happy auth logout" instead.\n'));
+    console.log(chalk.yellow('Note: "happyherd logout" is deprecated. Use "happyherd auth logout" instead.\n'));
     try {
       await handleAuthCommand(['logout']);
     } catch (error) {
@@ -599,20 +599,20 @@ Conversation history is preserved on the server, but in-flight tool calls are in
       }
     } else {
       console.log(`
-${chalk.bold('happy daemon')} - Daemon management
+${chalk.bold('happyherd daemon')} - Daemon management
 
 ${chalk.bold('Usage:')}
-  happy daemon start              Start the daemon (detached)
-  happy daemon stop               Stop the daemon (sessions stay alive)
-  happy daemon status             Show daemon status
-  happy daemon list               List active sessions
+  happyherd daemon start              Start the daemon (detached)
+  happyherd daemon stop               Stop the daemon (sessions stay alive)
+  happyherd daemon status             Show daemon status
+  happyherd daemon list               List active sessions
 
-  If you want to kill all happy related processes run 
-  ${chalk.cyan('happy doctor clean')}
+  If you want to kill all HappyHerd-related processes, run
+  ${chalk.cyan('happyherd doctor clean')}
 
 ${chalk.bold('Note:')} The daemon runs in the background and manages Claude sessions.
 
-${chalk.bold('To clean up runaway processes:')} Use ${chalk.cyan('happy doctor clean')}
+${chalk.bold('To clean up runaway processes:')} Use ${chalk.cyan('happyherd doctor clean')}
 `)
     }
     return;
@@ -716,54 +716,54 @@ ${chalk.bold('To clean up runaway processes:')} Use ${chalk.cyan('happy doctor c
     // Show help
     if (showHelp) {
       console.log(`
-${chalk.bold('happy')} - Claude Code On the Go
+${chalk.bold('happyherd')} - Claude Code On the Go
 
 ${chalk.bold('Usage:')}
-  happy [options]         Start Claude with mobile control
-  happy auth              Manage authentication
-  happy machine           Discover account machines
-  happy session           Create a tracked session on an account machine
-  happy resume            Resume a previous Happy session by Happy session ID
-  happy codex             Start Codex mode
-  happy gemini            Start Gemini mode (ACP) [deprecated — use agy]
-  happy agy               Start agy (Antigravity CLI) mode
-  happy grok              Start GrokBuild through ACP
-  happy acp               Start a generic ACP-compatible agent
-  happy connect           Connect AI vendor API keys
+  happyherd [options]         Start Claude with mobile control
+  happyherd auth              Manage authentication
+  happyherd machine           Discover account machines
+  happyherd session           Create a tracked session on an account machine
+  happyherd resume            Resume a previous Happy session by Happy session ID
+  happyherd codex             Start Codex mode
+  happyherd gemini            Start Gemini mode (ACP) [deprecated — use agy]
+  happyherd agy               Start agy (Antigravity CLI) mode
+  happyherd grok              Start GrokBuild through ACP
+  happyherd acp               Start a generic ACP-compatible agent
+  happyherd connect           Connect AI vendor API keys
   happyherd accounts      List, select, or remove named provider accounts
-  happy sandbox           Configure and manage OS-level sandboxing
-  happy notify            Send push notification
-  happy daemon            Manage background service that allows
+  happyherd sandbox           Configure and manage OS-level sandboxing
+  happyherd notify            Send push notification
+  happyherd daemon            Manage background service that allows
                             to spawn new sessions away from your computer
-  happy doctor            System diagnostics & troubleshooting
+  happyherd doctor            System diagnostics & troubleshooting
 
 ${chalk.bold('Examples:')}
-  happy                    Start session
-  happy resume cmmij8      Resume a previous session by Happy session ID
-  happy --yolo             Start with bypassing permissions
-                            happy sugar for --dangerously-skip-permissions
-  happy --chrome           Enable Chrome browser access for this session
-  happy --no-chrome        Disable Chrome even if default is on
-  happy --no-sandbox       Disable Happy sandbox for this session
-  happy --js-runtime bun   Use bun instead of node to spawn Claude Code
-  happy --claude-env ANTHROPIC_BASE_URL=http://127.0.0.1:3456
+  happyherd                    Start session
+  happyherd resume cmmij8      Resume a previous session by Happy session ID
+  happyherd --yolo             Start with bypassing permissions
+                                Shortcut for --dangerously-skip-permissions
+  happyherd --chrome           Enable Chrome browser access for this session
+  happyherd --no-chrome        Disable Chrome even if default is on
+  happyherd --no-sandbox       Disable Happy sandbox for this session
+  happyherd --js-runtime bun   Use bun instead of node to spawn Claude Code
+  happyherd --claude-env ANTHROPIC_BASE_URL=http://127.0.0.1:3456
                            Use a custom API endpoint (e.g., claude-code-router)
-  happy acp gemini         Start Gemini via generic ACP runner
-  happy grok               Start GrokBuild with its fixed ACP stdio command
-  happy acp -- opencode --acp
+  happyherd acp gemini         Start Gemini via generic ACP runner
+  happyherd grok               Start GrokBuild with its fixed ACP stdio command
+  happyherd acp -- opencode --acp
                            Start a custom ACP command
-  happy acp opencode --verbose
+  happyherd acp opencode --verbose
                            Print raw ACP backend/envelope events
-  happy auth login --force Authenticate
-  happy machine auth login Link account-wide machine control in the Happy app
-  happy machine list --json
-  happy session create --machine workstation --path /srv/project --provider codex --json
-  happy doctor             Run diagnostics
+  happyherd auth login --force Authenticate
+  happyherd machine auth login Link account-wide machine control in the Happy app
+  happyherd machine list --json
+  happyherd session create --machine workstation --path /srv/project --provider codex --json
+  happyherd doctor             Run diagnostics
 
-${chalk.bold('Happy supports ALL Claude options!')}
-  Use any claude flag with happy as you would with claude. Our favorite:
+${chalk.bold('HappyHerd supports ALL Claude options!')}
+  Use any Claude flag with happyherd as you would with claude. Our favorite:
 
-  happy --resume
+  happyherd --resume
 
 ${chalk.gray('─'.repeat(60))}
 ${chalk.bold.cyan('Claude Code Options (from `claude --help`):')}
@@ -783,7 +783,7 @@ ${chalk.bold.cyan('Claude Code Options (from `claude --help`):')}
 
     // A standalone top-level version flag returned before command dispatch.
     // Retain passthrough behavior only when it accompanies other Claude args.
-    if (showVersion) console.log(`happy version: ${packageJson.version}`)
+    if (showVersion) console.log(`happyherd version: ${packageJson.version}`)
 
     // Normal flow - auth and machine setup
     const {
@@ -832,34 +832,34 @@ async function handleNotifyCommand(args: string[]): Promise<void> {
 
   if (showHelp) {
     console.log(`
-${chalk.bold('happy notify')} - Send notification
+${chalk.bold('happyherd notify')} - Send notification
 
 ${chalk.bold('Usage:')}
-  happy notify -p <message> [-t <title>]    Send notification with custom message and optional title
-  happy notify -h, --help                   Show this help
+  happyherd notify -p <message> [-t <title>]    Send notification with custom message and optional title
+  happyherd notify -h, --help                   Show this help
 
 ${chalk.bold('Options:')}
   -p <message>    Notification message (required)
   -t <title>      Notification title (optional, defaults to "Happy")
 
 ${chalk.bold('Examples:')}
-  happy notify -p "Deployment complete!"
-  happy notify -p "System update complete" -t "Server Status"
-  happy notify -t "Alert" -p "Database connection restored"
+  happyherd notify -p "Deployment complete!"
+  happyherd notify -p "System update complete" -t "Server Status"
+  happyherd notify -t "Alert" -p "Database connection restored"
 `)
     return
   }
 
   if (!message) {
     console.error(chalk.red('Error: Message is required. Use -p "your message" to specify the notification text.'))
-    console.log(chalk.gray('Run "happy notify --help" for usage information.'))
+    console.log(chalk.gray('Run "happyherd notify --help" for usage information.'))
     process.exit(1)
   }
 
   // Load credentials
   let credentials = await readCredentials()
   if (!credentials) {
-    console.error(chalk.red('Error: Not authenticated. Please run "happy auth login" first.'))
+    console.error(chalk.red('Error: Not authenticated. Please run "happyherd auth login" first.'))
     process.exit(1)
   }
 

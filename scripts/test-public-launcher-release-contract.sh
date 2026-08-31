@@ -32,15 +32,7 @@ deleted_paths=(
   scripts/test-macos-uninstall-recovery.mjs
   scripts/verify-public-launcher-release.mjs
   scripts/write-public-asset-fragment.mjs
-  server/packages/happyherd-cli/src/broker.ts
-  server/packages/happyherd-cli/src/contracts.ts
-  server/packages/happyherd-cli/src/deviceFlow.ts
-  server/packages/happyherd-cli/src/doctor.ts
-  server/packages/happyherd-cli/src/registry.ts
-  server/packages/happyherd-cli/src/release.ts
-  server/packages/happyherd-cli/src/secretStore.ts
-  server/packages/happyherd-cli/src/skills.ts
-  server/packages/happyherd-cli/src/toolRunner.ts
+  server/packages/happyherd-cli
 )
 for path in "${deleted_paths[@]}"; do
   [[ ! -e "$root/$path" ]] || fail "obsolete HappyHerd-only path remains: $path"
@@ -48,20 +40,7 @@ done
 if find "$root/installers/service" -type f -print -quit 2>/dev/null | grep -q .; then
   fail 'obsolete broker, vault, or helper source remains under installers/service'
 fi
-if find "$root/server/packages/happyherd-cli/scripts" -type f -print -quit 2>/dev/null | grep -q .; then
-  fail 'obsolete issuer fixture remains in the thin wrapper package'
-fi
-
-cli_root="$root/server/packages/happyherd-cli"
-mapfile -t cli_sources < <(find "$cli_root/src" -maxdepth 1 -type f -printf '%f\n' | sort)
-expected_sources=(cli.test.ts cli.ts index.ts runtime.test.ts runtime.ts)
-[[ "${cli_sources[*]}" == "${expected_sources[*]}" ]] ||
-  fail "thin wrapper retained unexpected source files: ${cli_sources[*]}"
-
-grep -Fq "return runHappy(args);" "$cli_root/src/cli.ts"
-if grep -Eq '@napi-rs/keyring|yauzl|yazl|cross-spawn' "$cli_root/package.json"; then
-  fail 'thin wrapper retained broker, ZIP, or launcher-only dependencies'
-fi
+node "$root/scripts/verify-cli-public-command.mjs"
 
 grep -Fq 'REPOSITORY="https://github.com/NickGuAI/HappyHerd"' "$installer"
 grep -Fq "ARCHIVE_URL=\"\$REPOSITORY/archive/refs/heads/main.tar.gz\"" "$installer"
@@ -98,8 +77,8 @@ if grep -Eq '^HAPPY_(SERVER|WEBAPP)_URL=' "$root/deploy/happyherd-daemon.env.exa
 fi
 
 if grep -Eq 'release-manifest|SHA256SUMS|sha256|sourceSha|broker-service|install-skills|run-tool|HAPPYHERD_ACCESS_TOKEN|HAPPYHERD_ISSUER|keyring|setfacl|setuid|seccomp' \
-  "$installer" "$uninstaller" "$cli_root/src/cli.ts" "$cli_root/src/runtime.ts"; then
-  fail 'active local installer or wrapper retained deleted security machinery'
+  "$installer" "$uninstaller"; then
+  fail 'active local installer retained deleted security machinery'
 fi
 
 grep -Fq 'Preserved normal Happy state' "$uninstaller"
@@ -134,8 +113,11 @@ printf 'access-key\n' > "$home/.happyherd/access.key"
 printf 'sessions\n' > "$home/.happyherd/sessions.json"
 printf 'provider\n' > "$home/.codex/config.toml"
 printf 'user skill\n' > "$home/.claude/skills/user-skill/SKILL.md"
-cat > "$home/.local/bin/happy" <<'EXISTING_HAPPY'
+legacy_happy_entry="$home/.local/share/happyherd/runtime/node_modules/happy/bin/happy.mjs"
+cat > "$home/.local/bin/happy" <<EXISTING_HAPPY
 #!/bin/sh
+# HappyHerd managed command
+# diagnostic only: exec "/usr/bin/node" "$legacy_happy_entry" "\$@"
 echo existing-user-happy
 EXISTING_HAPPY
 chmod 700 "$home/.local/bin/happy"
@@ -176,21 +158,18 @@ if [[ "$deploy" -eq 1 ]]; then
     printf '{"name":"happy-server-self-host"}\n' > "$last/package.json"
     exit 0
   fi
-  mkdir -p "$last/bin" "$last/node_modules/happy/bin"
-  mkdir -p "$last/node_modules/happy/tools/unpacked"
-  printf '#!/bin/sh\n' > "$last/node_modules/happy/tools/unpacked/rg"
-  chmod 755 "$last/node_modules/happy/tools/unpacked/rg"
-  cat > "$last/bin/happyherd.mjs" <<'JS'
-#!/usr/bin/env node
-import '../node_modules/happy/bin/happy.mjs';
-JS
-  cat > "$last/node_modules/happy/bin/happy.mjs" <<'JS'
+  mkdir -p "$last/bin" "$last/tools/unpacked" "$last/node_modules"
+  printf '{"name":"@happyherd/cli","bin":{"happyherd":"./bin/happy.mjs"}}\n' > "$last/package.json"
+  printf '#!/bin/sh\n' > "$last/tools/unpacked/rg"
+  chmod 755 "$last/tools/unpacked/rg"
+  cat > "$last/bin/happy.mjs" <<'JS'
 #!/usr/bin/env node
 import fs from 'node:fs';
 const args = process.argv.slice(2);
 if (process.env.HAPPYHERD_TEST_LOG) fs.appendFileSync(process.env.HAPPYHERD_TEST_LOG, `${args.join(' ')}\n`);
 if (args[0] === 'server') setInterval(() => {}, 1000);
 JS
+  chmod 755 "$last/bin/happy.mjs"
 fi
 FAKE_PNPM
 chmod 755 "$prefix/bin/pnpm"
@@ -256,8 +235,8 @@ test_log="$fixture/happy.log"
 HOME="$home" SHELL=/bin/bash HAPPYHERD_TEST_LOG="$test_log" PATH="$fake_bin:$PATH" \
   "$installer" --source "$root" --server https://remote.example --no-start >/dev/null
 
-[[ -x "$home/.local/bin/happy" && -x "$home/.local/bin/happyherd" ]] ||
-  fail 'installer did not expose both user commands'
+[[ -x "$home/.local/bin/happyherd" ]] ||
+  fail 'installer did not expose the happyherd command'
 [[ "$(cat "$home/.local/bin/happy")" == "$existing_happy" ]] ||
   fail 'installer replaced an existing unmanaged Happy command'
 [[ ! -L "$home/.local/bin/happyherd" ]] ||
@@ -273,7 +252,7 @@ node -e '
 ' "$home/.happyherd/settings.json"
 
 HAPPYHERD_TEST_LOG="$test_log" node \
-  "$home/.local/share/happyherd/runtime/node_modules/happy/bin/happy.mjs" \
+  "$home/.local/share/happyherd/runtime/bin/happy.mjs" \
   server --host 127.0.0.1 --port 3005 --no-persist &
 managed_test_pid=$!
 printf '%s\n' "$managed_test_pid" > "$home/.happyherd/server.pid"
@@ -323,6 +302,22 @@ fi
 [[ "$(cat "$home/.happyherd/sessions.json")" == "$settings_before_sessions" ]]
 [[ "$(cat "$home/.codex/config.toml")" == "$provider_before" ]]
 [[ "$(cat "$home/.claude/skills/user-skill/SKILL.md")" == "$skill_before" ]]
+
+# A wrapper from the previous HappyHerd installer is removed only when its
+# marker and exact retired entry path both match.
+rm -f -- "$home/.local/bin/happy"
+cat > "$home/.local/bin/happy" <<EOF
+#!/bin/sh
+# HappyHerd managed command
+exec "$real_node" "$legacy_happy_entry" "\$@"
+EOF
+chmod 755 "$home/.local/bin/happy"
+HOME="$home" SHELL=/bin/bash HAPPYHERD_TEST_LOG="$test_log" PATH="$fake_bin:$PATH" \
+  "$installer" --source "$root" --server https://remote.example --no-start >/dev/null
+[[ ! -e "$home/.local/bin/happy" && ! -L "$home/.local/bin/happy" ]] ||
+  fail 'installer retained the exact previously managed happy command'
+[[ -x "$home/.local/bin/happyherd" ]]
+HOME="$home" "$home/.local/share/happyherd/uninstall.sh" >/dev/null
 
 cat > "$home/.local/bin/happyherd" <<'UNMANAGED_HAPPYHERD'
 #!/bin/sh

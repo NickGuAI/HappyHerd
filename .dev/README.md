@@ -107,7 +107,7 @@ bounded change → exact-head review → PR → merge
                  │                                             │
                  └──────── machine/session RPC relay ──────────┘
 
- @happyherd/cli ──exact passthrough──► happy-cli
+ @happyherd/cli (packages/happy-cli) ──happyherd──► daemon/provider adapters
         └── user-owned installer ──persists──► normal Happy server settings
 
  happyherd-agent ──uses──► happy-agent/control ──uses──► server/daemon

@@ -42,7 +42,7 @@ labeled as HappyHerd; Docker retains images referenced by any container and it
 does not touch other projects or volumes. It does not build any other
 component. To roll back, run the same command with an older published tag.
 
-## Happy CLI and host daemon
+## HappyHerd CLI and host daemon
 
 Install or upgrade only the CLI package:
 
@@ -58,7 +58,7 @@ sudo scripts/install-linux-daemon-bootstrap.sh \
   ec2-user
 ```
 
-The adapter invokes `/usr/local/bin/happy daemon start`. The CLI owns the
+The adapter invokes `/usr/local/bin/happyherd daemon start`. The CLI owns the
 native daemon lifecycle; systemd does not own the daemon or Claude/Codex
 provider processes. A CLI upgrade therefore does not require a server image or
 mobile build. Replace `ec2-user` with the real host account that owns the
@@ -74,7 +74,7 @@ When governed-agent source changes, build and install only that component:
 sudo scripts/install-agent-runtime.sh
 ```
 
-This lane expects the Happy CLI to be installed independently. Follow
+This lane expects the HappyHerd CLI to be installed independently. Follow
 [runtime-isolation.md](runtime-isolation.md) for its operator configuration and
 credential boundaries.
 
@@ -83,7 +83,7 @@ credential boundaries.
 Mobile artifacts are produced only from mobile changes through the mobile
 project's native release process. The simple user-owned installer is documented
 in [public-launcher-release.md](public-launcher-release.md). It installs the
-Happy CLI and ordinary daemon independently of self-host server deployment; it
+HappyHerd CLI and ordinary daemon independently of self-host server deployment; it
 does not add a release manifest, checksum gate, broker, vault, or issuer flow.
 
 ## Verification ownership

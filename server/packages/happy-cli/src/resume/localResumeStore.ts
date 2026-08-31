@@ -66,7 +66,7 @@ async function fetchServerMetadata(
     } catch (error) {
         if (error instanceof AxiosError && error.response?.status === 401) {
             throw new LocalResumeSessionError(
-                'Happy session lookup authentication expired. Run `happy auth login --force` in this environment.',
+                'Happy session lookup authentication expired. Run `happyherd auth login --force` in this environment.',
                 'unavailable',
             );
         }

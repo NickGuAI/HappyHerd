@@ -541,7 +541,7 @@
     "cliVersion": "CLI Version",
     "cliVersionOutdated": "CLI Update Required",
     "cliVersionOutdatedMessage": "Version {currentVersion} installed. Update to {requiredVersion} or later",
-    "updateCliInstructions": "Please run npm install -g happy@latest",
+    "updateCliInstructions": "Please run npm install -g @happyherd/cli@latest",
     "deleteSession": "Delete Session",
     "deleteSessionSubtitle": "Permanently remove this session",
     "deleteSessionConfirm": "Delete Session Permanently?",
@@ -567,7 +567,7 @@
       "bringMachineOnline": "Bring a machine online to start a session.",
       "troubleshoot": "Troubleshoot",
       "troubleshootConnection": "Troubleshoot connection",
-      "troubleshootMessage": "1. Wake the machine and check internet.\n2. Run `happy` again.\n3. Reopen Happy.\n\nAI prompt:\n{aiPrompt}",
+      "troubleshootMessage": "1. Wake the machine and check internet.\n2. Run `happyherd` again.\n3. Reopen Happy.\n\nAI prompt:\n{aiPrompt}",
       "copyAiPrompt": "Copy AI prompt",
       "copyAiPromptFailed": "Could not copy the AI prompt."
     },
@@ -1086,7 +1086,7 @@
   "machine": {
     "launchNewSessionInDirectory": "Launch New Session in Directory",
     "offlineUnableToSpawn": "Launcher disabled while machine is offline",
-    "offlineHelp": "• Make sure your computer is online\n• Run `happy daemon status` to diagnose\n• Are you running the latest CLI version? Upgrade with `npm install -g happy@latest`",
+    "offlineHelp": "• Make sure your computer is online\n• Run `happyherd daemon status` to diagnose\n• Are you running the latest CLI version? Upgrade with `npm install -g @happyherd/cli@latest`",
     "daemon": "Daemon",
     "status": "Status",
     "stopDaemon": "Stop Daemon",
@@ -1263,7 +1263,7 @@
       "category": "Commanders",
       "createTitle": "Create Commander",
       "createSubtitle": "Start a guided onboarding session",
-      "onboardingPrompt": "Help me create a new HappyHerd Commander. Interview me one question at a time about its name, role and mission, absolute machine workspace, operating boundaries, and essential seed context. Show me a concise final summary and wait for explicit confirmation before writing anything. After confirmation, author the semantic content yourself: a complete COMMANDER.md with identity_and_scope frontmatter, useful initial observations JSONL, working memory, long-term memory, and only genuinely useful learning files under rules/learnings/. Save those exact contents in a temporary JSON manifest with fields id, name, workspace, role, commanderMarkdown, observationsJsonl, workingMemoryMarkdown, longTermMemoryMarkdown, and learnings[{path,content}]. Run `happy commander create --manifest <file>`, verify with `happy commander list`, then delete the temporary manifest. Do not create a second registry or use placeholder seed content."
+      "onboardingPrompt": "Help me create a new HappyHerd Commander. Interview me one question at a time about its name, role and mission, absolute machine workspace, operating boundaries, and essential seed context. Show me a concise final summary and wait for explicit confirmation before writing anything. After confirmation, author the semantic content yourself: a complete COMMANDER.md with identity_and_scope frontmatter, useful initial observations JSONL, working memory, long-term memory, and only genuinely useful learning files under rules/learnings/. Save those exact contents in a temporary JSON manifest with fields id, name, workspace, role, commanderMarkdown, observationsJsonl, workingMemoryMarkdown, longTermMemoryMarkdown, and learnings[{path,content}]. Run `happyherd commander create --manifest <file>`, verify with `happyherd commander list`, then delete the temporary manifest. Do not create a second registry or use placeholder seed content."
     },
     "composer": {
       "queueMessage": "Queue Msg",
@@ -1616,8 +1616,8 @@
     "newMessagesJumpToLatest": "{count} new · Jump to latest",
     "commandCompletedWithNoOutput": "[Command completed with no output]",
     "happyTerminal": "happy://terminal?...",
-    "npmIGHappy": "$ npm i -g happy",
-    "happy": "$ happy",
+    "npmIGHappy": "$ npm i -g @happyherd/cli",
+    "happy": "$ happyherd",
     "noMessagesYet": "No messages yet",
     "noActiveSessions": "No active sessions",
     "startANewSessionOnAnyOfYourConnectedMachines": "Start a new session on any of your connected machines.",

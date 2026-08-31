@@ -79,25 +79,57 @@ legacy_happyherd_target() {
   esac
 }
 
-is_managed_command() {
-  [ -f "$1" ] && [ ! -L "$1" ] && grep -Fq '# HappyHerd managed command' "$1"
+is_managed_command_for_entry() {
+  managed_check_path="$1"
+  managed_check_entry="$2"
+  [ -f "$managed_check_path" ] && [ ! -L "$managed_check_path" ] || return 1
+
+  managed_line_1=''
+  managed_line_2=''
+  managed_line_3=''
+  managed_extra=''
+  {
+    IFS= read -r managed_line_1 || return 1
+    IFS= read -r managed_line_2 || return 1
+    IFS= read -r managed_line_3 || [ -n "$managed_line_3" ] || return 1
+    if IFS= read -r managed_extra || [ -n "$managed_extra" ]; then
+      return 1
+    fi
+  } < "$managed_check_path"
+
+  [ "$managed_line_1" = '#!/bin/sh' ] || return 1
+  [ "$managed_line_2" = '# HappyHerd managed command' ] || return 1
+  managed_prefix='exec "'
+  managed_suffix="\" \"$managed_check_entry\" \"\$@\""
+  case "$managed_line_3" in
+    "$managed_prefix"*"$managed_suffix") ;;
+    *) return 1 ;;
+  esac
+  managed_node=${managed_line_3#"$managed_prefix"}
+  managed_node=${managed_node%"$managed_suffix"}
+  [ -n "$managed_node" ] || return 1
+  case "$managed_node" in
+    *'"'*) return 1 ;;
+  esac
 }
 
-check_command_target() {
+is_managed_command() {
+  is_managed_command_for_entry "$1" "$runtime_root/bin/happy.mjs" \
+    || is_managed_command_for_entry "$1" "$runtime_root/bin/happyherd.mjs"
+}
+
+check_happyherd_target() {
   command_path="$1"
-  command_name="$2"
   if is_managed_command "$command_path"; then
     return
   fi
-  if [ "$command_name" = happyherd ] && [ -L "$command_path" ] \
+  if [ -L "$command_path" ] \
     && [ "$(readlink "$command_path")" = "$(legacy_happyherd_target)" ]; then
     return
   fi
   if [ -e "$command_path" ] || [ -L "$command_path" ]; then
-    [ "$command_name" = happy ] || {
-      echo "error: refusing to replace unmanaged command: $command_path" >&2
-      exit 1
-    }
+    echo "error: refusing to replace unmanaged command: $command_path" >&2
+    exit 1
   fi
 }
 
@@ -112,9 +144,10 @@ stop_managed_server() {
     return 0
   fi
   process_command=$(ps -p "$server_pid" -o command= 2>/dev/null || true)
-  expected_entry="$runtime_root/node_modules/happy/bin/happy.mjs server"
+  expected_entry="$runtime_root/bin/happy.mjs server"
+  legacy_expected_entry="$runtime_root/node_modules/happy/bin/happy.mjs server"
   case "$process_command" in
-    *"$expected_entry"*) ;;
+    *"$expected_entry"*|*"$legacy_expected_entry"*) ;;
     *) rm -f -- "$managed_server_pid"; return 0 ;;
   esac
   kill "$server_pid"
@@ -134,8 +167,7 @@ has_terminal() {
   [ -r /dev/tty ] && [ -w /dev/tty ] && ( : < /dev/tty ) 2>/dev/null
 }
 
-check_command_target "$bin_root/happy" happy
-check_command_target "$bin_root/happyherd" happyherd
+check_happyherd_target "$bin_root/happyherd"
 mkdir -p "$install_root" "$bin_root" "$(dirname "$settings_path")"
 work_root=$(mktemp -d "${TMPDIR:-/tmp}/happyherd-install.XXXXXX")
 tooling_root="$work_root/tooling"
@@ -215,22 +247,21 @@ export CI
   "$pnpm_bin" --filter happy-server --fail-if-no-match generate
   "$pnpm_bin" --filter @slopus/happy-wire --fail-if-no-match build
   "$pnpm_bin" --filter happy-agent --fail-if-no-match build
-  "$pnpm_bin" --filter happy --fail-if-no-match build
+  "$pnpm_bin" --filter @happyherd/cli --fail-if-no-match build
   "$pnpm_bin" --filter happy-server-self-host --fail-if-no-match build
   "$pnpm_bin" --filter happy-server-self-host --fail-if-no-match bundle:webapp
-  "$pnpm_bin" --filter @happyherd/cli --fail-if-no-match build
   "$pnpm_bin" --ignore-scripts --filter @happyherd/cli --fail-if-no-match \
     deploy --legacy --prod "$work_root/runtime"
   "$pnpm_bin" --ignore-scripts --filter happy-server-self-host --fail-if-no-match \
     deploy --legacy --prod "$work_root/server"
 )
 
-[ -f "$work_root/runtime/bin/happyherd.mjs" ] || {
+[ -f "$work_root/runtime/bin/happy.mjs" ] || {
   echo 'error: the HappyHerd command was not built' >&2
   exit 1
 }
-[ -f "$work_root/runtime/node_modules/happy/bin/happy.mjs" ] || {
-  echo 'error: the Happy command was not deployed' >&2
+[ -f "$work_root/runtime/package.json" ] || {
+  echo 'error: the HappyHerd package was not deployed' >&2
   exit 1
 }
 [ -f "$work_root/server/package.json" ] || {
@@ -239,7 +270,7 @@ export CI
 }
 mv "$work_root/server" "$work_root/runtime/node_modules/happy-server-self-host"
 
-happy_package="$work_root/runtime/node_modules/happy"
+happy_package="$work_root/runtime"
 server_package="$work_root/runtime/node_modules/happy-server-self-host"
 if [ -f "$happy_package/scripts/unpack-tools.cjs" ]; then
   "$node_bin" "$happy_package/scripts/unpack-tools.cjs"
@@ -255,25 +286,22 @@ fi
   exit 1
 }
 
-happy_entry="$runtime_root/node_modules/happy/bin/happy.mjs"
-happyherd_entry="$runtime_root/bin/happyherd.mjs"
+happyherd_entry="$runtime_root/bin/happy.mjs"
 if is_managed_command "$bin_root/happyherd"; then
   "$bin_root/happyherd" daemon stop >/dev/null 2>&1 || true
 fi
 stop_managed_server
+legacy_happy_entry="$runtime_root/node_modules/happy/bin/happy.mjs"
+if is_managed_command_for_entry "$bin_root/happy" "$legacy_happy_entry"; then
+  rm -f -- "$bin_root/happy"
+fi
 rm -rf -- "$runtime_root"
 mv "$work_root/runtime" "$runtime_root"
 
 install_command() {
   command_path="$1"
   entry_path="$2"
-  command_name="$3"
-  check_command_target "$command_path" "$command_name"
-  if [ "$command_name" = happy ] && ! is_managed_command "$command_path" \
-    && { [ -e "$command_path" ] || [ -L "$command_path" ]; }; then
-    printf 'Preserved existing command: %s\n' "$command_path"
-    return
-  fi
+  check_happyherd_target "$command_path"
   if [ -L "$command_path" ]; then
     rm -f -- "$command_path"
   fi
@@ -286,8 +314,7 @@ install_command() {
   chmod 755 "$command_temporary"
   mv -f -- "$command_temporary" "$command_path"
 }
-install_command "$bin_root/happy" "$happy_entry" happy
-install_command "$bin_root/happyherd" "$happyherd_entry" happyherd
+install_command "$bin_root/happyherd" "$happyherd_entry"
 
 profile_path="$HOME/.zprofile"
 case "${SHELL:-}" in
@@ -339,7 +366,7 @@ auth_deferred=0
 if [ "$start_host" -eq 1 ]; then
   if [ "$server_url" = "$DEFAULT_SERVER" ]; then
     if ! curl -fsS "$DEFAULT_SERVER/health" >/dev/null 2>&1; then
-      nohup "$node_bin" "$happy_entry" server --host 127.0.0.1 --port 3005 --no-persist \
+      nohup "$node_bin" "$happyherd_entry" server --host 127.0.0.1 --port 3005 --no-persist \
         > "$HOME/.happyherd/server.log" 2>&1 < /dev/null &
       echo "$!" > "$managed_server_pid"
     fi
@@ -356,8 +383,8 @@ if [ "$start_host" -eq 1 ]; then
   fi
 
   if has_terminal; then
-    "$node_bin" "$happy_entry" auth login < /dev/tty > /dev/tty 2>&1
-    "$node_bin" "$happy_entry" daemon start
+    "$node_bin" "$happyherd_entry" auth login < /dev/tty > /dev/tty 2>&1
+    "$node_bin" "$happyherd_entry" daemon start
   elif "$node_bin" - "$settings_path" "$HOME/.happyherd/access.key" <<'NODE'
 const fs = require('node:fs');
 const settingsPath = process.argv[2];
@@ -367,7 +394,7 @@ const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
 if (typeof settings.machineId !== 'string' || settings.machineId.length === 0) process.exit(1);
 NODE
   then
-    "$node_bin" "$happy_entry" daemon start
+    "$node_bin" "$happyherd_entry" daemon start
   else
     auth_deferred=1
   fi
@@ -375,7 +402,7 @@ fi
 
 printf '\nHappyHerd installed.\n'
 printf 'Server: %s\n' "$server_url"
-printf 'Commands: %s/happyherd and %s/happy\n' "$bin_root" "$bin_root"
+printf 'Command: %s/happyherd\n' "$bin_root"
 printf 'Open a new terminal, then run: happyherd --help\n'
 [ "$auth_deferred" -eq 0 ] || \
   printf 'Next: happyherd auth login && happyherd daemon start\n'

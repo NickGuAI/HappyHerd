@@ -78,17 +78,17 @@ export async function handleConnectCommand(
 
 function showConnectHelp(): void {
     console.log(`
-${chalk.bold('happy connect')} - Connect AI vendor API keys to Happy cloud
+${chalk.bold('happyherd connect')} - Connect AI vendor API keys to Happy cloud
 
 ${chalk.bold('Usage:')}
   happyherd connect claude --acct <nickname>
   happyherd connect codex --acct <nickname>
   happyherd connect grok --acct <nickname>
-  happy connect codex        Store your Codex API key in Happy cloud
-  happy connect claude       Store your Anthropic API key in Happy cloud
-  happy connect gemini       Store your Gemini API key in Happy cloud
-  happy connect status       Show connection status for all vendors
-  happy connect help         Show this help message
+  happyherd connect codex        Store your Codex API key in Happy cloud
+  happyherd connect claude       Store your Anthropic API key in Happy cloud
+  happyherd connect gemini       Store your Gemini API key in Happy cloud
+  happyherd connect status       Show connection status for all vendors
+  happyherd connect help         Show this help message
 
 ${chalk.bold('Description:')}
   The connect command allows you to securely store your AI vendor API keys
@@ -99,13 +99,13 @@ ${chalk.bold('Examples:')}
   happyherd connect claude --acct work
   happyherd connect codex --acct personal
   happyherd connect grok --acct primary
-  happy connect codex
-  happy connect claude
-  happy connect gemini
-  happy connect status
+  happyherd connect codex
+  happyherd connect claude
+  happyherd connect gemini
+  happyherd connect status
 
 ${chalk.bold('Notes:')} 
-  • You must be authenticated with Happy first (run 'happy auth login')
+  • You must be authenticated with Happy first (run 'happyherd auth login')
   • API keys are encrypted and stored securely in Happy cloud
   • You can manage your stored keys at app.happy.engineering
 `);
@@ -435,7 +435,7 @@ async function handleConnectVendor(vendor: 'codex' | 'claude' | 'gemini', displa
     const credentials = await readCredentials();
     if (!credentials) {
         console.log(chalk.yellow('⚠️  Not authenticated with Happy'));
-        console.log(chalk.gray('  Please run "happy auth login" first'));
+        console.log(chalk.gray('  Please run "happyherd auth login" first'));
         process.exit(1);
     }
 
@@ -480,7 +480,7 @@ async function handleConnectStatus(): Promise<void> {
     const credentials = await readCredentials();
     if (!credentials) {
         console.log(chalk.yellow('⚠️  Not authenticated with Happy'));
-        console.log(chalk.gray('  Please run "happy auth login" first'));
+        console.log(chalk.gray('  Please run "happyherd auth login" first'));
         process.exit(1);
     }
 
@@ -527,8 +527,8 @@ async function handleConnectStatus(): Promise<void> {
     }
 
     console.log('');
-    console.log(chalk.gray('To connect a vendor, run: happy connect <vendor>'));
-    console.log(chalk.gray('Example: happy connect gemini'));
+    console.log(chalk.gray('To connect a vendor, run: happyherd connect <vendor>'));
+    console.log(chalk.gray('Example: happyherd connect gemini'));
     console.log('');
 }
 

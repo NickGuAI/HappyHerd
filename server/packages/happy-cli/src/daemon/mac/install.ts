@@ -2,11 +2,11 @@
  * Installation script for Happy daemon using macOS LaunchDaemons
  * 
  * NOTE: This installation method is currently NOT USED in favor of auto-starting 
- * the daemon when the user runs the happy command. 
+ * the daemon when the user runs the happyherd command.
  * 
  * Why we're not using this approach:
  * 1. Installing a LaunchDaemon requires sudo permissions, which users might not be comfortable with
- * 2. We assume users will run happy frequently (every time they open their laptop)
+ * 2. We assume users will run happyherd frequently (every time they open their laptop)
  * 3. The auto-start approach provides the same functionality without requiring elevated permissions
  * 
  * This code is kept for potential future use if we decide to offer system-level installation as an option.
@@ -31,7 +31,7 @@ export async function install(): Promise<void> {
             execSync(`launchctl unload ${PLIST_FILE}`, { stdio: 'inherit' });
         }
 
-        // Get the path to the happy CLI executable
+        // Get the path to the HappyHerd CLI executable
         const happyPath = process.argv[0]; // Node.js executable
         const scriptPath = process.argv[1]; // Script path
 

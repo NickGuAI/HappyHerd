@@ -20,7 +20,7 @@ export const AGY_BIN = 'agy';
  * Find the installed agy executable.
  *
  * agy installs to `~/.local/bin`, which is frequently absent from a daemon's
- * PATH (launchd, or `happy daemon start` from a non-login shell), so spawning
+ * PATH (launchd, or `happyherd daemon start` from a non-login shell), so spawning
  * the bare name fails with ENOENT even though agy is installed. Resolution order:
  *   1. `HAPPY_AGY_PATH` env override — an explicit absolute path to the binary.
  *   2. `agy` already resolvable on PATH (then spawn the bare name).

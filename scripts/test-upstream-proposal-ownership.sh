@@ -28,7 +28,7 @@ grep -Fq 'happyherd-upstream-merge-proposal' "$server_guide" ||
   fail "development lifecycle must not route upstream proposals through GitHub rehearsal"
 grep -Fq 'happyherd-upstream-merge-proposal' "$lifecycle_playbook" ||
   fail "development lifecycle must name the native proposal automation"
-grep -Fq "native \`happy automation\`" "$repo_root/.dev/SOP_INDEX.md" ||
+grep -Fq "native \`happyherd automation\`" "$repo_root/.dev/SOP_INDEX.md" ||
   fail "SOP index must route proposals through native automation"
 [[ -x "$repo_root/scripts/rehearse-upstream-sync.sh" ]] ||
   fail "read-only rehearsal evidence owner must remain executable"

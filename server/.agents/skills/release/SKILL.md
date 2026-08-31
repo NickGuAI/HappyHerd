@@ -16,7 +16,7 @@ You are the release operator for the Happy monorepo. When invoked, walk the user
 
 Ask which component to release:
 
-- **CLI** — npm package `happy`
+- **CLI** — npm package `@happyherd/cli`
 - **Mobile** — Expo/EAS builds for iOS + Android
 - **Web** — Docker image + K8s deploy via TeamCity
 - **Server** — Docker image + K8s deploy via TeamCity
@@ -29,7 +29,7 @@ Present these as options. Wait for the user to pick.
 ## CLI Release
 
     Package:     packages/happy-cli
-    npm name:    happy
+    npm name:    @happyherd/cli
     Registry:    https://registry.npmjs.org
     Git tags:    cli-{version}
 
@@ -42,7 +42,7 @@ Tag namespace note:
 ### Step 2: Gather state
 
 Run these in parallel:
-1. `npm view happy dist-tags` — see current latest + beta
+1. `npm view @happyherd/cli dist-tags` — see current latest + beta
 2. `cat packages/happy-cli/package.json | grep version` — local version
 3. `git status --short` — check for dirty state
 4. `git branch --show-current` — confirm branch
@@ -71,7 +71,7 @@ Present as options. Wait for confirmation.
 
 Edit `packages/happy-cli/package.json` directly — do NOT use `npm version` (it chokes on pnpm workspace protocol).
 
-IMPORTANT: do this **before** build/test for the CLI. The build imports `package.json` and bakes the version into the generated bundle. If you build first and bump later, `happy --version` can still report the old prerelease version even though npm metadata shows the new one.
+IMPORTANT: do this **before** build/test for the CLI. The build imports `package.json` and bakes the version into the generated bundle. If you build first and bump later, `happyherd --version` can still report the old prerelease version even though npm metadata shows the new one.
 
 ### Step 4b: `@slopus/happy-wire` must stay bundled — do NOT move it back
 
@@ -105,7 +105,7 @@ string. Inert. Only an actual `import`/`require` matters.)
 *also* labeled `0.1.0` but had 18 commits of drift, including `f85b20c3` which
 added `stripLeadingTaskNotificationWrappers` and imported it from
 `happy-cli/src/codex/utils/sessionProtocolMapper.ts`. February's tarball had no
-such export, ESM failed at module load, and `happy` crashed on **every**
+such export, ESM failed at module load, and the CLI crashed on **every**
 invocation — dead on arrival, not degraded. `1.2.0` had survived the identical
 latent bug purely because none of its 15 import sites needed a post-February
 symbol. `workspace:*` publishes the local version NUMBER, never the local CODE.
@@ -120,34 +120,35 @@ happy-wire in `dependencies`, so they carry the original trap. Before publishing
 either, bundle it the same way or get happy-wire republished first.
 
 **Publish rights:** `@slopus/happy-wire` is owned solely by `steve.kite
-<steve@korshakov.com>`. `bra1ndump` is an owner of `happy` but NOT of the
-`@slopus` scope, so publishing happy-wire 404s for them. Bundling exists partly
+<steve@korshakov.com>`. Ownership of the historical `happy` package does not
+grant access to the `@slopus` scope, so publishing happy-wire 404s for other
+maintainers. Bundling exists partly
 to route around that.
 
-Note: `happy --version` prints BOTH happy's own version and the Claude Code
+Note: `happyherd --version` prints BOTH the CLI's own version and the Claude Code
 version it found:
 
 ```
-happy version: 1.2.1-beta.1
+happyherd version: 1.2.1-beta.1
 Using Claude Code v2.1.224 from native installer
 2.1.224 (Claude Code)
 ```
 
-Do NOT pipe it through `tail -2` — that cuts the happy line off and makes it
+Do NOT pipe it through `tail -2` — that cuts the HappyHerd line off and makes it
 look like the command only reports Claude Code's version. Read the first line.
 
 ### Step 5: Build
 
 ```bash
 cd packages/happy-cli
-pnpm --filter happy run build
+pnpm --filter @happyherd/cli run build
 ```
 
 Report success/failure. Stop on failure.
 
 ### Step 5b: Self-host server split
 
-The `happy` npm package no longer bundles the self-host server binary or webapp.
+The `@happyherd/cli` npm package does not bundle the self-host server binary or webapp.
 Packaged installs resolve those from the separately installed
 `happy-server-self-host` package. Do not rebuild or ship `tools/server` or
 `tools/webapp` as part of a CLI release.
@@ -184,7 +185,7 @@ aborted the publish at the `prepublishOnly` test step.)
 
 ```bash
 cd packages/happy-cli
-pnpm --filter happy exec vitest run --project unit
+pnpm --filter @happyherd/cli exec vitest run --project unit
 ```
 
 Integration tests are slow and flaky — skip them for releases. Unit tests are the gate.
@@ -210,7 +211,7 @@ look reasonable and are both WRONG:
   to go faster."* That earlier build may predate the version bump (or a dependency
   change). The on-disk `dist/` is then stamped with the OLD version, and
   `--ignore-scripts` ships it. **This actually happened: `1.1.10-beta.9` was published
-  with `--ignore-scripts` and shipped a bundle stamped `beta.8`** — `happy --version`
+  with `--ignore-scripts` and shipped a bundle stamped `beta.8`** — the CLI's version output
   reported `beta.8` while npm metadata said `beta.9`. npm versions are immutable, so
   the only fix was bumping to `beta.10` and re-releasing. A wasted version number and
   a broken publish, to save one ~1-minute rebuild.
@@ -242,16 +243,16 @@ each fresh attempt has an independent chance to complete. Just re-run the exact
 same `pnpm publish` command — it typically succeeds within 2–3 attempts (it took
 3 on the 1.1.10-beta.4 release). Before each retry, confirm it did NOT actually
 land (see Step 8); npm rejects re-publishing an already-published version, which
-would be a misleading error. A clean success prints `+ happy@X.Y.Z`.
+would be a misleading error. A clean success prints `+ @happyherd/cli@X.Y.Z`.
 
 ### Step 8: Verify
 
 ```bash
-npm view happy@{version} version   # did the version actually publish?
-npm view happy dist-tags           # did the channel tag move?
+npm view @happyherd/cli@{version} version   # did the version actually publish?
+npm view @happyherd/cli dist-tags           # did the channel tag move?
 ```
 
-Check `npm view happy@X.Y.Z version` first — it returns the version string if the
+Check `npm view @happyherd/cli@X.Y.Z version` first — it returns the version string if the
 publish landed (use this between TLS retries to avoid double-publishing, and to
 distinguish a real failure from a cosmetic upload error).
 
@@ -259,7 +260,7 @@ distinguish a real failure from a cosmetic upload error).
 only confirms the tarball was *accepted* — it says nothing about what's *inside* it.
 A bundle stamped with the wrong version (the `--ignore-scripts` footgun above) passes
 this check cleanly. The authoritative check is the bundle itself in Step 11
-(`happy --version` after a real install). Never report a release as done on the
+(`happyherd --version` after a real install). Never report a release as done on the
 metadata check alone.
 
 Then confirm the new version appears under the correct dist-tag. The tag often
@@ -295,13 +296,13 @@ gh release create cli-X.Y.Z --generate-notes --title "cli-X.Y.Z"
 ### Step 11: Install + verify locally
 
 ```bash
-npm i -g happy@{channel}
-happy --version
-happy daemon status
+npm install -g @happyherd/cli@{channel}
+happyherd --version
+happyherd daemon status
 ```
 
 Report the installed version and daemon status.
-The smoke check must confirm that `happy --version` matches the published version, not just npm metadata. If it reports the old version, rebuild after the version bump and cut a corrective patch release.
+The smoke check must confirm that `happyherd --version` matches the published version, not just npm metadata. If it reports the old version, rebuild after the version bump and cut a corrective patch release.
 
 ---
 
@@ -456,7 +457,7 @@ Separate repo, not part of this monorepo. Guide the user to push to that repo.
 - **Release notes: investigate with subagents, exclude default-off, ask when unsure** — see "Writing release notes" above.
 - **Always present options** — never assume which component, channel, or version.
 - **Always verify before publishing** — show the user what will be published and get confirmation.
-- **Do not bundle self-host server/webapp into `happy`** — self-host runtime and the bundled webapp ship through `happy-server-self-host`, not the main CLI package.
+- **Do not bundle self-host server/webapp into `@happyherd/cli`** — self-host runtime and the bundled webapp ship through `happy-server-self-host`, not the main CLI package.
 - **Unit tests are the gate, not integration tests** — integration tests are slow and have flaky abort/interrupt tests.
 - **Use pnpm publish, not npm publish** — avoids workspace protocol issues.
 - **Never use --ignore-scripts for package publishing** — prepublish scripts are the last guard before npm receives the tarball.

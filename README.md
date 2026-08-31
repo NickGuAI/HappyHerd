@@ -48,7 +48,7 @@ sudo scripts/deploy-server.sh ghcr.io/example/happyherd:main \
 The deployment command pulls the chosen image, restarts the central server,
 and verifies `/health`. Rollback is the same command with an older tag. Install
 or upgrade the host CLI separately with `sudo scripts/install-host-cli.sh`;
-the Linux boot adapter delegates daemon lifetime to the native Happy CLI.
+the Linux boot adapter delegates daemon lifetime to the native HappyHerd CLI.
 
 See [docs/deployment.md](docs/deployment.md) for the complete component map and
 [docs/runtime-isolation.md](docs/runtime-isolation.md) for state and credential
@@ -63,8 +63,9 @@ curl -fsSL https://raw.githubusercontent.com/NickGuAI/HappyHerd/main/install.sh 
 ```
 
 The installer downloads the source, builds it in a user-owned directory, and
-creates `happyherd` and `happy` commands. `happyherd` is a thin alias that
-forwards directly to the bundled Happy CLI.
+installs the public `@happyherd/cli` package with `happyherd` as its sole
+primary command. It preserves any unrelated `happy` command and removes only
+the exact launcher previously managed by HappyHerd.
 
 Start the local server and ordinary detached daemon:
 

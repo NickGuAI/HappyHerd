@@ -20,7 +20,7 @@ afterEach(async () => {
     await rm(root, { recursive: true, force: true });
 });
 
-describe('top-level happy --version', () => {
+describe('top-level happyherd --version', () => {
     function runVersion() {
         const happyHome = path.join(root, '.happyherd');
         const emptyBin = path.join(root, 'empty-bin');
@@ -56,12 +56,34 @@ describe('top-level happy --version', () => {
 
         expect(result.error).toBeUndefined();
         expect(result.status).toBe(0);
-        expect(result.stdout.trim()).toBe(`happy version: ${packageJson.version}`);
+        expect(result.stdout.trim()).toBe(`happyherd version: ${packageJson.version}`);
         expect(result.stderr).toBe('');
         expect(existsSync(happyHome)).toBe(false);
         expect(existsSync(path.join(happyHome, 'settings.json'))).toBe(false);
         expect(existsSync(path.join(happyHome, 'access.key'))).toBe(false);
         expect(existsSync(path.join(happyHome, 'daemon.state.json'))).toBe(false);
+    });
+
+    it('runs through the server workspace shortcut', async () => {
+        const happyHome = path.join(root, '.happyherd');
+        const serverRoot = fileURLToPath(new URL('../../..', import.meta.url));
+        const result = spawnSync('pnpm', ['cli', '--version'], {
+            cwd: serverRoot,
+            encoding: 'utf8',
+            env: {
+                ...process.env,
+                CI: '1',
+                HAPPY_HOME_DIR: happyHome,
+                HAPPY_SERVER_URL: 'http://127.0.0.1:9',
+                HAPPY_VARIANT: 'stable',
+            },
+            timeout: 10_000,
+        });
+
+        expect(result.error).toBeUndefined();
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain(`happyherd version: ${packageJson.version}`);
+        expect(existsSync(happyHome)).toBe(false);
     });
 
 });

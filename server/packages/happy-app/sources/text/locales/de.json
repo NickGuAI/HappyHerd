@@ -541,7 +541,7 @@
     "cliVersion": "CLI-Version",
     "cliVersionOutdated": "CLI-Update erforderlich",
     "cliVersionOutdatedMessage": "Version {currentVersion} installiert. Aktualisieren Sie auf {requiredVersion} oder höher",
-    "updateCliInstructions": "Bitte führen Sie npm install -g happy@latest aus",
+    "updateCliInstructions": "Bitte führen Sie npm install -g @happyherd/cli@latest aus",
     "deleteSession": "Sitzung löschen",
     "deleteSessionSubtitle": "Entfernen Sie diese Sitzung dauerhaft",
     "deleteSessionConfirm": "Sitzung dauerhaft löschen?",
@@ -567,7 +567,7 @@
       "bringMachineOnline": "Bringen Sie einen Rechner online, um eine Sitzung zu starten.",
       "troubleshoot": "Fehlerbehebung",
       "troubleshootConnection": "Verbindung prüfen",
-      "troubleshootMessage": "1. Wecken Sie den Rechner auf und prüfen Sie die Internetverbindung.\n2. Führen Sie `happy` erneut aus.\n3. Öffnen Sie Happy erneut.\n\nKI-Prompt:\n{aiPrompt}",
+      "troubleshootMessage": "1. Wecken Sie den Rechner auf und prüfen Sie die Internetverbindung.\n2. Führen Sie `happyherd` erneut aus.\n3. Öffnen Sie Happy erneut.\n\nKI-Prompt:\n{aiPrompt}",
       "copyAiPrompt": "KI-Prompt kopieren",
       "copyAiPromptFailed": "Der KI-Prompt konnte nicht kopiert werden."
     },
@@ -1086,7 +1086,7 @@
   "machine": {
     "launchNewSessionInDirectory": "Neue Sitzung im Verzeichnis starten",
     "offlineUnableToSpawn": "Launcher deaktiviert, während die Maschine offline ist",
-    "offlineHelp": "• Stellen Sie sicher, dass Ihr Computer online ist\n• Führen Sie zur Diagnose „happy daemon status“ aus\n• Führen Sie die neueste CLI-Version aus? Aktualisieren Sie mit „npm install -g happy@latest“.",
+    "offlineHelp": "• Stellen Sie sicher, dass Ihr Computer online ist\n• Führen Sie zur Diagnose „happyherd daemon status“ aus\n• Führen Sie die neueste CLI-Version aus? Aktualisieren Sie mit „npm install -g @happyherd/cli@latest“.",
     "daemon": "Dämon",
     "status": "Maschinenstatus",
     "stopDaemon": "Stoppen Sie Daemon",
@@ -1263,7 +1263,7 @@
       "category": "Commander",
       "createTitle": "Commander erstellen",
       "createSubtitle": "Eine geführte Onboarding-Sitzung starten",
-      "onboardingPrompt": "Hilf mir, einen neuen HappyHerd Commander zu erstellen. Befrage mich jeweils mit einer Frage zu Name, Rolle und Mission, absolutem Maschinen-Arbeitsbereich, Arbeitsgrenzen und wichtigem Startkontext. Zeige mir eine knappe abschließende Zusammenfassung und warte auf meine ausdrückliche Bestätigung, bevor du etwas schreibst. Verfasse danach die semantischen Inhalte selbst: eine vollständige COMMANDER.md mit identity_and_scope-Frontmatter, nützliche erste Beobachtungen als JSONL, Arbeitsgedächtnis, Langzeitgedächtnis und nur wirklich nützliche Lerndateien unter rules/learnings/. Speichere die exakten Inhalte in einem temporären JSON-Manifest mit den Feldern id, name, workspace, role, commanderMarkdown, observationsJsonl, workingMemoryMarkdown, longTermMemoryMarkdown und learnings[{path,content}]. Führe `happy commander create --manifest <file>` aus, prüfe mit `happy commander list` und lösche dann das temporäre Manifest. Erstelle keine zweite Registry und verwende keine Platzhalterinhalte."
+      "onboardingPrompt": "Hilf mir, einen neuen HappyHerd Commander zu erstellen. Befrage mich jeweils mit einer Frage zu Name, Rolle und Mission, absolutem Maschinen-Arbeitsbereich, Arbeitsgrenzen und wichtigem Startkontext. Zeige mir eine knappe abschließende Zusammenfassung und warte auf meine ausdrückliche Bestätigung, bevor du etwas schreibst. Verfasse danach die semantischen Inhalte selbst: eine vollständige COMMANDER.md mit identity_and_scope-Frontmatter, nützliche erste Beobachtungen als JSONL, Arbeitsgedächtnis, Langzeitgedächtnis und nur wirklich nützliche Lerndateien unter rules/learnings/. Speichere die exakten Inhalte in einem temporären JSON-Manifest mit den Feldern id, name, workspace, role, commanderMarkdown, observationsJsonl, workingMemoryMarkdown, longTermMemoryMarkdown und learnings[{path,content}]. Führe `happyherd commander create --manifest <file>` aus, prüfe mit `happyherd commander list` und lösche dann das temporäre Manifest. Erstelle keine zweite Registry und verwende keine Platzhalterinhalte."
     },
     "composer": {
       "queueMessage": "Nachricht einreihen",
@@ -1616,8 +1616,8 @@
     "newMessagesJumpToLatest": "{count} neu · Zur neuesten Nachricht",
     "commandCompletedWithNoOutput": "[Befehl ohne Ausgabe abgeschlossen]",
     "happyTerminal": "happy://terminal?...",
-    "npmIGHappy": "$ npm i -g happy",
-    "happy": "$ happy",
+    "npmIGHappy": "$ npm i -g @happyherd/cli",
+    "happy": "$ happyherd",
     "noMessagesYet": "Noch keine Nachrichten",
     "noActiveSessions": "Keine aktiven Sitzungen",
     "startANewSessionOnAnyOfYourConnectedMachines": "Starten Sie eine neue Sitzung auf einem Ihrer verbundenen Computer.",

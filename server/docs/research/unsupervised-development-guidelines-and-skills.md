@@ -33,7 +33,7 @@ These are useful as local coding guidance, but they are not a coherent unsupervi
 
 Based on the current docs and codebase structure, the operating model is roughly:
 
-1. The user starts `happy`, `happy codex`, `happy gemini`, or another wrapped agent flow.
+1. The user starts `happyherd`, `happyherd codex`, `happyherd gemini`, or another wrapped agent flow.
 2. The CLI either runs the agent directly or starts/uses the daemon, depending on context.
 3. The daemon tracks child sessions and machine state and exposes local control endpoints.
 4. Remote/mobile clients can steer sessions and respond to permission requests.

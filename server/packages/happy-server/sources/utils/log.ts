@@ -42,7 +42,7 @@ function formatLocalTime(timestamp?: number) {
 //
 // pino transports run the target (pino-pretty, pino/file) in a worker_thread,
 // which resolves the module from a real path on disk. happy-server ships as a
-// single-file `bun build --compile` binary (see happy-cli `happy server`); inside
+// single-file `bun build --compile` binary (see `happyherd server`); inside
 // Bun's virtual $bunfs there is no node_modules/pino-pretty for the worker to
 // load, so the threaded transport crashes at startup.
 //

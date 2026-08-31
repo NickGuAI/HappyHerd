@@ -15,16 +15,18 @@ Happy is a pnpm monorepo. Everything uses pnpm workspaces — do not use `npm` o
 
 ```bash
 pnpm install                       # installs deps for every package
-pnpm --filter happy cli:install    # builds happy-cli + links it as the global `happy` binary
+pnpm --filter @happyherd/cli cli:install    # builds happy-cli + links it as the global `happyherd` binary
 ```
 
-`cli:install` replaces whatever `happy` is on your PATH (npm-installed or not) with a symlink to `packages/happy-cli/`. Daemon is restarted as part of the script. Uses `~/.happy/` — same as production.
+`cli:install` replaces `happyherd` on your PATH with a symlink to
+`packages/happy-cli/`. The daemon is restarted as part of the script. It uses
+`~/.happyherd/`, the same home as production.
 
-To undo: `npm unlink -g happy && npm i -g happy@latest`.
+To undo: `npm unlink -g @happyherd/cli && npm install -g @happyherd/cli@latest`.
 
 ## Packages
 
-    packages/happy-cli     # the `happy` CLI and daemon, published to npm
+    packages/happy-cli     # the `happyherd` CLI and daemon, published as @happyherd/cli
     packages/happy-server  # Node + Prisma server, deployed via TeamCity
     packages/happy-app     # Expo app: iOS, Android, web, Tauri desktop
     packages/happy-agent   # agent runtime
@@ -44,39 +46,39 @@ To undo: `npm unlink -g happy && npm i -g happy@latest`.
 Work loop:
 
 ```bash
-pnpm --filter happy cli:install   # rebuild + relink + restart daemon
-happy daemon status               # confirm your build is running
-happy doctor                      # list all happy processes
-tail -f ~/.happy/logs/$(ls -t ~/.happy/logs/ | head -1)
+pnpm --filter @happyherd/cli cli:install   # rebuild + relink + restart daemon
+happyherd daemon status                    # confirm your build is running
+happyherd doctor                           # list all HappyHerd processes
+tail -f ~/.happyherd/logs/$(ls -t ~/.happyherd/logs/ | head -1)
 ```
 
 Run a single test file quickly:
 
 ```bash
-pnpm --filter happy exec vitest run src/path/to/file.test.ts
+pnpm --filter @happyherd/cli exec vitest run src/path/to/file.test.ts
 ```
 
 Unit-only (fast, ~1 min):
 
 ```bash
-pnpm --filter happy exec vitest run --project unit
+pnpm --filter @happyherd/cli exec vitest run --project unit
 ```
 
 Integration tests hit real APIs and are flaky — run on demand, never in the release gate.
 
 ### Dev data sandbox (optional)
 
-`happy` reads `HAPPY_HOME_DIR` to override `~/.happy/`. To run two versions side-by-side without touching your prod auth:
+`happyherd` reads `HAPPY_HOME_DIR` to override `~/.happyherd/`. To run two versions side-by-side without touching your prod auth:
 
 ```bash
-HAPPY_HOME_DIR=~/.happy-dev happy daemon start
-HAPPY_HOME_DIR=~/.happy-dev happy auth
+HAPPY_HOME_DIR=~/.happy-dev happyherd daemon start
+HAPPY_HOME_DIR=~/.happy-dev happyherd auth
 ```
 
 Point at a local server the same way:
 
 ```bash
-HAPPY_SERVER_URL=http://localhost:3005 happy daemon start
+HAPPY_SERVER_URL=http://localhost:3005 happyherd daemon start
 ```
 
 ## happy-server
@@ -170,9 +172,9 @@ Do not publish by hand. Use `/release` — it handles npm publish, git tags, Git
 
 ## Troubleshooting
 
-    happy: command not found     → pnpm --filter happy cli:install
-    daemon won't start           → happy daemon stop; rm ~/.happy/daemon.state.json.lock; happy daemon start
-    wrong `happy` version        → which happy && ls -la $(which happy) — confirms where it resolves to
+    happyherd: command not found → pnpm --filter @happyherd/cli cli:install
+    daemon won't start           → happyherd daemon stop; rm ~/.happyherd/daemon.state.json.lock; happyherd daemon start
+    wrong `happyherd` version    → which happyherd && ls -la $(which happyherd) — confirms where it resolves to
     tools/unpacked missing       → pnpm install (postinstall re-extracts)
     stale deps after branch swap → pnpm install (pnpm is picky about lockfile drift)
 

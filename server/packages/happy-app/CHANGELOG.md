@@ -1,3 +1,7 @@
+# August 31 — One HappyHerd CLI command
+
+- The public CLI now installs from `@happyherd/cli` and uses `happyherd` as its only primary command. Upgrades remove only the exact previously managed `happy` launcher and preserve unrelated commands.
+
 # August 31 — Scheduled Executables
 
 - Users can schedule a fixed executable with exact arguments in HappyHerd, inspect success/failure history, and no agent session is created.
