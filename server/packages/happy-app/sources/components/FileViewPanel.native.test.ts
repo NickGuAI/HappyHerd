@@ -146,7 +146,7 @@ async function waitForEditor(renderer: ReactTestRenderer) {
 }
 
 describe('FileContentPanel native editing', () => {
-    it('edits a plain .txt file through the shared Source and Edit controls', async () => {
+    it('edits a plain .txt file through the shared Preview and Edit controls', async () => {
         const original = Buffer.from('before\n');
         const panel = await renderPanel({
             filePath: '/workspace/notes.txt',
@@ -154,8 +154,8 @@ describe('FileContentPanel native editing', () => {
         });
 
         let header = renderHeader(panel);
-        expect(renderedText(header)).toEqual(expect.arrayContaining(['uiCopy.source', 'files.editFile']));
-        expect(renderedText(header)).not.toContain('uiCopy.preview');
+        expect(renderedText(header)).toEqual(expect.arrayContaining(['uiCopy.preview', 'files.editFile']));
+        expect(renderedText(header)).not.toContain('uiCopy.source');
         act(() => findPressableByText(header, 'files.editFile')!.props.onPress());
         act(() => header.unmount());
         await waitForEditor(panel.renderer);
@@ -193,7 +193,8 @@ describe('FileContentPanel native editing', () => {
         expect(input.props).toMatchObject({ editable: false, value: 'TOKEN=before\n' });
 
         let header = renderHeader(panel);
-        expect(renderedText(header)).toEqual(expect.arrayContaining(['uiCopy.source', 'files.editFile']));
+        expect(renderedText(header)).toEqual(expect.arrayContaining(['uiCopy.preview', 'files.editFile']));
+        expect(renderedText(header)).not.toContain('uiCopy.source');
         await act(async () => {
             findPressableByText(header, 'files.editFile')!.props.onPress();
         });
@@ -257,7 +258,7 @@ describe('FileContentPanel native editing', () => {
         act(() => panel.renderer.unmount());
     });
 
-    it('preserves Preview navigation in the standard narrow and mobile header', async () => {
+    it('uses only Preview and Edit modes in the standard narrow and mobile header', async () => {
         const original = Buffer.from('# Before\n');
         const updated = Buffer.from('# After\n');
         const writeFile = vi.fn(async () => ({ success: true, hash: 'saved-hash' }));
@@ -270,10 +271,10 @@ describe('FileContentPanel native editing', () => {
         expect(panel.renderer.root.findByType('MarkdownView' as any).props.markdown).toBe('# Before\n');
         let header = renderHeader(panel);
         expect(renderedText(header)).toEqual(expect.arrayContaining([
-            'uiCopy.source',
             'uiCopy.preview',
             'files.editFile',
         ]));
+        expect(renderedText(header)).not.toContain('uiCopy.source');
         await act(async () => {
             findPressableByText(header, 'files.editFile')!.props.onPress();
             await vi.dynamicImportSettled();
@@ -297,18 +298,10 @@ describe('FileContentPanel native editing', () => {
         );
         expect(renderedText(panel.renderer)).toContain('uiCopy.saved');
 
-        header = renderHeader(panel);
-        act(() => findPressableByText(header, 'uiCopy.source')!.props.onPress());
-        act(() => header.unmount());
-        await waitForEditor(panel.renderer);
-        expect(panel.renderer.root.findByType('TextInput' as any).props).toMatchObject({
-            editable: false,
-            value: '# After\n',
-        });
         act(() => panel.renderer.unmount());
     });
 
-    it('limits the desktop workspace header to Source, Edit, and Delete while Source toggles Preview', async () => {
+    it('uses Preview and Edit modes with a separate Delete action in the desktop workspace header', async () => {
         const content = Buffer.from('# Desktop\n');
         const panel = await renderPanel({
             filePath: '/workspace/desktop.md',
@@ -318,30 +311,30 @@ describe('FileContentPanel native editing', () => {
         const header = renderHeader(panel);
 
         expect(renderedText(header)).toEqual(expect.arrayContaining([
-            'uiCopy.source',
+            'uiCopy.preview',
             'files.editFile',
             'files.deleteFile',
         ]));
-        expect(renderedText(header)).not.toContain('uiCopy.preview');
+        expect(renderedText(header)).not.toContain('uiCopy.source');
         expect(panel.renderer.root.findByType('MarkdownView' as any).props.markdown).toBe('# Desktop\n');
 
-        act(() => findPressableByText(header, 'uiCopy.source')!.props.onPress());
+        act(() => findPressableByText(header, 'files.editFile')!.props.onPress());
         act(() => header.unmount());
         await waitForEditor(panel.renderer);
         expect(panel.renderer.root.findByType('TextInput' as any).props).toMatchObject({
-            editable: false,
+            editable: true,
             value: '# Desktop\n',
         });
 
-        const sourceHeader = renderHeader(panel);
-        expect(renderedText(sourceHeader)).toEqual(expect.arrayContaining([
-            'uiCopy.source',
+        const editHeader = renderHeader(panel);
+        expect(renderedText(editHeader)).toEqual(expect.arrayContaining([
+            'uiCopy.preview',
             'files.editFile',
             'files.deleteFile',
         ]));
-        expect(renderedText(sourceHeader)).not.toContain('uiCopy.preview');
-        act(() => findPressableByText(sourceHeader, 'uiCopy.source')!.props.onPress());
-        act(() => sourceHeader.unmount());
+        expect(renderedText(editHeader)).not.toContain('uiCopy.source');
+        act(() => findPressableByText(editHeader, 'uiCopy.preview')!.props.onPress());
+        act(() => editHeader.unmount());
         expect(panel.renderer.root.findByType('MarkdownView' as any).props.markdown).toBe('# Desktop\n');
 
         act(() => {

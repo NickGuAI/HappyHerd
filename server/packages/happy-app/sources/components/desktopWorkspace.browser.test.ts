@@ -322,19 +322,16 @@ describe('Desktop workspace browser interaction', () => {
         if (pageErrors.length > 0) throw new Error(`Browser fixture failed to render: ${pageErrors.join('\n')}`);
 
         const wide = page.getByTestId('wide-file-workspace');
-        await wide.getByRole('button', { name: 'Source' }).waitFor();
-        await expect(wide.getByRole('button', { name: 'Preview' }).count()).resolves.toBe(0);
+        await wide.getByRole('button', { name: 'Preview' }).waitFor();
+        await expect(wide.getByRole('button', { name: 'Source' }).count()).resolves.toBe(0);
         await expect(wide.getByRole('button', { name: 'Edit' }).count()).resolves.toBe(1);
         await expect(wide.getByRole('button', { name: 'Delete' }).count()).resolves.toBe(1);
         await expect(wide.getByTestId('markdown-preview').isVisible()).resolves.toBe(true);
 
-        await wide.getByRole('button', { name: 'Source' }).click();
-        await wide.getByTestId('code-editor').waitFor();
-        await expect(wide.getByTestId('code-editor').getAttribute('data-read-only')).resolves.toBe('true');
-        await wide.getByRole('button', { name: 'Source' }).click();
-        await expect(wide.getByTestId('markdown-preview').isVisible()).resolves.toBe(true);
         await wide.getByRole('button', { name: 'Edit' }).click();
         await expect(wide.getByTestId('code-editor').getAttribute('data-read-only')).resolves.toBe('false');
+        await wide.getByRole('button', { name: 'Preview' }).click();
+        await expect(wide.getByTestId('markdown-preview').isVisible()).resolves.toBe(true);
         await wide.getByRole('button', { name: 'Delete' }).click();
         await expect(page.evaluate(() => (window as any).__DELETE_RPC_COUNT__ ?? 0)).resolves.toBe(1);
         await expect(page.evaluate(() => (window as any).__WORKSPACE_FILE_DELETED_COUNT__ ?? 0)).resolves.toBe(1);
@@ -343,12 +340,12 @@ describe('Desktop workspace browser interaction', () => {
         await narrow.getByTestId('desktop-file-workspace-fullscreen-header').waitFor();
         await expect(narrow.getByTestId('desktop-file-workspace-divider').count()).resolves.toBe(0);
         await expect(narrow.getByRole('tab').count()).resolves.toBe(0);
-        await narrow.getByRole('button', { name: 'Source' }).waitFor();
-        await expect(narrow.getByRole('button', { name: 'Preview' }).count()).resolves.toBe(1);
+        await narrow.getByRole('button', { name: 'Preview' }).waitFor();
+        await expect(narrow.getByRole('button', { name: 'Source' }).count()).resolves.toBe(0);
         await expect(narrow.getByRole('button', { name: 'Edit' }).count()).resolves.toBe(1);
         await expect(narrow.getByRole('button', { name: 'Delete' }).count()).resolves.toBe(0);
-        await narrow.getByRole('button', { name: 'Source' }).click();
-        await narrow.getByTestId('code-editor').waitFor();
+        await narrow.getByRole('button', { name: 'Edit' }).click();
+        await expect(narrow.getByTestId('code-editor').getAttribute('data-read-only')).resolves.toBe('false');
         await narrow.getByRole('button', { name: 'Preview' }).click();
         await expect(narrow.getByTestId('markdown-preview').isVisible()).resolves.toBe(true);
 
@@ -358,6 +355,40 @@ describe('Desktop workspace browser interaction', () => {
             await page.getByTestId('split-demo').screenshot({ path: resolve(evidenceDirectory, 'issue-181-wide.png') });
             await narrow.screenshot({ path: resolve(evidenceDirectory, 'issue-181-mobile.png') });
         }
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 10_000);
+
+    it('opens, deduplicates, switches, and closes real tabs without losing an unsaved draft', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1200 } });
+        const pageErrors = recordPageErrors(page);
+        await page.goto(origin);
+
+        const wide = page.getByTestId('wide-file-workspace');
+        await wide.getByLabel('Open existing file').click();
+        await wide.getByRole('button', { name: 'Open second.md' }).click();
+        await expect(wide.getByRole('tab').count()).resolves.toBe(2);
+
+        await wide.getByRole('tab', { name: 'Open demo.md' }).click();
+        await wide.getByRole('button', { name: 'Edit' }).click();
+        const demoEditor = wide
+            .getByTestId('desktop-file-panel:/workspace/demo.md')
+            .getByTestId('code-editor');
+        await demoEditor.fill('# Unsaved draft\n'.repeat(40));
+        await demoEditor.evaluate((element) => { element.scrollTop = 120; });
+
+        await wide.getByLabel('Open existing file').click();
+        await wide.getByRole('button', { name: 'Open second.md' }).click();
+        await expect(wide.getByRole('tab').count()).resolves.toBe(2);
+        await wide.getByRole('tab', { name: 'Open demo.md' }).click();
+        await expect(demoEditor.inputValue()).resolves.toBe('# Unsaved draft\n'.repeat(40));
+        await expect(demoEditor.evaluate((element) => element.scrollTop)).resolves.toBe(120);
+
+        await wide.getByLabel('Close second.md').click();
+        await expect(wide.getByRole('tab').count()).resolves.toBe(1);
+        await expect(wide.getByRole('tab', { name: 'Open demo.md' }).count()).resolves.toBe(1);
+        await expect(page.evaluate(() => (window as any).__DELETE_RPC_COUNT__ ?? 0)).resolves.toBe(0);
+        await expect(page.evaluate(() => (window as any).__WORKSPACE_FILE_DELETED_COUNT__ ?? 0)).resolves.toBe(0);
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 10_000);

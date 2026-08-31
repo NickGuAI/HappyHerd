@@ -7,29 +7,26 @@ import { workspaceLinkViewerKey } from './WorkspaceLinkViewerModel';
 export type WorkspaceLinkSidePanelProps = Pick<
     WorkspaceLinkViewerProps,
     'reference' | 'onBack' | 'onDirtyChange' | 'onFeedbackSendingChange' | 'onFeedbackSent'
-> & {
-    windowWidth: number;
-};
+>;
 
 /**
- * The open Viewer stays in this one mounted branch while the window crosses
- * the desktop/mobile breakpoint. Its width may change, but its composer state
- * and an in-flight send continue to belong to the same Viewer instance.
+ * The split host owns this panel's width. Keeping the Viewer inside this
+ * fill-sized surface lets the host move between split and full-screen layouts
+ * without remounting the Viewer or losing its composer state.
  */
 export function WorkspaceLinkSidePanel({
     reference,
-    windowWidth,
     onBack,
     onDirtyChange,
     onFeedbackSendingChange,
     onFeedbackSent,
 }: WorkspaceLinkSidePanelProps) {
     const { theme } = useUnistyles();
-    const preferredWidth = Math.min(Math.max(Math.floor(windowWidth * 0.42), 360), 620);
     return (
         <View
+            testID="workspace-link-side-panel"
             style={{
-                width: Math.min(Math.max(windowWidth, 0), preferredWidth),
+                flex: 1,
                 minWidth: 0,
                 alignSelf: 'stretch',
                 borderLeftWidth: StyleSheet.hairlineWidth,

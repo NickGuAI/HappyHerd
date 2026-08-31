@@ -1,3 +1,8 @@
+# August 31 — Resizable linked file workspace
+
+- On wide Web Desktop and Mac, files opened through links now share the same visibly draggable right-workspace divider as tabbed files while the Main Agent chat and composer remain visible; on narrow screens, the file view remains full-screen with no divider.
+- File viewing modes are now labeled Preview and Edit on desktop and mobile, with Delete remaining a separate action.
+
 # August 30 — Enhanced file workspaces
 
 - Desktop file workspaces now feature a boundary sidebar toggle, a pointer-draggable divider, and focused Source, Edit, and Delete controls.

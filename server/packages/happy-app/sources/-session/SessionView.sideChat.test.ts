@@ -52,6 +52,7 @@ const mocks = vi.hoisted(() => ({
     voiceRetry: vi.fn(),
     voiceToggle: vi.fn(),
     composerText: {} as Record<string, string>,
+    workspaceLinkPanelMounts: 0,
 }));
 
 vi.mock('react-native', async () => {
@@ -240,7 +241,13 @@ vi.mock('@/components/MachineFileUploadStatus', async () => {
 });
 vi.mock('@/components/EmptyMessages', async () => {
     const ReactModule = await import('react');
-    return { EmptyMessages: (props: any) => ReactModule.createElement('EmptyMessages', props) };
+    const { WorkspaceLinkPressContext } = await import('@/-session/workspaceLinkNavigation');
+    return {
+        EmptyMessages: (props: any) => ReactModule.createElement('EmptyMessages', {
+            ...props,
+            onWorkspaceLinkPress: ReactModule.useContext(WorkspaceLinkPressContext),
+        }),
+    };
 });
 vi.mock('@/components/SessionStatusBar', async () => {
     const ReactModule = await import('react');
@@ -287,7 +294,15 @@ vi.mock('@/components/DesktopFileWorkspace', async () => {
 });
 vi.mock('@/components/WorkspaceLinkSidePanel', async () => {
     const ReactModule = await import('react');
-    return { WorkspaceLinkSidePanel: (props: any) => ReactModule.createElement('WorkspaceLinkSidePanel', props) };
+    return {
+        WorkspaceLinkSidePanel: (props: any) => {
+            const [mountId] = ReactModule.useState(() => {
+                mocks.workspaceLinkPanelMounts += 1;
+                return mocks.workspaceLinkPanelMounts;
+            });
+            return ReactModule.createElement('WorkspaceLinkSidePanel', { ...props, mountId });
+        },
+    };
 });
 vi.mock('@/components/RigActivityBar', async () => {
     const ReactModule = await import('react');
@@ -574,22 +589,54 @@ vi.mock('@/-session/sessionOverlayNav', () => ({
 vi.mock('@/-session/agentGoalActionHandler', () => ({ performAgentGoalAction: vi.fn() }));
 vi.mock('@/-session/workspaceLinkNavigation', async () => {
     const ReactModule = await import('react');
+    const WorkspaceLinkPressContext = ReactModule.createContext(undefined);
     return {
-        WorkspaceLinkPressContext: ReactModule.createContext(undefined),
-        openWorkspaceLinkFromSession: vi.fn(),
-        useWorkspaceLinkDismissGuard: () => ({
-            onSendingChange: vi.fn(),
-            onDirtyChange: vi.fn(),
-            guardDismiss: (action: () => void) => action(),
-            reset: vi.fn(),
-            sendingRef: { current: false },
-            dirtyRef: { current: false },
-        }),
+        WorkspaceLinkPressContext,
+        openWorkspaceLinkFromSession: (input: any) => {
+            if (input.feedbackSending) return;
+            input.withFileDiscardConfirmation(() => {
+                if (input.route.params.originSessionId !== input.sessionId) {
+                    input.pushRoute(input.route);
+                    return;
+                }
+                input.showSidePanel(input.route);
+            });
+        },
+        useWorkspaceLinkPress: () => ReactModule.useContext(WorkspaceLinkPressContext),
+        useWorkspaceLinkDismissGuard: () => {
+            const sendingRef = ReactModule.useRef(false);
+            const dirtyRef = ReactModule.useRef(false);
+            const onSendingChange = ReactModule.useCallback((sending: boolean) => {
+                sendingRef.current = sending;
+            }, []);
+            const onDirtyChange = ReactModule.useCallback((dirty: boolean) => {
+                dirtyRef.current = dirty;
+            }, []);
+            const guardDismiss = ReactModule.useCallback((action: () => void) => action(), []);
+            const reset = ReactModule.useCallback(() => {
+                sendingRef.current = false;
+                dirtyRef.current = false;
+            }, []);
+            return {
+                onSendingChange,
+                onDirtyChange,
+                guardDismiss,
+                reset,
+                sendingRef,
+                dirtyRef,
+            };
+        },
     };
 });
 vi.mock('@/components/WorkspaceLinkViewerModel', () => ({
-    resolveActiveWorkspaceLinkPresentation: () => 'route',
-    resolveWorkspaceLinkPresentation: () => 'route',
+    resolveActiveWorkspaceLinkPresentation: (requested: string, hasOpenSidePanel: boolean) => (
+        hasOpenSidePanel ? 'side-panel' : requested
+    ),
+    resolveWorkspaceLinkPresentation: ({ width, platform, runningOnMac }: any) => (
+        (platform === 'web' || platform === 'macos' || runningOnMac) && width >= 900
+            ? 'side-panel'
+            : 'full-screen'
+    ),
 }));
 
 vi.mock('@/keyboard/shortcuts', () => ({
@@ -721,6 +768,7 @@ beforeEach(() => {
     mocks.voiceRetry.mockReset();
     mocks.voiceToggle.mockReset();
     mocks.composerText = {};
+    mocks.workspaceLinkPanelMounts = 0;
     seedSessions();
 });
 
@@ -1034,6 +1082,58 @@ describe('SessionView side-chat integration', () => {
         act(() => composer?.props.onDictationCancel());
         expect(mocks.voiceToggle).toHaveBeenCalledOnce();
         expect(mocks.voiceCancel).toHaveBeenCalledOnce();
+    });
+
+    it('opens a same-session Workspace link in the resizable split and preserves it across narrow layout', () => {
+        const renderer = renderParent();
+        const emptyMessages = renderer.root.findAllByType('EmptyMessages' as any).find((node: any) => (
+            typeof node.props.onWorkspaceLinkPress === 'function'
+        ));
+
+        expect(emptyMessages).toBeDefined();
+        act(() => emptyMessages?.props.onWorkspaceLinkPress({
+            pathname: '/workspace',
+            params: {
+                mode: 'link',
+                originSessionId: 'parent',
+                machineId: 'machine-1',
+                absolutePath: '/work/report.md',
+            },
+        }));
+
+        let split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        let panel = renderer.root.findByType('WorkspaceLinkSidePanel' as any);
+        const panelMountId = panel.props.mountId;
+        expect(split.props.workspaceVisible).toBe(true);
+        expect(split.props.workspaceFullscreen).toBe(false);
+        expect(panel.props.reference.absolutePath).toBe('/work/report.md');
+        expect(panel.props.windowWidth).toBeUndefined();
+        expect(renderedComposerSessions(renderer)).toEqual(['parent']);
+
+        mocks.width = 390;
+        act(() => {
+            for (const listener of mocks.listeners) listener();
+        });
+
+        split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        panel = renderer.root.findByType('WorkspaceLinkSidePanel' as any);
+        expect(split.props.workspaceVisible).toBe(false);
+        expect(split.props.workspaceFullscreen).toBe(true);
+        expect(panel.props.mountId).toBe(panelMountId);
+        expect(mocks.workspaceLinkPanelMounts).toBe(1);
+        expect(renderedComposerSessions(renderer)).toEqual(['parent']);
+
+        mocks.width = 1280;
+        act(() => {
+            for (const listener of mocks.listeners) listener();
+        });
+
+        split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        panel = renderer.root.findByType('WorkspaceLinkSidePanel' as any);
+        expect(split.props.workspaceVisible).toBe(true);
+        expect(split.props.workspaceFullscreen).toBe(false);
+        expect(panel.props.mountId).toBe(panelMountId);
+        expect(mocks.workspaceLinkPanelMounts).toBe(1);
     });
 
     it('keeps the Main Agent composer mounted while desktop file tabs open, dedupe, focus, and close', async () => {

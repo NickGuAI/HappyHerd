@@ -1,50 +1,32 @@
-# Evidence: Issue 181 desktop workspace interaction repair
+# HappyHerd Issue 181 Evidence Note
 
-This document provides real-Chromium, isolated production-component fixture evidence. It is not an integrated production UI screenshot, an Expo production export, or deployed-domain proof.
+## Root cause
 
-The harness bundles and renders the real `SidebarNavigator`, `DesktopFileWorkspaceSplit`, and `DesktopFileWorkspace` components in headless Google Chrome through Playwright. Only network, storage, router, icon/image, and similar dependencies are deterministic fixture stubs.
+`SessionView` only mounted `DesktopFileWorkspaceSplit` when `desktopFileWorkspace.paths` was nonempty. The same-session `WorkspaceLinkSidePanel` bypassed the split entirely and had a hard-coded width, meaning there was no divider or pointer handler on the production path. The first file open also changed the Main Agent's root host, which could remount the composer and lose an unsaved draft.
 
-## Test environment
+## Implemented contract
 
-- Test viewport: 1440 × 1200
-- Compact workspace host: exactly 390 × 844
+- **Split integration:** This is no longer an isolated component-only proof. The real `WorkspaceLinkSidePanel` now lives inside the existing split host on wide desktop, and that host is mounted before the first file opens.
+- **State preservation:** The panel keeps the same Viewer instance when switching to 390 × 844 full-screen and keeps tabbed editors mounted while temporarily hidden.
+- **File header modes:** User-facing modes on the file header are exactly **Preview** and **Edit**, with **Delete** kept separate on wide desktop.
 
-## Verification and outcomes
+## Local evidence
 
-Run from `server/`:
+- **Verification summary:** The full App suite passed 192 files and 1,751 tests. Typecheck, i18n and UI-inventory checks, source lint, and the production Web export passed.
+- **Side chat and drag behavior (`sideChatHeader.browser.test.ts`):**
+  - Uses the real `SessionView`, the real `WorkspaceLinkSidePanel`, and a rendered same-session workspace link.
+  - Types a Main Agent draft before the first open and proves the composer mount and draft survive the open.
+  - Repeats first-open preservation at 1000 × 844, below the 1100 px file-sidebar breakpoint but inside the supported side-panel range.
+  - Proves the pane grows by more than 100 px through a real `page.mouse` drag.
+  - Verifies that the real side panel follows the split host width and that its Viewer mount and draft survive.
+  - Confirms that at 390 × 844, the divider disappears and the workspace occupies the full host.
+- **Workspace interaction (`desktopWorkspace.browser.test.ts`):**
+  - Proves the plus picker, path deduplication, and tab switching.
+  - Verifies that clicking X closes the view without invoking the delete transport.
+  - Confirms that unsaved drafts and scroll positions are retained.
 
-```bash
-corepack pnpm --filter happy-app exec vitest run sources/components/desktopWorkspace.browser.test.ts --reporter=verbose
-```
+## Remaining release gate
 
-Result: 2 tests passed, with no page errors or `console.error` messages.
-
-Verified interaction behavior:
-
-- The boundary toggle is centered on the drawer edge and located exactly 15 px below the fixture top. Collapse and reopen both work, and the collapsed toggle does not overlap the Zen control.
-- A real `page.mouse` pointer drag grows the workspace by more than 100 px. The Main Agent chat remains visible, and the component mount identity and typed draft survive the resize.
-- The wide header has Source, Edit, and Delete actions with no separate Preview action. Source toggles between preview and source in both directions, Edit is writable, and confirmed Delete invokes the deletion transport seam and removal callback.
-- Separate focused tests prove the owning transport and filesystem boundaries: `sources/sync/ops.rig.test.ts` routes ordinary deletion through the exact machine RPC, `src/api/apiMachine.test.ts` publishes the machine capability after daemon connection, and `src/modules/common/registerCommonHandlers.readFile.test.ts` unlinks a file while rejecting directories.
-- The compact fullscreen branch has Source, Preview, and Edit actions, with no Delete action, tab role, or divider.
-
-## Baseline RED
-
-At untouched commit `0d19fced`, with only the test harness copied, both tests failed:
-
-- The boundary center was 234 px from the drawer edge, where less than 2 px was required.
-- The wide Preview count was 1, where 0 was required.
-
-## Regenerated visual evidence
-
-The screenshots were regenerated with `HAPPYHERD_ISSUE_181_EVIDENCE_DIR=.dev/evidence`:
-
-- [Targeted 600 × 96 SidebarNavigator crop](issue-181-standard.png)
-  - SHA256: `8a78907fb0acaf360c457b462d492722f6a5c7a3e822bc2dc91fc81add55c93e`
-- [Targeted 1100 × 480 split-workspace crop](issue-181-wide.png)
-  - SHA256: `9b01854077d2b6b1c3db22da4e40d07949dd236c5e29e8a1dd90dd6052708b50`
-- [Real 390 × 844 compact/fullscreen crop](issue-181-mobile.png)
-  - SHA256: `585b441f4fc2902963c24818bbfb6d8dde246fcbfec78820c7d90c60d10be3ef`
-
-## Release gate
-
-Exact-main deployment and health evidence will be added after merge. Authenticated deployed-domain gesture confirmation remains a separate Human release check if no safe authentication harness is available.
+- Merge
+- Deployment
+- Human-authenticated production gesture

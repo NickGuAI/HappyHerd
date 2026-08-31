@@ -380,6 +380,14 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         && !sideChatFullscreenOpen
         && !sideChatFullscreenTransitionPending
         && !showWorkspaceLinkPanel;
+    const workspaceLinkPanelFullscreen = showWorkspaceLinkPanel
+        && workspaceLinkPresentation === 'full-screen';
+    const rightWorkspaceVisible = showWorkspaceLinkPanel
+        ? !workspaceLinkPanelFullscreen
+        : desktopFileWorkspaceVisible;
+    const rightWorkspaceFullscreen = showWorkspaceLinkPanel
+        ? workspaceLinkPanelFullscreen
+        : desktopFileWorkspaceFullscreen;
     const showSidebar = !zenMode
         && !showWorkspaceLinkPanel
         && (canShowFileSidebar || sideChatSidebarExpanded);
@@ -928,7 +936,12 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         </WorkspaceLinkPressContext.Provider>
     );
 
-    if (!canRenderSidebar && !showWorkspaceLinkPanel && desktopFileWorkspace.paths.length === 0) {
+    const keepWorkspaceSplitMounted = workspaceLinkPresentation === 'side-panel'
+        || canRenderSidebar
+        || showWorkspaceLinkPanel
+        || desktopFileWorkspace.paths.length > 0;
+
+    if (!keepWorkspaceSplitMounted) {
         return sessionContent;
     }
 
@@ -986,21 +999,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         </View>
     );
 
-    const fallbackRightSurface = showWorkspaceLinkPanel && workspaceLinkRoute ? (
-        <WorkspaceLinkSidePanel
-            reference={workspaceLinkRoute.params}
-            windowWidth={windowWidth}
-            onBack={() => guardWorkspaceLinkDismiss(() => setWorkspaceLinkRoute(null))}
-            onDirtyChange={onWorkspaceLinkDirtyChange}
-            onFeedbackSendingChange={onWorkspaceLinkFeedbackSendingChange}
-            onFeedbackSent={(receipt) => {
-                guardWorkspaceLinkDismiss(() => {
-                    setWorkspaceLinkRoute(null);
-                    setFocusMessageId(receipt.localId);
-                });
-            }}
-        />
-    ) : (
+    const fallbackRightSurface = (
         <Animated.View style={[{ minWidth: 0, alignSelf: 'stretch' }, animatedSidebarStyle]}>
             <View style={{ width: sidebarWidth, flex: 1 }}>
                 <FilesSidebar
@@ -1031,15 +1030,15 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         </Animated.View>
     );
 
-    // Wide layout keeps the Main Agent chat mounted beside a stable right-pane
-    // host. Side chats, file picking, and Workspace links may temporarily own
-    // the visible right surface without unmounting dirty file editors.
-    if (desktopFileWorkspace.paths.length > 0) {
-        return (
-            <DesktopFileWorkspaceSplit
-                workspaceVisible={desktopFileWorkspaceVisible}
-                workspaceFullscreen={desktopFileWorkspaceFullscreen}
-                workspace={(
+    const workspaceSurface = (
+        <View style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+            {desktopFileWorkspace.paths.length > 0 ? (
+                <View
+                    style={[
+                        StyleSheet.absoluteFillObject,
+                        showWorkspaceLinkPanel ? { display: 'none' } : null,
+                    ]}
+                >
                     <DesktopFileWorkspace
                         sessionId={sessionId}
                         paths={desktopFileWorkspace.paths}
@@ -1061,19 +1060,39 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                         onOpenPicker={() => setDesktopFilePickerOpen(true)}
                         onDirtyChange={handleDesktopDirtyChange}
                     />
-                )}
-                fallback={fallbackRightSurface}
-            >
-                {chatSurface}
-            </DesktopFileWorkspaceSplit>
-        );
-    }
-
-    return (
-        <View style={{ flex: 1, flexDirection: 'row' }}>
-            {chatSurface}
-            {fallbackRightSurface}
+                </View>
+            ) : null}
+            {showWorkspaceLinkPanel && workspaceLinkRoute ? (
+                <View style={StyleSheet.absoluteFillObject}>
+                    <WorkspaceLinkSidePanel
+                        reference={workspaceLinkRoute.params}
+                        onBack={() => guardWorkspaceLinkDismiss(() => setWorkspaceLinkRoute(null))}
+                        onDirtyChange={onWorkspaceLinkDirtyChange}
+                        onFeedbackSendingChange={onWorkspaceLinkFeedbackSendingChange}
+                        onFeedbackSent={(receipt) => {
+                            guardWorkspaceLinkDismiss(() => {
+                                setWorkspaceLinkRoute(null);
+                                setFocusMessageId(receipt.localId);
+                            });
+                        }}
+                    />
+                </View>
+            ) : null}
         </View>
+    );
+
+    // Wide layout keeps the Main Agent chat mounted beside a stable right-pane
+    // host. Side chats, file picking, and Workspace links may temporarily own
+    // the visible right surface without unmounting dirty file editors.
+    return (
+        <DesktopFileWorkspaceSplit
+            workspaceVisible={rightWorkspaceVisible}
+            workspaceFullscreen={rightWorkspaceFullscreen}
+            workspace={workspaceSurface}
+            fallback={canRenderSidebar ? fallbackRightSurface : null}
+        >
+            {chatSurface}
+        </DesktopFileWorkspaceSplit>
     );
 });
 
