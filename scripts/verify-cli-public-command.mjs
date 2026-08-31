@@ -51,6 +51,14 @@ assert(
   'clean quality typecheck must build CLI workspace dependencies in dependency order',
 );
 assert(
+  qualityWorkflow.includes(
+    'pnpm --filter @slopus/happy-wire --fail-if-no-match build\n' +
+      '          pnpm --filter happy-agent --fail-if-no-match build\n' +
+      '          pnpm --filter @happyherd/cli --fail-if-no-match build',
+  ),
+  'clean production build must build CLI workspace dependencies in dependency order',
+);
+assert(
   hostInstaller.includes('--filter happy-agent --fail-if-no-match build'),
   'host CLI installation must build the CLI workspace dependency',
 );

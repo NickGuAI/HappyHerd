@@ -190,5 +190,7 @@ jobs:
       - name: Build daemon and server runtime
         working-directory: server
         run: |
+          pnpm --filter @slopus/happy-wire --fail-if-no-match build
+          pnpm --filter happy-agent --fail-if-no-match build
           pnpm --filter @happyherd/cli --fail-if-no-match build
           pnpm --filter ./packages/happy-server --fail-if-no-match build
