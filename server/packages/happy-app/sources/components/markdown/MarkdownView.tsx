@@ -368,11 +368,27 @@ function MarkdownImagePreviewModal(props: { url: string, alt: string, onClose: (
     );
 }
 
-function RenderImageFailure() {
+const WORKSPACE_IMAGE_RETRY_DELAYS_MS = [500, 1500] as const;
+
+function RenderImageFailure(props: { onRetry?: () => void }) {
     return (
         <View accessibilityRole="alert" style={style.imageFailure}>
             <Ionicons name="image-outline" size={24} color={style.imageFailureText.color} />
             <Text style={style.imageFailureText}>{t('markdown.imageLoadFailed')}</Text>
+            {props.onRetry ? (
+                <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.retry')}
+                    onPress={props.onRetry}
+                    style={({ pressed }) => [
+                        style.imageRetryButton,
+                        pressed && style.imageRetryButtonPressed,
+                    ]}
+                >
+                    <Ionicons name="refresh" size={16} color={style.imageRetryText.color} />
+                    <Text style={style.imageRetryText}>{t('common.retry')}</Text>
+                </Pressable>
+            ) : null}
         </View>
     );
 }
@@ -387,14 +403,28 @@ function RenderWorkspaceImageBlock(props: {
     const [state, setState] = React.useState<
         { status: 'loading' } | { status: 'ready'; url: string } | { status: 'failed' }
     >({ status: 'loading' });
+    const [retryToken, retry] = React.useReducer((value: number) => value + 1, 0);
 
     React.useEffect(() => {
         let active = true;
         setState({ status: 'loading' });
-        void loadMarkdownWorkspaceImage(props.reference).then((url) => {
-            if (!active) return;
-            setState(url ? { status: 'ready', url } : { status: 'failed' });
-        });
+        void (async () => {
+            for (let attempt = 0; attempt <= WORKSPACE_IMAGE_RETRY_DELAYS_MS.length; attempt += 1) {
+                const url = await loadMarkdownWorkspaceImage(props.reference);
+                if (!active) return;
+                if (url) {
+                    setState({ status: 'ready', url });
+                    return;
+                }
+
+                const delay = WORKSPACE_IMAGE_RETRY_DELAYS_MS[attempt];
+                if (delay !== undefined) {
+                    await new Promise((resolve) => setTimeout(resolve, delay));
+                    if (!active) return;
+                }
+            }
+            setState({ status: 'failed' });
+        })();
         return () => {
             active = false;
         };
@@ -402,10 +432,17 @@ function RenderWorkspaceImageBlock(props: {
         props.reference.rootPath,
         props.reference.workspaceRoute.params.absolutePath,
         props.reference.workspaceRoute.params.machineId,
+        retryToken,
     ]);
 
     if (state.status === 'ready') {
-        return <RenderImageBlock {...props} url={state.url} />;
+        return (
+            <RenderImageBlock
+                {...props}
+                url={state.url}
+                onError={() => setState({ status: 'failed' })}
+            />
+        );
     }
 
     return (
@@ -414,13 +451,13 @@ function RenderWorkspaceImageBlock(props: {
                 <View style={style.imageFailure}>
                     <ActivityIndicator color={style.imageFailureText.color} />
                 </View>
-            ) : <RenderImageFailure />}
+            ) : <RenderImageFailure onRetry={retry} />}
             {props.alt ? <Text style={style.imageCaption}>{props.alt}</Text> : null}
         </View>
     );
 }
 
-function RenderImageBlock(props: { url: string, alt: string, first: boolean, last: boolean, onPress?: () => void }) {
+function RenderImageBlock(props: { url: string, alt: string, first: boolean, last: boolean, onPress?: () => void, onError?: () => void }) {
     const accessibleLabel = props.alt || t('uiCopy.markdownImage');
     const [aspectRatio, setAspectRatio] = React.useState(16 / 9);
     const [failed, setFailed] = React.useState(false);
@@ -447,7 +484,7 @@ function RenderImageBlock(props: { url: string, alt: string, first: boolean, las
     return (
         <View style={[style.imageBlock, props.first && style.first, props.last && style.last]}>
             {failed ? (
-                <RenderImageFailure />
+                <RenderImageFailure onRetry={props.onError} />
             ) : (
                 <Pressable
                     accessibilityRole="button"
@@ -465,7 +502,10 @@ function RenderImageBlock(props: { url: string, alt: string, first: boolean, las
                         transition={120}
                         accessibilityLabel={accessibleLabel}
                         onLoad={handleLoad}
-                        onError={() => setFailed(true)}
+                        onError={() => {
+                            setFailed(true);
+                            props.onError?.();
+                        }}
                     />
                 </Pressable>
             )}
@@ -846,6 +886,25 @@ const style = StyleSheet.create((theme) => ({
     imageFailureText: {
         ...Typography.default(),
         color: theme.colors.textSecondary,
+        fontSize: 14,
+        lineHeight: 20,
+    },
+    imageRetryButton: {
+        minHeight: 38,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        borderWidth: 1,
+        borderColor: theme.colors.divider,
+        borderRadius: 9,
+        paddingHorizontal: 12,
+    },
+    imageRetryButtonPressed: {
+        opacity: 0.7,
+    },
+    imageRetryText: {
+        ...Typography.default('semiBold'),
+        color: theme.colors.textLink,
         fontSize: 14,
         lineHeight: 20,
     },

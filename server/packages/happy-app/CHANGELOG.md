@@ -1,3 +1,7 @@
+# August 31 — Inline workspace images recover and retry
+
+- Inline workspace images now automatically retry on temporary read failures, with an option to manually retry in-place if a failure persists.
+
 # August 31 — Credential pool follow-ups
 
 - When automatic rotation resumes a replacement account, the quota panel clears the previous account's data and then shows only updates from the selected account.
