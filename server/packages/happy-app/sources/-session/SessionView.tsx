@@ -20,6 +20,7 @@ import { ChatHeaderView } from '@/components/ChatHeaderView';
 import { ChatList } from '@/components/ChatList';
 import { QueuedMessagesPanel } from '@/components/QueuedMessagesPanel';
 import { MachineFileUploadStatus } from '@/components/MachineFileUploadStatus';
+import { ProviderContinuationLinks } from '@/components/ProviderContinuationLinks';
 import { Deferred } from '@/components/Deferred';
 import { EmptyMessages } from '@/components/EmptyMessages';
 import { SessionStatusBar } from '@/components/SessionStatusBar';
@@ -2059,6 +2060,9 @@ export function SessionViewLoaded({
 
     const input = (
         <>
+            <CenteredInputWidth horizontalPadding={sessionInputHorizontalPadding}>
+                <ProviderContinuationLinks session={session} />
+            </CenteredInputWidth>
             {inactiveHint}
             {visibleAgentGoal && (
                 <AnimatedFade visible={showBottomDockDetails}>

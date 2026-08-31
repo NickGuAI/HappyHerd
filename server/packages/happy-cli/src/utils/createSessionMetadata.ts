@@ -63,6 +63,11 @@ export interface SessionMetadataResult {
     metadata: Metadata;
 }
 
+export function providerContinuationMetadataFromEnvironment(): Pick<Metadata, 'continuedFromSessionId'> {
+    const continuedFromSessionId = process.env.HAPPY_CONTINUED_FROM_SESSION_ID?.trim();
+    return continuedFromSessionId ? { continuedFromSessionId } : {};
+}
+
 function getGitBranch(cwd: string): string | undefined {
     try {
         const branch = execSync('git rev-parse --abbrev-ref HEAD', {
@@ -135,6 +140,7 @@ export function createSessionMetadata(opts: CreateSessionMetadataOptions): Sessi
         ...(opts.parentSessionId ? { parentSessionId: opts.parentSessionId } : {}),
         ...(opts.forkedFromMessageId ? { forkedFromMessageId: opts.forkedFromMessageId } : {}),
         ...(opts.isSideChat ? { isSideChat: true } : {}),
+        ...providerContinuationMetadataFromEnvironment(),
         ...contextMetadataFromEnvironment(),
         ...automationMetadataFromEnvironment(),
         // A target daemon's validated handoff overrides any caller-supplied

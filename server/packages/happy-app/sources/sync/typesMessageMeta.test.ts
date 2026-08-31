@@ -23,4 +23,15 @@ describe('MessageMetaSchema', () => {
         expect(MessageMetaSchema.safeParse({ deliveryMode: 'steer' }).success).toBe(false);
         expect(MessageMetaSchema.safeParse({ queueMessageId: '  ' }).success).toBe(false);
     });
+
+    it('retains the typed provider-continuation handoff marker', () => {
+        expect(MessageMetaSchema.parse({
+            displayText: 'Continue from Claude session',
+            providerContinuationHandoff: true,
+        })).toEqual({
+            displayText: 'Continue from Claude session',
+            providerContinuationHandoff: true,
+        });
+        expect(MessageMetaSchema.safeParse({ providerContinuationHandoff: 'yes' }).success).toBe(false);
+    });
 });

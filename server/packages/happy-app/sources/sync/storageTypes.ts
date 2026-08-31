@@ -192,6 +192,8 @@ export const MetadataSchema = z.object({
      */
     parentSessionId: z.string().optional(),
     forkedFromMessageId: z.string().optional(),
+    /** Fresh cross-provider session linked to its source Happy session. */
+    continuedFromSessionId: z.string().optional(),
     /**
      * Marks this session as a hidden "side chat" forked from `parentSessionId`.
      * Side chats never appear in the top-level session list — they render only

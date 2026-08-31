@@ -295,6 +295,8 @@ export interface SpawnSessionOptions {
     parentSessionId?: string;
     /** Happy message id used as the rewind point (only set for "duplicate"). */
     forkedFromMessageId?: string;
+    /** Source Happy session for a fresh cross-provider continuation. */
+    continuedFromSessionId?: string;
 }
 
 // Options for forking a Claude session on a machine
@@ -356,7 +358,7 @@ export interface ResumeSessionOptions {
  */
 export async function machineSpawnNewSession(options: SpawnSessionOptions): Promise<SpawnSessionResult> {
 
-    const { machineId, directory, approvedNewDirectoryCreation = false, token, agent, permissionMode, modelMode, effortLevel, commanderId, clientRequestId, providerId, modelId, effort, happyAgentTarget, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId } = options;
+    const { machineId, directory, approvedNewDirectoryCreation = false, token, agent, permissionMode, modelMode, effortLevel, commanderId, clientRequestId, providerId, modelId, effort, happyAgentTarget, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, continuedFromSessionId } = options;
 
     try {
         if (agent === 'rig' && !clientRequestId) {
@@ -383,6 +385,7 @@ export async function machineSpawnNewSession(options: SpawnSessionOptions): Prom
             resumeCodexThreadId?: string,
             parentSessionId?: string,
             forkedFromMessageId?: string,
+            continuedFromSessionId?: string,
         };
         type HappyAgentSpawnRequest = {
             type: 'happy-agent-spawn';
@@ -422,7 +425,7 @@ export async function machineSpawnNewSession(options: SpawnSessionOptions): Prom
                 ...(modelId ? { modelId } : {}),
                 ...((effort ?? effortLevel) ? { effort: effort ?? effortLevel } : {}),
             }
-            : { type: 'spawn-in-directory', directory, approvedNewDirectoryCreation, token, agent, permissionMode, modelMode, effortLevel, commanderId, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId };
+            : { type: 'spawn-in-directory', directory, approvedNewDirectoryCreation, token, agent, permissionMode, modelMode, effortLevel, commanderId, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, continuedFromSessionId };
         const result = await apiSocket.machineRPC<SpawnSessionResult, SpawnRequest>(
             machineId,
             'spawn-happy-session',

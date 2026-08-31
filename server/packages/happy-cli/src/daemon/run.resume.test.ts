@@ -229,6 +229,12 @@ import { prepareCommanderContext } from '@/agentContext/commanderContext';
 
 type CapturedRpcHandlers = {
   requestShutdown: () => void;
+  spawnSession: (options: {
+    directory: string;
+    agent: 'codex';
+    effectiveSettings: typeof codexAdvertisedDefaultSettings;
+    continuedFromSessionId?: string;
+  }) => Promise<{ type: string; sessionId?: string; errorMessage?: string; settings?: unknown }>;
   resumeSession: (
     sessionId: string,
     options?: {
@@ -628,6 +634,55 @@ describe('daemon session continuity', () => {
     expect(prepareCommanderContext).not.toHaveBeenCalled();
     expect(mocks.spawnHappyCLI).not.toHaveBeenCalled();
     expect(mocks.persistSession).not.toHaveBeenCalled();
+  });
+
+  it('carries provider-continuation lineage into a fresh daemon spawn without native resume state', async () => {
+    mocks.spawnHappyCLI.mockReturnValue({
+      pid: 4322,
+      kill: vi.fn(),
+      on: vi.fn(),
+    });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const spawn = rpc.spawnSession({
+      directory: process.cwd(),
+      agent: 'codex',
+      effectiveSettings: codexAdvertisedDefaultSettings,
+      continuedFromSessionId: 'source-session',
+    });
+
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    control.onHappySessionWebhook('target-session', {
+      path: process.cwd(),
+      flavor: 'codex',
+      codexThreadId: 'fresh-codex-thread',
+      continuedFromSessionId: 'source-session',
+      host: 'test-host',
+      hostPid: 4322,
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happy',
+      happyToolsDir: '/srv/happy/tools',
+      spawnSettings: codexAdvertisedDefaultSettings,
+    });
+
+    await expect(spawn).resolves.toMatchObject({
+      type: 'success',
+      sessionId: 'target-session',
+      settings: codexAdvertisedDefaultSettings,
+    });
+    const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
+      string[],
+      { cwd: string; env: NodeJS.ProcessEnv },
+    ];
+    expect(args).not.toContain('--resume');
+    expect(spawnOptions.cwd).toBe(process.cwd());
+    expect(spawnOptions.env.HAPPY_CONTINUED_FROM_SESSION_ID).toBe('source-session');
+    expect(spawnOptions.env.HAPPY_FORKED_FROM_SESSION_ID).toBeUndefined();
   });
 
   it('replays the next archived turn from an older retained record without changing session identity or encryption', async () => {

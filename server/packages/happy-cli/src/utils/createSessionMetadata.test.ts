@@ -116,6 +116,18 @@ describe('createSessionMetadata', () => {
         expect(metadata.forkedFromMessageId).toBe('message-2');
     });
 
+    it('sets fresh provider-continuation lineage from the daemon handoff', () => {
+        vi.stubEnv('HAPPY_CONTINUED_FROM_SESSION_ID', 'happy-source');
+
+        const { metadata } = createSessionMetadata({
+            flavor: 'codex',
+            machineId: 'machine-continuation',
+        });
+
+        expect(metadata.continuedFromSessionId).toBe('happy-source');
+        expect(metadata.parentSessionId).toBeUndefined();
+    });
+
     it('sets metadata.isSideChat when the session is a side chat', () => {
         const { metadata } = createSessionMetadata({
             flavor: 'claude',

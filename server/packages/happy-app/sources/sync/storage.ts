@@ -45,6 +45,7 @@ import { t } from '@/text';
 import type { Project } from './projectTypes';
 import { getSessionProjectId, isHappyAgentSession } from './projectTypes';
 import { selectSideChatSessions } from './sideChatSessions';
+import { selectProviderContinuationSessions } from '@/utils/providerContinuation';
 
 // Debounce timer for realtimeMode changes
 let realtimeModeDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1547,6 +1548,10 @@ export function useSessionProjectAvatar(sessionId: string): Project['avatar'] {
 
 export function useSideChatSessions(parentSessionId: string | null): Session[] {
     return storage(useShallow((state) => selectSideChatSessions(state.sessions, parentSessionId)));
+}
+
+export function useProviderContinuationSessions(sourceSessionId: string | null): Session[] {
+    return storage(useShallow((state) => selectProviderContinuationSessions(state.sessions, sourceSessionId)));
 }
 
 export function useSessionMessages(sessionId: string): {

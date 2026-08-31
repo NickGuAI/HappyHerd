@@ -137,9 +137,11 @@ function SessionInfoContent({ session }: { session: Session }) {
     const {
         canShowResume,
         canFork,
+        canContinueWithProvider,
         forking,
         forkSession,
         openDuplicateSheet,
+        openProviderContinuationSheet,
         resumeSession,
         resumeSessionSubtitle,
     } = useSessionQuickActions(session);
@@ -563,6 +565,14 @@ function SessionInfoContent({ session }: { session: Session }) {
                             subtitle={t('session.duplicateSubtitle')}
                             icon={<Ionicons name="time-outline" size={29} color="#007AFF" />}
                             onPress={openDuplicateSheet}
+                        />
+                    )}
+                    {canContinueWithProvider && (
+                        <Item
+                            title={t('session.providerContinuationAction')}
+                            subtitle={t('session.providerContinuationFreshSession')}
+                            icon={<Ionicons name="swap-horizontal-outline" size={29} color="#007AFF" />}
+                            onPress={openProviderContinuationSheet}
                         />
                     )}
                     {session.metadata?.parentSessionId && (

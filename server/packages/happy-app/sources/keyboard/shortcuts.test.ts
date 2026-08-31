@@ -116,6 +116,7 @@ describe('session action shortcuts', () => {
             'resume',
             'fork',
             'duplicate',
+            'continue-provider',
             'copy-metadata',
             'copy-metadata-and-logs',
             'archive',

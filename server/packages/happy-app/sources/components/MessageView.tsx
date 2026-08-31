@@ -13,7 +13,7 @@ import { sync } from '@/sync/sync';
 import { useSetting } from '@/sync/storage';
 import { Option } from './markdown/MarkdownView';
 import { layout } from "./layout";
-import { parseLocalCommandMessage, isUserSlashCommandEcho } from './parseLocalCommandMessage';
+import { parseVisibleUserMessage } from './parseLocalCommandMessage';
 import { resolveUserMessageBubbleColor } from '@/utils/userMessageBubbleColor';
 import { LongPressCopyable } from './LongPressCopyable';
 import { getHarnessName } from '@/utils/harnessCatalog';
@@ -112,16 +112,8 @@ function UserTextBlock(props: {
   // Codex/Gemini don't reliably emit the <command-*> wrapper, so hiding the
   // echo there would drop the command with nothing to replace it. (Absent
   // flavor == Claude, matching the convention used elsewhere.)
-  const isClaudeFlavor = !props.metadata?.flavor || props.metadata.flavor === 'claude';
-  if (isClaudeFlavor && isUserSlashCommandEcho(props.message.text, props.message.localId != null)) {
-    return null;
-  }
-
-  const parsed = parseLocalCommandMessage(props.message.displayText || props.message.text);
-  if (parsed.kind === 'caveat') {
-    return null;
-  }
-  if (parsed.kind === 'goal-confirmation') {
+  const parsed = parseVisibleUserMessage(props.message, props.metadata?.flavor);
+  if (!parsed) {
     return null;
   }
   if (parsed.kind === 'goal-run') {

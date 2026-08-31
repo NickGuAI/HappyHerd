@@ -208,6 +208,8 @@ export interface SpawnSessionOptions {
     parentSessionId?: string;
     /** Happy message id used as the rewind point (only set for "duplicate"). */
     forkedFromMessageId?: string;
+    /** Source Happy session for a fresh cross-provider continuation. */
+    continuedFromSessionId?: string;
     /**
      * Marks the spawned session as a hidden "side chat" of `parentSessionId`.
      * Side chats are forked from a parent session but never surface in the

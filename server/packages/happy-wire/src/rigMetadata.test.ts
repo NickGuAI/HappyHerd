@@ -22,6 +22,12 @@ describe('Rig wire contract', () => {
     expect(MessageMetaSchema.safeParse({ deliveryMode: 'steer' }).success).toBe(false);
   });
 
+  it('retains the typed provider-continuation handoff marker', () => {
+    expect(MessageMetaSchema.parse({ providerContinuationHandoff: true }))
+      .toEqual({ providerContinuationHandoff: true });
+    expect(MessageMetaSchema.safeParse({ providerContinuationHandoff: 'yes' }).success).toBe(false);
+  });
+
   it('parses a Rig v1 payload and retains unknown future fields', () => {
     const parsed = RigMetadataV1Schema.parse({
       rigMetadataVersion: 1,

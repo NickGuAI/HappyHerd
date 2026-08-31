@@ -23,8 +23,10 @@ import { getSessionForkSource } from '@/utils/sessionFork';
 import { useRouter } from 'expo-router';
 import { useSession } from '@/sync/storage';
 import { DuplicateSheet } from '@/components/DuplicateSheet';
+import { ProviderContinuationSheet } from '@/components/ProviderContinuationSheet';
 import type { SessionActionShortcutId } from '@/keyboard/shortcuts';
 import { isRigMetadata } from '@/sync/rig';
+import { getProviderContinuationTarget } from '@/utils/providerContinuation';
 
 export interface SessionActionItem {
     id: SessionActionShortcutId;
@@ -88,6 +90,14 @@ export function useSessionQuickActions(
         && forkSource
         && machine
         && isMachineOnline(machine)
+    );
+    const continuationTarget = getProviderContinuationTarget(session.metadata?.flavor);
+    const canContinueWithProvider = Boolean(
+        continuationTarget
+        && session.metadata?.path
+        && machine
+        && isMachineOnline(machine)
+        && machine.metadata?.cliAvailability?.[continuationTarget] === true
     );
 
     const openDetails = React.useCallback(() => {
@@ -255,6 +265,14 @@ export function useSessionQuickActions(
         } as any);
     }, [canFork, session.id]);
 
+    const openProviderContinuationSheet = React.useCallback(() => {
+        if (!canContinueWithProvider) return;
+        Modal.show({
+            component: ProviderContinuationSheet,
+            props: { sessionId: session.id },
+        } as any);
+    }, [canContinueWithProvider, session.id]);
+
     const canCopySessionMetadata = __DEV__ || devModeEnabled;
 
     const actionItems = React.useMemo<SessionActionItem[]>(() => {
@@ -271,6 +289,15 @@ export function useSessionQuickActions(
             items.push({ id: 'duplicate', icon: 'time-outline', label: t('session.duplicateAction'), onPress: openDuplicateSheet });
         }
 
+        if (canContinueWithProvider) {
+            items.push({
+                id: 'continue-provider',
+                icon: 'swap-horizontal-outline',
+                label: t('session.providerContinuationAction'),
+                onPress: openProviderContinuationSheet,
+            });
+        }
+
         if (canCopySessionMetadata) {
             items.push({ id: 'copy-metadata', icon: 'bug-outline', label: t('sessionInfo.copyMetadata'), onPress: copySessionMetadata });
             items.push({ id: 'copy-metadata-and-logs', icon: 'document-text-outline', label: t('uiCopy.copyMetadataAndClientLogs'), onPress: copySessionMetadataAndLogs });
@@ -283,12 +310,14 @@ export function useSessionQuickActions(
         archiveSession,
         canCopySessionMetadata,
         canFork,
+        canContinueWithProvider,
         copySessionMetadata,
         copySessionMetadataAndLogs,
         forkSource,
         forkSession,
         openDetails,
         openDuplicateSheet,
+        openProviderContinuationSheet,
         resumeAvailability.canShowResume,
         resumeSession,
     ]);
@@ -313,12 +342,14 @@ export function useSessionQuickActions(
         canResume: resumeAvailability.canResume,
         canShowResume: resumeAvailability.canShowResume,
         canFork,
+        canContinueWithProvider,
         copySessionMetadata,
         copySessionMetadataAndLogs,
         forkSession,
         forking,
         openDetails,
         openDuplicateSheet,
+        openProviderContinuationSheet,
         resumeSession,
         resumeSessionWithQueuedTurn,
         resumeSessionSubtitle: resumeAvailability.subtitle,
