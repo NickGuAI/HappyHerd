@@ -195,3 +195,4 @@ SERVER_IMAGE_CLEANUP_TIMEOUT	accepted	fix(deploy): tolerate builder cleanup time
 RESPONSIVE_WORKSPACE_ACCESS	accepted	fix(app): expose responsive workspace controls	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 RESPONSIVE_WORKSPACE_SESSION_CONTEXT	accepted	fix(app): bind responsive workspaces to active sessions	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 WORKSPACE_IMAGE_RECOVERY	accepted	fix(app): recover inline workspace images	server/packages/happy-app/sources/components/markdown/MarkdownView.workspaceLinks.test.ts
+COMMANDER_SESSION_CLI	accepted	feat(commanders): reassign sessions from the CLI	server/packages/happy-cli/src/commands/machine.test.ts

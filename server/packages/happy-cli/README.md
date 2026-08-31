@@ -168,6 +168,7 @@ happy session create \
   --model gpt-5.6 \
   --effort high \
   --permission plan \
+  --commander athena \
   --json
 ```
 
@@ -190,6 +191,12 @@ machine identity, path, and the effective settings validated by the target
 daemon and persisted on the new session. A null setting means that dimension
 remains owned by the provider runtime because its catalog advertised no
 concrete default.
+
+Bind a session during creation using `--commander ID`, validated on the target
+daemon. Reassign the association with `set-commander` (which resolves the ID on
+the owning machine's canonical registry) or use `none` to detach the Commander.
+Changes take effect on the next session resume without altering the live
+conversation context.
 
 ### Keeping the daemon running across reboots
 
@@ -276,7 +283,8 @@ account becomes eligible again.
 | `happy commander create --manifest <file>` | Atomically install agent-authored Commander content |
 | `happy machine auth <login\|status\|logout>` | Manage the app-approved account-machine control link |
 | `happy machine list [--json]` | Discover machines on the current account |
-| `happy session create ... [--json]` | Create a tracked session on a selected Happy CLI daemon machine |
+| `happy session create ... [--commander ID] [--json]` | Create a tracked session on a selected Happy CLI daemon machine |
+| `happyherd session set-commander <session-id> <commander-id\|none> [--json]` | Change the Commander used on the session's next resume |
 
 ---
 

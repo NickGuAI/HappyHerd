@@ -11,6 +11,7 @@ function makeSession(overrides: Partial<DecryptedSession> = {}): DecryptedSessio
         active: true,
         activeAt: Date.now() - 60_000,
         metadata: { tag: 'test-session', path: '/home/user/project', summary: 'Test session' },
+        metadataVersion: 1,
         agentState: null,
         dataEncryptionKey: null,
         encryption: { key: new Uint8Array(32), variant: 'dataKey' as const },

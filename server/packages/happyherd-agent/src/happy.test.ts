@@ -41,6 +41,7 @@ function inactiveSession(): DecryptedSession {
     active: false,
     activeAt: 1,
     metadata: { machineId: 'machine-1', happyHerdAgentSurfaceId: 'dm:123' },
+    metadataVersion: 1,
     agentState: null,
     dataEncryptionKey: null,
     encryption: { key: new Uint8Array(32), variant: 'dataKey' },

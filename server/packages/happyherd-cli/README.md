@@ -13,6 +13,12 @@ happyherd codex
 happyherd machine list --json
 ```
 
+Create sessions bound with `create --commander ID`, validated on the target
+daemon. Use `set-commander` to reassign the ID (resolved on the owning machine's
+canonical registry) or `none` to detach the Commander. Reassignment or
+detachment takes effect upon the next resume without altering any live
+conversation context.
+
 Create a durable Worker Agent conversation by supplying a bounded delegation
 brief through the same command surface. The Main Agent must supply all six
 non-empty fields:

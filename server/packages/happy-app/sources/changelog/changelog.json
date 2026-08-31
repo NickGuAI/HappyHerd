@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 31 — Session Commander assignment from the CLI",
+      "summary": "",
+      "markdown": "- Support session creation with `create --commander` (validated on the target daemon), plus reassignment or detachment via `set-commander` (resolving IDs on the owning machine's canonical registry or using `none` to detach). Reassignment or detachment takes effect on next resume without altering live context."
+    },
+    {
       "title": "August 31 — Machine Workspace routing and consolidated mobile actions",
       "summary": "",
       "markdown": "- Machine Workspace opened from an active Main Agent or Side chat now starts on the exact session machine and current working directory even in non-Git folders, though explicit deep links still take precedence and normal browsing remains available.\n- On Web Mobile, session workspace, permission, model, and effort settings, stop, queue, and attachment actions are consolidated into a single bottom-left plus menu, while the microphone and Send remain direct controls and Send remains send-only."
@@ -426,5 +431,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 31 — Machine Workspace routing and consolidated mobile actions"
+  "latestTitle": "August 31 — Session Commander assignment from the CLI"
 }
