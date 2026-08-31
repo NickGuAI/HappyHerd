@@ -607,6 +607,9 @@ export async function startDaemon(): Promise<void> {
         if (options.forkedFromMessageId) {
           extraEnv.HAPPY_FORKED_FROM_MESSAGE_ID = options.forkedFromMessageId;
         }
+        if (options.continuedFromSessionId) {
+          extraEnv.HAPPY_CONTINUED_FROM_SESSION_ID = options.continuedFromSessionId;
+        }
         if (options.isSideChat) {
           extraEnv.HAPPY_SIDE_CHAT = '1';
         }

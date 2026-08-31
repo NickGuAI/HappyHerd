@@ -1,3 +1,8 @@
+# August 31 — Cross-Agent Session Handover
+
+- Claude sessions can continue into a fresh linked Codex session (and Codex into Claude) on the exact same machine, workspace path/worktree, and Commander, leaving the original session available.
+- Source and target sessions are connected via navigation links, with a bounded set of recent visible conversation text delivered through the normal message path.
+
 # August 31 — Session Commander assignment from the CLI
 
 - Support session creation with `create --commander` (validated on the target daemon), plus reassignment or detachment via `set-commander` (resolving IDs on the owning machine's canonical registry or using `none` to detach). Reassignment or detachment takes effect on next resume without altering live context.

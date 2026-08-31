@@ -14,6 +14,9 @@ export const MessageMetaSchema = z.object({
   disallowedTools: z.array(z.string()).nullable().optional(),
   effort: z.string().nullable().optional(),
   displayText: z.string().optional(),
+  // Generated cross-provider handoffs remain visible but are excluded from
+  // later provider-continuation context.
+  providerContinuationHandoff: z.boolean().optional(),
   deliveryMode: z.enum(['queue']).optional(),
   // Associates immutable attachment records with their queued user message.
   queueMessageId: z.string().trim().min(1).optional(),

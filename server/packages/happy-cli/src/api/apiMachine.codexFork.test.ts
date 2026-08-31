@@ -121,6 +121,37 @@ describe('ApiMachineClient Codex fork RPCs', () => {
         }));
     });
 
+    it('forwards fresh provider-continuation lineage without native resume state', async () => {
+        const settings = { provider: 'codex', model: 'default', effort: null, permission: 'default' };
+        const spawnSession = vi.fn().mockResolvedValue({ type: 'success', sessionId: 'happy-target', settings });
+
+        const { ApiMachineClient } = await import('./apiMachine');
+        const client = new ApiMachineClient('token', machineClient());
+        client.setRPCHandlers({
+            spawnSession,
+            stopSession: vi.fn(),
+            requestShutdown: vi.fn(),
+        });
+
+        const result = await handlersFrom(client).get('machine-1:spawn-happy-session')?.({
+            directory: '/tmp/project',
+            agent: 'codex',
+            commanderId: 'commander-1',
+            continuedFromSessionId: 'happy-source',
+        });
+
+        expect(result).toEqual({ type: 'success', sessionId: 'happy-target', settings });
+        expect(spawnSession).toHaveBeenCalledWith(expect.objectContaining({
+            directory: '/tmp/project',
+            agent: 'codex',
+            commanderId: 'commander-1',
+            continuedFromSessionId: 'happy-source',
+            effectiveSettings: settings,
+        }));
+        expect(spawnSession.mock.calls[0]?.[0].resumeClaudeSessionId).toBeUndefined();
+        expect(spawnSession.mock.calls[0]?.[0].resumeCodexThreadId).toBeUndefined();
+    });
+
     it('forwards the archived prompt replay ID through the exact-session resume RPC', async () => {
         const resumeSession = vi.fn().mockResolvedValue({
             type: 'success',

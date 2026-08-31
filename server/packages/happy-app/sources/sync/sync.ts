@@ -126,6 +126,8 @@ type OutboxMessage = {
 
 export type SendMessageOptions = {
     displayText?: string;
+    /** Keep this generated handoff visible without forwarding it on a later provider hop. */
+    providerContinuationHandoff?: boolean;
     source?: MessageSentSource;
     /** Optional image attachments to send before the text message. */
     attachments?: AttachmentPreview[];
@@ -161,6 +163,7 @@ function avatarDescriptorKey(descriptor: NonNullable<DecryptedProjectRecord['ava
 
 class Sync {
     private static readonly BACKGROUND_SEND_TIMEOUT_MS = 30_000;
+    private static readonly SESSION_MESSAGE_LOAD_TIMEOUT_MS = 4_000;
     encryption!: Encryption;
     serverID!: string;
     anonID!: string;
@@ -404,6 +407,29 @@ class Sync {
             voiceHooks.onSessionFocus(sessionId, session.metadata || undefined);
         }
     }
+
+    /**
+     * Ensure an unopened session has its latest message page before a flow
+     * derives user-visible context from it. InvalidateSync intentionally
+     * retries forever in the background, so the Human-facing wait is bounded.
+     */
+    ensureSessionMessagesLoaded = async (sessionId: string): Promise<Message[] | null> => {
+        const current = storage.getState().sessionMessages[sessionId];
+        if (current?.isLoaded) {
+            return current.messages;
+        }
+
+        this.getMessagesSync(sessionId).invalidate();
+        const deadline = Date.now() + Sync.SESSION_MESSAGE_LOAD_TIMEOUT_MS;
+        while (Date.now() < deadline) {
+            await delay(Math.min(50, deadline - Date.now()));
+            const loaded = storage.getState().sessionMessages[sessionId];
+            if (loaded?.isLoaded) {
+                return loaded.messages;
+            }
+        }
+        return null;
+    };
 
     private getMessagesSync(sessionId: string): InvalidateSync {
         let sync = this.messagesSync.get(sessionId);
@@ -812,6 +838,7 @@ class Sync {
         }
         const {
             displayText,
+            providerContinuationHandoff = false,
             source = 'chat',
             attachments,
             requireAllAttachments = false,
@@ -1000,6 +1027,7 @@ class Sync {
                 ...(modeMeta.modelProviderId !== undefined ? { modelProviderId: modeMeta.modelProviderId } : {}),
                 ...(modeMeta.effort !== undefined ? { effort: modeMeta.effort } : {}),
                 ...(displayText && { displayText }), // Add displayText if provided
+                ...(providerContinuationHandoff ? { providerContinuationHandoff: true } : {}),
                 ...(deliveryMode ? { deliveryMode } : {}),
                 ...(deliveryMode === 'queue' ? { queueMessageId: localId } : {}),
             }

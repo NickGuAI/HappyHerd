@@ -506,6 +506,7 @@ vi.mock('@/sync/storage', async () => {
                 [parentSessionId, revision],
             );
         },
+        useProviderContinuationSessions: () => [],
     };
 });
 

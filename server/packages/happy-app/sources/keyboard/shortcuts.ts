@@ -26,6 +26,7 @@ export type SessionActionShortcutId =
     | 'resume'
     | 'fork'
     | 'duplicate'
+    | 'continue-provider'
     | 'copy-metadata'
     | 'copy-metadata-and-logs'
     | 'archive';
@@ -45,6 +46,7 @@ export const SESSION_ACTION_SHORTCUTS: Readonly<Record<SessionActionShortcutId, 
     resume: { key: 'r', code: 'KeyR', keyLabel: 'R', altKey: true },
     fork: { key: 'f', code: 'KeyF', keyLabel: 'F', altKey: true },
     duplicate: { key: 'd', code: 'KeyD', keyLabel: 'D', altKey: true, shiftKey: true },
+    'continue-provider': { key: 'c', code: 'KeyC', keyLabel: 'C', altKey: true, shiftKey: true },
     'copy-metadata': { key: 'm', code: 'KeyM', keyLabel: 'M', altKey: true },
     'copy-metadata-and-logs': { key: 'm', code: 'KeyM', keyLabel: 'M', altKey: true, shiftKey: true },
     archive: { key: 'a', code: 'KeyA', keyLabel: 'A', shiftKey: true },

@@ -222,7 +222,7 @@ export class ApiMachineClient {
 
         // Register spawn session handler
         this.rpcHandlerManager.registerHandler('spawn-happy-session', async (params: any) => {
-            const { directory, sessionId, machineId, approvedNewDirectoryCreation, agent, permissionMode, modelMode, effortLevel, commanderId, environmentVariables, runtimeContext, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, isSideChat } = params || {};
+            const { directory, sessionId, machineId, approvedNewDirectoryCreation, agent, permissionMode, modelMode, effortLevel, commanderId, environmentVariables, runtimeContext, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, continuedFromSessionId, isSideChat } = params || {};
             logger.debug('[API MACHINE] Spawning session', {
                 directory,
                 agent,
@@ -256,7 +256,7 @@ export class ApiMachineClient {
                 },
             );
 
-            const result = await spawnSession({ directory, sessionId, machineId, approvedNewDirectoryCreation, agent: provider, permissionMode, modelMode, effortLevel, effectiveSettings, commanderId, environmentVariables, agentRuntimeContext: runtimeContext, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId });
+            const result = await spawnSession({ directory, sessionId, machineId, approvedNewDirectoryCreation, agent: provider, permissionMode, modelMode, effortLevel, effectiveSettings, commanderId, environmentVariables, agentRuntimeContext: runtimeContext, token, resumeClaudeSessionId, resumeCodexThreadId, parentSessionId, forkedFromMessageId, continuedFromSessionId });
 
             switch (result.type) {
                 case 'success':

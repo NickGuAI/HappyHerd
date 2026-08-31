@@ -414,6 +414,8 @@ export type Metadata = {
   /** Lineage for sessions created via the fork / duplicate flow. */
   parentSessionId?: string
   forkedFromMessageId?: string
+  /** Fresh cross-provider session linked to its source Happy session. */
+  continuedFromSessionId?: string
   /**
    * Marks a session as a hidden "side chat" forked from `parentSessionId`.
    * Side chats never appear in the top-level session list; they render only

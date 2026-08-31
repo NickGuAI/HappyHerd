@@ -157,3 +157,44 @@ export function isUserSlashCommandEcho(text: string, hasLocalId: boolean): boole
     const parsed = parseLocalCommandMessage(trimmed);
     return parsed.kind === 'command-run' || parsed.kind === 'goal-run';
 }
+
+export type VisibleUserMessageInput = {
+    text: string;
+    displayText?: string;
+    localId?: string | null;
+};
+
+/**
+ * Project one stored user message through the same visibility rules as the
+ * chat bubble. Callers that hand conversation text to another provider must
+ * use this projection rather than the raw prompt payload: raw text can contain
+ * attached file contents or SDK-only command wrappers hidden by displayText.
+ */
+export function parseVisibleUserMessage(
+    message: VisibleUserMessageInput,
+    flavor: string | null | undefined,
+): Exclude<LocalCommandMessage, { kind: 'caveat' } | { kind: 'goal-confirmation' }> | null {
+    const isClaudeFlavor = !flavor || flavor === 'claude';
+    if (isClaudeFlavor && isUserSlashCommandEcho(message.text, message.localId != null)) {
+        return null;
+    }
+
+    const parsed = parseLocalCommandMessage(message.displayText || message.text);
+    if (parsed.kind === 'caveat' || parsed.kind === 'goal-confirmation') {
+        return null;
+    }
+    return parsed;
+}
+
+export function visibleUserMessageText(
+    message: VisibleUserMessageInput,
+    flavor: string | null | undefined,
+): string | null {
+    const parsed = parseVisibleUserMessage(message, flavor);
+    if (!parsed) return null;
+    if (parsed.kind === 'goal-run') return parsed.goal;
+    if (parsed.kind === 'command-run') {
+        return parsed.args ? `/${parsed.commandName} ${parsed.args}` : `/${parsed.commandName}`;
+    }
+    return parsed.text;
+}

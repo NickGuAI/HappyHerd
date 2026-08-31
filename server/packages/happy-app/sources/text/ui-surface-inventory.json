@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "8028568c645b08009e5ab4fda2c0b2297cc4ba9b96e3523795fae46f81a3f011",
+  "sourceFingerprint": "56fe8d920d3b59950eb0f61ba7a1ddfa405564a52feae473157249a98483801e",
   "routeCount": 36,
-  "surfaceCount": 249,
+  "surfaceCount": 251,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -474,6 +474,8 @@
         "session.forkSubtitle",
         "session.forkedFromLabel",
         "session.forkedFromSubtitle",
+        "session.providerContinuationAction",
+        "session.providerContinuationFreshSession",
         "sessionInfo.activity",
         "sessionInfo.agentState",
         "sessionInfo.aiProvider",
@@ -1662,6 +1664,8 @@
         "session.forkSubtitle",
         "session.forkedFromLabel",
         "session.forkedFromSubtitle",
+        "session.providerContinuationAction",
+        "session.providerContinuationFreshSession",
         "sessionInfo.activity",
         "sessionInfo.agentState",
         "sessionInfo.aiProvider",
@@ -4000,6 +4004,41 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/ProviderContinuationLinks.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "ProviderContinuationLinks"
+      ],
+      "translationKeys": [
+        "session.providerContinuationFrom",
+        "session.providerContinuationTo"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/ProviderContinuationSheet.tsx",
+      "kind": "sheet",
+      "route": null,
+      "exports": [
+        "ProviderContinuationSheet"
+      ],
+      "translationKeys": [
+        "common.cancel",
+        "session.providerContinuationCurrent",
+        "session.providerContinuationFreshSession",
+        "session.providerContinuationHandoff",
+        "session.providerContinuationHandoffFailed",
+        "session.providerContinuationNotAvailable",
+        "session.providerContinuationSubtitle",
+        "session.providerContinuationTitle",
+        "session.providerContinuationUnavailable"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/ProviderIcon.tsx",
       "kind": "component",
       "route": null,
@@ -5281,6 +5320,7 @@
         "session.forkAction",
         "session.forkErrorGeneric",
         "session.forkErrorMissingMetadata",
+        "session.providerContinuationAction",
         "sessionInfo.copyMetadata",
         "sessionInfo.resumeSession",
         "sessionInfo.resumeSessionMissingMachine",
@@ -5505,6 +5545,7 @@
         "useMessage",
         "useProfile",
         "useProjects",
+        "useProviderContinuationSessions",
         "useRealtimeMode",
         "useRealtimeStatus",
         "useRequestedFriends",

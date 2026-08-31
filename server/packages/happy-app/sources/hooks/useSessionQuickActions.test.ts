@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
     refreshSessions: vi.fn(async () => undefined),
     navigateToSession: vi.fn(),
     routerPush: vi.fn(),
+    modalShow: vi.fn(),
 }));
 
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.routerPush }) }));
@@ -22,7 +23,7 @@ vi.mock('@/hooks/useHappyAction', () => ({
 vi.mock('@/hooks/useNavigateToSession', () => ({
     useNavigateToSession: () => mocks.navigateToSession,
 }));
-vi.mock('@/modal', () => ({ Modal: { alert: vi.fn(), show: vi.fn() } }));
+vi.mock('@/modal', () => ({ Modal: { alert: vi.fn(), show: mocks.modalShow } }));
 vi.mock('@/sync/ops', () => ({
     machineResumeSession: mocks.machineResumeSession,
     sessionSetAgentModes: mocks.sessionSetAgentModes,
@@ -53,6 +54,7 @@ vi.mock('@/utils/sessionUtils', () => ({
     useSessionStatus: () => ({ isConnected: false }),
 }));
 vi.mock('@/components/DuplicateSheet', () => ({ DuplicateSheet: () => null }));
+vi.mock('@/components/ProviderContinuationSheet', () => ({ ProviderContinuationSheet: () => null }));
 
 import { useSessionQuickActions } from './useSessionQuickActions';
 
@@ -224,4 +226,46 @@ describe('useSessionQuickActions resume permission continuity', () => {
             act(() => renderer.unmount());
         },
     );
+
+    it('opens cross-provider continuation only when the opposite CLI is available', () => {
+        const session = sessionFor('claude');
+        mocks.machine = machineFor('claude');
+        mocks.machine.metadata!.cliAvailability!.codex = true;
+
+        function Harness() {
+            current = useSessionQuickActions(session);
+            return null;
+        }
+        act(() => {
+            renderer = create(React.createElement(Harness));
+        });
+
+        const action = current.actionItems.find((item) => item.id === 'continue-provider');
+        expect(action?.label).toBe('session.providerContinuationAction');
+        act(() => action?.onPress());
+        expect(mocks.modalShow).toHaveBeenCalledWith(expect.objectContaining({
+            props: { sessionId: session.id },
+        }));
+
+        act(() => renderer.unmount());
+    });
+
+    it('offers Codex continuation for a legacy Claude session without flavor metadata', () => {
+        const session = sessionFor('claude');
+        delete session.metadata!.flavor;
+        mocks.machine = machineFor('claude');
+        mocks.machine.metadata!.cliAvailability!.codex = true;
+
+        function Harness() {
+            current = useSessionQuickActions(session);
+            return null;
+        }
+        act(() => {
+            renderer = create(React.createElement(Harness));
+        });
+
+        expect(current.canContinueWithProvider).toBe(true);
+        expect(current.actionItems.some((item) => item.id === 'continue-provider')).toBe(true);
+        act(() => renderer.unmount());
+    });
 });

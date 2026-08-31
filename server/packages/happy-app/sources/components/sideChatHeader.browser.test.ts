@@ -28,7 +28,10 @@ const virtualModules: Record<string, string> = {
                 input: { background: '#f0f0f0', placeholder: '#999', text: '#111' },
                 header: { background: '#fff', tint: '#111' },
                 modal: { border: '#ddd' },
-                glass: { backgroundStrong: '#fff', backgroundSubtle: '#f8f8f8', border: '#ddd', divider: '#ddd' },
+                glass: {
+                    backgroundStrong: '#fff', backgroundSubtle: '#f8f8f8', border: '#ddd', divider: '#ddd',
+                    overlay: '#fff', overlayTint: '#fff',
+                },
                 shadow: { color: '#000', opacity: 0.1 },
                 button: { primary: { tint: '#fff', background: '#111', disabled: '#aaa' }, secondary: { tint: '#666' } },
                 success: '#0a0', gitAddedText: '#0a0', gitRemovedText: '#c22',
@@ -37,6 +40,7 @@ const virtualModules: Record<string, string> = {
                     warning: { background: '#fff8dd', border: '#b70', text: '#742' },
                 },
                 radio: { active: '#111', inactive: '#aaa', dot: '#fff' }, warning: '#b70',
+                status: { error: '#c22' },
             },
         };
         export const StyleSheet = {
@@ -90,6 +94,7 @@ const virtualModules: Record<string, string> = {
         export { ScrollView };
         export const Gesture = new Proxy({}, { get: () => chain });
         export const GestureDetector = ({ children }) => React.createElement(React.Fragment, null, children);
+        export const Swipeable = React.forwardRef(({ children }, _ref) => children);
     `,
     'react-native-mmkv': `
         export class MMKV {
@@ -113,14 +118,21 @@ const virtualModules: Record<string, string> = {
     '@/sync/storage': `
         import React from 'react';
         import { selectSideChatSessions } from '@/sync/sideChatSessions';
+        const fixtureOptions = globalThis.__HAPPYHERD_FIXTURE_OPTIONS__ ?? {};
+        const legacyClaudeContinuation = fixtureOptions.legacyClaudeContinuation === true;
         const makeSession = (id, createdAt, metadata = {}, active = true) => ({
             id, seq: 0, createdAt, updatedAt: createdAt, active, activeAt: createdAt,
             presence: active ? 'online' : 'offline',
             metadata: { host: 'fixture', path: '/work/project', summary: { text: id }, ...metadata },
         });
         const sessions = {
-            parent: makeSession('parent', 1, { machineId: 'machine-1', flavor: 'codex', codexThreadId: 'thread-parent' }),
+            parent: makeSession('parent', 1, legacyClaudeContinuation
+                ? { machineId: 'machine-1', claudeSessionId: 'claude-parent', commanderId: 'commander-1' }
+                : { machineId: 'machine-1', flavor: 'codex', codexThreadId: 'thread-parent', commanderId: 'commander-1' }),
             background: makeSession('background', 2, { machineId: 'machine-1', flavor: 'codex', codexThreadId: 'thread-background' }),
+            'target-session': makeSession('target-session', 3, legacyClaudeContinuation
+                ? { machineId: 'machine-1', flavor: 'codex', codexThreadId: 'codex-target', continuedFromSessionId: 'parent' }
+                : { machineId: 'machine-1', flavor: 'claude', claudeSessionId: 'claude-target', continuedFromSessionId: 'parent' }),
             'child-oldest': makeSession('child-oldest', 10, {
                 isSideChat: true, parentSessionId: 'parent', summary: { text: 'Oldest child' },
                 machineId: 'machine-1', path: '/work/child-oldest', flavor: 'codex', codexThreadId: 'thread-child-oldest',
@@ -136,7 +148,6 @@ const virtualModules: Record<string, string> = {
             background: selectSideChatSessions(sessions, 'background'),
             'other-parent': selectSideChatSessions(sessions, 'other-parent'),
         };
-        const fixtureOptions = globalThis.__HAPPYHERD_FIXTURE_OPTIONS__ ?? {};
         const localSettings = {
             acknowledgedCliVersions: {},
             sidebarPanelsOpen: [],
@@ -151,7 +162,7 @@ const virtualModules: Record<string, string> = {
             favoriteMachinePaths: [],
         };
         const machines = [
-            { id: 'machine-1', active: true, metadata: { displayName: 'MainEC2', host: 'fixture', homeDir: '/work/project', platform: 'linux' } },
+            { id: 'machine-1', active: true, metadata: { displayName: 'MainEC2', host: 'fixture', homeDir: '/work/project', platform: 'linux', cliAvailability: { claude: true, codex: true } } },
         ];
         const changedFiles = (sessionId) => ({
             stagedFiles: [],
@@ -198,9 +209,32 @@ const virtualModules: Record<string, string> = {
             id: 'fixture-message-' + index,
             localId: null,
             createdAt: 1000 - index,
-            text: 'Fixture chat line ' + index + ' '.repeat(120),
+            text: fixtureOptions.providerContinuation && index === 0
+                ? 'HIDDEN_PRIOR_HANDOFF_BROWSER_SENTINEL'
+                : index === (fixtureOptions.providerContinuation ? 1 : 0)
+                    ? 'HIDDEN_BROWSER_CONTEXT_SENTINEL'
+                    : 'Fixture chat line ' + index + ' '.repeat(120),
+            ...(fixtureOptions.providerContinuation && index === 0 ? {
+                displayText: legacyClaudeContinuation
+                    ? 'Continue from Codex session'
+                    : 'Continue from Claude session',
+                meta: { providerContinuationHandoff: true },
+            } : {}),
+            ...(index === (fixtureOptions.providerContinuation ? 1 : 0)
+                ? { displayText: 'Visible browser context' }
+                : {}),
         }));
-        export const useSessionMessages = () => ({ hasMoreOlder: false, isLoaded: true, isLoadingOlder: false, messages });
+        let messagesLoaded = fixtureOptions.providerContinuationMessagesLoaded !== false;
+        export const __loadProviderContinuationMessages = () => {
+            messagesLoaded = true;
+            return messages;
+        };
+        export const useSessionMessages = () => ({
+            hasMoreOlder: false,
+            isLoaded: messagesLoaded,
+            isLoadingOlder: false,
+            messages: messagesLoaded ? messages : [],
+        });
         export const useSessionPendingCommunications = () => [];
         export const useSessionProjectFiles = (sessionId) => React.useSyncExternalStore(
             subscribe,
@@ -222,6 +256,9 @@ const virtualModules: Record<string, string> = {
             () => sideChatSnapshots[parentId] ?? [],
             () => sideChatSnapshots[parentId] ?? [],
         );
+        export const useProviderContinuationSessions = (sourceId) => fixtureOptions.providerContinuation
+            ? Object.values(sessions).filter((session) => session.metadata?.continuedFromSessionId === sourceId)
+            : [];
     `,
     '@/sync/gitStatusFiles': `export const getGitStatusFiles = async () => null;`,
     '@/sync/projectFiles': `
@@ -272,10 +309,22 @@ const virtualModules: Record<string, string> = {
             'workspace.browseMachine': 'Browse this machine',
             'uiCopy.preview': 'Preview',
             'uiCopy.unsaved': 'Unsaved',
+            'session.providerContinuationTitle': 'Continue session',
+            'session.providerContinuationAction': 'Continue with…',
+            'session.providerContinuationSubtitle': 'The original remains available while a fresh session opens.',
+            'session.providerContinuationCurrent': 'Current session',
+            'session.providerContinuationFreshSession': 'Start a fresh session',
+            'session.providerContinuationNotAvailable': 'Target CLI unavailable',
+            'session.providerContinuationHandoff': 'Continue from ' + (params?.provider ?? '') + ' session',
+            'session.providerContinuationHandoffFailed': 'Recent context could not be sent.',
+            'session.providerContinuationUnavailable': 'Cross-provider continuation is unavailable.',
+            'session.providerContinuationFrom': 'Continued from ' + (params?.provider ?? ''),
+            'session.providerContinuationTo': 'Continued with ' + (params?.provider ?? ''),
         }[key] ?? key);
     `,
     '@/keyboard/shortcuts': `
         export const SIDEBAR_PICKER_SHORTCUTS = { changes: {}, allFiles: {}, newSideChat: {} };
+        export const SESSION_ACTION_SHORTCUTS = { 'continue-provider': {} };
         export const formatShortcutChord = () => '';
         export const getPreferredShortcutModifier = () => 'meta';
         export const matchesShortcutChord = () => false;
@@ -304,8 +353,18 @@ const virtualModules: Record<string, string> = {
         export const getDeviceType = () => 'tablet';
     `,
     '@/sync/sync': `
+        import { __loadProviderContinuationMessages } from '@/sync/storage';
         export const sync = {
-            onSessionVisible() {}, refreshSessions() {}, sendMessage: async () => {},
+            onSessionVisible() {},
+            ensureSessionMessagesLoaded: async (sessionId) => {
+                window.__PROVIDER_CONTINUATION_SOURCE_LOAD__ = sessionId;
+                return __loadProviderContinuationMessages();
+            },
+            refreshSessions: () => new Promise(() => {}),
+            sendMessage: async (sessionId, text, options) => {
+                window.__PROVIDER_CONTINUATION_SEND__ = { sessionId, text, options };
+                return { localId: 'handoff-message' };
+            },
             applySettings() {},
         };
     `,
@@ -393,10 +452,38 @@ const virtualModules: Record<string, string> = {
     '@/hooks/useMachineFileUpload': `export const useMachineFileUpload = () => ({ canCancel: false, canRetry: false, cancel() {}, pickAndUpload() {}, reset() {}, retry() {}, state: { phase: 'idle' } });`,
     '@/hooks/useVoiceDictation': `export const useVoiceDictation = () => ({ canRetry: false, cancel() {}, error: null, phase: 'idle', retry() {}, toggle() {} });`,
     '@/hooks/useVoiceInputAvailability': `export const useVoiceInputAvailability = () => ({ available: false, configured: false, enabled: false, loading: false });`,
-    '@/hooks/useSessionQuickActions': `export const useSessionQuickActions = (session) => ({ canResume: !session.active, resumeSession() {}, resumeSessionWithQueuedTurn() {}, resumingSession: false });`,
+    '@/hooks/useWorktreeCleanup': `export const maybeCleanupWorktree = async () => {};`,
+    '@/hooks/useNavigateToSession': `export const useNavigateToSession = () => (sessionId) => { window.__PROVIDER_CONTINUATION_NAVIGATED__ = sessionId; };`,
+    '@/components/DuplicateSheet': `export const DuplicateSheet = () => null;`,
+    '@/components/ShortcutHints': `export const SessionShortcutHintBadge = () => null;`,
+    '@/components/RigGitLineChanges': `export const RigGitLineChanges = () => null;`,
+    '@/components/SessionStatusAvatar': `export const SessionStatusAvatar = () => null;`,
+    '@/sync/messageMeta': `
+        export class UnsupportedPermissionModeError extends Error {}
+        export const resolveMessageModeMeta = () => ({});
+    `,
+    '@/utils/sessionFork': `export const getSessionForkSource = () => null;`,
+    '@/utils/sessionResume': `
+        export const getClaudeResumeModes = () => ({});
+        export const getCodexResumeModes = () => ({});
+        export const getGrokResumePermissionMode = () => undefined;
+        export const getResumeAvailability = () => ({
+            canResume: false, canShowResume: false, messageKey: null, subtitle: '', message: '',
+        });
+    `,
+    '@/utils/copySessionMetadataToClipboard': `
+        export const copySessionMetadataToClipboard = async () => false;
+        export const copySessionMetadataAndLogsToClipboard = async () => false;
+    `,
     '@/sync/gitStatusSync': `export const gitStatusSync = { getSync: () => ({ invalidate() {} }) };`,
     '@/sync/ops': `
         export const machineControlHeartbeat = async () => {};
+        export const machineResumeSession = async () => ({ type: 'error', errorMessage: 'not used' });
+        export const forkAndSpawn = async () => ({ type: 'error', errorMessage: 'not used' });
+        export const machineSpawnNewSession = async (options) => {
+            window.__PROVIDER_CONTINUATION_SPAWN__ = options;
+            return { type: 'success', sessionId: 'target-session' };
+        };
         export const machineCreateSideChat = async () => {
             window.__SIDE_CHAT_CREATE_COUNT__ = (window.__SIDE_CHAT_CREATE_COUNT__ ?? 0) + 1;
             return { success: false, phases: [] };
@@ -513,6 +600,9 @@ const fixturePlugin: Plugin = {
             if (args.path === './BubblePressable') return { path: '@/components/BubblePressable', namespace: 'fixture-stub' };
             if (args.path === './navigation/MobileHeaderScrim') return { path: '@/components/navigation/MobileHeaderScrim', namespace: 'fixture-stub' };
             if (args.path === './AnimatedOverlay') return { path: '@/components/AnimatedOverlay', namespace: 'fixture-stub' };
+            if (args.path === './ShortcutHints') return { path: '@/components/ShortcutHints', namespace: 'fixture-stub' };
+            if (args.path === './RigGitLineChanges') return { path: '@/components/RigGitLineChanges', namespace: 'fixture-stub' };
+            if (args.path === './SessionStatusAvatar') return { path: '@/components/SessionStatusAvatar', namespace: 'fixture-stub' };
             if (args.path === './workspaceLinkNavigation') return { path: '@/-session/workspaceLinkNavigation', namespace: 'fixture-stub' };
             if (args.path === './agentGoalActionHandler') return { path: '@/-session/agentGoalActionHandler', namespace: 'fixture-stub' };
             if (args.path === './MultiTextInput') {
@@ -595,6 +685,126 @@ describe('Side chats browser interaction', () => {
         await browser?.close();
         if (server) await new Promise<void>((resolveClosed) => server.close(() => resolveClosed()));
     }, 30_000);
+
+    it.each([
+        ['Web Desktop', { width: 1440, height: 900 }],
+        ['Web Mobile', { width: 390, height: 844 }],
+    ] as const)('continues through the visible production session action on %s', async (_surface, viewport) => {
+        const page = await browser.newPage({ viewport });
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
+                providerContinuation: true,
+                providerContinuationMessagesLoaded: false,
+            };
+        });
+        const pageErrors: string[] = [];
+        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+        page.on('console', (message) => {
+            if (
+                message.type() === 'error'
+                && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+            ) pageErrors.push(message.text());
+        });
+        await page.goto(origin);
+
+        await page.getByText('Continuation source', { exact: true }).click({ button: 'right' });
+        await page.getByRole('button', { name: 'Continue with…' }).click();
+        await page.getByText('Continue session', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
+        await page.getByTestId('provider-continuation-claude').click();
+        await page.waitForFunction(() => (window as any).__PROVIDER_CONTINUATION_NAVIGATED__ === 'target-session');
+
+        const result = await page.evaluate(() => ({
+            sourceLoad: (window as any).__PROVIDER_CONTINUATION_SOURCE_LOAD__,
+            spawn: (window as any).__PROVIDER_CONTINUATION_SPAWN__,
+            send: (window as any).__PROVIDER_CONTINUATION_SEND__,
+            navigated: (window as any).__PROVIDER_CONTINUATION_NAVIGATED__,
+        }));
+        expect(result.sourceLoad).toBe('parent');
+        expect(result.spawn).toEqual({
+            machineId: 'machine-1',
+            directory: '/work/project',
+            approvedNewDirectoryCreation: false,
+            agent: 'claude',
+            commanderId: 'commander-1',
+            continuedFromSessionId: 'parent',
+        });
+        expect(result.send.sessionId).toBe('target-session');
+        expect(result.send.text).toContain('fresh Claude session');
+        expect(result.send.text).toContain('does not share the Codex provider native conversation state');
+        expect(result.send.text).toContain('Visible browser context');
+        expect(result.send.text).not.toContain('HIDDEN_BROWSER_CONTEXT_SENTINEL');
+        expect(result.send.text).not.toContain('HIDDEN_PRIOR_HANDOFF_BROWSER_SENTINEL');
+        expect(result.send.text).not.toContain('Continue from Claude session');
+        expect(result.send.options).toEqual({
+            source: 'new_session',
+            displayText: 'Continue from Codex session',
+            providerContinuationHandoff: true,
+            awaitDelivery: true,
+        });
+        expect(result.navigated).toBe('target-session');
+
+        await page.getByRole('button', { name: 'Continued with Claude' }).click();
+        await expect(page.evaluate(() => (window as any).__PROVIDER_CONTINUATION_NAVIGATED__))
+            .resolves.toBe('target-session');
+        await page.getByRole('button', { name: 'Continued from Codex' }).click();
+        await expect(page.evaluate(() => (window as any).__PROVIDER_CONTINUATION_NAVIGATED__))
+            .resolves.toBe('parent');
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 15_000);
+
+    it('continues a legacy missing-flavor Claude row into a fresh Codex session', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
+                providerContinuation: true,
+                providerContinuationMessagesLoaded: false,
+                legacyClaudeContinuation: true,
+            };
+        });
+        const pageErrors: string[] = [];
+        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+        page.on('console', (message) => {
+            if (
+                message.type() === 'error'
+                && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+            ) pageErrors.push(message.text());
+        });
+        await page.goto(origin);
+
+        await page.getByText('Continuation source', { exact: true }).click({ button: 'right' });
+        await page.getByRole('button', { name: 'Continue with…' }).click();
+        await page.getByTestId('provider-continuation-codex').click();
+        await page.waitForFunction(() => (window as any).__PROVIDER_CONTINUATION_NAVIGATED__ === 'target-session');
+
+        const result = await page.evaluate(() => ({
+            spawn: (window as any).__PROVIDER_CONTINUATION_SPAWN__,
+            send: (window as any).__PROVIDER_CONTINUATION_SEND__,
+        }));
+        expect(result.spawn).toEqual({
+            machineId: 'machine-1',
+            directory: '/work/project',
+            approvedNewDirectoryCreation: false,
+            agent: 'codex',
+            commanderId: 'commander-1',
+            continuedFromSessionId: 'parent',
+        });
+        expect(result.send.text).toContain('fresh Codex session');
+        expect(result.send.text).toContain('does not share the Claude provider native conversation state');
+        expect(result.send.text).toContain('Visible browser context');
+        expect(result.send.text).not.toContain('HIDDEN_PRIOR_HANDOFF_BROWSER_SENTINEL');
+        expect(result.send.text).not.toContain('Continue from Codex session');
+        expect(result.send.options).toEqual({
+            source: 'new_session',
+            displayText: 'Continue from Claude session',
+            providerContinuationHandoff: true,
+            awaitDelivery: true,
+        });
+        await page.getByRole('button', { name: 'Continued with Codex' }).click();
+        await page.getByRole('button', { name: 'Continued from Claude' }).click();
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 15_000);
 
     it('opens, switches, and collapses the desktop panel without a background session cancelling it', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });

@@ -13,6 +13,9 @@ export const MessageMetaSchema = z.object({
     disallowedTools: z.array(z.string()).nullable().optional(), // Disallowed tools for this message (null = reset)
     effort: z.string().nullable().optional(), // Reasoning / thinking effort for this message (null = reset)
     displayText: z.string().optional(), // Optional text to display in UI instead of actual message text
+    // Marks the generated cross-provider handoff so it stays visible in the
+    // source UI without being forwarded as Human conversation on a later hop.
+    providerContinuationHandoff: z.boolean().optional(),
     deliveryMode: z.enum(['queue']).optional(), // Force provider-native queue semantics instead of steering an active turn
     // Parent persisted user-message local ID for queued attachment records.
     queueMessageId: z.string().trim().min(1).optional(),

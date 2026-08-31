@@ -634,6 +634,17 @@ export type TranslationKey =
     | "session.inactiveArchived"
     | "session.inputPlaceholder"
     | "session.newChat"
+    | "session.providerContinuationAction"
+    | "session.providerContinuationCurrent"
+    | "session.providerContinuationFreshSession"
+    | "session.providerContinuationFrom"
+    | "session.providerContinuationHandoff"
+    | "session.providerContinuationHandoffFailed"
+    | "session.providerContinuationNotAvailable"
+    | "session.providerContinuationSubtitle"
+    | "session.providerContinuationTitle"
+    | "session.providerContinuationTo"
+    | "session.providerContinuationUnavailable"
     | "session.resumeFromTerminal"
     | "session.statusBarContext"
     | "session.statusBarPathTitle"
@@ -1430,6 +1441,9 @@ export interface TranslationParamsByKey {
     "modals.disconnectService": { service: string };
     "modals.disconnectServiceConfirm": { service: string };
     "offlineMachines.singleUnreachable": { name: string };
+    "session.providerContinuationFrom": { provider: string };
+    "session.providerContinuationHandoff": { provider: string };
+    "session.providerContinuationTo": { provider: string };
     "sessionHistory.daysAgo": { count: number };
     "sessionInfo.cliVersionOutdatedMessage": { currentVersion: string; requiredVersion: string };
     "settings.accountConnected": { service: string };
