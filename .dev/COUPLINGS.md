@@ -198,40 +198,35 @@ composer mic → useVoiceDictation → POST /v1/voice/transcriptions
 existing draft + transcript → editable MultiTextInput → useDraft persistence
 ```
 
-### File workspaces: current boundary and required consolidation
+### File workspaces: implemented consolidated architecture
 
-At `e1b1180a`, these are separate surfaces, not one unified workspace:
+`SessionView.tsx` owns one right-side file-workspace state keyed by machine ID
+and absolute path:
 
 ```text
-same-session plain reply file ─┐
-All Files ─────────────────────┼─► SessionView → DesktopFileWorkspace → FileViewPanel
-                               │       (session file transport)
-line/column, directory, cross-session, or failed reply link ─► /workspace → WorkspaceLinkViewer
-Machine Workspace header action ─────────────────────────────► /workspace → machine browser → FileContentPanel
+Chat Workspace: current Main Agent session cwd ─┐
+Machine Workspace: embedded machine browser ────┼─► DesktopFileWorkspace
+same-session reply file or directory link ──────┘          │
+                                                           ├─ FileViewPanel / MachineFileViewPanel
+                                                           └─ feedback → current Main Agent
 ```
 
-`SessionView.tsx` owns the same-session plain-file admission and local tab
-state; it deliberately sends a link with `line` or `column` to `/workspace`.
-`DesktopFileWorkspace.tsx` owns the stable right split, tabs, compact host, and
-per-tab `FileViewPanel` mounts. `app/(app)/workspace/index.tsx` owns the
-selected-machine browser and separate `FileContentPanel` transport.
-`WorkspaceLinkViewer.tsx` owns the standalone link route and its separate
-`WorkspaceFeedbackComposer`. `utils/markdownWorkspaceLink.ts` creates the
-route and preserves a parsed line/column location. `sync/ops.ts` owns the
-machine RPC reads and writes. `MainView.tsx` exposes the current Machine
-Workspace action when `machineWorkspace` is enabled.
+Chat Workspace opens session-backed files. `MachineWorkspaceBrowser`, exported
+from `app/(app)/workspace/index.tsx`, opens connected-machine files into the
+same tabs. `DesktopFileWorkspace.tsx` owns the stable split, deduplicated tabs,
+wide divider, compact full-screen host, and one feedback composer. Session and
+machine panels share `FileContentPanel` for Preview, Edit, and capability-gated
+Delete while using their respective RPC transports from `sync/ops.ts`.
 
-The owner-directed consolidation target is one canonical right-side tabs and
-viewer state, supplied by exactly two named sources: **Chat Workspace** (the
-current Main Agent session cwd) and **Machine Workspace** (the selected
-machine-wide browser, which remains a left-navigation destination). Every
-reply file link, including line/column links, must open that state; Preview,
-Edit, Delete, and feedback must reuse the same file surface and current Main
-Agent destination. The existing source is not yet that target. Do not describe
-it as implemented, and do not preserve a second viewer or composer as a
-compatibility path when completing it. See
-[`playbooks/file-workspaces.md`](playbooks/file-workspaces.md) for the owner
-table and interaction gate.
+Current-session reply links remain in this host: files and read failures open a
+canonical tab, while directories open the embedded machine browser at the
+linked path. Parsed line and column values remain attached to the tab reference
+and feedback message; they are not a scroll-or-highlight contract. Only
+cross-session links or a context that cannot host the session workspace may
+fall back to `/workspace` and `WorkspaceLinkViewer`. The full Machine Workspace
+also remains a left-navigation destination. See
+[`playbooks/file-workspaces.md`](playbooks/file-workspaces.md) before changing
+any of these owners.
 
 ## State owners
 
