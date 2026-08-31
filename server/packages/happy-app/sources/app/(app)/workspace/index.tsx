@@ -451,7 +451,7 @@ export function MachineWorkspaceBrowser({
         : [];
 
     const browser = (
-        <View style={[styles.browserPane, desktopSplit && styles.browserPaneDesktop]}>
+        <View style={[styles.browserPane, desktopSplit && !embedded && styles.browserPaneDesktop]}>
             <ScrollView
                 style={{ flex: 1 }}
                 contentContainerStyle={styles.browserContent}
@@ -649,7 +649,7 @@ export function MachineWorkspaceBrowser({
         </View>
     );
 
-    const gated = !workspaceEnabled && !attachmentMode;
+    const gated = !workspaceEnabled && !attachmentMode && !embedded;
 
     if (embedded) {
         return gated ? (

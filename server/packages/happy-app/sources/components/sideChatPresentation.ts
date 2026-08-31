@@ -8,7 +8,6 @@ export function resolveSessionSidebarPresentation(input: {
     windowWidth: number;
     zenMode: boolean;
     workspaceLinkPanelOpen: boolean;
-    fileDiffsSidebarEnabled: boolean;
     canUseFilePanels: boolean;
 }): {
     fileSidebarAvailable: boolean;
@@ -21,11 +20,10 @@ export function resolveSessionSidebarPresentation(input: {
 
     return {
         fileSidebarAvailable: wideSidebarFrame
-            && input.fileDiffsSidebarEnabled
             && input.canUseFilePanels,
         sideChatSidebarAvailable,
-        // Side chats intentionally do not inherit the file-diff feature gate:
-        // externally created children must remain reachable on every client.
+        // Externally created children remain reachable even when the current
+        // session cannot expose file panels.
         sideChatSurface: sideChatSidebarAvailable
             && !input.zenMode
             && !input.workspaceLinkPanelOpen

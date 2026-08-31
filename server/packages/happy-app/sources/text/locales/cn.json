@@ -1273,8 +1273,8 @@
     "features": {
       "interface": "界面",
       "interfaceFooter": "可选面板和布局元素。",
-      "fileDiffsSidebar": "文件差异侧栏",
-      "fileDiffsSidebarSubtitle": "在桌面端聊天旁显示 Git 更改",
+      "fileDiffsSidebar": "新会话侧边栏",
+      "fileDiffsSidebarSubtitle": "宽屏下在输入框旁显示新建会话配置面板。",
       "sortRecent": "按最近活动排序",
       "sortRecentSubtitle": "按最近活动而不是创建时间排列会话",
       "resumeSession": "恢复会话",

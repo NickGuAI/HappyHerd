@@ -56,7 +56,7 @@ export const SettingsSchema = z.object({
     // Resume is capability-driven; this legacy rollout key still protects the
     // newer fork/duplicate RPC on older daemons.
     expResumeSession: z.boolean().describe('Enable session fork and duplicate actions'),
-    fileDiffsSidebar: z.boolean().describe('Show the file diffs sidebar next to the chat on desktop'),
+    fileDiffsSidebar: z.boolean().describe('Show the New Session setup sidebar on wide desktop screens'),
     machineWorkspace: z.boolean().describe('Expose the independent machine-scoped Workspace surface'),
     groupToolCalls: z.boolean().describe('Collapse consecutive tool calls into grouped containers in chat'),
     compactToolCalls: z.boolean().describe('Render non-interactive tool calls as compact one-line rows'),

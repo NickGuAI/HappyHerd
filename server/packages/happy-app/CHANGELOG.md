@@ -1,3 +1,8 @@
+# August 31 — Workspace access and resizing stay consistent
+
+- Changes, Chat Workspace, and Machine Workspace are now visibly accessible from sessions on Web Desktop and Web Mobile, and machine files open in the current chat's existing tabs.
+- Embedded Machine Workspace fills its chat workspace host, while the desktop divider can expand the workspace to 75% without replacing the mounted chat or unsaved file state.
+
 # August 31 — Unified Chat and Machine Workspaces
 
 - Renamed the session file picker to Chat Workspace and added Machine Workspace so connected-machine files open in the same tabbed workspace.

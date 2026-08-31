@@ -18,8 +18,7 @@ export const EMPTY_DESKTOP_FILE_WORKSPACE: DesktopFileWorkspaceState = {
 };
 
 export const DESKTOP_FILE_WORKSPACE_MIN_WIDTH = 360;
-export const DESKTOP_FILE_WORKSPACE_MAX_WIDTH = 860;
-export const DESKTOP_FILE_WORKSPACE_MIN_CHAT_WIDTH = 380;
+export const DESKTOP_FILE_WORKSPACE_MAX_SHARE = 0.75;
 export const DESKTOP_FILE_WORKSPACE_DIVIDER_WIDTH = 8;
 
 export function openDesktopFile(
@@ -110,12 +109,8 @@ export function resolveDesktopFileWorkspaceWidth(
 ): number {
     const maximum = Math.max(
         DESKTOP_FILE_WORKSPACE_MIN_WIDTH,
-        Math.min(
-            DESKTOP_FILE_WORKSPACE_MAX_WIDTH,
-            availableWidth
-                - DESKTOP_FILE_WORKSPACE_MIN_CHAT_WIDTH
-                - DESKTOP_FILE_WORKSPACE_DIVIDER_WIDTH,
-        ),
+        (availableWidth - DESKTOP_FILE_WORKSPACE_DIVIDER_WIDTH)
+            * DESKTOP_FILE_WORKSPACE_MAX_SHARE,
     );
     return Math.min(Math.max(requestedWidth, DESKTOP_FILE_WORKSPACE_MIN_WIDTH), maximum);
 }

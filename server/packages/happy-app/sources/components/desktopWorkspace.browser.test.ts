@@ -16,6 +16,10 @@ const virtualModules: Record<string, string> = {
             divider: '#ddd', surface: '#fff', surfaceHigh: '#f3f3f3', warning: '#a60',
             groupped: { background: '#f5f5f5' }, input: { background: '#eee' },
             header: { background: '#fff', tint: '#111' },
+            button: { primary: { background: '#111', tint: '#fff' } },
+            success: '#0a0', surfaceSelected: '#eee',
+            glass: { overlay: '#fff', overlayTint: '#fff', backgroundStrong: '#fff', border: '#ddd' },
+            shadow: { color: '#000', opacity: 0.2 },
         }, { get: (target, key) => target[key] ?? '#111' });
         const theme = { dark: false, colors };
         export const StyleSheet = {
@@ -38,8 +42,28 @@ const virtualModules: Record<string, string> = {
         import { View } from 'react-native';
         export const Image = ({ style, testID }) => React.createElement(View, { style, testID, 'data-image': 'true' });
     `,
+    'expo-linear-gradient': `
+        import React from 'react';
+        import { View } from 'react-native';
+        export const LinearGradient = ({ children, style }) => React.createElement(View, { style }, children);
+    `,
+    'react-native-reanimated': `
+        import React from 'react';
+        import { View } from 'react-native';
+        const Animated = { View };
+        export default Animated;
+        export const useSharedValue = (value) => ({ value });
+        export const useAnimatedStyle = (factory) => factory();
+        export const withTiming = (value) => value;
+        export const Easing = { out: (value) => value, cubic: 'cubic' };
+    `,
     'react-native-safe-area-context': `export const useSafeAreaInsets = () => ({ top: 0, right: 0, bottom: 0, left: 0 });`,
-    'expo-router': `export const useRouter = () => ({ back() {}, push() {} });`,
+    'expo-router': `
+        import React from 'react';
+        export const useRouter = () => ({ back() {}, push() {} });
+        export const useLocalSearchParams = () => ({});
+        export const Stack = { Screen: () => null };
+    `,
     'expo-router/drawer': `
         import React from 'react';
         import { View } from 'react-native';
@@ -66,7 +90,13 @@ const virtualModules: Record<string, string> = {
     `,
     '@/sync/storage': `
         import React from 'react';
-        const settings = { navigationSidebarCollapsed: false, zenMode: false };
+        const settings = {
+            navigationSidebarCollapsed: false,
+            zenMode: false,
+            machineWorkspace: true,
+            recentMachinePaths: [],
+            favoriteMachinePaths: [],
+        };
         const listeners = new Set();
         const subscribe = (listener) => { listeners.add(listener); return () => listeners.delete(listener); };
         const emit = () => listeners.forEach((listener) => listener());
@@ -74,15 +104,34 @@ const virtualModules: Record<string, string> = {
             id: 'ordinary-session',
             metadata: { path: '/workspace', host: 'fixture', machineId: 'machine-1', flavor: 'claude' },
         };
-        const machine = { id: 'machine-1', metadata: { supportsFileDelete: true } };
+        const machines = [
+            { id: 'machine-1', active: true, metadata: { supportsFileDelete: true, homeDir: '/workspace', host: 'session' } },
+            { id: 'machine-2', active: true, metadata: { supportsFileDelete: true, homeDir: '/machine-root', host: 'remote' } },
+        ];
+        const gitStatus = { lastUpdatedAt: 'fixture', linesAdded: 0, linesRemoved: 0 };
+        const gitStatusFiles = { stagedFiles: [], unstagedFiles: [] };
+        const projectFiles = { files: [{ fullPath: '/workspace/sidebar.md' }] };
         export const useLocalSetting = (key) => React.useSyncExternalStore(subscribe, () => settings[key], () => settings[key]);
+        export const useSetting = (key) => settings[key];
         export const useLocalSettingMutable = (key) => [
             React.useSyncExternalStore(subscribe, () => settings[key], () => settings[key]),
             (value) => { settings[key] = value; emit(); },
         ];
         export const useSession = (id) => id === session.id ? session : null;
-        export const useMachine = (id) => id === machine.id ? machine : null;
-        export const storage = { getState: () => ({ sessions: { [session.id]: session }, machines: { [machine.id]: machine } }) };
+        export const useSessionGitStatus = () => gitStatus;
+        export const useSessionGitStatusFiles = () => gitStatusFiles;
+        export const useSessionProjectFiles = () => projectFiles;
+        export const useMachine = (id) => machines.find((machine) => machine.id === id) ?? null;
+        export const useAllMachines = () => machines;
+        export const storage = { getState: () => ({
+            settings,
+            sessions: { [session.id]: session },
+            machines: Object.fromEntries(machines.map((machine) => [machine.id, machine])),
+            pathProjectFiles: { fixture: projectFiles },
+            getSessionPathKey: () => 'fixture',
+            applyGitStatusFiles() {},
+            applyProjectFiles() {},
+        }) };
     `,
     '@/utils/responsive': `
         export const useHeaderHeight = () => 64;
@@ -110,7 +159,7 @@ const virtualModules: Record<string, string> = {
         import { Text as NativeText } from 'react-native';
         export const Text = (props) => React.createElement(NativeText, props, props.children);
     `,
-    '@/constants/Typography': `export const Typography = { default: () => ({}) };`,
+    '@/constants/Typography': `export const Typography = { default: () => ({}), mono: () => ({}) };`,
     '@/components/FileIcon': `
         import React from 'react';
         export const FileIcon = () => React.createElement('span', { 'data-file-icon': 'true' }, '▧');
@@ -134,7 +183,28 @@ const virtualModules: Record<string, string> = {
     '@/sync/ops': `
         const content = btoa('# Desktop workspace\\n');
         export const machineDeleteFile = async () => ({ success: true });
-        export const machineReadFile = async () => ({ success: true, content });
+        export const machineGetDirectoryTree = async (machineId, path, depth) => {
+            window.__MACHINE_DIRECTORY_CALLS__ = [...(window.__MACHINE_DIRECTORY_CALLS__ ?? []), { machineId, path, depth }];
+            if (machineId !== 'machine-2' || path !== '/machine-root' || depth !== 1) {
+                return { success: false, error: 'Unexpected Machine Workspace request' };
+            }
+            return {
+                success: true,
+                tree: {
+                    type: 'directory',
+                    name: 'machine-root',
+                    path: '/machine-root',
+                    children: [{ type: 'file', name: 'remote.md', path: '/machine-root/remote.md', size: 23 }],
+                },
+            };
+        };
+        export const machineCreateDirectory = async () => ({ success: false, error: 'Not implemented by fixture' });
+        export const machineReadFile = async (machineId, path) => {
+            window.__MACHINE_READ_CALLS__ = [...(window.__MACHINE_READ_CALLS__ ?? []), { machineId, path }];
+            return machineId === 'machine-2' && path === '/machine-root/remote.md'
+                ? { success: true, content }
+                : { success: false, error: 'Unexpected Machine Workspace read' };
+        };
         export const machineWriteFile = async () => ({ success: true, hash: 'saved-hash' });
         export const sessionReadFile = async () => ({ success: true, content });
         export const sessionWriteFile = async () => ({ success: true, hash: 'saved-hash' });
@@ -153,6 +223,41 @@ const virtualModules: Record<string, string> = {
             confirm: async () => true,
         };
     `,
+    '@/sync/sync': `export const sync = { applySettings() {} };`,
+    '@/sync/workspaceContext': `
+        export const MAX_WORKSPACE_CONTEXT_ITEMS = 8;
+        export const getWorkspaceContextEntries = () => [];
+        export const addWorkspaceContextEntry = () => true;
+        export const removeWorkspaceContextEntry = () => undefined;
+    `,
+    '@/hooks/useMachineFileUpload': `
+        export const useMachineFileUpload = () => ({
+            state: { phase: 'idle', completed: 0, total: 0, currentFile: null, error: null, target: null },
+            reset() {}, pickAndUpload: async () => [], canCancel: false, canRetry: false, cancel() {}, retry: async () => [],
+        });
+    `,
+    '@/components/MachineFileUploadStatus': `export const MachineFileUploadStatus = () => null;`,
+    '@/components/SideChatPanel': `export const SideChatPanel = () => null;`,
+    '@/components/AnimatedOverlay': `
+        export const AnimatedClickAwayBackdrop = () => null;
+        export const AnimatedPopup = ({ children }) => children;
+        export const LocalBlurHalo = () => null;
+    `,
+    '@/components/MobileGlass': `export const MobileGlassSurface = ({ children }) => children;`,
+    '@/keyboard/shortcuts': `
+        export const getPreferredShortcutModifier = () => 'Meta';
+        export const formatShortcutChord = () => '';
+        export const matchesShortcutChord = () => false;
+        export const SIDEBAR_PICKER_SHORTCUTS = { changes: [], allFiles: [], newSideChat: [] };
+    `,
+    '@/sync/gitStatusFiles': `export const getGitStatusFiles = async () => ({ stagedFiles: [], unstagedFiles: [] });`,
+    '@/sync/projectFiles': `export const getProjectFiles = async () => ({ files: [{ fullPath: '/workspace/sidebar.md' }] });`,
+    '@/components/WorkspaceLinkViewer': `export const WorkspaceLinkViewer = () => null;`,
+    '@/components/WorkspaceLinkViewerModel': `export const workspaceLinkViewerKey = () => 'fixture';`,
+    '@/-session/workspaceLinkNavigation': `
+        export const dismissWorkspaceLinkToOrigin = () => undefined;
+        export const useWorkspaceLinkDismissGuard = () => ({ onSendingChange() {}, onDirtyChange() {}, guardDismiss: (action) => action() });
+    `,
     '@/components/layout': `export const layout = { maxWidth: 1200 };`,
     '@/text': `
         export const t = (key, params) => ({
@@ -160,6 +265,11 @@ const virtualModules: Record<string, string> = {
             'common.cancel': 'Cancel',
             'common.error': 'Error',
             'files.allFiles': 'Chat Workspace',
+            'files.changes': 'Changes',
+            'files.noChangesTitle': 'No changes',
+            'files.noChangesSubtitle': 'No changed files in this session.',
+            'files.searchPlaceholder': 'Search files',
+            'files.addPanel': 'Add panel',
             'files.cannotDisplayBinary': 'Cannot display binary',
             'files.closeFileTab': 'Close ' + (params?.name ?? ''),
             'files.deleteFile': 'Delete',
@@ -180,6 +290,18 @@ const virtualModules: Record<string, string> = {
             'uiCopy.source': 'Source',
             'uiCopy.unsaved': 'Unsaved',
             'zen.toggle': 'Toggle Zen mode',
+            'settings.machines': 'Machines',
+            'workspace.title': 'Machine Workspace',
+            'workspace.pathPlaceholder': 'Path',
+            'workspace.go': 'Go',
+            'workspace.home': 'Home',
+            'workspace.root': 'Root',
+            'workspace.parent': 'Parent',
+            'workspace.refresh': 'Refresh',
+            'workspace.favorites': 'Favorites',
+            'workspace.upload': 'Upload',
+            'workspace.newFolder': 'New folder',
+            'workspace.searchPlaceholder': 'Search files',
         }[key] ?? key);
     `,
 };
@@ -189,6 +311,14 @@ const fixturePlugin: Plugin = {
     setup(buildContext) {
         buildContext.onResolve({ filter: /.*/ }, (args) => {
             if (args.path in virtualModules) return { path: args.path, namespace: 'fixture-stub' };
+            if (args.importer.endsWith('/FilesSidebar.tsx')) {
+                const relativeStub = ({
+                    './SideChatPanel': '@/components/SideChatPanel',
+                    './AnimatedOverlay': '@/components/AnimatedOverlay',
+                    './MobileGlass': '@/components/MobileGlass',
+                } as Record<string, string>)[args.path];
+                if (relativeStub) return { path: relativeStub, namespace: 'fixture-stub' };
+            }
             if (args.path === './SidebarView') return { path: '@/components/SidebarView', namespace: 'fixture-stub' };
             if (args.path.startsWith('@/')) {
                 const sourcePath = resolve(appRoot, 'sources', args.path.slice(2));
@@ -285,7 +415,9 @@ describe('Desktop workspace browser interaction', () => {
         const splitDemo = page.getByTestId('split-demo');
         const host = splitDemo.getByTestId('desktop-file-workspace-host');
         const divider = splitDemo.getByTestId('desktop-file-workspace-divider');
-        const input = splitDemo.getByTestId('mounted-workspace-input');
+        const input = splitDemo.getByTestId('main-agent-composer-draft');
+        const chat = splitDemo.getByTestId('main-agent-chat');
+        const chatScroll = splitDemo.getByTestId('main-agent-chat-scroll');
         const editorPanel = splitDemo.getByTestId('desktop-file-panel:/workspace/demo.md');
         await splitDemo.getByRole('button', { name: 'Edit' }).click();
         const editor = editorPanel.getByTestId('code-editor');
@@ -300,10 +432,13 @@ describe('Desktop workspace browser interaction', () => {
         expect(initialEditorScrollTop).toBeGreaterThan(0);
 
         await input.fill('human draft survives');
+        await chatScroll.evaluate((element) => { element.scrollTop = 120; });
+        const initialChatScrollTop = await chatScroll.evaluate((element) => element.scrollTop);
+        expect(initialChatScrollTop).toBeGreaterThan(0);
         const initialSplitBox = await splitDemo.boundingBox();
         const initialHostBox = await host.boundingBox();
         const initialDividerBox = await divider.boundingBox();
-        const initialMountId = await splitDemo.getByTestId('mounted-workspace-probe').getAttribute('data-mount-id');
+        const initialMountId = await chat.getAttribute('data-mount-id');
         if (!initialSplitBox || !initialHostBox || !initialDividerBox || !initialMountId) {
             throw new Error('split fixture has no layout');
         }
@@ -313,14 +448,23 @@ describe('Desktop workspace browser interaction', () => {
             initialDividerBox.y + initialDividerBox.height / 2,
         );
         await page.mouse.down();
-        await page.mouse.move(initialDividerBox.x - 140, initialDividerBox.y + initialDividerBox.height / 2, { steps: 8 });
+        await page.mouse.move(initialDividerBox.x - 2_000, initialDividerBox.y + initialDividerBox.height / 2, { steps: 12 });
         await page.mouse.up();
 
         const resizedHostBox = await host.boundingBox();
-        if (!resizedHostBox) throw new Error('resized host has no layout');
+        const resizedSplitBox = await splitDemo.boundingBox();
+        const resizedDividerBox = await divider.boundingBox();
+        if (!resizedHostBox || !resizedSplitBox || !resizedDividerBox) {
+            throw new Error('resized split has no layout');
+        }
+        const resizedPaneWidth = resizedSplitBox.width - resizedDividerBox.width;
+        const resizedChatWidth = resizedPaneWidth - resizedHostBox.width;
+        expect(resizedHostBox.width / resizedPaneWidth).toBeCloseTo(0.75, 2);
+        expect(resizedChatWidth / resizedPaneWidth).toBeCloseTo(0.25, 2);
         expect(resizedHostBox.width).toBeGreaterThan(initialHostBox.width + 100);
-        await expect(splitDemo.getByTestId('mounted-workspace-probe').getAttribute('data-mount-id')).resolves.toBe(initialMountId);
+        await expect(chat.getAttribute('data-mount-id')).resolves.toBe(initialMountId);
         await expect(input.inputValue()).resolves.toBe('human draft survives');
+        await expect(chatScroll.evaluate((element) => element.scrollTop)).resolves.toBe(initialChatScrollTop);
         await expect(editor.getAttribute('data-retention-mount-id')).resolves.toBe(editorMountId);
         await expect(editor.inputValue()).resolves.toBe(unsavedValue);
         await expect(editor.evaluate((element) => element.scrollTop)).resolves.toBe(initialEditorScrollTop);
@@ -339,6 +483,9 @@ describe('Desktop workspace browser interaction', () => {
         await expect(editor.getAttribute('data-retention-mount-id')).resolves.toBe(editorMountId);
         await expect(editor.inputValue()).resolves.toBe(unsavedValue);
         await expect(editor.evaluate((element) => element.scrollTop)).resolves.toBe(initialEditorScrollTop);
+        await expect(chat.getAttribute('data-mount-id')).resolves.toBe(initialMountId);
+        await expect(input.inputValue()).resolves.toBe('human draft survives');
+        await expect(chatScroll.evaluate((element) => element.scrollTop)).resolves.toBe(initialChatScrollTop);
 
         await expand.click();
         await expect(collapse.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
@@ -432,22 +579,28 @@ describe('Desktop workspace browser interaction', () => {
         await page.close();
     }, 10_000);
 
-    it('opens and closes Machine Workspace, then shares its selected file as a tab', async () => {
+    it('opens the real Machine Workspace directory and shares its selected file as a canonical tab', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1200 } });
         const pageErrors = recordPageErrors(page);
         await page.goto(origin);
 
         const wide = page.getByTestId('wide-file-workspace');
-        await wide.getByLabel('workspace.title').click({ timeout: 3_000 });
+        await wide.getByLabel('Machine Workspace').click({ timeout: 3_000 });
         await expect(wide.getByTestId('machine-picker').isVisible()).resolves.toBe(true);
         await wide.getByTestId('desktop-file-workspace-picker-close').click({ timeout: 3_000 });
         await expect(wide.getByTestId('machine-picker').isVisible()).resolves.toBe(false);
         await expect(wide.getByRole('tab').count()).resolves.toBe(1);
 
-        await wide.getByLabel('workspace.title').click({ timeout: 3_000 });
-        await wide.getByRole('button', { name: 'Open remote.md' }).click({ timeout: 3_000 });
+        await wide.getByLabel('Machine Workspace').click({ timeout: 3_000 });
+        await wide.getByText('remote.md', { exact: true }).click({ timeout: 3_000 });
         await expect(wide.getByRole('tab', { name: 'Open remote.md' }).count()).resolves.toBe(1);
-        await expect(wide.getByTestId('desktop-file-panel:/workspace/remote.md').count()).resolves.toBe(1);
+        await expect(wide.getByTestId('desktop-file-panel:/machine-root/remote.md').count()).resolves.toBe(1);
+        await expect(page.evaluate(() => (window as any).__MACHINE_DIRECTORY_CALLS__ ?? [])).resolves.toContainEqual({
+            machineId: 'machine-2', path: '/machine-root', depth: 1,
+        });
+        await expect(page.evaluate(() => (window as any).__MACHINE_READ_CALLS__ ?? [])).resolves.toContainEqual({
+            machineId: 'machine-2', path: '/machine-root/remote.md',
+        });
 
         const compact = page.getByTestId('zero-tab-machine-workspace');
         await compact.getByRole('button', { name: 'Open Machine Workspace' }).click({ timeout: 3_000 });
@@ -455,6 +608,32 @@ describe('Desktop workspace browser interaction', () => {
         await expect(compact.getByTestId('zero-tab-machine-picker').isVisible()).resolves.toBe(true);
         await compact.getByTestId('desktop-file-workspace-picker-close').click({ timeout: 3_000 });
         await expect(compact.getByTestId('desktop-file-workspace').count()).resolves.toBe(0);
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 10_000);
+
+    it('uses the production FilesSidebar entry points for Changes, Chat Workspace, and Machine Workspace', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1200 } });
+        const pageErrors = recordPageErrors(page);
+        await page.goto(origin);
+
+        const entryPoints = page.getByTestId('desktop-workspace-entry-points');
+        const sidebar = entryPoints.getByTestId('production-files-sidebar');
+        const workspace = entryPoints.getByTestId('production-desktop-file-workspace');
+
+        await sidebar.getByText('Changes', { exact: true }).click();
+        await expect(sidebar.getByText('No changes', { exact: true }).isVisible()).resolves.toBe(true);
+
+        await page.reload();
+        await sidebar.getByText('Chat Workspace', { exact: true }).click();
+        await expect(sidebar.getByText('sidebar.md', { exact: true }).isVisible()).resolves.toBe(true);
+        await sidebar.getByText('sidebar.md', { exact: true }).click();
+        await expect(workspace.getByRole('tab', { name: 'Open sidebar.md' }).count()).resolves.toBe(1);
+
+        await page.reload();
+        await sidebar.getByText('Machine Workspace', { exact: true }).click();
+        await expect(workspace.getByTestId('production-machine-picker').isVisible()).resolves.toBe(true);
+        await expect(workspace.getByText('remote.md', { exact: true }).isVisible()).resolves.toBe(true);
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 10_000);
