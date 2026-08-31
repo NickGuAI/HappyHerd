@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
     closeDesktopFile,
     defaultDesktopFileWorkspaceWidth,
+    DESKTOP_FILE_WORKSPACE_DIVIDER_WIDTH,
+    DESKTOP_FILE_WORKSPACE_MAX_SHARE,
     desktopFileIdentity,
     EMPTY_DESKTOP_FILE_WORKSPACE,
     openDesktopFile,
@@ -119,19 +121,25 @@ describe('desktop file workspace state', () => {
 });
 
 describe('desktop file workspace width', () => {
-    it('clamps to its fixed minimum and maximum', () => {
+    it('clamps to its fixed minimum and 75 percent of the available pane width', () => {
         expect(resolveDesktopFileWorkspaceWidth(100, 1600)).toBe(360);
-        expect(resolveDesktopFileWorkspaceWidth(1200, 1600)).toBe(860);
+        expect(resolveDesktopFileWorkspaceWidth(1600, 1600)).toBe(1194);
     });
 
-    it('preserves the minimum chat width inside a smaller session frame', () => {
-        expect(resolveDesktopFileWorkspaceWidth(800, 1000)).toBe(612);
-        expect(resolveDesktopFileWorkspaceWidth(500, 700)).toBe(360);
+    it('leaves 25 percent of the available pane width for chat', () => {
+        const availableWidth = 1040;
+        const paneWidth = availableWidth - DESKTOP_FILE_WORKSPACE_DIVIDER_WIDTH;
+        const workspaceWidth = resolveDesktopFileWorkspaceWidth(availableWidth, availableWidth);
+
+        expect(workspaceWidth).toBe(paneWidth * DESKTOP_FILE_WORKSPACE_MAX_SHARE);
+        expect(paneWidth - workspaceWidth).toBe(paneWidth * 0.25);
+        expect(resolveDesktopFileWorkspaceWidth(800, 1000)).toBe(744);
+        expect(resolveDesktopFileWorkspaceWidth(500, 700)).toBe(500);
     });
 
     it('defaults to 45 percent before applying the same bounds', () => {
         expect(defaultDesktopFileWorkspaceWidth(1000)).toBe(450);
-        expect(defaultDesktopFileWorkspaceWidth(2000)).toBe(860);
+        expect(defaultDesktopFileWorkspaceWidth(2000)).toBe(900);
         expect(defaultDesktopFileWorkspaceWidth(700)).toBe(360);
     });
 });

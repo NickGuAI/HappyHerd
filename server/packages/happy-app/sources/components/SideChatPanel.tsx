@@ -152,8 +152,12 @@ export const SideChatPanel = React.memo(function SideChatPanel({
 /** Full-screen host for the same controlled panel used by the wide sidebar. */
 export const SideChatFullscreen = React.memo(function SideChatFullscreen({
     onCollapse,
+    workspaceAccess,
     ...panelProps
-}: SideChatPanelProps & { onCollapse: () => void }) {
+}: SideChatPanelProps & {
+    onCollapse: () => void;
+    workspaceAccess?: React.ReactNode;
+}) {
     const { theme } = useUnistyles();
     const safeArea = useSafeAreaInsets();
 
@@ -186,6 +190,7 @@ export const SideChatFullscreen = React.memo(function SideChatFullscreen({
                     <Octicons name="chevron-down" size={18} color={theme.colors.text} />
                 </Pressable>
             </View>
+            {workspaceAccess}
             <SideChatPanel {...panelProps} />
         </View>
     );

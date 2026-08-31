@@ -16,9 +16,14 @@ const virtualModules: Record<string, string> = {
             colors: {
                 text: '#111', textSecondary: '#666', divider: '#ddd', surface: '#f5f5f5',
                 textLink: '#06c', surfaceHigh: '#eee', surfaceSelected: '#e5e5e5', groupped: { background: '#fff' },
-                input: { placeholder: '#999' },
+                input: { background: '#f0f0f0', placeholder: '#999', text: '#111' },
                 header: { background: '#fff', tint: '#111' }, glass: { backgroundStrong: '#fff' }, shadow: { color: '#000', opacity: 0.1 },
-                button: { primary: { tint: '#fff', background: '#111' } },
+                button: { primary: { tint: '#fff', background: '#111' } }, success: '#0a0',
+                box: {
+                    error: { background: '#fee', border: '#d44', text: '#900' },
+                    warning: { background: '#fff8dd', border: '#b70', text: '#742' },
+                },
+                radio: { active: '#111', dot: '#fff' }, warning: '#b70', textDestructive: '#c22',
             },
         };
         export const StyleSheet = {
@@ -36,7 +41,11 @@ const virtualModules: Record<string, string> = {
         export const Octicons = Icon;
     `,
     'react-native-safe-area-context': `export const useSafeAreaInsets = () => ({ top: 0, right: 0, bottom: 0, left: 0 });`,
-    'expo-router': `export const useRouter = () => ({ push() {}, back() {}, dismissTo() {} });`,
+    'expo-router': `
+        export const useRouter = () => ({ push() {}, back() {}, dismissTo() {} });
+        export const useLocalSearchParams = () => ({});
+        export const Stack = { Screen: () => null };
+    `,
     'react-native-reanimated': `
         import React from 'react';
         import { View } from 'react-native';
@@ -47,6 +56,40 @@ const virtualModules: Record<string, string> = {
         export const Easing = { out: (value) => value, cubic: 'cubic' };
     `,
     'expo-linear-gradient': `import { View } from 'react-native'; export const LinearGradient = View;`,
+    'expo-image': `import { View } from 'react-native'; export const Image = View;`,
+    'expo-haptics': `
+        export const NotificationFeedbackType = { Error: 'error' };
+        export const ImpactFeedbackStyle = { Light: 'light' };
+        export const notificationAsync = async () => {};
+        export const impactAsync = async () => {};
+    `,
+    'react-native-gesture-handler': `
+        import React from 'react';
+        import { ScrollView } from 'react-native';
+        const chain = new Proxy(() => chain, { get: () => chain });
+        export { ScrollView };
+        export const Gesture = new Proxy({}, { get: () => chain });
+        export const GestureDetector = ({ children }) => React.createElement(React.Fragment, null, children);
+    `,
+    'react-native-mmkv': `
+        export class MMKV {
+            constructor() { this.values = new Map(); }
+            getString(key) { return this.values.get(key); }
+            getNumber(key) { return this.values.get(key); }
+            getBoolean(key) { return this.values.get(key); }
+            set(key, value) { this.values.set(key, value); }
+            delete(key) { this.values.delete(key); }
+            clearAll() { this.values.clear(); }
+        }
+    `,
+    '@/encryption/libsodium': `
+        export const decryptBox = () => null;
+        export const decryptSecretBox = () => null;
+        export const encryptBox = (value) => value;
+        export const encryptSecretBox = (value) => value;
+        export const getPublicKeyForBox = (value) => value;
+    `,
+    '@/encryption/libsodium.lib': `export default {};`,
     '@/sync/storage': `
         import React from 'react';
         import { selectSideChatSessions } from '@/sync/sideChatSessions';
@@ -58,9 +101,15 @@ const virtualModules: Record<string, string> = {
         const sessions = {
             parent: makeSession('parent', 1, { machineId: 'machine-1', flavor: 'codex', codexThreadId: 'thread-parent' }),
             background: makeSession('background', 2, { machineId: 'machine-1', flavor: 'codex', codexThreadId: 'thread-background' }),
-            oldest: makeSession('child-oldest', 10, { isSideChat: true, parentSessionId: 'parent', summary: { text: 'Oldest child' } }),
-            newest: makeSession('child-newest', 20, { isSideChat: true, parentSessionId: 'parent', summary: { text: 'Newest child' } }),
-            other: makeSession('other-child', 30, { isSideChat: true, parentSessionId: 'other-parent' }),
+            'child-oldest': makeSession('child-oldest', 10, {
+                isSideChat: true, parentSessionId: 'parent', summary: { text: 'Oldest child' },
+                machineId: 'machine-1', path: '/work/child-oldest', flavor: 'codex', codexThreadId: 'thread-child-oldest',
+            }),
+            'child-newest': makeSession('child-newest', 20, {
+                isSideChat: true, parentSessionId: 'parent', summary: { text: 'Newest child' },
+                machineId: 'machine-1', path: '/work/child-newest', flavor: 'codex', codexThreadId: 'thread-child-newest',
+            }),
+            'other-child': makeSession('other-child', 30, { isSideChat: true, parentSessionId: 'other-parent' }),
         };
         const sideChatSnapshots = {
             parent: selectSideChatSessions(sessions, 'parent'),
@@ -75,34 +124,79 @@ const virtualModules: Record<string, string> = {
             sidebarSideChatSessionId: null,
             zenMode: fixtureOptions.zenMode ?? false,
         };
+        const settings = {
+            diffStyle: 'unified',
+            machineWorkspace: fixtureOptions.machineWorkspaceEnabled ?? true,
+            recentMachinePaths: [],
+            favoriteMachinePaths: [],
+        };
+        const machines = [
+            { id: 'machine-1', active: true, metadata: { displayName: 'MainEC2', host: 'fixture', homeDir: '/work/project', platform: 'linux' } },
+        ];
+        const changedFiles = (sessionId) => ({
+            stagedFiles: [],
+            unstagedFiles: [{
+                fullPath: sessionId === 'parent'
+                    ? '/work/project/mobile-change.ts'
+                    : '/work/' + sessionId + '-change.ts',
+                status: 'untracked',
+                isStaged: false,
+                linesAdded: 1,
+                linesRemoved: 0,
+            }],
+        });
+        const pathProjectFiles = {};
         const listeners = new Set();
         const subscribe = (listener) => { listeners.add(listener); return () => listeners.delete(listener); };
         const emit = () => listeners.forEach((listener) => listener());
         const getState = () => ({
             localSettings,
+            settings,
             sessions,
+            machines: Object.fromEntries(machines.map((machine) => [machine.id, machine])),
             purchases: { entitlements: {} },
             currentViewingSessionId: null,
-            pathProjectFiles: {},
+            pathProjectFiles,
             applyLocalSettings(update) { Object.assign(localSettings, update); emit(); },
-            applyGitStatusFiles() {}, applyProjectFiles() {}, getSessionPathKey: () => null, setCurrentViewingSession() {},
+            applyGitStatusFiles() {},
+            applyProjectFiles(pathKey, result) { pathProjectFiles[pathKey] = result; emit(); },
+            getSessionPathKey: (sessionId) => sessionId,
+            setCurrentViewingSession() {},
         });
         export const storage = Object.assign(() => undefined, { getState });
         export const useIsDataReady = () => true;
         export const useLocalSetting = (key) => React.useSyncExternalStore(subscribe, () => localSettings[key], () => localSettings[key]);
-        export const useMachine = (id) => id === 'machine-1' ? { id, active: true } : null;
-        export const useRealtimeStatus = () => 'disconnected';
+        export const useMachine = (id) => machines.find((machine) => machine.id === id) ?? null;
+        export const useAllMachines = () => machines;
+        export const useRealtimeStatus = () => fixtureOptions.realtimeStatus ?? 'disconnected';
         export const useSession = (id) => React.useSyncExternalStore(subscribe, () => sessions[id] ?? null, () => sessions[id] ?? null);
+        export const useSessionAgentFormCommunication = () => null;
         export const useSessionGitStatus = () => null;
-        export const useSessionGitStatusFiles = () => null;
-        export const useSessionMessages = () => ({ hasMoreOlder: false, isLoaded: true, isLoadingOlder: false, messages: [] });
+        export const useSessionGitStatusFiles = (sessionId) => changedFiles(sessionId);
+        const messages = Array.from({ length: 80 }, (_, index) => ({
+            kind: 'user-text',
+            id: 'fixture-message-' + index,
+            localId: null,
+            createdAt: 1000 - index,
+            text: 'Fixture chat line ' + index + ' '.repeat(120),
+        }));
+        export const useSessionMessages = () => ({ hasMoreOlder: false, isLoaded: true, isLoadingOlder: false, messages });
         export const useSessionPendingCommunications = () => [];
-        export const useSessionProjectFiles = () => null;
+        export const useSessionProjectFiles = (sessionId) => React.useSyncExternalStore(
+            subscribe,
+            () => pathProjectFiles[sessionId] ?? null,
+            () => pathProjectFiles[sessionId] ?? null,
+        );
         export const useSessionUsage = () => null;
-        export const useSetting = (key) => key === 'fileDiffsSidebar'
-            ? (fixtureOptions.fileDiffsSidebarEnabled ?? false)
-            : key === 'sessionStatusBarDisplay' ? 'hidden' : undefined;
-        export const useSettingMutable = () => [{}, () => {}];
+        export const useSetting = (key) => key === 'sessionStatusBarDisplay' ? 'hidden' : settings[key];
+        export const useSettingMutable = (key) => {
+            const value = React.useSyncExternalStore(subscribe, () => settings[key], () => settings[key]);
+            const setValue = React.useCallback((next) => {
+                settings[key] = next;
+                emit();
+            }, [key]);
+            return [value, setValue];
+        };
         export const useSideChatSessions = (parentId) => React.useSyncExternalStore(
             subscribe,
             () => sideChatSnapshots[parentId] ?? [],
@@ -110,7 +204,14 @@ const virtualModules: Record<string, string> = {
         );
     `,
     '@/sync/gitStatusFiles': `export const getGitStatusFiles = async () => null;`,
-    '@/sync/projectFiles': `export const getProjectFiles = async () => null;`,
+    '@/sync/projectFiles': `
+        export const getProjectFiles = async (sessionId) => ({
+            files: sessionId === 'parent'
+                ? []
+                : [{ fullPath: '/work/project/chat-' + sessionId + '.md' }],
+            generatedAt: Date.now(),
+        });
+    `,
     '@/components/FileIcon': `import React from 'react'; export const FileIcon = () => React.createElement('span');`,
     '@/text': `
         export const t = (key, params) => ({
@@ -122,13 +223,35 @@ const virtualModules: Record<string, string> = {
             'sideChat.close': 'Close side chat',
             'sideChat.expand': 'Expand side chat',
             'files.changes': 'Changes',
-            'files.allFiles': 'All Files',
+            'files.allFiles': 'Chat Workspace',
             'files.addPanel': 'Add panel',
             'files.resizeWorkspace': 'Resize file workspace',
             'files.openFileTab': 'Open file ' + (params?.name ?? ''),
             'files.closeFileTab': 'Close file ' + (params?.name ?? ''),
             'files.openExistingFile': 'Open existing file',
+            'files.editFile': 'Edit',
+            'files.saveFile': 'Save',
+            'files.noChanges': 'No changes',
+            'files.changedFiles': (params?.count ?? 0) + ' changed file',
+            'files.searchPlaceholder': 'Search files',
+            'files.noFilesInProject': 'No files in project',
+            'settings.machines': 'Machines',
+            'settingsAppearance.diffStyleOptions.unified': 'Unified',
+            'settingsAppearance.diffStyleOptions.split': 'Split',
             'workspace.title': 'Machine Workspace',
+            'workspace.pathPlaceholder': 'Path',
+            'workspace.go': 'Go',
+            'workspace.home': 'Home',
+            'workspace.root': 'Root',
+            'workspace.parent': 'Parent',
+            'workspace.refresh': 'Refresh',
+            'workspace.favorites': 'Favorites',
+            'workspace.upload': 'Upload',
+            'workspace.newFolder': 'New folder',
+            'workspace.searchPlaceholder': 'Search files',
+            'workspace.browseMachine': 'Browse this machine',
+            'uiCopy.preview': 'Preview',
+            'uiCopy.unsaved': 'Unsaved',
         }[key] ?? key);
     `,
     '@/keyboard/shortcuts': `
@@ -160,7 +283,12 @@ const virtualModules: Record<string, string> = {
         export const useIsLandscape = () => false;
         export const getDeviceType = () => 'tablet';
     `,
-    '@/sync/sync': `export const sync = { onSessionVisible() {}, refreshSessions() {}, sendMessage: async () => {} };`,
+    '@/sync/sync': `
+        export const sync = {
+            onSessionVisible() {}, refreshSessions() {}, sendMessage: async () => {},
+            applySettings() {},
+        };
+    `,
     '@/modal': `export const Modal = { alert() {}, confirm: async () => true, prompt() {}, show() {} };`,
     '@/components/AgentContentView': `
         import React from 'react';
@@ -216,24 +344,21 @@ const virtualModules: Record<string, string> = {
     `,
     '@/components/AgentGoalBar': `export const AgentGoalBar = () => null;`,
     '@/components/AgentQuestionBanner': `export const AgentQuestionBanner = () => null;`,
-    '@/components/ChatList': `export const ChatList = () => null;`,
     '@/components/QueuedMessagesPanel': `export const QueuedMessagesPanel = () => null;`,
     '@/components/MachineFileUploadStatus': `export const MachineFileUploadStatus = () => null;`,
     '@/components/Deferred': `export const Deferred = ({ children }) => children;`,
     '@/components/EmptyMessages': `export const EmptyMessages = () => null;`,
     '@/components/SessionStatusBar': `export const SessionStatusBar = () => null;`,
     '@/components/Avatar': `export const Avatar = () => null;`,
-    '@/components/VoiceAssistantStatusBar': `export const VoiceAssistantStatusBar = () => null; export const VOICE_PILL_TOTAL_HEIGHT = 0;`,
-    '@/components/AllFilesDiffView': `export const AllFilesDiffView = () => null;`,
-    '@/components/FileViewPanel': `export const FileViewPanel = () => null; export const MachineFileViewPanel = () => null;`,
-    '@/components/WorkspaceFeedbackComposer': `export const WorkspaceFeedbackComposer = () => null;`,
-    '@/app/(app)/workspace/index': `
+    '@/components/VoiceAssistantStatusBar': `
         import React from 'react';
-        export const MachineWorkspaceBrowser = ({ onFilePress }) => React.createElement('div', {
-            'data-testid': 'machine-workspace-browser',
-            onClick: () => onFilePress?.({ machineId: 'machine-1', path: '/work/project/notes.md' }),
+        export const VOICE_PILL_TOTAL_HEIGHT = 36;
+        export const VoiceAssistantStatusBar = () => React.createElement('div', {
+            'data-testid': 'voice-status-bar',
+            style: { height: VOICE_PILL_TOTAL_HEIGHT },
         });
     `,
+    '@/components/WorkspaceFeedbackComposer': `export const WorkspaceFeedbackComposer = () => null;`,
     '@/components/RigActivityBar': `export const RigActivityBar = () => null;`,
     '@/components/agentGoalStatus': `export const resolveVisibleAgentGoalStatus = () => null;`,
     '@/components/modelModeOptions': `
@@ -245,10 +370,10 @@ const virtualModules: Record<string, string> = {
         export const resolveCurrentOption = () => null;
     `,
     '@/components/autocomplete/suggestions': `export const getSuggestions = () => [];`,
-    '@/components/diff/PierreDiffView': `export const prefetchPierreDiff = () => {};`,
+    '@/components/diff/PierreDiffView': `export const prefetchPierreDiff = () => {}; export const PierreDiffView = () => null;`,
     '@/hooks/useDraft': `export const useDraft = () => ({ clearDraft() {} });`,
     '@/hooks/useImagePicker': `export const useImagePicker = () => ({ addImages() {}, clearImages() {}, pickImages() {}, removeImage() {}, selectedImages: [] });`,
-    '@/hooks/useMachineFileUpload': `export const useMachineFileUpload = () => ({ canCancel: false, canRetry: false, cancel() {}, pickAndUpload() {}, retry() {}, state: { phase: 'idle' } });`,
+    '@/hooks/useMachineFileUpload': `export const useMachineFileUpload = () => ({ canCancel: false, canRetry: false, cancel() {}, pickAndUpload() {}, reset() {}, retry() {}, state: { phase: 'idle' } });`,
     '@/hooks/useVoiceDictation': `export const useVoiceDictation = () => ({ canRetry: false, cancel() {}, error: null, phase: 'idle', retry() {}, toggle() {} });`,
     '@/hooks/useVoiceInputAvailability': `export const useVoiceInputAvailability = () => ({ available: false, configured: false, enabled: false, loading: false });`,
     '@/hooks/useSessionQuickActions': `export const useSessionQuickActions = (session) => ({ canResume: !session.active, resumeSession() {}, resumeSessionWithQueuedTurn() {}, resumingSession: false });`,
@@ -260,19 +385,43 @@ const virtualModules: Record<string, string> = {
             return { success: false, phases: [] };
         };
         export const machineGetDirectoryTree = async (_machineId, path) => {
+            if (path === '/work/project' || path === '/work/child-oldest' || path === '/work/child-newest') {
+                const fileName = path === '/work/project'
+                    ? 'machine-file.md'
+                    : path.split('/').pop() + '-machine-file.md';
+                return {
+                    success: true,
+                    tree: {
+                        type: 'directory', name: path.split('/').pop(), path,
+                        children: [{ type: 'file', name: fileName, path: path + '/' + fileName, size: 12 }],
+                    },
+                };
+            }
             window.__FILE_TREE_COUNT__ = (window.__FILE_TREE_COUNT__ ?? 0) + 1;
             return {
                 success: true,
                 tree: { type: 'file', name: path.split('/').pop() || path, path },
             };
         };
+        export const machineCreateDirectory = async () => ({ success: false, error: 'not used' });
+        export const machineDeleteFile = async () => ({ success: true });
+        export const machineReadFile = async () => ({ success: true, content: btoa('machine file') });
+        export const machineReadFileWithinRoot = async () => ({ success: false });
+        export const machineWriteFile = async () => ({ success: true, hash: 'hash' });
         export const machineStopSession = async () => {};
         export const sessionAbort = async () => {};
+        export const sessionAllow = async () => {};
+        export const sessionDeny = async () => {};
+        export const sessionAnswerQuestion = async () => {};
         export const sessionCancelCommunication = async () => {};
         export const sessionGoalAction = async () => {};
         export const sessionSetAgentModes = async () => {};
         export const sessionKill = async () => {};
         export const sessionArchive = async () => {};
+        export const sessionReadFile = async () => ({ success: true, content: btoa('const mobile = true;') });
+        export const sessionWriteFile = async () => ({ success: true, hash: 'saved-hash' });
+        export const sessionDeleteFile = async () => ({ success: true });
+        export const sessionBash = async () => ({ success: true, stdout: '' });
     `,
     '@/sync/sideChatLifecycle': `export const closeSideChatSession = async () => {}; export const resolveSideChatCloseReconciliation = () => ({ error: null, restoreTab: false });`,
     '@/sync/attachmentSupport': `export const supportsImageAttachmentsForFlavor = () => false;`,
@@ -284,19 +433,27 @@ const virtualModules: Record<string, string> = {
     `,
     '@/sync/rig': `
         export const getRigGitSummary = () => null; export const getRigReasoningSelection = () => undefined;
+        export const getProviderIconKind = () => 'codex'; export const usesControlledSessionUi = () => false;
         export const isRigMetadata = () => false; export const isRigModelSelectionEnabled = () => false;
         export const isRigPermissionSelectionEnabled = () => false; export const isRigReasoningSelectionEnabled = () => false;
         export const rigCanAbort = () => false; export const rigCanBrowseFiles = () => true;
         export const rigCanReadFiles = () => false; export const rigCanUseAttachments = () => false; export const rigCanUseShell = () => true;
+        export const rigCanWriteFiles = () => true; export const sessionCanDeleteFiles = () => true;
     `,
     '@/sync/workspaceContext': `
         const entries = [];
         export const MAX_WORKSPACE_CONTEXT_ITEMS = 8; export const addWorkspaceContextFile = () => true;
+        export const addWorkspaceContextEntry = () => true;
         export const buildWorkspaceContextMessage = async (_id, text) => ({ displayText: text, promptText: text });
         export const clearWorkspaceContextFiles = () => {}; export const getWorkspaceContextEntries = () => entries;
         export const removeWorkspaceContextEntry = () => {}; export const subscribeWorkspaceContext = () => () => {};
     `,
-    '@/sync/queueProjection': `export const projectSessionQueue = () => ({ items: [] });`,
+    '@/sync/queueProjection': `
+        export const projectSessionQueue = (messages) => ({
+            pendingItems: [], currentItems: [], pendingCount: 0, currentCount: 0,
+            transcriptMessages: messages,
+        });
+    `,
     '@/sync/grokPermissionModeTransition': `export const transitionGrokPermissionModeAndCommit = async () => {};`,
     '@/utils/sessionStatusBar': `export const resolveStatusBarGitBranch = () => null;`,
     '@/utils/rigGitLineChanges': `export const visibleRigGitLineChanges = () => null;`,
@@ -306,13 +463,18 @@ const virtualModules: Record<string, string> = {
         export const useSessionStatus = (session) => ({ isConnected: session.active, isPulsing: false, state: session.active ? 'waiting' : 'disconnected', statusColor: '#111', statusDotColor: '#111', statusText: session.active ? 'online' : 'offline' });
     `,
     '@/utils/versionUtils': `export const MINIMUM_CLI_VERSION = '0.0.0'; export const isVersionSupported = () => true;`,
-    '@/utils/machineWorkspace': `export const buildWorkspaceAttachmentParams = () => null;`,
     '@/utils/heartbeatCommand': `export const HEARTBEAT_COMMAND = { dispatch: async () => ({ handled: false }) };`,
     '@/utils/sessionContinuation': `export const deliverSessionTurn = async () => {};`,
     '@/-session/sessionOverlayNav': `export const useOverlayNav = { getState: () => ({ publish() {}, reset() {} }) };`,
     '@/-session/agentGoalActionHandler': `export const performAgentGoalAction = async () => {};`,
     '@/-session/workspaceLinkNavigation': `
-        import React from 'react'; export const WorkspaceLinkPressContext = React.createContext(undefined);
+        import React from 'react';
+        export const WorkspaceLinkPressContext = React.createContext(undefined);
+        export const useWorkspaceLinkPress = () => React.useContext(WorkspaceLinkPressContext);
+        export const dismissWorkspaceLinkToOrigin = () => undefined;
+        export const useWorkspaceLinkDismissGuard = () => ({
+            onSendingChange() {}, onDirtyChange() {}, guardDismiss: (action) => action(),
+        });
     `,
     'expo-clipboard': `export const setStringAsync = async () => {};`,
 };
@@ -328,6 +490,9 @@ const fixturePlugin: Plugin = {
             if (args.path === './AnimatedOverlay') return { path: '@/components/AnimatedOverlay', namespace: 'fixture-stub' };
             if (args.path === './workspaceLinkNavigation') return { path: '@/-session/workspaceLinkNavigation', namespace: 'fixture-stub' };
             if (args.path === './agentGoalActionHandler') return { path: '@/-session/agentGoalActionHandler', namespace: 'fixture-stub' };
+            if (args.path === '@/components/CodeEditor') {
+                return { path: resolve(appRoot, 'sources/components/CodeEditor.web.tsx') };
+            }
             if (args.path.startsWith('@/')) {
                 const sourcePath = resolve(appRoot, 'sources', args.path.slice(2));
                 const path = [sourcePath, `${sourcePath}.ts`, `${sourcePath}.tsx`].find(existsSync);
@@ -356,14 +521,21 @@ describe('Side chats browser interaction', () => {
             write: false,
             format: 'iife',
             platform: 'browser',
+            sourcemap: 'inline',
+            define: {
+                __DEV__: 'false',
+                'process.env.EXPO_OS': '"web"',
+                'process.env.NODE_ENV': '"test"',
+            },
             jsx: 'automatic',
+            loader: { '.png': 'dataurl' },
             alias: { 'react-native': 'react-native-web' },
             plugins: [fixturePlugin],
         });
         const script = bundle.outputFiles[0].text;
         server = createServer((_request, response) => {
             response.setHeader('content-type', 'text/html; charset=utf-8');
-            response.end(`<style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>${script}</script>`);
+            response.end(`<style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;${script}</script>`);
         });
         await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
         const address = server.address();
@@ -393,9 +565,6 @@ describe('Side chats browser interaction', () => {
 
     it('opens, switches, and collapses the desktop panel without a background session cancelling it', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-        await page.addInitScript(() => {
-            (window as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { fileDiffsSidebarEnabled: true };
-        });
         const pageErrors: string[] = [];
         page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
         page.on('console', (message) => {
@@ -411,7 +580,7 @@ describe('Side chats browser interaction', () => {
         expect(pageErrors).toEqual([]);
         expect(await page.locator('body').innerText()).toContain('Changes');
         await expect(foreground.getByText('Changes').isVisible()).resolves.toBe(true);
-        await expect(foreground.getByText('All Files').isVisible()).resolves.toBe(true);
+        await expect(foreground.getByText('Chat Workspace').isVisible()).resolves.toBe(true);
         await foreground.getByRole('button', { name: 'Open side chats (2)' }).click({ timeout: 3_000 });
 
         await foreground.getByRole('button', { name: 'Collapse side chats' }).waitFor({ timeout: 2_000 });
@@ -431,7 +600,47 @@ describe('Side chats browser interaction', () => {
         await page.close();
     }, 10_000);
 
-    it('opens a same-session link in the 900px canonical split during Zen mode and resizes it', async () => {
+    it('keeps all three desktop workspace entry points visible and canonical with default settings', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { machineWorkspaceEnabled: false };
+        });
+        const pageErrors: string[] = [];
+        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+        page.on('console', (message) => {
+            if (
+                (message.type() === 'error' || message.type() === 'warning')
+                && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+            ) pageErrors.push(message.text());
+        });
+        await page.goto(origin);
+
+        const foreground = page.getByTestId('foreground-session');
+        for (const label of ['Changes', 'Chat Workspace', 'Machine Workspace']) {
+            await expect(foreground.getByText(label, { exact: true }).isVisible()).resolves.toBe(true);
+        }
+
+        await foreground.getByText('Changes', { exact: true }).click();
+        await foreground.getByText('mobile-change.ts', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
+
+        await page.reload();
+        await foreground.getByText('Chat Workspace', { exact: true }).click();
+        await foreground.getByText('No files in project', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
+
+        await page.reload();
+        await foreground.getByText('Machine Workspace', { exact: true }).click();
+        const workspace = foreground.getByTestId('desktop-file-workspace');
+        await workspace.waitFor({ state: 'visible', timeout: 3_000 });
+        await workspace.getByText('machine-file.md', { exact: true }).click();
+        await foreground.getByRole('tab', { name: 'Open file machine-file.md' }).waitFor({ state: 'visible', timeout: 3_000 });
+        await expect(foreground.getByTestId('workspace-link-side-panel').count()).resolves.toBe(0);
+        await expect(foreground.getByTestId('workspace-link-panel').count()).resolves.toBe(0);
+
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 30_000);
+
+    it('expands the real session workspace to 75 percent without losing mounted chat or file state', async () => {
         const page = await browser.newPage({ viewport: { width: 1000, height: 900 } });
         await page.addInitScript(() => {
             (window as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { zenMode: true };
@@ -449,9 +658,22 @@ describe('Side chats browser interaction', () => {
         await page.goto(origin);
 
         const foreground = page.getByTestId('foreground-session');
+        await page.waitForTimeout(100);
+        expect(pageErrors).toEqual([]);
         const composer = foreground.locator('[data-testid="session-composer"][data-session-id="parent"]');
         const composerDraft = composer.getByTestId('session-composer-draft');
         await composer.waitFor({ state: 'visible', timeout: 3_000 });
+        await foreground.evaluate((root) => {
+            const scroll = Array.from(root.querySelectorAll<HTMLElement>('div')).find((element) => (
+                getComputedStyle(element).overflowY === 'auto'
+                && element.scrollHeight > element.clientHeight
+                && element.textContent?.includes('Fixture chat line')
+            ));
+            if (!scroll) throw new Error('real ChatList scroll container was not rendered');
+            scroll.dataset.retentionChatScroll = 'mounted';
+        });
+        const chatScroll = foreground.locator('[data-retention-chat-scroll="mounted"]');
+        await chatScroll.waitFor({ state: 'visible', timeout: 3_000 });
         await expect(foreground.getByText('Changes').count()).resolves.toBe(0);
         await composerDraft.fill('main draft survives first open');
         const composerMountId = await composer.getAttribute('data-mount-id');
@@ -464,8 +686,29 @@ describe('Side chats browser interaction', () => {
         const fileTab = foreground.getByRole('tab', { name: 'Open file notes.md' });
         const host = foreground.getByTestId('desktop-file-workspace-host');
         const divider = foreground.getByTestId('desktop-file-workspace-divider');
+        const split = foreground.getByTestId('desktop-file-workspace-split');
         await workspace.waitFor({ state: 'visible', timeout: 3_000 });
         await fileTab.waitFor({ state: 'visible', timeout: 3_000 });
+        await workspace.getByRole('button', { name: 'Edit', exact: true }).click();
+        const editor = workspace.locator('textarea.code-editor-textarea');
+        await editor.waitFor({ state: 'visible', timeout: 3_000 });
+
+        await editor.evaluate((element) => { element.dataset.retentionFileEditor = 'mounted'; });
+        const unsavedValue = Array.from({ length: 80 }, (_, index) => `unsaved line ${index}`).join('\n');
+        await editor.fill(unsavedValue);
+        await editor.evaluate((element) => {
+            let scroll: HTMLElement | null = element.parentElement;
+            while (scroll && getComputedStyle(scroll).overflowY !== 'auto') scroll = scroll.parentElement;
+            if (!scroll) throw new Error('real CodeEditor scroll container was not rendered');
+            scroll.dataset.retentionFileScroll = 'mounted';
+            scroll.scrollTop = 120;
+        });
+        const editorScroll = workspace.locator('[data-retention-file-scroll="mounted"]');
+        await chatScroll.evaluate((element) => { element.scrollTop = 120; });
+        const initialEditorScrollTop = await editorScroll.evaluate((element) => element.scrollTop);
+        const initialChatScrollTop = await chatScroll.evaluate((element) => element.scrollTop);
+        expect(initialEditorScrollTop).toBeGreaterThan(0);
+        expect(initialChatScrollTop).toBeGreaterThan(0);
 
         const initialHostBox = await host.boundingBox();
         const initialDividerBox = await divider.boundingBox();
@@ -486,18 +729,30 @@ describe('Side chats browser interaction', () => {
         );
         await page.mouse.down();
         await page.mouse.move(
-            initialDividerBox.x + 140,
+            initialDividerBox.x - 2_000,
             initialDividerBox.y + initialDividerBox.height / 2,
-            { steps: 8 },
+            { steps: 12 },
         );
         await page.mouse.up();
 
         const resizedHostBox = await host.boundingBox();
-        if (!resizedHostBox) throw new Error('resized workspace link host has no layout');
-        expect(resizedHostBox.width).toBeLessThan(initialHostBox.width - 100);
+        const resizedSplitBox = await split.boundingBox();
+        const resizedDividerBox = await divider.boundingBox();
+        if (!resizedHostBox || !resizedSplitBox || !resizedDividerBox) {
+            throw new Error('resized workspace link host has no layout');
+        }
+        const resizedPaneWidth = resizedSplitBox.width - resizedDividerBox.width;
+        const resizedChatWidth = resizedPaneWidth - resizedHostBox.width;
+        expect(resizedHostBox.width / resizedPaneWidth).toBeCloseTo(0.75, 2);
+        expect(resizedChatWidth / resizedPaneWidth).toBeCloseTo(0.25, 2);
+        expect(resizedHostBox.width).toBeGreaterThan(initialHostBox.width + 100);
         await expect(composer.isVisible()).resolves.toBe(true);
         await expect(composer.getAttribute('data-mount-id')).resolves.toBe(composerMountId);
         await expect(composerDraft.inputValue()).resolves.toBe('main draft survives first open');
+        await expect(chatScroll.evaluate((element) => element.scrollTop)).resolves.toBe(initialChatScrollTop);
+        await expect(editor.getAttribute('data-retention-file-editor')).resolves.toBe('mounted');
+        await expect(editor.inputValue()).resolves.toBe(unsavedValue);
+        await expect(editorScroll.evaluate((element) => element.scrollTop)).resolves.toBe(initialEditorScrollTop);
 
         await page.setViewportSize({ width: 390, height: 844 });
         await foreground.getByTestId('desktop-file-workspace-divider').waitFor({ state: 'detached', timeout: 3_000 });
@@ -547,6 +802,156 @@ describe('Side chats browser interaction', () => {
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 10_000);
+
+    it('shows and taps all three Web Mobile workspace entries through the production SessionView host', async () => {
+        const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
+                machineWorkspaceEnabled: false,
+                realtimeStatus: 'connected',
+            };
+        });
+        const pageErrors: string[] = [];
+        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+        page.on('console', (message) => {
+            if (
+                (message.type() === 'error' || message.type() === 'warning')
+                && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+            ) pageErrors.push(message.text());
+        });
+        await page.goto(origin);
+
+        const foreground = page.getByTestId('foreground-session');
+        const voiceStatus = foreground.getByTestId('voice-status-bar');
+        await voiceStatus.waitFor({ state: 'visible', timeout: 3_000 });
+        const access = foreground.getByTestId('mobile-session-workspace-access');
+        await access.waitFor({ state: 'visible', timeout: 3_000 });
+        const changes = access.getByRole('button', { name: 'Changes' });
+        const chatWorkspace = access.getByRole('button', { name: 'Chat Workspace' });
+        const machineWorkspace = access.getByRole('button', { name: 'Machine Workspace' });
+        for (const entry of [changes, chatWorkspace, machineWorkspace]) {
+            await expect(entry.isVisible()).resolves.toBe(true);
+            const box = await entry.boundingBox();
+            if (!box) throw new Error('mobile workspace entry has no clickable layout');
+            expect(box.x).toBeGreaterThanOrEqual(0);
+            expect(box.x + box.width).toBeLessThanOrEqual(390);
+            expect(box.height).toBeGreaterThanOrEqual(40);
+        }
+
+        await changes.click({ timeout: 3_000 });
+        await foreground.getByText('mobile-change.ts').waitFor({ state: 'visible', timeout: 3_000 });
+        const voiceBox = await voiceStatus.boundingBox();
+        const changesBox = await foreground.getByTestId('mobile-changes-workspace-overlay').boundingBox();
+        if (!voiceBox || !changesBox) throw new Error('voice status or Changes workspace has no rendered layout');
+        expect(changesBox.y).toBeGreaterThanOrEqual(voiceBox.y + voiceBox.height);
+        await expect(access.count()).resolves.toBe(0);
+        await page.reload();
+        await access.waitFor({ state: 'visible', timeout: 3_000 });
+
+        await chatWorkspace.click({ timeout: 3_000 });
+        await expect(access.count()).resolves.toBe(0);
+        const compactWorkspace = page.getByTestId('desktop-file-workspace').filter({ visible: true });
+        await compactWorkspace.waitFor({ state: 'visible', timeout: 3_000 });
+        await expect(page.getByTestId('desktop-file-workspace-fullscreen-header').filter({ visible: true }).getByText('Chat Workspace').isVisible())
+            .resolves.toBe(true);
+        await page.reload();
+        await access.waitFor({ state: 'visible', timeout: 3_000 });
+
+        await machineWorkspace.click({ timeout: 3_000 });
+        await expect(page.getByTestId('desktop-file-workspace-fullscreen-header').filter({ visible: true }).getByText('Machine Workspace').isVisible())
+            .resolves.toBe(true);
+        await page.getByText('MainEC2').filter({ visible: true }).waitFor({ state: 'visible', timeout: 3_000 });
+        const machineFile = page.getByText('machine-file.md').filter({ visible: true });
+        await machineFile.waitFor({ state: 'visible', timeout: 3_000 });
+        await machineFile.click({ timeout: 3_000 });
+        await foreground.getByTestId('desktop-file-panel:/work/project/machine-file.md')
+            .waitFor({ state: 'visible', timeout: 3_000 });
+        await expect(page.getByTestId('desktop-file-workspace-divider').count()).resolves.toBe(0);
+
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 30_000);
+
+    it('keeps Side chat workspace actions on the active child without remounting its composer', async () => {
+        const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
+                machineWorkspaceEnabled: false,
+            };
+        });
+        const pageErrors: string[] = [];
+        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+        page.on('console', (message) => {
+            if (
+                (message.type() === 'error' || message.type() === 'warning')
+                && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+            ) pageErrors.push(message.text());
+        });
+        await page.goto(origin);
+
+        const foreground = page.getByTestId('foreground-session');
+        await foreground.getByRole('button', { name: 'Open side chats (2)' }).click({ timeout: 3_000 });
+        const access = foreground.getByTestId('mobile-session-workspace-access');
+        await access.waitFor({ state: 'visible', timeout: 3_000 });
+        for (const label of ['Changes', 'Chat Workspace', 'Machine Workspace']) {
+            const action = access.getByRole('button', { name: label });
+            await expect(action.isVisible()).resolves.toBe(true);
+            const box = await action.boundingBox();
+            if (!box) throw new Error(`Side chat ${label} action has no clickable layout`);
+            expect(box.x).toBeGreaterThanOrEqual(0);
+            expect(box.x + box.width).toBeLessThanOrEqual(390);
+            expect(box.height).toBeGreaterThanOrEqual(40);
+        }
+
+        await foreground.getByText('Oldest child', { exact: true }).click();
+        await foreground.getByText('Newest child', { exact: true }).click();
+        const newestComposer = foreground.locator(
+            '[data-testid="session-composer"][data-session-id="child-newest"]',
+        );
+        await newestComposer.waitFor({ state: 'visible', timeout: 3_000 });
+        const newestMountId = await newestComposer.getAttribute('data-mount-id');
+        if (!newestMountId) throw new Error('Newest child composer has no mount identity');
+
+        const newestDraft = newestComposer.getByTestId('session-composer-draft');
+        await newestDraft.fill('child draft survives workspace return');
+        const assertNewestComposerRetained = async () => {
+            await newestComposer.waitFor({ state: 'visible', timeout: 3_000 });
+            await expect(newestComposer.getAttribute('data-mount-id')).resolves.toBe(newestMountId);
+            await expect(newestDraft.inputValue()).resolves.toBe('child draft survives workspace return');
+        };
+
+        await access.getByRole('button', { name: 'Changes' }).click({ timeout: 3_000 });
+        await foreground.getByText('/work/child-newest-change.ts', { exact: true })
+            .waitFor({ state: 'visible', timeout: 3_000 });
+        await expect(foreground.getByText('/work/project/mobile-change.ts', { exact: true }).count()).resolves.toBe(0);
+        await page.mouse.click(20, 32);
+        await foreground.getByTestId('mobile-changes-workspace-overlay').waitFor({ state: 'detached', timeout: 3_000 });
+        await assertNewestComposerRetained();
+
+        await access.getByRole('button', { name: 'Chat Workspace' }).click({ timeout: 3_000 });
+        await page.getByTestId('desktop-file-workspace-fullscreen-header').filter({ visible: true })
+            .getByText('Chat Workspace', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
+        await page.getByText('chat-child-newest.md', { exact: true }).filter({ visible: true })
+            .waitFor({ state: 'visible', timeout: 3_000 });
+        await page.getByTestId('desktop-file-workspace-picker-close').filter({ visible: true }).click();
+        await assertNewestComposerRetained();
+
+        await access.getByRole('button', { name: 'Machine Workspace' }).click({ timeout: 3_000 });
+        await page.getByTestId('desktop-file-workspace-fullscreen-header').filter({ visible: true })
+            .getByText('Machine Workspace', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
+        await page.getByText('child-newest-machine-file.md', { exact: true }).filter({ visible: true })
+            .waitFor({ state: 'visible', timeout: 3_000 });
+        await page.getByTestId('desktop-file-workspace-picker-close').filter({ visible: true }).click();
+        await assertNewestComposerRetained();
+
+        await foreground.getByText('Oldest child', { exact: true }).click();
+        await access.getByRole('button', { name: 'Changes' }).click({ timeout: 3_000 });
+        await foreground.getByText('/work/child-oldest-change.ts', { exact: true })
+            .waitFor({ state: 'visible', timeout: 3_000 });
+
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 30_000);
 
     it('opens the same newest child in the narrow full-screen host and collapses it', async () => {
         const page = await browser.newPage({ viewport: { width: 700, height: 900 } });

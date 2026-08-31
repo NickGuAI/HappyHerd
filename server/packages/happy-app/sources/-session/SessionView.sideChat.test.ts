@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
     height: 900,
     platform: 'web',
     landscape: false,
-    fileDiffsSidebarEnabled: true,
+    realtimeStatus: 'disconnected' as 'connected' | 'disconnected',
     canAbort: false,
     isRig: false,
     revision: 0,
@@ -260,7 +260,7 @@ vi.mock('@/components/Avatar', async () => {
 vi.mock('@/components/VoiceAssistantStatusBar', async () => {
     const ReactModule = await import('react');
     return {
-        VOICE_PILL_TOTAL_HEIGHT: 0,
+        VOICE_PILL_TOTAL_HEIGHT: 40,
         VoiceAssistantStatusBar: (props: any) => ReactModule.createElement('VoiceAssistantStatusBar', props),
     };
 });
@@ -471,7 +471,7 @@ vi.mock('@/sync/storage', async () => {
             () => mocks.localSettings[key],
         ),
         useMachine: (id: string) => id === 'machine-1' ? { id, active: true } : null,
-        useRealtimeStatus: () => 'disconnected',
+        useRealtimeStatus: () => mocks.realtimeStatus,
         useSession: (id: string) => ReactModule.useSyncExternalStore(
             subscribe,
             () => mocks.sessions[id] ?? null,
@@ -490,9 +490,7 @@ vi.mock('@/sync/storage', async () => {
         useSessionUsage: () => null,
         useSetting: (key: string) => key === 'sessionStatusBarDisplay'
             ? 'hidden'
-            : key === 'fileDiffsSidebar'
-                ? mocks.fileDiffsSidebarEnabled
-                : undefined,
+            : undefined,
         useSettingMutable: () => [mocks.emptyObject, vi.fn()],
         useSideChatSessions: (parentSessionId: string | null) => {
             const revision = ReactModule.useSyncExternalStore(
@@ -649,6 +647,9 @@ vi.mock('@/text', () => ({
         if (key === 'sideChat.openCount') return `Open side chats (${params?.count})`;
         if (key === 'sideChat.panelTitle') return 'Side chats';
         if (key === 'sideChat.tabLabel') return `Side chat ${params?.index}`;
+        if (key === 'files.changes') return 'Changes';
+        if (key === 'files.allFiles') return 'Chat Workspace';
+        if (key === 'workspace.title') return 'Machine Workspace';
         if (key === 'sessionInfo.resumeSession') return 'Resume session';
         return key;
     },
@@ -720,7 +721,7 @@ beforeEach(() => {
     mocks.height = 900;
     mocks.platform = 'web';
     mocks.landscape = false;
-    mocks.fileDiffsSidebarEnabled = true;
+    mocks.realtimeStatus = 'disconnected';
     mocks.canAbort = false;
     mocks.isRig = false;
     mocks.localSettings.acknowledgedCliVersions = {};
@@ -913,6 +914,74 @@ describe('SessionView mobile back navigation', () => {
     });
 });
 
+describe('SessionView Web Mobile workspace access', () => {
+    it('keeps all three Human entry points visible and opens each canonical compact surface', () => {
+        mocks.width = 390;
+        mocks.height = 844;
+        const renderer = renderParent();
+
+        expect(renderer.root.findAll((node: any) => (
+            node.type === 'View' && node.props.testID === 'mobile-session-workspace-access'
+        ))).toHaveLength(1);
+        expect(pressables(renderer).filter((node: any) => [
+            'Changes',
+            'Chat Workspace',
+            'Machine Workspace',
+        ].includes(node.props.accessibilityLabel)).map((node: any) => node.props.accessibilityLabel))
+            .toEqual(['Changes', 'Chat Workspace', 'Machine Workspace']);
+
+        pressByLabel(renderer, 'Changes');
+        expect(renderer.root.findAllByType('AllFilesDiffView' as any)).toHaveLength(1);
+        expect(renderer.root.findAll((node: any) => (
+            node.type === 'View' && node.props.testID === 'mobile-session-workspace-access'
+        ))).toHaveLength(0);
+        act(() => chatHeader(renderer).props.onBackPress());
+        expect(renderer.root.findAllByType('AllFilesDiffView' as any)).toHaveLength(0);
+        expect(mocks.routerDismissTo).not.toHaveBeenCalled();
+
+        pressByLabel(renderer, 'Chat Workspace');
+        let split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(split.props.workspaceFullscreen).toBe(true);
+        expect(workspace.props).toMatchObject({ compact: true, pickerOpen: true, machinePickerOpen: false });
+        act(() => workspace.props.onClosePicker());
+
+        pressByLabel(renderer, 'Machine Workspace');
+        split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(split.props.workspaceFullscreen).toBe(true);
+        expect(workspace.props).toMatchObject({ compact: true, pickerOpen: false, machinePickerOpen: true });
+        expect(renderer.root.findAllByType('MachineWorkspaceBrowser' as any)).toHaveLength(1);
+        act(() => workspace.props.onClosePicker());
+
+        expect(renderer.root.findAll((node: any) => (
+            node.type === 'View' && node.props.testID === 'mobile-session-workspace-access'
+        ))).toHaveLength(1);
+        expect(renderedComposerSessions(renderer)).toEqual(['parent']);
+    });
+
+    it('does not add the compact access bar to Web Desktop', () => {
+        mocks.width = 1280;
+        const renderer = renderParent();
+
+        expect(renderer.root.findAll((node: any) => (
+            node.type === 'View' && node.props.testID === 'mobile-session-workspace-access'
+        ))).toHaveLength(0);
+    });
+
+    it('keeps the Changes workspace below the active voice status bar', () => {
+        mocks.width = 390;
+        mocks.height = 844;
+        mocks.realtimeStatus = 'connected';
+        const renderer = renderParent();
+
+        expect(renderer.root.findAllByType('VoiceAssistantStatusBar' as any)).toHaveLength(1);
+        pressByLabel(renderer, 'Changes');
+        const overlay = renderer.root.findByProps({ testID: 'mobile-changes-workspace-overlay' });
+        expect(overlay.props.style).toMatchObject({ top: 88 });
+    });
+});
+
 describe('SessionView side-chat integration', () => {
     it.each([
         { label: 'Grok', flavor: 'grok', permissionMode: 'bypassPermissions', clearsPermission: false },
@@ -1091,7 +1160,6 @@ describe('SessionView side-chat integration', () => {
 
     it('opens and focuses same-session file links in the canonical deduplicated workspace', async () => {
         mocks.width = 1000;
-        mocks.fileDiffsSidebarEnabled = false;
         mocks.localSettings.zenMode = true;
         const renderer = renderParent();
         const initialComposer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
@@ -1301,7 +1369,6 @@ describe('SessionView side-chat integration', () => {
 
     it('opens a first same-session file link directly in the compact mobile workspace', async () => {
         mocks.width = 390;
-        mocks.fileDiffsSidebarEnabled = false;
         const renderer = renderParent();
         const emptyMessages = renderer.root.findAllByType('EmptyMessages' as any).find((node: any) => (
             typeof node.props.onWorkspaceLinkPress === 'function'
@@ -1589,10 +1656,11 @@ describe('SessionView side-chat integration', () => {
     });
 
     it('opens the exact-parent side chats in the desktop right panel and renders the selected child', () => {
-        mocks.fileDiffsSidebarEnabled = false;
         const renderer = renderParent();
 
-        expect(desktopSideChatHosts(renderer)).toHaveLength(0);
+        const [initialSidebar] = desktopSideChatHosts(renderer);
+        expect(initialSidebar).toBeDefined();
+        expect(initialSidebar.props.openPanels).not.toContain('sideChat');
         expect(fullscreenSideChatHosts(renderer)).toHaveLength(0);
         expect(renderedComposerSessions(renderer)).toEqual(['parent']);
 

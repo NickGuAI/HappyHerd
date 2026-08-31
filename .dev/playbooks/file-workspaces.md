@@ -25,10 +25,17 @@ context that cannot host the current session workspace may use the standalone
 Tabs are unique by machine ID plus absolute path. Preview, Edit, supported
 Delete, and feedback share the same file-content surface. Line and column are
 carried into feedback; they do not currently scroll or highlight the preview.
-Wide desktop keeps the draggable divider. Compact Web uses the responsive
-full-screen workspace without desktop tabs or divider. The composer file and
-branch shortcut is intentionally absent; file entry points live in the right
-workspace controls and the left Machine Workspace navigation.
+The embedded Machine Workspace fills the current chat workspace host; only the
+standalone Machine Workspace route uses the fixed desktop browser rail. Wide
+desktop keeps the draggable divider and allows the workspace to reach 75% of
+the split while retaining 25% for the mounted chat. Compact Web uses the
+responsive full-screen workspace without desktop tabs or divider. Changes,
+Chat Workspace, and Machine Workspace must remain visibly labeled and directly
+clickable on both Web Desktop and Web Mobile, including the mobile Side chats
+full-screen host; a reply link is not a substitute for a human-facing entry
+point. The composer file and branch shortcut is
+intentionally absent; file entry points live in the session workspace controls
+and the left Machine Workspace navigation.
 
 ## Owners and reuse rules
 
@@ -58,9 +65,17 @@ At Web Desktop and 390 × 844 Web Mobile:
 3. Reopen the same machine/path, switch and close tabs, use Preview/Edit/Delete
    where supported, and send feedback with the active location.
 4. Drag the desktop divider. Verify the Main Agent chat, draft, scroll,
-   unsaved edits, and mounted file panels remain intact. On compact Web, verify
-   the full-screen open/back flow and absence of desktop tabs/divider.
+   unsaved edits, and mounted file panels remain intact at the 75% workspace / 25%
+   chat boundary. On compact Web, test both Main Agent and Side chats hosts:
+   visibly tap Changes, Chat Workspace, and Machine Workspace, verify each
+   full-screen open/back flow, and confirm the absence of desktop tabs and
+   dividers.
 5. Require one current-session viewer/composer and zero page or console errors.
+
+Use the real production components in their real session hosts for this gate.
+Mock only machine RPC and environment boundaries; a fake picker, direct prop
+call, source assertion, or hidden link-only route does not prove the Human can
+discover and complete the interaction.
 
 Then run from `server/`:
 

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "348baeb9e640bf5675208c8ccb83da424e8c3181e525ddd6125b2c1adeb9b128",
+  "sourceFingerprint": "2bdbccb8946ad16d52526bff1581acefb89630db2d37c60c6f5c08b93d5793e7",
   "routeCount": 36,
   "surfaceCount": 249,
   "hardcodedCopyCount": 0,
@@ -1016,6 +1016,8 @@
         "errors.grokPermissionModeChangeFailed",
         "errors.sessionDeleted",
         "errors.sessionDeletedDescription",
+        "files.allFiles",
+        "files.changes",
         "happyHerd.composer.sendFailedBody",
         "happyHerd.composer.sendFailedTitle",
         "happyHerd.heartbeat.machineUnavailable",
@@ -1033,7 +1035,8 @@
         "uiCopy.thisFile",
         "uiCopy.workspaceContext",
         "uiCopy.youCanAttachUpTo8FilesToOneMessage",
-        "uiCopy.yourEditsToValueHaveNotBeenSaved"
+        "uiCopy.yourEditsToValueHaveNotBeenSaved",
+        "workspace.title"
       ],
       "states": [
         "error"

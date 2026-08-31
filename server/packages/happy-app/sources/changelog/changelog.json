@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 31 — Workspace access and resizing stay consistent",
+      "summary": "",
+      "markdown": "- Changes, Chat Workspace, and Machine Workspace are now visibly accessible from sessions on Web Desktop and Web Mobile, and machine files open in the current chat's existing tabs.\n- Embedded Machine Workspace fills its chat workspace host, while the desktop divider can expand the workspace to 75% without replacing the mounted chat or unsaved file state."
+    },
+    {
       "title": "August 31 — Unified Chat and Machine Workspaces",
       "summary": "",
       "markdown": "- Renamed the session file picker to Chat Workspace and added Machine Workspace so connected-machine files open in the same tabbed workspace.\n- File links from the current session, including line and column locations, remain in that workspace; feedback now sends the active file position to the Main Agent.\n- Removed the composer workspace shortcut to keep file access in the workspace controls."
@@ -406,5 +411,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 31 — Unified Chat and Machine Workspaces"
+  "latestTitle": "August 31 — Workspace access and resizing stay consistent"
 }

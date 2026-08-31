@@ -1273,8 +1273,8 @@
     "features": {
       "interface": "Interface",
       "interfaceFooter": "Optional panels and layout elements.",
-      "fileDiffsSidebar": "File Diffs Sidebar",
-      "fileDiffsSidebarSubtitle": "Show git changes next to the chat on desktop",
+      "fileDiffsSidebar": "New Session Sidebar",
+      "fileDiffsSidebarSubtitle": "Show the setup panel beside the composer on wide screens.",
       "sortRecent": "Sort by Recent Activity",
       "sortRecentSubtitle": "Order the session list by last activity instead of creation date",
       "resumeSession": "Resume Session",

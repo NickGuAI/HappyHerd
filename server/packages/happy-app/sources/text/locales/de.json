@@ -1273,8 +1273,8 @@
     "features": {
       "interface": "Oberfläche",
       "interfaceFooter": "Optionale Bereiche und Layoutelemente.",
-      "fileDiffsSidebar": "Dateiänderungen",
-      "fileDiffsSidebarSubtitle": "Git-Änderungen neben dem Chat auf dem Desktop anzeigen",
+      "fileDiffsSidebar": "Seitenleiste für neue Sitzungen",
+      "fileDiffsSidebarSubtitle": "Zeigt den Konfigurationsbereich bei breiten Bildschirmen neben dem Eingabefeld an.",
       "sortRecent": "Nach letzter Aktivität sortieren",
       "sortRecentSubtitle": "Sitzungen nach letzter Aktivität statt Erstellungsdatum sortieren",
       "resumeSession": "Sitzung fortsetzen",

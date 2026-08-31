@@ -14,14 +14,13 @@ function presentation(overrides: Partial<Parameters<typeof resolveSessionSidebar
         windowWidth: 1100,
         zenMode: false,
         workspaceLinkPanelOpen: false,
-        fileDiffsSidebarEnabled: false,
         canUseFilePanels: false,
         ...overrides,
     });
 }
 
 describe('resolveSessionSidebarPresentation', () => {
-    it('keeps side chats in the wide sidebar without the default-off file-diff feature', () => {
+    it('keeps side chats in the wide sidebar when file panels are unavailable', () => {
         expect(presentation()).toEqual({
             fileSidebarAvailable: false,
             sideChatSidebarAvailable: true,
@@ -39,9 +38,14 @@ describe('resolveSessionSidebarPresentation', () => {
         expect(presentation({ zenMode: true }).sideChatSurface).toBe('fullscreen');
     });
 
-    it('preserves the existing file-panel feature and capability gates', () => {
-        expect(presentation({ fileDiffsSidebarEnabled: true, canUseFilePanels: true }).fileSidebarAvailable).toBe(true);
-        expect(presentation({ fileDiffsSidebarEnabled: true, canUseFilePanels: false }).fileSidebarAvailable).toBe(false);
+    it('keeps the eligible wide file workspace host available when file panels are supported', () => {
+        expect(presentation({ canUseFilePanels: true }).fileSidebarAvailable).toBe(true);
+        expect(presentation({ canUseFilePanels: false }).fileSidebarAvailable).toBe(false);
+    });
+
+    it('retains the width and platform boundary for the file workspace host', () => {
+        expect(presentation({ windowWidth: 1099, canUseFilePanels: true }).fileSidebarAvailable).toBe(false);
+        expect(presentation({ platform: 'ios', windowWidth: 1400, canUseFilePanels: true }).fileSidebarAvailable).toBe(false);
     });
 
     it('offers the same wide file workspace frame on Mac', () => {
@@ -49,7 +53,6 @@ describe('resolveSessionSidebarPresentation', () => {
             platform: 'ios',
             runningOnMac: true,
             windowWidth: 1100,
-            fileDiffsSidebarEnabled: true,
             canUseFilePanels: true,
         }).fileSidebarAvailable).toBe(true);
     });
