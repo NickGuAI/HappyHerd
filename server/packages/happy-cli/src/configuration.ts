@@ -1,5 +1,5 @@
 /**
- * Global configuration for happy CLI
+ * Global configuration for the HappyHerd CLI
  * 
  * Centralizes all configuration including environment variables and paths
  * Environment files should be loaded using Node's --env-file flag
@@ -61,7 +61,7 @@ class Configuration {
 
     // URL precedence (both): HAPPY_*_URL env > settings.<key> > default.
     // Settings are read sync here (avoid circular import with persistence.ts).
-    // webappUrl must follow the same chain as serverUrl, otherwise `happy server`
+    // webappUrl must follow the same chain as serverUrl, otherwise `happyherd server`
     // self-host points the API at localhost but auth still opens the prod webapp.
     this.serverUrl =
       process.env.HAPPY_SERVER_URL ||

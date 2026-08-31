@@ -45,14 +45,14 @@ jobs:
     - name: Build packages
       run: |
         pnpm --filter @slopus/happy-wire --fail-if-no-match build
-        pnpm --filter happy --fail-if-no-match build
+        pnpm --filter @happyherd/cli --fail-if-no-match build
 
     # happy-server-self-host ships only a bundled runtime (no sources), and the
     # bundler is bun.
     - name: Install Bun
       uses: oven-sh/setup-bun@v2
 
-    # `happy server` resolves the self-host runtime and bundled webapp from
+    # `happyherd server` resolves the self-host runtime and bundled webapp from
     # happy-server-self-host. Its build bundles packages/happy-server's
     # standalone entrypoint and copies prisma/ in, so it must run before pack.
     - name: Build happy-server-self-host runtime + bundle webapp
@@ -63,7 +63,7 @@ jobs:
     - name: Pack packages
       run: |
         pnpm --filter @slopus/happy-wire --fail-if-no-match pack --pack-destination packages/happy-wire
-        pnpm --filter happy --fail-if-no-match pack --pack-destination packages/happy-cli
+        pnpm --filter @happyherd/cli --fail-if-no-match pack --pack-destination packages/happy-cli
         pnpm --filter happy-server-self-host --fail-if-no-match pack --pack-destination packages/happy-server-self-host
 
     - name: Install packed packages globally
@@ -71,41 +71,49 @@ jobs:
         WIRE_PACKAGE_FILE=$(ls packages/happy-wire/*.tgz)
         HAPPY_PACKAGE_FILE=$(ls packages/happy-cli/*.tgz)
         SERVER_PACKAGE_FILE=$(ls packages/happy-server-self-host/*.tgz)
-        npm install -g "./$WIRE_PACKAGE_FILE" "./$SERVER_PACKAGE_FILE" "./$HAPPY_PACKAGE_FILE"
+        npm install -g --prefix "$RUNNER_TEMP/happyherd-cli-prefix" \
+          "./$WIRE_PACKAGE_FILE" "./$SERVER_PACKAGE_FILE" "./$HAPPY_PACKAGE_FILE"
+        echo "$RUNNER_TEMP/happyherd-cli-prefix/bin" >> "$GITHUB_PATH"
 
     - name: Test binary execution
       run: |
         # Test that the binary starts successfully
-        echo "Testing happy --help..."
-        timeout 30s happy --help || {
-          echo "Error: happy --help failed or timed out"
+        command -v happyherd
+        if [ -e "$RUNNER_TEMP/happyherd-cli-prefix/bin/happy" ]; then
+          echo "Error: the packed CLI installed a retired happy command"
+          exit 1
+        fi
+
+        echo "Testing happyherd --help..."
+        timeout 30s happyherd --help || {
+          echo "Error: happyherd --help failed or timed out"
           exit 1
         }
 
-        echo "Testing happy --version..."
-        timeout 10s happy --version || {
-          echo "Error: happy --version failed or timed out"
+        echo "Testing happyherd --version..."
+        timeout 10s happyherd --version || {
+          echo "Error: happyherd --version failed or timed out"
           exit 1
         }
 
-        echo "Testing happy doctor..."
-        timeout 30s happy doctor || {
-          echo "Error: happy doctor failed or timed out"
+        echo "Testing happyherd doctor..."
+        timeout 30s happyherd doctor || {
+          echo "Error: happyherd doctor failed or timed out"
           exit 1
         }
 
-        echo "Testing happy daemon status..."
-        timeout 10s happy daemon status || {
-          echo "Error: happy daemon status failed or timed out"
+        echo "Testing happyherd daemon status..."
+        timeout 10s happyherd daemon status || {
+          echo "Error: happyherd daemon status failed or timed out"
           exit 1
         }
 
         echo "Binary smoke test passed on Linux!"
 
-    - name: Test packaged server (happy server)
+    - name: Test packaged server (happyherd server)
       run: |
         export HAPPY_HOME_DIR="$(mktemp -d)"
-        timeout 90s happy server --port 4505 --host 127.0.0.1 --no-persist --reset > /tmp/happy-server.log 2>&1 &
+        timeout 90s happyherd server --port 4505 --host 127.0.0.1 --no-persist --reset > /tmp/happy-server.log 2>&1 &
         SERVER_PID=$!
         UP=0
         for i in $(seq 1 60); do
@@ -118,11 +126,11 @@ jobs:
         echo "auth/request/status -> $BODY"
         kill "$SERVER_PID" 2>/dev/null || true
         pkill -f happy-server || true
-        echo "=== happy server log ==="; cat /tmp/happy-server.log || true
-        if [ "$UP" != "1" ]; then echo "Error: happy server did not become healthy"; exit 1; fi
+        echo "=== happyherd server log ==="; cat /tmp/happy-server.log || true
+        if [ "$UP" != "1" ]; then echo "Error: happyherd server did not become healthy"; exit 1; fi
         if ! echo "$BODY" | grep -q '"status"'; then echo "Error: Prisma-backed endpoint did not respond"; exit 1; fi
         if grep -qiE 'PrismaClientInitializationError|could not locate.*Query Engine' /tmp/happy-server.log; then echo "Error: Prisma query engine failed to load"; exit 1; fi
-        echo "happy server smoke test passed (booted + Prisma query engine OK)"
+        echo "happyherd server smoke test passed (booted + Prisma query engine OK)"
 
   smoke-test-windows:
     runs-on: windows-latest
@@ -149,22 +157,22 @@ jobs:
     - name: Build packages
       run: |
         pnpm --filter @slopus/happy-wire --fail-if-no-match build
-        pnpm --filter happy --fail-if-no-match build
+        pnpm --filter @happyherd/cli --fail-if-no-match build
 
     - name: Pack packages
       run: |
         pnpm --filter @slopus/happy-wire --fail-if-no-match pack --pack-destination packages/happy-wire
-        pnpm --filter happy --fail-if-no-match pack --pack-destination packages/happy-cli
+        pnpm --filter @happyherd/cli --fail-if-no-match pack --pack-destination packages/happy-cli
 
     - name: Install packed package globally
       shell: cmd
       run: |
-        for %%w in (packages\happy-wire\*.tgz) do for %%f in (packages\happy-cli\*.tgz) do npm install -g "%%w" "%%f"
+        for %%w in (packages\happy-wire\*.tgz) do for %%f in (packages\happy-cli\*.tgz) do npm install -g --prefix "%RUNNER_TEMP%\happyherd-cli-prefix" "%%w" "%%f"
 
     - name: Debug npm global installation structure
       shell: cmd
       run: |
-        for /f "tokens=*" %%i in ('npm config get prefix') do set NPM_PREFIX=%%i
+        set NPM_PREFIX=%RUNNER_TEMP%\happyherd-cli-prefix
         echo NPM_PREFIX: %NPM_PREFIX%
         echo Listing npm prefix directory:
         dir "%NPM_PREFIX%" 2>nul || echo Failed to list NPM_PREFIX
@@ -174,20 +182,21 @@ jobs:
           echo Found node_modules directory
           dir "%NPM_PREFIX%\node_modules" 2>nul
           echo.
-          echo Checking for happy package:
-          if exist "%NPM_PREFIX%\node_modules\happy" (
-            echo Found happy package
-            dir "%NPM_PREFIX%\node_modules\happy" 2>nul
+          echo Checking for @happyherd/cli package:
+          if exist "%NPM_PREFIX%\node_modules\@happyherd\cli" (
+            echo Found @happyherd/cli package
+            dir "%NPM_PREFIX%\node_modules\@happyherd\cli" 2>nul
             echo.
             echo Checking for dist directory:
-            if exist "%NPM_PREFIX%\node_modules\happy\dist" (
+            if exist "%NPM_PREFIX%\node_modules\@happyherd\cli\dist" (
               echo Found dist directory
-              dir "%NPM_PREFIX%\node_modules\happy\dist" 2>nul
+              dir "%NPM_PREFIX%\node_modules\@happyherd\cli\dist" 2>nul
             ) else (
               echo No dist directory found
             )
           ) else (
-            echo No happy package found
+            echo No @happyherd/cli package found
+            exit /b 1
           )
         ) else (
           echo No node_modules directory found
@@ -199,72 +208,81 @@ jobs:
         @echo on
 
         rem Get npm global prefix and add to PATH
-        for /f "tokens=*" %%i in ('npm config get prefix') do set NPM_PREFIX=%%i
+        set NPM_PREFIX=%RUNNER_TEMP%\happyherd-cli-prefix
         set PATH=%NPM_PREFIX%;%PATH%
         echo NPM_PREFIX: %NPM_PREFIX%
         echo Current PATH: %PATH%
 
-        rem Debug: Check if happy exists in various locations
-        echo Checking for happy binary...
-        where happy 2>nul && echo Found happy in PATH || echo happy not found in PATH
-        if exist "%NPM_PREFIX%\happy.cmd" echo Found happy.cmd in NPM_PREFIX
-        if exist "%NPM_PREFIX%\node_modules\.bin\happy.cmd" echo Found happy.cmd in .bin directory
+        rem Verify the canonical shim exists and the retired shim does not.
+        where happyherd >nul 2>&1
+        if errorlevel 1 (
+          echo Error: happyherd not found in PATH
+          exit /b 1
+        )
+        if exist "%NPM_PREFIX%\happy.cmd" (
+          echo Error: the packed CLI installed a retired happy.cmd in NPM_PREFIX
+          exit /b 1
+        )
+        if exist "%NPM_PREFIX%\node_modules\.bin\happy.cmd" (
+          echo Error: retired happy.cmd exists in .bin directory
+          exit /b 1
+        )
         dir "%NPM_PREFIX%\*happy*" 2>nul || echo No happy files found in NPM_PREFIX
 
         rem Debug: Check the actual contents and encoding of the installed file
-        if exist "%NPM_PREFIX%\happy.cmd" (
+        if exist "%NPM_PREFIX%\happyherd.cmd" (
           echo File size and type:
-          dir "%NPM_PREFIX%\happy.cmd"
+          dir "%NPM_PREFIX%\happyherd.cmd"
           echo.
           echo First few lines of the file:
-          type "%NPM_PREFIX%\happy.cmd" | head -5
+          type "%NPM_PREFIX%\happyherd.cmd" | head -5
           echo.
           echo Hex dump of first 50 bytes to check line endings:
-          powershell -Command "Get-Content '%NPM_PREFIX%\happy.cmd' -Encoding Byte -TotalCount 50 | ForEach-Object { '{0:X2}' -f $_ } | Join-String -Separator ' '"
+          powershell -Command "Get-Content '%NPM_PREFIX%\happyherd.cmd' -Encoding Byte -TotalCount 50 | ForEach-Object { '{0:X2}' -f $_ } | Join-String -Separator ' '"
           echo.
           echo Testing with direct path...
-          "%NPM_PREFIX%\happy.cmd" --help
+          "%NPM_PREFIX%\happyherd.cmd" --help
         ) else (
-          echo Testing happy --help...
-          happy --help
+          echo Testing happyherd --help...
+          happyherd --help
         )
         if errorlevel 1 (
-          echo Error: happy --help failed
+          echo Error: happyherd --help failed
           exit /b 1
         )
 
         rem Test version
-        if exist "%NPM_PREFIX%\happy.cmd" (
-          "%NPM_PREFIX%\happy.cmd" --version
+        if exist "%NPM_PREFIX%\happyherd.cmd" (
+          "%NPM_PREFIX%\happyherd.cmd" --version
         ) else (
-          happy --version
+          happyherd --version
         )
         if errorlevel 1 (
-          echo Error: happy --version failed
+          echo Error: happyherd --version failed
           exit /b 1
         )
 
         rem Test doctor
-        echo Testing happy doctor...
-        if exist "%NPM_PREFIX%\happy.cmd" (
-          "%NPM_PREFIX%\happy.cmd" doctor
+        echo Testing happyherd doctor...
+        if exist "%NPM_PREFIX%\happyherd.cmd" (
+          "%NPM_PREFIX%\happyherd.cmd" doctor
         ) else (
-          happy doctor
+          happyherd doctor
         )
         if errorlevel 1 (
-          echo Error: happy doctor failed
+          echo Error: happyherd doctor failed
           exit /b 1
         )
 
         rem Test daemon status
-        echo Testing happy daemon status...
-        if exist "%NPM_PREFIX%\happy.cmd" (
-          "%NPM_PREFIX%\happy.cmd" daemon status
+        echo Testing happyherd daemon status...
+        if exist "%NPM_PREFIX%\happyherd.cmd" (
+          "%NPM_PREFIX%\happyherd.cmd" daemon status
         ) else (
-          happy daemon status
+          happyherd daemon status
         )
         if errorlevel 1 (
-          echo Error: happy daemon status failed
+          echo Error: happyherd daemon status failed
           exit /b 1
         )
 

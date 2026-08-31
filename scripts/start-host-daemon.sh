@@ -17,10 +17,10 @@ set +a
 
 DAEMON_CLI="${HAPPYHERD_DAEMON_CLI:-}"
 if [[ -z "$DAEMON_CLI" ]]; then
-    DAEMON_CLI="$(command -v happy || true)"
+    DAEMON_CLI="$(command -v happyherd || true)"
 fi
 [[ -n "$DAEMON_CLI" && -x "$DAEMON_CLI" ]] || \
-    die 'Happy CLI is not installed; set HAPPYHERD_DAEMON_CLI or install happy on PATH'
+    die 'HappyHerd CLI is not installed; set HAPPYHERD_DAEMON_CLI or install happyherd on PATH'
 
 # A fresh host uses the same local-first setting as the user installer. Existing
 # settings and explicit environment overrides remain authoritative.

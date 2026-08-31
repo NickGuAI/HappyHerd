@@ -49,7 +49,7 @@ graph TB
 
 ```mermaid
 flowchart TD
-    Start([happy ...]) --> Parse[Parse subcommand]
+    Start([happyherd ...]) --> Parse[Parse subcommand]
 
     Parse --> Doctor{doctor?}
     Parse --> Auth{auth?}

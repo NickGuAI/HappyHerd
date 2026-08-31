@@ -22,6 +22,8 @@ done
 
 [[ -f "$ROOT/.github/workflows/server-image.yml" ]] || \
     fail '.github/workflows/server-image.yml is missing'
+[[ -f "$ROOT/scripts/lib/cli-command-migration.sh" ]] || \
+    fail 'host CLI command-migration helper is missing'
 
 obsolete=(
     scripts/build-release-artifacts.sh
@@ -52,14 +54,19 @@ if grep -En '@reboot happyherd-runtime|HAPPY_HOME_DIR=/var/lib/happyherd-runtime
     "$ROOT/deploy/happyherd-daemon.cron" "$ROOT/deploy/happyherd-daemon.env.example" >/dev/null; then
     fail 'host daemon lane still assumes a synthetic happyherd-runtime account'
 fi
-grep -Fq 'HAPPYHERD_DAEMON_CLI=/usr/local/bin/happy' "$ROOT/deploy/happyherd-daemon.env.example" || \
+grep -Fq 'HAPPYHERD_DAEMON_CLI=/usr/local/bin/happyherd' "$ROOT/deploy/happyherd-daemon.env.example" || \
     fail 'daemon does not select the independently installed Happy CLI'
 grep -Fq "runuser -u \"\$BUILD_USER\"" "$ROOT/scripts/install-host-cli.sh" || \
     fail 'root CLI installation can contaminate the checkout with root-owned build output'
-grep -Fq "HAPPYHERD_LINK=\"\${3:-/usr/local/bin/happyherd}\"" "$ROOT/scripts/install-host-cli.sh" || \
-    fail 'host CLI install does not expose the thin happyherd alias'
+grep -Fq "HAPPYHERD_LINK=\"\${2:-/usr/local/bin/happyherd}\"" "$ROOT/scripts/install-host-cli.sh" || \
+    fail 'host CLI install does not expose the happyherd command'
 grep -Fq "ln -sfn \"\$TARGET/bin/happy.mjs\" \"\$HAPPYHERD_LINK\"" "$ROOT/scripts/install-host-cli.sh" || \
-    fail 'host happyherd alias does not point directly to Happy'
+    fail 'host happyherd command does not point directly to the CLI entry'
+grep -Fq -- '--filter @happyherd/cli --fail-if-no-match build' "$ROOT/scripts/install-host-cli.sh" || \
+    fail 'host installer does not build the public CLI package'
+# shellcheck disable=SC2016
+grep -Fq 'remove_exact_legacy_happy_link "$LEGACY_HAPPY_LINK" "$TARGET"' "$ROOT/scripts/install-host-cli.sh" || \
+    fail 'host installer does not apply exact legacy-link cleanup'
 grep -Fq "settings.serverUrl = 'http://127.0.0.1:3005'" "$ROOT/scripts/start-host-daemon.sh" || \
     fail 'fresh host daemon bootstrap does not persist the local server default'
 grep -Fq "runuser -u \"\$BUILD_USER\"" "$ROOT/scripts/install-agent-runtime.sh" || \
@@ -126,14 +133,31 @@ cleanup_fixture() {
 }
 trap cleanup_fixture EXIT
 mkdir -p "$fixture/home" "$fixture/bin"
-cat > "$fixture/bin/happy" <<'SH'
+
+# Exercise the exact cleanup policy used by the host installer. An exact old
+# HappyHerd symlink is removed; an unrelated command at the same path survives.
+# shellcheck source=scripts/lib/cli-command-migration.sh
+source "$ROOT/scripts/lib/cli-command-migration.sh"
+legacy_target="$fixture/cli-target"
+legacy_link="$fixture/happy"
+mkdir -p "$legacy_target/bin"
+ln -s "$legacy_target/bin/happy.mjs" "$legacy_link"
+remove_exact_legacy_happy_link "$legacy_link" "$legacy_target"
+[[ ! -e "$legacy_link" && ! -L "$legacy_link" ]] ||
+    fail 'exact previously managed host happy symlink was preserved'
+ln -s /opt/unrelated/happy "$legacy_link"
+remove_exact_legacy_happy_link "$legacy_link" "$legacy_target"
+[[ -L "$legacy_link" && "$(readlink "$legacy_link")" == /opt/unrelated/happy ]] ||
+    fail 'unmanaged host happy symlink was removed'
+
+cat > "$fixture/bin/happyherd" <<'SH'
 #!/bin/sh
 printf '%s\n' "$*" >> "$HAPPYHERD_TEST_LOG"
 SH
-chmod 755 "$fixture/bin/happy"
+chmod 755 "$fixture/bin/happyherd"
 cat > "$fixture/daemon.env" <<EOF
 HAPPY_HOME_DIR=$fixture/home/.happyherd
-HAPPYHERD_DAEMON_CLI=$fixture/bin/happy
+HAPPYHERD_DAEMON_CLI=$fixture/bin/happyherd
 PATH=$PATH
 EOF
 HAPPYHERD_TEST_LOG="$fixture/daemon.log" HOME="$fixture/home" \

@@ -2,7 +2,7 @@
  * Doctor command implementation
  * 
  * Provides comprehensive diagnostics and troubleshooting information
- * for happy CLI including configuration, daemon status, logs, and links
+ * for the HappyHerd CLI including configuration, daemon status, logs, and links
  */
 
 import chalk from 'chalk'
@@ -65,7 +65,7 @@ function getLogFiles(logDir: string): { file: string, path: string, modified: Da
 }
 
 /**
- * Slim daemon status output for `happy daemon status`
+ * Slim daemon status output for `happyherd daemon status`
  */
 export async function runDoctorDaemon(): Promise<void> {
     console.log(chalk.bold('\n🤖 Daemon Status'));
@@ -94,7 +94,7 @@ export async function runDoctorDaemon(): Promise<void> {
         console.log(chalk.red('❌ Error checking daemon status'));
     }
 
-    console.log(chalk.gray('\nRun `happy doctor` for full diagnostics.\n'));
+    console.log(chalk.gray('\nRun `happyherd doctor` for full diagnostics.\n'));
 }
 
 /**
@@ -144,10 +144,10 @@ export async function runDoctorCommand(): Promise<void> {
 
             if (allProcesses.length > 1) {
                 console.log(chalk.bold('\n💡 Process Management'));
-                console.log(chalk.gray('To clean up runaway processes: happy doctor clean'));
+                console.log(chalk.gray('To clean up runaway processes: happyherd doctor clean'));
             }
         } else {
-            console.log(chalk.red('❌ No happy processes found'));
+            console.log(chalk.red('❌ No HappyHerd processes found'));
         }
     } catch (error) {
         console.log(chalk.red('❌ Error listing processes'));
@@ -221,7 +221,7 @@ export async function runDoctorCommand(): Promise<void> {
 
     // Support and bug reports
     console.log(chalk.bold('\n🐛 Support & Bug Reports'));
-    console.log(`Report issues: ${chalk.blue('https://github.com/slopus/happy-cli/issues')}`);
+    console.log(`Report issues: ${chalk.blue('https://github.com/NickGuAI/HappyHerd/issues')}`);
     console.log(`Documentation: ${chalk.blue('https://happy.engineering/')}`);
 
     // ── Concise useful info last (visible without scrolling) ──

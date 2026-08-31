@@ -73,7 +73,7 @@ echo
 echo "Fix verified successfully!"
 echo
 echo "To test --continue in real usage:"
-echo "  happy --continue \"test continuation\""
+echo "  happyherd --continue \"test continuation\""
 echo
 echo "To check logs:"
-echo "  tail -50 ~/.happy/logs/\$(ls -t ~/.happy/logs/ | head -1) | grep -E '(session|continue|resume)'"
+echo "  tail -50 ~/.happyherd/logs/\$(ls -t ~/.happyherd/logs/ | head -1) | grep -E '(session|continue|resume)'"

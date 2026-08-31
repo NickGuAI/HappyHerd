@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 31 — One HappyHerd CLI command",
+      "summary": "",
+      "markdown": "- The public CLI now installs from `@happyherd/cli` and uses `happyherd` as its only primary command. Upgrades remove only the exact previously managed `happy` launcher and preserve unrelated commands."
+    },
+    {
       "title": "August 31 — Scheduled Executables",
       "summary": "",
       "markdown": "- Users can schedule a fixed executable with exact arguments in HappyHerd, inspect success/failure history, and no agent session is created."
@@ -441,5 +446,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 31 — Scheduled Executables"
+  "latestTitle": "August 31 — One HappyHerd CLI command"
 }

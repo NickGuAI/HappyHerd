@@ -37,7 +37,7 @@ for (const path of [
   '.dev/VERIFY.md',
   '.dev/COUPLINGS.md',
   '.dev/playbooks/side-chat-lifecycle.md',
-  'server/packages/happyherd-cli/README.md',
+  'server/packages/happy-cli/README.md',
 ]) {
   const content = read(path);
   const normalized = content.replace(/\s+/g, ' ');
@@ -135,7 +135,6 @@ assert(
 const canonicalCommandFiles = [
   'server/packages/happy-cli/src/commands/sideChat.ts',
   'server/packages/happy-cli/README.md',
-  'server/packages/happyherd-cli/README.md',
   '.dev/COUPLINGS.md',
   '.dev/SOP_INDEX.md',
   '.dev/playbooks/side-chat-lifecycle.md',

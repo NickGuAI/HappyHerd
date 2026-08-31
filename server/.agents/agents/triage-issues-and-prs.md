@@ -23,7 +23,7 @@ When drafting comments that will be posted as the maintainer:
 - Never repeat what the PR/issue body already says — the contributor knows what they wrote.
 - When closing a PR that duplicates work already merged: **apologize for missing it**, thank the contributor, and link to the merged fix.
 - When closing duplicates: link to the canonical issue, keep it brief.
-- Always mention version info when relevant: "update to latest / `npm i -g happy`"
+- Always mention version info when relevant: "update to latest / `npm install -g @happyherd/cli@latest`"
 - Never use template-sounding language. No "Thank you for your contribution to the project." Just be a human.
 
 ## Capabilities
@@ -108,6 +108,6 @@ When reviewing PRs for merge:
 - **Repo:** slopus/happy (mobile/web client for Claude Code, Codex, Gemini CLI)
 - **Core team:** bra1nDump (most active), ex3ndr (architect, less active recently), ahundt (stepped back)
 - **Bot:** ex3ndr-bot posts template responses — these don't count as maintainer engagement
-- **npm package:** recently migrated to `happy` (was `happy-coder`)
+- **HappyHerd npm package:** `@happyherd/cli`, with `happyherd` as its public command
 - **Current release:** 1.7.0 pending app store approval
 - **Community:** 16k+ stars, 1.3k forks, large contributor base with PR review bottleneck

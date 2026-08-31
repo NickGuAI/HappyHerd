@@ -358,11 +358,11 @@ describe('sessionFileLinks', () => {
 
     it('does not turn slash-separated prose into file refs', () => {
         expect(splitSessionFileText(
-            'Codex then starts/resumes turns with backend default model. I’m checking CLI docs/tests to confirm there is intentionally no happy codex model set or --model surface today.',
+            'Codex then starts/resumes turns with backend default model. I’m checking CLI docs/tests to confirm there is intentionally no happyherd codex model set or --model surface today.',
             sessionRoot,
         )).toEqual([
             {
-                text: 'Codex then starts/resumes turns with backend default model. I’m checking CLI docs/tests to confirm there is intentionally no happy codex model set or --model surface today.',
+                text: 'Codex then starts/resumes turns with backend default model. I’m checking CLI docs/tests to confirm there is intentionally no happyherd codex model set or --model surface today.',
                 link: null,
             },
         ]);

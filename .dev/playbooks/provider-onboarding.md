@@ -152,7 +152,7 @@ For an interactive mode, it records the expected prompt. For tool rendering,
 use an unfamiliar native tool name so the generic path—not a provider-specific
 registry—proves correctness.
 
-Run the focused tests first, then the affected wire, `happy`, and `happy-app`
+Run the focused tests first, then the affected wire, `@happyherd/cli`, and `happy-app`
 package checks from [`../VERIFY.md`](../VERIFY.md). Record unavailable live
 prerequisites explicitly; do not replace missing behavioral proof with argv or
 snapshot assertions.

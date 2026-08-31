@@ -42,6 +42,7 @@ export NODE_ENV=test
 "$repo_root/scripts/verify-patch-discipline.sh"
 node "$repo_root/scripts/test-public-boundary.mjs"
 node "$repo_root/scripts/verify-public-boundary.mjs"
+node "$repo_root/scripts/verify-cli-public-command.mjs"
 node "$repo_root/scripts/lint-source.mjs"
 node "$repo_root/scripts/verify-product-identity.mjs"
 node "$repo_root/scripts/test-multiagent-guidance-contract.mjs"
@@ -63,7 +64,6 @@ pnpm --filter @slopus/happy-wire --fail-if-no-match test
 pnpm --filter happy-agent --fail-if-no-match test
 pnpm --filter @happyherd/happyherd-agent --fail-if-no-match test
 pnpm --filter @happyherd/cli --fail-if-no-match test
-pnpm --filter happy --fail-if-no-match test
 pnpm --filter ./packages/happy-server --fail-if-no-match typecheck
 pnpm --filter ./packages/happy-server --fail-if-no-match test
 

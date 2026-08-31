@@ -39,7 +39,7 @@ durable.
 
 ## Host CLI, daemon, and provider sessions
 
-The Happy CLI is built and installed independently of the server image:
+The HappyHerd CLI is built and installed independently of the server image:
 
 ```bash
 sudo scripts/install-host-cli.sh
@@ -58,7 +58,7 @@ server selection already persisted there. The template does not require
 `HAPPY_SERVER_URL` or `HAPPY_WEBAPP_URL` exports.
 
 The Linux cron entry is only a boot-time availability adapter. It calls the
-maintained Happy CLI's native detached `daemon start` lifecycle and exits. The
+maintained HappyHerd CLI's native detached `daemon start` lifecycle and exits. The
 daemon and Claude/Codex provider processes are not placed in a HappyHerd-owned
 systemd cgroup. They may reconnect and complete sessions independently of
 central-server or CLI upgrades.
@@ -93,12 +93,12 @@ The `/mcp` listener remains loopback-only.
 
 - **Server + Web:** one self-host container image, because upstream Happy
   intentionally bundles the Web export into the self-host server.
-- **CLI + host daemon:** native Happy CLI package, upgraded without rebuilding
+- **CLI + host daemon:** native HappyHerd CLI package, upgraded without rebuilding
   or restarting the central server.
 - **Mobile:** its own app build, only when mobile source changes.
 - **Governed agent:** its own package and operator-controlled service, only when
   agent source changes.
-- **Local installer:** a user-owned bootstrap installs the Happy passthrough
+- **Local installer:** a user-owned bootstrap installs the HappyHerd CLI
   and ordinary daemon without a separate integrity, broker, vault, or issuer
   layer; it does not control self-host server deployment.
 

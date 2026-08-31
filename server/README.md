@@ -36,20 +36,23 @@ Step 2: Install CLI on your computer
 </h3>
 
 ```bash
-npm install -g happy
+npm install -g @happyherd/cli@latest
 ```
 
-> Migrated from the `happy-coder` package. Thanks to [@franciscop](https://github.com/franciscop) for donating the `happy` package name!
+HappyHerd preserves the full history of upstream Happy. The upstream project
+previously migrated from `happy-coder`; thanks to
+[@franciscop](https://github.com/franciscop) for donating its historical
+`happy` package name.
 
 <h3 align="center">
-Step 3: Start using `happy` instead of `claude` or `codex`
+Step 3: Start using `happyherd` instead of `claude` or `codex`
 </h3>
 
 ```bash
 # Instead of claude, use:
-happy claude
+happyherd claude
 # or
-happy codex
+happyherd codex
 ```
 
 <h3 align="center">
@@ -72,7 +75,7 @@ Prefer a native app over the terminal? <a href="https://github.com/slopus/happy-
 
 ## How does it work?
 
-On your computer, run `happy` instead of `claude` or `happy codex` instead of `codex` to start your AI through our wrapper. When you want to control your coding agent from your phone, it restarts the session in remote mode. To switch back to your computer, just press any key on your keyboard.
+On your computer, run `happyherd` instead of `claude` or `happyherd codex` instead of `codex` to start your AI through our wrapper. When you want to control your coding agent from your phone, it restarts the session in remote mode. To switch back to your computer, just press any key on your keyboard.
 
 ## 🔥 Why Happy Coder?
 
@@ -86,7 +89,7 @@ On your computer, run `happy` instead of `claude` or `happy codex` instead of `c
 
 - **[Happy Desktop](https://github.com/slopus/happy-desktop)** - Native macOS app ([download](https://github.com/slopus/happy-desktop/releases/latest))
 - **[Happy App](https://github.com/slopus/happy/tree/main/packages/happy-app)** - Web UI + mobile client (Expo)
-- **[Happy CLI](https://github.com/slopus/happy/tree/main/packages/happy-cli)** - Command-line interface for Claude Code and Codex
+- **[HappyHerd CLI](https://github.com/NickGuAI/HappyHerd/tree/main/server/packages/happy-cli)** - Command-line interface for Claude Code and Codex
 - **[Happy Agent](https://github.com/slopus/happy/tree/main/packages/happy-agent)** - Remote agent control CLI (create, send, monitor sessions)
 - **[Happy Server](https://github.com/slopus/happy/tree/main/packages/happy-server)** - Backend server for encrypted sync
 

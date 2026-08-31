@@ -39,7 +39,7 @@ Prefer a focused Vitest file and the owning package's typecheck while iterating:
 ```bash
 cd server
 pnpm --filter happy-app exec vitest run sources/path/example.test.ts
-pnpm --filter happy exec vitest run --project unit src/path/example.test.ts
+pnpm --filter @happyherd/cli exec vitest run --project unit src/path/example.test.ts
 pnpm --filter ./packages/happy-server exec vitest run sources/path/example.test.ts
 ```
 
@@ -61,14 +61,14 @@ Commands in this table run from `server/` unless they start with `scripts/` or
 | Route or UI-owning module | First `pnpm --filter happy-app ui:inventory:generate`, review generated changes, then `i18n:check` |
 | Active-session composer voice dictation | Focus `sources/-session/SessionView.sideChat.test.ts`, `sources/hooks/voiceDictationContract.test.ts`, and `sources/components/agentInputPrimaryAction.test.ts`; prove `.available` gating, recording/transcribing/cancel/error/retry wiring, append to an existing editable unsent draft, `/v1/voice/transcriptions` transport, no `/v1/voice/conversations` start, and the live-text type-then-tap guard; then run the full app checks and production web export. |
 | Wire protocol | `pnpm --filter @slopus/happy-wire test`, then affected app/CLI/agent/server consumers |
-| Happy CLI/provider/session logic | `pnpm --filter happy typecheck`; `pnpm --filter happy test` |
+| Happy CLI/provider/session logic | `pnpm --filter @happyherd/cli typecheck`; `pnpm --filter @happyherd/cli test` |
 | Automations | Run wire tests; focused CLI service/store/command tests; focused app form/detail/list tests; then affected wire, CLI, and app typechecks/tests plus `i18n:check`. Provider-agent rails use the provider smoke in `playbooks/automation-unattended-smoke.md`; exec must prove strict fixed-command validation, completed/failed `execution: "exec"` history with `sessionId: null`, zero provider-session spawns, and list/detail/history readback. |
 | Side-chat app presentation | Focus `sources/-session/SessionView.sideChat.test.ts`, `sources/components/{SideChatPanel,sideChatPresentation,sideChatHeader.browser}.test.ts`, and `sources/sync/{ops.codexFork,sideChatSessions,sessionListVisibility}.test.ts`; prove the persistent right-panel New side chat action at zero children, one-click creation with no fields, parent-only dedicated machine RPC submission, successful empty-child hydrate/focus/open with the normal composer, exact-parent filtering, newest-child focus, tab switching, stopped-child resume, archived hiding, non-destructive collapse, top-level-list exclusion, and that a retained background session cannot render or clear the foreground parent's panel. Exercise the real desktop `Side chats N` click-to-render gesture, child switching, second-click collapse, and the same narrow/mobile full-screen behavior; then run the full app checks and production web export. |
 | File workspace consolidation | Read [the workspace playbook](playbooks/file-workspaces.md) first. Exercise Chat Workspace, embedded Machine Workspace, and current-session reply links through the one `DesktopFileWorkspace` state at desktop and 390 × 844 widths. Click both selectors; follow file, directory, line/column, failed-read, and cross-session links; open a duplicate machine/path; switch and close tabs; use Preview/Edit/Delete where supported; send location-bearing feedback; and drag the divider with `page.mouse`. Assert current-session flows never mount a second viewer/composer and preserve the active chat, draft, scroll, machine/session identity, unsaved edits, and line/column metadata. On compact mobile, assert the full-screen surface without desktop tabs or divider. Require explicit in-panel errors and zero page or console errors. Then run full app tests/typecheck, UI inventory, `i18n:check`, production web export, and authenticated deployed-domain interaction proof when a safe auth harness exists. |
 | Local side-chat delegation and lifecycle | Focus `src/commands/{machine,sideChat}.test.ts`, `src/api/{api,apiMachine.codexFork}.test.ts`, `src/daemon/{controlClient,controlServer.sideChat,sideChatLifecycle,run.resume}.test.ts`, the app's provider-native subagent and side-chat semantic tests, `packages/happy-server/sources/app/presence/sessionCache.spec.ts`, and `packages/happy-server/sources/app/api/routes/sessionRoutes.resume.spec.ts`; prove the Human app sends only `parentSessionId` through `happyherd-side-chat-create`, omits the brief, and records `deliver-brief` as skipped, while the Main Agent CLI rejects every create request missing any of its six non-empty brief fields and delivers a valid brief as the child's first ordinary encrypted queued message. Prove both enter the same daemon lifecycle, generic `spawn-happy-session` rejects `isSideChat` before provider launch, exact parent/child lineage, direct-child accountability, provider-native inline activity remains distinct from side-chat sessions, and a post-spawn CLI brief-delivery failure retains `parentSessionId`, `sessionId`, and the exact failed phase. Retain create/list/status/inspect/stop/pause/close/reopen/resume, sequential close-all partial receipts and sufficient client budget, active-but-unowned failure, committed-write/lost-ack reconciliation, durable post-restart discovery, exact remote read-back, authenticated resume suppression release, and immediate server reactivation. Then, without an account-control link, run the command sequence in `.dev/playbooks/side-chat-lifecycle.md` through `happyherd` and confirm no QR prompt, no stale active child, preserved lineage and CLI brief, a complete Worker Agent handoff, and nonzero exit for a failed JSON receipt. |
-| Session continuity across updates/restarts | `pnpm --filter happy test:session-continuity` must include recent and older-than-14-day records, then run the Happy CLI typecheck/tests |
-| Real provider/daemon/auth integration | `pnpm --filter happy test:integration` when its external prerequisites are available |
-| Local installer and HappyHerd alias | `scripts/test-public-launcher-release-contract.sh`; `pnpm --filter @happyherd/cli typecheck`; `pnpm --filter @happyherd/cli test`; shellcheck changed installer scripts |
+| Session continuity across updates/restarts | `pnpm --filter @happyherd/cli test:session-continuity` must include recent and older-than-14-day records, then run the Happy CLI typecheck/tests |
+| Real provider/daemon/auth integration | `pnpm --filter @happyherd/cli test:integration` when its external prerequisites are available |
+| Public CLI and local installer | `scripts/test-public-launcher-release-contract.sh`; `node scripts/verify-cli-public-command.mjs`; `pnpm --filter @happyherd/cli typecheck`; `pnpm --filter @happyherd/cli test`; shellcheck changed installer scripts |
 | Agent runtime | `pnpm --filter happy-agent test`; `pnpm --filter @happyherd/happyherd-agent test` |
 | Server | `pnpm --filter ./packages/happy-server typecheck`; `test`; `build` |
 | Repository or deployment shell | `scripts/test-component-deployment-contract.sh`; nearest other `scripts/test-*-contract.sh`; `shellcheck -x` on changed shell files |
@@ -119,7 +119,7 @@ APP_ENV=production pnpm --filter happy-app exec expo export \
   --platform web --output-dir dist-ci
 grep -F '<title>HappyHerd</title>' \
   packages/happy-app/dist-ci/index.html
-pnpm --filter happy build
+pnpm --filter @happyherd/cli build
 pnpm --filter ./packages/happy-server build
 ```
 
@@ -162,7 +162,7 @@ pnpm --filter happy-app i18n:check
 APP_ENV=production pnpm --filter happy-app exec expo export \
   --platform web --output-dir dist-ci
 grep -F '<title>HappyHerd</title>' packages/happy-app/dist-ci/index.html
-pnpm --filter happy build
+pnpm --filter @happyherd/cli build
 pnpm --filter ./packages/happy-server build
 ```
 

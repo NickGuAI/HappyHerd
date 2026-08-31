@@ -338,7 +338,7 @@ export async function createEnvironment(opts?: { noSwitch?: boolean }): Promise<
     console.log(`  One-liner: ${buildCliCommand(envDir)}`);
     console.log("");
     console.log(`  source ${envShRelative}`);
-    console.log(`  happy`);
+    console.log(`  happyherd`);
     console.log("");
     console.log(`Full env.sh path: ${path.join(envDir, "env.sh")}`);
 
@@ -808,7 +808,7 @@ function buildEnvSh(name: string, envDir: string, serverPort: number, expoPort: 
     lines.push(`export PATH="${path.join(envDir, "bin")}:$PATH"`);
     lines.push("");
     lines.push("# Commands exposed by this env");
-    lines.push("# - happy");
+    lines.push("# - happyherd");
     lines.push("# - happy-agent");
     lines.push("");
 
@@ -821,7 +821,7 @@ function writeEnvCommands(envDir: string): void {
 
     const commands = [
         {
-            name: "happy",
+            name: "happyherd",
             entrypoint: path.join(REPO_ROOT, "packages", "happy-cli", "bin", "happy.mjs"),
         },
         {
@@ -851,7 +851,7 @@ function buildAuthenticatedWebUrl(expoPort: number, token: string, secret: strin
 }
 
 function buildCliCommand(envDir: string): string {
-    return `source "${path.join(envDir, "env.sh")}" && happy`;
+    return `source "${path.join(envDir, "env.sh")}" && happyherd`;
 }
 
 // ============================================================================

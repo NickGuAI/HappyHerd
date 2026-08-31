@@ -269,8 +269,8 @@ describe('machine and session command parsing', () => {
     await handleSessionCommand(['side-chat', '--help'], { createClient, output });
 
     expect(createClient).not.toHaveBeenCalled();
-    expect(output.mock.calls.join('\n')).toContain('happy machine list');
-    expect(output.mock.calls.join('\n')).toContain('happy session create');
+    expect(output.mock.calls.join('\n')).toContain('happyherd machine list');
+    expect(output.mock.calls.join('\n')).toContain('happyherd session create');
     expect(output.mock.calls.join('\n')).toContain('happyherd session set-commander');
     expect(output.mock.calls.join('\n')).toContain('happyherd session side-chat');
   });
@@ -310,7 +310,7 @@ describe('machine and session command parsing', () => {
     const output = vi.fn();
 
     await handleMachineCommand(['auth', '--help'], { accountAuth, output });
-    expect(output.mock.calls.join('\n')).toContain('happy machine auth login');
+    expect(output.mock.calls.join('\n')).toContain('happyherd machine auth login');
     expect(accountAuth.login).not.toHaveBeenCalled();
     await expect(handleMachineCommand(['auth', 'login', 'extra'], { accountAuth, output }))
       .rejects.toThrow('accepts no arguments');
@@ -618,7 +618,7 @@ describe('remote tracked session creation', () => {
     await expect(handleSessionCommand(['create', ...sessionArgs()], {
       createClient: async () => authFailure.client,
       output: vi.fn(),
-    })).rejects.toThrow('Run `happy machine auth login`');
+    })).rejects.toThrow('Run `happyherd machine auth login`');
 
     const approvalFailure = fakeClient();
     approvalFailure.spawnSessionOnMachineConfirmed.mockRejectedValueOnce(
@@ -671,7 +671,7 @@ describe('remote tracked session creation', () => {
     ], {
       createClient: async () => fake.client,
       output: vi.fn(),
-    })).rejects.toThrow('Rig machine; native happy session create supports Happy CLI daemon machines only');
+    })).rejects.toThrow('Rig machine; native happyherd session create supports HappyHerd CLI daemon machines only');
     expect(fake.resolveMachine).toHaveBeenCalledWith('rig-machine');
     expect(fake.spawnSessionOnMachineConfirmed).not.toHaveBeenCalled();
   });

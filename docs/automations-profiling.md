@@ -82,7 +82,7 @@ published. On each machine represented on the page, use the supported daemon
 command to find its current log and inspect the handler boundary:
 
 ```bash
-daemon_log="$(happy daemon logs)"
+daemon_log="$(happyherd daemon logs)"
 rg '\[AUTOMATIONS_PROFILE\]' "$daemon_log" | tail -n 20
 ```
 
@@ -111,7 +111,7 @@ sudo tail -n 40 /var/log/happyherd/server.log
 
 Metrics counters restart with the process. Historical 30-second summaries stay
 in `/var/log/happyherd/server.log`; daemon timing stays in the daemon logs
-reported by `happy daemon logs`.
+reported by `happyherd daemon logs`.
 
 ## Pre-instrumentation baseline — 2026-08-25 UTC
 

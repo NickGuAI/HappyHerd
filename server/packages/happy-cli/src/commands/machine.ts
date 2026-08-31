@@ -91,25 +91,25 @@ type SessionCreateOptions = {
 export type EffectiveSessionSettings = HappyHerdMachineSessionSettings;
 
 function machineHelp(): string {
-  return `happy machine - Discover account machines and manage machine control access
+  return `happyherd machine - Discover account machines and manage machine control access
 
 Usage:
-  happy machine list [--json]
-  happy machine auth <login|status|logout>
+  happyherd machine list [--json]
+  happyherd machine auth <login|status|logout>
 
-Selectors accepted by "happy session create" are an exact machine ID or an
+Selectors accepted by "happyherd session create" are an exact machine ID or an
 exact, unambiguous hostname from this account catalog. Session creation is
 supported only for machines running the native Happy CLI daemon; receipts mark
 other account-machine kinds explicitly.`;
 }
 
 function machineAuthHelp(): string {
-  return `happy machine auth - Link account-wide machine control
+  return `happyherd machine auth - Link account-wide machine control
 
 Usage:
-  happy machine auth login
-  happy machine auth status
-  happy machine auth logout
+  happyherd machine auth login
+  happyherd machine auth status
+  happyherd machine auth logout
 
 Login displays a one-time QR code. Approve it from Settings -> Account -> Link
 New Device in the Happy app. The account-control key is stored only in the
@@ -117,10 +117,10 @@ configured HappyHerd home and remains separate from normal Happy CLI auth.`;
 }
 
 function sessionHelp(): string {
-  return `happy session - Create a tracked session on an account machine
+  return `happyherd session - Create a tracked session on an account machine
 
 Usage:
-  happy session create --machine ID_OR_HOST --path ABSOLUTE_PATH --provider PROVIDER \\
+  happyherd session create --machine ID_OR_HOST --path ABSOLUTE_PATH --provider PROVIDER \\
     [--model MODEL] [--effort EFFORT] [--permission MODE] [--commander ID] \\
     [--create-dir] [--json]
   happyherd session set-commander <session-id> <commander-id|none> [--json]
@@ -252,7 +252,7 @@ function machineIdentity(machine: DecryptedMachine) {
 
 function parseMetadata(machine: DecryptedMachine): MachineMetadata {
   if (isRigMachineMetadata(machine.metadata)) {
-    throw new Error(`Machine ${machine.id} is a Rig machine; native happy session create supports Happy CLI daemon machines only`);
+    throw new Error(`Machine ${machine.id} is a Rig machine; native happyherd session create supports HappyHerd CLI daemon machines only`);
   }
   const parsed = MachineMetadataSchema.safeParse(machine.metadata);
   if (!parsed.success) {
@@ -363,7 +363,7 @@ export async function createDefaultClient(options: {
   const homeDir = options.homeDir ?? configuration.happyHomeDir;
   const credentials = (options.readCredentials ?? readLocalHappyAgentCredentials)(homeDir);
   if (!credentials) {
-    throw new Error('Account-level machine control is not linked. Run `happy machine auth login` and approve the one-time link in the Happy app.');
+    throw new Error('Account-level machine control is not linked. Run `happyherd machine auth login` and approve the one-time link in the Happy app.');
   }
   return options.create?.(credentials) ?? new HappyControlClient({
     config: accountControlConfig(homeDir),
@@ -384,7 +384,7 @@ function accountAuthFor(dependencies?: MachineCommandDependencies) {
     login: linkMachineControlAccount,
     logout: unlinkMachineControlAccount,
     status: (config: AccountControlConfig) => machineControlAccountStatus(config, {
-      loginCommand: 'happy machine auth login',
+      loginCommand: 'happyherd machine auth login',
     }),
   };
 }
@@ -399,7 +399,7 @@ async function handleMachineAuthCommand(
     return;
   }
   if (rest.length > 0) {
-    throw new Error(`happy machine auth ${action} accepts no arguments`);
+    throw new Error(`happyherd machine auth ${action} accepts no arguments`);
   }
   const auth = accountAuthFor(dependencies);
   const config = accountControlConfig();
@@ -561,7 +561,7 @@ async function controlCall<T>(operation: () => Promise<T>): Promise<T> {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (message.includes('happy-agent auth login')) {
-      throw new Error('Account-level machine authentication expired. Run `happy machine auth login` and approve the one-time link in the Happy app.');
+      throw new Error('Account-level machine authentication expired. Run `happyherd machine auth login` and approve the one-time link in the Happy app.');
     }
     if (message.startsWith('Directory creation requires approval:')) {
       throw new Error(`${message}. Rerun with --create-dir to approve it.`);

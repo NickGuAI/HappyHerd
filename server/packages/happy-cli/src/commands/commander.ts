@@ -138,15 +138,15 @@ export async function handleCommanderCommand(args: string[]): Promise<void> {
   }
   if (action === 'create') {
     const manifestPath = optionValue(args.slice(1), '--manifest');
-    if (!manifestPath) throw new Error('Usage: happy commander create --manifest <file>');
+    if (!manifestPath) throw new Error('Usage: happyherd commander create --manifest <file>');
     const raw = JSON.parse(await readFile(path.resolve(manifestPath), 'utf8')) as unknown;
     console.log(JSON.stringify(await createCommanderFromManifest(raw), null, 2));
     return;
   }
-  console.log(`happy commander
+  console.log(`happyherd commander
 
 Usage:
-  happy commander list
-  happy commander create --manifest <file>
+  happyherd commander list
+  happyherd commander create --manifest <file>
 `);
 }

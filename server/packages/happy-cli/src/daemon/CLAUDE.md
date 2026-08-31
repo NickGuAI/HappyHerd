@@ -6,7 +6,7 @@ The daemon is a persistent background process that manages Happy sessions, enabl
 
 ### Starting the Daemon
 
-Command: `happy daemon start`
+Command: `happyherd daemon start`
 
 Control Flow:
 1. `src/index.ts` receives `daemon start` command
@@ -40,7 +40,7 @@ Control Flow:
 
 ### Version Mismatch Auto-Update
 
-The daemon detects when `npm upgrade happy` occurs:
+The daemon detects when `npm install -g @happyherd/cli@latest` occurs:
 1. Heartbeat reads package.json from disk
 2. Compares `JSON.parse(package.json).version` with compiled `configuration.currentCliVersion`
 3. If mismatch detected:
@@ -52,7 +52,7 @@ The daemon detects when `npm upgrade happy` occurs:
 
 ### Stopping the Daemon
 
-Command: `happy daemon stop`
+Command: `happyherd daemon stop`
 
 Control Flow:
 1. `stopDaemon()` in `controlClient.ts` reads daemon.state.json
@@ -85,7 +85,7 @@ Initiated by mobile app via backend RPC:
 
 ### Terminal-Spawned Sessions
 
-User runs `happy` directly:
+User runs `happyherd` directly:
 1. CLI auto-starts daemon if configured
 2. Happy process calls `notifyDaemonSessionStarted()` 
 3. Daemon receives webhook, creates `TrackedSession` with `startedBy: 'happy directly...'`
@@ -111,14 +111,14 @@ Local HTTP server (127.0.0.1 only) provides:
 
 ### Doctor Command
 
-`happy doctor` uses `ps aux | grep` to find all Happy processes:
-- Production: matches `happy.mjs`, `happy` (or legacy `happy-coder`), `dist/index.mjs`
+`happyherd doctor` uses `ps aux | grep` to find all Happy processes:
+- Production: matches `happy.mjs`, `happyherd`, legacy `happy` or `happy-coder`, and `dist/index.mjs`
 - Development: matches `tsx.*src/index.ts`
 - Categorizes by command args: daemon, daemon-spawned, user-session, doctor
 
 ### Clean Runaway Processes
 
-`happy doctor clean`:
+`happyherd doctor clean`:
 1. `findRunawayHappyProcesses()` filters for likely orphans
 2. `killRunawayHappyProcesses()`:
    - Sends SIGTERM
@@ -154,7 +154,7 @@ Local HTTP server (127.0.0.1 only) provides:
 
 ## 7. Integration Testing Challenges
 
-Version mismatch test simulates npm upgrade:
+Version mismatch test simulates a global CLI upgrade:
 - Test modifies package.json, rebuilds with new version
 - Daemon's compiled version != package.json on disk
 - Critical timing: heartbeat interval must exceed rebuild time
@@ -449,7 +449,6 @@ Authorization: Bearer <token>
    - Clients only receive updates for fields that changed
 
 5. **RPC Pattern**: Machine-scoped RPC methods prefixed with machineId (like sessions)
-
 
 
 

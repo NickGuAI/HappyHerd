@@ -86,7 +86,7 @@ export async function runGemini(opts: {
   const machineId = settings?.machineId;
   const sandboxConfig = settings?.sandboxConfig;
   if (!machineId) {
-    console.error(`[START] No machine ID found in settings, which is unexpected since authAndSetupMachineIfNeeded should have created it. Please report this issue on https://github.com/slopus/happy-cli/issues`);
+    console.error(`[START] No machine ID found in settings, which is unexpected since authAndSetupMachineIfNeeded should have created it. Please report this issue on https://github.com/NickGuAI/HappyHerd/issues`);
     process.exit(1);
   }
   logger.debug(`Using machineId: ${machineId}`);
@@ -96,7 +96,7 @@ export async function runGemini(opts: {
   });
 
   //
-  // Fetch Gemini cloud token (from 'happy connect gemini')
+  // Fetch Gemini cloud token (from 'happyherd connect gemini')
   //
   let cloudToken: string | undefined = undefined;
   let currentUserEmail: string | undefined = undefined;
@@ -633,8 +633,8 @@ export async function runGemini(opts: {
           // Check for authentication error and provide helpful message
           if (errorMessage.includes('Authentication required')) {
             errorMessage = `Authentication required.\n` +
-              `For Google Workspace accounts, run: happy gemini project set <project-id>\n` +
-              `Or use a different Google account: happy connect gemini\n` +
+              `For Google Workspace accounts, run: happyherd gemini project set <project-id>\n` +
+              `Or use a different Google account: happyherd connect gemini\n` +
               `Guide: https://goo.gle/gemini-cli-auth-docs#workspace-gca`;
           }
           
@@ -1206,8 +1206,8 @@ export async function runGemini(opts: {
                      errorDetails.includes('Authentication required') ||
                      errorCode === -32000) {
               errorMsg = `Authentication required. For Google Workspace accounts, you need to set a Google Cloud Project:\n` +
-                         `  happy gemini project set <your-project-id>\n` +
-                         `Or use a different Google account: happy connect gemini\n` +
+                         `  happyherd gemini project set <your-project-id>\n` +
+                         `Or use a different Google account: happyherd connect gemini\n` +
                          `Guide: https://goo.gle/gemini-cli-auth-docs#workspace-gca`;
             }
             // Check for empty error (command not found)

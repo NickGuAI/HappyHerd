@@ -66,11 +66,11 @@ describe('resolveAcpAgentConfig', () => {
   });
 
   it('throws with helpful usage when no args are provided', () => {
-    expect(() => resolveAcpAgentConfig([])).toThrow('Usage: happy acp <agent-name> or happy acp -- <command> [args]');
+    expect(() => resolveAcpAgentConfig([])).toThrow('Usage: happyherd acp <agent-name> or happyherd acp -- <command> [args]');
   });
 
   it('throws when separator form omits command', () => {
-    expect(() => resolveAcpAgentConfig(['--'])).toThrow('Missing command after "--". Usage: happy acp -- <command> [args]');
+    expect(() => resolveAcpAgentConfig(['--'])).toThrow('Missing command after "--". Usage: happyherd acp -- <command> [args]');
   });
 });
 
@@ -117,7 +117,7 @@ describe('resolveAcpLaunchConfig', () => {
 
   it('rejects provider passthrough flags on the fixed GrokBuild alias', () => {
     expect(() => resolveAcpLaunchConfig(['--provider-flag'], 'grok'))
-      .toThrow('Unexpected argument for happy grok: --provider-flag');
+      .toThrow('Unexpected argument for happyherd grok: --provider-flag');
   });
 
   it('preserves provider flags for generic ACP commands', () => {

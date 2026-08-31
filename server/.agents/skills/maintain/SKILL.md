@@ -77,7 +77,7 @@ resolves into a clear, unambiguous directive. Specifically:
 - Credit community contributors by @mention - state what they did,
   not how impressive it was.
 - When a fix exists, ask the reporter to help verify it.
-- Only mention `npm i -g happy` when the fix is in the CLI package.
+- Only mention `npm install -g @happyherd/cli@latest` when the fix is in the CLI package.
 - Keep it short: 3 sentences for dupes, 5 max for canonicals.
 
 ## Milestones = Themes

@@ -14,8 +14,8 @@ boundary.
    seed context.
 4. The agent presents a final summary and waits for explicit confirmation.
 5. The agent authors the exact `COMMANDER.md`, memory, and learning contents in a
-   temporary JSON manifest, runs `happy commander create --manifest <file>`,
-   verifies the result with `happy commander list`, and removes the manifest.
+   temporary JSON manifest, runs `happyherd commander create --manifest <file>`,
+   verifies the result with `happyherd commander list`, and removes the manifest.
 
 The interaction remains resumable because it is a normal HappyHerd session. No
 server-side workflow or hidden creation state exists.

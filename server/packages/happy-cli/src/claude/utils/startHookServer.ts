@@ -44,10 +44,10 @@
  * ```
  * 
  * ### Triggered By
- * - `happy` (fresh start) - new session created
- * - `happy --continue` - continues last session (may fork)
- * - `happy --resume` - interactive picker, then resume
- * - `happy --resume <id>` - resume specific session
+ * - `happyherd` (fresh start) - new session created
+ * - `happyherd --continue` - continues last session (may fork)
+ * - `happyherd --resume` - interactive picker, then resume
+ * - `happyherd --resume <id>` - resume specific session
  * - `/compact` command - compacts and forks session
  * - Double-escape fork - user forks conversation in CLI
  * 

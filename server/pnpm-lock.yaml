@@ -1383,25 +1383,6 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.13)(@types/node@20.19.39)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
 
-  packages/happyherd-cli:
-    dependencies:
-      happy:
-        specifier: workspace:*
-        version: file:packages/happy-cli(@anthropic-ai/sdk@0.110.0(zod@4.4.3))(@fastify/swagger@9.7.0)(@types/node@20.19.39)(openapi-types@12.1.3)(react-devtools-core@6.1.5)
-    devDependencies:
-      '@types/node':
-        specifier: '>=20'
-        version: 20.19.39
-      pkgroll:
-        specifier: ^2.14.2
-        version: 2.22.0(typescript@5.9.3)
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.4(@types/debug@4.1.13)(@types/node@20.19.39)(jiti@2.6.1)(lightningcss@1.32.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
-
 packages:
 
   '@agentclientprotocol/sdk@0.14.1':
@@ -5865,9 +5846,6 @@ packages:
     engines: {node: '>=24'}
     hasBin: true
 
-  '@slopus/happy-wire@file:packages/happy-wire':
-    resolution: {directory: packages/happy-wire, type: directory}
-
   '@slopus/murmur@0.4.4':
     resolution: {integrity: sha512-/sx4LzNW3C49CFsJk3ljbiUw6KRy8xDZN+3Q7xOBh0vaOlcALy22ua3CYMMcvUpW6qzx4skDZOYAQEJD/fdx1Q==}
     engines: {node: '>=20'}
@@ -9386,14 +9364,6 @@ packages:
   hachure-fill@0.5.2:
     resolution: {integrity: sha512-3GKBOn+m2LX9iq+JC1064cSFprJY4jL1jCXTcpnfER5HYE2l/4EfWSGzkPa/ZDBmYI0ZOEj5VHV/eKnPGkHuOg==}
 
-  happy-agent@file:packages/happy-agent:
-    resolution: {directory: packages/happy-agent, type: directory}
-    hasBin: true
-
-  happy@file:packages/happy-cli:
-    resolution: {directory: packages/happy-cli, type: directory}
-    hasBin: true
-
   has-bigints@1.1.0:
     resolution: {integrity: sha512-R3pbpkcIqv2Pm3dUwgjclDRVmWpTJW2DcMzcIhEXEx1oh/CEMObMm3KLmRJOdvhM7o4uQBnwr8pzRK2sJWIqfg==}
     engines: {node: '>= 0.4'}
@@ -11631,6 +11601,7 @@ packages:
   prom-client@15.1.3:
     resolution: {integrity: sha512-6ZiOBfCywsD4k1BN9IX0uZhF+tJkV8q8llP64G5Hajs4JOeVLPCwpPVcpXy3BwYiUGgyJzsJJQeOIv7+hDSq8g==}
     engines: {node: ^16 || ^18 || >=20}
+    deprecated: prom-client has been replaced by @prometheus-io/client
 
   promise-limit@2.7.0:
     resolution: {integrity: sha512-7nJ6v5lnJsXwGprnGXga4wx6d1POjvi5Qmf1ivTRxTjH4Z/9Czja/UCMLVmB9N93GeWOU93XaFaEt6jbuoagNw==}
@@ -19224,11 +19195,6 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@slopus/happy-wire@file:packages/happy-wire':
-    dependencies:
-      '@paralleldrive/cuid2': 2.3.1
-      zod: 4.4.3
-
   '@slopus/murmur@0.4.4':
     dependencies:
       '@noble/ciphers': 1.3.0
@@ -23136,102 +23102,6 @@ snapshots:
   graceful-fs@4.2.11: {}
 
   hachure-fill@0.5.2: {}
-
-  happy-agent@file:packages/happy-agent:
-    dependencies:
-      '@slopus/happy-wire': file:packages/happy-wire
-      axios: 1.13.4
-      chalk: 5.6.2
-      commander: 13.1.0
-      qrcode-terminal: 0.12.0
-      socket.io-client: 4.8.3
-      tweetnacl: 1.0.3
-    transitivePeerDependencies:
-      - bufferutil
-      - debug
-      - supports-color
-      - utf-8-validate
-
-  happy@file:packages/happy-cli(@anthropic-ai/sdk@0.110.0(zod@4.4.3))(@fastify/swagger@9.7.0)(@types/node@20.19.39)(openapi-types@12.1.3)(react-devtools-core@6.1.5):
-    dependencies:
-      '@agentclientprotocol/sdk': 0.14.1(zod@4.4.3)
-      '@anthropic-ai/claude-agent-sdk': 0.3.241(@anthropic-ai/sdk@0.110.0(zod@4.4.3))(@modelcontextprotocol/sdk@1.29.0(zod@4.4.3))(zod@4.4.3)
-      '@anthropic-ai/sandbox-runtime': 0.0.37
-      '@modelcontextprotocol/sdk': 1.29.0(zod@4.4.3)
-      '@paralleldrive/cuid2': 2.3.1
-      '@slopus/happy-terminal': 0.3.4(@electric-sql/pglite@0.3.15)(@emnapi/core@1.9.2)(@emnapi/runtime@1.11.3)(@prisma/client@6.19.2(prisma@6.19.2(typescript@5.9.3))(typescript@5.9.3))(@types/better-sqlite3@7.6.13)(@types/node@20.19.39)(better-sqlite3@12.9.0)(prisma@6.19.2(typescript@5.9.3))(zod@4.4.3)
-      '@stablelib/base64': 2.0.1
-      '@stablelib/hex': 2.0.1
-      '@types/cross-spawn': 6.0.6
-      '@types/http-proxy': 1.17.17
-      '@types/qrcode-terminal': 0.12.2
-      '@types/react': 19.2.14
-      '@types/tmp': 0.2.6
-      ai: 5.0.123(zod@4.4.3)
-      axios: 1.13.4
-      chalk: 5.6.2
-      cron-parser: 5.7.0
-      cross-spawn: 7.0.6
-      expo-server-sdk: 3.15.0(encoding@0.1.13)
-      fastify: 5.7.2
-      fastify-type-provider-zod: 6.1.0(@fastify/swagger@9.7.0)(fastify@5.7.2)(openapi-types@12.1.3)(zod@4.4.3)
-      happy-agent: file:packages/happy-agent
-      http-proxy: 1.18.1(debug@4.4.3)
-      http-proxy-middleware: 3.0.5
-      ink: 6.6.0(@types/react@19.2.14)(react-devtools-core@6.1.5)(react@19.2.0)
-      inquirer: 13.2.2(@types/node@20.19.39)
-      node-cron: 4.2.1
-      open: 10.2.0
-      ps-list: 8.1.1
-      qrcode-terminal: 0.12.0
-      react: 19.2.0
-      socket.io-client: 4.8.3
-      tar: 7.5.7
-      tmp: 0.2.5
-      tweetnacl: 1.0.3
-      undici: 6.28.0
-      zod: 4.4.3
-    transitivePeerDependencies:
-      - '@anthropic-ai/sdk'
-      - '@aws-sdk/client-rds-data'
-      - '@cfworker/json-schema'
-      - '@cloudflare/workers-types'
-      - '@electric-sql/pglite'
-      - '@emnapi/core'
-      - '@emnapi/runtime'
-      - '@fastify/swagger'
-      - '@libsql/client-wasm'
-      - '@neondatabase/serverless'
-      - '@op-engineering/op-sqlite'
-      - '@planetscale/database'
-      - '@prisma/client'
-      - '@tidbcloud/serverless'
-      - '@types/better-sqlite3'
-      - '@types/node'
-      - '@types/pg'
-      - '@types/sql.js'
-      - '@upstash/redis'
-      - '@vercel/postgres'
-      - '@xata.io/client'
-      - better-sqlite3
-      - bufferutil
-      - bun-types
-      - debug
-      - encoding
-      - expo-sqlite
-      - gel
-      - knex
-      - kysely
-      - mysql2
-      - openapi-types
-      - pg
-      - postgres
-      - prisma
-      - react-devtools-core
-      - sql.js
-      - sqlite3
-      - supports-color
-      - utf-8-validate
 
   has-bigints@1.1.0: {}
 

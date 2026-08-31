@@ -144,21 +144,21 @@ function inputFromFlags(flags: Flags, partial: boolean): HappyHerdAutomationCrea
 
 function help(): void {
   console.log(`
-${chalk.bold('happy automation')} - Manage machine-local HappyHerd schedules
+${chalk.bold('happyherd automation')} - Manage machine-local HappyHerd schedules
 
 Usage:
-  happy automation list [--json]
-  happy automation create --name NAME --kind scheduled|memory-maintenance \\
+  happyherd automation list [--json]
+  happyherd automation create --name NAME --kind scheduled|memory-maintenance \\
     --instruction TEXT --schedule CRON --timezone IANA --workspace PATH \\
     --rail claude|codex [--commander ID|none] [--status active|paused] [--max-retries N] \\
     [--tag VALUE ...]
-  happy automation create --name NAME --kind scheduled --rail exec \\
+  happyherd automation create --name NAME --kind scheduled --rail exec \\
     --executable ABSOLUTE_PATH [--argument VALUE ...] --schedule CRON \\
     --timezone IANA --workspace PATH [--status active|paused] [--tag VALUE ...]
-  happy automation update ID [the same optional flags] [--clear-tags] [--clear-arguments]
-  happy automation pause|resume|run-now|delete|history ID [--json]
-  happy automation stop-run AUTOMATION_ID RUN_ID [--json]
-  happy automation abandon-run AUTOMATION_ID RUN_ID --session SESSION_ID|none --confirm ABANDON [--json]
+  happyherd automation update ID [the same optional flags] [--clear-tags] [--clear-arguments]
+  happyherd automation pause|resume|run-now|delete|history ID [--json]
+  happyherd automation stop-run AUTOMATION_ID RUN_ID [--json]
+  happyherd automation abandon-run AUTOMATION_ID RUN_ID --session SESSION_ID|none --confirm ABANDON [--json]
 
 Definitions are stored below the configured HAPPY_HOME_DIR at
 agentcontext/automations/happyherd and

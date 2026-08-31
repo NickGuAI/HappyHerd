@@ -182,8 +182,8 @@ host_happy daemon list
 host_happy daemon stop
 ```
 
-`happy daemon stop` deliberately leaves provider sessions alive. Do not use
-`happy doctor clean`, log out, delete the Happy home, or kill provider
+`happyherd daemon stop` deliberately leaves provider sessions alive. Do not use
+`happyherd doctor clean`, log out, delete the Happy home, or kill provider
 processes as part of an update.
 
 For a Linux source installation, install from the recorded `CLI_SOURCE_SHA`
@@ -240,8 +240,8 @@ the following from the refreshed client:
 - retained sessions remain attached to the same machine and can continue.
 
 When account-wide machine control is already linked, the current installation's
-machine command (`happy machine list --json`, or launcher-forwarded `happyherd
-machine list --json`) provides an additional encrypted API read-back. It is not
+machine command (`happyherd machine list --json`) provides an additional
+encrypted API read-back. It is not
 a substitute for checking the user-visible website state. Do not initiate
 account-control linking or require a QR code as part of post-update acceptance;
 daemon pairing and account-wide machine control are separate concerns.
@@ -255,7 +255,7 @@ decrypts machine metadata and then requires `host`, `platform`, `happyCliVersion
 metadata also carries `happyLibDir` and capability fields.
 
 1. Fully reload the website once and re-run daemon status/list read-backs.
-2. Do not rename or delete the machine, run `happy doctor clean`, replace the
+2. Do not rename or delete the machine, run `happyherd doctor clean`, replace the
    Happy home, or create a new machine ID.
 3. If the machine is online but metadata remains invalid, treat activation as
    failed and escalate with the preserved machine ID and metadata version. Do

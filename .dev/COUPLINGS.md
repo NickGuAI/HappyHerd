@@ -8,7 +8,7 @@ durable truth. Package manifests and concrete call sites are authoritative.
 ```text
 @slopus/happy-wire
    ├──► happy-app
-   ├──► happy-cli (package name: happy) ◄── @happyherd/cli
+   ├──► happy-cli (package name: @happyherd/cli)
    ├──► happy-server
    ├──► happy-agent ◄── @happyherd/happyherd-agent
    └──► happy-server-self-host
@@ -18,8 +18,9 @@ happy-server-self-host ──builds──► happy-server + Prisma + happy-app w
 
 - `happy-wire` is the shared protocol leaf. A schema change can affect every
   application and runtime even if TypeScript finds only some consumers.
-- `@happyherd/cli` is an exact alias for the maintained `happy` CLI. The root
-  installer owns only source build, normal server settings, and user commands.
+- `@happyherd/cli` lives at `packages/happy-cli` and exposes `happyherd` as its
+  sole primary command. The root installer owns only source build, normal
+  server settings, and user commands.
 - `@happyherd/happyherd-agent` composes `happy-agent/control` with Discord and
   the governed organization-service broker.
 - `happy-server-self-host` directly consumes `happy-wire` and also has
@@ -64,7 +65,7 @@ and any server relay before modifying them.
 ```text
 happy-app agent selection + live machine catalog
   → happy-cli daemon spawn/resume
-  → `happy grok`
+  → `happyherd grok`
   → existing `agent/acp` runner
   → official GrokBuild CLI over ACP stdio
 ```
@@ -289,7 +290,7 @@ Native account-machine discovery and session creation cross one package edge:
 `happy-cli` owns the public commands, while the side-effect-free
 `happy-agent/control` and `happy-agent/auth` exports own account-machine
 decryption, encrypted machine RPC, and the app-approved account-link flow.
-`happy machine auth` stores its account-control key only at `agent.key` in the
+`happyherd machine auth` stores its account-control key only at `agent.key` in the
 configured HappyHerd home; normal native auth remains in `access.key`. Do not
 copy or derive one from another. Because those package exports resolve through `happy-agent/dist`, the
 existing injected-package publish lifecycle builds that surface for clean
@@ -302,8 +303,8 @@ and configuration, tests, and bins exist and source changes invalidate the
 cached install layer.
 The server-image workflow path filter must include both package trees.
 Deployments that deliberately install with `--ignore-scripts` must instead
-build `happy-agent` explicitly before building `happy` and the local CLI runtime.
-Native `happy session create` accepts only Happy CLI daemon machines. Rig has a
+build `happy-agent` explicitly before building `@happyherd/cli` and the local CLI runtime.
+Native `happyherd session create` accepts only Happy CLI daemon machines. Rig has a
 separate idempotent, provider-qualified RPC contract and must fail closed here
 unless that distinct contract is implemented end to end.
 Machine kind alone is not authorization to use the strict creation RPC. New
@@ -471,7 +472,7 @@ allowlist entry to hide new hardcoded interface copy.
 | Self-host server | `happy-server-self-host`, server, Prisma, and app web bundle |
 | Host daemon | `happy-cli` and embedded/runtime dependencies |
 | Governed bridge | `happy-agent`, `happyherd-agent`, deploy/runtime contracts |
-| Local user installer | `install.sh`, `happyherd-cli`, `happy-cli`, `happy-server-self-host` |
+| Local user installer | `install.sh`, `happy-cli`, `happy-server-self-host` |
 
 These are independent delivery lanes. The self-host server intentionally
 contains the Web bundle, but changing the CLI/daemon, mobile client, governed

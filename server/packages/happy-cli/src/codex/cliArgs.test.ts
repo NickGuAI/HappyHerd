@@ -26,7 +26,7 @@ describe('extractCodexResumeFlag', () => {
 
     it('throws when resume flag is missing a thread ID', () => {
         expect(() => extractCodexResumeFlag(['--resume'])).toThrow(
-            'Codex resume requires a thread ID: happy codex --resume <thread-id>',
+            'Codex resume requires a thread ID: happyherd codex --resume <thread-id>',
         );
     });
 });

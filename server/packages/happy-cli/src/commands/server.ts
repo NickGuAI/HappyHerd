@@ -92,7 +92,7 @@ export async function handleServerCommand(args: string[]): Promise<void> {
 
     const staticDir = artifacts.webappDir ?? findWebappDir();
 
-    console.log(chalk.cyan(`\n  happy server`));
+    console.log(chalk.cyan(`\n  happyherd server`));
     console.log(chalk.gray(`  data dir:   ${dataDir}`));
     console.log(chalk.gray(`  server url: ${serverUrl}`));
     console.log(chalk.gray(`  mode:       ${serverArtifactMode(artifacts)}`));
@@ -127,10 +127,10 @@ export async function handleServerCommand(args: string[]): Promise<void> {
             console.error(chalk.red('Could not locate the Prisma query engine for this platform.'));
             if (artifacts.source === 'package') {
                 console.error(chalk.gray(`  Expected ${SERVER_PACKAGE_NAME} to install @prisma/engines.`));
-                console.error(chalk.gray(`  Try reinstalling ${SERVER_PACKAGE_NAME}, then run \`happy server\` again.`));
+                console.error(chalk.gray(`  Try reinstalling ${SERVER_PACKAGE_NAME}, then run \`happyherd server\` again.`));
             } else {
-                console.error(chalk.gray('  Expected @prisma/engines to be available near the happy package.'));
-                console.error(chalk.gray('  Try reinstalling happy, then run `happy server` again.'));
+                console.error(chalk.gray('  Expected @prisma/engines to be available near the @happyherd/cli package.'));
+                console.error(chalk.gray('  Try reinstalling @happyherd/cli, then run `happyherd server` again.'));
             }
             process.exit(1);
         }
@@ -156,7 +156,7 @@ export async function handleServerCommand(args: string[]): Promise<void> {
         console.log(chalk.green(`  Open ${serverUrl} in your browser.`));
     }
     if (opts.persistServerUrl) {
-        console.log(chalk.gray('  happy CLI + daemon will use this server automatically (settings.serverUrl).'));
+        console.log(chalk.gray('  HappyHerd CLI + daemon will use this server automatically (settings.serverUrl).'));
     }
     console.log(chalk.gray('  Press Ctrl-C to stop.'));
     console.log();
@@ -217,10 +217,10 @@ function parseArgs(args: string[]): ServerOptions | null {
 
 function showHelp() {
     console.log(`
-${chalk.bold('happy server')} - Run Happy sync server + web app locally (self-host)
+${chalk.bold('happyherd server')} - Run Happy sync server + web app locally (self-host)
 
 ${chalk.bold('Usage:')}
-  happy server [--port 3005] [--host 127.0.0.1] [--reset] [--no-persist]
+  happyherd server [--port 3005] [--host 127.0.0.1] [--reset] [--no-persist]
 
 ${chalk.bold('Options:')}
   --port, -p <n>        Port to listen on (default: 3005)
@@ -246,7 +246,7 @@ async function ensureSettingsWriteAllowed(opts: ServerOptions, serverUrl: string
     }
 
     const message =
-        `happy server will write settings.serverUrl and settings.webappUrl to ${serverUrl} ` +
+        `happyherd server will write settings.serverUrl and settings.webappUrl to ${serverUrl} ` +
         `in ${configuration.settingsFile}.`;
 
     if (!process.stdin.isTTY || !process.stderr.isTTY) {

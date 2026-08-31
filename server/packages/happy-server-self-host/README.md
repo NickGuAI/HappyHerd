@@ -1,16 +1,16 @@
 # happy-server-self-host
 
 Self-host runtime for [Happy](https://happy.engineering) — the sync server plus
-the bundled web app, packaged for `happy server`.
+the bundled web app, packaged for `happyherd server`.
 
 ## Usage
 
 ```bash
-npm install -g happy happy-server-self-host
-happy server
+npm install -g @happyherd/cli@latest happy-server-self-host
+happyherd server
 ```
 
-`happy server` (from the `happy` CLI) discovers this package automatically and
+`happyherd server` (from `@happyherd/cli`) discovers this package automatically and
 runs it with embedded PGlite storage and local filesystem uploads — no Postgres,
 no Redis, no S3. It writes `settings.serverUrl` so the daemon and CLI target
 your local server.

@@ -2,7 +2,7 @@
     "name": "monorepo",
     "private": true,
     "scripts": {
-        "cli": "pnpm --filter happy cli",
+        "cli": "node packages/happy-cli/bin/happy.mjs",
         "release": "node ./scripts/release.cjs",
         "web": "pnpm --filter happy-app web",
         "codium": "pnpm --filter codium dev",
@@ -33,7 +33,6 @@
             "packages/happy-server-self-host",
             "packages/happy-wire",
             "packages/happy-app-logs",
-            "packages/happyherd-cli",
             "packages/happyherd-agent",
             "packages/codium"
         ]

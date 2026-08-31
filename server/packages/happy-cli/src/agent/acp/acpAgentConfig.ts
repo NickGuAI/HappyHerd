@@ -100,7 +100,7 @@ export function resolveAcpLaunchConfig(
     }
     if (arg === '--') customCommandMode = true;
     if (namedAgent) {
-      throw new Error(`Unexpected argument for happy ${namedAgent}: ${arg}`);
+      throw new Error(`Unexpected argument for happyherd ${namedAgent}: ${arg}`);
     }
     providerArgs.push(arg);
   }
@@ -129,13 +129,13 @@ export function resolveAcpLaunchConfig(
 
 export function resolveAcpAgentConfig(cliArgs: string[]): ResolvedAcpAgentConfig {
   if (cliArgs.length === 0) {
-    throw new Error('Usage: happy acp <agent-name> or happy acp -- <command> [args]');
+    throw new Error('Usage: happyherd acp <agent-name> or happyherd acp -- <command> [args]');
   }
 
   if (cliArgs[0] === '--') {
     const command = cliArgs[1];
     if (!command) {
-      throw new Error('Missing command after "--". Usage: happy acp -- <command> [args]');
+      throw new Error('Missing command after "--". Usage: happyherd acp -- <command> [args]');
     }
     return {
       agentName: command,

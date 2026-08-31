@@ -1,18 +1,18 @@
 {
-  "name": "happy",
+  "name": "@happyherd/cli",
   "version": "1.2.2",
-  "description": "Mobile and Web client for Claude Code and Codex",
+  "description": "The official command-line interface for HappyHerd, published as @happyherd/cli.",
   "author": "Kirill Dubovitskiy",
   "license": "MIT",
   "type": "module",
-  "homepage": "https://happy.engineering",
-  "bugs": "https://github.com/slopus/happy/issues",
+  "homepage": "https://github.com/NickGuAI/HappyHerd",
+  "bugs": "https://github.com/NickGuAI/HappyHerd/issues",
   "repository": {
     "type": "git",
-    "url": "https://github.com/slopus/happy"
+    "url": "https://github.com/NickGuAI/HappyHerd"
   },
   "bin": {
-    "happy": "./bin/happy.mjs",
+    "happyherd": "./bin/happy.mjs",
     "happy-mcp": "./bin/happy-mcp.mjs",
     "happyherd-agent-mcp": "./bin/happyherd-agent-mcp.mjs",
     "happyherd-agent-codex-policy": "./bin/happyherd-agent-codex-policy.mjs"
@@ -149,7 +149,11 @@
     "vitest": "^3.2.4"
   },
   "publishConfig": {
+    "access": "public",
     "registry": "https://registry.npmjs.org"
   },
-  "packageManager": "pnpm@10.11.0"
+  "packageManager": "pnpm@10.11.0",
+  "engines": {
+    "node": ">=20"
+  }
 }

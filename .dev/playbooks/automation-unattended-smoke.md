@@ -28,7 +28,7 @@ Claude/Codex automation rail
 From `server/`:
 
 ```bash
-pnpm --filter happy exec vitest run --project unit \
+pnpm --filter @happyherd/cli exec vitest run --project unit \
   src/automations/unattendedPolicy.test.ts \
   src/automations/service.test.ts \
   src/claude/utils/permissionHandler.test.ts \
@@ -47,12 +47,12 @@ Use a disposable paused definition on a daemon where the provider is already
 authenticated. Replace `PROVIDER` with the new rail:
 
 ```bash
-happy automation create --name "Unattended provider smoke" \
+happyherd automation create --name "Unattended provider smoke" \
   --kind scheduled --instruction "Use the shell to run: printf happyherd-automation-smoke. Then finish." \
   --schedule "0 0 1 1 *" --timezone UTC --workspace "$PWD" \
   --rail PROVIDER --status paused --max-retries 0 --json
-happy automation run-now AUTOMATION_ID --json
-happy automation history AUTOMATION_ID --json
+happyherd automation run-now AUTOMATION_ID --json
+happyherd automation history AUTOMATION_ID --json
 ```
 
 Pass only when the harmless command runs without a permission card and history
@@ -64,12 +64,12 @@ If a legacy row is confirmed orphaned, preserve its history and unblock future
 occurrences explicitly:
 
 ```bash
-happy automation abandon-run AUTOMATION_ID RUN_ID \
+happyherd automation abandon-run AUTOMATION_ID RUN_ID \
   --session SESSION_ID --confirm ABANDON --json
 ```
 
 Use `--session none` only for a pre-registration `running` row. If the exact
-run is still tracked, use `happy automation stop-run AUTOMATION_ID RUN_ID` and
+run is still tracked, use `happyherd automation stop-run AUTOMATION_ID RUN_ID` and
 wait for confirmed provider exit instead.
 
 ## Exec contract
