@@ -10,20 +10,33 @@ const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../..');
 
 const virtualModules: Record<string, string> = {
+    'react-native': `
+        import React from 'react';
+        import { Animated } from 'react-native-web';
+        export * from 'react-native-web';
+        export const TurboModuleRegistry = { get: () => null };
+        export const useAnimatedValue = (initialValue) => React.useRef(new Animated.Value(initialValue)).current;
+    `,
     'react-native-unistyles': `
         const theme = {
             dark: false,
             colors: {
                 text: '#111', textSecondary: '#666', divider: '#ddd', surface: '#f5f5f5',
-                textLink: '#06c', surfaceHigh: '#eee', surfaceSelected: '#e5e5e5', groupped: { background: '#fff' },
+                textLink: '#06c', textDestructive: '#c22', warningCritical: '#c22',
+                surfaceHigh: '#eee', surfaceHighest: '#e8e8e8', surfacePressed: '#ddd', surfacePressedOverlay: 'transparent',
+                surfaceSelected: '#e5e5e5', groupped: { background: '#fff' },
                 input: { background: '#f0f0f0', placeholder: '#999', text: '#111' },
-                header: { background: '#fff', tint: '#111' }, glass: { backgroundStrong: '#fff' }, shadow: { color: '#000', opacity: 0.1 },
-                button: { primary: { tint: '#fff', background: '#111' } }, success: '#0a0',
+                header: { background: '#fff', tint: '#111' },
+                modal: { border: '#ddd' },
+                glass: { backgroundStrong: '#fff', backgroundSubtle: '#f8f8f8', border: '#ddd', divider: '#ddd' },
+                shadow: { color: '#000', opacity: 0.1 },
+                button: { primary: { tint: '#fff', background: '#111', disabled: '#aaa' }, secondary: { tint: '#666' } },
+                success: '#0a0', gitAddedText: '#0a0', gitRemovedText: '#c22',
                 box: {
                     error: { background: '#fee', border: '#d44', text: '#900' },
                     warning: { background: '#fff8dd', border: '#b70', text: '#742' },
                 },
-                radio: { active: '#111', dot: '#fff' }, warning: '#b70', textDestructive: '#c22',
+                radio: { active: '#111', inactive: '#aaa', dot: '#fff' }, warning: '#b70',
             },
         };
         export const StyleSheet = {
@@ -40,6 +53,12 @@ const virtualModules: Record<string, string> = {
         export const Ionicons = Icon;
         export const Octicons = Icon;
     `,
+    'react-native-svg': `
+        import React from 'react';
+        const Svg = (props) => React.createElement('svg', props, props.children);
+        export const Circle = (props) => React.createElement('circle', props, props.children);
+        export default Svg;
+    `,
     'react-native-safe-area-context': `export const useSafeAreaInsets = () => ({ top: 0, right: 0, bottom: 0, left: 0 });`,
     'expo-router': `
         export const useRouter = () => ({ push() {}, back() {}, dismissTo() {} });
@@ -48,10 +67,11 @@ const virtualModules: Record<string, string> = {
     `,
     'react-native-reanimated': `
         import React from 'react';
-        import { View } from 'react-native';
-        export default { View };
+        import { ScrollView, View } from 'react-native';
+        export default { ScrollView, View };
         export const useSharedValue = (value) => ({ value });
         export const useAnimatedStyle = (factory) => factory();
+        export const withRepeat = (value) => value;
         export const withTiming = (value) => value;
         export const Easing = { out: (value) => value, cubic: 'cubic' };
     `,
@@ -289,7 +309,29 @@ const virtualModules: Record<string, string> = {
             applySettings() {},
         };
     `,
-    '@/modal': `export const Modal = { alert() {}, confirm: async () => true, prompt() {}, show() {} };`,
+    '@/modal': `
+        import React from 'react';
+        import { createRoot } from 'react-dom/client';
+        export const Modal = {
+            alert() {},
+            confirm: async () => true,
+            prompt() {},
+            show(request) {
+                const host = document.createElement('div');
+                host.dataset.testid = 'fixture-global-modal';
+                document.body.append(host);
+                const root = createRoot(host);
+                const close = () => queueMicrotask(() => {
+                    root.unmount();
+                    host.remove();
+                });
+                root.render(React.createElement(request.component, {
+                    ...(request.props ?? {}),
+                    onClose: close,
+                }));
+            },
+        };
+    `,
     '@/components/AgentContentView': `
         import React from 'react';
         import { WorkspaceLinkPressContext } from '@/-session/workspaceLinkNavigation';
@@ -316,31 +358,6 @@ const virtualModules: Record<string, string> = {
                 }, 'Open workspace link'),
             );
         };
-    `,
-    '@/components/AgentInput': `
-        import React from 'react';
-        let mountCounter = 0;
-        export const AgentInput = React.forwardRef((props, ref) => {
-            const mountId = React.useRef('composer-' + (++mountCounter)).current;
-            const [draft, setDraft] = React.useState('');
-            React.useImperativeHandle(ref, () => ({
-                focus() {},
-                getText: () => draft,
-                setTextAndSelection(text) { setDraft(text); },
-            }), [draft]);
-            return React.createElement('div', {
-                'data-testid': 'session-composer',
-                'data-session-id': props.sessionId,
-                'data-mount-id': mountId,
-            }, props.sessionId, React.createElement('input', {
-                'data-testid': 'session-composer-draft',
-                value: draft,
-                onChange: (event) => {
-                    setDraft(event.currentTarget.value);
-                    props.onChangeText?.(event.currentTarget.value);
-                },
-            }));
-        });
     `,
     '@/components/AgentGoalBar': `export const AgentGoalBar = () => null;`,
     '@/components/AgentQuestionBanner': `export const AgentQuestionBanner = () => null;`,
@@ -455,8 +472,16 @@ const virtualModules: Record<string, string> = {
         });
     `,
     '@/sync/grokPermissionModeTransition': `export const transitionGrokPermissionModeAndCommit = async () => {};`,
-    '@/utils/sessionStatusBar': `export const resolveStatusBarGitBranch = () => null;`,
-    '@/utils/rigGitLineChanges': `export const visibleRigGitLineChanges = () => null;`,
+    '@/utils/sessionStatusBar': `
+        export const formatUsageLimitResetTime = () => '';
+        export const getUsageLimitDisplayPercentage = (value) => value;
+        export const getUsageLimitRows = () => [];
+        export const resolveStatusBarGitBranch = () => null;
+    `,
+    '@/utils/rigGitLineChanges': `
+        export const compactCount = (value) => String(value);
+        export const visibleRigGitLineChanges = () => null;
+    `,
     '@/utils/sessionUtils': `
         export const formatPathRelativeToHome = (path) => path; export const getResumeCommandBlock = () => null;
         export const getSessionAvatarId = (session) => session.id; export const getSessionName = (session) => session.metadata?.summary?.text ?? session.id;
@@ -490,6 +515,15 @@ const fixturePlugin: Plugin = {
             if (args.path === './AnimatedOverlay') return { path: '@/components/AnimatedOverlay', namespace: 'fixture-stub' };
             if (args.path === './workspaceLinkNavigation') return { path: '@/-session/workspaceLinkNavigation', namespace: 'fixture-stub' };
             if (args.path === './agentGoalActionHandler') return { path: '@/-session/agentGoalActionHandler', namespace: 'fixture-stub' };
+            if (args.path === './MultiTextInput') {
+                return { path: resolve(appRoot, 'sources/components/MultiTextInput.web.tsx') };
+            }
+            if (args.path === './NativeSettingsMenu') {
+                return { path: resolve(appRoot, 'sources/components/NativeSettingsMenu.web.tsx') };
+            }
+            if (args.path === './haptics') {
+                return { path: resolve(appRoot, 'sources/components/haptics.web.ts') };
+            }
             if (args.path === '@/components/CodeEditor') {
                 return { path: resolve(appRoot, 'sources/components/CodeEditor.web.tsx') };
             }
@@ -529,7 +563,6 @@ describe('Side chats browser interaction', () => {
             },
             jsx: 'automatic',
             loader: { '.png': 'dataurl' },
-            alias: { 'react-native': 'react-native-web' },
             plugins: [fixturePlugin],
         });
         const script = bundle.outputFiles[0].text;
@@ -571,9 +604,12 @@ describe('Side chats browser interaction', () => {
             if (
                 (message.type() === 'error' || message.type() === 'warning')
                 && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+                && message.text() !== '"shadow*" style props are deprecated. Use "boxShadow".'
             ) pageErrors.push(message.text());
         });
         await page.goto(origin);
+        await page.waitForTimeout(100);
+        expect(pageErrors).toEqual([]);
 
         const foreground = page.getByTestId('foreground-session');
         await foreground.getByText('Changes').waitFor({ state: 'visible', timeout: 3_000 }).catch(() => undefined);
@@ -586,17 +622,21 @@ describe('Side chats browser interaction', () => {
         await foreground.getByRole('button', { name: 'Collapse side chats' }).waitFor({ timeout: 2_000 });
         await expect(foreground.getByText('Changes').isVisible()).resolves.toBe(false);
         await expect(foreground.getByText('Newest child').isVisible()).resolves.toBe(true);
-        await expect(foreground.locator('[data-testid="session-composer"][data-session-id="child-newest"]').textContent({ timeout: 2_000 }))
-            .resolves.toBe('child-newest');
+        const newestDraft = foreground.locator('textarea').last();
+        await newestDraft.waitFor({ state: 'visible', timeout: 2_000 });
+        await newestDraft.evaluate((element) => { element.dataset.activeSideChatComposer = 'newest'; });
         await foreground.getByText('Oldest child').click();
-        await expect(foreground.locator('[data-testid="session-composer"][data-session-id="child-oldest"]').textContent({ timeout: 2_000 }))
-            .resolves.toBe('child-oldest');
+        await foreground.locator('textarea[data-active-side-chat-composer="newest"]')
+            .waitFor({ state: 'detached', timeout: 2_000 });
+        const oldestDraft = foreground.locator('textarea').last();
+        await oldestDraft.waitFor({ state: 'visible', timeout: 2_000 });
+        await oldestDraft.evaluate((element) => { element.dataset.activeSideChatComposer = 'oldest'; });
         await expect(page.evaluate(() => (window as any).__SIDE_CHAT_CREATE_COUNT__ ?? 0)).resolves.toBe(0);
 
         await foreground.getByRole('button', { name: 'Collapse side chats' }).click();
         await expect(foreground.getByText('Changes').isVisible()).resolves.toBe(true);
-        await expect(foreground.locator('[data-testid="session-composer"][data-session-id^="child-"]').count())
-            .resolves.toBe(0);
+        await foreground.locator('textarea[data-active-side-chat-composer="oldest"]')
+            .waitFor({ state: 'detached', timeout: 2_000 });
         await page.close();
     }, 10_000);
 
@@ -611,6 +651,7 @@ describe('Side chats browser interaction', () => {
             if (
                 (message.type() === 'error' || message.type() === 'warning')
                 && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+                && message.text() !== '"shadow*" style props are deprecated. Use "boxShadow".'
             ) pageErrors.push(message.text());
         });
         await page.goto(origin);
@@ -640,6 +681,33 @@ describe('Side chats browser interaction', () => {
         await page.close();
     }, 30_000);
 
+    it('dismisses an expanded desktop Side chat before revealing its requested workspace', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        const pageErrors: string[] = [];
+        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+        page.on('console', (message) => {
+            if (
+                (message.type() === 'error' || message.type() === 'warning')
+                && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+                && message.text() !== '"shadow*" style props are deprecated. Use "boxShadow".'
+            ) pageErrors.push(message.text());
+        });
+        await page.goto(origin);
+
+        const foreground = page.getByTestId('foreground-session');
+        await foreground.getByRole('button', { name: 'Open side chats (2)' }).click({ timeout: 3_000 });
+        await foreground.getByLabel('Expand side chat').click({ timeout: 3_000 });
+        const modal = page.getByTestId('fixture-global-modal');
+        await modal.waitFor({ state: 'visible', timeout: 3_000 });
+        await modal.getByRole('button', { name: 'Open same-session workspace link' }).click({ timeout: 3_000 });
+
+        await modal.waitFor({ state: 'detached', timeout: 3_000 });
+        await foreground.getByTestId('desktop-file-workspace').waitFor({ state: 'visible', timeout: 3_000 });
+        await foreground.getByRole('tab', { name: 'Open file notes.md' }).waitFor({ state: 'visible', timeout: 3_000 });
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 15_000);
+
     it('expands the real session workspace to 75 percent without losing mounted chat or file state', async () => {
         const page = await browser.newPage({ viewport: { width: 1000, height: 900 } });
         await page.addInitScript(() => {
@@ -651,6 +719,7 @@ describe('Side chats browser interaction', () => {
             if (
                 (message.type() === 'error' || message.type() === 'warning')
                 && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+                && message.text() !== '"shadow*" style props are deprecated. Use "boxShadow".'
             ) {
                 pageErrors.push(message.text());
             }
@@ -660,9 +729,8 @@ describe('Side chats browser interaction', () => {
         const foreground = page.getByTestId('foreground-session');
         await page.waitForTimeout(100);
         expect(pageErrors).toEqual([]);
-        const composer = foreground.locator('[data-testid="session-composer"][data-session-id="parent"]');
-        const composerDraft = composer.getByTestId('session-composer-draft');
-        await composer.waitFor({ state: 'visible', timeout: 3_000 });
+        const composerDraft = foreground.locator('textarea').first();
+        await composerDraft.waitFor({ state: 'visible', timeout: 3_000 });
         await foreground.evaluate((root) => {
             const scroll = Array.from(root.querySelectorAll<HTMLElement>('div')).find((element) => (
                 getComputedStyle(element).overflowY === 'auto'
@@ -676,8 +744,7 @@ describe('Side chats browser interaction', () => {
         await chatScroll.waitFor({ state: 'visible', timeout: 3_000 });
         await expect(foreground.getByText('Changes').count()).resolves.toBe(0);
         await composerDraft.fill('main draft survives first open');
-        const composerMountId = await composer.getAttribute('data-mount-id');
-        if (!composerMountId) throw new Error('Main Agent composer has no mount identity');
+        await composerDraft.evaluate((element) => { element.dataset.retentionComposer = 'main'; });
 
         const workspaceLink = foreground.getByRole('button', { name: 'Open same-session workspace link' });
         await workspaceLink.click();
@@ -717,7 +784,7 @@ describe('Side chats browser interaction', () => {
         }
         await expect(foreground.getByTestId('workspace-link-side-panel').count()).resolves.toBe(0);
         await expect(foreground.getByTestId('workspace-link-panel').count()).resolves.toBe(0);
-        await expect(composer.getAttribute('data-mount-id')).resolves.toBe(composerMountId);
+        await expect(foreground.locator('textarea[data-retention-composer="main"]').isVisible()).resolves.toBe(true);
         await expect(composerDraft.inputValue()).resolves.toBe('main draft survives first open');
 
         await workspaceLink.click();
@@ -746,8 +813,7 @@ describe('Side chats browser interaction', () => {
         expect(resizedHostBox.width / resizedPaneWidth).toBeCloseTo(0.75, 2);
         expect(resizedChatWidth / resizedPaneWidth).toBeCloseTo(0.25, 2);
         expect(resizedHostBox.width).toBeGreaterThan(initialHostBox.width + 100);
-        await expect(composer.isVisible()).resolves.toBe(true);
-        await expect(composer.getAttribute('data-mount-id')).resolves.toBe(composerMountId);
+        await expect(foreground.locator('textarea[data-retention-composer="main"]').isVisible()).resolves.toBe(true);
         await expect(composerDraft.inputValue()).resolves.toBe('main draft survives first open');
         await expect(chatScroll.evaluate((element) => element.scrollTop)).resolves.toBe(initialChatScrollTop);
         await expect(editor.getAttribute('data-retention-file-editor')).resolves.toBe('mounted');
@@ -763,7 +829,7 @@ describe('Side chats browser interaction', () => {
         expect(Math.abs(narrowHostBox.height - narrowForegroundBox.height)).toBeLessThan(2);
         await expect(foreground.getByRole('tab', { name: 'Open file notes.md' }).count()).resolves.toBe(0);
         await expect(workspace.isVisible()).resolves.toBe(true);
-        await expect(composer.getAttribute('data-mount-id')).resolves.toBe(composerMountId);
+        await expect(foreground.locator('textarea[data-retention-composer="main"]').isVisible()).resolves.toBe(true);
         await expect(composerDraft.inputValue()).resolves.toBe('main draft survives first open');
         expect(pageErrors).toEqual([]);
         await page.close();
@@ -777,17 +843,16 @@ describe('Side chats browser interaction', () => {
             if (
                 (message.type() === 'error' || message.type() === 'warning')
                 && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+                && message.text() !== '"shadow*" style props are deprecated. Use "boxShadow".'
             ) pageErrors.push(message.text());
         });
         await page.goto(origin);
 
         const foreground = page.getByTestId('foreground-session');
-        const composer = foreground.locator('[data-testid="session-composer"][data-session-id="parent"]');
-        const composerDraft = composer.getByTestId('session-composer-draft');
-        await composer.waitFor({ state: 'visible', timeout: 3_000 });
+        const composerDraft = foreground.locator('textarea').first();
+        await composerDraft.waitFor({ state: 'visible', timeout: 3_000 });
         await composerDraft.fill('mobile draft survives first open');
-        const composerMountId = await composer.getAttribute('data-mount-id');
-        if (!composerMountId) throw new Error('Main Agent composer has no mount identity');
+        await composerDraft.evaluate((element) => { element.dataset.retentionComposer = 'mobile-main'; });
         await foreground.getByRole('button', { name: 'Open same-session workspace link' }).click();
 
         const workspace = foreground.getByTestId('desktop-file-workspace');
@@ -797,18 +862,19 @@ describe('Side chats browser interaction', () => {
         await expect(foreground.getByTestId('desktop-file-workspace-divider').count()).resolves.toBe(0);
         await expect(foreground.getByTestId('workspace-link-side-panel').count()).resolves.toBe(0);
         await expect(foreground.getByTestId('workspace-link-panel').count()).resolves.toBe(0);
-        await expect(composer.getAttribute('data-mount-id')).resolves.toBe(composerMountId);
+        await expect(foreground.locator('textarea[data-retention-composer="mobile-main"]').isVisible()).resolves.toBe(true);
         await expect(composerDraft.inputValue()).resolves.toBe('mobile draft survives first open');
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 10_000);
 
-    it('shows and taps all three Web Mobile workspace entries through the production SessionView host', async () => {
+    it('opens all three Main Agent workspace surfaces from the Web Mobile composer menu', async () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
         await page.addInitScript(() => {
             (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
                 machineWorkspaceEnabled: false,
                 realtimeStatus: 'connected',
+                zenMode: true,
             };
         });
         const pageErrors: string[] = [];
@@ -817,6 +883,7 @@ describe('Side chats browser interaction', () => {
             if (
                 (message.type() === 'error' || message.type() === 'warning')
                 && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+                && message.text() !== '"shadow*" style props are deprecated. Use "boxShadow".'
             ) pageErrors.push(message.text());
         });
         await page.goto(origin);
@@ -824,48 +891,58 @@ describe('Side chats browser interaction', () => {
         const foreground = page.getByTestId('foreground-session');
         const voiceStatus = foreground.getByTestId('voice-status-bar');
         await voiceStatus.waitFor({ state: 'visible', timeout: 3_000 });
-        const access = foreground.getByTestId('mobile-session-workspace-access');
-        await access.waitFor({ state: 'visible', timeout: 3_000 });
-        const changes = access.getByRole('button', { name: 'Changes' });
-        const chatWorkspace = access.getByRole('button', { name: 'Chat Workspace' });
-        const machineWorkspace = access.getByRole('button', { name: 'Machine Workspace' });
-        for (const entry of [changes, chatWorkspace, machineWorkspace]) {
-            await expect(entry.isVisible()).resolves.toBe(true);
-            const box = await entry.boundingBox();
-            if (!box) throw new Error('mobile workspace entry has no clickable layout');
-            expect(box.x).toBeGreaterThanOrEqual(0);
-            expect(box.x + box.width).toBeLessThanOrEqual(390);
-            expect(box.height).toBeGreaterThanOrEqual(40);
-        }
+        await expect(foreground.getByTestId('mobile-session-workspace-access').count()).resolves.toBe(0);
 
-        await changes.click({ timeout: 3_000 });
+        const composerDraft = foreground.locator('textarea').first();
+        const actionTrigger = foreground.getByTestId('mobile-composer-actions-trigger');
+        await composerDraft.waitFor({ state: 'visible', timeout: 3_000 });
+        await composerDraft.fill('main draft survives workspace return');
+        await composerDraft.evaluate((element) => { element.dataset.retentionComposer = 'main'; });
+        await expect(actionTrigger.count()).resolves.toBe(1);
+        await expect(actionTrigger.isVisible()).resolves.toBe(true);
+
+        const assertMainComposerRetained = async () => {
+            const retainedDraft = foreground.locator('textarea[data-retention-composer="main"]');
+            await retainedDraft.waitFor({ state: 'visible', timeout: 3_000 });
+            await expect(retainedDraft.inputValue()).resolves.toBe('main draft survives workspace return');
+            await expect(foreground.getByTestId('mobile-session-workspace-access').count()).resolves.toBe(0);
+        };
+        const openMainAction = async (key: string) => {
+            await actionTrigger.click({ timeout: 3_000 });
+            const menu = foreground.getByTestId('mobile-composer-actions-menu');
+            await menu.waitFor({ state: 'visible', timeout: 3_000 });
+            for (const label of ['Changes', 'Chat Workspace', 'Machine Workspace']) {
+                await expect(menu.getByRole('menuitem', { name: label, exact: true }).isVisible()).resolves.toBe(true);
+            }
+            await menu.getByTestId(`mobile-composer-action-${key}`).click({ timeout: 3_000 });
+        };
+
+        await openMainAction('changes');
         await foreground.getByText('mobile-change.ts').waitFor({ state: 'visible', timeout: 3_000 });
         const voiceBox = await voiceStatus.boundingBox();
         const changesBox = await foreground.getByTestId('mobile-changes-workspace-overlay').boundingBox();
         if (!voiceBox || !changesBox) throw new Error('voice status or Changes workspace has no rendered layout');
         expect(changesBox.y).toBeGreaterThanOrEqual(voiceBox.y + voiceBox.height);
-        await expect(access.count()).resolves.toBe(0);
-        await page.reload();
-        await access.waitFor({ state: 'visible', timeout: 3_000 });
+        await page.mouse.click(20, 32);
+        await foreground.getByTestId('mobile-changes-workspace-overlay').waitFor({ state: 'detached', timeout: 3_000 });
+        await assertMainComposerRetained();
 
-        await chatWorkspace.click({ timeout: 3_000 });
-        await expect(access.count()).resolves.toBe(0);
+        await openMainAction('chat-workspace');
         const compactWorkspace = page.getByTestId('desktop-file-workspace').filter({ visible: true });
         await compactWorkspace.waitFor({ state: 'visible', timeout: 3_000 });
         await expect(page.getByTestId('desktop-file-workspace-fullscreen-header').filter({ visible: true }).getByText('Chat Workspace').isVisible())
             .resolves.toBe(true);
-        await page.reload();
-        await access.waitFor({ state: 'visible', timeout: 3_000 });
+        await page.getByTestId('desktop-file-workspace-picker-close').filter({ visible: true }).click();
+        await assertMainComposerRetained();
 
-        await machineWorkspace.click({ timeout: 3_000 });
+        await openMainAction('machine-workspace');
         await expect(page.getByTestId('desktop-file-workspace-fullscreen-header').filter({ visible: true }).getByText('Machine Workspace').isVisible())
             .resolves.toBe(true);
         await page.getByText('MainEC2').filter({ visible: true }).waitFor({ state: 'visible', timeout: 3_000 });
         const machineFile = page.getByText('machine-file.md').filter({ visible: true });
         await machineFile.waitFor({ state: 'visible', timeout: 3_000 });
-        await machineFile.click({ timeout: 3_000 });
-        await foreground.getByTestId('desktop-file-panel:/work/project/machine-file.md')
-            .waitFor({ state: 'visible', timeout: 3_000 });
+        await page.getByTestId('desktop-file-workspace-picker-close').filter({ visible: true }).click();
+        await assertMainComposerRetained();
         await expect(page.getByTestId('desktop-file-workspace-divider').count()).resolves.toBe(0);
 
         expect(pageErrors).toEqual([]);
@@ -877,6 +954,7 @@ describe('Side chats browser interaction', () => {
         await page.addInitScript(() => {
             (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
                 machineWorkspaceEnabled: false,
+                zenMode: true,
             };
         });
         const pageErrors: string[] = [];
@@ -885,42 +963,40 @@ describe('Side chats browser interaction', () => {
             if (
                 (message.type() === 'error' || message.type() === 'warning')
                 && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+                && message.text() !== '"shadow*" style props are deprecated. Use "boxShadow".'
             ) pageErrors.push(message.text());
         });
         await page.goto(origin);
 
         const foreground = page.getByTestId('foreground-session');
         await foreground.getByRole('button', { name: 'Open side chats (2)' }).click({ timeout: 3_000 });
-        const access = foreground.getByTestId('mobile-session-workspace-access');
-        await access.waitFor({ state: 'visible', timeout: 3_000 });
-        for (const label of ['Changes', 'Chat Workspace', 'Machine Workspace']) {
-            const action = access.getByRole('button', { name: label });
-            await expect(action.isVisible()).resolves.toBe(true);
-            const box = await action.boundingBox();
-            if (!box) throw new Error(`Side chat ${label} action has no clickable layout`);
-            expect(box.x).toBeGreaterThanOrEqual(0);
-            expect(box.x + box.width).toBeLessThanOrEqual(390);
-            expect(box.height).toBeGreaterThanOrEqual(40);
-        }
+        await expect(foreground.getByTestId('mobile-session-workspace-access').count()).resolves.toBe(0);
 
         await foreground.getByText('Oldest child', { exact: true }).click();
         await foreground.getByText('Newest child', { exact: true }).click();
-        const newestComposer = foreground.locator(
-            '[data-testid="session-composer"][data-session-id="child-newest"]',
-        );
-        await newestComposer.waitFor({ state: 'visible', timeout: 3_000 });
-        const newestMountId = await newestComposer.getAttribute('data-mount-id');
-        if (!newestMountId) throw new Error('Newest child composer has no mount identity');
-
-        const newestDraft = newestComposer.getByTestId('session-composer-draft');
+        const newestDraft = foreground.locator('textarea').last();
+        const newestActionTrigger = foreground.getByTestId('mobile-composer-actions-trigger').last();
+        await newestDraft.waitFor({ state: 'visible', timeout: 3_000 });
         await newestDraft.fill('child draft survives workspace return');
+        await newestDraft.evaluate((element) => { element.dataset.retentionComposer = 'child-newest'; });
+        await expect(newestActionTrigger.isVisible()).resolves.toBe(true);
         const assertNewestComposerRetained = async () => {
-            await newestComposer.waitFor({ state: 'visible', timeout: 3_000 });
-            await expect(newestComposer.getAttribute('data-mount-id')).resolves.toBe(newestMountId);
-            await expect(newestDraft.inputValue()).resolves.toBe('child draft survives workspace return');
+            const retainedDraft = foreground.locator('textarea[data-retention-composer="child-newest"]');
+            await retainedDraft.waitFor({ state: 'visible', timeout: 3_000 });
+            await expect(retainedDraft.inputValue()).resolves.toBe('child draft survives workspace return');
+            await expect(foreground.getByTestId('mobile-session-workspace-access').count()).resolves.toBe(0);
+        };
+        const openNewestAction = async (key: string) => {
+            await newestActionTrigger.click({ timeout: 3_000 });
+            const menu = foreground.getByTestId('mobile-composer-actions-menu');
+            await menu.waitFor({ state: 'visible', timeout: 3_000 });
+            for (const label of ['Changes', 'Chat Workspace', 'Machine Workspace']) {
+                await expect(menu.getByRole('menuitem', { name: label, exact: true }).isVisible()).resolves.toBe(true);
+            }
+            await menu.getByTestId(`mobile-composer-action-${key}`).click({ timeout: 3_000 });
         };
 
-        await access.getByRole('button', { name: 'Changes' }).click({ timeout: 3_000 });
+        await openNewestAction('changes');
         await foreground.getByText('/work/child-newest-change.ts', { exact: true })
             .waitFor({ state: 'visible', timeout: 3_000 });
         await expect(foreground.getByText('/work/project/mobile-change.ts', { exact: true }).count()).resolves.toBe(0);
@@ -928,7 +1004,7 @@ describe('Side chats browser interaction', () => {
         await foreground.getByTestId('mobile-changes-workspace-overlay').waitFor({ state: 'detached', timeout: 3_000 });
         await assertNewestComposerRetained();
 
-        await access.getByRole('button', { name: 'Chat Workspace' }).click({ timeout: 3_000 });
+        await openNewestAction('chat-workspace');
         await page.getByTestId('desktop-file-workspace-fullscreen-header').filter({ visible: true })
             .getByText('Chat Workspace', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
         await page.getByText('chat-child-newest.md', { exact: true }).filter({ visible: true })
@@ -936,7 +1012,7 @@ describe('Side chats browser interaction', () => {
         await page.getByTestId('desktop-file-workspace-picker-close').filter({ visible: true }).click();
         await assertNewestComposerRetained();
 
-        await access.getByRole('button', { name: 'Machine Workspace' }).click({ timeout: 3_000 });
+        await openNewestAction('machine-workspace');
         await page.getByTestId('desktop-file-workspace-fullscreen-header').filter({ visible: true })
             .getByText('Machine Workspace', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
         await page.getByText('child-newest-machine-file.md', { exact: true }).filter({ visible: true })
@@ -945,9 +1021,20 @@ describe('Side chats browser interaction', () => {
         await assertNewestComposerRetained();
 
         await foreground.getByText('Oldest child', { exact: true }).click();
-        await access.getByRole('button', { name: 'Changes' }).click({ timeout: 3_000 });
+        const oldestDraft = foreground.locator('textarea').last();
+        await oldestDraft.waitFor({ state: 'visible', timeout: 3_000 });
+        await oldestDraft.fill('oldest child draft survives workspace return');
+        await oldestDraft.evaluate((element) => { element.dataset.retentionComposer = 'child-oldest'; });
+        await foreground.getByTestId('mobile-composer-actions-trigger').last().click({ timeout: 3_000 });
+        await foreground.getByTestId('mobile-composer-actions-menu')
+            .getByTestId('mobile-composer-action-changes').click({ timeout: 3_000 });
         await foreground.getByText('/work/child-oldest-change.ts', { exact: true })
             .waitFor({ state: 'visible', timeout: 3_000 });
+        await expect(foreground.getByText('/work/child-newest-change.ts', { exact: true }).count()).resolves.toBe(0);
+        await page.mouse.click(20, 32);
+        await foreground.getByTestId('mobile-changes-workspace-overlay').waitFor({ state: 'detached', timeout: 3_000 });
+        const retainedOldestDraft = foreground.locator('textarea[data-retention-composer="child-oldest"]');
+        await expect(retainedOldestDraft.inputValue()).resolves.toBe('oldest child draft survives workspace return');
 
         expect(pageErrors).toEqual([]);
         await page.close();
@@ -968,16 +1055,20 @@ describe('Side chats browser interaction', () => {
         const foreground = page.getByTestId('foreground-session');
         await foreground.getByRole('button', { name: 'Open side chats (2)' }).click({ timeout: 3_000 });
         await expect(foreground.getByText('Newest child').isVisible()).resolves.toBe(true);
-        await expect(foreground.locator('[data-testid="session-composer"][data-session-id="child-newest"]').textContent({ timeout: 2_000 }))
-            .resolves.toBe('child-newest');
+        const newestDraft = foreground.locator('textarea').last();
+        await newestDraft.waitFor({ state: 'visible', timeout: 2_000 });
+        await newestDraft.evaluate((element) => { element.dataset.fullscreenSideChatComposer = 'newest'; });
         await foreground.getByText('Oldest child').click();
-        await expect(foreground.locator('[data-testid="session-composer"][data-session-id="child-oldest"]').textContent({ timeout: 2_000 }))
-            .resolves.toBe('child-oldest');
+        await foreground.locator('textarea[data-fullscreen-side-chat-composer="newest"]')
+            .waitFor({ state: 'detached', timeout: 2_000 });
+        const oldestDraft = foreground.locator('textarea').last();
+        await oldestDraft.waitFor({ state: 'visible', timeout: 2_000 });
+        await oldestDraft.evaluate((element) => { element.dataset.fullscreenSideChatComposer = 'oldest'; });
         await expect(page.evaluate(() => (window as any).__SIDE_CHAT_CREATE_COUNT__ ?? 0)).resolves.toBe(0);
 
         await foreground.getByRole('button', { name: 'Collapse side chats' }).last().click();
-        await expect(foreground.locator('[data-testid="session-composer"][data-session-id^="child-"]').count())
-            .resolves.toBe(0);
+        await foreground.locator('textarea[data-fullscreen-side-chat-composer="oldest"]')
+            .waitFor({ state: 'detached', timeout: 2_000 });
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 10_000);

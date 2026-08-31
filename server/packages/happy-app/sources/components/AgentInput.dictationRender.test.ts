@@ -214,6 +214,89 @@ function renderAgentInput(options: {
     return { onDictationCancel, onDictationRetry, onMicPress, onSend, renderer };
 }
 
+function renderMobileActionInput(overrides: Record<string, unknown> = {}, width = 390) {
+    testState.width = width;
+    const callbacks = {
+        onAbort: vi.fn(async () => {}),
+        onMicPress: vi.fn(),
+        onOpenChanges: vi.fn(),
+        onOpenChatWorkspace: vi.fn(),
+        onOpenMachineWorkspace: vi.fn(),
+        onPermissionModeChange: vi.fn(),
+        onModelModeChange: vi.fn(),
+        onEffortLevelChange: vi.fn(),
+        onPickImages: vi.fn(),
+        onPickDeviceFiles: vi.fn(),
+        onQueueMessage: vi.fn(),
+        onSend: vi.fn(),
+    };
+    const props = {
+        autocompletePrefixes: [],
+        autocompleteSuggestions: async () => [],
+        availableEffortLevels: [
+            { key: 'high', name: 'High effort', description: 'Reason more deeply' },
+        ],
+        availableModels: [
+            { key: 'model-1', name: 'Model One', description: 'Primary model' },
+        ],
+        availableModes: [
+            { key: 'default', name: 'Default permission', description: 'Use the session default' },
+            { key: 'read-only', name: 'Read only', description: 'Do not edit files' },
+        ],
+        dictationPhase: 'idle',
+        effortLevel: { key: 'high', name: 'High effort' },
+        initialValue: 'Editable draft',
+        mobileWorkspaceActions: {
+            onOpenChanges: callbacks.onOpenChanges,
+            onOpenChatWorkspace: callbacks.onOpenChatWorkspace,
+            onOpenMachineWorkspace: callbacks.onOpenMachineWorkspace,
+        },
+        modelMode: { key: 'model-1', name: 'Model One' },
+        onAbort: callbacks.onAbort,
+        onEffortLevelChange: callbacks.onEffortLevelChange,
+        onMicPress: callbacks.onMicPress,
+        onModelModeChange: callbacks.onModelModeChange,
+        onPermissionModeChange: callbacks.onPermissionModeChange,
+        onPickDeviceFiles: callbacks.onPickDeviceFiles,
+        onPickImages: callbacks.onPickImages,
+        onQueueMessage: callbacks.onQueueMessage,
+        onSend: callbacks.onSend,
+        permissionMode: { key: 'default', name: 'Default permission' },
+        placeholder: 'Type a message',
+        sessionId: 'mobile-session',
+        showWebMobileActionMenu: true,
+        showAbortButton: true,
+        ...overrides,
+    };
+    let renderer!: ReactTestRenderer;
+    act(() => {
+        renderer = create(React.createElement(AgentInput, props as any));
+    });
+    return { callbacks, renderer };
+}
+
+function openMobileActionMenu(renderer: ReactTestRenderer) {
+    const trigger = renderer.root.findByProps({ testID: 'mobile-composer-actions-trigger' });
+    act(() => trigger.props.onPress());
+}
+
+function mobileMenuLabels(renderer: ReactTestRenderer): string[] {
+    return renderer.root.findAllByType('Pressable' as any)
+        .filter((node: any) => node.props.accessibilityRole === 'menuitem')
+        .map((node: any) => node.props.accessibilityLabel);
+}
+
+function pressMobileMenuAction(renderer: ReactTestRenderer, key: string) {
+    const action = renderer.root.findByProps({ testID: `mobile-composer-action-${key}` });
+    act(() => action.props.onPress());
+}
+
+function renderedText(renderer: ReactTestRenderer): string[] {
+    return renderer.root.findAllByType('Text' as any).flatMap((node: any) => (
+        node.children.filter((child: unknown): child is string => typeof child === 'string')
+    ));
+}
+
 describe.each([
     { surface: 'Web Desktop Main Agent', width: 1200, sessionId: 'main-agent' },
     { surface: 'Web Mobile Side chat', width: 390, sessionId: 'side-chat' },
@@ -270,5 +353,179 @@ describe.each([
         expect(controls.onSend).toHaveBeenCalledOnce();
         expect(controls.onMicPress).not.toHaveBeenCalled();
         act(() => controls.renderer.unmount());
+    });
+});
+
+describe('AgentInput Web Mobile action menu', () => {
+    it('follows the session mobile-action contract across the full narrow Web layout', () => {
+        const { renderer } = renderMobileActionInput({}, 720);
+
+        expect(renderer.root.findAllByType('Pressable' as any).filter((node: any) => (
+            node.props.testID === 'mobile-composer-actions-trigger'
+        ))).toHaveLength(1);
+        expect(renderer.root.findAllByType('AttachmentInputButton' as any)).toHaveLength(0);
+
+        act(() => renderer.unmount());
+    });
+
+    it('keeps the sole + menu visible and usable in zen mode', () => {
+        const { renderer } = renderMobileActionInput({ zenMode: true });
+        const trigger = renderer.root.findByProps({ testID: 'mobile-composer-actions-trigger' });
+
+        expect(trigger.props.accessibilityState).toEqual({ expanded: false });
+        openMobileActionMenu(renderer);
+        expect(mobileMenuLabels(renderer)).toEqual(expect.arrayContaining([
+            'files.changes',
+            'files.allFiles',
+            'workspace.title',
+        ]));
+
+        act(() => renderer.unmount());
+    });
+
+    it('keeps one + menu when workspace capabilities are unavailable', () => {
+        const { renderer } = renderMobileActionInput({ mobileWorkspaceActions: undefined });
+
+        expect(renderer.root.findByProps({ testID: 'mobile-composer-actions-trigger' })).toBeDefined();
+        expect(renderer.root.findAllByType('AttachmentInputButton' as any)).toHaveLength(0);
+        openMobileActionMenu(renderer);
+        expect(mobileMenuLabels(renderer)).toEqual([
+            'settings.title',
+            'happyHerd.composer.queueMessage',
+            'happyHerd.composer.photos',
+            'happyHerd.composer.deviceFiles',
+        ]);
+
+        act(() => renderer.unmount());
+    });
+
+    it('keeps model and effort settings reachable when permission selection is locked', () => {
+        const { renderer } = renderMobileActionInput({
+            availableModes: [],
+            mobileWorkspaceActions: undefined,
+            onPermissionModeChange: undefined,
+        });
+
+        openMobileActionMenu(renderer);
+        expect(mobileMenuLabels(renderer)).toContain('settings.title');
+        pressMobileMenuAction(renderer, 'settings');
+        expect(renderedText(renderer)).toEqual(expect.arrayContaining([
+            'agentInput.model.title',
+            'Model One',
+            'agentInput.effort.title',
+            'High effort',
+        ]));
+        expect(renderedText(renderer)).not.toContain('agentInput.permissionMode.title');
+
+        act(() => renderer.unmount());
+    });
+
+    it('replaces the standalone controls with one + while keeping Mic and Send direct', () => {
+        const { callbacks, renderer } = renderMobileActionInput();
+        const trigger = renderer.root.findByProps({ testID: 'mobile-composer-actions-trigger' });
+
+        expect(trigger.props).toMatchObject({
+            accessibilityLabel: 'happyHerd.composer.moreActions',
+            accessibilityRole: 'button',
+            accessibilityState: { expanded: false },
+        });
+        expect(renderer.root.findAllByType('Pressable' as any).filter((node: any) => (
+            node.props.testID === 'mobile-composer-actions-trigger'
+        ))).toHaveLength(1);
+        expect(renderer.root.findAllByType('Octicons' as any).filter((node: any) => node.props.name === 'plus')).toHaveLength(1);
+        expect(renderer.root.findAllByType('Octicons' as any).filter((node: any) => node.props.name === 'gear')).toHaveLength(0);
+        expect(renderer.root.findAllByType('Octicons' as any).filter((node: any) => node.props.name === 'stop')).toHaveLength(0);
+        expect(renderer.root.findAllByType('AttachmentInputButton' as any)).toHaveLength(0);
+        expect(pressable(renderer, 'happyHerd.composer.queueMessage')).toBeUndefined();
+
+        const mic = pressable(renderer, 'happyHerd.composer.startVoice');
+        const send = pressable(renderer, 'happyHerd.composer.send');
+        expect(mic?.props.testID).toBe('composer-dictation-button');
+        expect(send).toBeDefined();
+        act(() => mic?.props.onPress());
+        act(() => send?.props.onPress());
+        expect(callbacks.onMicPress).toHaveBeenCalledOnce();
+        expect(callbacks.onSend).toHaveBeenCalledOnce();
+
+        openMobileActionMenu(renderer);
+        expect(renderer.root.findByProps({ testID: 'mobile-composer-actions-menu' }).props.accessibilityRole).toBe('menu');
+        expect(mobileMenuLabels(renderer)).toEqual([
+            'files.changes',
+            'files.allFiles',
+            'workspace.title',
+            'settings.title',
+            'happyHerd.composer.queueMessage',
+            'happyHerd.composer.photos',
+            'happyHerd.composer.deviceFiles',
+        ]);
+
+        for (const [key, callback] of [
+            ['changes', callbacks.onOpenChanges],
+            ['chat-workspace', callbacks.onOpenChatWorkspace],
+            ['machine-workspace', callbacks.onOpenMachineWorkspace],
+            ['photos', callbacks.onPickImages],
+            ['device-files', callbacks.onPickDeviceFiles],
+        ] as const) {
+            pressMobileMenuAction(renderer, key);
+            expect(callback).toHaveBeenCalledOnce();
+            expect(renderer.root.findAllByProps({ testID: 'mobile-composer-actions-menu' })).toHaveLength(0);
+            openMobileActionMenu(renderer);
+        }
+
+        pressMobileMenuAction(renderer, 'settings');
+        expect(renderer.root.findAllByProps({ testID: 'mobile-composer-actions-menu' })).toHaveLength(0);
+        expect(renderedText(renderer)).toEqual(expect.arrayContaining([
+            'agentInput.permissionMode.title',
+            'Default permission',
+            'Read only',
+            'agentInput.model.title',
+            'Model One',
+            'agentInput.effort.title',
+            'High effort',
+        ]));
+
+        act(() => renderer.unmount());
+    });
+
+    it('shows Stop only while abort is the primary action', () => {
+        const visible = renderMobileActionInput({ initialValue: '', showAbortButton: true });
+        openMobileActionMenu(visible.renderer);
+        expect(mobileMenuLabels(visible.renderer)).toContain('happyHerd.composer.stop');
+        act(() => visible.renderer.unmount());
+
+        const hidden = renderMobileActionInput({ showAbortButton: false });
+        openMobileActionMenu(hidden.renderer);
+        expect(mobileMenuLabels(hidden.renderer)).not.toContain('happyHerd.composer.stop');
+        act(() => hidden.renderer.unmount());
+    });
+
+    it.each([
+        { label: 'an empty composer', initialValue: '', isSendDisabled: false },
+        { label: 'message sending disabled', initialValue: 'Queued draft', isSendDisabled: true },
+    ])('disables Queue Msg for $label', ({ initialValue, isSendDisabled }) => {
+        const { callbacks, renderer } = renderMobileActionInput({ initialValue, isSendDisabled });
+        openMobileActionMenu(renderer);
+        const queue = renderer.root.findByProps({ testID: 'mobile-composer-action-queue' });
+
+        expect(queue.props.disabled).toBe(true);
+        expect(queue.props.accessibilityState).toEqual({ disabled: true });
+        act(() => queue.props.onPress());
+        expect(callbacks.onQueueMessage).not.toHaveBeenCalled();
+
+        act(() => renderer.unmount());
+    });
+
+    it('enables Queue Msg when the composer has content', () => {
+        const { callbacks, renderer } = renderMobileActionInput({ initialValue: 'Queued draft' });
+        openMobileActionMenu(renderer);
+        const queue = renderer.root.findByProps({ testID: 'mobile-composer-action-queue' });
+
+        expect(queue.props.disabled).not.toBe(true);
+        expect(queue.props.accessibilityState.disabled).not.toBe(true);
+        act(() => queue.props.onPress());
+        expect(callbacks.onQueueMessage).toHaveBeenCalledOnce();
+        expect(renderer.root.findAllByProps({ testID: 'mobile-composer-actions-menu' })).toHaveLength(0);
+
+        act(() => renderer.unmount());
     });
 });

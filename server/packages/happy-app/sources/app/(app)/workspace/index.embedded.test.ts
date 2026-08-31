@@ -241,6 +241,44 @@ function flatStyle(style: unknown): Record<string, unknown> {
 }
 
 describe('MachineWorkspaceBrowser embedded layout', () => {
+    it('starts from the owning chat machine and cwd instead of conflicting global recents', async () => {
+        mocks.machines = [
+            {
+                id: 'recent-machine',
+                active: true,
+                metadata: {
+                    displayName: 'Recently browsed machine',
+                    homeDir: '/recent/home',
+                    platform: 'linux',
+                },
+            },
+            {
+                id: 'session-machine',
+                active: true,
+                metadata: {
+                    displayName: 'Owning chat machine',
+                    homeDir: '/session/home',
+                    platform: 'linux',
+                },
+            },
+        ];
+        mocks.recentPaths = [
+            { machineId: 'recent-machine', path: '/another-chat/recent-directory' },
+            { machineId: 'session-machine', path: '/same-machine/stale-directory' },
+        ];
+
+        const renderer = await renderBrowser({
+            embedded: true,
+            initialMachineId: 'session-machine',
+            initialPath: '/session/exact-cwd',
+        });
+
+        expect(mocks.getTree).toHaveBeenCalledWith('session-machine', '/session/exact-cwd', 1);
+        expect(mocks.getTree).not.toHaveBeenCalledWith('recent-machine', '/another-chat/recent-directory', 1);
+        expect(mocks.getTree).not.toHaveBeenCalledWith('session-machine', '/same-machine/stale-directory', 1);
+        act(() => renderer.unmount());
+    });
+
     it('fills its host, renders a non-empty directory, and emits the exact selected machine and path', async () => {
         mocks.workspaceEnabled = false;
         const onFilePress = vi.fn();

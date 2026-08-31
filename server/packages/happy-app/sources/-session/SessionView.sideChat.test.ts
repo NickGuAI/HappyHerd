@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
     landscape: false,
     realtimeStatus: 'disconnected' as 'connected' | 'disconnected',
     canAbort: false,
+    canBrowseFiles: true,
+    canUseShell: true,
     isRig: false,
     revision: 0,
     sessions: {} as Record<string, Session>,
@@ -30,6 +32,7 @@ const mocks = vi.hoisted(() => ({
     buildWorkspaceContextMessage: vi.fn(),
     heartbeatDispatch: vi.fn(),
     modalConfirm: vi.fn(),
+    modalShow: vi.fn(),
     machineCreateSideChat: vi.fn(),
     machineGetDirectoryTree: vi.fn(),
     routerBack: vi.fn(),
@@ -403,7 +406,7 @@ vi.mock('@/modal', () => ({
         alert: vi.fn(),
         confirm: mocks.modalConfirm,
         prompt: vi.fn(),
-        show: vi.fn(),
+        show: mocks.modalShow,
     },
 }));
 
@@ -532,10 +535,10 @@ vi.mock('@/sync/rig', () => ({
     isRigPermissionSelectionEnabled: () => false,
     isRigReasoningSelectionEnabled: () => false,
     rigCanAbort: () => mocks.canAbort,
-    rigCanBrowseFiles: () => true,
+    rigCanBrowseFiles: () => mocks.canBrowseFiles,
     rigCanReadFiles: () => false,
     rigCanUseAttachments: () => false,
-    rigCanUseShell: () => true,
+    rigCanUseShell: () => mocks.canUseShell,
 }));
 vi.mock('@/sync/workspaceContext', () => ({
     MAX_WORKSPACE_CONTEXT_ITEMS: 8,
@@ -701,9 +704,24 @@ function seedSessions() {
             codexThreadId: 'thread-parent',
         }),
         ordinary: makeSession('ordinary', 2),
-        oldest: makeSession('oldest', 10, { isSideChat: true, parentSessionId: 'parent' }),
-        stopped: makeSession('stopped', 20, { isSideChat: true, parentSessionId: 'parent' }, false),
-        newest: makeSession('newest', 30, { isSideChat: true, parentSessionId: 'parent' }),
+        oldest: makeSession('oldest', 10, {
+            isSideChat: true,
+            machineId: 'machine-oldest',
+            parentSessionId: 'parent',
+            path: '/srv/side-chats/oldest',
+        }),
+        stopped: makeSession('stopped', 20, {
+            isSideChat: true,
+            machineId: 'machine-stopped',
+            parentSessionId: 'parent',
+            path: '/srv/side-chats/stopped',
+        }, false),
+        newest: makeSession('newest', 30, {
+            isSideChat: true,
+            machineId: 'machine-newest',
+            parentSessionId: 'parent',
+            path: '/srv/side-chats/newest',
+        }),
         archived: makeSession('archived', 40, {
             isSideChat: true,
             lifecycleState: 'archived',
@@ -723,6 +741,8 @@ beforeEach(() => {
     mocks.landscape = false;
     mocks.realtimeStatus = 'disconnected';
     mocks.canAbort = false;
+    mocks.canBrowseFiles = true;
+    mocks.canUseShell = true;
     mocks.isRig = false;
     mocks.localSettings.acknowledgedCliVersions = {};
     mocks.localSettings.navigationSidebarCollapsed = false;
@@ -740,6 +760,7 @@ beforeEach(() => {
     mocks.heartbeatDispatch.mockResolvedValue({ handled: false });
     mocks.modalConfirm.mockReset();
     mocks.modalConfirm.mockResolvedValue(true);
+    mocks.modalShow.mockReset();
     mocks.machineCreateSideChat.mockReset();
     mocks.machineGetDirectoryTree.mockReset();
     mocks.machineGetDirectoryTree.mockImplementation(async (_machineId: string, path: string) => ({
@@ -842,11 +863,49 @@ function renderedComposerSessions(renderer: ReactTestRenderer): string[] {
     return renderer.root.findAllByType('AgentInput' as any).map((node: any) => node.props.sessionId);
 }
 
+function composerForSession(renderer: ReactTestRenderer, sessionId: string) {
+    const composer = renderer.root.findAllByType('AgentInput' as any).find((node: any) => (
+        node.props.sessionId === sessionId
+    ));
+    expect(composer, `missing composer for ${sessionId}`).toBeDefined();
+    return composer!;
+}
+
 function expectExactParentTabs(renderer: ReactTestRenderer) {
     const labels = textValues(renderer);
     expect(labels).toEqual(expect.arrayContaining(['oldest', 'stopped', 'newest']));
     expect(labels).not.toContain('archived');
     expect(labels).not.toContain('otherChild');
+}
+
+async function openAndCloseSideChatFileWorkspace(renderer: ReactTestRenderer) {
+    const emptyMessages = renderer.root.findAllByType('EmptyMessages' as any).find((node: any) => (
+        typeof node.props.onWorkspaceLinkPress === 'function'
+    ));
+    const sideChatFilePath = '/srv/side-chats/newest/note.md';
+
+    await act(async () => {
+        emptyMessages?.props.onWorkspaceLinkPress({
+            pathname: '/workspace',
+            params: {
+                mode: 'link',
+                originSessionId: 'newest',
+                machineId: 'machine-newest',
+                absolutePath: sideChatFilePath,
+            },
+        });
+        await Promise.resolve();
+    });
+
+    const workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+    expect(workspace.props).toMatchObject({
+        sessionId: 'newest',
+        paths: [sideChatFilePath],
+    });
+    act(() => workspace.props.onRequestClose(sideChatFilePath));
+    expect(renderer.root.findAllByType('DesktopFileWorkspace' as any)).toHaveLength(0);
+
+    return desktopSideChatHosts(renderer)[0];
 }
 
 describe('SessionView mobile back navigation', () => {
@@ -915,58 +974,210 @@ describe('SessionView mobile back navigation', () => {
 });
 
 describe('SessionView Web Mobile workspace access', () => {
-    it('keeps all three Human entry points visible and opens each canonical compact surface', () => {
+    it('removes the fixed top strip and routes the Main Agent composer actions to its canonical workspaces', () => {
         mocks.width = 390;
         mocks.height = 844;
         const renderer = renderParent();
 
         expect(renderer.root.findAll((node: any) => (
             node.type === 'View' && node.props.testID === 'mobile-session-workspace-access'
-        ))).toHaveLength(1);
-        expect(pressables(renderer).filter((node: any) => [
-            'Changes',
-            'Chat Workspace',
-            'Machine Workspace',
-        ].includes(node.props.accessibilityLabel)).map((node: any) => node.props.accessibilityLabel))
-            .toEqual(['Changes', 'Chat Workspace', 'Machine Workspace']);
-
-        pressByLabel(renderer, 'Changes');
-        expect(renderer.root.findAllByType('AllFilesDiffView' as any)).toHaveLength(1);
-        expect(renderer.root.findAll((node: any) => (
-            node.type === 'View' && node.props.testID === 'mobile-session-workspace-access'
         ))).toHaveLength(0);
+        const mainComposer = composerForSession(renderer, 'parent');
+        expect(mainComposer.props.showWebMobileActionMenu).toBe(true);
+        const workspaceActions = mainComposer.props.mobileWorkspaceActions;
+        expect(workspaceActions).toEqual(expect.objectContaining({
+            onOpenChanges: expect.any(Function),
+            onOpenChatWorkspace: expect.any(Function),
+            onOpenMachineWorkspace: expect.any(Function),
+        }));
+
+        act(() => workspaceActions.onOpenChanges());
+        expect(renderer.root.findAllByType('AllFilesDiffView' as any)).toHaveLength(1);
         act(() => chatHeader(renderer).props.onBackPress());
         expect(renderer.root.findAllByType('AllFilesDiffView' as any)).toHaveLength(0);
         expect(mocks.routerDismissTo).not.toHaveBeenCalled();
 
-        pressByLabel(renderer, 'Chat Workspace');
+        act(() => workspaceActions.onOpenChatWorkspace());
         let split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
         let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
         expect(split.props.workspaceFullscreen).toBe(true);
         expect(workspace.props).toMatchObject({ compact: true, pickerOpen: true, machinePickerOpen: false });
         act(() => workspace.props.onClosePicker());
 
-        pressByLabel(renderer, 'Machine Workspace');
+        act(() => workspaceActions.onOpenMachineWorkspace());
         split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
         workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
         expect(split.props.workspaceFullscreen).toBe(true);
         expect(workspace.props).toMatchObject({ compact: true, pickerOpen: false, machinePickerOpen: true });
-        expect(renderer.root.findAllByType('MachineWorkspaceBrowser' as any)).toHaveLength(1);
+        expect(renderer.root.findByType('MachineWorkspaceBrowser' as any).props).toMatchObject({
+            initialMachineId: 'machine-1',
+            initialPath: '/srv/project',
+        });
         act(() => workspace.props.onClosePicker());
 
         expect(renderer.root.findAll((node: any) => (
             node.type === 'View' && node.props.testID === 'mobile-session-workspace-access'
-        ))).toHaveLength(1);
+        ))).toHaveLength(0);
         expect(renderedComposerSessions(renderer)).toEqual(['parent']);
     });
 
-    it('does not add the compact access bar to Web Desktop', () => {
+    it('does not add the compact access bar or mobile composer actions to Web Desktop', () => {
         mocks.width = 1280;
         const renderer = renderParent();
 
         expect(renderer.root.findAll((node: any) => (
             node.type === 'View' && node.props.testID === 'mobile-session-workspace-access'
         ))).toHaveLength(0);
+        expect(composerForSession(renderer, 'parent').props.showWebMobileActionMenu).toBe(false);
+        expect(composerForSession(renderer, 'parent').props.mobileWorkspaceActions).toBeUndefined();
+    });
+
+    it('keeps the consolidated Web Mobile menu when the provider cannot browse files or use a shell', () => {
+        mocks.width = 390;
+        mocks.height = 844;
+        mocks.canBrowseFiles = false;
+        mocks.canUseShell = false;
+        const renderer = renderParent();
+        const composer = composerForSession(renderer, 'parent');
+
+        expect(composer.props.showWebMobileActionMenu).toBe(true);
+        expect(composer.props.mobileWorkspaceActions).toBeUndefined();
+    });
+
+    it('updates Machine Workspace from the newly active Side chat machine and cwd', () => {
+        mocks.width = 390;
+        mocks.height = 844;
+        const renderer = renderParent();
+
+        pressByLabel(renderer, 'Open side chats (3)');
+        const newestActions = composerForSession(renderer, 'newest').props.mobileWorkspaceActions;
+        expect(newestActions).toBeDefined();
+        act(() => newestActions.onOpenMachineWorkspace());
+        expect(renderer.root.findByType('MachineWorkspaceBrowser' as any).props).toMatchObject({
+            initialMachineId: 'machine-newest',
+            initialPath: '/srv/side-chats/newest',
+        });
+
+        act(() => renderer.root.findByType('DesktopFileWorkspace' as any).props.onClosePicker());
+        pressTab(renderer, 'oldest');
+        const oldestActions = composerForSession(renderer, 'oldest').props.mobileWorkspaceActions;
+        expect(oldestActions).toBeDefined();
+        act(() => oldestActions.onOpenMachineWorkspace());
+        expect(renderer.root.findByType('MachineWorkspaceBrowser' as any).props).toMatchObject({
+            initialMachineId: 'machine-oldest',
+            initialPath: '/srv/side-chats/oldest',
+        });
+
+        expect(renderer.root.findAll((node: any) => (
+            node.type === 'View' && node.props.testID === 'mobile-session-workspace-access'
+        ))).toHaveLength(0);
+    });
+
+    it('keeps the active Side chat workspace actions and links when its conversation expands into the global modal', async () => {
+        mocks.width = 390;
+        mocks.height = 844;
+        const renderer = renderParent();
+
+        pressByLabel(renderer, 'Open side chats (3)');
+        pressByLabel(renderer, 'sideChat.expand');
+
+        expect(mocks.modalShow).toHaveBeenCalledOnce();
+        const modalRequest = mocks.modalShow.mock.calls[0]?.[0] as {
+            component: React.ComponentType<any>;
+            props: Record<string, unknown>;
+        };
+        expect(modalRequest.props).toEqual(expect.objectContaining({
+            sessionId: 'newest',
+            workspaceController: expect.objectContaining({
+                openChanges: expect.any(Function),
+                openChatWorkspace: expect.any(Function),
+                openMachineWorkspace: expect.any(Function),
+                openWorkspaceLink: expect.any(Function),
+            }),
+        }));
+
+        const closeFirstModal = vi.fn();
+        let modalRenderer!: ReactTestRenderer;
+        const FirstModalHost = () => {
+            const [open, setOpen] = React.useState(true);
+            if (!open) return null;
+            return React.createElement(modalRequest.component, {
+                ...modalRequest.props,
+                onClose: () => {
+                    closeFirstModal();
+                    setOpen(false);
+                },
+            });
+        };
+        act(() => {
+            modalRenderer = create(React.createElement(FirstModalHost));
+        });
+        const modalWorkspaceActions = composerForSession(modalRenderer, 'newest').props.mobileWorkspaceActions;
+        expect(modalWorkspaceActions).toEqual(expect.objectContaining({
+            onOpenChanges: expect.any(Function),
+            onOpenChatWorkspace: expect.any(Function),
+            onOpenMachineWorkspace: expect.any(Function),
+        }));
+
+        act(() => modalWorkspaceActions.onOpenMachineWorkspace());
+        expect(closeFirstModal).toHaveBeenCalledOnce();
+        expect(renderedComposerSessions(modalRenderer)).toEqual([]);
+        expect(renderer.root.findByType('MachineWorkspaceBrowser' as any).props).toMatchObject({
+            initialMachineId: 'machine-newest',
+            initialPath: '/srv/side-chats/newest',
+        });
+
+        const closeLinkModal = vi.fn();
+        let linkModalRenderer!: ReactTestRenderer;
+        const LinkModalHost = () => {
+            const [open, setOpen] = React.useState(true);
+            if (!open) return null;
+            return React.createElement(modalRequest.component, {
+                ...modalRequest.props,
+                onClose: () => {
+                    closeLinkModal();
+                    setOpen(false);
+                },
+            });
+        };
+        act(() => {
+            linkModalRenderer = create(React.createElement(LinkModalHost));
+        });
+        const modalEmptyMessages = linkModalRenderer.root.findByType('EmptyMessages' as any);
+        await act(async () => {
+            modalEmptyMessages.props.onWorkspaceLinkPress({
+                pathname: '/workspace',
+                params: {
+                    mode: 'link',
+                    originSessionId: 'newest',
+                    machineId: 'machine-newest',
+                    absolutePath: '/srv/side-chats/newest/note.md',
+                },
+            });
+            await Promise.resolve();
+        });
+        expect(closeLinkModal).toHaveBeenCalledOnce();
+        expect(renderedComposerSessions(linkModalRenderer)).toEqual([]);
+        expect(mocks.routerPush).not.toHaveBeenCalled();
+        expect(renderer.root.findByType('DesktopFileWorkspace' as any).props.paths)
+            .toEqual(['/srv/side-chats/newest/note.md']);
+    });
+
+    it('provides the session workspace controller to the desktop Side chat panel', () => {
+        mocks.width = 1280;
+        mocks.height = 900;
+        const renderer = renderParent();
+
+        pressByLabel(renderer, 'Open side chats (3)');
+        pressByLabel(renderer, 'sideChat.expand');
+
+        expect(mocks.modalShow).toHaveBeenCalledOnce();
+        expect(mocks.modalShow.mock.calls[0]?.[0]?.props?.workspaceController).toEqual(expect.objectContaining({
+            openChanges: expect.any(Function),
+            openChatWorkspace: expect.any(Function),
+            openMachineWorkspace: expect.any(Function),
+            openWorkspaceLink: expect.any(Function),
+        }));
     });
 
     it('keeps the Changes workspace below the active voice status bar', () => {
@@ -976,7 +1187,7 @@ describe('SessionView Web Mobile workspace access', () => {
         const renderer = renderParent();
 
         expect(renderer.root.findAllByType('VoiceAssistantStatusBar' as any)).toHaveLength(1);
-        pressByLabel(renderer, 'Changes');
+        act(() => composerForSession(renderer, 'parent').props.mobileWorkspaceActions.onOpenChanges());
         const overlay = renderer.root.findByProps({ testID: 'mobile-changes-workspace-overlay' });
         expect(overlay.props.style).toMatchObject({ top: 88 });
     });
@@ -1316,7 +1527,7 @@ describe('SessionView side-chat integration', () => {
         expect(mocks.routerPush).not.toHaveBeenCalled();
     });
 
-    it('keeps same-session directories in Machine Workspace while cross-session links retain the Viewer route', async () => {
+    it('lets explicit Main Agent and Side chat targets win while unrelated-session links retain the Viewer route', async () => {
         const renderer = renderParent();
         const emptyMessages = renderer.root.findAllByType('EmptyMessages' as any).find((node: any) => (
             typeof node.props.onWorkspaceLinkPress === 'function'
@@ -1351,6 +1562,23 @@ describe('SessionView side-chat integration', () => {
         act(() => directoryWorkspace.props.onClosePicker());
         expect(renderer.root.findAllByType('DesktopFileWorkspace' as any)).toHaveLength(0);
 
+        const sideChatRoute = {
+            ...directoryRoute,
+            params: {
+                ...directoryRoute.params,
+                originSessionId: 'newest',
+                machineId: 'machine-newest',
+                absolutePath: '/srv/side-chats/newest/note.md',
+            },
+        };
+        await act(async () => {
+            emptyMessages?.props.onWorkspaceLinkPress(sideChatRoute);
+            await Promise.resolve();
+        });
+        expect(mocks.routerPush).not.toHaveBeenCalled();
+        expect(renderer.root.findByType('DesktopFileWorkspace' as any).props.paths)
+            .toEqual(['/srv/side-chats/newest/note.md']);
+
         const crossSessionRoute = {
             ...directoryRoute,
             params: { ...directoryRoute.params, originSessionId: 'ordinary', absolutePath: '/work/other.md' },
@@ -1362,9 +1590,51 @@ describe('SessionView side-chat integration', () => {
             ...directoryRoute,
             params: { ...directoryRoute.params, absolutePath: '/work/report.md', line: '12' },
         };
-        act(() => emptyMessages?.props.onWorkspaceLinkPress(locatedFileRoute));
+        await act(async () => {
+            emptyMessages?.props.onWorkspaceLinkPress(locatedFileRoute);
+            await Promise.resolve();
+        });
         expect(mocks.routerPush).toHaveBeenCalledWith(crossSessionRoute);
-        expect(mocks.machineGetDirectoryTree).toHaveBeenCalledTimes(2);
+        expect(mocks.machineGetDirectoryTree).toHaveBeenCalledTimes(3);
+    });
+
+    it('rebinds desktop Main Changes after closing a Side chat file workspace', async () => {
+        const renderer = renderParent();
+        const sidebar = await openAndCloseSideChatFileWorkspace(renderer);
+
+        act(() => sidebar?.props.onOpenPanel('changes'));
+        act(() => desktopSideChatHosts(renderer)[0]?.props.onFilePress({
+            status: 'modified',
+            fullPath: '/srv/project/main-change.ts',
+        }));
+
+        expect(renderer.root.findByType('AllFilesDiffView' as any).props.sessionId).toBe('parent');
+    });
+
+    it('rebinds desktop Main Chat Workspace after closing a Side chat file workspace', async () => {
+        const renderer = renderParent();
+        const sidebar = await openAndCloseSideChatFileWorkspace(renderer);
+        const mainFilePath = '/srv/project/main.ts';
+
+        act(() => sidebar?.props.onOpenPanel('allFiles'));
+        act(() => desktopSideChatHosts(renderer)[0]?.props.onAllFilesFilePress(mainFilePath));
+
+        const workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props.sessionId).toBe('parent');
+        expect(workspace.props.references[JSON.stringify(['machine-1', mainFilePath])])
+            .toMatchObject({ machineId: 'machine-1', source: 'session' });
+    });
+
+    it('rebinds desktop Main Machine Workspace after closing a Side chat file workspace', async () => {
+        const renderer = renderParent();
+        const sidebar = await openAndCloseSideChatFileWorkspace(renderer);
+
+        act(() => sidebar?.props.onOpenMachineWorkspace());
+
+        expect(renderer.root.findByType('MachineWorkspaceBrowser' as any).props).toMatchObject({
+            initialMachineId: 'machine-1',
+            initialPath: '/srv/project',
+        });
     });
 
     it('opens a first same-session file link directly in the compact mobile workspace', async () => {
@@ -1526,11 +1796,15 @@ describe('SessionView side-chat integration', () => {
         expect(workspace.props.onOpenChanges).toBeUndefined();
     });
 
-    it('opens a Machine Workspace selection in the canonical tab host', () => {
+    it('opens desktop Machine Workspace at the owning Main Agent machine and cwd before sharing its selection', () => {
         const renderer = renderParent();
         act(() => desktopSideChatHosts(renderer)[0]?.props.onOpenMachineWorkspace());
 
         const machineWorkspace = renderer.root.findByType('MachineWorkspaceBrowser' as any);
+        expect(machineWorkspace.props).toMatchObject({
+            initialMachineId: 'machine-1',
+            initialPath: '/srv/project',
+        });
         act(() => machineWorkspace.props.onFilePress({ machineId: 'machine-2', path: '/work/remote.md' }));
 
         const workspace = renderer.root.findByType('DesktopFileWorkspace' as any);

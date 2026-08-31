@@ -413,6 +413,7 @@ export type TranslationKey =
     | "happyHerd.composer.cancelVoice"
     | "happyHerd.composer.deviceFiles"
     | "happyHerd.composer.finishVoice"
+    | "happyHerd.composer.moreActions"
     | "happyHerd.composer.photos"
     | "happyHerd.composer.queueMessage"
     | "happyHerd.composer.retryVoice"

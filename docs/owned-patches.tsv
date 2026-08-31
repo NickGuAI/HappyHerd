@@ -193,4 +193,5 @@ DESKTOP_FILE_WORKSPACE_PATCH_MANIFEST	accepted	chore(integration): register work
 WORKSPACE_UNIFICATION	accepted	feat(workspace): unify chat and machine files	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 SERVER_IMAGE_CLEANUP_TIMEOUT	accepted	fix(deploy): tolerate builder cleanup timeout	scripts/test-component-deployment-contract.sh
 RESPONSIVE_WORKSPACE_ACCESS	accepted	fix(app): expose responsive workspace controls	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
+RESPONSIVE_WORKSPACE_SESSION_CONTEXT	accepted	fix(app): bind responsive workspaces to active sessions	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 WORKSPACE_IMAGE_RECOVERY	accepted	fix(app): recover inline workspace images	server/packages/happy-app/sources/components/markdown/MarkdownView.workspaceLinks.test.ts

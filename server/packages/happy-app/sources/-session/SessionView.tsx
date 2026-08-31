@@ -122,94 +122,15 @@ import { HEARTBEAT_COMMAND } from '@/utils/heartbeatCommand';
 import { deliverSessionTurn } from '@/utils/sessionContinuation';
 
 const SESSION_FILE_WORKSPACE_SPLIT_MIN_WINDOW_WIDTH = 900;
-const MOBILE_SESSION_WORKSPACE_ACCESS_HEIGHT = 56;
 
-const MobileSessionWorkspaceAccess = React.memo(function MobileSessionWorkspaceAccess({
-    onOpenChanges,
-    onOpenChatWorkspace,
-    onOpenMachineWorkspace,
-}: {
-    onOpenChanges: () => void;
-    onOpenChatWorkspace: () => void;
-    onOpenMachineWorkspace: () => void;
-}) {
-    const { theme } = useUnistyles();
-    const actions = [
-        {
-            icon: 'diff' as const,
-            label: t('files.changes'),
-            onPress: onOpenChanges,
-            testID: 'mobile-open-changes',
-        },
-        {
-            icon: 'file-directory' as const,
-            label: t('files.allFiles'),
-            onPress: onOpenChatWorkspace,
-            testID: 'mobile-open-chat-workspace',
-        },
-        {
-            icon: 'device-desktop' as const,
-            label: t('workspace.title'),
-            onPress: onOpenMachineWorkspace,
-            testID: 'mobile-open-machine-workspace',
-        },
-    ];
+export type SessionWorkspaceController = {
+    openChanges: (sessionId: string) => void;
+    openChatWorkspace: (sessionId: string) => void;
+    openMachineWorkspace: (session: Session) => void;
+    openWorkspaceLink: (route: WorkspaceLinkRoute) => void;
+};
 
-    return (
-        <View
-            testID="mobile-session-workspace-access"
-            style={{
-                height: MOBILE_SESSION_WORKSPACE_ACCESS_HEIGHT,
-                flexDirection: 'row',
-                alignItems: 'stretch',
-                gap: 6,
-                paddingHorizontal: 10,
-                paddingVertical: 6,
-                backgroundColor: theme.colors.surface,
-                borderBottomWidth: StyleSheet.hairlineWidth,
-                borderBottomColor: theme.colors.divider,
-            }}
-        >
-            {actions.map((action) => (
-                <Pressable
-                    key={action.testID}
-                    testID={action.testID}
-                    onPress={action.onPress}
-                    accessibilityRole="button"
-                    accessibilityLabel={action.label}
-                    style={({ pressed, hovered }: any) => ({
-                        flex: 1,
-                        minWidth: 0,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 5,
-                        paddingHorizontal: 6,
-                        borderRadius: 10,
-                        backgroundColor: pressed || hovered
-                            ? theme.colors.surfaceSelected
-                            : theme.colors.surface,
-                    })}
-                >
-                    <Octicons name={action.icon} size={14} color={theme.colors.textSecondary} />
-                    <Text
-                        numberOfLines={2}
-                        style={{
-                            minWidth: 0,
-                            color: theme.colors.text,
-                            fontSize: 11,
-                            lineHeight: 14,
-                            fontWeight: '600',
-                            textAlign: 'center',
-                        }}
-                    >
-                        {action.label}
-                    </Text>
-                </Pressable>
-            ))}
-        </View>
-    );
-});
+export const SessionWorkspaceControllerContext = React.createContext<SessionWorkspaceController | null>(null);
 
 export const SessionView = React.memo((props: { id: string; focusMessageId?: string }) => {
     const sessionId = props.id;
@@ -337,6 +258,20 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             storage.getState().applyLocalSettings({ sidebarPanelActive: panel });
         }
     }, [sessionId]);
+    const openMainSidebarPanel = React.useCallback((panel: SidebarMode) => {
+        if (panel !== 'sideChat') {
+            setDesktopFileWorkspaceSessionId(sessionId);
+            setDesktopMachinePickerTarget(null);
+        }
+        openSidebarPanel(panel);
+    }, [openSidebarPanel, sessionId]);
+    const selectMainSidebarPanel = React.useCallback((panel: SidebarMode) => {
+        if (panel !== 'sideChat') {
+            setDesktopFileWorkspaceSessionId(sessionId);
+            setDesktopMachinePickerTarget(null);
+        }
+        selectSidebarPanel(panel);
+    }, [selectSidebarPanel, sessionId]);
     // Panel removal is always a non-destructive collapse. Side-chat teardown is
     // owned only by each child tab's explicit close action.
     const removeSidebarPanel = React.useCallback((panel: SidebarMode) => {
@@ -385,15 +320,6 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         [rawSideChats, closedSideChatIds],
     );
     const sideChatIds = React.useMemo(() => sideChats.map((item) => item.id), [sideChats]);
-    const resolvedActiveSideChatId = resolveActiveSideChatId(sideChatIds, activeSideChatId);
-    const activeSideChatSession = resolvedActiveSideChatId
-        ? sideChats.find((item) => item.id === resolvedActiveSideChatId) ?? null
-        : null;
-    const canUseActiveSideChatFileWorkspace = isDataReady
-        && !!activeSideChatSession
-        && (Platform.OS === 'web' || isRunningOnMac())
-        && rigCanBrowseFiles(activeSideChatSession.metadata)
-        && rigCanUseShell(activeSideChatSession.metadata);
     const [sideChatFullscreenOpen, setSideChatFullscreenOpen] = React.useState(false);
 
     React.useEffect(() => {
@@ -690,7 +616,10 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         withFileDiscardConfirmation(() => {
             if (workspaceLinkRequestGeneration.current !== requestGeneration) return;
             if (
-                route.params.originSessionId !== sessionId
+                (
+                    route.params.originSessionId !== sessionId
+                    && !sideChatIds.includes(route.params.originSessionId)
+                )
                 || !canUseSessionFileWorkspace
             ) {
                 router.push(route);
@@ -738,6 +667,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         collapseSidebarPanels,
         router,
         sessionId,
+        sideChatIds,
         withFileDiscardConfirmation,
     ]);
 
@@ -836,7 +766,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         setDesktopMachinePickerTarget(null);
         collapseSidebarPanels();
     }, [collapseSidebarPanels]);
-    const openMobileChangesForSession = React.useCallback((targetSessionId: string) => {
+    const openChangesForSession = React.useCallback((targetSessionId: string) => {
         setDesktopFileWorkspaceSessionId(targetSessionId);
         setDesktopFilePickerOpen(false);
         setDesktopMachinePickerOpen(false);
@@ -844,14 +774,14 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         collapseSidebarPanels();
         pushOverlayNow({ kind: 'diff' });
     }, [collapseSidebarPanels, pushOverlayNow]);
-    const openMobileChatWorkspaceForSession = React.useCallback((targetSessionId: string) => {
+    const openChatWorkspaceForSession = React.useCallback((targetSessionId: string) => {
         setDesktopFileWorkspaceSessionId(targetSessionId);
         collapseSidebarPanels();
         setDesktopMachinePickerOpen(false);
         setDesktopMachinePickerTarget(null);
         setDesktopFilePickerOpen(true);
     }, [collapseSidebarPanels]);
-    const openMobileMachineWorkspaceForSession = React.useCallback((targetSession: Session) => {
+    const openMachineWorkspaceForSession = React.useCallback((targetSession: Session) => {
         setDesktopFileWorkspaceSessionId(targetSession.id);
         collapseSidebarPanels();
         setDesktopFilePickerOpen(false);
@@ -860,24 +790,12 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         setDesktopMachinePickerTarget(machineId && path ? { machineId, path } : null);
         setDesktopMachinePickerOpen(true);
     }, [collapseSidebarPanels]);
-    const handleMobileOpenChanges = React.useCallback(() => {
-        openMobileChangesForSession(sessionId);
-    }, [openMobileChangesForSession, sessionId]);
-    const handleMobileOpenChatWorkspace = React.useCallback(() => {
-        openMobileChatWorkspaceForSession(sessionId);
-    }, [openMobileChatWorkspaceForSession, sessionId]);
-    const handleMobileOpenMachineWorkspace = React.useCallback(() => {
-        if (session) openMobileMachineWorkspaceForSession(session);
-    }, [openMobileMachineWorkspaceForSession, session]);
-    const handleSideChatOpenChanges = React.useCallback(() => {
-        if (activeSideChatSession) openMobileChangesForSession(activeSideChatSession.id);
-    }, [activeSideChatSession, openMobileChangesForSession]);
-    const handleSideChatOpenChatWorkspace = React.useCallback(() => {
-        if (activeSideChatSession) openMobileChatWorkspaceForSession(activeSideChatSession.id);
-    }, [activeSideChatSession, openMobileChatWorkspaceForSession]);
-    const handleSideChatOpenMachineWorkspace = React.useCallback(() => {
-        if (activeSideChatSession) openMobileMachineWorkspaceForSession(activeSideChatSession);
-    }, [activeSideChatSession, openMobileMachineWorkspaceForSession]);
+    const sessionWorkspaceController = React.useMemo<SessionWorkspaceController>(() => ({
+        openChanges: openChangesForSession,
+        openChatWorkspace: openChatWorkspaceForSession,
+        openMachineWorkspace: openMachineWorkspaceForSession,
+        openWorkspaceLink: handleWorkspaceLinkPress,
+    }), [handleWorkspaceLinkPress, openChangesForSession, openChatWorkspaceForSession, openMachineWorkspaceForSession]);
 
     // File overlays follow the session's file-panel capabilities. Side chats
     // use their independent full-screen fallback when those are unavailable.
@@ -982,12 +900,6 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             </View>
         )
         : null;
-    const mobileWorkspaceAccessVisible = isWebMobileSessionViewport
-        && canUseSessionFileWorkspace
-        && !desktopFileWorkspaceActive
-        && !diffViewOpen
-        && !fileViewPath
-        && !sideChatFullscreenOpen;
     const mobileSideChatWorkspaceOpen = sideChatOwnsFileWorkspace
         && (desktopFileWorkspaceActive || diffViewOpen || !!fileViewPath);
     const voiceStatusBarHeight = !isTablet && realtimeStatus !== 'disconnected'
@@ -1045,7 +957,6 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                             : safeArea.top
                                 + mobileHeaderHeight
                                 + voiceStatusBarHeight
-                                + (mobileWorkspaceAccessVisible ? MOBILE_SESSION_WORKSPACE_ACCESS_HEIGHT : 0)
                         : 0,
                 }}
             >
@@ -1109,13 +1020,6 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                     {!isTablet && realtimeStatus !== 'disconnected' && (
                         <VoiceAssistantStatusBar variant="full" />
                     )}
-                    {mobileWorkspaceAccessVisible && (
-                        <MobileSessionWorkspaceAccess
-                            onOpenChanges={handleMobileOpenChanges}
-                            onOpenChatWorkspace={handleMobileOpenChatWorkspace}
-                            onOpenMachineWorkspace={handleMobileOpenMachineWorkspace}
-                        />
-                    )}
                 </View>
             )}
 
@@ -1142,15 +1046,6 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                             setSideChatFullscreenOpen(false);
                             setDesktopFileWorkspaceSessionId(sessionId);
                         }}
-                        workspaceAccess={isWebMobileSessionViewport && canUseActiveSideChatFileWorkspace
-                            ? (
-                                <MobileSessionWorkspaceAccess
-                                    onOpenChanges={handleSideChatOpenChanges}
-                                    onOpenChatWorkspace={handleSideChatOpenChatWorkspace}
-                                    onOpenMachineWorkspace={handleSideChatOpenMachineWorkspace}
-                                />
-                            )
-                            : null}
                     />
                 </View>
             )}
@@ -1158,11 +1053,13 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     );
 
     const sessionContent = (
-        <WorkspaceLinkPressContext.Provider
-            value={canUseSessionFileWorkspace ? handleWorkspaceLinkPress : undefined}
-        >
-            {mainContent}
-        </WorkspaceLinkPressContext.Provider>
+        <SessionWorkspaceControllerContext.Provider value={sessionWorkspaceController}>
+            <WorkspaceLinkPressContext.Provider
+                value={canUseSessionFileWorkspace ? handleWorkspaceLinkPress : undefined}
+            >
+                {mainContent}
+            </WorkspaceLinkPressContext.Provider>
+        </SessionWorkspaceControllerContext.Provider>
     );
 
     const keepWorkspaceSplitMounted = canUseSessionFileWorkspace
@@ -1183,7 +1080,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                 ...(Platform.OS === 'web' ? { contain: 'layout style paint' as any } : {}),
             }}
         >
-            {sessionContent}
+            {mainContent}
             {diffViewOpen && (canShowFileSidebar || (isWebMobileSessionViewport && canUseDesktopFileWorkspaceSession)) && (
                 <View
                     testID="mobile-changes-workspace-overlay"
@@ -1229,17 +1126,24 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         </View>
     );
 
-    const machineWorkspacePicker = (
+    const sessionMachinePickerTarget = desktopFileWorkspaceSession?.metadata?.machineId
+        ? {
+            machineId: desktopFileWorkspaceSession.metadata.machineId,
+            path: desktopFileWorkspaceSession.metadata.path
+                || desktopFileWorkspaceSession.metadata.homeDir
+                || '/',
+        }
+        : null;
+    const effectiveMachinePickerTarget = desktopMachinePickerTarget ?? sessionMachinePickerTarget;
+    const machineWorkspacePicker = effectiveMachinePickerTarget ? (
         <MachineWorkspaceBrowser
-            key={desktopMachinePickerTarget
-                ? `${desktopMachinePickerTarget.machineId}:${desktopMachinePickerTarget.path}`
-                : 'machine-workspace-root'}
+            key={`${effectiveMachinePickerTarget.machineId}:${effectiveMachinePickerTarget.path}`}
             embedded
-            initialMachineId={desktopMachinePickerTarget?.machineId}
-            initialPath={desktopMachinePickerTarget?.path}
+            initialMachineId={effectiveMachinePickerTarget.machineId}
+            initialPath={effectiveMachinePickerTarget.path}
             onFilePress={handleMachineWorkspaceFilePress}
         />
-    );
+    ) : null;
 
     const fallbackRightSurface = (
         <Animated.View style={[{ minWidth: 0, alignSelf: 'stretch' }, animatedSidebarStyle]}>
@@ -1254,16 +1158,13 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                     onFilePress={handleSidebarFilePress}
                     openPanels={visibleSidebarPanels}
                     activePanel={visibleSidebarPanelActive}
-                    onOpenPanel={openSidebarPanel}
-                    onSelectPanel={selectSidebarPanel}
+                    onOpenPanel={openMainSidebarPanel}
+                    onSelectPanel={selectMainSidebarPanel}
                     onClosePanel={removeSidebarPanel}
                     onAllFilesFilePress={handleAllFilesFilePress}
                     onAllFilesFileAttach={handleAllFilesFileAttach}
                     onOpenMachineWorkspace={() => {
-                        collapseSidebarPanels();
-                        setDesktopFilePickerOpen(false);
-                        setDesktopMachinePickerTarget(null);
-                        setDesktopMachinePickerOpen(true);
+                        if (session) openMachineWorkspaceForSession(session);
                     }}
                     canOpenFilePanels={canShowFileSidebar}
                     sideChats={sideChats}
@@ -1329,14 +1230,20 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     // host. Side chats and file picking may temporarily own the visible right
     // surface without unmounting dirty file editors.
     return (
-        <DesktopFileWorkspaceSplit
-            workspaceVisible={rightWorkspaceVisible}
-            workspaceFullscreen={rightWorkspaceFullscreen}
-            workspace={workspaceSurface}
-            fallback={canRenderSidebar ? fallbackRightSurface : null}
-        >
-            {chatSurface}
-        </DesktopFileWorkspaceSplit>
+        <SessionWorkspaceControllerContext.Provider value={sessionWorkspaceController}>
+            <WorkspaceLinkPressContext.Provider
+                value={canUseSessionFileWorkspace ? handleWorkspaceLinkPress : undefined}
+            >
+                <DesktopFileWorkspaceSplit
+                    workspaceVisible={rightWorkspaceVisible}
+                    workspaceFullscreen={rightWorkspaceFullscreen}
+                    workspace={workspaceSurface}
+                    fallback={canRenderSidebar ? fallbackRightSurface : null}
+                >
+                    {chatSurface}
+                </DesktopFileWorkspaceSplit>
+            </WorkspaceLinkPressContext.Provider>
+        </SessionWorkspaceControllerContext.Provider>
     );
 });
 
@@ -1462,6 +1369,19 @@ export function SessionViewLoaded({
     const isWebMobileSessionViewport = Platform.OS === 'web'
         && deviceType === 'phone'
         && windowWidth < SIDE_CHAT_SIDEBAR_MIN_WINDOW_WIDTH;
+    const workspaceController = React.useContext(SessionWorkspaceControllerContext);
+    const mobileWorkspaceActions = React.useMemo(() => (
+        isWebMobileSessionViewport
+        && workspaceController
+        && rigCanBrowseFiles(session.metadata)
+        && rigCanUseShell(session.metadata)
+            ? {
+                onOpenChanges: () => workspaceController.openChanges(sessionId),
+                onOpenChatWorkspace: () => workspaceController.openChatWorkspace(sessionId),
+                onOpenMachineWorkspace: () => workspaceController.openMachineWorkspace(session),
+            }
+            : undefined
+    ), [isWebMobileSessionViewport, session, sessionId, workspaceController]);
     // Only the portrait phone chat uses an overlay dock. Tablet, desktop,
     // landscape, and embedded views retain their existing split layout.
     const usesFloatingMobileDock = !embedded
@@ -2047,6 +1967,8 @@ export function SessionViewLoaded({
                 blockSend={isRig && session.thinking && session.metadata?.capabilities?.steering !== true}
                 onSend={handleSend}
                 onQueueMessage={handleQueueMessage}
+                showWebMobileActionMenu={isWebMobileSessionViewport}
+                mobileWorkspaceActions={mobileWorkspaceActions}
                 onMicPress={(voiceDictation.phase !== 'recording'
                     && (voiceSessionActive || !voiceInputAvailability.available))
                     ? undefined
