@@ -8,6 +8,23 @@ import { ensureDaemonRunning } from '@/daemon/ensureDaemonRunning';
 
 type Flags = Record<string, string | boolean | string[]>;
 
+function setFlag(flags: Flags, key: string, value: string | true): void {
+  if (key === 'tag' || key === 'argument') {
+    if (value === true) {
+      flags[key] = true;
+      return;
+    }
+    const current = flags[key];
+    flags[key] = typeof current === 'string'
+      ? [current, value]
+      : Array.isArray(current)
+        ? [...current, value]
+        : value;
+    return;
+  }
+  flags[key] = value;
+}
+
 function parseFlags(args: string[]): { positional: string[]; flags: Flags } {
   const positional: string[] = [];
   const flags: Flags = {};
@@ -17,25 +34,40 @@ function parseFlags(args: string[]): { positional: string[]; flags: Flags } {
       positional.push(value);
       continue;
     }
+    const equalsIndex = value.indexOf('=');
+    if (equalsIndex > 2) {
+      setFlag(flags, value.slice(2, equalsIndex), value.slice(equalsIndex + 1));
+      continue;
+    }
     const key = value.slice(2);
     const next = args[index + 1];
-    if (next && !next.startsWith('--')) {
-      if (key === 'tag') {
-        const current = flags[key];
-        flags[key] = typeof current === 'string'
-          ? [current, next]
-          : Array.isArray(current)
-            ? [...current, next]
-            : next;
+    if (key === 'argument') {
+      if (next === undefined) {
+        setFlag(flags, key, true);
       } else {
-        flags[key] = next;
+        setFlag(flags, key, next);
+        index += 1;
       }
+      continue;
+    }
+    if (next && !next.startsWith('--')) {
+      setFlag(flags, key, next);
       index += 1;
     } else {
-      flags[key] = true;
+      setFlag(flags, key, true);
     }
   }
   return { positional, flags };
+}
+
+function repeatedArgumentFlag(flags: Flags): string[] {
+  const value = flags.argument;
+  if (value === undefined) return [];
+  const values = Array.isArray(value) ? value : [value];
+  if (values.some((entry) => typeof entry !== 'string')) {
+    throw new Error('--argument requires a value');
+  }
+  return values as string[];
 }
 
 function repeatedStringFlag(flags: Flags, name: string): string[] {
@@ -67,32 +99,45 @@ function inputFromFlags(flags: Flags, partial: true): HappyHerdAutomationUpdateI
 function inputFromFlags(flags: Flags, partial: boolean): HappyHerdAutomationCreateInput | HappyHerdAutomationUpdateInput {
   const name = stringFlag(flags, 'name', !partial);
   const kind = stringFlag(flags, 'kind', !partial);
-  const instruction = stringFlag(flags, 'instruction', !partial);
+  const rail = stringFlag(flags, 'rail', !partial);
+  const instruction = stringFlag(flags, 'instruction', !partial && rail !== 'exec');
+  const executable = stringFlag(flags, 'executable', !partial && rail === 'exec');
   const schedule = stringFlag(flags, 'schedule', !partial);
   const timezone = stringFlag(flags, 'timezone', !partial);
   const workspace = stringFlag(flags, 'workspace', !partial);
-  const rail = stringFlag(flags, 'rail', !partial);
   const commander = stringFlag(flags, 'commander');
   const status = stringFlag(flags, 'status');
   const maxRetriesRaw = stringFlag(flags, 'max-retries');
   const tags = repeatedStringFlag(flags, 'tag');
+  const commandArguments = repeatedArgumentFlag(flags);
   const clearTags = booleanFlag(flags, 'clear-tags');
+  const clearArguments = booleanFlag(flags, 'clear-arguments');
   if (tags.length > 0 && clearTags) {
     throw new Error('--tag and --clear-tags cannot be combined');
   }
+  if (commandArguments.length > 0 && clearArguments) {
+    throw new Error('--argument and --clear-arguments cannot be combined');
+  }
+  const execRail = rail === 'exec';
   return {
     ...(name ? { name } : {}),
     ...(kind ? { kind: kind as HappyHerdAutomationCreateInput['kind'] } : {}),
     ...(instruction ? { instruction } : {}),
+    ...(executable ? { executable } : {}),
+    ...(commandArguments.length > 0
+      ? { arguments: commandArguments }
+      : clearArguments ? { arguments: [] } : (!partial && execRail ? { arguments: [] } : {})),
     ...(schedule ? { schedule } : {}),
     ...(timezone ? { timezone } : {}),
     ...(workspace ? { workspace } : {}),
     ...(rail ? { rail: rail as HappyHerdAutomationCreateInput['rail'] } : {}),
-    ...(commander !== undefined ? { commanderId: commander === 'none' ? null : commander } : (!partial ? { commanderId: null } : {})),
+    ...(commander !== undefined
+      ? { commanderId: commander === 'none' ? null : commander }
+      : (!partial && !execRail ? { commanderId: null } : {})),
     ...(status ? { status: status as HappyHerdAutomationCreateInput['status'] } : (!partial ? { status: 'active' as const } : {})),
     ...(maxRetriesRaw !== undefined
       ? { maxRetries: Number.parseInt(maxRetriesRaw, 10) }
-      : (!partial ? { maxRetries: 0 } : {})),
+      : (!partial && !execRail ? { maxRetries: 0 } : {})),
     ...(tags.length > 0 ? { tags } : clearTags ? { tags: [] } : {}),
   } as HappyHerdAutomationCreateInput | HappyHerdAutomationUpdateInput;
 }
@@ -103,11 +148,14 @@ ${chalk.bold('happy automation')} - Manage machine-local HappyHerd schedules
 
 Usage:
   happy automation list [--json]
-  happy automation create --name NAME --kind scheduled|heartbeat|memory-maintenance \\
+  happy automation create --name NAME --kind scheduled|memory-maintenance \\
     --instruction TEXT --schedule CRON --timezone IANA --workspace PATH \\
     --rail claude|codex [--commander ID|none] [--status active|paused] [--max-retries N] \\
     [--tag VALUE ...]
-  happy automation update ID [the same optional flags] [--clear-tags]
+  happy automation create --name NAME --kind scheduled --rail exec \\
+    --executable ABSOLUTE_PATH [--argument VALUE ...] --schedule CRON \\
+    --timezone IANA --workspace PATH [--status active|paused] [--tag VALUE ...]
+  happy automation update ID [the same optional flags] [--clear-tags] [--clear-arguments]
   happy automation pause|resume|run-now|delete|history ID [--json]
   happy automation stop-run AUTOMATION_ID RUN_ID [--json]
   happy automation abandon-run AUTOMATION_ID RUN_ID --session SESSION_ID|none --confirm ABANDON [--json]
@@ -115,7 +163,8 @@ Usage:
 Definitions are stored below the configured HAPPY_HOME_DIR at
 agentcontext/automations/happyherd and
 executed by this machine's HappyHerd daemon. Only manifests in this namespace
-are managed. Each run completes when its provider reports a terminal outcome.
+are managed. Agent runs complete when their provider reports a terminal outcome.
+Exec runs launch one fixed absolute executable with an exact argument array, shell=false, and no agent session.
 `);
 }
 

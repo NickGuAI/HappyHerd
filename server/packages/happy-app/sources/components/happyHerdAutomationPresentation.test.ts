@@ -36,7 +36,7 @@ function translate(key: string, params: Record<string, string | number> = {}): s
 
 function scheduledAutomation(overrides: Partial<HappyHerdAutomation> = {}): HappyHerdAutomation {
     return {
-        schemaVersion: 3,
+        schemaVersion: 4,
         runtimeOwner: 'happyherd',
         id: '11111111-1111-4111-8111-111111111111',
         machineId: 'machine-a',

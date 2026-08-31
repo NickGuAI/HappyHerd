@@ -8,7 +8,9 @@ export type HappyHerdAutomationCardPresentation = {
         schedule: string;
         timezone: string;
         kind: HappyHerdAutomation['kind'];
-        instruction: string;
+        instruction: string | null;
+        executable: string | null;
+        arguments: string[] | null;
         rail: HappyHerdAutomation['rail'];
         workspace: string;
         commanderId: string | null;
@@ -34,10 +36,12 @@ export function happyHerdAutomationCardPresentation(
                 : automation.schedule,
             timezone: automation.timezone,
             kind: automation.kind,
-            instruction: automation.instruction,
+            instruction: automation.rail === 'exec' ? null : automation.instruction,
+            executable: automation.rail === 'exec' ? automation.executable : null,
+            arguments: automation.rail === 'exec' ? automation.arguments : null,
             rail: automation.rail,
             workspace: automation.workspace,
-            commanderId: automation.commanderId,
+            commanderId: automation.rail === 'exec' ? null : automation.commanderId,
             tags: automation.tags,
             targetSessionId: automation.kind === 'heartbeat' ? automation.targetSessionId : null,
         } : null,

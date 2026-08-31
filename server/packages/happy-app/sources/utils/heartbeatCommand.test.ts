@@ -85,7 +85,7 @@ describe('HappyHerd heartbeat command descriptor', () => {
         );
         const message = formatHeartbeatControlResult({
             heartbeat: {
-                schemaVersion: 3,
+                schemaVersion: 4,
                 runtimeOwner: 'happyherd',
                 id: '11111111-1111-4111-8111-111111111111',
                 machineId: 'machine-one',

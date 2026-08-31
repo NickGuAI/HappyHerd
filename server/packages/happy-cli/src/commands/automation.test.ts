@@ -46,6 +46,59 @@ describe('handleAutomationCommand', () => {
     });
   });
 
+  it('creates an exec automation with an exact executable and argument array', async () => {
+    await handleAutomationCommand([
+      'create',
+      '--name', 'Data sink',
+      '--kind', 'scheduled',
+      '--rail', 'exec',
+      '--executable', '/opt/happyherd/bin/data-sink',
+      '--argument', '--run-now',
+      '--argument', 'literal value',
+      '--schedule', '0 */2 * * *',
+      '--timezone', 'UTC',
+      '--workspace', '/srv/happyherd',
+      '--status', 'paused',
+    ]);
+
+    expect(mocks.daemonAutomationAction).toHaveBeenCalledWith('create', {
+      input: {
+        name: 'Data sink',
+        kind: 'scheduled',
+        rail: 'exec',
+        executable: '/opt/happyherd/bin/data-sink',
+        arguments: ['--run-now', 'literal value'],
+        schedule: '0 */2 * * *',
+        timezone: 'UTC',
+        workspace: '/srv/happyherd',
+        status: 'paused',
+      },
+    });
+  });
+
+  it('requires an executable for exec creation and clears arguments explicitly on update', async () => {
+    await expect(handleAutomationCommand([
+      'create',
+      '--name', 'Data sink',
+      '--kind', 'scheduled',
+      '--rail', 'exec',
+      '--schedule', '0 */2 * * *',
+      '--timezone', 'UTC',
+      '--workspace', '/srv/happyherd',
+    ])).rejects.toThrow('--executable is required');
+    expect(mocks.daemonAutomationAction).not.toHaveBeenCalled();
+
+    await handleAutomationCommand(['update', 'automation-id', '--clear-arguments']);
+    expect(mocks.daemonAutomationAction).toHaveBeenCalledWith('update', {
+      id: 'automation-id',
+      input: { arguments: [] },
+    });
+
+    await expect(handleAutomationCommand([
+      'update', 'automation-id', '--argument',
+    ])).rejects.toThrow('--argument requires a value');
+  });
+
   it('clears tags explicitly on update and otherwise omits the field', async () => {
     await handleAutomationCommand(['update', 'automation-id', '--clear-tags']);
     expect(mocks.daemonAutomationAction).toHaveBeenNthCalledWith(1, 'update', {

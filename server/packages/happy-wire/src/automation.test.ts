@@ -9,12 +9,13 @@ import {
   HappyHerdAutomationRunSchema,
   HappyHerdAutomationSchema,
   HappyHerdAutomationUpdateInputSchema,
+  HappyHerdHeartbeatControlResponseSchema,
 } from './automation';
 
 const id = '8f0a5dd0-b7c0-4b60-a747-675b49ccfdc8';
 
 describe('HappyHerd automation wire contract', () => {
-  it('normalizes strict v1 definitions to v3 with no tags', () => {
+  it('normalizes strict v1 definitions to v4 agent automations with no tags', () => {
     const definition = {
       schemaVersion: 1 as const,
       runtimeOwner: 'happyherd' as const,
@@ -37,7 +38,7 @@ describe('HappyHerd automation wire contract', () => {
     };
     expect(HappyHerdAutomationSchema.parse(definition)).toEqual({
       ...definition,
-      schemaVersion: 3,
+      schemaVersion: 4,
       tags: [],
     });
     expect(() => HappyHerdAutomationSchema.parse({ ...definition, providerTransport: 'unsupported' })).toThrow();
@@ -100,9 +101,9 @@ describe('HappyHerd automation wire contract', () => {
       automations: [],
     });
     expect(HappyHerdAutomationListResponseSchema.parse({
-      definitionSchemaVersion: 3,
+      definitionSchemaVersion: 4,
       automations: [],
-    }).definitionSchemaVersion).toBe(3);
+    }).definitionSchemaVersion).toBe(4);
   });
 
   it('requires an explicit rail, workspace, timezone, and paused/active state', () => {
@@ -116,7 +117,7 @@ describe('HappyHerd automation wire contract', () => {
     })).toThrow();
   });
 
-  it('reserves v3 heartbeat for one immutable session while preserving legacy cron behavior', () => {
+  it('reserves heartbeat for one immutable session while preserving legacy cron behavior', () => {
     const legacy = {
       schemaVersion: 2 as const,
       runtimeOwner: 'happyherd' as const,
@@ -139,13 +140,13 @@ describe('HappyHerd automation wire contract', () => {
       lastRunAt: null,
     };
     expect(HappyHerdAutomationSchema.parse(legacy)).toMatchObject({
-      schemaVersion: 3,
+      schemaVersion: 4,
       kind: 'scheduled',
       schedule: '0 * * * *',
     });
     expect(HappyHerdAutomationSchema.parse({
       ...legacy,
-      schemaVersion: 3,
+      schemaVersion: 4,
       kind: 'heartbeat',
       schedule: null,
       targetSessionId: 'session-one',
@@ -161,6 +162,57 @@ describe('HappyHerd automation wire contract', () => {
       ...legacy,
       kind: 'heartbeat',
     }).success).toBe(false);
+    expect(HappyHerdHeartbeatControlResponseSchema.parse({
+      heartbeat: {
+        ...legacy,
+        schemaVersion: 3,
+        kind: 'heartbeat',
+        schedule: null,
+        targetSessionId: 'session-one',
+        intervalSeconds: 2_700,
+        nextDueAt: '2026-08-03T00:45:00.000Z',
+        maxRetries: 0,
+      },
+      currentRun: null,
+      lastRun: null,
+      deliveryState: 'idle',
+      queuedAhead: null,
+      observedAt: '2026-08-03T00:00:00.000Z',
+    }).heartbeat?.schemaVersion).toBe(4);
+  });
+
+  it('accepts a fixed exec command without agent-only fields and rejects ambiguous command shapes', () => {
+    const exec = {
+      name: 'Data sink',
+      kind: 'scheduled' as const,
+      schedule: '0 */2 * * *',
+      timezone: 'UTC',
+      workspace: '/srv/happyherd',
+      rail: 'exec' as const,
+      executable: '/opt/happyherd/bin/data-sink',
+      arguments: ['--run-now'],
+      status: 'paused' as const,
+    };
+    expect(HappyHerdAutomationCreateInputSchema.parse(exec)).toEqual({
+      ...exec,
+      tags: [],
+    });
+    expect(() => HappyHerdAutomationCreateInputSchema.parse({
+      ...exec,
+      executable: 'data-sink',
+    })).toThrow(/absolute path/);
+    expect(() => HappyHerdAutomationCreateInputSchema.parse({
+      ...exec,
+      workspace: '~',
+    })).toThrow(/absolute path/);
+    expect(() => HappyHerdAutomationCreateInputSchema.parse({
+      ...exec,
+      instruction: 'Run it.',
+    })).toThrow();
+    expect(() => HappyHerdAutomationCreateInputSchema.parse({
+      ...exec,
+      kind: 'memory-maintenance',
+    })).toThrow();
   });
 
   it('records linked session starts as active until a terminal confirmation', () => {
@@ -224,6 +276,32 @@ describe('HappyHerd automation wire contract', () => {
       sessionId: null,
       message: null,
     })).toThrow();
+  });
+
+  it('records terminal exec runs without weakening the provider-session invariant', () => {
+    const base = {
+      id: crypto.randomUUID(),
+      automationId: id,
+      source: 'manual' as const,
+      scheduledFor: '2026-08-03T00:00:00.000Z',
+      startedAt: '2026-08-03T00:00:01.000Z',
+      finishedAt: '2026-08-03T00:00:02.000Z',
+      status: 'completed' as const,
+      execution: 'exec' as const,
+      attempt: 1,
+      sessionId: null,
+      message: 'Command exited with code 0.',
+    };
+    expect(HappyHerdAutomationRunSchema.parse(base)).toEqual(base);
+    expect(() => HappyHerdAutomationRunSchema.parse({
+      ...base,
+      execution: 'agent',
+    })).toThrow(/linked session/);
+    expect(() => HappyHerdAutomationRunSchema.parse({
+      ...base,
+      status: 'started',
+      finishedAt: null,
+    })).toThrow(/started session state/);
   });
 
   it('carries a provider-owned one-shot outcome for daemon exit reconciliation', () => {

@@ -67,6 +67,9 @@ function assertValidRunTransition(
       throw new Error(`Automation run ${current.id} cannot change ${field}`);
     }
   }
+  if (current.execution !== next.execution) {
+    throw new Error(`Automation run ${current.id} cannot change execution mode`);
+  }
   if (next.attempt < current.attempt) {
     throw new Error(`Automation run ${current.id} cannot decrease its attempt`);
   }
@@ -83,7 +86,9 @@ function assertValidRunTransition(
     return;
   }
   const allowed = current.status === 'running'
-    ? next.status === 'started' || next.status === 'failed'
+    ? next.status === 'started'
+      || next.status === 'failed'
+      || (current.execution === 'exec' && next.status === 'completed')
     : current.status === 'started'
       ? next.status === 'completed' || next.status === 'failed'
       : false;
@@ -289,16 +294,50 @@ export class HappyHerdAutomationStore {
       const current = await this.get(id);
       if (current.kind === 'heartbeat') throw new Error(`Automation ${id} is a session heartbeat`);
       const patch = HappyHerdAutomationUpdateInputSchema.parse(raw);
-      const next = HappyHerdAutomationSchema.parse({
-        ...current,
-        ...patch,
+      const rail = patch.rail ?? current.rail;
+      if (rail !== 'exec' && (patch.executable !== undefined || patch.arguments !== undefined)) {
+        throw new Error('Executable and arguments require the exec rail');
+      }
+      if (rail === 'exec' && (
+        patch.instruction !== undefined
+        || patch.commanderId !== undefined
+        || patch.maxRetries !== undefined
+      )) {
+        throw new Error('Instruction, Commander, and spawn retries are not valid for the exec rail');
+      }
+      const common = {
         id: current.id,
         machineId: current.machineId,
         runtimeOwner: 'happyherd',
         schemaVersion: HAPPYHERD_AUTOMATION_DEFINITION_SCHEMA_VERSION,
+        name: patch.name ?? current.name,
+        kind: patch.kind ?? current.kind,
+        schedule: patch.schedule ?? current.schedule,
+        timezone: patch.timezone ?? current.timezone,
+        workspace: patch.workspace ?? current.workspace,
+        status: patch.status ?? current.status,
+        tags: patch.tags ?? current.tags,
         createdAt: current.createdAt,
         updatedAt: new Date().toISOString(),
-      });
+        lastScheduledAt: current.lastScheduledAt,
+        lastRunAt: current.lastRunAt,
+      };
+      const next = HappyHerdAutomationSchema.parse(rail === 'exec'
+        ? {
+          ...common,
+          rail,
+          executable: patch.executable ?? (current.rail === 'exec' ? current.executable : undefined),
+          arguments: patch.arguments ?? (current.rail === 'exec' ? current.arguments : []),
+        }
+        : {
+          ...common,
+          rail,
+          instruction: patch.instruction ?? (current.rail !== 'exec' ? current.instruction : undefined),
+          commanderId: patch.commanderId !== undefined
+            ? patch.commanderId
+            : current.rail !== 'exec' ? current.commanderId : undefined,
+          maxRetries: patch.maxRetries ?? (current.rail !== 'exec' ? current.maxRetries : undefined),
+        });
       if (next.kind === 'heartbeat') throw new Error(`Automation ${id} is a session heartbeat`);
       validateSchedule(next);
       await writeJsonAtomic(manifestPath(id), next);

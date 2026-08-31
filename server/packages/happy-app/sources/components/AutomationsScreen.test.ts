@@ -2,7 +2,7 @@ import * as React from 'react';
 // @ts-expect-error react-test-renderer has no declarations in this workspace.
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { HappyHerdAutomation } from '@slopus/happy-wire';
+import type { HappyHerdAutomation, HappyHerdAutomationRun } from '@slopus/happy-wire';
 
 import type { Machine } from '@/sync/storageTypes';
 
@@ -15,6 +15,7 @@ const testState = vi.hoisted(() => ({
     listCommanders: vi.fn(),
     createAutomation: vi.fn(),
     updateAutomation: vi.fn(),
+    runAutomationNow: vi.fn(),
     profileRpc: vi.fn(),
     profileStart: vi.fn(),
     recordProfile: vi.fn(),
@@ -83,6 +84,11 @@ vi.mock('@/components/StyledText', async () => {
     return { Text: (props: any) => ReactModule.createElement('Text', props, props.children) };
 });
 
+vi.mock('@/components/markdown/MarkdownView', async () => {
+    const ReactModule = await import('react');
+    return { MarkdownView: (props: any) => ReactModule.createElement('MarkdownView', props) };
+});
+
 vi.mock('@/components/HappyHerdAutomationDetail', async () => {
     const ReactModule = await import('react');
     return {
@@ -105,7 +111,7 @@ vi.mock('@/sync/ops', () => ({
     machineListCommanders: testState.listCommanders,
     machinePauseAutomation: vi.fn(),
     machineResumeAutomation: vi.fn(),
-    machineRunAutomationNow: vi.fn(),
+    machineRunAutomationNow: testState.runAutomationNow,
     machineUpdateAutomation: testState.updateAutomation,
 }));
 
@@ -124,7 +130,12 @@ vi.mock('@/utils/automationProfiling', () => ({
 const translations: Record<string, string> = {
     'happyHerd.automations.new': 'New',
     'happyHerd.automations.create': 'Create automation',
+    'happyHerd.automations.name': 'Name',
     'happyHerd.automations.machine': 'Machine',
+    'happyHerd.automations.railExec': 'Direct Command',
+    'happyHerd.automations.executable': 'Executable Path',
+    'happyHerd.automations.arguments': 'Arguments',
+    'happyHerd.automations.argumentsHint': 'Enter one argument per line.',
     'happyHerd.automations.save': 'Save automation',
     'happyHerd.automations.subtitle': 'Automation subtitle',
     'happyHerd.automations.allTags': 'All',
@@ -170,6 +181,7 @@ beforeEach(() => {
     testState.automationHistory.mockReset().mockResolvedValue({ runs: [] });
     testState.createAutomation.mockReset().mockResolvedValue(undefined);
     testState.updateAutomation.mockReset().mockResolvedValue(undefined);
+    testState.runAutomationNow.mockReset();
     testState.profileRpc.mockReset().mockImplementation(async (_method, operation) => operation());
     testState.profileStart.mockReset().mockReturnValue(10);
     testState.recordProfile.mockReset();
@@ -197,7 +209,7 @@ function automation(
     tags: string[],
 ): HappyHerdAutomation {
     return {
-        schemaVersion: 3,
+        schemaVersion: 4,
         runtimeOwner: 'happyherd',
         id,
         machineId,
@@ -602,6 +614,9 @@ describe('AutomationsScreen master-detail behavior', () => {
         ));
         expect(machineSelectors).toHaveLength(2);
         expect(renderer.root.findAll((node: any) => (
+            node.type === 'Pressable' && nodeText(node) === 'Direct Command'
+        ))).toHaveLength(0);
+        expect(renderer.root.findAll((node: any) => (
             node.type === 'ScrollView' && node.props.accessibilityRole === 'radiogroup'
         )).map((node: any) => node.props.accessibilityLabel)).toEqual(['Machine']);
         expect(machineSelectors.map((node: any) => node.props.accessibilityState?.selected)).toEqual([true, false]);
@@ -646,6 +661,156 @@ describe('AutomationsScreen master-detail behavior', () => {
             'machine-b',
             expect.objectContaining({ workspace: '/srv/machine-b' }),
         );
+    });
+
+    it.each([1200, 600])('creates a direct command from the visible form at %ipx', async (width) => {
+        testState.width = width;
+        testState.machines = [machine('machine-a', 100)];
+        testState.listAutomations.mockResolvedValue({
+            definitionSchemaVersion: 4,
+            automations: [],
+        });
+        const renderer = await renderScreen();
+
+        await act(async () => {
+            renderer.root.findAll((node: any) => (
+                node.type === 'Pressable' && nodeText(node) === 'New'
+            ))[0].props.onPress();
+            await Promise.resolve();
+        });
+        await act(async () => {
+            renderer.root.findAll((node: any) => (
+                node.type === 'Pressable' && nodeText(node) === 'Direct Command'
+            ))[0].props.onPress();
+            await Promise.resolve();
+        });
+        await act(async () => {
+            renderer.root.findByProps({ accessibilityLabel: 'Name' }).props.onChangeText('Data sink');
+            renderer.root.findByProps({ accessibilityLabel: 'Executable Path' }).props.onChangeText('/opt/happyherd/bin/data-sink');
+            renderer.root.findByProps({ accessibilityLabel: 'Arguments' }).props.onChangeText('--run-now\nliteral value');
+            await Promise.resolve();
+        });
+        await act(async () => {
+            renderer.root.findAll((node: any) => (
+                node.type === 'Pressable' && nodeText(node) === 'Save automation'
+            ))[0].props.onPress();
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        expect(testState.createAutomation).toHaveBeenCalledWith('machine-a', expect.objectContaining({
+            name: 'Data sink',
+            kind: 'scheduled',
+            rail: 'exec',
+            executable: '/opt/happyherd/bin/data-sink',
+            arguments: ['--run-now', 'literal value'],
+            workspace: '/srv/machine-a',
+            status: 'paused',
+        }));
+        expect(testState.createAutomation.mock.calls[0][1]).not.toHaveProperty('instruction');
+        expect(testState.createAutomation.mock.calls[0][1]).not.toHaveProperty('commanderId');
+        expect(testState.createAutomation.mock.calls[0][1]).not.toHaveProperty('maxRetries');
+    });
+
+    it('refreshes a manual exec run to a visible failure and stops at terminal history', async () => {
+        vi.useFakeTimers();
+        try {
+            testState.machines = [machine('machine-a', 100)];
+            const directCommand: HappyHerdAutomation = {
+                schemaVersion: 4,
+                runtimeOwner: 'happyherd',
+                id: '77777777-7777-4777-8777-777777777777',
+                machineId: 'machine-a',
+                name: 'Data sink',
+                kind: 'scheduled',
+                schedule: '0 */2 * * *',
+                timezone: 'UTC',
+                workspace: '/srv/machine-a',
+                rail: 'exec',
+                executable: '/opt/happyherd/bin/data-sink',
+                arguments: [],
+                status: 'paused',
+                tags: [],
+                createdAt: '2026-08-31T00:00:00.000Z',
+                updatedAt: '2026-08-31T00:00:00.000Z',
+                lastScheduledAt: null,
+                lastRunAt: null,
+            };
+            const accepted: HappyHerdAutomationRun = {
+                id: '88888888-8888-4888-8888-888888888888',
+                automationId: directCommand.id,
+                source: 'manual',
+                scheduledFor: '2026-08-31T01:00:00.000Z',
+                startedAt: '2026-08-31T01:00:00.000Z',
+                finishedAt: null,
+                status: 'running',
+                execution: 'exec',
+                attempt: 1,
+                sessionId: null,
+                message: null,
+            };
+            const failed: HappyHerdAutomationRun = {
+                ...accepted,
+                finishedAt: '2026-08-31T01:00:02.000Z',
+                status: 'failed',
+                message: 'Command exited with code 2. Command stderr: collector failed',
+            };
+            testState.listAutomations.mockResolvedValue({
+                definitionSchemaVersion: 4,
+                automations: [directCommand],
+            });
+            testState.runAutomationNow.mockResolvedValue(accepted);
+            testState.automationHistory
+                .mockResolvedValueOnce({ runs: [] })
+                .mockResolvedValueOnce({ runs: [failed] });
+
+            const renderer = await renderScreen();
+            await act(async () => {
+                renderer.root.findByProps({
+                    accessibilityLabel: 'Open details for Data sink',
+                }).props.onPress();
+                await Promise.resolve();
+                await Promise.resolve();
+            });
+            await vi.waitFor(() => expect(testState.automationHistory).toHaveBeenCalledTimes(1));
+
+            await act(async () => {
+                renderer.root.findByType('AutomationDetail' as any).props.onRunNow();
+                await Promise.resolve();
+                await Promise.resolve();
+                await Promise.resolve();
+            });
+            expect(renderer.root.findByType('AutomationDetail' as any).props.history[0])
+                .toMatchObject({ id: accepted.id, status: 'running' });
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(250);
+            });
+            const detailProps = renderer.root.findByType('AutomationDetail' as any).props;
+            expect(detailProps.history[0]).toMatchObject({
+                id: accepted.id,
+                status: 'failed',
+                message: expect.stringContaining('collector failed'),
+            });
+
+            const callsAtTerminal = testState.automationHistory.mock.calls.length;
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(120_000);
+            });
+            expect(testState.automationHistory).toHaveBeenCalledTimes(callsAtTerminal);
+
+            const { HappyHerdAutomationDetail: ProductionDetail } = await vi.importActual<
+                typeof import('./HappyHerdAutomationDetail')
+            >('./HappyHerdAutomationDetail');
+            let detailRenderer!: ReactTestRenderer;
+            act(() => {
+                detailRenderer = create(React.createElement(ProductionDetail, detailProps));
+            });
+            expect(visibleText(detailRenderer)).toContain('collector failed');
+            act(() => detailRenderer.unmount());
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('keeps edits pinned to the selected automation owner', async () => {

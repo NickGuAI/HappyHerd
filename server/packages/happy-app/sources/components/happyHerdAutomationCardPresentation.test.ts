@@ -32,6 +32,8 @@ describe('happyHerdAutomationCardPresentation', () => {
             timezone: 'America/New_York',
             kind: 'memory-maintenance',
             instruction: 'Private automation instruction',
+            executable: null,
+            arguments: null,
             rail: 'codex',
             workspace: '/srv/workspace',
             commanderId: null,

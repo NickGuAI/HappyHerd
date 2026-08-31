@@ -188,6 +188,19 @@ history. The session message log and runtime queue remain the authorities for
 content, ordering, acceptance, and provider-turn lifecycle; a heartbeat never
 creates a second transport or a fresh session.
 
+### Scheduled automation execution
+
+```text
+scheduled definition → automation store/service → existing cron scheduler
+                                           ├─ Claude/Codex → daemon-owned provider session
+                                           └─ exec → exact executable + argv → exit-code history
+```
+
+The store/service is the sole owner of scheduled definitions and history.
+Provider rails delegate lifetime management to the provider process and daemon;
+the exec rail directly spawns the exact executable and argv as the daemon OS
+user with `shell: false`, records its terminal exit, and creates no agent session.
+
 ### Governed agent
 
 ```text
@@ -262,7 +275,7 @@ any of these owners.
 | App local persistence | `happy-app/sources/sync/persistence.ts` | MMKV/local cache is device state, not cross-client authority |
 | App credentials | `happy-app/sources/auth/tokenStorage.ts` | SecureStore/native and browser storage implementations differ |
 | Maintained CLI machine/session runtime | `happy-cli/src/configuration.ts` and `persistence.ts` | Defaults beneath `~/.happyherd`; do not mix with other package defaults |
-| Session heartbeat configuration and history | `happy-cli/src/automations/{store,service}.ts` | Stores cadence and one occurrence reference; the target session log and MessageQueue2 own message content and FIFO state |
+| Automation definitions and history | `happy-cli/src/automations/{store,service}.ts` | Sole owner for scheduled and heartbeat definitions and runs; provider sessions own provider lifetime, while exec runs own their direct process exit record |
 | Commander identity and AgentContext | Human-authored Markdown/JSONL beneath the HappyHerd home | Human knowledge remains reviewable files; runtime state does not own it |
 | Governed Discord settlement and surface bindings | `happyherd-agent` `BridgeStore` | Dedicated bridge state; not server message authority |
 | Provider process lifetime | Provider process, orchestrated by the daemon | Daemon registration does not make transport presence canonical completion state |
