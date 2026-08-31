@@ -2990,6 +2990,34 @@ describe('reducer', () => {
             expect(result.hasReadyEvent).toBe(true);
         });
 
+        it('renders one persisted account-switch row and deduplicates replay by message id', () => {
+            const state = createReducer();
+            const switched: NormalizedMessage = {
+                id: 'provider-switch-message-1',
+                localId: null,
+                createdAt: 1000,
+                role: 'event',
+                content: {
+                    type: 'provider-account-switched',
+                    provider: 'claude',
+                    fromAccount: 'personal-账号',
+                    toAccount: 'work-primary',
+                    incidentId: 'provider-switch-incident-1',
+                },
+                isSidechain: false,
+            };
+
+            const first = reducer(state, [switched]);
+            expect(first.messages).toHaveLength(1);
+            expect(first.messages[0]).toMatchObject({
+                kind: 'agent-event',
+                event: switched.content,
+            });
+
+            const replay = reducer(state, [switched]);
+            expect(replay.messages).toHaveLength(0);
+        });
+
         it('hides turn-start lifecycle messages', () => {
             const state = createReducer();
             const result = reducer(state, [{

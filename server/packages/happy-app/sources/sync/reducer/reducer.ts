@@ -1249,6 +1249,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
     for (let msg of nonSidechainMessages) {
         if (msg.role === 'event') {
             let mid = allocateId();
+            state.messageIds.set(msg.id, mid);
             state.messages.set(mid, {
                 id: mid,
                 realID: msg.id,

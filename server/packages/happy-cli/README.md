@@ -238,6 +238,9 @@ GrokBuild. You can configure multiple accounts per provider to manage workflows
 when encountering rate limits or quota restrictions. If no named account pool
 is configured, HappyHerd retains standard single-account behavior. Account
 selection is reactive and lazy, with no background quota polling.
+Credential-pool rotation occurs automatically, so there is no toggle in the
+interface to enable or disable it. To allow cross-account failover, you must
+configure at least two named accounts for the same provider.
 
 ```bash
 happyherd connect <claude|codex|grok> --acct <nickname>

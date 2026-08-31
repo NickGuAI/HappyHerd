@@ -51,4 +51,21 @@ describe('JSON i18n runtime', () => {
     it('preserves literal double-brace provider variables', () => {
         expect(t('settingsVoice.byoDescription')).toContain('{{initialConversationContext}}');
     });
+
+    it('localizes provider account switch receipts without changing account nicknames', () => {
+        const params = { provider: 'Claude Code', fromAccount: 'personal-账号', toAccount: 'work-primary' };
+        expect(t('message.providerAccountSwitched', params)).toBe(
+            'Quota exhaustion on Claude Code triggered an account switch from personal-账号 to work-primary.',
+        );
+
+        setCurrentLanguage('cn');
+        expect(t('message.providerAccountSwitched', params)).toBe(
+            'Claude Code 额度耗尽触发了从 personal-账号 到 work-primary 的账号切换。',
+        );
+
+        setCurrentLanguage('de');
+        expect(t('message.providerAccountSwitched', params)).toBe(
+            'Die Quotenüberschreitung bei Claude Code hat einen Kontowechsel von personal-账号 zu work-primary ausgelöst.',
+        );
+    });
 });

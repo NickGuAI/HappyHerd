@@ -394,6 +394,56 @@ describe('Api server error handling', () => {
         });
     });
 
+    describe('postSessionEvent', () => {
+        it('posts one encrypted provider switch event with the incident id as its stable message id', async () => {
+            mockPost.mockResolvedValue({ data: {} });
+
+            await api.postSessionEvent({
+                id: 'session/one',
+                seq: 4,
+                encryptionKey: new Uint8Array(32),
+                encryptionVariant: 'legacy',
+                metadata: testMetadata,
+                metadataVersion: 2,
+                agentState: {},
+                agentStateVersion: 3,
+            }, {
+                type: 'provider-account-switched',
+                provider: 'claude',
+                fromAccount: 'personal',
+                toAccount: 'work-primary',
+                incidentId: 'incident-one',
+            }, 'incident-one');
+
+            expect(mockPost).toHaveBeenCalledWith(
+                'https://api.example.com/v3/sessions/session%2Fone/messages',
+                {
+                    messages: [{
+                        localId: 'incident-one',
+                        content: {
+                            role: 'agent',
+                            content: {
+                                id: 'incident-one',
+                                type: 'event',
+                                data: {
+                                    type: 'provider-account-switched',
+                                    provider: 'claude',
+                                    fromAccount: 'personal',
+                                    toAccount: 'work-primary',
+                                    incidentId: 'incident-one',
+                                },
+                            },
+                        },
+                    }],
+                },
+                expect.objectContaining({
+                    headers: expect.objectContaining({ Authorization: 'Bearer fake-token' }),
+                    timeout: 60000,
+                }),
+            );
+        });
+    });
+
     describe('postSideChatBrief', () => {
         it('posts the complete brief through the ordinary encrypted queue without heartbeat semantics', async () => {
             mockPost.mockResolvedValue({ data: {} });

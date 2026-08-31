@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "2bdbccb8946ad16d52526bff1581acefb89630db2d37c60c6f5c08b93d5793e7",
+  "sourceFingerprint": "bdf55fbd1c87f29a5aa71c7be27d59e986adac52d8a55c315dda62e1b4697584",
   "routeCount": 36,
   "surfaceCount": 249,
   "hardcodedCopyCount": 0,
@@ -3664,6 +3664,7 @@
       "translationKeys": [
         "common.copied",
         "common.copy",
+        "message.providerAccountSwitched",
         "message.sentAsGoal",
         "message.switchedToMode",
         "message.unknownEvent",

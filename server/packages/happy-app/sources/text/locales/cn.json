@@ -1040,6 +1040,7 @@
   },
   "message": {
     "switchedToMode": "已切换到 {mode} 模式",
+    "providerAccountSwitched": "{provider} 额度耗尽触发了从 {fromAccount} 到 {toAccount} 的账号切换。",
     "unknownEvent": "未知事件",
     "usageLimitUntil": "使用限制到 {time}",
     "sentAsGoal": "已作为目标发送",

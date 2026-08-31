@@ -107,6 +107,30 @@ Every actual provider change clears the draft's permission, model, and effort
 fields before the destination provider's defaults are resolved; provider-local
 values must never survive a Claude ↔ Codex (or any other) switch.
 
+### Named credential pools and reactive rotation
+
+```text
+happyherd connect <provider> --acct <nickname>
+  → exact argument validation → provider authentication → credential-pool store
+  → selected account exported to the provider process
+
+typed rejected quota window or provider-marked Claude API-error fallback
+  → provider limit notice → daemon rotation
+  → mark limited and select the next account, or wait for the first reset
+  → stop provider → resume the same Happy session
+       ├── clear legacy or mismatched quota before the new provider loop
+       └── after successful resume, persist one encrypted switch event
+             → app normalization → persisted-ID dedupe → localized MessageView row
+```
+
+Rotation is reactive and lazy: there is no background quota polling or UI
+toggle, and cross-account failover requires at least two named accounts for the
+same provider. Quota snapshots are owned by `providerAccount`; partial windows
+merge only within that account. A switch receipt carries provider, old account,
+the resumed webhook's selected account, and a stable incident ID. A failed
+daemon notice stays retryable; no receipt is emitted for ignored notices,
+failed stop or resume, or a wait that returns to the same account.
+
 ### Provider prompt, permission, and tool-event behavior
 
 ```text

@@ -544,6 +544,7 @@ export type TranslationKey =
     | "markdown.incompleteTask"
     | "markdown.mermaidRenderFailed"
     | "markdown.openImageFullSize"
+    | "message.providerAccountSwitched"
     | "message.sentAsGoal"
     | "message.switchedToMode"
     | "message.unknownEvent"
@@ -1422,6 +1423,7 @@ export interface TranslationParamsByKey {
     "items.copiedToClipboard": { label: string };
     "machine.activeSessions": { count: number };
     "machineLauncher.showAll": { count: number };
+    "message.providerAccountSwitched": { fromAccount: string; provider: string; toAccount: string };
     "message.switchedToMode": { mode: string };
     "message.usageLimitUntil": { time: string };
     "modals.disconnectService": { service: string };

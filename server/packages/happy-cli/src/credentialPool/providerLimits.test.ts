@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   UNKNOWN_LIMIT_COOLDOWN_MS,
+  classifyClaudeApiHardLimit,
   classifyClaudeHardLimit,
   classifyCodexHardLimit,
   classifyGrokHardLimit,
@@ -10,15 +11,72 @@ import {
 describe('provider hard-limit classifiers', () => {
   const now = 1_800_000_000_000;
 
-  it('accepts only rejected Claude rate-limit patches and preserves reset time', () => {
+  it.each([
+    'five_hour',
+    'seven_day',
+    'seven_day_overage_included',
+    'seven_day_opus',
+    'future_window_from_claude',
+  ])('classifies rejected Claude %s windows and preserves reset time', (id) => {
+    expect(classifyClaudeHardLimit({
+      providerAccount: 'personal',
+      capturedAt: now,
+      windows: [{ id, status: 'rejected', utilization: 100, resetsAt: now + 2000 }],
+    }, now)).toEqual({ provider: 'claude', limitedUntil: now + 2000 });
+  });
+
+  it('classifies an unbound rejected Claude event with the bounded fallback cooldown', () => {
+    expect(classifyClaudeHardLimit({
+      providerAccount: 'personal',
+      capturedAt: now,
+      windows: [],
+      unbound: { status: 'rejected' },
+    }, now)).toEqual({ provider: 'claude', limitedUntil: now + UNKNOWN_LIMIT_COOLDOWN_MS });
+  });
+
+  it('does not rotate for a Claude allowed_warning event', () => {
     expect(classifyClaudeHardLimit({
       capturedAt: now,
       windows: [{ id: 'five_hour', status: 'allowed_warning', utilization: 95, resetsAt: now + 1000 }],
     }, now)).toBeNull();
-    expect(classifyClaudeHardLimit({
-      capturedAt: now,
-      windows: [{ id: 'five_hour', status: 'rejected', utilization: 100, resetsAt: now + 2000 }],
-    }, now)).toEqual({ provider: 'claude', limitedUntil: now + 2000 });
+  });
+
+  it('uses only provider-marked Claude API-error text for the compatibility fallback', () => {
+    const providerError = {
+      type: 'assistant',
+      error: 'rate_limit',
+      message: {
+        role: 'assistant',
+        content: [{ type: 'text', text: "You've reached your Fable 5 limit." }],
+      },
+    };
+    expect(classifyClaudeApiHardLimit(providerError, now)).toEqual({
+      provider: 'claude',
+      limitedUntil: now + UNKNOWN_LIMIT_COOLDOWN_MS,
+    });
+    expect(classifyClaudeApiHardLimit({
+      ...providerError,
+      error: undefined,
+    }, now)).toBeNull();
+    expect(classifyClaudeApiHardLimit({
+      type: 'user',
+      error: 'rate_limit',
+      message: providerError.message,
+    }, now)).toBeNull();
+    expect(classifyClaudeApiHardLimit({
+      ...providerError,
+      message: {
+        role: 'assistant',
+        content: [{ type: 'tool_use', input: { quote: "You've hit your limit" } }],
+      },
+    }, now)).toBeNull();
+    expect(classifyClaudeApiHardLimit({
+      ...providerError,
+      message: {
+        role: 'assistant',
+        content: [{ type: 'text', text: "You're close to your limit" }],
+      },
+    }, now)).toBeNull();
   });
 
   it('classifies Codex usageLimitExceeded failures and exhausted snapshots', () => {

@@ -983,6 +983,39 @@ describe('Zod Transform - WOLOG Content Normalization', () => {
             }
         });
 
+        it('preserves structured provider account switch events during normalization', () => {
+            const eventMessage = {
+                role: 'agent',
+                content: {
+                    type: 'event',
+                    id: 'incident-123',
+                    data: {
+                        type: 'provider-account-switched',
+                        provider: 'claude',
+                        fromAccount: 'personal-账号',
+                        toAccount: 'work-primary',
+                        incidentId: 'incident-123',
+                    }
+                }
+            };
+
+            const parsed = RawRecordSchema.parse(eventMessage);
+            expect(normalizeRawMessage('persisted-message-1', null, 1234, parsed)).toEqual({
+                id: 'persisted-message-1',
+                localId: null,
+                createdAt: 1234,
+                role: 'event',
+                content: {
+                    type: 'provider-account-switched',
+                    provider: 'claude',
+                    fromAccount: 'personal-账号',
+                    toAccount: 'work-primary',
+                    incidentId: 'incident-123',
+                },
+                isSidechain: false,
+            });
+        });
+
         it('handles user role messages with text content', () => {
             const userMessage = {
                 role: 'user',

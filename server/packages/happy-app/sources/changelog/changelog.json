@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 31 — Credential pool follow-ups",
+      "summary": "",
+      "markdown": "- When automatic rotation resumes a replacement account, the quota panel clears the previous account's data and then shows only updates from the selected account.\n- After the replacement account successfully resumes the same conversation, chat shows one localized system notice naming the provider and the account switch.\n- `happyherd connect` now rejects malformed account options before authentication and keeps Claude's browser sign-in instructions from repeating while it waits."
+    },
+    {
       "title": "August 31 — Workspace access and resizing stay consistent",
       "summary": "",
       "markdown": "- Changes, Chat Workspace, and Machine Workspace are now visibly accessible from sessions on Web Desktop and Web Mobile, and machine files open in the current chat's existing tabs.\n- Embedded Machine Workspace fills its chat workspace host, while the desktop divider can expand the workspace to 75% without replacing the mounted chat or unsaved file state."
@@ -411,5 +416,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 31 — Workspace access and resizing stay consistent"
+  "latestTitle": "August 31 — Credential pool follow-ups"
 }

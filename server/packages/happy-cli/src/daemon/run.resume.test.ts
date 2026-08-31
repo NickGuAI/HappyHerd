@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Metadata } from '@/api/types';
+import type { ProviderLimitNotice } from '@/credentialPool/providerLimitNotice';
+import type { ProviderLimitRotationDependencies } from '@/credentialPool/rotation';
 import type {
   SideChatDelegationBrief,
   SideChatLifecycleReceipt,
@@ -23,9 +25,12 @@ const mocks = vi.hoisted(() => ({
   })),
   hasProviderProcessExited: vi.fn((_pid: number) => false),
   persistSession: vi.fn(() => true),
+  postSessionEvent: vi.fn(async () => undefined),
   postSideChatBrief: vi.fn(async () => undefined),
   readPersistedSessions: vi.fn(() => ({})),
   resolveLocalReconnectableSession: vi.fn(),
+  rotateProviderSessionAfterLimit: vi.fn(),
+  rotationDependencies: undefined as ProviderLimitRotationDependencies | undefined,
   rpcHandlers: undefined as unknown,
   spawnHappyCLI: vi.fn(),
 }));
@@ -35,6 +40,7 @@ vi.mock('@/api/api', () => ({
     create: vi.fn(async () => ({
       deactivateSession: vi.fn(),
       inspectSessionAuthoritative: vi.fn(async (session: unknown) => ({ session, active: mocks.authoritativeActive })),
+      postSessionEvent: mocks.postSessionEvent,
       postSideChatBrief: mocks.postSideChatBrief,
       getOrCreateMachine: vi.fn(async ({ metadata }: { metadata: Metadata }) => ({
         id: 'machine-record',
@@ -208,6 +214,10 @@ vi.mock('@/credentialPool/store', () => ({
   resolveCredentialAccountEnvironment: mocks.resolveCredentialAccountEnvironment,
 }));
 
+vi.mock('@/credentialPool/rotation', () => ({
+  rotateProviderSessionAfterLimit: mocks.rotateProviderSessionAfterLimit,
+}));
+
 import {
   initialMachineMetadata,
   resolveDaemonAgentCommand,
@@ -238,6 +248,7 @@ type CapturedControlHandlers = {
     metadata: Metadata,
     encryption?: SessionEncryptionData,
   ) => void;
+  onProviderLimited: (notice: ProviderLimitNotice) => void;
   sideChat: (request: SideChatLifecycleRequest) => Promise<SideChatLifecycleReceipt>;
 };
 
@@ -279,6 +290,14 @@ describe('daemon session continuity', () => {
       selection: { type: 'unconfigured' },
       env: {},
     });
+    mocks.rotateProviderSessionAfterLimit.mockImplementation(async (
+      _notice: ProviderLimitNotice,
+      dependencies: ProviderLimitRotationDependencies,
+    ) => {
+      mocks.rotationDependencies = dependencies;
+      return { type: 'rotated', account: 'account-two' };
+    });
+    mocks.rotationDependencies = undefined;
     initialMachineMetadata.agentCapabilities = defaultAgentCapabilities;
     originalCodexHome = process.env.CODEX_HOME;
     process.env.CODEX_HOME = '/ambient/wrong-provider-home';
@@ -912,6 +931,77 @@ describe('daemon session continuity', () => {
       sessionId,
       permissionMode: 'bypassPermissions',
     });
+  });
+
+  it('persists one structured provider switch event through the resumed tracked session', async () => {
+    const sessionId = 'claude-provider-account-switch';
+    const encryption: SessionEncryptionData = {
+      encryptionKey: new Uint8Array([31, 32, 33, 34]),
+      encryptionVariant: 'dataKey',
+      seq: 27,
+      metadataVersion: 8,
+      agentStateVersion: 9,
+    };
+    const metadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'claude',
+      claudeSessionId: '44444444-4444-4444-8444-444444444444',
+      providerAccount: 'personal 旧',
+      host: 'test-host',
+      hostPid: 7331,
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happy',
+      happyToolsDir: '/srv/happy/tools',
+    };
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    control.onHappySessionWebhook(sessionId, metadata, encryption);
+
+    control.onProviderLimited({
+      sessionId,
+      provider: 'claude',
+      account: 'personal 旧',
+      limitedUntil: 12_345,
+    });
+    await vi.waitFor(() => expect(mocks.rotationDependencies).toBeDefined());
+    expect(mocks.postSessionEvent).not.toHaveBeenCalled();
+
+    await mocks.rotationDependencies!.onAccountSwitched!({
+      sessionId,
+      provider: 'claude',
+      fromAccount: 'personal 旧',
+      toAccount: 'work 新',
+    });
+
+    expect(mocks.postSessionEvent).toHaveBeenCalledOnce();
+    const [session, event, localId] = mocks.postSessionEvent.mock.calls[0] as unknown as [
+      { id: string; seq: number; encryptionKey: Uint8Array },
+      {
+        type: string;
+        provider: string;
+        fromAccount: string;
+        toAccount: string;
+        incidentId: string;
+      },
+      string,
+    ];
+    expect(session).toMatchObject({
+      id: sessionId,
+      seq: encryption.seq,
+      encryptionKey: encryption.encryptionKey,
+    });
+    expect(event).toEqual({
+      type: 'provider-account-switched',
+      provider: 'claude',
+      fromAccount: 'personal 旧',
+      toAccount: 'work 新',
+      incidentId: expect.any(String),
+    });
+    expect(localId).toBe(event.incidentId);
   });
 
   it('creates a local Codex side chat without account-control credentials', async () => {

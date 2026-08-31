@@ -156,6 +156,7 @@ SIDE_CHAT_RENDER	accepted	test(app): cover side-chat rendering hosts	server/pack
 ATTACHMENT_PICKER_UI	accepted	fix(app): present attachment choices in-app (#159)	server/packages/happy-app/sources/components/AttachmentInputButton.test.ts
 GROK_PERMISSION_TRANSITION	accepted	feat(grok): switch active permission modes	server/packages/happy-cli/src/daemon/run.resume.test.ts
 CREDENTIAL_POOL	accepted	feat(cli): add reactive credential account rotation	server/packages/happy-cli/src/credentialPool/rotation.test.ts
+CREDENTIAL_POOL	accepted	fix(credentials): complete native credential pool follow-ups	server/packages/happy-cli/src/credentialPool/rotation.test.ts
 OPENAI_SESSION_DICTATION	accepted	fix(app): restore OpenAI composer dictation (#171)	server/packages/happy-app/sources/-session/SessionView.tsx
 HUMAN_SIDE_CHAT_CREATION	accepted	fix(side-chats): restore Human creation flow (#170)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
 HUMAN_ONE_CLICK_SIDE_CHAT	accepted	fix(side-chats): restore one-click Human creation (#170)	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts

@@ -11,6 +11,7 @@ impose that source-state gate.
 | HappyHerd branch-to-cleanup lifecycle | `.dev/playbooks/development-lifecycle.md` | `git`, `gh`, root required workflows |
 | Verification | `.dev/VERIFY.md`, `.github/workflows/quality-gates.yml`, `.github/workflows/contract-suite.yml` | `scripts/contract-suite.sh` |
 | Provider onboarding and protocol changes | `.dev/playbooks/provider-onboarding.md`, `.dev/COUPLINGS.md`, `.dev/VERIFY.md` | Focused provider fixtures; `pnpm --filter @slopus/happy-wire test`; affected `happy` and `happy-app` package checks; live provider smoke when available |
+| Named credential pools and reactive rotation | `server/packages/happy-cli/README.md`, `.dev/COUPLINGS.md`, `.dev/VERIFY.md` | Focused connect, quota, resume, rotation, event-persistence, reducer, rendering, and locale fixtures; affected `happy` and `happy-app` package checks |
 | Owned patch discipline | `docs/patch-discipline.md`, `docs/owned-patches.tsv` | `scripts/verify-patch-discipline.sh`, `scripts/list-owned-patches.sh`, `scripts/test-owned-merge-provenance.sh` |
 | Upstream lineage | `docs/lineage.md` | `scripts/verify-lineage.sh` |
 | Upstream merge proposal | `docs/upstream-sync-rehearsal.md` | native `happy automation`, `scripts/rehearse-upstream-sync.sh`, `scripts/test-upstream-sync-provenance.sh` |

@@ -23,6 +23,7 @@ import {
 import { InvalidateSync } from '@/utils/sync';
 import axios from 'axios';
 import { extractClaudeAgentOutputImages } from '@/sessionProtocol/providerOutputImages';
+import type { CredentialProvider } from '@/credentialPool/types';
 
 /**
  * ACP (Agent Communication Protocol) message data types.
@@ -50,6 +51,36 @@ export type ACPMessageData =
     | { type: 'token_count';[key: string]: unknown };
 
 export type ACPProvider = 'gemini' | 'codex' | 'claude' | 'opencode';
+
+export type AgentSessionEvent = {
+    type: 'switch';
+    mode: 'local' | 'remote';
+} | {
+    type: 'message';
+    message: string;
+} | {
+    type: 'permission-mode-changed';
+    mode: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan';
+} | {
+    type: 'provider-account-switched';
+    provider: CredentialProvider;
+    fromAccount: string;
+    toAccount: string;
+    incidentId: string;
+} | {
+    type: 'ready';
+};
+
+export function createSessionEventMessage(event: AgentSessionEvent, id: string = randomUUID()) {
+    return {
+        role: 'agent' as const,
+        content: {
+            id,
+            type: 'event' as const,
+            data: event,
+        },
+    };
+}
 
 type V3SessionMessage = {
     id: string;
@@ -747,11 +778,11 @@ export class ApiSessionClient extends EventEmitter {
         }
     }
 
-    private enqueueMessage(content: unknown, invalidate: boolean = true) {
+    private enqueueMessage(content: unknown, invalidate: boolean = true, localId: string = randomUUID()) {
         const encrypted = encodeBase64(encrypt(this.encryptionKey, this.encryptionVariant, content));
         this.pendingOutbox.push({
             content: encrypted,
-            localId: randomUUID()
+            localId,
         });
         if (invalidate) {
             this.sendSync.invalidate();
@@ -931,24 +962,8 @@ export class ApiSessionClient extends EventEmitter {
         this.enqueueMessage(content);
     }
 
-    sendSessionEvent(event: {
-        type: 'switch', mode: 'local' | 'remote'
-    } | {
-        type: 'message', message: string
-    } | {
-        type: 'permission-mode-changed', mode: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'
-    } | {
-        type: 'ready'
-    }, id?: string) {
-        let content = {
-            role: 'agent',
-            content: {
-                id: id ?? randomUUID(),
-                type: 'event',
-                data: event
-            }
-        };
-        this.enqueueMessage(content);
+    sendSessionEvent(event: AgentSessionEvent, id: string = randomUUID()) {
+        this.enqueueMessage(createSessionEventMessage(event, id), true, id);
     }
 
     /**
