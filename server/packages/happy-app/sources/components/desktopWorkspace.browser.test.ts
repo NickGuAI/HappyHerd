@@ -133,12 +133,19 @@ const virtualModules: Record<string, string> = {
     `,
     '@/sync/ops': `
         const content = btoa('# Desktop workspace\\n');
+        export const machineDeleteFile = async () => ({ success: true });
+        export const machineReadFile = async () => ({ success: true, content });
+        export const machineWriteFile = async () => ({ success: true, hash: 'saved-hash' });
         export const sessionReadFile = async () => ({ success: true, content });
         export const sessionWriteFile = async () => ({ success: true, hash: 'saved-hash' });
         export const sessionDeleteFile = async () => {
             window.__DELETE_RPC_COUNT__ = (window.__DELETE_RPC_COUNT__ ?? 0) + 1;
             return { success: true };
         };
+    `,
+    '@/components/WorkspaceFeedbackComposer': `
+        import React from 'react';
+        export const WorkspaceFeedbackComposer = () => React.createElement('div', { 'data-testid': 'workspace-feedback-composer' });
     `,
     '@/modal': `
         export const Modal = {
@@ -152,7 +159,7 @@ const virtualModules: Record<string, string> = {
             'common.back': 'Back',
             'common.cancel': 'Cancel',
             'common.error': 'Error',
-            'files.allFiles': 'All Files',
+            'files.allFiles': 'Chat Workspace',
             'files.cannotDisplayBinary': 'Cannot display binary',
             'files.closeFileTab': 'Close ' + (params?.name ?? ''),
             'files.deleteFile': 'Delete',
@@ -421,6 +428,33 @@ describe('Desktop workspace browser interaction', () => {
         await expect(wide.getByRole('tab', { name: 'Open demo.md' }).count()).resolves.toBe(1);
         await expect(page.evaluate(() => (window as any).__DELETE_RPC_COUNT__ ?? 0)).resolves.toBe(0);
         await expect(page.evaluate(() => (window as any).__WORKSPACE_FILE_DELETED_COUNT__ ?? 0)).resolves.toBe(0);
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 10_000);
+
+    it('opens and closes Machine Workspace, then shares its selected file as a tab', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1200 } });
+        const pageErrors = recordPageErrors(page);
+        await page.goto(origin);
+
+        const wide = page.getByTestId('wide-file-workspace');
+        await wide.getByLabel('workspace.title').click({ timeout: 3_000 });
+        await expect(wide.getByTestId('machine-picker').isVisible()).resolves.toBe(true);
+        await wide.getByTestId('desktop-file-workspace-picker-close').click({ timeout: 3_000 });
+        await expect(wide.getByTestId('machine-picker').isVisible()).resolves.toBe(false);
+        await expect(wide.getByRole('tab').count()).resolves.toBe(1);
+
+        await wide.getByLabel('workspace.title').click({ timeout: 3_000 });
+        await wide.getByRole('button', { name: 'Open remote.md' }).click({ timeout: 3_000 });
+        await expect(wide.getByRole('tab', { name: 'Open remote.md' }).count()).resolves.toBe(1);
+        await expect(wide.getByTestId('desktop-file-panel:/workspace/remote.md').count()).resolves.toBe(1);
+
+        const compact = page.getByTestId('zero-tab-machine-workspace');
+        await compact.getByRole('button', { name: 'Open Machine Workspace' }).click({ timeout: 3_000 });
+        await compact.getByTestId('desktop-file-workspace-fullscreen-header').waitFor();
+        await expect(compact.getByTestId('zero-tab-machine-picker').isVisible()).resolves.toBe(true);
+        await compact.getByTestId('desktop-file-workspace-picker-close').click({ timeout: 3_000 });
+        await expect(compact.getByTestId('desktop-file-workspace').count()).resolves.toBe(0);
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 10_000);

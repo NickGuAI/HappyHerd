@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
     closeDesktopFile,
     defaultDesktopFileWorkspaceWidth,
+    desktopFileIdentity,
     EMPTY_DESKTOP_FILE_WORKSPACE,
     openDesktopFile,
     resolveDesktopFileWorkspaceWidth,
@@ -11,21 +12,64 @@ import {
 
 describe('desktop file workspace state', () => {
     it('opens unique paths once and focuses a reopened path', () => {
-        const first = openDesktopFile(EMPTY_DESKTOP_FILE_WORKSPACE, '/work/a.ts');
-        const second = openDesktopFile(first, '/work/b.ts');
-        const reopened = openDesktopFile(second, '/work/a.ts');
+        const reference = { machineId: 'machine-1', source: 'session' as const };
+        const first = openDesktopFile(EMPTY_DESKTOP_FILE_WORKSPACE, '/work/a.ts', reference);
+        const second = openDesktopFile(first, '/work/b.ts', reference);
+        const reopened = openDesktopFile(second, '/work/a.ts', reference);
 
-        expect(first).toEqual({ paths: ['/work/a.ts'], activePath: '/work/a.ts' });
-        expect(second).toEqual({ paths: ['/work/a.ts', '/work/b.ts'], activePath: '/work/b.ts' });
-        expect(reopened).toEqual({ paths: ['/work/a.ts', '/work/b.ts'], activePath: '/work/a.ts' });
+        expect(first.paths).toEqual([desktopFileIdentity('/work/a.ts', 'machine-1')]);
+        expect(second.paths).toEqual([
+            desktopFileIdentity('/work/a.ts', 'machine-1'),
+            desktopFileIdentity('/work/b.ts', 'machine-1'),
+        ]);
+        expect(reopened.activePath).toBe(desktopFileIdentity('/work/a.ts', 'machine-1'));
+    });
+
+    it('deduplicates a reply, Chat Workspace, and Machine Workspace file on one machine while retaining link position', () => {
+        const reply = openDesktopFile(EMPTY_DESKTOP_FILE_WORKSPACE, '/work/a.ts', {
+            machineId: 'machine-1', source: 'session', line: 14, column: 3,
+        });
+        const chat = openDesktopFile(reply, '/work/a.ts', { machineId: 'machine-1', source: 'session' });
+        const machine = openDesktopFile(chat, '/work/a.ts', { machineId: 'machine-1', source: 'machine' });
+        const identity = desktopFileIdentity('/work/a.ts', 'machine-1');
+
+        expect(machine.paths).toEqual([identity]);
+        expect(machine.references[identity]).toEqual({ machineId: 'machine-1', source: 'session', line: 14, column: 3 });
+    });
+
+    it('replaces an existing location completely when a later link omits its column', () => {
+        const first = openDesktopFile(EMPTY_DESKTOP_FILE_WORKSPACE, '/work/a.ts', {
+            machineId: 'machine-1', source: 'session', line: 14, column: 3,
+        });
+        const reopened = openDesktopFile(first, '/work/a.ts', {
+            machineId: 'machine-1', source: 'session', line: 27,
+        });
+        const identity = desktopFileIdentity('/work/a.ts', 'machine-1');
+
+        expect(reopened.references[identity]).toEqual({ machineId: 'machine-1', source: 'session', line: 27 });
+    });
+
+    it('keeps identical paths on separate machines in distinct tabs', () => {
+        const first = openDesktopFile(EMPTY_DESKTOP_FILE_WORKSPACE, '/work/a.ts', {
+            machineId: 'machine-1', source: 'session',
+        });
+        const second = openDesktopFile(first, '/work/a.ts', {
+            machineId: 'machine-2', source: 'machine',
+        });
+
+        expect(second.paths).toEqual([
+            desktopFileIdentity('/work/a.ts', 'machine-1'),
+            desktopFileIdentity('/work/a.ts', 'machine-2'),
+        ]);
     });
 
     it('selects only paths already in the workspace', () => {
-        const state = { paths: ['/work/a.ts', '/work/b.ts'], activePath: '/work/a.ts' };
+        const state = { paths: ['/work/a.ts', '/work/b.ts'], activePath: '/work/a.ts', references: {} };
 
         expect(selectDesktopFile(state, '/work/b.ts')).toEqual({
             paths: state.paths,
             activePath: '/work/b.ts',
+            references: state.references,
         });
         expect(selectDesktopFile(state, '/work/missing.ts')).toBe(state);
     });
@@ -34,9 +78,11 @@ describe('desktop file workspace state', () => {
         expect(closeDesktopFile({
             paths: ['/work/a.ts', '/work/b.ts', '/work/c.ts'],
             activePath: '/work/c.ts',
+            references: {},
         }, '/work/a.ts')).toEqual({
             paths: ['/work/b.ts', '/work/c.ts'],
             activePath: '/work/c.ts',
+            references: {},
         });
     });
 
@@ -44,26 +90,30 @@ describe('desktop file workspace state', () => {
         expect(closeDesktopFile({
             paths: ['/work/a.ts', '/work/b.ts', '/work/c.ts'],
             activePath: '/work/b.ts',
+            references: {},
         }, '/work/b.ts')).toEqual({
             paths: ['/work/a.ts', '/work/c.ts'],
             activePath: '/work/a.ts',
+            references: {},
         });
         expect(closeDesktopFile({
             paths: ['/work/a.ts', '/work/b.ts'],
             activePath: '/work/a.ts',
+            references: {},
         }, '/work/a.ts')).toEqual({
             paths: ['/work/b.ts'],
             activePath: '/work/b.ts',
+            references: {},
         });
     });
 
     it('returns to an empty workspace after the last tab closes', () => {
-        expect(closeDesktopFile({ paths: ['/work/a.ts'], activePath: '/work/a.ts' }, '/work/a.ts'))
+        expect(closeDesktopFile({ paths: ['/work/a.ts'], activePath: '/work/a.ts', references: {} }, '/work/a.ts'))
             .toEqual(EMPTY_DESKTOP_FILE_WORKSPACE);
     });
 
     it('ignores close requests for paths that are not open', () => {
-        const state = { paths: ['/work/a.ts'], activePath: '/work/a.ts' };
+        const state = { paths: ['/work/a.ts'], activePath: '/work/a.ts', references: {} };
         expect(closeDesktopFile(state, '/work/missing.ts')).toBe(state);
     });
 });

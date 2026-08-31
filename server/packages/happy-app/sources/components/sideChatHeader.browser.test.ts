@@ -128,6 +128,7 @@ const virtualModules: Record<string, string> = {
             'files.openFileTab': 'Open file ' + (params?.name ?? ''),
             'files.closeFileTab': 'Close file ' + (params?.name ?? ''),
             'files.openExistingFile': 'Open existing file',
+            'workspace.title': 'Machine Workspace',
         }[key] ?? key);
     `,
     '@/keyboard/shortcuts': `
@@ -224,7 +225,15 @@ const virtualModules: Record<string, string> = {
     '@/components/Avatar': `export const Avatar = () => null;`,
     '@/components/VoiceAssistantStatusBar': `export const VoiceAssistantStatusBar = () => null; export const VOICE_PILL_TOTAL_HEIGHT = 0;`,
     '@/components/AllFilesDiffView': `export const AllFilesDiffView = () => null;`,
-    '@/components/FileViewPanel': `export const FileViewPanel = () => null;`,
+    '@/components/FileViewPanel': `export const FileViewPanel = () => null; export const MachineFileViewPanel = () => null;`,
+    '@/components/WorkspaceFeedbackComposer': `export const WorkspaceFeedbackComposer = () => null;`,
+    '@/app/(app)/workspace/index': `
+        import React from 'react';
+        export const MachineWorkspaceBrowser = ({ onFilePress }) => React.createElement('div', {
+            'data-testid': 'machine-workspace-browser',
+            onClick: () => onFilePress?.({ machineId: 'machine-1', path: '/work/project/notes.md' }),
+        });
+    `,
     '@/components/RigActivityBar': `export const RigActivityBar = () => null;`,
     '@/components/agentGoalStatus': `export const resolveVisibleAgentGoalStatus = () => null;`,
     '@/components/modelModeOptions': `

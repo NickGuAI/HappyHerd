@@ -904,6 +904,22 @@ export async function machineWriteFile(
     }
 }
 
+/** Delete a machine-wide file when the connected daemon advertises the RPC. */
+export async function machineDeleteFile(machineId: string, path: string): Promise<SessionDeleteFileResponse> {
+    try {
+        return await apiSocket.machineRPC<SessionDeleteFileResponse, SessionDeleteFileRequest>(
+            machineId,
+            'deleteFile',
+            { path },
+        );
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Failed to delete machine file',
+        };
+    }
+}
+
 /** Upload one local client file, optionally replacing the expected current version atomically. */
 export async function machineUploadFile(
     machineId: string,

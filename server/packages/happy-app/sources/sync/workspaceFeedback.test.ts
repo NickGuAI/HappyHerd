@@ -54,6 +54,14 @@ describe('workspace feedback messages', () => {
         expect(result.displayText).not.toContain('PRIVATE FILE CONTENTS');
     });
 
+    it('includes the active file position without including file contents', () => {
+        const result = buildWorkspaceFeedbackMessage({ ...reference, line: 19, column: 6 }, 'Rename this symbol.');
+
+        expect(result.promptText).toContain('Line: 19');
+        expect(result.promptText).toContain('Column: 6');
+        expect(result.displayText).toContain('/Users/nick/project/docs/plan.md:19:6');
+    });
+
     it('submits to the immutable origin session with strict attachment semantics', async () => {
         const sendMessage = vi.fn().mockResolvedValue({ localId: 'text-local-id' });
 

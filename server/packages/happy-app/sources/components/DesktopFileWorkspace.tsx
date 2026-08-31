@@ -4,14 +4,17 @@ import { Octicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
 import { FileIcon } from '@/components/FileIcon';
-import { FileViewPanel } from '@/components/FileViewPanel';
+import { FileViewPanel, MachineFileViewPanel } from '@/components/FileViewPanel';
+import { WorkspaceFeedbackComposer } from '@/components/WorkspaceFeedbackComposer';
 import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
 import {
+    desktopFilePath,
     defaultDesktopFileWorkspaceWidth,
     DESKTOP_FILE_WORKSPACE_DIVIDER_WIDTH,
     resolveDesktopFileWorkspaceWidth,
+    type DesktopFileReference,
 } from './desktopFileWorkspaceModel';
 
 export const DesktopFileWorkspaceSplit = React.memo(function DesktopFileWorkspaceSplit({
@@ -77,14 +80,19 @@ type DesktopFileWorkspaceProps = {
     sessionId: string;
     paths: string[];
     activePath: string | null;
+    references?: Record<string, DesktopFileReference>;
     dirtyPaths: ReadonlySet<string>;
     pickerOpen: boolean;
+    machinePickerOpen?: boolean;
     compact?: boolean;
     picker: React.ReactNode;
+    machinePicker?: React.ReactNode;
     onSelect: (path: string) => void;
     onRequestClose: (path: string) => void;
     onFileDeleted: (path: string) => void;
     onOpenPicker: () => void;
+    onOpenMachinePicker?: () => void;
+    onClosePicker: () => void;
     onDirtyChange: (path: string, dirty: boolean) => void;
 };
 
@@ -92,14 +100,19 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
     sessionId,
     paths,
     activePath,
+    references = {},
     dirtyPaths,
     pickerOpen,
+    machinePickerOpen = false,
     compact = false,
     picker,
+    machinePicker,
     onSelect,
     onRequestClose,
     onFileDeleted,
     onOpenPicker,
+    onOpenMachinePicker,
+    onClosePicker,
     onDirtyChange,
 }: DesktopFileWorkspaceProps) {
     const { theme } = useUnistyles();
@@ -131,13 +144,14 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
                 <View style={styles.compactHeader} testID="desktop-file-workspace-fullscreen-header">
                     <Pressable
                         onPress={() => {
-                            if (pickerOpen && activePath) {
-                                onSelect(activePath);
+                            if (pickerOpen || machinePickerOpen) {
+                                onClosePicker();
                             } else if (activePath) {
                                 onRequestClose(activePath);
                             }
                         }}
                         accessibilityLabel={t('common.back')}
+                        testID="desktop-file-workspace-picker-close"
                         hitSlop={8}
                         style={({ pressed, hovered }: any) => [
                             styles.compactBack,
@@ -146,12 +160,12 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
                     >
                         <Octicons name="chevron-left" size={18} color={theme.colors.text} />
                     </Pressable>
-                    {!pickerOpen && activePath ? <FileIcon fileName={fileName(activePath)} size={16} /> : null}
+                    {!pickerOpen && !machinePickerOpen && activePath ? <FileIcon fileName={fileName(desktopFilePath(activePath))} size={16} /> : null}
                     <Text numberOfLines={1} style={styles.compactTitle}>
-                        {pickerOpen ? t('files.allFiles') : activePath ? fileName(activePath) : ''}
+                        {pickerOpen ? t('files.allFiles') : machinePickerOpen ? t('workspace.title') : activePath ? fileName(desktopFilePath(activePath)) : ''}
                     </Text>
                     <View style={styles.activeHeaderSlot} pointerEvents="box-none">
-                        {!pickerOpen && activePath ? headerSlots[activePath] : null}
+                        {!pickerOpen && !machinePickerOpen && activePath ? headerSlots[activePath] : null}
                     </View>
                 </View>
             ) : <View style={styles.tabBar}>
@@ -162,8 +176,8 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
                     style={styles.tabScroller}
                 >
                     {paths.map((path) => {
-                        const name = fileName(path);
-                        const active = !pickerOpen && path === activePath;
+                        const name = fileName(desktopFilePath(path));
+                        const active = !pickerOpen && !machinePickerOpen && path === activePath;
                         return (
                             <Pressable
                                 key={path}
@@ -211,8 +225,32 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
                 >
                     <Octicons name="plus" size={15} color={theme.colors.textSecondary} />
                 </Pressable>
+                {(pickerOpen || machinePickerOpen) ? (
+                    <Pressable
+                        onPress={onClosePicker}
+                        accessibilityLabel={t('common.back')}
+                        testID="desktop-file-workspace-picker-close"
+                        style={({ pressed, hovered }: any) => [
+                            styles.addButton,
+                            (pressed || hovered) && styles.addButtonHovered,
+                        ]}
+                    >
+                        <Octicons name="chevron-left" size={15} color={theme.colors.textSecondary} />
+                    </Pressable>
+                ) : null}
+                <Pressable
+                    onPress={onOpenMachinePicker}
+                    accessibilityLabel={t('workspace.title')}
+                    style={({ pressed, hovered }: any) => [
+                        styles.addButton,
+                        machinePickerOpen && styles.addButtonActive,
+                        (pressed || hovered) && styles.addButtonHovered,
+                    ]}
+                >
+                    <Octicons name="device-desktop" size={15} color={theme.colors.textSecondary} />
+                </Pressable>
                 <View style={styles.activeHeaderSlot} pointerEvents="box-none">
-                    {!pickerOpen && activePath ? headerSlots[activePath] : null}
+                    {!pickerOpen && !machinePickerOpen && activePath ? headerSlots[activePath] : null}
                 </View>
             </View>}
 
@@ -223,13 +261,20 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
                 >
                     {picker}
                 </View>
+                <View
+                    pointerEvents={machinePickerOpen ? 'auto' : 'none'}
+                    style={[styles.layer, !machinePickerOpen && styles.hiddenLayer]}
+                >
+                    {machinePicker}
+                </View>
                 {paths.map((path) => {
-                    const active = !pickerOpen && path === activePath;
+                    const active = !pickerOpen && !machinePickerOpen && path === activePath;
                     return (
                         <MountedFilePanel
                             key={path}
                             sessionId={sessionId}
                             path={path}
+                            reference={references[path]}
                             active={active}
                             onHeaderSlotChange={handleHeaderSlotChange}
                             onDirtyChange={onDirtyChange}
@@ -239,6 +284,17 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
                     );
                 })}
             </View>
+            {!pickerOpen && !machinePickerOpen && activePath && references[activePath] ? (
+                <WorkspaceFeedbackComposer
+                    key={activePath}
+                    originSessionId={sessionId}
+                    machineId={references[activePath].machineId}
+                    absolutePath={desktopFilePath(activePath)}
+                    line={references[activePath].line}
+                    column={references[activePath].column}
+                    onSent={() => undefined}
+                />
+            ) : null}
         </View>
     );
 });
@@ -246,6 +302,7 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
 const MountedFilePanel = React.memo(function MountedFilePanel({
     sessionId,
     path,
+    reference,
     active,
     onHeaderSlotChange,
     onDirtyChange,
@@ -254,6 +311,7 @@ const MountedFilePanel = React.memo(function MountedFilePanel({
 }: {
     sessionId: string;
     path: string;
+    reference: DesktopFileReference | undefined;
     active: boolean;
     onHeaderSlotChange: (path: string, slot: React.ReactNode) => void;
     onDirtyChange: (path: string, dirty: boolean) => void;
@@ -273,17 +331,29 @@ const MountedFilePanel = React.memo(function MountedFilePanel({
         <View
             pointerEvents={active ? 'auto' : 'none'}
             style={[styles.layer, !active && styles.hiddenLayer]}
-            testID={`desktop-file-panel:${path}`}
+            testID={`desktop-file-panel:${desktopFilePath(path)}`}
         >
-            <FileViewPanel
-                sessionId={sessionId}
-                filePath={path}
-                active={active}
-                headerVariant={headerVariant}
-                onHeaderRightSlotChange={publishHeaderSlot}
-                onDirtyChange={publishDirty}
-                onDeleted={() => onDeleted(path)}
-            />
+            {reference?.source === 'machine' ? (
+                <MachineFileViewPanel
+                    machineId={reference.machineId}
+                    filePath={desktopFilePath(path)}
+                    active={active}
+                    headerVariant={headerVariant}
+                    onHeaderRightSlotChange={publishHeaderSlot}
+                    onDirtyChange={publishDirty}
+                    onDeleted={() => onDeleted(path)}
+                />
+            ) : (
+                <FileViewPanel
+                    sessionId={sessionId}
+                    filePath={desktopFilePath(path)}
+                    active={active}
+                    headerVariant={headerVariant}
+                    onHeaderRightSlotChange={publishHeaderSlot}
+                    onDirtyChange={publishDirty}
+                    onDeleted={() => onDeleted(path)}
+                />
+            )}
         </View>
     );
 });

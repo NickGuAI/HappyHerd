@@ -23,6 +23,8 @@ export type WorkspaceFeedbackComposerProps = {
     machineId: string;
     machineLabel?: string | null;
     absolutePath: string;
+    line?: number;
+    column?: number;
     onSent: (receipt: SendMessageReceipt) => void;
     onSendingChange?: (sending: boolean) => void;
     /** Test seam; production callers use the synchronized outbox singleton. */
@@ -87,6 +89,8 @@ export function WorkspaceFeedbackComposer(props: WorkspaceFeedbackComposerProps)
             machineId: props.machineId,
             machineLabel: props.machineLabel,
             absolutePath: props.absolutePath,
+            line: props.line,
+            column: props.column,
         };
         const sender: WorkspaceFeedbackSender = props.sendMessage
             ?? ((sessionId, text, options) => sync.sendMessage(sessionId, text, options));

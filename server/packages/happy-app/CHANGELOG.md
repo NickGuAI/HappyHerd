@@ -1,3 +1,9 @@
+# August 31 — Unified Chat and Machine Workspaces
+
+- Renamed the session file picker to Chat Workspace and added Machine Workspace so connected-machine files open in the same tabbed workspace.
+- File links from the current session, including line and column locations, remain in that workspace; feedback now sends the active file position to the Main Agent.
+- Removed the composer workspace shortcut to keep file access in the workspace controls.
+
 # August 31 — Resizable linked file workspace
 
 - Files opened from a Main Agent conversation now use the same deduplicated tabs, file picker, and visibly draggable workspace as All Files instead of a second linked-file panel and feedback composer; narrow Web layouts use the same compact full-screen file workspace.
