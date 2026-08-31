@@ -1,3 +1,7 @@
+# August 31 — Scheduled Executables
+
+- Users can schedule a fixed executable with exact arguments in HappyHerd, inspect success/failure history, and no agent session is created.
+
 # August 31 — Cross-Agent Session Handover
 
 - Claude sessions can continue into a fresh linked Codex session (and Codex into Claude) on the exact same machine, workspace path/worktree, and Commander, leaving the original session available.

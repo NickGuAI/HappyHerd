@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { spawn } from 'node:child_process';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -17,6 +18,7 @@ import {
   type HappyHerdAutomationRun,
   type HappyHerdAutomationTerminalRunStatus,
   type HappyHerdAutomationUpdateInput,
+  type HappyHerdExecAutomation,
   type HappyHerdHeartbeatAutomation,
   type HappyHerdHeartbeatControlInput,
   type HappyHerdHeartbeatControlResponse,
@@ -37,6 +39,7 @@ const HEARTBEAT_PERSISTED = 'Heartbeat message is persisted; waiting for runtime
 const HEARTBEAT_PERSISTED_RETRY = 'Heartbeat message was retried with the same ID; waiting for runtime queue acknowledgement.';
 const HEARTBEAT_QUEUED = 'Heartbeat is queued in the target session.';
 const HEARTBEAT_DELIVERY_RETRY = 'Heartbeat delivery acknowledgement was ambiguous; one retry remains.';
+const COMMAND_STDERR_LIMIT = 8_000;
 type AutomationSpawnSessionOptions = Omit<SpawnSessionOptions, 'automation'> & {
   automation: NonNullable<SpawnSessionOptions['automation']> & { runId: string };
 };
@@ -87,6 +90,23 @@ export interface HappyHerdAutomationRunTarget {
   runId: string;
 }
 
+export interface HappyHerdExecCommandInput {
+  executable: string;
+  arguments: string[];
+  workspace: string;
+}
+
+export interface HappyHerdExecCommandResult {
+  exitCode: number | null;
+  signal: string | null;
+  stderr: string;
+  stderrTruncated: boolean;
+}
+
+export type HappyHerdExecCommandRunner = (
+  input: HappyHerdExecCommandInput,
+) => Promise<HappyHerdExecCommandResult>;
+
 export interface HappyHerdAutomationRunAbandonment extends HappyHerdAutomationRunTarget {
   sessionId: string | null;
   confirmation: 'ABANDON';
@@ -120,6 +140,52 @@ async function readSchedulerState(): Promise<SchedulerState | null> {
     }
   }
   return null;
+}
+
+export function runHappyHerdExecCommand(
+  input: HappyHerdExecCommandInput,
+): Promise<HappyHerdExecCommandResult> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(input.executable, input.arguments, {
+      cwd: input.workspace,
+      shell: false,
+      stdio: ['ignore', 'ignore', 'pipe'],
+    });
+    let stderr = '';
+    let stderrTruncated = false;
+    let settled = false;
+    child.stderr?.setEncoding('utf8');
+    child.stderr?.on('data', (chunk: string) => {
+      if (stderr.length >= COMMAND_STDERR_LIMIT) {
+        stderrTruncated = true;
+        return;
+      }
+      const remaining = COMMAND_STDERR_LIMIT - stderr.length;
+      stderr += chunk.slice(0, remaining);
+      if (chunk.length > remaining) stderrTruncated = true;
+    });
+    child.once('error', (error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    });
+    child.once('close', (exitCode, signal) => {
+      if (settled) return;
+      settled = true;
+      resolve({ exitCode, signal, stderr, stderrTruncated });
+    });
+  });
+}
+
+function commandResultMessage(result: HappyHerdExecCommandResult): string {
+  const outcome = result.signal
+    ? `Command terminated by signal ${result.signal}.`
+    : `Command exited with code ${result.exitCode ?? 'unknown'}.`;
+  const stderr = result.stderr;
+  if (!stderr) return outcome;
+  return result.stderrTruncated
+    ? `${outcome} Command stderr exceeded the limit and was truncated: ${stderr}`
+    : `${outcome} Command stderr: ${stderr}`;
 }
 
 function latestOccurrenceBetween(automation: HappyHerdAutomation, from: Date, until: Date): Date | null {
@@ -216,6 +282,7 @@ export class HappyHerdAutomationService {
     private readonly spawnSession: (options: AutomationSpawnSessionOptions) => Promise<SpawnSessionResult>,
     private readonly heartbeatDependencies?: HappyHerdHeartbeatDependencies,
     private readonly runRecoveryDependencies?: HappyHerdAutomationRunRecoveryDependencies,
+    private readonly execCommandRunner: HappyHerdExecCommandRunner = runHappyHerdExecCommand,
   ) {}
 
   async start(): Promise<void> {
@@ -278,6 +345,7 @@ export class HappyHerdAutomationService {
         startedAt: until.toISOString(),
         finishedAt: until.toISOString(),
         status: 'missed',
+        execution: automation.rail === 'exec' ? 'exec' : 'agent',
         attempt: 1,
         sessionId: null,
         message: `Daemon was offline between ${from.toISOString()} and ${until.toISOString()}; the run was not executed automatically.`,
@@ -304,6 +372,36 @@ export class HappyHerdAutomationService {
     }
   }
 
+  private async completeExecRun(
+    automation: HappyHerdExecAutomation,
+    run: HappyHerdAutomationRun,
+  ): Promise<HappyHerdAutomationRun> {
+    let terminal: HappyHerdAutomationRun;
+    try {
+      const result = await this.execCommandRunner({
+        executable: automation.executable,
+        arguments: automation.arguments,
+        workspace: automation.workspace,
+      });
+      terminal = {
+        ...run,
+        status: result.exitCode === 0 && result.signal === null ? 'completed' : 'failed',
+        finishedAt: new Date().toISOString(),
+        message: commandResultMessage(result),
+      };
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      terminal = {
+        ...run,
+        status: 'failed',
+        finishedAt: new Date().toISOString(),
+        message: `Command failed to start: ${detail}`.slice(0, 10_000),
+      };
+    }
+    await this.store.appendRun(terminal);
+    return terminal;
+  }
+
   private async execute(id: string, source: 'schedule' | 'manual', scheduledFor: Date): Promise<HappyHerdAutomationRun> {
     const automation = await this.store.get(id);
     if (automation.machineId !== this.machineId) throw new Error('Automation belongs to another machine');
@@ -314,6 +412,7 @@ export class HappyHerdAutomationService {
     }
 
     this.inFlight.add(id);
+    let execCompletionOwnsInFlight = false;
     try {
       if (await this.store.activeRun(id)) {
         return this.recordSkipped(id, source, scheduledFor);
@@ -328,12 +427,27 @@ export class HappyHerdAutomationService {
         startedAt,
         finishedAt: null,
         status: 'running',
+        execution: automation.rail === 'exec' ? 'exec' : 'agent',
         attempt: 1,
         sessionId: null,
         message: null,
       };
       await this.store.recordSchedule(id, scheduledFor.toISOString());
       await this.store.appendRun(latest);
+      if (automation.rail === 'exec') {
+        if (source === 'manual') {
+          execCompletionOwnsInFlight = true;
+          void this.completeExecRun(automation, latest)
+            .catch((error) => {
+              logger.warn(`[AUTOMATIONS] Failed to record exec run ${runId}`, error);
+            })
+            .finally(() => {
+              this.inFlight.delete(id);
+            });
+          return latest;
+        }
+        return await this.completeExecRun(automation, latest);
+      }
       for (let attempt = 1; attempt <= automation.maxRetries + 1; attempt += 1) {
         let result: SpawnSessionResult;
         try {
@@ -412,7 +526,7 @@ export class HappyHerdAutomationService {
       }
       return latest;
     } finally {
-      this.inFlight.delete(id);
+      if (!execCompletionOwnsInFlight) this.inFlight.delete(id);
     }
   }
 
@@ -430,6 +544,7 @@ export class HappyHerdAutomationService {
       startedAt: now,
       finishedAt: now,
       status: 'skipped',
+      execution: (await this.store.get(id)).rail === 'exec' ? 'exec' : 'agent',
       attempt: 1,
       sessionId: null,
       message: 'Skipped because the previous run is still active.',
@@ -516,6 +631,7 @@ export class HappyHerdAutomationService {
         startedAt: now.toISOString(),
         finishedAt: null,
         status: 'running',
+        execution: 'agent',
         attempt: 1,
         sessionId: null,
         message: HEARTBEAT_DUE,
@@ -773,7 +889,9 @@ export class HappyHerdAutomationService {
 
   async create(raw: HappyHerdAutomationCreateInput): Promise<HappyHerdAutomation> {
     const input = HappyHerdAutomationCreateInputSchema.parse(raw);
-    await this.assertCommanderWorkspace(input.commanderId, input.workspace);
+    if (input.rail !== 'exec') {
+      await this.assertCommanderWorkspace(input.commanderId, input.workspace);
+    }
     const automation = await this.store.create(this.machineId, input);
     await this.reconcile();
     return automation;
@@ -783,10 +901,14 @@ export class HappyHerdAutomationService {
     const current = await this.store.get(id);
     if (current.machineId !== this.machineId) throw new Error('Automation belongs to another machine');
     const patch = HappyHerdAutomationUpdateInputSchema.parse(raw);
-    await this.assertCommanderWorkspace(
-      patch.commanderId === undefined ? current.commanderId : patch.commanderId,
-      patch.workspace ?? current.workspace,
-    );
+    if ((patch.rail ?? current.rail) !== 'exec') {
+      await this.assertCommanderWorkspace(
+        patch.commanderId === undefined
+          ? current.rail === 'exec' ? null : current.commanderId
+          : patch.commanderId,
+        patch.workspace ?? current.workspace,
+      );
+    }
     const automation = await this.store.update(id, patch);
     await this.reconcile();
     return automation;

@@ -60,7 +60,7 @@ vi.mock('@/text', () => ({
 import { HappyHerdAutomationDetail } from './HappyHerdAutomationDetail';
 
 const automation: HappyHerdAutomation = {
-    schemaVersion: 3,
+    schemaVersion: 4,
     runtimeOwner: 'happyherd',
     id: '11111111-1111-4111-8111-111111111111',
     machineId: 'machine-a',
@@ -92,6 +92,41 @@ const run: HappyHerdAutomationRun = {
     attempt: 1,
     sessionId: 'session-123',
     message: '3 items summarized',
+};
+
+const execAutomation: HappyHerdAutomation = {
+    schemaVersion: 4,
+    runtimeOwner: 'happyherd',
+    id: '33333333-3333-4333-8333-333333333333',
+    machineId: 'machine-a',
+    name: 'data-sink',
+    kind: 'scheduled',
+    schedule: '0 */2 * * *',
+    timezone: 'UTC',
+    workspace: '/srv/happyherd',
+    rail: 'exec',
+    executable: '/opt/happyherd/bin/data-sink',
+    arguments: ['--run-now'],
+    status: 'paused',
+    tags: ['Operations'],
+    createdAt: '2026-08-30T00:00:00.000Z',
+    updatedAt: '2026-08-30T00:00:00.000Z',
+    lastScheduledAt: null,
+    lastRunAt: '2026-08-30T02:00:00.000Z',
+};
+
+const execRun: HappyHerdAutomationRun = {
+    id: '44444444-4444-4444-8444-444444444444',
+    automationId: execAutomation.id,
+    source: 'schedule',
+    scheduledFor: '2026-08-30T02:00:00.000Z',
+    startedAt: '2026-08-30T02:00:01.000Z',
+    finishedAt: '2026-08-30T02:00:02.000Z',
+    status: 'failed',
+    execution: 'exec',
+    attempt: 1,
+    sessionId: null,
+    message: 'Command exited with code 2.',
 };
 
 const originalConsoleError = console.error;
@@ -203,6 +238,26 @@ describe('HappyHerdAutomationDetail', () => {
             accessibilityLabel: 'happyHerd.automations.openSession:session-123',
         }).props.onPress());
         expect(props.onOpenSession).toHaveBeenCalledWith('session-123');
+    });
+
+    it('shows the exact exec command and sessionless failure history', () => {
+        const { renderer } = renderDetail({
+            automation: execAutomation,
+            history: [execRun],
+        });
+        const renderedText = renderer.root.findAllByType('Text' as any)
+            .map((node: any) => node.props.children)
+            .flat(Infinity);
+
+        expect(renderedText).toEqual(expect.arrayContaining([
+            'happyHerd.automations.command',
+            '/opt/happyherd/bin/data-sink',
+            '["--run-now"]',
+            'Command exited with code 2.',
+            'happyHerd.automations.runStatusFailed',
+        ]));
+        expect(renderer.root.findAllByType('MarkdownView' as any)).toHaveLength(0);
+        expect(renderer.root.findAll((node: any) => node.props.accessibilityRole === 'link')).toHaveLength(0);
     });
 
     it('uses the approved bounded desktop detail width', () => {

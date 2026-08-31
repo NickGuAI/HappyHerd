@@ -150,52 +150,70 @@ export function HappyHerdAutomationDetail({
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator
             >
-                <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
-                    {t('happyHerd.automations.instructions')}
-                </Text>
-                <View style={[styles.instructionCard, { borderColor: theme.colors.divider }]}>
-                    <Pressable
-                        accessibilityRole="button"
-                        accessibilityState={{ expanded: instructionExpanded }}
-                        accessibilityLabel={t(
-                            instructionExpanded
-                                ? 'happyHerd.automations.showLessInstruction'
-                                : 'happyHerd.automations.showFullInstruction',
-                        )}
-                        onPress={() => setInstructionExpanded((current) => !current)}
-                        style={({ pressed }) => [styles.instructionHeader, pressed && styles.pressed]}
-                    >
-                        <Text style={styles.instructionTitle}>{t('happyHerd.automations.instructions')}</Text>
-                        <Ionicons
-                            name={instructionExpanded ? 'chevron-up' : 'chevron-down'}
-                            size={18}
-                            color={theme.colors.textSecondary}
-                        />
-                    </Pressable>
-                    <View
-                        testID="automation-instruction-markdown"
-                        style={[
-                            styles.instructionBody,
-                            { borderTopColor: theme.colors.divider },
-                            !instructionExpanded && styles.instructionCollapsed,
-                        ]}
-                    >
-                        <MarkdownView markdown={automation.instruction} />
-                    </View>
-                    <Pressable
-                        accessibilityRole="button"
-                        onPress={() => setInstructionExpanded((current) => !current)}
-                        style={({ pressed }) => [styles.instructionAffordance, pressed && styles.pressed]}
-                    >
-                        <Text style={[styles.linkText, { color: theme.colors.textLink }]}>
-                            {t(
-                                instructionExpanded
-                                    ? 'happyHerd.automations.showLessInstruction'
-                                    : 'happyHerd.automations.showFullInstruction',
-                            )}
+                {automation.rail === 'exec' ? (
+                    <>
+                        <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
+                            {t('happyHerd.automations.command')}
                         </Text>
-                    </Pressable>
-                </View>
+                        <View style={[styles.settingsCard, { borderColor: theme.colors.divider }]}>
+                            <SettingRow label={t('happyHerd.automations.executable')} value={automation.executable} mono />
+                            <SettingRow
+                                label={t('happyHerd.automations.arguments')}
+                                value={JSON.stringify(automation.arguments)}
+                                mono
+                            />
+                        </View>
+                    </>
+                ) : (
+                    <>
+                        <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
+                            {t('happyHerd.automations.instructions')}
+                        </Text>
+                        <View style={[styles.instructionCard, { borderColor: theme.colors.divider }]}>
+                            <Pressable
+                                accessibilityRole="button"
+                                accessibilityState={{ expanded: instructionExpanded }}
+                                accessibilityLabel={t(
+                                    instructionExpanded
+                                        ? 'happyHerd.automations.showLessInstruction'
+                                        : 'happyHerd.automations.showFullInstruction',
+                                )}
+                                onPress={() => setInstructionExpanded((current) => !current)}
+                                style={({ pressed }) => [styles.instructionHeader, pressed && styles.pressed]}
+                            >
+                                <Text style={styles.instructionTitle}>{t('happyHerd.automations.instructions')}</Text>
+                                <Ionicons
+                                    name={instructionExpanded ? 'chevron-up' : 'chevron-down'}
+                                    size={18}
+                                    color={theme.colors.textSecondary}
+                                />
+                            </Pressable>
+                            <View
+                                testID="automation-instruction-markdown"
+                                style={[
+                                    styles.instructionBody,
+                                    { borderTopColor: theme.colors.divider },
+                                    !instructionExpanded && styles.instructionCollapsed,
+                                ]}
+                            >
+                                <MarkdownView markdown={automation.instruction} />
+                            </View>
+                            <Pressable
+                                accessibilityRole="button"
+                                onPress={() => setInstructionExpanded((current) => !current)}
+                                style={({ pressed }) => [styles.instructionAffordance, pressed && styles.pressed]}
+                            >
+                                <Text style={[styles.linkText, { color: theme.colors.textLink }]}>
+                                    {t(
+                                        instructionExpanded
+                                            ? 'happyHerd.automations.showLessInstruction'
+                                            : 'happyHerd.automations.showFullInstruction',
+                                    )}
+                                </Text>
+                            </Pressable>
+                        </View>
+                    </>
+                )}
 
                 <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
                     {t('happyHerd.automations.details')}
@@ -208,10 +226,12 @@ export function HappyHerdAutomationDetail({
                         value={happyHerdAutomationKindLabel(automation.kind, translateAutomation)}
                     />
                     <SettingRow label={t('happyHerd.automations.rail')} value={automation.rail} />
-                    <SettingRow
-                        label={t('happyHerd.automations.commander')}
-                        value={automation.commanderId ?? t('happyHerd.automations.none')}
-                    />
+                    {automation.rail !== 'exec' && (
+                        <SettingRow
+                            label={t('happyHerd.automations.commander')}
+                            value={automation.commanderId ?? t('happyHerd.automations.none')}
+                        />
+                    )}
                     <SettingRow label={t('happyHerd.automations.workspace')} value={automation.workspace} mono />
                 </View>
 

@@ -1,9 +1,9 @@
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { HappyHerdAutomationService } from './service';
+import { HappyHerdAutomationService, runHappyHerdExecCommand } from './service';
 import type { Session } from '@/api/types';
 
 let root: string;
@@ -58,6 +58,20 @@ function input() {
   };
 }
 
+function execInput() {
+  return {
+    name: 'Data sink',
+    kind: 'scheduled' as const,
+    schedule: '0 */2 * * *',
+    timezone: 'UTC',
+    workspace: path.join(root, 'workspace'),
+    rail: 'exec' as const,
+    executable: '/opt/happyherd/bin/data-sink',
+    arguments: [] as string[],
+    status: 'paused' as const,
+  };
+}
+
 function heartbeatTarget(agentState: Session['agentState'] = {
   messageQueue: { pendingMessageIds: [], currentMessageIds: [] },
 }): Session {
@@ -90,6 +104,27 @@ function heartbeatTarget(agentState: Session['agentState'] = {
 }
 
 describe('HappyHerdAutomationService', () => {
+  it('passes command arguments literally without shell interpolation', async () => {
+    const script = path.join(root, 'capture-arguments.mjs');
+    const output = path.join(root, 'captured.json');
+    await writeFile(script, [
+      "import { writeFileSync } from 'node:fs';",
+      'writeFileSync(process.argv[2], JSON.stringify(process.argv.slice(3)));',
+    ].join('\n'));
+
+    const result = await runHappyHerdExecCommand({
+      executable: process.execPath,
+      arguments: [script, output, '$(not-a-command)', '; still-one-argument'],
+      workspace: root,
+    });
+
+    expect(result).toMatchObject({ exitCode: 0, signal: null, stderr: '' });
+    expect(JSON.parse(await readFile(output, 'utf8'))).toEqual([
+      '$(not-a-command)',
+      '; still-one-argument',
+    ]);
+  });
+
   it('delivers one exact queued turn and anchors cadence only to the provider receipt', async () => {
     let target = { session: heartbeatTarget(), running: true };
     const postMessage = vi.fn().mockResolvedValue(undefined);
@@ -319,6 +354,126 @@ describe('HappyHerdAutomationService', () => {
       }),
     }));
     expect((await service.history(created.id)).runs[0]).toMatchObject({ status: 'started' });
+  });
+
+  it('runs fixed commands to completed or failed history without spawning an agent session', async () => {
+    const spawnSession = vi.fn();
+    const execCommand = vi.fn()
+      .mockResolvedValueOnce({ exitCode: 0, signal: null, stderr: '', stderrTruncated: false })
+      .mockResolvedValueOnce({ exitCode: 2, signal: null, stderr: 'collector failed', stderrTruncated: false });
+    service = new HappyHerdAutomationService(
+      'machine-one',
+      spawnSession,
+      undefined,
+      undefined,
+      execCommand,
+    );
+    await service.start();
+    const created = await service.create(execInput());
+
+    expect((await service.list()).automations).toContainEqual(expect.objectContaining({
+      id: created.id,
+      rail: 'exec',
+      executable: '/opt/happyherd/bin/data-sink',
+      arguments: [],
+    }));
+    const acceptedCompleted = await service.runNow(created.id);
+    expect(acceptedCompleted).toMatchObject({
+      status: 'running',
+      execution: 'exec',
+      sessionId: null,
+      finishedAt: null,
+    });
+    await vi.waitFor(async () => {
+      expect((await service!.history(created.id)).runs[0]).toMatchObject({
+        id: acceptedCompleted.id,
+        status: 'completed',
+        message: 'Command exited with code 0.',
+      });
+    });
+    const completed = (await service.history(created.id)).runs[0];
+
+    const acceptedFailed = await service.runNow(created.id);
+    expect(acceptedFailed).toMatchObject({
+      status: 'running',
+      execution: 'exec',
+      sessionId: null,
+      finishedAt: null,
+    });
+    await vi.waitFor(async () => {
+      expect((await service!.history(created.id)).runs[0]).toMatchObject({
+        id: acceptedFailed.id,
+        status: 'failed',
+        message: 'Command exited with code 2. Command stderr: collector failed',
+      });
+    });
+    const failed = (await service.history(created.id)).runs[0];
+    expect(execCommand).toHaveBeenCalledTimes(2);
+    expect(execCommand).toHaveBeenCalledWith({
+      executable: '/opt/happyherd/bin/data-sink',
+      arguments: [],
+      workspace: path.join(root, 'workspace'),
+    });
+    expect(spawnSession).not.toHaveBeenCalled();
+    expect((await service.history(created.id)).runs).toEqual([failed, completed]);
+  });
+
+  it('acknowledges a manual exec run while a command remains active beyond the RPC budget', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      const startedAt = new Date('2026-08-31T17:00:00.000Z');
+      vi.setSystemTime(startedAt);
+      let finishCommand!: (result: {
+        exitCode: number;
+        signal: null;
+        stderr: string;
+        stderrTruncated: boolean;
+      }) => void;
+      const execCommand = vi.fn(() => new Promise<{
+        exitCode: number;
+        signal: null;
+        stderr: string;
+        stderrTruncated: boolean;
+      }>((resolve) => { finishCommand = resolve; }));
+      const spawnSession = vi.fn();
+      service = new HappyHerdAutomationService(
+        'machine-one',
+        spawnSession,
+        undefined,
+        undefined,
+        execCommand,
+      );
+      const created = await service.create(execInput());
+
+      const accepted = await service.runNow(created.id);
+      expect(accepted).toMatchObject({
+        status: 'running',
+        execution: 'exec',
+        sessionId: null,
+        finishedAt: null,
+      });
+      expect((await service.history(created.id)).runs[0]).toEqual(accepted);
+      expect(spawnSession).not.toHaveBeenCalled();
+
+      vi.setSystemTime(new Date(startedAt.getTime() + 30_001));
+      expect((await service.history(created.id)).runs[0]).toMatchObject({
+        id: accepted.id,
+        status: 'running',
+      });
+
+      finishCommand({ exitCode: 0, signal: null, stderr: '', stderrTruncated: false });
+      await vi.waitFor(async () => {
+        expect((await service!.history(created.id)).runs[0]).toMatchObject({
+          id: accepted.id,
+          status: 'completed',
+          execution: 'exec',
+          sessionId: null,
+          message: 'Command exited with code 0.',
+        });
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it.each([

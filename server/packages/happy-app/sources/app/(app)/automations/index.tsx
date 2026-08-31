@@ -84,6 +84,18 @@ const automationMachineActions = createHappyHerdAutomationMachineActions({
     ),
 });
 
+const MANUAL_EXEC_HISTORY_REFRESH_DELAYS_MS = [
+    250,
+    750,
+    1_500,
+    3_000,
+    6_000,
+    12_000,
+    24_000,
+    30_000,
+    30_000,
+] as const;
+
 const translateAutomation = (key: any, params?: Record<string, string | number>) => (
     (t as any)(key, params)
 );
@@ -92,6 +104,8 @@ type Draft = {
     name: string;
     kind: HappyHerdAutomationCreateInput['kind'];
     instruction: string;
+    executable: string;
+    arguments: string;
     schedule: string;
     timezone: string;
     workspace: string;
@@ -120,6 +134,8 @@ function emptyDraft(homeDir?: string): Draft {
         name: '',
         kind: 'scheduled',
         instruction: '',
+        executable: '',
+        arguments: '',
         schedule: '0 8 * * *',
         timezone: localTimezone(),
         workspace: homeDir || '~',
@@ -138,14 +154,16 @@ function draftFromAutomation(automation: HappyHerdAutomation): Draft {
     return {
         name: automation.name,
         kind: automation.kind,
-        instruction: automation.instruction,
+        instruction: automation.rail === 'exec' ? '' : automation.instruction,
+        executable: automation.rail === 'exec' ? automation.executable : '',
+        arguments: automation.rail === 'exec' ? automation.arguments.join('\n') : '',
         schedule: automation.schedule,
         timezone: automation.timezone,
         workspace: automation.workspace,
         rail: automation.rail,
-        commanderId: automation.commanderId,
+        commanderId: automation.rail === 'exec' ? null : automation.commanderId,
         status: automation.status,
-        maxRetries: String(automation.maxRetries),
+        maxRetries: automation.rail === 'exec' ? '0' : String(automation.maxRetries),
         tags: automation.tags.join('\n'),
     };
 }
@@ -255,6 +273,7 @@ function Field({
         <View style={styles.field}>
             <Text style={styles.label}>{label}</Text>
             <TextInput
+                accessibilityLabel={label}
                 value={value}
                 onChangeText={onChangeText}
                 multiline={multiline}
@@ -300,6 +319,7 @@ export default function AutomationsScreen() {
     const [selectedTag, setSelectedTag] = React.useState<string | null>(null);
     const [searchQuery, setSearchQuery] = React.useState('');
     const [selectedAutomationId, setSelectedAutomationId] = React.useState<string | null>(null);
+    const execHistoryRefreshTokensRef = React.useRef(new Map<string, symbol>());
     const routeStartedAtRef = React.useRef<number | null>(null);
     const initialDataReadyAtRef = React.useRef<number | null>(null);
     const initialRenderProfiledRef = React.useRef(false);
@@ -330,6 +350,13 @@ export default function AutomationsScreen() {
         (collection) => collection.machine.id === (editingMachineId ?? machineId),
     )?.definitionSchemaVersion ?? 1;
     const tagsSupported = selectedDefinitionSchemaVersion >= 2;
+    const execSupported = selectedDefinitionSchemaVersion >= 4;
+
+    React.useEffect(() => {
+        if (formVisible && !execSupported && draft.rail === 'exec') {
+            setDraft((current) => ({ ...current, rail: 'claude' }));
+        }
+    }, [draft.rail, execSupported, formVisible]);
 
     React.useEffect(() => {
         if (formVisible && machineId) return;
@@ -349,6 +376,10 @@ export default function AutomationsScreen() {
             setSelectedAutomationId(null);
         }
     }, [selectedAutomation, selectedAutomationId]);
+
+    React.useEffect(() => () => {
+        execHistoryRefreshTokensRef.current.clear();
+    }, []);
 
     const refresh = React.useCallback(async () => {
         setLoading(true);
@@ -464,19 +495,32 @@ export default function AutomationsScreen() {
         if (!targetMachineId) return;
         setSaving(true);
         try {
-            const input: HappyHerdAutomationCreateInput = {
+            const common = {
                 name: draft.name.trim(),
-                kind: draft.kind,
-                instruction: draft.instruction.trim(),
                 schedule: draft.schedule.trim(),
                 timezone: draft.timezone.trim(),
                 workspace: draft.workspace.trim(),
-                rail: draft.rail,
-                commanderId: draft.commanderId,
                 status: draft.status,
-                maxRetries: Number.parseInt(draft.maxRetries, 10),
                 ...happyHerdAutomationTagInput(draft.tags, selectedDefinitionSchemaVersion),
             };
+            const input: HappyHerdAutomationCreateInput = draft.rail === 'exec'
+                ? {
+                    ...common,
+                    kind: 'scheduled',
+                    rail: 'exec',
+                    executable: draft.executable.trim(),
+                    arguments: draft.arguments
+                        .split('\n')
+                        .filter((argument) => argument.length > 0),
+                }
+                : {
+                    ...common,
+                    kind: draft.kind,
+                    instruction: draft.instruction.trim(),
+                    rail: draft.rail,
+                    commanderId: draft.commanderId,
+                    maxRetries: Number.parseInt(draft.maxRetries, 10),
+                };
             if (editingId) {
                 await profileAutomationRpc(
                     'happyherd-automations-update',
@@ -508,6 +552,41 @@ export default function AutomationsScreen() {
         }
     }, [refresh]);
 
+    const refreshManualExecHistory = React.useCallback(async (
+        automation: HappyHerdAutomation,
+        runId: string,
+    ) => {
+        const token = Symbol(runId);
+        execHistoryRefreshTokensRef.current.set(automation.id, token);
+        try {
+            for (const delayMs of MANUAL_EXEC_HISTORY_REFRESH_DELAYS_MS) {
+                await new Promise((resolve) => setTimeout(resolve, delayMs));
+                if (execHistoryRefreshTokensRef.current.get(automation.id) !== token) return;
+
+                let result: { runs: HappyHerdAutomationRun[] };
+                try {
+                    result = await automationMachineActions.history(automation);
+                } catch {
+                    continue;
+                }
+                if (execHistoryRefreshTokensRef.current.get(automation.id) !== token) return;
+
+                setHistory((current) => ({ ...current, [automation.id]: result.runs }));
+                setHistoryFailed((current) => {
+                    if (!current[automation.id]) return current;
+                    const next = { ...current };
+                    delete next[automation.id];
+                    return next;
+                });
+                if (result.runs.find((candidate) => candidate.id === runId)?.status !== 'running') return;
+            }
+        } finally {
+            if (execHistoryRefreshTokensRef.current.get(automation.id) === token) {
+                execHistoryRefreshTokensRef.current.delete(automation.id);
+            }
+        }
+    }, []);
+
     const runNow = React.useCallback(async (automation: HappyHerdAutomation) => {
         try {
             const run = await automationMachineActions.runNow(automation);
@@ -519,10 +598,13 @@ export default function AutomationsScreen() {
                 return next;
             });
             await refresh();
+            if (automation.rail === 'exec' && run.execution === 'exec' && run.status === 'running') {
+                void refreshManualExecHistory(automation, run.id);
+            }
         } catch (nextError) {
             Modal.alert(t('happyHerd.automations.unableRun'), nextError instanceof Error ? nextError.message : t('happyHerd.automations.unknownError'));
         }
-    }, [refresh]);
+    }, [refresh, refreshManualExecHistory]);
 
     const ensureHistory = React.useCallback(async (automation: HappyHerdAutomation, force = false) => {
         if (historyLoading[automation.id]) return;
@@ -653,19 +735,53 @@ export default function AutomationsScreen() {
                         ))}
                     </ScrollView>
                     <Field label={t('happyHerd.automations.name')} value={draft.name} onChangeText={(name) => setDraft((current) => ({ ...current, name }))} />
-                    <Field label={t('happyHerd.automations.instruction')} value={draft.instruction} multiline onChangeText={(instruction) => setDraft((current) => ({ ...current, instruction }))} />
-                    <Text style={styles.label}>{t('happyHerd.automations.kind')}</Text>
+                    <Text style={styles.label}>{t('happyHerd.automations.rail')}</Text>
                     <View style={styles.choices}>
-                        {(['scheduled', 'memory-maintenance'] as const).map((kind) => (
+                        {(execSupported
+                            ? (['claude', 'codex', 'exec'] as const)
+                            : (['claude', 'codex'] as const)
+                        ).map((rail) => (
                             <Choice
-                                key={kind}
-                                value={kind}
-                                label={happyHerdAutomationKindLabel(kind, translateAutomation)}
-                                selected={draft.kind === kind}
-                                onSelect={(next) => setDraft((current) => ({ ...current, kind: next }))}
+                                key={rail}
+                                value={rail}
+                                label={rail === 'exec' ? t('happyHerd.automations.railExec') : rail}
+                                selected={draft.rail === rail}
+                                onSelect={(next) => setDraft((current) => ({
+                                    ...current,
+                                    rail: next,
+                                    kind: next === 'exec' ? 'scheduled' : current.kind,
+                                }))}
                             />
                         ))}
                     </View>
+                    {draft.rail === 'exec' ? (
+                        <>
+                            <Field label={t('happyHerd.automations.executable')} value={draft.executable} onChangeText={(executable) => setDraft((current) => ({ ...current, executable }))} />
+                            <Field
+                                label={t('happyHerd.automations.arguments')}
+                                value={draft.arguments}
+                                multiline
+                                placeholder={t('happyHerd.automations.argumentsHint')}
+                                onChangeText={(argumentsValue) => setDraft((current) => ({ ...current, arguments: argumentsValue }))}
+                            />
+                        </>
+                    ) : (
+                        <>
+                            <Field label={t('happyHerd.automations.instruction')} value={draft.instruction} multiline onChangeText={(instruction) => setDraft((current) => ({ ...current, instruction }))} />
+                            <Text style={styles.label}>{t('happyHerd.automations.kind')}</Text>
+                            <View style={styles.choices}>
+                                {(['scheduled', 'memory-maintenance'] as const).map((kind) => (
+                                    <Choice
+                                        key={kind}
+                                        value={kind}
+                                        label={happyHerdAutomationKindLabel(kind, translateAutomation)}
+                                        selected={draft.kind === kind}
+                                        onSelect={(next) => setDraft((current) => ({ ...current, kind: next }))}
+                                    />
+                                ))}
+                            </View>
+                        </>
+                    )}
                     <View style={desktop ? styles.twoColumns : undefined}>
                         <View style={{ flex: 1 }}><Field label={t('happyHerd.automations.cron')} value={draft.schedule} onChangeText={(schedule) => setDraft((current) => ({ ...current, schedule }))} /></View>
                         <View style={{ flex: 1 }}><Field label={t('happyHerd.automations.timezone')} value={draft.timezone} onChangeText={(timezone) => setDraft((current) => ({ ...current, timezone }))} /></View>
@@ -684,19 +800,17 @@ export default function AutomationsScreen() {
                             {t('happyHerd.automations.tagsRequiresUpgrade')}
                         </Text>
                     )}
-                    <Text style={styles.label}>{t('happyHerd.automations.rail')}</Text>
-                    <View style={styles.choices}>
-                        {(['claude', 'codex'] as const).map((rail) => (
-                            <Choice key={rail} value={rail} selected={draft.rail === rail} onSelect={(next) => setDraft((current) => ({ ...current, rail: next }))} />
-                        ))}
-                    </View>
-                    <Text style={styles.label}>{t('happyHerd.automations.commander')}</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.choices}>
-                        <Choice value={t('happyHerd.automations.none')} selected={draft.commanderId === null} onSelect={() => setDraft((current) => ({ ...current, commanderId: null }))} />
-                        {commanders.map((commander) => (
-                            <Choice key={commander.id} value={commander.name} selected={draft.commanderId === commander.id} onSelect={() => setDraft((current) => ({ ...current, commanderId: commander.id, workspace: commander.workspace }))} />
-                        ))}
-                    </ScrollView>
+                    {draft.rail !== 'exec' && (
+                        <>
+                            <Text style={styles.label}>{t('happyHerd.automations.commander')}</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.choices}>
+                                <Choice value={t('happyHerd.automations.none')} selected={draft.commanderId === null} onSelect={() => setDraft((current) => ({ ...current, commanderId: null }))} />
+                                {commanders.map((commander) => (
+                                    <Choice key={commander.id} value={commander.name} selected={draft.commanderId === commander.id} onSelect={() => setDraft((current) => ({ ...current, commanderId: commander.id, workspace: commander.workspace }))} />
+                                ))}
+                            </ScrollView>
+                        </>
+                    )}
                     <View style={desktop ? styles.twoColumns : undefined}>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.label}>{t('happyHerd.automations.initialState')}</Text>
@@ -716,7 +830,9 @@ export default function AutomationsScreen() {
                                 ))}
                             </View>
                         </View>
-                        <View style={{ flex: 1 }}><Field label={t('happyHerd.automations.spawnRetries')} value={draft.maxRetries} onChangeText={(maxRetries) => setDraft((current) => ({ ...current, maxRetries }))} /></View>
+                        {draft.rail !== 'exec' && (
+                            <View style={{ flex: 1 }}><Field label={t('happyHerd.automations.spawnRetries')} value={draft.maxRetries} onChangeText={(maxRetries) => setDraft((current) => ({ ...current, maxRetries }))} /></View>
+                        )}
                     </View>
                     <Pressable
                         disabled={saving || !formMachineOnline}

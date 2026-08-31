@@ -77,9 +77,9 @@ describe('HappyHerdAutomationStore', () => {
   it('persists machine-scoped definitions and bounded history', async () => {
     const store = new HappyHerdAutomationStore();
     const automation = await store.create('machine-one', { ...input(), tags: [' Project Beacon ', 'Operations'] });
-    expect(automation).toMatchObject({ schemaVersion: 3, tags: ['Operations', 'Project Beacon'] });
+    expect(automation).toMatchObject({ schemaVersion: 4, tags: ['Operations', 'Project Beacon'] });
     expect(await store.list('machine-one')).toMatchObject({
-      definitionSchemaVersion: 3,
+      definitionSchemaVersion: 4,
       automations: [{ id: automation.id, tags: ['Operations', 'Project Beacon'] }],
     });
     expect((await store.list('machine-two')).automations).toHaveLength(0);
@@ -96,6 +96,49 @@ describe('HappyHerdAutomationStore', () => {
       message: null,
     });
     expect(await store.history(automation.id)).toHaveLength(1);
+  });
+
+  it('moves an existing definition to exec without changing its id or history owner', async () => {
+    const store = new HappyHerdAutomationStore();
+    const automation = await store.create('machine-one', input());
+    const finishedAt = new Date().toISOString();
+    await store.appendRun({
+      id: crypto.randomUUID(),
+      automationId: automation.id,
+      source: 'manual',
+      scheduledFor: finishedAt,
+      startedAt: finishedAt,
+      finishedAt,
+      status: 'completed',
+      execution: 'agent',
+      attempt: 1,
+      sessionId: 'session-one',
+      message: null,
+    });
+
+    const updated = await store.update(automation.id, {
+      rail: 'exec',
+      kind: 'scheduled',
+      executable: '/opt/happyherd/bin/data-sink',
+      arguments: [],
+    });
+    expect(updated).toMatchObject({
+      id: automation.id,
+      schemaVersion: 4,
+      rail: 'exec',
+      executable: '/opt/happyherd/bin/data-sink',
+      arguments: [],
+    });
+    expect(updated).not.toHaveProperty('instruction');
+    expect(updated).not.toHaveProperty('commanderId');
+    expect(await store.history(automation.id)).toHaveLength(1);
+    expect((await store.list('machine-one')).automations[0]).toEqual(updated);
+    await expect(store.update(automation.id, {
+      executable: 'data-sink',
+    })).rejects.toThrow(/absolute path/);
+    await expect(store.update(automation.id, {
+      commanderId: null,
+    })).rejects.toThrow(/not valid for the exec rail/);
   });
 
   it('never evicts a nonterminal run when bounded history fills', async () => {
@@ -233,12 +276,12 @@ describe('HappyHerdAutomationStore', () => {
     await store.create('machine-one', input());
     const result = await store.list('machine-one');
     expect(result).toEqual({
-      definitionSchemaVersion: 3,
+      definitionSchemaVersion: 4,
       automations: [expect.objectContaining({ machineId: 'machine-one' })],
     });
   });
 
-  it('reads strict v1 manifests as untagged and writes v3 on mutation', async () => {
+  it('reads strict v1 manifests as untagged and writes v4 on mutation', async () => {
     const store = new HappyHerdAutomationStore();
     const automation = await store.create('machine-one', input());
     const manifest = path.join(
@@ -254,23 +297,23 @@ describe('HappyHerdAutomationStore', () => {
     await writeFile(manifest, JSON.stringify({ schemaVersion: 1, ...fields }));
 
     const [legacy] = (await store.list('machine-one')).automations;
-    expect(legacy).toMatchObject({ id: automation.id, schemaVersion: 3, tags: [] });
+    expect(legacy).toMatchObject({ id: automation.id, schemaVersion: 4, tags: [] });
 
     await store.recordSchedule(automation.id, '2026-08-21T08:00:00.000Z');
     expect(JSON.parse(await readFile(manifest, 'utf8'))).toMatchObject({
-      schemaVersion: 3,
+      schemaVersion: 4,
       tags: [],
     });
 
     await store.update(automation.id, { tags: [' Zeta ', 'Alpha'] });
     expect(JSON.parse(await readFile(manifest, 'utf8'))).toMatchObject({
-      schemaVersion: 3,
+      schemaVersion: 4,
       tags: ['Alpha', 'Zeta'],
     });
 
     await store.update(automation.id, { tags: [] });
     expect(JSON.parse(await readFile(manifest, 'utf8'))).toMatchObject({
-      schemaVersion: 3,
+      schemaVersion: 4,
       tags: [],
     });
   });

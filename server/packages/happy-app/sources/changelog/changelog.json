@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "August 31 — Scheduled Executables",
+      "summary": "",
+      "markdown": "- Users can schedule a fixed executable with exact arguments in HappyHerd, inspect success/failure history, and no agent session is created."
+    },
+    {
       "title": "August 31 — Cross-Agent Session Handover",
       "summary": "",
       "markdown": "- Claude sessions can continue into a fresh linked Codex session (and Codex into Claude) on the exact same machine, workspace path/worktree, and Commander, leaving the original session available.\n- Source and target sessions are connected via navigation links, with a bounded set of recent visible conversation text delivered through the normal message path."
@@ -436,5 +441,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "August 31 — Cross-Agent Session Handover"
+  "latestTitle": "August 31 — Scheduled Executables"
 }

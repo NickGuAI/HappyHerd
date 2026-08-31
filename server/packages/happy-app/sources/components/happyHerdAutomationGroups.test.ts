@@ -27,7 +27,7 @@ function automation(
     createdAt = '2026-08-20T00:00:00.000Z',
 ): HappyHerdAutomation {
     return {
-        schemaVersion: 3,
+        schemaVersion: 4,
         runtimeOwner: 'happyherd',
         id,
         machineId,
@@ -152,7 +152,7 @@ describe('HappyHerd automation machine loading', () => {
         expect(result.failures).toEqual([]);
         expect(result.collections[0]).toMatchObject({
             definitionSchemaVersion: 1,
-            automations: [{ schemaVersion: 3, tags: [] }],
+            automations: [{ schemaVersion: 4, tags: [] }],
         });
     });
 });
@@ -240,5 +240,36 @@ describe('HappyHerd automation master list', () => {
         expect(filterHappyHerdAutomations([dream, health], 'health', 'DAILY')).toEqual([dream]);
         expect(filterHappyHerdAutomations([dream, health], 'dream', 'exercise')).toEqual([]);
         expect(filterHappyHerdAutomations([dream, health], null, 'exercise')).toEqual([health]);
+    });
+
+    it('searches exec definitions by executable and exact arguments', () => {
+        const base = automation(
+            '55555555-5555-4555-8555-555555555555',
+            'machine-a',
+            ['Operations'],
+        );
+        const command: HappyHerdAutomation = {
+            schemaVersion: 4,
+            runtimeOwner: 'happyherd',
+            id: base.id,
+            machineId: base.machineId,
+            name: 'Data sink',
+            kind: 'scheduled',
+            schedule: '0 8 * * *',
+            timezone: base.timezone,
+            workspace: base.workspace,
+            rail: 'exec',
+            executable: '/opt/happyherd/bin/data-sink',
+            arguments: ['--run-now'],
+            status: base.status,
+            tags: base.tags,
+            createdAt: base.createdAt,
+            updatedAt: base.updatedAt,
+            lastScheduledAt: base.lastScheduledAt,
+            lastRunAt: base.lastRunAt,
+        };
+
+        expect(filterHappyHerdAutomations([command], null, 'data-sink')).toEqual([command]);
+        expect(filterHappyHerdAutomations([command], null, '--run-now')).toEqual([command]);
     });
 });

@@ -199,3 +199,4 @@ COMMANDER_SESSION_CLI	accepted	feat(commanders): reassign sessions from the CLI	
 PROVIDER_CONTINUATION_MOCK	accepted	docs(mock): explain cross-provider continuation	docs/mocks/happyherd-provider-continuation/index.html
 PROVIDER_CONTINUATION_MOCK_V2	accepted	docs(mock): simplify cross-provider continuation	docs/mocks/happyherd-provider-continuation/index.html
 PROVIDER_CONTINUATION	accepted	feat(sessions): continue across Claude and Codex	server/packages/happy-app/sources/utils/providerContinuation.test.ts
+AUTOMATION_EXEC	accepted	feat(automations): add direct exec rail	server/packages/happy-cli/src/automations/service.test.ts
