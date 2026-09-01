@@ -1,3 +1,7 @@
+# September 1 — File link workspace integration
+
+- Absolute file links in agent chat responses now open directly in the existing workspace even if outside its working directory, allowing desktop and mobile web users to preview, edit, save, and submit feedback without altering the active workspace; Delete remains available on its existing supported desktop surface.
+
 # September 1 — Grok images render inline
 
 - Grok-generated PNG and JPEG images now render inline in new replies and existing affected session history, while ordinary workspace images continue to use the connected machine.

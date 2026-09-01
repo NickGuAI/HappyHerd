@@ -27,7 +27,7 @@ describe('desktop file workspace state', () => {
         expect(reopened.activePath).toBe(desktopFileIdentity('/work/a.ts', 'machine-1'));
     });
 
-    it('deduplicates a reply, Chat Workspace, and Machine Workspace file on one machine while retaining link position', () => {
+    it('deduplicates one machine path, upgrades session transport, and retains link position', () => {
         const reply = openDesktopFile(EMPTY_DESKTOP_FILE_WORKSPACE, '/work/a.ts', {
             machineId: 'machine-1', source: 'session', line: 14, column: 3,
         });
@@ -36,7 +36,24 @@ describe('desktop file workspace state', () => {
         const identity = desktopFileIdentity('/work/a.ts', 'machine-1');
 
         expect(machine.paths).toEqual([identity]);
-        expect(machine.references[identity]).toEqual({ machineId: 'machine-1', source: 'session', line: 14, column: 3 });
+        expect(machine.references[identity]).toEqual({ machineId: 'machine-1', source: 'machine', line: 14, column: 3 });
+    });
+
+    it('does not downgrade an upgraded machine transport when Chat Workspace reopens the path', () => {
+        const session = openDesktopFile(EMPTY_DESKTOP_FILE_WORKSPACE, '/outside/a.ts', {
+            machineId: 'machine-1', source: 'session', line: 14, column: 3,
+        });
+        const machine = openDesktopFile(session, '/outside/a.ts', {
+            machineId: 'machine-1', source: 'machine',
+        });
+        const chat = openDesktopFile(machine, '/outside/a.ts', {
+            machineId: 'machine-1', source: 'session',
+        });
+        const identity = desktopFileIdentity('/outside/a.ts', 'machine-1');
+
+        expect(chat.references[identity]).toEqual({
+            machineId: 'machine-1', source: 'machine', line: 14, column: 3,
+        });
     });
 
     it('replaces an existing location completely when a later link omits its column', () => {

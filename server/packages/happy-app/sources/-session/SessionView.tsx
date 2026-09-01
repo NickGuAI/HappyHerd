@@ -652,7 +652,11 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                     route.params.absolutePath,
                     {
                         machineId: route.params.machineId,
-                        source: 'session',
+                        // Explicit reply links already carry an authoritative
+                        // machine ID and may point anywhere on that machine.
+                        // Use the existing machine file transport without
+                        // changing the active chat workspace.
+                        source: 'machine',
                         ...(route.params.line === undefined ? {} : { line: Number(route.params.line) }),
                         ...(route.params.column === undefined ? {} : { column: Number(route.params.column) }),
                     },

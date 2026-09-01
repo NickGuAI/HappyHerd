@@ -29,18 +29,22 @@ export function openDesktopFile(
     const identity = desktopFileIdentity(path, reference.machineId);
     const paths = state.paths.includes(identity) ? state.paths : [...state.paths, identity];
     const current = state.references[identity];
-    // Identity is the machine and absolute path. Preserve the established
-    // transport for a tab reopened by another workspace entry point, while
-    // retaining the newest link position for feedback.
+    // Identity is the machine and absolute path. A machine-backed reopen
+    // upgrades an earlier session-backed tab because explicit absolute links
+    // are not limited to the session cwd. Never downgrade a machine-backed
+    // tab when Chat Workspace later reopens the same path.
+    const source: DesktopFileReference['source'] = current?.source === 'machine' || reference.source === 'machine'
+        ? 'machine'
+        : 'session';
     const next = current
         ? reference.line === undefined
             // Chat and Machine Workspace reopens retain an existing link
             // location. A new located link replaces the whole location so a
             // stale column cannot accompany its newer line.
-            ? current
+            ? current.source === source ? current : { ...current, source }
             : {
                 machineId: current.machineId,
-                source: current.source,
+                source,
                 line: reference.line,
                 ...(reference.column === undefined ? {} : { column: reference.column }),
             }

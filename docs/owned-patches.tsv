@@ -208,3 +208,4 @@ WEB_COMPOSER_UX_DOCS	accepted	docs(app): document unified Web composer UX (#204)
 WORKSPACE_FEEDBACK_CONTAINMENT	accepted	fix(workspace): contain multiline feedback input	server/packages/happy-app/sources/components/WorkspaceFeedbackComposer.tsx
 WEB_COMPOSER_ACTIONS	accepted	feat(app): consolidate web composer actions	server/packages/happy-app/sources/components/AgentInput.tsx
 WEB_COMPOSER_RELEASE_ARTIFACTS	accepted	chore(app): register composer UX release artifacts (#204)	server/packages/happy-app/sources/changelog/changelog.json
+ABSOLUTE_FILE_LINK_MACHINE_TRANSPORT	accepted	fix(app): open explicit file links across machine paths (#206)	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
