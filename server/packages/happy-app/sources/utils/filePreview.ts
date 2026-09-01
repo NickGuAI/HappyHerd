@@ -149,8 +149,12 @@ export function pdfDataUri(base64: string): string {
  * sandbox prevents that viewer from loading. Keep the exception constrained
  * to PDFs so HTML never inherits the relaxed embed policy.
  */
-export function documentPreviewWebSandbox(kind: 'html' | 'pdf'): '' | undefined {
-    return kind === 'html' ? '' : undefined;
+export function documentPreviewWebSandbox(
+    kind: 'html' | 'pdf',
+    interactive = false,
+): '' | 'allow-scripts' | undefined {
+    if (kind === 'pdf') return undefined;
+    return interactive ? 'allow-scripts' : '';
 }
 
 const HTML_PREVIEW_CSP = [
@@ -165,19 +169,37 @@ const HTML_PREVIEW_CSP = [
     "style-src 'unsafe-inline'",
 ].join('; ');
 
+const INTERACTIVE_HTML_PREVIEW_CSP = HTML_PREVIEW_CSP.replace(
+    "script-src 'none'",
+    "script-src 'unsafe-inline'",
+);
+
+function htmlPreviewDocument(source: string, csp: string): string {
+    const withoutNavigation = source
+        .replace(/<base\b[^>]*>/gi, '')
+        .replace(/<meta\b[^>]*http-equiv\s*=\s*["']?refresh["']?[^>]*>/gi, '')
+        .replace(/\s(?:href|action|formaction|target)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+    const guard = `<meta http-equiv="Content-Security-Policy" content="${csp}"><base target="_blank">`;
+    if (/<head(?:\s[^>]*)?>/i.test(withoutNavigation)) {
+        return withoutNavigation.replace(/<head(?:\s[^>]*)?>/i, (head) => `${head}${guard}`);
+    }
+    return `<!doctype html><html><head>${guard}</head><body>${withoutNavigation}</body></html>`;
+}
+
 /**
  * Wrap local HTML for an unprivileged preview. The iframe/WebView supplies a
  * second sandbox boundary; this document-level policy blocks scripts, forms,
  * nested frames, remote subresources, and popup/navigation targets.
  */
 export function safeHtmlPreviewDocument(source: string): string {
-    const withoutNavigation = source
-        .replace(/<base\b[^>]*>/gi, '')
-        .replace(/<meta\b[^>]*http-equiv\s*=\s*["']?refresh["']?[^>]*>/gi, '')
-        .replace(/\s(?:href|action|formaction|target)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
-    const guard = `<meta http-equiv="Content-Security-Policy" content="${HTML_PREVIEW_CSP}"><base target="_blank">`;
-    if (/<head(?:\s[^>]*)?>/i.test(withoutNavigation)) {
-        return withoutNavigation.replace(/<head(?:\s[^>]*)?>/i, (head) => `${head}${guard}`);
-    }
-    return `<!doctype html><html><head>${guard}</head><body>${withoutNavigation}</body></html>`;
+    return htmlPreviewDocument(source, HTML_PREVIEW_CSP);
+}
+
+/**
+ * Build the explicitly selected interactive view. It keeps the same local
+ * document boundary as Preview while allowing the file's inline scripts to
+ * drive its own DOM.
+ */
+export function interactiveHtmlPreviewDocument(source: string): string {
+    return htmlPreviewDocument(source, INTERACTIVE_HTML_PREVIEW_CSP);
 }

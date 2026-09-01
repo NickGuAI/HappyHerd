@@ -169,7 +169,6 @@ const virtualModules: Record<string, string> = {
         export const MarkdownView = ({ markdown }) => React.createElement('div', { 'data-testid': 'markdown-preview' }, markdown);
     `,
     '@/components/diff/PierreDiffView': `export const PierreDiffView = () => null;`,
-    '@/components/FileDocumentPreview': `export const FileDocumentPreview = () => null;`,
     '@/components/CodeEditor': `
         import React from 'react';
         export const CodeEditor = ({ value, onChange, readOnly }) => React.createElement('textarea', {
@@ -182,6 +181,15 @@ const virtualModules: Record<string, string> = {
     `,
     '@/sync/ops': `
         const content = btoa('# Desktop workspace\\n');
+        const taskHtml = btoa([
+            '<!doctype html><html><head><title>Task review board</title></head><body>',
+            '<h1>Task review board</h1>',
+            '<button id="show-open" type="button" onclick="window.renderTasks(&quot;open&quot;)">Show open</button>',
+            '<button id="show-all" type="button" onclick="window.reviewTasks=[{title:&quot;Review launch&quot;,open:true},{title:&quot;Archive notes&quot;,open:false}];window.renderTasks=(filter)=>{const visible=filter===&quot;open&quot;?window.reviewTasks.filter((task)=>task.open):window.reviewTasks;document.getElementById(&quot;task-summary&quot;).textContent=filter===&quot;open&quot;?visible.length+&quot; open task&quot;:visible.length+&quot; tasks&quot;;const cards=document.getElementById(&quot;task-cards&quot;);cards.replaceChildren();visible.forEach((task)=>{const card=document.createElement(&quot;article&quot;);card.dataset.testid=&quot;task-card&quot;;card.textContent=task.title;cards.append(card);});};window.renderTasks(&quot;all&quot;)">Show all</button>',
+            '<p id="task-summary">Scripts have not run</p>',
+            '<div id="task-cards"></div>',
+            '</body></html>',
+        ].join(''));
         export const machineDeleteFile = async () => ({ success: true });
         export const machineGetDirectoryTree = async (machineId, path, depth) => {
             window.__MACHINE_DIRECTORY_CALLS__ = [...(window.__MACHINE_DIRECTORY_CALLS__ ?? []), { machineId, path, depth }];
@@ -212,7 +220,10 @@ const virtualModules: Record<string, string> = {
                 : { success: false, error: 'Unexpected Workspace read' };
         };
         export const machineWriteFile = async () => ({ success: true, hash: 'saved-hash' });
-        export const sessionReadFile = async () => ({ success: true, content });
+        export const sessionReadFile = async (_sessionId, path) => ({
+            success: true,
+            content: path === '/workspace/task.html' ? taskHtml : content,
+        });
         export const sessionWriteFile = async () => ({ success: true, hash: 'saved-hash' });
         export const sessionDeleteFile = async () => {
             window.__DELETE_RPC_COUNT__ = (window.__DELETE_RPC_COUNT__ ?? 0) + 1;
@@ -329,6 +340,7 @@ const virtualModules: Record<string, string> = {
             'files.deleteFileDescription': 'This permanently removes the selected file.',
             'files.deleteFileTitle': 'Delete file?',
             'files.editFile': 'Edit',
+            'files.interactivePreview': 'Interactive',
             'files.failedToDelete': 'Failed to delete file',
             'files.failedToRead': 'Failed to read file',
             'files.openExistingFile': 'Open existing file',
@@ -371,6 +383,9 @@ const fixturePlugin: Plugin = {
     setup(buildContext) {
         buildContext.onResolve({ filter: /.*/ }, (args) => {
             if (args.path in virtualModules) return { path: args.path, namespace: 'fixture-stub' };
+            if (args.path === '@/components/FileDocumentPreview') {
+                return { path: resolve(appRoot, 'sources/components/FileDocumentPreview.web.tsx') };
+            }
             if (args.importer.endsWith('/FilesSidebar.tsx')) {
                 const relativeStub = ({
                     './SideChatPanel': '@/components/SideChatPanel',
@@ -603,6 +618,69 @@ describe('Desktop workspace browser interaction', () => {
             await sidebarDemoScreenshot(page, evidenceDirectory);
             await page.getByTestId('split-demo').screenshot({ path: resolve(evidenceDirectory, 'issue-181-wide.png') });
             await narrow.screenshot({ path: resolve(evidenceDirectory, 'issue-181-mobile.png') });
+        }
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 10_000);
+
+    it('runs task HTML only after the explicit desktop Interactive gesture and retains its state', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        await page.goto(origin + '?interactive-html=desktop');
+
+        const workspace = page.getByTestId('interactive-html-workspace-wide');
+        const frame = workspace.frameLocator('iframe');
+        await frame.getByText('Scripts have not run', { exact: true }).waitFor();
+        await expect(frame.getByTestId('task-card').count()).resolves.toBe(0);
+
+        const pageErrors = recordPageErrors(page);
+        await workspace.getByRole('button', { name: 'Interactive', exact: true }).click();
+        await frame.getByRole('button', { name: 'Show all', exact: true }).click();
+        await expect(frame.getByTestId('task-card').count()).resolves.toBe(2);
+        await frame.getByRole('button', { name: 'Show open', exact: true }).click();
+        await expect(frame.getByText('1 open task', { exact: true }).isVisible()).resolves.toBe(true);
+        await expect(frame.getByTestId('task-card').count()).resolves.toBe(1);
+
+        await workspace.getByRole('tab', { name: 'Open notes.md' }).click();
+        await workspace.getByRole('tab', { name: 'Open task.html' }).click();
+        await expect(frame.getByText('1 open task', { exact: true }).isVisible()).resolves.toBe(true);
+        await expect(frame.getByTestId('task-card').count()).resolves.toBe(1);
+
+        const evidenceDirectory = process.env.HAPPYHERD_INTERACTIVE_HTML_EVIDENCE_DIR;
+        if (evidenceDirectory) {
+            await workspace.screenshot({
+                path: resolve(evidenceDirectory, 'task-6a966246-interactive-html-desktop.png'),
+            });
+        }
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 10_000);
+
+    it('runs and retains the same explicit Interactive journey at the Web Mobile viewport', async () => {
+        const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+        await page.goto(origin + '?interactive-html=mobile');
+
+        const workspace = page.getByTestId('interactive-html-workspace-mobile');
+        const frame = workspace.frameLocator('iframe');
+        await frame.getByText('Scripts have not run', { exact: true }).waitFor();
+        await expect(frame.getByTestId('task-card').count()).resolves.toBe(0);
+
+        const pageErrors = recordPageErrors(page);
+        await workspace.getByRole('button', { name: 'Interactive', exact: true }).click();
+        await frame.getByRole('button', { name: 'Show all', exact: true }).click();
+        await expect(frame.getByTestId('task-card').count()).resolves.toBe(2);
+        await frame.getByRole('button', { name: 'Show open', exact: true }).click();
+        await expect(frame.getByText('1 open task', { exact: true }).isVisible()).resolves.toBe(true);
+
+        await page.setViewportSize({ width: 430, height: 844 });
+        await expect(frame.getByText('1 open task', { exact: true }).isVisible()).resolves.toBe(true);
+        await page.setViewportSize({ width: 390, height: 844 });
+        await expect(frame.getByTestId('task-card').count()).resolves.toBe(1);
+
+        const evidenceDirectory = process.env.HAPPYHERD_INTERACTIVE_HTML_EVIDENCE_DIR;
+        if (evidenceDirectory) {
+            await workspace.screenshot({
+                path: resolve(evidenceDirectory, 'task-6a966246-interactive-html-mobile.png'),
+            });
         }
         expect(pageErrors).toEqual([]);
         await page.close();
