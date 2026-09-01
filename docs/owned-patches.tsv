@@ -224,3 +224,4 @@ INTERACTIVE_HTML_PREVIEW	accepted	feat(workspace): add interactive HTML preview 
 COLLAPSED_NAVIGATION_TITLE_CLEARANCE	accepted	fix(app): clear collapsed navigation title	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 CODEX_SIDE_CHAT_PROVIDER_CONTEXT	accepted	fix(side-chats): preserve Codex provider context	server/packages/happy-cli/src/daemon/run.resume.test.ts
 CODEX_SIDE_CHAT_CREDENTIAL_ACTIVATION	accepted	fix(side-chats): activate inherited Codex credentials	server/packages/happy-cli/src/daemon/run.resume.test.ts
+ZEN_NAVIGATION_TITLE_CLEARANCE	accepted	fix(app): reserve Zen navigation toggle lane	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts

@@ -54,7 +54,7 @@ describe('desktop navigation drawer layout', () => {
         expect(resolveDesktopPersistentHeaderControlsLeft(0, 117)).toBe(117);
     });
 
-    it('reserves the collapsed toggle hit target before desktop header content', () => {
+    it('reserves the hidden drawer toggle hit target before desktop header content', () => {
         expect(resolveDesktopNavigationHeaderLeftPadding(false, 16)).toBe(16);
         expect(resolveDesktopNavigationHeaderLeftPadding(true, 16)).toBe(44);
     });
