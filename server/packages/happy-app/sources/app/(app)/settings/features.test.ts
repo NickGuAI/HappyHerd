@@ -83,6 +83,7 @@ describe('User Safeguard setting', () => {
         const safeguardItem = renderer.root.findAllByType('Item' as any)
             .find((item: any) => item.props.title === 'happyHerd.features.userSafeguard');
         expect(safeguardItem).toBeDefined();
+        expect(safeguardItem!.props.subtitleLines).toBe(0);
 
         const safeguardSwitch = safeguardItem!.props.rightElement;
         expect(safeguardSwitch.props.value).toBe(false);

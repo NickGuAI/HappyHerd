@@ -105,6 +105,7 @@ export default function FeaturesSettingsScreen() {
                 <Item
                     title={t('happyHerd.features.userSafeguard')}
                     subtitle={t('happyHerd.features.userSafeguardSubtitle')}
+                    subtitleLines={0}
                     icon={<Ionicons name="shield-checkmark-outline" size={29} color="#34C759" />}
                     rightElement={(
                         <Switch
