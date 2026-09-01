@@ -3,8 +3,12 @@ import * as React from 'react';
 import { act, create } from 'react-test-renderer';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const settings = vi.hoisted(() => ({ commanderProfilePictures: false }));
+const settings = vi.hoisted(() => ({
+    commanderProfilePictures: false,
+    userSafeguardEnabled: false,
+}));
 const settingReads = vi.hoisted(() => [] as string[]);
+const setUserSafeguardEnabled = vi.hoisted(() => vi.fn());
 
 vi.mock('react-native', () => ({ Platform: { OS: 'web' } }));
 vi.mock('@expo/vector-icons', async () => {
@@ -36,6 +40,9 @@ vi.mock('@/components/CommanderAvatarSettings', async () => {
 vi.mock('@/sync/storage', () => ({
     useSettingMutable: (key: string) => {
         settingReads.push(key);
+        if (key === 'userSafeguardEnabled') {
+            return [settings.userSafeguardEnabled, setUserSafeguardEnabled];
+        }
         return [
             key === 'commanderProfilePictures' ? settings.commanderProfilePictures : false,
             vi.fn(),
@@ -61,6 +68,29 @@ afterAll(() => vi.restoreAllMocks());
 beforeEach(() => {
     settingReads.splice(0);
     settings.commanderProfilePictures = false;
+    settings.userSafeguardEnabled = false;
+    setUserSafeguardEnabled.mockClear();
+});
+
+describe('User Safeguard setting', () => {
+    it('renders the account-synced switch off and enables it through its setter', () => {
+        let renderer!: ReturnType<typeof create>;
+        act(() => {
+            renderer = create(React.createElement(FeaturesSettingsScreen));
+        });
+
+        expect(settingReads).toContain('userSafeguardEnabled');
+        const safeguardItem = renderer.root.findAllByType('Item' as any)
+            .find((item: any) => item.props.title === 'happyHerd.features.userSafeguard');
+        expect(safeguardItem).toBeDefined();
+        expect(safeguardItem!.props.subtitleLines).toBe(0);
+
+        const safeguardSwitch = safeguardItem!.props.rightElement;
+        expect(safeguardSwitch.props.value).toBe(false);
+        act(() => safeguardSwitch.props.onValueChange(true));
+        expect(setUserSafeguardEnabled).toHaveBeenCalledOnce();
+        expect(setUserSafeguardEnabled).toHaveBeenCalledWith(true);
+    });
 });
 
 describe('Commander profile picture feature gate', () => {

@@ -28,6 +28,12 @@ describe('Rig wire contract', () => {
     expect(MessageMetaSchema.safeParse({ providerContinuationHandoff: 'yes' }).success).toBe(false);
   });
 
+  it('retains only a boolean Human safeguard selection', () => {
+    expect(MessageMetaSchema.parse({ userSafeguardEnabled: true }))
+      .toEqual({ userSafeguardEnabled: true });
+    expect(MessageMetaSchema.safeParse({ userSafeguardEnabled: 'yes' }).success).toBe(false);
+  });
+
   it('parses a Rig v1 payload and retains unknown future fields', () => {
     const parsed = RigMetadataV1Schema.parse({
       rigMetadataVersion: 1,

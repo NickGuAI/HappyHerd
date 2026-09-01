@@ -30,6 +30,8 @@ export function shouldSteerCodexUserInput(
     activePermissionMode?: PermissionMode,
     incomingPermissionMode?: PermissionMode,
     hasQueuedInput = false,
+    activeDeveloperInstructions?: string,
+    incomingDeveloperInstructions?: string,
 ): boolean {
     if (deliveryMode === 'queue') return false;
     if (!activeTurnId) return false;
@@ -42,6 +44,9 @@ export function shouldSteerCodexUserInput(
     if (activePermissionMode && incomingPermissionMode && activePermissionMode !== incomingPermissionMode) {
         return false;
     }
+    // turn/steer cannot replace developer instructions either. A safeguard
+    // toggle or Human/automation boundary change must start a queued turn.
+    if (activeDeveloperInstructions !== incomingDeveloperInstructions) return false;
     if (isCodexClearText(text)) return false;
     if (parseCodexGoalCommand(text)) return false;
     return true;

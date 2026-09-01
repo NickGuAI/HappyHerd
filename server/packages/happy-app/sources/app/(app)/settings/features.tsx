@@ -14,6 +14,7 @@ export default function FeaturesSettingsScreen() {
     const [machineWorkspace, setMachineWorkspace] = useSettingMutable('machineWorkspace');
     const [expImageUpload, setExpImageUpload] = useSettingMutable('expImageUpload');
     const [commanderProfilePictures, setCommanderProfilePictures] = useSettingMutable('commanderProfilePictures');
+    const [userSafeguardEnabled, setUserSafeguardEnabled] = useSettingMutable('userSafeguardEnabled');
 
     return (
         <ItemList style={{ paddingTop: 0 }}>
@@ -97,6 +98,19 @@ export default function FeaturesSettingsScreen() {
                         <Switch
                             value={commanderProfilePictures}
                             onValueChange={setCommanderProfilePictures}
+                        />
+                    )}
+                    showChevron={false}
+                />
+                <Item
+                    title={t('happyHerd.features.userSafeguard')}
+                    subtitle={t('happyHerd.features.userSafeguardSubtitle')}
+                    subtitleLines={0}
+                    icon={<Ionicons name="shield-checkmark-outline" size={29} color="#34C759" />}
+                    rightElement={(
+                        <Switch
+                            value={userSafeguardEnabled}
+                            onValueChange={setUserSafeguardEnabled}
                         />
                     )}
                     showChevron={false}

@@ -64,6 +64,11 @@ describe('settings', () => {
             expect(settingsParse({ preferredLanguage: 'en-US' }).preferredLanguage).toBe('en');
         });
 
+        it('defaults User Safeguard off and preserves an enabled synced value', () => {
+            expect(settingsParse({}).userSafeguardEnabled).toBe(false);
+            expect(settingsParse({ userSafeguardEnabled: true }).userSafeguardEnabled).toBe(true);
+        });
+
         it('should handle settings with null/undefined values', () => {
             const settingsWithNull = {
                 viewInline: null,
@@ -214,6 +219,7 @@ describe('settings', () => {
                 compactToolCalls: true,
                 expImageUpload: false,
                 commanderProfilePictures: false,
+                userSafeguardEnabled: false,
                 voiceInputEnabled: false,
                 machineWorkspace: false,
                 reviewPromptAnswered: false,

@@ -10,6 +10,9 @@ export const MessageMetaSchema = z.object({
   fallbackModel: z.string().nullable().optional(),
   customSystemPrompt: z.string().nullable().optional(),
   appendSystemPrompt: z.string().nullable().optional(),
+  // Human-selected safeguard state. Provider runtimes combine this typed bit
+  // with their trusted automation provenance instead of inspecting prompt text.
+  userSafeguardEnabled: z.boolean().optional(),
   allowedTools: z.array(z.string()).nullable().optional(),
   disallowedTools: z.array(z.string()).nullable().optional(),
   effort: z.string().nullable().optional(),

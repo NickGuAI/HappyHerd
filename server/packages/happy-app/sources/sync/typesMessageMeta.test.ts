@@ -34,4 +34,10 @@ describe('MessageMetaSchema', () => {
         });
         expect(MessageMetaSchema.safeParse({ providerContinuationHandoff: 'yes' }).success).toBe(false);
     });
+
+    it('retains only a boolean Human safeguard selection', () => {
+        expect(MessageMetaSchema.parse({ userSafeguardEnabled: false }))
+            .toEqual({ userSafeguardEnabled: false });
+        expect(MessageMetaSchema.safeParse({ userSafeguardEnabled: 'off' }).success).toBe(false);
+    });
 });

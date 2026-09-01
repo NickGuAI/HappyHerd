@@ -1295,6 +1295,8 @@
       "resumeSessionSubtitle": "Resume disconnected Claude Code and Codex sessions via the machine daemon",
       "commanderProfilePictures": "Commander Profile Pictures",
       "commanderProfilePicturesSubtitle": "Show Commander pictures in conversation lists and pulse them while work is active",
+      "userSafeguard": "User Safeguard",
+      "userSafeguardSubtitle": "Applies happyherd-user-safeguard only to Human turns sent through the HappyHerd app to Claude or Codex. Terminal sessions, scheduled jobs, and automations bypass it.",
       "voiceInput": "Voice Input",
       "voiceInputSubtitle": "Show OpenAI transcription controls when a secure key is configured"
     },

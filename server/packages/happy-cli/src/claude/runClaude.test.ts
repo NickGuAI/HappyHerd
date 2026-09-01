@@ -1051,6 +1051,55 @@ describe('runClaude remote JSONL scanner', () => {
         await harness.finish();
     });
 
+    it('suppresses the safeguard for a heartbeat and restores retained Human state afterward', async () => {
+        const harness = await startRemoteRunClaudeHarness();
+        const userMessageHandler = harness.sessionClient.onUserMessage.mock.calls[0][0];
+
+        await userMessageHandler({
+            content: { text: 'first Human turn' },
+            meta: {
+                appendSystemPrompt: 'render option chips',
+                userSafeguardEnabled: true,
+            },
+        });
+        await userMessageHandler({
+            localKey: 'heartbeat-occurrence',
+            content: { text: 'check session state' },
+            meta: {
+                sentFrom: 'happyherd-heartbeat',
+                deliveryMode: 'queue',
+                queueMessageId: 'heartbeat-occurrence',
+                heartbeat: {
+                    schemaVersion: 1,
+                    automationId: '11111111-1111-4111-8111-111111111111',
+                    occurrenceId: 'heartbeat-occurrence',
+                },
+            },
+        });
+        await userMessageHandler({
+            content: { text: 'second Human turn' },
+            meta: {},
+        });
+        await userMessageHandler({
+            content: { text: 'third Human turn' },
+            meta: { userSafeguardEnabled: false },
+        });
+
+        const [enabled, heartbeat, restored, disabled] = harness.loopOptions.messageQueue.queue;
+        expect(enabled.mode.appendSystemPrompt).toContain('render option chips');
+        expect(enabled.mode.appendSystemPrompt).toContain('# HappyHerd User Safeguard');
+        expect(enabled.mode.appendSystemPrompt).toContain('<skill name="happyherd-user-safeguard">');
+        expect(heartbeat).toMatchObject({ isolate: true });
+        expect(heartbeat.mode.appendSystemPrompt).toContain('# HappyHerd automation boundary');
+        expect(heartbeat.mode.appendSystemPrompt).not.toContain('<skill name="happyherd-user-safeguard">');
+        expect(restored.mode.appendSystemPrompt).toBe(enabled.mode.appendSystemPrompt);
+        expect(disabled.mode.appendSystemPrompt).toContain('render option chips');
+        expect(disabled.mode.appendSystemPrompt).toContain('account safeguard is disabled');
+        expect(disabled.mode.appendSystemPrompt).not.toContain('<skill name="happyherd-user-safeguard">');
+
+        await harness.finish();
+    });
+
     it('keeps an explicit Queue Msg local ID and publishes it as pending', async () => {
         const harness = await startRemoteRunClaudeHarness();
         const userMessageHandler = harness.sessionClient.onUserMessage.mock.calls[0][0];
@@ -1186,6 +1235,10 @@ describe('runClaude remote JSONL scanner', () => {
         expect(harness.loopOptions.messageQueue.queue).toEqual([
             expect.objectContaining({ message: bootstrap.instruction }),
         ]);
+        expect(String(harness.loopOptions.messageQueue.queue[0].mode.appendSystemPrompt ?? ''))
+            .not.toContain('HappyHerd User Safeguard');
+        expect(String(harness.loopOptions.messageQueue.queue[0].mode.appendSystemPrompt ?? ''))
+            .not.toContain('HappyHerd automation boundary');
         expect(harness.loopOptions.messageQueue.isClosed()).toBe(true);
         expect(harness.loopOptions).toMatchObject({
             permissionMode: 'bypassPermissions',

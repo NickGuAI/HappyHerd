@@ -1295,6 +1295,8 @@
       "resumeSessionSubtitle": "Getrennte Claude Code- und Codex-Sitzungen über den Rechner-Daemon fortsetzen",
       "commanderProfilePictures": "Commander-Profilbilder",
       "commanderProfilePicturesSubtitle": "Commander-Bilder in Gesprächslisten anzeigen und bei aktiver Arbeit pulsieren lassen",
+      "userSafeguard": "Benutzerschutz",
+      "userSafeguardSubtitle": "Wendet happyherd-user-safeguard nur auf über die HappyHerd-App gesendete menschliche Runden an Claude oder Codex an. Terminal-Sitzungen, geplante Aufgaben und Automatisierungen umgehen dies.",
       "voiceInput": "Spracheingabe",
       "voiceInputSubtitle": "OpenAI-Transkription anzeigen, wenn ein sicherer Schlüssel eingerichtet ist"
     },

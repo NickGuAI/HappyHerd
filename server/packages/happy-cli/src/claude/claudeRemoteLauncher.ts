@@ -306,6 +306,7 @@ export async function claudeRemoteLauncher(
         let pending: {
             message: MessageParam['content'];
             mode: EnhancedMode;
+            hash: string;
             queueMessageIds: string[];
         } | null = null;
         let activeHeartbeat: HappyHerdHeartbeatMessageMarker | null = null;
@@ -371,6 +372,12 @@ export async function claudeRemoteLauncher(
                         if (pending) {
                             let p = pending;
                             pending = null;
+                            // This pending batch is the initial message for the
+                            // new query. Retain its hash so the next Human turn
+                            // cannot continue under an isolated heartbeat's
+                            // system prompt.
+                            modeHash = p.hash;
+                            mode = p.mode;
                             await markBatchStarted(p);
                             await permissionHandler.handleModeChange(p.mode.permissionMode);
                             return p;

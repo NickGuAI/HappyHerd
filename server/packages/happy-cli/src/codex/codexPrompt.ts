@@ -1,6 +1,10 @@
 import type { PermissionMode } from '@/api/types';
 import { CHANGE_TITLE_INSTRUCTION } from '@/gemini/constants';
 import { hashObject } from '@/utils/deterministicJson';
+import {
+    composeUserSafeguardPrompt,
+    resolveUserSafeguardPromptMode,
+} from '@/userSafeguard/userSafeguard';
 
 import type { ReasoningEffort } from './codexAppServerTypes';
 import type { HappyHerdHeartbeatMessageMarker } from '@slopus/happy-wire';
@@ -8,31 +12,56 @@ import type { HappyHerdHeartbeatMessageMarker } from '@slopus/happy-wire';
 export interface CodexEnhancedMode {
     permissionMode: PermissionMode;
     model?: string;
-    /** Happy app instructions appended to the first Codex prompt for option chips. */
-    appendSystemPrompt?: string;
+    /** Exact developer instructions injected before this queued turn. */
+    developerInstructions?: string;
     /** Reasoning effort passed through to Codex's sendTurnAndWait. */
     effort?: ReasoningEffort;
     /** Queue-only marker carried with an isolated heartbeat turn. */
     heartbeat?: HappyHerdHeartbeatMessageMarker;
 }
 
+export interface AppliedCodexDeveloperInstructions {
+    threadId: string;
+    instructions: string;
+}
+
 export function hashCodexEnhancedMode(mode: CodexEnhancedMode): string {
     return hashObject({
         permissionMode: mode.permissionMode,
         model: mode.model,
-        appendSystemPrompt: mode.appendSystemPrompt,
+        developerInstructions: mode.developerInstructions,
         effort: mode.effort,
     });
 }
 
+export function buildCodexDeveloperInstructions(opts: {
+    appAppendSystemPrompt?: string;
+    userSafeguardEnabled?: boolean;
+    automation: boolean;
+}): string | undefined {
+    return composeUserSafeguardPrompt(
+        opts.automation ? undefined : opts.appAppendSystemPrompt,
+        resolveUserSafeguardPromptMode(opts.userSafeguardEnabled, opts.automation),
+    );
+}
+
+export function shouldInjectCodexDeveloperInstructions(
+    threadId: string,
+    instructions: string | undefined,
+    applied: AppliedCodexDeveloperInstructions | undefined,
+): boolean {
+    return Boolean(instructions) && (
+        applied?.threadId !== threadId
+        || applied.instructions !== instructions
+    );
+}
+
 /**
- * Happy wraps its own injected instructions (the option-chips system prompt and
- * the change-title instruction) in these sentinel markers inside the Codex turn
- * text. Codex still reads the instructions normally, but the markers let the app
- * strip this scaffolding back out when it reconstructs a conversation from a
- * Codex thread (fork / duplicate / side chat backfill) — otherwise the raw
- * instructions leak into the chat as if the user had typed them. See
- * `stripHappySystemBlocks`.
+ * Happy wraps the change-title instruction in these sentinel markers inside
+ * Codex turn text. `stripHappySystemBlocks` also understands historical turns
+ * that wrapped app append-system prompts here, so fork/duplicate/side-chat
+ * backfills keep showing only what the Human typed. Current app and safeguard
+ * instructions travel as app-server developer instructions instead.
  */
 export const HAPPY_SYSTEM_BLOCK_OPEN = '<happy-system>';
 export const HAPPY_SYSTEM_BLOCK_CLOSE = '</happy-system>';
@@ -55,15 +84,9 @@ export function stripHappySystemBlocks(text: string): string {
 
 export function buildCodexTurnPrompt(opts: {
     message: string;
-    mode: Pick<CodexEnhancedMode, 'appendSystemPrompt'>;
-    includeAppendSystemPrompt: boolean;
     includeTitleInstruction: boolean;
 }): string {
     const parts: string[] = [];
-
-    if (opts.includeAppendSystemPrompt && opts.mode.appendSystemPrompt) {
-        parts.push(wrapHappySystem(opts.mode.appendSystemPrompt));
-    }
 
     parts.push(opts.message);
 

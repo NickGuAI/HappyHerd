@@ -151,6 +151,84 @@ describe('claudeRemoteLauncher heartbeat receipt', () => {
         });
     });
 
+    it('re-enters the Human mode after an isolated heartbeat query', async () => {
+        let agentState: AgentState = {};
+        const client = {
+            sessionId: 'session-one',
+            rpcHandlerManager: { registerHandler: vi.fn() },
+            updateAgentState: vi.fn(async (update: (state: AgentState) => AgentState) => {
+                agentState = update(agentState);
+            }),
+            updateMetadata: vi.fn(),
+            closeClaudeSessionTurn: vi.fn(),
+            sendSessionEvent: vi.fn(),
+            sendClaudeSessionMessage: vi.fn(),
+            getMetadata: vi.fn(() => ({})),
+        };
+        const queue = new MessageQueue2<EnhancedMode>((mode) => JSON.stringify({
+            permissionMode: mode.permissionMode,
+            appendSystemPrompt: mode.appendSystemPrompt,
+        }));
+        queue.push('Human enabled', {
+            permissionMode: 'default',
+            appendSystemPrompt: 'Human safeguard enabled',
+        });
+        queue.pushIsolated('heartbeat prompt', {
+            permissionMode: 'default',
+            appendSystemPrompt: 'Automation safeguard suppressed',
+            heartbeat: {
+                schemaVersion: 1,
+                automationId: '11111111-1111-4111-8111-111111111111',
+                occurrenceId: '22222222-2222-4222-8222-222222222222',
+            },
+        }, undefined, '22222222-2222-4222-8222-222222222222');
+        queue.push('Human restored', {
+            permissionMode: 'default',
+            appendSystemPrompt: 'Human safeguard enabled',
+        });
+
+        const queryPrompts: Array<string | undefined> = [];
+        let launch = 0;
+        mocks.claudeRemote.mockImplementation(async (options: any) => {
+            launch += 1;
+            const initial = await options.nextMessage();
+            queryPrompts.push(initial?.mode.appendSystemPrompt);
+            await options.onReady();
+
+            if (launch < 3) {
+                // The next different/isolated mode must end this query and be
+                // retained as the initial batch for the following query.
+                expect(await options.nextMessage()).toBeNull();
+            } else {
+                queue.close();
+            }
+        });
+
+        await expect(claudeRemoteLauncher({
+            sessionId: 'claude-session-one',
+            path: '/srv/app',
+            logPath: '/tmp/claude.log',
+            allowedTools: [],
+            mcpServers: {},
+            hookSettingsPath: '/tmp/settings.json',
+            jsRuntime: 'node',
+            queue,
+            client,
+            api: { push: () => ({ sendSessionNotification: vi.fn() }) },
+            onAbort: vi.fn(),
+            onSessionFound: vi.fn(),
+            onThinkingChange: vi.fn(),
+            clearSessionId: vi.fn(),
+            consumeOneTimeFlags: vi.fn(),
+        } as any)).resolves.toBe('exit');
+
+        expect(queryPrompts).toEqual([
+            'Human safeguard enabled',
+            'Automation safeguard suppressed',
+            'Human safeguard enabled',
+        ]);
+    });
+
     it('turns an unexpected unattended permission callback into a terminal provider failure', async () => {
         const client = {
             sessionId: 'session-one',
