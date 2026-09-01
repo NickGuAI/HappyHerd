@@ -283,7 +283,6 @@ const virtualModules: Record<string, string> = {
             'sideChat.close': 'Close side chat',
             'sideChat.expand': 'Expand side chat',
             'files.changes': 'Changes',
-            'files.allFiles': 'Chat Workspace',
             'files.addPanel': 'Add panel',
             'files.resizeWorkspace': 'Resize file workspace',
             'files.openFileTab': 'Open file ' + (params?.name ?? ''),

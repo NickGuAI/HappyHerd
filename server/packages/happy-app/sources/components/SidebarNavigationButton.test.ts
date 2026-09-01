@@ -50,7 +50,7 @@ describe('SidebarNavigationButton', () => {
         act(() => {
             renderer = create(React.createElement(SidebarNavigationButton, {
                 icon: 'folder-open-outline',
-                label: 'Machine Workspace',
+                label: 'Workspace',
                 onPress: vi.fn(),
             }));
         });

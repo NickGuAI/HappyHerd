@@ -272,9 +272,9 @@
     "imageUploadSubtitle": "Hängen Sie Bilder an Nachrichten an, damit unterstützte Agenten sie analysieren können"
   },
   "workspace": {
-    "title": "Maschinenarbeitsbereich",
+    "title": "Arbeitsbereich",
     "featureSubtitle": "Durchsuchen und bearbeiten Sie Dateien auf verbundenen Computern, ohne eine Sitzung zu starten",
-    "featureDisabled": "Der Maschinenarbeitsbereich ist deaktiviert",
+    "featureDisabled": "Der Arbeitsbereich ist deaktiviert",
     "featureDisabledDescription": "Aktivieren Sie es in den Funktionen, um den eigenständigen Arbeitsbereich verfügbar zu machen.",
     "openFeatures": "Öffnen Sie Funktionen",
     "selectMachine": "Wählen Sie eine Maschine aus",
@@ -883,7 +883,6 @@
         }
       }
     },
-    "allFiles": "Chat-Arbeitsbereich",
     "addPanel": "Panel hinzufügen",
     "closePanel": "Panel schließen",
     "openFileTab": "Datei-Tab {name} öffnen",

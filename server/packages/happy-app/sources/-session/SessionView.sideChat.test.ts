@@ -636,8 +636,8 @@ vi.mock('@/-session/workspaceLinkNavigation', async () => {
 });
 vi.mock('@/keyboard/shortcuts', () => ({
     SIDEBAR_PICKER_SHORTCUTS: {
-        allFiles: { key: 'f' },
         changes: { key: 'c' },
+        workspace: { key: 'f' },
     },
     formatShortcutChord: () => '',
     getPreferredShortcutModifier: () => 'meta',
@@ -651,7 +651,6 @@ vi.mock('@/text', () => ({
         if (key === 'sideChat.panelTitle') return 'Side chats';
         if (key === 'sideChat.tabLabel') return `Side chat ${params?.index}`;
         if (key === 'files.changes') return 'Changes';
-        if (key === 'files.allFiles') return 'files.allFiles';
         if (key === 'workspace.title') return 'Workspace';
         if (key === 'sessionInfo.resumeSession') return 'Resume session';
         return key;
@@ -1630,7 +1629,7 @@ describe('SessionView side-chat integration', () => {
         const renderer = renderParent();
         const sidebar = await openAndCloseSideChatFileWorkspace(renderer);
 
-        act(() => sidebar?.props.onOpenMachineWorkspace());
+        act(() => sidebar?.props.onOpenWorkspace());
 
         expect(renderer.root.findByType('MachineWorkspaceBrowser' as any).props).toMatchObject({
             initialMachineId: 'machine-1',
@@ -1787,7 +1786,7 @@ describe('SessionView side-chat integration', () => {
 
     it('opens desktop Workspace at the owning Main Agent machine and cwd before sharing its selection', () => {
         const renderer = renderParent();
-        act(() => desktopSideChatHosts(renderer)[0]?.props.onOpenMachineWorkspace());
+        act(() => desktopSideChatHosts(renderer)[0]?.props.onOpenWorkspace());
 
         const machineWorkspace = renderer.root.findByType('MachineWorkspaceBrowser' as any);
         expect(machineWorkspace.props).toMatchObject({

@@ -146,11 +146,11 @@ describe('sidebar picker shortcuts', () => {
     it('defines mnemonic shortcuts for every picker action', () => {
         expect(Object.keys(SIDEBAR_PICKER_SHORTCUTS)).toEqual([
             'changes',
-            'allFiles',
+            'workspace',
             'newSideChat',
         ]);
         expect(formatShortcutChord('meta', SIDEBAR_PICKER_SHORTCUTS.changes)).toBe('⌥⌘C');
-        expect(formatShortcutChord('meta', SIDEBAR_PICKER_SHORTCUTS.allFiles)).toBe('⌥⌘F');
+        expect(formatShortcutChord('meta', SIDEBAR_PICKER_SHORTCUTS.workspace)).toBe('⌥⌘F');
         expect(formatShortcutChord('meta', SIDEBAR_PICKER_SHORTCUTS.newSideChat)).toBe('⌥⌘S');
     });
 });

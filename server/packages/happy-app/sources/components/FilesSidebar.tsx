@@ -9,9 +9,8 @@ import Animated, {
     Easing,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { storage, useSessionGitStatus, useSessionGitStatusFiles, useSessionProjectFiles } from '@/sync/storage';
+import { storage, useSessionGitStatus, useSessionGitStatusFiles } from '@/sync/storage';
 import { getGitStatusFiles, GitFileStatus } from '@/sync/gitStatusFiles';
-import { getProjectFiles, ProjectFile } from '@/sync/projectFiles';
 import { FileIcon } from '@/components/FileIcon';
 import { Typography } from '@/constants/Typography';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
@@ -32,17 +31,16 @@ import {
 } from './AnimatedOverlay';
 import { MobileGlassSurface } from './MobileGlass';
 
-export type SidebarMode = 'changes' | 'allFiles' | 'sideChat';
+export type SidebarMode = 'changes' | 'sideChat';
 type PickableSidebarMode = Exclude<SidebarMode, 'sideChat'>;
 
 const ALL_PANELS: { key: SidebarMode; icon: keyof typeof Octicons.glyphMap }[] = [
     { key: 'changes', icon: 'git-compare' },
-    { key: 'allFiles', icon: 'file-directory' },
     { key: 'sideChat', icon: 'comment-discussion' },
 ];
 
 // File panels and one-click side-chat creation share the right-panel picker.
-const PICKABLE_PANELS = ALL_PANELS.filter((p) => p.key !== 'sideChat') as Array<{
+const PICKABLE_PANELS = ALL_PANELS.filter((p) => p.key === 'changes') as Array<{
     key: PickableSidebarMode;
     icon: keyof typeof Octicons.glyphMap;
 }>;
@@ -53,7 +51,6 @@ function panelIcon(panel: SidebarMode): keyof typeof Octicons.glyphMap {
 function panelLabel(panel: SidebarMode): string {
     switch (panel) {
         case 'changes': return t('files.changes');
-        case 'allFiles': return t('files.allFiles');
         case 'sideChat': return t('sideChat.panelTitle');
     }
 }
@@ -67,9 +64,7 @@ interface FilesSidebarProps {
     onOpenPanel: (panel: SidebarMode) => void;
     onSelectPanel: (panel: SidebarMode) => void;
     onClosePanel: (panel: SidebarMode) => void;
-    onAllFilesFilePress?: (filePath: string) => void;
-    onAllFilesFileAttach?: (filePath: string) => void;
-    onOpenMachineWorkspace?: () => void;
+    onOpenWorkspace?: () => void;
     canOpenFilePanels: boolean;
     sideChats: Session[];
     activeSideChatId: string | null;
@@ -207,9 +202,7 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
     onOpenPanel,
     onSelectPanel,
     onClosePanel,
-    onAllFilesFilePress,
-    onAllFilesFileAttach,
-    onOpenMachineWorkspace,
+    onOpenWorkspace,
     canOpenFilePanels,
     sideChats,
     activeSideChatId,
@@ -289,8 +282,9 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
     );
     const availablePickerActionIds = React.useMemo<SidebarPickerShortcutId[]>(() => [
         ...availablePanels.map((panel) => panel.key),
+        ...(onOpenWorkspace ? ['workspace' as const] : []),
         'newSideChat',
-    ], [availablePanels]);
+    ], [availablePanels, onOpenWorkspace]);
 
     const runPickerAction = React.useCallback((actionId: SidebarPickerShortcutId): boolean => {
         if (actionId === 'newSideChat') {
@@ -299,13 +293,20 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
             void onCreateSideChat();
             return true;
         }
-        if (!availablePanels.some((panel) => panel.key === actionId)) {
+        if (actionId === 'workspace') {
+            if (!onOpenWorkspace) return false;
+            setAddMenuOpen(false);
+            onOpenWorkspace();
+            return true;
+        }
+        const panel = availablePanels.find((candidate) => candidate.key === actionId);
+        if (!panel) {
             return false;
         }
         setAddMenuOpen(false);
-        onOpenPanel(actionId);
+        onOpenPanel(panel.key);
         return true;
-    }, [availablePanels, canCreateSideChat, creatingSideChat, onCreateSideChat, onOpenPanel]);
+    }, [availablePanels, canCreateSideChat, creatingSideChat, onCreateSideChat, onOpenPanel, onOpenWorkspace]);
 
     React.useEffect(() => {
         const shortcutsActive = activePanel === null || addMenuOpen;
@@ -348,13 +349,16 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
                             </Text>
                         </Pressable>
                     ))}
-                    {onOpenMachineWorkspace && (
+                    {onOpenWorkspace && (
                         <Pressable
-                            onPress={onOpenMachineWorkspace}
+                            onPress={onOpenWorkspace}
                             style={({ pressed, hovered }: any) => [styles.pickerCard, (pressed || hovered) && styles.pickerCardPressed]}
                         >
                             <Octicons name="device-desktop" size={15} color={theme.colors.textSecondary} />
                             <Text style={styles.pickerCardText} numberOfLines={1}>{t('workspace.title')}</Text>
+                            <Text style={styles.pickerShortcut}>
+                                {formatShortcutChord(preferredModifier, SIDEBAR_PICKER_SHORTCUTS.workspace)}
+                            </Text>
                         </Pressable>
                     )}
                     <Pressable
@@ -397,16 +401,19 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
                     </Text>
                 </Pressable>
             ))}
-            {onOpenMachineWorkspace && (
+            {onOpenWorkspace && (
                 <Pressable
                     onPress={() => {
                         setAddMenuOpen(false);
-                        onOpenMachineWorkspace();
+                        onOpenWorkspace();
                     }}
                     style={({ pressed, hovered }: any) => [styles.menuAddRow, (pressed || hovered) && { backgroundColor: theme.colors.surfaceSelected }]}
                 >
                     <Octicons name="device-desktop" size={13} color={theme.colors.textSecondary} />
                     <Text style={styles.menuRowText} numberOfLines={1}>{t('workspace.title')}</Text>
+                    <Text style={styles.menuShortcut}>
+                        {formatShortcutChord(preferredModifier, SIDEBAR_PICKER_SHORTCUTS.workspace)}
+                    </Text>
                 </Pressable>
             )}
             <Pressable
@@ -481,7 +488,7 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
                     canCreateSideChat={canCreateSideChat}
                     onCreateSideChat={onCreateSideChat}
                 />
-            ) : activePanel === 'changes' ? (
+            ) : (
                 <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
                     {!hasFiles ? (
                         <View style={styles.emptyState}>
@@ -507,13 +514,6 @@ export const FilesSidebar = React.memo<FilesSidebarProps>(({
                         </View>
                     )}
                 </ScrollView>
-            ) : (
-                <AllFilesPicker
-                    sessionId={sessionId}
-                    selectedPath={selectedPath ?? null}
-                    onFilePress={onAllFilesFilePress}
-                    onFileAttach={onAllFilesFileAttach}
-                />
             )}
 
             {addMenuOpen && (
@@ -606,194 +606,6 @@ const PanelChip = React.memo(function PanelChip({
                         <Octicons name="x" size={12} color={theme.colors.text} />
                     </Pressable>
                 </View>
-            )}
-        </Pressable>
-    );
-});
-
-/** All-files tab: reads from Zustand store, fetches on mount */
-export const AllFilesPicker = React.memo(function AllFilesPicker({
-    sessionId,
-    selectedPath,
-    onFilePress,
-    onFileAttach,
-}: {
-    sessionId: string;
-    selectedPath: string | null;
-    onFilePress?: (filePath: string) => void;
-    onFileAttach?: (filePath: string) => void;
-}) {
-    const { theme } = useUnistyles();
-    const [searchQuery, setSearchQuery] = React.useState('');
-    const [isLoading, setIsLoading] = React.useState(false);
-
-    const projectFiles = useSessionProjectFiles(sessionId);
-    const gitStatus = useSessionGitStatus(sessionId);
-    const allFiles = projectFiles?.files ?? [];
-
-    // Fetch project files into Zustand on mount
-    React.useEffect(() => {
-        let cancelled = false;
-        const pathKey = storage.getState().getSessionPathKey(sessionId);
-        if (!pathKey) return;
-
-        const existing = storage.getState().pathProjectFiles[pathKey];
-        setIsLoading(!existing || existing.files.length === 0);
-        (async () => {
-            const result = await getProjectFiles(sessionId);
-            if (!cancelled) {
-                storage.getState().applyProjectFiles(pathKey, result);
-                setIsLoading(false);
-            }
-        })();
-        return () => { cancelled = true; };
-    }, [sessionId, gitStatus?.lastUpdatedAt]);
-
-    const tree = React.useMemo(() => buildTree(allFiles), [allFiles]);
-    const filteredTree = React.useMemo(
-        () => searchQuery.trim() ? filterTree(tree, searchQuery) : tree,
-        [tree, searchQuery]
-    );
-
-    const [collapsed, setCollapsed] = React.useState<Set<string>>(() => new Set());
-    const toggleDir = React.useCallback((path: string) => {
-        setCollapsed((prev) => {
-            const next = new Set(prev);
-            if (next.has(path)) next.delete(path);
-            else next.add(path);
-            return next;
-        });
-    }, []);
-
-    const handleFilePress = React.useCallback((file: ProjectFile) => {
-        onFilePress?.(file.fullPath);
-    }, [onFilePress]);
-
-    return (
-        <View style={{ flex: 1 }}>
-            {/* Search input */}
-            <View style={styles.searchWrap}>
-                <Octicons name="search" size={14} color={theme.colors.textSecondary} style={styles.searchIcon} />
-                <TextInput
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholder={t('files.searchPlaceholder')}
-                    placeholderTextColor={theme.colors.input.placeholder}
-                    style={[styles.searchInput, { color: theme.colors.text }]}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                />
-            </View>
-
-            <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-                {isLoading && allFiles.length === 0 ? (
-                    <View style={styles.emptyState}>
-                        <ActivityIndicator size="small" color={theme.colors.textSecondary} />
-                    </View>
-                ) : filteredTree.length === 0 ? (
-                    <View style={styles.emptyState}>
-                        <View style={styles.emptyIconWrap}>
-                            <Octicons name="file" size={28} color={theme.colors.textSecondary} />
-                        </View>
-                        <Text style={styles.emptyTitle}>
-                            {searchQuery ? t('files.noFilesFound') : t('files.noFilesInProject')}
-                        </Text>
-                    </View>
-                ) : (
-                    <View style={styles.tree}>
-                        {filteredTree.map((node) => (
-                            <ProjectTreeNodeRow
-                                key={node.path}
-                                node={node}
-                                depth={0}
-                                selectedPath={selectedPath}
-                                collapsed={collapsed}
-                                onToggleDir={toggleDir}
-                                onFilePress={handleFilePress}
-                                onFileAttach={onFileAttach}
-                            />
-                        ))}
-                    </View>
-                )}
-            </ScrollView>
-        </View>
-    );
-});
-
-/** Tree row for project files (no status badges, clickable) */
-const ProjectTreeNodeRow = React.memo(function ProjectTreeNodeRow({
-    node, depth, selectedPath, collapsed, onToggleDir, onFilePress, onFileAttach,
-}: {
-    node: AnyTreeNode<ProjectFile>;
-    depth: number;
-    selectedPath: string | null;
-    collapsed: Set<string>;
-    onToggleDir: (path: string) => void;
-    onFilePress: (file: ProjectFile) => void;
-    onFileAttach?: (filePath: string) => void;
-}) {
-    const { theme } = useUnistyles();
-    const leftPad = 8 + depth * INDENT_PX;
-
-    if (node.kind === 'dir') {
-        const isCollapsed = collapsed.has(node.path);
-        return (
-            <View>
-                <Pressable
-                    onPress={() => onToggleDir(node.path)}
-                    style={({ pressed }) => [styles.row, { paddingLeft: leftPad }, pressed && styles.rowPressed]}
-                >
-                    <View style={styles.chevron}>
-                        <AnimatedChevron collapsed={isCollapsed} color={theme.colors.textSecondary} />
-                    </View>
-                    <Text style={styles.dirName} numberOfLines={1}>{node.name}</Text>
-                </Pressable>
-                {!isCollapsed
-                    ? node.children.map((child) => (
-                        <ProjectTreeNodeRow
-                            key={child.path}
-                            node={child}
-                            depth={depth + 1}
-                            selectedPath={selectedPath}
-                            collapsed={collapsed}
-                            onToggleDir={onToggleDir}
-                            onFilePress={onFilePress}
-                            onFileAttach={onFileAttach}
-                        />
-                    ))
-                    : null}
-            </View>
-        );
-    }
-
-    const isSelected = selectedPath === node.path;
-    return (
-        <Pressable
-            onPress={() => onFilePress(node.file)}
-            style={({ pressed }) => [
-                styles.row,
-                { paddingLeft: leftPad },
-                pressed && styles.rowPressed,
-                isSelected && styles.rowSelected,
-            ]}
-        >
-            <FileIcon fileName={node.name} size={16} />
-            <Text style={styles.fileName} numberOfLines={1}>
-                {node.name}
-            </Text>
-            {onFileAttach && (
-                <Pressable
-                    onPress={(event) => {
-                        event.stopPropagation?.();
-                        onFileAttach(node.path);
-                    }}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel={t("uiCopy.attachValueToNextMessage", { value1: node.path })}
-                    style={styles.attachFileButton}
-                >
-                    <Octicons name="paperclip" size={14} color={theme.colors.textLink} />
-                </Pressable>
             )}
         </Pressable>
     );

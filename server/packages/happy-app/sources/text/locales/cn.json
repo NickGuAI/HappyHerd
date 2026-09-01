@@ -813,7 +813,6 @@
         }
       }
     },
-    "allFiles": "聊天工作区",
     "addPanel": "添加面板",
     "closePanel": "关闭面板",
     "openFileTab": "打开文件标签页 {name}",
@@ -1183,9 +1182,9 @@
     "noData": "暂无使用数据"
   },
   "workspace": {
-    "title": "设备工作区",
+    "title": "工作区",
     "featureSubtitle": "无需启动会话即可浏览和编辑已连接设备上的文件",
-    "featureDisabled": "设备工作区已禁用",
+    "featureDisabled": "工作区已禁用",
     "featureDisabledDescription": "请在“功能”中启用它，以显示独立工作区。",
     "openFeatures": "打开功能设置",
     "selectMachine": "选择设备",

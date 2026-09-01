@@ -82,15 +82,12 @@ type DesktopFileWorkspaceProps = {
     activePath: string | null;
     references?: Record<string, DesktopFileReference>;
     dirtyPaths: ReadonlySet<string>;
-    pickerOpen: boolean;
     machinePickerOpen?: boolean;
     compact?: boolean;
-    picker: React.ReactNode;
     machinePicker?: React.ReactNode;
     onSelect: (path: string) => void;
     onRequestClose: (path: string) => void;
     onFileDeleted: (path: string) => void;
-    onOpenPicker: () => void;
     onOpenMachinePicker?: () => void;
     onClosePicker: () => void;
     onDirtyChange: (path: string, dirty: boolean) => void;
@@ -102,15 +99,12 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
     activePath,
     references = {},
     dirtyPaths,
-    pickerOpen,
     machinePickerOpen = false,
     compact = false,
-    picker,
     machinePicker,
     onSelect,
     onRequestClose,
     onFileDeleted,
-    onOpenPicker,
     onOpenMachinePicker,
     onClosePicker,
     onDirtyChange,
@@ -144,7 +138,7 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
                 <View style={styles.compactHeader} testID="desktop-file-workspace-fullscreen-header">
                     <Pressable
                         onPress={() => {
-                            if (pickerOpen || machinePickerOpen) {
+                            if (machinePickerOpen) {
                                 onClosePicker();
                             } else if (activePath) {
                                 onRequestClose(activePath);
@@ -160,12 +154,12 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
                     >
                         <Octicons name="chevron-left" size={18} color={theme.colors.text} />
                     </Pressable>
-                    {!pickerOpen && !machinePickerOpen && activePath ? <FileIcon fileName={fileName(desktopFilePath(activePath))} size={16} /> : null}
+                    {!machinePickerOpen && activePath ? <FileIcon fileName={fileName(desktopFilePath(activePath))} size={16} /> : null}
                     <Text numberOfLines={1} style={styles.compactTitle}>
-                        {pickerOpen ? t('files.allFiles') : machinePickerOpen ? t('workspace.title') : activePath ? fileName(desktopFilePath(activePath)) : ''}
+                        {machinePickerOpen ? t('workspace.title') : activePath ? fileName(desktopFilePath(activePath)) : ''}
                     </Text>
                     <View style={styles.activeHeaderSlot} pointerEvents="box-none">
-                        {!pickerOpen && !machinePickerOpen && activePath ? headerSlots[activePath] : null}
+                        {!machinePickerOpen && activePath ? headerSlots[activePath] : null}
                     </View>
                 </View>
             ) : <View style={styles.tabBar}>
@@ -177,7 +171,7 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
                 >
                     {paths.map((path) => {
                         const name = fileName(desktopFilePath(path));
-                        const active = !pickerOpen && !machinePickerOpen && path === activePath;
+                        const active = !machinePickerOpen && path === activePath;
                         return (
                             <Pressable
                                 key={path}
@@ -214,18 +208,7 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
                         );
                     })}
                 </ScrollView>
-                <Pressable
-                    onPress={onOpenPicker}
-                    accessibilityLabel={t('files.openExistingFile')}
-                    style={({ pressed, hovered }: any) => [
-                        styles.addButton,
-                        pickerOpen && styles.addButtonActive,
-                        (pressed || hovered) && styles.addButtonHovered,
-                    ]}
-                >
-                    <Octicons name="plus" size={15} color={theme.colors.textSecondary} />
-                </Pressable>
-                {(pickerOpen || machinePickerOpen) ? (
+                {machinePickerOpen ? (
                     <Pressable
                         onPress={onClosePicker}
                         accessibilityLabel={t('common.back')}
@@ -250,17 +233,11 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
                     <Octicons name="device-desktop" size={15} color={theme.colors.textSecondary} />
                 </Pressable>
                 <View style={styles.activeHeaderSlot} pointerEvents="box-none">
-                    {!pickerOpen && !machinePickerOpen && activePath ? headerSlots[activePath] : null}
+                    {!machinePickerOpen && activePath ? headerSlots[activePath] : null}
                 </View>
             </View>}
 
             <View style={styles.body}>
-                <View
-                    pointerEvents={pickerOpen ? 'auto' : 'none'}
-                    style={[styles.layer, !pickerOpen && styles.hiddenLayer]}
-                >
-                    {picker}
-                </View>
                 <View
                     pointerEvents={machinePickerOpen ? 'auto' : 'none'}
                     style={[styles.layer, !machinePickerOpen && styles.hiddenLayer]}
@@ -268,7 +245,7 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
                     {machinePicker}
                 </View>
                 {paths.map((path) => {
-                    const active = !pickerOpen && !machinePickerOpen && path === activePath;
+                    const active = !machinePickerOpen && path === activePath;
                     return (
                         <MountedFilePanel
                             key={path}
@@ -284,7 +261,7 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
                     );
                 })}
             </View>
-            {!pickerOpen && !machinePickerOpen && activePath && references[activePath] ? (
+            {!machinePickerOpen && activePath && references[activePath] ? (
                 <WorkspaceFeedbackComposer
                     key={activePath}
                     originSessionId={sessionId}

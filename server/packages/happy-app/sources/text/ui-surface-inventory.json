@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "d1b44e658aabd12c9522e03664ffc631fb4e3925f533f1bb2306eaad10ac7f26",
+  "sourceFingerprint": "cdf0360f12c5c36e77b2ef7ca5073f9ccb1971dad663e405705503efd13867f9",
   "routeCount": 36,
   "surfaceCount": 251,
   "hardcodedCopyCount": 0,
@@ -2420,7 +2420,6 @@
         "agentInput.usagePopup.resets",
         "agentInput.usagePopup.session",
         "agentInput.usagePopup.week",
-        "files.allFiles",
         "files.changes",
         "happyHerd.composer.attachments",
         "happyHerd.composer.cancelVoice",
@@ -2927,9 +2926,7 @@
       ],
       "translationKeys": [
         "common.back",
-        "files.allFiles",
         "files.closeFileTab",
-        "files.openExistingFile",
         "files.openFileTab",
         "files.resizeWorkspace",
         "workspace.title"
@@ -3151,22 +3148,16 @@
       "kind": "sidebar",
       "route": null,
       "exports": [
-        "AllFilesPicker",
         "FilesSidebar"
       ],
       "translationKeys": [
         "files.addPanel",
-        "files.allFiles",
         "files.changes",
         "files.closePanel",
         "files.noChangesSubtitle",
         "files.noChangesTitle",
-        "files.noFilesFound",
-        "files.noFilesInProject",
-        "files.searchPlaceholder",
         "sideChat.newChat",
         "sideChat.panelTitle",
-        "uiCopy.attachValueToNextMessage",
         "workspace.title"
       ],
       "states": [],
@@ -6088,7 +6079,7 @@
       "viewport": "mobile",
       "theme": "light",
       "copy": {
-        "workspace.title": "Machine Workspace",
+        "workspace.title": "Workspace",
         "workspace.searchPlaceholder": "Search this folder..."
       }
     },
@@ -6100,7 +6091,7 @@
       "viewport": "mobile",
       "theme": "dark",
       "copy": {
-        "workspace.title": "Machine Workspace",
+        "workspace.title": "Workspace",
         "workspace.searchPlaceholder": "Search this folder..."
       }
     },
@@ -6112,7 +6103,7 @@
       "viewport": "desktop",
       "theme": "light",
       "copy": {
-        "workspace.title": "Machine Workspace",
+        "workspace.title": "Workspace",
         "workspace.searchPlaceholder": "Search this folder..."
       }
     },
@@ -6124,7 +6115,7 @@
       "viewport": "desktop",
       "theme": "dark",
       "copy": {
-        "workspace.title": "Machine Workspace",
+        "workspace.title": "Workspace",
         "workspace.searchPlaceholder": "Search this folder..."
       }
     },
@@ -6136,7 +6127,7 @@
       "viewport": "mobile",
       "theme": "light",
       "copy": {
-        "workspace.title": "设备工作区",
+        "workspace.title": "工作区",
         "workspace.searchPlaceholder": "搜索此文件夹…"
       }
     },
@@ -6148,7 +6139,7 @@
       "viewport": "mobile",
       "theme": "dark",
       "copy": {
-        "workspace.title": "设备工作区",
+        "workspace.title": "工作区",
         "workspace.searchPlaceholder": "搜索此文件夹…"
       }
     },
@@ -6160,7 +6151,7 @@
       "viewport": "desktop",
       "theme": "light",
       "copy": {
-        "workspace.title": "设备工作区",
+        "workspace.title": "工作区",
         "workspace.searchPlaceholder": "搜索此文件夹…"
       }
     },
@@ -6172,7 +6163,7 @@
       "viewport": "desktop",
       "theme": "dark",
       "copy": {
-        "workspace.title": "设备工作区",
+        "workspace.title": "工作区",
         "workspace.searchPlaceholder": "搜索此文件夹…"
       }
     },
@@ -6184,7 +6175,7 @@
       "viewport": "mobile",
       "theme": "light",
       "copy": {
-        "workspace.title": "Maschinenarbeitsbereich",
+        "workspace.title": "Arbeitsbereich",
         "workspace.searchPlaceholder": "Diesen Ordner durchsuchen..."
       }
     },
@@ -6196,7 +6187,7 @@
       "viewport": "mobile",
       "theme": "dark",
       "copy": {
-        "workspace.title": "Maschinenarbeitsbereich",
+        "workspace.title": "Arbeitsbereich",
         "workspace.searchPlaceholder": "Diesen Ordner durchsuchen..."
       }
     },
@@ -6208,7 +6199,7 @@
       "viewport": "desktop",
       "theme": "light",
       "copy": {
-        "workspace.title": "Maschinenarbeitsbereich",
+        "workspace.title": "Arbeitsbereich",
         "workspace.searchPlaceholder": "Diesen Ordner durchsuchen..."
       }
     },
@@ -6220,7 +6211,7 @@
       "viewport": "desktop",
       "theme": "dark",
       "copy": {
-        "workspace.title": "Maschinenarbeitsbereich",
+        "workspace.title": "Arbeitsbereich",
         "workspace.searchPlaceholder": "Diesen Ordner durchsuchen..."
       }
     },

@@ -39,7 +39,7 @@ describe('desktop file workspace state', () => {
         expect(machine.references[identity]).toEqual({ machineId: 'machine-1', source: 'machine', line: 14, column: 3 });
     });
 
-    it('does not downgrade an upgraded machine transport when Chat Workspace reopens the path', () => {
+    it('does not downgrade an upgraded machine transport when Workspace reopens the path', () => {
         const session = openDesktopFile(EMPTY_DESKTOP_FILE_WORKSPACE, '/outside/a.ts', {
             machineId: 'machine-1', source: 'session', line: 14, column: 3,
         });

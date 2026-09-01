@@ -79,24 +79,16 @@ function IntegratedDesktopDemo() {
 
 function FileWorkspaceContent({
     compact,
-    initialSurface = 'file',
 }: {
     compact: boolean;
-    initialSurface?: 'file' | 'chat' | 'machine';
 }) {
     const reference = { machineId: 'machine-1', source: 'session' as const };
     const [workspace, setWorkspace] = React.useState(() => (
         openDesktopFile(EMPTY_DESKTOP_FILE_WORKSPACE, '/workspace/demo.md', reference)
     ));
-    const [pickerOpen, setPickerOpen] = React.useState(initialSurface === 'chat');
-    const [machinePickerOpen, setMachinePickerOpen] = React.useState(initialSurface === 'machine');
+    const [machinePickerOpen, setMachinePickerOpen] = React.useState(false);
     const [dirtyPaths, setDirtyPaths] = React.useState<Set<string>>(() => new Set());
 
-    const openFile = React.useCallback((path: string) => {
-        setWorkspace((current) => openDesktopFile(current, path, reference));
-        setPickerOpen(false);
-        setMachinePickerOpen(false);
-    }, []);
     const closeFile = React.useCallback((path: string) => {
         setWorkspace((current) => closeDesktopFile(current, path));
         setDirtyPaths((current) => {
@@ -107,7 +99,6 @@ function FileWorkspaceContent({
     }, []);
     const selectFile = React.useCallback((path: string) => {
         setWorkspace((current) => selectDesktopFile(current, path));
-        setPickerOpen(false);
         setMachinePickerOpen(false);
     }, []);
     const openMachineFile = React.useCallback(({ machineId, path }: { machineId: string; path: string }) => {
@@ -136,21 +127,15 @@ function FileWorkspaceContent({
             activePath={workspace.activePath}
             references={workspace.references}
             dirtyPaths={dirtyPaths}
-            pickerOpen={pickerOpen}
             machinePickerOpen={machinePickerOpen}
             compact={compact}
-            picker={(
-                <div data-testid="file-picker">
-                    <button onClick={() => openFile('/workspace/demo.md')}>Open demo.md</button>
-                    <button onClick={() => openFile('/workspace/second.md')}>Open second.md</button>
-                </div>
-            )}
             machinePicker={(
                 <div data-testid="machine-picker" style={{ display: 'flex', flex: 1, minWidth: 0 }}>
                     <MachineWorkspaceBrowser
                         embedded
                         initialMachineId="machine-2"
                         initialPath="/machine-root"
+                        workspaceContextSessionId="ordinary-session"
                         onFilePress={openMachineFile}
                     />
                 </div>
@@ -158,18 +143,8 @@ function FileWorkspaceContent({
             onSelect={selectFile}
             onRequestClose={closeFile}
             onFileDeleted={handleFileDeleted}
-            onOpenPicker={() => {
-                setMachinePickerOpen(false);
-                setPickerOpen(true);
-            }}
-            onOpenMachinePicker={() => {
-                setPickerOpen(false);
-                setMachinePickerOpen(true);
-            }}
-            onClosePicker={() => {
-                setPickerOpen(false);
-                setMachinePickerOpen(false);
-            }}
+            onOpenMachinePicker={() => setMachinePickerOpen(true)}
+            onClosePicker={() => setMachinePickerOpen(false)}
             onDirtyChange={handleDirtyChange}
         />
     );
@@ -188,10 +163,6 @@ function ProductionDesktopWorkspaceEntryPointsDemo() {
         setOpenPanels([]);
         setActivePanel(null);
     }, []);
-    const openSessionFile = React.useCallback((path: string) => {
-        setWorkspace((current) => openDesktopFile(current, path, reference));
-        closePanels();
-    }, [closePanels]);
     const openMachineFile = React.useCallback(({ machineId, path }: { machineId: string; path: string }) => {
         setWorkspace((current) => openDesktopFile(current, path, { machineId, source: 'machine' }));
         setMachinePickerOpen(false);
@@ -217,9 +188,7 @@ function ProductionDesktopWorkspaceEntryPointsDemo() {
                         setOpenPanels((current) => current.filter((candidate) => candidate !== panel));
                         setActivePanel((current) => current === panel ? null : current);
                     }}
-                    onAllFilesFilePress={openSessionFile}
-                    onAllFilesFileAttach={() => undefined}
-                    onOpenMachineWorkspace={() => {
+                    onOpenWorkspace={() => {
                         closePanels();
                         setMachinePickerOpen(true);
                     }}
@@ -240,16 +209,15 @@ function ProductionDesktopWorkspaceEntryPointsDemo() {
                     activePath={workspace.activePath}
                     references={workspace.references}
                     dirtyPaths={new Set()}
-                    pickerOpen={false}
                     machinePickerOpen={machinePickerOpen}
                     compact={false}
-                    picker={null}
                     machinePicker={(
                         <div data-testid="production-machine-picker" style={{ display: 'flex', flex: 1, minWidth: 0 }}>
                             <MachineWorkspaceBrowser
                                 embedded
                                 initialMachineId="machine-2"
                                 initialPath="/machine-root"
+                                workspaceContextSessionId="ordinary-session"
                                 onFilePress={openMachineFile}
                             />
                         </div>
@@ -257,7 +225,6 @@ function ProductionDesktopWorkspaceEntryPointsDemo() {
                     onSelect={(path) => setWorkspace((current) => selectDesktopFile(current, path))}
                     onRequestClose={(path) => setWorkspace((current) => closeDesktopFile(current, path))}
                     onFileDeleted={() => undefined}
-                    onOpenPicker={() => undefined}
                     onOpenMachinePicker={() => setMachinePickerOpen(true)}
                     onClosePicker={() => setMachinePickerOpen(false)}
                     onDirtyChange={() => undefined}
@@ -267,27 +234,26 @@ function ProductionDesktopWorkspaceEntryPointsDemo() {
     );
 }
 
-function ZeroTabMachineWorkspaceDemo() {
+function ZeroTabWorkspaceDemo() {
     const [machinePickerOpen, setMachinePickerOpen] = React.useState(false);
     return (
-        <div data-testid="zero-tab-machine-workspace" style={{ width: 390, height: 320 }}>
-            <button onClick={() => setMachinePickerOpen(true)}>Open Machine Workspace</button>
+        <div data-testid="zero-tab-workspace" style={{ width: 390, height: 320 }}>
+            <button onClick={() => setMachinePickerOpen(true)}>Open Workspace</button>
             {machinePickerOpen ? (
                 <DesktopFileWorkspace
                     sessionId="ordinary-session"
                     paths={[]}
                     activePath={null}
                     dirtyPaths={new Set()}
-                    pickerOpen={false}
                     machinePickerOpen
                     compact
-                    picker={null}
                     machinePicker={(
                         <div data-testid="zero-tab-machine-picker" style={{ display: 'flex', flex: 1, minWidth: 0 }}>
                             <MachineWorkspaceBrowser
                                 embedded
                                 initialMachineId="machine-2"
                                 initialPath="/machine-root"
+                                workspaceContextSessionId="ordinary-session"
                                 onFilePress={() => setMachinePickerOpen(false)}
                             />
                         </div>
@@ -295,7 +261,6 @@ function ZeroTabMachineWorkspaceDemo() {
                     onSelect={() => undefined}
                     onRequestClose={() => undefined}
                     onFileDeleted={() => undefined}
-                    onOpenPicker={() => undefined}
                     onOpenMachinePicker={() => undefined}
                     onClosePicker={() => setMachinePickerOpen(false)}
                     onDirtyChange={() => undefined}
@@ -352,7 +317,7 @@ createRoot(document.getElementById('root')!).render(
         <IntegratedDesktopDemo />
         <FileWorkspaceDemo compact={false} testId="wide-file-workspace" />
         <FileWorkspaceDemo compact testId="narrow-file-workspace" />
-        <ZeroTabMachineWorkspaceDemo />
+        <ZeroTabWorkspaceDemo />
         <ProductionDesktopWorkspaceEntryPointsDemo />
     </div>,
 );
