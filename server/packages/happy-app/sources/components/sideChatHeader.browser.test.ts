@@ -157,6 +157,7 @@ const virtualModules: Record<string, string> = {
         };
         const settings = {
             diffStyle: 'unified',
+            expImageUpload: fixtureOptions.imageAttachments === true,
             machineWorkspace: fixtureOptions.machineWorkspaceEnabled ?? true,
             recentMachinePaths: [],
             favoriteMachinePaths: [],
@@ -292,6 +293,10 @@ const virtualModules: Record<string, string> = {
             'files.changedFiles': (params?.count ?? 0) + ' changed file',
             'files.searchPlaceholder': 'Search files',
             'files.noFilesInProject': 'No files in project',
+            'happyHerd.composer.attachments': 'Attachments',
+            'happyHerd.composer.moreActions': 'More actions',
+            'happyHerd.composer.send': 'Send',
+            'happyHerd.composer.startVoice': 'Start dictation',
             'settings.machines': 'Machines',
             'settingsAppearance.diffStyleOptions.unified': 'Unified',
             'settingsAppearance.diffStyleOptions.split': 'Split',
@@ -363,6 +368,7 @@ const virtualModules: Record<string, string> = {
             refreshSessions: () => new Promise(() => {}),
             sendMessage: async (sessionId, text, options) => {
                 window.__PROVIDER_CONTINUATION_SEND__ = { sessionId, text, options };
+                window.__COMPOSER_SENDS__ = [...(window.__COMPOSER_SENDS__ ?? []), { sessionId, text, options }];
                 return { localId: 'handoff-message' };
             },
             applySettings() {},
@@ -448,10 +454,19 @@ const virtualModules: Record<string, string> = {
     '@/components/autocomplete/suggestions': `export const getSuggestions = () => [];`,
     '@/components/diff/PierreDiffView': `export const prefetchPierreDiff = () => {}; export const PierreDiffView = () => null;`,
     '@/hooks/useDraft': `export const useDraft = () => ({ clearDraft() {} });`,
-    '@/hooks/useImagePicker': `export const useImagePicker = () => ({ addImages() {}, clearImages() {}, pickImages() {}, removeImage() {}, selectedImages: [] });`,
+    '@/hooks/useImagePicker': `export const useImagePicker = () => ({
+        addImages() {}, clearImages() {}, removeImage() {}, selectedImages: [],
+        pickImages() { window.__ATTACHMENT_PICK_COUNT__ = (window.__ATTACHMENT_PICK_COUNT__ ?? 0) + 1; },
+    });`,
     '@/hooks/useMachineFileUpload': `export const useMachineFileUpload = () => ({ canCancel: false, canRetry: false, cancel() {}, pickAndUpload() {}, reset() {}, retry() {}, state: { phase: 'idle' } });`,
-    '@/hooks/useVoiceDictation': `export const useVoiceDictation = () => ({ canRetry: false, cancel() {}, error: null, phase: 'idle', retry() {}, toggle() {} });`,
-    '@/hooks/useVoiceInputAvailability': `export const useVoiceInputAvailability = () => ({ available: false, configured: false, enabled: false, loading: false });`,
+    '@/hooks/useVoiceDictation': `export const useVoiceDictation = () => ({
+        canRetry: false, cancel() {}, error: null, phase: 'idle', retry() {},
+        toggle() { window.__DICTATION_TOGGLE_COUNT__ = (window.__DICTATION_TOGGLE_COUNT__ ?? 0) + 1; },
+    });`,
+    '@/hooks/useVoiceInputAvailability': `export const useVoiceInputAvailability = () => {
+        const available = globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.voiceAvailable === true;
+        return { available, configured: available, enabled: available, loading: false };
+    };`,
     '@/hooks/useWorktreeCleanup': `export const maybeCleanupWorktree = async () => {};`,
     '@/hooks/useNavigateToSession': `export const useNavigateToSession = () => (sessionId) => { window.__PROVIDER_CONTINUATION_NAVIGATED__ = sessionId; };`,
     '@/components/DuplicateSheet': `export const DuplicateSheet = () => null;`,
@@ -528,7 +543,7 @@ const virtualModules: Record<string, string> = {
         export const sessionBash = async () => ({ success: true, stdout: '' });
     `,
     '@/sync/sideChatLifecycle': `export const closeSideChatSession = async () => {}; export const resolveSideChatCloseReconciliation = () => ({ error: null, restoreTab: false });`,
-    '@/sync/attachmentSupport': `export const supportsImageAttachmentsForFlavor = () => false;`,
+    '@/sync/attachmentSupport': `export const supportsImageAttachmentsForFlavor = () => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.imageAttachments === true;`,
     '@/sync/agentDefaults': `
         export const getAgentDefaultOverrideValue = () => undefined;
         export const resolveAgentDefaultConfig = () => ({ modelMode: undefined, permissionMode: undefined });
@@ -541,7 +556,9 @@ const virtualModules: Record<string, string> = {
         export const isRigMetadata = () => false; export const isRigModelSelectionEnabled = () => false;
         export const isRigPermissionSelectionEnabled = () => false; export const isRigReasoningSelectionEnabled = () => false;
         export const rigCanAbort = () => false; export const rigCanBrowseFiles = () => true;
-        export const rigCanReadFiles = () => false; export const rigCanUseAttachments = () => false; export const rigCanUseShell = () => true;
+        export const rigCanReadFiles = () => false;
+        export const rigCanUseAttachments = () => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.imageAttachments === true;
+        export const rigCanUseShell = () => true;
         export const rigCanWriteFiles = () => true; export const sessionCanDeleteFiles = () => true;
     `,
     '@/sync/workspaceContext': `
@@ -576,7 +593,10 @@ const virtualModules: Record<string, string> = {
     `,
     '@/utils/versionUtils': `export const MINIMUM_CLI_VERSION = '0.0.0'; export const isVersionSupported = () => true;`,
     '@/utils/heartbeatCommand': `export const HEARTBEAT_COMMAND = { dispatch: async () => ({ handled: false }) };`,
-    '@/utils/sessionContinuation': `export const deliverSessionTurn = async () => {};`,
+    '@/utils/sessionContinuation': `export const deliverSessionTurn = async (options) => options.deliver({
+        deliveryMode: options.requestedDeliveryMode,
+        awaitDelivery: options.awaitDelivery,
+    });`,
     '@/-session/sessionOverlayNav': `export const useOverlayNav = { getState: () => ({ publish() {}, reset() {} }) };`,
     '@/-session/agentGoalActionHandler': `export const performAgentGoalAction = async () => {};`,
     '@/-session/workspaceLinkNavigation': `
@@ -850,6 +870,92 @@ describe('Side chats browser interaction', () => {
         await page.close();
     }, 10_000);
 
+    it.each([
+        ['Web Desktop', { width: 1440, height: 900 }],
+        ['Web Mobile', { width: 390, height: 844 }],
+    ] as const)('keeps one Human-visible composer menu on the Main Agent and active Side chat on %s', async (_surface, viewport) => {
+        const page = await browser.newPage({ viewport });
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
+                imageAttachments: true,
+                voiceAvailable: true,
+            };
+        });
+        const pageErrors: string[] = [];
+        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+        page.on('console', (message) => {
+            if (
+                (message.type() === 'error' || message.type() === 'warning')
+                && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+                && message.text() !== '"shadow*" style props are deprecated. Use "boxShadow".'
+            ) pageErrors.push(message.text());
+        });
+        await page.goto(origin);
+
+        const foreground = page.getByTestId('foreground-session');
+        const mainDraft = foreground.locator('textarea').first();
+        await mainDraft.waitFor({ state: 'visible', timeout: 3_000 });
+        await mainDraft.fill('Main Agent draft retained');
+        await mainDraft.evaluate((element) => { element.dataset.composerMenuOwner = 'main'; });
+
+        const assertDirectPrimaryActions = async () => {
+            const mic = foreground.getByRole('button', { name: 'Start dictation' }).filter({ visible: true }).last();
+            const send = foreground.getByRole('button', { name: 'Send' }).filter({ visible: true }).last();
+            await expect(mic.isVisible()).resolves.toBe(true);
+            await expect(send.isVisible()).resolves.toBe(true);
+            return { mic, send };
+        };
+        const openVisibleComposerMenu = async () => {
+            const trigger = foreground.getByRole('button', { name: 'More actions' }).filter({ visible: true }).last();
+            await trigger.waitFor({ state: 'visible', timeout: 3_000 });
+            await trigger.click({ timeout: 3_000 });
+            const menu = foreground.getByTestId('mobile-composer-actions-menu').filter({ visible: true });
+            await menu.waitFor({ state: 'visible', timeout: 3_000 });
+            for (const label of ['Changes', 'Chat Workspace', 'Machine Workspace']) {
+                await expect(menu.getByRole('menuitem', { name: label, exact: true }).count()).resolves.toBe(1);
+            }
+            await expect(menu.getByRole('menuitem', { name: 'Attachments', exact: true }).count()).resolves.toBe(1);
+            await expect(menu.getByRole('menuitem', { name: 'Photos', exact: true }).count()).resolves.toBe(0);
+            await expect(menu.getByRole('menuitem', { name: 'Device files', exact: true }).count()).resolves.toBe(0);
+            return menu;
+        };
+
+        let primaryActions = await assertDirectPrimaryActions();
+        let menu = await openVisibleComposerMenu();
+        await menu.getByRole('menuitem', { name: 'Attachments', exact: true }).click({ timeout: 3_000 });
+        await expect(page.evaluate(() => (window as any).__ATTACHMENT_PICK_COUNT__ ?? 0)).resolves.toBe(1);
+        await expect(foreground.locator('textarea[data-composer-menu-owner="main"]').inputValue())
+            .resolves.toBe('Main Agent draft retained');
+        await primaryActions.mic.click({ timeout: 3_000 });
+        await expect(page.evaluate(() => (window as any).__DICTATION_TOGGLE_COUNT__ ?? 0)).resolves.toBe(1);
+        await primaryActions.send.click({ timeout: 3_000 });
+        await page.waitForFunction(() => (window as any).__COMPOSER_SENDS__?.some((entry: any) => (
+            entry.sessionId === 'parent' && entry.text === 'Main Agent draft retained'
+        )));
+
+        await foreground.getByRole('button', { name: 'Open side chats (2)' }).click({ timeout: 3_000 });
+        await foreground.getByText('Newest child', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
+        const sideChatDraft = foreground.locator('textarea').filter({ visible: true }).last();
+        await sideChatDraft.fill('Side chat draft retained');
+        await sideChatDraft.evaluate((element) => { element.dataset.composerMenuOwner = 'side-chat'; });
+
+        primaryActions = await assertDirectPrimaryActions();
+        menu = await openVisibleComposerMenu();
+        await menu.getByRole('menuitem', { name: 'Attachments', exact: true }).click({ timeout: 3_000 });
+        await expect(page.evaluate(() => (window as any).__ATTACHMENT_PICK_COUNT__ ?? 0)).resolves.toBe(2);
+        await expect(foreground.locator('textarea[data-composer-menu-owner="side-chat"]').inputValue())
+            .resolves.toBe('Side chat draft retained');
+        await primaryActions.mic.click({ timeout: 3_000 });
+        await expect(page.evaluate(() => (window as any).__DICTATION_TOGGLE_COUNT__ ?? 0)).resolves.toBe(2);
+        await primaryActions.send.click({ timeout: 3_000 });
+        await page.waitForFunction(() => (window as any).__COMPOSER_SENDS__?.some((entry: any) => (
+            entry.sessionId === 'child-newest' && entry.text === 'Side chat draft retained'
+        )));
+
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 20_000);
+
     it('keeps all three desktop workspace entry points visible and canonical with default settings', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
         await page.addInitScript(() => {
@@ -882,6 +988,7 @@ describe('Side chats browser interaction', () => {
         await foreground.getByText('Machine Workspace', { exact: true }).click();
         const workspace = foreground.getByTestId('desktop-file-workspace');
         await workspace.waitFor({ state: 'visible', timeout: 3_000 });
+        await expect(workspace.getByText('Upload', { exact: true }).isVisible()).resolves.toBe(true);
         await workspace.getByText('machine-file.md', { exact: true }).click();
         await foreground.getByRole('tab', { name: 'Open file machine-file.md' }).waitFor({ state: 'visible', timeout: 3_000 });
         await expect(foreground.getByTestId('workspace-link-side-panel').count()).resolves.toBe(0);
@@ -1149,6 +1256,8 @@ describe('Side chats browser interaction', () => {
         await expect(page.getByTestId('desktop-file-workspace-fullscreen-header').filter({ visible: true }).getByText('Machine Workspace').isVisible())
             .resolves.toBe(true);
         await page.getByText('MainEC2').filter({ visible: true }).waitFor({ state: 'visible', timeout: 3_000 });
+        await expect(page.getByText('Upload', { exact: true }).filter({ visible: true }).isVisible())
+            .resolves.toBe(true);
         const machineFile = page.getByText('machine-file.md').filter({ visible: true });
         await machineFile.waitFor({ state: 'visible', timeout: 3_000 });
         await page.getByTestId('desktop-file-workspace-picker-close').filter({ visible: true }).click();

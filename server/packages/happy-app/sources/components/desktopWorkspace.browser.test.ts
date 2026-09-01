@@ -213,17 +213,25 @@ const virtualModules: Record<string, string> = {
             return { success: true };
         };
     `,
-    '@/components/WorkspaceFeedbackComposer': `
-        import React from 'react';
-        export const WorkspaceFeedbackComposer = () => React.createElement('div', { 'data-testid': 'workspace-feedback-composer' });
-    `,
+    '@/components/AgentInputAttachmentStrip': `export const AgentInputAttachmentStrip = () => null;`,
     '@/modal': `
         export const Modal = {
             alert() {},
             confirm: async () => true,
         };
     `,
-    '@/sync/sync': `export const sync = { applySettings() {} };`,
+    '@/sync/sync': `
+        export const sync = {
+            applySettings() {},
+            sendMessage: async (sessionId, text, options) => {
+                window.__WORKSPACE_FEEDBACK_CALLS__ = [
+                    ...(window.__WORKSPACE_FEEDBACK_CALLS__ ?? []),
+                    { sessionId, text, options },
+                ];
+                return { localId: 'feedback-local-id' };
+            },
+        };
+    `,
     '@/sync/workspaceContext': `
         export const MAX_WORKSPACE_CONTEXT_ITEMS = 8;
         export const getWorkspaceContextEntries = () => [];
@@ -234,6 +242,23 @@ const virtualModules: Record<string, string> = {
         export const useMachineFileUpload = () => ({
             state: { phase: 'idle', completed: 0, total: 0, currentFile: null, error: null, target: null },
             reset() {}, pickAndUpload: async () => [], canCancel: false, canRetry: false, cancel() {}, retry: async () => [],
+        });
+    `,
+    '@/hooks/useImagePicker': `
+        export const useImagePicker = () => ({
+            selectedImages: [],
+            pickImages: async () => undefined,
+            removeImage() {},
+            clearImages() {},
+            addImages() {},
+        });
+    `,
+    '@/hooks/useVoiceInputAvailability': `
+        export const useVoiceInputAvailability = () => ({ configured: false, loading: false, available: false });
+    `,
+    '@/hooks/useVoiceDictation': `
+        export const useVoiceDictation = () => ({
+            phase: 'idle', error: null, toggle() {}, cancel() {}, retry() {}, canRetry: false,
         });
     `,
     '@/components/MachineFileUploadStatus': `export const MachineFileUploadStatus = () => null;`,
@@ -281,6 +306,11 @@ const virtualModules: Record<string, string> = {
             'files.openExistingFile': 'Open existing file',
             'files.openFileTab': 'Open ' + (params?.name ?? ''),
             'files.resizeWorkspace': 'Resize file workspace',
+            'happyHerd.composer.addPhoto': 'Add photo',
+            'happyHerd.composer.addPhotos': 'Add photos',
+            'happyHerd.composer.send': 'Send',
+            'happyHerd.composer.sendFailedBody': 'Could not send feedback.',
+            'review.feedbackPrompt': 'Share file feedback',
             'navigation.collapseSidebar': 'Collapse navigation',
             'navigation.expandSidebar': 'Expand navigation',
             'uiCopy.preview': 'Preview',
@@ -320,6 +350,9 @@ const fixturePlugin: Plugin = {
                 if (relativeStub) return { path: relativeStub, namespace: 'fixture-stub' };
             }
             if (args.path === './SidebarView') return { path: '@/components/SidebarView', namespace: 'fixture-stub' };
+            if (args.path === '@/components/MultiTextInput') {
+                return { path: resolve(appRoot, 'sources/components/MultiTextInput.web.tsx') };
+            }
             if (args.path.startsWith('@/')) {
                 const sourcePath = resolve(appRoot, 'sources', args.path.slice(2));
                 const path = [sourcePath, sourcePath + '.ts', sourcePath + '.tsx'].find(existsSync);
@@ -541,6 +574,75 @@ describe('Desktop workspace browser interaction', () => {
             await page.getByTestId('split-demo').screenshot({ path: resolve(evidenceDirectory, 'issue-181-wide.png') });
             await narrow.screenshot({ path: resolve(evidenceDirectory, 'issue-181-mobile.png') });
         }
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 10_000);
+
+    it('keeps multiline feedback contained and sendable in the narrow adjustable workspace', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1200 } });
+        const pageErrors = recordPageErrors(page);
+        await page.goto(origin);
+
+        const splitDemo = page.getByTestId('split-demo');
+        const host = splitDemo.getByTestId('desktop-file-workspace-host');
+        const divider = splitDemo.getByTestId('desktop-file-workspace-divider');
+        const dividerBox = await divider.boundingBox();
+        if (!dividerBox) throw new Error('workspace divider has no layout');
+        await page.mouse.move(
+            dividerBox.x + dividerBox.width / 2,
+            dividerBox.y + dividerBox.height / 2,
+        );
+        await page.mouse.down();
+        await page.mouse.move(dividerBox.x + 2_000, dividerBox.y + dividerBox.height / 2, { steps: 12 });
+        await page.mouse.up();
+
+        const hostBox = await host.boundingBox();
+        if (!hostBox) throw new Error('narrow workspace host has no layout');
+        expect(hostBox.width).toBeLessThanOrEqual(361);
+
+        const feedback = host.getByPlaceholder('Share file feedback');
+        const send = host.getByRole('button', { name: 'Send' });
+        const multiline = [
+            'test test test test test test test test test test test',
+            'follow-up feedback remains inside the file workspace',
+            'sdfsdfsdfddfdfdf',
+        ].join('\n');
+        await feedback.fill(multiline);
+
+        const feedbackBox = await feedback.boundingBox();
+        const sendBox = await send.boundingBox();
+        if (!feedbackBox || !sendBox) throw new Error('workspace feedback controls have no layout');
+        expect(feedbackBox.x + feedbackBox.width).toBeLessThanOrEqual(sendBox.x - 8);
+        const feedbackMetrics = await feedback.evaluate((element) => ({
+            clientWidth: element.clientWidth,
+            scrollWidth: element.scrollWidth,
+            clientHeight: element.clientHeight,
+        }));
+        expect(feedbackMetrics.scrollWidth).toBeLessThanOrEqual(feedbackMetrics.clientWidth);
+        expect(feedbackMetrics.clientHeight).toBeGreaterThan(44);
+
+        await send.click();
+        const feedbackCalls = await page.evaluate(() => (window as any).__WORKSPACE_FEEDBACK_CALLS__ ?? []);
+        expect(feedbackCalls).toHaveLength(1);
+        expect(feedbackCalls[0]).toEqual({
+            sessionId: 'ordinary-session',
+            text: [
+                'Workspace file feedback',
+                '',
+                'Machine: machine-1',
+                'Machine ID: machine-1',
+                'Absolute path: /workspace/demo.md',
+                '',
+                'Feedback:',
+                multiline,
+            ].join('\n'),
+            options: {
+                displayText: ['machine-1', '/workspace/demo.md', '', multiline].join('\n'),
+                attachments: [],
+                requireAllAttachments: true,
+            },
+        });
+        await expect(feedback.inputValue()).resolves.toBe('');
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 10_000);

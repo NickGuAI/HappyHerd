@@ -246,7 +246,7 @@ function renderMobileActionInput(overrides: Record<string, unknown> = {}, width 
         dictationPhase: 'idle',
         effortLevel: { key: 'high', name: 'High effort' },
         initialValue: 'Editable draft',
-        mobileWorkspaceActions: {
+        webWorkspaceActions: {
             onOpenChanges: callbacks.onOpenChanges,
             onOpenChatWorkspace: callbacks.onOpenChatWorkspace,
             onOpenMachineWorkspace: callbacks.onOpenMachineWorkspace,
@@ -264,7 +264,7 @@ function renderMobileActionInput(overrides: Record<string, unknown> = {}, width 
         permissionMode: { key: 'default', name: 'Default permission' },
         placeholder: 'Type a message',
         sessionId: 'mobile-session',
-        showWebMobileActionMenu: true,
+        showWebActionMenu: true,
         showAbortButton: true,
         ...overrides,
     };
@@ -356,7 +356,7 @@ describe.each([
     });
 });
 
-describe('AgentInput Web Mobile action menu', () => {
+describe('AgentInput Web action menu', () => {
     it('follows the session mobile-action contract across the full narrow Web layout', () => {
         const { renderer } = renderMobileActionInput({}, 720);
 
@@ -384,7 +384,7 @@ describe('AgentInput Web Mobile action menu', () => {
     });
 
     it('keeps one + menu when workspace capabilities are unavailable', () => {
-        const { renderer } = renderMobileActionInput({ mobileWorkspaceActions: undefined });
+        const { renderer } = renderMobileActionInput({ webWorkspaceActions: undefined });
 
         expect(renderer.root.findByProps({ testID: 'mobile-composer-actions-trigger' })).toBeDefined();
         expect(renderer.root.findAllByType('AttachmentInputButton' as any)).toHaveLength(0);
@@ -392,8 +392,7 @@ describe('AgentInput Web Mobile action menu', () => {
         expect(mobileMenuLabels(renderer)).toEqual([
             'settings.title',
             'happyHerd.composer.queueMessage',
-            'happyHerd.composer.photos',
-            'happyHerd.composer.deviceFiles',
+            'happyHerd.composer.attachments',
         ]);
 
         act(() => renderer.unmount());
@@ -402,7 +401,7 @@ describe('AgentInput Web Mobile action menu', () => {
     it('keeps model and effort settings reachable when permission selection is locked', () => {
         const { renderer } = renderMobileActionInput({
             availableModes: [],
-            mobileWorkspaceActions: undefined,
+            webWorkspaceActions: undefined,
             onPermissionModeChange: undefined,
         });
 
@@ -420,8 +419,11 @@ describe('AgentInput Web Mobile action menu', () => {
         act(() => renderer.unmount());
     });
 
-    it('replaces the standalone controls with one + while keeping Mic and Send direct', () => {
-        const { callbacks, renderer } = renderMobileActionInput();
+    it.each([
+        ['Web Desktop', 1200],
+        ['Web Mobile', 390],
+    ] as const)('replaces the standalone controls with one + on %s while keeping Mic and Send direct', (_surface, width) => {
+        const { callbacks, renderer } = renderMobileActionInput({}, width);
         const trigger = renderer.root.findByProps({ testID: 'mobile-composer-actions-trigger' });
 
         expect(trigger.props).toMatchObject({
@@ -455,22 +457,22 @@ describe('AgentInput Web Mobile action menu', () => {
             'workspace.title',
             'settings.title',
             'happyHerd.composer.queueMessage',
-            'happyHerd.composer.photos',
-            'happyHerd.composer.deviceFiles',
+            'happyHerd.composer.attachments',
         ]);
 
         for (const [key, callback] of [
             ['changes', callbacks.onOpenChanges],
             ['chat-workspace', callbacks.onOpenChatWorkspace],
             ['machine-workspace', callbacks.onOpenMachineWorkspace],
-            ['photos', callbacks.onPickImages],
-            ['device-files', callbacks.onPickDeviceFiles],
+            ['attachments', callbacks.onPickImages],
         ] as const) {
             pressMobileMenuAction(renderer, key);
             expect(callback).toHaveBeenCalledOnce();
             expect(renderer.root.findAllByProps({ testID: 'mobile-composer-actions-menu' })).toHaveLength(0);
             openMobileActionMenu(renderer);
         }
+        expect(callbacks.onPickDeviceFiles).not.toHaveBeenCalled();
+        expect(renderer.root.findAllByProps({ testID: 'mobile-composer-action-device-files' })).toHaveLength(0);
 
         pressMobileMenuAction(renderer, 'settings');
         expect(renderer.root.findAllByProps({ testID: 'mobile-composer-actions-menu' })).toHaveLength(0);

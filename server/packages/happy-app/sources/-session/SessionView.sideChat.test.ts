@@ -974,7 +974,7 @@ describe('SessionView mobile back navigation', () => {
     });
 });
 
-describe('SessionView Web Mobile workspace access', () => {
+describe('SessionView Web composer workspace access', () => {
     it('removes the fixed top strip and routes the Main Agent composer actions to its canonical workspaces', () => {
         mocks.width = 390;
         mocks.height = 844;
@@ -984,8 +984,8 @@ describe('SessionView Web Mobile workspace access', () => {
             node.type === 'View' && node.props.testID === 'mobile-session-workspace-access'
         ))).toHaveLength(0);
         const mainComposer = composerForSession(renderer, 'parent');
-        expect(mainComposer.props.showWebMobileActionMenu).toBe(true);
-        const workspaceActions = mainComposer.props.mobileWorkspaceActions;
+        expect(mainComposer.props.showWebActionMenu).toBe(true);
+        const workspaceActions = mainComposer.props.webWorkspaceActions;
         expect(workspaceActions).toEqual(expect.objectContaining({
             onOpenChanges: expect.any(Function),
             onOpenChatWorkspace: expect.any(Function),
@@ -1022,15 +1022,20 @@ describe('SessionView Web Mobile workspace access', () => {
         expect(renderedComposerSessions(renderer)).toEqual(['parent']);
     });
 
-    it('does not add the compact access bar or mobile composer actions to Web Desktop', () => {
+    it('routes Web Desktop Main Agent actions through the same consolidated composer menu', () => {
         mocks.width = 1280;
         const renderer = renderParent();
 
         expect(renderer.root.findAll((node: any) => (
             node.type === 'View' && node.props.testID === 'mobile-session-workspace-access'
         ))).toHaveLength(0);
-        expect(composerForSession(renderer, 'parent').props.showWebMobileActionMenu).toBe(false);
-        expect(composerForSession(renderer, 'parent').props.mobileWorkspaceActions).toBeUndefined();
+        const composer = composerForSession(renderer, 'parent');
+        expect(composer.props.showWebActionMenu).toBe(true);
+        expect(composer.props.webWorkspaceActions).toEqual(expect.objectContaining({
+            onOpenChanges: expect.any(Function),
+            onOpenChatWorkspace: expect.any(Function),
+            onOpenMachineWorkspace: expect.any(Function),
+        }));
     });
 
     it('keeps the consolidated Web Mobile menu when the provider cannot browse files or use a shell', () => {
@@ -1041,17 +1046,22 @@ describe('SessionView Web Mobile workspace access', () => {
         const renderer = renderParent();
         const composer = composerForSession(renderer, 'parent');
 
-        expect(composer.props.showWebMobileActionMenu).toBe(true);
-        expect(composer.props.mobileWorkspaceActions).toBeUndefined();
+        expect(composer.props.showWebActionMenu).toBe(true);
+        expect(composer.props.webWorkspaceActions).toBeUndefined();
     });
 
-    it('updates Machine Workspace from the newly active Side chat machine and cwd', () => {
-        mocks.width = 390;
+    it.each([
+        ['Web Desktop', 1280],
+        ['Web Mobile', 390],
+    ] as const)('updates Machine Workspace from the newly active Side chat machine and cwd on %s', (_surface, width) => {
+        mocks.width = width;
         mocks.height = 844;
         const renderer = renderParent();
 
         pressByLabel(renderer, 'Open side chats (3)');
-        const newestActions = composerForSession(renderer, 'newest').props.mobileWorkspaceActions;
+        const newestComposer = composerForSession(renderer, 'newest');
+        expect(newestComposer.props.showWebActionMenu).toBe(true);
+        const newestActions = newestComposer.props.webWorkspaceActions;
         expect(newestActions).toBeDefined();
         act(() => newestActions.onOpenMachineWorkspace());
         expect(renderer.root.findByType('MachineWorkspaceBrowser' as any).props).toMatchObject({
@@ -1060,8 +1070,11 @@ describe('SessionView Web Mobile workspace access', () => {
         });
 
         act(() => renderer.root.findByType('DesktopFileWorkspace' as any).props.onClosePicker());
+        if (width >= 900) pressByLabel(renderer, 'Open side chats (3)');
         pressTab(renderer, 'oldest');
-        const oldestActions = composerForSession(renderer, 'oldest').props.mobileWorkspaceActions;
+        const oldestComposer = composerForSession(renderer, 'oldest');
+        expect(oldestComposer.props.showWebActionMenu).toBe(true);
+        const oldestActions = oldestComposer.props.webWorkspaceActions;
         expect(oldestActions).toBeDefined();
         act(() => oldestActions.onOpenMachineWorkspace());
         expect(renderer.root.findByType('MachineWorkspaceBrowser' as any).props).toMatchObject({
@@ -1113,7 +1126,7 @@ describe('SessionView Web Mobile workspace access', () => {
         act(() => {
             modalRenderer = create(React.createElement(FirstModalHost));
         });
-        const modalWorkspaceActions = composerForSession(modalRenderer, 'newest').props.mobileWorkspaceActions;
+        const modalWorkspaceActions = composerForSession(modalRenderer, 'newest').props.webWorkspaceActions;
         expect(modalWorkspaceActions).toEqual(expect.objectContaining({
             onOpenChanges: expect.any(Function),
             onOpenChatWorkspace: expect.any(Function),
@@ -1188,7 +1201,7 @@ describe('SessionView Web Mobile workspace access', () => {
         const renderer = renderParent();
 
         expect(renderer.root.findAllByType('VoiceAssistantStatusBar' as any)).toHaveLength(1);
-        act(() => composerForSession(renderer, 'parent').props.mobileWorkspaceActions.onOpenChanges());
+        act(() => composerForSession(renderer, 'parent').props.webWorkspaceActions.onOpenChanges());
         const overlay = renderer.root.findByProps({ testID: 'mobile-changes-workspace-overlay' });
         expect(overlay.props.style).toMatchObject({ top: 88 });
     });

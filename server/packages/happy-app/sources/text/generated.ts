@@ -415,6 +415,7 @@ export type TranslationKey =
     | "happyHerd.composer.addAttachment"
     | "happyHerd.composer.addPhoto"
     | "happyHerd.composer.addPhotos"
+    | "happyHerd.composer.attachments"
     | "happyHerd.composer.cancelVoice"
     | "happyHerd.composer.deviceFiles"
     | "happyHerd.composer.finishVoice"
