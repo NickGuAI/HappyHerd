@@ -67,8 +67,7 @@ interface AgentInputProps {
     /** Session-scoped file surfaces consolidated into the Web composer menu. */
     webWorkspaceActions?: {
         onOpenChanges: () => void;
-        onOpenChatWorkspace: () => void;
-        onOpenMachineWorkspace: () => void;
+        onOpenWorkspace: () => void;
     };
     sendIcon?: React.ReactNode;
     onMicPress?: () => void;
@@ -138,7 +137,7 @@ interface AgentInputProps {
     onAddImages?: (images: AttachmentPreview[]) => void;
     /** Explicit workspace files/directories embedded in the next user message. */
     selectedContextEntries?: readonly WorkspaceContextEntry[];
-    onRemoveContextEntry?: (path: string) => void;
+    onRemoveContextEntry?: (entry: WorkspaceContextEntry) => void;
     dictationPhase?: VoiceDictationPhase;
     dictationError?: string | null;
     onDictationCancel?: () => void;
@@ -1429,15 +1428,10 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                 icon: 'git-compare-outline',
                 onPress: workspace.onOpenChanges,
             }, {
-                key: 'chat-workspace',
-                label: t('files.allFiles'),
-                icon: 'folder-open-outline',
-                onPress: workspace.onOpenChatWorkspace,
-            }, {
-                key: 'machine-workspace',
+                key: 'workspace',
                 label: t('workspace.title'),
                 icon: 'desktop-outline',
-                onPress: workspace.onOpenMachineWorkspace,
+                onPress: workspace.onOpenWorkspace,
             });
         }
 

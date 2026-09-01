@@ -811,7 +811,7 @@ export async function machineGetDirectoryTree(
 
 /**
  * Read a file through the machine daemon rather than an agent session. This is
- * the transport used by the independent Machine Workspace, so browsing and
+ * the transport used by Workspace, so browsing and
  * previewing do not require a running session.
  */
 export async function machineReadFile(machineId: string, path: string): Promise<SessionReadFileResponse> {

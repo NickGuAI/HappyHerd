@@ -31,7 +31,7 @@ export type SessionActionShortcutId =
     | 'copy-metadata-and-logs'
     | 'archive';
 
-export type SidebarPickerShortcutId = 'changes' | 'allFiles' | 'newSideChat';
+export type SidebarPickerShortcutId = 'changes' | 'workspace' | 'newSideChat';
 
 export interface ShortcutChord {
     key: string;
@@ -54,7 +54,7 @@ export const SESSION_ACTION_SHORTCUTS: Readonly<Record<SessionActionShortcutId, 
 
 export const SIDEBAR_PICKER_SHORTCUTS: Readonly<Record<SidebarPickerShortcutId, ShortcutChord>> = {
     changes: { key: 'c', code: 'KeyC', keyLabel: 'C', altKey: true },
-    allFiles: { key: 'f', code: 'KeyF', keyLabel: 'F', altKey: true },
+    workspace: { key: 'f', code: 'KeyF', keyLabel: 'F', altKey: true },
     newSideChat: { key: 's', code: 'KeyS', keyLabel: 'S', altKey: true },
 };
 

@@ -272,9 +272,9 @@
     "imageUploadSubtitle": "Attach images to messages for supported agents to analyze"
   },
   "workspace": {
-    "title": "Machine Workspace",
+    "title": "Workspace",
     "featureSubtitle": "Browse and edit files on connected machines without starting a session",
-    "featureDisabled": "Machine Workspace is disabled",
+    "featureDisabled": "Workspace is disabled",
     "featureDisabledDescription": "Enable it in Features to expose the standalone Workspace.",
     "openFeatures": "Open Features",
     "selectMachine": "Select a machine",
@@ -883,7 +883,6 @@
         }
       }
     },
-    "allFiles": "Chat Workspace",
     "addPanel": "Add panel",
     "closePanel": "Close panel",
     "openFileTab": "Open file tab {name}",

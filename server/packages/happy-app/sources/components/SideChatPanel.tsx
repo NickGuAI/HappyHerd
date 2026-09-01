@@ -366,13 +366,9 @@ const SideChatModal = React.memo(function SideChatModal({
                 dismiss();
                 workspaceController.openChanges(targetSessionId);
             },
-            openChatWorkspace: (targetSessionId) => {
+            openWorkspace: (targetSession) => {
                 dismiss();
-                workspaceController.openChatWorkspace(targetSessionId);
-            },
-            openMachineWorkspace: (targetSession) => {
-                dismiss();
-                workspaceController.openMachineWorkspace(targetSession);
+                workspaceController.openWorkspace(targetSession);
             },
             openWorkspaceLink: (route) => {
                 dismiss();

@@ -131,6 +131,7 @@ import {
     buildWorkspaceContextMessage,
     clearWorkspaceContextFiles,
     MAX_WORKSPACE_CONTEXT_ITEMS,
+    workspaceContextEntryKey,
     type WorkspaceContextEntry,
 } from '@/sync/workspaceContext';
 import { resolveHappyAgentSpawnTarget } from '@/sync/happyAgentSpawn';
@@ -1041,7 +1042,10 @@ function NewSessionScreen() {
     const handleWorkspaceUploaded = React.useCallback((filePath: string) => {
         if (!selectedMachineId) return;
         setWorkspaceEntries((current) => (
-            current.some((entry) => entry.path === filePath) || current.length >= MAX_WORKSPACE_CONTEXT_ITEMS
+            current.some((entry) => workspaceContextEntryKey(entry) === workspaceContextEntryKey({
+                path: filePath,
+                source: { kind: 'machine', machineId: selectedMachineId },
+            })) || current.length >= MAX_WORKSPACE_CONTEXT_ITEMS
                 ? current
                 : [...current, {
                     path: filePath,
@@ -1052,8 +1056,9 @@ function NewSessionScreen() {
     }, [selectedMachineId]);
     const toggleWorkspaceEntry = React.useCallback((entry: WorkspaceContextEntry) => {
         setWorkspaceEntries((current) => {
-            const existing = current.some((candidate) => candidate.path === entry.path);
-            if (existing) return current.filter((candidate) => candidate.path !== entry.path);
+            const entryKey = workspaceContextEntryKey(entry);
+            const existing = current.some((candidate) => workspaceContextEntryKey(candidate) === entryKey);
+            if (existing) return current.filter((candidate) => workspaceContextEntryKey(candidate) !== entryKey);
             if (current.length >= MAX_WORKSPACE_CONTEXT_ITEMS) return current;
             return [...current, entry];
         });
@@ -2682,7 +2687,9 @@ function NewSessionScreen() {
         >
             <WorkspaceContextStrip
                 entries={workspaceEntries}
-                onRemove={(path) => setWorkspaceEntries((current) => current.filter((entry) => entry.path !== path))}
+                onRemove={(removedEntry) => setWorkspaceEntries((current) => current.filter(
+                    (entry) => workspaceContextEntryKey(entry) !== workspaceContextEntryKey(removedEntry),
+                ))}
             />
             {canUseImageAttachments && imagePicker.selectedImages.length > 0 && (
                 <AgentInputAttachmentStrip

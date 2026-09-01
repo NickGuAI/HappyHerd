@@ -7,7 +7,11 @@ import { BubblePressable } from '@/components/BubblePressable';
 import { Text } from '@/components/StyledText';
 import { Modal } from '@/modal';
 import { machineCreateDirectory, machineGetDirectoryTree, type DirectoryTreeNode } from '@/sync/ops';
-import { MAX_WORKSPACE_CONTEXT_ITEMS, type WorkspaceContextEntry } from '@/sync/workspaceContext';
+import {
+    MAX_WORKSPACE_CONTEXT_ITEMS,
+    workspaceContextEntryKey,
+    type WorkspaceContextEntry,
+} from '@/sync/workspaceContext';
 import { t } from '@/text';
 import { Typography } from '@/constants/Typography';
 import { parentHostPath } from '@/utils/hostPath';
@@ -64,9 +68,13 @@ export function MachineWorkspaceContextPicker({
         return () => { cancelled = true; };
     }, [currentDirectory, machineId, online, reloadToken]);
 
-    const selectedPaths = React.useMemo(() => new Set(entries.map((entry) => entry.path)), [entries]);
+    const selectedKeys = React.useMemo(
+        () => new Set(entries.map(workspaceContextEntryKey)),
+        [entries],
+    );
     const toggle = React.useCallback((path: string, kind: 'file' | 'directory') => {
-        if (!selectedPaths.has(path) && entries.length >= MAX_WORKSPACE_CONTEXT_ITEMS) {
+        const entry = { path, kind, source: { kind: 'machine' as const, machineId } };
+        if (!selectedKeys.has(workspaceContextEntryKey(entry)) && entries.length >= MAX_WORKSPACE_CONTEXT_ITEMS) {
             Modal.alert(
                 t('common.files'),
                 t('workspace.selectedItemsCount', {
@@ -76,8 +84,8 @@ export function MachineWorkspaceContextPicker({
             );
             return;
         }
-        onToggle({ path, kind, source: { kind: 'machine', machineId } });
-    }, [entries.length, machineId, onToggle, selectedPaths]);
+        onToggle(entry);
+    }, [entries.length, machineId, onToggle, selectedKeys]);
 
     const createFolder = React.useCallback(async () => {
         if (creatingFolder || !online) return;
@@ -105,7 +113,10 @@ export function MachineWorkspaceContextPicker({
     }, [creatingFolder, currentDirectory, machineId, online]);
 
     const children = sortWorkspaceContextTreeEntries(tree?.children ?? []);
-    const currentSelected = selectedPaths.has(currentDirectory);
+    const currentSelected = selectedKeys.has(workspaceContextEntryKey({
+        path: currentDirectory,
+        source: { kind: 'machine', machineId },
+    }));
 
     return (
         <View style={styles.container}>
@@ -182,7 +193,10 @@ export function MachineWorkspaceContextPicker({
             ) : (
                 <ScrollView style={styles.list} keyboardShouldPersistTaps="handled">
                     {children.map((entry) => {
-                        const selected = selectedPaths.has(entry.path);
+                        const selected = selectedKeys.has(workspaceContextEntryKey({
+                            path: entry.path,
+                            source: { kind: 'machine', machineId },
+                        }));
                         return (
                             <Pressable
                                 key={entry.path}

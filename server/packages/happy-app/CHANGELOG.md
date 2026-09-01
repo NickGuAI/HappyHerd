@@ -1,3 +1,8 @@
+# September 1 — One Workspace for every chat
+
+- Open Workspace from a Main Agent or active Side chat at that exact chat's connected machine and current directory, then browse the full machine on Web Desktop or Web Mobile.
+- Add existing files and folders directly to that chat's next message without uploading, copying, moving, or switching sessions; reply file links outside the current directory remain available in the same Workspace.
+
 # September 1 — User Safeguard
 
 - Added an account-synced, default-off User Safeguard that applies happyherd-user-safeguard only to HappyHerd app-sent Human turns; direct terminal turns, scheduled jobs, memory maintenance, and heartbeats bypass it.

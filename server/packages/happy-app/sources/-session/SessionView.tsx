@@ -44,7 +44,7 @@ import { isRunningOnMac } from '@/utils/platform';
 import { useDeviceType, useHeaderHeight, useIsLandscape, useIsTablet } from '@/utils/responsive';
 import { resolveStatusBarGitBranch } from '@/utils/sessionStatusBar';
 import { visibleRigGitLineChanges } from '@/utils/rigGitLineChanges';
-import { AllFilesPicker, FilesSidebar, SidebarMode } from '@/components/FilesSidebar';
+import { FilesSidebar, SidebarMode } from '@/components/FilesSidebar';
 import { DesktopFileWorkspace, DesktopFileWorkspaceSplit } from '@/components/DesktopFileWorkspace';
 import {
     closeDesktopFile,
@@ -127,8 +127,7 @@ const SESSION_FILE_WORKSPACE_SPLIT_MIN_WINDOW_WIDTH = 900;
 
 export type SessionWorkspaceController = {
     openChanges: (sessionId: string) => void;
-    openChatWorkspace: (sessionId: string) => void;
-    openMachineWorkspace: (session: Session) => void;
+    openWorkspace: (session: Session) => void;
     openWorkspaceLink: (route: WorkspaceLinkRoute) => void;
 };
 
@@ -192,7 +191,6 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     // Match left sidebar width: 30% of window, clamped to 250–360px
     const sidebarWidth = Math.min(Math.max(Math.floor(windowWidth * 0.3), 250), 360);
     const [desktopFileWorkspace, setDesktopFileWorkspace] = React.useState(EMPTY_DESKTOP_FILE_WORKSPACE);
-    const [desktopFilePickerOpen, setDesktopFilePickerOpen] = React.useState(false);
     const [desktopMachinePickerOpen, setDesktopMachinePickerOpen] = React.useState(false);
     const [desktopMachinePickerTarget, setDesktopMachinePickerTarget] = React.useState<{ machineId: string; path: string } | null>(null);
     const [desktopDirtyPaths, setDesktopDirtyPaths] = React.useState<Set<string>>(() => new Set());
@@ -209,7 +207,6 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     React.useEffect(() => {
         workspaceLinkRequestGeneration.current += 1;
         setDesktopFileWorkspace(EMPTY_DESKTOP_FILE_WORKSPACE);
-        setDesktopFilePickerOpen(false);
         setDesktopMachinePickerOpen(false);
         setDesktopMachinePickerTarget(null);
         const cleanDirtyPaths = new Set<string>();
@@ -224,21 +221,26 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     // Sidebar panels are user-managed and persisted in local settings so the
     // layout (which panels are open + which is active) survives reloads and
     // long absences. State is device-local, shared across sessions.
-    const sidebarPanelsOpenRaw = useLocalSetting('sidebarPanelsOpen') as SidebarMode[];
-    const sidebarPanelActiveRaw = useLocalSetting('sidebarPanelActive') as SidebarMode | null;
+    const sidebarPanelsOpenRaw = useLocalSetting('sidebarPanelsOpen') as Array<SidebarMode | 'allFiles'>;
+    const sidebarPanelActiveRaw = useLocalSetting('sidebarPanelActive') as SidebarMode | 'allFiles' | null;
     const sidebarSideChatSessionId = useLocalSetting('sidebarSideChatSessionId');
     // File-panel preferences are device-global, but a Side chat panel belongs
     // to one parent session. React Navigation may retain other SessionViews;
     // they must neither render nor clear the foreground parent's panel.
     const sidebarPanelsOpen = React.useMemo<SidebarMode[]>(() => (
-        sidebarPanelsOpenRaw.filter((panel) => (
-            panel !== 'sideChat' || sidebarSideChatSessionId === sessionId
+        sidebarPanelsOpenRaw.filter((panel): panel is SidebarMode => (
+            panel !== 'allFiles'
+            && (panel !== 'sideChat' || sidebarSideChatSessionId === sessionId)
         ))
     ), [sessionId, sidebarPanelsOpenRaw, sidebarSideChatSessionId]);
     // Guard against an inconsistent persisted value: the active panel must be
     // one of the open panels, otherwise fall back to the last opened (or none).
     const sidebarPanelActive = React.useMemo<SidebarMode | null>(() => {
-        if (sidebarPanelActiveRaw && sidebarPanelsOpen.includes(sidebarPanelActiveRaw)) {
+        if (
+            sidebarPanelActiveRaw
+            && sidebarPanelActiveRaw !== 'allFiles'
+            && sidebarPanelsOpen.includes(sidebarPanelActiveRaw)
+        ) {
             return sidebarPanelActiveRaw;
         }
         return sidebarPanelsOpen[sidebarPanelsOpen.length - 1] ?? null;
@@ -389,10 +391,9 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         && sideChats.length > 0;
     const fileSidebarPanelExpanded = !zenMode
         && canShowFileSidebar
-        && (sidebarPanelActive === 'changes' || sidebarPanelActive === 'allFiles')
+        && sidebarPanelActive === 'changes'
         && sidebarPanelsOpen.includes(sidebarPanelActive);
     const desktopFileWorkspaceActive = desktopFileWorkspace.paths.length > 0
-        || desktopFilePickerOpen
         || desktopMachinePickerOpen;
     const sideChatOwnsFileWorkspace = sideChatFullscreenOpen
         && desktopFileWorkspaceSessionId !== sessionId;
@@ -643,7 +644,6 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                         machineId: route.params.machineId,
                         path: route.params.absolutePath,
                     });
-                    setDesktopFilePickerOpen(false);
                     setDesktopMachinePickerOpen(true);
                     collapseSidebarPanels();
                     return;
@@ -670,7 +670,6 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                         },
                     );
                 });
-                setDesktopFilePickerOpen(false);
                 setDesktopMachinePickerOpen(false);
                 setDesktopMachinePickerTarget(null);
                 collapseSidebarPanels();
@@ -692,7 +691,6 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
 
     const handleDesktopFileSelect = React.useCallback((path: string) => {
         setDesktopFileWorkspace((current) => selectDesktopFile(current, path));
-        setDesktopFilePickerOpen(false);
         setDesktopMachinePickerOpen(false);
         setDesktopMachinePickerTarget(null);
     }, []);
@@ -709,7 +707,6 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         const close = () => {
             setDesktopFileWorkspace((current) => closeDesktopFile(current, path));
             if (desktopFileWorkspace.paths.length === 1 && desktopFileWorkspace.paths[0] === path) {
-                setDesktopFilePickerOpen(false);
                 setDesktopMachinePickerOpen(false);
                 setDesktopMachinePickerTarget(null);
             }
@@ -729,9 +726,6 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     }, [desktopFileWorkspace.paths, handleDesktopDirtyChange]);
     const handleDesktopFileDeleted = React.useCallback((path: string) => {
         setDesktopFileWorkspace((current) => closeDesktopFile(current, path));
-        if (desktopFileWorkspace.paths.length === 1 && desktopFileWorkspace.paths[0] === path) {
-            setDesktopFilePickerOpen(false);
-        }
         handleDesktopDirtyChange(path, false);
     }, [desktopFileWorkspace.paths, handleDesktopDirtyChange]);
     const handleOverlayFileDeleted = React.useCallback(() => {
@@ -739,28 +733,6 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         setHeaderRightSlot(null);
         setOverlayHistory({ stack: [{ kind: 'none' }], cursor: 0 });
     }, []);
-    const handleAllFilesFilePress = React.useCallback((filePath: string) => {
-        if (canUseDesktopFileWorkspaceSession) {
-            const machineId = desktopFileWorkspaceSession?.metadata?.machineId;
-            if (!machineId) return;
-            setDesktopFileWorkspace((current) => openDesktopFile(current, filePath, {
-                machineId,
-                source: 'session',
-            }));
-            setDesktopFilePickerOpen(false);
-            setDesktopMachinePickerOpen(false);
-            setDesktopMachinePickerTarget(null);
-            collapseSidebarPanels();
-            return;
-        }
-        if (filePath === fileViewPath) return;
-        withFileDiscardConfirmation(() => pushOverlayNow({ kind: 'file', path: filePath }));
-    }, [canUseDesktopFileWorkspaceSession, collapseSidebarPanels, desktopFileWorkspaceSession?.metadata?.machineId, fileViewPath, pushOverlayNow, withFileDiscardConfirmation]);
-    const handleAllFilesFileAttach = React.useCallback((filePath: string) => {
-        if (!addWorkspaceContextFile(desktopFileWorkspaceSessionId, filePath)) {
-            Modal.alert(t("uiCopy.workspaceContext"), t("uiCopy.youCanAttachUpTo8FilesToOneMessage"));
-        }
-    }, [desktopFileWorkspaceSessionId]);
     const handleMachineWorkspaceFilePress = React.useCallback(({ machineId, path }: { machineId: string; path: string }) => {
         setDesktopFileWorkspace((current) => openDesktopFile(current, path, {
             machineId,
@@ -772,34 +744,33 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     }, [collapseSidebarPanels]);
     const openChangesForSession = React.useCallback((targetSessionId: string) => {
         setDesktopFileWorkspaceSessionId(targetSessionId);
-        setDesktopFilePickerOpen(false);
         setDesktopMachinePickerOpen(false);
         setDesktopMachinePickerTarget(null);
         collapseSidebarPanels();
         pushOverlayNow({ kind: 'diff' });
     }, [collapseSidebarPanels, pushOverlayNow]);
-    const openChatWorkspaceForSession = React.useCallback((targetSessionId: string) => {
-        setDesktopFileWorkspaceSessionId(targetSessionId);
-        collapseSidebarPanels();
-        setDesktopMachinePickerOpen(false);
-        setDesktopMachinePickerTarget(null);
-        setDesktopFilePickerOpen(true);
-    }, [collapseSidebarPanels]);
-    const openMachineWorkspaceForSession = React.useCallback((targetSession: Session) => {
+    const openWorkspaceForSession = React.useCallback((targetSession: Session) => {
         setDesktopFileWorkspaceSessionId(targetSession.id);
         collapseSidebarPanels();
-        setDesktopFilePickerOpen(false);
         const machineId = targetSession.metadata?.machineId;
-        const path = targetSession.metadata?.path;
-        setDesktopMachinePickerTarget(machineId && path ? { machineId, path } : null);
+        const path = targetSession.metadata?.path || targetSession.metadata?.homeDir || '/';
+        setDesktopMachinePickerTarget(machineId ? { machineId, path } : null);
         setDesktopMachinePickerOpen(true);
     }, [collapseSidebarPanels]);
     const sessionWorkspaceController = React.useMemo<SessionWorkspaceController>(() => ({
         openChanges: openChangesForSession,
-        openChatWorkspace: openChatWorkspaceForSession,
-        openMachineWorkspace: openMachineWorkspaceForSession,
+        openWorkspace: openWorkspaceForSession,
         openWorkspaceLink: handleWorkspaceLinkPress,
-    }), [handleWorkspaceLinkPress, openChangesForSession, openChatWorkspaceForSession, openMachineWorkspaceForSession]);
+    }), [handleWorkspaceLinkPress, openChangesForSession, openWorkspaceForSession]);
+    const openWorkspaceFromRightSidebar = React.useCallback(() => {
+        const activeSidebarSideChatId = visibleSidebarPanelActive === 'sideChat'
+            ? resolveActiveSideChatId(sideChatIds, activeSideChatId)
+            : null;
+        const targetSession = activeSidebarSideChatId
+            ? sideChats.find((candidate) => candidate.id === activeSidebarSideChatId) ?? session
+            : session;
+        if (targetSession) openWorkspaceForSession(targetSession);
+    }, [activeSideChatId, openWorkspaceForSession, session, sideChatIds, sideChats, visibleSidebarPanelActive]);
 
     // File overlays follow the session's file-panel capabilities. Side chats
     // use their independent full-screen fallback when those are unavailable.
@@ -1141,10 +1112,11 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     const effectiveMachinePickerTarget = desktopMachinePickerTarget ?? sessionMachinePickerTarget;
     const machineWorkspacePicker = effectiveMachinePickerTarget ? (
         <MachineWorkspaceBrowser
-            key={`${effectiveMachinePickerTarget.machineId}:${effectiveMachinePickerTarget.path}`}
+            key={`${desktopFileWorkspaceSessionId}:${effectiveMachinePickerTarget.machineId}:${effectiveMachinePickerTarget.path}`}
             embedded
             initialMachineId={effectiveMachinePickerTarget.machineId}
             initialPath={effectiveMachinePickerTarget.path}
+            workspaceContextSessionId={desktopFileWorkspaceSessionId}
             onFilePress={handleMachineWorkspaceFilePress}
         />
     ) : null;
@@ -1154,22 +1126,14 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             <View style={{ width: sidebarWidth, flex: 1 }}>
                 <FilesSidebar
                     sessionId={sessionId}
-                    selectedPath={sidebarPanelActive === 'changes'
-                        ? scrollToFile
-                        : sidebarPanelActive === 'allFiles'
-                            ? (desktopFileWorkspace.activePath ? desktopFilePath(desktopFileWorkspace.activePath) : fileViewPath)
-                            : null}
+                    selectedPath={sidebarPanelActive === 'changes' ? scrollToFile : null}
                     onFilePress={handleSidebarFilePress}
                     openPanels={visibleSidebarPanels}
                     activePanel={visibleSidebarPanelActive}
                     onOpenPanel={openMainSidebarPanel}
                     onSelectPanel={selectMainSidebarPanel}
                     onClosePanel={removeSidebarPanel}
-                    onAllFilesFilePress={handleAllFilesFilePress}
-                    onAllFilesFileAttach={handleAllFilesFileAttach}
-                    onOpenMachineWorkspace={() => {
-                        if (session) openMachineWorkspaceForSession(session);
-                    }}
+                    onOpenWorkspace={openWorkspaceFromRightSidebar}
                     canOpenFilePanels={canShowFileSidebar}
                     sideChats={sideChats}
                     activeSideChatId={activeSideChatId}
@@ -1193,33 +1157,17 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                         activePath={desktopFileWorkspace.activePath}
                         references={desktopFileWorkspace.references}
                         dirtyPaths={desktopDirtyPaths}
-                        pickerOpen={desktopFilePickerOpen}
                         machinePickerOpen={desktopMachinePickerOpen}
                         compact={desktopFileWorkspaceFullscreen}
-                        picker={(
-                            <AllFilesPicker
-                                sessionId={desktopFileWorkspaceSessionId}
-                                selectedPath={desktopFileWorkspace.activePath ? desktopFilePath(desktopFileWorkspace.activePath) : null}
-                                onFilePress={handleAllFilesFilePress}
-                                onFileAttach={handleAllFilesFileAttach}
-                            />
-                        )}
                         machinePicker={machineWorkspacePicker}
                         onSelect={handleDesktopFileSelect}
                         onRequestClose={handleDesktopFileClose}
                         onFileDeleted={handleDesktopFileDeleted}
-                        onOpenPicker={() => {
-                            setDesktopMachinePickerOpen(false);
-                            setDesktopMachinePickerTarget(null);
-                            setDesktopFilePickerOpen(true);
-                        }}
                         onOpenMachinePicker={() => {
-                            setDesktopFilePickerOpen(false);
                             setDesktopMachinePickerTarget(null);
                             setDesktopMachinePickerOpen(true);
                         }}
                         onClosePicker={() => {
-                            setDesktopFilePickerOpen(false);
                             setDesktopMachinePickerOpen(false);
                             setDesktopMachinePickerTarget(null);
                         }}
@@ -1382,8 +1330,7 @@ export function SessionViewLoaded({
         && rigCanUseShell(session.metadata)
             ? {
                 onOpenChanges: () => workspaceController.openChanges(sessionId),
-                onOpenChatWorkspace: () => workspaceController.openChatWorkspace(sessionId),
-                onOpenMachineWorkspace: () => workspaceController.openMachineWorkspace(session),
+                onOpenWorkspace: () => workspaceController.openWorkspace(session),
             }
             : undefined
     ), [isWebSessionViewport, session, sessionId, workspaceController]);
@@ -2004,7 +1951,7 @@ export function SessionViewLoaded({
                 onRemoveImage={expImageUpload && canUseAttachments ? removeImage : undefined}
                 onAddImages={expImageUpload && canUseAttachments ? addImages : undefined}
                 selectedContextEntries={selectedContextEntries}
-                onRemoveContextEntry={(path) => removeWorkspaceContextEntry(sessionId, path)}
+                onRemoveContextEntry={(entry) => removeWorkspaceContextEntry(sessionId, entry)}
                 autocompletePrefixes={AGENT_INPUT_AUTOCOMPLETE_PREFIXES}
                 autocompleteSuggestions={handleAutocompleteSuggestions}
                 usageData={usageData}

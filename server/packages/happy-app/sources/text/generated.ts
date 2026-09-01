@@ -215,7 +215,6 @@ export type TranslationKey =
     | "feed.friendRequestFrom"
     | "feed.friendRequestGeneric"
     | "files.addPanel"
-    | "files.allFiles"
     | "files.binaryFile"
     | "files.cannotDisplayBinary"
     | "files.changedFiles"

@@ -212,3 +212,10 @@ WEB_COMPOSER_ACTIONS	accepted	feat(app): consolidate web composer actions	server
 WEB_COMPOSER_RELEASE_ARTIFACTS	accepted	chore(app): register composer UX release artifacts (#204)	server/packages/happy-app/sources/changelog/changelog.json
 ABSOLUTE_FILE_LINK_MACHINE_TRANSPORT	accepted	fix(app): open explicit file links across machine paths (#206)	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 ABSOLUTE_FILE_LINK_DIRTY_PRESERVATION	accepted	fix(app): preserve dirty tabs during file-link upgrades (#206)	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
+WORKSPACE_CONTEXT_UNIFICATION	accepted	feat(app): attach context from embedded workspace	server/packages/happy-app/sources/app/(app)/workspace/index.embedded.test.ts
+WORKSPACE_CONTEXT_UNIFICATION	accepted	test(app): cover unified workspace actions	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
+WORKSPACE_CONTEXT_UNIFICATION	accepted	test(workspace): cover unified Human entry	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
+WORKSPACE_UNIFICATION	accepted	docs(workspace): document unified Workspace contract	.dev/playbooks/file-workspaces.md
+WORKSPACE_CONTEXT_UNIFICATION	accepted	feat(workspace): unify browsing and session context	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
+WORKSPACE_CONTEXT_UNIFICATION	accepted	fix(workspace): target active side chat from sidebar	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
+WORKSPACE_CONTEXT_IDENTITY	accepted	fix(workspace): preserve machine context identity	server/packages/happy-app/sources/sync/workspaceContext.test.ts

@@ -32,13 +32,13 @@ export function openDesktopFile(
     // Identity is the machine and absolute path. A machine-backed reopen
     // upgrades an earlier session-backed tab because explicit absolute links
     // are not limited to the session cwd. Never downgrade a machine-backed
-    // tab when Chat Workspace later reopens the same path.
+    // tab when Workspace later reopens the same path.
     const source: DesktopFileReference['source'] = current?.source === 'machine' || reference.source === 'machine'
         ? 'machine'
         : 'session';
     const next = current
         ? reference.line === undefined
-            // Chat and Machine Workspace reopens retain an existing link
+            // Workspace reopens retain an existing link
             // location. A new located link replaces the whole location so a
             // stale column cannot accompany its newer line.
             ? current.source === source ? current : { ...current, source }

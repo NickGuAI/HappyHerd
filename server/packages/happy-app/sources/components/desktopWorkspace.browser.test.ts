@@ -186,7 +186,7 @@ const virtualModules: Record<string, string> = {
         export const machineGetDirectoryTree = async (machineId, path, depth) => {
             window.__MACHINE_DIRECTORY_CALLS__ = [...(window.__MACHINE_DIRECTORY_CALLS__ ?? []), { machineId, path, depth }];
             if (machineId !== 'machine-2' || path !== '/machine-root' || depth !== 1) {
-                return { success: false, error: 'Unexpected Machine Workspace request' };
+                return { success: false, error: 'Unexpected Workspace request' };
             }
             return {
                 success: true,
@@ -194,16 +194,22 @@ const virtualModules: Record<string, string> = {
                     type: 'directory',
                     name: 'machine-root',
                     path: '/machine-root',
-                    children: [{ type: 'file', name: 'remote.md', path: '/machine-root/remote.md', size: 23 }],
+                    children: [
+                        { type: 'directory', name: 'project', path: '/machine-root/project', children: [] },
+                        { type: 'file', name: 'remote.md', path: '/machine-root/remote.md', size: 23 },
+                        { type: 'file', name: 'second.md', path: '/machine-root/second.md', size: 19 },
+                    ],
                 },
             };
         };
         export const machineCreateDirectory = async () => ({ success: false, error: 'Not implemented by fixture' });
         export const machineReadFile = async (machineId, path) => {
             window.__MACHINE_READ_CALLS__ = [...(window.__MACHINE_READ_CALLS__ ?? []), { machineId, path }];
-            return machineId === 'machine-2' && path === '/machine-root/remote.md'
+            return machineId === 'machine-2' && (
+                path === '/machine-root/remote.md' || path === '/machine-root/second.md'
+            )
                 ? { success: true, content }
-                : { success: false, error: 'Unexpected Machine Workspace read' };
+                : { success: false, error: 'Unexpected Workspace read' };
         };
         export const machineWriteFile = async () => ({ success: true, hash: 'saved-hash' });
         export const sessionReadFile = async () => ({ success: true, content });
@@ -234,9 +240,32 @@ const virtualModules: Record<string, string> = {
     `,
     '@/sync/workspaceContext': `
         export const MAX_WORKSPACE_CONTEXT_ITEMS = 8;
-        export const getWorkspaceContextEntries = () => [];
-        export const addWorkspaceContextEntry = () => true;
-        export const removeWorkspaceContextEntry = () => undefined;
+        const entries = new Map();
+        const empty = [];
+        const listeners = new Set();
+        export const workspaceContextEntryKey = (entry) => JSON.stringify(entry.source.kind === 'machine'
+            ? ['machine', entry.source.machineId, entry.path]
+            : ['session', entry.path]);
+        export const getWorkspaceContextEntries = (sessionId) => entries.get(sessionId) ?? empty;
+        export const subscribeWorkspaceContext = (listener) => {
+            listeners.add(listener);
+            return () => listeners.delete(listener);
+        };
+        export const addWorkspaceContextEntry = (sessionId, entry) => {
+            const current = entries.get(sessionId) ?? [];
+            const key = workspaceContextEntryKey(entry);
+            entries.set(sessionId, [...current.filter((candidate) => workspaceContextEntryKey(candidate) !== key), entry]);
+            window.__WORKSPACE_CONTEXT_CALLS__ = [...(window.__WORKSPACE_CONTEXT_CALLS__ ?? []), { action: 'add', sessionId, entry }];
+            listeners.forEach((listener) => listener());
+            return true;
+        };
+        export const removeWorkspaceContextEntry = (sessionId, entryOrPath) => {
+            entries.set(sessionId, (entries.get(sessionId) ?? []).filter((entry) => typeof entryOrPath === 'string'
+                ? entry.path !== entryOrPath
+                : workspaceContextEntryKey(entry) !== workspaceContextEntryKey(entryOrPath)));
+            window.__WORKSPACE_CONTEXT_CALLS__ = [...(window.__WORKSPACE_CONTEXT_CALLS__ ?? []), { action: 'remove', sessionId, entryOrPath }];
+            listeners.forEach((listener) => listener());
+        };
     `,
     '@/hooks/useMachineFileUpload': `
         export const useMachineFileUpload = () => ({
@@ -289,7 +318,6 @@ const virtualModules: Record<string, string> = {
             'common.back': 'Back',
             'common.cancel': 'Cancel',
             'common.error': 'Error',
-            'files.allFiles': 'Chat Workspace',
             'files.changes': 'Changes',
             'files.noChangesTitle': 'No changes',
             'files.noChangesSubtitle': 'No changed files in this session.',
@@ -321,7 +349,7 @@ const virtualModules: Record<string, string> = {
             'uiCopy.unsaved': 'Unsaved',
             'zen.toggle': 'Toggle Zen mode',
             'settings.machines': 'Machines',
-            'workspace.title': 'Machine Workspace',
+            'workspace.title': 'Workspace',
             'workspace.pathPlaceholder': 'Path',
             'workspace.go': 'Go',
             'workspace.home': 'Home',
@@ -332,6 +360,8 @@ const virtualModules: Record<string, string> = {
             'workspace.upload': 'Upload',
             'workspace.newFolder': 'New folder',
             'workspace.searchPlaceholder': 'Search files',
+            'uiCopy.attachValueToNextMessage': 'Add ' + (params?.value1 ?? '') + ' to message',
+            'uiCopy.removeValueFromMessageContext': 'Remove ' + (params?.value1 ?? '') + ' from message',
         }[key] ?? key);
     `,
 };
@@ -647,14 +677,16 @@ describe('Desktop workspace browser interaction', () => {
         await page.close();
     }, 10_000);
 
-    it('opens, deduplicates, switches, and closes real tabs without losing an unsaved draft', async () => {
+    it('opens, deduplicates, switches, and closes real tabs through Workspace without losing an unsaved draft', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1200 } });
         const pageErrors = recordPageErrors(page);
         await page.goto(origin);
 
         const wide = page.getByTestId('wide-file-workspace');
-        await wide.getByLabel('Open existing file').click();
-        await wide.getByRole('button', { name: 'Open second.md' }).click();
+        await expect(wide.getByLabel('Open existing file').count()).resolves.toBe(0);
+        await wide.getByLabel('Workspace').click();
+        await wide.getByTestId('machine-picker').waitFor();
+        await wide.getByTestId('machine-picker').getByText('second.md', { exact: true }).click();
         await expect(wide.getByRole('tab').count()).resolves.toBe(2);
 
         await wide.getByRole('tab', { name: 'Open demo.md' }).click();
@@ -665,8 +697,9 @@ describe('Desktop workspace browser interaction', () => {
         await demoEditor.fill('# Unsaved draft\n'.repeat(40));
         await demoEditor.evaluate((element) => { element.scrollTop = 120; });
 
-        await wide.getByLabel('Open existing file').click();
-        await wide.getByRole('button', { name: 'Open second.md' }).click();
+        await wide.getByLabel('Workspace').click();
+        await wide.getByTestId('machine-picker').waitFor();
+        await wide.getByTestId('machine-picker').getByText('second.md', { exact: true }).click();
         await expect(wide.getByRole('tab').count()).resolves.toBe(2);
         await wide.getByRole('tab', { name: 'Open demo.md' }).click();
         await expect(demoEditor.inputValue()).resolves.toBe('# Unsaved draft\n'.repeat(40));
@@ -681,19 +714,19 @@ describe('Desktop workspace browser interaction', () => {
         await page.close();
     }, 10_000);
 
-    it('opens the real Machine Workspace directory and shares its selected file as a canonical tab', async () => {
+    it('opens the real Workspace directory and shares its selected file as a canonical tab', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1200 } });
         const pageErrors = recordPageErrors(page);
         await page.goto(origin);
 
         const wide = page.getByTestId('wide-file-workspace');
-        await wide.getByLabel('Machine Workspace').click({ timeout: 3_000 });
+        await wide.getByLabel('Workspace').click({ timeout: 3_000 });
         await expect(wide.getByTestId('machine-picker').isVisible()).resolves.toBe(true);
         await wide.getByTestId('desktop-file-workspace-picker-close').click({ timeout: 3_000 });
         await expect(wide.getByTestId('machine-picker').isVisible()).resolves.toBe(false);
         await expect(wide.getByRole('tab').count()).resolves.toBe(1);
 
-        await wide.getByLabel('Machine Workspace').click({ timeout: 3_000 });
+        await wide.getByLabel('Workspace').click({ timeout: 3_000 });
         await wide.getByText('remote.md', { exact: true }).click({ timeout: 3_000 });
         await expect(wide.getByRole('tab', { name: 'Open remote.md' }).count()).resolves.toBe(1);
         await expect(wide.getByTestId('desktop-file-panel:/machine-root/remote.md').count()).resolves.toBe(1);
@@ -704,8 +737,8 @@ describe('Desktop workspace browser interaction', () => {
             machineId: 'machine-2', path: '/machine-root/remote.md',
         });
 
-        const compact = page.getByTestId('zero-tab-machine-workspace');
-        await compact.getByRole('button', { name: 'Open Machine Workspace' }).click({ timeout: 3_000 });
+        const compact = page.getByTestId('zero-tab-workspace');
+        await compact.getByRole('button', { name: 'Open Workspace' }).click({ timeout: 3_000 });
         await compact.getByTestId('desktop-file-workspace-fullscreen-header').waitFor();
         await expect(compact.getByTestId('zero-tab-machine-picker').isVisible()).resolves.toBe(true);
         await compact.getByTestId('desktop-file-workspace-picker-close').click({ timeout: 3_000 });
@@ -714,7 +747,7 @@ describe('Desktop workspace browser interaction', () => {
         await page.close();
     }, 10_000);
 
-    it('uses the production FilesSidebar entry points for Changes, Chat Workspace, and Machine Workspace', async () => {
+    it('uses one Human-visible Workspace entry and adds existing files and directories to the current chat', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1200 } });
         const pageErrors = recordPageErrors(page);
         await page.goto(origin);
@@ -727,15 +760,35 @@ describe('Desktop workspace browser interaction', () => {
         await expect(sidebar.getByText('No changes', { exact: true }).isVisible()).resolves.toBe(true);
 
         await page.reload();
-        await sidebar.getByText('Chat Workspace', { exact: true }).click();
-        await expect(sidebar.getByText('sidebar.md', { exact: true }).isVisible()).resolves.toBe(true);
-        await sidebar.getByText('sidebar.md', { exact: true }).click();
-        await expect(workspace.getByRole('tab', { name: 'Open sidebar.md' }).count()).resolves.toBe(1);
-
-        await page.reload();
-        await sidebar.getByText('Machine Workspace', { exact: true }).click();
+        await expect(sidebar.getByText('Chat Workspace', { exact: true }).count()).resolves.toBe(0);
+        await expect(sidebar.getByText('Machine Workspace', { exact: true }).count()).resolves.toBe(0);
+        await sidebar.getByText('Workspace', { exact: true }).click();
         await expect(workspace.getByTestId('production-machine-picker').isVisible()).resolves.toBe(true);
         await expect(workspace.getByText('remote.md', { exact: true }).isVisible()).resolves.toBe(true);
+        await workspace.getByLabel('Add remote.md to message').click();
+        await workspace.getByLabel('Add project to message').click();
+        await expect(page.evaluate(() => (window as any).__WORKSPACE_CONTEXT_CALLS__ ?? [])).resolves.toEqual([
+            {
+                action: 'add',
+                sessionId: 'ordinary-session',
+                entry: {
+                    path: '/machine-root/remote.md',
+                    kind: 'file',
+                    source: { kind: 'machine', machineId: 'machine-2' },
+                },
+            },
+            {
+                action: 'add',
+                sessionId: 'ordinary-session',
+                entry: {
+                    path: '/machine-root/project',
+                    kind: 'directory',
+                    source: { kind: 'machine', machineId: 'machine-2' },
+                },
+            },
+        ]);
+        await workspace.getByText('remote.md', { exact: true }).click();
+        await expect(workspace.getByRole('tab', { name: 'Open remote.md' }).count()).resolves.toBe(1);
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 10_000);

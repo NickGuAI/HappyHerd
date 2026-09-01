@@ -84,6 +84,10 @@ describe('WorkspaceContextStrip', () => {
             accessibilityLabel: 'uiCopy.removeValueFromMessageContext:/srv/project/docs',
         });
         act(() => removeDirectory.props.onPress());
-        expect(onRemove).toHaveBeenCalledWith('/srv/project/docs');
+        expect(onRemove).toHaveBeenCalledWith({
+            path: '/srv/project/docs',
+            kind: 'directory',
+            source: { kind: 'machine', machineId: 'machine-one' },
+        });
     });
 });
