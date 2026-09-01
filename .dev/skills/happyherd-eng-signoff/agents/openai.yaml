@@ -1,0 +1,4 @@
+interface:
+  display_name: "HappyHerd Engineering Sign-off"
+  short_description: "Verify one delivered HappyHerd revision and classify needs"
+  default_prompt: "Verify one delivered HappyHerd revision and classify build, install, deploy, and restart needs using the $happyherd-eng-signoff skill. Default to no activation, and do not perform or imply any automatic merge, deployment, or restart."

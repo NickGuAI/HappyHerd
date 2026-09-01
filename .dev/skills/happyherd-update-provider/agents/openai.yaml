@@ -1,0 +1,4 @@
+interface:
+  display_name: "HappyHerd Update Provider"
+  short_description: "Design, test, and diagnose HappyHerd providers."
+  default_prompt: "Use $happyherd-update-provider to add, update, test, or diagnose this HappyHerd provider integration."

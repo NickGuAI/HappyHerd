@@ -50,6 +50,7 @@ Commands in this table run from `server/` unless they start with `scripts/` or
 
 | Changed surface | Required targeted checks |
 |---|---|
+| `.dev` context or HappyHerd skill catalog | Run `git diff --check` and `node scripts/lint-source.mjs`. Validate every changed skill with the installed `skill-creator` `quick_validate.py`; resolve every relative Markdown link from its containing file. When the safeguard skill changes, require `diff -ru .dev/skills/happyherd-user-safeguard server/packages/happy-cli/skills/happyherd-user-safeguard`. When a selective Claude/Codex reinstall is authorized, compare every installed HappyHerd skill with `.dev/skills` and prove an allowlist-excluding fingerprint of every unrelated installed skill is identical before and after. |
 | App logic | `pnpm --filter happy-app typecheck`; `pnpm --filter happy-app test --run` |
 | Provider registry, Agent Defaults, or launch-mode propagation | Focus `sources/sync/agentDefaults.test.ts`, `sources/sync/settings.spec.ts`, `sources/app/(app)/settings/agents.test.ts`, `sources/app/(app)/new/index.launch.test.ts`, `sources/components/modelModeOptions.test.ts`, `sources/hooks/useNewSessionDraft.test.ts`, `sources/hooks/useStartSessionFromDraft.test.ts`, and `sources/utils/newSessionModeSelection.test.ts`; prove active-registry parity, every active provider group, explicit capability-source selection and unavailable states, selected exact-machine catalog ownership, independent provider keys, every cross-provider draft reset, empty unsupported dimensions, Rig spawn payloads in both launchers, and post-await GrokBuild/Rig revalidation; then run the full app checks |
 | New provider or provider protocol behavior | Follow [the provider-onboarding playbook](playbooks/provider-onboarding.md). Prove arbitrary provider-native mode transit through wire, app, and CLI admission; exact-daemon validation and launch arguments; every advertised permission mode's callback behavior; raw/spec-shaped text, thinking, tool start/update/result/error mapping; stable call correlation; and meaningful generic app rendering. Add the missing focused fixture at the owning boundary, then run wire plus affected CLI/app package checks. Run a live provider smoke when its external prerequisites are available; argv proof alone is insufficient. |
@@ -126,7 +127,7 @@ pnpm --filter ./packages/happy-server build
 ## Combined post-update runtime acceptance
 
 When an operator intentionally updates both the central server/Web component
-and a native CLI/daemon host, follow
+and daemon-resident CLI code on a native host, follow
 [`playbooks/post-update-restart.md`](playbooks/post-update-restart.md). Runtime
 acceptance is ordered and is separate from build or CI proof:
 

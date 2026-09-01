@@ -1,0 +1,4 @@
+interface:
+  display_name: "HappyHerd Develop UX"
+  short_description: "Deliver Human-visible HappyHerd UI flows."
+  default_prompt: "Use $happyherd-develop-ux to plan, implement, and prove this HappyHerd UX change on every target surface."
