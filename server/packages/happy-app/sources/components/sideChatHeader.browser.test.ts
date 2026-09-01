@@ -163,7 +163,7 @@ const virtualModules: Record<string, string> = {
             favoriteMachinePaths: [],
         };
         const machines = [
-            { id: 'machine-1', active: true, metadata: { displayName: 'MainEC2', host: 'fixture', homeDir: '/work/project', platform: 'linux', cliAvailability: { claude: true, codex: true } } },
+            { id: 'machine-1', active: true, metadata: { displayName: 'MainEC2', host: 'fixture', homeDir: '/work/project', platform: 'linux', supportsFileDelete: true, cliAvailability: { claude: true, codex: true } } },
         ];
         const changedFiles = (sessionId) => ({
             stagedFiles: [],
@@ -265,7 +265,9 @@ const virtualModules: Record<string, string> = {
     '@/sync/projectFiles': `
         export const getProjectFiles = async (sessionId) => ({
             files: sessionId === 'parent'
-                ? []
+                ? globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.parentProjectFile
+                    ? [{ fullPath: '/work/project/session-note.md' }]
+                    : []
                 : [{ fullPath: '/work/project/chat-' + sessionId + '.md' }],
             generatedAt: Date.now(),
         });
@@ -289,6 +291,10 @@ const virtualModules: Record<string, string> = {
             'files.openExistingFile': 'Open existing file',
             'files.editFile': 'Edit',
             'files.saveFile': 'Save',
+            'files.deleteFile': 'Delete',
+            'files.deleteFileTitle': 'Delete file?',
+            'files.deleteFileMessage': 'Delete ' + (params?.name ?? '') + '?',
+            'files.failedToDelete': 'Failed to delete file',
             'files.noChanges': 'No changes',
             'files.changedFiles': (params?.count ?? 0) + ' changed file',
             'files.searchPlaceholder': 'Search files',
@@ -296,7 +302,11 @@ const virtualModules: Record<string, string> = {
             'happyHerd.composer.attachments': 'Attachments',
             'happyHerd.composer.moreActions': 'More actions',
             'happyHerd.composer.send': 'Send',
+            'happyHerd.composer.addPhoto': 'Add attachment',
+            'happyHerd.composer.addPhotos': 'Add attachment',
+            'happyHerd.composer.sendFailedBody': 'Could not send feedback.',
             'happyHerd.composer.startVoice': 'Start dictation',
+            'review.feedbackPrompt': 'Share file feedback',
             'settings.machines': 'Machines',
             'settingsAppearance.diffStyleOptions.unified': 'Unified',
             'settingsAppearance.diffStyleOptions.split': 'Split',
@@ -410,17 +420,47 @@ const virtualModules: Record<string, string> = {
                 props.input,
                 React.createElement('button', {
                     type: 'button',
-                    'aria-label': 'Open same-session workspace link',
+                    'aria-label': 'Open Main Agent outside file',
                     onClick: () => openWorkspaceLink?.({
                         pathname: '/workspace',
                         params: {
                             mode: 'link',
                             originSessionId: 'parent',
                             machineId: 'machine-1',
-                            absolutePath: '/work/project/notes.md',
+                            absolutePath: '/outside/main-notes.md',
+                            line: '27',
+                            column: '9',
                         },
                     }),
-                }, 'Open workspace link'),
+                }, 'Open Main Agent outside file'),
+                React.createElement('button', {
+                    type: 'button',
+                    'aria-label': 'Open Side chat outside file',
+                    onClick: () => openWorkspaceLink?.({
+                        pathname: '/workspace',
+                        params: {
+                            mode: 'link',
+                            originSessionId: 'child-newest',
+                            machineId: 'machine-1',
+                            absolutePath: '/outside/side-notes.md',
+                            line: '41',
+                            column: '6',
+                        },
+                    }),
+                }, 'Open Side chat outside file'),
+                React.createElement('button', {
+                    type: 'button',
+                    'aria-label': 'Open Main Agent same-path file',
+                    onClick: () => openWorkspaceLink?.({
+                        pathname: '/workspace',
+                        params: {
+                            mode: 'link',
+                            originSessionId: 'parent',
+                            machineId: 'machine-1',
+                            absolutePath: '/work/project/session-note.md',
+                        },
+                    }),
+                }, 'Open Main Agent same-path file'),
             );
         };
     `,
@@ -440,7 +480,6 @@ const virtualModules: Record<string, string> = {
             style: { height: VOICE_PILL_TOTAL_HEIGHT },
         });
     `,
-    '@/components/WorkspaceFeedbackComposer': `export const WorkspaceFeedbackComposer = () => null;`,
     '@/components/RigActivityBar': `export const RigActivityBar = () => null;`,
     '@/components/agentGoalStatus': `export const resolveVisibleAgentGoalStatus = () => null;`,
     '@/components/modelModeOptions': `
@@ -517,16 +556,39 @@ const virtualModules: Record<string, string> = {
                 };
             }
             window.__FILE_TREE_COUNT__ = (window.__FILE_TREE_COUNT__ ?? 0) + 1;
-            return {
+            const response = {
                 success: true,
                 tree: { type: 'file', name: path.split('/').pop() || path, path },
             };
+            if (
+                path === '/work/project/session-note.md'
+                && globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.deferSamePathProbe
+                && !window.__SAME_PATH_PROBE_DEFERRED__
+            ) {
+                window.__SAME_PATH_PROBE_DEFERRED__ = true;
+                return new Promise((resolve) => {
+                    window.__RESOLVE_SAME_PATH_PROBE__ = () => {
+                        delete window.__RESOLVE_SAME_PATH_PROBE__;
+                        resolve(response);
+                    };
+                });
+            }
+            return response;
         };
         export const machineCreateDirectory = async () => ({ success: false, error: 'not used' });
-        export const machineDeleteFile = async () => ({ success: true });
-        export const machineReadFile = async () => ({ success: true, content: btoa('machine file') });
+        export const machineDeleteFile = async (machineId, path) => {
+            window.__MACHINE_DELETE_CALLS__ = [...(window.__MACHINE_DELETE_CALLS__ ?? []), { machineId, path }];
+            return { success: true };
+        };
+        export const machineReadFile = async (machineId, path) => {
+            window.__MACHINE_READ_CALLS__ = [...(window.__MACHINE_READ_CALLS__ ?? []), { machineId, path }];
+            return { success: true, content: btoa('# Outside file\\nMachine transport') };
+        };
         export const machineReadFileWithinRoot = async () => ({ success: false });
-        export const machineWriteFile = async () => ({ success: true, hash: 'hash' });
+        export const machineWriteFile = async (machineId, path, content, expectedHash) => {
+            window.__MACHINE_WRITE_CALLS__ = [...(window.__MACHINE_WRITE_CALLS__ ?? []), { machineId, path, content, expectedHash }];
+            return { success: true, hash: 'hash' };
+        };
         export const machineStopSession = async () => {};
         export const sessionAbort = async () => {};
         export const sessionAllow = async () => {};
@@ -537,9 +599,20 @@ const virtualModules: Record<string, string> = {
         export const sessionSetAgentModes = async () => {};
         export const sessionKill = async () => {};
         export const sessionArchive = async () => {};
-        export const sessionReadFile = async () => ({ success: true, content: btoa('const mobile = true;') });
-        export const sessionWriteFile = async () => ({ success: true, hash: 'saved-hash' });
-        export const sessionDeleteFile = async () => ({ success: true });
+        export const sessionReadFile = async (sessionId, path) => {
+            window.__SESSION_READ_CALLS__ = [...(window.__SESSION_READ_CALLS__ ?? []), { sessionId, path }];
+            return path.startsWith('/outside/')
+                ? { success: false, error: 'fixture session cwd rejection' }
+                : { success: true, content: btoa('const mobile = true;') };
+        };
+        export const sessionWriteFile = async (sessionId, path) => {
+            window.__SESSION_WRITE_CALLS__ = [...(window.__SESSION_WRITE_CALLS__ ?? []), { sessionId, path }];
+            return { success: true, hash: 'saved-hash' };
+        };
+        export const sessionDeleteFile = async (sessionId, path) => {
+            window.__SESSION_DELETE_CALLS__ = [...(window.__SESSION_DELETE_CALLS__ ?? []), { sessionId, path }];
+            return { success: true };
+        };
         export const sessionBash = async () => ({ success: true, stdout: '' });
     `,
     '@/sync/sideChatLifecycle': `export const closeSideChatSession = async () => {}; export const resolveSideChatCloseReconciliation = () => ({ error: null, restoreTab: false });`,
@@ -1016,11 +1089,11 @@ describe('Side chats browser interaction', () => {
         await foreground.getByLabel('Expand side chat').click({ timeout: 3_000 });
         const modal = page.getByTestId('fixture-global-modal');
         await modal.waitFor({ state: 'visible', timeout: 3_000 });
-        await modal.getByRole('button', { name: 'Open same-session workspace link' }).click({ timeout: 3_000 });
+        await modal.getByRole('button', { name: 'Open Side chat outside file' }).click({ timeout: 3_000 });
 
         await modal.waitFor({ state: 'detached', timeout: 3_000 });
         await foreground.getByTestId('desktop-file-workspace').waitFor({ state: 'visible', timeout: 3_000 });
-        await foreground.getByRole('tab', { name: 'Open file notes.md' }).waitFor({ state: 'visible', timeout: 3_000 });
+        await foreground.getByRole('tab', { name: 'Open file side-notes.md' }).waitFor({ state: 'visible', timeout: 3_000 });
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 15_000);
@@ -1063,11 +1136,11 @@ describe('Side chats browser interaction', () => {
         await composerDraft.fill('main draft survives first open');
         await composerDraft.evaluate((element) => { element.dataset.retentionComposer = 'main'; });
 
-        const workspaceLink = foreground.getByRole('button', { name: 'Open same-session workspace link' });
+        const workspaceLink = foreground.getByRole('button', { name: 'Open Main Agent outside file' }).first();
         await workspaceLink.click();
         await expect(page.evaluate(() => (window as any).__FILE_TREE_COUNT__ ?? 0)).resolves.toBe(1);
         const workspace = foreground.getByTestId('desktop-file-workspace');
-        const fileTab = foreground.getByRole('tab', { name: 'Open file notes.md' });
+        const fileTab = foreground.getByRole('tab', { name: 'Open file main-notes.md' });
         const host = foreground.getByTestId('desktop-file-workspace-host');
         const divider = foreground.getByTestId('desktop-file-workspace-divider');
         const split = foreground.getByTestId('desktop-file-workspace-split');
@@ -1105,7 +1178,7 @@ describe('Side chats browser interaction', () => {
         await expect(composerDraft.inputValue()).resolves.toBe('main draft survives first open');
 
         await workspaceLink.click();
-        await expect(foreground.getByRole('tab', { name: 'Open file notes.md' }).count()).resolves.toBe(1);
+        await expect(foreground.getByRole('tab', { name: 'Open file main-notes.md' }).count()).resolves.toBe(1);
 
         await page.mouse.move(
             initialDividerBox.x + initialDividerBox.width / 2,
@@ -1144,7 +1217,7 @@ describe('Side chats browser interaction', () => {
         if (!narrowHostBox || !narrowForegroundBox) throw new Error('fullscreen workspace link has no layout');
         expect(Math.abs(narrowHostBox.width - narrowForegroundBox.width)).toBeLessThan(2);
         expect(Math.abs(narrowHostBox.height - narrowForegroundBox.height)).toBeLessThan(2);
-        await expect(foreground.getByRole('tab', { name: 'Open file notes.md' }).count()).resolves.toBe(0);
+        await expect(foreground.getByRole('tab', { name: 'Open file main-notes.md' }).count()).resolves.toBe(0);
         await expect(workspace.isVisible()).resolves.toBe(true);
         await expect(foreground.locator('textarea[data-retention-composer="main"]').isVisible()).resolves.toBe(true);
         await expect(composerDraft.inputValue()).resolves.toBe('main draft survives first open');
@@ -1170,12 +1243,12 @@ describe('Side chats browser interaction', () => {
         await composerDraft.waitFor({ state: 'visible', timeout: 3_000 });
         await composerDraft.fill('mobile draft survives first open');
         await composerDraft.evaluate((element) => { element.dataset.retentionComposer = 'mobile-main'; });
-        await foreground.getByRole('button', { name: 'Open same-session workspace link' }).click();
+        await foreground.getByRole('button', { name: 'Open Main Agent outside file' }).first().click();
 
         const workspace = foreground.getByTestId('desktop-file-workspace');
         await workspace.waitFor({ state: 'visible', timeout: 3_000 });
         await foreground.getByTestId('desktop-file-workspace-fullscreen-header').waitFor({ state: 'visible' });
-        await expect(foreground.getByText('notes.md').isVisible()).resolves.toBe(true);
+        await expect(foreground.getByText('main-notes.md').isVisible()).resolves.toBe(true);
         await expect(foreground.getByTestId('desktop-file-workspace-divider').count()).resolves.toBe(0);
         await expect(foreground.getByTestId('workspace-link-side-panel').count()).resolves.toBe(0);
         await expect(foreground.getByTestId('workspace-link-panel').count()).resolves.toBe(0);
@@ -1184,6 +1257,171 @@ describe('Side chats browser interaction', () => {
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 10_000);
+
+    it('preserves a dirty session-backed tab until a same-path reply link can safely upgrade it', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
+                deferSamePathProbe: true,
+                parentProjectFile: true,
+            };
+        });
+        const pageErrors: string[] = [];
+        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+        page.on('console', (message) => {
+            if (
+                (message.type() === 'error' || message.type() === 'warning')
+                && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+                && message.text() !== '"shadow*" style props are deprecated. Use "boxShadow".'
+            ) pageErrors.push(message.text());
+        });
+        await page.goto(origin);
+
+        const foreground = page.getByTestId('foreground-session');
+        await foreground.getByText('Chat Workspace', { exact: true }).click();
+        await foreground.getByText('session-note.md', { exact: true }).click();
+        const workspace = foreground.getByTestId('desktop-file-workspace');
+        await workspace.waitFor({ state: 'visible', timeout: 3_000 });
+        await page.waitForFunction(() => (window as any).__SESSION_READ_CALLS__?.some((entry: any) => (
+            entry.sessionId === 'parent' && entry.path === '/work/project/session-note.md'
+        )));
+        expect(await page.evaluate(() => (window as any).__MACHINE_READ_CALLS__ ?? [])).toEqual([]);
+
+        await workspace.getByRole('button', { name: 'Edit', exact: true }).click();
+        const editor = workspace.locator('textarea.code-editor-textarea').filter({ visible: true });
+        await editor.waitFor({ state: 'visible', timeout: 3_000 });
+        const replyLink = foreground.getByRole('button', { name: 'Open Main Agent same-path file' }).first();
+        await replyLink.click();
+        await page.waitForFunction(() => Boolean((window as any).__RESOLVE_SAME_PATH_PROBE__));
+
+        const unsavedValue = 'unsaved session-backed edit';
+        await editor.fill(unsavedValue);
+        await workspace.getByText('Unsaved', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
+        await editor.evaluate((element) => { element.dataset.dirtySessionEditor = 'mounted'; });
+        await page.evaluate(() => (window as any).__RESOLVE_SAME_PATH_PROBE__());
+        await page.waitForFunction(() => (window as any).__FILE_TREE_COUNT__ === 1);
+        await expect(editor.inputValue()).resolves.toBe(unsavedValue);
+        await expect(editor.getAttribute('data-dirty-session-editor')).resolves.toBe('mounted');
+        expect(await page.evaluate(() => (window as any).__MACHINE_READ_CALLS__ ?? [])).toEqual([]);
+
+        await workspace.getByRole('button', { name: 'Save', exact: true }).click();
+        await page.waitForFunction(() => (window as any).__SESSION_WRITE_CALLS__?.some((entry: any) => (
+            entry.sessionId === 'parent' && entry.path === '/work/project/session-note.md'
+        )));
+        await workspace.getByText('uiCopy.saved', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
+        await replyLink.click();
+        await page.waitForFunction(() => (window as any).__MACHINE_READ_CALLS__?.some((entry: any) => (
+            entry.machineId === 'machine-1' && entry.path === '/work/project/session-note.md'
+        )));
+        await workspace.getByRole('button', { name: 'Edit', exact: true }).click();
+        await expect(workspace.locator('textarea.code-editor-textarea').filter({ visible: true }).inputValue())
+            .resolves.toBe('# Outside file\nMachine transport');
+        await expect(foreground.getByRole('tab', { name: 'Open file session-note.md' }).count()).resolves.toBe(1);
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 15_000);
+
+    it.each([
+        ['Web Desktop', 'Main Agent', { width: 1440, height: 900 }, 'Open Main Agent outside file', 'parent', '/outside/main-notes.md', 27, 9],
+        ['Web Desktop', 'Side chat', { width: 1440, height: 900 }, 'Open Side chat outside file', 'child-newest', '/outside/side-notes.md', 41, 6],
+        ['Web Mobile', 'Main Agent', { width: 390, height: 844 }, 'Open Main Agent outside file', 'parent', '/outside/main-notes.md', 27, 9],
+        ['Web Mobile', 'Side chat', { width: 390, height: 844 }, 'Open Side chat outside file', 'child-newest', '/outside/side-notes.md', 41, 6],
+    ] as const)(
+        'uses machine transport for an outside-cwd %s %s reply link',
+        async (surface, owner, viewport, linkLabel, originSessionId, absolutePath, line, column) => {
+            const page = await browser.newPage({ viewport });
+            const pageErrors: string[] = [];
+            page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+            page.on('console', (message) => {
+                if (
+                    (message.type() === 'error' || message.type() === 'warning')
+                    && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+                    && message.text() !== '"shadow*" style props are deprecated. Use "boxShadow".'
+                ) pageErrors.push(message.text());
+            });
+            await page.goto(origin);
+
+            const foreground = page.getByTestId('foreground-session');
+            if (owner === 'Side chat') {
+                await foreground.getByRole('button', { name: 'Open side chats (2)' }).click({ timeout: 3_000 });
+                await foreground.getByText('Newest child', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
+            }
+            const link = foreground.getByRole('button', { name: linkLabel }).filter({ visible: true });
+            await (owner === 'Side chat' ? link.last() : link.first()).click({ timeout: 3_000 });
+
+            const workspace = foreground.getByTestId('desktop-file-workspace');
+            await workspace.waitFor({ state: 'visible', timeout: 3_000 });
+            await page.waitForFunction(({ path }) => (
+                (window as any).__MACHINE_READ_CALLS__?.some((entry: any) => (
+                    entry.machineId === 'machine-1' && entry.path === path
+                ))
+            ), { path: absolutePath });
+            const transportCalls = await page.evaluate((path) => ({
+                machineReads: (window as any).__MACHINE_READ_CALLS__ ?? [],
+                sessionReads: (window as any).__SESSION_READ_CALLS__ ?? [],
+                path,
+            }), absolutePath);
+            expect(transportCalls.machineReads).toContainEqual({ machineId: 'machine-1', path: absolutePath });
+            expect(transportCalls.sessionReads.some((entry: any) => entry.path === absolutePath)).toBe(false);
+            await expect(workspace.getByRole('button', { name: 'Preview', exact: true }).filter({ visible: true }).isVisible())
+                .resolves.toBe(true);
+
+            await workspace.getByRole('button', { name: 'Edit', exact: true }).filter({ visible: true }).click();
+            const editor = workspace.locator('textarea.code-editor-textarea').filter({ visible: true });
+            await editor.waitFor({ state: 'visible', timeout: 3_000 });
+            const editedContent = `Edited through ${surface} ${owner}`;
+            await editor.fill(editedContent);
+            await workspace.getByRole('button', { name: 'Save', exact: true }).filter({ visible: true }).click();
+            await page.waitForFunction(({ path }) => (
+                (window as any).__MACHINE_WRITE_CALLS__?.some((entry: any) => entry.path === path)
+            ), { path: absolutePath });
+            const writeCalls = await page.evaluate(() => ({
+                machine: (window as any).__MACHINE_WRITE_CALLS__ ?? [],
+                session: (window as any).__SESSION_WRITE_CALLS__ ?? [],
+            }));
+            expect(writeCalls.machine.some((entry: any) => (
+                entry.machineId === 'machine-1'
+                && entry.path === absolutePath
+                && atob(entry.content) === editedContent
+            ))).toBe(true);
+            expect(writeCalls.session.some((entry: any) => entry.path === absolutePath)).toBe(false);
+
+            const feedback = `Feedback from ${surface} ${owner}`;
+            const feedbackInput = workspace.getByPlaceholder('Share file feedback').filter({ visible: true });
+            await feedbackInput.fill(feedback);
+            await workspace.getByRole('button', { name: 'Send', exact: true }).filter({ visible: true }).click();
+            await page.waitForFunction(({ sessionId, path }) => (
+                (window as any).__COMPOSER_SENDS__?.some((entry: any) => (
+                    entry.sessionId === sessionId && entry.text.includes(`Absolute path: ${path}`)
+                ))
+            ), { sessionId: originSessionId, path: absolutePath });
+            const feedbackSend = await page.evaluate(({ sessionId, path }) => (
+                (window as any).__COMPOSER_SENDS__.find((entry: any) => (
+                    entry.sessionId === sessionId && entry.text.includes(`Absolute path: ${path}`)
+                ))
+            ), { sessionId: originSessionId, path: absolutePath });
+            expect(feedbackSend.text).toContain(`Line: ${line}`);
+            expect(feedbackSend.text).toContain(`Column: ${column}`);
+            expect(feedbackSend.text).toContain(feedback);
+
+            if (surface === 'Web Desktop') {
+                await workspace.getByRole('button', { name: 'Delete', exact: true }).filter({ visible: true }).click();
+                await page.waitForFunction(({ path }) => (
+                    (window as any).__MACHINE_DELETE_CALLS__?.some((entry: any) => entry.path === path)
+                ), { path: absolutePath });
+                const deleteCalls = await page.evaluate(() => ({
+                    machine: (window as any).__MACHINE_DELETE_CALLS__ ?? [],
+                    session: (window as any).__SESSION_DELETE_CALLS__ ?? [],
+                }));
+                expect(deleteCalls.machine).toContainEqual({ machineId: 'machine-1', path: absolutePath });
+                expect(deleteCalls.session.some((entry: any) => entry.path === absolutePath)).toBe(false);
+            }
+
+            expect(pageErrors).toEqual([]);
+            await page.close();
+        },
+        20_000,
+    );
 
     it('opens all three Main Agent workspace surfaces from the Web Mobile composer menu', async () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });

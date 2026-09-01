@@ -26,6 +26,12 @@ path. Read failures render in the same panel. Only cross-session links or a
 context that cannot host the current session workspace may use the standalone
 `/workspace` viewer.
 
+An explicit absolute reply link carries its machine identity and therefore
+uses the existing machine file transport, even when the path is outside the
+chat cwd. It opens in the current integrated Chat Workspace, does not change
+the chat workspace, and must not be routed through the cwd-limited session
+file transport.
+
 Opening embedded Machine Workspace from a Main Agent or active Side chat starts
 at that exact session's machine and absolute current working directory,
 regardless of whether the directory belongs to a Git repository. A valid
@@ -79,8 +85,10 @@ At Web Desktop and 390 × 844 Web Mobile:
    conflicting remembered path and prove Machine Workspace first requests the
    active session's exact machine and cwd, including a cwd outside Git.
 2. Follow current-session file, directory, line/column, and failed-read links;
-   prove an explicit link target wins, and verify cross-session fallback
-   separately.
+   prove an explicit absolute file path inside or outside the chat cwd uses
+   machine read/write without a session-file call or workspace switch, and
+   uses machine delete where the existing UI supports Delete. Verify
+   cross-session fallback separately.
 3. Reopen the same machine/path, switch and close tabs, use Preview/Edit/Delete
    where supported, and browse away from the initial cwd without being snapped
    back. At a narrow workspace width, type and send multiline feedback with the
