@@ -220,3 +220,4 @@ WORKSPACE_CONTEXT_UNIFICATION	accepted	feat(workspace): unify browsing and sessi
 WORKSPACE_CONTEXT_UNIFICATION	accepted	fix(workspace): target active side chat from sidebar	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 WORKSPACE_CONTEXT_IDENTITY	accepted	fix(workspace): preserve machine context identity	server/packages/happy-app/sources/sync/workspaceContext.test.ts
 DEVELOPMENT_SKILL_CATALOG	accepted	docs(dev): consolidate HappyHerd skills	.dev/AGENTS.md
+CODEX_SIDE_CHAT_PROVIDER_CONTEXT	accepted	fix(side-chats): preserve Codex provider context	server/packages/happy-cli/src/daemon/run.resume.test.ts
