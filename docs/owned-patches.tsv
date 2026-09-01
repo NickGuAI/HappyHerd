@@ -212,3 +212,4 @@ WEB_COMPOSER_ACTIONS	accepted	feat(app): consolidate web composer actions	server
 WEB_COMPOSER_RELEASE_ARTIFACTS	accepted	chore(app): register composer UX release artifacts (#204)	server/packages/happy-app/sources/changelog/changelog.json
 ABSOLUTE_FILE_LINK_MACHINE_TRANSPORT	accepted	fix(app): open explicit file links across machine paths (#206)	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 ABSOLUTE_FILE_LINK_DIRTY_PRESERVATION	accepted	fix(app): preserve dirty tabs during file-link upgrades (#206)	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
+WORKSPACE_CONTEXT_UNIFICATION	accepted	feat(app): attach context from embedded workspace	server/packages/happy-app/sources/app/(app)/workspace/index.embedded.test.ts

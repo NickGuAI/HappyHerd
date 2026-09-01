@@ -173,11 +173,13 @@ export function MachineWorkspaceBrowser({
     embedded = false,
     initialMachineId,
     initialPath,
+    workspaceContextSessionId,
     onFilePress,
 }: {
     embedded?: boolean;
     initialMachineId?: string;
     initialPath?: string;
+    workspaceContextSessionId?: string;
     onFilePress?: (file: { machineId: string; path: string }) => void;
 }) {
     const router = useRouter();
@@ -199,6 +201,9 @@ export function MachineWorkspaceBrowser({
     const requestedMachineId = initialMachineId ?? param(params.machineId);
     const requestedPath = initialPath ?? param(params.path);
     const attachmentMode = mode === 'attach' && !!sessionId;
+    const embeddedContextMode = embedded && !!workspaceContextSessionId;
+    const contextSelectionMode = attachmentMode || embeddedContextMode;
+    const selectionSessionId = attachmentMode ? sessionId : embeddedContextMode ? workspaceContextSessionId : undefined;
     const desktopSplit = (Platform.OS === 'web' || Platform.OS === 'macos') && width >= 900;
 
     const [selectedMachineId, setSelectedMachineId] = React.useState<string | null>(requestedMachineId ?? null);
@@ -218,8 +223,14 @@ export function MachineWorkspaceBrowser({
     const [creatingFolder, setCreatingFolder] = React.useState(false);
     const [reloadToken, setReloadToken] = React.useState(0);
     const [stagedEntries, setStagedEntries] = React.useState<Map<string, WorkspaceContextEntry>>(
-        () => new Map((sessionId ? getWorkspaceContextEntries(sessionId) : []).map((entry) => [entry.path, entry])),
+        () => new Map((selectionSessionId ? getWorkspaceContextEntries(selectionSessionId) : []).map((entry) => [entry.path, entry])),
     );
+    React.useEffect(() => {
+        setStagedEntries(new Map(
+            (selectionSessionId ? getWorkspaceContextEntries(selectionSessionId) : [])
+                .map((entry) => [entry.path, entry]),
+        ));
+    }, [selectionSessionId]);
     const handleUploadedFile = React.useCallback((filePath: string) => {
         if (attachmentMode && selectedMachineId) {
             setStagedEntries((current) => {
@@ -368,6 +379,28 @@ export function MachineWorkspaceBrowser({
 
     const toggleStagedEntry = React.useCallback((path: string, kind: 'file' | 'directory') => {
         if (!selectedMachineId) return;
+        if (embeddedContextMode && workspaceContextSessionId) {
+            const currentEntries = getWorkspaceContextEntries(workspaceContextSessionId);
+            if (currentEntries.some((entry) => entry.path === path)) {
+                removeWorkspaceContextEntry(workspaceContextSessionId, path);
+            } else if (!addWorkspaceContextEntry(workspaceContextSessionId, {
+                path,
+                kind,
+                source: { kind: 'machine', machineId: selectedMachineId },
+            })) {
+                Modal.alert(
+                    t('common.files'),
+                    t('workspace.selectedItemsCount', {
+                        count: MAX_WORKSPACE_CONTEXT_ITEMS,
+                        max: MAX_WORKSPACE_CONTEXT_ITEMS,
+                    }),
+                );
+            }
+            setStagedEntries(new Map(
+                getWorkspaceContextEntries(workspaceContextSessionId).map((entry) => [entry.path, entry]),
+            ));
+            return;
+        }
         setStagedEntries((current) => {
             const next = new Map(current);
             if (next.has(path)) {
@@ -391,7 +424,7 @@ export function MachineWorkspaceBrowser({
             });
             return next;
         });
-    }, [selectedMachineId]);
+    }, [embeddedContextMode, selectedMachineId, workspaceContextSessionId]);
 
     const createFolder = React.useCallback(async () => {
         if (!selectedMachine || !currentDirectory || creatingFolder || !isMachineOnline(selectedMachine)) return;
@@ -591,7 +624,7 @@ export function MachineWorkspaceBrowser({
                                         entry={entry}
                                         selected={selectedFile === entry.path}
                                         attached={stagedEntries.has(entry.path)}
-                                        attachmentMode={attachmentMode}
+                                        attachmentMode={contextSelectionMode}
                                         onOpen={() => entry.type === 'directory' ? openDirectory(entry.path) : selectFile(entry.path)}
                                         onToggleAttach={() => toggleStagedEntry(entry.path, entry.type)}
                                     />
@@ -621,7 +654,7 @@ export function MachineWorkspaceBrowser({
                         {selectedFile}
                     </Text>
                 </View>
-                {attachmentMode && (
+                {contextSelectionMode && (
                     <Pressable
                         onPress={() => toggleStagedEntry(selectedFile, 'file')}
                         style={({ pressed }) => [styles.attachButton, { borderColor: theme.colors.divider, opacity: pressed ? 0.75 : 1 }]}

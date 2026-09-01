@@ -17,6 +17,13 @@ const mocks = vi.hoisted(() => ({
     recentPaths: [] as Array<{ machineId: string; path: string }>,
     favoritePaths: [] as Array<{ machineId: string; path: string }>,
     workspaceEnabled: true,
+    workspaceEntries: new Map<string, Array<{
+        path: string;
+        kind: 'file' | 'directory';
+        source: { kind: 'machine'; machineId: string };
+    }>>(),
+    addWorkspaceContextEntry: vi.fn(),
+    removeWorkspaceContextEntry: vi.fn(),
 }));
 
 vi.mock('react-native', async () => {
@@ -125,9 +132,9 @@ vi.mock('@/sync/storage', () => ({
 vi.mock('@/sync/sync', () => ({ sync: { applySettings: vi.fn() } }));
 vi.mock('@/sync/workspaceContext', () => ({
     MAX_WORKSPACE_CONTEXT_ITEMS: 8,
-    addWorkspaceContextEntry: vi.fn(),
-    getWorkspaceContextEntries: () => [],
-    removeWorkspaceContextEntry: vi.fn(),
+    addWorkspaceContextEntry: mocks.addWorkspaceContextEntry,
+    getWorkspaceContextEntries: (sessionId: string) => mocks.workspaceEntries.get(sessionId) ?? [],
+    removeWorkspaceContextEntry: mocks.removeWorkspaceContextEntry,
 }));
 vi.mock('@/text', () => ({ t: (key: string) => key }));
 vi.mock('@/constants/Typography', () => ({
@@ -203,6 +210,23 @@ beforeEach(() => {
     mocks.recentPaths = [];
     mocks.favoritePaths = [];
     mocks.workspaceEnabled = true;
+    mocks.workspaceEntries.clear();
+    mocks.addWorkspaceContextEntry.mockReset();
+    mocks.addWorkspaceContextEntry.mockImplementation((sessionId: string, entry: {
+        path: string;
+        kind: 'file' | 'directory';
+        source: { kind: 'machine'; machineId: string };
+    }) => {
+        const current = mocks.workspaceEntries.get(sessionId) ?? [];
+        if (current.length >= 8) return false;
+        mocks.workspaceEntries.set(sessionId, [...current.filter((item) => item.path !== entry.path), entry]);
+        return true;
+    });
+    mocks.removeWorkspaceContextEntry.mockReset();
+    mocks.removeWorkspaceContextEntry.mockImplementation((sessionId: string, path: string) => {
+        const current = mocks.workspaceEntries.get(sessionId) ?? [];
+        mocks.workspaceEntries.set(sessionId, current.filter((entry) => entry.path !== path));
+    });
     mocks.getTree.mockReset();
     mocks.getTree.mockResolvedValue({
         success: true,
@@ -238,6 +262,19 @@ function browserPane(renderer: ReactTestRenderer) {
 function flatStyle(style: unknown): Record<string, unknown> {
     const entries = Array.isArray(style) ? style : [style];
     return Object.assign({}, ...entries.filter(Boolean));
+}
+
+function rowByName(renderer: ReactTestRenderer, name: string) {
+    return renderer.root.findAllByType('Pressable' as any).find((candidate: any) => (
+        candidate.findAllByType('Text' as any)
+            .some((node: any) => node.props.children === name)
+    ));
+}
+
+function contextToggleInRow(row: any) {
+    return row.findAllByType('Pressable' as any).find((candidate: any) => (
+        candidate !== row && typeof candidate.props.accessibilityLabel === 'string'
+    ));
 }
 
 describe('MachineWorkspaceBrowser embedded layout', () => {
@@ -301,6 +338,81 @@ describe('MachineWorkspaceBrowser embedded layout', () => {
             machineId: 'main-machine',
             path: '/workspace/user/notes.md',
         });
+        act(() => renderer.unmount());
+    });
+
+    it('immediately toggles an existing file in the supplied session while preserving file opening', async () => {
+        const onFilePress = vi.fn();
+        const renderer = await renderBrowser({
+            embedded: true,
+            initialMachineId: 'main-machine',
+            initialPath: '/workspace/user',
+            workspaceContextSessionId: 'active-side-chat',
+            onFilePress,
+        });
+
+        let notesRow = rowByName(renderer, 'notes.md');
+        expect(notesRow).toBeDefined();
+        let toggle = contextToggleInRow(notesRow);
+        expect(toggle).toBeDefined();
+
+        act(() => toggle.props.onPress({ stopPropagation: vi.fn() }));
+        expect(mocks.addWorkspaceContextEntry).toHaveBeenCalledWith('active-side-chat', {
+            path: '/workspace/user/notes.md',
+            kind: 'file',
+            source: { kind: 'machine', machineId: 'main-machine' },
+        });
+        expect(mocks.workspaceEntries.get('active-side-chat')).toEqual([{
+            path: '/workspace/user/notes.md',
+            kind: 'file',
+            source: { kind: 'machine', machineId: 'main-machine' },
+        }]);
+
+        notesRow = rowByName(renderer, 'notes.md');
+        expect(notesRow.findAllByType('Ionicons' as any)
+            .some((icon: any) => icon.props.name === 'checkmark-circle')).toBe(true);
+        act(() => notesRow.props.onPress());
+        expect(onFilePress).toHaveBeenCalledWith({
+            machineId: 'main-machine',
+            path: '/workspace/user/notes.md',
+        });
+
+        toggle = contextToggleInRow(rowByName(renderer, 'notes.md'));
+        act(() => toggle.props.onPress({ stopPropagation: vi.fn() }));
+        expect(mocks.removeWorkspaceContextEntry).toHaveBeenCalledWith(
+            'active-side-chat',
+            '/workspace/user/notes.md',
+        );
+        expect(mocks.workspaceEntries.get('active-side-chat')).toEqual([]);
+        act(() => renderer.unmount());
+    });
+
+    it('immediately adds a directory to the supplied session without replacing directory navigation', async () => {
+        const renderer = await renderBrowser({
+            embedded: true,
+            initialMachineId: 'main-machine',
+            initialPath: '/workspace/user',
+            workspaceContextSessionId: 'main-agent',
+        });
+
+        let projectRow = rowByName(renderer, 'project');
+        expect(projectRow).toBeDefined();
+        const toggle = contextToggleInRow(projectRow);
+        expect(toggle).toBeDefined();
+        act(() => toggle.props.onPress({ stopPropagation: vi.fn() }));
+        expect(mocks.addWorkspaceContextEntry).toHaveBeenCalledWith('main-agent', {
+            path: '/workspace/user/project',
+            kind: 'directory',
+            source: { kind: 'machine', machineId: 'main-machine' },
+        });
+
+        projectRow = rowByName(renderer, 'project');
+        act(() => projectRow.props.onPress());
+        await act(async () => {
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+        expect(mocks.getTree).toHaveBeenCalledWith('main-machine', '/workspace/user/project', 1);
         act(() => renderer.unmount());
     });
 
