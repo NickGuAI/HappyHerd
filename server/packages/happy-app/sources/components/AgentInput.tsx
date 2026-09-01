@@ -62,10 +62,10 @@ interface AgentInputProps {
     sessionId?: string;
     onSend: () => void;
     onQueueMessage?: () => void;
-    /** Owns the single consolidated action menu in a Web Mobile session host. */
-    showWebMobileActionMenu?: boolean;
-    /** Session-scoped file surfaces consolidated into the Web Mobile composer menu. */
-    mobileWorkspaceActions?: {
+    /** Owns the single consolidated action menu in a Web session host. */
+    showWebActionMenu?: boolean;
+    /** Session-scoped file surfaces consolidated into the Web composer menu. */
+    webWorkspaceActions?: {
         onOpenChanges: () => void;
         onOpenChatWorkspace: () => void;
         onOpenMachineWorkspace: () => void;
@@ -899,10 +899,10 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     // existing composer affordances rather than inheriting it.
     const runningOnMac = isRunningOnMac();
     const compactMobileComposer = Platform.OS !== 'web' && !runningOnMac && screenWidth <= 700;
-    // SessionView supplies this contract only while its Web Mobile session
-    // layout is active. Use that owning signal directly so the workspace
-    // actions cannot disappear between unrelated responsive breakpoints.
-    const webMobileActionMenu = Platform.OS === 'web' && !!props.showWebMobileActionMenu;
+    // SessionView supplies this contract for every Web session host. Use that
+    // owning signal directly so Main Agent and Side chat keep the same menu
+    // across responsive breakpoints.
+    const webActionMenu = Platform.OS === 'web' && !!props.showWebActionMenu;
     // iOS only. On Android the settings/model/effort triggers are React Native
     // subtrees hosted inside a Jetpack Compose DropdownMenu, and expo-modules-core
     // pins such a child to `Modifier.size(view.width, view.height)` sampled once at
@@ -1194,7 +1194,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     // visible, including while we dismiss the keyboard on mobile.
     type ComposerPicker = 'permission' | 'model' | 'effort';
     const [openPicker, setOpenPicker] = React.useState<ComposerPicker | null>(null);
-    const [mobileActionMenuOpen, setMobileActionMenuOpen] = React.useState(false);
+    const [webActionMenuOpen, setWebActionMenuOpen] = React.useState(false);
     const pickerOpeningRef = React.useRef<ComposerPicker | null>(null);
     const pickerKeyboardSubscriptionRef = React.useRef<ReturnType<typeof Keyboard.addListener> | null>(null);
     const pickerOpenTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1214,8 +1214,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         setOpenPicker(null);
     }, [cancelPendingPickerOpen]);
 
-    const closeMobileActionMenu = React.useCallback(() => {
-        setMobileActionMenuOpen(false);
+    const closeWebActionMenu = React.useCallback(() => {
+        setWebActionMenuOpen(false);
     }, []);
 
     React.useEffect(() => cancelPendingPickerOpen, [cancelPendingPickerOpen]);
@@ -1251,15 +1251,15 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         handlePickerPress('permission');
     }, [handlePickerPress]);
 
-    const handleMobileActionMenuPress = React.useCallback(() => {
+    const handleWebActionMenuPress = React.useCallback(() => {
         hapticsLight();
         closePicker();
-        setMobileActionMenuOpen((visible) => !visible);
+        setWebActionMenuOpen((visible) => !visible);
     }, [closePicker]);
 
     React.useEffect(() => {
-        closeMobileActionMenu();
-    }, [closeMobileActionMenu, props.sessionId]);
+        closeWebActionMenu();
+    }, [closeWebActionMenu, props.sessionId]);
 
     const handleModelPress = React.useCallback(() => {
         if (!canOpenModelPicker) return;
@@ -1407,12 +1407,12 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
 
     const modelSettingsGroup = modelSettingsGroups.find((group) => group.key === 'model');
     const effortSettingsGroup = modelSettingsGroups.find((group) => group.key === 'effort');
-    const showPermissionSettingsSection = !webMobileActionMenu || permissionSettingsGroups.length > 0;
-    const showModelSettingsSection = !webMobileActionMenu || Boolean(modelSettingsGroup);
+    const showPermissionSettingsSection = !webActionMenu || permissionSettingsGroups.length > 0;
+    const showModelSettingsSection = !webActionMenu || Boolean(modelSettingsGroup);
     const showEffortSettingsSection = Boolean(effortSettingsGroup);
 
-    const mobileComposerActions = React.useMemo(() => {
-        const workspace = props.mobileWorkspaceActions;
+    const webComposerActions = React.useMemo(() => {
+        const workspace = props.webWorkspaceActions;
         const actions: Array<{
             key: string;
             label: string;
@@ -1470,29 +1470,21 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         }
         if (props.onPickImages) {
             actions.push({
-                key: 'photos',
-                label: t('happyHerd.composer.photos'),
+                key: 'attachments',
+                label: t('happyHerd.composer.attachments'),
                 icon: 'images-outline',
                 onPress: props.onPickImages,
             });
         }
-        if (props.onPickDeviceFiles) {
-            actions.push({
-                key: 'device-files',
-                label: t('happyHerd.composer.deviceFiles'),
-                icon: 'document-outline',
-                onPress: props.onPickDeviceFiles,
-            });
-        }
         return actions;
-    }, [handleAbortPress, handleSettingsPress, hasComposerContent, isAborting, modelSettingsGroups.length, permissionSettingsGroups.length, props.isSendDisabled, props.mobileWorkspaceActions, props.onAbort, props.onPickDeviceFiles, props.onPickImages, props.onQueueMessage, shouldShowStopButton]);
+    }, [handleAbortPress, handleSettingsPress, hasComposerContent, isAborting, modelSettingsGroups.length, permissionSettingsGroups.length, props.isSendDisabled, props.webWorkspaceActions, props.onAbort, props.onPickImages, props.onQueueMessage, shouldShowStopButton]);
 
-    const invokeMobileComposerAction = React.useCallback((action: (typeof mobileComposerActions)[number]) => {
+    const invokeWebComposerAction = React.useCallback((action: (typeof webComposerActions)[number]) => {
         if (action.disabled) return;
-        closeMobileActionMenu();
+        closeWebActionMenu();
         hapticsLight();
         action.onPress();
-    }, [closeMobileActionMenu]);
+    }, [closeWebActionMenu]);
 
     const renderModelValue = () => (
         <Text style={styles.mobileModeText} numberOfLines={1}>
@@ -1589,15 +1581,15 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         <View style={styles.actionButtonsContainer}>
             <View style={{ flexDirection: 'column', flex: 1, gap: 2 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    {props.zenMode && !webMobileActionMenu && <View style={{ flex: 1 }} />}
-                    {(!props.zenMode || webMobileActionMenu) && <View style={styles.actionButtonsLeft}>
-                        {webMobileActionMenu ? (
+                    {props.zenMode && !webActionMenu && <View style={{ flex: 1 }} />}
+                    {(!props.zenMode || webActionMenu) && <View style={styles.actionButtonsLeft}>
+                        {webActionMenu ? (
                             <BubblePressable
                                 accessibilityLabel={t('happyHerd.composer.moreActions')}
                                 accessibilityRole="button"
-                                accessibilityState={{ expanded: mobileActionMenuOpen }}
+                                accessibilityState={{ expanded: webActionMenuOpen }}
                                 hitSlop={{ top: 5, bottom: 10, left: 0, right: 0 }}
-                                onPress={handleMobileActionMenuPress}
+                                onPress={handleWebActionMenuPress}
                                 style={(pressedState) => [
                                     styles.mobileActionsTrigger,
                                     pressedState.pressed && { opacity: 0.7 },
@@ -2004,10 +1996,10 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                     </View>
                 )}
 
-                {webMobileActionMenu && mobileActionMenuOpen && (
+                {webActionMenu && webActionMenuOpen && (
                     <>
                         <AnimatedClickAwayBackdrop
-                            onPress={closeMobileActionMenu}
+                            onPress={closeWebActionMenu}
                             style={styles.overlayBackdrop}
                         />
                         <View style={styles.mobileActionsOverlay}>
@@ -2022,14 +2014,14 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     style={styles.mobileActionsMenu}
                                     testID="mobile-composer-actions-menu"
                                 >
-                                    {mobileComposerActions.map((action) => (
+                                    {webComposerActions.map((action) => (
                                         <Pressable
                                             key={action.key}
                                             accessibilityLabel={action.label}
                                             accessibilityRole="menuitem"
                                             accessibilityState={{ disabled: action.disabled }}
                                             disabled={action.disabled}
-                                            onPress={() => invokeMobileComposerAction(action)}
+                                            onPress={() => invokeWebComposerAction(action)}
                                             style={({ pressed }) => [
                                                 styles.mobileActionsRow,
                                                 pressed && styles.mobileActionsRowPressed,

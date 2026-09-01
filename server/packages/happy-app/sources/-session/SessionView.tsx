@@ -1370,9 +1370,10 @@ export function SessionViewLoaded({
     const isWebMobileSessionViewport = Platform.OS === 'web'
         && deviceType === 'phone'
         && windowWidth < SIDE_CHAT_SIDEBAR_MIN_WINDOW_WIDTH;
+    const isWebSessionViewport = Platform.OS === 'web';
     const workspaceController = React.useContext(SessionWorkspaceControllerContext);
-    const mobileWorkspaceActions = React.useMemo(() => (
-        isWebMobileSessionViewport
+    const webWorkspaceActions = React.useMemo(() => (
+        isWebSessionViewport
         && workspaceController
         && rigCanBrowseFiles(session.metadata)
         && rigCanUseShell(session.metadata)
@@ -1382,7 +1383,7 @@ export function SessionViewLoaded({
                 onOpenMachineWorkspace: () => workspaceController.openMachineWorkspace(session),
             }
             : undefined
-    ), [isWebMobileSessionViewport, session, sessionId, workspaceController]);
+    ), [isWebSessionViewport, session, sessionId, workspaceController]);
     // Only the portrait phone chat uses an overlay dock. Tablet, desktop,
     // landscape, and embedded views retain their existing split layout.
     const usesFloatingMobileDock = !embedded
@@ -1968,8 +1969,8 @@ export function SessionViewLoaded({
                 blockSend={isRig && session.thinking && session.metadata?.capabilities?.steering !== true}
                 onSend={handleSend}
                 onQueueMessage={handleQueueMessage}
-                showWebMobileActionMenu={isWebMobileSessionViewport}
-                mobileWorkspaceActions={mobileWorkspaceActions}
+                showWebActionMenu={isWebSessionViewport}
+                webWorkspaceActions={webWorkspaceActions}
                 onMicPress={(voiceDictation.phase !== 'recording'
                     && (voiceSessionActive || !voiceInputAvailability.available))
                     ? undefined
