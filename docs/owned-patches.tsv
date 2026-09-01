@@ -214,3 +214,4 @@ ABSOLUTE_FILE_LINK_MACHINE_TRANSPORT	accepted	fix(app): open explicit file links
 ABSOLUTE_FILE_LINK_DIRTY_PRESERVATION	accepted	fix(app): preserve dirty tabs during file-link upgrades (#206)	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 WORKSPACE_CONTEXT_UNIFICATION	accepted	feat(app): attach context from embedded workspace	server/packages/happy-app/sources/app/(app)/workspace/index.embedded.test.ts
 WORKSPACE_CONTEXT_UNIFICATION	accepted	test(app): cover unified workspace actions	server/packages/happy-app/sources/-session/SessionView.sideChat.test.ts
+WORKSPACE_CONTEXT_UNIFICATION	accepted	test(workspace): cover unified Human entry	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts

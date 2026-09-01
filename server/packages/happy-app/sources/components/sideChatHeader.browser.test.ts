@@ -310,7 +310,7 @@ const virtualModules: Record<string, string> = {
             'settings.machines': 'Machines',
             'settingsAppearance.diffStyleOptions.unified': 'Unified',
             'settingsAppearance.diffStyleOptions.split': 'Split',
-            'workspace.title': 'Machine Workspace',
+            'workspace.title': 'Workspace',
             'workspace.pathPlaceholder': 'Path',
             'workspace.go': 'Go',
             'workspace.home': 'Home',
@@ -322,6 +322,9 @@ const virtualModules: Record<string, string> = {
             'workspace.newFolder': 'New folder',
             'workspace.searchPlaceholder': 'Search files',
             'workspace.browseMachine': 'Browse this machine',
+            'workspace.selectedItemsCount': (params?.count ?? 0) + ' of ' + (params?.max ?? 0) + ' items selected',
+            'uiCopy.attachValueToNextMessage': 'Attach ' + (params?.value1 ?? '') + ' to next message',
+            'uiCopy.removeValueFromMessageContext': 'Remove ' + (params?.value1 ?? '') + ' from message context',
             'uiCopy.preview': 'Preview',
             'uiCopy.unsaved': 'Unsaved',
             'session.providerContinuationTitle': 'Continue session',
@@ -919,7 +922,9 @@ describe('Side chats browser interaction', () => {
         expect(pageErrors).toEqual([]);
         expect(await page.locator('body').innerText()).toContain('Changes');
         await expect(foreground.getByText('Changes').isVisible()).resolves.toBe(true);
-        await expect(foreground.getByText('Chat Workspace').isVisible()).resolves.toBe(true);
+        await expect(foreground.getByText('Workspace').isVisible()).resolves.toBe(true);
+        await expect(foreground.getByText('Chat Workspace', { exact: true }).count()).resolves.toBe(0);
+        await expect(foreground.getByText('Machine Workspace', { exact: true }).count()).resolves.toBe(0);
         await foreground.getByRole('button', { name: 'Open side chats (2)' }).click({ timeout: 3_000 });
 
         await foreground.getByRole('button', { name: 'Collapse side chats' }).waitFor({ timeout: 2_000 });
@@ -984,9 +989,11 @@ describe('Side chats browser interaction', () => {
             await trigger.click({ timeout: 3_000 });
             const menu = foreground.getByTestId('mobile-composer-actions-menu').filter({ visible: true });
             await menu.waitFor({ state: 'visible', timeout: 3_000 });
-            for (const label of ['Changes', 'Chat Workspace', 'Machine Workspace']) {
+            for (const label of ['Changes', 'Workspace']) {
                 await expect(menu.getByRole('menuitem', { name: label, exact: true }).count()).resolves.toBe(1);
             }
+            await expect(menu.getByRole('menuitem', { name: 'Chat Workspace', exact: true }).count()).resolves.toBe(0);
+            await expect(menu.getByRole('menuitem', { name: 'Machine Workspace', exact: true }).count()).resolves.toBe(0);
             await expect(menu.getByRole('menuitem', { name: 'Attachments', exact: true }).count()).resolves.toBe(1);
             await expect(menu.getByRole('menuitem', { name: 'Photos', exact: true }).count()).resolves.toBe(0);
             await expect(menu.getByRole('menuitem', { name: 'Device files', exact: true }).count()).resolves.toBe(0);
@@ -1029,7 +1036,7 @@ describe('Side chats browser interaction', () => {
         await page.close();
     }, 20_000);
 
-    it('keeps all three desktop workspace entry points visible and canonical with default settings', async () => {
+    it('keeps Changes and one canonical Workspace entry visible on desktop', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
         await page.addInitScript(() => {
             (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { machineWorkspaceEnabled: false };
@@ -1046,21 +1053,20 @@ describe('Side chats browser interaction', () => {
         await page.goto(origin);
 
         const foreground = page.getByTestId('foreground-session');
-        for (const label of ['Changes', 'Chat Workspace', 'Machine Workspace']) {
+        for (const label of ['Changes', 'Workspace']) {
             await expect(foreground.getByText(label, { exact: true }).isVisible()).resolves.toBe(true);
         }
+        await expect(foreground.getByText('Chat Workspace', { exact: true }).count()).resolves.toBe(0);
+        await expect(foreground.getByText('Machine Workspace', { exact: true }).count()).resolves.toBe(0);
 
         await foreground.getByText('Changes', { exact: true }).click();
         await foreground.getByText('mobile-change.ts', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
 
         await page.reload();
-        await foreground.getByText('Chat Workspace', { exact: true }).click();
-        await foreground.getByText('No files in project', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
-
-        await page.reload();
-        await foreground.getByText('Machine Workspace', { exact: true }).click();
+        await foreground.getByText('Workspace', { exact: true }).click();
         const workspace = foreground.getByTestId('desktop-file-workspace');
         await workspace.waitFor({ state: 'visible', timeout: 3_000 });
+        await expect(workspace.getByPlaceholder('Path').inputValue()).resolves.toBe('/work/project');
         await expect(workspace.getByText('Upload', { exact: true }).isVisible()).resolves.toBe(true);
         await workspace.getByText('machine-file.md', { exact: true }).click();
         await foreground.getByRole('tab', { name: 'Open file machine-file.md' }).waitFor({ state: 'visible', timeout: 3_000 });
@@ -1070,6 +1076,39 @@ describe('Side chats browser interaction', () => {
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 30_000);
+
+    it('opens the active Side chat Workspace at that child cwd on desktop', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        const pageErrors: string[] = [];
+        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+        page.on('console', (message) => {
+            if (
+                (message.type() === 'error' || message.type() === 'warning')
+                && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+                && message.text() !== '"shadow*" style props are deprecated. Use "boxShadow".'
+            ) pageErrors.push(message.text());
+        });
+        await page.goto(origin);
+
+        const foreground = page.getByTestId('foreground-session');
+        await foreground.getByRole('button', { name: 'Open side chats (2)' }).click({ timeout: 3_000 });
+        await foreground.getByText('Newest child', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
+        const trigger = foreground.getByRole('button', { name: 'More actions' }).filter({ visible: true }).last();
+        await trigger.click({ timeout: 3_000 });
+        const menu = foreground.getByTestId('mobile-composer-actions-menu').filter({ visible: true });
+        await expect(menu.getByRole('menuitem', { name: 'Workspace', exact: true }).isVisible()).resolves.toBe(true);
+        await expect(menu.getByRole('menuitem', { name: 'Chat Workspace', exact: true }).count()).resolves.toBe(0);
+        await expect(menu.getByRole('menuitem', { name: 'Machine Workspace', exact: true }).count()).resolves.toBe(0);
+        await menu.getByRole('menuitem', { name: 'Workspace', exact: true }).click({ timeout: 3_000 });
+
+        const workspace = foreground.getByTestId('desktop-file-workspace');
+        await workspace.waitFor({ state: 'visible', timeout: 3_000 });
+        await expect(workspace.getByPlaceholder('Path').inputValue()).resolves.toBe('/work/child-newest');
+        await workspace.getByText('child-newest-machine-file.md', { exact: true })
+            .waitFor({ state: 'visible', timeout: 3_000 });
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 15_000);
 
     it('dismisses an expanded desktop Side chat before revealing its requested workspace', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
@@ -1258,69 +1297,6 @@ describe('Side chats browser interaction', () => {
         await page.close();
     }, 10_000);
 
-    it('preserves a dirty session-backed tab until a same-path reply link can safely upgrade it', async () => {
-        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-        await page.addInitScript(() => {
-            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
-                deferSamePathProbe: true,
-                parentProjectFile: true,
-            };
-        });
-        const pageErrors: string[] = [];
-        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
-        page.on('console', (message) => {
-            if (
-                (message.type() === 'error' || message.type() === 'warning')
-                && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
-                && message.text() !== '"shadow*" style props are deprecated. Use "boxShadow".'
-            ) pageErrors.push(message.text());
-        });
-        await page.goto(origin);
-
-        const foreground = page.getByTestId('foreground-session');
-        await foreground.getByText('Chat Workspace', { exact: true }).click();
-        await foreground.getByText('session-note.md', { exact: true }).click();
-        const workspace = foreground.getByTestId('desktop-file-workspace');
-        await workspace.waitFor({ state: 'visible', timeout: 3_000 });
-        await page.waitForFunction(() => (window as any).__SESSION_READ_CALLS__?.some((entry: any) => (
-            entry.sessionId === 'parent' && entry.path === '/work/project/session-note.md'
-        )));
-        expect(await page.evaluate(() => (window as any).__MACHINE_READ_CALLS__ ?? [])).toEqual([]);
-
-        await workspace.getByRole('button', { name: 'Edit', exact: true }).click();
-        const editor = workspace.locator('textarea.code-editor-textarea').filter({ visible: true });
-        await editor.waitFor({ state: 'visible', timeout: 3_000 });
-        const replyLink = foreground.getByRole('button', { name: 'Open Main Agent same-path file' }).first();
-        await replyLink.click();
-        await page.waitForFunction(() => Boolean((window as any).__RESOLVE_SAME_PATH_PROBE__));
-
-        const unsavedValue = 'unsaved session-backed edit';
-        await editor.fill(unsavedValue);
-        await workspace.getByText('Unsaved', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
-        await editor.evaluate((element) => { element.dataset.dirtySessionEditor = 'mounted'; });
-        await page.evaluate(() => (window as any).__RESOLVE_SAME_PATH_PROBE__());
-        await page.waitForFunction(() => (window as any).__FILE_TREE_COUNT__ === 1);
-        await expect(editor.inputValue()).resolves.toBe(unsavedValue);
-        await expect(editor.getAttribute('data-dirty-session-editor')).resolves.toBe('mounted');
-        expect(await page.evaluate(() => (window as any).__MACHINE_READ_CALLS__ ?? [])).toEqual([]);
-
-        await workspace.getByRole('button', { name: 'Save', exact: true }).click();
-        await page.waitForFunction(() => (window as any).__SESSION_WRITE_CALLS__?.some((entry: any) => (
-            entry.sessionId === 'parent' && entry.path === '/work/project/session-note.md'
-        )));
-        await workspace.getByText('uiCopy.saved', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
-        await replyLink.click();
-        await page.waitForFunction(() => (window as any).__MACHINE_READ_CALLS__?.some((entry: any) => (
-            entry.machineId === 'machine-1' && entry.path === '/work/project/session-note.md'
-        )));
-        await workspace.getByRole('button', { name: 'Edit', exact: true }).click();
-        await expect(workspace.locator('textarea.code-editor-textarea').filter({ visible: true }).inputValue())
-            .resolves.toBe('# Outside file\nMachine transport');
-        await expect(foreground.getByRole('tab', { name: 'Open file session-note.md' }).count()).resolves.toBe(1);
-        expect(pageErrors).toEqual([]);
-        await page.close();
-    }, 15_000);
-
     it.each([
         ['Web Desktop', 'Main Agent', { width: 1440, height: 900 }, 'Open Main Agent outside file', 'parent', '/outside/main-notes.md', 27, 9],
         ['Web Desktop', 'Side chat', { width: 1440, height: 900 }, 'Open Side chat outside file', 'child-newest', '/outside/side-notes.md', 41, 6],
@@ -1423,7 +1399,7 @@ describe('Side chats browser interaction', () => {
         20_000,
     );
 
-    it('opens all three Main Agent workspace surfaces from the Web Mobile composer menu', async () => {
+    it('opens Changes and the unified Main Agent Workspace from the Web Mobile composer menu', async () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
         await page.addInitScript(() => {
             (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
@@ -1466,9 +1442,11 @@ describe('Side chats browser interaction', () => {
             await actionTrigger.click({ timeout: 3_000 });
             const menu = foreground.getByTestId('mobile-composer-actions-menu');
             await menu.waitFor({ state: 'visible', timeout: 3_000 });
-            for (const label of ['Changes', 'Chat Workspace', 'Machine Workspace']) {
+            for (const label of ['Changes', 'Workspace']) {
                 await expect(menu.getByRole('menuitem', { name: label, exact: true }).isVisible()).resolves.toBe(true);
             }
+            await expect(menu.getByRole('menuitem', { name: 'Chat Workspace', exact: true }).count()).resolves.toBe(0);
+            await expect(menu.getByRole('menuitem', { name: 'Machine Workspace', exact: true }).count()).resolves.toBe(0);
             await menu.getByTestId(`mobile-composer-action-${key}`).click({ timeout: 3_000 });
         };
 
@@ -1482,17 +1460,12 @@ describe('Side chats browser interaction', () => {
         await foreground.getByTestId('mobile-changes-workspace-overlay').waitFor({ state: 'detached', timeout: 3_000 });
         await assertMainComposerRetained();
 
-        await openMainAction('chat-workspace');
+        await openMainAction('workspace');
         const compactWorkspace = page.getByTestId('desktop-file-workspace').filter({ visible: true });
         await compactWorkspace.waitFor({ state: 'visible', timeout: 3_000 });
-        await expect(page.getByTestId('desktop-file-workspace-fullscreen-header').filter({ visible: true }).getByText('Chat Workspace').isVisible())
+        await expect(page.getByTestId('desktop-file-workspace-fullscreen-header').filter({ visible: true }).getByText('Workspace').isVisible())
             .resolves.toBe(true);
-        await page.getByTestId('desktop-file-workspace-picker-close').filter({ visible: true }).click();
-        await assertMainComposerRetained();
-
-        await openMainAction('machine-workspace');
-        await expect(page.getByTestId('desktop-file-workspace-fullscreen-header').filter({ visible: true }).getByText('Machine Workspace').isVisible())
-            .resolves.toBe(true);
+        await expect(compactWorkspace.getByPlaceholder('Path').inputValue()).resolves.toBe('/work/project');
         await page.getByText('MainEC2').filter({ visible: true }).waitFor({ state: 'visible', timeout: 3_000 });
         await expect(page.getByText('Upload', { exact: true }).filter({ visible: true }).isVisible())
             .resolves.toBe(true);
@@ -1547,9 +1520,11 @@ describe('Side chats browser interaction', () => {
             await newestActionTrigger.click({ timeout: 3_000 });
             const menu = foreground.getByTestId('mobile-composer-actions-menu');
             await menu.waitFor({ state: 'visible', timeout: 3_000 });
-            for (const label of ['Changes', 'Chat Workspace', 'Machine Workspace']) {
+            for (const label of ['Changes', 'Workspace']) {
                 await expect(menu.getByRole('menuitem', { name: label, exact: true }).isVisible()).resolves.toBe(true);
             }
+            await expect(menu.getByRole('menuitem', { name: 'Chat Workspace', exact: true }).count()).resolves.toBe(0);
+            await expect(menu.getByRole('menuitem', { name: 'Machine Workspace', exact: true }).count()).resolves.toBe(0);
             await menu.getByTestId(`mobile-composer-action-${key}`).click({ timeout: 3_000 });
         };
 
@@ -1561,17 +1536,11 @@ describe('Side chats browser interaction', () => {
         await foreground.getByTestId('mobile-changes-workspace-overlay').waitFor({ state: 'detached', timeout: 3_000 });
         await assertNewestComposerRetained();
 
-        await openNewestAction('chat-workspace');
+        await openNewestAction('workspace');
         await page.getByTestId('desktop-file-workspace-fullscreen-header').filter({ visible: true })
-            .getByText('Chat Workspace', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
-        await page.getByText('chat-child-newest.md', { exact: true }).filter({ visible: true })
-            .waitFor({ state: 'visible', timeout: 3_000 });
-        await page.getByTestId('desktop-file-workspace-picker-close').filter({ visible: true }).click();
-        await assertNewestComposerRetained();
-
-        await openNewestAction('machine-workspace');
-        await page.getByTestId('desktop-file-workspace-fullscreen-header').filter({ visible: true })
-            .getByText('Machine Workspace', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
+            .getByText('Workspace', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
+        await expect(page.getByTestId('desktop-file-workspace').filter({ visible: true })
+            .getByPlaceholder('Path').inputValue()).resolves.toBe('/work/child-newest');
         await page.getByText('child-newest-machine-file.md', { exact: true }).filter({ visible: true })
             .waitFor({ state: 'visible', timeout: 3_000 });
         await page.getByTestId('desktop-file-workspace-picker-close').filter({ visible: true }).click();
