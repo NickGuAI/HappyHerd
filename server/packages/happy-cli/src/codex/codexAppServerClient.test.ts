@@ -163,6 +163,29 @@ describe('CodexAppServerClient sandbox integration', () => {
         await client.disconnect();
     });
 
+    it('launches app-server from an explicit provider directory and environment', async () => {
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const processEnvironment = {
+            PATH: process.env.PATH,
+            CODEX_HOME: '/srv/codex-homes/rotated',
+            HAPPYHERD_PROVIDER_ACCOUNT: 'rotated-account',
+            HAPPYHERD_PROVIDER_ACCOUNT_TYPE: 'codex',
+            HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: '/srv/accounts/rotated/auth.json',
+        };
+        const client = new CodexAppServerClient(undefined, {
+            workingDirectory: '/srv/parent-project',
+            processEnvironment,
+        });
+
+        await client.connect();
+
+        const [, , options] = mockSpawn.mock.calls[0];
+        expect(options.cwd).toBe('/srv/parent-project');
+        expect(options.env).toMatchObject(processEnvironment);
+
+        await client.disconnect();
+    });
+
     it('starts a governed agent app-server with fail-closed policy and manifest-only tools', async () => {
         const requests: MockRpcMessage[] = [];
         mockSpawn.mockImplementation(() => createMockProcess({

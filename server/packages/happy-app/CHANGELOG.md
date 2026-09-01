@@ -1,3 +1,7 @@
+# September 1 — Reliable Codex Side Chats
+
+- Codex side chats created from an existing Codex session now launch successfully when the parent uses a non-default or rotated credential home or account, opening an empty child conversation for one-click creation on the same machine and working directory.
+
 # September 1 — One Workspace for every chat
 
 - Open Workspace from a Main Agent or active Side chat at that exact chat's connected machine and current directory, then browse the full machine on Web Desktop or Web Mobile.

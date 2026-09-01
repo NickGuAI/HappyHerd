@@ -559,7 +559,10 @@ export async function startDaemon(): Promise<void> {
         const authEnv: Record<string, string> = {};
         const credentialProvider = credentialProviderForAgent(options.agent);
         const credentialResolution = credentialProvider
-          ? await resolveCredentialAccountEnvironment(credentialProvider)
+          ? await resolveCredentialAccountEnvironment(
+            credentialProvider,
+            options.providerAccount ? { preferred: options.providerAccount } : {},
+          )
           : { selection: { type: 'unconfigured' as const }, env: {} };
         if (credentialResolution.selection.type === 'all-limited') {
           return {
@@ -568,6 +571,9 @@ export async function startDaemon(): Promise<void> {
           };
         }
         Object.assign(authEnv, credentialResolution.env);
+        if (options.agent === 'codex' && options.codexHome) {
+          authEnv.CODEX_HOME = options.codexHome;
+        }
         if (options.token && credentialResolution.selection.type === 'unconfigured') {
           if (options.agent === 'codex') {
 
@@ -1684,6 +1690,30 @@ export async function startDaemon(): Promise<void> {
       }
 
       const creation = (async (): Promise<LocalSideChatCreation> => {
+        const isCodexParent = parent.metadata.flavor === 'codex';
+        const codexHome = isCodexParent
+          ? await resolveCodexHomeForResume(parent.metadata, ambientEnvironment)
+          : undefined;
+        const codexCredentialResolution = isCodexParent
+          ? await resolveCredentialAccountEnvironment('codex', {
+            preferred: parent.metadata.providerAccount,
+          })
+          : null;
+        if (codexCredentialResolution?.selection.type === 'all-limited') {
+          throw new Error(
+            `All codex accounts are limited until ${new Date(codexCredentialResolution.selection.limitedUntil).toISOString()}.`,
+          );
+        }
+        const providerAccount = codexCredentialResolution?.selection.type === 'available'
+          ? codexCredentialResolution.selection.account.name
+          : undefined;
+        const codexForkEnvironment = isCodexParent
+          ? buildSessionChildEnvironment(ambientEnvironment, {
+            ...codexCredentialResolution?.env,
+            ...(codexHome ? { CODEX_HOME: codexHome } : {}),
+          })
+          : undefined;
+
         const created = await createChildSideChat(parent.id, {
           resolveSession: async () => parent,
           resolveMachine: async (requestedMachineId) => {
@@ -1699,11 +1729,19 @@ export async function startDaemon(): Promise<void> {
               return apiMachine.forkClaudeBackendSession(params.directory, params.claudeSessionId);
             }
             if (method === 'codex-fork-thread') {
-              return apiMachine.forkCodexBackendThread(params.directory, params.codexThreadId);
+              return apiMachine.forkCodexBackendThread(
+                params.directory,
+                params.codexThreadId,
+                codexForkEnvironment,
+              );
             }
             throw new Error(`Unsupported local side-chat RPC: ${method}`);
           },
-          createMachineSession: async ({ machine: _target, ...options }) => spawnSession(options),
+          createMachineSession: async ({ machine: _target, ...options }) => spawnSession({
+            ...options,
+            ...(codexHome ? { codexHome } : {}),
+            ...(providerAccount ? { providerAccount } : {}),
+          }),
         });
         if (brief === null) {
           return { ...created, briefDelivery: null };

@@ -262,6 +262,8 @@ export class CodexAppServerClient {
     private sandboxConfig?: SandboxConfig;
     private readonly agentPolicyEntrypoint?: string;
     private readonly requireSandbox: boolean;
+    private readonly workingDirectory?: string;
+    private readonly processEnvironment?: NodeJS.ProcessEnv;
     private sandboxCleanup: (() => Promise<void>) | null = null;
     public sandboxEnabled = false;
 
@@ -302,10 +304,14 @@ export class CodexAppServerClient {
     constructor(sandboxConfig?: SandboxConfig, options: {
         agentPolicyEntrypoint?: string;
         requireSandbox?: boolean;
+        workingDirectory?: string;
+        processEnvironment?: NodeJS.ProcessEnv;
     } = {}) {
         this.sandboxConfig = sandboxConfig;
         this.agentPolicyEntrypoint = options.agentPolicyEntrypoint;
         this.requireSandbox = options.requireSandbox ?? false;
+        this.workingDirectory = options.workingDirectory;
+        this.processEnvironment = options.processEnvironment;
     }
 
     get threadId(): string | null {
@@ -820,7 +826,10 @@ export class CodexAppServerClient {
 
         if (this.sandboxConfig?.enabled && process.platform !== 'win32') {
             try {
-                this.sandboxCleanup = await initializeSandbox(this.sandboxConfig, process.cwd());
+                this.sandboxCleanup = await initializeSandbox(
+                    this.sandboxConfig,
+                    this.workingDirectory ?? process.cwd(),
+                );
                 const wrapped = await wrapForMcpTransport('codex', appServerArgs);
                 command = wrapped.command;
                 args = wrapped.args;
@@ -837,7 +846,7 @@ export class CodexAppServerClient {
 
         // Build env — same filtering as the old MCP client
         const env: Record<string, string> = {};
-        for (const [key, value] of Object.entries(process.env)) {
+        for (const [key, value] of Object.entries(this.processEnvironment ?? process.env)) {
             if (typeof value === 'string') env[key] = value;
         }
         // Mute noisy rollout list logging
@@ -859,6 +868,7 @@ export class CodexAppServerClient {
         const proc = crossSpawn(command, args, {
             stdio: ['pipe', 'pipe', 'pipe'],
             env,
+            cwd: this.workingDirectory,
             windowsHide: true,
         });
         this.process = proc;
