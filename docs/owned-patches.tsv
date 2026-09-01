@@ -58,7 +58,7 @@ PUBLIC_RELEASE	accepted	fix(release): publish annotated tag notes compatibly	scr
 CODEX_TURN_RECOVERY	accepted	fix(codex): recover stale active turns	server/packages/happy-cli/src/codex/codexAppServerClient.test.ts
 PUBLIC_BOUNDARY	accepted	fix(public-boundary): pin legacy committer normalization	scripts/test-public-boundary.mjs
 PUBLIC_BOUNDARY	accepted	fix(public-boundary): accept signed PR merges	scripts/test-public-boundary.mjs
-DEVELOPMENT_CONTEXT	accepted	docs(dev): add development context	.dev/README.md
+DEVELOPMENT_CONTEXT	accepted	docs(dev): add development context	.dev/AGENTS.md
 COMMUNITY_SURFACE	accepted	docs(project): publish community contracts	scripts/verify-community-contract.mjs
 COMMANDER_AVATAR	accepted	feat(sessions): show Commander avatars	server/packages/happy-cli/src/agentContext/commanderContext.test.ts
 COMMANDER_AVATAR	accepted	fix(app): display uploaded Commander avatars	server/packages/happy-server/sources/app/api/socket.test.ts
@@ -121,7 +121,7 @@ AUTOMATIONS_PROFILING	accepted	fix(metrics): preserve production summary recordi
 COMPONENT_DEPLOYMENT	accepted	fix(deploy): clean HappyHerd Docker artifacts	scripts/test-component-deployment-contract.sh
 RETIRED_AGENT_REMOVAL	accepted	refactor(agents): remove retired provider support	server/packages/happy-cli/src/index.ts
 TEST_TEMP_CLEANUP	accepted	test(cli): remove temporary test homes	server/packages/happy-cli/src/automations/sessionBootstrap.test.ts
-DEVELOPMENT_PRINCIPLES	accepted	docs(dev): record project development principles	.dev/README.md
+DEVELOPMENT_PRINCIPLES	accepted	docs(dev): record project development principles	.dev/AGENTS.md
 DEVELOPMENT_CONTEXT	accepted	docs(agents): explain generic development context loading	AGENTS.md
 COMMANDER_PICKER_SCROLL	accepted	fix(app): keep commander picker scrollable	server/packages/happy-app/sources/utils/newSessionSidebarLayout.test.ts
 VOICE_UPGRADE_PROMPT_REMOVAL	accepted	chore(app): remove voice upgrade prompt	server/packages/happy-app/sources/voiceSettingsRoute.test.ts
@@ -135,7 +135,7 @@ POST_UPDATE_RESTART	accepted	docs(dev): document post-update restart order	.dev/
 PATCH_DISCIPLINE	accepted	fix(ci): validate nested structural PR merges	scripts/test-owned-merge-provenance.sh
 SIDE_CHAT_LOCAL_AUTH	accepted	fix(cli): reuse local daemon auth for side chats	server/packages/happy-cli/src/commands/machine.test.ts
 SIDE_CHAT_LOCAL_AUTH_VERIFY	accepted	docs(cli): verify local side-chat authentication	.dev/VERIFY.md
-SECURITY_FEATURE_APPROVAL	accepted	docs(dev): require TickTick approval for security features	.dev/README.md
+SECURITY_FEATURE_APPROVAL	accepted	docs(dev): require TickTick approval for security features	.dev/playbooks/security-feature-approval.md
 DEV_CONTEXT_CI_BYPASS	accepted	ci: skip suites for development-context-only changes	.github/workflows/quality-gates.yml
 AUTOMATION_UNATTENDED	accepted	fix(automations): enforce unattended execution lifecycle	server/packages/happy-cli/src/automations/unattendedPolicy.test.ts
 SUBAGENT_LIFECYCLE	accepted	fix(subagents): trust provider lifecycle state	server/packages/happy-cli/src/codex/__tests__/sessionProtocolMapper.test.ts
@@ -219,3 +219,4 @@ WORKSPACE_UNIFICATION	accepted	docs(workspace): document unified Workspace contr
 WORKSPACE_CONTEXT_UNIFICATION	accepted	feat(workspace): unify browsing and session context	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 WORKSPACE_CONTEXT_UNIFICATION	accepted	fix(workspace): target active side chat from sidebar	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 WORKSPACE_CONTEXT_IDENTITY	accepted	fix(workspace): preserve machine context identity	server/packages/happy-app/sources/sync/workspaceContext.test.ts
+DEVELOPMENT_SKILL_CATALOG	accepted	docs(dev): consolidate HappyHerd skills	.dev/AGENTS.md

@@ -1,0 +1,4 @@
+interface:
+  display_name: "HappyHerd Engineering Investigation"
+  short_description: "Investigate HappyHerd work into one scoped task"
+  default_prompt: "Use $happyherd-eng-investigate to investigate this HappyHerd problem and create or update its TickTick task."

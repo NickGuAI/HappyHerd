@@ -1,0 +1,4 @@
+interface:
+  display_name: "HappyHerd User Safeguard"
+  short_description: "Gate complex artifact work for one approval"
+  default_prompt: "Use $happyherd-user-safeguard before complex artifact work."

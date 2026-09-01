@@ -1,0 +1,4 @@
+interface:
+  display_name: "HappyHerd Engineering Delivery"
+  short_description: "Deliver one HappyHerd TickTick task to review-ready PRs"
+  default_prompt: "Identify and deliver exactly one supplied HappyHerd TickTick task to verified review-ready PRs in only required repositories using the $happyherd-eng-deliver skill."

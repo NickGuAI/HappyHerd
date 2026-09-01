@@ -163,7 +163,8 @@ Permission discovery, delivery, and enforcement are separate. A launch flag
 does not prove how Happy handles a later ACP `requestPermission` callback, and
 an ACP operating-mode selector must not overwrite a process launch policy.
 A change that introduces or expands Happy-owned permission enforcement remains
-subject to the security approval gate in [`README.md`](README.md).
+subject to the
+[security-feature approval gate](playbooks/security-feature-approval.md).
 
 ACP tool fields are also distinct: `toolCallId` correlates events, `title` is
 human-readable display text, optional `kind` is a category, and `rawInput` is

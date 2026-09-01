@@ -21,19 +21,9 @@ Before starting, every feature must have an owning TickTick task with the
 intended scope stated concisely. Do not start adjacent changes that the owner
 did not place in that task.
 
-For any HappyHerd-owned security feature, apply the stop gate in
-`.dev/README.md` before selecting implementation details, branching,
-implementation, or delegation. Its dedicated TickTick task must be in the list
-named exactly `In review`; Nick must explicitly approve the feature; and that
-approval's exact text or linked evidence must be recorded in the task. Mere
-task creation, list placement, or silence does not count. If either list
-placement or approval evidence is missing or ambiguous, stop. An unchanged
-upstream Happy security behavior is exempt only when its source path and
-upstream commit or range-diff prove that provenance. Removing a HappyHerd-only
-security mechanism is also exempt when no replacement security mechanism is
-introduced or expanded and upstream Happy behavior remains intact. The
-existing repository requirement to record explicit approval in the owning
-issue and pull request still applies.
+For any HappyHerd-owned security feature, apply the
+[security-feature approval gate](security-feature-approval.md) before selecting
+implementation details, branching, implementation, or delegation.
 
 ```bash
 test -z "$(git status --porcelain --untracked-files=normal)"

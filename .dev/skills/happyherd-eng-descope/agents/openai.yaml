@@ -1,0 +1,4 @@
+interface:
+  display_name: "HappyHerd Engineering Descope"
+  short_description: "Remove unsupported scope from HappyHerd plans"
+  default_prompt: "Use $happyherd-eng-descope to reduce this HappyHerd task plan to its explicitly required outcomes."
