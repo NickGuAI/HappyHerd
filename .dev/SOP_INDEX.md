@@ -9,6 +9,7 @@ impose that source-state gate.
 |---|---|---|
 | Development and PR conventions | `AGENTS.md`, `server/docs/CONTRIBUTING.md`, `server/docs/dev-environments.md` | `server/package.json` |
 | HappyHerd branch-to-cleanup lifecycle | `.dev/playbooks/development-lifecycle.md` | `git`, `gh`, root required workflows |
+| HappyHerd-owned security-feature approval | `.dev/playbooks/security-feature-approval.md` | TickTick `In review` task and explicit owner approval |
 | Verification | `.dev/VERIFY.md`, `.github/workflows/quality-gates.yml`, `.github/workflows/contract-suite.yml` | `scripts/contract-suite.sh` |
 | Provider onboarding and protocol changes | `.dev/playbooks/provider-onboarding.md`, `.dev/COUPLINGS.md`, `.dev/VERIFY.md` | Focused provider fixtures; `pnpm --filter @slopus/happy-wire test`; affected `@happyherd/cli` and `happy-app` package checks; live provider smoke when available |
 | Named credential pools and reactive rotation | `server/packages/happy-cli/README.md`, `.dev/COUPLINGS.md`, `.dev/VERIFY.md` | Focused connect, quota, resume, rotation, event-persistence, reducer, rendering, and locale fixtures; affected `@happyherd/cli` and `happy-app` package checks |

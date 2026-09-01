@@ -112,9 +112,26 @@ delivery route without relying on a directory name alone.
 
 ## Refresh rule
 
-Re-run the evidence scan and all fixture routes whenever an update trigger in
-`.dev/README.md` fires. Record disproven assumptions and remaining gaps rather
-than silently copying prior prose.
+Re-run the evidence scan and all fixture routes whenever an update trigger
+below fires. Record disproven assumptions and remaining gaps rather than
+silently copying prior prose.
+
+## Update triggers
+
+Refresh the affected `.dev/` entries when any of these change:
+
+- workspace packages, entry points, imports, RPC/message schemas, or state roots;
+- provider registries, capability sources, permission semantics, adapters, or
+  raw event shapes;
+- app routes, localization catalogs, UI inventory, or changelog generation;
+- package scripts, pinned tool versions, tests, build commands, or CI checks;
+- branch protection, merge policy, patch discipline, or upstream-sync rules;
+- component deployment, installer, runtime-boundary, or public-release
+  contracts; or
+- a source audit disproves a route or coupling documented here.
+
+Review the concrete source again before changing the map. Do not preserve a
+stale statement for compatibility with this context.
 
 ## Focused refresh — 2026-08-31: workspace consolidation
 
@@ -203,7 +220,7 @@ than silently copying prior prose.
 ## Focused refresh — 2026-08-27: security-feature approval gate
 
 - **Evidence inputs:** the owner's prospective approval rule; `AGENTS.md`;
-  `.dev/README.md`; `.dev/playbooks/development-lifecycle.md`; the live TickTick
+  `.dev/AGENTS.md`; `.dev/playbooks/development-lifecycle.md`; the live TickTick
   project list; and the protected-main delivery and patch-discipline contracts.
 - **Observed external contract:** the TickTick list is named exactly
   `In review`. A dedicated task in that list plus Nick's explicit approval,

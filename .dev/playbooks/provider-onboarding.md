@@ -9,7 +9,8 @@ Live source, provider documentation or executable output, the closest
 `AGENTS.md`, and the owning TickTick task remain authoritative. If the change
 introduces or expands a HappyHerd-owned security mechanism, stop at read-only
 investigation and follow the security-feature approval gate in
-[`../README.md`](../README.md) before selecting implementation details.
+[`security-feature-approval.md`](security-feature-approval.md) before selecting
+implementation details.
 
 ## Contract map
 

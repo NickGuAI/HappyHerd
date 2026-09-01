@@ -8,7 +8,7 @@ range-diff.
 
 ## Development context
 
-When a project or repository contains `.dev/`, start at `.dev/README.md` and
+When a project or repository contains `.dev/`, start at `.dev/AGENTS.md` and
 follow its navigation to load only the context relevant to the current task.
 Treat `.dev/` as source-derived guidance: the applicable `AGENTS.md` files and
 live source remain authoritative.
