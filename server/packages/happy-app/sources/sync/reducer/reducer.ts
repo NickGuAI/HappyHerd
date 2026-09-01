@@ -130,6 +130,7 @@ type ReducerMessage = {
     localId?: string | null;
     realID: string | null;
     createdAt: number;
+    turn?: string;
     role: 'user' | 'agent';
     text: string | null;
     isThinking?: boolean;
@@ -868,6 +869,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                         realID: msg.id,
                         role: 'agent',
                         createdAt: msg.createdAt,
+                        turn: msg.turn,
                         text: isThinking ? `*${c.thinking}*` : c.text,
                         isThinking,
                         tool: null,
@@ -906,6 +908,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                             const hasLatestDescriptor = isLatestToolDescriptor(message, msg);
                             if (hasLatestDescriptor) {
                                 message.realID = msg.id;
+                                message.turn = msg.turn ?? message.turn;
                                 message.tool.name = c.name;
                                 message.tool.title = c.title;
                                 message.tool.input = hadStarted
@@ -983,6 +986,7 @@ export function reducer(state: ReducerState, messages: NormalizedMessage[], agen
                             realID: msg.id,
                             role: 'agent',
                             createdAt: msg.createdAt,
+                            turn: msg.turn,
                             text: null,
                             tool: toolCall,
                             toolDescriptorUpdatedAt: msg.createdAt,
@@ -1351,6 +1355,7 @@ function convertReducerMessageToMessage(reducerMsg: ReducerMessage, state: Reduc
             id: reducerMsg.id,
             localId: null,
             createdAt: reducerMsg.createdAt,
+            turn: reducerMsg.turn,
             kind: 'agent-text',
             text: reducerMsg.text,
             ...(reducerMsg.isThinking && { isThinking: true }),
@@ -1371,6 +1376,7 @@ function convertReducerMessageToMessage(reducerMsg: ReducerMessage, state: Reduc
             id: reducerMsg.id,
             localId: null,
             createdAt: reducerMsg.createdAt,
+            turn: reducerMsg.turn,
             kind: 'tool-call',
             tool: { ...reducerMsg.tool },
             children: childMessages,

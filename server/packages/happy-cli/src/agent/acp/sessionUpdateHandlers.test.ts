@@ -1,9 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { SessionUpdate as AcpSdkSessionUpdate } from '@agentclientprotocol/sdk';
 
+const mockLoggerDebug = vi.hoisted(() => vi.fn());
+
+vi.mock('@/ui/logger', () => ({
+  logger: { debug: mockLoggerDebug },
+}));
+
 import type { AgentMessage } from '../core';
 import type { HandlerContext } from './sessionUpdateHandlers';
 import {
+  handleAgentMessageChunk,
   handleToolCall,
   handleToolCallUpdate,
 } from './sessionUpdateHandlers';
@@ -34,6 +41,116 @@ function createContext() {
 }
 
 describe('ACP spec-shaped tool updates', () => {
+  it('redacts image payloads at malformed and failed update log boundaries', () => {
+    mockLoggerDebug.mockClear();
+    const sentinel = 'PRIVATE_IMAGE_PAYLOAD_SENTINEL';
+    const imageContent = {
+      type: 'content',
+      content: { type: 'image', data: sentinel, mimeType: 'image/jpeg' },
+    } as const;
+
+    handleToolCallUpdate({
+      sessionUpdate: 'tool_call_update',
+      content: [imageContent],
+    }, createContext().context);
+
+    const { context } = createContext();
+    context.transport.isInvestigationTool = () => true;
+    handleToolCall({
+      sessionUpdate: 'tool_call',
+      toolCallId: 'investigation-image-failure',
+      title: 'Inspect image',
+      kind: 'other',
+    } satisfies AcpSdkSessionUpdate, context);
+    handleToolCallUpdate({
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 'investigation-image-failure',
+      status: 'failed',
+      content: [imageContent],
+    } satisfies AcpSdkSessionUpdate, context);
+
+    const logs = JSON.stringify(mockLoggerDebug.mock.calls);
+    expect(logs).not.toContain(sentinel);
+    expect(logs).toContain('base64Length');
+  });
+
+  it('emits validated direct ACP image chunks instead of dropping them', () => {
+    const { context, emitted } = createContext();
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1]);
+
+    expect(handleAgentMessageChunk({
+      sessionUpdate: 'agent_message_chunk',
+      content: {
+        type: 'image',
+        data: jpeg.toString('base64'),
+        mimeType: 'image/jpeg',
+        uri: 'images/5.jpg',
+      },
+    }, context)).toEqual({ handled: true });
+    expect(emitted).toContainEqual(expect.objectContaining({
+      type: 'model-output-image',
+      name: 'images/5.jpg',
+      mimeType: 'image/jpeg',
+      sourceUri: 'images/5.jpg',
+    }));
+
+    const invalid = createContext();
+    expect(handleAgentMessageChunk({
+      sessionUpdate: 'agent_message_chunk',
+      content: {
+        type: 'image',
+        data: jpeg.toString('base64'),
+        mimeType: 'image/png',
+      },
+    }, invalid.context)).toEqual({ handled: false });
+    expect(invalid.emitted).toEqual([]);
+  });
+
+  it('emits tool display images while preserving independent raw output', () => {
+    const { context, emitted } = createContext();
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1]);
+    const callId = 'grok-image-edit-1';
+
+    handleToolCall({
+      sessionUpdate: 'tool_call',
+      toolCallId: callId,
+      title: 'Generate an image',
+      kind: 'other',
+    } satisfies AcpSdkSessionUpdate, context);
+    handleToolCallUpdate({
+      sessionUpdate: 'tool_call_update',
+      toolCallId: callId,
+      rawOutput: { path: '/provider/images/5.jpg' },
+      content: [{
+        type: 'content',
+        content: {
+          type: 'image',
+          data: jpeg.toString('base64'),
+          mimeType: 'image/jpeg',
+          uri: 'images/5.jpg',
+        },
+      }],
+    } satisfies AcpSdkSessionUpdate, context);
+    handleToolCallUpdate({
+      sessionUpdate: 'tool_call_update',
+      toolCallId: callId,
+      status: 'completed',
+    } satisfies AcpSdkSessionUpdate, context);
+
+    expect(emitted).toContainEqual(expect.objectContaining({
+      type: 'tool-result',
+      callId,
+      result: { path: '/provider/images/5.jpg' },
+    }));
+    expect(emitted).toContainEqual(expect.objectContaining({
+      type: 'model-output-image',
+      name: 'images/5.jpg',
+      mimeType: 'image/jpeg',
+      sourceCallId: callId,
+      sourceUri: 'images/5.jpg',
+    }));
+  });
+
   it.each(['raw-output-first', 'content-first'] as const)(
     'preserves raw output when %s updates complete with a status-only delta',
     (fieldOrder) => {

@@ -1,8 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import tweetnacl from 'tweetnacl';
-import { decryptBlob, getRandomBytes } from './encryption';
+import { decryptBlob, encryptBlob, getRandomBytes } from './encryption';
+import { ENCRYPTED_BLOB_OVERHEAD_BYTES } from './attachmentLimits';
 
 describe('decryptBlob', () => {
+    it('keeps the declared attachment overhead aligned with the secretbox wire format', () => {
+        const encrypted = encryptBlob(new Uint8Array(17), getRandomBytes(32));
+        expect(encrypted.length).toBe(17 + ENCRYPTED_BLOB_OVERHEAD_BYTES);
+    });
+
     it('decrypts a blob encrypted with NaCl secretbox', () => {
         const key = getRandomBytes(32);
         const plaintext = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);

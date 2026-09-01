@@ -37,6 +37,7 @@ import type {
 import { logger } from '@/ui/logger';
 import { delay } from '@/utils/time';
 import packageJson from '../../../package.json';
+import { redactAcpImageDataForLogging } from '@/sessionProtocol/providerOutputImages';
 
 /**
  * Retry configuration for ACP operations
@@ -967,17 +968,21 @@ export class AcpBackend implements AgentBackend {
     const update = notification.update;
 
     if (!update) {
-      logger.debug('[AcpBackend] Received session update without update field:', params);
+      logger.debug(
+        '[AcpBackend] Received session update without update field:',
+        redactAcpImageDataForLogging(params),
+      );
       return;
     }
 
     const sessionUpdateType = update.sessionUpdate;
     const updateType = sessionUpdateType as string | undefined;
 
-    logger.debug(`[AcpBackend] sessionUpdate: ${sessionUpdateType}`, JSON.stringify(update));
+    const safeUpdateLog = JSON.stringify(redactAcpImageDataForLogging(update));
+    logger.debug(`[AcpBackend] sessionUpdate: ${sessionUpdateType}`, safeUpdateLog);
     if (this.options.verbose) {
       logAcpBackendMuted(
-        `Incoming raw session update from ${this.options.agentName}: ${JSON.stringify(update)}`,
+        `Incoming raw session update from ${this.options.agentName}: ${safeUpdateLog}`,
       );
     }
 
@@ -1065,7 +1070,7 @@ export class AcpBackend implements AgentBackend {
         !update.messageChunk &&
         !update.plan &&
         !update.thinking) {
-      logger.debug(`[AcpBackend] Unhandled session update type: ${updateType}`, JSON.stringify(update, null, 2));
+      logger.debug(`[AcpBackend] Unhandled session update type: ${updateType}`, safeUpdateLog);
     }
   }
 

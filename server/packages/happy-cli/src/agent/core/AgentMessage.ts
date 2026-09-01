@@ -34,6 +34,16 @@ export interface ModelOutputMessage {
   fullText?: string;
 }
 
+/** Validated image output emitted by a model or protocol display block. */
+export interface ModelOutputImageMessage {
+  type: 'model-output-image';
+  data: Uint8Array;
+  mimeType: 'image/png' | 'image/jpeg';
+  name: string;
+  sourceCallId?: ToolCallId;
+  sourceUri?: string;
+}
+
 /**
  * Status message - agent lifecycle state
  */
@@ -162,6 +172,7 @@ export interface PatchApplyEndMessage {
  */
 export type AgentMessage =
   | ModelOutputMessage
+  | ModelOutputImageMessage
   | StatusMessage
   | ToolCallMessage
   | ToolResultMessage

@@ -1,14 +1,97 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    extractAcpContentImages,
     extractClaudeAgentOutputImages,
     extractCodexAgentOutputImages,
+    redactAcpImageDataForLogging,
 } from './providerOutputImages';
+import { MAX_PLAINTEXT_ATTACHMENT_BYTES } from '@/api/attachmentLimits';
 
 const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1]);
 const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1]);
 
 describe('provider output images', () => {
+    it('extracts direct and tool-wrapped ACP images while preserving a safe provider URI', () => {
+        const direct = extractAcpContentImages({
+            type: 'image',
+            data: jpeg.toString('base64'),
+            mimeType: 'image/jpeg',
+            uri: 'images/5.jpg',
+        });
+        const wrapped = extractAcpContentImages([{
+            type: 'content',
+            content: {
+                type: 'image',
+                data: png.toString('base64'),
+                mimeType: 'image/png',
+                uri: 'images/6.png',
+            },
+        }]);
+
+        expect(direct).toHaveLength(1);
+        expect(direct[0]).toMatchObject({ name: 'images/5.jpg', sourceUri: 'images/5.jpg', mimeType: 'image/jpeg' });
+        expect(wrapped).toHaveLength(1);
+        expect(wrapped[0]).toMatchObject({ name: 'images/6.png', sourceUri: 'images/6.png', mimeType: 'image/png' });
+    });
+
+    it('accepts the encrypted-upload boundary and rejects the next byte', () => {
+        const atLimit = Buffer.alloc(MAX_PLAINTEXT_ATTACHMENT_BYTES, 0xff);
+        atLimit.set([0xff, 0xd8, 0xff], 0);
+        expect(extractAcpContentImages({
+            type: 'image',
+            data: atLimit.toString('base64'),
+            mimeType: 'image/jpeg',
+            uri: 'images/large.jpg',
+        })).toHaveLength(1);
+
+        const overLimit = Buffer.alloc(MAX_PLAINTEXT_ATTACHMENT_BYTES + 1, 0xff);
+        overLimit.set([0xff, 0xd8, 0xff], 0);
+        expect(extractAcpContentImages({
+            type: 'image',
+            data: overLimit.toString('base64'),
+            mimeType: 'image/jpeg',
+            uri: 'images/too-large.jpg',
+        })).toEqual([]);
+    });
+
+    it('rejects spoofed and malformed ACP images and does not trust unsafe URIs', () => {
+        expect(extractAcpContentImages({
+            type: 'image',
+            data: jpeg.toString('base64'),
+            mimeType: 'image/png',
+            uri: 'images/5.png',
+        })).toEqual([]);
+        expect(extractAcpContentImages({
+            type: 'image',
+            data: `${jpeg.toString('base64')}!!!!`,
+            mimeType: 'image/jpeg',
+            uri: 'images/malformed.jpg',
+        })).toEqual([]);
+
+        const unsafeName = extractAcpContentImages({
+            type: 'image',
+            data: jpeg.toString('base64'),
+            mimeType: 'image/jpeg',
+            uri: '../5.jpg',
+        });
+        expect(unsafeName[0]?.name).toBe('acp-image-1.jpg');
+    });
+
+    it('redacts ACP image strings and bytes before logging', () => {
+        const base64 = jpeg.toString('base64');
+        const safe = redactAcpImageDataForLogging({
+            content: [{ type: 'image', data: base64, mimeType: 'image/jpeg' }],
+            outgoing: { type: 'model-output-image', data: new Uint8Array(jpeg), mimeType: 'image/jpeg', name: 'images/5.jpg' },
+        });
+        const serialized = JSON.stringify(safe);
+
+        expect(serialized).not.toContain(base64);
+        expect(serialized).not.toContain('255,216,255');
+        expect(serialized).toContain(`\"base64Length\":${base64.length}`);
+        expect(serialized).toContain(`\"byteLength\":${jpeg.length}`);
+    });
+
     it('extracts spec-shaped Claude tool-result PNG/JPEG blocks in content order', () => {
         const images = extractClaudeAgentOutputImages({
             type: 'user',

@@ -14,6 +14,19 @@ const mocks = vi.hoisted(() => {
     }),
     keepAlive: vi.fn(),
     sendSessionProtocolMessage: vi.fn(),
+    uploadImageAttachmentEnvelope: vi.fn(async (attachment: any, role: 'user' | 'agent', opts: any) => ({
+      id: `file-${attachment.name}`,
+      time: opts.time,
+      role,
+      turn: opts.turn,
+      ev: {
+        t: 'file',
+        ref: `ref-${attachment.name}`,
+        name: attachment.name,
+        size: attachment.data.length,
+        mimeType: attachment.mimeType,
+      },
+    })),
     sendSessionEvent: vi.fn(),
     updateMetadata: vi.fn(),
     suppressNextArchiveSignal: vi.fn(),
@@ -44,6 +57,7 @@ const mocks = vi.hoisted(() => {
     constructorArgs: null as any,
     stopReason: 'end_turn' as 'end_turn' | 'refusal' | 'cancelled',
     promptError: null as Error | null,
+    promptImageMessages: [] as any[],
   };
 
   return {
@@ -167,6 +181,9 @@ vi.mock('./AcpBackend', () => ({
         listener({ type: 'model-output', textDelta: 'hello' });
         listener({ type: 'tool-call', toolName: 'ReadFile', args: { path: 'README.md' }, callId: 'tool-1' });
         listener({ type: 'tool-result', toolName: 'ReadFile', result: { ok: true }, callId: 'tool-1' });
+        for (const imageMessage of mocks.backendState.promptImageMessages) {
+          listener(imageMessage);
+        }
         listener({ type: 'status', status: 'idle' });
       }
     }
@@ -239,6 +256,7 @@ describe('runAcp', () => {
     mocks.backendState.constructorArgs = null;
     mocks.backendState.stopReason = 'end_turn';
     mocks.backendState.promptError = null;
+    mocks.backendState.promptImageMessages = [];
     mocks.lifecycleEvents.length = 0;
 
     mocks.mockApiCreate.mockResolvedValue({
@@ -269,6 +287,202 @@ describe('runAcp', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+  });
+
+  it('uploads ACP output images once, in turn order, through encrypted agent attachments', async () => {
+    const jpeg = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 1]);
+    const secondJpeg = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 2]);
+    const providerPath = '/provider/session/images/5.jpg';
+    const readCallId = 'read-generated-image';
+    const imageMessage = {
+      type: 'model-output-image',
+      data: jpeg,
+      mimeType: 'image/jpeg',
+      name: 'acp-tool-read-generated-image-1.jpg',
+      sourceCallId: readCallId,
+    };
+    mocks.backendState.promptImageMessages = [
+      {
+        type: 'tool-call',
+        toolName: 'other',
+        args: { variant: 'ImageEdit' },
+        callId: 'edit-generated-image',
+      },
+      {
+        type: 'tool-result',
+        toolName: 'other',
+        result: {
+          type: 'ImageEdit',
+          path: providerPath,
+          filename: '5.jpg',
+          session_folder: '.private-content/images',
+        },
+        callId: 'edit-generated-image',
+      },
+      {
+        type: 'tool-call',
+        toolName: 'read',
+        args: { variant: 'ReadFile', target_file: providerPath },
+        callId: readCallId,
+      },
+      {
+        type: 'tool-result',
+        toolName: 'read',
+        result: { type: 'ReadFile' },
+        callId: readCallId,
+      },
+      imageMessage,
+      imageMessage,
+      { ...imageMessage, data: secondJpeg, name: 'images/provider.jpg', sourceUri: 'images/provider.jpg' },
+      { ...imageMessage, name: 'images/6.jpg', sourceCallId: undefined },
+    ];
+
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'grok',
+      command: 'grok',
+      args: ['--no-auto-update', 'agent', 'stdio'],
+    });
+
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+    mocks.getUserMessageHandler()!({
+      role: 'user',
+      content: { type: 'text', text: 'Generate one image' },
+    });
+
+    await vi.waitFor(() => expect(mocks.mockSession.uploadImageAttachmentEnvelope).toHaveBeenCalledTimes(2));
+    expect(mocks.mockSession.uploadImageAttachmentEnvelope).toHaveBeenCalledWith(
+      expect.objectContaining({ name: '.private-content/images/5.jpg', mimeType: 'image/jpeg', data: jpeg }),
+      'agent',
+      expect.objectContaining({ turn: expect.any(String), time: expect.any(Number) }),
+    );
+    expect(mocks.mockSession.uploadImageAttachmentEnvelope).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'images/provider.jpg' }),
+      'agent',
+      expect.any(Object),
+    );
+    expect(mocks.mockSession.uploadImageAttachmentEnvelope).not.toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'images/6.jpg' }),
+      expect.anything(),
+      expect.anything(),
+    );
+
+    await mocks.getKillHandler()!();
+    await runPromise;
+
+    const envelopeTypes = mocks.mockSession.sendSessionProtocolMessage.mock.calls.map(([envelope]) => envelope.ev.t);
+    expect(envelopeTypes).toEqual([
+      'turn-start',
+      'text',
+      'tool-call-start',
+      'tool-call-end',
+      'tool-call-start',
+      'tool-call-end',
+      'tool-call-start',
+      'tool-call-end',
+      'file',
+      'file',
+      'turn-end',
+    ]);
+  });
+
+  it('keeps exact tool image names when an unsourced direct image arrives first', async () => {
+    const jpeg = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 1]);
+    mocks.backendState.promptImageMessages = [
+      {
+        type: 'model-output-image',
+        data: jpeg,
+        mimeType: 'image/jpeg',
+        name: 'acp-message-1.jpg',
+      },
+      {
+        type: 'model-output-image',
+        data: jpeg,
+        mimeType: 'image/jpeg',
+        name: 'images/first.jpg',
+        sourceCallId: 'first-tool',
+        sourceUri: 'images/first.jpg',
+      },
+      {
+        type: 'model-output-image',
+        data: jpeg,
+        mimeType: 'image/jpeg',
+        name: 'images/independent.jpg',
+        sourceCallId: 'second-tool',
+        sourceUri: 'images/independent.jpg',
+      },
+    ];
+
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'grok',
+      command: 'grok',
+      args: ['--no-auto-update', 'agent', 'stdio'],
+    });
+
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+    mocks.getUserMessageHandler()!({
+      role: 'user',
+      content: { type: 'text', text: 'Generate images' },
+    });
+
+    await vi.waitFor(() => expect(mocks.mockSession.uploadImageAttachmentEnvelope).toHaveBeenCalledTimes(3));
+    expect(mocks.mockSession.uploadImageAttachmentEnvelope).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ name: 'acp-message-1.jpg' }),
+      'agent',
+      expect.any(Object),
+    );
+    expect(mocks.mockSession.uploadImageAttachmentEnvelope).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ name: 'images/first.jpg' }),
+      'agent',
+      expect.any(Object),
+    );
+    expect(mocks.mockSession.uploadImageAttachmentEnvelope).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ name: 'images/independent.jpg' }),
+      'agent',
+      expect.any(Object),
+    );
+
+    await mocks.getKillHandler()!();
+    await runPromise;
+  });
+
+  it('does not log encrypted upload payloads when an attachment upload fails', async () => {
+    const sentinel = 'PRIVATE_ENCRYPTED_UPLOAD_SENTINEL';
+    mocks.mockSession.uploadImageAttachmentEnvelope.mockRejectedValueOnce(Object.assign(
+      new Error('upload failed'),
+      { code: 'EUPLOAD', response: { status: 503 }, config: { data: sentinel } },
+    ));
+    mocks.backendState.promptImageMessages = [{
+      type: 'model-output-image',
+      data: Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 1]),
+      mimeType: 'image/jpeg',
+      name: 'images/failed.jpg',
+    }];
+
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'grok',
+      command: 'grok',
+      args: ['--no-auto-update', 'agent', 'stdio'],
+    });
+
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+    mocks.getUserMessageHandler()!({
+      role: 'user',
+      content: { type: 'text', text: 'Generate one image' },
+    });
+    await vi.waitFor(() => expect(mocks.mockLoggerDebug).toHaveBeenCalledWith(
+      '[grok] Failed to upload ACP agent output image',
+      expect.objectContaining({ error: expect.objectContaining({ code: 'EUPLOAD', status: 503 }) }),
+    ));
+
+    expect(JSON.stringify(mocks.mockLoggerDebug.mock.calls)).not.toContain(sentinel);
+    await mocks.getKillHandler()!();
+    await runPromise;
   });
 
   it('keeps Grok launch permission policy distinct from ACP operating mode', () => {

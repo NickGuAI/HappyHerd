@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 1 — Grok images render inline",
+      "summary": "",
+      "markdown": "- Grok-generated PNG and JPEG images now render inline in new replies and existing affected session history, while ordinary workspace images continue to use the connected machine."
+    },
+    {
       "title": "September 1 — Unified Web composer actions",
       "summary": "",
       "markdown": "- Web Desktop and Web Mobile Main Agent and Side chats now share the plus composer menu while microphone and Send remain direct controls.\n- The menu now has one Attachments action and no Device files action, while Machine Workspace keeps arbitrary-file upload and narrow file feedback wraps without covering Send."
@@ -451,5 +456,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 1 — Unified Web composer actions"
+  "latestTitle": "September 1 — Grok images render inline"
 }

@@ -1,3 +1,7 @@
+# September 1 — Grok images render inline
+
+- Grok-generated PNG and JPEG images now render inline in new replies and existing affected session history, while ordinary workspace images continue to use the connected machine.
+
 # September 1 — Unified Web composer actions
 
 - Web Desktop and Web Mobile Main Agent and Side chats now share the plus composer menu while microphone and Send remain direct controls.

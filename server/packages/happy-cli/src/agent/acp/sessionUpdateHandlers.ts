@@ -11,6 +11,10 @@
 import type { AgentMessage } from '../core';
 import type { TransportHandler } from '../transport';
 import { logger } from '@/ui/logger';
+import {
+  extractAcpContentImages,
+  redactAcpImageDataForLogging,
+} from '@/sessionProtocol/providerOutputImages';
 
 /**
  * Default timeout for idle detection after message chunks (ms)
@@ -165,14 +169,14 @@ export function extractErrorDetail(content: unknown): string | undefined {
         const errObj = error as { message?: unknown };
         if (typeof errObj.message === 'string') return errObj.message;
       }
-      return JSON.stringify(error);
+      return JSON.stringify(redactAcpImageDataForLogging(error));
     }
 
     if (typeof obj.message === 'string') return obj.message;
 
     const status = typeof obj.status === 'string' ? obj.status : undefined;
     const reason = typeof obj.reason === 'string' ? obj.reason : undefined;
-    return status || reason || JSON.stringify(obj).substring(0, 500);
+    return status || reason || JSON.stringify(redactAcpImageDataForLogging(obj)).substring(0, 500);
   }
 
   return undefined;
@@ -204,6 +208,19 @@ export function handleAgentMessageChunk(
   ctx: HandlerContext
 ): HandlerResult {
   const content = update.content;
+
+  const images = extractAcpContentImages(content, 'acp-message');
+  if (images.length > 0) {
+    for (const image of images) {
+      ctx.emit({ type: 'model-output-image', ...image });
+    }
+    ctx.clearIdleTimeout();
+    const idleTimeoutMs = ctx.transport.getIdleTimeout?.() ?? DEFAULT_IDLE_TIMEOUT_MS;
+    ctx.setIdleTimeout(() => {
+      if (ctx.activeToolCalls.size === 0) ctx.emitIdleStatus();
+    }, idleTimeoutMs);
+    return { handled: true };
+  }
 
   if (!content || typeof content !== 'object' || !('text' in content)) {
     return { handled: false };
@@ -392,7 +409,8 @@ export function completeToolCall(
   toolCallId: string,
   toolKind: string | unknown,
   content: unknown,
-  ctx: HandlerContext
+  ctx: HandlerContext,
+  displayContent?: unknown,
 ): void {
   const startTime = ctx.toolCallStartTimes.get(toolCallId);
   const duration = formatDuration(startTime);
@@ -419,6 +437,15 @@ export function completeToolCall(
     result: content,
     callId: toolCallId,
   });
+
+  const displayImages = extractAcpContentImages(displayContent, `acp-tool-${toolCallId}`);
+  for (const image of displayImages) {
+    ctx.emit({
+      type: 'model-output-image',
+      ...image,
+      ...(displayImages.length === 1 ? { sourceCallId: toolCallId } : {}),
+    });
+  }
 
   // If no more active tool calls, emit idle
   if (ctx.activeToolCalls.size === 0) {
@@ -461,7 +488,10 @@ export function failToolCall(
       }
     }
 
-    logger.debug(`[AcpBackend] 🔍 Investigation tool FAILED - full content:`, JSON.stringify(content, null, 2));
+    logger.debug(
+      `[AcpBackend] 🔍 Investigation tool FAILED - full content:`,
+      JSON.stringify(redactAcpImageDataForLogging(content), null, 2),
+    );
     logger.debug(`[AcpBackend] 🔍 Investigation tool timeout status BEFORE cleanup: ${hadTimeout ? 'timeout was set' : 'no timeout was set'}`);
     logger.debug(`[AcpBackend] 🔍 Investigation tool startTime status BEFORE cleanup: ${startTime ? `set at ${new Date(startTime).toISOString()}` : 'not set'}`);
   }
@@ -521,7 +551,10 @@ export function handleToolCallUpdate(
   const toolCallId = update.toolCallId;
 
   if (!toolCallId) {
-    logger.debug('[AcpBackend] Tool call update without toolCallId:', update);
+    logger.debug(
+      '[AcpBackend] Tool call update without toolCallId:',
+      redactAcpImageDataForLogging(update),
+    );
     return { handled: false };
   }
 
@@ -596,6 +629,7 @@ export function handleToolCallUpdate(
       toolKind,
       terminalResult,
       ctx,
+      terminalContent,
     );
   } else if (status === 'failed' || status === 'cancelled') {
     failToolCall(
