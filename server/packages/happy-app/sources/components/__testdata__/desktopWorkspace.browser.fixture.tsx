@@ -34,6 +34,17 @@ function MainAgentChatProbe() {
     );
 }
 
+function CollapsedNavigationHeaderDemo() {
+    return (
+        <div
+            data-testid="collapsed-navigation-header-demo"
+            style={{ position: 'relative', display: 'flex', width: 800, height: 80 }}
+        >
+            <SidebarNavigator />
+        </div>
+    );
+}
+
 function WorkspaceSplitDemo() {
     return (
         <div
@@ -349,6 +360,7 @@ declare global {
             text: string;
             options: { displayText: string };
         }>;
+        __SESSION_TITLE_PRESS_COUNT__?: number;
     }
 }
 
@@ -363,6 +375,7 @@ createRoot(document.getElementById('root')!).render(interactiveHtmlSurface ? (
     />
 ) : (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <CollapsedNavigationHeaderDemo />
         <IntegratedDesktopDemo />
         <FileWorkspaceDemo compact={false} testId="wide-file-workspace" />
         <FileWorkspaceDemo compact testId="narrow-file-workspace" />

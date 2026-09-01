@@ -17,6 +17,8 @@ import { DEFAULT_APP_ZOOM } from '@/hooks/useTauriZoom';
 import { canRouteForward, canUseRouteBack, getNavigatorCanGoBack } from '@/navigation/browserNavigation';
 import { useBrowserNavigationStore } from '@/navigation/browserNavigationStore';
 import {
+    DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_HIT_SLOP,
+    DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_WIDTH,
     resolveDesktopNavigationBoundaryToggleLeft,
     resolveDesktopNavigationDrawerWidth,
     resolveDesktopPersistentHeaderControlsLeft,
@@ -122,7 +124,7 @@ const DesktopNavigationBoundaryToggle = React.memo(function DesktopNavigationBou
     return (
         <Pressable
             onPress={handlePress}
-            hitSlop={8}
+            hitSlop={DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_HIT_SLOP}
             accessibilityRole="button"
             accessibilityLabel={navigationSidebarCollapsed
                 ? t('navigation.expandSidebar')
@@ -133,7 +135,7 @@ const DesktopNavigationBoundaryToggle = React.memo(function DesktopNavigationBou
                 position: 'absolute',
                 top: safeArea.top + (headerHeight - 34) / 2,
                 left: resolveDesktopNavigationBoundaryToggleLeft(drawerWidth),
-                width: 28,
+                width: DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_WIDTH,
                 height: 34,
                 zIndex: 1200,
                 alignItems: 'center',
@@ -143,7 +145,7 @@ const DesktopNavigationBoundaryToggle = React.memo(function DesktopNavigationBou
                 borderColor: theme.colors.divider,
                 backgroundColor: pressed || hovered
                     ? theme.colors.surfaceHigh
-                    : theme.colors.surface,
+                    : 'transparent',
             })}
         >
             <Ionicons

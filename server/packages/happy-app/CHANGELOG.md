@@ -1,3 +1,7 @@
+# September 1 — Collapsed navigation toggle no longer obstructs the visible session path
+
+- On Web Desktop, when navigation is collapsed, the boundary toggle no longer covers or intercepts the visible session path/name; its idle background is transparent, while hover, pressed, expand, and collapse behavior remain.
+
 # September 1 — Interactive HTML preview
 
 - Run inline JavaScript within HTML review artifacts directly inside the workspace iframe using a new explicit HTML mode, while keeping remote subresources, form submissions, nested frames, same-origin access, and popup or top navigation completely disabled.
