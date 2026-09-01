@@ -1378,6 +1378,121 @@ describe('daemon session continuity', () => {
     expect(spawnOptions.env.HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE).toBe(accountAuthFile);
   });
 
+  it('preserves an unmanaged Codex custom home through fork and child launch', async () => {
+    mocks.authoritativeActive = true;
+    const testRoot = await mkdtemp(join(tmpdir(), 'happyherd-codex-sidechat-unmanaged-'));
+    temporaryDirectories.push(testRoot);
+    const codexHome = join(testRoot, 'native-home');
+    const poolAccountHome = join(testRoot, 'accounts', 'daemon-default');
+    const poolAccountAuthFile = join(poolAccountHome, 'auth.json');
+    const nativeAuth = '{"account":"native-custom"}';
+    await mkdir(codexHome, { recursive: true });
+    await mkdir(poolAccountHome, { recursive: true });
+    await writeFile(join(codexHome, 'auth.json'), nativeAuth);
+    await writeFile(poolAccountAuthFile, '{"account":"daemon-default"}');
+    let authAtFork: string | undefined;
+    mocks.resolveCredentialAccountEnvironment.mockResolvedValue({
+      selection: {
+        type: 'available',
+        account: {
+          provider: 'codex',
+          name: 'daemon-default',
+          credential: { type: 'auth-file', path: poolAccountAuthFile },
+          createdAt: 1,
+          updatedAt: 2,
+          limitedUntil: null,
+        },
+      },
+      env: {
+        HAPPYHERD_PROVIDER_ACCOUNT: 'daemon-default',
+        HAPPYHERD_PROVIDER_ACCOUNT_TYPE: 'codex',
+        HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: poolAccountAuthFile,
+      },
+    });
+    mocks.forkCodexBackendThread.mockImplementationOnce(async () => {
+      authAtFork = await readFile(join(codexHome, 'auth.json'), 'utf8');
+      return {
+        type: 'success',
+        newCodexThreadId: 'thread-unmanaged-child',
+      };
+    });
+    const parentMetadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'codex',
+      codexThreadId: 'thread-unmanaged-parent',
+      codexHome,
+      host: 'test-host',
+      hostPid: 9877,
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happy',
+      happyToolsDir: '/srv/happy/tools',
+    };
+    mocks.resolveLocalReconnectableSession.mockResolvedValue({
+      id: 'unmanaged-parent-session',
+      metadata: parentMetadata,
+    });
+    mocks.spawnHappyCLI.mockReturnValue({
+      pid: 5433,
+      kill: vi.fn(),
+      on: vi.fn(),
+    });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const sideChat = control.sideChat({
+      action: 'create',
+      parentSessionId: 'unmanaged-parent-session',
+      brief: null,
+    });
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    control.onHappySessionWebhook('unmanaged-child-session', {
+      ...parentMetadata,
+      hostPid: 5433,
+      codexThreadId: 'thread-unmanaged-child',
+      parentSessionId: 'unmanaged-parent-session',
+      isSideChat: true,
+    }, {
+      encryptionKey: new Uint8Array(32).fill(8),
+      encryptionVariant: 'dataKey',
+      seq: 1,
+      metadataVersion: 1,
+      agentStateVersion: 1,
+    });
+
+    await expect(sideChat).resolves.toMatchObject({
+      success: true,
+      sessionId: 'unmanaged-child-session',
+    });
+    expect(mocks.resolveCredentialAccountEnvironment).not.toHaveBeenCalled();
+    expect(authAtFork).toBe(nativeAuth);
+    const [, , forkEnvironment] = mocks.forkCodexBackendThread.mock.calls[0] as unknown as [
+      string,
+      string,
+      NodeJS.ProcessEnv,
+    ];
+    expect(forkEnvironment.CODEX_HOME).toBe(codexHome);
+    expect(forkEnvironment.HAPPYHERD_PROVIDER_ACCOUNT).toBeUndefined();
+    expect(forkEnvironment.HAPPYHERD_PROVIDER_ACCOUNT_TYPE).toBeUndefined();
+    expect(forkEnvironment.HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE).toBeUndefined();
+    const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
+      string[],
+      { cwd: string; env: NodeJS.ProcessEnv },
+    ];
+    expect(args).toEqual(expect.arrayContaining([
+      'codex',
+      '--provider-account-mode', 'unmanaged',
+      '--resume', 'thread-unmanaged-child',
+    ]));
+    expect(spawnOptions.cwd).toBe(parentMetadata.path);
+    expect(spawnOptions.env.CODEX_HOME).toBe(codexHome);
+    expect(spawnOptions.env.HAPPYHERD_PROVIDER_ACCOUNT).toBeUndefined();
+    expect(spawnOptions.env.HAPPYHERD_PROVIDER_ACCOUNT_TYPE).toBeUndefined();
+    expect(spawnOptions.env.HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE).toBeUndefined();
+  });
+
   it('lists a stopped side chat after daemon restart from durable metadata and authoritative server state', async () => {
     const metadata: Metadata = {
       path: process.cwd(),

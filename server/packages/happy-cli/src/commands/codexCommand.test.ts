@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   mockExtractCodexResumeFlag: vi.fn(),
   mockExtractNoSandboxFlag: vi.fn(),
   mockEnsureDaemonRunning: vi.fn(),
+  mockActivateCredentialAccount: vi.fn(),
   mockCodexHelpSpawnSync: vi.fn(),
 }))
 
@@ -29,6 +30,10 @@ vi.mock('@/daemon/ensureDaemonRunning', () => ({
   ensureDaemonRunning: mocks.mockEnsureDaemonRunning,
 }))
 
+vi.mock('@/credentialPool/activate', () => ({
+  activateCredentialAccount: mocks.mockActivateCredentialAccount,
+}))
+
 vi.mock('cross-spawn', () => ({
   default: { sync: mocks.mockCodexHelpSpawnSync },
 }))
@@ -50,6 +55,7 @@ describe('handleCodexCommand', () => {
       args,
     }))
     mocks.mockEnsureDaemonRunning.mockResolvedValue(undefined)
+    mocks.mockActivateCredentialAccount.mockResolvedValue({ type: 'unconfigured' })
     mocks.mockRunCodex.mockResolvedValue(undefined)
     mocks.mockCodexHelpSpawnSync.mockReturnValue({ status: 0 })
   })
@@ -70,6 +76,25 @@ describe('handleCodexCommand', () => {
     expect(
       mocks.mockEnsureDaemonRunning.mock.invocationCallOrder[0],
     ).toBeLessThan(mocks.mockRunCodex.mock.invocationCallOrder[0])
+    expect(mocks.mockActivateCredentialAccount).toHaveBeenCalledWith('codex')
+  })
+
+  it('does not activate a named account for an explicitly unmanaged Codex home', async () => {
+    await handleCodexCommand([
+      '--started-by', 'daemon',
+      '--provider-account-mode', 'unmanaged',
+    ])
+
+    expect(mocks.mockActivateCredentialAccount).not.toHaveBeenCalled()
+    expect(mocks.mockRunCodex).toHaveBeenCalledWith({
+      credentials: { token: 'token' },
+      startedBy: 'daemon',
+      noSandbox: false,
+      resumeThreadId: undefined,
+      permissionMode: undefined,
+      model: undefined,
+      effort: undefined,
+    })
   })
 
   it('shows native Codex help without authentication or daemon startup', async () => {

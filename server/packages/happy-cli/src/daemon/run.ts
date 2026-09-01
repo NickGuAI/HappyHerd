@@ -559,7 +559,9 @@ export async function startDaemon(): Promise<void> {
         // Resolve authentication token if provided
         const authEnv: Record<string, string> = {};
         const credentialProvider = credentialProviderForAgent(options.agent);
-        const credentialResolution = credentialProvider
+        const preserveUnmanagedCodexHome = options.agent === 'codex'
+          && options.providerAccount === null;
+        const credentialResolution = credentialProvider && !preserveUnmanagedCodexHome
           ? await resolveCredentialAccountEnvironment(
             credentialProvider,
             options.providerAccount ? { preferred: options.providerAccount } : {},
@@ -575,7 +577,11 @@ export async function startDaemon(): Promise<void> {
         if (options.agent === 'codex' && options.codexHome) {
           authEnv.CODEX_HOME = options.codexHome;
         }
-        if (options.token && credentialResolution.selection.type === 'unconfigured') {
+        if (
+          options.token
+          && !preserveUnmanagedCodexHome
+          && credentialResolution.selection.type === 'unconfigured'
+        ) {
           if (options.agent === 'codex') {
 
             // Create a temporary directory for Codex
@@ -1692,12 +1698,15 @@ export async function startDaemon(): Promise<void> {
 
       const creation = (async (): Promise<LocalSideChatCreation> => {
         const isCodexParent = parent.metadata.flavor === 'codex';
+        const inheritedProviderAccount = isCodexParent
+          ? parent.metadata.providerAccount?.trim() || null
+          : null;
         const codexHome = isCodexParent
           ? await resolveCodexHomeForResume(parent.metadata, ambientEnvironment)
           : undefined;
-        const codexCredentialResolution = isCodexParent
+        const codexCredentialResolution = isCodexParent && inheritedProviderAccount
           ? await resolveCredentialAccountEnvironment('codex', {
-            preferred: parent.metadata.providerAccount,
+            preferred: inheritedProviderAccount,
           })
           : null;
         if (codexCredentialResolution?.selection.type === 'all-limited') {
@@ -1751,7 +1760,7 @@ export async function startDaemon(): Promise<void> {
           createMachineSession: async ({ machine: _target, ...options }) => spawnSession({
             ...options,
             ...(codexHome ? { codexHome } : {}),
-            ...(providerAccount ? { providerAccount } : {}),
+            ...(isCodexParent ? { providerAccount: providerAccount ?? null } : {}),
           }),
         });
         if (brief === null) {

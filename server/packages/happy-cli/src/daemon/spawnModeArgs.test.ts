@@ -46,6 +46,18 @@ describe('daemon spawn mode arguments', () => {
         expect(codexArgs).toEqual(['codex', '--permission-mode', 'default']);
     });
 
+    it('marks an explicitly unmanaged Codex child launch', () => {
+        const args = ['codex'];
+
+        appendDaemonSpawnModeArgs(args, {
+            directory: '/workspace',
+            agent: 'codex',
+            providerAccount: null,
+        }, 'codex');
+
+        expect(args).toEqual(['codex', '--provider-account-mode', 'unmanaged']);
+    });
+
     it('uses the target-daemon validated tuple instead of stale raw request fields', () => {
         const args = ['codex'];
 

@@ -222,3 +222,4 @@ WORKSPACE_CONTEXT_IDENTITY	accepted	fix(workspace): preserve machine context ide
 DEVELOPMENT_SKILL_CATALOG	accepted	docs(dev): consolidate HappyHerd skills	.dev/AGENTS.md
 CODEX_SIDE_CHAT_PROVIDER_CONTEXT	accepted	fix(side-chats): preserve Codex provider context	server/packages/happy-cli/src/daemon/run.resume.test.ts
 CODEX_SIDE_CHAT_CREDENTIAL_ACTIVATION	accepted	fix(side-chats): activate inherited Codex credentials	server/packages/happy-cli/src/daemon/run.resume.test.ts
+CODEX_SIDE_CHAT_UNMANAGED_HOME	accepted	fix(side-chats): preserve unmanaged Codex homes	server/packages/happy-cli/src/daemon/run.resume.test.ts
