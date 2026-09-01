@@ -62,8 +62,11 @@ import { createSerialAsyncHandler } from './utils/serialAsyncHandler';
 import { buildCodexThreadBackfillEnvelopes } from './utils/threadImageBackfill';
 import { extractCodexAgentOutputImages } from '@/sessionProtocol/providerOutputImages';
 import {
+    buildCodexDeveloperInstructions,
     buildCodexTurnPrompt,
     hashCodexEnhancedMode,
+    shouldInjectCodexDeveloperInstructions,
+    type AppliedCodexDeveloperInstructions,
     type CodexEnhancedMode,
 } from './codexPrompt';
 import { discoverCodexSkillCommands } from './codexSkills';
@@ -392,9 +395,11 @@ export async function runCodex(opts: {
     // Use shared PermissionMode type from api/types for cross-agent compatibility
     let currentPermissionMode: PermissionMode | undefined = initialPermissionMode;
     let activeTurnPermissionMode: PermissionMode | undefined = undefined;
+    let activeTurnDeveloperInstructions: string | undefined;
     let currentModel: string | undefined = initialModel;
     let currentEffort: ReasoningEffort = initialEffort;
-    let currentAppendSystemPrompt: string | undefined;
+    let currentAppAppendSystemPrompt: string | undefined;
+    let currentUserSafeguardEnabled: boolean | undefined;
 
     const resetCurrentModeDefaults = () => {
         // Reset permission mode and prompts to what the session was launched
@@ -404,7 +409,8 @@ export async function runCodex(opts: {
         // only when the user changes the picker, so resetting them on abort
         // silently desyncs the picker from what the next turn actually runs.
         currentPermissionMode = initialPermissionMode;
-        currentAppendSystemPrompt = undefined;
+        currentAppAppendSystemPrompt = undefined;
+        currentUserSafeguardEnabled = undefined;
         logger.debug('[Codex] Reset current mode defaults after abort');
     };
 
@@ -467,26 +473,42 @@ export async function runCodex(opts: {
             logger.debug(`[Codex] User message received with no effort override, using current: ${currentEffort ?? 'default'}`);
         }
 
-        let messageAppendSystemPrompt = currentAppendSystemPrompt;
+        const heartbeat = message.meta?.heartbeat;
+
+        // Heartbeats must neither consume nor alter the retained Human prompt
+        // state. Their explicit automation boundary is applied below; the next
+        // Human turn composes its own current enabled/disabled instructions.
         if (agentSession) {
-            messageAppendSystemPrompt = undefined;
-            currentAppendSystemPrompt = undefined;
-        } else if (message.meta?.hasOwnProperty('appendSystemPrompt')) {
-            messageAppendSystemPrompt = message.meta.appendSystemPrompt?.trim() || undefined;
-            currentAppendSystemPrompt = messageAppendSystemPrompt;
-            logger.debug(`[Codex] Per-message appended instruction updated: ${messageAppendSystemPrompt ? 'set' : 'reset'}`);
-        } else {
-            logger.debug(`[Codex] User message received with no append system prompt override, using current: ${currentAppendSystemPrompt ? 'set' : 'none'}`);
+            currentAppAppendSystemPrompt = undefined;
+            currentUserSafeguardEnabled = undefined;
+        } else if (!heartbeat) {
+            if (message.meta?.hasOwnProperty('appendSystemPrompt')) {
+                currentAppAppendSystemPrompt = message.meta.appendSystemPrompt?.trim() || undefined;
+                logger.debug(`[Codex] Human appended instruction updated: ${currentAppAppendSystemPrompt ? 'set' : 'reset'}`);
+            } else {
+                logger.debug(`[Codex] Human message received with no append system prompt override, using current: ${currentAppAppendSystemPrompt ? 'set' : 'none'}`);
+            }
+            if (message.meta?.hasOwnProperty('userSafeguardEnabled')) {
+                currentUserSafeguardEnabled = message.meta.userSafeguardEnabled;
+                logger.debug(`[Codex] Human safeguard updated: ${currentUserSafeguardEnabled ? 'enabled' : 'disabled'}`);
+            }
         }
+
+        const developerInstructions = agentSession
+            ? undefined
+            : buildCodexDeveloperInstructions({
+                appAppendSystemPrompt: currentAppAppendSystemPrompt,
+                userSafeguardEnabled: currentUserSafeguardEnabled,
+                automation: Boolean(heartbeat),
+            });
 
         const enhancedMode: EnhancedMode = {
             permissionMode: messagePermissionMode || 'default',
             model: messageModel,
-            appendSystemPrompt: messageAppendSystemPrompt,
+            developerInstructions,
             effort: messageEffort,
         };
 
-        const heartbeat = message.meta?.heartbeat;
         if (heartbeat) {
             if (queueMessageId !== heartbeat.occurrenceId) {
                 logger.warn('[HEARTBEAT] Ignoring heartbeat marker whose queue identity does not match its occurrence');
@@ -510,6 +532,8 @@ export async function runCodex(opts: {
             activeTurnPermissionMode,
             enhancedMode.permissionMode,
             messageQueue.size() > 0,
+            activeTurnDeveloperInstructions,
+            enhancedMode.developerInstructions,
         )) {
             const imageInputs = await prepareCodexImageInputItems(attachmentsForThisMessage, {
                 sessionId: session.sessionId,
@@ -574,7 +598,6 @@ export async function runCodex(opts: {
             mode: {
                 permissionMode: currentPermissionMode || 'default',
                 model: currentModel,
-                appendSystemPrompt: currentAppendSystemPrompt,
                 effort: currentEffort,
             },
             queue: messageQueue,
@@ -1206,8 +1229,7 @@ export async function runCodex(opts: {
         mcpServers.happyherd_agent = agentMcpServer;
     }
     let first = true;
-    let appendSystemPromptInjected = false;
-
+    let appliedDeveloperInstructions: AppliedCodexDeveloperInstructions | undefined;
     try {
         logger.debug('[codex]: client.connect begin');
         await client.connect();
@@ -1238,7 +1260,6 @@ export async function runCodex(opts: {
                 announce: !isSideChat,
             });
             first = false;
-            appendSystemPromptInjected = true;
         }
 
         const forkCodexThreadId = process.env.HAPPY_FORK_CODEX_THREAD_ID;
@@ -1325,7 +1346,8 @@ export async function runCodex(opts: {
                 permissionHandler.reset();
                 reasoningProcessor.abort();
                 diffProcessor.reset();
-                appendSystemPromptInjected = false;
+                appliedDeveloperInstructions = undefined;
+                activeTurnDeveloperInstructions = undefined;
                 thinking = false;
                 session.keepAlive(thinking, 'remote');
                 messageBuffer.addMessage('Context was reset', 'status');
@@ -1363,7 +1385,11 @@ export async function runCodex(opts: {
                 );
                 activeTurnPermissionMode = message.mode.permissionMode;
 
-                // Start thread on first turn (thread persists across mode changes)
+                // Commander/project context remains thread configuration.
+                // App and safeguard state is applied through developer items
+                // below because Codex ignores developerInstructions overrides
+                // once a thread is loaded. Injected items persist, so the exact
+                // state is re-injected only when it changes.
                 let activeThreadId = client.threadId;
                 if (!client.hasActiveThread() || !activeThreadId) {
                     const startedThread = await client.startThread({
@@ -1390,9 +1416,6 @@ export async function runCodex(opts: {
                     continue;
                 }
 
-                const includeAppendSystemPrompt = Boolean(
-                    message.mode.appendSystemPrompt && !appendSystemPromptInjected,
-                );
                 const imageInputs = await prepareCodexImageInputItems(message.attachments, {
                     sessionId: session.sessionId,
                 });
@@ -1413,8 +1436,6 @@ export async function runCodex(opts: {
                 }
                 const turnPrompt = buildCodexTurnPrompt({
                     message: goalTurnText,
-                    mode: message.mode,
-                    includeAppendSystemPrompt,
                     includeTitleInstruction: first,
                 });
 
@@ -1423,6 +1444,22 @@ export async function runCodex(opts: {
                     message.mode.model,
                     modelCatalog,
                 );
+                const developerInstructions = message.mode.developerInstructions;
+                if (developerInstructions && shouldInjectCodexDeveloperInstructions(
+                    activeThreadId,
+                    developerInstructions,
+                    appliedDeveloperInstructions,
+                )) {
+                    await client.injectDeveloperInstructions({
+                        threadId: activeThreadId,
+                        instructions: developerInstructions,
+                    });
+                    appliedDeveloperInstructions = {
+                        threadId: activeThreadId,
+                        instructions: developerInstructions,
+                    };
+                }
+                activeTurnDeveloperInstructions = message.mode.developerInstructions;
                 const result = await client.sendTurnAndWait(turnPrompt, {
                     model: message.mode.model,
                     approvalPolicy: executionPolicy.approvalPolicy,
@@ -1432,9 +1469,6 @@ export async function runCodex(opts: {
                 });
                 await codexProtocolQueue;
                 first = false;
-                if (includeAppendSystemPrompt) {
-                    appendSystemPromptInjected = true;
-                }
 
                 if (result.aborted) {
                     // Turn was aborted (user abort or permission cancel).
@@ -1466,6 +1500,7 @@ export async function runCodex(opts: {
                 reasoningProcessor.abort();  // Use abort to properly finish any in-progress tool calls
                 diffProcessor.reset();
                 activeTurnPermissionMode = undefined;
+                activeTurnDeveloperInstructions = undefined;
                 thinking = false;
                 session.keepAlive(thinking, 'remote');
                 if (message.mode.heartbeat) {

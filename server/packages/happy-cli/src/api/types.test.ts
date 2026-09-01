@@ -14,4 +14,10 @@ describe('CLI message metadata contract', () => {
     expect(MessageMetaSchema.safeParse({ deliveryMode: 'steer' }).success).toBe(false);
     expect(MessageMetaSchema.safeParse({ queueMessageId: '  ' }).success).toBe(false);
   });
+
+  it('preserves only a boolean Human safeguard selection', () => {
+    expect(MessageMetaSchema.parse({ userSafeguardEnabled: true }))
+      .toEqual({ userSafeguardEnabled: true });
+    expect(MessageMetaSchema.safeParse({ userSafeguardEnabled: 1 }).success).toBe(false);
+  });
 });

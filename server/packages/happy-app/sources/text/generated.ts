@@ -439,6 +439,8 @@ export type TranslationKey =
     | "happyHerd.features.resumeSessionSubtitle"
     | "happyHerd.features.sortRecent"
     | "happyHerd.features.sortRecentSubtitle"
+    | "happyHerd.features.userSafeguard"
+    | "happyHerd.features.userSafeguardSubtitle"
     | "happyHerd.features.voiceInput"
     | "happyHerd.features.voiceInputSubtitle"
     | "happyHerd.heartbeat.active"

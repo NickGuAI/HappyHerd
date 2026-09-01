@@ -64,6 +64,10 @@ import {
 import { systemPrompt } from './utils/systemPrompt';
 import { usageLimitsForProviderAccount } from './utils/usageLimits';
 import { providerContinuationMetadataFromEnvironment } from '@/utils/createSessionMetadata';
+import {
+    composeUserSafeguardPrompt,
+    resolveUserSafeguardPromptMode,
+} from '@/userSafeguard/userSafeguard';
 
 /** JavaScript runtime to use for spawning Claude Code */
 export type JsRuntime = 'node' | 'bun'
@@ -691,7 +695,11 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     let currentModel: string | undefined = effectiveModel;
     let currentFallbackModel: string | undefined = undefined; // Track current fallback model
     let currentCustomSystemPrompt: string | undefined = undefined; // Track current custom system prompt
-    let currentAppendSystemPrompt: string | undefined = happyHerdContextPrompt; // Commander context is an invariant
+    // Keep the app-owned Human prompt and safeguard state separate from the
+    // invariant Commander context. Heartbeats need their own isolated prompt
+    // without mutating what the following Human turn will receive.
+    let currentAppAppendSystemPrompt: string | undefined;
+    let currentUserSafeguardEnabled: boolean | undefined;
     let currentAllowedTools: string[] | undefined = undefined; // Track current allowed tools
     let currentDisallowedTools: string[] | undefined = undefined; // Track current disallowed tools
     let currentEffort: 'low' | 'medium' | 'high' | 'xhigh' | 'max' | undefined = nativeEffort as StartOptions['effort']; // Track current Claude effort (thinking depth)
@@ -703,12 +711,20 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         currentPermissionMode = effectivePermissionMode;
         currentFallbackModel = undefined;
         currentCustomSystemPrompt = undefined;
-        currentAppendSystemPrompt = happyHerdContextPrompt;
+        currentAppAppendSystemPrompt = undefined;
+        currentUserSafeguardEnabled = undefined;
         currentAllowedTools = undefined;
         currentDisallowedTools = undefined;
         logger.debug('[loop] Reset current mode defaults after abort');
     };
-    const currentEnhancedMode = (): EnhancedMode => ({
+    const humanAppendSystemPrompt = (): string | undefined => mergeContextPrompt(
+        happyHerdContextPrompt,
+        composeUserSafeguardPrompt(
+            currentAppAppendSystemPrompt,
+            resolveUserSafeguardPromptMode(currentUserSafeguardEnabled, false),
+        ),
+    );
+    const currentEnhancedMode = (appendSystemPrompt = humanAppendSystemPrompt()): EnhancedMode => ({
         // Deliberately not coerced to 'default': undefined means "no override",
         // which the SDK reads as "use Claude's own configuration". Coercing it
         // would pin every unset session to prompting mode.
@@ -716,7 +732,7 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
         model: currentModel,
         fallbackModel: currentFallbackModel,
         customSystemPrompt: currentCustomSystemPrompt,
-        appendSystemPrompt: currentAppendSystemPrompt,
+        appendSystemPrompt,
         allowedTools: currentAllowedTools,
         disallowedTools: currentDisallowedTools,
         effort: currentEffort,
@@ -873,14 +889,22 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
             logger.debug(`[loop] User message received with no fallback model override, using current: ${currentFallbackModel || 'none'}`);
         }
 
-        // Resolve append system prompt - use message.meta.appendSystemPrompt if provided, otherwise use current
-        let messageAppendSystemPrompt = currentAppendSystemPrompt;
-        if (message.meta?.hasOwnProperty('appendSystemPrompt')) {
-            messageAppendSystemPrompt = mergeContextPrompt(happyHerdContextPrompt, message.meta.appendSystemPrompt);
-            currentAppendSystemPrompt = messageAppendSystemPrompt;
-            logger.debug(`[loop] Append system prompt updated from user message: ${message.meta.appendSystemPrompt ? 'set with Commander context' : 'reset to Commander context'}`);
-        } else {
-            logger.debug(`[loop] User message received with no append system prompt override, using current: ${currentAppendSystemPrompt ? 'set' : 'none'}`);
+        const heartbeat = message.meta?.heartbeat;
+
+        // Only Human messages may update the retained app prompt and safeguard
+        // state. A heartbeat carries an explicit automation suppression prompt
+        // below, then the following Human turn returns to this retained state.
+        if (!heartbeat) {
+            if (message.meta?.hasOwnProperty('appendSystemPrompt')) {
+                currentAppAppendSystemPrompt = message.meta.appendSystemPrompt?.trim() || undefined;
+                logger.debug(`[loop] Human append system prompt updated: ${currentAppAppendSystemPrompt ? 'set' : 'reset'}`);
+            } else {
+                logger.debug(`[loop] Human message received with no append system prompt override, using current: ${currentAppAppendSystemPrompt ? 'set' : 'none'}`);
+            }
+            if (message.meta?.hasOwnProperty('userSafeguardEnabled')) {
+                currentUserSafeguardEnabled = message.meta.userSafeguardEnabled;
+                logger.debug(`[loop] Human safeguard updated: ${currentUserSafeguardEnabled ? 'enabled' : 'disabled'}`);
+            }
         }
 
         // Resolve allowed tools - use message.meta.allowedTools if provided, otherwise use current
@@ -925,7 +949,6 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
             logger.debug(`[loop] User message received with no effort override, using current: ${currentEffort ?? 'default'}`);
         }
 
-        const heartbeat = message.meta?.heartbeat;
         if (heartbeat) {
             if (queueMessageId !== heartbeat.occurrenceId) {
                 logger.warn('[HEARTBEAT] Ignoring heartbeat marker whose queue identity does not match its occurrence');
@@ -933,7 +956,16 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
             }
             messageQueue.pushIsolated(
                 message.content.text,
-                { ...currentEnhancedMode(), heartbeat },
+                {
+                    ...currentEnhancedMode(mergeContextPrompt(
+                        happyHerdContextPrompt,
+                        composeUserSafeguardPrompt(
+                            undefined,
+                            resolveUserSafeguardPromptMode(undefined, true),
+                        ),
+                    )),
+                    heartbeat,
+                },
                 attachmentsForThisMessage,
                 queueMessageId,
             );
@@ -1006,7 +1038,11 @@ export async function runClaude(credentials: Credentials, options: StartOptions 
     });
 
     if (automationBootstrap) {
-        messageQueue.push(automationBootstrap.instruction, currentEnhancedMode(), []);
+        messageQueue.push(
+            automationBootstrap.instruction,
+            currentEnhancedMode(happyHerdContextPrompt),
+            [],
+        );
         messageQueue.close();
         logger.debug(`[AUTOMATIONS] Queued initial Claude instruction for ${automationBootstrap.automationId}`);
     }

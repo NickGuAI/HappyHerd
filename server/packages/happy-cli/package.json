@@ -76,6 +76,7 @@
     "dist",
     "bin",
     "scripts",
+    "skills",
     "tools/archives",
     "tools/licenses",
     "package.json"

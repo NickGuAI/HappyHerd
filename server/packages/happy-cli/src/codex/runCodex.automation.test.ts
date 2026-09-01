@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => {
     const permissionHandleToolCall = vi.fn(async () => ({ decision: 'approved' }));
     const startThreadCalls: Array<Record<string, unknown>> = [];
     const resumeThreadCalls: Array<Record<string, unknown>> = [];
+    const injectDeveloperInstructionsCalls: Array<Record<string, unknown>> = [];
     const sendTurnCalls: Array<Record<string, unknown>> = [];
 
     const session = {
@@ -79,11 +80,13 @@ const mocks = vi.hoisted(() => {
             permissionHandleToolCall.mockClear();
             startThreadCalls.length = 0;
             resumeThreadCalls.length = 0;
+            injectDeveloperInstructionsCalls.length = 0;
             sendTurnCalls.length = 0;
         },
         permissionHandleToolCall,
         startThreadCalls,
         resumeThreadCalls,
+        injectDeveloperInstructionsCalls,
         sendTurnCalls,
     };
 });
@@ -159,7 +162,10 @@ vi.mock('@/daemon/controlClient', () => ({
 }));
 
 vi.mock('@/agentContext/commanderContext', () => ({
-    readContextPromptFromEnvironment: vi.fn(async () => null),
+    readContextPromptFromEnvironment: vi.fn(async () => 'Commander context only'),
+    mergeContextPrompt: vi.fn((base: string | undefined, extra: string | undefined) => (
+        base && extra ? `${base}\n\n${extra}` : base ?? extra
+    )),
     instructionReceiptMetadata: vi.fn(() => ({})),
 }));
 
@@ -247,6 +253,10 @@ vi.mock('./codexAppServerClient', () => ({
             this.threadId = String(options.threadId);
             return { threadId: this.threadId, model: String(options.model) };
         });
+        injectDeveloperInstructions = vi.fn(async (options: Record<string, unknown>) => {
+            mocks.injectDeveloperInstructionsCalls.push(options);
+            return {};
+        });
         sendTurnAndWait = vi.fn(async (_prompt: unknown, options: Record<string, unknown>) => {
             mocks.sendTurnCalls.push(options);
             const decision = await mocks.maybeRequestInteractiveApproval();
@@ -298,6 +308,12 @@ describe('runCodex automation process lifecycle', () => {
             modelMode: 'gpt-5.6-sol',
             effortLevel: 'max',
         });
+        expect(mocks.startThreadCalls[0]).toMatchObject({
+            developerInstructions: 'Commander context only',
+        });
+        expect(String(mocks.startThreadCalls[0]?.developerInstructions)).not.toContain('User Safeguard');
+        expect(String(mocks.startThreadCalls[0]?.developerInstructions)).not.toContain('automation boundary');
+        expect(mocks.injectDeveloperInstructionsCalls).toEqual([]);
         expect(exit).toHaveBeenCalledWith(0);
         expect(mocks.events).toEqual([
             'outcome:completed',
@@ -365,6 +381,7 @@ describe('runCodex automation process lifecycle', () => {
             model: 'target-codex-model',
             approvalPolicy: 'never',
             sandbox: 'workspace-write',
+            developerInstructions: 'Commander context only',
         });
         expect(mocks.sendTurnCalls[0]).toMatchObject({
             model: 'target-codex-model',

@@ -213,6 +213,57 @@ describe('CodexAppServerClient sandbox integration', () => {
         await client.disconnect();
     });
 
+    it('injects exact developer instructions as model-visible context', async () => {
+        const requests: MockRpcMessage[] = [];
+        mockSpawn.mockImplementation(() => createMockProcess({
+            onRequest: (msg, stdout) => {
+                requests.push(msg);
+                if (msg.method === 'thread/inject_items' && msg.id != null) {
+                    setTimeout(() => pushJsonLine(stdout, {
+                        id: msg.id,
+                        result: {},
+                    }), 0);
+                }
+            },
+        }));
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient();
+
+        await client.connect();
+        await client.injectDeveloperInstructions({
+            threadId: 'thread-safeguard',
+            instructions: 'Human safeguard enabled',
+        });
+        await client.injectDeveloperInstructions({
+            threadId: 'thread-safeguard',
+            instructions: 'Automation safeguard suppressed',
+        });
+
+        expect(requests
+            .filter((request) => request.method === 'thread/inject_items')
+            .map((request) => request.params))
+            .toEqual([
+                {
+                    threadId: 'thread-safeguard',
+                    items: [{
+                        type: 'message',
+                        role: 'developer',
+                        content: [{ type: 'input_text', text: 'Human safeguard enabled' }],
+                    }],
+                },
+                {
+                    threadId: 'thread-safeguard',
+                    items: [{
+                        type: 'message',
+                        role: 'developer',
+                        content: [{ type: 'input_text', text: 'Automation safeguard suppressed' }],
+                    }],
+                },
+            ]);
+
+        await client.disconnect();
+    });
+
     it('does not launch a governed agent app-server when its OS sandbox cannot start', async () => {
         mockInitializeSandbox.mockRejectedValue(new Error('sandbox unavailable'));
         const { CodexAppServerClient } = await import('./codexAppServerClient');

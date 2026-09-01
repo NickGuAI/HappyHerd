@@ -60,6 +60,29 @@ describe('Codex turn routing', () => {
         )).toBe(false);
     });
 
+    it('queues a developer-instruction change because turn/steer carries user input only', () => {
+        expect(shouldSteerCodexUserInput(
+            'automation follow-up',
+            'turn-1',
+            undefined,
+            'safe-yolo',
+            'safe-yolo',
+            false,
+            'Human safeguard enabled',
+            'Automation safeguard suppressed',
+        )).toBe(false);
+        expect(shouldSteerCodexUserInput(
+            'same Human mode',
+            'turn-1',
+            undefined,
+            'safe-yolo',
+            'safe-yolo',
+            false,
+            'Human safeguard enabled',
+            'Human safeguard enabled',
+        )).toBe(true);
+    });
+
     it('leaves a successfully steered follow-up out of the local queue', async () => {
         const mode: CodexEnhancedMode = { permissionMode: 'default' };
         const queue = new MessageQueue2<CodexEnhancedMode>(() => 'same-mode');
@@ -82,7 +105,7 @@ describe('Codex turn routing', () => {
             permissionMode: 'yolo',
             model: 'gpt-test',
             effort: 'max',
-            appendSystemPrompt: 'preserve this instruction',
+            developerInstructions: 'preserve this instruction',
         };
         const attachments: PendingAttachment[] = [{
             data: new Uint8Array([1, 2, 3]),

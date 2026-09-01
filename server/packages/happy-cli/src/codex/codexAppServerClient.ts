@@ -1155,6 +1155,25 @@ export class CodexAppServerClient {
         return await this.request('thread/inject_items', params) as InjectItemsResponse;
     }
 
+    /**
+     * Append a provider-native developer message immediately before a turn.
+     * Codex ignores developerInstructions overrides when a thread is already
+     * loaded, while injected developer items are model-visible on that turn.
+     */
+    async injectDeveloperInstructions(opts: {
+        threadId: string;
+        instructions: string;
+    }): Promise<InjectItemsResponse> {
+        return await this.injectItems({
+            threadId: opts.threadId,
+            items: [{
+                type: 'message',
+                role: 'developer',
+                content: [{ type: 'input_text', text: opts.instructions }],
+            }],
+        });
+    }
+
     async setGoal(opts: {
         threadId: string;
         objective: string;

@@ -1295,6 +1295,8 @@
       "resumeSessionSubtitle": "通过机器守护进程恢复断开的 Claude Code 和 Codex 会话",
       "commanderProfilePictures": "Commander 头像",
       "commanderProfilePicturesSubtitle": "在会话列表中显示 Commander 头像，并在工作进行时显示呼吸效果",
+      "userSafeguard": "用户防护",
+      "userSafeguardSubtitle": "仅对通过 HappyHerd 应用发送给 Claude 或 Codex 的用户回合应用 happyherd-user-safeguard。终端会话、定时任务、自动化及心跳均绕过此功能。",
       "voiceInput": "语音输入",
       "voiceInputSubtitle": "配置安全密钥后显示 OpenAI 语音转写控件"
     },

@@ -2,73 +2,99 @@ import { describe, expect, it } from 'vitest';
 
 import { CHANGE_TITLE_INSTRUCTION } from '@/gemini/constants';
 import {
+    buildCodexDeveloperInstructions,
     buildCodexTurnPrompt,
     hashCodexEnhancedMode,
+    shouldInjectCodexDeveloperInstructions,
     stripHappySystemBlocks,
     type CodexEnhancedMode,
 } from './codexPrompt';
 
-const APPEND = '<options><option>Yes</option></options>';
+const HISTORICAL_APPEND = '<options><option>Yes</option></options>';
 const wrapped = (text: string) => `<happy-system>\n${text}\n</happy-system>`;
 
+describe('buildCodexDeveloperInstructions', () => {
+    it('isolates Human safeguard state across a heartbeat and supports explicit disable', () => {
+        const human = {
+            appAppendSystemPrompt: 'render option chips',
+            userSafeguardEnabled: true,
+        };
+        const enabled = buildCodexDeveloperInstructions({ ...human, automation: false });
+        const heartbeat = buildCodexDeveloperInstructions({ ...human, automation: true });
+        const restored = buildCodexDeveloperInstructions({ ...human, automation: false });
+        const disabled = buildCodexDeveloperInstructions({
+            ...human,
+            userSafeguardEnabled: false,
+            automation: false,
+        });
+
+        expect(enabled).toContain('render option chips');
+        expect(enabled).toContain('<skill name="happyherd-user-safeguard">');
+        expect(heartbeat).toContain('# HappyHerd automation boundary');
+        expect(heartbeat).not.toContain('render option chips');
+        expect(heartbeat).not.toContain('<skill name="happyherd-user-safeguard">');
+        expect(restored).toBe(enabled);
+        expect(disabled).toContain('render option chips');
+        expect(disabled).toContain('account safeguard is disabled');
+        expect(disabled).not.toContain('<skill name="happyherd-user-safeguard">');
+    });
+
+    it('re-injects unchanged instructions when recovery creates a new thread', () => {
+        const applied = {
+            threadId: 'thread-before-restart',
+            instructions: 'Human safeguard enabled',
+        };
+
+        expect(shouldInjectCodexDeveloperInstructions(
+            'thread-before-restart',
+            'Human safeguard enabled',
+            applied,
+        )).toBe(false);
+        expect(shouldInjectCodexDeveloperInstructions(
+            'thread-after-resume-failure',
+            'Human safeguard enabled',
+            applied,
+        )).toBe(true);
+    });
+});
+
 describe('buildCodexTurnPrompt', () => {
-    it('prepends Happy append system prompt (wrapped) before the first Codex user message', () => {
+    it('keeps developer and safeguard instructions out of Codex user content', () => {
         const prompt = buildCodexTurnPrompt({
             message: 'pick an option',
-            mode: { appendSystemPrompt: APPEND },
-            includeAppendSystemPrompt: true,
             includeTitleInstruction: true,
         });
 
         expect(prompt).toBe(
-            `${wrapped(APPEND)}\n\n` +
             'pick an option\n\n' +
             wrapped(CHANGE_TITLE_INSTRUCTION),
         );
+        expect(prompt).not.toContain(HISTORICAL_APPEND);
+        expect(prompt).not.toContain('HappyHerd User Safeguard');
     });
 
-    it('preserves the existing first-turn title instruction (wrapped) when no append prompt is set', () => {
+    it('preserves the existing first-turn title instruction', () => {
         const prompt = buildCodexTurnPrompt({
             message: 'hello',
-            mode: {},
-            includeAppendSystemPrompt: true,
             includeTitleInstruction: true,
         });
 
         expect(prompt).toBe(`hello\n\n${wrapped(CHANGE_TITLE_INSTRUCTION)}`);
     });
 
-    it('does not inject Happy preamble on normal follow-up turns', () => {
+    it('sends normal follow-up turns without Happy scaffolding', () => {
         const prompt = buildCodexTurnPrompt({
             message: 'continue',
-            mode: { appendSystemPrompt: APPEND },
-            includeAppendSystemPrompt: false,
             includeTitleInstruction: false,
         });
 
         expect(prompt).toBe('continue');
     });
-
-    it('can re-inject Happy append prompt without title instruction after a thread reset', () => {
-        const prompt = buildCodexTurnPrompt({
-            message: 'start fresh',
-            mode: { appendSystemPrompt: APPEND },
-            includeAppendSystemPrompt: true,
-            includeTitleInstruction: false,
-        });
-
-        expect(prompt).toBe(`${wrapped(APPEND)}\n\nstart fresh`);
-    });
 });
 
 describe('stripHappySystemBlocks', () => {
     it('recovers the user message from a fully-scaffolded first turn (fork backfill)', () => {
-        const prompt = buildCodexTurnPrompt({
-            message: 'приветик',
-            mode: { appendSystemPrompt: APPEND },
-            includeAppendSystemPrompt: true,
-            includeTitleInstruction: true,
-        });
+        const prompt = `${wrapped(HISTORICAL_APPEND)}\n\nприветик\n\n${wrapped(CHANGE_TITLE_INSTRUCTION)}`;
 
         expect(stripHappySystemBlocks(prompt)).toBe('приветик');
     });
@@ -76,8 +102,6 @@ describe('stripHappySystemBlocks', () => {
     it('recovers a multi-line user message wrapped only by the title instruction', () => {
         const prompt = buildCodexTurnPrompt({
             message: 'line one\n\nline two',
-            mode: {},
-            includeAppendSystemPrompt: false,
             includeTitleInstruction: true,
         });
 
@@ -90,7 +114,7 @@ describe('stripHappySystemBlocks', () => {
 });
 
 describe('hashCodexEnhancedMode', () => {
-    it('separates queued Codex messages with different append system prompts', () => {
+    it('separates queued Codex messages with different developer instructions', () => {
         const baseMode: CodexEnhancedMode = {
             permissionMode: 'default',
             model: 'gpt-5.6-sol',
@@ -99,10 +123,10 @@ describe('hashCodexEnhancedMode', () => {
 
         expect(hashCodexEnhancedMode({
             ...baseMode,
-            appendSystemPrompt: 'options A',
+            developerInstructions: 'Human safeguard enabled',
         })).not.toBe(hashCodexEnhancedMode({
             ...baseMode,
-            appendSystemPrompt: 'options B',
+            developerInstructions: 'Automation safeguard suppressed',
         }));
     });
 });

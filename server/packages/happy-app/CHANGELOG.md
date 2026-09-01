@@ -1,3 +1,7 @@
+# September 1 — User Safeguard
+
+- Added an account-synced, default-off User Safeguard that applies happyherd-user-safeguard only to HappyHerd app-sent Human turns; direct terminal turns, scheduled jobs, memory maintenance, and heartbeats bypass it.
+
 # September 1 — File link workspace integration
 
 - Absolute file links in agent chat responses now open directly in the existing workspace even if outside its working directory, allowing desktop and mobile web users to preview, edit, save, and submit feedback without altering the active workspace; Delete remains available on its existing supported desktop surface.
