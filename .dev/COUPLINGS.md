@@ -420,9 +420,14 @@ receipt window than single-child actions so the four-child shutdown contract
 cannot continue mutating after the caller has already timed out.
 
 The parent session record owns the machine, working path, provider, provider
-backend ID, and—for Codex—the exact resolved state home and preferred named
-account; both the temporary fork app-server and spawned child launch from that
-parent directory and provider context rather than daemon defaults. Side-chat
+backend ID, and—for Codex—the exact resolved state home, with both the temporary
+fork app-server and spawned child launching from the parent directory and
+provider context rather than daemon defaults. If the parent record has a
+preferred named provider account, both processes explicitly activate that
+account. If `providerAccount` is absent, the parent is an unmanaged/native or
+custom Codex home: the daemon preserves its `CODEX_HOME` and existing auth
+byte-for-byte, does not select or activate the daemon's current credential-pool
+account, and passes an explicit unmanaged mode to the child. Side-chat
 creation is intentionally local-owner-only and does not load `agent.key`, list
 account machines, or fall back to the QR-based account-control flow. The Human
 app request carries only the parent Happy session ID. The Main Agent loopback
