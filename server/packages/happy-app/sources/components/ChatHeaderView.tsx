@@ -56,6 +56,7 @@ export const ChatHeaderView: React.FC<ChatHeaderViewProps> = ({
     const insets = useSafeAreaInsets();
     const headerHeight = useHeaderHeight();
     const isTablet = useIsTablet();
+    const zenMode = useLocalSetting('zenMode');
     const navigationSidebarCollapsed = useLocalSetting('navigationSidebarCollapsed');
     const showBackButton = !isTablet && !!onBackPress;
     const hasExtra = !!extraPathSegment;
@@ -95,7 +96,7 @@ export const ChatHeaderView: React.FC<ChatHeaderViewProps> = ({
 
     if (Platform.OS === 'web') {
         const headerLeftPadding = isTablet
-            ? resolveDesktopNavigationHeaderLeftPadding(navigationSidebarCollapsed, 16)
+            ? resolveDesktopNavigationHeaderLeftPadding(zenMode || navigationSidebarCollapsed, 16)
             : 16;
         return (
             <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.colors.header.background }]}>

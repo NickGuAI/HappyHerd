@@ -19,10 +19,10 @@ export function resolveDesktopNavigationBoundaryToggleLeft(drawerWidth: number):
 }
 
 export function resolveDesktopNavigationHeaderLeftPadding(
-    navigationSidebarCollapsed: boolean,
+    navigationDrawerHidden: boolean,
     defaultPadding: number,
 ): number {
-    if (!navigationSidebarCollapsed) return defaultPadding;
+    if (!navigationDrawerHidden) return defaultPadding;
     return Math.max(
         defaultPadding,
         resolveDesktopNavigationBoundaryToggleLeft(0)

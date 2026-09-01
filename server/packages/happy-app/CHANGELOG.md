@@ -1,6 +1,6 @@
-# September 1 — Collapsed navigation toggle no longer obstructs the visible session path
+# September 1 — Hidden navigation toggle no longer obstructs the visible session path
 
-- On Web Desktop, when navigation is collapsed, the boundary toggle no longer covers or intercepts the visible session path/name; its idle background is transparent, while hover, pressed, expand, and collapse behavior remain.
+- On Web Desktop, when navigation is hidden through collapse or Zen mode, the boundary toggle no longer covers or intercepts the visible session path/name; its idle background remains transparent, while hover, pressed, expand, collapse, and Zen behaviors remain.
 
 # September 1 — One Workspace for every chat
 

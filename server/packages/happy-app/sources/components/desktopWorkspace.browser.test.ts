@@ -493,7 +493,7 @@ describe('Desktop workspace browser interaction', () => {
         if (server) await new Promise<void>((resolveClosed) => server.close(() => resolveClosed()));
     }, 30_000);
 
-    it('keeps the collapsed navigation toggle clear of the real session header', async () => {
+    it('keeps the hidden navigation toggle clear of the real session header', async () => {
         const page = await browser.newPage({ viewport: { width: 900, height: 300 } });
         const pageErrors = recordPageErrors(page);
         await page.goto(origin);
@@ -501,45 +501,72 @@ describe('Desktop workspace browser interaction', () => {
         if (pageErrors.length > 0) throw new Error(`Browser fixture failed to render: ${pageErrors.join('\n')}`);
 
         const headerDemo = page.getByTestId('collapsed-navigation-header-demo');
-        const collapse = page.getByTestId('sidebar-demo').getByTestId('navigation-sidebar-toggle');
-        await expect(collapse.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
-        await collapse.click();
-
-        const expand = headerDemo.getByTestId('navigation-sidebar-toggle');
-        await expect(expand.getAttribute('aria-label')).resolves.toBe('Expand navigation');
-        const expandBox = await expand.boundingBox();
+        const drawer = headerDemo.getByTestId('navigation-drawer');
+        const boundaryToggle = headerDemo.getByTestId('navigation-sidebar-toggle');
         const sessionPath = headerDemo.getByText('demo-project', { exact: true });
-        const sessionPathBox = await sessionPath.boundingBox();
-        if (!expandBox || !sessionPathBox) throw new Error('collapsed header controls have no layout');
-        expect(expandBox.x + expandBox.width + 8).toBeLessThanOrEqual(sessionPathBox.x);
 
-        const idleBackground = await expand.evaluate((element) => getComputedStyle(element).backgroundColor);
+        const hiddenToggleClearance = async () => {
+            const boundaryToggleBox = await boundaryToggle.boundingBox();
+            const sessionPathBox = await sessionPath.boundingBox();
+            if (!boundaryToggleBox || !sessionPathBox) throw new Error('hidden header controls have no layout');
+            expect(boundaryToggleBox.x + boundaryToggleBox.width + 8).toBeLessThanOrEqual(sessionPathBox.x);
+            return { boundaryToggleBox, sessionPathBox };
+        };
+
+        await expect(boundaryToggle.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
+        const zenToggle = headerDemo.getByLabel('Toggle Zen mode');
+        await zenToggle.click();
+        const zenDrawerBox = await drawer.boundingBox();
+        if (!zenDrawerBox) throw new Error('Zen navigation drawer has no layout');
+        expect(zenDrawerBox.width).toBe(0);
+        await expect(boundaryToggle.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
+        const zenGeometry = await hiddenToggleClearance();
+
+        await page.mouse.click(zenGeometry.sessionPathBox.x + 1, zenGeometry.sessionPathBox.y + zenGeometry.sessionPathBox.height / 2);
+        await expect(page.evaluate(() => (window as any).__SESSION_TITLE_PRESS_COUNT__ ?? 0)).resolves.toBe(1);
+
+        await zenToggle.click();
+        const expandedDrawerBox = await drawer.boundingBox();
+        if (!expandedDrawerBox) throw new Error('expanded navigation drawer has no layout');
+        expect(expandedDrawerBox.width).toBeGreaterThan(0);
+
+        await boundaryToggle.click();
+        await expect(boundaryToggle.getAttribute('aria-label')).resolves.toBe('Expand navigation');
+        const collapsedGeometry = await hiddenToggleClearance();
+
+        const idleBackground = await boundaryToggle.evaluate((element) => getComputedStyle(element).backgroundColor);
         expect(['transparent', 'rgba(0, 0, 0, 0)']).toContain(idleBackground);
-        await expand.hover();
-        const hoverBackground = await expand.evaluate((element) => getComputedStyle(element).backgroundColor);
+        await boundaryToggle.hover();
+        const hoverBackground = await boundaryToggle.evaluate((element) => getComputedStyle(element).backgroundColor);
         expect(['transparent', 'rgba(0, 0, 0, 0)']).not.toContain(hoverBackground);
 
-        const expandCenter = {
-            x: expandBox.x + expandBox.width / 2,
-            y: expandBox.y + expandBox.height / 2,
+        const boundaryToggleCenter = {
+            x: collapsedGeometry.boundaryToggleBox.x + collapsedGeometry.boundaryToggleBox.width / 2,
+            y: collapsedGeometry.boundaryToggleBox.y + collapsedGeometry.boundaryToggleBox.height / 2,
         };
-        await page.mouse.move(expandCenter.x, expandCenter.y);
+        await page.mouse.move(boundaryToggleCenter.x, boundaryToggleCenter.y);
         await page.mouse.down();
-        const pressedBackground = await expand.evaluate((element) => getComputedStyle(element).backgroundColor);
+        const pressedBackground = await boundaryToggle.evaluate((element) => getComputedStyle(element).backgroundColor);
         expect(['transparent', 'rgba(0, 0, 0, 0)']).not.toContain(pressedBackground);
-        await page.mouse.move(expandBox.x + expandBox.width + 80, expandCenter.y);
+        await page.mouse.move(
+            collapsedGeometry.boundaryToggleBox.x + collapsedGeometry.boundaryToggleBox.width + 80,
+            boundaryToggleCenter.y,
+        );
         await page.mouse.up();
-        await expect(expand.getAttribute('aria-label')).resolves.toBe('Expand navigation');
+        await expect(boundaryToggle.getAttribute('aria-label')).resolves.toBe('Expand navigation');
 
-        await page.mouse.click(sessionPathBox.x + 1, sessionPathBox.y + sessionPathBox.height / 2);
-        await expect(page.evaluate(() => (window as any).__SESSION_TITLE_PRESS_COUNT__ ?? 0)).resolves.toBe(1);
+        await page.mouse.click(
+            collapsedGeometry.sessionPathBox.x + 1,
+            collapsedGeometry.sessionPathBox.y + collapsedGeometry.sessionPathBox.height / 2,
+        );
+        await expect(page.evaluate(() => (window as any).__SESSION_TITLE_PRESS_COUNT__ ?? 0)).resolves.toBe(2);
 
         await page.mouse.move(700, 200);
         const evidencePath = process.env.HAPPYHERD_COLLAPSED_NAV_EVIDENCE_PATH?.trim();
         if (evidencePath) await headerDemo.screenshot({ path: resolve(evidencePath) });
 
-        await expand.click();
-        await expect(collapse.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
+        await boundaryToggle.click();
+        await expect(boundaryToggle.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 10_000);
