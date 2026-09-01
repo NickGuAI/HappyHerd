@@ -6,7 +6,7 @@ relying on provider-specific behavior.
 
 ## Execution boundary
 
-- The current terminal-only entry point is `happy acp`.
+- The current terminal-only entry point is `happyherd acp`.
 - It accepts an arbitrary ACP command and arguments, and also recognizes the
   `opencode` preset.
 - Generic ACP is not an active Human new-session UI entry on Web Desktop or
