@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 1 — Collapsed navigation toggle no longer obstructs the visible session path",
+      "summary": "",
+      "markdown": "- On Web Desktop, when navigation is collapsed, the boundary toggle no longer covers or intercepts the visible session path/name; its idle background is transparent, while hover, pressed, expand, and collapse behavior remain."
+    },
+    {
       "title": "September 1 — One Workspace for every chat",
       "summary": "",
       "markdown": "- Open Workspace from a Main Agent or active Side chat at that exact chat's connected machine and current directory, then browse the full machine on Web Desktop or Web Mobile.\n- Add existing files and folders directly to that chat's next message without uploading, copying, moving, or switching sessions; reply file links outside the current directory remain available in the same Workspace."
@@ -471,5 +476,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 1 — One Workspace for every chat"
+  "latestTitle": "September 1 — Collapsed navigation toggle no longer obstructs the visible session path"
 }

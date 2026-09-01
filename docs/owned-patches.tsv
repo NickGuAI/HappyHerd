@@ -219,3 +219,4 @@ WORKSPACE_UNIFICATION	accepted	docs(workspace): document unified Workspace contr
 WORKSPACE_CONTEXT_UNIFICATION	accepted	feat(workspace): unify browsing and session context	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 WORKSPACE_CONTEXT_UNIFICATION	accepted	fix(workspace): target active side chat from sidebar	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 WORKSPACE_CONTEXT_IDENTITY	accepted	fix(workspace): preserve machine context identity	server/packages/happy-app/sources/sync/workspaceContext.test.ts
+COLLAPSED_NAVIGATION_TITLE_CLEARANCE	accepted	fix(app): clear collapsed navigation title	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts

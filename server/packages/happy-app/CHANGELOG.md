@@ -1,3 +1,7 @@
+# September 1 — Collapsed navigation toggle no longer obstructs the visible session path
+
+- On Web Desktop, when navigation is collapsed, the boundary toggle no longer covers or intercepts the visible session path/name; its idle background is transparent, while hover, pressed, expand, and collapse behavior remain.
+
 # September 1 — One Workspace for every chat
 
 - Open Workspace from a Main Agent or active Side chat at that exact chat's connected machine and current directory, then browse the full machine on Web Desktop or Web Mobile.

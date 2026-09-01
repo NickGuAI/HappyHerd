@@ -20,6 +20,8 @@ import {
     MOBILE_STRONG_HEADER_SCRIM_RESTING_OPACITY,
     MOBILE_STRONG_HEADER_SCRIM_UNDERLAP_OPACITY,
 } from './navigation/MobileHeaderScrim';
+import { useLocalSetting } from '@/sync/storage';
+import { resolveDesktopNavigationHeaderLeftPadding } from './sidebarNavigationLayout';
 
 interface ChatHeaderViewProps {
     title: string;
@@ -54,6 +56,7 @@ export const ChatHeaderView: React.FC<ChatHeaderViewProps> = ({
     const insets = useSafeAreaInsets();
     const headerHeight = useHeaderHeight();
     const isTablet = useIsTablet();
+    const navigationSidebarCollapsed = useLocalSetting('navigationSidebarCollapsed');
     const showBackButton = !isTablet && !!onBackPress;
     const hasExtra = !!extraPathSegment;
     const glassEnabled = !isTablet && Platform.OS === 'ios' && !isRunningOnMac();
@@ -91,10 +94,13 @@ export const ChatHeaderView: React.FC<ChatHeaderViewProps> = ({
     }, [backdropStrength, backdropVisible, glassEnabled]);
 
     if (Platform.OS === 'web') {
+        const headerLeftPadding = isTablet
+            ? resolveDesktopNavigationHeaderLeftPadding(navigationSidebarCollapsed, 16)
+            : 16;
         return (
             <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.colors.header.background }]}>
                 <View style={styles.contentWrapper}>
-                    <View style={[styles.webContent, { height: headerHeight }]}>
+                    <View style={[styles.webContent, { height: headerHeight, paddingLeft: headerLeftPadding }]}>
                         {showBackButton && (
                             <Pressable onPress={onBackPress} hitSlop={15} style={styles.webBackButton}>
                                 <Ionicons
