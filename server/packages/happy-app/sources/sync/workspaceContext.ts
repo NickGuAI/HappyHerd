@@ -38,7 +38,15 @@ function setSelection(sessionId: string, entries: readonly WorkspaceContextEntry
         return;
     }
     selections.set(sessionId, entries);
-    pathSelections.set(sessionId, entries.map((entry) => entry.path));
+    // Legacy path-only consumers cannot represent two machines. Keep their
+    // projection stable while typed consumers retain the exact machine entry.
+    pathSelections.set(sessionId, Array.from(new Set(entries.map((entry) => entry.path))));
+}
+
+export function workspaceContextEntryKey(entry: Pick<WorkspaceContextEntry, 'path' | 'source'>): string {
+    return entry.source.kind === 'machine'
+        ? JSON.stringify(['machine', entry.source.machineId, entry.path])
+        : JSON.stringify(['session', entry.path]);
 }
 
 export function getWorkspaceContextEntries(sessionId: string): readonly WorkspaceContextEntry[] {
@@ -60,15 +68,34 @@ export function addWorkspaceContextEntry(sessionId: string, entry: WorkspaceCont
     if (!cleanPath) return false;
     const nextEntry = { ...entry, path: cleanPath };
     const current = getWorkspaceContextEntries(sessionId);
-    const existingIndex = current.findIndex((candidate) => candidate.path === cleanPath);
+    const nextKey = workspaceContextEntryKey(nextEntry);
+    const existingIndex = current.findIndex((candidate) => workspaceContextEntryKey(candidate) === nextKey);
     if (existingIndex >= 0) {
         const existing = current[existingIndex];
-        const nextSource = entry.source.kind === 'machine' ? entry.source : existing.source;
-        if (existing.kind === entry.kind && existing.source === nextSource) return true;
+        if (existing.kind === entry.kind) return true;
         const next = [...current];
-        next[existingIndex] = { ...nextEntry, source: nextSource };
+        next[existingIndex] = nextEntry;
         setSelection(sessionId, next);
         emit();
+        return true;
+    }
+
+    // A legacy session-path selection becomes exact once its owning machine is
+    // known. A second machine with the same absolute path remains distinct.
+    if (nextEntry.source.kind === 'machine') {
+        const legacyIndex = current.findIndex((candidate) => (
+            candidate.source.kind === 'session' && candidate.path === cleanPath
+        ));
+        if (legacyIndex >= 0) {
+            const next = [...current];
+            next[legacyIndex] = nextEntry;
+            setSelection(sessionId, next);
+            emit();
+            return true;
+        }
+    } else if (current.some((candidate) => candidate.path === cleanPath)) {
+        // Path-only callers cannot name a machine. Preserve the already-more-
+        // precise selection rather than adding an ambiguous duplicate.
         return true;
     }
     if (current.length >= MAX_WORKSPACE_CONTEXT_ITEMS) return false;
@@ -100,9 +127,11 @@ export function getWorkspaceContextFileSource(
     return getWorkspaceContextEntries(sessionId).find((entry) => entry.path === filePath)?.source ?? { kind: 'session' };
 }
 
-export function removeWorkspaceContextEntry(sessionId: string, path: string) {
+export function removeWorkspaceContextEntry(sessionId: string, entryOrPath: WorkspaceContextEntry | string) {
     const current = getWorkspaceContextEntries(sessionId);
-    const next = current.filter((entry) => entry.path !== path);
+    const next = typeof entryOrPath === 'string'
+        ? current.filter((entry) => entry.path !== entryOrPath)
+        : current.filter((entry) => workspaceContextEntryKey(entry) !== workspaceContextEntryKey(entryOrPath));
     if (next.length === current.length) return;
     setSelection(sessionId, next);
     emit();

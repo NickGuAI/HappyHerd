@@ -650,9 +650,17 @@ const virtualModules: Record<string, string> = {
             return true;
         };
         export const buildWorkspaceContextMessage = async (_id, text) => ({ displayText: text, promptText: text });
-        export const clearWorkspaceContextFiles = () => {}; export const getWorkspaceContextEntries = (sessionId) => entriesFor(sessionId);
-        export const removeWorkspaceContextEntry = (sessionId, path) => {
-            entriesBySession.set(sessionId, entriesFor(sessionId).filter((entry) => entry.path !== path));
+        export const workspaceContextEntryKey = (entry) => JSON.stringify(entry.source.kind === 'machine'
+            ? ['machine', entry.source.machineId, entry.path]
+            : ['session', entry.path]);
+        export const clearWorkspaceContextFiles = (sessionId) => entriesBySession.set(sessionId, []);
+        export const getWorkspaceContextEntries = (sessionId) => entriesFor(sessionId);
+        export const removeWorkspaceContextEntry = (sessionId, entryOrPath) => {
+            entriesBySession.set(sessionId, entriesFor(sessionId).filter((entry) => (
+                typeof entryOrPath === 'string'
+                    ? entry.path !== entryOrPath
+                    : workspaceContextEntryKey(entry) !== workspaceContextEntryKey(entryOrPath)
+            )));
         }; export const subscribeWorkspaceContext = () => () => {};
     `,
     '@/sync/queueProjection': `

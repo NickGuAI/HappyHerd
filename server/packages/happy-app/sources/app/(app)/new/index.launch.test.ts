@@ -202,6 +202,11 @@ vi.mock('@/sync/workspaceContext', () => ({
     addWorkspaceContextEntry: vi.fn(),
     buildWorkspaceContextMessage: vi.fn(),
     clearWorkspaceContextFiles: vi.fn(),
+    workspaceContextEntryKey: (entry: { path: string; source: { kind: string; machineId?: string } }) => JSON.stringify(
+        entry.source.kind === 'machine'
+            ? ['machine', entry.source.machineId, entry.path]
+            : ['session', entry.path],
+    ),
 }));
 
 vi.mock('@/sync/storage', () => ({

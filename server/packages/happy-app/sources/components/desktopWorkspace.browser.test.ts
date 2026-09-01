@@ -241,16 +241,30 @@ const virtualModules: Record<string, string> = {
     '@/sync/workspaceContext': `
         export const MAX_WORKSPACE_CONTEXT_ITEMS = 8;
         const entries = new Map();
-        export const getWorkspaceContextEntries = (sessionId) => entries.get(sessionId) ?? [];
+        const empty = [];
+        const listeners = new Set();
+        export const workspaceContextEntryKey = (entry) => JSON.stringify(entry.source.kind === 'machine'
+            ? ['machine', entry.source.machineId, entry.path]
+            : ['session', entry.path]);
+        export const getWorkspaceContextEntries = (sessionId) => entries.get(sessionId) ?? empty;
+        export const subscribeWorkspaceContext = (listener) => {
+            listeners.add(listener);
+            return () => listeners.delete(listener);
+        };
         export const addWorkspaceContextEntry = (sessionId, entry) => {
             const current = entries.get(sessionId) ?? [];
-            entries.set(sessionId, [...current.filter((candidate) => candidate.path !== entry.path), entry]);
+            const key = workspaceContextEntryKey(entry);
+            entries.set(sessionId, [...current.filter((candidate) => workspaceContextEntryKey(candidate) !== key), entry]);
             window.__WORKSPACE_CONTEXT_CALLS__ = [...(window.__WORKSPACE_CONTEXT_CALLS__ ?? []), { action: 'add', sessionId, entry }];
+            listeners.forEach((listener) => listener());
             return true;
         };
-        export const removeWorkspaceContextEntry = (sessionId, path) => {
-            entries.set(sessionId, (entries.get(sessionId) ?? []).filter((entry) => entry.path !== path));
-            window.__WORKSPACE_CONTEXT_CALLS__ = [...(window.__WORKSPACE_CONTEXT_CALLS__ ?? []), { action: 'remove', sessionId, path }];
+        export const removeWorkspaceContextEntry = (sessionId, entryOrPath) => {
+            entries.set(sessionId, (entries.get(sessionId) ?? []).filter((entry) => typeof entryOrPath === 'string'
+                ? entry.path !== entryOrPath
+                : workspaceContextEntryKey(entry) !== workspaceContextEntryKey(entryOrPath)));
+            window.__WORKSPACE_CONTEXT_CALLS__ = [...(window.__WORKSPACE_CONTEXT_CALLS__ ?? []), { action: 'remove', sessionId, entryOrPath }];
+            listeners.forEach((listener) => listener());
         };
     `,
     '@/hooks/useMachineFileUpload': `

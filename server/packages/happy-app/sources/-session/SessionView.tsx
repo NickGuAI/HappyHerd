@@ -1951,7 +1951,7 @@ export function SessionViewLoaded({
                 onRemoveImage={expImageUpload && canUseAttachments ? removeImage : undefined}
                 onAddImages={expImageUpload && canUseAttachments ? addImages : undefined}
                 selectedContextEntries={selectedContextEntries}
-                onRemoveContextEntry={(path) => removeWorkspaceContextEntry(sessionId, path)}
+                onRemoveContextEntry={(entry) => removeWorkspaceContextEntry(sessionId, entry)}
                 autocompletePrefixes={AGENT_INPUT_AUTOCOMPLETE_PREFIXES}
                 autocompleteSuggestions={handleAutocompleteSuggestions}
                 usageData={usageData}

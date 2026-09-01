@@ -33,6 +33,8 @@ import {
     addWorkspaceContextEntry,
     getWorkspaceContextEntries,
     removeWorkspaceContextEntry,
+    subscribeWorkspaceContext,
+    workspaceContextEntryKey,
     type WorkspaceContextEntry,
 } from '@/sync/workspaceContext';
 import { t } from '@/text';
@@ -59,6 +61,8 @@ import {
     dismissWorkspaceLinkToOrigin,
     useWorkspaceLinkDismissGuard,
 } from '@/-session/workspaceLinkNavigation';
+
+const EMPTY_WORKSPACE_CONTEXT_ENTRIES: readonly WorkspaceContextEntry[] = Object.freeze([]);
 
 function param(value: string | string[] | undefined): string | undefined {
     return Array.isArray(value) ? value[0] : value;
@@ -223,24 +227,42 @@ export function MachineWorkspaceBrowser({
     const [creatingFolder, setCreatingFolder] = React.useState(false);
     const [reloadToken, setReloadToken] = React.useState(0);
     const [stagedEntries, setStagedEntries] = React.useState<Map<string, WorkspaceContextEntry>>(
-        () => new Map((selectionSessionId ? getWorkspaceContextEntries(selectionSessionId) : []).map((entry) => [entry.path, entry])),
+        () => new Map((selectionSessionId ? getWorkspaceContextEntries(selectionSessionId) : [])
+            .map((entry) => [workspaceContextEntryKey(entry), entry])),
+    );
+    const embeddedContextEntries = React.useSyncExternalStore(
+        subscribeWorkspaceContext,
+        () => embeddedContextMode && workspaceContextSessionId
+            ? getWorkspaceContextEntries(workspaceContextSessionId)
+            : EMPTY_WORKSPACE_CONTEXT_ENTRIES,
+        () => embeddedContextMode && workspaceContextSessionId
+            ? getWorkspaceContextEntries(workspaceContextSessionId)
+            : EMPTY_WORKSPACE_CONTEXT_ENTRIES,
     );
     React.useEffect(() => {
+        if (embeddedContextMode) return;
         setStagedEntries(new Map(
             (selectionSessionId ? getWorkspaceContextEntries(selectionSessionId) : [])
-                .map((entry) => [entry.path, entry]),
+                .map((entry) => [workspaceContextEntryKey(entry), entry]),
         ));
-    }, [selectionSessionId]);
+    }, [embeddedContextMode, selectionSessionId]);
+    const visibleContextEntries = React.useMemo(
+        () => embeddedContextMode
+            ? new Map(embeddedContextEntries.map((entry) => [workspaceContextEntryKey(entry), entry]))
+            : stagedEntries,
+        [embeddedContextEntries, embeddedContextMode, stagedEntries],
+    );
     const handleUploadedFile = React.useCallback((filePath: string) => {
         if (attachmentMode && selectedMachineId) {
             setStagedEntries((current) => {
                 if (current.size >= MAX_WORKSPACE_CONTEXT_ITEMS) return current;
                 const next = new Map(current);
-                next.set(filePath, {
+                const entry: WorkspaceContextEntry = {
                     path: filePath,
                     kind: 'file',
                     source: { kind: 'machine', machineId: selectedMachineId },
-                });
+                };
+                next.set(workspaceContextEntryKey(entry), entry);
                 return next;
             });
         }
@@ -379,15 +401,18 @@ export function MachineWorkspaceBrowser({
 
     const toggleStagedEntry = React.useCallback((path: string, kind: 'file' | 'directory') => {
         if (!selectedMachineId) return;
+        const entry: WorkspaceContextEntry = {
+            path,
+            kind,
+            source: { kind: 'machine', machineId: selectedMachineId },
+        };
+        const entryKey = workspaceContextEntryKey(entry);
         if (embeddedContextMode && workspaceContextSessionId) {
             const currentEntries = getWorkspaceContextEntries(workspaceContextSessionId);
-            if (currentEntries.some((entry) => entry.path === path)) {
-                removeWorkspaceContextEntry(workspaceContextSessionId, path);
-            } else if (!addWorkspaceContextEntry(workspaceContextSessionId, {
-                path,
-                kind,
-                source: { kind: 'machine', machineId: selectedMachineId },
-            })) {
+            const existing = currentEntries.find((candidate) => workspaceContextEntryKey(candidate) === entryKey);
+            if (existing) {
+                removeWorkspaceContextEntry(workspaceContextSessionId, existing);
+            } else if (!addWorkspaceContextEntry(workspaceContextSessionId, entry)) {
                 Modal.alert(
                     t('common.files'),
                     t('workspace.selectedItemsCount', {
@@ -396,15 +421,12 @@ export function MachineWorkspaceBrowser({
                     }),
                 );
             }
-            setStagedEntries(new Map(
-                getWorkspaceContextEntries(workspaceContextSessionId).map((entry) => [entry.path, entry]),
-            ));
             return;
         }
         setStagedEntries((current) => {
             const next = new Map(current);
-            if (next.has(path)) {
-                next.delete(path);
+            if (next.has(entryKey)) {
+                next.delete(entryKey);
                 return next;
             }
             if (next.size >= MAX_WORKSPACE_CONTEXT_ITEMS) {
@@ -417,11 +439,7 @@ export function MachineWorkspaceBrowser({
                 );
                 return current;
             }
-            next.set(path, {
-                path,
-                kind,
-                source: { kind: 'machine', machineId: selectedMachineId },
-            });
+            next.set(entryKey, entry);
             return next;
         });
     }, [embeddedContextMode, selectedMachineId, workspaceContextSessionId]);
@@ -459,7 +477,9 @@ export function MachineWorkspaceBrowser({
         if (!attachmentMode || !sessionId || !selectedMachine) return;
         const existing = getWorkspaceContextEntries(sessionId);
         existing.forEach((entry) => {
-            if (!stagedEntries.has(entry.path)) removeWorkspaceContextEntry(sessionId, entry.path);
+            if (!stagedEntries.has(workspaceContextEntryKey(entry))) {
+                removeWorkspaceContextEntry(sessionId, entry);
+            }
         });
         stagedEntries.forEach((entry) => {
             addWorkspaceContextEntry(sessionId, entry);
@@ -623,7 +643,10 @@ export function MachineWorkspaceBrowser({
                                         key={entry.path}
                                         entry={entry}
                                         selected={selectedFile === entry.path}
-                                        attached={stagedEntries.has(entry.path)}
+                                        attached={!!selectedMachineId && visibleContextEntries.has(workspaceContextEntryKey({
+                                            path: entry.path,
+                                            source: { kind: 'machine', machineId: selectedMachineId },
+                                        }))}
                                         attachmentMode={contextSelectionMode}
                                         onOpen={() => entry.type === 'directory' ? openDirectory(entry.path) : selectFile(entry.path)}
                                         onToggleAttach={() => toggleStagedEntry(entry.path, entry.type)}
@@ -660,9 +683,15 @@ export function MachineWorkspaceBrowser({
                         style={({ pressed }) => [styles.attachButton, { borderColor: theme.colors.divider, opacity: pressed ? 0.75 : 1 }]}
                     >
                         <Ionicons
-                            name={stagedEntries.has(selectedFile) ? 'checkmark-circle' : 'attach-outline'}
+                            name={visibleContextEntries.has(workspaceContextEntryKey({
+                                path: selectedFile,
+                                source: { kind: 'machine', machineId: selectedMachine.id },
+                            })) ? 'checkmark-circle' : 'attach-outline'}
                             size={17}
-                            color={stagedEntries.has(selectedFile) ? theme.colors.success : theme.colors.textLink}
+                            color={visibleContextEntries.has(workspaceContextEntryKey({
+                                path: selectedFile,
+                                source: { kind: 'machine', machineId: selectedMachine.id },
+                            })) ? theme.colors.success : theme.colors.textLink}
                         />
                     </Pressable>
                 )}

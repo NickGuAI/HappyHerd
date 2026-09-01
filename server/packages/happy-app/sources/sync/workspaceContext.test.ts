@@ -10,7 +10,9 @@ import {
     getWorkspaceContextFileSource,
     getWorkspaceContextEntries,
     getWorkspaceContextFiles,
+    removeWorkspaceContextEntry,
     removeWorkspaceContextFile,
+    workspaceContextEntryKey,
     buildWorkspaceContextMessage,
 } from './workspaceContext';
 
@@ -92,6 +94,29 @@ describe('workspace context selection', () => {
         ]);
         expect(getWorkspaceContextFiles('typed')).toEqual(['/srv/project', '/srv/report.md']);
         clearWorkspaceContextFiles('typed');
+    });
+
+    it('keeps the same absolute path distinct on different machines', () => {
+        clearWorkspaceContextFiles('two-machines');
+        const first = {
+            path: '/srv/shared/report.md',
+            kind: 'file' as const,
+            source: { kind: 'machine' as const, machineId: 'machine-one' },
+        };
+        const second = {
+            ...first,
+            source: { kind: 'machine' as const, machineId: 'machine-two' },
+        };
+
+        expect(workspaceContextEntryKey(first)).not.toBe(workspaceContextEntryKey(second));
+        expect(addWorkspaceContextEntry('two-machines', first)).toBe(true);
+        expect(addWorkspaceContextEntry('two-machines', second)).toBe(true);
+        expect(getWorkspaceContextEntries('two-machines')).toEqual([first, second]);
+        expect(getWorkspaceContextFiles('two-machines')).toEqual(['/srv/shared/report.md']);
+
+        removeWorkspaceContextEntry('two-machines', first);
+        expect(getWorkspaceContextEntries('two-machines')).toEqual([second]);
+        clearWorkspaceContextFiles('two-machines');
     });
 
     it('rejects binary and oversized context before sending', () => {

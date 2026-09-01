@@ -5,21 +5,21 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Typography } from '@/constants/Typography';
 
 import { t } from '@/text';
-import type { WorkspaceContextEntry } from '@/sync/workspaceContext';
+import { workspaceContextEntryKey, type WorkspaceContextEntry } from '@/sync/workspaceContext';
 
 export const WorkspaceContextStrip = React.memo(function WorkspaceContextStrip({
     entries,
     onRemove,
 }: {
     entries: readonly WorkspaceContextEntry[];
-    onRemove: (path: string) => void;
+    onRemove: (entry: WorkspaceContextEntry) => void;
 }) {
     const { theme } = useUnistyles();
     if (entries.length === 0) return null;
     return (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.container}>
             {entries.map((entry) => (
-                <View key={`${entry.kind}:${entry.path}`} style={[styles.chip, { borderColor: theme.colors.divider }]}>
+                <View key={workspaceContextEntryKey(entry)} style={[styles.chip, { borderColor: theme.colors.divider }]}>
                     <Ionicons
                         name={entry.kind === 'directory' ? 'folder-outline' : 'document-attach-outline'}
                         size={14}
@@ -29,7 +29,7 @@ export const WorkspaceContextStrip = React.memo(function WorkspaceContextStrip({
                         {entry.path}
                     </Text>
                     <Pressable
-                        onPress={() => onRemove(entry.path)}
+                        onPress={() => onRemove(entry)}
                         hitSlop={8}
                         accessibilityRole="button"
                         accessibilityLabel={t("uiCopy.removeValueFromMessageContext", { value1: entry.path })}

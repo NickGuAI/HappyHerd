@@ -137,7 +137,7 @@ interface AgentInputProps {
     onAddImages?: (images: AttachmentPreview[]) => void;
     /** Explicit workspace files/directories embedded in the next user message. */
     selectedContextEntries?: readonly WorkspaceContextEntry[];
-    onRemoveContextEntry?: (path: string) => void;
+    onRemoveContextEntry?: (entry: WorkspaceContextEntry) => void;
     dictationPhase?: VoiceDictationPhase;
     dictationError?: string | null;
     onDictationCancel?: () => void;
