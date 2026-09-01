@@ -168,6 +168,67 @@ describe('reducer', () => {
     });
 
     describe('agent text message handling', () => {
+        it('preserves the session-protocol turn on text and tool messages', () => {
+            const state = createReducer();
+            const turn = 'turn-inline-image';
+            const messages: NormalizedMessage[] = [
+                {
+                    id: 'agent-turn-text',
+                    localId: null,
+                    createdAt: 30,
+                    turn,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'text',
+                        text: '![image](images/5.jpg)',
+                        uuid: 'agent-turn-text',
+                        parentUUID: null,
+                    }],
+                },
+                {
+                    id: 'agent-turn-tool-start',
+                    localId: null,
+                    createdAt: 10,
+                    turn,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-call',
+                        id: 'call-read-image',
+                        name: 'ReadFile',
+                        input: { variant: 'ReadFile', target_file: '/provider/images/5.jpg' },
+                        description: null,
+                        uuid: 'agent-turn-tool-start',
+                        parentUUID: null,
+                    }],
+                },
+                {
+                    id: 'agent-turn-tool-end',
+                    localId: null,
+                    createdAt: 20,
+                    turn,
+                    role: 'agent',
+                    isSidechain: false,
+                    content: [{
+                        type: 'tool-result',
+                        tool_use_id: 'call-read-image',
+                        content: { type: 'ReadFile' },
+                        is_error: false,
+                        uuid: 'agent-turn-tool-end',
+                        parentUUID: null,
+                    }],
+                },
+            ];
+
+            const result = reducer(state, messages);
+            const textMessage = result.messages.find((message) => message.kind === 'agent-text');
+            const toolMessage = result.messages.find((message) => message.kind === 'tool-call');
+
+            expect(textMessage?.turn).toBe(turn);
+            expect(toolMessage?.turn).toBe(turn);
+        });
+
         it('should process agent text messages', () => {
             const state = createReducer();
             const messages: NormalizedMessage[] = [

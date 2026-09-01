@@ -1634,6 +1634,7 @@ describe('Zod Transform - WOLOG Content Normalization', () => {
 
             expect(normalized).toBeTruthy();
             expect(normalized?.role).toBe('agent');
+            expect(normalized?.turn).toBe('turn-usage-1');
             expect(normalized?.usage).toEqual(usage);
         });
 
@@ -1829,6 +1830,7 @@ describe('Zod Transform - WOLOG Content Normalization', () => {
 
             expect(normalized).toBeTruthy();
             expect(normalized?.role).toBe('agent');
+            expect(normalized?.turn).toBe('turn-service-1');
             if (normalized && normalized.role === 'agent') {
                 expect(normalized.content[0]).toMatchObject({
                     type: 'text',

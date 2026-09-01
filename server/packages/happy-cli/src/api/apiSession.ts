@@ -2,7 +2,15 @@ import { logger } from '@/ui/logger'
 import { EventEmitter } from 'node:events'
 import { io, Socket } from 'socket.io-client'
 import { AgentState, ClientToServerEvents, FileEventMessage, FileEventMessageSchema, Metadata, ServerToClientEvents, Session, Update, UserMessage, UserMessageSchema, Usage } from './types'
-import { decodeBase64, decryptBlob, decrypt, encodeBase64, encrypt, encryptBlob } from './encryption';
+import {
+    decodeBase64,
+    decryptBlob,
+    decrypt,
+    encodeBase64,
+    encrypt,
+    encryptBlob,
+} from './encryption';
+import { MAX_ENCRYPTED_ATTACHMENT_BYTES } from './attachmentLimits';
 import { backoff, delay } from '@/utils/time';
 import { configuration } from '@/configuration';
 import { RawJSONLines } from '@/claude/types';
@@ -483,7 +491,7 @@ export class ApiSessionClient extends EventEmitter {
                     'Content-Type': `multipart/form-data; boundary=${boundary}`,
                 },
                 timeout: 60000,
-                maxBodyLength: 10 * 1024 * 1024,
+                maxBodyLength: MAX_ENCRYPTED_ATTACHMENT_BYTES + 64 * 1024,
             });
             return;
         }
@@ -498,7 +506,7 @@ export class ApiSessionClient extends EventEmitter {
         await axios.put(upload.uploadUrl, Buffer.from(encrypted), {
             headers,
             timeout: 60000,
-            maxBodyLength: 10 * 1024 * 1024,
+            maxBodyLength: MAX_ENCRYPTED_ATTACHMENT_BYTES,
         });
     }
 

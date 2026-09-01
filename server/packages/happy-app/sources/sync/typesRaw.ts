@@ -550,6 +550,8 @@ export type NormalizedMessage = ({
     createdAt: number,
     /** Persisted server message order when this message came from V3 history or realtime sync. */
     sequence?: number | null,
+    /** Session-protocol turn identity for exact same-turn rendering decisions. */
+    turn?: string,
     isSidechain: boolean,
     meta?: MessageMeta,
     usage?: UsageData,
@@ -562,7 +564,7 @@ export type NormalizedMessage = ({
     codexItemId?: string,
 };
 
-function normalizeSessionEnvelope(
+function normalizeSessionEnvelopeContent(
     envelope: SessionEnvelope,
     localId: string | null,
     createdAt: number,
@@ -830,6 +832,17 @@ function normalizeSessionEnvelope(
     }
 
     return null;
+}
+
+function normalizeSessionEnvelope(
+    envelope: SessionEnvelope,
+    localId: string | null,
+    createdAt: number,
+    meta: MessageMeta | undefined,
+): NormalizedMessage | null {
+    const normalized = normalizeSessionEnvelopeContent(envelope, localId, createdAt, meta);
+    if (!normalized || !envelope.turn) return normalized;
+    return { ...normalized, turn: envelope.turn };
 }
 
 function normalizeRawMessageContent(id: string, localId: string | null, createdAt: number, raw: RawRecord): NormalizedMessage | null {

@@ -66,6 +66,7 @@ export type AgentTextMessage = {
     createdAt: number;
     text: string;
     isThinking?: boolean;
+    turn?: string;
     meta?: MessageMeta;
 }
 
@@ -76,6 +77,7 @@ export type ToolCallMessage = {
     createdAt: number;
     tool: ToolCall;
     children: Message[];
+    turn?: string;
     meta?: MessageMeta;
 }
 

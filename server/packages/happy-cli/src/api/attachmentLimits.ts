@@ -1,0 +1,5 @@
+export const MAX_ENCRYPTED_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+
+// NaCl secretbox wire format: 24-byte nonce + 16-byte authentication tag.
+export const ENCRYPTED_BLOB_OVERHEAD_BYTES = 40;
+export const MAX_PLAINTEXT_ATTACHMENT_BYTES = MAX_ENCRYPTED_ATTACHMENT_BYTES - ENCRYPTED_BLOB_OVERHEAD_BYTES;

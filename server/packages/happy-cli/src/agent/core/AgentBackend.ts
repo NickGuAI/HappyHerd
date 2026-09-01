@@ -24,6 +24,7 @@ export type ToolCallId = string;
  */
 export type AgentMessage =
   | { type: 'model-output'; textDelta?: string; fullText?: string }
+  | { type: 'model-output-image'; data: Uint8Array; mimeType: 'image/png' | 'image/jpeg'; name: string; sourceCallId?: ToolCallId; sourceUri?: string }
   | { type: 'status'; status: 'starting' | 'running' | 'idle' | 'stopped' | 'error'; detail?: string }
   | { type: 'tool-call'; title?: string; toolName: string; args: Record<string, unknown>; callId: ToolCallId }
   | { type: 'tool-result'; title?: string; toolName: string; result: unknown; error?: unknown; callId: ToolCallId }

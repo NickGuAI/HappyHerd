@@ -1,4 +1,5 @@
 # gate	state	subject	evidence
+GROK_INLINE_IMAGES	accepted	fix(grok): support inline images and encrypted attachments	server/packages/happy-cli/src/agent/acp/runAcp.test.ts
 SESSION_CONTINUITY	accepted	fix(sessions): preserve session continuity across restarts	server/packages/happy-cli/src/persistence.test.ts
 SESSION_CONTINUITY	accepted	fix(sessions): preserve exact Codex home on resume	server/packages/happy-cli/src/resume/codexHome.test.ts
 SESSION_CONTINUITY	accepted	fix(sessions): honor persisted Codex resume state	server/packages/happy-cli/src/daemon/run.resume.test.ts

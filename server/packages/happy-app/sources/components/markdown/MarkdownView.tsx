@@ -26,6 +26,7 @@ import {
 } from '@/utils/markdownWorkspaceLink';
 import { loadMarkdownWorkspaceImage } from '@/utils/markdownWorkspaceImage';
 import { useWorkspaceLinkPress } from '@/-session/workspaceLinkNavigation';
+import type { AcpInlineImageOverrides } from '@/utils/acpInlineImages';
 
 // Option type for callback
 export type Option = {
@@ -38,6 +39,7 @@ export type MarkdownViewProps = {
     sessionId?: string;
     enableWorkspaceLinks?: boolean;
     onWorkspaceLinkPress?: (route: WorkspaceLinkRoute) => void;
+    inlineImages?: AcpInlineImageOverrides;
     /**
      * The parent owns long-press copy (see LongPressCopyable). Suppresses native
      * selection and the built-in copy gesture so only one of them fires.
@@ -155,6 +157,13 @@ export const MarkdownView = React.memo((props: MarkdownViewProps) => {
                     } else if (block.type === 'image') {
                         return <RenderImageBlock url={block.url} alt={block.alt} key={index} first={index === 0} last={index === blocks.length - 1} />;
                     } else if (block.type === 'workspace-image') {
+                        const inlineSource = props.inlineImages?.sources.get(block.url);
+                        if (inlineSource) {
+                            return <RenderImageBlock url={inlineSource} alt={block.alt} key={index} first={index === 0} last={index === blocks.length - 1} />;
+                        }
+                        if (props.inlineImages?.suppressed.has(block.url)) {
+                            return null;
+                        }
                         const reference = resolveWorkspaceImageReference(block.url, block.alt);
                         if (!reference) {
                             return <RenderTextBlock spans={block.fallback} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} linkHandlers={linkHandlers} />;

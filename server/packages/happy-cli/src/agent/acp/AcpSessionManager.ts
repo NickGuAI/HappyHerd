@@ -86,6 +86,10 @@ export class AcpSessionManager {
     ];
   }
 
+  nextAttachmentEnvelopeOptions(): Pick<CreateEnvelopeOptions, 'turn' | 'time'> {
+    return turnOptions(this.currentTurnId, this.nextTime());
+  }
+
   mapMessage(msg: AgentMessage): SessionEnvelope[] {
     if (msg.type === 'event' && msg.name === 'thinking') {
       const { text, streaming } = parseThinkingPayload(msg.payload);
@@ -126,6 +130,10 @@ export class AcpSessionManager {
       this.pendingType = 'output';
       this.pendingText += text;
       return flushed;
+    }
+
+    if (msg.type === 'model-output-image') {
+      return this.flush();
     }
 
     if (msg.type === 'tool-call') {

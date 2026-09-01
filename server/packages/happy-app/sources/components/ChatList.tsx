@@ -28,6 +28,7 @@ import {
 import { t } from '@/text';
 import { projectSessionQueue } from '@/sync/queueProjection';
 import { buildAgentTurnCopyTextByMessageId } from '@/utils/agentTurnCopy';
+import { resolveAcpInlineImages } from '@/utils/acpInlineImages';
 
 const SCROLL_THRESHOLD = 300;
 const DOCK_DETAILS_SHOW_OFFSET = 16;
@@ -264,6 +265,10 @@ const ChatListInternal = React.memo((props: {
     const agentCopyTextByMessageId = React.useMemo(
         () => buildAgentTurnCopyTextByMessageId(props.messages, { currentTurnComplete: collapseCurrentTurn }),
         [collapseCurrentTurn, props.messages],
+    );
+    const inlineImagesByMessageId = React.useMemo(
+        () => resolveAcpInlineImages(props.messages, props.metadata?.flavor),
+        [props.messages, props.metadata?.flavor],
     );
 
     // Tracks which groups are explicitly collapsed. Groups start collapsed;
@@ -577,6 +582,7 @@ const ChatListInternal = React.memo((props: {
                     group={item}
                     metadata={props.metadata}
                     sessionId={props.sessionId}
+                    inlineImagesByMessageId={inlineImagesByMessageId}
                     expanded={!collapsedGroups.has(item.id)}
                     onToggle={() => handleToggleGroup(item.id)}
                     forceCompleted={session?.active === false}
@@ -591,9 +597,10 @@ const ChatListInternal = React.memo((props: {
                 metadata={props.metadata}
                 sessionId={props.sessionId}
                 copyText={agentCopyTextByMessageId.get(item.message.id)}
+                inlineImages={inlineImagesByMessageId.get(item.message.id)}
             />
         );
-    }, [agentCopyTextByMessageId, props.metadata, props.sessionId, collapsedGroups, handleToggleGroup, preserveToolGroupAnchor, session?.active, session?.activeAt]);
+    }, [agentCopyTextByMessageId, inlineImagesByMessageId, props.metadata, props.sessionId, collapsedGroups, handleToggleGroup, preserveToolGroupAnchor, session?.active, session?.activeAt]);
 
     // In inverted FlatList, offset 0 = latest messages (visual bottom).
     // Offset increases as user scrolls up to see older messages.

@@ -238,6 +238,47 @@ describe('MarkdownView workspace-link opt-in', () => {
         act(() => renderer.unmount());
     });
 
+    it('renders an exact persisted inline-image override without reading the workspace', () => {
+        const dataUri = `data:image/png;base64,${onePixelPng.toString('base64')}`;
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(React.createElement(MarkdownView, {
+                markdown: '![chart](images/chart.png)',
+                sessionId: 'session-one',
+                enableWorkspaceLinks: true,
+                inlineImages: {
+                    sources: new Map([['images/chart.png', dataUri]]),
+                    suppressed: new Set<string>(),
+                },
+            }));
+        });
+
+        expect(renderer.root.findByType('Image' as any).props.source.uri).toBe(dataUri);
+        expect(mocks.resolveWorkspaceImage).not.toHaveBeenCalled();
+        expect(mocks.machineReadFileWithinRoot).not.toHaveBeenCalled();
+        act(() => renderer.unmount());
+    });
+
+    it('suppresses pseudo Markdown already represented by an encrypted attachment', () => {
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(React.createElement(MarkdownView, {
+                markdown: '![chart](images/chart.png)',
+                sessionId: 'session-one',
+                enableWorkspaceLinks: true,
+                inlineImages: {
+                    sources: new Map(),
+                    suppressed: new Set(['images/chart.png']),
+                },
+            }));
+        });
+
+        expect(renderer.root.findAllByType('Image' as any)).toHaveLength(0);
+        expect(mocks.resolveWorkspaceImage).not.toHaveBeenCalled();
+        expect(mocks.machineReadFileWithinRoot).not.toHaveBeenCalled();
+        act(() => renderer.unmount());
+    });
+
     it('retries a transient workspace-image read and renders without a page refresh', async () => {
         vi.useFakeTimers();
         const base64 = onePixelPng.toString('base64');

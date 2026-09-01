@@ -17,6 +17,7 @@ import { parseVisibleUserMessage } from './parseLocalCommandMessage';
 import { resolveUserMessageBubbleColor } from '@/utils/userMessageBubbleColor';
 import { LongPressCopyable } from './LongPressCopyable';
 import { getHarnessName } from '@/utils/harnessCatalog';
+import type { AcpInlineImageOverrides } from '@/utils/acpInlineImages';
 
 
 export const MessageView = React.memo((props: {
@@ -25,6 +26,7 @@ export const MessageView = React.memo((props: {
   sessionId: string;
   getMessageById?: (id: string) => Message | null;
   copyText?: string;
+  inlineImages?: AcpInlineImageOverrides;
 }) => {
   return (
     <View
@@ -38,6 +40,7 @@ export const MessageView = React.memo((props: {
           sessionId={props.sessionId}
           getMessageById={props.getMessageById}
           copyText={props.copyText}
+          inlineImages={props.inlineImages}
         />
       </View>
     </View>
@@ -51,6 +54,7 @@ function RenderBlock(props: {
   sessionId: string;
   getMessageById?: (id: string) => Message | null;
   copyText?: string;
+  inlineImages?: AcpInlineImageOverrides;
 }): React.ReactElement {
   switch (props.message.kind) {
     case 'user-text':
@@ -63,7 +67,7 @@ function RenderBlock(props: {
       );
 
     case 'agent-text':
-      return <AgentTextBlock message={props.message} sessionId={props.sessionId} copyText={props.copyText} />;
+      return <AgentTextBlock message={props.message} sessionId={props.sessionId} copyText={props.copyText} inlineImages={props.inlineImages} />;
 
     case 'tool-call':
       return <ToolCallBlock
@@ -166,6 +170,7 @@ function AgentTextBlock(props: {
   message: AgentTextMessage;
   sessionId: string;
   copyText?: string;
+  inlineImages?: AcpInlineImageOverrides;
 }) {
   const handleOptionPress = React.useCallback((option: Option) => {
     sync.sendMessage(props.sessionId, option.title, { source: 'option' });
@@ -178,7 +183,7 @@ function AgentTextBlock(props: {
 
   return (
     <View style={styles.agentMessageContainer}>
-      <MarkdownView markdown={props.message.text} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks />
+      <MarkdownView markdown={props.message.text} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks inlineImages={props.inlineImages} />
       {props.copyText ? <MessageCopyButton text={props.copyText} /> : null}
     </View>
   );

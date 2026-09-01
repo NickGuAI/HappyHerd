@@ -18,6 +18,7 @@ import { t } from '@/text';
 import { Message, ToolCallMessage } from '@/sync/typesMessage';
 import { getToolActivityLabel, getToolSummaryCategory, ToolSummaryCategory } from '@/utils/toolDisplay';
 import { useRouter } from 'expo-router';
+import type { AcpInlineImageOverrides } from '@/utils/acpInlineImages';
 
 interface ToolGroupViewProps {
     group: ToolGroupItem;
@@ -122,6 +123,7 @@ interface AgentWorkGroupViewProps {
     forceCompleted?: boolean;
     forceCompletedAt?: number;
     onAnchorLayoutChange?: (anchor: ToolGroupLayoutAnchor) => void;
+    inlineImagesByMessageId?: ReadonlyMap<string, AcpInlineImageOverrides>;
 }
 
 export const AgentWorkGroupView = React.memo<AgentWorkGroupViewProps>((props) => {
@@ -213,9 +215,10 @@ export const AgentWorkGroupView = React.memo<AgentWorkGroupViewProps>((props) =>
                 message={item.message}
                 metadata={metadata}
                 sessionId={sessionId}
+                inlineImages={props.inlineImagesByMessageId?.get(item.message.id)}
             />
         );
-    }, [collapsedToolGroups, handleToggleNestedGroup, isCompleted, metadata, onAnchorLayoutChange, sessionId]);
+    }, [collapsedToolGroups, handleToggleNestedGroup, isCompleted, metadata, onAnchorLayoutChange, props.inlineImagesByMessageId, sessionId]);
 
     return (
         <View style={styles.outerContainer}>

@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { ApiClient } from '@/api/api';
 import type { ApiSessionClient } from '@/api/apiSession';
@@ -34,6 +34,7 @@ import type { InitializeResponse, SessionConfigOption, SessionModeState, Session
 import { classifyGrokHardLimit } from '@/credentialPool/providerLimits';
 import { reportProviderHardLimitOnce } from '@/credentialPool/providerLimitNotice';
 import { persistActiveGrokCredential } from '@/credentialPool/grokAuth';
+import { redactAcpImageDataForLogging } from '@/sessionProtocol/providerOutputImages';
 
 const ACP_EVENT_PREVIEW_CHARS = 240;
 const ACP_RAW_PREVIEW_CHARS = 2000;
@@ -78,6 +79,23 @@ function colorizeAcpLine(kind: AcpLogKind, line: string): string {
 function logAcp(kind: AcpLogKind, message: string): void {
   const line = `[${formatAcpTime()}] ${message}`;
   console.log(colorizeAcpLine(kind, line));
+}
+
+function errorLogSummary(error: unknown): Record<string, string | number> {
+  if (typeof error === 'string') return { message: error.slice(0, 500) };
+  if (!error || typeof error !== 'object') return { message: 'Unknown error' };
+
+  const record = error as Record<string, unknown>;
+  const response = record.response && typeof record.response === 'object'
+    ? record.response as Record<string, unknown>
+    : null;
+  const summary: Record<string, string | number> = {};
+  if (typeof record.name === 'string') summary.name = record.name;
+  if (typeof record.message === 'string') summary.message = record.message.slice(0, 500);
+  if (typeof record.code === 'string') summary.code = record.code;
+  const status = typeof record.status === 'number' ? record.status : response?.status;
+  if (typeof status === 'number') summary.status = status;
+  return Object.keys(summary).length > 0 ? summary : { message: 'Unknown error' };
 }
 
 function toSingleLine(text: string): string {
@@ -137,6 +155,11 @@ function formatAcpMessageForFrontend(agentName: string, msg: AgentMessage, detai
         text: `Outgoing message: ${formatTextForConsole(text)}`,
       };
     }
+    case 'model-output-image':
+      return {
+        kind: 'outgoing',
+        text: `Outgoing image: name=${msg.name} mimeType=${msg.mimeType} bytes=${msg.data.length}`,
+      };
     case 'tool-call':
       return {
         kind: 'tool',
@@ -289,6 +312,32 @@ type AcpConfigSelector = {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object';
+}
+
+function generatedImageMapping(result: unknown): { providerPath: string; pseudoPath: string } | null {
+  if (!isRecord(result) || Array.isArray(result) || result.type !== 'ImageEdit') return null;
+  const { path, session_folder: sessionFolder, filename } = result;
+  if (typeof path !== 'string' || path.length === 0) return null;
+  if (typeof sessionFolder !== 'string' || typeof filename !== 'string') return null;
+  const safeSegment = (segment: string) => (
+    segment !== '.'
+    && segment !== '..'
+    && /^[a-zA-Z0-9._-]+$/.test(segment)
+  );
+  const safeFolder = sessionFolder.length <= 255
+    && sessionFolder.split('/').every(safeSegment);
+  const pseudoPath = `${sessionFolder}/${filename}`;
+  if (
+    !safeFolder
+    || !safeSegment(filename)
+    || !/\.(?:png|jpe?g)$/i.test(filename)
+    || pseudoPath.length > 255
+  ) return null;
+  return { providerPath: path, pseudoPath };
+}
+
+function imageNameMatchesMimeType(name: string, mimeType: 'image/png' | 'image/jpeg'): boolean {
+  return mimeType === 'image/png' ? /\.png$/i.test(name) : /\.jpe?g$/i.test(name);
 }
 
 function isSelectValue(value: unknown): value is { value: string; name: string } {
@@ -733,9 +782,119 @@ export async function runAcp(opts: {
       }
       session.sendSessionProtocolMessage(envelope);
       if (verbose) {
-        logAcp('muted', `Incoming raw envelope for ${opts.agentName}: ${formatUnknownForConsole(envelope, ACP_RAW_PREVIEW_CHARS)}`);
+        logAcp('muted', `Incoming raw envelope for ${opts.agentName}: ${formatUnknownForConsole(redactAcpImageDataForLogging(envelope), ACP_RAW_PREVIEW_CHARS)}`);
       }
     }
+  };
+
+  let protocolWork = Promise.resolve();
+  const observedTurnImages: Array<{
+    digest: string;
+    mimeType: 'image/png' | 'image/jpeg';
+    name: string;
+    sourceCallId?: string;
+    sourceUri?: string;
+    crossSourceMatched: boolean;
+  }> = [];
+  const generatedImageNamesByProviderPath = new Map<string, Set<string>>();
+  const generatedImagePathsByPseudoName = new Map<string, Set<string>>();
+  const correlatedImageNameByCallId = new Map<string, string>();
+  const imageEditCallIds = new Set<string>();
+  const enqueueProtocolMessage = (msg: AgentMessage) => {
+    protocolWork = protocolWork.then(async () => {
+      if (msg.type === 'tool-call' && msg.args.variant === 'ImageEdit' && opts.agentName === 'grok') {
+        imageEditCallIds.add(msg.callId);
+      } else if (
+        msg.type === 'tool-result'
+        && msg.error === undefined
+        && opts.agentName === 'grok'
+        && imageEditCallIds.has(msg.callId)
+      ) {
+        const mapping = generatedImageMapping(msg.result);
+        if (mapping) {
+          const names = generatedImageNamesByProviderPath.get(mapping.providerPath) ?? new Set<string>();
+          names.add(mapping.pseudoPath);
+          generatedImageNamesByProviderPath.set(mapping.providerPath, names);
+          const paths = generatedImagePathsByPseudoName.get(mapping.pseudoPath) ?? new Set<string>();
+          paths.add(mapping.providerPath);
+          generatedImagePathsByPseudoName.set(mapping.pseudoPath, paths);
+        }
+      } else if (
+        msg.type === 'tool-call'
+        && opts.agentName === 'grok'
+        && msg.args.variant === 'ReadFile'
+        && typeof msg.args.target_file === 'string'
+      ) {
+        const exactNames = generatedImageNamesByProviderPath.get(msg.args.target_file);
+        if (exactNames?.size === 1) {
+          const [exactName] = exactNames;
+          const reversePaths = exactName ? generatedImagePathsByPseudoName.get(exactName) : undefined;
+          if (exactName && reversePaths?.size === 1 && reversePaths.has(msg.args.target_file)) {
+            correlatedImageNameByCallId.set(msg.callId, exactName);
+          }
+        }
+      }
+
+      let persistedMessage = msg;
+      if (msg.type === 'model-output-image' && msg.sourceCallId && !msg.sourceUri) {
+        const exactName = correlatedImageNameByCallId.get(msg.sourceCallId);
+        if (exactName && imageNameMatchesMimeType(exactName, msg.mimeType)) {
+          persistedMessage = { ...msg, name: exactName };
+        }
+      }
+
+      sendEnvelopes(sessionManager.mapMessage(persistedMessage));
+      if (persistedMessage.type !== 'model-output-image') return;
+
+      const digest = createHash('sha256').update(persistedMessage.data).digest('hex');
+      const exactDuplicate = observedTurnImages.some((prior) => (
+        prior.mimeType === persistedMessage.mimeType
+        && prior.digest === digest
+        && prior.name === persistedMessage.name
+      ));
+      if (exactDuplicate) return;
+
+      const crossSourceMatch = observedTurnImages.find((prior) => (
+        prior.mimeType === persistedMessage.mimeType
+        && prior.digest === digest
+        && !prior.crossSourceMatched
+        && prior.sourceCallId !== undefined
+        && persistedMessage.sourceCallId === undefined
+        && (prior.sourceUri === undefined || persistedMessage.sourceUri === undefined)
+      ));
+      const imageRecord = {
+        digest,
+        mimeType: persistedMessage.mimeType,
+        name: persistedMessage.name,
+        ...(persistedMessage.sourceCallId ? { sourceCallId: persistedMessage.sourceCallId } : {}),
+        ...(persistedMessage.sourceUri ? { sourceUri: persistedMessage.sourceUri } : {}),
+        crossSourceMatched: crossSourceMatch !== undefined,
+      };
+      observedTurnImages.push(imageRecord);
+      if (crossSourceMatch) {
+        crossSourceMatch.crossSourceMatched = true;
+        return;
+      }
+      try {
+        const envelope = await session.uploadImageAttachmentEnvelope(
+          { data: persistedMessage.data, mimeType: persistedMessage.mimeType, name: persistedMessage.name },
+          'agent',
+          sessionManager.nextAttachmentEnvelopeOptions(),
+        );
+        sendEnvelopes([envelope]);
+      } catch (error) {
+        const failedIndex = observedTurnImages.indexOf(imageRecord);
+        if (failedIndex >= 0) observedTurnImages.splice(failedIndex, 1);
+        logger.debug(`[${opts.agentName}] Failed to upload ACP agent output image`, {
+          name: persistedMessage.name,
+          mimeType: persistedMessage.mimeType,
+          size: persistedMessage.data.length,
+          error: errorLogSummary(error),
+        });
+      }
+    }).catch((error) => {
+      logger.debug(`[${opts.agentName}] Failed to persist ACP protocol message`, errorLogSummary(error));
+    });
   };
 
   const switchPermissionModeIfRequested = async (requestedMode: string): Promise<boolean> => {
@@ -858,7 +1017,7 @@ export async function runAcp(opts: {
 
   const onBackendMessage = (msg: AgentMessage) => {
     if (verbose) {
-      logAcp('muted', `Outgoing raw backend message from ${opts.agentName}: ${formatUnknownForConsole(msg, ACP_RAW_PREVIEW_CHARS)}`);
+      logAcp('muted', `Outgoing raw backend message from ${opts.agentName}: ${formatUnknownForConsole(redactAcpImageDataForLogging(msg), ACP_RAW_PREVIEW_CHARS)}`);
     }
 
     if (msg.type === 'event' && msg.name === 'available_commands') {
@@ -1003,7 +1162,7 @@ export async function runAcp(opts: {
       logAcp(frontendMessage.kind, frontendMessage.text);
     }
 
-    sendEnvelopes(sessionManager.mapMessage(msg));
+    enqueueProtocolMessage(msg);
   };
 
   backend.onMessage(onBackendMessage);
@@ -1129,6 +1288,12 @@ export async function runAcp(opts: {
       }
 
       logAcp('incoming', `Incoming prompt: ${formatUnknownForConsole(batch.message, ACP_EVENT_PREVIEW_CHARS)}`);
+      await protocolWork;
+      observedTurnImages.length = 0;
+      generatedImageNamesByProviderPath.clear();
+      generatedImagePathsByPseudoName.clear();
+      correlatedImageNameByCallId.clear();
+      imageEditCallIds.clear();
       sendEnvelopes(sessionManager.startTurn());
       try {
         if (supportsRuntimePermissionSelection && typeof batch.mode.permissionMode === 'string' && batch.mode.permissionMode.length > 0) {
@@ -1136,6 +1301,7 @@ export async function runAcp(opts: {
           if (!switched) {
             const error = `Unsupported ${opts.agentName} permission mode: ${batch.mode.permissionMode}`;
             session.sendSessionEvent({ type: 'message', message: error });
+            await protocolWork;
             sendEnvelopes(sessionManager.endTurn('failed'));
             session.sendSessionEvent({ type: 'ready' });
             continue;
@@ -1143,12 +1309,14 @@ export async function runAcp(opts: {
         }
         await switchModelAndEffortIfRequested(batch.mode.model, batch.mode.effort);
         const promptResult = await backend.sendPromptAndGetResult(acpSessionId, batch.message);
+        await protocolWork;
         sendEnvelopes(sessionManager.endTurn(turnStatusForStopReason(promptResult.stopReason)));
         session.sendSessionEvent({ type: 'ready' });
         if (verbose) {
           logAcp('muted', `Outgoing prompt completion from ${opts.agentName}: stopReason=${promptResult.stopReason}`);
         }
       } catch (error) {
+        await protocolWork;
         sendEnvelopes(sessionManager.endTurn('failed'));
         session.sendSessionEvent({ type: 'ready' });
         logAcp('error', `Prompt error from ${opts.agentName}: ${error instanceof Error ? error.message : String(error)}`);

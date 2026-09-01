@@ -45,6 +45,7 @@ export type {
 export type {
   AgentStatus,
   ModelOutputMessage,
+  ModelOutputImageMessage,
   StatusMessage,
   ToolCallMessage,
   ToolResultMessage,
