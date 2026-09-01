@@ -38,6 +38,7 @@ skill or skills required by the current evidence.
 | Merge one explicitly approved upstream SHA without squashing | [`happyherd-sync-upstream`](skills/happyherd-sync-upstream/SKILL.md) |
 | Add, change, test, or diagnose a provider vertical slice | [`happyherd-update-provider`](skills/happyherd-update-provider/SKILL.md) |
 | Gate a safeguarded Human turn when HappyHerd injects the skill | [`happyherd-user-safeguard`](skills/happyherd-user-safeguard/SKILL.md) |
+| Maintain or migrate one Commander's L2/L3 memory from evidence | [`commander-memory-cleanup`](skills/commander-memory-cleanup/SKILL.md) |
 
 `preflight`, `ticktick`, `context-explore`, `engineering-review`,
 `app-verification`, and `ux-designer-review` are shared dependencies, not
