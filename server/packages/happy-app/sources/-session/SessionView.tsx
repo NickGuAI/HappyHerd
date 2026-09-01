@@ -48,6 +48,7 @@ import { AllFilesPicker, FilesSidebar, SidebarMode } from '@/components/FilesSid
 import { DesktopFileWorkspace, DesktopFileWorkspaceSplit } from '@/components/DesktopFileWorkspace';
 import {
     closeDesktopFile,
+    desktopFileIdentity,
     desktopFilePath,
     EMPTY_DESKTOP_FILE_WORKSPACE,
     openDesktopFile,
@@ -195,6 +196,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     const [desktopMachinePickerOpen, setDesktopMachinePickerOpen] = React.useState(false);
     const [desktopMachinePickerTarget, setDesktopMachinePickerTarget] = React.useState<{ machineId: string; path: string } | null>(null);
     const [desktopDirtyPaths, setDesktopDirtyPaths] = React.useState<Set<string>>(() => new Set());
+    const desktopDirtyPathsRef = React.useRef(desktopDirtyPaths);
     const [desktopFileWorkspaceSessionId, setDesktopFileWorkspaceSessionId] = React.useState(sessionId);
     const desktopFileWorkspaceSession = useSession(desktopFileWorkspaceSessionId);
     const canUseDesktopFileWorkspaceSession = isDataReady
@@ -210,7 +212,9 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         setDesktopFilePickerOpen(false);
         setDesktopMachinePickerOpen(false);
         setDesktopMachinePickerTarget(null);
-        setDesktopDirtyPaths(new Set());
+        const cleanDirtyPaths = new Set<string>();
+        desktopDirtyPathsRef.current = cleanDirtyPaths;
+        setDesktopDirtyPaths(cleanDirtyPaths);
         setDesktopFileWorkspaceSessionId(sessionId);
         return () => {
             workspaceLinkRequestGeneration.current += 1;
@@ -647,20 +651,25 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                 // Keep same-session file and failed-resolution links in the
                 // canonical host. FileViewPanel renders its established error
                 // state without creating a second viewer header or composer.
-                setDesktopFileWorkspace((current) => openDesktopFile(
-                    current,
-                    route.params.absolutePath,
-                    {
-                        machineId: route.params.machineId,
-                        // Explicit reply links already carry an authoritative
-                        // machine ID and may point anywhere on that machine.
-                        // Use the existing machine file transport without
-                        // changing the active chat workspace.
-                        source: 'machine',
-                        ...(route.params.line === undefined ? {} : { line: Number(route.params.line) }),
-                        ...(route.params.column === undefined ? {} : { column: Number(route.params.column) }),
-                    },
-                ));
+                const identity = desktopFileIdentity(route.params.absolutePath, route.params.machineId);
+                setDesktopFileWorkspace((current) => {
+                    const preserveDirtySessionEditor = current.references[identity]?.source === 'session'
+                        && desktopDirtyPathsRef.current.has(identity);
+                    return openDesktopFile(
+                        current,
+                        route.params.absolutePath,
+                        {
+                            machineId: route.params.machineId,
+                            // Explicit reply links already carry an authoritative
+                            // machine ID and may point anywhere on that machine.
+                            // Keep a dirty session-backed editor mounted until its
+                            // existing save/cancel flow resolves the local draft.
+                            source: preserveDirtySessionEditor ? 'session' : 'machine',
+                            ...(route.params.line === undefined ? {} : { line: Number(route.params.line) }),
+                            ...(route.params.column === undefined ? {} : { column: Number(route.params.column) }),
+                        },
+                    );
+                });
                 setDesktopFilePickerOpen(false);
                 setDesktopMachinePickerOpen(false);
                 setDesktopMachinePickerTarget(null);
@@ -688,13 +697,13 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         setDesktopMachinePickerTarget(null);
     }, []);
     const handleDesktopDirtyChange = React.useCallback((path: string, dirty: boolean) => {
-        setDesktopDirtyPaths((current) => {
-            if (current.has(path) === dirty) return current;
-            const next = new Set(current);
-            if (dirty) next.add(path);
-            else next.delete(path);
-            return next;
-        });
+        const current = desktopDirtyPathsRef.current;
+        if (current.has(path) === dirty) return;
+        const next = new Set(current);
+        if (dirty) next.add(path);
+        else next.delete(path);
+        desktopDirtyPathsRef.current = next;
+        setDesktopDirtyPaths(next);
     }, []);
     const handleDesktopFileClose = React.useCallback((path: string) => {
         const close = () => {
@@ -704,14 +713,9 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                 setDesktopMachinePickerOpen(false);
                 setDesktopMachinePickerTarget(null);
             }
-            setDesktopDirtyPaths((current) => {
-                if (!current.has(path)) return current;
-                const next = new Set(current);
-                next.delete(path);
-                return next;
-            });
+            handleDesktopDirtyChange(path, false);
         };
-        if (!desktopDirtyPaths.has(path)) {
+        if (!desktopDirtyPathsRef.current.has(path)) {
             close();
             return;
         }
@@ -722,19 +726,14 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         ).then((confirmed) => {
             if (confirmed) close();
         });
-    }, [desktopDirtyPaths, desktopFileWorkspace.paths]);
+    }, [desktopFileWorkspace.paths, handleDesktopDirtyChange]);
     const handleDesktopFileDeleted = React.useCallback((path: string) => {
         setDesktopFileWorkspace((current) => closeDesktopFile(current, path));
         if (desktopFileWorkspace.paths.length === 1 && desktopFileWorkspace.paths[0] === path) {
             setDesktopFilePickerOpen(false);
         }
-        setDesktopDirtyPaths((current) => {
-            if (!current.has(path)) return current;
-            const next = new Set(current);
-            next.delete(path);
-            return next;
-        });
-    }, [desktopFileWorkspace.paths]);
+        handleDesktopDirtyChange(path, false);
+    }, [desktopFileWorkspace.paths, handleDesktopDirtyChange]);
     const handleOverlayFileDeleted = React.useCallback(() => {
         setFileViewDirty(false);
         setHeaderRightSlot(null);
