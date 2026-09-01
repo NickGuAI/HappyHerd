@@ -38,6 +38,8 @@ happyherd session side-chat --help
 Do not probe `happyherd acp`, `happyherd agy`, or `happyherd gemini` with
 `--help`. These routes can launch real HappyHerd sessions. Use top-level
 `happyherd --help` instead.
+Load [`references/provider-cli-drift.md`](references/provider-cli-drift.md) when checking Codex or GrokBuild native invocation shapes or auditing installed-CLI drift beneath HappyHerd.
+Load [`references/usage-telemetry-ideas.md`](references/usage-telemetry-ideas.md) when extending HappyHerd-owned cost, usage, quota, or e-ink presentation without creating a parallel telemetry plane.
 
 ### Command map
 
