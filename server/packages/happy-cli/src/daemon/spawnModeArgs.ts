@@ -8,6 +8,9 @@ export function appendDaemonSpawnModeArgs(
     if (agent !== 'claude' && agent !== 'codex' && agent !== 'grok' && agent !== 'agy') {
         return;
     }
+    if (agent === 'codex' && options.providerAccount === null) {
+        args.push('--provider-account-mode', 'unmanaged');
+    }
     const validated = options.effectiveSettings?.provider === agent
         ? options.effectiveSettings
         : null;

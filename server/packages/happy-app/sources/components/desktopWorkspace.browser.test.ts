@@ -67,14 +67,36 @@ const virtualModules: Record<string, string> = {
     'expo-router/drawer': `
         import React from 'react';
         import { View } from 'react-native';
-        export const Drawer = ({ screenOptions, drawerContent }) => React.createElement(
-            View,
-            {
-                testID: 'navigation-drawer',
-                style: [{ position: 'absolute', top: 0, bottom: 0, left: 0 }, screenOptions.drawerStyle],
-            },
-            drawerContent ? drawerContent() : null,
-        );
+        import { ChatHeaderView } from '@/components/ChatHeaderView';
+        export const Drawer = ({ screenOptions, drawerContent }) => {
+            const drawerWidth = screenOptions.drawerStyle.width;
+            return React.createElement(
+                React.Fragment,
+                null,
+                React.createElement(
+                    View,
+                    {
+                        testID: 'navigation-drawer',
+                        style: [{ position: 'absolute', top: 0, bottom: 0, left: 0 }, screenOptions.drawerStyle],
+                    },
+                    drawerContent ? drawerContent() : null,
+                ),
+                React.createElement(
+                    View,
+                    {
+                        testID: 'navigation-screen',
+                        style: { position: 'absolute', top: 0, right: 0, bottom: 0, left: drawerWidth },
+                    },
+                    React.createElement(ChatHeaderView, {
+                        folderName: 'demo-project',
+                        title: 'Collapsed navigation fixture',
+                        onTitlePress: () => {
+                            window.__SESSION_TITLE_PRESS_COUNT__ = (window.__SESSION_TITLE_PRESS_COUNT__ ?? 0) + 1;
+                        },
+                    }),
+                ),
+            );
+        };
     `,
     '@/auth/AuthContext': `export const useAuth = () => ({ isAuthenticated: true });`,
     '@/components/SidebarView': `
@@ -138,6 +160,7 @@ const virtualModules: Record<string, string> = {
         export const useIsTablet = () => true;
     `,
     '@/utils/isTauri': `export const isTauri = () => false;`,
+    '@/utils/platform': `export const isRunningOnMac = () => false;`,
     '@/hooks/useTauriZoom': `export const DEFAULT_APP_ZOOM = 1;`,
     '@/navigation/browserNavigation': `
         export const canRouteForward = () => false;
@@ -169,7 +192,6 @@ const virtualModules: Record<string, string> = {
         export const MarkdownView = ({ markdown }) => React.createElement('div', { 'data-testid': 'markdown-preview' }, markdown);
     `,
     '@/components/diff/PierreDiffView': `export const PierreDiffView = () => null;`,
-    '@/components/FileDocumentPreview': `export const FileDocumentPreview = () => null;`,
     '@/components/CodeEditor': `
         import React from 'react';
         export const CodeEditor = ({ value, onChange, readOnly }) => React.createElement('textarea', {
@@ -182,6 +204,15 @@ const virtualModules: Record<string, string> = {
     `,
     '@/sync/ops': `
         const content = btoa('# Desktop workspace\\n');
+        const taskHtml = btoa([
+            '<!doctype html><html><head><title>Task review board</title></head><body>',
+            '<h1>Task review board</h1>',
+            '<button id="show-open" type="button" onclick="window.renderTasks(&quot;open&quot;)">Show open</button>',
+            '<button id="show-all" type="button" onclick="window.reviewTasks=[{title:&quot;Review launch&quot;,open:true},{title:&quot;Archive notes&quot;,open:false}];window.renderTasks=(filter)=>{const visible=filter===&quot;open&quot;?window.reviewTasks.filter((task)=>task.open):window.reviewTasks;document.getElementById(&quot;task-summary&quot;).textContent=filter===&quot;open&quot;?visible.length+&quot; open task&quot;:visible.length+&quot; tasks&quot;;const cards=document.getElementById(&quot;task-cards&quot;);cards.replaceChildren();visible.forEach((task)=>{const card=document.createElement(&quot;article&quot;);card.dataset.testid=&quot;task-card&quot;;card.textContent=task.title;cards.append(card);});};window.renderTasks(&quot;all&quot;)">Show all</button>',
+            '<p id="task-summary">Scripts have not run</p>',
+            '<div id="task-cards"></div>',
+            '</body></html>',
+        ].join(''));
         export const machineDeleteFile = async () => ({ success: true });
         export const machineGetDirectoryTree = async (machineId, path, depth) => {
             window.__MACHINE_DIRECTORY_CALLS__ = [...(window.__MACHINE_DIRECTORY_CALLS__ ?? []), { machineId, path, depth }];
@@ -212,7 +243,10 @@ const virtualModules: Record<string, string> = {
                 : { success: false, error: 'Unexpected Workspace read' };
         };
         export const machineWriteFile = async () => ({ success: true, hash: 'saved-hash' });
-        export const sessionReadFile = async () => ({ success: true, content });
+        export const sessionReadFile = async (_sessionId, path) => ({
+            success: true,
+            content: path === '/workspace/task.html' ? taskHtml : content,
+        });
         export const sessionWriteFile = async () => ({ success: true, hash: 'saved-hash' });
         export const sessionDeleteFile = async () => {
             window.__DELETE_RPC_COUNT__ = (window.__DELETE_RPC_COUNT__ ?? 0) + 1;
@@ -298,6 +332,12 @@ const virtualModules: Record<string, string> = {
         export const LocalBlurHalo = () => null;
     `,
     '@/components/MobileGlass': `export const MobileGlassSurface = ({ children }) => children;`,
+    '@/components/BubblePressable': `export const BubblePressable = () => null;`,
+    '@/components/navigation/MobileHeaderScrim': `
+        export const MobileHeaderScrim = () => null;
+        export const MOBILE_STRONG_HEADER_SCRIM_RESTING_OPACITY = 0.8;
+        export const MOBILE_STRONG_HEADER_SCRIM_UNDERLAP_OPACITY = 0.96;
+    `,
     '@/keyboard/shortcuts': `
         export const getPreferredShortcutModifier = () => 'Meta';
         export const formatShortcutChord = () => '';
@@ -312,7 +352,7 @@ const virtualModules: Record<string, string> = {
         export const dismissWorkspaceLinkToOrigin = () => undefined;
         export const useWorkspaceLinkDismissGuard = () => ({ onSendingChange() {}, onDirtyChange() {}, guardDismiss: (action) => action() });
     `,
-    '@/components/layout': `export const layout = { maxWidth: 1200 };`,
+    '@/components/layout': `export const layout = { maxWidth: 1200, headerMaxWidth: 800 };`,
     '@/text': `
         export const t = (key, params) => ({
             'common.back': 'Back',
@@ -329,6 +369,7 @@ const virtualModules: Record<string, string> = {
             'files.deleteFileDescription': 'This permanently removes the selected file.',
             'files.deleteFileTitle': 'Delete file?',
             'files.editFile': 'Edit',
+            'files.interactivePreview': 'Interactive',
             'files.failedToDelete': 'Failed to delete file',
             'files.failedToRead': 'Failed to read file',
             'files.openExistingFile': 'Open existing file',
@@ -371,11 +412,22 @@ const fixturePlugin: Plugin = {
     setup(buildContext) {
         buildContext.onResolve({ filter: /.*/ }, (args) => {
             if (args.path in virtualModules) return { path: args.path, namespace: 'fixture-stub' };
+            if (args.path === '@/components/FileDocumentPreview') {
+                return { path: resolve(appRoot, 'sources/components/FileDocumentPreview.web.tsx') };
+            }
             if (args.importer.endsWith('/FilesSidebar.tsx')) {
                 const relativeStub = ({
                     './SideChatPanel': '@/components/SideChatPanel',
                     './AnimatedOverlay': '@/components/AnimatedOverlay',
                     './MobileGlass': '@/components/MobileGlass',
+                } as Record<string, string>)[args.path];
+                if (relativeStub) return { path: relativeStub, namespace: 'fixture-stub' };
+            }
+            if (args.importer.endsWith('/ChatHeaderView.tsx')) {
+                const relativeStub = ({
+                    './BubblePressable': '@/components/BubblePressable',
+                    './MobileGlass': '@/components/MobileGlass',
+                    './navigation/MobileHeaderScrim': '@/components/navigation/MobileHeaderScrim',
                 } as Record<string, string>)[args.path];
                 if (relativeStub) return { path: relativeStub, namespace: 'fixture-stub' };
             }
@@ -456,6 +508,84 @@ describe('Desktop workspace browser interaction', () => {
         if (server) await new Promise<void>((resolveClosed) => server.close(() => resolveClosed()));
     }, 30_000);
 
+    it('keeps the hidden navigation toggle clear of the real session header', async () => {
+        const page = await browser.newPage({ viewport: { width: 900, height: 300 } });
+        const pageErrors = recordPageErrors(page);
+        await page.goto(origin);
+        await page.waitForTimeout(100);
+        if (pageErrors.length > 0) throw new Error(`Browser fixture failed to render: ${pageErrors.join('\n')}`);
+
+        const headerDemo = page.getByTestId('collapsed-navigation-header-demo');
+        const drawer = headerDemo.getByTestId('navigation-drawer');
+        const boundaryToggle = headerDemo.getByTestId('navigation-sidebar-toggle');
+        const sessionPath = headerDemo.getByText('demo-project', { exact: true });
+
+        const hiddenToggleClearance = async () => {
+            const boundaryToggleBox = await boundaryToggle.boundingBox();
+            const sessionPathBox = await sessionPath.boundingBox();
+            if (!boundaryToggleBox || !sessionPathBox) throw new Error('hidden header controls have no layout');
+            expect(boundaryToggleBox.x + boundaryToggleBox.width + 8).toBeLessThanOrEqual(sessionPathBox.x);
+            return { boundaryToggleBox, sessionPathBox };
+        };
+
+        await expect(boundaryToggle.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
+        const zenToggle = headerDemo.getByLabel('Toggle Zen mode');
+        await zenToggle.click();
+        const zenDrawerBox = await drawer.boundingBox();
+        if (!zenDrawerBox) throw new Error('Zen navigation drawer has no layout');
+        expect(zenDrawerBox.width).toBe(0);
+        await expect(boundaryToggle.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
+        const zenGeometry = await hiddenToggleClearance();
+
+        await page.mouse.click(zenGeometry.sessionPathBox.x + 1, zenGeometry.sessionPathBox.y + zenGeometry.sessionPathBox.height / 2);
+        await expect(page.evaluate(() => (window as any).__SESSION_TITLE_PRESS_COUNT__ ?? 0)).resolves.toBe(1);
+
+        await zenToggle.click();
+        const expandedDrawerBox = await drawer.boundingBox();
+        if (!expandedDrawerBox) throw new Error('expanded navigation drawer has no layout');
+        expect(expandedDrawerBox.width).toBeGreaterThan(0);
+
+        await boundaryToggle.click();
+        await expect(boundaryToggle.getAttribute('aria-label')).resolves.toBe('Expand navigation');
+        const collapsedGeometry = await hiddenToggleClearance();
+
+        const idleBackground = await boundaryToggle.evaluate((element) => getComputedStyle(element).backgroundColor);
+        expect(['transparent', 'rgba(0, 0, 0, 0)']).toContain(idleBackground);
+        await boundaryToggle.hover();
+        const hoverBackground = await boundaryToggle.evaluate((element) => getComputedStyle(element).backgroundColor);
+        expect(['transparent', 'rgba(0, 0, 0, 0)']).not.toContain(hoverBackground);
+
+        const boundaryToggleCenter = {
+            x: collapsedGeometry.boundaryToggleBox.x + collapsedGeometry.boundaryToggleBox.width / 2,
+            y: collapsedGeometry.boundaryToggleBox.y + collapsedGeometry.boundaryToggleBox.height / 2,
+        };
+        await page.mouse.move(boundaryToggleCenter.x, boundaryToggleCenter.y);
+        await page.mouse.down();
+        const pressedBackground = await boundaryToggle.evaluate((element) => getComputedStyle(element).backgroundColor);
+        expect(['transparent', 'rgba(0, 0, 0, 0)']).not.toContain(pressedBackground);
+        await page.mouse.move(
+            collapsedGeometry.boundaryToggleBox.x + collapsedGeometry.boundaryToggleBox.width + 80,
+            boundaryToggleCenter.y,
+        );
+        await page.mouse.up();
+        await expect(boundaryToggle.getAttribute('aria-label')).resolves.toBe('Expand navigation');
+
+        await page.mouse.click(
+            collapsedGeometry.sessionPathBox.x + 1,
+            collapsedGeometry.sessionPathBox.y + collapsedGeometry.sessionPathBox.height / 2,
+        );
+        await expect(page.evaluate(() => (window as any).__SESSION_TITLE_PRESS_COUNT__ ?? 0)).resolves.toBe(2);
+
+        await page.mouse.move(700, 200);
+        const evidencePath = process.env.HAPPYHERD_COLLAPSED_NAV_EVIDENCE_PATH?.trim();
+        if (evidencePath) await headerDemo.screenshot({ path: resolve(evidencePath) });
+
+        await boundaryToggle.click();
+        await expect(boundaryToggle.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 10_000);
+
     it('uses the real boundary toggle and pointer divider without overlapping or remounting', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1200 } });
         const pageErrors = recordPageErrors(page);
@@ -464,8 +594,8 @@ describe('Desktop workspace browser interaction', () => {
         if (pageErrors.length > 0) throw new Error(`Browser fixture failed to render: ${pageErrors.join('\n')}`);
 
         const sidebarDemo = page.getByTestId('sidebar-demo');
-        const drawer = page.getByTestId('navigation-drawer');
-        const collapse = page.getByTestId('navigation-sidebar-toggle');
+        const drawer = sidebarDemo.getByTestId('navigation-drawer');
+        const collapse = sidebarDemo.getByTestId('navigation-sidebar-toggle');
         await collapse.waitFor();
         await expect(collapse.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
         const sidebarBox = await sidebarDemo.boundingBox();
@@ -533,11 +663,11 @@ describe('Desktop workspace browser interaction', () => {
         await expect(editor.evaluate((element) => element.scrollTop)).resolves.toBe(initialEditorScrollTop);
 
         await collapse.click();
-        const expand = page.getByTestId('navigation-sidebar-toggle');
+        const expand = sidebarDemo.getByTestId('navigation-sidebar-toggle');
         await expand.waitFor();
         await expect(expand.getAttribute('aria-label')).resolves.toBe('Expand navigation');
         const expandBox = await expand.boundingBox();
-        const zenBox = await page.getByLabel('Toggle Zen mode').boundingBox();
+        const zenBox = await sidebarDemo.getByLabel('Toggle Zen mode').boundingBox();
         if (!expandBox || !zenBox) throw new Error('collapsed controls have no layout');
         expect(expandBox.x + expandBox.width).toBeLessThanOrEqual(zenBox.x);
         const collapsedSplitBox = await splitDemo.boundingBox();
@@ -603,6 +733,69 @@ describe('Desktop workspace browser interaction', () => {
             await sidebarDemoScreenshot(page, evidenceDirectory);
             await page.getByTestId('split-demo').screenshot({ path: resolve(evidenceDirectory, 'issue-181-wide.png') });
             await narrow.screenshot({ path: resolve(evidenceDirectory, 'issue-181-mobile.png') });
+        }
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 10_000);
+
+    it('runs task HTML only after the explicit desktop Interactive gesture and retains its state', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        await page.goto(origin + '?interactive-html=desktop');
+
+        const workspace = page.getByTestId('interactive-html-workspace-wide');
+        const frame = workspace.frameLocator('iframe');
+        await frame.getByText('Scripts have not run', { exact: true }).waitFor();
+        await expect(frame.getByTestId('task-card').count()).resolves.toBe(0);
+
+        const pageErrors = recordPageErrors(page);
+        await workspace.getByRole('button', { name: 'Interactive', exact: true }).click();
+        await frame.getByRole('button', { name: 'Show all', exact: true }).click();
+        await expect(frame.getByTestId('task-card').count()).resolves.toBe(2);
+        await frame.getByRole('button', { name: 'Show open', exact: true }).click();
+        await expect(frame.getByText('1 open task', { exact: true }).isVisible()).resolves.toBe(true);
+        await expect(frame.getByTestId('task-card').count()).resolves.toBe(1);
+
+        await workspace.getByRole('tab', { name: 'Open notes.md' }).click();
+        await workspace.getByRole('tab', { name: 'Open task.html' }).click();
+        await expect(frame.getByText('1 open task', { exact: true }).isVisible()).resolves.toBe(true);
+        await expect(frame.getByTestId('task-card').count()).resolves.toBe(1);
+
+        const evidenceDirectory = process.env.HAPPYHERD_INTERACTIVE_HTML_EVIDENCE_DIR;
+        if (evidenceDirectory) {
+            await workspace.screenshot({
+                path: resolve(evidenceDirectory, 'task-6a966246-interactive-html-desktop.png'),
+            });
+        }
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 10_000);
+
+    it('runs and retains the same explicit Interactive journey at the Web Mobile viewport', async () => {
+        const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+        await page.goto(origin + '?interactive-html=mobile');
+
+        const workspace = page.getByTestId('interactive-html-workspace-mobile');
+        const frame = workspace.frameLocator('iframe');
+        await frame.getByText('Scripts have not run', { exact: true }).waitFor();
+        await expect(frame.getByTestId('task-card').count()).resolves.toBe(0);
+
+        const pageErrors = recordPageErrors(page);
+        await workspace.getByRole('button', { name: 'Interactive', exact: true }).click();
+        await frame.getByRole('button', { name: 'Show all', exact: true }).click();
+        await expect(frame.getByTestId('task-card').count()).resolves.toBe(2);
+        await frame.getByRole('button', { name: 'Show open', exact: true }).click();
+        await expect(frame.getByText('1 open task', { exact: true }).isVisible()).resolves.toBe(true);
+
+        await page.setViewportSize({ width: 430, height: 844 });
+        await expect(frame.getByText('1 open task', { exact: true }).isVisible()).resolves.toBe(true);
+        await page.setViewportSize({ width: 390, height: 844 });
+        await expect(frame.getByTestId('task-card').count()).resolves.toBe(1);
+
+        const evidenceDirectory = process.env.HAPPYHERD_INTERACTIVE_HTML_EVIDENCE_DIR;
+        if (evidenceDirectory) {
+            await workspace.screenshot({
+                path: resolve(evidenceDirectory, 'task-6a966246-interactive-html-mobile.png'),
+            });
         }
         expect(pageErrors).toEqual([]);
         await page.close();

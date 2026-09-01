@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "07e6c0562386df9d75bb6aa094b2f0de400c480c1889da06995c9af812d843f2",
+  "sourceFingerprint": "211636a4cbe5cfd857968d77c0a2d7f7341a09f9567c9b474e017a1d0d5baaa2",
   "routeCount": 36,
   "surfaceCount": 251,
   "hardcodedCopyCount": 0,
@@ -3186,6 +3186,7 @@
         "files.failedToSave",
         "files.fileConflict",
         "files.fileConflictDescription",
+        "files.interactivePreview",
         "files.overwrite",
         "files.reload",
         "files.saveFile",

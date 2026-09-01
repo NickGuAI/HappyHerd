@@ -79,6 +79,7 @@ import {
   type SideChatOperationResult,
 } from './sideChatLifecycle';
 import { resolveCredentialAccountEnvironment } from '@/credentialPool/store';
+import { activateCodexCredential, codexRuntimeHome } from '@/credentialPool/codexAuth';
 import type { CredentialProvider } from '@/credentialPool/types';
 import type { ProviderLimitNotice } from '@/credentialPool/providerLimitNotice';
 import { rotateProviderSessionAfterLimit } from '@/credentialPool/rotation';
@@ -558,8 +559,13 @@ export async function startDaemon(): Promise<void> {
         // Resolve authentication token if provided
         const authEnv: Record<string, string> = {};
         const credentialProvider = credentialProviderForAgent(options.agent);
-        const credentialResolution = credentialProvider
-          ? await resolveCredentialAccountEnvironment(credentialProvider)
+        const preserveUnmanagedCodexHome = options.agent === 'codex'
+          && options.providerAccount === null;
+        const credentialResolution = credentialProvider && !preserveUnmanagedCodexHome
+          ? await resolveCredentialAccountEnvironment(
+            credentialProvider,
+            options.providerAccount ? { preferred: options.providerAccount } : {},
+          )
           : { selection: { type: 'unconfigured' as const }, env: {} };
         if (credentialResolution.selection.type === 'all-limited') {
           return {
@@ -568,7 +574,14 @@ export async function startDaemon(): Promise<void> {
           };
         }
         Object.assign(authEnv, credentialResolution.env);
-        if (options.token && credentialResolution.selection.type === 'unconfigured') {
+        if (options.agent === 'codex' && options.codexHome) {
+          authEnv.CODEX_HOME = options.codexHome;
+        }
+        if (
+          options.token
+          && !preserveUnmanagedCodexHome
+          && credentialResolution.selection.type === 'unconfigured'
+        ) {
           if (options.agent === 'codex') {
 
             // Create a temporary directory for Codex
@@ -1684,6 +1697,43 @@ export async function startDaemon(): Promise<void> {
       }
 
       const creation = (async (): Promise<LocalSideChatCreation> => {
+        const isCodexParent = parent.metadata.flavor === 'codex';
+        const inheritedProviderAccount = isCodexParent
+          ? parent.metadata.providerAccount?.trim() || null
+          : null;
+        const codexHome = isCodexParent
+          ? await resolveCodexHomeForResume(parent.metadata, ambientEnvironment)
+          : undefined;
+        const codexCredentialResolution = isCodexParent && inheritedProviderAccount
+          ? await resolveCredentialAccountEnvironment('codex', {
+            preferred: inheritedProviderAccount,
+          })
+          : null;
+        if (codexCredentialResolution?.selection.type === 'all-limited') {
+          throw new Error(
+            `All codex accounts are limited until ${new Date(codexCredentialResolution.selection.limitedUntil).toISOString()}.`,
+          );
+        }
+        const providerAccount = codexCredentialResolution?.selection.type === 'available'
+          ? codexCredentialResolution.selection.account.name
+          : undefined;
+        const codexForkEnvironment = isCodexParent
+          ? buildSessionChildEnvironment(ambientEnvironment, {
+            ...codexCredentialResolution?.env,
+            ...(codexHome ? { CODEX_HOME: codexHome } : {}),
+          })
+          : undefined;
+        if (
+          codexForkEnvironment
+          && codexCredentialResolution?.selection.type === 'available'
+          && codexCredentialResolution.selection.account.provider === 'codex'
+        ) {
+          await activateCodexCredential(
+            codexCredentialResolution.selection.account,
+            codexRuntimeHome(codexForkEnvironment),
+          );
+        }
+
         const created = await createChildSideChat(parent.id, {
           resolveSession: async () => parent,
           resolveMachine: async (requestedMachineId) => {
@@ -1699,11 +1749,19 @@ export async function startDaemon(): Promise<void> {
               return apiMachine.forkClaudeBackendSession(params.directory, params.claudeSessionId);
             }
             if (method === 'codex-fork-thread') {
-              return apiMachine.forkCodexBackendThread(params.directory, params.codexThreadId);
+              return apiMachine.forkCodexBackendThread(
+                params.directory,
+                params.codexThreadId,
+                codexForkEnvironment,
+              );
             }
             throw new Error(`Unsupported local side-chat RPC: ${method}`);
           },
-          createMachineSession: async ({ machine: _target, ...options }) => spawnSession(options),
+          createMachineSession: async ({ machine: _target, ...options }) => spawnSession({
+            ...options,
+            ...(codexHome ? { codexHome } : {}),
+            ...(isCodexParent ? { providerAccount: providerAccount ?? null } : {}),
+          }),
         });
         if (brief === null) {
           return { ...created, briefDelivery: null };

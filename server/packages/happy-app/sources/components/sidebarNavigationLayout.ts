@@ -1,3 +1,6 @@
+export const DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_WIDTH = 28;
+export const DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_HIT_SLOP = 8;
+
 export function resolveDesktopNavigationDrawerWidth(input: {
     isDesktopLayout: boolean;
     zenMode: boolean;
@@ -13,6 +16,19 @@ export function resolveDesktopNavigationDrawerWidth(input: {
 
 export function resolveDesktopNavigationBoundaryToggleLeft(drawerWidth: number): number {
     return Math.max(8, drawerWidth - 14);
+}
+
+export function resolveDesktopNavigationHeaderLeftPadding(
+    navigationDrawerHidden: boolean,
+    defaultPadding: number,
+): number {
+    if (!navigationDrawerHidden) return defaultPadding;
+    return Math.max(
+        defaultPadding,
+        resolveDesktopNavigationBoundaryToggleLeft(0)
+            + DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_WIDTH
+            + DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_HIT_SLOP,
+    );
 }
 
 export function resolveDesktopPersistentHeaderControlsLeft(

@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_HIT_SLOP,
+    DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_WIDTH,
     resolveDesktopNavigationBoundaryToggleLeft,
     resolveDesktopNavigationDrawerWidth,
+    resolveDesktopNavigationHeaderLeftPadding,
     resolveDesktopPersistentHeaderControlsLeft,
 } from './sidebarNavigationLayout';
 
@@ -41,11 +44,18 @@ describe('desktop navigation drawer layout', () => {
     });
 
     it('keeps collapsed navigation and persistent header hit targets separate', () => {
-        const toggleHitTargetRight = resolveDesktopNavigationBoundaryToggleLeft(0) + 28 + 8;
+        const toggleHitTargetRight = resolveDesktopNavigationBoundaryToggleLeft(0)
+            + DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_WIDTH
+            + DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_HIT_SLOP;
         const persistentControlsHitTargetLeft = resolveDesktopPersistentHeaderControlsLeft(0, 16) - 10;
 
         expect(toggleHitTargetRight).toBeLessThan(persistentControlsHitTargetLeft);
         expect(resolveDesktopPersistentHeaderControlsLeft(360, 16)).toBe(16);
         expect(resolveDesktopPersistentHeaderControlsLeft(0, 117)).toBe(117);
+    });
+
+    it('reserves the hidden drawer toggle hit target before desktop header content', () => {
+        expect(resolveDesktopNavigationHeaderLeftPadding(false, 16)).toBe(16);
+        expect(resolveDesktopNavigationHeaderLeftPadding(true, 16)).toBe(44);
     });
 });

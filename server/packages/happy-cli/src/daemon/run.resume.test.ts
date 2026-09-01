@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import type { Metadata } from '@/api/types';
 import type { ProviderLimitNotice } from '@/credentialPool/providerLimitNotice';
@@ -262,6 +265,7 @@ type CapturedControlHandlers = {
 
 let daemonRun: Promise<void> | undefined;
 let originalCodexHome: string | undefined;
+const temporaryDirectories: string[] = [];
 const defaultAgentCapabilities = initialMachineMetadata.agentCapabilities;
 const sideChatBrief: SideChatDelegationBrief = {
   outcome: 'Deliver the delegated change.',
@@ -350,6 +354,9 @@ describe('daemon session continuity', () => {
       delete process.env.CODEX_HOME;
     } else {
       process.env.CODEX_HOME = originalCodexHome;
+    }
+    for (const directory of temporaryDirectories.splice(0)) {
+      await rm(directory, { recursive: true, force: true });
     }
     vi.restoreAllMocks();
   });
@@ -1249,12 +1256,33 @@ describe('daemon session continuity', () => {
     expect(localId).toBe(event.incidentId);
   });
 
-  it('creates a local Codex side chat without account-control credentials', async () => {
+  it('activates the parent Codex account before forking from a stale credential home', async () => {
     mocks.authoritativeActive = true;
+    const testRoot = await mkdtemp(join(tmpdir(), 'happyherd-codex-sidechat-auth-'));
+    temporaryDirectories.push(testRoot);
+    const codexHome = join(testRoot, 'runtime');
+    const providerAccount = 'rotated-account';
+    const accountHome = join(testRoot, 'accounts', providerAccount);
+    const accountAuthFile = join(accountHome, 'auth.json');
+    const selectedAccountAuth = '{"account":"rotated"}';
+    await mkdir(codexHome, { recursive: true });
+    await mkdir(accountHome, { recursive: true });
+    await writeFile(join(codexHome, 'auth.json'), '{"account":"stale"}');
+    await writeFile(accountAuthFile, selectedAccountAuth);
+    let authAtFork: string | undefined;
+    mocks.forkCodexBackendThread.mockImplementationOnce(async () => {
+      authAtFork = await readFile(join(codexHome, 'auth.json'), 'utf8');
+      return {
+        type: 'success',
+        newCodexThreadId: 'thread-child',
+      };
+    });
     const parentMetadata: Metadata = {
       path: process.cwd(),
       flavor: 'codex',
       codexThreadId: 'thread-parent',
+      codexHome,
+      providerAccount,
       host: 'test-host',
       hostPid: 9876,
       machineId: 'machine-1',
@@ -1263,6 +1291,24 @@ describe('daemon session continuity', () => {
       happyLibDir: '/srv/happy',
       happyToolsDir: '/srv/happy/tools',
     };
+    mocks.resolveCredentialAccountEnvironment.mockResolvedValue({
+      selection: {
+        type: 'available',
+        account: {
+          provider: 'codex',
+          name: providerAccount,
+          credential: { type: 'auth-file', path: accountAuthFile },
+          createdAt: 1,
+          updatedAt: 2,
+          limitedUntil: null,
+        },
+      },
+      env: {
+        HAPPYHERD_PROVIDER_ACCOUNT: providerAccount,
+        HAPPYHERD_PROVIDER_ACCOUNT_TYPE: 'codex',
+        HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: accountAuthFile,
+      },
+    });
     mocks.resolveLocalReconnectableSession.mockResolvedValue({
       id: 'parent-session',
       metadata: parentMetadata,
@@ -1280,12 +1326,12 @@ describe('daemon session continuity', () => {
     const sideChat = control.sideChat({
       action: 'create',
       parentSessionId: 'parent-session',
-      brief: sideChatBrief,
+      brief: null,
     });
     const concurrentSideChat = control.sideChat({
       action: 'create',
       parentSessionId: 'parent-session',
-      brief: sideChatBrief,
+      brief: null,
     });
     await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
     control.onHappySessionWebhook('child-session', {
@@ -1305,21 +1351,146 @@ describe('daemon session continuity', () => {
     await expect(sideChat).resolves.toMatchObject({ success: true, sessionId: 'child-session' });
     await expect(concurrentSideChat).resolves.toMatchObject({ success: true, sessionId: 'child-session' });
     expect(mocks.resolveLocalReconnectableSession).toHaveBeenCalledWith('parent-session');
-    expect(mocks.forkCodexBackendThread).toHaveBeenCalledOnce();
-    expect(mocks.postSideChatBrief).toHaveBeenCalledOnce();
-    expect(mocks.postSideChatBrief).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'child-session' }),
+    expect(mocks.resolveCredentialAccountEnvironment).toHaveBeenCalledWith('codex', {
+      preferred: providerAccount,
+    });
+    expect(mocks.forkCodexBackendThread).toHaveBeenCalledWith(
+      parentMetadata.path,
+      parentMetadata.codexThreadId,
       expect.objectContaining({
-        localId: expect.any(String),
-        text: expect.stringContaining(sideChatBrief.outcome),
+        CODEX_HOME: codexHome,
+        HAPPYHERD_PROVIDER_ACCOUNT: providerAccount,
+        HAPPYHERD_PROVIDER_ACCOUNT_TYPE: 'codex',
+        HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: accountAuthFile,
       }),
     );
+    expect(authAtFork).toBe(selectedAccountAuth);
+    expect(mocks.postSideChatBrief).not.toHaveBeenCalled();
     const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
       string[],
-      { cwd: string },
+      { cwd: string; env: NodeJS.ProcessEnv },
     ];
     expect(args).toEqual(expect.arrayContaining(['codex', '--resume', 'thread-child', '--started-by', 'daemon']));
     expect(spawnOptions.cwd).toBe(parentMetadata.path);
+    expect(spawnOptions.env.CODEX_HOME).toBe(codexHome);
+    expect(spawnOptions.env.HAPPYHERD_PROVIDER_ACCOUNT).toBe(providerAccount);
+    expect(spawnOptions.env.HAPPYHERD_PROVIDER_ACCOUNT_TYPE).toBe('codex');
+    expect(spawnOptions.env.HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE).toBe(accountAuthFile);
+  });
+
+  it('preserves an unmanaged Codex custom home through fork and child launch', async () => {
+    mocks.authoritativeActive = true;
+    const testRoot = await mkdtemp(join(tmpdir(), 'happyherd-codex-sidechat-unmanaged-'));
+    temporaryDirectories.push(testRoot);
+    const codexHome = join(testRoot, 'native-home');
+    const poolAccountHome = join(testRoot, 'accounts', 'daemon-default');
+    const poolAccountAuthFile = join(poolAccountHome, 'auth.json');
+    const nativeAuth = '{"account":"native-custom"}';
+    await mkdir(codexHome, { recursive: true });
+    await mkdir(poolAccountHome, { recursive: true });
+    await writeFile(join(codexHome, 'auth.json'), nativeAuth);
+    await writeFile(poolAccountAuthFile, '{"account":"daemon-default"}');
+    let authAtFork: string | undefined;
+    mocks.resolveCredentialAccountEnvironment.mockResolvedValue({
+      selection: {
+        type: 'available',
+        account: {
+          provider: 'codex',
+          name: 'daemon-default',
+          credential: { type: 'auth-file', path: poolAccountAuthFile },
+          createdAt: 1,
+          updatedAt: 2,
+          limitedUntil: null,
+        },
+      },
+      env: {
+        HAPPYHERD_PROVIDER_ACCOUNT: 'daemon-default',
+        HAPPYHERD_PROVIDER_ACCOUNT_TYPE: 'codex',
+        HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: poolAccountAuthFile,
+      },
+    });
+    mocks.forkCodexBackendThread.mockImplementationOnce(async () => {
+      authAtFork = await readFile(join(codexHome, 'auth.json'), 'utf8');
+      return {
+        type: 'success',
+        newCodexThreadId: 'thread-unmanaged-child',
+      };
+    });
+    const parentMetadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'codex',
+      codexThreadId: 'thread-unmanaged-parent',
+      codexHome,
+      host: 'test-host',
+      hostPid: 9877,
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happy',
+      happyToolsDir: '/srv/happy/tools',
+    };
+    mocks.resolveLocalReconnectableSession.mockResolvedValue({
+      id: 'unmanaged-parent-session',
+      metadata: parentMetadata,
+    });
+    mocks.spawnHappyCLI.mockReturnValue({
+      pid: 5433,
+      kill: vi.fn(),
+      on: vi.fn(),
+    });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const sideChat = control.sideChat({
+      action: 'create',
+      parentSessionId: 'unmanaged-parent-session',
+      brief: null,
+    });
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    control.onHappySessionWebhook('unmanaged-child-session', {
+      ...parentMetadata,
+      hostPid: 5433,
+      codexThreadId: 'thread-unmanaged-child',
+      parentSessionId: 'unmanaged-parent-session',
+      isSideChat: true,
+    }, {
+      encryptionKey: new Uint8Array(32).fill(8),
+      encryptionVariant: 'dataKey',
+      seq: 1,
+      metadataVersion: 1,
+      agentStateVersion: 1,
+    });
+
+    await expect(sideChat).resolves.toMatchObject({
+      success: true,
+      sessionId: 'unmanaged-child-session',
+    });
+    expect(mocks.resolveCredentialAccountEnvironment).not.toHaveBeenCalled();
+    expect(authAtFork).toBe(nativeAuth);
+    const [, , forkEnvironment] = mocks.forkCodexBackendThread.mock.calls[0] as unknown as [
+      string,
+      string,
+      NodeJS.ProcessEnv,
+    ];
+    expect(forkEnvironment.CODEX_HOME).toBe(codexHome);
+    expect(forkEnvironment.HAPPYHERD_PROVIDER_ACCOUNT).toBeUndefined();
+    expect(forkEnvironment.HAPPYHERD_PROVIDER_ACCOUNT_TYPE).toBeUndefined();
+    expect(forkEnvironment.HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE).toBeUndefined();
+    const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
+      string[],
+      { cwd: string; env: NodeJS.ProcessEnv },
+    ];
+    expect(args).toEqual(expect.arrayContaining([
+      'codex',
+      '--provider-account-mode', 'unmanaged',
+      '--resume', 'thread-unmanaged-child',
+    ]));
+    expect(spawnOptions.cwd).toBe(parentMetadata.path);
+    expect(spawnOptions.env.CODEX_HOME).toBe(codexHome);
+    expect(spawnOptions.env.HAPPYHERD_PROVIDER_ACCOUNT).toBeUndefined();
+    expect(spawnOptions.env.HAPPYHERD_PROVIDER_ACCOUNT_TYPE).toBeUndefined();
+    expect(spawnOptions.env.HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE).toBeUndefined();
   });
 
   it('lists a stopped side chat after daemon restart from durable metadata and authoritative server state', async () => {

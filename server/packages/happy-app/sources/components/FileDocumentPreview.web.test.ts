@@ -21,4 +21,19 @@ describe('FileDocumentPreview web embed policy', () => {
         expect(htmlMarkup).toContain('sandbox=""');
         expect(htmlMarkup).not.toContain('src="data:application/pdf');
     });
+
+    it('adds only script execution when interactive HTML is selected', () => {
+        const htmlMarkup = renderToStaticMarkup(React.createElement(FileDocumentPreview, {
+            kind: 'html',
+            html: '<script>document.body.dataset.ready = "yes"</script>',
+            title: 'Interactive HTML preview',
+            interactive: true,
+        }));
+
+        expect(htmlMarkup).toContain('sandbox="allow-scripts"');
+        expect(htmlMarkup).not.toContain('allow-same-origin');
+        expect(htmlMarkup).not.toContain('allow-forms');
+        expect(htmlMarkup).not.toContain('allow-popups');
+        expect(htmlMarkup).toContain('referrerPolicy="no-referrer"');
+    });
 });

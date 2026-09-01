@@ -30,6 +30,7 @@ export async function handleCodexCommand(
   let permissionMode: PermissionMode | undefined = undefined
   let model: string | undefined = undefined
   let effort: ReasoningEffort | undefined = undefined
+  let providerAccountMode: 'managed' | 'unmanaged' = 'managed'
   const sandboxArgs = extractNoSandboxFlag(args)
   const codexArgs = extractCodexResumeFlag(sandboxArgs.args)
 
@@ -45,6 +46,12 @@ export async function handleCodexCommand(
       model = codexArgs.args[++i]
     } else if (codexArgs.args[i] === '--effort') {
       effort = codexArgs.args[++i] as ReasoningEffort
+    } else if (codexArgs.args[i] === '--provider-account-mode') {
+      const value = codexArgs.args[++i]
+      if (value !== 'unmanaged') {
+        throw new Error(`Unsupported Codex provider account mode: ${value ?? ''}`)
+      }
+      providerAccountMode = value
     } else if (codexArgs.args[i] === '--yolo') {
       permissionMode = 'yolo'
     }
@@ -52,7 +59,9 @@ export async function handleCodexCommand(
 
   const { credentials } = await authAndSetupMachineIfNeeded()
   await ensureDaemonRunning()
-  await activateCredentialAccount('codex')
+  if (providerAccountMode === 'managed') {
+    await activateCredentialAccount('codex')
+  }
 
   await runCodex({
     credentials,

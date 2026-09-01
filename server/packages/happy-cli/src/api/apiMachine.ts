@@ -134,8 +134,14 @@ function requireNonEmptyString(value: unknown, name: string): string {
     return value;
 }
 
-async function withCodexAppServerClient<T>(handler: (client: CodexAppServerClient) => Promise<T>): Promise<T> {
-    const client = new CodexAppServerClient();
+async function withCodexAppServerClient<T>(
+    handler: (client: CodexAppServerClient) => Promise<T>,
+    launchContext: {
+        workingDirectory?: string;
+        processEnvironment?: NodeJS.ProcessEnv;
+    } = {},
+): Promise<T> {
+    const client = new CodexAppServerClient(undefined, launchContext);
     await client.connect();
     try {
         return await handler(client);
@@ -202,11 +208,18 @@ export class ApiMachineClient {
         }
     }
 
-    async forkCodexBackendThread(directory: string, codexThreadId: string): Promise<unknown> {
+    async forkCodexBackendThread(
+        directory: string,
+        codexThreadId: string,
+        processEnvironment?: NodeJS.ProcessEnv,
+    ): Promise<unknown> {
         return withCodexAppServerClient((client) => forkCodexThread(client, {
             threadId: codexThreadId,
             cwd: directory,
-        }));
+        }), {
+            workingDirectory: directory,
+            processEnvironment,
+        });
     }
 
     setRPCHandlers({

@@ -204,6 +204,10 @@ export interface SpawnSessionOptions {
      * session attaches to a forked Codex app-server thread.
      */
     resumeCodexThreadId?: string;
+    /** Exact Codex state home inherited by a daemon-owned side chat. */
+    codexHome?: string;
+    /** Preferred named provider account, or null to preserve an unmanaged Codex home. */
+    providerAccount?: string | null;
     /** Happy session id this fork was branched from (lineage). */
     parentSessionId?: string;
     /** Happy message id used as the rewind point (only set for "duplicate"). */

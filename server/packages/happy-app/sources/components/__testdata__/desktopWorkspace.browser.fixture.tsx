@@ -34,6 +34,17 @@ function MainAgentChatProbe() {
     );
 }
 
+function CollapsedNavigationHeaderDemo() {
+    return (
+        <div
+            data-testid="collapsed-navigation-header-demo"
+            style={{ position: 'relative', display: 'flex', width: 800, height: 80 }}
+        >
+            <SidebarNavigator />
+        </div>
+    );
+}
+
 function WorkspaceSplitDemo() {
     return (
         <div
@@ -298,6 +309,46 @@ function FileWorkspaceDemo({ compact, testId }: { compact: boolean; testId: stri
     );
 }
 
+function InteractiveHtmlWorkspaceDemo({ compact, testId }: { compact: boolean; testId: string }) {
+    const reference = { machineId: 'machine-1', source: 'session' as const };
+    const [workspace, setWorkspace] = React.useState(() => {
+        const withNotes = openDesktopFile(
+            EMPTY_DESKTOP_FILE_WORKSPACE,
+            '/workspace/notes.md',
+            reference,
+        );
+        return openDesktopFile(withNotes, '/workspace/task.html', reference);
+    });
+
+    return (
+        <div
+            data-testid={testId}
+            style={{
+                position: 'relative',
+                display: 'flex',
+                flexDirection: 'column',
+                width: compact ? 390 : 900,
+                height: compact ? 844 : 520,
+                overflow: 'hidden',
+            }}
+        >
+            <DesktopFileWorkspace
+                sessionId="ordinary-session"
+                paths={workspace.paths}
+                activePath={workspace.activePath}
+                references={workspace.references}
+                dirtyPaths={new Set()}
+                compact={compact}
+                onSelect={(path) => setWorkspace((current) => selectDesktopFile(current, path))}
+                onRequestClose={(path) => setWorkspace((current) => closeDesktopFile(current, path))}
+                onFileDeleted={() => undefined}
+                onClosePicker={() => undefined}
+                onDirtyChange={() => undefined}
+            />
+        </div>
+    );
+}
+
 declare global {
     interface Window {
         __DELETE_RPC_COUNT__?: number;
@@ -309,15 +360,26 @@ declare global {
             text: string;
             options: { displayText: string };
         }>;
+        __SESSION_TITLE_PRESS_COUNT__?: number;
     }
 }
 
-createRoot(document.getElementById('root')!).render(
+const interactiveHtmlSurface = new URLSearchParams(window.location.search).get('interactive-html');
+
+createRoot(document.getElementById('root')!).render(interactiveHtmlSurface ? (
+    <InteractiveHtmlWorkspaceDemo
+        compact={interactiveHtmlSurface === 'mobile'}
+        testId={interactiveHtmlSurface === 'mobile'
+            ? 'interactive-html-workspace-mobile'
+            : 'interactive-html-workspace-wide'}
+    />
+) : (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <CollapsedNavigationHeaderDemo />
         <IntegratedDesktopDemo />
         <FileWorkspaceDemo compact={false} testId="wide-file-workspace" />
         <FileWorkspaceDemo compact testId="narrow-file-workspace" />
         <ZeroTabWorkspaceDemo />
         <ProductionDesktopWorkspaceEntryPointsDemo />
-    </div>,
-);
+    </div>
+));

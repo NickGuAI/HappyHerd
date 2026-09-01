@@ -25,6 +25,7 @@ import {
     imageDataUri,
     imageMimeType,
     imagePreviewLayout,
+    interactiveHtmlPreviewDocument,
     isSvgDocument,
     matchesRichPreviewContent,
     pdfDataUri,
@@ -94,7 +95,7 @@ type EditableFileSnapshot = {
     hasUtf8Bom: boolean;
 };
 
-type FileDisplayMode = 'source' | 'preview' | 'edit';
+type FileDisplayMode = 'source' | 'preview' | 'interactive' | 'edit';
 type FileSaveStatus = 'idle' | 'saved';
 
 function getFileLanguage(path: string): string | null {
@@ -215,6 +216,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     const isMarkdown = language === 'markdown';
     const previewKind = classifyFilePreview(filePath);
     const isHtml = previewKind === 'html';
+    const hasInteractiveHtmlPreview = isHtml && Platform.OS === 'web';
     const hasSvgPreview = previewKind === 'image'
         && imageMimeType(filePath) === 'image/svg+xml'
         && fileState.kind === 'loaded'
@@ -472,6 +474,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
         onHeaderRightSlotChange(
             <FileHeaderRight
                 hasSourcePreview={hasSourcePreview}
+                hasInteractiveHtmlPreview={hasInteractiveHtmlPreview}
                 isLoaded={isLoaded}
                 displayMode={displayMode}
                 onDisplayModeChange={handleDisplayModeChange}
@@ -482,7 +485,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
             />
         );
         return () => onHeaderRightSlotChange(null);
-    }, [active, canWrite, deleteFile, displayMode, handleDelete, handleDisplayModeChange, hasSourcePreview, headerVariant, isDeleting, isLoaded, onHeaderRightSlotChange]);
+    }, [active, canWrite, deleteFile, displayMode, handleDelete, handleDisplayModeChange, hasInteractiveHtmlPreview, hasSourcePreview, headerVariant, isDeleting, isLoaded, onHeaderRightSlotChange]);
 
     const saveStatusLabel = isSaving
         ? t('uiCopy.saving')
@@ -671,11 +674,14 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                         <MarkdownView markdown={editContent} sessionId={markdownSessionId} />
                     </View>
                 </ScrollView>
-            ) : isHtml && displayMode === 'preview' ? (
+            ) : isHtml && (displayMode === 'preview' || displayMode === 'interactive') ? (
                 <View style={styles.documentPreview}>
                     <FileDocumentPreview
                         kind="html"
-                        html={safeHtmlPreviewDocument(editContent)}
+                        html={displayMode === 'interactive'
+                            ? interactiveHtmlPreviewDocument(editContent)
+                            : safeHtmlPreviewDocument(editContent)}
+                        interactive={displayMode === 'interactive'}
                         title={t("uiCopy.previewOfValue", { value1: fileName })}
                     />
                 </View>
@@ -793,6 +799,7 @@ export const MachineFileViewPanel = React.memo(function MachineFileViewPanel({
 /** Right-side header controls for the file-view overlay. */
 const FileHeaderRight = React.memo(function FileHeaderRight({
     hasSourcePreview,
+    hasInteractiveHtmlPreview,
     isLoaded,
     displayMode,
     onDisplayModeChange,
@@ -802,6 +809,7 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
     onDelete,
 }: {
     hasSourcePreview: boolean;
+    hasInteractiveHtmlPreview: boolean;
     isLoaded: boolean;
     displayMode: FileDisplayMode;
     onDisplayModeChange: (mode: FileDisplayMode) => void;
@@ -813,7 +821,7 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
     const { theme } = useUnistyles();
     const showControls = (isLoaded && (hasSourcePreview || canWrite)) || canDelete;
     const previewMode: Exclude<FileDisplayMode, 'edit'> = hasSourcePreview ? 'preview' : 'source';
-    const previewSelected = isLoaded && displayMode !== 'edit';
+    const previewSelected = isLoaded && displayMode === previewMode;
     return (
         <>
             {showControls && (
@@ -836,6 +844,26 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
                             {t('uiCopy.preview')}
                         </Text>
                     </Pressable>}
+                    {hasInteractiveHtmlPreview && isLoaded && (
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: displayMode === 'interactive' }}
+                            onPress={() => onDisplayModeChange('interactive')}
+                            style={[
+                                styles.toggleButton,
+                                displayMode === 'interactive' && { backgroundColor: theme.colors.surface },
+                            ]}
+                        >
+                            <Text style={[
+                                styles.toggleText,
+                                { color: theme.colors.textSecondary },
+                                displayMode === 'interactive' && styles.toggleTextActive,
+                                displayMode === 'interactive' && { color: theme.colors.text },
+                            ]}>
+                                {t('files.interactivePreview')}
+                            </Text>
+                        </Pressable>
+                    )}
                     {canWrite && isLoaded && (
                         <Pressable
                             accessibilityRole="button"

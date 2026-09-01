@@ -1,3 +1,15 @@
+# September 1 — Reliable Codex Side Chats
+
+- Codex side chats created from an existing Codex session now launch successfully when the parent uses a non-default or rotated credential home or account, opening an empty child conversation for one-click creation on the same machine and working directory.
+
+# September 1 — Hidden navigation toggle no longer obstructs the visible session path
+
+- On Web Desktop, when navigation is hidden through collapse or Zen mode, the boundary toggle no longer covers or intercepts the visible session path/name; its idle background remains transparent, while hover, pressed, expand, collapse, and Zen behaviors remain.
+
+# September 1 — Interactive HTML preview
+
+- Run inline JavaScript within HTML review artifacts directly inside the workspace iframe using a new explicit HTML mode, while keeping remote subresources, form submissions, nested frames, same-origin access, and popup or top navigation completely disabled.
+
 # September 1 — One Workspace for every chat
 
 - Open Workspace from a Main Agent or active Side chat at that exact chat's connected machine and current directory, then browse the full machine on Web Desktop or Web Mobile.

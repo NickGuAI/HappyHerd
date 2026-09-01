@@ -235,6 +235,7 @@ export type TranslationKey =
     | "files.fileConflict"
     | "files.fileConflictDescription"
     | "files.fileEmpty"
+    | "files.interactivePreview"
     | "files.loadingFile"
     | "files.noChanges"
     | "files.noChangesSubtitle"
