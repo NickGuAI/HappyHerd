@@ -339,6 +339,11 @@ declare global {
         __WORKSPACE_FILE_DELETED_COUNT__?: number;
         __MACHINE_DIRECTORY_CALLS__?: Array<{ machineId: string; path: string; depth: number }>;
         __MACHINE_READ_CALLS__?: Array<{ machineId: string; path: string }>;
+        __WORKSPACE_FEEDBACK_CALLS__?: Array<{
+            sessionId: string;
+            text: string;
+            options: { displayText: string };
+        }>;
     }
 }
 

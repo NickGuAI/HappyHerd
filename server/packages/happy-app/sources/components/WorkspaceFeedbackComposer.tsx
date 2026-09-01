@@ -259,16 +259,20 @@ const styles = StyleSheet.create(() => ({
         flexDirection: 'row',
         alignItems: 'flex-end',
         gap: 8,
+        minWidth: 0,
     },
     inputShell: {
         flex: 1,
+        minWidth: 0,
         minHeight: 44,
         borderRadius: 18,
         justifyContent: 'center',
+        overflow: 'hidden',
     },
     secondaryButton: {
         width: 44,
         height: 44,
+        flexShrink: 0,
         borderRadius: 22,
         alignItems: 'center',
         justifyContent: 'center',
@@ -276,6 +280,7 @@ const styles = StyleSheet.create(() => ({
     primaryButton: {
         width: 44,
         height: 44,
+        flexShrink: 0,
         borderRadius: 22,
         alignItems: 'center',
         justifyContent: 'center',
