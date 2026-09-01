@@ -1,3 +1,7 @@
+# September 1 — Reliable Codex Side Chats
+
+- Codex side chats created from an existing Codex session now launch successfully when the parent uses a non-default or rotated credential home or account, opening an empty child conversation for one-click creation on the same machine and working directory.
+
 # September 1 — Collapsed navigation toggle no longer obstructs the visible session path
 
 - On Web Desktop, when navigation is collapsed, the boundary toggle no longer covers or intercepts the visible session path/name; its idle background is transparent, while hover, pressed, expand, and collapse behavior remain.

@@ -1249,12 +1249,17 @@ describe('daemon session continuity', () => {
     expect(localId).toBe(event.incidentId);
   });
 
-  it('creates a local Codex side chat without account-control credentials', async () => {
+  it('creates an empty local Codex side chat under the parent credential home and account', async () => {
     mocks.authoritativeActive = true;
+    const codexHome = '/srv/codex-homes/rotated';
+    const providerAccount = 'rotated-account';
+    const accountAuthFile = '/srv/accounts/rotated/auth.json';
     const parentMetadata: Metadata = {
       path: process.cwd(),
       flavor: 'codex',
       codexThreadId: 'thread-parent',
+      codexHome,
+      providerAccount,
       host: 'test-host',
       hostPid: 9876,
       machineId: 'machine-1',
@@ -1263,6 +1268,24 @@ describe('daemon session continuity', () => {
       happyLibDir: '/srv/happy',
       happyToolsDir: '/srv/happy/tools',
     };
+    mocks.resolveCredentialAccountEnvironment.mockResolvedValue({
+      selection: {
+        type: 'available',
+        account: {
+          provider: 'codex',
+          name: providerAccount,
+          credential: { type: 'auth-file', path: accountAuthFile },
+          createdAt: 1,
+          updatedAt: 2,
+          limitedUntil: null,
+        },
+      },
+      env: {
+        HAPPYHERD_PROVIDER_ACCOUNT: providerAccount,
+        HAPPYHERD_PROVIDER_ACCOUNT_TYPE: 'codex',
+        HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: accountAuthFile,
+      },
+    });
     mocks.resolveLocalReconnectableSession.mockResolvedValue({
       id: 'parent-session',
       metadata: parentMetadata,
@@ -1280,12 +1303,12 @@ describe('daemon session continuity', () => {
     const sideChat = control.sideChat({
       action: 'create',
       parentSessionId: 'parent-session',
-      brief: sideChatBrief,
+      brief: null,
     });
     const concurrentSideChat = control.sideChat({
       action: 'create',
       parentSessionId: 'parent-session',
-      brief: sideChatBrief,
+      brief: null,
     });
     await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
     control.onHappySessionWebhook('child-session', {
@@ -1305,21 +1328,30 @@ describe('daemon session continuity', () => {
     await expect(sideChat).resolves.toMatchObject({ success: true, sessionId: 'child-session' });
     await expect(concurrentSideChat).resolves.toMatchObject({ success: true, sessionId: 'child-session' });
     expect(mocks.resolveLocalReconnectableSession).toHaveBeenCalledWith('parent-session');
-    expect(mocks.forkCodexBackendThread).toHaveBeenCalledOnce();
-    expect(mocks.postSideChatBrief).toHaveBeenCalledOnce();
-    expect(mocks.postSideChatBrief).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'child-session' }),
+    expect(mocks.resolveCredentialAccountEnvironment).toHaveBeenCalledWith('codex', {
+      preferred: providerAccount,
+    });
+    expect(mocks.forkCodexBackendThread).toHaveBeenCalledWith(
+      parentMetadata.path,
+      parentMetadata.codexThreadId,
       expect.objectContaining({
-        localId: expect.any(String),
-        text: expect.stringContaining(sideChatBrief.outcome),
+        CODEX_HOME: codexHome,
+        HAPPYHERD_PROVIDER_ACCOUNT: providerAccount,
+        HAPPYHERD_PROVIDER_ACCOUNT_TYPE: 'codex',
+        HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: accountAuthFile,
       }),
     );
+    expect(mocks.postSideChatBrief).not.toHaveBeenCalled();
     const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
       string[],
-      { cwd: string },
+      { cwd: string; env: NodeJS.ProcessEnv },
     ];
     expect(args).toEqual(expect.arrayContaining(['codex', '--resume', 'thread-child', '--started-by', 'daemon']));
     expect(spawnOptions.cwd).toBe(parentMetadata.path);
+    expect(spawnOptions.env.CODEX_HOME).toBe(codexHome);
+    expect(spawnOptions.env.HAPPYHERD_PROVIDER_ACCOUNT).toBe(providerAccount);
+    expect(spawnOptions.env.HAPPYHERD_PROVIDER_ACCOUNT_TYPE).toBe('codex');
+    expect(spawnOptions.env.HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE).toBe(accountAuthFile);
   });
 
   it('lists a stopped side chat after daemon restart from durable metadata and authoritative server state', async () => {

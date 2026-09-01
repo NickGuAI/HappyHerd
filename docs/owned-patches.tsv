@@ -222,3 +222,4 @@ WORKSPACE_CONTEXT_IDENTITY	accepted	fix(workspace): preserve machine context ide
 DEVELOPMENT_SKILL_CATALOG	accepted	docs(dev): consolidate HappyHerd skills	.dev/AGENTS.md
 INTERACTIVE_HTML_PREVIEW	accepted	feat(workspace): add interactive HTML preview mode	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 COLLAPSED_NAVIGATION_TITLE_CLEARANCE	accepted	fix(app): clear collapsed navigation title	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
+CODEX_SIDE_CHAT_PROVIDER_CONTEXT	accepted	fix(side-chats): preserve Codex provider context	server/packages/happy-cli/src/daemon/run.resume.test.ts
