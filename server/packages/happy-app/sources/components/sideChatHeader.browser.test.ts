@@ -139,7 +139,7 @@ const virtualModules: Record<string, string> = {
             }),
             'child-newest': makeSession('child-newest', 20, {
                 isSideChat: true, parentSessionId: 'parent', summary: { text: 'Newest child' },
-                machineId: 'machine-1', path: '/work/child-newest', flavor: 'codex', codexThreadId: 'thread-child-newest',
+                machineId: 'machine-newest', path: '/work/child-newest', flavor: 'codex', codexThreadId: 'thread-child-newest',
             }),
             'other-child': makeSession('other-child', 30, { isSideChat: true, parentSessionId: 'other-parent' }),
         };
@@ -164,6 +164,7 @@ const virtualModules: Record<string, string> = {
         };
         const machines = [
             { id: 'machine-1', active: true, metadata: { displayName: 'MainEC2', host: 'fixture', homeDir: '/work/project', platform: 'linux', supportsFileDelete: true, cliAvailability: { claude: true, codex: true } } },
+            { id: 'machine-newest', active: true, metadata: { displayName: 'SideEC2', host: 'fixture-side', homeDir: '/work/child-newest', platform: 'linux', supportsFileDelete: true, cliAvailability: { claude: true, codex: true } } },
         ];
         const changedFiles = (sessionId) => ({
             stagedFiles: [],
@@ -637,12 +638,22 @@ const virtualModules: Record<string, string> = {
         export const rigCanWriteFiles = () => true; export const sessionCanDeleteFiles = () => true;
     `,
     '@/sync/workspaceContext': `
-        const entries = [];
+        const entriesBySession = new Map();
+        const entriesFor = (sessionId) => {
+            if (!entriesBySession.has(sessionId)) entriesBySession.set(sessionId, []);
+            return entriesBySession.get(sessionId);
+        };
         export const MAX_WORKSPACE_CONTEXT_ITEMS = 8; export const addWorkspaceContextFile = () => true;
-        export const addWorkspaceContextEntry = () => true;
+        export const addWorkspaceContextEntry = (sessionId, entry) => {
+            entriesBySession.set(sessionId, [...entriesFor(sessionId), entry]);
+            window.__WORKSPACE_CONTEXT_CALLS__ = [...(window.__WORKSPACE_CONTEXT_CALLS__ ?? []), { sessionId, entry }];
+            return true;
+        };
         export const buildWorkspaceContextMessage = async (_id, text) => ({ displayText: text, promptText: text });
-        export const clearWorkspaceContextFiles = () => {}; export const getWorkspaceContextEntries = () => entries;
-        export const removeWorkspaceContextEntry = () => {}; export const subscribeWorkspaceContext = () => () => {};
+        export const clearWorkspaceContextFiles = () => {}; export const getWorkspaceContextEntries = (sessionId) => entriesFor(sessionId);
+        export const removeWorkspaceContextEntry = (sessionId, path) => {
+            entriesBySession.set(sessionId, entriesFor(sessionId).filter((entry) => entry.path !== path));
+        }; export const subscribeWorkspaceContext = () => () => {};
     `,
     '@/sync/queueProjection': `
         export const projectSessionQueue = (messages) => ({
@@ -1076,7 +1087,7 @@ describe('Side chats browser interaction', () => {
         await page.close();
     }, 30_000);
 
-    it('opens the active Side chat Workspace at that child cwd on desktop', async () => {
+    it('opens the right-panel Workspace at the active Side chat machine and cwd and targets its context', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
         const pageErrors: string[] = [];
         page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
@@ -1092,19 +1103,21 @@ describe('Side chats browser interaction', () => {
         const foreground = page.getByTestId('foreground-session');
         await foreground.getByRole('button', { name: 'Open side chats (2)' }).click({ timeout: 3_000 });
         await foreground.getByText('Newest child', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
-        const trigger = foreground.getByRole('button', { name: 'More actions' }).filter({ visible: true }).last();
-        await trigger.click({ timeout: 3_000 });
-        const menu = foreground.getByTestId('mobile-composer-actions-menu').filter({ visible: true });
-        await expect(menu.getByRole('menuitem', { name: 'Workspace', exact: true }).isVisible()).resolves.toBe(true);
-        await expect(menu.getByRole('menuitem', { name: 'Chat Workspace', exact: true }).count()).resolves.toBe(0);
-        await expect(menu.getByRole('menuitem', { name: 'Machine Workspace', exact: true }).count()).resolves.toBe(0);
-        await menu.getByRole('menuitem', { name: 'Workspace', exact: true }).click({ timeout: 3_000 });
+        await foreground.getByLabel('Add panel').click({ timeout: 3_000 });
+        await foreground.getByText('Workspace', { exact: true }).filter({ visible: true }).click({ timeout: 3_000 });
 
         const workspace = foreground.getByTestId('desktop-file-workspace');
         await workspace.waitFor({ state: 'visible', timeout: 3_000 });
         await expect(workspace.getByPlaceholder('Path').inputValue()).resolves.toBe('/work/child-newest');
-        await workspace.getByText('child-newest-machine-file.md', { exact: true })
-            .waitFor({ state: 'visible', timeout: 3_000 });
+        await workspace.getByLabel('Attach child-newest-machine-file.md to next message').click({ timeout: 3_000 });
+        await expect(page.evaluate(() => (window as any).__WORKSPACE_CONTEXT_CALLS__ ?? [])).resolves.toEqual([{
+            sessionId: 'child-newest',
+            entry: {
+                path: '/work/child-newest/child-newest-machine-file.md',
+                kind: 'file',
+                source: { kind: 'machine', machineId: 'machine-newest' },
+            },
+        }]);
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 15_000);

@@ -762,6 +762,15 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         openWorkspace: openWorkspaceForSession,
         openWorkspaceLink: handleWorkspaceLinkPress,
     }), [handleWorkspaceLinkPress, openChangesForSession, openWorkspaceForSession]);
+    const openWorkspaceFromRightSidebar = React.useCallback(() => {
+        const activeSidebarSideChatId = visibleSidebarPanelActive === 'sideChat'
+            ? resolveActiveSideChatId(sideChatIds, activeSideChatId)
+            : null;
+        const targetSession = activeSidebarSideChatId
+            ? sideChats.find((candidate) => candidate.id === activeSidebarSideChatId) ?? session
+            : session;
+        if (targetSession) openWorkspaceForSession(targetSession);
+    }, [activeSideChatId, openWorkspaceForSession, session, sideChatIds, sideChats, visibleSidebarPanelActive]);
 
     // File overlays follow the session's file-panel capabilities. Side chats
     // use their independent full-screen fallback when those are unavailable.
@@ -1124,9 +1133,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                     onOpenPanel={openMainSidebarPanel}
                     onSelectPanel={selectMainSidebarPanel}
                     onClosePanel={removeSidebarPanel}
-                    onOpenWorkspace={() => {
-                        if (session) openWorkspaceForSession(session);
-                    }}
+                    onOpenWorkspace={openWorkspaceFromRightSidebar}
                     canOpenFilePanels={canShowFileSidebar}
                     sideChats={sideChats}
                     activeSideChatId={activeSideChatId}

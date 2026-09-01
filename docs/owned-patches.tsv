@@ -217,3 +217,4 @@ WORKSPACE_CONTEXT_UNIFICATION	accepted	test(app): cover unified workspace action
 WORKSPACE_CONTEXT_UNIFICATION	accepted	test(workspace): cover unified Human entry	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 WORKSPACE_UNIFICATION	accepted	docs(workspace): document unified Workspace contract	.dev/playbooks/file-workspaces.md
 WORKSPACE_CONTEXT_UNIFICATION	accepted	feat(workspace): unify browsing and session context	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
+WORKSPACE_CONTEXT_UNIFICATION	accepted	fix(workspace): target active side chat from sidebar	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
