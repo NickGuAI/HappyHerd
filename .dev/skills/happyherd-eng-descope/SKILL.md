@@ -72,7 +72,7 @@ Count the actual Markdown `- [ ]` lines mechanically and report the result as
 
 ## Update TickTick only when authorized
 
-Use the `ticktick` skill for every task read or write.
+Use the `workspace-manage-tasks` skill for every task read or write.
 
 A direct request to run this skill on one exact TickTick task authorizes only
 the scoped content rewrite and authoritative read-back. A task that is merely

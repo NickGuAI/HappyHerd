@@ -40,13 +40,13 @@ skill or skills required by the current evidence.
 | Gate a safeguarded Human turn when HappyHerd injects the skill | [`happyherd-user-safeguard`](skills/happyherd-user-safeguard/SKILL.md) |
 | Maintain or migrate one Commander's L2/L3 memory from evidence | [`commander-memory-cleanup`](skills/commander-memory-cleanup/SKILL.md) |
 
-`preflight`, `ticktick`, `context-explore`, `engineering-review`,
-`app-verification`, and `ux-designer-review` are shared dependencies, not
-HappyHerd-owned skill sources.
+`workspace-manage-tasks`, `systemops-establish-ground-truth`,
+`engineering-review`, `engineering-verify-change`, and `marketing-review-ux`
+are shared dependencies, not HappyHerd-owned skill sources.
 
 ## Non-negotiable gates
 
-- Keep one owning TickTick task for each feature. Use the `ticktick` skill for
+- Keep one owning TickTick task for each feature. Use the `workspace-manage-tasks` skill for
   writes, preserve fields outside the requested mutation, and read every write
   back through the owning project.
 - Apply the existing dedicated `In review` approval gate before implementing a
