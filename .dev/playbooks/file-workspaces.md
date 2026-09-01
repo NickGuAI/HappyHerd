@@ -45,11 +45,11 @@ desktop keeps the draggable divider and allows the workspace to reach 75% of
 the split while retaining 25% for the mounted chat. Compact Web uses the
 responsive full-screen workspace without desktop tabs or divider. Changes,
 Chat Workspace, and Machine Workspace must remain visibly labeled and directly
-clickable on Web Desktop. On Web Mobile, the active Main Agent or Side chat
-exposes those session actions through one visible bottom-left `+` menu alongside
-the applicable permission, model, and effort settings, stop, queue, and
-attachment actions. Microphone and Send remain direct composer controls, and
-Send remains send-only. A reply link,
+clickable. On Web Desktop and Web Mobile, the active Main Agent or Side chat
+exposes session actions through the same visible bottom-left `+` menu alongside
+the applicable permission, model, and effort settings, stop, queue, and one
+Attachments action. Arbitrary-file upload remains in Machine Workspace.
+Microphone and Send remain direct composer controls, and Send remains send-only. A reply link,
 hidden route, or mounted component is not a substitute for a Human-facing entry
 point.
 
@@ -82,15 +82,18 @@ At Web Desktop and 390 × 844 Web Mobile:
    prove an explicit link target wins, and verify cross-session fallback
    separately.
 3. Reopen the same machine/path, switch and close tabs, use Preview/Edit/Delete
-   where supported, browse away from the initial cwd without being snapped
-   back, and send feedback with the active location.
-4. Drag the desktop divider. Verify the Main Agent chat, draft, scroll,
-   unsaved edits, and mounted file panels remain intact at the 75% workspace / 25%
-   chat boundary. On compact Web, test both Main Agent and Side chat hosts:
+   where supported, and browse away from the initial cwd without being snapped
+   back. At a narrow workspace width, type and send multiline feedback with the
+   active location; prove the text wraps inside the composer without covering
+   the fixed Send control.
+4. On Web Desktop and compact Web, test both Main Agent and Side chat hosts:
    visibly tap the bottom-left `+`, then visibly tap Changes, Chat Workspace,
-   and Machine Workspace in the menu. Verify each full-screen open/back flow,
-   the active-session target, direct microphone and Send controls, send-only
-   behavior, and the absence of desktop tabs and dividers.
+   Machine Workspace, and Attachments in the menu. Verify the active-session
+   target, direct microphone and Send controls, and send-only behavior. On
+   desktop, drag the divider and prove the Main Agent chat, draft, scroll,
+   unsaved edits, and mounted file panels remain intact at the 75% workspace /
+   25% chat boundary. On compact Web, verify each full-screen open/back flow and
+   the absence of desktop tabs and dividers.
 5. Require one current-session viewer/composer and zero page or console errors.
 
 Use the real production components in their real session hosts for this gate.

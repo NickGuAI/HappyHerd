@@ -1,3 +1,8 @@
+# September 1 — Unified Web composer actions
+
+- Web Desktop and Web Mobile Main Agent and Side chats now share the plus composer menu while microphone and Send remain direct controls.
+- The menu now has one Attachments action and no Device files action, while Machine Workspace keeps arbitrary-file upload and narrow file feedback wraps without covering Send.
+
 # August 31 — One HappyHerd CLI command
 
 - The public CLI now installs from `@happyherd/cli` and uses `happyherd` as its only primary command. Upgrades remove only the exact previously managed `happy` launcher and preserve unrelated commands.
