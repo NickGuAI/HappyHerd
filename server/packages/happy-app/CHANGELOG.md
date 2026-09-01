@@ -1,3 +1,7 @@
+# September 1 — Interactive HTML preview
+
+- Run inline JavaScript within HTML review artifacts directly inside the workspace iframe using a new explicit HTML mode, while keeping remote subresources, form submissions, nested frames, same-origin access, and popup or top navigation completely disabled.
+
 # September 1 — One Workspace for every chat
 
 - Open Workspace from a Main Agent or active Side chat at that exact chat's connected machine and current directory, then browse the full machine on Web Desktop or Web Mobile.

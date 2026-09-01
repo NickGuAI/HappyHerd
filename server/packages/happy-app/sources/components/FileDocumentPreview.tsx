@@ -6,6 +6,7 @@ type FileDocumentPreviewProps = {
     html?: string;
     uri?: string;
     title: string;
+    interactive?: boolean;
 };
 
 export const FileDocumentPreview = React.memo(function FileDocumentPreview({

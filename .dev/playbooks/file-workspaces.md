@@ -10,8 +10,8 @@ active Main Agent or active Side chat
               │ exact session + machine + cwd
               ▼
 ╔════════════════════════ Workspace ════════════════════════╗
-║ full-machine browser → unique file tabs → Preview / Edit ║
-║          │                                  / Delete      ║
+║ full-machine browser → tabs → Preview / Interactive / Edit ║
+║          │                                      / Delete   ║
 ║          └─ add existing file or directory by reference ─┼─► next message
 ║                                             feedback ─────┼─► exact chat
 ╚═══════════════════════════════════════════════════════════╝
@@ -47,6 +47,16 @@ Desktop retains one mounted chat and Workspace with a draggable split up to
 75% Workspace / 25% chat. Compact Web uses the full-screen Workspace without
 desktop tabs or a divider.
 
+On Web Desktop and Web Mobile, HTML files additionally support a visible
+Interactive mode in the same header and viewer, while Preview remains the
+automatic scriptless default. Interactive mode starts only upon a manual Human
+click, executing the HTML and its inline JavaScript within a fresh opaque
+iframe, while remote subresources, form submissions, nested frames, popup or
+top-level navigation, and same-origin access remain unavailable. The selected
+mode and the iframe DOM state survive mounted tab switches and responsive
+resizing. Native surfaces are unchanged. No approval prompt, trust store,
+allowlist, new route, or second viewer exists.
+
 On Web Desktop and Web Mobile, both Main Agent and active Side chat composers
 expose **Changes**, **Workspace**, and **Attachments** through the shared `+`
 menu. Microphone and Send remain direct controls, and Send remains send-only.
@@ -62,7 +72,7 @@ a visible, clickable Human entry.
 | Human entry points | `components/AgentInput.tsx`, `components/FilesSidebar.tsx`, `components/SideChatPanel.tsx` | Expose one Workspace action through the shared composer menu and responsive right-side actions; do not fork entry handlers or labels. |
 | Machine browser and chat context | `sources/app/(app)/workspace/index.tsx`, `MachineWorkspaceBrowser`, `sync/workspaceContext.ts` | Start embedded browsing at the exact chat machine/cwd, preserve subsequent Human navigation, and add existing file/directory references to that exact chat. |
 | Workspace host | `components/DesktopFileWorkspace.tsx` | Own deduplicated tabs, the wide split, compact layout, and one mounted file host; do not add a second viewer or header `+`. |
-| File content and transport | `components/FileViewPanel.tsx`, `components/FileDocumentPreview.tsx`, `sync/ops.ts` | Reuse `FileContentPanel` for Preview/Edit/supported Delete and machine transport, including absolute paths outside cwd without a HappyHerd access block. |
+| File content and transport | `components/FileViewPanel.tsx`, `components/FileDocumentPreview.tsx`, `sync/ops.ts` | Reuse `FileContentPanel` for Preview/Interactive/Edit/supported Delete and machine transport, including absolute paths outside cwd without a HappyHerd access block. |
 | Feedback | `components/WorkspaceFeedbackComposer.tsx`, `sync/workspaceFeedback.ts` | Send machine, path, optional line/column, and Human text to the active Main Agent or Side chat. |
 | Current-session links | `utils/markdownWorkspaceLink.ts`, `sources/-session/SessionView.tsx` | Keep file, directory, position, and failed-read flows in the integrated Workspace. |
 | Fallback viewer | `components/WorkspaceLinkViewer.tsx`, `components/MainView.tsx` | Use only for cross-session links or a context that cannot host the current session Workspace. |
@@ -94,13 +104,17 @@ Main Agent and an active Side chat:
    existing supported Delete, with zero session-file calls and no workspace
    switch.
 4. Reopen a duplicate machine/path, switch and close tabs, use
-   Preview/Edit/supported Delete, send multiline location feedback, and retain
-   the active draft, scroll, dirty edits, machine/session identity, and
-   line/column metadata.
+   Preview/Interactive/Edit/supported Delete, verify that Interactive runs
+   inline script in an opaque iframe only after click while restricting
+   remote/same-origin access, send multiline location feedback, and retain the
+   active draft, selected mode, DOM state, scroll, dirty edits,
+   machine/session identity, and line/column metadata.
 5. On Web Desktop, drag to the 75% Workspace / 25% chat boundary while keeping
    the chat mounted. On compact Web, prove the full-screen open/back flow and
    the absence of desktop tabs and divider. Require one viewer/composer and
-   zero page or console errors.
+   zero page or console errors for ordinary flows. Treat the default HTML
+   Preview sandbox-block message as expected enforcement, then require zero
+   page or console errors after Interactive activation.
 
 Then run from `server/`:
 
