@@ -79,6 +79,7 @@ import {
   type SideChatOperationResult,
 } from './sideChatLifecycle';
 import { resolveCredentialAccountEnvironment } from '@/credentialPool/store';
+import { activateCodexCredential, codexRuntimeHome } from '@/credentialPool/codexAuth';
 import type { CredentialProvider } from '@/credentialPool/types';
 import type { ProviderLimitNotice } from '@/credentialPool/providerLimitNotice';
 import { rotateProviderSessionAfterLimit } from '@/credentialPool/rotation';
@@ -1713,6 +1714,16 @@ export async function startDaemon(): Promise<void> {
             ...(codexHome ? { CODEX_HOME: codexHome } : {}),
           })
           : undefined;
+        if (
+          codexForkEnvironment
+          && codexCredentialResolution?.selection.type === 'available'
+          && codexCredentialResolution.selection.account.provider === 'codex'
+        ) {
+          await activateCodexCredential(
+            codexCredentialResolution.selection.account,
+            codexRuntimeHome(codexForkEnvironment),
+          );
+        }
 
         const created = await createChildSideChat(parent.id, {
           resolveSession: async () => parent,

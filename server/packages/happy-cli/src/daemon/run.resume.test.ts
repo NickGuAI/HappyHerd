@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import type { Metadata } from '@/api/types';
 import type { ProviderLimitNotice } from '@/credentialPool/providerLimitNotice';
@@ -262,6 +265,7 @@ type CapturedControlHandlers = {
 
 let daemonRun: Promise<void> | undefined;
 let originalCodexHome: string | undefined;
+const temporaryDirectories: string[] = [];
 const defaultAgentCapabilities = initialMachineMetadata.agentCapabilities;
 const sideChatBrief: SideChatDelegationBrief = {
   outcome: 'Deliver the delegated change.',
@@ -350,6 +354,9 @@ describe('daemon session continuity', () => {
       delete process.env.CODEX_HOME;
     } else {
       process.env.CODEX_HOME = originalCodexHome;
+    }
+    for (const directory of temporaryDirectories.splice(0)) {
+      await rm(directory, { recursive: true, force: true });
     }
     vi.restoreAllMocks();
   });
@@ -1249,11 +1256,27 @@ describe('daemon session continuity', () => {
     expect(localId).toBe(event.incidentId);
   });
 
-  it('creates an empty local Codex side chat under the parent credential home and account', async () => {
+  it('activates the parent Codex account before forking from a stale credential home', async () => {
     mocks.authoritativeActive = true;
-    const codexHome = '/srv/codex-homes/rotated';
+    const testRoot = await mkdtemp(join(tmpdir(), 'happyherd-codex-sidechat-auth-'));
+    temporaryDirectories.push(testRoot);
+    const codexHome = join(testRoot, 'runtime');
     const providerAccount = 'rotated-account';
-    const accountAuthFile = '/srv/accounts/rotated/auth.json';
+    const accountHome = join(testRoot, 'accounts', providerAccount);
+    const accountAuthFile = join(accountHome, 'auth.json');
+    const selectedAccountAuth = '{"account":"rotated"}';
+    await mkdir(codexHome, { recursive: true });
+    await mkdir(accountHome, { recursive: true });
+    await writeFile(join(codexHome, 'auth.json'), '{"account":"stale"}');
+    await writeFile(accountAuthFile, selectedAccountAuth);
+    let authAtFork: string | undefined;
+    mocks.forkCodexBackendThread.mockImplementationOnce(async () => {
+      authAtFork = await readFile(join(codexHome, 'auth.json'), 'utf8');
+      return {
+        type: 'success',
+        newCodexThreadId: 'thread-child',
+      };
+    });
     const parentMetadata: Metadata = {
       path: process.cwd(),
       flavor: 'codex',
@@ -1341,6 +1364,7 @@ describe('daemon session continuity', () => {
         HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE: accountAuthFile,
       }),
     );
+    expect(authAtFork).toBe(selectedAccountAuth);
     expect(mocks.postSideChatBrief).not.toHaveBeenCalled();
     const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
       string[],
