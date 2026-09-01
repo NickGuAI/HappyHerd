@@ -118,12 +118,9 @@ function workspaceElement(overrides: Record<string, unknown> = {}) {
         paths: ['/work/a.ts', '/work/b.md'],
         activePath: '/work/a.ts',
         dirtyPaths: new Set<string>(),
-        pickerOpen: false,
-        picker: React.createElement('Picker'),
         onSelect: vi.fn(),
         onRequestClose: vi.fn(),
         onFileDeleted: vi.fn(),
-        onOpenPicker: vi.fn(),
         onClosePicker: vi.fn(),
         onDirtyChange: vi.fn(),
         ...overrides,
@@ -135,7 +132,7 @@ function filePanels(renderer: ReactTestRenderer) {
 }
 
 describe('DesktopFileWorkspace', () => {
-    it('keeps every keyed file panel mounted while switching tabs and opening the picker', () => {
+    it('keeps every keyed file panel mounted while switching tabs and opening Workspace', () => {
         let renderer!: ReactTestRenderer;
         act(() => { renderer = create(workspaceElement()); });
         const initialMounts = Object.fromEntries(filePanels(renderer).map((node: any) => [node.props.filePath, node.props.mountId]));
@@ -147,11 +144,15 @@ describe('DesktopFileWorkspace', () => {
         expect(filePanels(renderer).every((node: any) => node.props.headerVariant === 'desktop-workspace')).toBe(true);
         expect(filePanels(renderer).find((node: any) => node.props.filePath === '/work/b.md')?.props.active).toBe(true);
 
-        act(() => { renderer.update(workspaceElement({ activePath: '/work/b.md', pickerOpen: true })); });
+        act(() => { renderer.update(workspaceElement({
+            activePath: '/work/b.md',
+            machinePickerOpen: true,
+            machinePicker: React.createElement('MachinePicker'),
+        })); });
         expect(Object.fromEntries(filePanels(renderer).map((node: any) => [node.props.filePath, node.props.mountId])))
             .toEqual(initialMounts);
         expect(filePanels(renderer).every((node: any) => node.props.active === false)).toBe(true);
-        expect(renderer.root.findAllByType('Picker' as any)).toHaveLength(1);
+        expect(renderer.root.findAllByType('MachinePicker' as any)).toHaveLength(1);
     });
 
     it('keeps dirty and header callbacks scoped to their exact path', () => {
@@ -171,20 +172,18 @@ describe('DesktopFileWorkspace', () => {
         expect(renderer.root.findAllByType('HeaderControl' as any)).toHaveLength(1);
     });
 
-    it('keeps the header focused on file tabs and the existing picker, and closes only the requested tab', () => {
-        const onOpenPicker = vi.fn();
+    it('keeps the header focused on file tabs and Workspace, removes the old picker +, and closes only the requested tab', () => {
         const onOpenMachinePicker = vi.fn();
         const onRequestClose = vi.fn();
         const onSelect = vi.fn();
         let renderer!: ReactTestRenderer;
-        act(() => { renderer = create(workspaceElement({ onOpenPicker, onOpenMachinePicker, onRequestClose, onSelect })); });
+        act(() => { renderer = create(workspaceElement({ onOpenMachinePicker, onRequestClose, onSelect })); });
 
         expect(renderer.root.findAllByProps({ accessibilityLabel: 'files.changes' })).toHaveLength(0);
 
         const plus = renderer.root.findAllByType('Pressable' as any)
             .find((node: any) => node.props.accessibilityLabel === 'files.openExistingFile');
-        act(() => plus?.props.onPress());
-        expect(onOpenPicker).toHaveBeenCalledOnce();
+        expect(plus).toBeUndefined();
         expect(onSelect).not.toHaveBeenCalled();
 
         const machineWorkspace = renderer.root.findAllByType('Pressable' as any)

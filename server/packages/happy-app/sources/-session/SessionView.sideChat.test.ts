@@ -305,7 +305,6 @@ vi.mock('@/components/DesktopFileWorkspace', async () => {
                     onFileDeleted: (path: string) => props.onFileDeleted(identityFor(path)),
                     onDirtyChange: (path: string, dirty: boolean) => props.onDirtyChange(identityFor(path), dirty),
                 },
-                props.picker,
                 props.machinePicker,
             );
         },
@@ -652,8 +651,8 @@ vi.mock('@/text', () => ({
         if (key === 'sideChat.panelTitle') return 'Side chats';
         if (key === 'sideChat.tabLabel') return `Side chat ${params?.index}`;
         if (key === 'files.changes') return 'Changes';
-        if (key === 'files.allFiles') return 'Chat Workspace';
-        if (key === 'workspace.title') return 'Machine Workspace';
+        if (key === 'files.allFiles') return 'files.allFiles';
+        if (key === 'workspace.title') return 'Workspace';
         if (key === 'sessionInfo.resumeSession') return 'Resume session';
         return key;
     },
@@ -872,6 +871,14 @@ function composerForSession(renderer: ReactTestRenderer, sessionId: string) {
     return composer!;
 }
 
+function openParentWorkspaceFile(renderer: ReactTestRenderer, path: string, machineId = 'machine-1') {
+    const actions = composerForSession(renderer, 'parent').props.webWorkspaceActions;
+    act(() => actions.onOpenWorkspace());
+    const browser = renderer.root.findByType('MachineWorkspaceBrowser' as any);
+    expect(browser.props.workspaceContextSessionId).toBe('parent');
+    act(() => browser.props.onFilePress({ machineId, path }));
+}
+
 function expectExactParentTabs(renderer: ReactTestRenderer) {
     const labels = textValues(renderer);
     expect(labels).toEqual(expect.arrayContaining(['oldest', 'stopped', 'newest']));
@@ -988,8 +995,7 @@ describe('SessionView Web composer workspace access', () => {
         const workspaceActions = mainComposer.props.webWorkspaceActions;
         expect(workspaceActions).toEqual(expect.objectContaining({
             onOpenChanges: expect.any(Function),
-            onOpenChatWorkspace: expect.any(Function),
-            onOpenMachineWorkspace: expect.any(Function),
+            onOpenWorkspace: expect.any(Function),
         }));
 
         act(() => workspaceActions.onOpenChanges());
@@ -998,21 +1004,17 @@ describe('SessionView Web composer workspace access', () => {
         expect(renderer.root.findAllByType('AllFilesDiffView' as any)).toHaveLength(0);
         expect(mocks.routerDismissTo).not.toHaveBeenCalled();
 
-        act(() => workspaceActions.onOpenChatWorkspace());
-        let split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
-        let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        act(() => workspaceActions.onOpenWorkspace());
+        const split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
+        const workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
         expect(split.props.workspaceFullscreen).toBe(true);
-        expect(workspace.props).toMatchObject({ compact: true, pickerOpen: true, machinePickerOpen: false });
-        act(() => workspace.props.onClosePicker());
-
-        act(() => workspaceActions.onOpenMachineWorkspace());
-        split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
-        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(split.props.workspaceFullscreen).toBe(true);
-        expect(workspace.props).toMatchObject({ compact: true, pickerOpen: false, machinePickerOpen: true });
+        expect(workspace.props).toMatchObject({ compact: true, machinePickerOpen: true });
+        expect(workspace.props.pickerOpen).toBeUndefined();
+        expect(workspace.props.picker).toBeUndefined();
         expect(renderer.root.findByType('MachineWorkspaceBrowser' as any).props).toMatchObject({
             initialMachineId: 'machine-1',
             initialPath: '/srv/project',
+            workspaceContextSessionId: 'parent',
         });
         act(() => workspace.props.onClosePicker());
 
@@ -1033,8 +1035,7 @@ describe('SessionView Web composer workspace access', () => {
         expect(composer.props.showWebActionMenu).toBe(true);
         expect(composer.props.webWorkspaceActions).toEqual(expect.objectContaining({
             onOpenChanges: expect.any(Function),
-            onOpenChatWorkspace: expect.any(Function),
-            onOpenMachineWorkspace: expect.any(Function),
+            onOpenWorkspace: expect.any(Function),
         }));
     });
 
@@ -1053,7 +1054,7 @@ describe('SessionView Web composer workspace access', () => {
     it.each([
         ['Web Desktop', 1280],
         ['Web Mobile', 390],
-    ] as const)('updates Machine Workspace from the newly active Side chat machine and cwd on %s', (_surface, width) => {
+    ] as const)('updates Workspace from the newly active Side chat machine and cwd on %s', (_surface, width) => {
         mocks.width = width;
         mocks.height = 844;
         const renderer = renderParent();
@@ -1063,10 +1064,11 @@ describe('SessionView Web composer workspace access', () => {
         expect(newestComposer.props.showWebActionMenu).toBe(true);
         const newestActions = newestComposer.props.webWorkspaceActions;
         expect(newestActions).toBeDefined();
-        act(() => newestActions.onOpenMachineWorkspace());
+        act(() => newestActions.onOpenWorkspace());
         expect(renderer.root.findByType('MachineWorkspaceBrowser' as any).props).toMatchObject({
             initialMachineId: 'machine-newest',
             initialPath: '/srv/side-chats/newest',
+            workspaceContextSessionId: 'newest',
         });
 
         act(() => renderer.root.findByType('DesktopFileWorkspace' as any).props.onClosePicker());
@@ -1076,10 +1078,11 @@ describe('SessionView Web composer workspace access', () => {
         expect(oldestComposer.props.showWebActionMenu).toBe(true);
         const oldestActions = oldestComposer.props.webWorkspaceActions;
         expect(oldestActions).toBeDefined();
-        act(() => oldestActions.onOpenMachineWorkspace());
+        act(() => oldestActions.onOpenWorkspace());
         expect(renderer.root.findByType('MachineWorkspaceBrowser' as any).props).toMatchObject({
             initialMachineId: 'machine-oldest',
             initialPath: '/srv/side-chats/oldest',
+            workspaceContextSessionId: 'oldest',
         });
 
         expect(renderer.root.findAll((node: any) => (
@@ -1104,8 +1107,7 @@ describe('SessionView Web composer workspace access', () => {
             sessionId: 'newest',
             workspaceController: expect.objectContaining({
                 openChanges: expect.any(Function),
-                openChatWorkspace: expect.any(Function),
-                openMachineWorkspace: expect.any(Function),
+                openWorkspace: expect.any(Function),
                 openWorkspaceLink: expect.any(Function),
             }),
         }));
@@ -1129,16 +1131,16 @@ describe('SessionView Web composer workspace access', () => {
         const modalWorkspaceActions = composerForSession(modalRenderer, 'newest').props.webWorkspaceActions;
         expect(modalWorkspaceActions).toEqual(expect.objectContaining({
             onOpenChanges: expect.any(Function),
-            onOpenChatWorkspace: expect.any(Function),
-            onOpenMachineWorkspace: expect.any(Function),
+            onOpenWorkspace: expect.any(Function),
         }));
 
-        act(() => modalWorkspaceActions.onOpenMachineWorkspace());
+        act(() => modalWorkspaceActions.onOpenWorkspace());
         expect(closeFirstModal).toHaveBeenCalledOnce();
         expect(renderedComposerSessions(modalRenderer)).toEqual([]);
         expect(renderer.root.findByType('MachineWorkspaceBrowser' as any).props).toMatchObject({
             initialMachineId: 'machine-newest',
             initialPath: '/srv/side-chats/newest',
+            workspaceContextSessionId: 'newest',
         });
 
         const closeLinkModal = vi.fn();
@@ -1188,8 +1190,7 @@ describe('SessionView Web composer workspace access', () => {
         expect(mocks.modalShow).toHaveBeenCalledOnce();
         expect(mocks.modalShow.mock.calls[0]?.[0]?.props?.workspaceController).toEqual(expect.objectContaining({
             openChanges: expect.any(Function),
-            openChatWorkspace: expect.any(Function),
-            openMachineWorkspace: expect.any(Function),
+            openWorkspace: expect.any(Function),
             openWorkspaceLink: expect.any(Function),
         }));
     });
@@ -1625,21 +1626,7 @@ describe('SessionView side-chat integration', () => {
         expect(renderer.root.findByType('AllFilesDiffView' as any).props.sessionId).toBe('parent');
     });
 
-    it('rebinds desktop Main Chat Workspace after closing a Side chat file workspace', async () => {
-        const renderer = renderParent();
-        const sidebar = await openAndCloseSideChatFileWorkspace(renderer);
-        const mainFilePath = '/srv/project/main.ts';
-
-        act(() => sidebar?.props.onOpenPanel('allFiles'));
-        act(() => desktopSideChatHosts(renderer)[0]?.props.onAllFilesFilePress(mainFilePath));
-
-        const workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(workspace.props.sessionId).toBe('parent');
-        expect(workspace.props.references[JSON.stringify(['machine-1', mainFilePath])])
-            .toMatchObject({ machineId: 'machine-1', source: 'session' });
-    });
-
-    it('rebinds desktop Main Machine Workspace after closing a Side chat file workspace', async () => {
+    it('rebinds desktop Main Workspace after closing a Side chat file workspace', async () => {
         const renderer = renderParent();
         const sidebar = await openAndCloseSideChatFileWorkspace(renderer);
 
@@ -1648,6 +1635,7 @@ describe('SessionView side-chat integration', () => {
         expect(renderer.root.findByType('MachineWorkspaceBrowser' as any).props).toMatchObject({
             initialMachineId: 'machine-1',
             initialPath: '/srv/project',
+            workspaceContextSessionId: 'parent',
         });
     });
 
@@ -1683,7 +1671,7 @@ describe('SessionView side-chat integration', () => {
         expect(renderedComposerSessions(renderer)).toEqual(['parent']);
     });
 
-    it('shows and closes a zero-tab Machine Workspace picker full-screen on compact Web', async () => {
+    it('shows and closes a zero-tab Workspace full-screen on compact Web', async () => {
         mocks.width = 390;
         const renderer = renderParent();
         const emptyMessages = renderer.root.findAllByType('EmptyMessages' as any).find((node: any) => (
@@ -1720,28 +1708,21 @@ describe('SessionView side-chat integration', () => {
 
     it('keeps the Main Agent composer mounted while desktop file tabs open, dedupe, focus, and close', async () => {
         const renderer = renderParent();
-        const initialSidebar = desktopSideChatHosts(renderer)[0];
-
-        expect(initialSidebar).toBeDefined();
-        act(() => initialSidebar?.props.onAllFilesFilePress('/work/a.ts'));
+        expect(desktopSideChatHosts(renderer)[0]).toBeDefined();
+        openParentWorkspaceFile(renderer, '/work/a.ts');
 
         let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
         expect(workspace.props.paths).toEqual(['/work/a.ts']);
         expect(workspace.props.activePath).toBe('/work/a.ts');
         expect(renderedComposerSessions(renderer)).toEqual(['parent']);
 
-        act(() => workspace.props.onOpenPicker());
-        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(workspace.props.pickerOpen).toBe(true);
-        act(() => workspace.props.picker.props.onFilePress('/work/b.md'));
+        openParentWorkspaceFile(renderer, '/work/b.md');
 
         workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
         expect(workspace.props.paths).toEqual(['/work/a.ts', '/work/b.md']);
         expect(workspace.props.activePath).toBe('/work/b.md');
 
-        act(() => workspace.props.onOpenPicker());
-        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        act(() => workspace.props.picker.props.onFilePress('/work/a.ts'));
+        openParentWorkspaceFile(renderer, '/work/a.ts');
 
         workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
         expect(workspace.props.paths).toEqual(['/work/a.ts', '/work/b.md']);
@@ -1777,13 +1758,9 @@ describe('SessionView side-chat integration', () => {
 
     it('removes a deleted desktop file and selects its deterministic neighbor without a discard prompt', () => {
         const renderer = renderParent();
-        const initialSidebar = desktopSideChatHosts(renderer)[0];
-
-        act(() => initialSidebar?.props.onAllFilesFilePress('/work/a.ts'));
+        openParentWorkspaceFile(renderer, '/work/a.ts');
         let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        act(() => workspace.props.onOpenPicker());
-        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        act(() => workspace.props.picker.props.onFilePress('/work/b.md'));
+        openParentWorkspaceFile(renderer, '/work/b.md');
         workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
         act(() => workspace.props.onDirtyChange('/work/b.md', true));
 
@@ -1800,9 +1777,7 @@ describe('SessionView side-chat integration', () => {
 
     it('keeps the desktop workspace header free of the removed Changes action', () => {
         const renderer = renderParent();
-        const initialSidebar = desktopSideChatHosts(renderer)[0];
-
-        act(() => initialSidebar?.props.onAllFilesFilePress('/work/a.ts'));
+        openParentWorkspaceFile(renderer, '/work/a.ts');
         const split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
         const workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
         expect(split.props.workspaceVisible).toBe(true);
@@ -1810,7 +1785,7 @@ describe('SessionView side-chat integration', () => {
         expect(workspace.props.onOpenChanges).toBeUndefined();
     });
 
-    it('opens desktop Machine Workspace at the owning Main Agent machine and cwd before sharing its selection', () => {
+    it('opens desktop Workspace at the owning Main Agent machine and cwd before sharing its selection', () => {
         const renderer = renderParent();
         act(() => desktopSideChatHosts(renderer)[0]?.props.onOpenMachineWorkspace());
 
@@ -1818,6 +1793,7 @@ describe('SessionView side-chat integration', () => {
         expect(machineWorkspace.props).toMatchObject({
             initialMachineId: 'machine-1',
             initialPath: '/srv/project',
+            workspaceContextSessionId: 'parent',
         });
         act(() => machineWorkspace.props.onFilePress({ machineId: 'machine-2', path: '/work/remote.md' }));
 
@@ -1828,11 +1804,9 @@ describe('SessionView side-chat integration', () => {
         expect(mocks.routerPush).not.toHaveBeenCalled();
     });
 
-    it('returns from stacked Changes and All Files panels to the selected desktop tab', () => {
+    it('returns from Changes plus retired All Files state to the selected desktop tab', () => {
         const renderer = renderParent();
-        const initialSidebar = desktopSideChatHosts(renderer)[0];
-
-        act(() => initialSidebar?.props.onAllFilesFilePress('/work/a.ts'));
+        openParentWorkspaceFile(renderer, '/work/a.ts');
         act(() => {
             mocks.localSettings.sidebarPanelsOpen = ['changes', 'allFiles'];
             mocks.localSettings.sidebarPanelActive = 'allFiles';
@@ -1840,7 +1814,7 @@ describe('SessionView side-chat integration', () => {
         });
         expect(renderer.root.findByType('DesktopFileWorkspaceSplit' as any).props.workspaceVisible).toBe(false);
 
-        act(() => desktopSideChatHosts(renderer)[0]?.props.onAllFilesFilePress('/work/b.md'));
+        openParentWorkspaceFile(renderer, '/work/b.md');
         const split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
         const workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
         expect(split.props.workspaceVisible).toBe(true);
@@ -1850,17 +1824,15 @@ describe('SessionView side-chat integration', () => {
         expect(mocks.localSettings.sidebarPanelActive).toBeNull();
     });
 
-    it('restores the canonical file workspace when Zen hides an active file sidebar panel', () => {
+    it('ignores retired All Files state and keeps the canonical file workspace visible through Zen', () => {
         const renderer = renderParent();
-        const initialSidebar = desktopSideChatHosts(renderer)[0];
-
-        act(() => initialSidebar?.props.onAllFilesFilePress('/work/a.ts'));
+        openParentWorkspaceFile(renderer, '/work/a.ts');
         act(() => {
             mocks.localSettings.sidebarPanelsOpen = ['allFiles'];
             mocks.localSettings.sidebarPanelActive = 'allFiles';
             for (const listener of mocks.listeners) listener();
         });
-        expect(renderer.root.findByType('DesktopFileWorkspaceSplit' as any).props.workspaceVisible).toBe(false);
+        expect(renderer.root.findByType('DesktopFileWorkspaceSplit' as any).props.workspaceVisible).toBe(true);
 
         act(() => {
             mocks.localSettings.zenMode = true;
@@ -1876,9 +1848,7 @@ describe('SessionView side-chat integration', () => {
 
     it('presents the active desktop file full-width on narrow layouts and restores tabs without state loss', () => {
         const renderer = renderParent();
-        const initialSidebar = desktopSideChatHosts(renderer)[0];
-
-        act(() => initialSidebar?.props.onAllFilesFilePress('/work/a.ts'));
+        openParentWorkspaceFile(renderer, '/work/a.ts');
         let split = renderer.root.findByType('DesktopFileWorkspaceSplit' as any);
         let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
         expect(split.props.workspaceVisible).toBe(true);
@@ -1915,9 +1885,7 @@ describe('SessionView side-chat integration', () => {
 
     it('moves an open desktop Side chat to the narrow full-screen host before restoring the active file', () => {
         const renderer = renderParent();
-        const initialSidebar = desktopSideChatHosts(renderer)[0];
-
-        act(() => initialSidebar?.props.onAllFilesFilePress('/work/a.ts'));
+        openParentWorkspaceFile(renderer, '/work/a.ts');
         pressByLabel(renderer, 'Open side chats (3)');
         expect(desktopSideChatHosts(renderer)[0]?.props.activePanel).toBe('sideChat');
 

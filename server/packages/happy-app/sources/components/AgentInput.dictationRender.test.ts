@@ -220,8 +220,7 @@ function renderMobileActionInput(overrides: Record<string, unknown> = {}, width 
         onAbort: vi.fn(async () => {}),
         onMicPress: vi.fn(),
         onOpenChanges: vi.fn(),
-        onOpenChatWorkspace: vi.fn(),
-        onOpenMachineWorkspace: vi.fn(),
+        onOpenWorkspace: vi.fn(),
         onPermissionModeChange: vi.fn(),
         onModelModeChange: vi.fn(),
         onEffortLevelChange: vi.fn(),
@@ -248,8 +247,7 @@ function renderMobileActionInput(overrides: Record<string, unknown> = {}, width 
         initialValue: 'Editable draft',
         webWorkspaceActions: {
             onOpenChanges: callbacks.onOpenChanges,
-            onOpenChatWorkspace: callbacks.onOpenChatWorkspace,
-            onOpenMachineWorkspace: callbacks.onOpenMachineWorkspace,
+            onOpenWorkspace: callbacks.onOpenWorkspace,
         },
         modelMode: { key: 'model-1', name: 'Model One' },
         onAbort: callbacks.onAbort,
@@ -376,7 +374,6 @@ describe('AgentInput Web action menu', () => {
         openMobileActionMenu(renderer);
         expect(mobileMenuLabels(renderer)).toEqual(expect.arrayContaining([
             'files.changes',
-            'files.allFiles',
             'workspace.title',
         ]));
 
@@ -453,7 +450,6 @@ describe('AgentInput Web action menu', () => {
         expect(renderer.root.findByProps({ testID: 'mobile-composer-actions-menu' }).props.accessibilityRole).toBe('menu');
         expect(mobileMenuLabels(renderer)).toEqual([
             'files.changes',
-            'files.allFiles',
             'workspace.title',
             'settings.title',
             'happyHerd.composer.queueMessage',
@@ -462,8 +458,7 @@ describe('AgentInput Web action menu', () => {
 
         for (const [key, callback] of [
             ['changes', callbacks.onOpenChanges],
-            ['chat-workspace', callbacks.onOpenChatWorkspace],
-            ['machine-workspace', callbacks.onOpenMachineWorkspace],
+            ['workspace', callbacks.onOpenWorkspace],
             ['attachments', callbacks.onPickImages],
         ] as const) {
             pressMobileMenuAction(renderer, key);
