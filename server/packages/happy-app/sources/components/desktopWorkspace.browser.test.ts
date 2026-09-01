@@ -67,14 +67,36 @@ const virtualModules: Record<string, string> = {
     'expo-router/drawer': `
         import React from 'react';
         import { View } from 'react-native';
-        export const Drawer = ({ screenOptions, drawerContent }) => React.createElement(
-            View,
-            {
-                testID: 'navigation-drawer',
-                style: [{ position: 'absolute', top: 0, bottom: 0, left: 0 }, screenOptions.drawerStyle],
-            },
-            drawerContent ? drawerContent() : null,
-        );
+        import { ChatHeaderView } from '@/components/ChatHeaderView';
+        export const Drawer = ({ screenOptions, drawerContent }) => {
+            const drawerWidth = screenOptions.drawerStyle.width;
+            return React.createElement(
+                React.Fragment,
+                null,
+                React.createElement(
+                    View,
+                    {
+                        testID: 'navigation-drawer',
+                        style: [{ position: 'absolute', top: 0, bottom: 0, left: 0 }, screenOptions.drawerStyle],
+                    },
+                    drawerContent ? drawerContent() : null,
+                ),
+                React.createElement(
+                    View,
+                    {
+                        testID: 'navigation-screen',
+                        style: { position: 'absolute', top: 0, right: 0, bottom: 0, left: drawerWidth },
+                    },
+                    React.createElement(ChatHeaderView, {
+                        folderName: 'demo-project',
+                        title: 'Collapsed navigation fixture',
+                        onTitlePress: () => {
+                            window.__SESSION_TITLE_PRESS_COUNT__ = (window.__SESSION_TITLE_PRESS_COUNT__ ?? 0) + 1;
+                        },
+                    }),
+                ),
+            );
+        };
     `,
     '@/auth/AuthContext': `export const useAuth = () => ({ isAuthenticated: true });`,
     '@/components/SidebarView': `
@@ -138,6 +160,7 @@ const virtualModules: Record<string, string> = {
         export const useIsTablet = () => true;
     `,
     '@/utils/isTauri': `export const isTauri = () => false;`,
+    '@/utils/platform': `export const isRunningOnMac = () => false;`,
     '@/hooks/useTauriZoom': `export const DEFAULT_APP_ZOOM = 1;`,
     '@/navigation/browserNavigation': `
         export const canRouteForward = () => false;
@@ -298,6 +321,12 @@ const virtualModules: Record<string, string> = {
         export const LocalBlurHalo = () => null;
     `,
     '@/components/MobileGlass': `export const MobileGlassSurface = ({ children }) => children;`,
+    '@/components/BubblePressable': `export const BubblePressable = () => null;`,
+    '@/components/navigation/MobileHeaderScrim': `
+        export const MobileHeaderScrim = () => null;
+        export const MOBILE_STRONG_HEADER_SCRIM_RESTING_OPACITY = 0.8;
+        export const MOBILE_STRONG_HEADER_SCRIM_UNDERLAP_OPACITY = 0.96;
+    `,
     '@/keyboard/shortcuts': `
         export const getPreferredShortcutModifier = () => 'Meta';
         export const formatShortcutChord = () => '';
@@ -312,7 +341,7 @@ const virtualModules: Record<string, string> = {
         export const dismissWorkspaceLinkToOrigin = () => undefined;
         export const useWorkspaceLinkDismissGuard = () => ({ onSendingChange() {}, onDirtyChange() {}, guardDismiss: (action) => action() });
     `,
-    '@/components/layout': `export const layout = { maxWidth: 1200 };`,
+    '@/components/layout': `export const layout = { maxWidth: 1200, headerMaxWidth: 800 };`,
     '@/text': `
         export const t = (key, params) => ({
             'common.back': 'Back',
@@ -376,6 +405,14 @@ const fixturePlugin: Plugin = {
                     './SideChatPanel': '@/components/SideChatPanel',
                     './AnimatedOverlay': '@/components/AnimatedOverlay',
                     './MobileGlass': '@/components/MobileGlass',
+                } as Record<string, string>)[args.path];
+                if (relativeStub) return { path: relativeStub, namespace: 'fixture-stub' };
+            }
+            if (args.importer.endsWith('/ChatHeaderView.tsx')) {
+                const relativeStub = ({
+                    './BubblePressable': '@/components/BubblePressable',
+                    './MobileGlass': '@/components/MobileGlass',
+                    './navigation/MobileHeaderScrim': '@/components/navigation/MobileHeaderScrim',
                 } as Record<string, string>)[args.path];
                 if (relativeStub) return { path: relativeStub, namespace: 'fixture-stub' };
             }
@@ -456,6 +493,57 @@ describe('Desktop workspace browser interaction', () => {
         if (server) await new Promise<void>((resolveClosed) => server.close(() => resolveClosed()));
     }, 30_000);
 
+    it('keeps the collapsed navigation toggle clear of the real session header', async () => {
+        const page = await browser.newPage({ viewport: { width: 900, height: 300 } });
+        const pageErrors = recordPageErrors(page);
+        await page.goto(origin);
+        await page.waitForTimeout(100);
+        if (pageErrors.length > 0) throw new Error(`Browser fixture failed to render: ${pageErrors.join('\n')}`);
+
+        const headerDemo = page.getByTestId('collapsed-navigation-header-demo');
+        const collapse = page.getByTestId('sidebar-demo').getByTestId('navigation-sidebar-toggle');
+        await expect(collapse.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
+        await collapse.click();
+
+        const expand = headerDemo.getByTestId('navigation-sidebar-toggle');
+        await expect(expand.getAttribute('aria-label')).resolves.toBe('Expand navigation');
+        const expandBox = await expand.boundingBox();
+        const sessionPath = headerDemo.getByText('demo-project', { exact: true });
+        const sessionPathBox = await sessionPath.boundingBox();
+        if (!expandBox || !sessionPathBox) throw new Error('collapsed header controls have no layout');
+        expect(expandBox.x + expandBox.width + 8).toBeLessThanOrEqual(sessionPathBox.x);
+
+        const idleBackground = await expand.evaluate((element) => getComputedStyle(element).backgroundColor);
+        expect(['transparent', 'rgba(0, 0, 0, 0)']).toContain(idleBackground);
+        await expand.hover();
+        const hoverBackground = await expand.evaluate((element) => getComputedStyle(element).backgroundColor);
+        expect(['transparent', 'rgba(0, 0, 0, 0)']).not.toContain(hoverBackground);
+
+        const expandCenter = {
+            x: expandBox.x + expandBox.width / 2,
+            y: expandBox.y + expandBox.height / 2,
+        };
+        await page.mouse.move(expandCenter.x, expandCenter.y);
+        await page.mouse.down();
+        const pressedBackground = await expand.evaluate((element) => getComputedStyle(element).backgroundColor);
+        expect(['transparent', 'rgba(0, 0, 0, 0)']).not.toContain(pressedBackground);
+        await page.mouse.move(expandBox.x + expandBox.width + 80, expandCenter.y);
+        await page.mouse.up();
+        await expect(expand.getAttribute('aria-label')).resolves.toBe('Expand navigation');
+
+        await page.mouse.click(sessionPathBox.x + 1, sessionPathBox.y + sessionPathBox.height / 2);
+        await expect(page.evaluate(() => (window as any).__SESSION_TITLE_PRESS_COUNT__ ?? 0)).resolves.toBe(1);
+
+        await page.mouse.move(700, 200);
+        const evidencePath = process.env.HAPPYHERD_COLLAPSED_NAV_EVIDENCE_PATH?.trim();
+        if (evidencePath) await headerDemo.screenshot({ path: resolve(evidencePath) });
+
+        await expand.click();
+        await expect(collapse.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 10_000);
+
     it('uses the real boundary toggle and pointer divider without overlapping or remounting', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 1200 } });
         const pageErrors = recordPageErrors(page);
@@ -464,8 +552,8 @@ describe('Desktop workspace browser interaction', () => {
         if (pageErrors.length > 0) throw new Error(`Browser fixture failed to render: ${pageErrors.join('\n')}`);
 
         const sidebarDemo = page.getByTestId('sidebar-demo');
-        const drawer = page.getByTestId('navigation-drawer');
-        const collapse = page.getByTestId('navigation-sidebar-toggle');
+        const drawer = sidebarDemo.getByTestId('navigation-drawer');
+        const collapse = sidebarDemo.getByTestId('navigation-sidebar-toggle');
         await collapse.waitFor();
         await expect(collapse.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
         const sidebarBox = await sidebarDemo.boundingBox();
@@ -533,11 +621,11 @@ describe('Desktop workspace browser interaction', () => {
         await expect(editor.evaluate((element) => element.scrollTop)).resolves.toBe(initialEditorScrollTop);
 
         await collapse.click();
-        const expand = page.getByTestId('navigation-sidebar-toggle');
+        const expand = sidebarDemo.getByTestId('navigation-sidebar-toggle');
         await expand.waitFor();
         await expect(expand.getAttribute('aria-label')).resolves.toBe('Expand navigation');
         const expandBox = await expand.boundingBox();
-        const zenBox = await page.getByLabel('Toggle Zen mode').boundingBox();
+        const zenBox = await sidebarDemo.getByLabel('Toggle Zen mode').boundingBox();
         if (!expandBox || !zenBox) throw new Error('collapsed controls have no layout');
         expect(expandBox.x + expandBox.width).toBeLessThanOrEqual(zenBox.x);
         const collapsedSplitBox = await splitDemo.boundingBox();
