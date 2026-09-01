@@ -25,9 +25,9 @@ Establish before acting:
 
 Start at `.dev/AGENTS.md`. Use `.dev/VERIFY.md` to select checks and
 `engineering-review` to review the exact final head against the task contract.
-Use `app-verification` when changed-surface verification needs its execution or
+Use `engineering-verify-change` when changed-surface verification needs its execution or
 evidence procedure. A TickTick write is out of scope unless explicitly
-requested; when authorized, use the `ticktick` skill and read the write back.
+requested; when authorized, use the `workspace-manage-tasks` skill and read the write back.
 
 ## Keep proof planes separate
 

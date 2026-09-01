@@ -79,7 +79,7 @@ multi-agent delivery:
    launch, or `happyherd resume <happy-session-id>` for an existing session.
    Do not call it a HappyHerd worker until its actual session ID or application
    link is available; record that identity in the handoff.
-4. Use the `ticktick` Skill to add one concise dispatch comment and one final
+4. Use the `workspace-manage-tasks` Skill to add one concise dispatch comment and one final
    handoff comment per lane, then read each comment back. Comments are receipts,
    not a queue: do not poll them, automate them, or create a second registry.
 5. The parent joins the delegated work, reviews the resulting artifacts,

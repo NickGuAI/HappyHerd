@@ -23,7 +23,7 @@ for that project choice.
 A supplied TickTick URL is the owning task only when the current instruction
 explicitly requests a tracking mutation; otherwise it remains read-only
 evidence. Never replace a supplied owner with a new task. When tracking is
-authorized and no task was supplied, use the `ticktick` skill to inspect the
+authorized and no task was supplied, use the `workspace-manage-tasks` skill to inspect the
 selected project for a matching open task before creating exactly one task.
 Never create a list, tag, sibling task, or follow-up task automatically.
 
@@ -39,10 +39,11 @@ same latest instruction explicitly retains the requested mutation.
 Perform these ordered gates because each later result depends on the earlier
 state:
 
-1. When a task or tracking project is in scope, use `ticktick` to resolve the
+1. When a task or tracking project is in scope, use the `workspace-manage-tasks` skill to resolve the
    supplied owner or establish the selected project and capture the current
    task baseline. Do not write yet.
-2. Run `preflight` before making source claims. Resolve the exact HappyHerd
+2. Establish repository ground truth before making source claims — branch,
+   upstream sync, and working-tree status. Resolve the exact HappyHerd
    repository and checkout, compare it with current remote `main`, and inspect
    the authoritative head without switching or overwriting a dirty canonical
    checkout.
@@ -50,7 +51,7 @@ state:
    points: `AGENTS.md`, routing, verification, and applicable SOP or playbook.
    If `.dev` is stale or incomplete, verify against current source and report
    the context gap; do not regenerate it inside this skill.
-4. Use `context-explore --scope <resolved-happyherd-repository>` to establish
+4. Use `systemops-establish-ground-truth --scope <resolved-happyherd-repository>` to establish
    the trigger, owning mechanism, impact, test or evidence gap, competing
    explanations, confidence, and unresolved gaps. Do not promote a hypothesis
    to root cause or let the investigation escape the resolved repository.
@@ -59,14 +60,14 @@ Select only the domain skills required by the evidence:
 
 - Use `happyherd-develop-ux` for a Human-facing journey, interaction, layout,
   navigation, naming, discoverability, or responsive-surface problem.
-- Add `ux-designer-review` when screenshots, mocks, or reference interfaces
+- Add `marketing-review-ux` when screenshots, mocks, or reference interfaces
   materially define the question.
 - Use `happyherd-update-provider` for provider, model, effort, permission,
   event, callback, resume, or restart behavior.
 - Use `happyherd` for supported terminal, session, daemon, Commander,
   automation, or governed-tool operations.
 - Read `.dev/VERIFY.md` directly to identify the smallest future verification
-  evidence. Use `app-verification` only when the input includes already-existing
+  evidence. Use `engineering-verify-change` only when the input includes already-existing
   code changes that need a read-only verification assessment; constrain it to
   check selection and documentation without running servers, writing evidence,
   or executing delivery.
@@ -104,7 +105,7 @@ an authorized TickTick write.
 
 ## Persist through TickTick
 
-When explicit tracking authority exists, use the `ticktick` skill for the write
+When explicit tracking authority exists, use the `workspace-manage-tasks` skill for the write
 and authoritative read-back. Without it, return the proposed task content and
 state that TickTick was not mutated. Keep the task concise. When creating a
 task, give it a short problem- or outcome-based title rather than an

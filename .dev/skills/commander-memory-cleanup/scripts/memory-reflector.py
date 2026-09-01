@@ -121,22 +121,22 @@ CODEX_ENV_ALLOWLIST = frozenset(
 def _load_secret_patterns() -> list[re.Pattern[str]]:
     candidates = (
         Path(__file__).absolute().parents[2]
-        / "ai-state/scripts/secret_patterns.py",
+        / "systemops-preserve-ai-state/scripts/secret_patterns.py",
         Path(__file__).resolve().parents[2]
-        / "ai-state/scripts/secret_patterns.py",
-        Path.home() / ".claude/skills/ai-state/scripts/secret_patterns.py",
+        / "systemops-preserve-ai-state/scripts/secret_patterns.py",
+        Path.home() / ".claude/skills/systemops-preserve-ai-state/scripts/secret_patterns.py",
     )
     for owner in candidates:
         if owner.exists():
             break
     else:
         raise FileNotFoundError(
-            "ai-state secret pattern owner was not found; tried: "
+            "systemops-preserve-ai-state secret pattern owner was not found; tried: "
             + ", ".join(str(candidate) for candidate in candidates)
         )
     spec = importlib.util.spec_from_file_location("ai_state_secret_patterns", owner)
     if spec is None or spec.loader is None:
-        raise RuntimeError("ai-state secret pattern owner is unavailable")
+        raise RuntimeError("systemops-preserve-ai-state secret pattern owner is unavailable")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return list(module.SECRET_PATTERNS)

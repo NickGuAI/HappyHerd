@@ -18,7 +18,7 @@ implement or deliver it. If the task is missing, ambiguous, or one of several
 candidates, stop and ask for the owner; never choose silently. Do not create a
 sibling, replacement, follow-up, or umbrella task.
 
-Use the `ticktick` skill to read the task through its owning project. Retain the
+Use the `workspace-manage-tasks` skill to read the task through its owning project. Retain the
 complete raw task and comment response as the baseline. After a write, compare
 every unchanged user-controlled field, including project, parent,
 section/column, title, content, status, checklist, priority, dates, timezone,
@@ -35,8 +35,9 @@ treat either gate as routine approval for an effect outside its stated scope.
 
 ## Prepare from current ground truth
 
-1. Run `preflight` against each required canonical repository without changing
-   it.
+1. Establish each required canonical repository’s current state — branch,
+   upstream sync, working-tree status, and open pull requests — without
+   changing it.
 2. Resolve any open pull request already linked to the task for each
    repository. Reuse its verified remote head in an isolated worktree and
    refresh it through the repository lifecycle. Create a new topical worktree
@@ -70,8 +71,8 @@ Use the HappyHerd-owned sources routed by `.dev/AGENTS.md`:
 - Use `happyherd` only for supported terminal, session, daemon, Commander,
   automation, or diagnostic operations; it is not a source-editing workflow.
 
-Use shared skills such as `context-explore`, `app-verification`, and
-`ux-designer-review` only when their trigger is present. Delegate only bounded,
+Use shared skills such as `systemops-establish-ground-truth`,
+`engineering-verify-change`, and `marketing-review-ux` only when their trigger is present. Delegate only bounded,
 independent, file-disjoint lanes. The parent retains task ownership, integrates
 all artifacts, and makes the final decisions.
 
@@ -90,7 +91,7 @@ all artifacts, and makes the final decisions.
    subject to `docs/owned-patches.tsv`. The `.dev`-only exemption must remain
    genuinely `.dev`-only.
 
-When work is delegated, use the `ticktick` skill for one bounded dispatch and
+When work is delegated, use the `workspace-manage-tasks` skill for one bounded dispatch and
 one schema-compliant handoff receipt per delegated lane. Each receipt keeps its
 own lane, session identity, status, commit, and verification fields. Do not add
 coordination comments for a single-agent delivery. When the current instruction
