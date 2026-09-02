@@ -396,7 +396,7 @@ function PickerContent({
                         {item.label}
                     </Text>
                     {item.subtitle && (
-                        <Text style={[pickerStyles.optionText, { color: theme.colors.textSecondary, fontSize: 13 }]} numberOfLines={1}>
+                        <Text style={[pickerStyles.optionText, { color: theme.colors.textSecondary, fontSize: 16 }]} numberOfLines={1}>
                             {item.subtitle}
                         </Text>
                     )}
@@ -491,7 +491,7 @@ function ComposerSettingsContent({
                     >
                         <Ionicons name={item.icon} size={17} color={theme.colors.textSecondary} />
                         <View style={{ flex: 1, minWidth: 0 }}>
-                            <Text style={[pickerStyles.optionText, { color: theme.colors.textSecondary, fontSize: 12 }]}>
+                            <Text style={[pickerStyles.optionText, { color: theme.colors.textSecondary, fontSize: 16 }]}>
                                 {item.label}
                             </Text>
                             <Text style={[pickerStyles.optionText, { color: theme.colors.text }]} numberOfLines={1}>
@@ -600,6 +600,11 @@ function PathPickerContent({
     }, [embedded]);
 
     const matchedItemKey = React.useMemo(() => {
+        const exactMatch = items.find((item) => item.key === currentValue);
+        if (exactMatch) {
+            return exactMatch.key;
+        }
+
         const normalizedValue = normalizePathForComparison(currentValue, homeDir);
         if (!normalizedValue) {
             return null;
@@ -613,16 +618,10 @@ function PathPickerContent({
     }, [currentValue, homeDir, items]);
 
     const handleSuggestionPress = React.useCallback((item: PickerItem) => {
-        const nextValue = item.label;
-        const nextSelection = { start: nextValue.length, end: nextValue.length };
-
-        onChangeValue(nextValue);
-        setSelection(nextSelection);
-
-        setTimeout(() => {
-            inputRef.current?.focus();
-        }, 0);
-    }, [onChangeValue]);
+        onChangeValue(item.key);
+        setSelection({ start: item.key.length, end: item.key.length });
+        onDone?.();
+    }, [onChangeValue, onDone]);
 
     const isCustomPath = currentValue.trim().length > 0 && matchedItemKey === null;
     const handleSelectionChange = React.useCallback((event: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => {
@@ -734,7 +733,11 @@ function PathPickerContent({
                     return (
                         <BubblePressable
                             key={item.key}
+                            testID={`new-session-recent-path-${encodeURIComponent(item.key)}`}
                             scaleFeedback={false}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected: isSelected }}
+                            accessibilityLabel={item.key}
                             style={(p) => [
                                 pickerStyles.option,
                                 embedded && pickerStyles.embeddedOption,
@@ -2702,7 +2705,7 @@ function NewSessionScreen() {
                 />
             )}
             {voiceDictation.error && (
-                <Text style={{ color: theme.colors.status.disconnected, paddingHorizontal: 12, paddingTop: 8 }}>
+                <Text style={{ color: theme.colors.status.disconnected, fontSize: 16, paddingHorizontal: 12, paddingTop: 8 }}>
                     {voiceDictation.error}
                 </Text>
             )}
@@ -3326,7 +3329,7 @@ const styles = StyleSheet.create((theme) => ({
         paddingVertical: 4,
     },
     flashLabelText: {
-        fontSize: 12,
+        fontSize: 16,
         ...Typography.default(),
     },
     configRowPressed: {
@@ -3342,7 +3345,7 @@ const styles = StyleSheet.create((theme) => ({
     },
     configLabel: {
         minWidth: 0,
-        fontSize: Platform.select({ web: 14, default: 16 }),
+        fontSize: 16,
         color: theme.colors.text,
         ...Typography.default('semiBold'),
         ...Platform.select({ web: { userSelect: 'none' } as any, default: {} }),
@@ -3441,7 +3444,7 @@ const styles = StyleSheet.create((theme) => ({
         minWidth: 0,
         flexShrink: 1,
         color: theme.colors.button.secondary.tint,
-        fontSize: 13,
+        fontSize: 16,
         ...Typography.default('semiBold'),
     },
     composerControlActive: {
@@ -3518,13 +3521,13 @@ const styles = StyleSheet.create((theme) => ({
         borderRadius: 12,
     },
     offlineHelpTitle: {
-        fontSize: 13,
+        fontSize: 16,
         ...Typography.default('semiBold'),
         marginBottom: 4,
     },
     offlineHelpText: {
-        fontSize: 12,
-        lineHeight: 18,
+        fontSize: 16,
+        lineHeight: 20,
         ...Typography.default(),
     },
 }));
@@ -3610,7 +3613,7 @@ const pickerStyles = {
     composerPickerTitle: {
         flex: 1,
         minWidth: 0,
-        fontSize: 14,
+        fontSize: 16,
         ...Typography.default('semiBold'),
     } as const,
     title: {
@@ -3661,7 +3664,7 @@ const pickerStyles = {
     searchInput: {
         flex: 1,
         minWidth: 0,
-        fontSize: 15,
+        fontSize: 16,
         padding: 0,
         ...Typography.default(),
         ...Platform.select({ web: { outlineStyle: 'none' } as any, default: {} }),
@@ -3701,18 +3704,18 @@ const pickerStyles = {
         }),
     } as const,
     embeddedPathTextInput: {
-        fontSize: 15,
+        fontSize: 16,
         minHeight: 34,
     } as const,
     pathMetaText: {
-        fontSize: 13,
+        fontSize: 16,
         paddingHorizontal: 4,
         paddingBottom: 8,
         ...Typography.default(),
         ...Platform.select({ web: { userSelect: 'none' } as any, default: {} }),
     } as const,
     sectionLabel: {
-        fontSize: 13,
+        fontSize: 16,
         paddingHorizontal: 4,
         paddingBottom: 8,
         ...Typography.default('semiBold'),
@@ -3740,7 +3743,7 @@ const pickerStyles = {
     optionText: {
         minWidth: 0,
         flexShrink: 1,
-        fontSize: 15,
+        fontSize: 16,
         ...Typography.default(),
         ...Platform.select({ web: { userSelect: 'none' } as any, default: {} }),
     } as const,
@@ -3765,7 +3768,7 @@ const pickerStyles = {
         minWidth: 0,
     } as const,
     emptyText: {
-        fontSize: 14,
+        fontSize: 16,
         textAlign: 'center' as const,
         paddingVertical: 20,
         ...Typography.default(),

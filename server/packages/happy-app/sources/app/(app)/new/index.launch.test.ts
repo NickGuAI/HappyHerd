@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => {
         navigateToSession: vi.fn(),
         routerBack: vi.fn(),
         emptyList: [] as any[],
+        places: [] as any[],
         setFavorites: vi.fn(),
     };
 });
@@ -264,7 +265,7 @@ vi.mock('@/hooks/useVoiceInputAvailability', () => ({
     useVoiceInputAvailability: () => ({ available: false }),
 }));
 vi.mock('@/sync/agentSessionPlaces', () => ({
-    collectSessionPlaces: () => mocks.emptyList,
+    collectSessionPlaces: () => mocks.places,
     collectSessionWorkspaces: () => mocks.emptyList,
 }));
 vi.mock('@/sync/ops', () => ({
@@ -433,6 +434,19 @@ async function pressSend(renderer: ReturnType<typeof create>) {
     });
 }
 
+function flattenStyle(style: unknown): Record<string, unknown> {
+    if (Array.isArray(style)) {
+        return Object.assign({}, ...style.map(flattenStyle));
+    }
+    return style && typeof style === 'object' ? style as Record<string, unknown> : {};
+}
+
+function findPathTrigger(renderer: ReturnType<typeof create>, label: string) {
+    return renderer.root.findAllByType('BubblePressable' as any).find((candidate: any) => (
+        candidate.findAllByType('Text' as any).some((text: any) => text.props.children === label)
+    ));
+}
+
 beforeAll(async () => {
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     vi.spyOn(console, 'error').mockImplementation((message?: unknown, ...args: unknown[]) => {
@@ -459,6 +473,7 @@ afterAll(() => {
 beforeEach(() => {
     vi.clearAllMocks();
     mocks.overrides = {};
+    mocks.places = [];
     mocks.draft = createDraft();
     const machine = createRigMachine();
     mocks.renderMachines = [machine];
@@ -470,6 +485,77 @@ beforeEach(() => {
     mocks.refreshSessions.mockResolvedValue(undefined);
     mocks.sendMessage.mockResolvedValue(undefined);
     mocks.confirm.mockResolvedValue(false);
+});
+
+describe('Full New Session path selection', () => {
+    it('selects an exact recent path when display labels repeat, closes the picker, and sends that path', async () => {
+        const firstPath = '~/project';
+        const secondPath = '/Users/dev/project';
+        mocks.places = [
+            { key: firstPath, name: 'Repeated project', path: firstPath, projectId: 'project-1' },
+            { key: secondPath, name: 'Repeated project', path: secondPath, projectId: 'project-2' },
+        ];
+        mocks.draft = createDraft({ selectedPath: '/Users/dev/starting' });
+        mocks.draft.setPath = vi.fn((path: string) => {
+            mocks.draft.selectedPath = path;
+        });
+        const renderer = await renderScreen();
+
+        const initialTrigger = findPathTrigger(renderer, '~/starting');
+        expect(initialTrigger).toBeDefined();
+        await act(async () => initialTrigger!.props.onPress());
+
+        const secondRecent = renderer.root.findByProps({
+            testID: `new-session-recent-path-${encodeURIComponent(secondPath)}`,
+        });
+        expect(secondRecent.props.accessibilityState).toEqual({ selected: false });
+        await act(async () => secondRecent.props.onPress());
+
+        expect(mocks.draft.setPath).toHaveBeenLastCalledWith(secondPath);
+        expect(renderer.root.findAllByProps({
+            testID: `new-session-recent-path-${encodeURIComponent(secondPath)}`,
+        })).toHaveLength(0);
+
+        const updatedTrigger = findPathTrigger(renderer, '~/project');
+        expect(updatedTrigger).toBeDefined();
+        await act(async () => updatedTrigger!.props.onPress());
+        expect(renderer.root.findByProps({
+            testID: `new-session-recent-path-${encodeURIComponent(firstPath)}`,
+        }).props.accessibilityState).toEqual({ selected: false });
+        expect(renderer.root.findByProps({
+            testID: `new-session-recent-path-${encodeURIComponent(secondPath)}`,
+        }).props.accessibilityState).toEqual({ selected: true });
+
+        await pressSend(renderer);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            directory: secondPath,
+        }));
+        act(() => renderer.unmount());
+    });
+
+    it('keeps every rendered New Session text and text input at 16 CSS px or larger', async () => {
+        mocks.places = Array.from({ length: 5 }, (_, index) => ({
+            key: `/Users/dev/project-${index}`,
+            name: `Project ${index}`,
+            path: `/Users/dev/project-${index}`,
+            projectId: `project-${index}`,
+        }));
+        mocks.draft = createDraft({ selectedPath: '/Users/dev/starting' });
+        const renderer = await renderScreen();
+
+        const trigger = findPathTrigger(renderer, '~/starting');
+        expect(trigger).toBeDefined();
+        await act(async () => trigger!.props.onPress());
+
+        for (const text of renderer.root.findAllByType('Text' as any)) {
+            expect(flattenStyle(text.props.style).fontSize).toEqual(expect.any(Number));
+            expect(flattenStyle(text.props.style).fontSize).toBeGreaterThanOrEqual(16);
+        }
+        for (const input of renderer.root.findAllByType('TextInput' as any)) {
+            expect(flattenStyle(input.props.style).fontSize).toBeGreaterThanOrEqual(16);
+        }
+        act(() => renderer.unmount());
+    });
 });
 
 describe('Full New Session provider launch', () => {
