@@ -181,4 +181,24 @@ assert.equal(canonicalCommitIdentityText({
   commit: 'd6c14a9abf9bafb531f1b3a5212007a360bdd664',
 }), null);
 
+const normalizedSkillIdentity = {
+  ...hostedSquashIdentity,
+  commit: '119420c5425a62f37a0aae138f04078830611dfa',
+  authorName: 'OpenAI Codex',
+  authorEmail: ['assistant', '@', 'pioneering', 'minds', '.ai'].join(''),
+  committerName: 'OpenAI Codex',
+  committerEmail: ['assistant', '@', 'pioneering', 'minds', '.ai'].join(''),
+  rawCommit: 'tree abc\nparent def\n',
+  subject: 'docs: add mobile UX regression guardrails',
+  message: 'docs: add mobile UX regression guardrails\n',
+};
+assert.deepEqual(inspect(
+  'metadata.txt',
+  canonicalCommitIdentityText(normalizedSkillIdentity),
+), []);
+assert.equal(canonicalCommitIdentityText({
+  ...normalizedSkillIdentity,
+  commit: '119420c5425a62f37a0aae138f04078830611dfb',
+}), null);
+
 process.stdout.write('public-boundary self-test: ok\n');

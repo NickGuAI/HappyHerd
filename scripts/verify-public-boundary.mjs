@@ -32,12 +32,14 @@ const maxTextBytes = 2 * 1024 * 1024;
 const canonicalMaintainerName = 'HappyHerd Maintainers';
 const canonicalMaintainerEmail = 'maintainers@happyherd.example';
 const githubCommitterEmail = ['noreply', '@', 'github.com'].join('');
-// This immutable commit is already on protected main. Its author is canonical,
-// but the hosting client recorded a personal committer before the identity gate
-// ran. Pinning the exact object ID repairs future verification without accepting
-// any other non-canonical metadata.
+// These immutable commits are already on protected main. Pinning their exact
+// object IDs repairs future verification without accepting any other
+// non-canonical metadata. The first has a canonical author but a legacy hosted
+// committer; the second is a .dev-only skill commit that bypassed the ordinary
+// identity workflow before the next product change exercised this verifier.
 const normalizedHistoricalCommitIds = new Set([
   'd6c14a9abf9bafb531f1b3a5212007a360bdd665',
+  '119420c5425a62f37a0aae138f04078830611dfa',
 ]);
 
 const secretPatterns = [
