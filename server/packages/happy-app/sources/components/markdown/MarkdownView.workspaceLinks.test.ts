@@ -215,6 +215,33 @@ describe('MarkdownView workspace-link opt-in', () => {
         act(() => renderer.unmount());
     });
 
+    it('preserves native option text containing CommonMark destination and label delimiters', () => {
+        const optionTitles = [
+            'Keep Speaker 2 (recommended))',
+            'Keep Speaker 2 trailing \\',
+            String.raw`Keep \[Speaker 2\]`,
+        ];
+        const onOptionPress = vi.fn();
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(React.createElement(MarkdownView, {
+                markdown: [
+                    '<options>',
+                    ...optionTitles.map((title) => `<option>${title}</option>`),
+                    '</options>',
+                ].join('\n'),
+                onOptionPress,
+            }));
+        });
+
+        const chips = renderer.root.findAllByType('button' as any);
+        expect(chips).toHaveLength(optionTitles.length);
+        expect(chips.map((chip: any) => chip.findByType('span').children.join(''))).toEqual(optionTitles);
+        act(() => chips.forEach((chip: any) => chip.props.onPress()));
+        expect(onOptionPress.mock.calls.map(([option]) => option.title)).toEqual(optionTitles);
+        act(() => renderer.unmount());
+    });
+
     it('keeps inline and block math visible on native', () => {
         renderToStaticMarkup(React.createElement(MarkdownView, {
             markdown: 'Inline $x + y$.\n\n$$\nz = 3\n$$',

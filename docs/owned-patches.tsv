@@ -234,3 +234,4 @@ WEB_STARTUP_LATENCY	accepted	fix(web): restore startup and compress initial asse
 FILE_VIEWER_CONVERGENCE	accepted	fix(files): make source lines directly commentable	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 MARKDOWN_PRESENTATION	accepted	fix(markdown): restore suggestion chips and dark theme	server/packages/happy-app/sources/components/markdown/MarkdownView.browser.test.ts
 MARKDOWN_REVIEW_DELIVERY	accepted	docs(app): record restored Markdown review UX	server/packages/happy-app/CHANGELOG.md
+MARKDOWN_PRESENTATION	accepted	fix(markdown): preserve literal suggestion text	server/packages/happy-app/sources/components/markdown/MarkdownView.browser.test.ts

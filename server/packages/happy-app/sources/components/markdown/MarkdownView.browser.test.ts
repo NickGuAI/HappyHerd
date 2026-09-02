@@ -140,6 +140,13 @@ describe('MarkdownView browser theme and option parity', () => {
         await expect(options.locator('li').count()).resolves.toBe(0);
         await expect(root.locator('ul').count()).resolves.toBe(1);
         await expect(root.locator('li').count()).resolves.toBe(2);
+        await expect(chips.allTextContents()).resolves.toEqual([
+            '把 Speaker 2 改成 Maria',
+            '保持 Speaker 2 不变，同时保留当前转录中的全部说话人标记以及这一条足够长、会在窄屏和宽屏容器中按可用宽度自然换行的建议文字',
+            'Keep Speaker 2 (recommended))',
+            'Keep Speaker 2 trailing \\',
+            String.raw`Keep \[Speaker 2\]`,
+        ]);
 
         const chipLayout = await chips.first().evaluate((element) => {
             const chip = getComputedStyle(element);

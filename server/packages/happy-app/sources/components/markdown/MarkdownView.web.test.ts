@@ -107,6 +107,33 @@ describe('MarkdownView web parity', () => {
         act(() => renderer.unmount());
     });
 
+    it('preserves option text containing CommonMark destination and label delimiters', () => {
+        const optionTitles = [
+            'Keep Speaker 2 (recommended))',
+            'Keep Speaker 2 trailing \\',
+            String.raw`Keep \[Speaker 2\]`,
+        ];
+        const onOptionPress = vi.fn();
+        let renderer: any;
+        act(() => {
+            renderer = create(React.createElement(MarkdownView, {
+                markdown: [
+                    '<options>',
+                    ...optionTitles.map((title) => `<option>${title}</option>`),
+                    '</options>',
+                ].join('\n'),
+                onOptionPress,
+            }));
+        });
+
+        const chips = renderer.root.findByProps({ className: 'hh-markdown-options' })
+            .findAllByProps({ className: 'hh-markdown-option' });
+        expect(chips.map((chip: any) => chip.children.join(''))).toEqual(optionTitles);
+        act(() => chips.forEach((chip: any) => chip.props.onClick()));
+        expect(onOptionPress.mock.calls.map(([option]) => option.title)).toEqual(optionTitles);
+        act(() => renderer.unmount());
+    });
+
     it('opens an HTTP image at full size and exposes failure with retry', () => {
         let renderer: any;
         act(() => { renderer = create(React.createElement(MarkdownView, { markdown: '![diagram](https://example.com/diagram.png)' })); });

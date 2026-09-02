@@ -6,6 +6,11 @@ import { MarkdownView } from '../MarkdownView.web';
 
 const FIRST_OPTION = '把 Speaker 2 改成 Maria';
 const SECOND_OPTION = '保持 Speaker 2 不变，同时保留当前转录中的全部说话人标记以及这一条足够长、会在窄屏和宽屏容器中按可用宽度自然换行的建议文字';
+const COMMONMARK_SENSITIVE_OPTIONS = [
+    'Keep Speaker 2 (recommended))',
+    'Keep Speaker 2 trailing \\',
+    String.raw`Keep \[Speaker 2\]`,
+];
 
 const markdown = [
     'Body copy with an [ordinary link](https://example.com/docs) and `inline code`.',
@@ -28,6 +33,7 @@ const markdown = [
     '<options>',
     `<option>${FIRST_OPTION}</option>`,
     `<option>${SECOND_OPTION}</option>`,
+    ...COMMONMARK_SENSITIVE_OPTIONS.map((option) => `<option>${option}</option>`),
     '</options>',
 ].join('\n');
 
