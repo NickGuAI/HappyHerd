@@ -356,7 +356,7 @@ function FileReviewWorkspaceDemo({
 }: {
     compact: boolean;
     testId: string;
-    initialSurface?: 'markdown' | 'canvas' | 'source';
+    initialSurface?: 'markdown' | 'markdown-source' | 'canvas' | 'source';
 }) {
     const reference = { machineId: 'machine-1', source: 'session' as const };
     const machineReference = { machineId: 'machine-2', source: 'machine' as const };
@@ -365,11 +365,14 @@ function FileReviewWorkspaceDemo({
         const canvas = openDesktopFile(markdown, '/workspace/review.canvas', reference);
         const source = openDesktopFile(canvas, '/workspace/review.ts', reference);
         const machineMarkdown = openDesktopFile(source, '/machine-root/machine.md', machineReference);
+        const markdownSource = openDesktopFile(machineMarkdown, '/workspace/source.md', { ...reference, line: 1 });
         return {
-            ...machineMarkdown,
+            ...markdownSource,
             activePath: initialSurface === 'canvas'
                 ? canvas.activePath
-                : initialSurface === 'source' ? source.activePath : markdown.activePath,
+                : initialSurface === 'source'
+                    ? source.activePath
+                    : initialSurface === 'markdown-source' ? markdownSource.activePath : markdown.activePath,
         };
     });
 
@@ -413,6 +416,7 @@ declare global {
             text: string;
             options: { displayText: string };
         }>;
+        __SESSION_WRITE_CALLS__?: Array<{ path: string; content: string }>;
         __SESSION_TITLE_PRESS_COUNT__?: number;
     }
 }
@@ -425,7 +429,9 @@ createRoot(document.getElementById('root')!).render(fileReviewSurface ? (
         compact={fileReviewSurface.startsWith('mobile')}
         initialSurface={fileReviewSurface === 'mobile-canvas'
             ? 'canvas'
-            : fileReviewSurface === 'mobile-source' ? 'source' : 'markdown'}
+            : fileReviewSurface === 'mobile-source'
+                ? 'source'
+                : fileReviewSurface === 'mobile-markdown-source' ? 'markdown-source' : 'markdown'}
         testId={fileReviewSurface.startsWith('mobile') ? 'file-review-mobile' : 'file-review-desktop'}
     />
 ) : interactiveHtmlSurface ? (

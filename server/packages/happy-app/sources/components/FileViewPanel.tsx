@@ -755,8 +755,9 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                         overflow="scroll"
                         disableFileHeader
                         onGutterUtilityClick={(line) => setReviewAnchor({ line })}
+                        onLineClick={(line) => setReviewAnchor({ line })}
                         annotatedLines={reviewComments.flatMap((comment) => comment.line === undefined ? [] : [comment.line])}
-                        selectedLine={requestedLine}
+                        selectedLine={reviewAnchor?.line ?? requestedLine}
                     />
                 </ScrollView>
             ) : (

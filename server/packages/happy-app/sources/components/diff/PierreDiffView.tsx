@@ -25,6 +25,8 @@ export interface PierreDiffViewProps {
     expandUnchanged?: boolean;
     /** Web-only gutter review affordance. */
     onGutterUtilityClick?: (line: number) => void;
+    /** Web-only whole-line review gesture. */
+    onLineClick?: (line: number) => void;
     /** Web-only source lines that already have pinned comments. */
     annotatedLines?: readonly number[];
     /** Highlight an explicitly linked source line. */
@@ -122,6 +124,9 @@ const PierreDiffViewWeb = React.memo(function PierreDiffViewWeb(props: PierreDif
         lineHoverHighlight: props.onGutterUtilityClick ? 'line' : 'disabled',
         onGutterUtilityClick: props.onGutterUtilityClick
             ? (range: { start: number }) => props.onGutterUtilityClick?.(range.start)
+            : undefined,
+        onLineClick: props.onLineClick
+            ? ({ lineNumber }: { lineNumber: number }) => props.onLineClick?.(lineNumber)
             : undefined,
         onPostRender: props.onGutterUtilityClick
             ? (node: HTMLElement, _instance: unknown, phase: string) => labelPierreGutterUtility(node, phase)
