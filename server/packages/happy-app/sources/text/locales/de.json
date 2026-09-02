@@ -902,7 +902,19 @@
     "fileConflict": "Dateikonflikt",
     "fileConflictDescription": "Diese Datei wurde während der Bearbeitung auf dem Gerät geändert. Laden Sie es erneut, um die neueste Version anzuzeigen.",
     "reload": "Neu laden",
-    "overwrite": "Überschreiben"
+    "overwrite": "Überschreiben",
+    "commentOnNode": "Kommentar zu {node}",
+    "pinnedComment": "Angepinnter Kommentar",
+    "invalidCanvas": "Ungültige Canvas-Datei",
+    "commentOnLine": "Kommentar zu Zeile {line}",
+    "inlineComments": "Inline-Kommentare",
+    "canvasNode": "Canvas-Knoten: {node}",
+    "lineNumber": "Zeile {line}",
+    "removeComment": "Kommentar entfernen",
+    "commentPlaceholder": "Kommentar schreiben…",
+    "pinComment": "Kommentar anpinnen",
+    "sendComments": "{count} Kommentare senden",
+    "commentOnHoveredLine": "Zeile kommentieren"
   },
   "sideChat": {
     "panelTitle": "Side-Chats",

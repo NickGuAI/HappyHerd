@@ -218,10 +218,15 @@ export type TranslationKey =
     | "files.addPanel"
     | "files.binaryFile"
     | "files.cannotDisplayBinary"
+    | "files.canvasNode"
     | "files.changedFiles"
     | "files.changes"
     | "files.closeFileTab"
     | "files.closePanel"
+    | "files.commentOnHoveredLine"
+    | "files.commentOnLine"
+    | "files.commentOnNode"
+    | "files.commentPlaceholder"
     | "files.deleteFile"
     | "files.deleteFileDescription"
     | "files.deleteFileTitle"
@@ -236,7 +241,10 @@ export type TranslationKey =
     | "files.fileConflict"
     | "files.fileConflictDescription"
     | "files.fileEmpty"
+    | "files.inlineComments"
     | "files.interactivePreview"
+    | "files.invalidCanvas"
+    | "files.lineNumber"
     | "files.loadingFile"
     | "files.noChanges"
     | "files.noChangesSubtitle"
@@ -248,13 +256,17 @@ export type TranslationKey =
     | "files.openExistingFile"
     | "files.openFileTab"
     | "files.overwrite"
+    | "files.pinComment"
+    | "files.pinnedComment"
     | "files.projectRoot"
     | "files.reload"
+    | "files.removeComment"
     | "files.resizeWorkspace"
     | "files.saveFile"
     | "files.searchPlaceholder"
     | "files.searchResults"
     | "files.searching"
+    | "files.sendComments"
     | "files.stagedChanges"
     | "files.summary"
     | "files.tryDifferentTerm"
@@ -1402,11 +1414,16 @@ export interface TranslationParamsByKey {
     "errors.voiceHardLimitReached": { hours: number };
     "feed.friendAccepted": { name: string };
     "feed.friendRequestFrom": { name: string };
+    "files.canvasNode": { node: string };
     "files.changedFiles": { count: number };
     "files.closeFileTab": { name: string };
+    "files.commentOnLine": { line: string };
+    "files.commentOnNode": { node: string };
+    "files.lineNumber": { line: string };
     "files.loadingFile": { fileName: string };
     "files.openFileTab": { name: string };
     "files.searchResults": { count: number };
+    "files.sendComments": { count: number };
     "files.stagedChanges": { count: number };
     "files.summary": { staged: number; unstaged: number };
     "files.unstagedChanges": { count: number };

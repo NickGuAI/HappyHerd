@@ -66,6 +66,12 @@ a visible, clickable Human entry.
 
 ## Owners and reuse rules
 
+The chat file-surface instructions are part of this contract. Keep the live
+`~/.happyherd/AGENTS.md` pointer and learning file byte-aligned with the
+baked-in `deploy/happyherd-agent-runtime/happy-home/` copies. A change to
+accepted or rejected Markdown forms updates both instruction surfaces in the
+same delivery.
+
 | Responsibility | Owner | Rule |
 |---|---|---|
 | Session targeting and tab admission | `sources/-session/SessionView.tsx`, `components/desktopFileWorkspaceModel.ts` | Route every current-session entry into one state keyed by machine and path, targeting the selected Main Agent or Side chat. |

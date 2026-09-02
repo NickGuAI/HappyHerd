@@ -313,12 +313,15 @@ const MountedFilePanel = React.memo(function MountedFilePanel({
             {reference?.source === 'machine' ? (
                 <MachineFileViewPanel
                     machineId={reference.machineId}
+                    originSessionId={sessionId}
                     filePath={desktopFilePath(path)}
                     active={active}
                     headerVariant={headerVariant}
                     onHeaderRightSlotChange={publishHeaderSlot}
                     onDirtyChange={publishDirty}
                     onDeleted={() => onDeleted(path)}
+                    requestedLine={reference.line}
+                    requestedColumn={reference.column}
                 />
             ) : (
                 <FileViewPanel
@@ -329,6 +332,8 @@ const MountedFilePanel = React.memo(function MountedFilePanel({
                     onHeaderRightSlotChange={publishHeaderSlot}
                     onDirtyChange={publishDirty}
                     onDeleted={() => onDeleted(path)}
+                    requestedLine={reference?.line}
+                    requestedColumn={reference?.column}
                 />
             )}
         </View>

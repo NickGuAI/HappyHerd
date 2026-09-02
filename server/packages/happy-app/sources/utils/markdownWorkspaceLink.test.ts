@@ -71,6 +71,24 @@ describe('markdownWorkspaceLink', () => {
         });
     });
 
+    it('resolves a sibling link from the viewed file directory without changing session provenance', () => {
+        expect(resolveMarkdownWorkspaceLinkRoute({
+            url: 'john-mccarthy.md:12',
+            originSessionId: 'session-origin',
+            metadata,
+            relativeTo: '/srv/projects/happy/myboken/4. Daily/2026/09-01',
+        })).toEqual({
+            pathname: '/workspace',
+            params: {
+                mode: 'link',
+                originSessionId: 'session-origin',
+                machineId: 'machine-origin',
+                absolutePath: '/srv/projects/happy/myboken/4. Daily/2026/09-01/john-mccarthy.md',
+                line: '12',
+            },
+        });
+    });
+
     it('routes percent-encoded filename colons on the originating machine', () => {
         expect(resolveMarkdownWorkspaceLinkRoute({
             url: 'notes%3Afinal.md:17:2',
@@ -169,6 +187,26 @@ describe('markdownWorkspaceLink', () => {
                     originSessionId: 'session-origin',
                     machineId: 'machine-origin',
                     absolutePath: '/srv/projects/happy/screenshots/result.png',
+                },
+            },
+        });
+    });
+
+    it('resolves a sibling image from the viewed file directory but retains the session-root read boundary', () => {
+        expect(resolveMarkdownWorkspaceImageReference({
+            url: 'images/chart.png',
+            originSessionId: 'session-origin',
+            metadata,
+            relativeTo: '/srv/projects/happy/docs',
+        })).toEqual({
+            rootPath: '/srv/projects/happy',
+            workspaceRoute: {
+                pathname: '/workspace',
+                params: {
+                    mode: 'link',
+                    originSessionId: 'session-origin',
+                    machineId: 'machine-origin',
+                    absolutePath: '/srv/projects/happy/docs/images/chart.png',
                 },
             },
         });

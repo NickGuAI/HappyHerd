@@ -349,6 +349,59 @@ function InteractiveHtmlWorkspaceDemo({ compact, testId }: { compact: boolean; t
     );
 }
 
+function FileReviewWorkspaceDemo({
+    compact,
+    testId,
+    initialSurface = 'markdown',
+}: {
+    compact: boolean;
+    testId: string;
+    initialSurface?: 'markdown' | 'canvas' | 'source';
+}) {
+    const reference = { machineId: 'machine-1', source: 'session' as const };
+    const machineReference = { machineId: 'machine-2', source: 'machine' as const };
+    const [workspace, setWorkspace] = React.useState(() => {
+        const markdown = openDesktopFile(EMPTY_DESKTOP_FILE_WORKSPACE, '/workspace/demo.md', reference);
+        const canvas = openDesktopFile(markdown, '/workspace/review.canvas', reference);
+        const source = openDesktopFile(canvas, '/workspace/review.ts', reference);
+        const machineMarkdown = openDesktopFile(source, '/machine-root/machine.md', machineReference);
+        return {
+            ...machineMarkdown,
+            activePath: initialSurface === 'canvas'
+                ? canvas.activePath
+                : initialSurface === 'source' ? source.activePath : markdown.activePath,
+        };
+    });
+
+    return (
+        <div
+            data-testid={testId}
+            style={{
+                position: 'relative',
+                display: 'flex',
+                flexDirection: 'column',
+                width: compact ? 390 : 900,
+                height: compact ? 844 : 640,
+                overflow: 'hidden',
+            }}
+        >
+            <DesktopFileWorkspace
+                sessionId="ordinary-session"
+                paths={workspace.paths}
+                activePath={workspace.activePath}
+                references={workspace.references}
+                dirtyPaths={new Set()}
+                compact={compact}
+                onSelect={(path) => setWorkspace((current) => selectDesktopFile(current, path))}
+                onRequestClose={(path) => setWorkspace((current) => closeDesktopFile(current, path))}
+                onFileDeleted={() => undefined}
+                onClosePicker={() => undefined}
+                onDirtyChange={() => undefined}
+            />
+        </div>
+    );
+}
+
 declare global {
     interface Window {
         __DELETE_RPC_COUNT__?: number;
@@ -365,8 +418,17 @@ declare global {
 }
 
 const interactiveHtmlSurface = new URLSearchParams(window.location.search).get('interactive-html');
+const fileReviewSurface = new URLSearchParams(window.location.search).get('file-review');
 
-createRoot(document.getElementById('root')!).render(interactiveHtmlSurface ? (
+createRoot(document.getElementById('root')!).render(fileReviewSurface ? (
+    <FileReviewWorkspaceDemo
+        compact={fileReviewSurface.startsWith('mobile')}
+        initialSurface={fileReviewSurface === 'mobile-canvas'
+            ? 'canvas'
+            : fileReviewSurface === 'mobile-source' ? 'source' : 'markdown'}
+        testId={fileReviewSurface.startsWith('mobile') ? 'file-review-mobile' : 'file-review-desktop'}
+    />
+) : interactiveHtmlSurface ? (
     <InteractiveHtmlWorkspaceDemo
         compact={interactiveHtmlSurface === 'mobile'}
         testId={interactiveHtmlSurface === 'mobile'

@@ -3,10 +3,13 @@ import { Platform, Text, View } from 'react-native';
 import { useUnistyles } from 'react-native-unistyles';
 import { DiffView } from '@/components/diff/DiffView';
 import { Typography } from '@/constants/Typography';
+import { t } from '@/text';
 
 export interface PierreDiffViewProps {
     oldFile?: { name: string; contents: string };
     newFile?: { name: string; contents: string };
+    /** Render one complete source file through Pierre's syntax-aware file view. */
+    file?: { name: string; contents: string };
     /** Unified diff string — alternative to oldFile/newFile. */
     patch?: string;
     diffStyle?: 'unified' | 'split';
@@ -20,6 +23,12 @@ export interface PierreDiffViewProps {
     renderCustomHeader?: (fileDiff: any) => React.ReactNode;
     /** Allow expanding collapsed unchanged lines. Web-only (Pierre feature). */
     expandUnchanged?: boolean;
+    /** Web-only gutter review affordance. */
+    onGutterUtilityClick?: (line: number) => void;
+    /** Web-only source lines that already have pinned comments. */
+    annotatedLines?: readonly number[];
+    /** Highlight an explicitly linked source line. */
+    selectedLine?: number | null;
 }
 
 export const PierreDiffView = React.memo(function PierreDiffView(props: PierreDiffViewProps) {
@@ -40,6 +49,24 @@ type PierreReact = typeof import('@pierre/diffs/react');
 type PierreBundle = { main: PierreMain; react: PierreReact };
 
 let pierreBundlePromise: Promise<PierreBundle> | null = null;
+const pierreGutterObservers = new WeakMap<HTMLElement, MutationObserver>();
+
+function labelPierreGutterUtility(node: HTMLElement, phase: string): void {
+    pierreGutterObservers.get(node)?.disconnect();
+    pierreGutterObservers.delete(node);
+    if (phase === 'unmount') return;
+    const root = node.shadowRoot ?? node;
+    const label = () => {
+        const button = root.querySelector<HTMLElement>('[data-utility-button]');
+        button?.setAttribute('aria-label', t('files.commentOnHoveredLine'));
+        button?.setAttribute('title', t('files.commentOnHoveredLine'));
+    };
+    label();
+    if (typeof MutationObserver === 'undefined') return;
+    const observer = new MutationObserver(label);
+    observer.observe(root, { childList: true, subtree: true });
+    pierreGutterObservers.set(node, observer);
+}
 
 function loadPierre(): Promise<PierreBundle> {
     if (!pierreBundlePromise) {
@@ -91,7 +118,27 @@ const PierreDiffViewWeb = React.memo(function PierreDiffViewWeb(props: PierreDif
         disableLineNumbers: props.disableLineNumbers,
         disableFileHeader: props.disableFileHeader,
         expandUnchanged: props.expandUnchanged,
+        enableGutterUtility: Boolean(props.onGutterUtilityClick),
+        lineHoverHighlight: props.onGutterUtilityClick ? 'line' : 'disabled',
+        onGutterUtilityClick: props.onGutterUtilityClick
+            ? (range: { start: number }) => props.onGutterUtilityClick?.(range.start)
+            : undefined,
+        onPostRender: props.onGutterUtilityClick
+            ? (node: HTMLElement, _instance: unknown, phase: string) => labelPierreGutterUtility(node, phase)
+            : undefined,
     };
+
+    if (props.file) {
+        return (
+            <FileViewFromFile
+                bundle={bundle}
+                file={props.file}
+                options={options}
+                annotatedLines={props.annotatedLines}
+                selectedLine={props.selectedLine}
+            />
+        );
+    }
 
     if (props.patch) {
         return <PatchFilesWeb bundle={bundle} patch={props.patch} options={options} renderCustomHeader={props.renderCustomHeader} />;
@@ -103,6 +150,37 @@ const PierreDiffViewWeb = React.memo(function PierreDiffViewWeb(props: PierreDif
 
     return <View />;
 });
+
+function FileViewFromFile({
+    bundle,
+    file,
+    options,
+    annotatedLines,
+    selectedLine,
+}: {
+    bundle: PierreBundle;
+    file: { name: string; contents: string };
+    options: any;
+    annotatedLines?: readonly number[];
+    selectedLine?: number | null;
+}) {
+    const { File } = bundle.react;
+    const annotations = React.useMemo(
+        () => Array.from(new Set(annotatedLines ?? [])).map((lineNumber) => ({ lineNumber, metadata: { lineNumber } })),
+        [annotatedLines],
+    );
+    return (
+        <File
+            file={file}
+            options={options}
+            lineAnnotations={annotations}
+            selectedLines={selectedLine && selectedLine > 0 ? { start: selectedLine, end: selectedLine } : null}
+            renderAnnotation={(annotation: any) => (
+                <span aria-label={t('files.pinnedComment')} style={{ display: 'inline-block', padding: '2px 8px', opacity: 0.75 }}>●</span>
+            )}
+        />
+    );
+}
 
 function PatchFilesWeb({
     bundle,
@@ -176,6 +254,9 @@ function DiffSkeleton() {
 // ────────────────────────────────────────────────────────────────────────────
 
 const PierreDiffViewNative = React.memo(function PierreDiffViewNative(props: PierreDiffViewProps) {
+    if (props.file) {
+        return <PlainPatchView patch={props.file.contents} wrapLines={props.overflow === 'wrap'} />;
+    }
     if (props.patch) {
         return <PlainPatchView patch={props.patch} wrapLines={props.overflow === 'wrap'} />;
     }

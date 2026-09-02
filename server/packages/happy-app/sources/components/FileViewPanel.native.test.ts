@@ -268,7 +268,11 @@ describe('FileContentPanel native editing', () => {
             writeFile,
         });
 
-        expect(panel.renderer.root.findByType('MarkdownView' as any).props.markdown).toBe('# Before\n');
+        expect(panel.renderer.root.findByType('MarkdownView' as any).props).toMatchObject({
+            markdown: '# Before\n',
+            enableWorkspaceLinks: true,
+            relativeTo: '/workspace',
+        });
         let header = renderHeader(panel);
         expect(renderedText(header)).toEqual(expect.arrayContaining([
             'uiCopy.preview',

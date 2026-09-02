@@ -36,6 +36,8 @@ const mocks = vi.hoisted(() => ({
     })),
     machineReadFileWithinRoot: vi.fn(),
     modalShow: vi.fn(),
+    modalAlert: vi.fn(),
+    clipboard: vi.fn(),
     openExternalUrl: vi.fn(),
 }));
 
@@ -110,7 +112,7 @@ vi.mock('../SimpleSyntaxHighlighter', async () => {
     const ReactModule = await import('react');
     return { SimpleSyntaxHighlighter: (props: any) => ReactModule.createElement('SimpleSyntaxHighlighter', props) };
 });
-vi.mock('@/modal', () => ({ Modal: { alert: vi.fn(), show: mocks.modalShow } }));
+vi.mock('@/modal', () => ({ Modal: { alert: mocks.modalAlert, show: mocks.modalShow } }));
 vi.mock('@/sync/storage', () => ({
     useLocalSetting: () => false,
     useSession: () => ({ metadata: { machineId: 'machine-one', path: '/workspace' } }),
@@ -118,7 +120,7 @@ vi.mock('@/sync/storage', () => ({
 vi.mock('@/sync/ops', () => ({ machineReadFileWithinRoot: mocks.machineReadFileWithinRoot }));
 vi.mock('@/sync/persistence', () => ({ storeTempText: vi.fn() }));
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }));
-vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn() }));
+vi.mock('expo-clipboard', () => ({ setStringAsync: mocks.clipboard }));
 vi.mock('./MermaidRenderer', async () => {
     const ReactModule = await import('react');
     return { MermaidRenderer: (props: any) => ReactModule.createElement('MermaidRenderer', props) };
@@ -143,10 +145,50 @@ beforeEach(() => {
     mocks.resolveWorkspaceLink.mockClear();
     mocks.machineReadFileWithinRoot.mockReset();
     mocks.modalShow.mockClear();
+    mocks.modalAlert.mockClear();
+    mocks.clipboard.mockReset().mockResolvedValue(undefined);
     mocks.openExternalUrl.mockClear();
 });
 
 describe('MarkdownView workspace-link opt-in', () => {
+    it('keeps inline and block math visible on native', () => {
+        renderToStaticMarkup(React.createElement(MarkdownView, {
+            markdown: 'Inline $x + y$.\n\n$$\nz = 3\n$$',
+        }));
+
+        expect(findText('x + y')).toBeDefined();
+        expect(findText('z = 3')).toBeDefined();
+    });
+
+    it('preserves ordered-list starts and nested list markers on native', () => {
+        const html = renderToStaticMarkup(React.createElement(MarkdownView, {
+            markdown: '5. Parent\n   - Child\n6. Next',
+        }));
+
+        expect(findText('5.')).toBeDefined();
+        expect(findText('6.')).toBeDefined();
+        expect(findText('•')).toBeDefined();
+        expect(html).toContain('Child');
+    });
+
+    it('copies fenced code through the existing native action', async () => {
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(React.createElement(MarkdownView, {
+                markdown: '```ts\nconst answer = 42;\n```',
+            }));
+        });
+        const copy = renderer.root.find((node: any) => node.props.accessibilityLabel === 'common.copy');
+        await act(async () => {
+            copy.props.onPress();
+            await Promise.resolve();
+        });
+
+        expect(mocks.clipboard).toHaveBeenCalledWith('const answer = 42;');
+        expect(mocks.modalAlert).toHaveBeenCalledWith('common.success', 'markdown.codeCopied', expect.any(Array));
+        act(() => renderer.unmount());
+    });
+
     it('keeps local links inert by default while preserving external links', () => {
         renderToStaticMarkup(React.createElement(MarkdownView, {
             markdown: '[local](README.md) [web](https://example.com)',

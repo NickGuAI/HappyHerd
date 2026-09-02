@@ -212,6 +212,8 @@ describe('DesktopFileWorkspace', () => {
         });
 
         expect(renderer.root.findByType('MachineFileViewPanel' as any).props.machineId).toBe('machine-2');
+        expect(renderer.root.findByType('MachineFileViewPanel' as any).props.originSessionId).toBe('session-one');
+        expect(renderer.root.findByType('MachineFileViewPanel' as any).props).toMatchObject({ requestedLine: 12, requestedColumn: 4 });
         const feedback = renderer.root.findByType('WorkspaceFeedbackComposer' as any);
         expect(feedback.props).toMatchObject({ machineId: 'machine-2', absolutePath: '/work/a.ts', line: 12, column: 4 });
     });

@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "47420d405897d8dec5df83dbb1cd1a7c227344c83926e427d3ad140fa2b183c0",
+  "sourceFingerprint": "f4e59f2287b4701fd07b080003413708de988f4d8cb892c362a49f61e9c938de",
   "routeCount": 36,
-  "surfaceCount": 251,
+  "surfaceCount": 253,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -411,35 +411,11 @@
       "path": "/session/[id]/file",
       "owner": "sources/app/(app)/session/[id]/file.tsx",
       "translationKeys": [
-        "agentQuestion.dismiss",
-        "common.error",
-        "files.binaryFile",
-        "files.cannotDisplayBinary",
-        "files.diff",
-        "files.editFile",
-        "files.failedToRead",
-        "files.failedToSave",
-        "files.file",
-        "files.fileConflict",
-        "files.fileConflictDescription",
-        "files.fileEmpty",
-        "files.loadingFile",
-        "files.reload",
-        "files.saveFile",
+        "common.discard",
         "uiCopy.discardUnsavedChanges",
-        "uiCopy.done",
-        "uiCopy.editValue",
-        "uiCopy.preview",
-        "uiCopy.previewOfValue",
-        "uiCopy.saving",
-        "uiCopy.source",
-        "uiCopy.thisFileChangedOnTheHost",
-        "uiCopy.unsaved",
         "uiCopy.yourEditsToValueHaveNotBeenSaved"
       ],
-      "states": [
-        "error"
-      ]
+      "states": []
     },
     {
       "path": "/session/[id]/files",
@@ -1600,35 +1576,11 @@
       "route": "/session/[id]/file",
       "exports": [],
       "translationKeys": [
-        "agentQuestion.dismiss",
-        "common.error",
-        "files.binaryFile",
-        "files.cannotDisplayBinary",
-        "files.diff",
-        "files.editFile",
-        "files.failedToRead",
-        "files.failedToSave",
-        "files.file",
-        "files.fileConflict",
-        "files.fileConflictDescription",
-        "files.fileEmpty",
-        "files.loadingFile",
-        "files.reload",
-        "files.saveFile",
+        "common.discard",
         "uiCopy.discardUnsavedChanges",
-        "uiCopy.done",
-        "uiCopy.editValue",
-        "uiCopy.preview",
-        "uiCopy.previewOfValue",
-        "uiCopy.saving",
-        "uiCopy.source",
-        "uiCopy.thisFileChangedOnTheHost",
-        "uiCopy.unsaved",
         "uiCopy.yourEditsToValueHaveNotBeenSaved"
       ],
-      "states": [
-        "error"
-      ],
+      "states": [],
       "hardcodedCopy": []
     },
     {
@@ -2647,6 +2599,21 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/CanvasFileViewer.web.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "CanvasFileViewer"
+      ],
+      "translationKeys": [
+        "files.commentOnNode",
+        "files.invalidCanvas",
+        "files.pinnedComment"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/ChatFooter.tsx",
       "kind": "component",
       "route": null,
@@ -2956,7 +2923,10 @@
         "PierreDiffView",
         "prefetchPierreDiff"
       ],
-      "translationKeys": [],
+      "translationKeys": [
+        "files.commentOnHoveredLine",
+        "files.pinnedComment"
+      ],
       "states": [],
       "hardcodedCopy": []
     },
@@ -3464,6 +3434,33 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/InlineCommentReview.web.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "InlineCommentReview"
+      ],
+      "translationKeys": [
+        "common.cancel",
+        "common.delete",
+        "common.loading",
+        "files.canvasNode",
+        "files.commentOnLine",
+        "files.commentOnNode",
+        "files.commentPlaceholder",
+        "files.inlineComments",
+        "files.lineNumber",
+        "files.pinComment",
+        "files.removeComment",
+        "files.sendComments",
+        "happyHerd.composer.sendFailedBody"
+      ],
+      "states": [
+        "loading"
+      ],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/InlineFileDiff.tsx",
       "kind": "component",
       "route": null,
@@ -3645,16 +3642,42 @@
         "common.success",
         "markdown.closeImagePreview",
         "markdown.codeCopied",
-        "markdown.completedTask",
         "markdown.copyFailed",
         "markdown.imageLoadFailed",
-        "markdown.incompleteTask",
         "markdown.openImageFullSize",
         "uiCopy.failedToOpenTextSelectionPleaseTryAgain",
         "uiCopy.markdownImage"
       ],
       "states": [
         "error"
+      ],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/markdown/MarkdownView.web.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "MarkdownView"
+      ],
+      "translationKeys": [
+        "common.copy",
+        "common.error",
+        "common.loading",
+        "common.ok",
+        "common.retry",
+        "common.success",
+        "files.commentOnLine",
+        "markdown.closeImagePreview",
+        "markdown.codeCopied",
+        "markdown.copyFailed",
+        "markdown.imageLoadFailed",
+        "markdown.openImageFullSize",
+        "uiCopy.markdownImage"
+      ],
+      "states": [
+        "error",
+        "loading"
       ],
       "hardcodedCopy": []
     },
@@ -4498,17 +4521,6 @@
       "states": [
         "unavailable"
       ],
-      "hardcodedCopy": []
-    },
-    {
-      "owner": "sources/components/SimpleSyntaxHighlighter.tsx",
-      "kind": "component",
-      "route": null,
-      "exports": [
-        "SimpleSyntaxHighlighter"
-      ],
-      "translationKeys": [],
-      "states": [],
       "hardcodedCopy": []
     },
     {

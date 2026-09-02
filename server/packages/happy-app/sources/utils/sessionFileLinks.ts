@@ -330,8 +330,9 @@ function buildLink(
     sessionRoot: string | null | undefined,
     platform?: string | null,
     homeDir?: string | null,
+    relativeTo?: string | null,
 ): SessionFileLink | null {
-    const absolutePath = resolvePath(path, sessionRoot, platform, homeDir);
+    const absolutePath = resolvePath(path, relativeTo ?? sessionRoot, platform, homeDir);
     if (!absolutePath) {
         return null;
     }
@@ -365,6 +366,8 @@ export function parseExplicitSessionFileLink(
         sessionRoot?: string | null;
         platform?: string | null;
         homeDir?: string | null;
+        /** Directory containing the rendered Markdown file. Provenance remains session-owned. */
+        relativeTo?: string | null;
     },
 ): SessionFileLink | null {
     const trimmedUrl = stripMarkdownUrlSuffix(
@@ -398,6 +401,7 @@ export function parseExplicitSessionFileLink(
         options?.sessionRoot,
         options?.platform,
         options?.homeDir,
+        options?.relativeTo,
     );
 }
 

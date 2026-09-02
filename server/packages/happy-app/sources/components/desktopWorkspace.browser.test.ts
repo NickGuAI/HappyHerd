@@ -187,11 +187,7 @@ const virtualModules: Record<string, string> = {
         import React from 'react';
         export const FileIcon = () => React.createElement('span', { 'data-file-icon': 'true' }, '▧');
     `,
-    '@/components/markdown/MarkdownView': `
-        import React from 'react';
-        export const MarkdownView = ({ markdown }) => React.createElement('div', { 'data-testid': 'markdown-preview' }, markdown);
-    `,
-    '@/components/diff/PierreDiffView': `export const PierreDiffView = () => null;`,
+    'expo-clipboard': `export const setStringAsync = async (value) => { window.__CLIPBOARD_TEXT__ = value; };`,
     '@/components/CodeEditor': `
         import React from 'react';
         export const CodeEditor = ({ value, onChange, readOnly }) => React.createElement('textarea', {
@@ -203,7 +199,16 @@ const virtualModules: Record<string, string> = {
         });
     `,
     '@/sync/ops': `
-        const content = btoa('# Desktop workspace\\n');
+        const content = btoa('# Desktop workspace\\n\\n- First review line\\n- Second review line\\n\\n' + String.fromCharCode(96, 96, 96) + 'ts\\nconst answer = 42;\\n' + String.fromCharCode(96, 96, 96) + '\\n\\n[Open session relative](notes/session-child.md)\\n');
+        const machineMarkdown = btoa('# Machine workspace\\n\\n[Open machine relative](notes/machine-child.md)\\n');
+        const source = btoa('const first = 1;\\nconst second = 2;\\n');
+        const canvas = btoa(JSON.stringify({
+            nodes: [
+                { id: 'text-node', type: 'text', text: '# Start', x: 0, y: 0, width: 220, height: 120 },
+                { id: 'file-node', type: 'file', file: 'notes/My (draft) [v2].md', x: 320, y: 0, width: 260, height: 120 },
+            ],
+            edges: [{ id: 'edge', fromNode: 'text-node', toNode: 'file-node', label: 'next' }],
+        }));
         const taskHtml = btoa([
             '<!doctype html><html><head><title>Task review board</title></head><body>',
             '<h1>Task review board</h1>',
@@ -236,6 +241,9 @@ const virtualModules: Record<string, string> = {
         export const machineCreateDirectory = async () => ({ success: false, error: 'Not implemented by fixture' });
         export const machineReadFile = async (machineId, path) => {
             window.__MACHINE_READ_CALLS__ = [...(window.__MACHINE_READ_CALLS__ ?? []), { machineId, path }];
+            if (machineId === 'machine-2' && path === '/machine-root/machine.md') {
+                return { success: true, content: machineMarkdown };
+            }
             return machineId === 'machine-2' && (
                 path === '/machine-root/remote.md' || path === '/machine-root/second.md'
             )
@@ -243,9 +251,14 @@ const virtualModules: Record<string, string> = {
                 : { success: false, error: 'Unexpected Workspace read' };
         };
         export const machineWriteFile = async () => ({ success: true, hash: 'saved-hash' });
+        export const machineReadFileWithinRoot = async () => ({ success: false, error: 'No image fixture' });
         export const sessionReadFile = async (_sessionId, path) => ({
             success: true,
-            content: path === '/workspace/task.html' ? taskHtml : content,
+            content: path === '/workspace/task.html'
+                ? taskHtml
+                : path === '/workspace/review.canvas'
+                    ? canvas
+                    : path === '/workspace/review.ts' ? source : content,
         });
         export const sessionWriteFile = async () => ({ success: true, hash: 'saved-hash' });
         export const sessionDeleteFile = async () => {
@@ -351,6 +364,9 @@ const virtualModules: Record<string, string> = {
     '@/-session/workspaceLinkNavigation': `
         export const dismissWorkspaceLinkToOrigin = () => undefined;
         export const useWorkspaceLinkDismissGuard = () => ({ onSendingChange() {}, onDirtyChange() {}, guardDismiss: (action) => action() });
+        export const useWorkspaceLinkPress = () => (route) => {
+            window.__WORKSPACE_LINK_CALLS__ = [...(window.__WORKSPACE_LINK_CALLS__ ?? []), route];
+        };
     `,
     '@/components/layout': `export const layout = { maxWidth: 1200, headerMaxWidth: 800 };`,
     '@/text': `
@@ -372,6 +388,18 @@ const virtualModules: Record<string, string> = {
             'files.interactivePreview': 'Interactive',
             'files.failedToDelete': 'Failed to delete file',
             'files.failedToRead': 'Failed to read file',
+            'files.commentOnLine': 'Comment on line ' + (params?.line ?? ''),
+            'files.commentOnNode': 'Comment on node ' + (params?.node ?? ''),
+            'files.commentOnHoveredLine': 'Comment on hovered line',
+            'files.inlineComments': 'Inline comments',
+            'files.commentPlaceholder': 'Write a comment',
+            'files.pinComment': 'Pin comment',
+            'files.sendComments': 'Send ' + (params?.count ?? '') + ' comments',
+            'files.removeComment': 'Remove comment',
+            'files.lineNumber': 'Line ' + (params?.line ?? ''),
+            'files.canvasNode': 'Canvas node ' + (params?.node ?? ''),
+            'files.pinnedComment': 'Pinned comment',
+            'files.invalidCanvas': 'Invalid canvas',
             'files.openExistingFile': 'Open existing file',
             'files.openFileTab': 'Open ' + (params?.name ?? ''),
             'files.resizeWorkspace': 'Resize file workspace',
@@ -412,6 +440,15 @@ const fixturePlugin: Plugin = {
     setup(buildContext) {
         buildContext.onResolve({ filter: /.*/ }, (args) => {
             if (args.path in virtualModules) return { path: args.path, namespace: 'fixture-stub' };
+            if (args.path === '@/components/markdown/MarkdownView' || (args.path === './markdown/MarkdownView' && args.importer.endsWith('/CanvasFileViewer.web.tsx'))) {
+                return { path: resolve(appRoot, 'sources/components/markdown/MarkdownView.web.tsx') };
+            }
+            if (args.path === '@/components/CanvasFileViewer') {
+                return { path: resolve(appRoot, 'sources/components/CanvasFileViewer.web.tsx') };
+            }
+            if (args.path === '@/components/InlineCommentReview') {
+                return { path: resolve(appRoot, 'sources/components/InlineCommentReview.web.tsx') };
+            }
             if (args.path === '@/components/FileDocumentPreview') {
                 return { path: resolve(appRoot, 'sources/components/FileDocumentPreview.web.tsx') };
             }
@@ -470,6 +507,7 @@ describe('Desktop workspace browser interaction', () => {
             entryPoints: [resolve(here, '__testdata__/desktopWorkspace.browser.fixture.tsx')],
             bundle: true,
             write: false,
+            outdir: 'out',
             format: 'iife',
             platform: 'browser',
             jsx: 'automatic',
@@ -477,10 +515,11 @@ describe('Desktop workspace browser interaction', () => {
             loader: { '.png': 'dataurl' },
             plugins: [fixturePlugin],
         });
-        const script = bundle.outputFiles[0].text;
+        const script = bundle.outputFiles.find((file) => file.path.endsWith('.js'))?.text ?? bundle.outputFiles[0].text;
+        const stylesheet = bundle.outputFiles.find((file) => file.path.endsWith('.css'))?.text ?? '';
         server = createServer((_request, response) => {
             response.setHeader('content-type', 'text/html; charset=utf-8');
-            response.end('<style>html,body,#root{margin:0;min-height:100%;font-family:sans-serif}*{box-sizing:border-box}</style><main id="root"></main><script>' + script + '</script>');
+            response.end('<style>html,body,#root{margin:0;min-height:100%;font-family:sans-serif}*{box-sizing:border-box}' + stylesheet + '</style><main id="root"></main><script>' + script + '</script>');
         });
         await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
         const address = server.address();
@@ -705,12 +744,12 @@ describe('Desktop workspace browser interaction', () => {
         await expect(wide.getByRole('button', { name: 'Source' }).count()).resolves.toBe(0);
         await expect(wide.getByRole('button', { name: 'Edit' }).count()).resolves.toBe(1);
         await expect(wide.getByRole('button', { name: 'Delete' }).count()).resolves.toBe(1);
-        await expect(wide.getByTestId('markdown-preview').isVisible()).resolves.toBe(true);
+        await expect(wide.locator('.hh-markdown-root').isVisible()).resolves.toBe(true);
 
         await wide.getByRole('button', { name: 'Edit' }).click();
         await expect(wide.getByTestId('code-editor').getAttribute('data-read-only')).resolves.toBe('false');
         await wide.getByRole('button', { name: 'Preview' }).click();
-        await expect(wide.getByTestId('markdown-preview').isVisible()).resolves.toBe(true);
+        await expect(wide.locator('.hh-markdown-root').isVisible()).resolves.toBe(true);
         await wide.getByRole('button', { name: 'Delete' }).click();
         await expect(page.evaluate(() => (window as any).__DELETE_RPC_COUNT__ ?? 0)).resolves.toBe(1);
         await expect(page.evaluate(() => (window as any).__WORKSPACE_FILE_DELETED_COUNT__ ?? 0)).resolves.toBe(1);
@@ -726,7 +765,7 @@ describe('Desktop workspace browser interaction', () => {
         await narrow.getByRole('button', { name: 'Edit' }).click();
         await expect(narrow.getByTestId('code-editor').getAttribute('data-read-only')).resolves.toBe('false');
         await narrow.getByRole('button', { name: 'Preview' }).click();
-        await expect(narrow.getByTestId('markdown-preview').isVisible()).resolves.toBe(true);
+        await expect(narrow.locator('.hh-markdown-root').isVisible()).resolves.toBe(true);
 
         const evidenceDirectory = process.env.HAPPYHERD_ISSUE_181_EVIDENCE_DIR;
         if (evidenceDirectory) {
@@ -737,6 +776,168 @@ describe('Desktop workspace browser interaction', () => {
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 10_000);
+
+    async function verifyMarkdownReviewJourney(page: Page, surfaceId: string, feedbackIndex = 0, touch = false) {
+        const workspace = page.getByTestId(surfaceId);
+        const markdownPanel = workspace.getByTestId('desktop-file-panel:/workspace/demo.md');
+        await markdownPanel.locator('.hh-markdown-root').waitFor();
+
+        const sessionRelativeLink = markdownPanel.getByRole('link', { name: 'Open session relative' });
+        if (touch) await sessionRelativeLink.tap();
+        else await sessionRelativeLink.click();
+        const workspaceRoutes = await page.evaluate(() => (window as any).__WORKSPACE_LINK_CALLS__ ?? []);
+        expect(workspaceRoutes.at(-1)).toMatchObject({
+            params: {
+                originSessionId: 'ordinary-session',
+                machineId: 'machine-1',
+                absolutePath: '/workspace/notes/session-child.md',
+            },
+        });
+
+        for (const [line, feedback] of [[3, 'First line note'], [4, 'Second line note']] as const) {
+            const item = markdownPanel.locator(`li[data-source-line="${line}"]`);
+            await item.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+            const gutter = item.locator('.hh-markdown-comment-gutter');
+            if (touch) {
+                await expect.poll(() => gutter.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
+                await gutter.tap();
+            } else {
+                await item.hover();
+                await gutter.click();
+            }
+            await markdownPanel.getByPlaceholder('Write a comment').fill(feedback);
+            await markdownPanel.getByRole('button', { name: 'Pin comment' }).click();
+        }
+        await markdownPanel.getByRole('button', { name: 'Send 2 comments' }).click();
+        await expect(page.evaluate(() => (window as any).__WORKSPACE_FEEDBACK_CALLS__ ?? [])).resolves.toHaveLength(feedbackIndex + 1);
+        const markdownFeedback = await page.evaluate((index) => (window as any).__WORKSPACE_FEEDBACK_CALLS__[index].text, feedbackIndex);
+        expect(markdownFeedback).toContain('Line: 3');
+        expect(markdownFeedback).toContain('First line note');
+        expect(markdownFeedback).toContain('Line: 4');
+        expect(markdownFeedback).toContain('Second line note');
+    }
+
+    async function verifyMachineMarkdownLinkJourney(page: Page, surfaceId: string) {
+        const workspace = page.getByTestId(surfaceId);
+        await workspace.getByRole('tab', { name: 'Open machine.md' }).click();
+        const machinePanel = workspace.getByTestId('desktop-file-panel:/machine-root/machine.md');
+        await machinePanel.locator('.hh-markdown-root').waitFor();
+        await machinePanel.getByRole('link', { name: 'Open machine relative' }).click();
+        const workspaceRoutes = await page.evaluate(() => (window as any).__WORKSPACE_LINK_CALLS__ ?? []);
+        expect(workspaceRoutes.at(-1)).toMatchObject({
+            params: {
+                originSessionId: 'ordinary-session',
+                machineId: 'machine-2',
+                absolutePath: '/machine-root/notes/machine-child.md',
+            },
+        });
+    }
+
+    async function verifyCodeReviewJourney(page: Page, surfaceId: string, feedbackIndex: number, switchTab = true, touch = false) {
+        const workspace = page.getByTestId(surfaceId);
+        if (switchTab) await workspace.getByRole('tab', { name: 'Open review.ts' }).click();
+        const sourcePanel = workspace.getByTestId('desktop-file-panel:/workspace/review.ts');
+        await sourcePanel.locator('diffs-container').waitFor();
+
+        for (const [line, feedback] of [[1, 'First code note'], [2, 'Second code note']] as const) {
+            if (touch) await sourcePanel.locator(`[data-column-number="${line}"]`).tap();
+            else await sourcePanel.locator(`[data-line="${line}"]`).hover();
+            const codeGutter = sourcePanel.getByRole('button', { name: 'Comment on hovered line' });
+            if (touch) await codeGutter.tap();
+            else await codeGutter.click();
+            await sourcePanel.getByPlaceholder('Write a comment').fill(feedback);
+            await sourcePanel.getByRole('button', { name: 'Pin comment' }).click();
+        }
+        await sourcePanel.getByRole('button', { name: 'Send 2 comments' }).click();
+        await expect(page.evaluate(() => (window as any).__WORKSPACE_FEEDBACK_CALLS__ ?? [])).resolves.toHaveLength(feedbackIndex + 1);
+        const sourceFeedback = await page.evaluate((index) => (window as any).__WORKSPACE_FEEDBACK_CALLS__[index].text, feedbackIndex);
+        expect(sourceFeedback).toContain('Line: 1');
+        expect(sourceFeedback).toContain('First code note');
+        expect(sourceFeedback).toContain('Line: 2');
+        expect(sourceFeedback).toContain('Second code note');
+    }
+
+    async function verifyCanvasReviewJourney(page: Page, surfaceId: string, switchTab: boolean, feedbackIndex: number, touch = false) {
+        const workspace = page.getByTestId(surfaceId);
+        if (switchTab) await workspace.getByRole('tab', { name: 'Open review.canvas' }).click();
+        const canvasPanel = workspace.getByTestId('desktop-file-panel:/workspace/review.canvas');
+        await canvasPanel.locator('.react-flow').waitFor();
+        await expect(canvasPanel.locator('.react-flow__edge').count()).resolves.toBe(1);
+        const canvasFileLink = canvasPanel.getByRole('button', { name: 'notes/My (draft) [v2].md' });
+        if (touch) await canvasFileLink.tap();
+        else await canvasFileLink.click();
+        const workspaceRoutes = await page.evaluate(() => (window as any).__WORKSPACE_LINK_CALLS__ ?? []);
+        expect(workspaceRoutes.at(-1).params.absolutePath).toBe('/workspace/notes/My (draft) [v2].md');
+
+        for (const [node, feedback] of [['text-node', 'Start node note'], ['file-node', 'File node note']] as const) {
+            const card = canvasPanel.locator(`.hh-canvas-${node === 'text-node' ? 'text' : 'file'}`);
+            await card.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+            const commentButton = canvasPanel.getByRole('button', { name: `Comment on node ${node}` });
+            if (touch) {
+                await expect.poll(() => commentButton.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
+                await commentButton.tap();
+            } else {
+                await card.hover();
+                await commentButton.click();
+            }
+            await canvasPanel.getByPlaceholder('Write a comment').fill(feedback);
+            await canvasPanel.getByRole('button', { name: 'Pin comment' }).click();
+        }
+        await canvasPanel.getByRole('button', { name: 'Send 2 comments' }).click();
+        await expect(page.evaluate(() => (window as any).__WORKSPACE_FEEDBACK_CALLS__ ?? [])).resolves.toHaveLength(feedbackIndex + 1);
+        const canvasFeedback = await page.evaluate((index) => (window as any).__WORKSPACE_FEEDBACK_CALLS__[index].text, feedbackIndex);
+        expect(canvasFeedback).toContain('Canvas node ID: "text-node"');
+        expect(canvasFeedback).toContain('Canvas node ID: "file-node"');
+
+        if (touch) await canvasPanel.locator('.hh-canvas-text').tap({ position: { x: 30, y: 70 } });
+        else await canvasPanel.locator('.hh-canvas-text').click({ position: { x: 30, y: 70 } });
+        await expect(canvasPanel.locator('.hh-canvas-text').getAttribute('class')).resolves.toContain('selected');
+
+        const flow = canvasPanel.locator('.react-flow');
+        const viewport = canvasPanel.locator('.react-flow__viewport');
+        const initialTransform = await viewport.getAttribute('style');
+        const flowBox = await flow.boundingBox();
+        if (!flowBox) throw new Error('Canvas flow has no browser layout box');
+        await flow.hover({ position: { x: Math.max(10, flowBox.width - 80), y: Math.max(10, flowBox.height - 80) } });
+        await page.mouse.wheel(0, -400);
+        await expect.poll(() => viewport.getAttribute('style')).not.toBe(initialTransform);
+        const zoomedTransform = await viewport.getAttribute('style');
+        const pane = canvasPanel.locator('.react-flow__pane');
+        const paneBox = await pane.boundingBox();
+        if (!paneBox) throw new Error('Canvas pane has no browser layout box');
+        await page.mouse.move(paneBox.x + paneBox.width - 60, paneBox.y + paneBox.height - 60);
+        await page.mouse.down();
+        await page.mouse.move(paneBox.x + paneBox.width - 120, paneBox.y + paneBox.height - 100, { steps: 4 });
+        await page.mouse.up();
+        await expect.poll(() => viewport.getAttribute('style')).not.toBe(zoomedTransform);
+    }
+
+    it('pins and sends Markdown and JSON Canvas review feedback in the production Web Desktop host', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        const pageErrors = recordPageErrors(page);
+        await page.goto(origin + '?file-review=desktop');
+        await verifyMarkdownReviewJourney(page, 'file-review-desktop');
+        await verifyMachineMarkdownLinkJourney(page, 'file-review-desktop');
+        await verifyCodeReviewJourney(page, 'file-review-desktop', 1);
+        await verifyCanvasReviewJourney(page, 'file-review-desktop', true, 2);
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 60_000);
+
+    it('pins and sends the same review feedback in the production 390x844 Web Mobile host', async () => {
+        const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+        const page = await context.newPage();
+        const pageErrors = recordPageErrors(page);
+        await page.goto(origin + '?file-review=mobile');
+        await verifyMarkdownReviewJourney(page, 'file-review-mobile', 0, true);
+        await page.goto(origin + '?file-review=mobile-canvas');
+        await verifyCanvasReviewJourney(page, 'file-review-mobile', false, 0, true);
+        await page.goto(origin + '?file-review=mobile-source');
+        await verifyCodeReviewJourney(page, 'file-review-mobile', 0, false, true);
+        expect(pageErrors).toEqual([]);
+        await page.close();
+        await context.close();
+    }, 60_000);
 
     it('runs task HTML only after the explicit desktop Interactive gesture and retains its state', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
