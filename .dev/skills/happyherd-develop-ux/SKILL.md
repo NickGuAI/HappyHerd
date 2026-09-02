@@ -84,6 +84,35 @@ pass.
 Do not redesign beyond the requested journey. Do not add speculative
 abstractions, security layers, fallback hosts, or future-platform machinery.
 
+## Lock restoration and mobile ergonomics before implementation
+
+- When the Human says to restore, revert, keep the same, or not redesign an
+  interface, capture the last known-good contract before editing. Ground it in
+  the Human's screenshots and the pre-regression commit, including structure,
+  dimensions, typography, light and dark theme tokens, spacing, wrapping,
+  gesture behavior, retained state, and every shared caller. Compare the final
+  production host directly with that baseline on every affected surface. An
+  unrequested visual or interaction change is a failed restoration.
+- For every iPhone-targeted route, declare the typography scope explicitly.
+  Every `input`, `textarea`, `select`, `contenteditable`, placeholder, and
+  compact composer variant must compute to at least 16 CSS pixels at mobile
+  breakpoints. When the Human requires all text on named routes to meet that
+  floor, assert every visible text-bearing element in those routes as well.
+  Focus each text-entry surface in iOS Safari on an actual iPhone and reject any
+  automatic page zoom or visual-viewport jump; do not suppress zoom with
+  viewport locks. WebKit automation may support the CSS assertions, but it does
+  not substitute for this iPhone acceptance.
+- Give each wide table one dedicated horizontal-overflow owner and a readable
+  intrinsic or minimum table width. Prove that touch swipe and desktop
+  wheel/trackpad gestures reach the far-right cell without blocking vertical
+  page scrolling, and verify that ancestor wrapping rules do not crush columns
+  into single-character stacks.
+- For repeated rows such as recent paths, bind activation and selection state
+  to canonical identities rather than display labels, truncated text, or list
+  positions. For message-bubble alignment changes, cover short, multiline,
+  Latin, and CJK content and verify both requested axes without breaking text
+  selection or copy.
+
 ## Build evidence in distinct planes
 
 Use project-owned verification sources such as `.dev/VERIFY.md` to select
@@ -138,6 +167,18 @@ These are observed HappyHerd failures, not hypothetical warnings:
 - A divider moved in a test, while hard width caps prevented the
   Human-requested range.
 - A build reached the server, but no one exercised the live Human interaction.
+- A restoration test proved that a chip existed but did not compare its
+  dimensions, wrapping, theme colors, and interaction with the last known-good
+  interface, so an unrequested redesign shipped.
+- Two recent paths displayed the same shortened label and row selection used
+  that label instead of the canonical path, so tapping the intended row did
+  nothing or selected another path.
+- A message bubble appeared centered for one short string but drifted for
+  multiline or CJK text because only one alignment axis was verified.
+- A compact mobile text-entry variant computed below 16 pixels and caused iOS
+  Safari to zoom the page when it received focus.
+- A Markdown table inherited narrow wrapping and no usable horizontal overflow
+  owner, collapsing cells into single-character columns.
 
 When one appears, add the regression at the earliest boundary that escaped and
 update the affected `.dev` routing or verification rule when source ownership
