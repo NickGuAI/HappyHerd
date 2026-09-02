@@ -65,7 +65,11 @@ run_case() {
   else
     git -C "$case_dir" switch -c feat/owned >/dev/null 2>&1
   fi
-  if [[ "$variant" == "dev-only" ]]; then
+  if [[ "$variant" == "empty" ]]; then
+    # A matching subject is insufficient: only the pinned historical commit
+    # object (including its exact parent) may use the legacy exception.
+    git -C "$case_dir" commit --quiet --allow-empty -m "ci: trigger checks after branch restore"
+  elif [[ "$variant" == "dev-only" ]]; then
     mkdir -p "$case_dir/.dev"
     printf 'development context\n' > "$case_dir/.dev/README.md"
     git -C "$case_dir" add .dev/README.md
@@ -146,5 +150,6 @@ run_case dev-only dev-only pass
 run_case unmanifested unmanifested "unmanifested patch"
 run_case dev-mixed dev-mixed "unmanifested patch"
 run_case merge-only-change merge-only-change "merge tree contains changes outside its branch patches"
+run_case empty empty "empty owned patch"
 
-echo "owned-merge-provenance: ok (4 valid and 3 rejected fixtures)"
+echo "owned-merge-provenance: ok (4 valid and 4 rejected fixtures)"
