@@ -122,6 +122,7 @@ import type { WorkspaceLinkRoute } from '@/utils/markdownWorkspaceLink';
 import { AnimatedFade } from '@/components/AnimatedOverlay';
 import { HEARTBEAT_COMMAND } from '@/utils/heartbeatCommand';
 import { deliverSessionTurn } from '@/utils/sessionContinuation';
+import { MobileTypographyFloor } from '@/components/MobileTypographyFloor';
 
 const SESSION_FILE_WORKSPACE_SPLIT_MIN_WINDOW_WIDTH = 900;
 
@@ -157,6 +158,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     const isWebMobileSessionViewport = Platform.OS === 'web'
         && deviceType === 'phone'
         && windowWidth < SIDE_CHAT_SIDEBAR_MIN_WINDOW_WIDTH;
+    const appliesWebPhoneTypographyFloor = Platform.OS === 'web' && deviceType === 'phone';
     const zenMode = useLocalSetting('zenMode');
     const [headerBackdropVisible, setHeaderBackdropVisible] = React.useState(false);
     const [focusMessageId, setFocusMessageId] = React.useState<string | undefined>(props.focusMessageId);
@@ -1028,13 +1030,15 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     );
 
     const sessionContent = (
-        <SessionWorkspaceControllerContext.Provider value={sessionWorkspaceController}>
-            <WorkspaceLinkPressContext.Provider
-                value={canUseSessionFileWorkspace ? handleWorkspaceLinkPress : undefined}
-            >
-                {mainContent}
-            </WorkspaceLinkPressContext.Provider>
-        </SessionWorkspaceControllerContext.Provider>
+        <MobileTypographyFloor active={appliesWebPhoneTypographyFloor}>
+            <SessionWorkspaceControllerContext.Provider value={sessionWorkspaceController}>
+                <WorkspaceLinkPressContext.Provider
+                    value={canUseSessionFileWorkspace ? handleWorkspaceLinkPress : undefined}
+                >
+                    {mainContent}
+                </WorkspaceLinkPressContext.Provider>
+            </SessionWorkspaceControllerContext.Provider>
+        </MobileTypographyFloor>
     );
 
     const keepWorkspaceSplitMounted = canUseSessionFileWorkspace
@@ -1182,20 +1186,22 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     // host. Side chats and file picking may temporarily own the visible right
     // surface without unmounting dirty file editors.
     return (
-        <SessionWorkspaceControllerContext.Provider value={sessionWorkspaceController}>
-            <WorkspaceLinkPressContext.Provider
-                value={canUseSessionFileWorkspace ? handleWorkspaceLinkPress : undefined}
-            >
-                <DesktopFileWorkspaceSplit
-                    workspaceVisible={rightWorkspaceVisible}
-                    workspaceFullscreen={rightWorkspaceFullscreen}
-                    workspace={workspaceSurface}
-                    fallback={canRenderSidebar ? fallbackRightSurface : null}
+        <MobileTypographyFloor active={appliesWebPhoneTypographyFloor}>
+            <SessionWorkspaceControllerContext.Provider value={sessionWorkspaceController}>
+                <WorkspaceLinkPressContext.Provider
+                    value={canUseSessionFileWorkspace ? handleWorkspaceLinkPress : undefined}
                 >
-                    {chatSurface}
-                </DesktopFileWorkspaceSplit>
-            </WorkspaceLinkPressContext.Provider>
-        </SessionWorkspaceControllerContext.Provider>
+                    <DesktopFileWorkspaceSplit
+                        workspaceVisible={rightWorkspaceVisible}
+                        workspaceFullscreen={rightWorkspaceFullscreen}
+                        workspace={workspaceSurface}
+                        fallback={canRenderSidebar ? fallbackRightSurface : null}
+                    >
+                        {chatSurface}
+                    </DesktopFileWorkspaceSplit>
+                </WorkspaceLinkPressContext.Provider>
+            </SessionWorkspaceControllerContext.Provider>
+        </MobileTypographyFloor>
     );
 });
 
@@ -1321,6 +1327,7 @@ export function SessionViewLoaded({
     const isWebMobileSessionViewport = Platform.OS === 'web'
         && deviceType === 'phone'
         && windowWidth < SIDE_CHAT_SIDEBAR_MIN_WINDOW_WIDTH;
+    const appliesWebPhoneTypographyFloor = Platform.OS === 'web' && deviceType === 'phone';
     const isWebSessionViewport = Platform.OS === 'web';
     const workspaceController = React.useContext(SessionWorkspaceControllerContext);
     const webWorkspaceActions = React.useMemo(() => (
@@ -2081,24 +2088,26 @@ export function SessionViewLoaded({
             )}
 
             {/* Main content area - no padding since header is overlay */}
-            <View style={{
-                flexBasis: 0,
-                flexGrow: 1,
-                // The floating chat content reaches the physical bottom of
-                // the screen. AgentContentView keeps the dock itself above
-                // the home indicator / navigation area.
-                paddingBottom: usesFloatingMobileDock
-                    ? 0
-                    : safeArea.bottom + ((isRunningOnMac() || Platform.OS === 'web') ? 8 : 0),
-            }}>
-                <AgentContentView
-                    content={content}
-                    input={input}
-                    placeholder={placeholder}
-                    floatingDock={usesFloatingMobileDock}
-                    onDockInsetChange={handleBottomDockInsetChange}
-                />
-            </View >
+            <MobileTypographyFloor active={embedded && appliesWebPhoneTypographyFloor}>
+                <View style={{
+                    flexBasis: 0,
+                    flexGrow: 1,
+                    // The floating chat content reaches the physical bottom of
+                    // the screen. AgentContentView keeps the dock itself above
+                    // the home indicator / navigation area.
+                    paddingBottom: usesFloatingMobileDock
+                        ? 0
+                        : safeArea.bottom + ((isRunningOnMac() || Platform.OS === 'web') ? 8 : 0),
+                }}>
+                    <AgentContentView
+                        content={content}
+                        input={input}
+                        placeholder={placeholder}
+                        floatingDock={usesFloatingMobileDock}
+                        onDockInsetChange={handleBottomDockInsetChange}
+                    />
+                </View >
+            </MobileTypographyFloor>
 
             {/* Back button for landscape phone mode when header is hidden */}
             {
