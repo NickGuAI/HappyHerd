@@ -93,14 +93,16 @@ documented APIs, and fail visibly when neither exists.
 
 ## Source evidence
 
-- `/home/ec2-user/App/external-projects/grapeot-repos/ai_usage_dashboard/auto_usage.py`
-- `/home/ec2-user/App/external-projects/grapeot-repos/ai_usage_dashboard/dashboard_models.py`
-- `/home/ec2-user/App/external-projects/grapeot-repos/ai_usage_dashboard/local_display_service.py`
-- `/home/ec2-user/App/external-projects/grapeot-repos/ai_usage_dashboard/firmware_logic.py`
-- `/home/ec2-user/App/external-projects/grapeot-repos/ai_usage_dashboard/grok_usage.py`
-- `/home/ec2-user/App/external-projects/grapeot-repos/ai_usage_dashboard/eink/e1002/dashboard_types.h`
-- `/home/ec2-user/App/external-projects/grapeot-repos/ai_usage_dashboard/eink/e1002/dashboard_logic.h`
-- `/home/ec2-user/App/external-projects/grapeot-repos/ai_usage_dashboard/eink/e1002/dashboard_network.h`
-- `/home/ec2-user/App/external-projects/grapeot-repos/ai_usage_dashboard/tests/test_dashboard_models.py`
-- `/home/ec2-user/App/external-projects/grapeot-repos/ai_usage_dashboard/tests/test_firmware_logic.py`
-- `/home/ec2-user/App/external-projects/grapeot-repos/ai_usage_dashboard/tests/test_local_display_service.py`
+Within the `ai_usage_dashboard` source snapshot:
+
+- `auto_usage.py`
+- `dashboard_models.py`
+- `local_display_service.py`
+- `firmware_logic.py`
+- `grok_usage.py`
+- `eink/e1002/dashboard_types.h`
+- `eink/e1002/dashboard_logic.h`
+- `eink/e1002/dashboard_network.h`
+- `tests/test_dashboard_models.py`
+- `tests/test_firmware_logic.py`
+- `tests/test_local_display_service.py`

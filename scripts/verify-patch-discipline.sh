@@ -10,6 +10,11 @@ production_baseline_sha="e6e81cf389ec4b59af00994ab3b605d40ee89054"
 production_upstream_ref="happy-upstream-base-2026-08-02"
 production_trusted_upstream_ref="refs/remotes/upstream/main"
 production_trusted_upstream_url="https://github.com/slopus/happy.git"
+# This immutable no-op was created while restoring the protected branch. Its
+# exact object identity is the only empty owned patch accepted by this gate.
+production_legacy_empty_patch_sha="100061698c9af00ecf3e6c49d1c72808a4805d39"
+production_legacy_empty_patch_parent="dcf706d27b1e5013323fb52e1ec35f16166e84cf"
+production_legacy_empty_patch_subject="ci: trigger checks after branch restore"
 conventional_subject_re='^(feat|fix|build|ops|docs|test|chore|refactor|perf|ci|revert)(\([[:alnum:]_.-]+\))?!?: .+'
 
 fail() {
@@ -26,6 +31,9 @@ if [[ "${HAPPYHERD_ALLOW_REHEARSAL_SYNC:-0}" == "1" ]]; then
   trusted_upstream_ref="${HAPPYHERD_REHEARSAL_TRUSTED_UPSTREAM_REF:-$production_trusted_upstream_ref}"
   trusted_upstream_url="${HAPPYHERD_REHEARSAL_TRUSTED_UPSTREAM_URL:-$production_trusted_upstream_url}"
   expected_upstream_sha="${HAPPYHERD_REHEARSAL_EXPECTED_UPSTREAM_SHA:-}"
+  legacy_empty_patch_sha=""
+  legacy_empty_patch_parent=""
+  legacy_empty_patch_subject=""
 else
   baseline_tag="$production_baseline_tag"
   baseline_sha="$production_baseline_sha"
@@ -33,6 +41,9 @@ else
   trusted_upstream_ref="$production_trusted_upstream_ref"
   trusted_upstream_url="$production_trusted_upstream_url"
   expected_upstream_sha=""
+  legacy_empty_patch_sha="$production_legacy_empty_patch_sha"
+  legacy_empty_patch_parent="$production_legacy_empty_patch_parent"
+  legacy_empty_patch_subject="$production_legacy_empty_patch_subject"
 fi
 
 actual_baseline="$(git rev-parse "${baseline_tag}^{commit}" 2>/dev/null)" ||
@@ -92,6 +103,7 @@ mapfile -t series < <(
 declare -A resolved_subjects=()
 owned_patch_count=0
 dev_context_only_count=0
+legacy_empty_patch_count=0
 
 is_dev_context_only_commit() {
   local sha="$1"
@@ -121,8 +133,19 @@ resolve_owned_commit() {
   parent_count="$(( $(wc -w <<< "$parent_record") - 1 ))"
   [[ "$parent_count" -eq 1 ]] ||
     fail "owned PR branch contains a merge-valued patch: ${sha:0:12} $subject"
-  git diff-tree --quiet "${sha}^" "$sha" &&
+  if git diff-tree --quiet "${sha}^" "$sha"; then
+    if [[ -n "$legacy_empty_patch_sha" &&
+          "$sha" == "$legacy_empty_patch_sha" &&
+          "$(git rev-parse "${sha}^")" == "$legacy_empty_patch_parent" &&
+          "$subject" == "$legacy_empty_patch_subject" ]]; then
+      [[ -z "${resolved_subjects[$subject]:-}" ]] ||
+        fail "legacy empty patch subject resolves more than once: $subject"
+      resolved_subjects[$subject]="$sha"
+      legacy_empty_patch_count=$((legacy_empty_patch_count + 1))
+      return
+    fi
     fail "empty owned patch: ${sha:0:12} $subject"
+  fi
 
   if [[ -z "$gate" ]] && is_dev_context_only_commit "$sha"; then
     dev_context_only_count=$((dev_context_only_count + 1))
@@ -218,4 +241,4 @@ for subject in "${!manifest_gate[@]}"; do
     fail "manifest subject does not resolve to an owned commit: $subject"
 done
 
-echo "patch-discipline: ok ($owned_patch_count owned patches; $dev_context_only_count .dev-only commits; baseline ${baseline_sha:0:12}; tree ${upstream_tree:0:12})"
+echo "patch-discipline: ok ($owned_patch_count owned patches; $dev_context_only_count .dev-only commits; $legacy_empty_patch_count pinned legacy empty patch; baseline ${baseline_sha:0:12}; tree ${upstream_tree:0:12})"

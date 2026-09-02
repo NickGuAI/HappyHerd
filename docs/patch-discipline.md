@@ -22,6 +22,12 @@ The verifier requires:
    tree and provenance checks; and
 6. acceptance to run from a clean worktree.
 
+One immutable historical exception is pinned by exact commit, parent, and
+subject: `100061698c9af00ecf3e6c49d1c72808a4805d39` is the empty
+`ci: trigger checks after branch restore` commit created while restoring the
+protected branch on 2026-09-01. The verifier accepts only that identity; every
+other empty owned patch remains invalid.
+
 The subject-keyed ledger avoids self-referential commit hashes while resolving
 every row to one exact commit. Add a row in the same commit as every future
 owned change unless every changed path is under `.dev/`. Inspect the resolved
