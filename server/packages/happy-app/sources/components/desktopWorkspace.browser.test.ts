@@ -4,7 +4,7 @@ import { createServer, type Server } from 'node:http';
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chromium, type Browser, type Page } from 'playwright-core';
+import { chromium, type Browser, type Locator, type Page } from 'playwright-core';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../..');
@@ -201,7 +201,8 @@ const virtualModules: Record<string, string> = {
     '@/sync/ops': `
         const content = btoa('# Desktop workspace\\n\\n- First review line\\n- Second review line\\n\\n' + String.fromCharCode(96, 96, 96) + 'ts\\nconst answer = 42;\\n' + String.fromCharCode(96, 96, 96) + '\\n\\n[Open session relative](notes/session-child.md)\\n');
         const machineMarkdown = btoa('# Machine workspace\\n\\n[Open machine relative](notes/machine-child.md)\\n');
-        const source = btoa('const first = 1;\\nconst second = 2;\\n');
+        const sourceMarkdown = btoa('# Source review\\n\\n' + 'long-markdown-'.repeat(120));
+        const source = btoa('const first = 1;\\n\\nconst longValue = "' + 'long-value-'.repeat(120) + '";\\nconst last = 2;');
         const canvas = btoa(JSON.stringify({
             nodes: [
                 { id: 'text-node', type: 'text', text: '# Start', x: 0, y: 0, width: 220, height: 120 },
@@ -258,9 +259,14 @@ const virtualModules: Record<string, string> = {
                 ? taskHtml
                 : path === '/workspace/review.canvas'
                     ? canvas
-                    : path === '/workspace/review.ts' ? source : content,
+                    : path === '/workspace/review.ts'
+                        ? source
+                        : path === '/workspace/source.md' ? sourceMarkdown : content,
         });
-        export const sessionWriteFile = async () => ({ success: true, hash: 'saved-hash' });
+        export const sessionWriteFile = async (_sessionId, path, content) => {
+            window.__SESSION_WRITE_CALLS__ = [...(window.__SESSION_WRITE_CALLS__ ?? []), { path, content }];
+            return { success: true, hash: 'saved-hash' };
+        };
         export const sessionDeleteFile = async () => {
             window.__DELETE_RPC_COUNT__ = (window.__DELETE_RPC_COUNT__ ?? 0) + 1;
             return { success: true };
@@ -833,28 +839,98 @@ describe('Desktop workspace browser interaction', () => {
         });
     }
 
+    async function activateSourceLine(page: Page, sourcePanel: Locator, line: number, touch: boolean) {
+        const codeScroller = sourcePanel.locator('[data-code]');
+        const sourceLine = sourcePanel.locator(`[data-line="${line}"]`);
+        await sourceLine.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+        const [lineBox, scrollerBox] = await Promise.all([sourceLine.boundingBox(), codeScroller.boundingBox()]);
+        if (!lineBox || !scrollerBox) throw new Error(`Source line ${line} has no browser layout box`);
+        const point = {
+            x: Math.min(scrollerBox.x + Math.max(100, scrollerBox.width / 2), scrollerBox.x + scrollerBox.width - 12),
+            y: lineBox.y + (lineBox.height / 2),
+        };
+        if (touch) {
+            await page.touchscreen.tap(point.x, point.y);
+        } else {
+            await page.mouse.move(point.x, point.y);
+            await expect(sourcePanel.getByRole('button', { name: 'Comment on hovered line' }).isVisible()).resolves.toBe(true);
+            await page.mouse.click(point.x, point.y);
+        }
+        await sourcePanel.getByPlaceholder('Write a comment').waitFor();
+        await expect(sourcePanel.getByText(`Comment on line ${line}`, { exact: true }).count()).resolves.toBe(1);
+        await expect.poll(() => sourceLine.getAttribute('data-selected-line')).toBe('single');
+    }
+
+    async function verifyMarkdownSourceReviewJourney(page: Page, surfaceId: string, touch = false, switchTab = true) {
+        const workspace = page.getByTestId(surfaceId);
+        if (switchTab) await workspace.getByRole('tab', { name: 'Open source.md' }).click();
+        const sourcePanel = workspace.getByTestId('desktop-file-panel:/workspace/source.md');
+        await sourcePanel.locator('diffs-container').waitFor();
+
+        for (const line of [2, 3]) {
+            await activateSourceLine(page, sourcePanel, line, touch);
+            await sourcePanel.getByRole('button', { name: 'Cancel' }).click();
+        }
+        await expect(page.evaluate(() => (window as any).__SESSION_WRITE_CALLS__ ?? [])).resolves.toEqual([]);
+    }
+
     async function verifyCodeReviewJourney(page: Page, surfaceId: string, feedbackIndex: number, switchTab = true, touch = false) {
         const workspace = page.getByTestId(surfaceId);
         if (switchTab) await workspace.getByRole('tab', { name: 'Open review.ts' }).click();
         const sourcePanel = workspace.getByTestId('desktop-file-panel:/workspace/review.ts');
         await sourcePanel.locator('diffs-container').waitFor();
 
-        for (const [line, feedback] of [[1, 'First code note'], [2, 'Second code note']] as const) {
-            if (touch) await sourcePanel.locator(`[data-column-number="${line}"]`).tap();
-            else await sourcePanel.locator(`[data-line="${line}"]`).hover();
-            const codeGutter = sourcePanel.getByRole('button', { name: 'Comment on hovered line' });
-            if (touch) await codeGutter.tap();
-            else await codeGutter.click();
-            await sourcePanel.getByPlaceholder('Write a comment').fill(feedback);
-            await sourcePanel.getByRole('button', { name: 'Pin comment' }).click();
+        const codeScroller = sourcePanel.locator('[data-code]');
+        await expect.poll(() => codeScroller.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+        if (!touch) {
+            await codeScroller.hover();
+            await page.mouse.wheel(600, 0);
+            await expect.poll(() => codeScroller.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+            await expect(sourcePanel.getByPlaceholder('Write a comment').count()).resolves.toBe(0);
+            await codeScroller.evaluate((element) => { element.scrollLeft = 0; });
         }
+
+        for (const line of [1, 2, 3, 4] as const) {
+            await activateSourceLine(page, sourcePanel, line, touch);
+
+            const feedback = line === 2
+                ? 'Blank line note'
+                : line === 3 ? 'Long line note' : null;
+            if (feedback) {
+                await sourcePanel.getByPlaceholder('Write a comment').fill(feedback);
+                await sourcePanel.getByRole('button', { name: 'Pin comment' }).click();
+            } else {
+                await sourcePanel.getByRole('button', { name: 'Cancel' }).click();
+            }
+        }
+
         await sourcePanel.getByRole('button', { name: 'Send 2 comments' }).click();
         await expect(page.evaluate(() => (window as any).__WORKSPACE_FEEDBACK_CALLS__ ?? [])).resolves.toHaveLength(feedbackIndex + 1);
         const sourceFeedback = await page.evaluate((index) => (window as any).__WORKSPACE_FEEDBACK_CALLS__[index].text, feedbackIndex);
-        expect(sourceFeedback).toContain('Line: 1');
-        expect(sourceFeedback).toContain('First code note');
         expect(sourceFeedback).toContain('Line: 2');
-        expect(sourceFeedback).toContain('Second code note');
+        expect(sourceFeedback).toContain('Blank line note');
+        expect(sourceFeedback).toContain('Line: 3');
+        expect(sourceFeedback).toContain('Long line note');
+
+        if (touch) {
+            const scrollerBox = await codeScroller.boundingBox();
+            if (!scrollerBox) throw new Error('Source scroller has no browser layout box');
+            const session = await page.context().newCDPSession(page);
+            const y = scrollerBox.y + (scrollerBox.height / 2);
+            await session.send('Input.dispatchTouchEvent', {
+                type: 'touchStart',
+                touchPoints: [{ x: scrollerBox.x + scrollerBox.width - 24, y }],
+            });
+            await session.send('Input.dispatchTouchEvent', {
+                type: 'touchMove',
+                touchPoints: [{ x: scrollerBox.x + 48, y }],
+            });
+            await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+            await session.detach();
+            await expect.poll(() => codeScroller.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+            await expect(sourcePanel.getByPlaceholder('Write a comment').count()).resolves.toBe(0);
+        }
+        await expect(page.evaluate(() => (window as any).__SESSION_WRITE_CALLS__ ?? [])).resolves.toEqual([]);
     }
 
     async function verifyCanvasReviewJourney(page: Page, surfaceId: string, switchTab: boolean, feedbackIndex: number, touch = false) {
@@ -919,6 +995,7 @@ describe('Desktop workspace browser interaction', () => {
         await verifyMarkdownReviewJourney(page, 'file-review-desktop');
         await verifyMachineMarkdownLinkJourney(page, 'file-review-desktop');
         await verifyCodeReviewJourney(page, 'file-review-desktop', 1);
+        await verifyMarkdownSourceReviewJourney(page, 'file-review-desktop');
         await verifyCanvasReviewJourney(page, 'file-review-desktop', true, 2);
         expect(pageErrors).toEqual([]);
         await page.close();
@@ -934,6 +1011,8 @@ describe('Desktop workspace browser interaction', () => {
         await verifyCanvasReviewJourney(page, 'file-review-mobile', false, 0, true);
         await page.goto(origin + '?file-review=mobile-source');
         await verifyCodeReviewJourney(page, 'file-review-mobile', 0, false, true);
+        await page.goto(origin + '?file-review=mobile-markdown-source');
+        await verifyMarkdownSourceReviewJourney(page, 'file-review-mobile', true, false);
         expect(pageErrors).toEqual([]);
         await page.close();
         await context.close();

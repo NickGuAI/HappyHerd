@@ -71,6 +71,7 @@ vi.mock('@/text', () => ({
 }));
 
 import { MessageView } from './MessageView';
+import { sync } from '@/sync/sync';
 
 const originalConsoleError = console.error;
 
@@ -120,5 +121,37 @@ describe('MessageView provider account switch receipt', () => {
         expect(native.root.findByType('Text' as any).children.join('')).toBe(
             'Quota exhaustion on Codex triggered an account switch from personal-账号 to work-primary.',
         );
+    });
+});
+
+describe('MessageView suggestion option boundary', () => {
+    it('forwards an exact chip selection to the session once', () => {
+        platform.os = 'web';
+        vi.mocked(sync.sendMessage).mockClear();
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(React.createElement(MessageView, {
+                message: {
+                    kind: 'agent-text',
+                    id: 'options-row',
+                    localId: null,
+                    createdAt: 1,
+                    text: '<options>\n<option>保持 Speaker 2 不变</option>\n</options>',
+                },
+                metadata: null,
+                sessionId: 'session-options',
+            }));
+        });
+
+        const markdown = renderer.root.findByType('MarkdownView' as any);
+        expect(markdown.props.markdown).toContain('<option>保持 Speaker 2 不变</option>');
+        act(() => markdown.props.onOptionPress({ title: '保持 Speaker 2 不变' }));
+        expect(sync.sendMessage).toHaveBeenCalledOnce();
+        expect(sync.sendMessage).toHaveBeenCalledWith(
+            'session-options',
+            '保持 Speaker 2 不变',
+            { source: 'option' },
+        );
+        act(() => renderer.unmount());
     });
 });

@@ -1,3 +1,9 @@
+# September 2 — Restored Markdown presentation and line comments
+
+- Chat suggestion chips on desktop and mobile again use their established design without list bullets, indentation, or browser-default button styling; one tap or click sends exactly one option.
+- Shared Markdown is readable again in dark mode across text, links, quotes, code, syntax highlighting, tables, and chips, while the existing light appearance is unchanged.
+- In line-numbered Markdown and code previews, any visible line—including blank and long lines—can be tapped or clicked to pin an exact-line comment; comments still send together to the current chat without editing the file or blocking horizontal scrolling.
+
 # September 2 — Web load reliability and transfer optimization
 
 - Fixed an issue where reloading the web application could result in a blank screen, ensuring that the interface and retained sessions now load reliably.

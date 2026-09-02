@@ -14,6 +14,27 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('expo-clipboard', () => ({ setStringAsync: mocks.clipboard }));
+vi.mock('react-native-unistyles', () => ({
+    useUnistyles: () => ({
+        theme: {
+            dark: false,
+            colors: {
+                text: '#000000',
+                textSecondary: '#49454f',
+                divider: '#eaeaea',
+                surface: '#ffffff',
+                surfaceHigh: '#f8f8f8',
+                surfaceHighest: '#f0f0f0',
+                syntaxKeyword: '#1d4ed8',
+                syntaxString: '#059669',
+                syntaxComment: '#6b7280',
+                syntaxNumber: '#0891b2',
+                syntaxFunction: '#9333ea',
+                syntaxDefault: '#374151',
+            },
+        },
+    }),
+}));
 vi.mock('@/-session/workspaceLinkNavigation', () => ({ useWorkspaceLinkPress: () => mocks.openWorkspace }));
 vi.mock('./MermaidRenderer', async () => {
     const ReactModule = await import('react');
@@ -45,6 +66,74 @@ beforeEach(() => {
 });
 
 describe('MarkdownView web parity', () => {
+    it('renders option tags as the original full-width chips without consuming ordinary lists', () => {
+        const onOptionPress = vi.fn();
+        const onLineComment = vi.fn();
+        let renderer: any;
+        act(() => {
+            renderer = create(React.createElement(MarkdownView, {
+                markdown: [
+                    '<options>',
+                    '<option>把 Speaker 2 改成 Maria</option>',
+                    '<option>保持 Speaker 2 不变</option>',
+                    '</options>',
+                    '',
+                    '- ordinary one',
+                    '- ordinary two',
+                ].join('\n'),
+                onOptionPress,
+                onLineComment,
+            }));
+        });
+
+        const optionBlock = renderer.root.findByProps({ className: 'hh-markdown-options' });
+        expect(optionBlock.findAllByType('ul')).toHaveLength(0);
+        expect(optionBlock.findAllByType('li')).toHaveLength(0);
+        const chips = optionBlock.findAllByProps({ className: 'hh-markdown-option' });
+        expect(chips.map((chip: any) => chip.children.join(''))).toEqual([
+            '把 Speaker 2 改成 Maria',
+            '保持 Speaker 2 不变',
+        ]);
+        act(() => chips[0].props.onClick());
+        expect(onOptionPress).toHaveBeenCalledOnce();
+        expect(onOptionPress).toHaveBeenCalledWith({ title: '把 Speaker 2 改成 Maria' });
+        expect(renderer.root.findAllByType('ul')).toHaveLength(1);
+        const ordinaryItems = renderer.root.findAllByType('li');
+        expect(ordinaryItems).toHaveLength(2);
+        expect(ordinaryItems.map((item: any) => item.props['data-source-line'])).toEqual([6, 7]);
+        const gutter = ordinaryItems[0].findByProps({ className: 'hh-markdown-comment-gutter' });
+        act(() => gutter.props.onClick({ preventDefault: vi.fn(), stopPropagation: vi.fn() }));
+        expect(onLineComment).toHaveBeenCalledWith({ line: 6 });
+        act(() => renderer.unmount());
+    });
+
+    it('preserves option text containing CommonMark destination and label delimiters', () => {
+        const optionTitles = [
+            'Keep Speaker 2 (recommended))',
+            'Keep Speaker 2 trailing \\',
+            String.raw`Keep \[Speaker 2\]`,
+        ];
+        const onOptionPress = vi.fn();
+        let renderer: any;
+        act(() => {
+            renderer = create(React.createElement(MarkdownView, {
+                markdown: [
+                    '<options>',
+                    ...optionTitles.map((title) => `<option>${title}</option>`),
+                    '</options>',
+                ].join('\n'),
+                onOptionPress,
+            }));
+        });
+
+        const chips = renderer.root.findByProps({ className: 'hh-markdown-options' })
+            .findAllByProps({ className: 'hh-markdown-option' });
+        expect(chips.map((chip: any) => chip.children.join(''))).toEqual(optionTitles);
+        act(() => chips.forEach((chip: any) => chip.props.onClick()));
+        expect(onOptionPress.mock.calls.map(([option]) => option.title)).toEqual(optionTitles);
+        act(() => renderer.unmount());
+    });
+
     it('opens an HTTP image at full size and exposes failure with retry', () => {
         let renderer: any;
         act(() => { renderer = create(React.createElement(MarkdownView, { markdown: '![diagram](https://example.com/diagram.png)' })); });

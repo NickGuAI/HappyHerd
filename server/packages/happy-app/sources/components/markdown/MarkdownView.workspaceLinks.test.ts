@@ -85,6 +85,14 @@ vi.mock('react-native-unistyles', () => {
     const colors = new Proxy({
         groupped: { background: '#eee' },
         surface: '#fff',
+        surfaceHigh: 'surface-high',
+        surfaceHighest: 'surface-highest',
+        divider: 'divider',
+        text: 'text',
+        textLink: 'text-link',
+        textSecondary: 'text-secondary',
+        textDestructive: 'text-destructive',
+        success: 'success',
     }, { get: (target, key) => Reflect.get(target, key) ?? '#000' });
     return {
         StyleSheet: {
@@ -104,8 +112,8 @@ vi.mock('../StyledText', async () => {
 });
 vi.mock('@/constants/Typography', () => ({
     Typography: {
-        default: () => ({}),
-        mono: () => ({}),
+        default: () => ({ fontFamily: 'IBMPlexSans-Regular' }),
+        mono: () => ({ fontFamily: 'IBMPlexMono-Regular' }),
     },
 }));
 vi.mock('../SimpleSyntaxHighlighter', async () => {
@@ -151,6 +159,89 @@ beforeEach(() => {
 });
 
 describe('MarkdownView workspace-link opt-in', () => {
+    it('restores native option chips without list markers and sends the exact title once', () => {
+        const onOptionPress = vi.fn();
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(React.createElement(MarkdownView, {
+                markdown: [
+                    '<options>',
+                    '<option>把 Speaker 2 改成 Maria</option>',
+                    '<option>保持 Speaker 2 不变</option>',
+                    '</options>',
+                ].join('\n'),
+                onOptionPress,
+            }));
+        });
+
+        expect(findText('•')).toBeUndefined();
+        const optionText = findText('把 Speaker 2 改成 Maria');
+        expect(optionText?.style).toMatchObject({
+            color: 'text',
+            fontFamily: 'IBMPlexSans-Regular',
+            fontSize: 16,
+            lineHeight: 24,
+        });
+        const chip = renderer.root.findAllByType('button' as any).find((candidate: any) => (
+            candidate.findAll((node: any) => node.type === 'span' && node.children.includes('把 Speaker 2 改成 Maria')).length > 0
+        ));
+        expect(chip).toBeDefined();
+        const optionContainer = renderer.root.find((node: any) => (
+            node.type === 'div'
+            && node.props.style?.flexDirection === 'column'
+            && node.props.style?.gap === 8
+            && node.props.style?.marginVertical === 8
+        ));
+        expect(optionContainer.props.style).toMatchObject({
+            flexDirection: 'column',
+            gap: 8,
+            marginVertical: 8,
+        });
+        expect(chip?.props.style({ pressed: false })).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                backgroundColor: 'surface-highest',
+                borderRadius: 12,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                overflow: 'hidden',
+            }),
+        ]));
+        expect(chip?.props.style({ pressed: true })).toEqual(expect.arrayContaining([
+            expect.objectContaining({ opacity: 0.7 }),
+        ]));
+        act(() => chip?.props.onPress());
+        expect(onOptionPress).toHaveBeenCalledOnce();
+        expect(onOptionPress).toHaveBeenCalledWith({ title: '把 Speaker 2 改成 Maria' });
+        act(() => renderer.unmount());
+    });
+
+    it('preserves native option text containing CommonMark destination and label delimiters', () => {
+        const optionTitles = [
+            'Keep Speaker 2 (recommended))',
+            'Keep Speaker 2 trailing \\',
+            String.raw`Keep \[Speaker 2\]`,
+        ];
+        const onOptionPress = vi.fn();
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(React.createElement(MarkdownView, {
+                markdown: [
+                    '<options>',
+                    ...optionTitles.map((title) => `<option>${title}</option>`),
+                    '</options>',
+                ].join('\n'),
+                onOptionPress,
+            }));
+        });
+
+        const chips = renderer.root.findAllByType('button' as any);
+        expect(chips).toHaveLength(optionTitles.length);
+        expect(chips.map((chip: any) => chip.findByType('span').children.join(''))).toEqual(optionTitles);
+        act(() => chips.forEach((chip: any) => chip.props.onPress()));
+        expect(onOptionPress.mock.calls.map(([option]) => option.title)).toEqual(optionTitles);
+        act(() => renderer.unmount());
+    });
+
     it('keeps inline and block math visible on native', () => {
         renderToStaticMarkup(React.createElement(MarkdownView, {
             markdown: 'Inline $x + y$.\n\n$$\nz = 3\n$$',
