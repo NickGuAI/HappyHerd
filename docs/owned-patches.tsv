@@ -228,3 +228,4 @@ ZEN_NAVIGATION_TITLE_CLEARANCE	accepted	fix(app): reserve Zen navigation toggle 
 CODEX_SIDE_CHAT_UNMANAGED_HOME	accepted	fix(side-chats): preserve unmanaged Codex homes	server/packages/happy-cli/src/daemon/run.resume.test.ts
 HISTORICAL_EMPTY_CI_TRIGGER	accepted	fix(ci): recognize historical empty CI trigger	scripts/test-owned-merge-provenance.sh
 DSH_PROVIDER	accepted	feat(dsh): add first-class ACP sessions	server/packages/happy-cli/src/agent/acp/runAcp.test.ts
+DSH_PROVIDER	accepted	fix(dsh): name HomeDock prompt correctly	server/packages/happy-app/sources/components/HomeDock.source.test.ts

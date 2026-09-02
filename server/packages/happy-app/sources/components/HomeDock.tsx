@@ -1022,9 +1022,9 @@ export const HomeDock = React.memo(({
         ?? availableAgents[0]
         ?? { key: agentType, name: getHarnessName(agentType) };
     const permissionLabel = getPermissionModeShortLabel(currentPermission);
-    const focusedPromptPlaceholder = agentType === 'grok'
-        ? t('uiCopy.askValue', { value1: currentAgent.name })
-        : t('uiCopy.askCodex');
+    const focusedPromptPlaceholder = agentType === 'codex'
+        ? t('uiCopy.askCodex')
+        : t('uiCopy.askValue', { value1: currentAgent.name });
     const canSubmit = !isSubmitting && (
         prompt.trim().length > 0 || (canUseImageAttachments && selectedImages.length > 0)
     );
