@@ -737,7 +737,9 @@ function PathPickerContent({
                             scaleFeedback={false}
                             accessibilityRole="radio"
                             accessibilityState={{ selected: isSelected }}
-                            accessibilityLabel={item.key}
+                            accessibilityLabel={item.label === item.key
+                                ? item.label
+                                : `${item.label}, ${item.key}`}
                             style={(p) => [
                                 pickerStyles.option,
                                 embedded && pickerStyles.embeddedOption,
@@ -754,6 +756,14 @@ function PathPickerContent({
                                 <Text style={[pickerStyles.optionText, { color: theme.colors.text }]} numberOfLines={1}>
                                     {item.label}
                                 </Text>
+                                {item.subtitle && item.subtitle !== item.label && (
+                                    <Text
+                                        style={[pickerStyles.optionText, { color: theme.colors.textSecondary }]}
+                                        numberOfLines={1}
+                                    >
+                                        {item.subtitle}
+                                    </Text>
+                                )}
                             </View>
                             {isSelected && (
                                 <Ionicons
@@ -1190,9 +1200,7 @@ function NewSessionScreen() {
             label: place.projectId
                 ? place.name
                 : formatPathRelativeToHome(place.path, selectedHomeDir),
-            subtitle: place.projectId
-                ? formatPathRelativeToHome(place.path, selectedHomeDir)
-                : undefined,
+            subtitle: place.key,
         }));
     }, [places, selectedHomeDir]);
 

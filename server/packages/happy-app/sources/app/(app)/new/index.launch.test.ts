@@ -509,6 +509,11 @@ describe('Full New Session path selection', () => {
             testID: `new-session-recent-path-${encodeURIComponent(secondPath)}`,
         });
         expect(secondRecent.props.accessibilityState).toEqual({ selected: false });
+        expect(secondRecent.props.accessibilityLabel).toBe(`Repeated project, ${secondPath}`);
+        expect(secondRecent.findAllByType('Text' as any).map((text: any) => text.props.children)).toEqual([
+            'Repeated project',
+            secondPath,
+        ]);
         await act(async () => secondRecent.props.onPress());
 
         expect(mocks.draft.setPath).toHaveBeenLastCalledWith(secondPath);
