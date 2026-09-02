@@ -1,3 +1,9 @@
+# September 2 — Project picker, chat presentation, and mobile layout enhancements
+
+- On the New Session screen, tapping a recently visited project or path selects its exact canonical path, visually distinguishes named projects by their path, closes the picker, and launches there immediately.
+- Human message text is now centered, and wide Markdown tables preserve readable columns and horizontal touch or trackpad scrolling while vertical chat scrolling and exact-line comments remain fully functional.
+- On phone Web, all visible Chat and New Session text and text-entry controls—including dynamically shown modal content—now compute to at least 16 CSS pixels in both portrait and landscape orientations to prevent automatic iPhone focus zoom, without shrinking larger headings.
+
 # September 2 — Restored Markdown presentation and line comments
 
 - Chat suggestion chips on desktop and mobile again use their established design without list bullets, indentation, or browser-default button styling; one tap or click sends exactly one option.

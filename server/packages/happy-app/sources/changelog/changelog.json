@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 2 — Project picker, chat presentation, and mobile layout enhancements",
+      "summary": "",
+      "markdown": "- On the New Session screen, tapping a recently visited project or path selects its exact canonical path, visually distinguishes named projects by their path, closes the picker, and launches there immediately.\n- Human message text is now centered, and wide Markdown tables preserve readable columns and horizontal touch or trackpad scrolling while vertical chat scrolling and exact-line comments remain fully functional.\n- On phone Web, all visible Chat and New Session text and text-entry controls—including dynamically shown modal content—now compute to at least 16 CSS pixels in both portrait and landscape orientations to prevent automatic iPhone focus zoom, without shrinking larger headings."
+    },
+    {
       "title": "September 2 — Restored Markdown presentation and line comments",
       "summary": "",
       "markdown": "- Chat suggestion chips on desktop and mobile again use their established design without list bullets, indentation, or browser-default button styling; one tap or click sends exactly one option.\n- Shared Markdown is readable again in dark mode across text, links, quotes, code, syntax highlighting, tables, and chips, while the existing light appearance is unchanged.\n- In line-numbered Markdown and code previews, any visible line—including blank and long lines—can be tapped or clicked to pin an exact-line comment; comments still send together to the current chat without editing the file or blocking horizontal scrolling."
@@ -506,5 +511,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 2 — Restored Markdown presentation and line comments"
+  "latestTitle": "September 2 — Project picker, chat presentation, and mobile layout enhancements"
 }
