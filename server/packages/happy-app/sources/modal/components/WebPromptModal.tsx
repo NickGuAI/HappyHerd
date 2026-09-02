@@ -95,7 +95,7 @@ export function WebPromptModal({ config, onClose, onConfirm }: WebPromptModalPro
             borderRadius: 8,
             paddingHorizontal: 10,
             marginTop: 16,
-            fontSize: 14,
+            fontSize: Platform.select({ web: 16, default: 14 }),
             color: theme.colors.text,
             backgroundColor: theme.colors.input.background
         },

@@ -2,6 +2,7 @@ import * as React from 'react';
 import {
     ActivityIndicator,
     Modal,
+    Platform,
     Pressable,
     ScrollView,
     TextInput,
@@ -314,7 +315,7 @@ const stylesheet = StyleSheet.create((theme) => ({
         gap: 2,
     },
     optionLabel: {
-        fontSize: 15,
+        fontSize: Platform.select({ web: 16, default: 15 }),
         color: theme.colors.text,
         ...Typography.default('semiBold'),
     },

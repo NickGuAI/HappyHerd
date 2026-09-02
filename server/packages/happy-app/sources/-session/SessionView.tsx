@@ -44,6 +44,7 @@ import { isRunningOnMac } from '@/utils/platform';
 import { useDeviceType, useHeaderHeight, useIsLandscape, useIsTablet } from '@/utils/responsive';
 import { resolveStatusBarGitBranch } from '@/utils/sessionStatusBar';
 import { visibleRigGitLineChanges } from '@/utils/rigGitLineChanges';
+import { shouldApplyPhoneWebTypographyFloor } from '@/utils/mobileTypographyFloor';
 import { FilesSidebar, SidebarMode } from '@/components/FilesSidebar';
 import { DesktopFileWorkspace, DesktopFileWorkspaceSplit } from '@/components/DesktopFileWorkspace';
 import {
@@ -158,7 +159,12 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     const isWebMobileSessionViewport = Platform.OS === 'web'
         && deviceType === 'phone'
         && windowWidth < SIDE_CHAT_SIDEBAR_MIN_WINDOW_WIDTH;
-    const appliesWebPhoneTypographyFloor = Platform.OS === 'web' && deviceType === 'phone';
+    const appliesWebPhoneTypographyFloor = shouldApplyPhoneWebTypographyFloor({
+        platform: Platform.OS,
+        deviceType,
+        windowWidth,
+        desktopLayoutMinWidth: SIDE_CHAT_SIDEBAR_MIN_WINDOW_WIDTH,
+    });
     const zenMode = useLocalSetting('zenMode');
     const [headerBackdropVisible, setHeaderBackdropVisible] = React.useState(false);
     const [focusMessageId, setFocusMessageId] = React.useState<string | undefined>(props.focusMessageId);
@@ -1327,7 +1333,12 @@ export function SessionViewLoaded({
     const isWebMobileSessionViewport = Platform.OS === 'web'
         && deviceType === 'phone'
         && windowWidth < SIDE_CHAT_SIDEBAR_MIN_WINDOW_WIDTH;
-    const appliesWebPhoneTypographyFloor = Platform.OS === 'web' && deviceType === 'phone';
+    const appliesWebPhoneTypographyFloor = shouldApplyPhoneWebTypographyFloor({
+        platform: Platform.OS,
+        deviceType,
+        windowWidth,
+        desktopLayoutMinWidth: SIDE_CHAT_SIDEBAR_MIN_WINDOW_WIDTH,
+    });
     const isWebSessionViewport = Platform.OS === 'web';
     const workspaceController = React.useContext(SessionWorkspaceControllerContext);
     const webWorkspaceActions = React.useMemo(() => (

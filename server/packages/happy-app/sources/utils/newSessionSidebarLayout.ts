@@ -1,4 +1,4 @@
-const RIGHT_SIDEBAR_MIN_WINDOW_WIDTH = 1100;
+export const NEW_SESSION_DESKTOP_MIN_WINDOW_WIDTH = 1100;
 const COMMANDER_PICKER_MAX_HEIGHT = 320;
 const COMMANDER_PICKER_VIEWPORT_RATIO = 0.45;
 
@@ -13,7 +13,7 @@ type NewSessionSidebarLayoutInput = {
 export function getNewSessionSidebarLayout(input: NewSessionSidebarLayoutInput) {
     const canShowSidebar = input.fileDiffsSidebarEnabled
         && (input.isMac || input.platform === 'web')
-        && input.windowWidth >= RIGHT_SIDEBAR_MIN_WINDOW_WIDTH;
+        && input.windowWidth >= NEW_SESSION_DESKTOP_MIN_WINDOW_WIDTH;
     const showSidebar = canShowSidebar && !input.zenMode;
     const sidebarWidth = Math.min(Math.max(Math.floor(input.windowWidth * 0.3), 250), 360);
 

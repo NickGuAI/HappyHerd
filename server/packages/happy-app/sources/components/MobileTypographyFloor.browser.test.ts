@@ -74,6 +74,11 @@ describe('MobileTypographyFloor browser behavior', () => {
         }
         await expect(page.locator('[data-testid="textarea"]').evaluate((element) => getComputedStyle(element, '::placeholder').fontSize)).resolves.toBe('16px');
         await expect(page.locator('[data-testid="portal-text"]').evaluate((element) => getComputedStyle(element).fontSize)).resolves.toBe('16px');
+        for (const owner of ['agent-question', 'web-prompt']) {
+            await page.locator(`[data-testid="show-${owner}-autofocus"]`).click();
+            await expect.poll(() => page.evaluate((key) => window.__AUTOFOCUS_FONT_SIZES__?.[key], owner)).toBe('16px');
+            await expect(page.locator(`[data-testid="autofocus-${owner}"]`).evaluate((element) => document.activeElement === element)).resolves.toBe(true);
+        }
 
         await page.locator('[data-testid="add-dynamic"]').click();
         await expect.poll(() => page.locator('[data-testid="dynamic"]').evaluate((element) => getComputedStyle(element).fontSize)).toBe('16px');

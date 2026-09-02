@@ -77,7 +77,9 @@ import { isRunningOnMac } from '@/utils/platform';
 import {
     getNewSessionCommanderPickerOptionListMaxHeight,
     getNewSessionSidebarLayout,
+    NEW_SESSION_DESKTOP_MIN_WINDOW_WIDTH,
 } from '@/utils/newSessionSidebarLayout';
+import { shouldApplyPhoneWebTypographyFloor } from '@/utils/mobileTypographyFloor';
 import { getAgentPickerItems, getModePickerItems, type NewSessionPickerItem } from '@/utils/newSessionPickerItems';
 import {
     getCommanderPickerFixedItems,
@@ -1197,12 +1199,22 @@ function NewSessionScreen() {
         [placeMachineIds, selectedProjectId, sessionList],
     );
     const pathItems = React.useMemo<PickerItem[]>(() => {
-        return places.map((place) => ({
+        const candidates = places.map((place) => ({
             key: place.key,
             label: place.projectId
                 ? place.name
                 : formatPathRelativeToHome(place.path, selectedHomeDir),
-            subtitle: place.projectId ? place.key : undefined,
+            namedProject: place.projectId !== undefined,
+        }));
+        const labelCounts = new Map<string, number>();
+        for (const candidate of candidates) {
+            labelCounts.set(candidate.label, (labelCounts.get(candidate.label) ?? 0) + 1);
+        }
+        return candidates.map(({ namedProject, ...candidate }) => ({
+            ...candidate,
+            subtitle: namedProject || (labelCounts.get(candidate.label) ?? 0) > 1
+                ? candidate.key
+                : undefined,
         }));
     }, [places, selectedHomeDir]);
 
@@ -2206,6 +2218,12 @@ function NewSessionScreen() {
         zenMode,
         windowWidth,
     });
+    const appliesWebPhoneTypographyFloor = shouldApplyPhoneWebTypographyFloor({
+        platform: Platform.OS,
+        deviceType,
+        windowWidth,
+        desktopLayoutMinWidth: NEW_SESSION_DESKTOP_MIN_WINDOW_WIDTH,
+    });
     const isNativeMobile = !isDesktop;
     React.useLayoutEffect(() => {
         navigation.setOptions({ headerShown: !sidebarLayout.showSidebar && !isNativeMobile });
@@ -2856,7 +2874,7 @@ function NewSessionScreen() {
     );
 
     return (
-        <MobileTypographyFloor active={Platform.OS === 'web' && deviceType === 'phone'}>
+        <MobileTypographyFloor active={appliesWebPhoneTypographyFloor}>
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 keyboardVerticalOffset={Platform.OS === 'ios' && !sidebarLayout.showSidebar && !isNativeMobile ? Constants.statusBarHeight + headerHeight : 0}

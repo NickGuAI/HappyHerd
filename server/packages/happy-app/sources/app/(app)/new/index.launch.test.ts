@@ -63,7 +63,7 @@ vi.mock('react-native', async () => {
             configureNext: vi.fn(),
             Presets: { easeInEaseOut: {} },
         },
-        useWindowDimensions: () => ({ width: 1200, height: 800 }),
+        useWindowDimensions: () => ({ width: 844, height: 390 }),
     };
 });
 vi.mock('expo-glass-effect', async () => {
@@ -138,6 +138,7 @@ vi.mock('@/utils/responsive', () => ({
 }));
 vi.mock('@/utils/platform', () => ({ isRunningOnMac: () => false }));
 vi.mock('@/utils/newSessionSidebarLayout', () => ({
+    NEW_SESSION_DESKTOP_MIN_WINDOW_WIDTH: 1100,
     getNewSessionSidebarLayout: () => ({ showSidebar: false, sidebarWidth: 0 }),
 }));
 vi.mock('@/constants/Typography', () => ({ Typography: { default: () => ({}) } }));
@@ -503,6 +504,8 @@ describe('Full New Session path selection', () => {
         mocks.places = [
             { key: firstPath, name: 'Repeated project', path: firstPath, projectId: 'project-1' },
             { key: secondPath, name: 'Repeated project', path: secondPath, projectId: 'project-2' },
+            { key: '~/bare', name: '~/bare', path: '~/bare' },
+            { key: '/Users/dev/bare', name: '/Users/dev/bare', path: '/Users/dev/bare' },
         ];
         mocks.draft = createDraft({ selectedPath: '/Users/dev/starting' });
         mocks.draft.setPath = vi.fn((path: string) => {
@@ -522,6 +525,17 @@ describe('Full New Session path selection', () => {
         expect(secondRecent.findAllByType('Text' as any).map((text: any) => text.props.children)).toEqual([
             'Repeated project',
             secondPath,
+        ]);
+        expect(renderer.root.findByProps({
+            testID: `new-session-recent-path-${encodeURIComponent('~/bare')}`,
+        }).findAllByType('Text' as any).map((text: any) => text.props.children)).toEqual([
+            '~/bare',
+        ]);
+        expect(renderer.root.findByProps({
+            testID: `new-session-recent-path-${encodeURIComponent('/Users/dev/bare')}`,
+        }).findAllByType('Text' as any).map((text: any) => text.props.children)).toEqual([
+            '~/bare',
+            '/Users/dev/bare',
         ]);
         await act(async () => secondRecent.props.onPress());
 
