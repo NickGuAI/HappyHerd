@@ -235,3 +235,17 @@ FILE_VIEWER_CONVERGENCE	accepted	fix(files): make source lines directly commenta
 MARKDOWN_PRESENTATION	accepted	fix(markdown): restore suggestion chips and dark theme	server/packages/happy-app/sources/components/markdown/MarkdownView.browser.test.ts
 MARKDOWN_REVIEW_DELIVERY	accepted	docs(app): record restored Markdown review UX	server/packages/happy-app/CHANGELOG.md
 MARKDOWN_PRESENTATION	accepted	fix(markdown): preserve literal suggestion text	server/packages/happy-app/sources/components/markdown/MarkdownView.browser.test.ts
+MOBILE_WEB_UX	accepted	fix(app): keep wide markdown tables scrollable	server/packages/happy-app/sources/components/markdown/MarkdownView.browser.test.ts
+MOBILE_WEB_UX	accepted	fix(app): select exact recent session paths	server/packages/happy-app/sources/app/(app)/new/index.launch.test.ts
+MOBILE_WEB_UX	accepted	fix(app): distinguish recent session paths	server/packages/happy-app/sources/app/(app)/new/index.launch.test.ts
+MOBILE_WEB_UX	accepted	fix(app): close mobile UX review gaps	server/packages/happy-app/sources/components/markdown/MarkdownView.browser.test.ts
+MOBILE_WEB_UX	accepted	fix(chat): center messages and floor phone typography	server/packages/happy-app/sources/components/MobileTypographyFloor.browser.test.ts
+MOBILE_WEB_UX	accepted	fix(app): enforce mobile route typography	server/packages/happy-app/sources/app/(app)/new/index.launch.test.ts
+MOBILE_WEB_UX	accepted	docs(app): record mobile UX fixes	server/packages/happy-app/CHANGELOG.md
+MOBILE_WEB_UX	accepted	chore(app): refresh mobile UX inventory	server/packages/happy-app/sources/text/ui-surface-inventory.json
+MOBILE_WEB_UX	accepted	fix(app): preserve non-phone typography	server/packages/happy-app/sources/components/MobileTypographyFloor.browser.test.ts
+MOBILE_WEB_UX	accepted	fix(app): close mobile UX signoff gaps	server/packages/happy-app/sources/utils/mobileTypographyFloor.test.ts
+MOBILE_WEB_UX	accepted	chore(app): refresh mobile UX signoff inventory	server/packages/happy-app/sources/text/ui-surface-inventory.json
+MOBILE_WEB_UX	accepted	fix(app): floor auto-focused Web inputs	server/packages/happy-app/sources/components/mobileTypographyEntry.source.test.ts
+MOBILE_WEB_UX	accepted	chore(app): refresh final mobile UX inventory	server/packages/happy-app/sources/text/ui-surface-inventory.json
+MOBILE_WEB_UX	accepted	chore(app): register mobile UX patches	docs/owned-patches.tsv
