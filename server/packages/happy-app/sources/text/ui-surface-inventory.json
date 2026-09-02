@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "211636a4cbe5cfd857968d77c0a2d7f7341a09f9567c9b474e017a1d0d5baaa2",
+  "sourceFingerprint": "004afefb07d22b49f01dc62a42801981611faa0cc48fb74cf18bd42b704ba91f",
   "routeCount": 36,
   "surfaceCount": 251,
   "hardcodedCopyCount": 0,
@@ -451,6 +451,7 @@
       "path": "/session/[id]/info",
       "owner": "sources/app/(app)/session/[id]/info.tsx",
       "translationKeys": [
+        "agentInput.agent.dsh",
         "agentInput.agent.grok",
         "common.cancel",
         "common.error",
@@ -1647,6 +1648,7 @@
       "route": "/session/[id]/info",
       "exports": [],
       "translationKeys": [
+        "agentInput.agent.dsh",
         "agentInput.agent.grok",
         "common.cancel",
         "common.error",
@@ -2405,6 +2407,7 @@
       "translationKeys": [
         "agentInput.agent.claude",
         "agentInput.agent.codex",
+        "agentInput.agent.dsh",
         "agentInput.agent.gemini",
         "agentInput.agent.grok",
         "agentInput.codexPermissionMode.title",

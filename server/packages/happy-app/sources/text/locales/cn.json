@@ -533,6 +533,7 @@
       "claude": "Claude",
       "codex": "Codex",
       "grok": "GrokBuild 智能体",
+      "dsh": "dsh",
       "gemini": "Gemini"
     },
     "model": {

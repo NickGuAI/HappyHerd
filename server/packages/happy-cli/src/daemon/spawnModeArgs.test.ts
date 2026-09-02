@@ -128,6 +128,27 @@ describe('daemon spawn mode arguments', () => {
         ]);
     });
 
+    it('forwards the target-validated dsh model and effort without a permission mode', () => {
+        const args = ['dsh'];
+
+        appendDaemonSpawnModeArgs(args, {
+            directory: '/workspace',
+            agent: 'dsh',
+            effectiveSettings: {
+                provider: 'dsh',
+                model: 'deepseek-v4-pro',
+                effort: 'max',
+                permission: null,
+            },
+        }, 'dsh');
+
+        expect(args).toEqual([
+            'dsh',
+            '--model', 'deepseek-v4-pro',
+            '--effort', 'max',
+        ]);
+    });
+
     it('forwards Antigravity model and permission but not a separate effort', () => {
         const args = ['agy'];
 

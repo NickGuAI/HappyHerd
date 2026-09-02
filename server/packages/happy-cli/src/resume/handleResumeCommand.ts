@@ -202,6 +202,7 @@ export async function buildValidatedTerminalResumeLaunch(
         cliAvailability: availability,
         agentCapabilities: discovery.capabilities,
         ...(discovery.grokCapabilityError ? { grokCapabilityError: discovery.grokCapabilityError } : {}),
+        ...(discovery.dshCapabilityError ? { dshCapabilityError: discovery.dshCapabilityError } : {}),
     }, 'local', {
         provider: flavor,
         model: session.metadata.modelMode ?? receipt?.model ?? undefined,

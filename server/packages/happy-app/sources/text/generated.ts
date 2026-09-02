@@ -11,6 +11,7 @@ export type TranslationKey =
     | "agentDefaults.selectMachineForProvider"
     | "agentInput.agent.claude"
     | "agentInput.agent.codex"
+    | "agentInput.agent.dsh"
     | "agentInput.agent.gemini"
     | "agentInput.agent.grok"
     | "agentInput.codexModel.gpt5CodexHigh"

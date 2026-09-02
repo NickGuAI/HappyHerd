@@ -1,12 +1,63 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+const probeMocks = vi.hoisted(() => ({
+    backendOptions: null as Record<string, unknown> | null,
+    disposeCalls: 0,
+    mkdtemp: vi.fn(async () => '/tmp/happyherd-dsh-capabilities-test'),
+    rm: vi.fn(async () => undefined),
+}));
+
+vi.mock('node:fs/promises', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('node:fs/promises')>()),
+    mkdtemp: probeMocks.mkdtemp,
+    rm: probeMocks.rm,
+}));
+
+vi.mock('@/agent/acp/AcpBackend', () => ({
+    AcpBackend: class {
+        private listener: ((message: any) => void) | null = null;
+
+        constructor(options: Record<string, unknown>) {
+            probeMocks.backendOptions = options;
+        }
+
+        onMessage(listener: (message: any) => void) {
+            this.listener = listener;
+        }
+
+        async startSession() {
+            this.listener?.({
+                type: 'event',
+                name: 'initialize_response',
+                payload: {
+                    protocolVersion: 1,
+                    agentCapabilities: { promptCapabilities: { image: false } },
+                    agentInfo: { name: 'deepseek-harness-acp', version: '0.0.1' },
+                },
+            });
+            this.listener?.({
+                type: 'event',
+                name: 'config_options_update',
+                payload: { configOptions: dshProbe().configOptions },
+            });
+            return { sessionId: 'probe', providerSessionId: 'dsh-probe' };
+        }
+
+        async dispose() {
+            probeMocks.disposeCalls += 1;
+        }
+    },
+}));
 
 import {
     buildClaudeCapabilityCatalog,
     buildBaselineAgentCapabilities,
+    buildDshAcpCapabilityCatalog,
     buildGrokAcpCapabilityCatalog,
     detectAgentCapabilities,
     parseClaudeHelp,
     parseGrokPermissionModeHelp,
+    type DshAcpProbeResult,
 } from './agentCapabilities';
 
 const GROK_HELP = `
@@ -15,6 +66,50 @@ const GROK_HELP = `
 
           [possible values: default, acceptEdits, auto, dontAsk, bypassPermissions, plan]
 `;
+
+function dshProbe(overrides?: {
+    currentModel?: string;
+    models?: Array<{ value: string; name: string }>;
+    currentEffort?: string;
+    efforts?: Array<{ value: string; name: string }>;
+    extraConfigOptions?: unknown[];
+}): DshAcpProbeResult {
+    const official = (slug: string) => JSON.stringify(['deepseek-official', slug]);
+    return {
+        initialize: {
+            protocolVersion: 1,
+            agentCapabilities: { promptCapabilities: { image: false } },
+            agentInfo: { name: 'deepseek-harness-acp', version: '0.0.1' },
+        } as DshAcpProbeResult['initialize'],
+        providerVersion: '0.1.2-alpha.4',
+        configOptions: [
+            {
+                type: 'select',
+                id: 'model',
+                name: 'Model',
+                category: 'model',
+                currentValue: overrides?.currentModel ?? official('deepseek-v4-flash'),
+                options: overrides?.models ?? [
+                    { value: official('deepseek-v4-flash'), name: 'DeepSeek V4 Flash' },
+                    { value: official('deepseek-v4-pro'), name: 'DeepSeek V4 Pro' },
+                ],
+            },
+            {
+                type: 'select',
+                id: 'reasoning_effort',
+                name: 'Reasoning Effort',
+                category: 'thought_level',
+                currentValue: overrides?.currentEffort ?? 'high',
+                options: overrides?.efforts ?? [
+                    { value: 'off', name: 'Off' },
+                    { value: 'high', name: 'High' },
+                    { value: 'max', name: 'Max' },
+                ],
+            },
+            ...((overrides?.extraConfigOptions ?? []) as DshAcpProbeResult['configOptions']),
+        ],
+    };
+}
 
 describe('agent capability discovery', () => {
     it('parses only structured Claude CLI choices and never help-text model prose', () => {
@@ -73,6 +168,7 @@ describe('agent capability discovery', () => {
             codex: true,
             gemini: false,
             grok: false,
+            dsh: false,
             agy: false,
             detectedAt: 1,
         }, {
@@ -114,6 +210,7 @@ describe('agent capability discovery', () => {
             codex: true,
             gemini: false,
             grok: false,
+            dsh: false,
             agy: false,
             detectedAt: 1,
         }, {
@@ -155,6 +252,7 @@ describe('agent capability discovery', () => {
             codex: false,
             gemini: false,
             grok: false,
+            dsh: false,
             agy: true,
             detectedAt: 1,
         });
@@ -162,6 +260,168 @@ describe('agent capability discovery', () => {
         expect(capabilities.agy.models.filter((model) => model.isDefault)).toEqual([
             expect.objectContaining({ code: 'Gemini 3.1 Pro (High)' }),
         ]);
+    });
+
+    it('publishes no speculative dsh catalog before its live ACP probe', () => {
+        const unavailable = buildBaselineAgentCapabilities({
+            claude: false,
+            codex: false,
+            gemini: false,
+            grok: false,
+            dsh: false,
+            agy: false,
+            detectedAt: 1,
+        });
+        const available = buildBaselineAgentCapabilities({
+            claude: false,
+            codex: false,
+            gemini: false,
+            grok: false,
+            dsh: true,
+            agy: false,
+            detectedAt: 1,
+        });
+
+        expect(unavailable.dsh).toBeUndefined();
+        expect(available.dsh).toBeUndefined();
+    });
+
+    it('runs the default dsh probe in an isolated temporary home with no MCP servers and exact cleanup', async () => {
+        probeMocks.backendOptions = null;
+        probeMocks.disposeCalls = 0;
+        probeMocks.mkdtemp.mockClear();
+        probeMocks.rm.mockClear();
+
+        const discovery = await detectAgentCapabilities({
+            claude: false,
+            codex: false,
+            gemini: false,
+            grok: false,
+            dsh: true,
+            agy: false,
+            detectedAt: 1,
+        });
+
+        expect(discovery.capabilities.dsh.models).toHaveLength(2);
+        expect(probeMocks.mkdtemp).toHaveBeenCalledOnce();
+        expect(probeMocks.backendOptions).toMatchObject({
+            agentName: 'dsh',
+            cwd: '/tmp/happyherd-dsh-capabilities-test',
+            command: 'dsh',
+            args: ['--profile', 'acp'],
+            mcpServers: {},
+            processEnv: expect.objectContaining({ DSH_HOME: '/tmp/happyherd-dsh-capabilities-test' }),
+        });
+        expect(probeMocks.disposeCalls).toBe(1);
+        expect(probeMocks.rm).toHaveBeenCalledWith(
+            '/tmp/happyherd-dsh-capabilities-test',
+            { recursive: true, force: true },
+        );
+    });
+
+    it('adds and removes official dsh models dynamically with live defaults', async () => {
+        const availability = {
+            claude: false,
+            codex: false,
+            gemini: false,
+            grok: false,
+            dsh: true,
+            agy: false,
+            detectedAt: 1,
+        };
+        const official = (slug: string) => JSON.stringify(['deepseek-official', slug]);
+        const first = await detectAgentCapabilities(availability, {
+            loadDshProbe: async () => dshProbe({
+                currentModel: official('deepseek-v4-pro'),
+                currentEffort: 'max',
+                models: [
+                    { value: 'not-json', name: 'Malformed' },
+                    { value: JSON.stringify(['third-party', 'deepseek-v4-pro']), name: 'Third Party Pro' },
+                    { value: official('deepseek-v4-flash'), name: 'DeepSeek V4 Flash' },
+                    { value: official('deepseek-v4-pro'), name: 'DeepSeek V4 Pro' },
+                    { value: official('deepseek-v4-flash-vision-exp'), name: 'DeepSeek Vision Experimental' },
+                ],
+            }),
+        });
+        const second = await detectAgentCapabilities(availability, {
+            loadDshProbe: async () => dshProbe({
+                currentModel: official('deepseek-v5'),
+                models: [{ value: official('deepseek-v5'), name: 'DeepSeek V5' }],
+            }),
+        });
+
+        expect(first.capabilities.dsh.models.map((model) => [model.code, model.isDefault])).toEqual([
+            ['deepseek-v4-flash', false],
+            ['deepseek-v4-pro', true],
+            ['deepseek-v4-flash-vision-exp', false],
+        ]);
+        expect(first.capabilities.dsh.effortLevels.map((effort) => [effort.code, effort.isDefault])).toEqual([
+            ['off', false],
+            ['high', false],
+            ['max', true],
+        ]);
+        expect(first.capabilities.dsh.sources).toEqual({
+            models: 'dsh-acp:session/new:configOptions',
+            effortLevels: 'dsh-acp:session/new:configOptions',
+            permissionModes: 'unsupported',
+        });
+        expect(first.capabilities.dsh.providerVersion).toBe('0.1.2-alpha.4');
+        expect(second.capabilities.dsh.models.map((model) => model.code)).toEqual(['deepseek-v5']);
+    });
+
+    it('uses only explicit dsh model and thought_level selects, never mode or permission lookalikes', () => {
+        const catalog = buildDshAcpCapabilityCatalog(dshProbe({
+            extraConfigOptions: [{
+                type: 'select',
+                id: 'model-permission-mode',
+                name: 'Model Permission Mode',
+                category: 'mode',
+                currentValue: 'plan',
+                options: [{ value: 'plan', name: 'Plan' }],
+            }],
+        }), 123);
+
+        expect(catalog.models.map((model) => model.code)).toEqual([
+            'deepseek-v4-flash',
+            'deepseek-v4-pro',
+        ]);
+        expect(catalog.permissionModes).toEqual([]);
+        expect(catalog.models.filter((model) => model.isDefault)).toEqual([
+            expect.objectContaining({ code: 'deepseek-v4-flash' }),
+        ]);
+        expect(catalog.effortLevels.filter((effort) => effort.isDefault)).toEqual([
+            expect.objectContaining({ code: 'high' }),
+        ]);
+    });
+
+    it('omits dsh and publishes an actionable error for missing, malformed, or failed probes', async () => {
+        const availability = {
+            claude: false,
+            codex: false,
+            gemini: false,
+            grok: false,
+            dsh: true,
+            agy: false,
+            detectedAt: 1,
+        };
+        const malformed = await detectAgentCapabilities(availability, {
+            loadDshProbe: async () => ({ ...dshProbe(), configOptions: [] }),
+        });
+        const nonOfficialCurrent = await detectAgentCapabilities(availability, {
+            loadDshProbe: async () => dshProbe({
+                currentModel: JSON.stringify(['third-party', 'deepseek-v4-flash']),
+            }),
+        });
+        const failed = await detectAgentCapabilities(availability, {
+            loadDshProbe: async () => { throw new Error('provider refused session/new'); },
+        });
+
+        for (const result of [malformed, nonOfficialCurrent, failed]) {
+            expect(result.capabilities.dsh).toBeUndefined();
+            expect(result.dshCapabilityError).toContain('dsh --profile acp');
+            expect(result.dshCapabilityError).toContain('DEEPSEEK_API_KEY');
+        }
+        expect(failed.dshCapabilityError).toContain('provider refused session/new');
     });
 
     it('derives GrokBuild models, efforts, defaults, and capabilities from ACP initialize', async () => {
@@ -204,6 +464,7 @@ describe('agent capability discovery', () => {
             codex: false,
             gemini: false,
             grok: true,
+            dsh: false,
             agy: false,
             detectedAt: 1,
         }, {
@@ -281,6 +542,7 @@ describe('agent capability discovery', () => {
             codex: true,
             gemini: false,
             grok: true,
+            dsh: false,
             agy: false,
             detectedAt: 1,
         }, {

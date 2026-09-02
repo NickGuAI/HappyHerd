@@ -372,6 +372,29 @@ describe('getResumeAvailability', () => {
         });
     });
 
+    it('never offers first-class dsh resume even with a stored ACP session id', () => {
+        const session = resumableSession();
+        session.metadata = {
+            ...session.metadata,
+            flavor: 'dsh',
+            codexThreadId: undefined,
+            acpSessionId: 'dsh-provider-session',
+            acpCapabilities: { loadSession: false, prompt: { image: false } },
+            spawnSettings: {
+                provider: 'dsh',
+                model: 'deepseek-v4-flash',
+                effort: 'high',
+                permission: null,
+            },
+        } as Session['metadata'];
+
+        expect(getResumeAvailability(session, onlineMachine(), false)).toEqual({
+            canResume: false,
+            canShowResume: false,
+            messageKey: null,
+        });
+    });
+
     it('does not treat an ACP id as resumable for an unknown flavor', () => {
         const session = resumableSession();
         session.metadata = {

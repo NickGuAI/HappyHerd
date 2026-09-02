@@ -1,3 +1,7 @@
+# September 2 — dsh sessions
+
+- Start first-class dsh ACP sessions from Web Desktop or Web Mobile with the installed CLI's live model and reasoning-effort choices, existing one-shot Human tool approvals, exact validation before the first prompt, and an actionable error when capability discovery fails.
+
 # September 1 — Reliable Codex Side Chats
 
 - Codex side chats created from an existing Codex session now launch successfully when the parent uses a non-default or rotated credential home or account, opening an empty child conversation for one-click creation on the same machine and working directory.

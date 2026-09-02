@@ -8,7 +8,7 @@ describe('userSafeguardMessageMeta', () => {
         expect(userSafeguardMessageMeta(flavor, false)).toEqual({ userSafeguardEnabled: false });
     });
 
-    it.each(['gemini', 'grok', 'agy', 'rig'])('does not claim unsupported %s coverage', (flavor) => {
+    it.each(['gemini', 'grok', 'dsh', 'agy', 'rig'])('does not claim unsupported %s coverage', (flavor) => {
         expect(userSafeguardMessageMeta(flavor, true)).toEqual({});
     });
 });

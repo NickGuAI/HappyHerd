@@ -520,6 +520,7 @@ export const MachineMetadataSchema = z.object({
         codex: z.boolean(),
         gemini: z.boolean(),
         grok: z.boolean().optional(), // optional: older CLIs don't report GrokBuild
+        dsh: z.boolean().optional(), // optional: older CLIs don't report dsh
         agy: z.boolean().optional(), // optional: older CLIs don't report agy
         rig: z.boolean().optional(), // Rig runs its own Happy-connected daemon
         detectedAt: z.number(),
@@ -600,6 +601,7 @@ export const MachineMetadataSchema = z.object({
     }).passthrough().optional().catch(undefined),
     agentCapabilities: z.record(z.string(), AgentCapabilityCatalogSchema).optional(),
     grokCapabilityError: z.string().optional(),
+    dshCapabilityError: z.string().optional(),
 }).passthrough();
 
 export type MachineMetadata = z.infer<typeof MachineMetadataSchema>;

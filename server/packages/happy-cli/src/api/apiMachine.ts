@@ -181,6 +181,7 @@ export class ApiMachineClient {
                 ...this.machine.metadata.cliAvailability,
                 agy: this.machine.metadata.cliAvailability.agy ?? false,
                 grok: this.machine.metadata.cliAvailability.grok ?? false,
+                dsh: this.machine.metadata.cliAvailability.dsh ?? false,
             }
             : null;
         this.lastKnownResumeSupport = this.machine.metadata?.resumeSupport ?? null;
@@ -699,6 +700,7 @@ export class ApiMachineClient {
             || prev.codex !== newAvailability.codex
             || prev.gemini !== newAvailability.gemini
             || prev.grok !== newAvailability.grok
+            || prev.dsh !== newAvailability.dsh
             || prev.agy !== newAvailability.agy;
         const resumeSupportChanged = !prevResume
             || prevResume.rpcAvailable !== newResumeSupport.rpcAvailable
@@ -738,6 +740,7 @@ export class ApiMachineClient {
             if (
                 fingerprint === this.lastKnownCapabilitiesFingerprint
                 && discovery.grokCapabilityError === this.machine.metadata?.grokCapabilityError
+                && discovery.dshCapabilityError === this.machine.metadata?.dshCapabilityError
             ) {
                 return;
             }
@@ -747,6 +750,7 @@ export class ApiMachineClient {
                 cliAvailability: availability,
                 agentCapabilities: capabilities,
                 grokCapabilityError: discovery.grokCapabilityError,
+                dshCapabilityError: discovery.dshCapabilityError,
             }));
             this.lastKnownCapabilitiesFingerprint = fingerprint;
         })().catch((error) => {

@@ -118,7 +118,7 @@ interface AgentInputProps {
     sessionStatusGitChanges?: { insertions: number; deletions: number; approximate: boolean } | null;
     /** Plan quota windows from agent state, for the week stat and its popup. */
     sessionStatusUsageLimits?: UsageLimitsLike | null;
-    agentType?: 'claude' | 'codex' | 'grok' | 'gemini' | 'agy';
+    agentType?: 'claude' | 'codex' | 'grok' | 'dsh' | 'gemini' | 'agy';
     onAgentClick?: () => void;
     machineName?: string | null;
     onMachineClick?: () => void;
@@ -1663,6 +1663,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                             ? t('agentInput.agent.codex')
                                             : props.agentType === 'grok'
                                                 ? t('agentInput.agent.grok')
+                                            : props.agentType === 'dsh'
+                                                ? t('agentInput.agent.dsh')
                                             : t('agentInput.agent.gemini')}
                                 </Text>
                             </Pressable>

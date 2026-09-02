@@ -7,6 +7,7 @@ export interface CLIAvailability {
   codex: boolean;
   gemini: boolean;
   grok: boolean;
+  dsh: boolean;
   agy: boolean;
   detectedAt: number;
 }
@@ -38,9 +39,10 @@ function detectPosix(): CLIAvailability {
   const codex = commandExists('codex');
   const gemini = commandExists('gemini');
   const grok = commandExists('grok');
+  const dsh = commandExists('dsh');
   const agy = findAgyBin() !== undefined;
 
-  return { claude, codex, gemini, grok, agy, detectedAt: Date.now() };
+  return { claude, codex, gemini, grok, dsh, agy, detectedAt: Date.now() };
 }
 
 function detectWindows(): CLIAvailability {
@@ -57,7 +59,8 @@ function detectWindows(): CLIAvailability {
   const codex = checkCommand('codex');
   const gemini = checkCommand('gemini');
   const grok = checkCommand('grok');
+  const dsh = checkCommand('dsh');
   const agy = findAgyBin() !== undefined;
 
-  return { claude, codex, gemini, grok, agy, detectedAt: Date.now() };
+  return { claude, codex, gemini, grok, dsh, agy, detectedAt: Date.now() };
 }

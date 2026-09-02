@@ -9,6 +9,7 @@ import {
 describe('KNOWN_ACP_AGENTS', () => {
   it('defines built-in ACP command mappings', () => {
     expect(KNOWN_ACP_AGENTS).toEqual({
+      dsh: { command: 'dsh', args: ['--profile', 'acp'] },
       gemini: { command: 'gemini', args: ['--experimental-acp'] },
       grok: { command: 'grok', args: ['--no-auto-update', 'agent', 'stdio'] },
       opencode: { command: 'opencode', args: ['acp'] },
@@ -20,6 +21,14 @@ describe('KNOWN_ACP_AGENTS', () => {
       agentName: 'grok',
       command: 'grok',
       args: ['--no-auto-update', 'agent', 'stdio'],
+    });
+  });
+
+  it('uses the exact dsh ACP profile invocation', () => {
+    expect(resolveAcpAgentConfig(['dsh'])).toEqual({
+      agentName: 'dsh',
+      command: 'dsh',
+      args: ['--profile', 'acp'],
     });
   });
 });
@@ -118,6 +127,31 @@ describe('resolveAcpLaunchConfig', () => {
   it('rejects provider passthrough flags on the fixed GrokBuild alias', () => {
     expect(() => resolveAcpLaunchConfig(['--provider-flag'], 'grok'))
       .toThrow('Unexpected argument for happyherd grok: --provider-flag');
+  });
+
+  it('keeps dsh lifecycle and launch settings out of provider arguments', () => {
+    expect(resolveAcpLaunchConfig([
+      '--happy-starting-mode', 'remote',
+      '--started-by', 'daemon',
+      '--model', 'deepseek-v4-pro',
+      '--effort', 'max',
+    ], 'dsh')).toEqual({
+      agentName: 'dsh',
+      command: 'dsh',
+      args: ['--profile', 'acp'],
+      startedBy: 'daemon',
+      verbose: false,
+      permissionMode: undefined,
+      model: 'deepseek-v4-pro',
+      effort: 'max',
+      resumeSessionId: undefined,
+    });
+    expect(() => resolveAcpLaunchConfig(['--permission-mode', 'yolo'], 'dsh'))
+      .toThrow('Unexpected argument for happyherd dsh: --permission-mode');
+    expect(() => resolveAcpLaunchConfig(['--resume', 'provider-session'], 'dsh'))
+      .toThrow('Unexpected argument for happyherd dsh: --resume');
+    expect(() => resolveAcpLaunchConfig(['--provider-flag'], 'dsh'))
+      .toThrow('Unexpected argument for happyherd dsh: --provider-flag');
   });
 
   it('preserves provider flags for generic ACP commands', () => {

@@ -60,6 +60,7 @@ const codeAgentDefaults: Record<StoredAgentKey, AgentDefaultConfig> = {
     // Empty defaults are deliberately neutral so an offline settings read can
     // never smuggle a Claude or Codex catalog into a Grok session.
     grok: emptyAgentDefaults,
+    dsh: emptyAgentDefaults,
     gemini: { permissionMode: 'default', modelMode: 'gemini-2.5-pro', effortLevel: null },
     agy: { permissionMode: 'default', modelMode: 'Gemini 3.1 Pro (High)', effortLevel: null },
     // Rig publishes all three dimensions through the exact selected machine.
@@ -70,7 +71,7 @@ const codeAgentDefaults: Record<StoredAgentKey, AgentDefaultConfig> = {
 
 export function normalizeAgentKey(flavor: string | null | undefined): StoredAgentKey | null {
     if (flavor === null || flavor === undefined || flavor === 'claude') return 'claude';
-    if (flavor === 'codex' || flavor === 'grok' || flavor === 'gemini' || flavor === 'agy' || flavor === 'rig') {
+    if (flavor === 'codex' || flavor === 'grok' || flavor === 'dsh' || flavor === 'gemini' || flavor === 'agy' || flavor === 'rig') {
         return flavor;
     }
     return null;
@@ -99,7 +100,7 @@ export function retirePermissionMode<T extends string | null | undefined>(
     mode: T,
     flavor: string | null | undefined,
 ): T | string {
-    if (flavor === null || flavor === undefined || flavor === 'claude' || flavor === 'grok' || flavor === 'rig') {
+    if (flavor === null || flavor === undefined || flavor === 'claude' || flavor === 'grok' || flavor === 'dsh' || flavor === 'rig') {
         return mode;
     }
     return mode ? RETIRED_PERMISSION_MODES[mode] ?? mode : mode;

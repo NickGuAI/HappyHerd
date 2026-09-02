@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 2 — dsh sessions",
+      "summary": "",
+      "markdown": "- Start first-class dsh ACP sessions from Web Desktop or Web Mobile with the installed CLI's live model and reasoning-effort choices, existing one-shot Human tool approvals, exact validation before the first prompt, and an actionable error when capability discovery fails."
+    },
+    {
       "title": "September 1 — Reliable Codex Side Chats",
       "summary": "",
       "markdown": "- Codex side chats created from an existing Codex session now launch successfully when the parent uses a non-default or rotated credential home or account, opening an empty child conversation for one-click creation on the same machine and working directory."
@@ -486,5 +491,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 1 — Reliable Codex Side Chats"
+  "latestTitle": "September 2 — dsh sessions"
 }

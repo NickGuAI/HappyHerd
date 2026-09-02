@@ -63,6 +63,7 @@ describe('MachineMetadataSchema', () => {
             homeDir: '/srv/agent-home/project',
             supportsFileDelete: true,
             grokCapabilityError: 'Run `grok login`.',
+            dshCapabilityError: 'Verify `dsh --profile acp` starts.',
             agentCapabilities: {
                 grok: {
                     detectedAt: 123,
@@ -95,7 +96,46 @@ describe('MachineMetadataSchema', () => {
         expect(metadata.agentCapabilities?.grok.acp?.loadSession).toBe(true);
         expect(metadata.agentCapabilities?.grok.effortLevels[1].isDefault).toBe(true);
         expect(metadata.grokCapabilityError).toBe('Run `grok login`.');
+        expect(metadata.dshCapabilityError).toBe('Verify `dsh --profile acp` starts.');
         expect(metadata.supportsFileDelete).toBe(true);
+    });
+
+    it('preserves the dsh capability catalog and non-resume boundary', () => {
+        const metadata = MachineMetadataSchema.parse({
+            host: 'workstation',
+            platform: 'linux',
+            happyCliVersion: '1.2.2',
+            happyHomeDir: '/srv/.happyherd',
+            homeDir: '/srv',
+            cliAvailability: {
+                claude: false,
+                codex: false,
+                gemini: false,
+                dsh: true,
+                detectedAt: 1,
+            },
+            agentCapabilities: {
+                dsh: {
+                    detectedAt: 1,
+                    sources: { models: 'static', effortLevels: 'provider', permissionModes: 'unsupported' },
+                    models: [
+                        { code: 'deepseek-v4-flash', value: 'deepseek-v4-flash', isDefault: true },
+                        { code: 'deepseek-v4-pro', value: 'deepseek-v4-pro' },
+                    ],
+                    effortLevels: [{ code: 'high', value: 'high', isDefault: true }],
+                    permissionModes: [],
+                    acp: { loadSession: false, prompt: { image: false } },
+                },
+            },
+        });
+
+        expect(metadata.cliAvailability?.dsh).toBe(true);
+        expect(metadata.agentCapabilities?.dsh.models.map((model) => model.code)).toEqual([
+            'deepseek-v4-flash',
+            'deepseek-v4-pro',
+        ]);
+        expect(metadata.agentCapabilities?.dsh.permissionModes).toEqual([]);
+        expect(metadata.agentCapabilities?.dsh.acp?.loadSession).toBe(false);
     });
 
     it('preserves the Rig creation catalog and future machine fields', () => {

@@ -375,11 +375,15 @@ function flattenSelectOptions(options: unknown): AcpSelectableOption[] {
 
 function extractConfigSelector(
   configOptions: SessionConfigOption[],
-  category: 'mode' | 'model',
+  category: 'mode' | 'model' | 'thought_level',
+  exactCategoryOnly = false,
 ): AcpConfigSelector | null {
   const optionMatchesCategory = (option: SessionConfigOption): boolean => {
-    if (option.category === category) {
-      return true;
+    if (exactCategoryOnly) {
+      return option.category === category;
+    }
+    if (option.category !== undefined && option.category !== null) {
+      return option.category === category;
     }
     // Some ACP providers omit category; fallback to id/name heuristics.
     const id = normalizeComparable(option.id);
@@ -387,13 +391,19 @@ function extractConfigSelector(
     if (category === 'model') {
       return id.includes('model') || name.includes('model');
     }
+    if (category === 'thought_level') {
+      return id.includes('effort') || id.includes('reasoning') || id.includes('thought')
+        || name.includes('effort') || name.includes('reasoning') || name.includes('thought');
+    }
     return id.includes('mode') || id.includes('permission') || name.includes('mode') || name.includes('permission');
   };
 
-  for (const option of configOptions) {
-    if (option.type !== 'select' || !optionMatchesCategory(option)) {
-      continue;
-    }
+  const matches = configOptions.filter((option) => (
+    option.type === 'select' && optionMatchesCategory(option)
+  ));
+  if (exactCategoryOnly && matches.length !== 1) return null;
+
+  for (const option of matches) {
     return {
       configId: option.id,
       currentCode: option.currentValue,
@@ -418,6 +428,27 @@ function resolveRequestedCode(options: AcpSelectableOption[], requested: string)
   for (const option of options) {
     if (normalizeComparable(option.code) === normalizedRequested || normalizeComparable(option.value) === normalizedRequested) {
       return option.code;
+    }
+  }
+
+  return null;
+}
+
+export function resolveDshModelConfigCode(options: AcpSelectableOption[], requestedModel: string): string | null {
+  for (const option of options) {
+    try {
+      const decoded: unknown = JSON.parse(option.code);
+      if (
+        Array.isArray(decoded)
+        && decoded.length === 2
+        && decoded[0] === 'deepseek-official'
+        && typeof decoded[1] === 'string'
+        && decoded[1] === requestedModel
+      ) {
+        return option.code;
+      }
+    } catch {
+      // dsh model values are opaque JSON tuples. Ignore malformed provider data.
     }
   }
 
@@ -553,7 +584,7 @@ class GenericAcpPermissionHandler extends BasePermissionHandler implements AcpPe
   }
 }
 
-function resolveSessionFlavor(agentName: string): 'gemini' | 'grok' | 'opencode' | 'acp' {
+function resolveSessionFlavor(agentName: string): 'gemini' | 'grok' | 'dsh' | 'opencode' | 'acp' {
   if (agentName === 'gemini') {
     return 'gemini';
   }
@@ -562,6 +593,9 @@ function resolveSessionFlavor(agentName: string): 'gemini' | 'grok' | 'opencode'
   }
   if (agentName === 'grok') {
     return 'grok';
+  }
+  if (agentName === 'dsh') {
+    return 'dsh';
   }
   return 'acp';
 }
@@ -615,10 +649,10 @@ export async function runAcp(opts: {
     machineId: settings.machineId,
     startedBy: opts.startedBy,
     sandbox: settings.sandboxConfig,
-    ...(opts.agentName === 'grok' && opts.startedBy !== 'daemon'
+    ...((opts.agentName === 'grok' || opts.agentName === 'dsh') && opts.startedBy !== 'daemon'
       ? {
         spawnSettings: {
-          provider: 'grok',
+          provider: opts.agentName,
           model: opts.model ?? null,
           effort: opts.effort ?? null,
           permission: opts.permissionMode ?? null,
@@ -628,7 +662,7 @@ export async function runAcp(opts: {
   });
   // A reconnect loads the old encrypted metadata before the provider process
   // is ready. Keep the newly validated daemon launch receipt locally, but do
-  // not publish it until Grok confirms that its resumed backend started.
+  // not publish it until the named first-class ACP provider confirms startup.
   const pendingLaunchReceipt = metadata.spawnSettings;
   const reconnectSessionId = process.env.HAPPY_RECONNECT_SESSION_ID;
   const reconnectKeyBase64 = process.env.HAPPY_RECONNECT_ENCRYPTION_KEY;
@@ -733,6 +767,7 @@ export async function runAcp(opts: {
   let currentEffort: string | null | undefined = opts.effort;
   let modeSelector: AcpConfigSelector | null = null;
   let modelSelector: AcpConfigSelector | null = null;
+  let effortSelector: AcpConfigSelector | null = null;
   let legacyModes: SessionModeState | null = null;
   let legacyModels: SessionModelState | null = null;
   let sawSlashCommands = false;
@@ -944,6 +979,35 @@ export async function runAcp(opts: {
   ): Promise<void> => {
     if (!requestedModel && !requestedEffort) return;
 
+    if (opts.agentName === 'dsh') {
+      const switchRequiredOption = async (
+        selector: AcpConfigSelector | null,
+        requested: string | null | undefined,
+        dimension: 'model' | 'effort',
+      ): Promise<void> => {
+        if (!requested) return;
+        if (!selector) {
+          throw new Error(`dsh did not advertise a ${dimension} config option`);
+        }
+        const resolved = dimension === 'model'
+          ? resolveDshModelConfigCode(selector.options, requested)
+          : resolveRequestedCode(selector.options, requested);
+        if (!resolved) {
+          throw new Error(`Unsupported dsh ${dimension}: ${requested}`);
+        }
+        if (resolved === selector.currentCode) return;
+        const switched = await backend.setSessionConfigOption(selector.configId, resolved);
+        if (!switched) {
+          throw new Error(`dsh rejected ${dimension}: ${requested}`);
+        }
+        selector.currentCode = resolved;
+      };
+
+      await switchRequiredOption(modelSelector, requestedModel, 'model');
+      await switchRequiredOption(effortSelector, requestedEffort, 'effort');
+      return;
+    }
+
     if (requestedModel && modelSelector) {
       const resolved = resolveRequestedCode(modelSelector.options, requestedModel);
       if (!resolved) {
@@ -1051,8 +1115,10 @@ export async function runAcp(opts: {
           }
         }
 
-        modeSelector = extractConfigSelector(configOptions, 'mode');
-        modelSelector = extractConfigSelector(configOptions, 'model');
+        const exactDshCategories = opts.agentName === 'dsh';
+        modeSelector = extractConfigSelector(configOptions, 'mode', exactDshCategories);
+        modelSelector = extractConfigSelector(configOptions, 'model', exactDshCategories);
+        effortSelector = extractConfigSelector(configOptions, 'thought_level', exactDshCategories);
         if (verbose) {
           if (modeSelector) {
             sawModes = true;
@@ -1224,7 +1290,7 @@ export async function runAcp(opts: {
     const started = await backend.startSession();
     acpSessionId = started.sessionId;
     if (started.providerSessionId) {
-      const confirmedLaunchReceipt = opts.agentName === 'grok' && metadata.spawnSettings
+      const confirmedLaunchReceipt = (opts.agentName === 'grok' || opts.agentName === 'dsh') && metadata.spawnSettings
         ? {
           spawnSettings: metadata.spawnSettings,
           permissionMode: metadata.spawnSettings.permission,

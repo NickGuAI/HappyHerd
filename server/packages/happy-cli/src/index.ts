@@ -411,12 +411,12 @@ Conversation history is preserved on the server, but in-flight tool calls are in
       process.exit(1)
     }
     return;
-  } else if (subcommand === 'acp' || subcommand === 'grok') {
+  } else if (subcommand === 'acp' || subcommand === 'grok' || subcommand === 'dsh') {
     try {
       const { runAcp, resolveAcpLaunchConfig } = await import('@/agent/acp');
       const resolved = resolveAcpLaunchConfig(
         args.slice(1),
-        subcommand === 'grok' ? 'grok' : undefined,
+        subcommand === 'grok' || subcommand === 'dsh' ? subcommand : undefined,
       );
       const { credentials } = await authAndSetupMachineIfNeeded();
       await ensureDaemonRunning()
@@ -728,6 +728,7 @@ ${chalk.bold('Usage:')}
   happyherd gemini            Start Gemini mode (ACP) [deprecated — use agy]
   happyherd agy               Start agy (Antigravity CLI) mode
   happyherd grok              Start GrokBuild through ACP
+  happyherd dsh               Start dsh through ACP
   happyherd acp               Start a generic ACP-compatible agent
   happyherd connect           Connect AI vendor API keys
   happyherd accounts      List, select, or remove named provider accounts
@@ -750,6 +751,7 @@ ${chalk.bold('Examples:')}
                            Use a custom API endpoint (e.g., claude-code-router)
   happyherd acp gemini         Start Gemini via generic ACP runner
   happyherd grok               Start GrokBuild with its fixed ACP stdio command
+  happyherd dsh                Start dsh with its fixed ACP profile
   happyherd acp -- opencode --acp
                            Start a custom ACP command
   happyherd acp opencode --verbose

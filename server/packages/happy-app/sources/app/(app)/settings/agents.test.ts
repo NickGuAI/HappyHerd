@@ -97,10 +97,11 @@ describe('Agent Defaults provider coverage', () => {
             'Claude Code',
             'Codex',
             'GrokBuild',
+            'dsh',
             'Antigravity',
             'Happy',
         ]);
-        for (const provider of ['Claude Code', 'Codex', 'GrokBuild', 'Antigravity', 'Happy']) {
+        for (const provider of ['Claude Code', 'Codex', 'GrokBuild', 'dsh', 'Antigravity', 'Happy']) {
             expect(groupItems(renderer, provider).length).toBeGreaterThan(0);
         }
         expect(groupItems(renderer, 'GrokBuild')[0].props).toMatchObject({

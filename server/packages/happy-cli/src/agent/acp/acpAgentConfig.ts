@@ -4,6 +4,7 @@ export type AcpAgentConfig = {
 };
 
 export const KNOWN_ACP_AGENTS: Record<string, AcpAgentConfig> = {
+  dsh: { command: 'dsh', args: ['--profile', 'acp'] },
   gemini: { command: 'gemini', args: ['--experimental-acp'] },
   grok: { command: 'grok', args: ['--no-auto-update', 'agent', 'stdio'] },
   opencode: { command: 'opencode', args: ['acp'] },
@@ -83,12 +84,12 @@ export function resolveAcpLaunchConfig(
       i++;
       continue;
     }
-    if (namedAgent === 'grok' && !customCommandMode && arg === '--model') {
+    if ((namedAgent === 'grok' || namedAgent === 'dsh') && !customCommandMode && arg === '--model') {
       model = takeValue(i, arg);
       i++;
       continue;
     }
-    if (namedAgent === 'grok' && !customCommandMode && arg === '--effort') {
+    if ((namedAgent === 'grok' || namedAgent === 'dsh') && !customCommandMode && arg === '--effort') {
       effort = takeValue(i, arg);
       i++;
       continue;

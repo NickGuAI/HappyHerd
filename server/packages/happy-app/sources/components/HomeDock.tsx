@@ -905,7 +905,7 @@ export const HomeDock = React.memo(({
         })
     ), [harnessKeys, selectedChoice]);
     React.useEffect(() => {
-        if (agentType !== 'grok') return;
+        if (agentType !== 'grok' && agentType !== 'dsh') return;
         if (availableAgents.some((agent) => agent.key === agentType && !agent.disabled)) return;
         const fallback = availableAgents.find((agent) => !agent.disabled);
         if (fallback) setAgentType(fallback.key as NewSessionAgentType);
@@ -936,7 +936,7 @@ export const HomeDock = React.memo(({
                 : getHardcodedModelModes(agentType, t)),
         [agentType, machineCatalog, rigCreation, selectedMachine?.metadata],
     );
-    const currentPermission = agentType === 'grok' || agentType === 'rig'
+    const currentPermission = agentType === 'grok' || agentType === 'dsh' || agentType === 'rig'
         ? resolveOption(permissionOptions, [
             permissionMode ?? defaults.permissionMode,
             rigCreation?.defaultPermissionMode ?? getAdvertisedDefaultOptionKey(permissionOptions),
@@ -947,7 +947,7 @@ export const HomeDock = React.memo(({
             defaults.permissionMode,
             getCodeAgentDefaults(agentType).permissionMode,
         );
-    const currentModel = resolveOption(modelOptions, agentType === 'grok' || agentType === 'rig'
+    const currentModel = resolveOption(modelOptions, agentType === 'grok' || agentType === 'dsh' || agentType === 'rig'
         ? [
             modelMode ?? defaults.modelMode,
             rigCreation?.defaultModelKey ?? getAdvertisedDefaultOptionKey(modelOptions),
@@ -963,7 +963,7 @@ export const HomeDock = React.memo(({
     );
     const effectiveEffortDefault = resolveAgentDefaultEffortLevel(defaultOverrides, agentType, effortOptions)
         ?? rigCreation?.defaultEffortForModel(currentModel?.key);
-    const currentEffort = resolveOption(effortOptions, agentType === 'grok' || agentType === 'rig'
+    const currentEffort = resolveOption(effortOptions, agentType === 'grok' || agentType === 'dsh' || agentType === 'rig'
         ? [
             effortLevel ?? effectiveEffortDefault,
             rigCreation?.defaultEffortForModel(currentModel?.key)
@@ -971,23 +971,23 @@ export const HomeDock = React.memo(({
         ]
         : [effortLevel, effectiveEffortDefault]);
     React.useEffect(() => {
-        if (agentType !== 'grok' && agentType !== 'rig') return;
+        if (agentType !== 'grok' && agentType !== 'dsh' && agentType !== 'rig') return;
         const nextPermission = currentPermission?.key ?? null;
         if (permissionMode !== null && permissionMode !== nextPermission) setPermissionMode(nextPermission);
     }, [agentType, currentPermission?.key, permissionMode, setPermissionMode]);
     React.useEffect(() => {
-        if (agentType !== 'grok' && agentType !== 'rig') return;
+        if (agentType !== 'grok' && agentType !== 'dsh' && agentType !== 'rig') return;
         const nextModel = currentModel?.key ?? null;
         if (modelMode !== null && modelMode !== nextModel) setModelMode(nextModel);
     }, [agentType, currentModel?.key, modelMode, setModelMode]);
     React.useEffect(() => {
-        if (agentType !== 'grok' && agentType !== 'rig') return;
+        if (agentType !== 'grok' && agentType !== 'dsh' && agentType !== 'rig') return;
         const nextEffort = currentEffort?.key ?? null;
         if (effortLevel !== null && effortLevel !== nextEffort) setEffortLevel(nextEffort);
     }, [agentType, currentEffort?.key, effortLevel, setEffortLevel]);
     const selectEffort = React.useCallback((key: string) => {
         setEffortLevel(key);
-        if (agentType === 'codex' || agentType === 'grok' || agentType === 'rig') {
+        if (agentType === 'codex' || agentType === 'grok' || agentType === 'dsh' || agentType === 'rig') {
             setDefaultOverrides(setAgentDefaultOverride(
                 defaultOverrides,
                 agentType,
@@ -998,7 +998,7 @@ export const HomeDock = React.memo(({
     }, [agentType, defaultOverrides, setDefaultOverrides, setEffortLevel]);
     const selectModel = React.useCallback((key: string) => {
         setModelMode(key);
-        if (agentType === 'grok' || agentType === 'rig') {
+        if (agentType === 'grok' || agentType === 'dsh' || agentType === 'rig') {
             setDefaultOverrides(setAgentDefaultOverride(
                 defaultOverrides,
                 agentType,
@@ -1276,13 +1276,13 @@ export const HomeDock = React.memo(({
             ?? (nextCatalog
                 ? getMachineAdvertisedModels(nextMachine?.metadata, agent, t)
                 : getHardcodedModelModes(agent, t));
-        const nextModel = resolveOption(nextModels, agent === 'grok' || agent === 'rig'
+        const nextModel = resolveOption(nextModels, agent === 'grok' || agent === 'dsh' || agent === 'rig'
             ? [
                 nextDefaults.modelMode,
                 nextRigCreation?.defaultModelKey ?? getAdvertisedDefaultOptionKey(nextModels),
             ]
             : [nextDefaults.modelMode]);
-        const nextPermission = agent === 'grok' || agent === 'rig'
+        const nextPermission = agent === 'grok' || agent === 'dsh' || agent === 'rig'
             ? resolveOption(nextPermissions, [
                 nextDefaults.permissionMode,
                 nextRigCreation?.defaultPermissionMode ?? getAdvertisedDefaultOptionKey(nextPermissions),
@@ -1301,9 +1301,9 @@ export const HomeDock = React.memo(({
         const configuredEffort = resolveAgentDefaultEffortLevel(defaultOverrides, agent, nextEfforts);
         const nextEffort = configuredEffort
             ?? nextRigCreation?.defaultEffortForModel(nextModel?.key)
-            ?? (agent === 'grok' ? getAdvertisedDefaultOptionKey(nextEfforts) : null);
+            ?? (agent === 'grok' || agent === 'dsh' ? getAdvertisedDefaultOptionKey(nextEfforts) : null);
         setAgentType(agent);
-        if (agent === 'grok' || agent === 'rig') {
+        if (agent === 'grok' || agent === 'dsh' || agent === 'rig') {
             setPermissionMode(nextPermission?.key ?? null);
             setModelMode(nextModel?.key ?? null);
             setEffortLevel(nextEffort);

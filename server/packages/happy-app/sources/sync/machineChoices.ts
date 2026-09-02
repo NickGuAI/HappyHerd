@@ -168,7 +168,7 @@ export function machineChoiceAgentVisible(
     choice: MachineChoice | null,
     agent: NewSessionAgentType,
 ): boolean {
-    return (agent !== 'grok' && agent !== 'agy' && agent !== 'rig') || machineChoiceAgentAvailable(choice, agent);
+    return (agent !== 'grok' && agent !== 'dsh' && agent !== 'agy' && agent !== 'rig') || machineChoiceAgentAvailable(choice, agent);
 }
 
 /**

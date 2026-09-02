@@ -5,7 +5,7 @@ import { useUnistyles } from 'react-native-unistyles';
 import type { AvatarHarnessIcon } from '@/utils/avatarHarness';
 import { ProviderIcon } from '@/components/ProviderIcon';
 
-const harnessImages: Record<Exclude<AvatarHarnessIcon, 'grok'>, number> = {
+const harnessImages: Record<Exclude<AvatarHarnessIcon, 'grok' | 'dsh'>, number> = {
     claude: require('@/assets/images/icon-claude.png'),
     codex: require('@/assets/images/icon-gpt.png'),
     agy: require('@/assets/images/icon-agy.png'),
@@ -16,7 +16,7 @@ function RasterHarnessBadgeIcon({
     harness,
     size,
 }: {
-    harness: Exclude<AvatarHarnessIcon, 'grok'>;
+    harness: Exclude<AvatarHarnessIcon, 'grok' | 'dsh'>;
     size: number;
 }) {
     const { theme } = useUnistyles();
@@ -38,6 +38,6 @@ export function HarnessBadgeIcon({
     harness: AvatarHarnessIcon;
     size: number;
 }) {
-    if (harness === 'grok') return <ProviderIcon kind="grok" size={size} />;
+    if (harness === 'grok' || harness === 'dsh') return <ProviderIcon kind={harness} size={size} />;
     return <RasterHarnessBadgeIcon harness={harness} size={size} />;
 }

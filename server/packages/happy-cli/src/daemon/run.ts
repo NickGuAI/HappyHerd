@@ -159,7 +159,7 @@ function shellescape(s: string): string {
     return "'" + s.replace(/'/g, "'\\''") + "'";
 }
 
-export type DaemonAgentCommand = 'claude' | 'codex' | 'gemini' | 'grok' | 'agy';
+export type DaemonAgentCommand = 'claude' | 'codex' | 'gemini' | 'grok' | 'dsh' | 'agy';
 
 /** Resolve only explicitly supported daemon providers; unknown values never fall through to Claude. */
 export function resolveDaemonAgentCommand(agent: SpawnSessionOptions['agent']): DaemonAgentCommand | null {
@@ -168,6 +168,7 @@ export function resolveDaemonAgentCommand(agent: SpawnSessionOptions['agent']): 
     || agent === 'codex'
     || agent === 'gemini'
     || agent === 'grok'
+    || agent === 'dsh'
     || agent === 'agy'
     ? agent
     : null;

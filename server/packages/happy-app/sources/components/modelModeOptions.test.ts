@@ -176,6 +176,43 @@ describe('modelModeOptions', () => {
         expect(getHardcodedPermissionModes('grok', translate)).toEqual([]);
     });
 
+    it('uses the exact dsh machine catalog without inventing permissions', () => {
+        const machineMetadata = {
+            agentCapabilities: {
+                dsh: {
+                    detectedAt: 1,
+                    sources: {
+                        models: 'dsh-acp:session/new:configOptions',
+                        effortLevels: 'dsh-acp:session/new:configOptions',
+                        permissionModes: 'unsupported',
+                    },
+                    models: [
+                        { code: 'deepseek-v5', value: 'DeepSeek V5', isDefault: true },
+                        { code: 'deepseek-v4-flash-vision-exp', value: 'DeepSeek Vision Experimental' },
+                    ],
+                    effortLevels: [
+                        { code: 'off', value: 'off' },
+                        { code: 'low', value: 'low' },
+                        { code: 'high', value: 'high', isDefault: true },
+                        { code: 'max', value: 'max' },
+                    ],
+                    permissionModes: [],
+                    acp: { loadSession: false, prompt: { image: false } },
+                },
+            },
+        } as any;
+
+        const models = getMachineAdvertisedModels(machineMetadata, 'dsh', translate);
+        const efforts = getMachineAdvertisedEffortLevels(machineMetadata, 'dsh', 'deepseek-v5');
+        expect(models.map((option) => option.key)).toEqual(['deepseek-v5', 'deepseek-v4-flash-vision-exp']);
+        expect(efforts.map((option) => option.key)).toEqual(['off', 'low', 'high', 'max']);
+        expect(getAdvertisedDefaultOptionKey(models)).toBe('deepseek-v5');
+        expect(getAdvertisedDefaultOptionKey(efforts)).toBe('high');
+        expect(getMachineAdvertisedPermissionModes(machineMetadata, 'dsh', translate)).toEqual([]);
+        expect(getHardcodedModelModes('dsh', translate)).toEqual([]);
+        expect(getHardcodedPermissionModes('dsh', translate)).toEqual([]);
+    });
+
     it('uses GrokBuild ACP model and effort updates without treating operating modes as permissions', () => {
         const metadata = {
             flavor: 'grok',
