@@ -187,6 +187,9 @@ jobs:
         run: APP_ENV=production pnpm --filter happy-app exec expo export --platform web --output-dir dist-ci
       - name: Verify built browser title
         run: grep -F '<title>HappyHerd</title>' server/packages/happy-app/dist-ci/index.html
+      - name: Execute built browser client
+        working-directory: server
+        run: pnpm --filter happy-app --fail-if-no-match web:smoke
       - name: Build daemon and server runtime
         working-directory: server
         run: |

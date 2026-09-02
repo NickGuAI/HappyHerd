@@ -1,3 +1,8 @@
+# September 2 — Web load reliability and transfer optimization
+
+- Fixed an issue where reloading the web application could result in a blank screen, ensuring that the interface and retained sessions now load reliably.
+- Reduced the initial transfer size of core application bundles by at least 70 percent through compression negotiation on self-hosted JavaScript assets.
+
 # September 2 — HappyHerd file viewer enhancements
 
 - Relative links in Markdown file previews now open from the viewed file's directory without changing the originating session or machine.

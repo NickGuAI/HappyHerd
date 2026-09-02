@@ -120,6 +120,7 @@ APP_ENV=production pnpm --filter happy-app exec expo export \
   --platform web --output-dir dist-ci
 grep -F '<title>HappyHerd</title>' \
   packages/happy-app/dist-ci/index.html
+pnpm --filter happy-app web:smoke
 pnpm --filter @happyherd/cli build
 pnpm --filter ./packages/happy-server build
 ```
@@ -163,6 +164,7 @@ pnpm --filter happy-app i18n:check
 APP_ENV=production pnpm --filter happy-app exec expo export \
   --platform web --output-dir dist-ci
 grep -F '<title>HappyHerd</title>' packages/happy-app/dist-ci/index.html
+pnpm --filter happy-app web:smoke
 pnpm --filter @happyherd/cli build
 pnpm --filter ./packages/happy-server build
 ```
