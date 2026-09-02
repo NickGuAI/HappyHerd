@@ -207,6 +207,7 @@ unset HAPPYHERD_AGENT_VALIDATION_AGENT_KEY HAPPYHERD_AGENT_VALIDATION_DAEMON_KEY
 for path in \
     "$AGENT_ROOT/happy-home/AGENTS.md" \
     "$AGENT_ROOT/happy-home/agentcontext/USER.md" \
+    "$AGENT_ROOT/happy-home/agentcontext/rules/learnings/CHAT_FILE_SURFACE.md" \
     "$AGENT_ROOT/happy-home/commanders/$HAPPYHERD_AGENT_COMMANDER_ID/COMMANDER.md" \
     "$HAPPYHERD_AGENT_WORKSPACE/AGENTS.md"; do
     [[ -f "$path" && "$(stat -c '%U' "$path")" == "$AGENT_USER" ]] || die "runtime context is missing or misowned: $path"

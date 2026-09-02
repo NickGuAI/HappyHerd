@@ -59,6 +59,7 @@ trap - EXIT
 install -d -o root -g root -m 0755 \
     "$SUPPORT_TARGET/scripts" \
     "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/happy-home/agentcontext" \
+    "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/happy-home/agentcontext/rules/learnings" \
     "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/happy-home/commanders/team-agent" \
     "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/workspace"
 install -o root -g root -m 0755 \
@@ -85,6 +86,9 @@ install -o root -g root -m 0644 \
 install -o root -g root -m 0644 \
     "$ROOT/deploy/happyherd-agent-runtime/happy-home/agentcontext/USER.md" \
     "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/happy-home/agentcontext/USER.md"
+install -o root -g root -m 0644 \
+    "$ROOT/deploy/happyherd-agent-runtime/happy-home/agentcontext/rules/learnings/CHAT_FILE_SURFACE.md" \
+    "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/happy-home/agentcontext/rules/learnings/CHAT_FILE_SURFACE.md"
 install -o root -g root -m 0644 \
     "$ROOT/deploy/happyherd-agent-runtime/happy-home/commanders/team-agent/COMMANDER.md" \
     "$SUPPORT_TARGET/deploy/happyherd-agent-runtime/happy-home/commanders/team-agent/COMMANDER.md"

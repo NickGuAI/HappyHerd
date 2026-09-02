@@ -832,7 +832,19 @@
     "fileConflict": "文件冲突",
     "fileConflictDescription": "编辑期间文件已在设备上被修改。重新加载以查看最新版本。",
     "reload": "重新加载",
-    "overwrite": "覆盖"
+    "overwrite": "覆盖",
+    "commentOnNode": "在节点 {node} 上发表评论",
+    "pinnedComment": "已固定评论",
+    "invalidCanvas": "无效的画布",
+    "commentOnLine": "在第 {line} 行发表评论",
+    "inlineComments": "行内评论",
+    "canvasNode": "画布节点：{node}",
+    "lineNumber": "第 {line} 行",
+    "removeComment": "删除评论",
+    "commentPlaceholder": "写下评论…",
+    "pinComment": "固定评论",
+    "sendComments": "发送 {count} 条评论",
+    "commentOnHoveredLine": "在行上发表评论"
   },
   "sideChat": {
     "panelTitle": "侧聊",

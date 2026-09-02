@@ -1,19 +1,25 @@
-import { MarkdownSpan, parseMarkdown } from './parseMarkdown';
 import * as React from 'react';
-import { ActivityIndicator, Pressable, ScrollView, View, Platform, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, View, useWindowDimensions } from 'react-native';
 import { Image, type ImageLoadEventData } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { HorizontalScrollView } from '../HorizontalScrollView';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native-unistyles';
+import { unified } from 'unified';
+import remarkBreaks from 'remark-breaks';
+import remarkFrontmatter from 'remark-frontmatter';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import remarkParse from 'remark-parse';
+import { common, createLowlight } from 'lowlight';
+import * as Clipboard from 'expo-clipboard';
+
+import { HorizontalScrollView } from '../HorizontalScrollView';
 import { Text } from '../StyledText';
 import { Typography } from '@/constants/Typography';
-import { SimpleSyntaxHighlighter } from '../SimpleSyntaxHighlighter';
 import { Modal } from '@/modal';
 import { useLocalSetting, useSession } from '@/sync/storage';
 import { storeTempText } from '@/sync/persistence';
 import { useRouter } from 'expo-router';
-import * as Clipboard from 'expo-clipboard';
 import { MermaidRenderer } from './MermaidRenderer';
 import { t } from '@/text';
 import { normalizeExternalMarkdownLink } from './linkUtils';
@@ -26,1074 +32,435 @@ import {
 } from '@/utils/markdownWorkspaceLink';
 import { loadMarkdownWorkspaceImage } from '@/utils/markdownWorkspaceImage';
 import { useWorkspaceLinkPress } from '@/-session/workspaceLinkNavigation';
-import type { AcpInlineImageOverrides } from '@/utils/acpInlineImages';
+import {
+    decodeMarkdownOption,
+    encodeMarkdownOptions,
+    type MarkdownViewProps,
+    type Option,
+} from './MarkdownView.types';
 
-// Option type for callback
-export type Option = {
-    title: string;
+export type { MarkdownViewProps, Option } from './MarkdownView.types';
+
+type MdNode = {
+    type: string;
+    value?: string;
+    url?: string;
+    alt?: string;
+    lang?: string | null;
+    depth?: number;
+    ordered?: boolean;
+    start?: number;
+    checked?: boolean | null;
+    children?: MdNode[];
+    align?: Array<'left' | 'right' | 'center' | null>;
 };
 
-export type MarkdownViewProps = {
-    markdown: string;
-    onOptionPress?: (option: Option) => void;
-    sessionId?: string;
-    enableWorkspaceLinks?: boolean;
-    onWorkspaceLinkPress?: (route: WorkspaceLinkRoute) => void;
-    inlineImages?: AcpInlineImageOverrides;
-    /**
-     * The parent owns long-press copy (see LongPressCopyable). Suppresses native
-     * selection and the built-in copy gesture so only one of them fires.
-     */
-    externalCopyHandler?: boolean;
-};
-
-type MarkdownLinkTarget =
+type LinkTarget =
     | Readonly<{ kind: 'external'; url: string }>
     | Readonly<{ kind: 'workspace'; route: WorkspaceLinkRoute }>;
 
-type MarkdownLinkHandlers = {
-    resolveLinkTarget: (url: string, label: string) => MarkdownLinkTarget | null;
-    onLinkPress: (target: MarkdownLinkTarget) => void;
-};
+const markdownProcessor = unified()
+    .use(remarkParse)
+    .use(remarkGfm)
+    .use(remarkBreaks)
+    .use(remarkFrontmatter)
+    .use(remarkMath);
+const nativeLowlight = createLowlight(common);
 
-export const MarkdownView = React.memo((props: MarkdownViewProps) => {
-    const blocks = React.useMemo(() => parseMarkdown(props.markdown), [props.markdown]);
-    
-    // Backwards compatibility: The original version just returned the view, wrapping the list of blocks.
-    // It made each of the individual text elements selectable. When we enable the markdownCopyV2 feature,
-    // we disable the selectable property on individual text segments on mobile only. Instead, the long press
-    // will be handled by a wrapper Pressable. If we don't disable the selectable property, then you will see
-    // the native copy modal come up at the same time as the long press handler is fired.
+function parseMarkdown(markdown: string): MdNode {
+    const parsed = markdownProcessor.parse(encodeMarkdownOptions(markdown));
+    return markdownProcessor.runSync(parsed) as MdNode;
+}
+
+export const MarkdownView = React.memo(function MarkdownView(props: MarkdownViewProps) {
+    const root = React.useMemo(() => parseMarkdown(props.markdown), [props.markdown]);
     const markdownCopyV2 = useLocalSetting('markdownCopyV2');
-    const selectable = Platform.OS === 'web' || !(markdownCopyV2 || props.externalCopyHandler);
+    const selectable = !(markdownCopyV2 || props.externalCopyHandler);
     const router = useRouter();
     const session = useSession(props.sessionId ?? '');
+    const metadata = props.workspaceProvenance ?? session?.metadata;
     const contextWorkspaceLinkPress = useWorkspaceLinkPress();
     const workspaceLinkPress = props.onWorkspaceLinkPress ?? contextWorkspaceLinkPress;
 
-    const resolveLinkTarget = React.useCallback((url: string, label: string): MarkdownLinkTarget | null => {
-        const externalUrl = normalizeExternalMarkdownLink(url);
-        if (externalUrl) {
-            return { kind: 'external', url: externalUrl };
-        }
-
-        if (!props.enableWorkspaceLinks) {
-            return null;
-        }
-
+    const resolveTarget = React.useCallback((url: string, label: string): LinkTarget | null => {
+        const external = normalizeExternalMarkdownLink(url);
+        if (external) return { kind: 'external', url: external };
+        if (!props.enableWorkspaceLinks) return null;
         const route = resolveMarkdownWorkspaceLinkRoute({
             url,
             label,
             originSessionId: props.sessionId,
-            metadata: session?.metadata,
+            metadata,
+            ...(props.relativeTo ? { relativeTo: props.relativeTo } : {}),
         });
         return route ? { kind: 'workspace', route } : null;
-    }, [props.enableWorkspaceLinks, props.sessionId, session?.metadata]);
+    }, [metadata, props.enableWorkspaceLinks, props.relativeTo, props.sessionId]);
 
-    const handleLinkPress = React.useCallback((target: MarkdownLinkTarget) => {
+    const openTarget = React.useCallback((target: LinkTarget) => {
         if (target.kind === 'external') {
             void openExternalUrl(target.url);
-            return;
-        }
-
-        if (workspaceLinkPress) {
+        } else if (workspaceLinkPress) {
             workspaceLinkPress(target.route);
-            return;
+        } else {
+            router.push(target.route);
         }
-
-        router.push(target.route);
     }, [router, workspaceLinkPress]);
 
-    const linkHandlers = React.useMemo<MarkdownLinkHandlers>(() => ({
-        resolveLinkTarget,
-        onLinkPress: handleLinkPress,
-    }), [handleLinkPress, resolveLinkTarget]);
+    const resolveImage = React.useCallback((url: string, alt: string) => (
+        props.enableWorkspaceLinks && props.workspaceImageRoot !== null
+            ? resolveMarkdownWorkspaceImageReference({
+                url,
+                label: alt,
+                originSessionId: props.sessionId,
+                metadata: metadata ? {
+                    ...metadata,
+                    path: props.workspaceImageRoot ?? metadata.path,
+                } : metadata,
+                ...(props.relativeTo ? { relativeTo: props.relativeTo } : {}),
+            })
+            : null
+    ), [metadata, props.enableWorkspaceLinks, props.relativeTo, props.sessionId, props.workspaceImageRoot]);
 
-    const resolveWorkspaceImageReference = React.useCallback((url: string, alt: string): MarkdownWorkspaceImageReference | null => {
-        if (!props.enableWorkspaceLinks) return null;
-        return resolveMarkdownWorkspaceImageReference({
-            url,
-            label: alt,
-            originSessionId: props.sessionId,
-            metadata: session?.metadata,
-        });
-    }, [props.enableWorkspaceLinks, props.sessionId, session?.metadata]);
+    const renderInline = React.useCallback((nodes: MdNode[] | undefined, keyPrefix: string): React.ReactNode => (
+        nodes?.map((node, index) => {
+            const key = `${keyPrefix}:${index}`;
+            switch (node.type) {
+                case 'text': return node.value ?? '';
+                case 'strong': return <Text key={key} style={styles.bold}>{renderInline(node.children, key)}</Text>;
+                case 'emphasis': return <Text key={key} style={styles.italic}>{renderInline(node.children, key)}</Text>;
+                case 'delete': return <Text key={key} style={styles.strike}>{renderInline(node.children, key)}</Text>;
+                case 'inlineCode': return <Text key={key} style={styles.inlineCode}>{node.value}</Text>;
+                case 'inlineMath': return <Text key={key} style={styles.inlineCode}>{node.value}</Text>;
+                case 'break': return '\n';
+                case 'link': {
+                    const option = decodeMarkdownOption(node.url);
+                    const label = plainText(node);
+                    if (option !== null) {
+                        return <Text key={key} style={styles.option} onPress={() => props.onOptionPress?.({ title: option })}>{label}</Text>;
+                    }
+                    const target = node.url ? resolveTarget(node.url, label) : null;
+                    return (
+                        <Text
+                            key={key}
+                            accessibilityRole={target ? 'link' : undefined}
+                            selectable={selectable}
+                            style={target ? styles.link : undefined}
+                            onPress={target ? () => openTarget(target) : undefined}
+                        >{label}</Text>
+                    );
+                }
+                default: return renderInline(node.children, key);
+            }
+        })
+    ), [openTarget, props.onOptionPress, resolveTarget, selectable]);
 
-    const handleLongPress = React.useCallback(() => {
+    const renderBlock = React.useCallback((node: MdNode, index: number): React.ReactNode => {
+        const key = `block:${index}`;
+        switch (node.type) {
+            case 'paragraph': {
+                const renderImage = (image: MdNode, imageKey: string) => {
+                    const url = image.url ?? '';
+                    const inlineSource = props.inlineImages?.sources.get(url);
+                    if (props.inlineImages?.suppressed.has(url)) return null;
+                    const external = normalizeExternalMarkdownLink(url);
+                    const reference = external || inlineSource ? null : resolveImage(url, image.alt ?? '');
+                    if (!external && !inlineSource && !reference) {
+                        return <Text key={imageKey} selectable={selectable} style={styles.text}>{`![${image.alt ?? ''}](${url})`}</Text>;
+                    }
+                    return (
+                        <NativeMarkdownImage
+                            key={imageKey}
+                            url={external ?? inlineSource ?? ''}
+                            sourceOverride={inlineSource}
+                            alt={image.alt ?? ''}
+                            reference={reference}
+                            onOpenWorkspace={(route) => openTarget({ kind: 'workspace', route })}
+                        />
+                    );
+                };
+                if (node.children?.some((child) => child.type === 'image')) {
+                    return (
+                        <View key={key} style={styles.mixedParagraph}>
+                            {node.children.map((child, childIndex) => child.type === 'image'
+                                ? renderImage(child, `${key}:image:${childIndex}`)
+                                : <Text key={`${key}:text:${childIndex}`} selectable={selectable} style={styles.text}>{renderInline([child], `${key}:${childIndex}`)}</Text>)}
+                        </View>
+                    );
+                }
+                return <Text key={key} selectable={selectable} style={styles.text}>{renderInline(node.children, key)}</Text>;
+            }
+            case 'heading': {
+                const headingStyle = node.depth === 1 ? styles.heading1 : node.depth === 2 ? styles.heading2 : styles.heading;
+                return <Text key={key} selectable={selectable} style={headingStyle}>{renderInline(node.children, key)}</Text>;
+            }
+            case 'thematicBreak': return <View key={key} style={styles.rule} />;
+            case 'blockquote': return <View key={key} style={styles.quote}>{node.children?.map(renderBlock)}</View>;
+            case 'code': return node.lang === 'mermaid'
+                ? <MermaidRenderer key={key} content={node.value ?? ''} />
+                : <NativeCodeBlock key={key} code={node.value ?? ''} language={node.lang ?? null} selectable={selectable} />;
+            case 'math': return (
+                <HorizontalScrollView key={key} style={styles.codeBlock} contentContainerStyle={styles.codeContent}>
+                    <Text selectable={selectable} style={styles.codeText}>{node.value ?? ''}</Text>
+                </HorizontalScrollView>
+            );
+            case 'list': return (
+                <View key={key} style={styles.list}>
+                    {node.children?.map((item, itemIndex) => {
+                        const marker = item.checked === true
+                            ? '☑'
+                            : item.checked === false
+                                ? '☐'
+                                : node.ordered
+                                    ? `${(node.start ?? 1) + itemIndex}.`
+                                    : '•';
+                        return (
+                            <View key={`${key}:${itemIndex}`} style={styles.listRow} accessibilityRole={item.checked == null ? undefined : 'checkbox'} accessibilityState={item.checked == null ? undefined : { checked: item.checked, disabled: true }}>
+                                <Text style={styles.listMarker}>{marker}</Text>
+                                <View style={styles.listItemBody}>
+                                    {item.children?.map((child, childIndex) => child.type === 'paragraph'
+                                        ? <Text key={`${key}:${itemIndex}:text:${childIndex}`} selectable={selectable} style={styles.listText}>{renderInline(child.children, `${key}:${itemIndex}:${childIndex}`)}</Text>
+                                        : <React.Fragment key={`${key}:${itemIndex}:block:${childIndex}`}>{renderBlock(child, childIndex)}</React.Fragment>)}
+                                </View>
+                            </View>
+                        );
+                    })}
+                </View>
+            );
+            case 'table': return <NativeTable key={key} node={node} selectable={selectable} renderInline={renderInline} />;
+            case 'html': return null;
+            default: return node.children?.map(renderBlock) ?? null;
+        }
+    }, [openTarget, props.inlineImages, renderInline, resolveImage, selectable]);
+
+    const content = <View style={styles.root}>{root.children?.map(renderBlock)}</View>;
+    if (props.externalCopyHandler || !markdownCopyV2 || Platform.OS === 'web') return content;
+
+    const longPress = Gesture.LongPress().minDuration(500).onStart(() => {
         try {
             const textId = storeTempText(props.markdown);
             router.push(`/text-selection?textId=${textId}`);
-        } catch (error) {
-            console.error('Error storing text for selection:', error);
-            Modal.alert(t("common.error"), t("uiCopy.failedToOpenTextSelectionPleaseTryAgain"));
+        } catch {
+            Modal.alert(t('common.error'), t('uiCopy.failedToOpenTextSelectionPleaseTryAgain'));
         }
-    }, [props.markdown, router]);
-    const renderContent = () => {
+    }).runOnJS(true);
+    return <GestureDetector gesture={longPress}>{content}</GestureDetector>;
+});
+
+function plainText(node: MdNode): string {
+    if (typeof node.value === 'string') return node.value;
+    return node.children?.map(plainText).join('') ?? '';
+}
+
+type HastNode = { type: string; value?: string; properties?: { className?: string[] }; children?: HastNode[] };
+
+function NativeHighlightedCode(props: { code: string; language: string | null; selectable: boolean }) {
+    const tree = React.useMemo<HastNode>(() => {
+        try {
+            return (props.language
+                ? nativeLowlight.highlight(props.language, props.code)
+                : nativeLowlight.highlightAuto(props.code)) as HastNode;
+        } catch {
+            return { type: 'root', children: [{ type: 'text', value: props.code }] };
+        }
+    }, [props.code, props.language]);
+    return <Text selectable={props.selectable} style={styles.codeText}>{renderHighlightedNodes(tree.children ?? [])}</Text>;
+}
+
+function NativeCodeBlock(props: { code: string; language: string | null; selectable: boolean }) {
+    const copy = React.useCallback(async () => {
+        try {
+            await Clipboard.setStringAsync(props.code);
+            Modal.alert(t('common.success'), t('markdown.codeCopied'), [{ text: t('common.ok'), style: 'cancel' }]);
+        } catch {
+            Modal.alert(t('common.error'), t('markdown.copyFailed'), [{ text: t('common.ok'), style: 'cancel' }]);
+        }
+    }, [props.code]);
+    return (
+        <View style={styles.codeBlock}>
+            {props.language ? <Text selectable={props.selectable} style={styles.codeLanguage}>{props.language}</Text> : null}
+            <HorizontalScrollView contentContainerStyle={styles.codeContent}>
+                <NativeHighlightedCode {...props} />
+            </HorizontalScrollView>
+            <Pressable accessibilityRole="button" accessibilityLabel={t('common.copy')} onPress={() => { void copy(); }} style={styles.codeCopyButton}>
+                <Text style={styles.codeCopyText}>{t('common.copy')}</Text>
+            </Pressable>
+        </View>
+    );
+}
+
+function renderHighlightedNodes(nodes: HastNode[]): React.ReactNode {
+    return nodes.map((node, index) => {
+        if (node.type === 'text') return node.value ?? '';
+        const classes = node.properties?.className ?? [];
+        const tokenStyle = classes.some((name) => /keyword|literal|selector-tag/u.test(name))
+            ? styles.tokenKeyword
+            : classes.some((name) => /string|doctag|attr/u.test(name))
+                ? styles.tokenString
+                : classes.some((name) => /comment|quote/u.test(name))
+                    ? styles.tokenComment
+                    : classes.some((name) => /title|function|section/u.test(name))
+                        ? styles.tokenFunction
+                        : undefined;
+        return <Text key={index} style={tokenStyle}>{renderHighlightedNodes(node.children ?? [])}</Text>;
+    });
+}
+
+function NativeTable(props: {
+    node: MdNode;
+    selectable: boolean;
+    renderInline: (nodes: MdNode[] | undefined, keyPrefix: string) => React.ReactNode;
+}) {
+    return (
+        <HorizontalScrollView style={styles.table}>
+            <View>
+                {props.node.children?.map((row, rowIndex) => (
+                    <View key={rowIndex} style={styles.tableRow}>
+                        {row.children?.map((cell, cellIndex) => (
+                            <Text key={cellIndex} selectable={props.selectable} style={[styles.tableCell, rowIndex === 0 && styles.tableHeader]}>
+                                {props.renderInline(cell.children, `table:${rowIndex}:${cellIndex}`)}
+                            </Text>
+                        ))}
+                    </View>
+                ))}
+            </View>
+        </HorizontalScrollView>
+    );
+}
+
+const RETRY_DELAYS_MS = [500, 1500] as const;
+
+function NativeMarkdownImage(props: {
+    url: string;
+    sourceOverride?: string;
+    alt: string;
+    reference: MarkdownWorkspaceImageReference | null;
+    onOpenWorkspace: (route: WorkspaceLinkRoute) => void;
+}) {
+    const [retryToken, setRetryToken] = React.useState(0);
+    const [state, setState] = React.useState<{ status: 'loading' | 'ready' | 'failed'; url?: string }>(() => (
+        props.sourceOverride || props.url ? { status: 'ready', url: props.sourceOverride ?? props.url } : { status: 'loading' }
+    ));
+
+    React.useEffect(() => {
+        if (props.sourceOverride || props.url) {
+            setState({ status: 'ready', url: props.sourceOverride ?? props.url });
+            return;
+        }
+        if (!props.reference) {
+            setState({ status: 'failed' });
+            return;
+        }
+        let cancelled = false;
+        setState({ status: 'loading' });
+        void (async () => {
+            for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
+                const url = await loadMarkdownWorkspaceImage(props.reference!);
+                if (cancelled) return;
+                if (url) {
+                    setState({ status: 'ready', url });
+                    return;
+                }
+                if (attempt < RETRY_DELAYS_MS.length) {
+                    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt]));
+                }
+            }
+            if (!cancelled) setState({ status: 'failed' });
+        })();
+        return () => { cancelled = true; };
+    }, [props.reference, props.sourceOverride, props.url, retryToken]);
+
+    if (state.status === 'loading') return <View style={styles.imageFailure}><ActivityIndicator /></View>;
+    if (state.status === 'failed' || !state.url) {
         return (
-            <View style={{ width: '100%' }}>
-                {blocks.map((block, index) => {
-                    if (block.type === 'text') {
-                        return <RenderTextBlock spans={block.content} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} linkHandlers={linkHandlers} />;
-                    } else if (block.type === 'header') {
-                        return <RenderHeaderBlock level={block.level} spans={block.content} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} linkHandlers={linkHandlers} />;
-                    } else if (block.type === 'horizontal-rule') {
-                        return <View style={style.horizontalRule} key={index} />;
-                    } else if (block.type === 'list') {
-                        return <RenderListBlock items={block.items} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} linkHandlers={linkHandlers} />;
-                    } else if (block.type === 'numbered-list') {
-                        return <RenderNumberedListBlock items={block.items} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} linkHandlers={linkHandlers} />;
-                    } else if (block.type === 'task-list') {
-                        return <RenderTaskListBlock items={block.items} key={index} selectable={selectable} linkHandlers={linkHandlers} />;
-                    } else if (block.type === 'quote') {
-                        return <RenderQuoteBlock spans={block.content} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} linkHandlers={linkHandlers} />;
-                    } else if (block.type === 'code-block') {
-                        return <RenderCodeBlock content={block.content} language={block.language} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} />;
-                    } else if (block.type === 'mermaid') {
-                        return <MermaidRenderer content={block.content} key={index} />;
-                    } else if (block.type === 'options') {
-                        return <RenderOptionsBlock items={block.items} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} onOptionPress={props.onOptionPress} />;
-                    } else if (block.type === 'table') {
-                        return <RenderTableBlock headers={block.headers} rows={block.rows} linkHandlers={linkHandlers} selectable={selectable} key={index} first={index === 0} last={index === blocks.length - 1} />;
-                    } else if (block.type === 'image') {
-                        return <RenderImageBlock url={block.url} alt={block.alt} key={index} first={index === 0} last={index === blocks.length - 1} />;
-                    } else if (block.type === 'workspace-image') {
-                        const inlineSource = props.inlineImages?.sources.get(block.url);
-                        if (inlineSource) {
-                            return <RenderImageBlock url={inlineSource} alt={block.alt} key={index} first={index === 0} last={index === blocks.length - 1} />;
-                        }
-                        if (props.inlineImages?.suppressed.has(block.url)) {
-                            return null;
-                        }
-                        const reference = resolveWorkspaceImageReference(block.url, block.alt);
-                        if (!reference) {
-                            return <RenderTextBlock spans={block.fallback} key={index} first={index === 0} last={index === blocks.length - 1} selectable={selectable} linkHandlers={linkHandlers} />;
-                        }
-                        return (
-                            <RenderWorkspaceImageBlock
-                                reference={reference}
-                                alt={block.alt}
-                                key={index}
-                                first={index === 0}
-                                last={index === blocks.length - 1}
-                                onPress={() => handleLinkPress({ kind: 'workspace', route: reference.workspaceRoute })}
-                            />
-                        );
-                    } else {
-                        return null;
-                    }
-                })}
+            <View accessibilityRole="alert" style={styles.imageFailure}>
+                <Ionicons name="image-outline" size={24} />
+                <Text>{t('markdown.imageLoadFailed')}</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel={t('common.retry')} onPress={() => setRetryToken((value) => value + 1)}>
+                    <Text style={styles.link}>{t('common.retry')}</Text>
+                </Pressable>
             </View>
         );
     }
-
-    if (props.externalCopyHandler || !markdownCopyV2) {
-        return renderContent();
-    }
-    
-    if (Platform.OS === 'web') {
-        return renderContent();
-    }
-    
-    // Use GestureDetector with LongPress gesture - it doesn't block pan gestures
-    // so horizontal scrolling in code blocks and tables still works
-    const longPressGesture = Gesture.LongPress()
-        .minDuration(500)
-        .onStart(() => {
-            handleLongPress();
-        })
-        .runOnJS(true);
-
-    return (
-        <GestureDetector gesture={longPressGesture}>
-            <View style={{ width: '100%' }}>
-                {renderContent()}
-            </View>
-        </GestureDetector>
-    );
-});
-
-type RenderSpanProps = MarkdownLinkHandlers & {
-    spans: MarkdownSpan[];
-    baseStyle?: any;
-    selectable: boolean;
-};
-
-type MarkdownBlockLinkProps = {
-    linkHandlers: MarkdownLinkHandlers;
-};
-
-function RenderTextBlock(props: { spans: MarkdownSpan[], first: boolean, last: boolean, selectable: boolean } & MarkdownBlockLinkProps) {
-    return <Text selectable={props.selectable} style={[style.text, props.first && style.first, props.last && style.last]}><RenderSpans spans={props.spans} baseStyle={style.text} selectable={props.selectable} {...props.linkHandlers} /></Text>;
+    return <LoadedNativeImage {...props} url={state.url} />;
 }
 
-function RenderHeaderBlock(props: { level: 1 | 2 | 3 | 4 | 5 | 6, spans: MarkdownSpan[], first: boolean, last: boolean, selectable: boolean } & MarkdownBlockLinkProps) {
-    const s = (style as any)[`header${props.level}`];
-    const headerStyle = [style.header, s, props.first && style.first, props.last && style.last];
-    return <Text selectable={props.selectable} style={headerStyle}><RenderSpans spans={props.spans} baseStyle={headerStyle} selectable={props.selectable} {...props.linkHandlers} /></Text>;
-}
-
-const BULLETS = ['•', '◦', '▪'] as const;
-
-function RenderListBlock(props: { items: { depth: number, spans: MarkdownSpan[] }[], first: boolean, last: boolean, selectable: boolean } & MarkdownBlockLinkProps) {
-    const listStyle = [style.text, style.list];
-    return (
-        <View style={{ flexDirection: 'column', marginBottom: 8, gap: 6 }}>
-            {props.items.map((item, index) => (
-                <View key={index} style={{ flexDirection: 'row', alignItems: 'flex-start', paddingLeft: item.depth * 16 }}>
-                    <Text selectable={false} style={[listStyle, { marginRight: 8, marginTop: 1 }]}>{BULLETS[Math.min(item.depth, BULLETS.length - 1)]}</Text>
-                    <Text selectable={props.selectable} style={[listStyle, { flex: 1 }]}><RenderSpans spans={item.spans} baseStyle={listStyle} selectable={props.selectable} {...props.linkHandlers} /></Text>
-                </View>
-            ))}
-        </View>
-    );
-}
-
-function RenderNumberedListBlock(props: { items: { number: number, depth: number, spans: MarkdownSpan[] }[], first: boolean, last: boolean, selectable: boolean } & MarkdownBlockLinkProps) {
-    const listStyle = [style.text, style.list];
-    return (
-        <View style={{ flexDirection: 'column', marginBottom: 8, gap: 6 }}>
-            {props.items.map((item, index) => (
-                <View key={index} style={{ flexDirection: 'row', alignItems: 'flex-start', paddingLeft: item.depth * 16 }}>
-                    <Text selectable={false} style={[listStyle, { marginRight: 8, marginTop: 1 }]}>{item.number}.</Text>
-                    <Text selectable={props.selectable} style={[listStyle, { flex: 1 }]}><RenderSpans spans={item.spans} baseStyle={listStyle} selectable={props.selectable} {...props.linkHandlers} /></Text>
-                </View>
-            ))}
-        </View>
-    );
-}
-
-function RenderTaskListBlock(props: { items: { checked: boolean, depth: number, spans: MarkdownSpan[] }[], selectable: boolean } & MarkdownBlockLinkProps) {
-    const listStyle = [style.text, style.list];
-    return (
-        <View style={style.taskList}>
-            {props.items.map((item, index) => (
-                <View
-                    key={index}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: item.checked, disabled: true }}
-                    accessibilityLabel={item.checked ? t('markdown.completedTask') : t('markdown.incompleteTask')}
-                    style={[style.taskListRow, { paddingLeft: item.depth * 16 }]}
-                >
-                    <Ionicons
-                        name={item.checked ? 'checkbox-outline' : 'square-outline'}
-                        size={18}
-                        color={item.checked ? style.taskListChecked.color : style.taskListUnchecked.color}
-                    />
-                    <Text selectable={props.selectable} style={[listStyle, style.taskListText]}>
-                        <RenderSpans spans={item.spans} baseStyle={listStyle} selectable={props.selectable} {...props.linkHandlers} />
-                    </Text>
-                </View>
-            ))}
-        </View>
-    );
-}
-
-function RenderQuoteBlock(props: { spans: MarkdownSpan[], first: boolean, last: boolean, selectable: boolean } & MarkdownBlockLinkProps) {
-    return (
-        <View style={[style.quote, props.first && style.first, props.last && style.last]}>
-            <Text selectable={props.selectable} style={style.quoteText}>
-                <RenderSpans spans={props.spans} baseStyle={style.quoteText} selectable={props.selectable} {...props.linkHandlers} />
-            </Text>
-        </View>
-    );
-}
-
-function RenderCodeBlock(props: { content: string, language: string | null, first: boolean, last: boolean, selectable: boolean }) {
-    const [isHovered, setIsHovered] = React.useState(false);
-
-    const copyCode = React.useCallback(async () => {
-        try {
-            await Clipboard.setStringAsync(props.content);
-            Modal.alert(t('common.success'), t('markdown.codeCopied'), [{ text: t('common.ok'), style: 'cancel' }]);
-        } catch (error) {
-            console.error('Failed to copy code:', error);
-            Modal.alert(t('common.error'), t('markdown.copyFailed'), [{ text: t('common.ok'), style: 'cancel' }]);
+function LoadedNativeImage(props: {
+    url: string;
+    alt: string;
+    reference: MarkdownWorkspaceImageReference | null;
+    onOpenWorkspace: (route: WorkspaceLinkRoute) => void;
+}) {
+    const [aspectRatio, setAspectRatio] = React.useState(16 / 9);
+    const open = React.useCallback(() => {
+        if (props.reference) {
+            props.onOpenWorkspace(props.reference.workspaceRoute);
+            return;
         }
-    }, [props.content]);
-
+        Modal.show({ component: MarkdownImagePreviewModal, props: { url: props.url, alt: props.alt } });
+    }, [props]);
+    const onLoad = React.useCallback((event: ImageLoadEventData) => {
+        if (event.source.width > 0 && event.source.height > 0) setAspectRatio(event.source.width / event.source.height);
+    }, []);
     return (
-        <View
-            style={[style.codeBlock, props.first && style.first, props.last && style.last]}
-            // @ts-ignore - Web only events
-            onMouseEnter={() => setIsHovered(true)}
-            // @ts-ignore - Web only events
-            onMouseLeave={() => setIsHovered(false)}
-        >
-            {props.language && <Text selectable={props.selectable} style={style.codeLanguage}>{props.language}</Text>}
-            <HorizontalScrollView
-                contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 16 }}
-            >
-                <SimpleSyntaxHighlighter
-                    code={props.content}
-                    language={props.language}
-                    selectable={props.selectable}
-                />
-            </HorizontalScrollView>
-            <View
-                style={[style.copyButtonWrapper, isHovered && style.copyButtonWrapperVisible]}
-                {...(Platform.OS === 'web' ? ({ className: 'copy-button-wrapper' } as any) : {})}
-            >
-                <Pressable
-                    style={style.copyButton}
-                    onPress={copyCode}
-                >
-                    <Text style={style.copyButtonText}>{t('common.copy')}</Text>
-                </Pressable>
-            </View>
-        </View>
+        <Pressable accessibilityRole="button" accessibilityLabel={`${t('markdown.openImageFullSize')}: ${props.alt || t('uiCopy.markdownImage')}`} onPress={open} style={styles.imageFrame}>
+            <Image source={{ uri: props.url }} style={{ width: '100%', aspectRatio }} contentFit="contain" accessibilityLabel={props.alt} onLoad={onLoad} />
+        </Pressable>
     );
 }
 
-function MarkdownImagePreviewModal(props: { url: string, alt: string, onClose: () => void }) {
+function MarkdownImagePreviewModal(props: { url: string; alt: string; onClose: () => void }) {
     const viewport = useWindowDimensions();
     const width = Math.min(Math.max(viewport.width - 32, 280), 1120);
     const height = Math.min(Math.max(viewport.height - 80, 320), 900);
-
     return (
-        <View style={[style.imagePreviewModal, { width, height }]}>
-            <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('markdown.closeImagePreview')}
-                onPress={props.onClose}
-                style={style.imagePreviewClose}
-            >
-                <Ionicons name="close" size={24} color={style.imagePreviewCloseIcon.color} />
+        <View style={[styles.modal, { width, height }]}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t('markdown.closeImagePreview')} onPress={props.onClose} style={styles.modalClose}>
+                <Ionicons name="close" size={24} />
             </Pressable>
-            <ScrollView
-                style={style.imagePreviewScroll}
-                contentContainerStyle={style.imagePreviewContent}
-                maximumZoomScale={4}
-                minimumZoomScale={1}
-            >
-                <Image
-                    source={{ uri: props.url }}
-                    style={{ width: width - 32, height: height - 32 }}
-                    contentFit="contain"
-                    cachePolicy="memory-disk"
-                    accessibilityLabel={props.alt || t('uiCopy.markdownImage')}
-                />
+            <ScrollView contentContainerStyle={styles.modalContent} maximumZoomScale={4} minimumZoomScale={1}>
+                <Image source={{ uri: props.url }} style={{ width: width - 32, height: height - 32 }} contentFit="contain" accessibilityLabel={props.alt} />
             </ScrollView>
         </View>
     );
 }
 
-const WORKSPACE_IMAGE_RETRY_DELAYS_MS = [500, 1500] as const;
-
-function RenderImageFailure(props: { onRetry?: () => void }) {
-    return (
-        <View accessibilityRole="alert" style={style.imageFailure}>
-            <Ionicons name="image-outline" size={24} color={style.imageFailureText.color} />
-            <Text style={style.imageFailureText}>{t('markdown.imageLoadFailed')}</Text>
-            {props.onRetry ? (
-                <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={t('common.retry')}
-                    onPress={props.onRetry}
-                    style={({ pressed }) => [
-                        style.imageRetryButton,
-                        pressed && style.imageRetryButtonPressed,
-                    ]}
-                >
-                    <Ionicons name="refresh" size={16} color={style.imageRetryText.color} />
-                    <Text style={style.imageRetryText}>{t('common.retry')}</Text>
-                </Pressable>
-            ) : null}
-        </View>
-    );
-}
-
-function RenderWorkspaceImageBlock(props: {
-    reference: MarkdownWorkspaceImageReference;
-    alt: string;
-    first: boolean;
-    last: boolean;
-    onPress: () => void;
-}) {
-    const [state, setState] = React.useState<
-        { status: 'loading' } | { status: 'ready'; url: string } | { status: 'failed' }
-    >({ status: 'loading' });
-    const [retryToken, retry] = React.useReducer((value: number) => value + 1, 0);
-
-    React.useEffect(() => {
-        let active = true;
-        setState({ status: 'loading' });
-        void (async () => {
-            for (let attempt = 0; attempt <= WORKSPACE_IMAGE_RETRY_DELAYS_MS.length; attempt += 1) {
-                const url = await loadMarkdownWorkspaceImage(props.reference);
-                if (!active) return;
-                if (url) {
-                    setState({ status: 'ready', url });
-                    return;
-                }
-
-                const delay = WORKSPACE_IMAGE_RETRY_DELAYS_MS[attempt];
-                if (delay !== undefined) {
-                    await new Promise((resolve) => setTimeout(resolve, delay));
-                    if (!active) return;
-                }
-            }
-            setState({ status: 'failed' });
-        })();
-        return () => {
-            active = false;
-        };
-    }, [
-        props.reference.rootPath,
-        props.reference.workspaceRoute.params.absolutePath,
-        props.reference.workspaceRoute.params.machineId,
-        retryToken,
-    ]);
-
-    if (state.status === 'ready') {
-        return (
-            <RenderImageBlock
-                {...props}
-                url={state.url}
-                onError={() => setState({ status: 'failed' })}
-            />
-        );
-    }
-
-    return (
-        <View style={[style.imageBlock, props.first && style.first, props.last && style.last]}>
-            {state.status === 'loading' ? (
-                <View style={style.imageFailure}>
-                    <ActivityIndicator color={style.imageFailureText.color} />
-                </View>
-            ) : <RenderImageFailure onRetry={retry} />}
-            {props.alt ? <Text style={style.imageCaption}>{props.alt}</Text> : null}
-        </View>
-    );
-}
-
-function RenderImageBlock(props: { url: string, alt: string, first: boolean, last: boolean, onPress?: () => void, onError?: () => void }) {
-    const accessibleLabel = props.alt || t('uiCopy.markdownImage');
-    const [aspectRatio, setAspectRatio] = React.useState(16 / 9);
-    const [failed, setFailed] = React.useState(false);
-
-    const handleLoad = React.useCallback((event: ImageLoadEventData) => {
-        const { width, height } = event.source;
-        if (width > 0 && height > 0) {
-            setAspectRatio(width / height);
-        }
-        setFailed(false);
-    }, []);
-
-    const openPreview = React.useCallback(() => {
-        if (props.onPress) {
-            props.onPress();
-            return;
-        }
-        Modal.show({
-            component: MarkdownImagePreviewModal,
-            props: { url: props.url, alt: props.alt },
-        });
-    }, [props.alt, props.onPress, props.url]);
-
-    return (
-        <View style={[style.imageBlock, props.first && style.first, props.last && style.last]}>
-            {failed ? (
-                <RenderImageFailure onRetry={props.onError} />
-            ) : (
-                <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`${t('markdown.openImageFullSize')}: ${accessibleLabel}`}
-                    onPress={openPreview}
-                    style={style.imageFrame}
-                >
-                    <Image
-                        source={{ uri: props.url }}
-                        style={{ width: '100%', aspectRatio }}
-                        contentFit="contain"
-                        cachePolicy="memory-disk"
-                        loading="lazy"
-                        responsivePolicy="live"
-                        transition={120}
-                        accessibilityLabel={accessibleLabel}
-                        onLoad={handleLoad}
-                        onError={() => {
-                            setFailed(true);
-                            props.onError?.();
-                        }}
-                    />
-                </Pressable>
-            )}
-            {props.alt ? (
-                <Text style={style.imageCaption}>{props.alt}</Text>
-            ) : null}
-        </View>
-    );
-}
-
-function RenderOptionsBlock(props: { 
-    items: string[], 
-    first: boolean, 
-    last: boolean, 
-    selectable: boolean,
-    onOptionPress?: (option: Option) => void 
-}) {
-    return (
-        <View style={[style.optionsContainer, props.first && style.first, props.last && style.last]}>
-            {props.items.map((item, index) => {
-                if (props.onOptionPress) {
-                    return (
-                        <Pressable
-                            key={index}
-                            style={({ pressed }) => [
-                                style.optionPressable,
-                                style.optionButton,
-                                pressed && style.optionButtonPressed
-                            ]}
-                            onPress={() => props.onOptionPress?.({ title: item })}
-                        >
-                            <Text selectable={props.selectable} style={style.optionButtonText}>{item}</Text>
-                        </Pressable>
-                    );
-                } else {
-                    return (
-                        <View key={index} style={style.optionItem}>
-                            <Text selectable={props.selectable} style={style.optionText}>{item}</Text>
-                        </View>
-                    );
-                }
-            })}
-        </View>
-    );
-}
-
-function RenderSpans(props: RenderSpanProps) {
-    return (<>
-        {props.spans.map((span, index) => {
-            if (span.url) {
-                const linkTarget = props.resolveLinkTarget(span.url, span.text);
-                return (
-                    <Text
-                        key={index}
-                        selectable={props.selectable}
-                        accessibilityRole={linkTarget ? 'link' : undefined}
-                        style={[props.baseStyle, linkTarget && style.link, span.styles.map(s => style[s])]}
-                        {...(linkTarget && Platform.OS === 'web' ? { onClick: () => props.onLinkPress(linkTarget) } as any : {})}
-                        onPress={linkTarget && Platform.OS !== 'web'
-                            ? () => props.onLinkPress(linkTarget)
-                            : undefined}
-                    >
-                        {span.text}
-                    </Text>
-                );
-            } else {
-                return <Text key={index} selectable={props.selectable} style={[props.baseStyle, span.styles.map(s => style[s])]}>{span.text}</Text>
-            }
-        })}
-    </>)
-}
-
-// Plain-text length of a span array — used to estimate column widths.
-function spansLength(spans: MarkdownSpan[]): number {
-    let n = 0;
-    for (const s of spans) n += s.text.length;
-    return n;
-}
-
-const TABLE_MIN_COL_WIDTH = 80;
-const TABLE_MAX_COL_WIDTH = 360;
-const TABLE_CHAR_WIDTH = 8.5;  // approx px per char at 16px default font
-const TABLE_CELL_H_PADDING = 24;
-
-// Row-first layout with content-estimated column widths.
-//
-// - Each column's width is picked from the widest text in that column (header +
-//   rows), clamped to [MIN, MAX]. This gives column-alignment across rows and
-//   lets narrow columns (like "1, 2, 3") stay narrow.
-// - Each row is a flex row — default `alignItems: 'stretch'` makes all cells in
-//   a row match the tallest cell's height.
-// - Wrapped in a horizontal ScrollView so wide tables still scroll instead of
-//   being squashed unreadably.
-function RenderTableBlock(props: {
-    headers: MarkdownSpan[][],
-    rows: MarkdownSpan[][][],
-    selectable: boolean,
-    first: boolean,
-    last: boolean
-} & MarkdownBlockLinkProps) {
-    const columnCount = props.headers.length;
-    const rowCount = props.rows.length;
-    const isLastCol = (colIndex: number) => colIndex === columnCount - 1;
-    const isLastRow = (rowIndex: number) => rowIndex === rowCount - 1;
-
-    const columnWidths = React.useMemo(() => {
-        const widths = new Array(columnCount).fill(0);
-        for (let c = 0; c < columnCount; c++) {
-            widths[c] = Math.max(widths[c], spansLength(props.headers[c] ?? []));
-        }
-        for (const row of props.rows) {
-            for (let c = 0; c < columnCount; c++) {
-                widths[c] = Math.max(widths[c], spansLength(row[c] ?? []));
-            }
-        }
-        return widths.map(len => Math.min(TABLE_MAX_COL_WIDTH, Math.max(TABLE_MIN_COL_WIDTH, len * TABLE_CHAR_WIDTH + TABLE_CELL_H_PADDING)));
-    }, [props.headers, props.rows, columnCount]);
-
-    return (
-        <View style={[style.tableContainer, props.first && style.first, props.last && style.last]}>
-            {/* flexGrow:0 stops iOS from stretching the horizontal ScrollView
-                vertically to fill the parent — the cause of the table's frame
-                extending down past the last row into empty space. */}
-            <HorizontalScrollView style={{ flexGrow: 0 }}>
-                <View>
-                    {/* Header row */}
-                    <View style={[style.tableRow, style.tableHeaderRow]}>
-                        {props.headers.map((header, colIndex) => (
-                            <View
-                                key={`header-${colIndex}`}
-                                style={[style.tableCell, style.tableHeaderCell, { width: columnWidths[colIndex] }, !isLastCol(colIndex) && style.tableCellBorderRight]}
-                            >
-                                <Text style={style.tableHeaderText}>
-                                    <RenderSpans spans={header} baseStyle={style.tableHeaderText} selectable={props.selectable} {...props.linkHandlers} />
-                                </Text>
-                            </View>
-                        ))}
-                    </View>
-                    {/* Data rows */}
-                    {props.rows.map((row, rowIndex) => (
-                        <View
-                            key={`row-${rowIndex}`}
-                            style={[style.tableRow, !isLastRow(rowIndex) && style.tableRowBorderBottom]}
-                        >
-                            {props.headers.map((_, colIndex) => (
-                                <View
-                                    key={`cell-${rowIndex}-${colIndex}`}
-                                    style={[style.tableCell, { width: columnWidths[colIndex] }, !isLastCol(colIndex) && style.tableCellBorderRight]}
-                                >
-                                    <Text style={style.tableCellText}>
-                                        <RenderSpans spans={row[colIndex] ?? []} baseStyle={style.tableCellText} selectable={props.selectable} {...props.linkHandlers} />
-                                    </Text>
-                                </View>
-                            ))}
-                        </View>
-                    ))}
-                </View>
-            </HorizontalScrollView>
-        </View>
-    );
-}
-
-
-const style = StyleSheet.create((theme) => ({
-
-    // Plain text
-
-    text: {
-        ...Typography.default(),
-        fontSize: 16,
-        lineHeight: 25,
-        marginTop: 8,
-        marginBottom: 10,
-        color: theme.colors.text,
-        fontWeight: '400',
-    },
-
-    italic: {
-        fontStyle: 'italic',
-    },
-    bold: {
-        ...Typography.default('semiBold'),
-        fontWeight: '700',
-    },
-    semibold: {
-        ...Typography.default('semiBold'),
-        fontWeight: '600',
-    },
-    code: {
-        ...Typography.mono(),
-        fontSize: 16,
-        lineHeight: 24,
-        color: theme.colors.text,
-    },
-    strikethrough: {
-        textDecorationLine: 'line-through',
-    },
-    link: {
-        ...Typography.default(),
-        color: theme.colors.text,
-        fontWeight: '400',
-        textDecorationLine: 'underline',
-        cursor: 'pointer',
-    },
-
-    // Headers
-
-    header: {
-        ...Typography.default('semiBold'),
-        color: theme.colors.text,
-    },
-    header1: {
-        fontSize: 16,
-        lineHeight: 24,  // Reduced from 36 to 24
-        fontWeight: '900',
-        marginTop: 16,
-        marginBottom: 8
-    },
-    header2: {
-        fontSize: 20,
-        lineHeight: 24,  // Reduced from 36 to 32
-        fontWeight: '600',
-        marginTop: 16,
-        marginBottom: 8
-    },
-    header3: {
-        fontSize: 16,
-        lineHeight: 28,  // Reduced from 32 to 28
-        fontWeight: '600',
-        marginTop: 16,
-        marginBottom: 8,
-    },
-    header4: {
-        fontSize: 16,
-        lineHeight: 24,
-        fontWeight: '600',
-        marginTop: 8,
-        marginBottom: 8,
-    },
-    header5: {
-        fontSize: 16,
-        lineHeight: 24,  // Reduced from 28 to 24
-        fontWeight: '600'
-    },
-    header6: {
-        fontSize: 16,
-        lineHeight: 24, // Reduced from 28 to 24
-        fontWeight: '600'
-    },
-
-    //
-    // List
-    //
-
-    list: {
-        ...Typography.default(),
-        color: theme.colors.text,
-        marginTop: 0,
-        marginBottom: 0,
-    },
-    taskList: {
-        flexDirection: 'column',
-        marginBottom: 8,
-        gap: 6,
-    },
-    taskListRow: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 8,
-    },
-    taskListText: {
-        flex: 1,
-    },
-    taskListChecked: {
-        color: theme.colors.success,
-    },
-    taskListUnchecked: {
-        color: theme.colors.textSecondary,
-    },
-    quote: {
-        borderLeftWidth: 3,
-        borderLeftColor: theme.colors.divider,
-        backgroundColor: theme.colors.surfaceHigh,
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        marginVertical: 8,
-        borderRadius: 4,
-    },
-    quoteText: {
-        ...Typography.default(),
-        color: theme.colors.textSecondary,
-        fontSize: 16,
-        lineHeight: 25,
-    },
-
-    //
-    // Common
-    //
-
-    first: {
-        // marginTop: 0
-    },
-    last: {
-        // marginBottom: 0
-    },
-
-    //
-    // Code Block
-    //
-
-    codeBlock: {
-        backgroundColor: theme.colors.surfaceHighest,
-        borderRadius: 8,
-        marginVertical: 8,
-        position: 'relative',
-        zIndex: 1,
-        width: '100%',
-    },
-    copyButtonWrapper: {
-        position: 'absolute',
-        top: 8,
-        right: 8,
-        opacity: 0,
-        zIndex: 10,
-        elevation: 10,
-        pointerEvents: 'none',
-    },
-    copyButtonWrapperVisible: {
-        opacity: 1,
-        pointerEvents: 'auto',
-    },
-    codeLanguage: {
-        ...Typography.mono(),
-        color: theme.colors.textSecondary,
-        fontSize: 12,
-        marginTop: 8,
-        paddingHorizontal: 16,
-        marginBottom: 0,
-    },
-    codeText: {
-        ...Typography.mono(),
-        color: theme.colors.text,
-        fontSize: 14,
-        lineHeight: 20,
-    },
-    horizontalRule: {
-        height: 1,
-        backgroundColor: theme.colors.divider,
-        marginTop: 8,
-        marginBottom: 8,
-    },
-    imageBlock: {
-        width: '100%',
-        maxWidth: 520,
-        marginVertical: 8,
-        alignSelf: 'flex-start',
-        gap: 8,
-    },
-    imageFrame: {
-        width: '100%',
-        borderRadius: 12,
-        backgroundColor: theme.colors.surfaceHighest,
-        overflow: 'hidden',
-        cursor: 'pointer',
-    },
-    imageFailure: {
-        minHeight: 120,
-        width: '100%',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: theme.colors.divider,
-        backgroundColor: theme.colors.surfaceHighest,
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        padding: 20,
-    },
-    imageFailureText: {
-        ...Typography.default(),
-        color: theme.colors.textSecondary,
-        fontSize: 14,
-        lineHeight: 20,
-    },
-    imageRetryButton: {
-        minHeight: 38,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        borderWidth: 1,
-        borderColor: theme.colors.divider,
-        borderRadius: 9,
-        paddingHorizontal: 12,
-    },
-    imageRetryButtonPressed: {
-        opacity: 0.7,
-    },
-    imageRetryText: {
-        ...Typography.default('semiBold'),
-        color: theme.colors.textLink,
-        fontSize: 14,
-        lineHeight: 20,
-    },
-    imageCaption: {
-        ...Typography.default(),
-        fontSize: 14,
-        lineHeight: 20,
-        color: theme.colors.textSecondary,
-    },
-    imagePreviewModal: {
-        backgroundColor: theme.colors.surface,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: theme.colors.divider,
-        overflow: 'hidden',
-    },
-    imagePreviewScroll: {
-        flex: 1,
-    },
-    imagePreviewContent: {
-        flexGrow: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
-    },
-    imagePreviewClose: {
-        position: 'absolute',
-        top: 12,
-        right: 12,
-        zIndex: 2,
-        width: 38,
-        height: 38,
-        borderRadius: 19,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: theme.colors.surfaceHighest,
-        borderWidth: 1,
-        borderColor: theme.colors.divider,
-    },
-    imagePreviewCloseIcon: {
-        color: theme.colors.text,
-    },
-    copyButtonContainer: {
-        position: 'absolute',
-        top: 8,
-        right: 8,
-        zIndex: 10,
-        elevation: 10,
-        opacity: 1,
-    },
-    copyButtonContainerHidden: {
-        opacity: 0,
-    },
-    copyButton: {
-        backgroundColor: theme.colors.surfaceHighest,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 4,
-        borderWidth: 1,
-        borderColor: theme.colors.divider,
-        cursor: 'pointer',
-    },
-    copyButtonHidden: {
-        display: 'none',
-    },
-    copyButtonCopied: {
-        backgroundColor: theme.colors.success,
-        borderColor: theme.colors.success,
-        opacity: 1,
-    },
-    copyButtonText: {
-        ...Typography.default(),
-        color: theme.colors.text,
-        fontSize: 12,
-        lineHeight: 16,
-    },
-
-    //
-    // Options Block
-    //
-
-    optionsContainer: {
-        flexDirection: 'column',
-        gap: 8,
-        marginVertical: 8,
-    },
-    optionPressable: {
-        borderRadius: Platform.select({ web: 8, default: 18 }),
-    },
-    optionItem: {
-        backgroundColor: Platform.select({ web: theme.colors.surfaceHighest, default: theme.colors.surface }),
-        borderRadius: Platform.select({ web: 8, default: 18 }),
-        paddingHorizontal: 16,
-        paddingVertical: Platform.select({ web: 12, default: 14 }),
-        borderWidth: Platform.select({ web: 1, default: StyleSheet.hairlineWidth }),
-        borderColor: theme.colors.divider,
-        overflow: 'hidden',
-    },
-    optionItemPressed: {
-        backgroundColor: Platform.select({ web: theme.colors.surfaceHigh, default: theme.colors.surfacePressed }),
-        opacity: Platform.select({ web: 0.7, default: 1 }),
-    },
-    optionText: {
-        ...Typography.default(),
-        fontSize: 16,
-        lineHeight: 24,
-        color: theme.colors.text,
-    },
-    // Tapping an option sends it as your message. Full-width rows in the
-    // composer send button's resting grey — flat, no border.
-    optionButton: {
-        backgroundColor: theme.colors.surfaceHighest,
-        borderRadius: 12,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        overflow: 'hidden',
-    },
-    optionButtonPressed: {
-        opacity: 0.7,
-    },
-    optionButtonText: {
-        ...Typography.default(),
-        fontSize: 16,
-        lineHeight: 24,
-        color: theme.colors.text,
-    },
-
-    //
-    // Table
-    //
-
-    tableContainer: {
-        marginVertical: 8,
-        borderWidth: 1,
-        borderColor: theme.colors.divider,
-        borderRadius: 8,
-        overflow: 'hidden',
-        maxWidth: '100%',
-        alignSelf: 'flex-start',
-    },
-    tableRow: {
-        flexDirection: 'row',
-        alignItems: 'stretch',
-    },
-    tableRowBorderBottom: {
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.divider,
-    },
-    tableHeaderRow: {
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.divider,
-    },
-    tableCell: {
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        alignItems: 'flex-start',
-    },
-    tableCellBorderRight: {
-        borderRightWidth: 1,
-        borderRightColor: theme.colors.divider,
-    },
-    tableHeaderCell: {
-        backgroundColor: theme.colors.surfaceHigh,
-    },
-    tableHeaderText: {
-        ...Typography.default('semiBold'),
-        color: theme.colors.text,
-        fontSize: 16,
-        lineHeight: 24,
-    },
-    tableCellText: {
-        ...Typography.default(),
-        color: theme.colors.text,
-        fontSize: 16,
-        lineHeight: 24,
-    },
-
-    // Add global style for Web platform (Unistyles supports this via compiler plugin)
-    ...(Platform.OS === 'web' ? {
-        // Web-only CSS styles
-        _____web_global_styles: {}
-    } : {}),
+const styles = StyleSheet.create((theme) => ({
+    root: { width: '100%' },
+    text: { ...Typography.default(), color: theme.colors.text, fontSize: 16, lineHeight: 25, marginVertical: 7 },
+    mixedParagraph: { width: '100%' },
+    bold: { ...Typography.default('semiBold'), fontWeight: '700' },
+    italic: { fontStyle: 'italic' },
+    strike: { textDecorationLine: 'line-through' },
+    inlineCode: { ...Typography.mono(), backgroundColor: theme.colors.surfaceHigh },
+    link: { color: theme.colors.textLink, textDecorationLine: 'underline' },
+    option: { color: theme.colors.text, backgroundColor: theme.colors.surfaceHigh },
+    heading: { ...Typography.default('semiBold'), color: theme.colors.text, fontSize: 17, lineHeight: 25, marginTop: 12, marginBottom: 5 },
+    heading1: { ...Typography.default('semiBold'), color: theme.colors.text, fontSize: 24, lineHeight: 30, marginTop: 14, marginBottom: 7 },
+    heading2: { ...Typography.default('semiBold'), color: theme.colors.text, fontSize: 20, lineHeight: 27, marginTop: 13, marginBottom: 6 },
+    quote: { borderLeftWidth: 3, borderLeftColor: theme.colors.divider, backgroundColor: theme.colors.surfaceHigh, paddingHorizontal: 12, marginVertical: 8 },
+    rule: { height: 1, backgroundColor: theme.colors.divider, marginVertical: 8 },
+    codeBlock: { backgroundColor: theme.colors.surfaceHighest, borderRadius: 8, marginVertical: 8, position: 'relative' },
+    codeContent: { padding: 16 },
+    codeLanguage: { ...Typography.mono(), color: theme.colors.textSecondary, fontSize: 12, paddingHorizontal: 16, paddingTop: 8 },
+    codeCopyButton: { position: 'absolute', top: 8, right: 8, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 6, backgroundColor: theme.colors.surface },
+    codeCopyText: { ...Typography.default(), color: theme.colors.text, fontSize: 12 },
+    codeText: { ...Typography.mono(), color: theme.colors.text, fontSize: 14, lineHeight: 20 },
+    tokenKeyword: { color: theme.colors.textDestructive },
+    tokenString: { color: theme.colors.success },
+    tokenComment: { color: theme.colors.textSecondary, fontStyle: 'italic' },
+    tokenFunction: { color: theme.colors.textLink },
+    list: { gap: 5, marginVertical: 7 },
+    listRow: { flexDirection: 'row', alignItems: 'flex-start' },
+    listItemBody: { flex: 1 },
+    listMarker: { ...Typography.default(), color: theme.colors.textSecondary, width: 28, lineHeight: 24 },
+    listText: { ...Typography.default(), color: theme.colors.text, flex: 1, lineHeight: 24 },
+    table: { borderWidth: 1, borderColor: theme.colors.divider, borderRadius: 8, marginVertical: 8 },
+    tableRow: { flexDirection: 'row' },
+    tableCell: { ...Typography.default(), color: theme.colors.text, minWidth: 120, padding: 8, borderRightWidth: 1, borderBottomWidth: 1, borderColor: theme.colors.divider },
+    tableHeader: { ...Typography.default('semiBold'), backgroundColor: theme.colors.surfaceHigh },
+    imageFrame: { width: '100%', maxWidth: 520, borderRadius: 12, overflow: 'hidden', marginVertical: 8 },
+    imageFailure: { minHeight: 120, borderWidth: 1, borderColor: theme.colors.divider, borderRadius: 12, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 20 },
+    modal: { backgroundColor: theme.colors.surface, borderRadius: 14, overflow: 'hidden' },
+    modalClose: { position: 'absolute', top: 12, right: 12, zIndex: 2, width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.surfaceHighest },
+    modalContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 16 },
 }));

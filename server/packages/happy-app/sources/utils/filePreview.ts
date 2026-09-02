@@ -1,4 +1,4 @@
-export type FilePreviewKind = 'image' | 'pdf' | 'html' | 'text' | 'unsupported';
+export type FilePreviewKind = 'image' | 'pdf' | 'html' | 'canvas' | 'text' | 'unsupported';
 
 export type EditableText = {
     content: string;
@@ -41,6 +41,7 @@ export function classifyFilePreview(filePath: string): FilePreviewKind {
     if (IMAGE_MIME_TYPES[ext]) return 'image';
     if (ext === 'pdf') return 'pdf';
     if (ext === 'html' || ext === 'htm') return 'html';
+    if (ext === 'canvas') return 'canvas';
     return 'text';
 }
 

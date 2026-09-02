@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 2 — HappyHerd file viewer enhancements",
+      "summary": "",
+      "markdown": "- Relative links in Markdown file previews now open from the viewed file's directory without changing the originating session or machine.\n- Web file previews can pin line and canvas-node comments, then send all pinned feedback to the active chat in one message.\n- Web can open JSON Canvas 1.0 files as read-only interactive canvases with pan, zoom, selection, file links, and labeled edges."
+    },
+    {
       "title": "September 2 — dsh sessions",
       "summary": "",
       "markdown": "- Start first-class dsh ACP sessions from Web Desktop or Web Mobile with the installed CLI's live model and reasoning-effort choices, existing one-shot Human tool approvals, exact validation before the first prompt, and an actionable error when capability discovery fails."
@@ -491,5 +496,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 2 — dsh sessions"
+  "latestTitle": "September 2 — HappyHerd file viewer enhancements"
 }

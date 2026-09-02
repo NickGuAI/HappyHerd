@@ -41,6 +41,9 @@ grep -Fq 'provision-happyherd-agent-account.sh' "$ROOT/docs/runtime-isolation.md
 grep -Fq 'HAPPYHERD_AGENT_TOOL_MANIFEST_FILE=' "$ROOT/deploy/happyherd-agent.env.example" || fail 'tool manifest is not configured'
 [[ -f "$ROOT/deploy/happyherd-agent-runtime/agent-manifest.example.json" ]] || fail 'generic tool manifest example is missing'
 [[ -x "$ROOT/scripts/provision-happyherd-agent-account.sh" ]] || fail 'dedicated HappyHerd account provisioner is missing'
+[[ -f "$ROOT/deploy/happyherd-agent-runtime/happy-home/agentcontext/rules/learnings/CHAT_FILE_SURFACE.md" ]] || fail 'chat file surface SOP template is missing'
+grep -Fq 'agentcontext/rules/learnings/CHAT_FILE_SURFACE.md' "$ROOT/scripts/prepare-happyherd-agent-runtime.sh" || fail 'runtime preparation does not install the chat file surface SOP'
+grep -Fq 'agentcontext/rules/learnings/CHAT_FILE_SURFACE.md' "$ROOT/scripts/validate-happyherd-agent-runtime.sh" || fail 'runtime validation does not require the chat file surface SOP'
 
 node - "$ROOT/deploy/happyherd-agent-runtime/settings.template.json" <<'NODE'
 const fs = require('node:fs');

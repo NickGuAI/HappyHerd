@@ -301,6 +301,12 @@ standalone `/workspace` route and `WorkspaceLinkViewer`. Read
 [`playbooks/file-workspaces.md`](playbooks/file-workspaces.md) before changing
 these owners.
 
+Agent-facing file-link syntax is owned as one paired instruction surface: the
+live HappyHerd global `AGENTS.md` pointer and the baked-in
+`deploy/happyherd-agent-runtime/happy-home/AGENTS.md` pointer must change
+together, and both point to matching `CHAT_FILE_SURFACE.md` learning files.
+Never update only the live or only the installation-template instruction.
+
 ## State owners
 
 | State | Canonical owner | Important boundary |

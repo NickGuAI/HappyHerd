@@ -57,6 +57,8 @@ install -d -o "$AGENT_USER" -g "$AGENT_USER" -m 0700 \
     "$AGENT_ROOT/codex-home" \
     "$AGENT_ROOT/happy-home" \
     "$AGENT_ROOT/happy-home/agentcontext" \
+    "$AGENT_ROOT/happy-home/agentcontext/rules" \
+    "$AGENT_ROOT/happy-home/agentcontext/rules/learnings" \
     "$AGENT_ROOT/happy-home/commanders" \
     "$AGENT_ROOT/happy-home/commanders/team-agent" \
     "$AGENT_ROOT/workspace"
@@ -67,6 +69,9 @@ install -o "$AGENT_USER" -g "$AGENT_USER" -m 0600 \
 install -o "$AGENT_USER" -g "$AGENT_USER" -m 0600 \
     "$ROOT/deploy/happyherd-agent-runtime/happy-home/agentcontext/USER.md" \
     "$AGENT_ROOT/happy-home/agentcontext/USER.md"
+install -o "$AGENT_USER" -g "$AGENT_USER" -m 0600 \
+    "$ROOT/deploy/happyherd-agent-runtime/happy-home/agentcontext/rules/learnings/CHAT_FILE_SURFACE.md" \
+    "$AGENT_ROOT/happy-home/agentcontext/rules/learnings/CHAT_FILE_SURFACE.md"
 install -o "$AGENT_USER" -g "$AGENT_USER" -m 0600 \
     "$ROOT/deploy/happyherd-agent-runtime/happy-home/commanders/team-agent/COMMANDER.md" \
     "$AGENT_ROOT/happy-home/commanders/team-agent/COMMANDER.md"

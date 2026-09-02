@@ -79,6 +79,7 @@ vi.mock('@/sync/ops', () => ({
 vi.mock('@/sync/storage', () => ({
     useAllMachines: () => mocks.machines,
     useIsDataReady: () => mocks.dataReady,
+    useSession: () => ({ metadata: { machineId: 'owner-machine', path: '/work' } }),
 }));
 vi.mock('@/text', () => ({ t: (key: string) => key }));
 vi.mock('@/utils/hostPath', () => ({
@@ -223,6 +224,17 @@ describe('WorkspaceLinkViewer', () => {
             machineId: 'owner-machine',
             machineLabel: 'Owner Machine',
             absolutePath: '/work/report.md',
+        });
+        act(() => renderer.unmount());
+    });
+
+    it('threads the original link position into the shared file viewer', async () => {
+        mockExactFileAndParent();
+        const renderer = await renderViewer({ reference: { ...reference, line: '42', column: '7' } });
+
+        expect(renderer.root.findByType('FileContentPanel' as any).props).toMatchObject({
+            requestedLine: 42,
+            requestedColumn: 7,
         });
         act(() => renderer.unmount());
     });

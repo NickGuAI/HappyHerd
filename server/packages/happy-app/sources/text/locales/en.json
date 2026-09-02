@@ -902,7 +902,19 @@
     "fileConflict": "File conflict",
     "fileConflictDescription": "This file was modified on the device while you were editing. Reload to see the latest version.",
     "reload": "Reload",
-    "overwrite": "Overwrite"
+    "overwrite": "Overwrite",
+    "commentOnNode": "Comment on {node}",
+    "pinnedComment": "Pinned comment",
+    "invalidCanvas": "Invalid canvas",
+    "commentOnLine": "Comment on line {line}",
+    "inlineComments": "Inline comments",
+    "canvasNode": "Canvas node: {node}",
+    "lineNumber": "Line {line}",
+    "removeComment": "Remove comment",
+    "commentPlaceholder": "Write a comment…",
+    "pinComment": "Pin comment",
+    "sendComments": "Send {count} comments",
+    "commentOnHoveredLine": "Comment on line"
   },
   "sideChat": {
     "panelTitle": "Side chats",

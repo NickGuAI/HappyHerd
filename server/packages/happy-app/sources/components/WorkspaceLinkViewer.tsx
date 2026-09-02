@@ -11,7 +11,7 @@ import { WorkspaceFeedbackComposer } from '@/components/WorkspaceFeedbackCompose
 import { Typography } from '@/constants/Typography';
 import { Modal } from '@/modal';
 import { machineGetDirectoryTree, machineReadFile, machineWriteFile } from '@/sync/ops';
-import { useAllMachines, useIsDataReady } from '@/sync/storage';
+import { useAllMachines, useIsDataReady, useSession } from '@/sync/storage';
 import type { Machine } from '@/sync/storageTypes';
 import { t } from '@/text';
 import { parentHostPath } from '@/utils/hostPath';
@@ -65,6 +65,12 @@ function machineName(machine: Machine | null, machineId: string): string {
     return machine?.metadata?.displayName || machine?.metadata?.host || machineId;
 }
 
+function linkedPosition(value: string | undefined): number | undefined {
+    if (!value) return undefined;
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
 function pathName(path: string, platform?: string): string {
     const usesWindowsSeparators = platform == null || platform === 'win32';
     const normalized = usesWindowsSeparators
@@ -105,6 +111,10 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
         [machines, reference.machineId],
     );
     const machineOnline = machine ? isMachineOnline(machine) : false;
+    const originSession = useSession(reference.originSessionId);
+    const trustedImageRoot = originSession?.metadata?.machineId === reference.machineId
+        ? originSession.metadata.path
+        : null;
     const machinePlatform = machine?.metadata?.platform;
     const [revision, setRevision] = React.useState(0);
     const [state, setState] = React.useState<WorkspaceLinkViewerState>({ status: 'loading' });
@@ -364,6 +374,9 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
     ) : state.selectedFile ? (
         <WorkspaceLinkFile
             machineId={reference.machineId}
+            originSessionId={reference.originSessionId}
+            machine={machine}
+            trustedImageRoot={trustedImageRoot}
             filePath={state.selectedFile}
             directoryPath={state.directoryPath}
             revision={revision}
@@ -373,6 +386,8 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
             onBack={() => guardFileNavigation(showDirectory)}
             onHeaderRightSlotChange={setHeaderRightSlot}
             onDirtyChange={handleFileDirtyChange}
+            requestedLine={state.selectedFile === reference.absolutePath ? linkedPosition(reference.line) : undefined}
+            requestedColumn={state.selectedFile === reference.absolutePath ? linkedPosition(reference.column) : undefined}
         />
     ) : (
         <WorkspaceLinkDirectory
@@ -446,6 +461,9 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
 
 function WorkspaceLinkFile({
     machineId,
+    originSessionId,
+    machine,
+    trustedImageRoot,
     filePath,
     directoryPath,
     revision,
@@ -455,8 +473,13 @@ function WorkspaceLinkFile({
     onBack,
     onHeaderRightSlotChange,
     onDirtyChange,
+    requestedLine,
+    requestedColumn,
 }: {
     machineId: string;
+    originSessionId: string;
+    machine: Machine | null;
+    trustedImageRoot: string | null;
     filePath: string;
     directoryPath: string;
     revision: number;
@@ -470,6 +493,8 @@ function WorkspaceLinkFile({
     onBack: () => void;
     onHeaderRightSlotChange: (slot: React.ReactNode) => void;
     onDirtyChange: (dirty: boolean) => void;
+    requestedLine?: number;
+    requestedColumn?: number;
 }) {
     const { theme } = useUnistyles();
     return (
@@ -502,8 +527,23 @@ function WorkspaceLinkFile({
                     readFile={readFile}
                     writeFile={writeFile}
                     canWrite={canWrite}
+                    markdownSessionId={originSessionId}
+                    markdownWorkspaceProvenance={{
+                        machineId,
+                        path: directoryPath,
+                        os: machine?.metadata?.platform,
+                        homeDir: machine?.metadata?.homeDir,
+                    }}
+                    markdownWorkspaceImageRoot={trustedImageRoot}
+                    reviewContext={{
+                        originSessionId,
+                        machineId,
+                        machineLabel: machineName(machine, machineId),
+                    }}
                     onHeaderRightSlotChange={onHeaderRightSlotChange}
                     onDirtyChange={onDirtyChange}
+                    requestedLine={requestedLine}
+                    requestedColumn={requestedColumn}
                 />
             </View>
         </View>

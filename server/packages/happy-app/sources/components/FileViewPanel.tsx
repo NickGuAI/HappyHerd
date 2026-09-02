@@ -10,7 +10,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { MarkdownView } from '@/components/markdown/MarkdownView';
+import type { MarkdownWorkspaceProvenance } from '@/components/markdown/MarkdownView.types';
 import { PierreDiffView } from '@/components/diff/PierreDiffView';
+import { CanvasFileViewer } from '@/components/CanvasFileViewer';
+import { InlineCommentReview, type InlineCommentAnchor } from '@/components/InlineCommentReview';
 import { machineDeleteFile, machineReadFile, machineWriteFile, sessionDeleteFile, sessionReadFile, sessionWriteFile } from '@/sync/ops';
 import { Modal } from '@/modal';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
@@ -32,12 +35,15 @@ import {
     safeHtmlPreviewDocument,
 } from '@/utils/filePreview';
 import { FileDocumentPreview } from '@/components/FileDocumentPreview';
+import type { WorkspaceFeedbackComment } from '@/sync/workspaceFeedback';
 
 interface FileViewPanelProps {
     sessionId: string;
     filePath: string;
     active?: boolean;
     headerVariant?: 'standard' | 'desktop-workspace';
+    requestedLine?: number | null;
+    requestedColumn?: number | null;
     /** Publishes the right-side file controls into the host header. */
     onHeaderRightSlotChange: (slot: React.ReactNode) => void;
     onDirtyChange?: (dirty: boolean) => void;
@@ -74,11 +80,21 @@ export interface FileContentPanelProps {
     deleteFile?: (filePath: string) => Promise<FileContentDeleteResult>;
     canWrite: boolean;
     markdownSessionId?: string;
+    markdownWorkspaceProvenance?: MarkdownWorkspaceProvenance;
+    markdownWorkspaceImageRoot?: string | null;
+    reviewContext?: Readonly<{
+        originSessionId: string;
+        machineId: string;
+        machineLabel?: string | null;
+    }>;
     active?: boolean;
     onHeaderRightSlotChange: (slot: React.ReactNode) => void;
     onDirtyChange?: (dirty: boolean) => void;
     onDeleted?: () => void;
     headerVariant?: 'standard' | 'desktop-workspace';
+    /** Optional deep-link position from a tool/session file link. */
+    requestedLine?: number | null;
+    requestedColumn?: number | null;
 }
 
 type FileState =
@@ -97,6 +113,14 @@ type EditableFileSnapshot = {
 
 type FileDisplayMode = 'source' | 'preview' | 'interactive' | 'edit';
 type FileSaveStatus = 'idle' | 'saved';
+
+function containingDirectory(filePath: string): string {
+    const withoutTrailing = filePath.replace(/[\\/]+$/u, '');
+    const separator = Math.max(withoutTrailing.lastIndexOf('/'), withoutTrailing.lastIndexOf('\\'));
+    if (separator < 0) return '.';
+    if (separator === 0) return withoutTrailing[0];
+    return withoutTrailing.slice(0, separator);
+}
 
 function getFileLanguage(path: string): string | null {
     const ext = path.split('.').pop()?.toLowerCase();
@@ -191,11 +215,15 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     deleteFile,
     canWrite,
     markdownSessionId,
+    markdownWorkspaceProvenance,
+    markdownWorkspaceImageRoot,
+    reviewContext,
     active = true,
     headerVariant = 'standard',
     onHeaderRightSlotChange,
     onDirtyChange,
     onDeleted,
+    requestedLine = null,
 }: FileContentPanelProps) {
     const { theme } = useUnistyles();
     const [fileState, setFileState] = React.useState<FileState>({ kind: 'loading' });
@@ -206,22 +234,32 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     const [saveStatus, setSaveStatus] = React.useState<FileSaveStatus>('idle');
     const [reloadRevision, setReloadRevision] = React.useState(0);
     const previousViewModeRef = React.useRef<Exclude<FileDisplayMode, 'edit'>>('source');
+    const sourceScrollRef = React.useRef<ScrollView | null>(null);
 
     // External change detection
     const [externalChange, setExternalChange] = React.useState<EditableFileSnapshot | null>(null);
     const [showConflictDiff, setShowConflictDiff] = React.useState(false);
+    const [reviewAnchor, setReviewAnchor] = React.useState<InlineCommentAnchor | null>(null);
+    const [reviewComments, setReviewComments] = React.useState<WorkspaceFeedbackComment[]>([]);
 
     const fileName = filePath.split('/').pop() || filePath;
     const language = getFileLanguage(filePath);
     const isMarkdown = language === 'markdown';
     const previewKind = classifyFilePreview(filePath);
     const isHtml = previewKind === 'html';
+    const isCanvas = previewKind === 'canvas';
+    const markdownRelativeTo = containingDirectory(filePath);
     const hasInteractiveHtmlPreview = isHtml && Platform.OS === 'web';
     const hasSvgPreview = previewKind === 'image'
         && imageMimeType(filePath) === 'image/svg+xml'
         && fileState.kind === 'loaded'
         && isSvgDocument(fileState.content);
-    const hasSourcePreview = isMarkdown || isHtml || hasSvgPreview;
+    const hasSourcePreview = isMarkdown || isHtml || hasSvgPreview || isCanvas;
+
+    React.useEffect(() => {
+        setReviewAnchor(null);
+        setReviewComments([]);
+    }, [resourceKey, filePath]);
 
     const hasChanges = fileState.kind === 'loaded' && editContent !== fileState.content;
 
@@ -296,10 +334,16 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     }, [resourceKey, filePath, previewKind, readFile, reloadRevision]);
 
     React.useEffect(() => {
-        const defaultMode = hasSourcePreview ? 'preview' : 'source';
+        const defaultMode = requestedLine && requestedLine > 0 ? 'source' : hasSourcePreview ? 'preview' : 'source';
         previousViewModeRef.current = defaultMode;
         setDisplayMode(defaultMode);
-    }, [filePath, hasSourcePreview]);
+    }, [filePath, hasSourcePreview, requestedLine]);
+
+    React.useEffect(() => {
+        if (fileState.kind !== 'loaded' || displayMode !== 'source' || !requestedLine || requestedLine <= 0) return;
+        const offset = Math.max(0, ((requestedLine - 1) * 20) - 40);
+        requestAnimationFrame(() => sourceScrollRef.current?.scrollTo({ y: offset, animated: false }));
+    }, [displayMode, fileState.kind, requestedLine]);
 
     const handleDisplayModeChange = React.useCallback((mode: FileDisplayMode) => {
         if (mode === 'edit') {
@@ -671,9 +715,28 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                 >
                     {Platform.OS === 'web' && <EditorPreviewStyles />}
                     <View {...(Platform.OS === 'web' ? { className: 'editor-preview-wrap' } as any : {})}>
-                        <MarkdownView markdown={editContent} sessionId={markdownSessionId} />
+                        <MarkdownView
+                            markdown={editContent}
+                            sessionId={markdownSessionId}
+                            enableWorkspaceLinks
+                            workspaceProvenance={markdownWorkspaceProvenance}
+                            workspaceImageRoot={markdownWorkspaceImageRoot}
+                            relativeTo={markdownRelativeTo}
+                            onLineComment={reviewContext ? setReviewAnchor : undefined}
+                        />
                     </View>
                 </ScrollView>
+            ) : isCanvas && displayMode === 'preview' && Platform.OS === 'web' && markdownSessionId ? (
+                <CanvasFileViewer
+                    content={editContent}
+                    sessionId={markdownSessionId}
+                    active={active}
+                    workspaceProvenance={markdownWorkspaceProvenance}
+                    workspaceImageRoot={markdownWorkspaceImageRoot}
+                    relativeTo={markdownRelativeTo}
+                    commentedNodeIds={reviewComments.flatMap((comment) => comment.nodeId ? [comment.nodeId] : [])}
+                    onNodeComment={setReviewAnchor}
+                />
             ) : isHtml && (displayMode === 'preview' || displayMode === 'interactive') ? (
                 <View style={styles.documentPreview}>
                     <FileDocumentPreview
@@ -685,6 +748,17 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                         title={t("uiCopy.previewOfValue", { value1: fileName })}
                     />
                 </View>
+            ) : Platform.OS === 'web' && reviewContext && displayMode !== 'edit' ? (
+                <ScrollView ref={sourceScrollRef} style={{ flex: 1 }} contentContainerStyle={{ maxWidth: layout.maxWidth, alignSelf: 'center', width: '100%' }}>
+                    <PierreDiffView
+                        file={{ name: fileName, contents: editContent }}
+                        overflow="scroll"
+                        disableFileHeader
+                        onGutterUtilityClick={(line) => setReviewAnchor({ line })}
+                        annotatedLines={reviewComments.flatMap((comment) => comment.line === undefined ? [] : [comment.line])}
+                        selectedLine={requestedLine}
+                    />
+                </ScrollView>
             ) : (
                 <View style={{ flex: 1, maxWidth: layout.maxWidth, alignSelf: 'center', width: '100%' }}>
                     <EditorView
@@ -695,6 +769,20 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                     />
                 </View>
             )}
+            {Platform.OS === 'web' && reviewContext ? (
+                <InlineCommentReview
+                    originSessionId={reviewContext.originSessionId}
+                    reference={{
+                        machineId: reviewContext.machineId,
+                        machineLabel: reviewContext.machineLabel,
+                        absolutePath: filePath,
+                    }}
+                    activeAnchor={reviewAnchor}
+                    comments={reviewComments}
+                    onActiveAnchorChange={setReviewAnchor}
+                    onCommentsChange={setReviewComments}
+                />
+            ) : null}
         </View>
     );
 });
@@ -712,6 +800,8 @@ export const FileViewPanel = React.memo(function FileViewPanel({
     onHeaderRightSlotChange,
     onDirtyChange,
     onDeleted,
+    requestedLine,
+    requestedColumn,
 }: FileViewPanelProps) {
     const session = useSession(sessionId);
     const machine = useMachine(session?.metadata?.machineId ?? '');
@@ -741,11 +831,18 @@ export const FileViewPanel = React.memo(function FileViewPanel({
             deleteFile={canDelete && headerVariant === 'desktop-workspace' ? deleteFile : undefined}
             canWrite={canWrite}
             markdownSessionId={sessionId}
+            reviewContext={session?.metadata?.machineId ? {
+                originSessionId: sessionId,
+                machineId: session.metadata.machineId,
+                machineLabel: machine?.metadata?.displayName ?? machine?.metadata?.host,
+            } : undefined}
             active={active}
             headerVariant={headerVariant}
             onHeaderRightSlotChange={onHeaderRightSlotChange}
             onDirtyChange={onDirtyChange}
             onDeleted={() => onDeleted?.(filePath)}
+            requestedLine={requestedLine}
+            requestedColumn={requestedColumn}
         />
     );
 });
@@ -753,14 +850,21 @@ export const FileViewPanel = React.memo(function FileViewPanel({
 /** The same editor/viewer surface backed by a machine-wide file RPC. */
 export const MachineFileViewPanel = React.memo(function MachineFileViewPanel({
     machineId,
+    originSessionId,
     filePath,
     active = true,
     headerVariant = 'standard',
     onHeaderRightSlotChange,
     onDirtyChange,
     onDeleted,
-}: Omit<FileViewPanelProps, 'sessionId'> & { machineId: string }) {
+    requestedLine,
+    requestedColumn,
+}: Omit<FileViewPanelProps, 'sessionId'> & { machineId: string; originSessionId: string }) {
     const machine = useMachine(machineId);
+    const originSession = useSession(originSessionId);
+    const trustedImageRoot = originSession?.metadata?.machineId === machineId
+        ? originSession.metadata.path
+        : null;
     const canWrite = Boolean(machine?.active);
     const readFile = React.useCallback(
         (path: string) => machineReadFile(machineId, path),
@@ -787,11 +891,26 @@ export const MachineFileViewPanel = React.memo(function MachineFileViewPanel({
                 ? deleteFile
                 : undefined}
             canWrite={canWrite}
+            markdownSessionId={originSessionId}
+            markdownWorkspaceProvenance={{
+                machineId,
+                path: containingDirectory(filePath),
+                os: machine?.metadata?.platform,
+                homeDir: machine?.metadata?.homeDir,
+            }}
+            markdownWorkspaceImageRoot={trustedImageRoot}
+            reviewContext={{
+                originSessionId,
+                machineId,
+                machineLabel: machine?.metadata?.displayName ?? machine?.metadata?.host,
+            }}
             active={active}
             headerVariant={headerVariant}
             onHeaderRightSlotChange={onHeaderRightSlotChange}
             onDirtyChange={onDirtyChange}
             onDeleted={() => onDeleted?.(filePath)}
+            requestedLine={requestedLine}
+            requestedColumn={requestedColumn}
         />
     );
 });

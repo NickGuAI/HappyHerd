@@ -73,6 +73,8 @@ grep -Fq "settings.serverUrl = 'http://127.0.0.1:3005'" "$ROOT/scripts/start-hos
     fail 'fresh host daemon bootstrap does not persist the local server default'
 grep -Fq "runuser -u \"\$BUILD_USER\"" "$ROOT/scripts/install-agent-runtime.sh" || \
     fail 'root agent installation can contaminate the checkout with root-owned build output'
+grep -Fq 'agentcontext/rules/learnings/CHAT_FILE_SURFACE.md' "$ROOT/scripts/install-agent-runtime.sh" || \
+    fail 'agent support installation omits the chat file surface SOP'
 grep -Fq '/usr/local/lib/happyherd-agent/dist/index.mjs' "$ROOT/deploy/happyherd-agent.service" || \
     fail 'governed agent does not use its independent stable package path'
 grep -Fq "docker pull \"\$IMAGE\"" "$ROOT/scripts/deploy-server.sh" || \
