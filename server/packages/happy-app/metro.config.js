@@ -26,8 +26,34 @@ config.resolver.blockList = [
 // `r.__H` crashes. Pin to the CJS bundles so everyone shares state.
 const preactCjsPath = require.resolve('preact');
 const preactHooksCjsPath = require.resolve('preact/hooks');
+// @xyflow/react currently depends on Zustand 4. Its ESM build references
+// import.meta.env, which Metro preserves in a classic Web script and browsers
+// reject before React mounts. Keep the app's direct Zustand 5 imports intact,
+// but resolve the Zustand 4 imports owned by React Flow to their CJS entries.
+const xyflowRoot = path.dirname(require.resolve('@xyflow/react/package.json'));
+const xyflowZustandRoot = path.dirname(require.resolve('zustand/package.json', { paths: [xyflowRoot] }));
+const xyflowZustandCjsPaths = new Map([
+  ['zustand', require.resolve('zustand', { paths: [xyflowRoot] })],
+  ['zustand/shallow', require.resolve('zustand/shallow', { paths: [xyflowRoot] })],
+  ['zustand/traditional', require.resolve('zustand/traditional', { paths: [xyflowRoot] })],
+  ['zustand/vanilla', require.resolve('zustand/vanilla', { paths: [xyflowRoot] })],
+]);
+const isWithin = (filePath, root) => {
+  const relativePath = path.relative(root, filePath);
+  return relativePath === '' || (!relativePath.startsWith(`..${path.sep}`) && relativePath !== '..' && !path.isAbsolute(relativePath));
+};
 const baseResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
+  const zustandCjsPath = xyflowZustandCjsPaths.get(moduleName);
+  const originModulePath = context.originModulePath;
+  if (
+    platform === 'web' &&
+    zustandCjsPath &&
+    typeof originModulePath === 'string' &&
+    (isWithin(originModulePath, xyflowRoot) || isWithin(originModulePath, xyflowZustandRoot))
+  ) {
+    return { filePath: zustandCjsPath, type: 'sourceFile' };
+  }
   if (moduleName === 'preact') {
     return { filePath: preactCjsPath, type: 'sourceFile' };
   }

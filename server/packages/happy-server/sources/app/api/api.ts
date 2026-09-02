@@ -18,6 +18,7 @@ import { accessKeysRoutes } from "./routes/accessKeysRoutes";
 import { enableMonitoring } from "./utils/enableMonitoring";
 import { enableErrorHandlers } from "./utils/enableErrorHandlers";
 import { enableAuthentication } from "./utils/enableAuthentication";
+import { enableResponseCompression } from "./utils/enableResponseCompression";
 import { userRoutes } from "./routes/userRoutes";
 import { feedRoutes } from "./routes/feedRoutes";
 import { kvRoutes } from "./routes/kvRoutes";
@@ -122,14 +123,8 @@ export async function startApi(opts: StartApiOptions = {}) {
         const injectScript = opts.injectHtmlConfig
             ? `<script>window.__HAPPY_CONFIG__ = ${JSON.stringify(opts.injectHtmlConfig)};</script>`
             : null;
-        app.register(fastifyStatic, {
-            root: opts.staticDir,
-            prefix: '/',
-            decorateReply: false,
-            // SPA fallback — if file not found, serve index.html
-            wildcard: false,
-        });
         if (injectScript) {
+            // Transform the self-host index before the compression hook runs.
             app.addHook('onSend', async (request, reply, payload) => {
                 const url = request.raw.url || '';
                 const isIndex = url === '/' || url === '/index.html' || url.startsWith('/?');
@@ -151,11 +146,19 @@ export async function startApi(opts: StartApiOptions = {}) {
                 } else {
                     return payload;
                 }
-                const injected = html.replace(/<head[^>]*>/i, (m) => `${m}\n${injectScript}`);
+                const injected = html.replace(/<head[^>]*>/i, (head) => `${head}\n${injectScript}`);
                 reply.header('content-length', Buffer.byteLength(injected));
                 return injected;
             });
         }
+        await enableResponseCompression(app);
+        app.register(fastifyStatic, {
+            root: opts.staticDir,
+            prefix: '/',
+            decorateReply: false,
+            // SPA fallback — if file not found, serve index.html
+            wildcard: false,
+        });
         // SPA fallback: serve index.html for any unmatched GET that looks like a route.
         app.setNotFoundHandler(async (request, reply) => {
             const url = request.raw.url || '';
