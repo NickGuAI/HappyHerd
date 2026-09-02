@@ -57,7 +57,7 @@ class CommanderMemoryCleanupContractTests(unittest.TestCase):
 
     def test_documents_installed_entrypoint_and_timeout_margin(self) -> None:
         for phrase in (
-            "/home/ec2-user/.claude/skills/commander-memory-cleanup/scripts/memory-reflector.py",
+            '"${HOME}/.claude/skills/commander-memory-cleanup/scripts/memory-reflector.py"',
             "18,000 seconds (300 minutes)",
             "21,600-second (360-minute) outer timeout",
         ):

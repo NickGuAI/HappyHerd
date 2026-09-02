@@ -97,8 +97,10 @@ or raw session data in receipts.
 
 ## Source evidence
 
-- `/home/ec2-user/App/external-projects/grapeot-repos/ai-agent-cli-skill/AGENTS.md`
-- `/home/ec2-user/App/external-projects/grapeot-repos/ai-agent-cli-skill/skills/codex_cli.md`
-- `/home/ec2-user/App/external-projects/grapeot-repos/ai-agent-cli-skill/skills/grok_cli.md`
-- `/home/ec2-user/App/external-projects/grapeot-repos/ai-agent-cli-skill/docs/test.md`
-- `/home/ec2-user/App/external-projects/grapeot-repos/ai-agent-cli-skill/docs/working.md`
+Within the `ai-agent-cli-skill` source snapshot:
+
+- `AGENTS.md`
+- `skills/codex_cli.md`
+- `skills/grok_cli.md`
+- `docs/test.md`
+- `docs/working.md`

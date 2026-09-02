@@ -172,8 +172,8 @@ publish validated output.
 The installed launcher implements that boundary:
 
 ```bash
-python3 /home/ec2-user/.claude/skills/commander-memory-cleanup/scripts/memory-reflector.py weekly
-python3 /home/ec2-user/.claude/skills/commander-memory-cleanup/scripts/memory-reflector.py migration \
+python3 "${HOME}/.claude/skills/commander-memory-cleanup/scripts/memory-reflector.py" weekly
+python3 "${HOME}/.claude/skills/commander-memory-cleanup/scripts/memory-reflector.py" migration \
   --inventory /absolute/path/to/source-inventory.json \
   --expected-count 9 \
   --max-concurrency 3 \
