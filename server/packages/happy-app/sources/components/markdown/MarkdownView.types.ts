@@ -36,7 +36,12 @@ export function encodeMarkdownOptions(markdown: string): string {
         const items = Array.from(body.matchAll(/<option>([\s\S]*?)<\/option>/giu))
             .map((match) => match[1].trim())
             .filter(Boolean);
-        return items.map((item) => `- [${item.replace(/[\[\]]/g, '\\$&')}](${OPTION_LINK_PREFIX}${encodeURIComponent(item)})`).join('\n');
+        if (!items.length) return '';
+        const list = items
+            .map((item) => `- [${item.replace(/[\[\]]/g, '\\$&')}](${OPTION_LINK_PREFIX}${encodeURIComponent(item)})`)
+            .join('\n');
+        // Comments keep adjacent ordinary bullets in a separate list without shifting source lines.
+        return `<!--happyherd-options-start-->\n${list}\n<!--happyherd-options-end-->`;
     });
 }
 

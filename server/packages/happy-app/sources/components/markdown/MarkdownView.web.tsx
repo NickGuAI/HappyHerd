@@ -9,6 +9,7 @@ import rehypeRaw from 'rehype-raw';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import { useRouter } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
+import { useUnistyles } from 'react-native-unistyles';
 
 import { useWorkspaceLinkPress } from '@/-session/workspaceLinkNavigation';
 import { MermaidRenderer } from './MermaidRenderer';
@@ -38,6 +39,14 @@ type LinkTarget =
     | Readonly<{ kind: 'external'; url: string }>
     | Readonly<{ kind: 'workspace'; route: WorkspaceLinkRoute }>;
 
+type HastNode = {
+    type: string;
+    tagName?: string;
+    value?: string;
+    properties?: { className?: string[]; href?: unknown };
+    children?: HastNode[];
+};
+
 const sanitizeSchema = {
     ...defaultSchema,
     attributes: {
@@ -50,6 +59,47 @@ const sanitizeSchema = {
 function sourceLine(node: any): number | undefined {
     const line = node?.position?.start?.line;
     return Number.isInteger(line) && line > 0 ? line : undefined;
+}
+
+function meaningfulChildren(node: HastNode): HastNode[] {
+    return (node.children ?? []).filter((child) => child.type !== 'text' || child.value?.trim());
+}
+
+function optionItemsFromList(node: HastNode | undefined): string[] | null {
+    if (!node || node.tagName !== 'ul') return null;
+    const listItems = meaningfulChildren(node);
+    if (!listItems.length || listItems.some((item) => item.tagName !== 'li')) return null;
+    const options: string[] = [];
+    for (const item of listItems) {
+        let content = meaningfulChildren(item);
+        if (content.length === 1 && content[0].tagName === 'p') content = meaningfulChildren(content[0]);
+        if (content.length !== 1 || content[0].tagName !== 'a') return null;
+        const href = content[0].properties?.href;
+        const option = decodeMarkdownOption(typeof href === 'string' ? href : undefined);
+        if (option === null) return null;
+        options.push(option);
+    }
+    return options;
+}
+
+function WebOptionsBlock(props: {
+    items: string[];
+    onOptionPress?: (option: Option) => void;
+}) {
+    return (
+        <div className="hh-markdown-options">
+            {props.items.map((item, index) => props.onOptionPress ? (
+                <button
+                    key={index}
+                    type="button"
+                    className="hh-markdown-option"
+                    onClick={() => props.onOptionPress?.({ title: item })}
+                >{item}</button>
+            ) : (
+                <div key={index} className="hh-markdown-option-item">{item}</div>
+            ))}
+        </div>
+    );
 }
 
 function ReviewButton(props: { line?: number; onLineComment?: (anchor: MarkdownLineCommentAnchor) => void }) {
@@ -180,6 +230,7 @@ function extractText(node: any): string {
 }
 
 export const MarkdownView = React.memo(function MarkdownView(props: MarkdownViewProps) {
+    const { theme } = useUnistyles();
     const router = useRouter();
     const session = useSession(props.sessionId ?? '');
     const contextWorkspaceLinkPress = useWorkspaceLinkPress();
@@ -218,6 +269,11 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
         };
 
         return {
+            ul: ({ node, children, ...rest }: any) => {
+                const optionItems = optionItemsFromList(node);
+                if (optionItems) return <WebOptionsBlock items={optionItems} onOptionPress={props.onOptionPress} />;
+                return <ul {...rest}>{children}</ul>;
+            },
             p: reviewable('p'),
             h1: reviewable('h1'),
             h2: reviewable('h2'),
@@ -321,8 +377,26 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
         };
     }, [metadata, openWorkspace, props.enableWorkspaceLinks, props.inlineImages, props.onLineComment, props.onOptionPress, props.relativeTo, props.sessionId, props.workspaceImageRoot, resolveTarget]);
 
+    const themeVariables = {
+        '--hh-markdown-text': theme.colors.text,
+        '--hh-markdown-text-secondary': theme.colors.textSecondary,
+        '--hh-markdown-divider': theme.colors.divider,
+        '--hh-markdown-surface': theme.colors.surface,
+        '--hh-markdown-surface-high': theme.colors.surfaceHigh,
+        '--hh-markdown-surface-highest': theme.colors.surfaceHighest,
+        '--hh-markdown-syntax-keyword': theme.colors.syntaxKeyword,
+        '--hh-markdown-syntax-string': theme.colors.syntaxString,
+        '--hh-markdown-syntax-comment': theme.colors.syntaxComment,
+        '--hh-markdown-syntax-number': theme.colors.syntaxNumber,
+        '--hh-markdown-syntax-function': theme.colors.syntaxFunction,
+        '--hh-markdown-syntax-default': theme.colors.syntaxDefault,
+    } as React.CSSProperties;
+
     return (
-        <div className="hh-markdown-root">
+        <div
+            className={`hh-markdown-root${theme.dark ? ' hh-markdown-dark' : ''}`}
+            style={themeVariables}
+        >
             <style>{MARKDOWN_CSS}</style>
             <ReactMarkdown
                 remarkPlugins={[remarkGfm, remarkBreaks, remarkFrontmatter, remarkMath]}
@@ -351,7 +425,27 @@ const MARKDOWN_CSS = `
 .hh-markdown-image-modal { position: relative; width: min(1120px, calc(100vw - 32px)); height: min(900px, calc(100vh - 80px)); padding: 16px; }
 .hh-markdown-image-modal > button { position: absolute; top: 8px; right: 8px; z-index: 1; }
 .hh-markdown-image-modal > img { width: 100%; height: 100%; object-fit: contain; }
-.hh-markdown-option { border: 0; border-radius: 10px; padding: 8px 12px; cursor: pointer; }
+.hh-markdown-options { display: flex; flex-direction: column; gap: 8px; width: 100%; margin: 8px 0; }
+.hh-markdown-root > .hh-markdown-options { margin: 8px 0; }
+.hh-markdown-option { appearance: none; display: block; box-sizing: border-box; width: 100%; overflow: hidden; border: 0; border-radius: 12px; padding: 8px 12px; background: var(--hh-markdown-surface-highest); color: var(--hh-markdown-text); font-family: IBMPlexSans-Regular; font-size: 16px; font-weight: 400; line-height: 24px; text-align: left; white-space: normal; overflow-wrap: anywhere; cursor: pointer; }
+.hh-markdown-option:active { opacity: .7; }
+.hh-markdown-option-item { box-sizing: border-box; width: 100%; overflow: hidden; border: 1px solid var(--hh-markdown-divider); border-radius: 8px; padding: 12px 16px; background: var(--hh-markdown-surface-highest); color: var(--hh-markdown-text); font-family: IBMPlexSans-Regular; font-size: 16px; font-weight: 400; line-height: 24px; overflow-wrap: anywhere; }
+.hh-markdown-root.hh-markdown-dark { color: var(--hh-markdown-text); }
+.hh-markdown-root.hh-markdown-dark h1,.hh-markdown-root.hh-markdown-dark h2,.hh-markdown-root.hh-markdown-dark h3,.hh-markdown-root.hh-markdown-dark h4,.hh-markdown-root.hh-markdown-dark h5,.hh-markdown-root.hh-markdown-dark h6,.hh-markdown-root.hh-markdown-dark p,.hh-markdown-root.hh-markdown-dark ul,.hh-markdown-root.hh-markdown-dark ol,.hh-markdown-root.hh-markdown-dark li { color: var(--hh-markdown-text); }
+.hh-markdown-root.hh-markdown-dark a { color: var(--hh-markdown-text); }
+.hh-markdown-root.hh-markdown-dark blockquote { border-left-color: var(--hh-markdown-divider); background: var(--hh-markdown-surface-high); color: var(--hh-markdown-text-secondary); opacity: 1; }
+.hh-markdown-root.hh-markdown-dark blockquote p { color: var(--hh-markdown-text-secondary); }
+.hh-markdown-root.hh-markdown-dark :not(pre) > code { background: var(--hh-markdown-surface-high); color: var(--hh-markdown-text); }
+.hh-markdown-root.hh-markdown-dark pre { background: var(--hh-markdown-surface-highest); color: var(--hh-markdown-text); }
+.hh-markdown-root.hh-markdown-dark pre code { color: var(--hh-markdown-text); }
+.hh-markdown-root.hh-markdown-dark th,.hh-markdown-root.hh-markdown-dark td { border-color: var(--hh-markdown-divider); color: var(--hh-markdown-text); }
+.hh-markdown-root.hh-markdown-dark th { background: var(--hh-markdown-surface-high); }
+.hh-markdown-root.hh-markdown-dark .hljs-comment,.hh-markdown-root.hh-markdown-dark .hljs-quote { color: var(--hh-markdown-syntax-comment); }
+.hh-markdown-root.hh-markdown-dark .hljs-keyword,.hh-markdown-root.hh-markdown-dark .hljs-selector-tag,.hh-markdown-root.hh-markdown-dark .hljs-literal { color: var(--hh-markdown-syntax-keyword); }
+.hh-markdown-root.hh-markdown-dark .hljs-string,.hh-markdown-root.hh-markdown-dark .hljs-doctag { color: var(--hh-markdown-syntax-string); }
+.hh-markdown-root.hh-markdown-dark .hljs-number { color: var(--hh-markdown-syntax-number); }
+.hh-markdown-root.hh-markdown-dark .hljs-title,.hh-markdown-root.hh-markdown-dark .hljs-section,.hh-markdown-root.hh-markdown-dark .hljs-function { color: var(--hh-markdown-syntax-function); }
+.hh-markdown-root.hh-markdown-dark .hljs-variable,.hh-markdown-root.hh-markdown-dark .hljs-attr,.hh-markdown-root.hh-markdown-dark .hljs-params,.hh-markdown-root.hh-markdown-dark .hljs-punctuation { color: var(--hh-markdown-syntax-default); }
 .hh-markdown-root pre { position: relative; }
 .hh-markdown-code-copy { position: absolute; top: 8px; right: 8px; opacity: 0; cursor: pointer; }
 .hh-markdown-root pre:hover > .hh-markdown-code-copy,.hh-markdown-code-copy:focus-visible { opacity: 1; }

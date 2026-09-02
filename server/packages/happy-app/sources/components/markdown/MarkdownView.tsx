@@ -72,6 +72,22 @@ function parseMarkdown(markdown: string): MdNode {
     return markdownProcessor.runSync(parsed) as MdNode;
 }
 
+function optionItemsFromList(node: MdNode): string[] | null {
+    if (node.type !== 'list' || node.ordered || !node.children?.length) return null;
+    const items: string[] = [];
+    for (const item of node.children) {
+        if (item.type !== 'listItem' || item.checked != null || item.children?.length !== 1) return null;
+        const paragraph = item.children[0];
+        if (paragraph.type !== 'paragraph' || paragraph.children?.length !== 1) return null;
+        const link = paragraph.children[0];
+        if (link.type !== 'link') return null;
+        const option = decodeMarkdownOption(link.url);
+        if (option === null) return null;
+        items.push(option);
+    }
+    return items;
+}
+
 export const MarkdownView = React.memo(function MarkdownView(props: MarkdownViewProps) {
     const root = React.useMemo(() => parseMarkdown(props.markdown), [props.markdown]);
     const markdownCopyV2 = useLocalSetting('markdownCopyV2');
@@ -203,29 +219,42 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
                     <Text selectable={selectable} style={styles.codeText}>{node.value ?? ''}</Text>
                 </HorizontalScrollView>
             );
-            case 'list': return (
-                <View key={key} style={styles.list}>
-                    {node.children?.map((item, itemIndex) => {
-                        const marker = item.checked === true
-                            ? '☑'
-                            : item.checked === false
-                                ? '☐'
-                                : node.ordered
-                                    ? `${(node.start ?? 1) + itemIndex}.`
-                                    : '•';
-                        return (
-                            <View key={`${key}:${itemIndex}`} style={styles.listRow} accessibilityRole={item.checked == null ? undefined : 'checkbox'} accessibilityState={item.checked == null ? undefined : { checked: item.checked, disabled: true }}>
-                                <Text style={styles.listMarker}>{marker}</Text>
-                                <View style={styles.listItemBody}>
-                                    {item.children?.map((child, childIndex) => child.type === 'paragraph'
-                                        ? <Text key={`${key}:${itemIndex}:text:${childIndex}`} selectable={selectable} style={styles.listText}>{renderInline(child.children, `${key}:${itemIndex}:${childIndex}`)}</Text>
-                                        : <React.Fragment key={`${key}:${itemIndex}:block:${childIndex}`}>{renderBlock(child, childIndex)}</React.Fragment>)}
+            case 'list': {
+                const optionItems = optionItemsFromList(node);
+                if (optionItems) {
+                    return (
+                        <NativeOptionsBlock
+                            key={key}
+                            items={optionItems}
+                            selectable={selectable}
+                            onOptionPress={props.onOptionPress}
+                        />
+                    );
+                }
+                return (
+                    <View key={key} style={styles.list}>
+                        {node.children?.map((item, itemIndex) => {
+                            const marker = item.checked === true
+                                ? '☑'
+                                : item.checked === false
+                                    ? '☐'
+                                    : node.ordered
+                                        ? `${(node.start ?? 1) + itemIndex}.`
+                                        : '•';
+                            return (
+                                <View key={`${key}:${itemIndex}`} style={styles.listRow} accessibilityRole={item.checked == null ? undefined : 'checkbox'} accessibilityState={item.checked == null ? undefined : { checked: item.checked, disabled: true }}>
+                                    <Text style={styles.listMarker}>{marker}</Text>
+                                    <View style={styles.listItemBody}>
+                                        {item.children?.map((child, childIndex) => child.type === 'paragraph'
+                                            ? <Text key={`${key}:${itemIndex}:text:${childIndex}`} selectable={selectable} style={styles.listText}>{renderInline(child.children, `${key}:${itemIndex}:${childIndex}`)}</Text>
+                                            : <React.Fragment key={`${key}:${itemIndex}:block:${childIndex}`}>{renderBlock(child, childIndex)}</React.Fragment>)}
+                                    </View>
                                 </View>
-                            </View>
-                        );
-                    })}
-                </View>
-            );
+                            );
+                        })}
+                    </View>
+                );
+            }
             case 'table': return <NativeTable key={key} node={node} selectable={selectable} renderInline={renderInline} />;
             case 'html': return null;
             default: return node.children?.map(renderBlock) ?? null;
@@ -249,6 +278,34 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
 function plainText(node: MdNode): string {
     if (typeof node.value === 'string') return node.value;
     return node.children?.map(plainText).join('') ?? '';
+}
+
+function NativeOptionsBlock(props: {
+    items: string[];
+    selectable: boolean;
+    onOptionPress?: (option: Option) => void;
+}) {
+    return (
+        <View style={styles.optionsContainer}>
+            {props.items.map((item, index) => props.onOptionPress ? (
+                <Pressable
+                    key={index}
+                    style={({ pressed }) => [
+                        styles.optionPressable,
+                        styles.optionButton,
+                        pressed && styles.optionButtonPressed,
+                    ]}
+                    onPress={() => props.onOptionPress?.({ title: item })}
+                >
+                    <Text selectable={props.selectable} style={styles.optionButtonText}>{item}</Text>
+                </Pressable>
+            ) : (
+                <View key={index} style={styles.optionItem}>
+                    <Text selectable={props.selectable} style={styles.optionText}>{item}</Text>
+                </View>
+            ))}
+        </View>
+    );
 }
 
 type HastNode = { type: string; value?: string; properties?: { className?: string[] }; children?: HastNode[] };
@@ -463,4 +520,25 @@ const styles = StyleSheet.create((theme) => ({
     modal: { backgroundColor: theme.colors.surface, borderRadius: 14, overflow: 'hidden' },
     modalClose: { position: 'absolute', top: 12, right: 12, zIndex: 2, width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.surfaceHighest },
     modalContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 16 },
+    optionsContainer: { flexDirection: 'column', gap: 8, marginVertical: 8 },
+    optionPressable: { borderRadius: Platform.select({ web: 8, default: 18 }) },
+    optionItem: {
+        backgroundColor: Platform.select({ web: theme.colors.surfaceHighest, default: theme.colors.surface }),
+        borderRadius: Platform.select({ web: 8, default: 18 }),
+        paddingHorizontal: 16,
+        paddingVertical: Platform.select({ web: 12, default: 14 }),
+        borderWidth: Platform.select({ web: 1, default: StyleSheet.hairlineWidth }),
+        borderColor: theme.colors.divider,
+        overflow: 'hidden',
+    },
+    optionText: { ...Typography.default(), fontSize: 16, lineHeight: 24, color: theme.colors.text },
+    optionButton: {
+        backgroundColor: theme.colors.surfaceHighest,
+        borderRadius: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        overflow: 'hidden',
+    },
+    optionButtonPressed: { opacity: 0.7 },
+    optionButtonText: { ...Typography.default(), fontSize: 16, lineHeight: 24, color: theme.colors.text },
 }));
