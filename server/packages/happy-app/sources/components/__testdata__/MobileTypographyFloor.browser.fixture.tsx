@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { createPortal } from 'react-dom';
 
 import { MobileTypographyFloor } from '../MobileTypographyFloor.web';
+import { resolvePhoneSafeTextEntryFontSize } from '../../utils/mobileTypographyFloor';
 
 declare global {
     interface Window {
@@ -50,7 +51,12 @@ function Fixture() {
                             autoFocus
                             data-testid={`autofocus-${autoFocusOwner}`}
                             placeholder="Custom answer"
-                            style={{ fontSize: 16 }}
+                            style={{
+                                fontSize: resolvePhoneSafeTextEntryFontSize(
+                                    'web',
+                                    autoFocusOwner === 'agent-question' ? 15 : 14,
+                                ),
+                            }}
                             onFocus={(event) => {
                                 window.__AUTOFOCUS_FONT_SIZES__ = {
                                     ...window.__AUTOFOCUS_FONT_SIZES__,

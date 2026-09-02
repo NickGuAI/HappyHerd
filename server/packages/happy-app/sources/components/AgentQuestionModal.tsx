@@ -15,6 +15,7 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
+import { resolvePhoneSafeTextEntryFontSize } from '@/utils/mobileTypographyFloor';
 import {
     buildAnswers,
     canSubmit,
@@ -315,7 +316,7 @@ const stylesheet = StyleSheet.create((theme) => ({
         gap: 2,
     },
     optionLabel: {
-        fontSize: Platform.select({ web: 16, default: 15 }),
+        fontSize: 15,
         color: theme.colors.text,
         ...Typography.default('semiBold'),
     },
@@ -341,7 +342,7 @@ const stylesheet = StyleSheet.create((theme) => ({
         borderColor: theme.colors.divider,
         paddingHorizontal: 14,
         paddingVertical: 12,
-        fontSize: 15,
+        fontSize: resolvePhoneSafeTextEntryFontSize(Platform.OS, 15),
         color: theme.colors.text,
         textAlignVertical: 'top',
     },

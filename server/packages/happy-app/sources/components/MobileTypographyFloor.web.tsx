@@ -1,6 +1,8 @@
 import * as React from 'react';
 
-export const MOBILE_TYPOGRAPHY_MIN_FONT_SIZE = 16;
+import { PHONE_WEB_TYPOGRAPHY_MIN_FONT_SIZE } from '@/utils/mobileTypographyFloor';
+
+export const MOBILE_TYPOGRAPHY_MIN_FONT_SIZE = PHONE_WEB_TYPOGRAPHY_MIN_FONT_SIZE;
 
 const FLOOR_CLASS = 'hh-mobile-typography-floor';
 const FLOOR_MARKER = 'data-hh-mobile-typography-floor';

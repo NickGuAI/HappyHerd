@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
-import { shouldApplyPhoneWebTypographyFloor } from './mobileTypographyFloor';
+import {
+    resolvePhoneSafeTextEntryFontSize,
+    shouldApplyPhoneWebTypographyFloor,
+} from './mobileTypographyFloor';
+
+describe('resolvePhoneSafeTextEntryFontSize', () => {
+    it('is synchronously phone-safe on Web without changing native defaults', () => {
+        expect(resolvePhoneSafeTextEntryFontSize('web', 14)).toBe(16);
+        expect(resolvePhoneSafeTextEntryFontSize('web', 15)).toBe(16);
+        expect(resolvePhoneSafeTextEntryFontSize('ios', 15)).toBe(15);
+        expect(resolvePhoneSafeTextEntryFontSize('android', 14)).toBe(14);
+    });
+});
 
 describe('shouldApplyPhoneWebTypographyFloor', () => {
     it('targets portrait and landscape phone Web layouts', () => {
