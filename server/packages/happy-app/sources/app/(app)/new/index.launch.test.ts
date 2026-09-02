@@ -547,7 +547,7 @@ describe('Full New Session path selection', () => {
         act(() => renderer.unmount());
     });
 
-    it('keeps every rendered New Session text and text input at 16 CSS px or larger', async () => {
+    it('keeps every rendered New Session text input at 16 CSS px or larger on Web', async () => {
         mocks.places = Array.from({ length: 5 }, (_, index) => ({
             key: `/Users/dev/project-${index}`,
             name: `Project ${index}`,
@@ -563,10 +563,6 @@ describe('Full New Session path selection', () => {
         expect(trigger).toBeDefined();
         await act(async () => trigger!.props.onPress());
 
-        for (const text of renderer.root.findAllByType('Text' as any)) {
-            expect(flattenStyle(text.props.style).fontSize).toEqual(expect.any(Number));
-            expect(flattenStyle(text.props.style).fontSize).toBeGreaterThanOrEqual(16);
-        }
         for (const input of renderer.root.findAllByType('TextInput' as any)) {
             expect(flattenStyle(input.props.style).fontSize).toBeGreaterThanOrEqual(16);
         }

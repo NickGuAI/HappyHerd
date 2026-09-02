@@ -397,7 +397,7 @@ function PickerContent({
                         {item.label}
                     </Text>
                     {item.subtitle && (
-                        <Text style={[pickerStyles.optionText, { color: theme.colors.textSecondary, fontSize: 16 }]} numberOfLines={1}>
+                        <Text style={[pickerStyles.optionText, { color: theme.colors.textSecondary, fontSize: 13 }]} numberOfLines={1}>
                             {item.subtitle}
                         </Text>
                     )}
@@ -492,7 +492,7 @@ function ComposerSettingsContent({
                     >
                         <Ionicons name={item.icon} size={17} color={theme.colors.textSecondary} />
                         <View style={{ flex: 1, minWidth: 0 }}>
-                            <Text style={[pickerStyles.optionText, { color: theme.colors.textSecondary, fontSize: 16 }]}>
+                            <Text style={[pickerStyles.optionText, { color: theme.colors.textSecondary, fontSize: 12 }]}>
                                 {item.label}
                             </Text>
                             <Text style={[pickerStyles.optionText, { color: theme.colors.text }]} numberOfLines={1}>
@@ -2715,7 +2715,7 @@ function NewSessionScreen() {
                 />
             )}
             {voiceDictation.error && (
-                <Text style={{ color: theme.colors.status.disconnected, fontSize: 16, paddingHorizontal: 12, paddingTop: 8 }}>
+                <Text style={{ color: theme.colors.status.disconnected, paddingHorizontal: 12, paddingTop: 8 }}>
                     {voiceDictation.error}
                 </Text>
             )}
@@ -3341,7 +3341,7 @@ const styles = StyleSheet.create((theme) => ({
         paddingVertical: 4,
     },
     flashLabelText: {
-        fontSize: 16,
+        fontSize: 12,
         ...Typography.default(),
     },
     configRowPressed: {
@@ -3357,7 +3357,7 @@ const styles = StyleSheet.create((theme) => ({
     },
     configLabel: {
         minWidth: 0,
-        fontSize: 16,
+        fontSize: Platform.select({ web: 14, default: 16 }),
         color: theme.colors.text,
         ...Typography.default('semiBold'),
         ...Platform.select({ web: { userSelect: 'none' } as any, default: {} }),
@@ -3456,7 +3456,7 @@ const styles = StyleSheet.create((theme) => ({
         minWidth: 0,
         flexShrink: 1,
         color: theme.colors.button.secondary.tint,
-        fontSize: 16,
+        fontSize: 13,
         ...Typography.default('semiBold'),
     },
     composerControlActive: {
@@ -3533,13 +3533,13 @@ const styles = StyleSheet.create((theme) => ({
         borderRadius: 12,
     },
     offlineHelpTitle: {
-        fontSize: 16,
+        fontSize: 13,
         ...Typography.default('semiBold'),
         marginBottom: 4,
     },
     offlineHelpText: {
-        fontSize: 16,
-        lineHeight: 20,
+        fontSize: 12,
+        lineHeight: 18,
         ...Typography.default(),
     },
 }));
@@ -3625,7 +3625,7 @@ const pickerStyles = {
     composerPickerTitle: {
         flex: 1,
         minWidth: 0,
-        fontSize: 16,
+        fontSize: 14,
         ...Typography.default('semiBold'),
     } as const,
     title: {
@@ -3676,7 +3676,7 @@ const pickerStyles = {
     searchInput: {
         flex: 1,
         minWidth: 0,
-        fontSize: 16,
+        fontSize: Platform.select({ web: 16, default: 15 }),
         padding: 0,
         ...Typography.default(),
         ...Platform.select({ web: { outlineStyle: 'none' } as any, default: {} }),
@@ -3716,18 +3716,18 @@ const pickerStyles = {
         }),
     } as const,
     embeddedPathTextInput: {
-        fontSize: 16,
+        fontSize: Platform.select({ web: 16, default: 15 }),
         minHeight: 34,
     } as const,
     pathMetaText: {
-        fontSize: 16,
+        fontSize: 13,
         paddingHorizontal: 4,
         paddingBottom: 8,
         ...Typography.default(),
         ...Platform.select({ web: { userSelect: 'none' } as any, default: {} }),
     } as const,
     sectionLabel: {
-        fontSize: 16,
+        fontSize: 13,
         paddingHorizontal: 4,
         paddingBottom: 8,
         ...Typography.default('semiBold'),
@@ -3755,7 +3755,7 @@ const pickerStyles = {
     optionText: {
         minWidth: 0,
         flexShrink: 1,
-        fontSize: 16,
+        fontSize: 15,
         ...Typography.default(),
         ...Platform.select({ web: { userSelect: 'none' } as any, default: {} }),
     } as const,
@@ -3780,7 +3780,7 @@ const pickerStyles = {
         minWidth: 0,
     } as const,
     emptyText: {
-        fontSize: 16,
+        fontSize: 14,
         textAlign: 'center' as const,
         paddingVertical: 20,
         ...Typography.default(),
