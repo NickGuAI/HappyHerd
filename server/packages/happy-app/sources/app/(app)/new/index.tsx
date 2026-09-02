@@ -31,7 +31,7 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingView, KeyboardStickyView } from 'react-native-keyboard-controller';
 import Constants from 'expo-constants';
-import { useHeaderHeight } from '@/utils/responsive';
+import { useDeviceType, useHeaderHeight } from '@/utils/responsive';
 import { t } from '@/text';
 import { useAllMachines, useLocalSetting, useSessions, useSetting, useSettingMutable, storage } from '@/sync/storage';
 import type { NewSessionAgentType } from '@/sync/persistence';
@@ -111,6 +111,7 @@ import {
     validateNewSessionLaunchSelection,
 } from '@/utils/newSessionModeSelection';
 import { MobileGlassSurface } from '@/components/MobileGlass';
+import { MobileTypographyFloor } from '@/components/MobileTypographyFloor';
 import { getNativeGlassInteractivity } from '@/components/glassInteractionPolicy';
 import { BubblePressable } from '@/components/BubblePressable';
 import { Header } from '@/components/navigation/Header';
@@ -931,6 +932,7 @@ function NewSessionScreen() {
     const expImageUpload = useSetting('expImageUpload');
     const [favoriteMachinePaths, setFavoriteMachinePaths] = useSettingMutable('favoriteMachinePaths');
     const zenMode = useLocalSetting('zenMode');
+    const deviceType = useDeviceType();
     const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
     // Persisted draft state (survives navigation).
@@ -2854,14 +2856,15 @@ function NewSessionScreen() {
     );
 
     return (
-        <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' && !sidebarLayout.showSidebar && !isNativeMobile ? Constants.statusBarHeight + headerHeight : 0}
-            style={[
-                styles.container,
-                isNativeMobile && { backgroundColor: 'transparent' },
-            ]}
-        >
+        <MobileTypographyFloor active={Platform.OS === 'web' && deviceType === 'phone'}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' && !sidebarLayout.showSidebar && !isNativeMobile ? Constants.statusBarHeight + headerHeight : 0}
+                style={[
+                    styles.container,
+                    isNativeMobile && { backgroundColor: 'transparent' },
+                ]}
+            >
             {isNativeMobile && (
                 <Header
                     title={<Text style={styles.mobileHeaderTitle}>{t('newSession.title')}</Text>}
@@ -3059,7 +3062,8 @@ function NewSessionScreen() {
                     />
                 ) : null}
             </BottomSheet>
-        </KeyboardAvoidingView>
+            </KeyboardAvoidingView>
+        </MobileTypographyFloor>
     );
 }
 

@@ -74,6 +74,9 @@ function MarkdownFixture() {
             >
                 <MarkdownView
                     markdown={markdown}
+                    textAlign={new URLSearchParams(window.location.search).get('align') === 'center'
+                        ? 'center'
+                        : undefined}
                     onLineComment={({ line }) => {
                         window.__MARKDOWN_LINE_COMMENTS__ = [
                             ...(window.__MARKDOWN_LINE_COMMENTS__ ?? []),

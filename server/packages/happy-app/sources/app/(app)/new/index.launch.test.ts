@@ -132,7 +132,10 @@ vi.mock('react-native-keyboard-controller', async () => {
 vi.mock('expo-constants', () => ({ default: { statusBarHeight: 0 } }));
 vi.mock('expo-crypto', () => ({ randomUUID: () => 'request-1' }));
 vi.mock('zustand/react/shallow', () => ({ useShallow: (selector: unknown) => selector }));
-vi.mock('@/utils/responsive', () => ({ useHeaderHeight: () => 0 }));
+vi.mock('@/utils/responsive', () => ({
+    useDeviceType: () => 'phone',
+    useHeaderHeight: () => 0,
+}));
 vi.mock('@/utils/platform', () => ({ isRunningOnMac: () => false }));
 vi.mock('@/utils/newSessionSidebarLayout', () => ({
     getNewSessionSidebarLayout: () => ({ showSidebar: false, sidebarWidth: 0 }),
@@ -181,6 +184,12 @@ vi.mock('@/components/MobileGlass', async () => {
     const ReactModule = await import('react');
     return {
         MobileGlassSurface: (props: any) => ReactModule.createElement('MobileGlassSurface', props, props.children),
+    };
+});
+vi.mock('@/components/MobileTypographyFloor', async () => {
+    const ReactModule = await import('react');
+    return {
+        MobileTypographyFloor: (props: any) => ReactModule.createElement('MobileTypographyFloor', props, props.children),
     };
 });
 vi.mock('@/components/BubblePressable', async () => {
@@ -547,6 +556,8 @@ describe('Full New Session path selection', () => {
         }));
         mocks.draft = createDraft({ selectedPath: '/Users/dev/starting' });
         const renderer = await renderScreen();
+
+        expect(renderer.root.findByType('MobileTypographyFloor' as any).props.active).toBe(true);
 
         const trigger = findPathTrigger(renderer, '~/starting');
         expect(trigger).toBeDefined();

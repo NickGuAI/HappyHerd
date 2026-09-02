@@ -66,6 +66,19 @@ beforeEach(() => {
 });
 
 describe('MarkdownView web parity', () => {
+    it('applies explicit block alignment at the rendered Web root', () => {
+        let renderer: any;
+        act(() => {
+            renderer = create(React.createElement(MarkdownView, {
+                markdown: 'Centered Human message',
+                textAlign: 'center',
+            }));
+        });
+
+        expect(renderer.root.findByProps({ className: 'hh-markdown-root' }).props.style.textAlign).toBe('center');
+        act(() => renderer.unmount());
+    });
+
     it('renders option tags as the original full-width chips without consuming ordinary lists', () => {
         const onOptionPress = vi.fn();
         const onLineComment = vi.fn();

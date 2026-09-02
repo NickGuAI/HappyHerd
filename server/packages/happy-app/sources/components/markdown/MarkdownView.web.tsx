@@ -397,7 +397,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
     return (
         <div
             className={`hh-markdown-root${theme.dark ? ' hh-markdown-dark' : ''}`}
-            style={themeVariables}
+            style={{ ...themeVariables, textAlign: props.textAlign }}
         >
             <style>{MARKDOWN_CSS}</style>
             <ReactMarkdown

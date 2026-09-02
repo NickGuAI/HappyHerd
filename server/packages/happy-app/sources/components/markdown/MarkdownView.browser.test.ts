@@ -275,6 +275,18 @@ describe('MarkdownView browser theme and option parity', () => {
         await page.close();
     }, 10_000);
 
+    it('centers rendered Web Markdown when the Human message host requests it', async () => {
+        const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+        const pageErrors = recordPageErrors(page);
+        await page.goto(`${origin}/?theme=light&align=center`);
+        const root = page.locator('.hh-markdown-root');
+        await root.locator('p').first().waitFor();
+
+        await expect(root.locator('p').first().evaluate((element) => getComputedStyle(element).textAlign)).resolves.toBe('center');
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 10_000);
+
     it.each([
         ['Web Desktop', { width: 1440, height: 900, hasTouch: false, isMobile: false }],
         ['390x844 Web Mobile', { width: 390, height: 844, hasTouch: true, isMobile: true }],
