@@ -285,9 +285,11 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
             table: ({ node, children, ...rest }: any) => {
                 const line = sourceLine(node);
                 return (
-                    <div className="hh-markdown-review-line hh-markdown-table-wrap" data-source-line={line}>
+                    <div className="hh-markdown-review-line hh-markdown-table-review" data-source-line={line}>
                         <ReviewButton line={line} onLineComment={props.onLineComment} />
-                        <table {...rest}>{children}</table>
+                        <div className="hh-markdown-table-wrap">
+                            <table {...rest}>{children}</table>
+                        </div>
                     </div>
                 );
             },
@@ -412,18 +414,21 @@ const MARKDOWN_CSS = `
 .hh-markdown-root > :first-child { margin-top: 0; }
 .hh-markdown-root > :last-child { margin-bottom: 0; }
 .hh-markdown-root h1,.hh-markdown-root h2,.hh-markdown-root h3,.hh-markdown-root h4,.hh-markdown-root h5,.hh-markdown-root h6 { line-height: 1.25; margin: 1em 0 .45em; }
-.hh-markdown-root p,.hh-markdown-root ul,.hh-markdown-root ol,.hh-markdown-root blockquote,.hh-markdown-root pre,.hh-markdown-root table { margin: .65em 0; }
+.hh-markdown-root p,.hh-markdown-root ul,.hh-markdown-root ol,.hh-markdown-root blockquote,.hh-markdown-root pre { margin: .65em 0; }
 .hh-markdown-root a { color: inherit; text-decoration: underline; cursor: pointer; }
 .hh-markdown-root blockquote { border-left: 3px solid currentColor; opacity: .85; padding: .5em .9em; }
-.hh-markdown-root table { border-collapse: collapse; display: block; max-width: 100%; overflow-x: auto; }
-.hh-markdown-root th,.hh-markdown-root td { border: 1px solid rgba(127,127,127,.35); padding: .45em .7em; text-align: left; }
+.hh-markdown-table-review { margin: .65em 0; }
+.hh-markdown-table-wrap { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; }
+.hh-markdown-table-wrap > table { border-collapse: collapse; display: table; width: max-content; min-width: 100%; max-width: none; margin: 0; overflow: visible; table-layout: auto; }
+.hh-markdown-root th,.hh-markdown-root td { min-width: 8rem; border: 1px solid rgba(127,127,127,.35); padding: .45em .7em; text-align: left; overflow-wrap: break-word; word-break: normal; }
 .hh-markdown-root pre { background: rgba(127,127,127,.12); border-radius: 8px; overflow-x: auto; padding: 16px; }
 .hh-markdown-root code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.hh-markdown-root button { font-size: inherit; }
 .hh-markdown-root img { display: block; max-width: min(100%, 720px); height: auto; border-radius: 10px; }
 .hh-markdown-image-button { border: 0; padding: 0; background: transparent; cursor: pointer; }
 .hh-markdown-image-failure { display: flex; min-height: 120px; max-width: 520px; align-items: center; justify-content: center; gap: 10px; border: 1px solid rgba(127,127,127,.35); border-radius: 10px; }
 .hh-markdown-image-modal { position: relative; width: min(1120px, calc(100vw - 32px)); height: min(900px, calc(100vh - 80px)); padding: 16px; }
-.hh-markdown-image-modal > button { position: absolute; top: 8px; right: 8px; z-index: 1; }
+.hh-markdown-image-modal > button { position: absolute; top: 8px; right: 8px; z-index: 1; font-size: 16px; }
 .hh-markdown-image-modal > img { width: 100%; height: 100%; object-fit: contain; }
 .hh-markdown-options { display: flex; flex-direction: column; gap: 8px; width: 100%; margin: 8px 0; }
 .hh-markdown-root > .hh-markdown-options { margin: 8px 0; }

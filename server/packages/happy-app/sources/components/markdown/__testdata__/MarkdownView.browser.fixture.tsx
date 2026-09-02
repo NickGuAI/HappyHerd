@@ -26,15 +26,18 @@ const markdown = [
     'const answer = 42;',
     '```',
     '',
-    '| Name | Value |',
-    '| --- | --- |',
-    '| answer | 42 |',
+    '| Date | School | Event | Format | Status | Notes |',
+    '| --- | --- | --- | --- | --- | --- |',
+    '| Sun 10/4 14:00 | Horace Mann | Nursery / K / Lower Admissions Information Session | In person | Confirmed | Gross Theatre, 246th St & Tibbett Ave. Families only. |',
+    '| Wed 10/14 | Horace Mann | Virtual Lions Talks Kickoff | Online | Registered | Aria Gu is registered. |',
     '',
     '<options>',
     `<option>${FIRST_OPTION}</option>`,
     `<option>${SECOND_OPTION}</option>`,
     ...COMMONMARK_SENSITIVE_OPTIONS.map((option) => `<option>${option}</option>`),
     '</options>',
+    '',
+    ...Array.from({ length: 12 }, (_, index) => `Vertical scroll evidence paragraph ${index + 1}.`),
 ].join('\n');
 
 declare global {

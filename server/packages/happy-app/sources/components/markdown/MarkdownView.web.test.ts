@@ -213,7 +213,10 @@ describe('MarkdownView web parity', () => {
             }));
         });
 
-        expect(renderer.root.findByType('table').parent?.type).toBe('div');
+        const table = renderer.root.findByType('table');
+        expect(table.parent?.type).toBe('div');
+        expect(table.parent?.props.className).toBe('hh-markdown-table-wrap');
+        expect(table.parent?.parent?.props.className).toContain('hh-markdown-table-review');
         expect(renderer.root.findByType('hr').parent?.type).toBe('div');
         expect(renderer.root.findAllByType('tr').every((row: any) => row.findAllByType('button').length === 0)).toBe(true);
         act(() => renderer.unmount());
