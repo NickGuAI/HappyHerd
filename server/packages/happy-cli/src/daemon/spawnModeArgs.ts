@@ -5,7 +5,7 @@ export function appendDaemonSpawnModeArgs(
     options: SpawnSessionOptions,
     agent: string,
 ): void {
-    if (agent !== 'claude' && agent !== 'codex' && agent !== 'grok' && agent !== 'agy') {
+    if (agent !== 'claude' && agent !== 'codex' && agent !== 'grok' && agent !== 'dsh' && agent !== 'agy') {
         return;
     }
     if (agent === 'codex' && options.providerAccount === null) {

@@ -84,6 +84,23 @@ describe('agent defaults', () => {
         expect(resolveAgentDefaultConfig(overrides, 'claude').modelMode).toBe('claude-opus-5');
     });
 
+    it('keeps dsh defaults neutral until the exact machine catalog is available', () => {
+        expect(resolveAgentDefaultConfig(undefined, 'dsh')).toEqual({
+            permissionMode: '',
+            modelMode: '',
+            effortLevel: null,
+        });
+
+        let overrides = setAgentDefaultOverride({}, 'dsh', 'modelMode', 'deepseek-v4-pro');
+        overrides = setAgentDefaultOverride(overrides, 'dsh', 'effortLevel', 'max');
+        expect(resolveAgentDefaultConfig(overrides, 'dsh')).toEqual({
+            permissionMode: '',
+            modelMode: 'deepseek-v4-pro',
+            effortLevel: 'max',
+        });
+        expect(resolveAgentDefaultConfig(overrides, 'claude').modelMode).toBe('claude-opus-5');
+    });
+
     it('retains provider-owned dontAsk tokens for GrokBuild and Claude', () => {
         const overrides = setAgentDefaultOverride({}, 'grok', 'permissionMode', 'dontAsk');
 

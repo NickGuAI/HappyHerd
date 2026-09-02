@@ -603,6 +603,7 @@
       "claude": "Claude",
       "codex": "Codex",
       "grok": "GrokBuild-Agent",
+      "dsh": "dsh",
       "gemini": "Gemini"
     },
     "model": {

@@ -48,6 +48,8 @@ const mocks = vi.hoisted(() => {
     listeners: [] as Array<(message: any) => void>,
     prompts: [] as Array<{ sessionId: string; prompt: string }>,
     setConfigOptionCalls: [] as Array<{ configId: string; value: string }>,
+    setConfigOptionResult: true,
+    operations: [] as string[],
     setModeCalls: [] as string[],
     setModelCalls: [] as Array<{ modelId: string; reasoningEffort?: string }>,
     startSessionMessages: [] as any[],
@@ -174,6 +176,7 @@ vi.mock('./AcpBackend', () => ({
     }
 
     async sendPrompt(sessionId: string, prompt: string) {
+      mocks.backendState.operations.push('prompt');
       mocks.backendState.prompts.push({ sessionId, prompt });
       if (mocks.backendState.promptError) throw mocks.backendState.promptError;
       for (const listener of mocks.backendState.listeners) {
@@ -194,8 +197,9 @@ vi.mock('./AcpBackend', () => ({
     }
 
     async setSessionConfigOption(configId: string, value: string) {
+      mocks.backendState.operations.push(`config:${configId}:${value}`);
       mocks.backendState.setConfigOptionCalls.push({ configId, value });
-      return true;
+      return mocks.backendState.setConfigOptionResult;
     }
 
     async setSessionMode(modeId: string) {
@@ -230,7 +234,7 @@ vi.mock('@/credentialPool/providerLimitNotice', () => ({
   reportProviderHardLimitOnce: mocks.mockReportProviderHardLimitOnce,
 }));
 
-import { resolveAcpPermissionPolicy, runAcp } from './runAcp';
+import { resolveAcpPermissionPolicy, resolveDshModelConfigCode, runAcp } from './runAcp';
 
 describe('runAcp', () => {
   const stripAnsi = (line: string) => line.replace(/\u001b\[[0-9;]*m/g, '');
@@ -238,6 +242,39 @@ describe('runAcp', () => {
   const consoleLines = () => mocks.mockConsoleLog.mock.calls
     .map((args) => args.map((arg) => String(arg)).join(' '))
     .map(stripLogPrefix);
+  const dshModelCode = (provider: string, model: string) => JSON.stringify([provider, model]);
+  const dshConfigUpdate = (overrides?: { currentModel?: string; modelOptions?: Array<{ value: string; name: string }> }) => ({
+    type: 'event',
+    name: 'config_options_update',
+    payload: {
+      configOptions: [
+        {
+          type: 'select',
+          id: 'model',
+          name: 'Model',
+          category: 'model',
+          currentValue: overrides?.currentModel ?? dshModelCode('deepseek-official', 'deepseek-v4-flash'),
+          options: overrides?.modelOptions ?? [
+            { value: dshModelCode('deepseek-official', 'deepseek-v4-flash'), name: 'DeepSeek V4 Flash' },
+            { value: dshModelCode('deepseek-official', 'deepseek-v4-pro'), name: 'DeepSeek V4 Pro' },
+          ],
+        },
+        {
+          type: 'select',
+          id: 'reasoning_effort',
+          name: 'Reasoning Effort',
+          category: 'thought_level',
+          currentValue: 'high',
+          options: [
+            { value: 'off', name: 'Off' },
+            { value: 'low', name: 'Low' },
+            { value: 'high', name: 'High' },
+            { value: 'max', name: 'Max' },
+          ],
+        },
+      ],
+    },
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -247,6 +284,8 @@ describe('runAcp', () => {
     mocks.backendState.listeners = [];
     mocks.backendState.prompts = [];
     mocks.backendState.setConfigOptionCalls = [];
+    mocks.backendState.setConfigOptionResult = true;
+    mocks.backendState.operations = [];
     mocks.backendState.setModeCalls = [];
     mocks.backendState.setModelCalls = [];
     mocks.backendState.startSessionMessages = [];
@@ -1242,6 +1281,171 @@ describe('runAcp', () => {
       modelId: 'grok-4.6',
       reasoningEffort: 'low',
     }]);
+  });
+
+  it('validates the default dsh model and effort without mutating provider config', async () => {
+    mocks.backendState.startSessionMessages = [dshConfigUpdate()];
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'dsh',
+      command: 'dsh',
+      args: ['--profile', 'acp'],
+      startedBy: 'terminal',
+      model: 'deepseek-v4-flash',
+      effort: 'high',
+    });
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+    mocks.getUserMessageHandler()!({
+      role: 'user',
+      content: { type: 'text', text: 'Use the dsh defaults' },
+    });
+    await vi.waitFor(() => expect(mocks.backendState.prompts).toHaveLength(1));
+    expect(mocks.backendState.operations).toEqual(['prompt']);
+    expect(mocks.backendState.setModeCalls).toEqual([]);
+    expect(mocks.mockGetOrCreateSession).toHaveBeenCalledWith(expect.objectContaining({
+      metadata: expect.objectContaining({
+        flavor: 'dsh',
+        spawnSettings: {
+          provider: 'dsh',
+          model: 'deepseek-v4-flash',
+          effort: 'high',
+          permission: null,
+        },
+      }),
+    }));
+    await mocks.getKillHandler()!();
+    await runPromise;
+  });
+
+  it('applies exact opaque dsh model and effort values before the first prompt', async () => {
+    const officialPro = dshModelCode('deepseek-official', 'deepseek-v4-pro');
+    mocks.backendState.startSessionMessages = [dshConfigUpdate({
+      modelOptions: [
+        { value: 'malformed-provider-value', name: 'Malformed' },
+        { value: dshModelCode('third-party', 'deepseek-v4-pro'), name: 'DeepSeek V4 Pro' },
+        { value: officialPro, name: 'DeepSeek V4 Pro' },
+        { value: dshModelCode('deepseek-official', 'deepseek-v4-flash'), name: 'DeepSeek V4 Flash' },
+      ],
+    })];
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'dsh',
+      command: 'dsh',
+      args: ['--profile', 'acp'],
+      model: 'deepseek-v4-pro',
+      effort: 'max',
+    });
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+    mocks.getUserMessageHandler()!({
+      role: 'user',
+      content: { type: 'text', text: 'Use pro with maximum reasoning' },
+    });
+    await vi.waitFor(() => expect(mocks.backendState.prompts).toHaveLength(1));
+    expect(mocks.backendState.operations).toEqual([
+      `config:model:${officialPro}`,
+      'config:reasoning_effort:max',
+      'prompt',
+    ]);
+    expect(mocks.backendState.setModeCalls).toEqual([]);
+    await mocks.getKillHandler()!();
+    await runPromise;
+  });
+
+  it('treats explicit dsh config categories as authoritative and never mutates model as permission mode', async () => {
+    mocks.backendState.startSessionMessages = [dshConfigUpdate()];
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'dsh',
+      command: 'dsh',
+      args: ['--profile', 'acp'],
+      model: 'deepseek-v4-flash',
+      effort: 'high',
+    });
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+    mocks.getUserMessageHandler()!({
+      role: 'user',
+      content: { type: 'text', text: 'Do not reinterpret model as mode' },
+      meta: { permissionMode: 'DeepSeek V4 Pro' },
+    });
+    await vi.waitFor(() => expect(mocks.mockSession.sendSessionEvent).toHaveBeenCalledWith({
+      type: 'message',
+      message: 'Unsupported dsh permission mode: DeepSeek V4 Pro',
+    }));
+    expect(mocks.backendState.setConfigOptionCalls).toEqual([]);
+    expect(mocks.backendState.prompts).toEqual([]);
+    await mocks.getKillHandler()!();
+    await runPromise;
+  });
+
+  it('fails a rejected dsh config change before prompting', async () => {
+    mocks.backendState.startSessionMessages = [dshConfigUpdate()];
+    mocks.backendState.setConfigOptionResult = false;
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'dsh',
+      command: 'dsh',
+      args: ['--profile', 'acp'],
+      model: 'deepseek-v4-pro',
+      effort: 'max',
+    });
+    const outcome = runPromise.then(() => null, (error: unknown) => error);
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+    mocks.getUserMessageHandler()!({ role: 'user', content: { type: 'text', text: 'Must not run' } });
+    await expect(outcome).resolves.toMatchObject({ message: 'dsh rejected model: deepseek-v4-pro' });
+    expect(mocks.backendState.prompts).toEqual([]);
+  });
+
+  it('fails an unknown dsh model before prompting', async () => {
+    mocks.backendState.startSessionMessages = [dshConfigUpdate()];
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'dsh',
+      command: 'dsh',
+      args: ['--profile', 'acp'],
+      model: 'deepseek-v4-unknown',
+      effort: 'high',
+    });
+    const outcome = runPromise.then(() => null, (error: unknown) => error);
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+    mocks.getUserMessageHandler()!({ role: 'user', content: { type: 'text', text: 'Must not run' } });
+    await expect(outcome).resolves.toMatchObject({ message: 'Unsupported dsh model: deepseek-v4-unknown' });
+    expect(mocks.backendState.prompts).toEqual([]);
+  });
+
+  it('fails closed when the live dsh session drops explicit config categories', async () => {
+    const update = dshConfigUpdate();
+    delete (update.payload.configOptions[0] as { category?: string }).category;
+    delete (update.payload.configOptions[1] as { category?: string }).category;
+    mocks.backendState.startSessionMessages = [update];
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'dsh',
+      command: 'dsh',
+      args: ['--profile', 'acp'],
+      model: 'deepseek-v4-flash',
+      effort: 'high',
+    });
+    const outcome = runPromise.then(() => null, (error: unknown) => error);
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+    mocks.getUserMessageHandler()!({ role: 'user', content: { type: 'text', text: 'Must not run' } });
+    await expect(outcome).resolves.toMatchObject({ message: 'dsh did not advertise a model config option' });
+    expect(mocks.backendState.prompts).toEqual([]);
+  });
+
+  it('ignores malformed dsh model values and prefers the official provider tuple', () => {
+    const official = dshModelCode('deepseek-official', 'deepseek-v4-pro');
+    expect(resolveDshModelConfigCode([
+      { code: 'not-json', value: 'DeepSeek V4 Pro' },
+      { code: JSON.stringify(['too-short']), value: 'DeepSeek V4 Pro' },
+      { code: JSON.stringify(['third-party', 'deepseek-v4-pro']), value: 'DeepSeek V4 Pro' },
+      { code: official, value: 'DeepSeek V4 Pro' },
+    ], 'deepseek-v4-pro')).toBe(official);
+    expect(resolveDshModelConfigCode([
+      { code: 'not-json', value: 'deepseek-v4-unknown' },
+    ], 'deepseek-v4-unknown')).toBeNull();
+    expect(resolveDshModelConfigCode([
+      { code: dshModelCode('third-party', 'deepseek-v4-pro'), value: 'DeepSeek V4 Pro' },
+    ], 'deepseek-v4-pro')).toBeNull();
   });
 
   it('does not reinterpret a GrokBuild launch permission as an ACP operating-mode switch', async () => {

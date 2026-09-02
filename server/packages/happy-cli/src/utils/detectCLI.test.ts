@@ -56,4 +56,19 @@ describe('CLI availability detection', () => {
       { stdio: 'ignore' },
     );
   });
+
+  it('detects dsh only by its exact executable name', () => {
+    mockedExecSync.mockImplementation((command) => {
+      if (String(command).includes('command -v dsh')) return Buffer.from('');
+      throw new Error('not installed');
+    });
+
+    const availability = detectCLIAvailability();
+
+    expect(availability.dsh).toBe(true);
+    expect(mockedExecSync).toHaveBeenCalledWith(
+      'command -v dsh >/dev/null 2>&1',
+      { stdio: 'ignore' },
+    );
+  });
 });

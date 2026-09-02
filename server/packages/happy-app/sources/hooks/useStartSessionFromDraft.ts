@@ -177,7 +177,7 @@ export function useStartSessionFromDraft() {
             ? getRigMachineSessionCreation(machine.metadata)
             : null;
         const availability = machine.metadata?.cliAvailability;
-        const agentUnavailable = agentType === 'agy' || agentType === 'grok'
+        const agentUnavailable = agentType === 'agy' || agentType === 'grok' || agentType === 'dsh'
             ? availability?.[agentType] !== true
             : Boolean(availability && availability[agentType] !== true);
         if (agentType !== 'rig' && agentUnavailable) {
@@ -189,10 +189,12 @@ export function useStartSessionFromDraft() {
             return false;
         }
         const machineCatalog = machine.metadata?.agentCapabilities?.[agentType];
-        if (agentType === 'grok' && !machineCatalog) {
+        if ((agentType === 'grok' || agentType === 'dsh') && !machineCatalog) {
             Modal.alert(
                 t('common.error'),
-                machine.metadata?.grokCapabilityError
+                (agentType === 'grok'
+                    ? machine.metadata?.grokCapabilityError
+                    : machine.metadata?.dshCapabilityError)
                     ?? t("uiCopy.theSelectedAgentConfigurationIsUnavailable"),
             );
             return false;
@@ -216,7 +218,7 @@ export function useStartSessionFromDraft() {
                 ));
         const permission = resolveOption<{ key: string }>(
             permissionOptions,
-            agentType === 'grok' || agentType === 'rig'
+            agentType === 'grok' || agentType === 'dsh' || agentType === 'rig'
                 ? [
                     draft.permissionMode ?? defaults.permissionMode,
                     rigCreation?.defaultPermissionMode ?? getAdvertisedDefaultOptionKey(permissionOptions),
@@ -229,7 +231,7 @@ export function useStartSessionFromDraft() {
         );
         const model = resolveOption<{ key: string }>(
             modelOptions,
-            agentType === 'grok' || agentType === 'rig'
+            agentType === 'grok' || agentType === 'dsh' || agentType === 'rig'
                 ? [
                     draft.modelMode ?? defaults.modelMode,
                     rigCreation?.defaultModelKey ?? getAdvertisedDefaultOptionKey(modelOptions),
@@ -248,7 +250,7 @@ export function useStartSessionFromDraft() {
         ) ?? rigCreation?.defaultEffortForModel(model?.key);
         const effort = resolveOption<{ key: string }>(
             effortOptions,
-            agentType === 'grok' || agentType === 'rig'
+            agentType === 'grok' || agentType === 'dsh' || agentType === 'rig'
                 ? [
                     draft.effortLevel ?? effectiveEffortDefault,
                     rigCreation?.defaultEffortForModel(model?.key)
@@ -396,14 +398,16 @@ export function useStartSessionFromDraft() {
                 const latestAvailability = latestMachine.metadata?.cliAvailability;
                 const latestAgentAvailable = agentType === 'rig'
                     ? latestRigCreation !== null
-                    : agentType === 'agy' || agentType === 'grok'
+                    : agentType === 'agy' || agentType === 'grok' || agentType === 'dsh'
                         ? latestAvailability?.[agentType] === true
                         : !latestAvailability || latestAvailability[agentType] === true;
                 const latestMachineCatalog = latestMachine.metadata?.agentCapabilities?.[agentType];
-                if (agentType === 'grok' && !latestMachineCatalog) {
+                if ((agentType === 'grok' || agentType === 'dsh') && !latestMachineCatalog) {
                     Modal.alert(
                         t('common.error'),
-                        latestMachine.metadata?.grokCapabilityError
+                        (agentType === 'grok'
+                            ? latestMachine.metadata?.grokCapabilityError
+                            : latestMachine.metadata?.dshCapabilityError)
                             ?? t("uiCopy.theSelectedAgentConfigurationIsUnavailable"),
                     );
                     return null;

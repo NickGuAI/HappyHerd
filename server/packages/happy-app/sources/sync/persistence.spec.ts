@@ -26,6 +26,16 @@ describe('loadNewSessionDraft', () => {
 
         expect(loadNewSessionDraft()?.agentType).toBe('grok');
     });
+
+    it('preserves a dsh harness selection', () => {
+        store.set('new-session-draft-v1', JSON.stringify({
+            agentType: 'dsh',
+            input: '',
+            updatedAt: 123,
+        }));
+
+        expect(loadNewSessionDraft()?.agentType).toBe('dsh');
+    });
 });
 
 describe('loadPendingSettings', () => {

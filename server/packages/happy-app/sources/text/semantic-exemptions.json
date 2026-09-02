@@ -8,6 +8,7 @@
     { "key": "agentInput.permissionMode.badgeBypassAllPermissions", "locales": ["de"], "reason": "yolo is a provider-defined permission-mode token, not prose." },
     { "key": "agentInput.agent.claude", "locales": ["cn", "de"], "reason": "Claude is a proper provider name and must remain byte-faithful." },
     { "key": "agentInput.agent.codex", "locales": ["cn", "de"], "reason": "Codex is a proper provider name and must remain byte-faithful." },
+    { "key": "agentInput.agent.dsh", "locales": ["cn", "de"], "reason": "dsh is a provider-defined command identifier and must remain byte-faithful." },
     { "key": "agentInput.agent.gemini", "locales": ["cn", "de"], "reason": "Gemini is a proper provider name and must remain byte-faithful." },
     { "key": "agentInput.codexPermissionMode.yolo", "locales": ["de"], "reason": "yolo is a provider-defined permission-mode token, not prose." },
     { "key": "agentInput.codexPermissionMode.badgeYolo", "locales": ["de"], "reason": "yolo is a provider-defined permission-mode token, not prose." },

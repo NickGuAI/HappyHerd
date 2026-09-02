@@ -7,6 +7,7 @@ describe('harness catalog', () => {
         expect(HARNESS_NAMES.rig).toBe('Happy');
         expect(HARNESS_NAMES.agy).toBe('Antigravity');
         expect(HARNESS_NAMES.grok).toBe('GrokBuild');
+        expect(HARNESS_NAMES.dsh).toBe('dsh');
     });
 
     it('retires Gemini only', () => {
@@ -19,16 +20,17 @@ describe('harness catalog', () => {
 
     it('lists only installed harnesses, in pick order', () => {
         const harnesses = listAvailableHarnesses({
-            availability: { claude: true, codex: true, grok: true, agy: true },
+            availability: { claude: true, codex: true, grok: true, dsh: true, agy: true },
             happyAgentAvailable: true,
             selected: 'claude',
         });
 
-        expect(harnesses.map((harness) => harness.key)).toEqual(['claude', 'codex', 'grok', 'agy', 'rig']);
+        expect(harnesses.map((harness) => harness.key)).toEqual(['claude', 'codex', 'grok', 'dsh', 'agy', 'rig']);
         expect(harnesses.map((harness) => harness.name)).toEqual([
             'Claude Code',
             'Codex',
             'GrokBuild',
+            'dsh',
             'Antigravity',
             'Happy',
         ]);
@@ -80,7 +82,7 @@ describe('harness catalog', () => {
         expect(harnesses.map((harness) => harness.key)).toEqual(['claude', 'codex']);
     });
 
-    it('never lists GrokBuild or Antigravity without an explicit installation report', () => {
+    it('never lists detected-only providers without an explicit installation report', () => {
         expect(listAvailableHarnesses({
             availability: { claude: true, grok: false, agy: false },
             happyAgentAvailable: false,
@@ -92,6 +94,12 @@ describe('harness catalog', () => {
             happyAgentAvailable: false,
             selected: 'grok',
         }).map((harness) => harness.key)).toEqual(['claude', 'codex']);
+
+        expect(listAvailableHarnesses({
+            availability: { claude: true, dsh: false },
+            happyAgentAvailable: false,
+            selected: 'dsh',
+        }).map((harness) => harness.key)).toEqual(['claude']);
     });
 
     it('falls back to the whole catalog when a machine reports no capabilities', () => {

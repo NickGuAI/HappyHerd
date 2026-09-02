@@ -108,6 +108,7 @@ describe('ApiMachineClient socket reconnection', () => {
             codex: false,
             gemini: false,
             grok: false,
+            dsh: false,
             agy: false,
             detectedAt: 1,
         });
@@ -276,12 +277,13 @@ describe('ApiMachineClient socket reconnection', () => {
         client.shutdown();
     });
 
-    it('publishes the Grok error while retaining this run\'s fresh Codex catalog', async () => {
+    it('publishes provider discovery errors while retaining this run\'s fresh Codex catalog', async () => {
         const availability = {
             claude: false,
             codex: true,
             gemini: false,
             grok: true,
+            dsh: true,
             agy: false,
             detectedAt: 2,
         };
@@ -302,12 +304,13 @@ describe('ApiMachineClient socket reconnection', () => {
         machine.metadata = {
             ...machine.metadata,
             cliAvailability: availability,
-            agentCapabilities: { codex: staleCatalog, grok: staleCatalog },
+            agentCapabilities: { codex: staleCatalog, grok: staleCatalog, dsh: staleCatalog },
         };
         mockDetectCLIAvailability.mockReturnValue(availability);
         mockDetectAgentCapabilities.mockResolvedValueOnce({
             capabilities: { codex: freshCodexCatalog },
             grokCapabilityError: 'GrokBuild is installed but ACP capability discovery failed: not authenticated. Run `grok login`.',
+            dshCapabilityError: 'dsh is installed but ACP capability discovery failed: missing configOptions. Verify `dsh --profile acp` starts.',
         });
         mockSocket.emitWithAck.mockImplementation(async (_event: string, payload: { metadata: string }) => ({
             result: 'success',
@@ -320,7 +323,9 @@ describe('ApiMachineClient socket reconnection', () => {
         await (client as any).refreshAgentCapabilities(true);
 
         expect(machine.metadata?.grokCapabilityError).toContain('Run `grok login`.');
+        expect(machine.metadata?.dshCapabilityError).toContain('dsh --profile acp');
         expect(machine.metadata?.agentCapabilities?.grok).toBeUndefined();
+        expect(machine.metadata?.agentCapabilities?.dsh).toBeUndefined();
         expect(machine.metadata?.agentCapabilities?.codex.models[0]?.code).toBe('gpt-fresh-codex');
         client.shutdown();
     });

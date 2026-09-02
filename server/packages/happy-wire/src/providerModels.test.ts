@@ -42,4 +42,5 @@ describe('HappyHerd provider model catalog', () => {
             'GPT-OSS 120B (Medium)',
         ]);
     });
+
 });

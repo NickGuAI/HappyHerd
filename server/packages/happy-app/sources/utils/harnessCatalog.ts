@@ -9,6 +9,7 @@ export const HARNESS_NAMES: Record<NewSessionAgentType, string> = {
     claude: 'Claude Code',
     codex: 'Codex',
     grok: 'GrokBuild',
+    dsh: 'dsh',
     rig: 'Happy',
     agy: 'Antigravity',
     gemini: 'Gemini',
@@ -30,6 +31,7 @@ export const HARNESS_ORDER = [
     'claude',
     'codex',
     'grok',
+    'dsh',
     'agy',
     'rig',
 ] as const satisfies readonly NewSessionAgentType[];
@@ -62,7 +64,7 @@ export function isHarnessAvailable({
     if (key === 'rig') return happyAgentAvailable;
     // GrokBuild and Antigravity must not be advertised speculatively by an old
     // or incomplete capability report. The daemon has to say they are installed.
-    if (key === 'grok' || key === 'agy') return availability?.[key] === true;
+    if (key === 'grok' || key === 'dsh' || key === 'agy') return availability?.[key] === true;
     return !availability || availability[key] === true;
 }
 
@@ -88,10 +90,10 @@ export function listAvailableHarnesses({
     selected?: NewSessionAgentType | null;
 }): HarnessOption[] {
     const keys = HARNESS_ORDER.filter((key) => (
-        (key === selected && key !== 'grok' && key !== 'agy')
+        (key === selected && key !== 'grok' && key !== 'dsh' && key !== 'agy')
         || isHarnessAvailable({ availability, happyAgentAvailable, key })
     ));
-    const fallback = HARNESS_ORDER.filter((key) => key !== 'grok' && key !== 'agy');
+    const fallback = HARNESS_ORDER.filter((key) => key !== 'grok' && key !== 'dsh' && key !== 'agy');
     return (keys.length > 0 ? keys : fallback).map((key) => ({
         key,
         name: HARNESS_NAMES[key],

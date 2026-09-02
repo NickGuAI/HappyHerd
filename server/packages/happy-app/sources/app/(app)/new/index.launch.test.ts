@@ -378,6 +378,40 @@ function createGrokMachine() {
     };
 }
 
+function createDshMachine() {
+    return {
+        id: 'machine-1',
+        active: true,
+        activeAt: Date.now(),
+        metadata: {
+            homeDir: '/Users/dev',
+            cliAvailability: { dsh: true },
+            agentCapabilities: {
+                dsh: {
+                    detectedAt: 1,
+                    sources: {
+                        models: 'dsh-acp:session/new:configOptions',
+                        effortLevels: 'dsh-acp:session/new:configOptions',
+                        permissionModes: 'unsupported',
+                    },
+                    models: [
+                        { code: 'deepseek-v5', value: 'DeepSeek V5', isDefault: true },
+                        { code: 'deepseek-v4-flash', value: 'DeepSeek V4 Flash' },
+                    ],
+                    effortLevels: [
+                        { code: 'off', value: 'off' },
+                        { code: 'low', value: 'low' },
+                        { code: 'high', value: 'high', isDefault: true },
+                        { code: 'max', value: 'max' },
+                    ],
+                    permissionModes: [],
+                    acp: { loadSession: false, prompt: { image: false } },
+                },
+            },
+        },
+    };
+}
+
 async function renderScreen() {
     let renderer!: ReturnType<typeof create>;
     await act(async () => {
@@ -459,6 +493,53 @@ describe('Full New Session provider launch', () => {
             permissionMode: 'careful',
             effort: 'max',
         }));
+        act(() => renderer.unmount());
+    });
+
+    it('launches dsh from a real Web send gesture with exact model and effort defaults', async () => {
+        const machine = createDshMachine();
+        mocks.renderMachines = [machine];
+        mocks.liveMachines = { [machine.id]: machine };
+        mocks.draft = createDraft({ agentType: 'dsh' });
+        const renderer = await renderScreen();
+
+        await pressSend(renderer);
+
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            machineId: 'machine-1',
+            agent: 'dsh',
+            modelMode: 'deepseek-v5',
+            effortLevel: 'high',
+        }));
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.not.objectContaining({
+            permissionMode: expect.anything(),
+        }));
+        act(() => renderer.unmount());
+    });
+
+    it('shows the live dsh probe error when its catalog disappears before the Web send gesture', async () => {
+        const machine = createDshMachine();
+        mocks.renderMachines = [machine];
+        mocks.liveMachines = {
+            [machine.id]: {
+                ...machine,
+                metadata: {
+                    homeDir: '/Users/dev',
+                    cliAvailability: { dsh: true },
+                    dshCapabilityError: 'dsh probe failed; verify `dsh --profile acp` starts.',
+                },
+            },
+        };
+        mocks.draft = createDraft({ agentType: 'dsh' });
+        const renderer = await renderScreen();
+
+        await pressSend(renderer);
+
+        expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
+        expect(mocks.alert).toHaveBeenCalledWith(
+            'common.error',
+            'dsh probe failed; verify `dsh --profile acp` starts.',
+        );
         act(() => renderer.unmount());
     });
 

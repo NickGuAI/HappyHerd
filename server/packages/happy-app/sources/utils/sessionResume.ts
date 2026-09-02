@@ -137,6 +137,9 @@ export function getResumeAvailability(
     if (session.metadata?.flavor === 'grok' && session.metadata?.acpCapabilities?.loadSession !== true) {
         return { canResume: false, canShowResume: false, messageKey: null };
     }
+    if (session.metadata?.flavor === 'dsh') {
+        return { canResume: false, canShowResume: false, messageKey: null };
+    }
     if (isConnected) {
         return { canResume: false, canShowResume: false, messageKey: null };
     }

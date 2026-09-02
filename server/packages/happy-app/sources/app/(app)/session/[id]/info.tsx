@@ -648,15 +648,17 @@ function SessionInfoContent({ session }: { session: Session }) {
                                 if (flavor === 'gpt' || flavor === 'openai') return 'Codex';
                                 if (flavor === 'gemini') return 'Gemini';
                                 if (flavor === 'grok') return t('agentInput.agent.grok');
+                                if (flavor === 'dsh') return t('agentInput.agent.dsh');
                                 return flavor;
                             })()}
-                            icon={session.metadata.flavor === 'grok'
-                                ? <ProviderIcon kind="grok" size={29} />
+                            icon={session.metadata.flavor === 'grok' || session.metadata.flavor === 'dsh'
+                                ? <ProviderIcon kind={session.metadata.flavor} size={29} />
                                 : <Ionicons name="sparkles-outline" size={29} color="#5856D6" />}
                             showChevron={false}
                         />
                         {(getRigIdentity(session.metadata)?.modelName || (
-                            session.metadata.flavor === 'grok' && session.metadata.currentModelCode
+                            (session.metadata.flavor === 'grok' || session.metadata.flavor === 'dsh')
+                            && session.metadata.currentModelCode
                         )) && (
                             <Item
                                 title={t("uiCopy.model")}

@@ -77,6 +77,30 @@ policies; they are not Grok's ACP plan/build operating mode. Resume stays on
 the original machine. App attachment and fork surfaces must follow advertised
 ACP capabilities rather than another provider fallback.
 
+### dsh ACP sessions
+
+```text
+happy-cli capability refresh
+  → temporary isolated DSH_HOME + cwd, zero MCP servers
+  → bounded `dsh --profile acp` session/new probe without a prompt
+  → exact model + thought_level configOptions
+  → live machine catalog or actionable fail-closed error
+  → happy-app detected-only dsh selection
+  → daemon spawn → `happyherd dsh` → existing `agent/acp` runner
+```
+
+dsh discovery parses only explicit `model` and `thought_level` select categories
+from `session/new`. It promotes only valid `["deepseek-official", nonempty slug]`
+tuples, takes both defaults from `currentValue`, reports the installed CLI
+version, and cleans up the temporary process and home. Malformed or failed
+discovery omits the catalog and surfaces an actionable Web error. Before the
+first prompt, the runtime adapter revalidates the selected model and effort
+against that session's config options, resolves the public model slug to dsh's
+exact opaque provider tuple, and fails closed if either selection is missing,
+unknown, malformed, or rejected. The generic ACP prompt, tool, and permission
+normalization remains unchanged. dsh has no permission-mode picker or
+first-class resume/fork surface.
+
 ### Provider defaults and session launch
 
 ```text
@@ -86,6 +110,7 @@ active non-retired HARNESS_ORDER
       (initially prefers the New Session draft machine)
   → selected daemon catalog or explicitly empty dimensions
        ├── GrokBuild agentCapabilities
+       ├── dsh agentCapabilities
        └── Rig sessionCreation metadata
   → Full New Session + HomeDock draft + draft launcher
   → exact-daemon catalog re-read and selection validation
@@ -95,8 +120,9 @@ active non-retired HARNESS_ORDER
 The active harness registry owns Defaults coverage; retired Gemini remains
 parseable only for old synchronized settings. Agent Defaults visibly names and
 lets the user change its exact capability-source daemon without mutating the
-New Session draft. GrokBuild and Rig own their permission, model, and per-model
-effort values through that daemon. Unsupported dimensions stay explicitly
+New Session draft. GrokBuild, dsh, and Rig own their model and per-model effort
+values through that daemon; GrokBuild and Rig also own permission values.
+Unsupported dimensions stay explicitly
 absent; an absent provider catalog renders a localized, actionable unavailable
 state instead of a blank group or borrowed choice. The separate exact
 launch-target daemon is re-read immediately before

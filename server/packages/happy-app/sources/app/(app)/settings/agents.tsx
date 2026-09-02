@@ -328,7 +328,7 @@ export default function AgentDefaultsSettingsScreen() {
                         effectiveValue: effectiveEffort,
                     }] : []),
                 ];
-                const machineOwned = agent === 'grok' || agent === 'rig';
+                const machineOwned = agent === 'grok' || agent === 'dsh' || agent === 'rig';
                 const ownsAuthoritativeCatalog = agent === 'rig'
                     ? rigCreation !== null
                     : machineCatalog !== undefined;

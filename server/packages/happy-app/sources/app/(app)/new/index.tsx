@@ -148,8 +148,8 @@ const agentIcons = {
 type AgentKey = NewSessionAgentType;
 
 function AgentProviderIcon({ agent, size, tintColor }: { agent: AgentKey; size: number; tintColor: string }) {
-    if (agent === 'grok') {
-        return <ProviderIcon kind="grok" size={size} />;
+    if (agent === 'grok' || agent === 'dsh') {
+        return <ProviderIcon kind={agent} size={size} />;
     }
     return (
         <RNImage
@@ -165,6 +165,7 @@ const ALL_AGENTS: { key: AgentKey; label: string }[] = [
     { key: 'claude', label: getHarnessName('claude').toLocaleLowerCase() },
     { key: 'codex', label: getHarnessName('codex').toLocaleLowerCase() },
     { key: 'grok', label: getHarnessName('grok').toLocaleLowerCase() },
+    { key: 'dsh', label: getHarnessName('dsh').toLocaleLowerCase() },
     { key: 'agy', label: getHarnessName('agy').toLocaleLowerCase() },
     { key: 'rig', label: getHarnessName('rig').toLocaleLowerCase() },
 ];
@@ -1297,11 +1298,11 @@ function NewSessionScreen() {
         return ALL_AGENTS.flatMap((agent) => {
             const available = agent.key === 'rig'
                 ? selectedRigCreation !== null
-                : agent.key === 'agy' || agent.key === 'grok'
+                : agent.key === 'agy' || agent.key === 'grok' || agent.key === 'dsh'
                     ? availability?.[agent.key] === true
                     : !availability || availability[agent.key] === true;
             if (available) return [agent];
-            if (agent.key === 'grok') return [];
+            if (agent.key === 'grok' || agent.key === 'dsh') return [];
             // Keep only the saved unavailable harness as a disabled recovery
             // row. It stays visible without becoming launchable on this daemon.
             if (agent.key !== selectedAgent) return [];
@@ -1315,7 +1316,7 @@ function NewSessionScreen() {
         });
     }, [selectedAgent, selectedMachine?.metadata?.cliAvailability, selectedRigCreation]);
     React.useEffect(() => {
-        if (selectedAgent !== 'grok') return;
+        if (selectedAgent !== 'grok' && selectedAgent !== 'dsh') return;
         if (availableAgents.some((candidate) => candidate.key === selectedAgent && !candidate.disabled)) return;
         const fallback = availableAgents.find((candidate) => !candidate.disabled);
         if (fallback) setSelectedAgent(fallback.key);
@@ -1384,7 +1385,7 @@ function NewSessionScreen() {
 
     // Reset indices when agent/default settings change.
     React.useEffect(() => {
-        const nextPermissionIndex = selectedAgent === 'grok' || selectedAgent === 'rig'
+        const nextPermissionIndex = selectedAgent === 'grok' || selectedAgent === 'dsh' || selectedAgent === 'rig'
             ? findPreferredAvailableOptionIndex(permissionModes, [
                 draft.permissionMode ?? effectiveAgentDefaults.permissionMode,
                 rigCreation?.defaultPermissionMode ?? getAdvertisedDefaultOptionKey(permissionModes),
@@ -1392,11 +1393,11 @@ function NewSessionScreen() {
             : findPreferredModeIndex(permissionModes, [draft.permissionMode, effectiveAgentDefaults.permissionMode]);
         setPermissionIndex(nextPermissionIndex);
         const nextPermission = permissionModes[nextPermissionIndex]?.key ?? null;
-        if ((selectedAgent === 'grok' || selectedAgent === 'rig') && draft.permissionMode !== null && draft.permissionMode !== nextPermission) {
+        if ((selectedAgent === 'grok' || selectedAgent === 'dsh' || selectedAgent === 'rig') && draft.permissionMode !== null && draft.permissionMode !== nextPermission) {
             draft.setPermissionMode(nextPermission);
         }
 
-        const nextModelIndex = selectedAgent === 'grok' || selectedAgent === 'rig'
+        const nextModelIndex = selectedAgent === 'grok' || selectedAgent === 'dsh' || selectedAgent === 'rig'
             ? findPreferredAvailableOptionIndex(modelModes, [
                 draft.modelMode ?? effectiveAgentDefaults.modelMode,
                 rigCreation?.defaultModelKey ?? getAdvertisedDefaultOptionKey(modelModes),
@@ -1404,7 +1405,7 @@ function NewSessionScreen() {
             : findPreferredModeIndex(modelModes, [draft.modelMode, effectiveAgentDefaults.modelMode]);
         setModelIndex(nextModelIndex);
         const nextModel = modelModes[nextModelIndex]?.key ?? null;
-        if ((selectedAgent === 'grok' || selectedAgent === 'rig') && draft.modelMode !== null && draft.modelMode !== nextModel) {
+        if ((selectedAgent === 'grok' || selectedAgent === 'dsh' || selectedAgent === 'rig') && draft.modelMode !== null && draft.modelMode !== nextModel) {
             draft.setModelMode(nextModel);
         }
 
@@ -1428,10 +1429,10 @@ function NewSessionScreen() {
     React.useEffect(() => {
         if (effortLevels.length === 0) {
             setEffortIndex(0);
-            if ((selectedAgent === 'grok' || selectedAgent === 'rig') && draft.effortLevel !== null) draft.setEffortLevel(null);
+            if ((selectedAgent === 'grok' || selectedAgent === 'dsh' || selectedAgent === 'rig') && draft.effortLevel !== null) draft.setEffortLevel(null);
             return;
         }
-        const nextEffortIndex = selectedAgent === 'grok' || selectedAgent === 'rig'
+        const nextEffortIndex = selectedAgent === 'grok' || selectedAgent === 'dsh' || selectedAgent === 'rig'
             ? findPreferredAvailableOptionIndex(effortLevels, [
                 draft.effortLevel ?? effectiveEffortDefault,
                 rigCreation?.defaultEffortForModel(currentModelKey)
@@ -1440,7 +1441,7 @@ function NewSessionScreen() {
             : findPreferredModeIndex(effortLevels, [draft.effortLevel, effectiveEffortDefault]);
         setEffortIndex(nextEffortIndex);
         const nextEffort = effortLevels[nextEffortIndex]?.key ?? null;
-        if ((selectedAgent === 'grok' || selectedAgent === 'rig') && draft.effortLevel !== null && draft.effortLevel !== nextEffort) {
+        if ((selectedAgent === 'grok' || selectedAgent === 'dsh' || selectedAgent === 'rig') && draft.effortLevel !== null && draft.effortLevel !== nextEffort) {
             draft.setEffortLevel(nextEffort);
         }
     }, [draft.effortLevel, draft.setEffortLevel, effectiveEffortDefault, currentModelKey, effortLevels, rigCreation, selectedAgent]);
@@ -1521,7 +1522,8 @@ function NewSessionScreen() {
         candidate.key === selectedAgent && candidate.disabled !== true
     ));
     const currentLaunchSelectionError = validateNewSessionLaunchSelection({
-        agentAvailable: selectedAgentAvailable && (selectedAgent !== 'grok' || Boolean(machineCatalog)),
+        agentAvailable: selectedAgentAvailable
+            && ((selectedAgent !== 'grok' && selectedAgent !== 'dsh') || Boolean(machineCatalog)),
         permissionOptions: permissionModes,
         modelOptions: modelModes,
         effortOptions: effortLevels,
@@ -1539,7 +1541,7 @@ function NewSessionScreen() {
         const effortKey = nextEffort.key;
         setEffortIndex(next);
         draft.setEffortLevel(effortKey);
-        if (selectedAgent === 'codex' || selectedAgent === 'grok' || selectedAgent === 'rig') {
+        if (selectedAgent === 'codex' || selectedAgent === 'grok' || selectedAgent === 'dsh' || selectedAgent === 'rig') {
             setAgentDefaultOverrides(setAgentDefaultOverride(
                 agentDefaultOverrides,
                 selectedAgent,
@@ -1719,7 +1721,7 @@ function NewSessionScreen() {
                 if (next >= 0 && !nextModel?.disabled && !nextModel?.unavailable) {
                     setModelIndex(next);
                     draft.setModelMode(nextModel.key);
-                    if (selectedAgent === 'grok' || selectedAgent === 'rig') {
+                    if (selectedAgent === 'grok' || selectedAgent === 'dsh' || selectedAgent === 'rig') {
                         setAgentDefaultOverrides(setAgentDefaultOverride(
                             agentDefaultOverrides,
                             selectedAgent,
@@ -1740,7 +1742,7 @@ function NewSessionScreen() {
                 if (next >= 0 && !nextPermission?.disabled && !nextPermission?.unavailable) {
                     setPermissionIndex(next);
                     draft.setPermissionMode(nextPermission.key);
-                    if (selectedAgent === 'grok' || selectedAgent === 'rig') {
+                    if (selectedAgent === 'grok' || selectedAgent === 'dsh' || selectedAgent === 'rig') {
                         setAgentDefaultOverrides(setAgentDefaultOverride(
                             agentDefaultOverrides,
                             selectedAgent,
@@ -1783,7 +1785,7 @@ function NewSessionScreen() {
                 if (next >= 0 && !nextModel?.disabled && !nextModel?.unavailable) {
                     setModelIndex(next);
                     draft.setModelMode(nextModel.key);
-                    if (selectedAgent === 'grok' || selectedAgent === 'rig') {
+                    if (selectedAgent === 'grok' || selectedAgent === 'dsh' || selectedAgent === 'rig') {
                         setAgentDefaultOverrides(setAgentDefaultOverride(
                             agentDefaultOverrides,
                             selectedAgent,
@@ -1851,7 +1853,7 @@ function NewSessionScreen() {
             const machineCatalog = machine.metadata?.agentCapabilities?.[agentType];
             const agentAvailable = agentType === 'rig'
                 ? latestRigCreation !== null
-                : agentType === 'agy' || agentType === 'grok'
+                : agentType === 'agy' || agentType === 'grok' || agentType === 'dsh'
                     ? availability?.[agentType] === true
                     : !availability || availability[agentType] === true;
             const latestPermissionModes = latestRigCreation?.permissionModes
@@ -1885,16 +1887,18 @@ function NewSessionScreen() {
                 modelKey: selectedModelKey,
                 effortKey,
             });
-            const missingGrokCatalog = agentType === 'grok' && !machineCatalog;
+            const missingProviderCatalog = (agentType === 'grok' || agentType === 'dsh') && !machineCatalog;
             const incompleteRigSelection = agentType === 'rig'
                 && (!permissionKey || !selectedModelKey || !effortKey);
-            if (missingGrokCatalog || selectionError || incompleteRigSelection) {
+            if (missingProviderCatalog || selectionError || incompleteRigSelection) {
                 return {
                     status: 'unavailable' as const,
                     rigUnavailable: agentType === 'rig' && latestRigCreation === null,
-                    grokCapabilityError: agentType === 'grok'
+                    providerCapabilityError: agentType === 'grok'
                         ? machine.metadata?.grokCapabilityError
-                        : undefined,
+                        : agentType === 'dsh'
+                            ? machine.metadata?.dshCapabilityError
+                            : undefined,
                 };
             }
             return {
@@ -1914,7 +1918,7 @@ function NewSessionScreen() {
                 t('common.error'),
                 initialContext.rigUnavailable
                     ? t('newSession.happyAgentUnsupported')
-                    : initialContext.grokCapabilityError
+                    : initialContext.providerCapabilityError
                         ?? t("uiCopy.theSelectedAgentConfigurationIsUnavailable"),
             );
             return;
@@ -1992,7 +1996,7 @@ function NewSessionScreen() {
                     t('common.error'),
                     spawnContext.rigUnavailable
                         ? t('newSession.happyAgentUnsupported')
-                        : spawnContext.grokCapabilityError
+                        : spawnContext.providerCapabilityError
                             ?? t("uiCopy.theSelectedAgentConfigurationIsUnavailable"),
                 );
                 return;

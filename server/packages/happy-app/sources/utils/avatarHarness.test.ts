@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { resolveAvatarHarness } from './avatarHarness';
 
 describe('resolveAvatarHarness', () => {
-    it('maps every active harness, including GrokBuild', () => {
+    it('maps every active harness, including first-class ACP providers', () => {
         expect(resolveAvatarHarness('claude')).toBe('claude');
         expect(resolveAvatarHarness('codex')).toBe('codex');
         expect(resolveAvatarHarness('grok')).toBe('grok');
+        expect(resolveAvatarHarness('dsh')).toBe('dsh');
         expect(resolveAvatarHarness('agy')).toBe('agy');
     });
 

@@ -190,6 +190,7 @@ export const MachineMetadataSchema = z.object({
     codex: z.boolean(),
     gemini: z.boolean(),
     grok: z.boolean().optional(),
+    dsh: z.boolean().optional(),
     // Optional so metadata written by a CLI predating agy detection still
     // matches this shape. detectCLIAvailability always reports it.
     agy: z.boolean().optional(),
@@ -206,6 +207,7 @@ export const MachineMetadataSchema = z.object({
   /** The restarted daemon exposes deleteFile through its machine RPC. */
   supportsFileDelete: z.boolean().optional(),
   grokCapabilityError: z.string().optional(),
+  dshCapabilityError: z.string().optional(),
 })
 
 export type MachineMetadata = z.infer<typeof MachineMetadataSchema>

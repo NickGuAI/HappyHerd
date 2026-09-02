@@ -142,11 +142,13 @@ describe('what a computer can actually run', () => {
         const absent = collectMachineChoices([cli()])[0];
         const installed = collectMachineChoices([machine('detected-only-machine', {
             host: 'laptop.local',
-            cliAvailability: { claude: true, grok: true, agy: true },
+            cliAvailability: { claude: true, grok: true, dsh: true, agy: true },
         })])[0];
 
         expect(machineChoiceAgentVisible(absent, 'grok')).toBe(false);
         expect(machineChoiceAgentVisible(installed, 'grok')).toBe(true);
+        expect(machineChoiceAgentVisible(absent, 'dsh')).toBe(false);
+        expect(machineChoiceAgentVisible(installed, 'dsh')).toBe(true);
         expect(machineChoiceAgentVisible(absent, 'agy')).toBe(false);
         expect(machineChoiceAgentVisible(installed, 'agy')).toBe(true);
         expect(machineChoiceAgentVisible(absent, 'claude')).toBe(true);
@@ -159,6 +161,7 @@ describe('what a computer can actually run', () => {
         const cliOnly = collectMachineChoices([cli()])[0];
         expect(resolveChoiceAgent(cliOnly, 'rig')).toBe('claude');
         expect(resolveChoiceAgent(cliOnly, 'grok')).toBe('claude');
+        expect(resolveChoiceAgent(cliOnly, 'dsh')).toBe('claude');
         expect(resolveChoiceAgent(cliOnly, 'gemini')).toBe('claude');
     });
 

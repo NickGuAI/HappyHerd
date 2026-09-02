@@ -7,7 +7,7 @@ import type { Config } from './config';
 import type { DecryptedMachine } from './api';
 import { decodeBase64, encodeBase64, encrypt, decrypt } from './encryption';
 
-export type SupportedAgent = 'claude' | 'codex' | 'gemini' | 'grok' | 'agy';
+export type SupportedAgent = 'claude' | 'codex' | 'gemini' | 'grok' | 'dsh' | 'agy';
 
 export type SpawnSessionRuntimeContext = {
     surfaceId: string;

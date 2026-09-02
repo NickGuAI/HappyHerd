@@ -160,7 +160,7 @@ export interface SpawnSessionOptions {
     directory: string;
     sessionId?: string;
     approvedNewDirectoryCreation?: boolean;
-    agent?: 'claude' | 'codex' | 'gemini' | 'grok' | 'agy';
+    agent?: 'claude' | 'codex' | 'gemini' | 'grok' | 'dsh' | 'agy';
     permissionMode?: string;
     modelMode?: string;
     effortLevel?: string;

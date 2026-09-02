@@ -20,7 +20,7 @@ describe('HappyHerdMachineSessionSettingsSchema', () => {
             permission: 'yolo',
         });
         expect(HAPPYHERD_MACHINE_SESSION_PROVIDERS).toEqual([
-            'claude', 'codex', 'gemini', 'grok', 'agy',
+            'claude', 'codex', 'gemini', 'grok', 'dsh', 'agy',
         ]);
         expect(HAPPYHERD_MACHINE_SESSION_PROTOCOL_VERSION).toBe(1);
     });

@@ -299,9 +299,11 @@ const commanderResumeCases = [
 ] as const;
 
 describe('daemon session continuity', () => {
-  it('resolves GrokBuild for the shared tmux and direct-spawn command path', () => {
+  it('resolves first-class ACP commands while keeping dsh non-resumable', () => {
     expect(resolveDaemonAgentCommand('grok')).toBe('grok');
     expect(resolveDaemonResumeAgent({ flavor: 'grok' } as Metadata)).toBe('grok');
+    expect(resolveDaemonAgentCommand('dsh')).toBe('dsh');
+    expect(resolveDaemonResumeAgent({ flavor: 'dsh', acpSessionId: 'provider-session' } as Metadata)).toBeNull();
     expect(resolveDaemonAgentCommand('future-provider' as any)).toBeNull();
     expect(resolveDaemonResumeAgent({ flavor: 'future-provider' } as Metadata)).toBeNull();
   });

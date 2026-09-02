@@ -241,6 +241,27 @@ function createDraft(overrides: Record<string, unknown> = {}) {
     };
 }
 
+function createDshMachine() {
+    return {
+        id: 'machine-1',
+        online: true,
+        metadata: {
+            homeDir: '/Users/dev',
+            cliAvailability: { dsh: true, detectedAt: 1 },
+            agentCapabilities: {
+                dsh: {
+                    detectedAt: 1,
+                    sources: { models: 'static', effortLevels: 'provider', permissionModes: 'unsupported' },
+                    models: [],
+                    effortLevels: [],
+                    permissionModes: [],
+                    acp: { loadSession: false, prompt: { image: false } },
+                },
+            },
+        },
+    };
+}
+
 describe('useStartSessionFromDraft', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -488,6 +509,43 @@ describe('useStartSessionFromDraft', () => {
         );
     });
 
+    it('starts dsh with its exact catalog defaults and no permission mode', async () => {
+        mocks.machines = [createDshMachine()];
+        mocks.draft = createDraft({ agentType: 'dsh' });
+        mocks.getMachineAdvertisedModels.mockReturnValue([
+            { key: 'deepseek-v4-flash', name: 'deepseek-v4-flash', isDefault: true },
+            { key: 'deepseek-v4-pro', name: 'deepseek-v4-pro' },
+        ]);
+        mocks.getMachineAdvertisedEffortLevels.mockReturnValue([
+            { key: 'off', name: 'off' },
+            { key: 'low', name: 'low' },
+            { key: 'high', name: 'high', isDefault: true },
+            { key: 'max', name: 'max' },
+        ]);
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(true);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith({
+            machineId: 'machine-1',
+            directory: '/absolute/project',
+            approvedNewDirectoryCreation: false,
+            agent: 'dsh',
+            permissionMode: undefined,
+            modelMode: 'deepseek-v4-flash',
+            effortLevel: 'high',
+        });
+        expect(mocks.sessionSetAgentModes).toHaveBeenCalledWith('session-1', {
+            modelMode: 'deepseek-v4-flash',
+            effortLevel: 'high',
+        });
+        expect(mocks.sendMessage).toHaveBeenCalledWith(
+            'session-1',
+            'Start the implementation',
+            { source: 'new_session', attachments: [] },
+        );
+    });
+
     it('omits GrokBuild launch dimensions that the exact machine does not expose', async () => {
         mocks.machines = [{
             id: 'machine-1',
@@ -550,6 +608,29 @@ describe('useStartSessionFromDraft', () => {
         );
     });
 
+    it('shows the dsh discovery error instead of reusing a GrokBuild error when its catalog is missing', async () => {
+        mocks.machines = [{
+            id: 'machine-1',
+            online: true,
+            metadata: {
+                homeDir: '/Users/dev',
+                grokCapabilityError: 'GrokBuild capability discovery failed. Run `grok login`.',
+                dshCapabilityError: 'dsh capability discovery failed. Verify `dsh --profile acp` starts.',
+                cliAvailability: { dsh: true, detectedAt: 1 },
+            },
+        }];
+        mocks.draft = createDraft({ agentType: 'dsh' });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(false);
+        expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
+        expect(mocks.alert).toHaveBeenCalledWith(
+            'common.error',
+            'dsh capability discovery failed. Verify `dsh --profile acp` starts.',
+        );
+    });
+
     it('retries creation after the user approves a new directory', async () => {
         mocks.machineSpawnNewSession
             .mockResolvedValueOnce({ type: 'requestToApproveDirectoryCreation', directory: '/absolute/project' })
@@ -601,6 +682,37 @@ describe('useStartSessionFromDraft', () => {
         mocks.confirm.mockImplementation(async () => {
             mocks.getMachineAdvertisedModels.mockReturnValue([
                 { key: 'replacement-model', name: 'Replacement' },
+            ]);
+            return true;
+        });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession()).resolves.toBe(false);
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledOnce();
+        expect(mocks.alert).toHaveBeenCalledWith(
+            'common.error',
+            'uiCopy.theSelectedAgentConfigurationIsUnavailable',
+        );
+    });
+
+    it('revalidates the exact dsh catalog after directory approval', async () => {
+        mocks.machines = [createDshMachine()];
+        mocks.draft = createDraft({ agentType: 'dsh' });
+        mocks.getMachineAdvertisedModels.mockReturnValue([
+            { key: 'deepseek-v4-flash', name: 'deepseek-v4-flash', isDefault: true },
+            { key: 'deepseek-v4-pro', name: 'deepseek-v4-pro' },
+        ]);
+        mocks.getMachineAdvertisedEffortLevels.mockReturnValue([
+            { key: 'high', name: 'high', isDefault: true },
+        ]);
+        mocks.machineSpawnNewSession.mockResolvedValueOnce({
+            type: 'requestToApproveDirectoryCreation',
+            directory: '/absolute/project',
+        });
+        mocks.confirm.mockImplementation(async () => {
+            mocks.getMachineAdvertisedModels.mockReturnValue([
+                { key: 'deepseek-v4-pro', name: 'deepseek-v4-pro', isDefault: true },
             ]);
             return true;
         });

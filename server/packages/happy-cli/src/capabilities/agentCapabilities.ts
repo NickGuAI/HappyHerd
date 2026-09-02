@@ -1,4 +1,7 @@
 import spawn from 'cross-spawn';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { HAPPYHERD_CLAUDE_MODEL_SLUGS } from '@slopus/happy-wire';
 
 import type { AgentCapabilityCatalog } from '@/api/types';
@@ -12,13 +15,20 @@ import { AcpBackend } from '@/agent/acp/AcpBackend';
 import { DefaultTransport } from '@/agent/transport';
 import { KNOWN_ACP_AGENTS, sanitizeGrokChildEnvironment } from '@/agent/acp/acpAgentConfig';
 import { AGY_MODELS, DEFAULT_AGY_MODEL } from '@/agy/constants';
-import type { InitializeResponse } from '@agentclientprotocol/sdk';
+import type { InitializeResponse, SessionConfigOption } from '@agentclientprotocol/sdk';
 
 type CapabilityOption = AgentCapabilityCatalog['models'][number];
 type CapabilityMap = Record<string, AgentCapabilityCatalog>;
 type CapabilityDiscoveryResult = {
     capabilities: CapabilityMap;
     grokCapabilityError?: string;
+    dshCapabilityError?: string;
+};
+
+export type DshAcpProbeResult = {
+    initialize: InitializeResponse;
+    configOptions: SessionConfigOption[];
+    providerVersion?: string;
 };
 
 const GROK_PERMISSION_MODE_DESCRIPTIONS: Record<string, string> = {
@@ -337,6 +347,187 @@ export function buildGrokAcpCapabilityCatalog(
     };
 }
 
+type DshSelectValue = {
+    code: string;
+    label: string;
+    description?: string | null;
+};
+
+function flattenDshSelectValues(rawOptions: unknown): DshSelectValue[] {
+    if (!Array.isArray(rawOptions)) return [];
+    const values: DshSelectValue[] = [];
+    const appendValue = (raw: unknown): void => {
+        const entry = runtimeObject(raw);
+        if (!entry || typeof entry.value !== 'string' || typeof entry.name !== 'string') return;
+        values.push({
+            code: entry.value,
+            label: entry.name,
+            ...(typeof entry.description === 'string' || entry.description === null
+                ? { description: entry.description }
+                : {}),
+        });
+    };
+    for (const rawOption of rawOptions) {
+        const group = runtimeObject(rawOption);
+        if (group && Array.isArray(group.options)) {
+            for (const groupedOption of group.options) appendValue(groupedOption);
+        } else {
+            appendValue(rawOption);
+        }
+    }
+    return values;
+}
+
+function requireDshSelectCategory(
+    configOptions: SessionConfigOption[],
+    category: 'model' | 'thought_level',
+): { currentValue: string; values: DshSelectValue[] } {
+    const matches = configOptions.filter((candidate) => (
+        candidate.type === 'select' && candidate.category === category
+    ));
+    if (matches.length !== 1) {
+        throw new Error(`dsh session/new did not advertise exactly one ${category} select config option`);
+    }
+    const selected = matches[0];
+    if (typeof selected.currentValue !== 'string' || selected.currentValue.length === 0) {
+        throw new Error(`dsh ${category} config option did not advertise a current value`);
+    }
+    const values = flattenDshSelectValues(selected.options);
+    if (values.length === 0) {
+        throw new Error(`dsh ${category} config option did not advertise selectable values`);
+    }
+    return { currentValue: selected.currentValue, values };
+}
+
+function decodeOfficialDshModel(code: string): string | null {
+    try {
+        const tuple: unknown = JSON.parse(code);
+        if (
+            !Array.isArray(tuple)
+            || tuple.length !== 2
+            || tuple[0] !== 'deepseek-official'
+            || typeof tuple[1] !== 'string'
+            || tuple[1].trim().length === 0
+        ) {
+            return null;
+        }
+        return tuple[1];
+    } catch {
+        return null;
+    }
+}
+
+/** Build dsh launch choices only from explicit session/new config categories. */
+export function buildDshAcpCapabilityCatalog(
+    probe: DshAcpProbeResult,
+    detectedAt = Date.now(),
+): AgentCapabilityCatalog {
+    const modelSelect = requireDshSelectCategory(probe.configOptions, 'model');
+    const effortSelect = requireDshSelectCategory(probe.configOptions, 'thought_level');
+
+    const modelBySlug = new Map<string, DshSelectValue>();
+    for (const advertised of modelSelect.values) {
+        const slug = decodeOfficialDshModel(advertised.code);
+        if (slug && !modelBySlug.has(slug)) modelBySlug.set(slug, advertised);
+    }
+    const currentModel = decodeOfficialDshModel(modelSelect.currentValue);
+    if (!currentModel || !modelBySlug.has(currentModel)) {
+        throw new Error('dsh model config did not advertise a valid current deepseek-official tuple');
+    }
+
+    const effortByCode = new Map<string, DshSelectValue>();
+    for (const advertised of effortSelect.values) {
+        if (advertised.code.trim().length > 0 && !effortByCode.has(advertised.code)) {
+            effortByCode.set(advertised.code, advertised);
+        }
+    }
+    if (!effortByCode.has(effortSelect.currentValue)) {
+        throw new Error('dsh thought_level config did not advertise its current value');
+    }
+    const effortLevels = [...effortByCode.values()].map((effort) => option(
+        effort.code,
+        effort.label,
+        effort.description,
+        effort.code === effortSelect.currentValue,
+    ));
+
+    const prompt = probe.initialize.agentCapabilities?.promptCapabilities;
+    return {
+        detectedAt,
+        providerVersion: probe.providerVersion,
+        sources: {
+            models: 'dsh-acp:session/new:configOptions',
+            effortLevels: 'dsh-acp:session/new:configOptions',
+            permissionModes: 'unsupported',
+        },
+        models: [...modelBySlug.entries()].map(([slug, advertised]) => ({
+            code: slug,
+            value: advertised.label,
+            ...(advertised.description !== undefined ? { description: advertised.description } : {}),
+            effortLevels,
+            isDefault: slug === currentModel,
+        })),
+        effortLevels,
+        permissionModes: [],
+        acp: {
+            loadSession: probe.initialize.agentCapabilities?.loadSession === true,
+            prompt: { image: prompt?.image === true },
+        },
+    };
+}
+
+const DSH_CAPABILITY_PROBE_TIMEOUT_MS = 20_000;
+
+async function readDshAcpSessionConfig(): Promise<DshAcpProbeResult> {
+    const dshHome = await mkdtemp(join(tmpdir(), 'happyherd-dsh-capabilities-'));
+    let backend: AcpBackend | null = null;
+    let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+    try {
+        const config = KNOWN_ACP_AGENTS.dsh;
+        let initialize: InitializeResponse | null = null;
+        let configOptions: SessionConfigOption[] | null = null;
+        backend = new AcpBackend({
+            agentName: 'dsh',
+            cwd: dshHome,
+            command: config.command,
+            args: config.args,
+            transportHandler: new DefaultTransport('dsh'),
+            mcpServers: {},
+            processEnv: { ...process.env, DSH_HOME: dshHome },
+        });
+        backend.onMessage((message) => {
+            if (message.type === 'event' && message.name === 'initialize_response') {
+                initialize = message.payload as InitializeResponse;
+            }
+            if (message.type === 'event' && message.name === 'config_options_update') {
+                const payload = runtimeObject(message.payload);
+                if (Array.isArray(payload?.configOptions)) {
+                    configOptions = payload.configOptions as SessionConfigOption[];
+                }
+            }
+        });
+
+        await Promise.race([
+            backend.startSession(),
+            new Promise<never>((_resolve, reject) => {
+                timeoutHandle = setTimeout(() => {
+                    reject(new Error(`dsh ACP capability probe timed out after ${DSH_CAPABILITY_PROBE_TIMEOUT_MS}ms`));
+                }, DSH_CAPABILITY_PROBE_TIMEOUT_MS);
+            }),
+        ]);
+        if (!initialize) throw new Error('dsh ACP initialize response was not received');
+        if (!configOptions) throw new Error('dsh ACP session/new configOptions were not received');
+        return { initialize, configOptions, providerVersion: readVersion('dsh') };
+    } finally {
+        if (timeoutHandle) clearTimeout(timeoutHandle);
+        try {
+            await backend?.dispose();
+        } finally {
+            await rm(dshHome, { recursive: true, force: true });
+        }
+    }
+}
+
 async function readGrokAcpInitialize(): Promise<InitializeResponse> {
     const config = KNOWN_ACP_AGENTS.grok;
     let initialize: InitializeResponse | null = null;
@@ -388,7 +579,6 @@ export function buildBaselineAgentCapabilities(availability: CLIAvailability): C
             permissionModes: [option('default'), option('bypassPermissions', 'bypass permissions')],
         };
     }
-
     return result;
 }
 
@@ -408,10 +598,12 @@ export async function detectAgentCapabilities(
         loadCodexModels?: () => Promise<ModelListEntry[]>;
         loadGrokInitialize?: () => Promise<InitializeResponse>;
         loadGrokHelp?: () => string | null;
+        loadDshProbe?: () => Promise<DshAcpProbeResult>;
     },
 ): Promise<CapabilityDiscoveryResult> {
     const catalogs = buildBaselineAgentCapabilities(availability);
     let grokCapabilityError: string | undefined;
+    let dshCapabilityError: string | undefined;
 
     if (availability.codex && catalogs.codex) {
         try {
@@ -449,9 +641,20 @@ export async function detectAgentCapabilities(
         }
     }
 
+    if (availability.dsh) {
+        try {
+            const probe = await (opts?.loadDshProbe ?? readDshAcpSessionConfig)();
+            catalogs.dsh = buildDshAcpCapabilityCatalog(probe);
+        } catch (error) {
+            const detail = error instanceof Error ? error.message : String(error);
+            dshCapabilityError = `dsh is installed but ACP capability discovery failed: ${detail}. Verify \`dsh --profile acp\` starts with DEEPSEEK_API_KEY available to the daemon.`;
+        }
+    }
+
     return {
         capabilities: catalogs,
         ...(grokCapabilityError ? { grokCapabilityError } : {}),
+        ...(dshCapabilityError ? { dshCapabilityError } : {}),
     };
 }
 

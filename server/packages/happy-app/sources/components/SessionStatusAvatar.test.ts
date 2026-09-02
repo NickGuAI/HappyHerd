@@ -242,4 +242,23 @@ describe('SessionStatusAvatar', () => {
             .find((node: any) => node.props.accessibilityRole === 'image');
         expect(outer?.props.accessibilityLabel).toContain('GrokBuild');
     });
+
+    it('derives the dsh provider icon from session flavor', () => {
+        let renderer!: ReturnType<typeof create>;
+        act(() => {
+            renderer = create(React.createElement(SessionStatusAvatar, {
+                active: true,
+                commanderId: null,
+                flavor: 'dsh',
+                hasDraft: false,
+                hasUnread: false,
+                machineId: 'machine-one',
+                providerKind: null,
+                providerLabel: 'dsh',
+                state: 'waiting',
+            }));
+        });
+
+        expect(renderer.root.findByType('Text' as any).props.children).toBe('DS');
+    });
 });

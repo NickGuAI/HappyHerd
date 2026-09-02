@@ -12,6 +12,7 @@ export const HAPPYHERD_MACHINE_SESSION_PROVIDERS = [
     'codex',
     'gemini',
     'grok',
+    'dsh',
     'agy',
 ] as const;
 

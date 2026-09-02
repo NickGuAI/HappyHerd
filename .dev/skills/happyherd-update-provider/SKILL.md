@@ -22,6 +22,7 @@ the provider and back.
    - Claude Code: `references/claude.md`
    - Codex: `references/codex.md`
    - GrokBuild: `references/grokbuild.md`
+   - dsh: `references/dsh.md`
    - Antigravity: `references/antigravity.md`
    - Happy provider: `references/happy.md`
    - Retired Gemini compatibility: `references/gemini.md`

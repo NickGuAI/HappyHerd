@@ -16,6 +16,7 @@ function metadata(): MachineMetadata {
             codex: true,
             gemini: false,
             grok: false,
+            dsh: false,
             agy: false,
             detectedAt: 1,
         },
@@ -74,6 +75,55 @@ describe('resolveEffectiveSessionSettings', () => {
             effort: 'max',
             permission: 'yolo',
         });
+    });
+
+    it('validates dsh against its exact live machine catalog', () => {
+        const target = metadata();
+        target.cliAvailability = {
+            ...target.cliAvailability!,
+            codex: false,
+            dsh: true,
+        };
+        target.agentCapabilities = {
+            dsh: {
+                detectedAt: 1,
+                sources: { models: 'test', effortLevels: 'test', permissionModes: 'unsupported' },
+                models: [
+                    { code: 'deepseek-v4-flash', value: 'deepseek-v4-flash', isDefault: true },
+                    { code: 'deepseek-v4-pro', value: 'deepseek-v4-pro' },
+                ],
+                effortLevels: [
+                    { code: 'off', value: 'off' },
+                    { code: 'low', value: 'low' },
+                    { code: 'high', value: 'high', isDefault: true },
+                    { code: 'max', value: 'max' },
+                ],
+                permissionModes: [],
+                acp: { loadSession: false, prompt: { image: false } },
+            },
+        };
+
+        expect(resolveEffectiveSessionSettings(target, 'machine-1', { provider: 'dsh' })).toEqual({
+            provider: 'dsh',
+            model: 'deepseek-v4-flash',
+            effort: 'high',
+            permission: null,
+        });
+        expect(resolveEffectiveSessionSettings(target, 'machine-1', {
+            provider: 'dsh',
+            model: 'deepseek-v4-pro',
+            effort: 'max',
+        })).toEqual({
+            provider: 'dsh',
+            model: 'deepseek-v4-pro',
+            effort: 'max',
+            permission: null,
+        });
+        expect(() => resolveEffectiveSessionSettings(target, 'machine-1', {
+            provider: 'dsh',
+            model: 'deepseek-v4-flash-vision-exp',
+            effort: 'max',
+        })).toThrow('Provider dsh does not advertise model "deepseek-v4-flash-vision-exp" on this machine');
     });
 
     it('resolves the concrete Antigravity model default without inventing effort', () => {
