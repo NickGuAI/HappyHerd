@@ -54,8 +54,7 @@ vi.mock('@/sync/sync', () => ({ sync: { sendMessage: vi.fn() } }));
 vi.mock('@/sync/storage', () => ({ useSetting: () => 'default' }));
 vi.mock('./layout', () => ({ layout: { maxWidth: 800 } }));
 vi.mock('./parseLocalCommandMessage', () => ({
-    parseLocalCommandMessage: (text: string) => ({ kind: 'text', text }),
-    isUserSlashCommandEcho: () => false,
+    parseVisibleUserMessage: (message: { text: string }) => ({ kind: 'text', text: message.text }),
 }));
 vi.mock('@/utils/userMessageBubbleColor', () => ({
     resolveUserMessageBubbleColor: () => ({ background: 'background', border: 'border' }),
@@ -152,6 +151,48 @@ describe('MessageView suggestion option boundary', () => {
             '保持 Speaker 2 不变',
             { source: 'option' },
         );
+        act(() => renderer.unmount());
+    });
+});
+
+describe('MessageView Human message alignment', () => {
+    it.each([
+        ['short Latin', 'Read the email'],
+        ['multiline Latin', 'Read the email\nThen summarize it'],
+        ['short CJK', '读一下邮件'],
+        ['multiline CJK', '读一下邮件\n看看有没有新的活动'],
+    ])('centers %s text while retaining the copy boundary', (_label, text) => {
+        platform.os = 'web';
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(React.createElement(MessageView, {
+                message: {
+                    kind: 'user-text',
+                    id: `user-${_label}`,
+                    localId: null,
+                    createdAt: 1,
+                    text,
+                },
+                metadata: null,
+                sessionId: 'session-user-message',
+            }));
+        });
+
+        const markdown = renderer.root.findByType('MarkdownView' as any);
+        expect(markdown.props).toMatchObject({
+            markdown: text,
+            externalCopyHandler: true,
+            textAlign: 'center',
+        });
+        const copyTarget = renderer.root.findByType('LongPressCopyable' as any);
+        expect(copyTarget.props.text).toBe(text);
+        const centeredBubble = renderer.root.findAllByType('View' as any).find((node: { props: { style?: unknown } }) => {
+            const style = Array.isArray(node.props.style) ? node.props.style : [node.props.style];
+            return style.some((entry: any) => entry?.alignItems === 'center'
+                && entry?.justifyContent === 'center'
+                && entry?.textAlign === 'center');
+        });
+        expect(centeredBubble).toBeDefined();
         act(() => renderer.unmount());
     });
 });

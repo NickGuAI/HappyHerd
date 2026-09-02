@@ -100,7 +100,7 @@ describe('MarkdownView browser theme and option parity', () => {
         const script = bundle.outputFiles.find((file) => file.path.endsWith('.js'))?.text ?? bundle.outputFiles[0].text;
         server = createServer((_request, response) => {
             response.setHeader('content-type', 'text/html; charset=utf-8');
-            response.end('<style>html,body,#root{margin:0;min-height:100%;font-family:sans-serif}*{box-sizing:border-box}</style><main id="root"></main><script>' + script + '</script>');
+            response.end('<meta name="viewport" content="width=device-width, initial-scale=1"><style>html,body,#root{margin:0;min-height:100%;font-family:sans-serif}*{box-sizing:border-box}</style><main id="root"></main><script>' + script + '</script>');
         });
         await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
         const address = server.address();
@@ -274,4 +274,135 @@ describe('MarkdownView browser theme and option parity', () => {
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 10_000);
+
+    it('centers rendered Web Markdown when the Human message host requests it', async () => {
+        const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+        const pageErrors = recordPageErrors(page);
+        await page.goto(`${origin}/?theme=light&align=center`);
+        const root = page.locator('.hh-markdown-root');
+        await root.locator('p').first().waitFor();
+
+        await expect(root.locator('p').first().evaluate((element) => getComputedStyle(element).textAlign)).resolves.toBe('center');
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 10_000);
+
+    it.each([
+        ['Web Desktop', { width: 1440, height: 900, hasTouch: false, isMobile: false }],
+        ['390x844 Web Mobile', { width: 390, height: 844, hasTouch: true, isMobile: true }],
+    ])('keeps wide Markdown tables readable and horizontally reachable on %s', async (_surface, viewport) => {
+        const context = await browser.newContext({
+            viewport: { width: viewport.width, height: viewport.height },
+            hasTouch: viewport.hasTouch,
+            isMobile: viewport.isMobile,
+        });
+        const page = await context.newPage();
+        const pageErrors = recordPageErrors(page);
+        await page.goto(`${origin}/?theme=dark`);
+
+        const root = page.locator('.hh-markdown-root');
+        const scrollHost = page.getByTestId('markdown-host');
+        const tableWrap = root.locator('.hh-markdown-table-wrap');
+        const table = tableWrap.locator('table');
+        await table.waitFor();
+
+        const initial = await tableWrap.evaluate((element) => {
+            const tableElement = element.querySelector('table')!;
+            const firstCell = tableElement.querySelector('td')!;
+            const cellStyle = getComputedStyle(firstCell);
+            const textElements = [...element.closest('.hh-markdown-root')!.querySelectorAll('*')]
+                .filter((candidate) => candidate.tagName !== 'STYLE' && [...candidate.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()));
+            return {
+                overflowX: getComputedStyle(element).overflowX,
+                tableDisplay: getComputedStyle(tableElement).display,
+                tableOverflowX: getComputedStyle(tableElement).overflowX,
+                scrollWidth: element.scrollWidth,
+                clientWidth: element.clientWidth,
+                cellWidth: firstCell.getBoundingClientRect().width,
+                cellWordBreak: cellStyle.wordBreak,
+                cellOverflowWrap: cellStyle.overflowWrap,
+                minimumTextSize: Math.min(...textElements.map((candidate) => Number.parseFloat(getComputedStyle(candidate).fontSize))),
+                hostCanScrollVertically: element.closest('[data-testid="markdown-host"]')!.scrollHeight
+                    > element.closest('[data-testid="markdown-host"]')!.clientHeight,
+                windowCanScrollVertically: document.documentElement.scrollHeight > window.innerHeight,
+            };
+        });
+        expect(initial).toMatchObject({
+            overflowX: 'auto',
+            tableDisplay: 'table',
+            tableOverflowX: 'visible',
+            cellWordBreak: 'normal',
+            cellOverflowWrap: 'break-word',
+            minimumTextSize: 16,
+            hostCanScrollVertically: true,
+            windowCanScrollVertically: false,
+        });
+        expect(initial.scrollWidth).toBeGreaterThan(initial.clientWidth);
+        expect(initial.cellWidth).toBeGreaterThanOrEqual(128);
+
+        const tableBox = await tableWrap.boundingBox();
+        if (!tableBox) throw new Error('Markdown table scroller has no layout');
+        if (viewport.hasTouch) {
+            const session = await context.newCDPSession(page);
+            const y = tableBox.y + Math.min(tableBox.height / 2, 100);
+            const startX = tableBox.x + tableBox.width - 20;
+            const endX = tableBox.x + 20;
+            await session.send('Input.dispatchTouchEvent', {
+                type: 'touchStart',
+                touchPoints: [{ x: startX, y }],
+            });
+            for (let step = 1; step <= 5; step += 1) {
+                await session.send('Input.dispatchTouchEvent', {
+                    type: 'touchMove',
+                    touchPoints: [{ x: startX + ((endX - startX) * step) / 5, y }],
+                });
+            }
+            await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+
+            const verticalX = tableBox.x + Math.min(tableBox.width / 2, 120);
+            const startY = tableBox.y + tableBox.height - 20;
+            const endY = tableBox.y + 20;
+            await session.send('Input.dispatchTouchEvent', {
+                type: 'touchStart',
+                touchPoints: [{ x: verticalX, y: startY }],
+            });
+            for (let step = 1; step <= 5; step += 1) {
+                await session.send('Input.dispatchTouchEvent', {
+                    type: 'touchMove',
+                    touchPoints: [{ x: verticalX, y: startY + ((endY - startY) * step) / 5 }],
+                });
+            }
+            await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+            await expect.poll(() => scrollHost.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+        } else {
+            await tableWrap.hover();
+            await page.mouse.wheel(2_000, 0);
+            await page.mouse.wheel(0, 1_000);
+            await expect.poll(() => scrollHost.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+        }
+        await expect.poll(() => tableWrap.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+
+        const tableReviewButton = root.locator('.hh-markdown-table-review > .hh-markdown-comment-gutter');
+        await tableReviewButton.scrollIntoViewIfNeeded();
+        if (viewport.hasTouch) {
+            await tableReviewButton.tap();
+        } else {
+            await tableReviewButton.click();
+        }
+        await expect(page.evaluate(() => window.__MARKDOWN_LINE_COMMENTS__)).resolves.toEqual([14]);
+
+        await tableWrap.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
+        const farRight = await tableWrap.evaluate((element) => {
+            const lastCell = element.querySelector('tr > :last-child')!;
+            const wrapperRect = element.getBoundingClientRect();
+            const cellRect = lastCell.getBoundingClientRect();
+            return {
+                atEnd: Math.abs(element.scrollWidth - element.clientWidth - element.scrollLeft) < 1,
+                lastCellVisible: cellRect.right <= wrapperRect.right + 1 && cellRect.left < wrapperRect.right,
+            };
+        });
+        expect(farRight).toEqual({ atEnd: true, lastCellVisible: true });
+        expect(pageErrors).toEqual([]);
+        await context.close();
+    }, 15_000);
 });

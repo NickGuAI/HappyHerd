@@ -26,19 +26,23 @@ const markdown = [
     'const answer = 42;',
     '```',
     '',
-    '| Name | Value |',
-    '| --- | --- |',
-    '| answer | 42 |',
+    '| Date | School | Event | Format | Status | Notes |',
+    '| --- | --- | --- | --- | --- | --- |',
+    '| Sun 10/4 14:00 | Horace Mann | Nursery / K / Lower Admissions Information Session | In person | Confirmed | Gross Theatre, 246th St & Tibbett Ave. Families only. |',
+    '| Wed 10/14 | Horace Mann | Virtual Lions Talks Kickoff | Online | Registered | Aria Gu is registered. |',
     '',
     '<options>',
     `<option>${FIRST_OPTION}</option>`,
     `<option>${SECOND_OPTION}</option>`,
     ...COMMONMARK_SENSITIVE_OPTIONS.map((option) => `<option>${option}</option>`),
     '</options>',
+    '',
+    ...Array.from({ length: 12 }, (_, index) => `Vertical scroll evidence paragraph ${index + 1}.`),
 ].join('\n');
 
 declare global {
     interface Window {
+        __MARKDOWN_LINE_COMMENTS__?: number[];
         __MARKDOWN_OPTION_PRESSES__?: string[];
     }
 }
@@ -50,15 +54,35 @@ function MarkdownFixture() {
             data-testid="markdown-caller"
             style={{
                 width: '100%',
-                minHeight: '100vh',
+                height: '100vh',
                 padding: 16,
+                overflow: 'hidden',
                 backgroundColor: theme.colors.surface,
                 color: '#000000',
             }}
         >
-            <section data-testid="markdown-host" style={{ width: '100%', maxWidth: 720 }}>
+            <section
+                data-testid="markdown-host"
+                style={{
+                    width: '100%',
+                    maxWidth: 720,
+                    height: '100%',
+                    paddingLeft: 28,
+                    overflowY: 'auto',
+                    overscrollBehavior: 'contain',
+                }}
+            >
                 <MarkdownView
                     markdown={markdown}
+                    textAlign={new URLSearchParams(window.location.search).get('align') === 'center'
+                        ? 'center'
+                        : undefined}
+                    onLineComment={({ line }) => {
+                        window.__MARKDOWN_LINE_COMMENTS__ = [
+                            ...(window.__MARKDOWN_LINE_COMMENTS__ ?? []),
+                            line,
+                        ];
+                    }}
                     onOptionPress={(option) => {
                         window.__MARKDOWN_OPTION_PRESSES__ = [
                             ...(window.__MARKDOWN_OPTION_PRESSES__ ?? []),

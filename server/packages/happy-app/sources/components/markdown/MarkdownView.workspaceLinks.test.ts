@@ -159,6 +159,46 @@ beforeEach(() => {
 });
 
 describe('MarkdownView workspace-link opt-in', () => {
+    it.each([
+        ['short Latin', 'Read the email'],
+        ['multiline Latin', 'Read the email\nThen summarize it'],
+        ['short CJK', '读一下邮件'],
+        ['multiline CJK', '读一下邮件\n看看有没有新的活动'],
+    ])('centers %s message blocks without disabling selection', (_label, markdown) => {
+        renderToStaticMarkup(React.createElement(MarkdownView, {
+            markdown,
+            textAlign: 'center',
+        }));
+
+        const block = mocks.renderedText.find((props) => Array.isArray(props.style)
+            && props.style.some((entry: any) => entry?.textAlign === 'center'));
+        expect(block).toBeDefined();
+        expect(block?.selectable).toBe(true);
+    });
+
+    it('updates native block alignment when the same view receives a new textAlign prop', () => {
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(React.createElement(MarkdownView, {
+                markdown: 'Alignment changes',
+                textAlign: 'left',
+            }));
+        });
+
+        mocks.renderedText.length = 0;
+        act(() => {
+            renderer.update(React.createElement(MarkdownView, {
+                markdown: 'Alignment changes',
+                textAlign: 'center',
+            }));
+        });
+
+        const block = mocks.renderedText.find((props) => Array.isArray(props.style)
+            && props.style.some((entry: any) => entry?.textAlign === 'center'));
+        expect(block).toBeDefined();
+        expect(block?.style).not.toContainEqual({ textAlign: 'left' });
+    });
+
     it('restores native option chips without list markers and sends the exact title once', () => {
         const onOptionPress = vi.fn();
         let renderer!: ReactTestRenderer;

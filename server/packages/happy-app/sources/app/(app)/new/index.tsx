@@ -31,7 +31,7 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAvoidingView, KeyboardStickyView } from 'react-native-keyboard-controller';
 import Constants from 'expo-constants';
-import { useHeaderHeight } from '@/utils/responsive';
+import { useDeviceType, useHeaderHeight } from '@/utils/responsive';
 import { t } from '@/text';
 import { useAllMachines, useLocalSetting, useSessions, useSetting, useSettingMutable, storage } from '@/sync/storage';
 import type { NewSessionAgentType } from '@/sync/persistence';
@@ -77,7 +77,9 @@ import { isRunningOnMac } from '@/utils/platform';
 import {
     getNewSessionCommanderPickerOptionListMaxHeight,
     getNewSessionSidebarLayout,
+    NEW_SESSION_DESKTOP_MIN_WINDOW_WIDTH,
 } from '@/utils/newSessionSidebarLayout';
+import { shouldApplyPhoneWebTypographyFloor } from '@/utils/mobileTypographyFloor';
 import { getAgentPickerItems, getModePickerItems, type NewSessionPickerItem } from '@/utils/newSessionPickerItems';
 import {
     getCommanderPickerFixedItems,
@@ -111,6 +113,7 @@ import {
     validateNewSessionLaunchSelection,
 } from '@/utils/newSessionModeSelection';
 import { MobileGlassSurface } from '@/components/MobileGlass';
+import { MobileTypographyFloor } from '@/components/MobileTypographyFloor';
 import { getNativeGlassInteractivity } from '@/components/glassInteractionPolicy';
 import { BubblePressable } from '@/components/BubblePressable';
 import { Header } from '@/components/navigation/Header';
@@ -600,6 +603,11 @@ function PathPickerContent({
     }, [embedded]);
 
     const matchedItemKey = React.useMemo(() => {
+        const exactMatch = items.find((item) => item.key === currentValue);
+        if (exactMatch) {
+            return exactMatch.key;
+        }
+
         const normalizedValue = normalizePathForComparison(currentValue, homeDir);
         if (!normalizedValue) {
             return null;
@@ -613,16 +621,10 @@ function PathPickerContent({
     }, [currentValue, homeDir, items]);
 
     const handleSuggestionPress = React.useCallback((item: PickerItem) => {
-        const nextValue = item.label;
-        const nextSelection = { start: nextValue.length, end: nextValue.length };
-
-        onChangeValue(nextValue);
-        setSelection(nextSelection);
-
-        setTimeout(() => {
-            inputRef.current?.focus();
-        }, 0);
-    }, [onChangeValue]);
+        onChangeValue(item.key);
+        setSelection({ start: item.key.length, end: item.key.length });
+        onDone?.();
+    }, [onChangeValue, onDone]);
 
     const isCustomPath = currentValue.trim().length > 0 && matchedItemKey === null;
     const handleSelectionChange = React.useCallback((event: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => {
@@ -734,7 +736,13 @@ function PathPickerContent({
                     return (
                         <BubblePressable
                             key={item.key}
+                            testID={`new-session-recent-path-${encodeURIComponent(item.key)}`}
                             scaleFeedback={false}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected: isSelected }}
+                            accessibilityLabel={item.label === item.key
+                                ? item.label
+                                : `${item.label}, ${item.key}`}
                             style={(p) => [
                                 pickerStyles.option,
                                 embedded && pickerStyles.embeddedOption,
@@ -751,6 +759,14 @@ function PathPickerContent({
                                 <Text style={[pickerStyles.optionText, { color: theme.colors.text }]} numberOfLines={1}>
                                     {item.label}
                                 </Text>
+                                {item.subtitle && item.subtitle !== item.label && (
+                                    <Text
+                                        style={[pickerStyles.optionText, { color: theme.colors.textSecondary }]}
+                                        numberOfLines={1}
+                                    >
+                                        {item.subtitle}
+                                    </Text>
+                                )}
                             </View>
                             {isSelected && (
                                 <Ionicons
@@ -918,6 +934,7 @@ function NewSessionScreen() {
     const expImageUpload = useSetting('expImageUpload');
     const [favoriteMachinePaths, setFavoriteMachinePaths] = useSettingMutable('favoriteMachinePaths');
     const zenMode = useLocalSetting('zenMode');
+    const deviceType = useDeviceType();
     const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
     // Persisted draft state (survives navigation).
@@ -1182,13 +1199,21 @@ function NewSessionScreen() {
         [placeMachineIds, selectedProjectId, sessionList],
     );
     const pathItems = React.useMemo<PickerItem[]>(() => {
-        return places.map((place) => ({
+        const candidates = places.map((place) => ({
             key: place.key,
             label: place.projectId
                 ? place.name
                 : formatPathRelativeToHome(place.path, selectedHomeDir),
-            subtitle: place.projectId
-                ? formatPathRelativeToHome(place.path, selectedHomeDir)
+            namedProject: place.projectId !== undefined,
+        }));
+        const labelCounts = new Map<string, number>();
+        for (const candidate of candidates) {
+            labelCounts.set(candidate.label, (labelCounts.get(candidate.label) ?? 0) + 1);
+        }
+        return candidates.map(({ namedProject, ...candidate }) => ({
+            ...candidate,
+            subtitle: namedProject || (labelCounts.get(candidate.label) ?? 0) > 1
+                ? candidate.key
                 : undefined,
         }));
     }, [places, selectedHomeDir]);
@@ -2193,6 +2218,12 @@ function NewSessionScreen() {
         zenMode,
         windowWidth,
     });
+    const appliesWebPhoneTypographyFloor = shouldApplyPhoneWebTypographyFloor({
+        platform: Platform.OS,
+        deviceType,
+        windowWidth,
+        desktopLayoutMinWidth: NEW_SESSION_DESKTOP_MIN_WINDOW_WIDTH,
+    });
     const isNativeMobile = !isDesktop;
     React.useLayoutEffect(() => {
         navigation.setOptions({ headerShown: !sidebarLayout.showSidebar && !isNativeMobile });
@@ -2843,14 +2874,15 @@ function NewSessionScreen() {
     );
 
     return (
-        <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' && !sidebarLayout.showSidebar && !isNativeMobile ? Constants.statusBarHeight + headerHeight : 0}
-            style={[
-                styles.container,
-                isNativeMobile && { backgroundColor: 'transparent' },
-            ]}
-        >
+        <MobileTypographyFloor active={appliesWebPhoneTypographyFloor}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' && !sidebarLayout.showSidebar && !isNativeMobile ? Constants.statusBarHeight + headerHeight : 0}
+                style={[
+                    styles.container,
+                    isNativeMobile && { backgroundColor: 'transparent' },
+                ]}
+            >
             {isNativeMobile && (
                 <Header
                     title={<Text style={styles.mobileHeaderTitle}>{t('newSession.title')}</Text>}
@@ -3048,7 +3080,8 @@ function NewSessionScreen() {
                     />
                 ) : null}
             </BottomSheet>
-        </KeyboardAvoidingView>
+            </KeyboardAvoidingView>
+        </MobileTypographyFloor>
     );
 }
 
@@ -3661,7 +3694,7 @@ const pickerStyles = {
     searchInput: {
         flex: 1,
         minWidth: 0,
-        fontSize: 15,
+        fontSize: Platform.select({ web: 16, default: 15 }),
         padding: 0,
         ...Typography.default(),
         ...Platform.select({ web: { outlineStyle: 'none' } as any, default: {} }),
@@ -3701,7 +3734,7 @@ const pickerStyles = {
         }),
     } as const,
     embeddedPathTextInput: {
-        fontSize: 15,
+        fontSize: Platform.select({ web: 16, default: 15 }),
         minHeight: 34,
     } as const,
     pathMetaText: {

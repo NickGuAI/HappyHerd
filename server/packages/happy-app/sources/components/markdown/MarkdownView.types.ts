@@ -13,6 +13,8 @@ export type MarkdownLineCommentAnchor = Readonly<{
 
 export type MarkdownViewProps = {
     markdown: string;
+    /** Optional block alignment supplied by a visual host such as a Human message bubble. */
+    textAlign?: 'left' | 'center' | 'right';
     onOptionPress?: (option: Option) => void;
     sessionId?: string;
     enableWorkspaceLinks?: boolean;

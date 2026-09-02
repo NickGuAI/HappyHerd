@@ -2,6 +2,7 @@ import * as React from 'react';
 import {
     ActivityIndicator,
     Modal,
+    Platform,
     Pressable,
     ScrollView,
     TextInput,
@@ -14,6 +15,7 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
+import { resolvePhoneSafeTextEntryFontSize } from '@/utils/mobileTypographyFloor';
 import {
     buildAnswers,
     canSubmit,
@@ -340,7 +342,7 @@ const stylesheet = StyleSheet.create((theme) => ({
         borderColor: theme.colors.divider,
         paddingHorizontal: 14,
         paddingVertical: 12,
-        fontSize: 15,
+        fontSize: resolvePhoneSafeTextEntryFontSize(Platform.OS, 15),
         color: theme.colors.text,
         textAlignVertical: 'top',
     },

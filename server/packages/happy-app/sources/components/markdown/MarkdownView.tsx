@@ -97,6 +97,10 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
     const metadata = props.workspaceProvenance ?? session?.metadata;
     const contextWorkspaceLinkPress = useWorkspaceLinkPress();
     const workspaceLinkPress = props.onWorkspaceLinkPress ?? contextWorkspaceLinkPress;
+    const blockTextAlignment = React.useMemo(
+        () => props.textAlign ? { textAlign: props.textAlign } : undefined,
+        [props.textAlign],
+    );
 
     const resolveTarget = React.useCallback((url: string, label: string): LinkTarget | null => {
         const external = normalizeExternalMarkdownLink(url);
@@ -181,7 +185,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
                     const external = normalizeExternalMarkdownLink(url);
                     const reference = external || inlineSource ? null : resolveImage(url, image.alt ?? '');
                     if (!external && !inlineSource && !reference) {
-                        return <Text key={imageKey} selectable={selectable} style={styles.text}>{`![${image.alt ?? ''}](${url})`}</Text>;
+                        return <Text key={imageKey} selectable={selectable} style={[styles.text, blockTextAlignment]}>{`![${image.alt ?? ''}](${url})`}</Text>;
                     }
                     return (
                         <NativeMarkdownImage
@@ -199,15 +203,15 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
                         <View key={key} style={styles.mixedParagraph}>
                             {node.children.map((child, childIndex) => child.type === 'image'
                                 ? renderImage(child, `${key}:image:${childIndex}`)
-                                : <Text key={`${key}:text:${childIndex}`} selectable={selectable} style={styles.text}>{renderInline([child], `${key}:${childIndex}`)}</Text>)}
+                                : <Text key={`${key}:text:${childIndex}`} selectable={selectable} style={[styles.text, blockTextAlignment]}>{renderInline([child], `${key}:${childIndex}`)}</Text>)}
                         </View>
                     );
                 }
-                return <Text key={key} selectable={selectable} style={styles.text}>{renderInline(node.children, key)}</Text>;
+                return <Text key={key} selectable={selectable} style={[styles.text, blockTextAlignment]}>{renderInline(node.children, key)}</Text>;
             }
             case 'heading': {
                 const headingStyle = node.depth === 1 ? styles.heading1 : node.depth === 2 ? styles.heading2 : styles.heading;
-                return <Text key={key} selectable={selectable} style={headingStyle}>{renderInline(node.children, key)}</Text>;
+                return <Text key={key} selectable={selectable} style={[headingStyle, blockTextAlignment]}>{renderInline(node.children, key)}</Text>;
             }
             case 'thematicBreak': return <View key={key} style={styles.rule} />;
             case 'blockquote': return <View key={key} style={styles.quote}>{node.children?.map(renderBlock)}</View>;
@@ -246,7 +250,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
                                     <Text style={styles.listMarker}>{marker}</Text>
                                     <View style={styles.listItemBody}>
                                         {item.children?.map((child, childIndex) => child.type === 'paragraph'
-                                            ? <Text key={`${key}:${itemIndex}:text:${childIndex}`} selectable={selectable} style={styles.listText}>{renderInline(child.children, `${key}:${itemIndex}:${childIndex}`)}</Text>
+                                            ? <Text key={`${key}:${itemIndex}:text:${childIndex}`} selectable={selectable} style={[styles.listText, blockTextAlignment]}>{renderInline(child.children, `${key}:${itemIndex}:${childIndex}`)}</Text>
                                             : <React.Fragment key={`${key}:${itemIndex}:block:${childIndex}`}>{renderBlock(child, childIndex)}</React.Fragment>)}
                                     </View>
                                 </View>
@@ -259,7 +263,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
             case 'html': return null;
             default: return node.children?.map(renderBlock) ?? null;
         }
-    }, [openTarget, props.inlineImages, renderInline, resolveImage, selectable]);
+    }, [blockTextAlignment, openTarget, props.inlineImages, renderInline, resolveImage, selectable]);
 
     const content = <View style={styles.root}>{root.children?.map(renderBlock)}</View>;
     if (props.externalCopyHandler || !markdownCopyV2 || Platform.OS === 'web') return content;

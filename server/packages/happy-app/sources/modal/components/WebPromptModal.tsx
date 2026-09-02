@@ -5,6 +5,7 @@ import { PromptModalConfig } from '../types';
 import { Typography } from '@/constants/Typography';
 import { useUnistyles } from 'react-native-unistyles';
 import { MobileGlassSurface } from '@/components/MobileGlass';
+import { resolvePhoneSafeTextEntryFontSize } from '@/utils/mobileTypographyFloor';
 
 interface WebPromptModalProps {
     config: PromptModalConfig;
@@ -95,7 +96,7 @@ export function WebPromptModal({ config, onClose, onConfirm }: WebPromptModalPro
             borderRadius: 8,
             paddingHorizontal: 10,
             marginTop: 16,
-            fontSize: 14,
+            fontSize: resolvePhoneSafeTextEntryFontSize(Platform.OS, 14),
             color: theme.colors.text,
             backgroundColor: theme.colors.input.background
         },
