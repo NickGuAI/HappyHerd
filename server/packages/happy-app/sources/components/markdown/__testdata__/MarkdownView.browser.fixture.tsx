@@ -42,6 +42,7 @@ const markdown = [
 
 declare global {
     interface Window {
+        __MARKDOWN_LINE_COMMENTS__?: number[];
         __MARKDOWN_OPTION_PRESSES__?: string[];
     }
 }
@@ -53,15 +54,32 @@ function MarkdownFixture() {
             data-testid="markdown-caller"
             style={{
                 width: '100%',
-                minHeight: '100vh',
+                height: '100vh',
                 padding: 16,
+                overflow: 'hidden',
                 backgroundColor: theme.colors.surface,
                 color: '#000000',
             }}
         >
-            <section data-testid="markdown-host" style={{ width: '100%', maxWidth: 720 }}>
+            <section
+                data-testid="markdown-host"
+                style={{
+                    width: '100%',
+                    maxWidth: 720,
+                    height: '100%',
+                    paddingLeft: 28,
+                    overflowY: 'auto',
+                    overscrollBehavior: 'contain',
+                }}
+            >
                 <MarkdownView
                     markdown={markdown}
+                    onLineComment={({ line }) => {
+                        window.__MARKDOWN_LINE_COMMENTS__ = [
+                            ...(window.__MARKDOWN_LINE_COMMENTS__ ?? []),
+                            line,
+                        ];
+                    }}
                     onOptionPress={(option) => {
                         window.__MARKDOWN_OPTION_PRESSES__ = [
                             ...(window.__MARKDOWN_OPTION_PRESSES__ ?? []),

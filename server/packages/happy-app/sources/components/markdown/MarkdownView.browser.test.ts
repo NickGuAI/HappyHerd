@@ -289,6 +289,7 @@ describe('MarkdownView browser theme and option parity', () => {
         await page.goto(`${origin}/?theme=dark`);
 
         const root = page.locator('.hh-markdown-root');
+        const scrollHost = page.getByTestId('markdown-host');
         const tableWrap = root.locator('.hh-markdown-table-wrap');
         const table = tableWrap.locator('table');
         await table.waitFor();
@@ -309,7 +310,9 @@ describe('MarkdownView browser theme and option parity', () => {
                 cellWordBreak: cellStyle.wordBreak,
                 cellOverflowWrap: cellStyle.overflowWrap,
                 minimumTextSize: Math.min(...textElements.map((candidate) => Number.parseFloat(getComputedStyle(candidate).fontSize))),
-                pageCanScrollVertically: document.documentElement.scrollHeight > window.innerHeight,
+                hostCanScrollVertically: element.closest('[data-testid="markdown-host"]')!.scrollHeight
+                    > element.closest('[data-testid="markdown-host"]')!.clientHeight,
+                windowCanScrollVertically: document.documentElement.scrollHeight > window.innerHeight,
             };
         });
         expect(initial).toMatchObject({
@@ -319,7 +322,8 @@ describe('MarkdownView browser theme and option parity', () => {
             cellWordBreak: 'normal',
             cellOverflowWrap: 'break-word',
             minimumTextSize: 16,
-            pageCanScrollVertically: true,
+            hostCanScrollVertically: true,
+            windowCanScrollVertically: false,
         });
         expect(initial.scrollWidth).toBeGreaterThan(initial.clientWidth);
         expect(initial.cellWidth).toBeGreaterThanOrEqual(128);
@@ -357,12 +361,23 @@ describe('MarkdownView browser theme and option parity', () => {
                 });
             }
             await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-            await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+            await expect.poll(() => scrollHost.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
         } else {
             await tableWrap.hover();
             await page.mouse.wheel(2_000, 0);
+            await page.mouse.wheel(0, 1_000);
+            await expect.poll(() => scrollHost.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
         }
         await expect.poll(() => tableWrap.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+
+        const tableReviewButton = root.locator('.hh-markdown-table-review > .hh-markdown-comment-gutter');
+        await tableReviewButton.scrollIntoViewIfNeeded();
+        if (viewport.hasTouch) {
+            await tableReviewButton.tap();
+        } else {
+            await tableReviewButton.click();
+        }
+        await expect(page.evaluate(() => window.__MARKDOWN_LINE_COMMENTS__)).resolves.toEqual([14]);
 
         await tableWrap.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
         const farRight = await tableWrap.evaluate((element) => {

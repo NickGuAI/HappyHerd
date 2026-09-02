@@ -1200,7 +1200,7 @@ function NewSessionScreen() {
             label: place.projectId
                 ? place.name
                 : formatPathRelativeToHome(place.path, selectedHomeDir),
-            subtitle: place.key,
+            subtitle: place.projectId ? place.key : undefined,
         }));
     }, [places, selectedHomeDir]);
 
