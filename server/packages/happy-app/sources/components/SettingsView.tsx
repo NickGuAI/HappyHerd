@@ -83,14 +83,14 @@ export const SettingsView = React.memo(function SettingsView({
 }) {
     const { theme } = useUnistyles();
     const router = useRouter();
-    const appVersion = Constants.expoConfig?.version || '1.0.0';
+    const appVersion = Constants.expoConfig?.version;
     const runtimeVersion = typeof Constants.expoConfig?.runtimeVersion === 'string'
         ? Constants.expoConfig.runtimeVersion
         : undefined;
     const versionDetail = [
-        appVersion,
-        runtimeVersion ? `runtime ${runtimeVersion}` : undefined,
-    ].filter(Boolean).join(' / ');
+        appVersion ? `${PRODUCT.displayName} ${appVersion}` : PRODUCT.displayName,
+        runtimeVersion ? `${t('common.runtime')} ${runtimeVersion}` : undefined,
+    ].filter(Boolean).join(' · ');
     const versionSubtitle = formatBuildSubtitle(getBuildConfig());
     const auth = useAuth();
     const [devModeEnabled, setDevModeEnabled] = useLocalSettingMutable('devModeEnabled');

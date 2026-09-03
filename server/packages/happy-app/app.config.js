@@ -1,5 +1,6 @@
 const { execFileSync } = require('node:child_process');
 const productMetadata = require('./product-metadata.json');
+const happyHerdCliPackage = require('../happy-cli/package.json');
 
 const variant = process.env.APP_ENV || 'development';
 const name = {
@@ -60,7 +61,7 @@ export default {
     expo: {
         name,
         slug: "happy",
-        version: "1.7.0",
+        version: happyHerdCliPackage.version,
         runtimeVersion: "21",
         orientation: "default",
         icon: "./sources/assets/images/icon.png",

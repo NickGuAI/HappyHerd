@@ -6,6 +6,7 @@ import { resolve } from 'node:path';
 const repoRoot = resolve(import.meta.dirname, '..');
 const appRoot = resolve(repoRoot, 'server/packages/happy-app');
 const metadata = JSON.parse(readFileSync(resolve(appRoot, 'product-metadata.json'), 'utf8'));
+const cliPackage = JSON.parse(readFileSync(resolve(appRoot, '../happy-cli/package.json'), 'utf8'));
 const appConfig = readFileSync(resolve(appRoot, 'app.config.js'), 'utf8');
 const settingsView = readFileSync(resolve(appRoot, 'sources/components/SettingsView.tsx'), 'utf8');
 
@@ -21,7 +22,13 @@ for (const [key, value] of Object.entries(expected)) {
 if (!appConfig.includes("require('./product-metadata.json')") || !appConfig.includes('production: productMetadata.displayName')) {
   throw new Error('Expo/Web display name must be sourced from product-metadata.json');
 }
-for (const token of ['PRODUCT.repositoryDisplay', 'PRODUCT.repositoryUrl', 'PRODUCT.issueUrl']) {
+if (typeof cliPackage.version !== 'string' || cliPackage.version.length === 0) {
+  throw new Error('HappyHerd CLI package must declare a version');
+}
+if (!appConfig.includes("require('../happy-cli/package.json')") || !appConfig.includes('version: happyHerdCliPackage.version')) {
+  throw new Error('Expo app version must be sourced from the HappyHerd CLI package');
+}
+for (const token of ['PRODUCT.displayName', 'PRODUCT.repositoryDisplay', 'PRODUCT.repositoryUrl', 'PRODUCT.issueUrl']) {
   if (!settingsView.includes(token)) {
     throw new Error(`About/support UI must use ${token}`);
   }
