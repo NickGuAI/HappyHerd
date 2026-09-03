@@ -122,7 +122,7 @@ describe('MarkdownView browser theme and option parity', () => {
     it.each([
         ['Web Desktop', { width: 1440, height: 900, hasTouch: false, isMobile: false }],
         ['390x844 Web Mobile', { width: 390, height: 844, hasTouch: true, isMobile: true }],
-    ])('renders dark themed Markdown and original chips on %s', async (_surface, viewport) => {
+    ])('renders dark themed Markdown, comment gutters, and original chips on %s', async (_surface, viewport) => {
         const context = await browser.newContext({
             viewport: { width: viewport.width, height: viewport.height },
             hasTouch: viewport.hasTouch,
@@ -136,6 +136,57 @@ describe('MarkdownView browser theme and option parity', () => {
         const options = root.locator('.hh-markdown-options');
         const chips = options.locator('.hh-markdown-option');
         await chips.first().waitFor();
+
+        const firstLine = root.locator('p[data-source-line="1"]').first();
+        const firstLineGutter = firstLine.locator('.hh-markdown-comment-gutter');
+        if (viewport.hasTouch) {
+            await expect.poll(() => firstLineGutter.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
+        } else {
+            await expect(firstLineGutter.evaluate((element) => getComputedStyle(element).opacity)).resolves.toBe('0');
+            await firstLine.hover();
+            await expect.poll(() => firstLineGutter.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
+            await page.mouse.move(viewport.width - 1, viewport.height - 1);
+            await expect.poll(() => firstLineGutter.evaluate((element) => getComputedStyle(element).opacity)).toBe('0');
+            await page.keyboard.press('Tab');
+            await expect(firstLineGutter.evaluate((element) => element === document.activeElement)).resolves.toBe(true);
+            await expect.poll(() => firstLineGutter.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
+        }
+        const gutterLayout = await firstLineGutter.evaluate((element) => {
+            const rect = element.getBoundingClientRect();
+            const rootRect = element.closest('.hh-markdown-root')!.getBoundingClientRect();
+            const hostRect = element.closest('[data-testid="markdown-host"]')!.getBoundingClientRect();
+            const style = getComputedStyle(element);
+            return {
+                width: rect.width,
+                height: rect.height,
+                insideRoot: rect.left >= rootRect.left - 0.5 && rect.right <= rootRect.right + 0.5,
+                insideHost: rect.left >= hostRect.left - 0.5 && rect.right <= hostRect.right + 0.5,
+                backgroundColor: style.backgroundColor,
+                color: style.color,
+                borderRadius: style.borderRadius,
+                borderTopWidth: style.borderTopWidth,
+                display: style.display,
+                alignItems: style.alignItems,
+                justifyContent: style.justifyContent,
+            };
+        });
+        expect(gutterLayout).toEqual({
+            width: 20,
+            height: 20,
+            insideRoot: true,
+            insideHost: true,
+            backgroundColor: 'rgb(210, 153, 34)',
+            color: 'rgb(13, 17, 23)',
+            borderRadius: '4px',
+            borderTopWidth: '0px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+        });
+        if (viewport.hasTouch) await firstLineGutter.tap();
+        else await firstLineGutter.click();
+        await expect(page.evaluate(() => window.__MARKDOWN_LINE_COMMENTS__)).resolves.toEqual([1]);
+
         await expect(options.locator('ul').count()).resolves.toBe(0);
         await expect(options.locator('li').count()).resolves.toBe(0);
         await expect(root.locator('ul').count()).resolves.toBe(1);

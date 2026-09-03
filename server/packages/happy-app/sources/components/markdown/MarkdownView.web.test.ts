@@ -209,6 +209,7 @@ describe('MarkdownView web parity', () => {
             }));
         });
         const items = renderer.root.findAllByType('li');
+        expect(renderer.root.findByProps({ className: 'hh-markdown-root hh-markdown-review-root' })).toBeDefined();
         expect(items.map((item: any) => item.props['data-source-line'])).toEqual([1, 2]);
         const gutter = items[1].find((node: any) => node.type === 'button' && node.props.className === 'hh-markdown-comment-gutter');
         act(() => gutter.props.onClick({ preventDefault: vi.fn(), stopPropagation: vi.fn() }));

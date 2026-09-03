@@ -4,6 +4,7 @@
 - A line-linked Markdown link (for example the `corrections.md` line-15 reproduction) now stays in the rendered, commentable **Preview** and reveals the matching rendered review unit — including the exact table row — instead of switching to a raw source surface. Raw text/code keeps its read-only line-commentable Preview.
 - Human message text within a right-aligned, vertically centered bubble is left-aligned again (was centered) and wraps naturally for short, multiline, Latin, and CJK content, keeping long-press copy.
 - On phone Web, touched file-viewer and Human-message surfaces — including the Markdown preview override and small labels — compute to at least 16px while the input anti-zoom guard remains intact.
+- In commentable rendered Markdown previews on Web Desktop and 390×844 Web Mobile, the 20×20 line-comment `+` now stays fully inside the Workspace gutter and matches the existing Pierre source-code comment button, while retaining hover/focus visibility on desktop and persistent visibility on touch.
 
 # September 2 — Project picker, chat presentation, and mobile layout enhancements
 

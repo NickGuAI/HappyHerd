@@ -783,10 +783,75 @@ describe('Desktop workspace browser interaction', () => {
         await page.close();
     }, 10_000);
 
-    async function verifyMarkdownReviewJourney(page: Page, surfaceId: string, feedbackIndex = 0, touch = false) {
+    type ReviewAffordanceVisual = {
+        width: number;
+        height: number;
+        backgroundColor: string;
+        color: string;
+        borderTopWidth: string;
+        borderRadius: string;
+        display: string;
+        alignItems: string;
+        justifyContent: string;
+        padding: string;
+    };
+
+    async function verifyMarkdownReviewJourney(page: Page, surfaceId: string, feedbackIndex = 0, touch = false): Promise<ReviewAffordanceVisual> {
         const workspace = page.getByTestId(surfaceId);
         const markdownPanel = workspace.getByTestId('desktop-file-panel:/workspace/demo.md');
-        await markdownPanel.locator('.hh-markdown-root').waitFor();
+        const markdownRoot = markdownPanel.locator('.hh-markdown-root');
+        await markdownRoot.waitFor();
+
+        const heading = markdownRoot.locator('h1[data-source-line="1"]');
+        const headingGutter = heading.locator('.hh-markdown-comment-gutter');
+        if (touch) {
+            await expect.poll(() => headingGutter.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
+        } else {
+            await expect(headingGutter.evaluate((element) => getComputedStyle(element).opacity)).resolves.toBe('0');
+            await heading.hover();
+            await expect.poll(() => headingGutter.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
+        }
+        const affordance = await headingGutter.evaluate((element) => {
+            const rect = element.getBoundingClientRect();
+            const style = getComputedStyle(element);
+            const clippingAncestors: Array<{ left: number; right: number }> = [];
+            for (let ancestor = element.parentElement; ancestor; ancestor = ancestor.parentElement) {
+                const ancestorStyle = getComputedStyle(ancestor);
+                if (['auto', 'clip', 'hidden', 'scroll'].includes(ancestorStyle.overflowX)) {
+                    const ancestorRect = ancestor.getBoundingClientRect();
+                    clippingAncestors.push({ left: ancestorRect.left, right: ancestorRect.right });
+                }
+            }
+            return {
+                width: rect.width,
+                height: rect.height,
+                backgroundColor: style.backgroundColor,
+                color: style.color,
+                borderTopWidth: style.borderTopWidth,
+                borderRadius: style.borderRadius,
+                display: style.display,
+                alignItems: style.alignItems,
+                justifyContent: style.justifyContent,
+                padding: style.padding,
+                fullyVisible: clippingAncestors.every((ancestor) => (
+                    rect.left >= ancestor.left - 0.5 && rect.right <= ancestor.right + 0.5
+                )),
+            };
+        });
+        expect(affordance.fullyVisible).toBe(true);
+        expect(affordance.width).toBe(20);
+        expect(affordance.height).toBe(20);
+        expect(affordance.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
+        expect(affordance.borderTopWidth).toBe('0px');
+
+        const evidenceDirectory = process.env.HAPPYHERD_MARKDOWN_COMMENT_EVIDENCE_DIR?.trim();
+        if (evidenceDirectory) {
+            await markdownPanel.screenshot({
+                path: resolve(evidenceDirectory, touch
+                    ? 'task-6a9931b8-markdown-comment-mobile.png'
+                    : 'task-6a9931b8-markdown-comment-desktop.png'),
+            });
+        }
 
         const sessionRelativeLink = markdownPanel.getByRole('link', { name: 'Open session relative' });
         if (touch) await sessionRelativeLink.tap();
@@ -821,6 +886,7 @@ describe('Desktop workspace browser interaction', () => {
         expect(markdownFeedback).toContain('First line note');
         expect(markdownFeedback).toContain('Line: 4');
         expect(markdownFeedback).toContain('Second line note');
+        return affordance;
     }
 
     async function verifyMachineMarkdownLinkJourney(page: Page, surfaceId: string) {
@@ -885,7 +951,14 @@ describe('Desktop workspace browser interaction', () => {
         await expect.poll(async () => locator.evaluate((element) => element.className)).toContain(className);
     }
 
-    async function verifyCodeReviewJourney(page: Page, surfaceId: string, feedbackIndex: number, switchTab = true, touch = false) {
+    async function verifyCodeReviewJourney(
+        page: Page,
+        surfaceId: string,
+        feedbackIndex: number,
+        switchTab = true,
+        touch = false,
+        markdownAffordance?: ReviewAffordanceVisual,
+    ) {
         const workspace = page.getByTestId(surfaceId);
         if (switchTab) await workspace.getByRole('tab', { name: 'Open review.ts' }).click();
         const sourcePanel = workspace.getByTestId('desktop-file-panel:/workspace/review.ts');
@@ -894,6 +967,28 @@ describe('Desktop workspace browser interaction', () => {
         const codeScroller = sourcePanel.locator('[data-code]');
         await expect.poll(() => codeScroller.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
         if (!touch) {
+            await sourcePanel.locator('[data-line="1"]').hover();
+            const sourceAffordance = sourcePanel.getByRole('button', { name: 'Comment on hovered line' });
+            await expect(sourceAffordance.isVisible()).resolves.toBe(true);
+            if (markdownAffordance) {
+                const sourceVisual = await sourceAffordance.evaluate((element) => {
+                    const rect = element.getBoundingClientRect();
+                    const style = getComputedStyle(element);
+                    return {
+                        width: rect.width,
+                        height: rect.height,
+                        backgroundColor: style.backgroundColor,
+                        color: style.color,
+                        borderTopWidth: style.borderTopWidth,
+                        borderRadius: style.borderRadius,
+                        display: style.display,
+                        alignItems: style.alignItems,
+                        justifyContent: style.justifyContent,
+                        padding: style.padding,
+                    };
+                });
+                expect(markdownAffordance).toMatchObject(sourceVisual);
+            }
             await codeScroller.hover();
             await page.mouse.wheel(600, 0);
             await expect.poll(() => codeScroller.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
@@ -1003,9 +1098,9 @@ describe('Desktop workspace browser interaction', () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
         const pageErrors = recordPageErrors(page);
         await page.goto(origin + '?file-review=desktop');
-        await verifyMarkdownReviewJourney(page, 'file-review-desktop');
+        const markdownAffordance = await verifyMarkdownReviewJourney(page, 'file-review-desktop');
         await verifyMachineMarkdownLinkJourney(page, 'file-review-desktop');
-        await verifyCodeReviewJourney(page, 'file-review-desktop', 1);
+        await verifyCodeReviewJourney(page, 'file-review-desktop', 1, true, false, markdownAffordance);
         await verifyMarkdownSourceReviewJourney(page, 'file-review-desktop');
         await verifyCanvasReviewJourney(page, 'file-review-desktop', true, 2);
         expect(pageErrors).toEqual([]);
