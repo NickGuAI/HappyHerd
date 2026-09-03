@@ -67,9 +67,11 @@ import {
   createChildSideChat,
   formatSideChatDelegationPrompt,
   sameSideChatDelegationBrief,
+  sameSideChatLaunchOptions,
 } from '@/commands/sideChat';
 import type {
   SideChatDelegationBrief,
+  SideChatLaunchOptions,
   SideChatLifecycleReceipt,
   SideChatLifecycleRequest,
   SideChatStatusReceipt,
@@ -1515,6 +1517,7 @@ export async function startDaemon(): Promise<void> {
     let createLocalSideChat = async (
       _parentSessionId: string,
       _brief: SideChatDelegationBrief | null,
+      _launch: SideChatLaunchOptions | undefined,
     ): Promise<LocalSideChatCreation> => {
       throw new Error('HappyHerd daemon is still starting; retry side-chat creation.');
     };
@@ -1675,9 +1678,10 @@ export async function startDaemon(): Promise<void> {
 
     const inFlightLocalSideChats = new Map<string, {
       brief: SideChatDelegationBrief | null;
+      launch: SideChatLaunchOptions | undefined;
       creation: Promise<LocalSideChatCreation>;
     }>();
-    createLocalSideChat = async (parentSessionId, brief) => {
+    createLocalSideChat = async (parentSessionId, brief, launch) => {
       let parent: { id: string; metadata: Metadata };
       try {
         const session = await resolveLocalReconnectableSession(parentSessionId);
@@ -1692,14 +1696,27 @@ export async function startDaemon(): Promise<void> {
         const briefMatches = existing.brief === null || brief === null
           ? existing.brief === brief
           : sameSideChatDelegationBrief(existing.brief, brief);
-        if (!briefMatches) {
-          throw new Error(`Side-chat creation for parent ${parent.id} is already carrying a different delegation brief.`);
+        if (!briefMatches || !sameSideChatLaunchOptions(existing.launch, launch)) {
+          throw new Error(`Side-chat creation for parent ${parent.id} is already carrying a different delegation brief or launch selection.`);
         }
         return existing.creation;
       }
 
       const creation = (async (): Promise<LocalSideChatCreation> => {
         const isCodexParent = parent.metadata.flavor === 'codex';
+        const effectiveLaunchSettings = launch
+          ? resolveEffectiveSessionSettings(machine.metadata, machine.id, {
+            provider: isCodexParent ? 'codex' : 'claude',
+            ...(launch.model ? { model: launch.model } : {}),
+            ...(launch.effort ? { effort: launch.effort } : {}),
+          })
+          : undefined;
+        const effectiveLaunch = effectiveLaunchSettings
+          ? {
+            ...(effectiveLaunchSettings.model ? { model: effectiveLaunchSettings.model } : {}),
+            ...(effectiveLaunchSettings.effort ? { effort: effectiveLaunchSettings.effort } : {}),
+          }
+          : undefined;
         const inheritedProviderAccount = isCodexParent
           ? parent.metadata.providerAccount?.trim() || null
           : null;
@@ -1761,10 +1778,14 @@ export async function startDaemon(): Promise<void> {
           },
           createMachineSession: async ({ machine: _target, ...options }) => spawnSession({
             ...options,
+            ...(effectiveLaunchSettings ? {
+              permissionMode: effectiveLaunchSettings.permission ?? undefined,
+              effectiveSettings: effectiveLaunchSettings,
+            } : {}),
             ...(codexHome ? { codexHome } : {}),
             ...(isCodexParent ? { providerAccount: providerAccount ?? null } : {}),
           }),
-        });
+        }, effectiveLaunch);
         if (brief === null) {
           return { ...created, briefDelivery: null };
         }
@@ -1784,7 +1805,7 @@ export async function startDaemon(): Promise<void> {
           };
         }
       })();
-      inFlightLocalSideChats.set(parent.id, { brief, creation });
+      inFlightLocalSideChats.set(parent.id, { brief, launch, creation });
       try {
         return await creation;
       } finally {

@@ -120,7 +120,9 @@ happyherd session side-chat create <parent-session-id> \
   --dependencies '<inputs or none>' \
   --write-ownership '<owned files or resources>' \
   --verification '<required proof>' \
-  --handoff '<result and evidence to return>'
+  --handoff '<result and evidence to return>' \
+  --model '<provider model>' \
+  --effort '<provider effort>'
 happyherd session side-chat list <parent-session-id>
 happyherd session side-chat status <child-session-id>
 happyherd session side-chat inspect <child-session-id>
@@ -144,6 +146,13 @@ timestamp. An unavailable metric is `null`, and the overall resource status is
 `ok`, `partial`, or `failed`; resource collection never changes an otherwise
 successful create. No background monitor, poller, telemetry service, or extra
 daemon process is added. Other lifecycle receipts remain `schemaVersion: 1`.
+The optional `--model` and `--effort` values are validated by the owning daemon
+against the parent provider's current capability catalog before the child is
+forked. Invalid or unavailable combinations fail without spawning. Valid
+selections use the existing machine-session settings contract, which verifies
+that the child persisted the exact effective settings before create reports
+success. Omitting both options preserves the existing defaults. Human one-click
+creation continues to send only the parent session ID.
 A failed receipt sets a nonzero exit code and names the exact failed phase; a
 post-spawn `deliver-brief` failure retains the created child ID. `stop` waits
 for the daemon-owned

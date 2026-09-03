@@ -8,6 +8,7 @@ import {
   normalizeSideChatLifecycleRequest,
   parseSideChatLifecycleRequest,
   sameSideChatDelegationBrief,
+  sameSideChatLaunchOptions,
   sideChatHelp,
   type ResolvedSideChatMachine,
   type SideChatCommandDependencies,
@@ -36,6 +37,7 @@ const briefArgs = [
   '--verification', brief.verification,
   '--handoff', brief.handoff,
 ];
+const launchArgs = ['--model', 'gpt-5.6-sol', '--effort', 'xhigh'];
 
 function dependencies(
   metadata: Record<string, unknown> = {
@@ -179,6 +181,32 @@ describe('createChildSideChat', () => {
     });
   });
 
+  it('passes explicit model and effort to the side-chat spawn boundary', async () => {
+    const deps = dependencies({
+      flavor: 'codex',
+      machineId: machine.id,
+      path: '/srv/project',
+      codexThreadId: 'codex-parent',
+    });
+    vi.mocked(deps.machineRpc).mockResolvedValue({
+      type: 'success',
+      newCodexThreadId: 'codex-child',
+    });
+
+    await expect(createChildSideChat(parentId, deps, {
+      model: 'gpt-5.6-sol',
+      effort: 'xhigh',
+    })).resolves.toEqual({ sessionId: 'happy-child' });
+    expect(deps.createMachineSession).toHaveBeenCalledWith(expect.objectContaining({
+      agent: 'codex',
+      modelMode: 'gpt-5.6-sol',
+      effortLevel: 'xhigh',
+      resumeCodexThreadId: 'codex-child',
+      parentSessionId: parentId,
+      isSideChat: true,
+    }));
+  });
+
   it.each(['grok', 'acp', 'gemini', 'agy', 'opencode']) (
     'rejects unsupported %s parents without trying another provider',
     async (flavor) => {
@@ -317,6 +345,17 @@ describe('parseSideChatLifecycleRequest', () => {
       request: { action: 'create', parentSessionId: parentId, brief },
       json: true,
     });
+    expect(parseSideChatLifecycleRequest([
+      'create', parentId, ...briefArgs, ...launchArgs, '--json',
+    ])).toEqual({
+      request: {
+        action: 'create',
+        parentSessionId: parentId,
+        brief,
+        launch: { model: 'gpt-5.6-sol', effort: 'xhigh' },
+      },
+      json: true,
+    });
     expect(parseSideChatLifecycleRequest(['list', parentId])).toEqual({
       request: { action: 'list', parentSessionId: parentId },
       json: false,
@@ -375,6 +414,8 @@ describe('parseSideChatLifecycleRequest', () => {
     expect(help).toContain('side-chat inspect <child-session-id>');
     expect(help).toContain('side-chat pause <child-session-id>');
     expect(help).toContain('side-chat resume <child-session-id>');
+    expect(help).toContain('[--model <model>] [--effort <effort>]');
+    expect(help).toContain("validated against the parent machine's");
     expect(help).toContain('receipts use the canonical action names');
   });
 
@@ -396,6 +437,8 @@ describe('parseSideChatLifecycleRequest', () => {
     ])).toThrow('Side-chat creation requires: --handoff');
     expect(() => parseSideChatLifecycleRequest(['status', 'child', '--outcome', 'wrong action']))
       .toThrow('supported only with the create action');
+    expect(() => parseSideChatLifecycleRequest(['status', 'child', '--effort', 'xhigh']))
+      .toThrow('Launch options are supported only with the create action');
     expect(() => parseSideChatLifecycleRequest([
       'create', parentId,
       ...briefArgs,
@@ -405,6 +448,17 @@ describe('parseSideChatLifecycleRequest', () => {
       'create', parentId,
       '--outcome', '--scope', 'wrongly consumed',
     ])).toThrow('Side-chat option --outcome requires a non-empty value');
+    expect(() => parseSideChatLifecycleRequest([
+      'create', parentId,
+      ...briefArgs,
+      '--model', 'gpt-5.6-sol',
+      '--model', 'gpt-5.5',
+    ])).toThrow('Duplicate side-chat option: --model');
+    expect(() => parseSideChatLifecycleRequest([
+      'create', parentId,
+      ...briefArgs,
+      '--effort', '--json',
+    ])).toThrow('Side-chat option --effort requires a non-empty value');
 
     const markdownBriefArgs = [...briefArgs];
     markdownBriefArgs[1] = '- deliver only the owned files';
@@ -451,6 +505,14 @@ describe('formatSideChatDelegationPrompt', () => {
   it('compares the complete structured brief for concurrent creation accountability', () => {
     expect(sameSideChatDelegationBrief(brief, { ...brief })).toBe(true);
     expect(sameSideChatDelegationBrief(brief, { ...brief, handoff: 'Different handoff' })).toBe(false);
+    expect(sameSideChatLaunchOptions(
+      { model: 'gpt-5.6-sol', effort: 'xhigh' },
+      { model: 'gpt-5.6-sol', effort: 'xhigh' },
+    )).toBe(true);
+    expect(sameSideChatLaunchOptions(
+      { model: 'gpt-5.6-sol', effort: 'xhigh' },
+      { model: 'gpt-5.6-sol', effort: 'max' },
+    )).toBe(false);
   });
 });
 

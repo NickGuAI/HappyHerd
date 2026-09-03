@@ -4,6 +4,7 @@ import type {
   SideChatListReceipt,
   SideChatLifecycleReceipt,
   SideChatLifecycleRequest,
+  SideChatLaunchOptions,
   SideChatPhaseReceipt,
   SideChatResourceUsage,
   SideChatSingleReceipt,
@@ -22,6 +23,7 @@ export type DaemonSideChatLifecycleDependencies = {
   create: (
     parentSessionId: string,
     brief: SideChatDelegationBrief | null,
+    launch: SideChatLaunchOptions | undefined,
   ) => Promise<{ sessionId: string; briefDelivery: SideChatOperationResult | null }>;
   listSessionIds: (parentSessionId: string) => Promise<string[]>;
   read: (sessionId: string) => Promise<DaemonSideChatRecord>;
@@ -72,7 +74,7 @@ export class DaemonSideChatLifecycle {
 
   async execute(request: SideChatLifecycleRequest): Promise<SideChatLifecycleReceipt> {
     switch (request.action) {
-      case 'create': return this.create(request.parentSessionId, request.brief);
+      case 'create': return this.create(request.parentSessionId, request.brief, request.launch);
       case 'list': return this.list(request.parentSessionId);
       case 'status': return this.status(request.sessionId);
       case 'stop': return this.stop(request.sessionId);
@@ -85,12 +87,13 @@ export class DaemonSideChatLifecycle {
   private async create(
     parentSessionId: string,
     brief: SideChatDelegationBrief | null,
+    launch: SideChatLaunchOptions | undefined,
   ): Promise<SideChatSingleReceipt> {
     const resourcePromise = this.dependencies.sampleResources()
       .catch(() => failedHostResourceUsage());
     let created: Awaited<ReturnType<DaemonSideChatLifecycleDependencies['create']>>;
     try {
-      created = await this.dependencies.create(parentSessionId, brief);
+      created = await this.dependencies.create(parentSessionId, brief, launch);
     } catch (error) {
       return {
         ...failedSingle('create', null, 'resolve', error),
