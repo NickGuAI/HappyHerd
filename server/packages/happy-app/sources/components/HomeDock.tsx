@@ -775,7 +775,7 @@ export const HomeDock = React.memo(({
         && Boolean(selectedMachine?.id && uploadDirectory)
         && workspaceEntries.length < MAX_WORKSPACE_CONTEXT_ITEMS
         && !dshUploadBusy;
-    const canPickDshPhotos = expImageUpload && canPickDshWorkspaceFiles;
+    const canPickDshPhotos = canPickDshWorkspaceFiles;
     const handlePickDshPhotos = React.useCallback(async () => {
         if (!canPickDshPhotos) return;
         const images = await pickImagesForUpload(

@@ -1607,8 +1607,7 @@ export function SessionViewLoaded({
     });
     const dshUploadBusy = flavor === 'dsh'
         && (workspaceUploader.state.phase === 'uploading' || workspaceUploader.state.phase === 'cancelling');
-    const canUploadDshPhotos = expImageUpload
-        && flavor === 'dsh'
+    const canUploadDshPhotos = flavor === 'dsh'
         && Boolean(machineId && session.metadata?.path)
         && selectedContextEntries.length < MAX_WORKSPACE_CONTEXT_ITEMS
         && !dshUploadBusy;

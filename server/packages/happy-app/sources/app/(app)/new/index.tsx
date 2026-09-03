@@ -1359,8 +1359,7 @@ function NewSessionScreen() {
         && supportsImageAttachmentsForFlavor(selectedAgent, machineCatalog?.acp);
     const dshUploadBusy = selectedAgent === 'dsh'
         && (workspaceUploader.state.phase === 'uploading' || workspaceUploader.state.phase === 'cancelling');
-    const canUploadDshPhotos = expImageUpload
-        && selectedAgent === 'dsh'
+    const canUploadDshPhotos = selectedAgent === 'dsh'
         && Boolean(selectedMachineId && uploadDirectory)
         && workspaceEntries.length < MAX_WORKSPACE_CONTEXT_ITEMS
         && !dshUploadBusy;

@@ -17,6 +17,8 @@ describe('HomeDock focused prompt placeholder', () => {
 describe('HomeDock dsh workspace attachments', () => {
     it('reuses the machine uploader for Photos and unrestricted Device Files', () => {
         expect(homeDockSource).toContain('const workspaceUploader = useMachineFileUpload({');
+        expect(homeDockSource).toContain('const canPickDshPhotos = canPickDshWorkspaceFiles;');
+        expect(homeDockSource).not.toContain('const canPickDshPhotos = expImageUpload');
         expect(homeDockSource).toContain('const images = await pickImagesForUpload(');
         expect(homeDockSource).toContain('await workspaceUploader.uploadAssets(images);');
         expect(homeDockSource).toContain('onPickDeviceFiles={canPickDshWorkspaceFiles');

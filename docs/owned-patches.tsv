@@ -258,3 +258,4 @@ ALL_PROVIDER_SIDE_CHATS	accepted	feat(side-chat): support every daemon provider	
 ALL_PROVIDER_SIDE_CHATS	accepted	fix(side-chat): bound recent message cursor	server/packages/happy-cli/src/api/api.test.ts
 ALL_PROVIDER_SIDE_CHATS	accepted	chore(side-chat): register recent message cursor patch	docs/owned-patches.tsv
 DSH_ATTACHMENTS	accepted	feat(dsh): reuse workspace uploads for attachments	server/packages/happy-app/sources/hooks/useMachineFileUpload.test.ts
+DSH_ATTACHMENTS	accepted	fix(dsh): expose workspace photo uploads by default	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
