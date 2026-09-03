@@ -35,6 +35,7 @@
 - Human message text within a right-aligned, vertically centered bubble is left-aligned again (was centered) and wraps naturally for short, multiline, Latin, and CJK content, keeping long-press copy.
 - On phone Web, touched file-viewer and Human-message surfaces — including the Markdown preview override and small labels — compute to at least 16px while the input anti-zoom guard remains intact.
 - Updated the Privacy Policy link in **Settings > About** to point to https://flern.co/privacy.
+- Updated the Terms of Service row in **Settings > About** to open https://flern.co/terms instead of the upstream GitHub TERMS.md URL.
 
 # September 2 — Project picker, chat presentation, and mobile layout enhancements
 

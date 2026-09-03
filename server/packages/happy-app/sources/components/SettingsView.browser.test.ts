@@ -141,7 +141,7 @@ const fixturePlugin: Plugin = {
     },
 };
 
-describe('Settings Privacy Policy browser interaction', () => {
+describe('Settings policy links browser interaction', () => {
     let browser: Browser;
     let server: Server;
     let origin: string;
@@ -197,7 +197,7 @@ describe('Settings Privacy Policy browser interaction', () => {
     it.each([
         ['Web Desktop', { width: 1440, height: 900 }],
         ['Web Mobile', { width: 390, height: 844 }],
-    ] as const)('opens flern.co from the visible Privacy Policy row on %s', async (_surface, viewport) => {
+    ] as const)('opens flern.co from the visible policy rows on %s', async (_surface, viewport) => {
         const page = await browser.newPage({ viewport });
         const pageErrors: string[] = [];
         page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
@@ -230,7 +230,7 @@ describe('Settings Privacy Policy browser interaction', () => {
             { url: 'https://flern.co/privacy', target: '_blank', features: 'noopener,noreferrer' },
             { url: 'https://example.com/happyherd', target: '_blank', features: 'noopener,noreferrer' },
             { url: 'https://example.com/happyherd/issues/new', target: '_blank', features: 'noopener,noreferrer' },
-            { url: 'https://github.com/slopus/happy/blob/main/TERMS.md', target: '_blank', features: 'noopener,noreferrer' },
+            { url: 'https://flern.co/terms', target: '_blank', features: 'noopener,noreferrer' },
         ]);
         expect(pageErrors).toEqual([]);
         await page.close();

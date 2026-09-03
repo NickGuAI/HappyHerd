@@ -468,7 +468,7 @@ export const SettingsView = React.memo(function SettingsView({
                 <Item
                     title={t('settings.termsOfService')}
                     icon={<Ionicons name="document-text-outline" size={29} color="#007AFF" />}
-                    onPress={() => openExternalUrl('https://github.com/slopus/happy/blob/main/TERMS.md')}
+                    onPress={() => openExternalUrl('https://flern.co/terms')}
                 />
                 {Platform.OS === 'ios' && (
                     <Item
