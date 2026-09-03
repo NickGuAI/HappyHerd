@@ -11,7 +11,8 @@ active Main Agent or active Side chat
               ▼
 ╔════════════════════════ Workspace ════════════════════════╗
 ║ full-machine browser → tabs → Preview / Edit ║
-║          │                        / Delete   ║
+║          │               │        / Delete   ║
+║          │               └─ selected-machine localhost live view ║
 ║          └─ add existing file or directory by reference ─┼─► next message
 ║                                             feedback ─────┼─► exact chat
 ╚═══════════════════════════════════════════════════════════╝
@@ -49,6 +50,17 @@ transitions. Wide Web Desktop retains one mounted chat and Workspace with a
 draggable split up to 75% Workspace / 25% chat. Compact Web uses the
 full-screen Workspace without desktop tabs or a divider.
 
+The embedded Workspace also accepts an HTTP/HTTPS loopback URL spelled with
+`localhost`, `127.0.0.1`, or `[::1]`. The tab identity is the selected machine
+ID plus canonical URL, and the live view sends page and subresource requests
+through the existing encrypted machine RPC to that daemon; it never resolves
+the Human browser's or central server's localhost. Live pages run their real
+scripts, styles, and fetch/XHR requests. Element review captures bounded HTML,
+computed CSS, bounds, and an element-cropped PNG, then sends the Human comment
+once through the existing `workspaceFeedback` batch to the exact Main Agent or
+Side chat. This live URL branch is distinct from local HTML files, whose one
+Preview remains scriptless.
+
 On Web Desktop and Web Mobile, HTML has one supported Preview: it is the
 automatic scriptless default and there is no separate Interactive toggle. A
 line-linked Markdown deep link always opens as the rendered, commentable
@@ -75,12 +87,13 @@ same delivery.
 
 | Responsibility | Owner | Rule |
 |---|---|---|
-| Session targeting and tab admission | `sources/-session/SessionView.tsx`, `components/desktopFileWorkspaceModel.ts` | Route every current-session entry into one state keyed by machine and path, targeting the selected Main Agent or Side chat. |
+| Session targeting and tab admission | `sources/-session/SessionView.tsx`, `components/desktopFileWorkspaceModel.ts` | Route every current-session entry into one state keyed by machine plus path or canonical localhost URL, targeting the selected Main Agent or Side chat. |
 | Human entry points | `components/AgentInput.tsx`, `components/FilesSidebar.tsx`, `components/SideChatPanel.tsx` | Expose one Workspace action through the shared composer menu and responsive right-side actions; do not fork entry handlers or labels. |
-| Machine browser and chat context | `sources/app/(app)/workspace/index.tsx`, `MachineWorkspaceBrowser`, `sync/workspaceContext.ts` | Start embedded browsing at the exact chat machine/cwd, preserve subsequent Human navigation, and add existing file/directory references to that exact chat. |
-| Workspace host | `components/DesktopFileWorkspace.tsx` | Own deduplicated tabs, the wide split, compact layout, and one mounted file host; do not add a second viewer or header `+`. |
+| Machine browser and chat context | `sources/app/(app)/workspace/index.tsx`, `MachineWorkspaceBrowser`, `sync/workspaceContext.ts` | Start embedded browsing at the exact chat machine/cwd, admit loopback live URLs for the selected machine, preserve subsequent Human navigation, and add existing file/directory references to that exact chat. |
+| Workspace host | `components/DesktopFileWorkspace.tsx`, `components/LocalhostLiveView.web.tsx` | Own deduplicated file/live tabs, the wide split, compact layout, and one mounted content host; do not add a second viewer or header `+`. |
 | File content and transport | `components/FileViewPanel.tsx`, `components/FileDocumentPreview.tsx`, `sync/ops.ts` | Reuse `FileContentPanel` for Preview/Edit/supported Delete and machine transport, including absolute paths outside cwd without a HappyHerd access block. |
-| Feedback | `components/WorkspaceFeedbackComposer.tsx`, `sync/workspaceFeedback.ts` | Send machine, path, optional line/column, and Human text to the active Main Agent or Side chat. |
+| Live selected-machine transport | `sync/workspaceLive.ts`, `public/workspace-live-sw.js`, `happy-wire/src/workspaceLive.ts`, `happy-cli/src/modules/common/registerCommonHandlers.ts` | Map only a registered live iframe's loopback HTTP requests onto the selected daemon's encrypted `workspace-live-fetch` RPC; all unrelated browser traffic passes through unchanged. |
+| Feedback | `components/WorkspaceFeedbackComposer.tsx`, `components/InlineCommentReview.web.tsx`, `sync/workspaceFeedback.ts` | Send file locations or live element HTML/CSS/bounds/crop plus Human text once to the active Main Agent or Side chat. |
 | Current-session links | `utils/markdownWorkspaceLink.ts`, `sources/-session/SessionView.tsx` | Keep file, directory, position, and failed-read flows in the integrated Workspace. |
 | Fallback viewer | `components/WorkspaceLinkViewer.tsx`, `components/MainView.tsx` | Use only for cross-session links or a context that cannot host the current session Workspace. |
 
@@ -117,7 +130,12 @@ Main Agent and an active Side chat:
    rendered unit (including the matching table row), send multiline location
    feedback, and retain the active draft, selected mode, DOM state, scroll,
    dirty edits, machine/session identity, and line/column metadata.
-5. On Web Desktop, drag to the 75% Workspace / 25% chat boundary while keeping
+5. Enter a loopback URL on the currently selected machine, prove a script and
+   fetch/XHR-backed state change render live, pick one element, pin Human text,
+   and send one feedback batch containing bounded HTML/CSS and an element crop
+   to the exact Main Agent or Side chat. Repeat with the same URL on another
+   machine to prove machine-qualified identity; reject a non-loopback URL.
+6. On Web Desktop, drag to the 75% Workspace / 25% chat boundary while keeping
    the chat mounted. On compact Web, prove the full-screen open/back flow and
    the absence of desktop tabs and divider. Require one viewer/composer and
    zero page or console errors for ordinary flows. Treat the default HTML

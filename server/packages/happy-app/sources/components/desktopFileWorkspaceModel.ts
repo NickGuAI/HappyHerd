@@ -1,15 +1,26 @@
+import { isWorkspaceLiveLoopbackUrl } from '@slopus/happy-wire';
+
 export type DesktopFileWorkspaceState = {
     paths: string[];
     activePath: string | null;
-    references: Record<string, DesktopFileReference>;
+    references: Record<string, DesktopWorkspaceReference>;
 };
 
 export type DesktopFileReference = {
+    kind?: 'file';
     machineId: string;
     source: 'session' | 'machine';
     line?: number;
     column?: number;
 };
+
+export type DesktopLocalhostReference = {
+    kind: 'localhost';
+    machineId: string;
+    url: string;
+};
+
+export type DesktopWorkspaceReference = DesktopFileReference | DesktopLocalhostReference;
 
 export const EMPTY_DESKTOP_FILE_WORKSPACE: DesktopFileWorkspaceState = {
     paths: [],
@@ -28,7 +39,8 @@ export function openDesktopFile(
 ): DesktopFileWorkspaceState {
     const identity = desktopFileIdentity(path, reference.machineId);
     const paths = state.paths.includes(identity) ? state.paths : [...state.paths, identity];
-    const current = state.references[identity];
+    const candidate = state.references[identity];
+    const current = candidate?.kind === 'localhost' ? undefined : candidate;
     // Identity is the machine and absolute path. A machine-backed reopen
     // upgrades an earlier session-backed tab because explicit absolute links
     // are not limited to the session cwd. Never downgrade a machine-backed
@@ -66,6 +78,35 @@ export function openDesktopFile(
     };
 }
 
+export function openDesktopLocalhost(
+    state: DesktopFileWorkspaceState,
+    machineId: string,
+    normalizedUrl: string,
+): DesktopFileWorkspaceState {
+    const identity = desktopLocalhostIdentity(normalizedUrl, machineId);
+    const paths = state.paths.includes(identity) ? state.paths : [...state.paths, identity];
+    const current = state.references[identity];
+    const reference: DesktopLocalhostReference = {
+        kind: 'localhost',
+        machineId,
+        url: normalizedUrl,
+    };
+    const references = current?.kind === 'localhost'
+        && current.machineId === machineId
+        && current.url === normalizedUrl
+        ? state.references
+        : { ...state.references, [identity]: reference };
+
+    if (state.activePath === identity && paths === state.paths && references === state.references) {
+        return state;
+    }
+    return {
+        paths,
+        activePath: identity,
+        references,
+    };
+}
+
 export function selectDesktopFile(
     state: DesktopFileWorkspaceState,
     path: string,
@@ -96,6 +137,26 @@ export function closeDesktopFile(
 
 export function desktopFileIdentity(path: string, machineId: string): string {
     return JSON.stringify([machineId, path]);
+}
+
+export function desktopLocalhostIdentity(normalizedUrl: string, machineId: string): string {
+    return JSON.stringify([machineId, 'localhost', normalizedUrl]);
+}
+
+export function isDesktopLocalhostReference(
+    reference: DesktopWorkspaceReference | undefined,
+): reference is DesktopLocalhostReference {
+    return reference?.kind === 'localhost';
+}
+
+export function normalizeWorkspaceLocalhostUrl(value: string): string | null {
+    const candidate = value.trim();
+    if (!isWorkspaceLiveLoopbackUrl(candidate)) return null;
+    try {
+        return new URL(candidate).toString();
+    } catch {
+        return null;
+    }
 }
 
 export function desktopFilePath(identity: string): string {

@@ -367,6 +367,65 @@ describe('MachineWorkspaceBrowser embedded layout', () => {
         act(() => renderer.unmount());
     });
 
+    it('shows the live URL entry only when supplied and emits the selected machine with a canonical loopback URL', async () => {
+        const withoutLiveEntry = await renderBrowser({ embedded: true });
+        expect(withoutLiveEntry.root.findAllByProps({
+            placeholder: 'workspace.localhostUrlPlaceholder',
+        })).toHaveLength(0);
+        act(() => withoutLiveEntry.unmount());
+
+        mocks.machines = [
+            {
+                id: 'other-machine',
+                active: true,
+                metadata: { displayName: 'Other machine', homeDir: '/other', platform: 'linux' },
+            },
+            {
+                id: 'selected-machine',
+                active: true,
+                metadata: { displayName: 'Selected machine', homeDir: '/selected', platform: 'linux' },
+            },
+        ];
+        const onLocalhostUrlPress = vi.fn();
+        const renderer = await renderBrowser({
+            embedded: true,
+            initialMachineId: 'selected-machine',
+            initialPath: '/selected/project',
+            onLocalhostUrlPress,
+        });
+        let input = renderer.root.findByProps({ placeholder: 'workspace.localhostUrlPlaceholder' });
+
+        act(() => input.props.onChangeText(' HTTP://LOCALHOST:80/app?mode=dev#main '));
+        input = renderer.root.findByProps({ placeholder: 'workspace.localhostUrlPlaceholder' });
+        act(() => input.props.onSubmitEditing());
+
+        expect(onLocalhostUrlPress).toHaveBeenCalledOnce();
+        expect(onLocalhostUrlPress).toHaveBeenCalledWith({
+            machineId: 'selected-machine',
+            url: 'http://localhost/app?mode=dev#main',
+        });
+        expect(renderer.root.findByProps({ placeholder: 'workspace.localhostUrlPlaceholder' }).props.value)
+            .toBe('http://localhost/app?mode=dev#main');
+        act(() => renderer.unmount());
+    });
+
+    it('keeps invalid or non-loopback URLs in the entry and shows an inline error without opening them', async () => {
+        const onLocalhostUrlPress = vi.fn();
+        const renderer = await renderBrowser({ embedded: true, onLocalhostUrlPress });
+        let input = renderer.root.findByProps({ placeholder: 'workspace.localhostUrlPlaceholder' });
+
+        act(() => input.props.onChangeText('https://example.com/app'));
+        input = renderer.root.findByProps({ placeholder: 'workspace.localhostUrlPlaceholder' });
+        act(() => input.props.onSubmitEditing());
+
+        expect(onLocalhostUrlPress).not.toHaveBeenCalled();
+        expect(renderer.root.findByProps({ placeholder: 'workspace.localhostUrlPlaceholder' }).props.value)
+            .toBe('https://example.com/app');
+        expect(renderer.root.findAllByType('Text' as any)
+            .some((node: any) => node.props.children === 'workspace.invalidLocalhostUrl')).toBe(true);
+        act(() => renderer.unmount());
+    });
+
     it('immediately toggles an existing file in the supplied session while preserving file opening', async () => {
         const onFilePress = vi.fn();
         const renderer = await renderBrowser({

@@ -76,6 +76,7 @@ const SUPPORTED_RPC_METRIC_METHODS = new Set([
     'uploadFileChunk',
     'uploadFileFinish',
     'uploadFileStart',
+    'workspace-live-fetch',
     'writeFile',
 ]);
 

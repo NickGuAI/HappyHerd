@@ -8,6 +8,7 @@ export * from './commanderContext';
 export * from './automation';
 export * from './providerModels';
 export * from './workspaceUpload';
+export * from './workspaceLive';
 export * from './agentQueue';
 export * from './machineSession';
 export * from './grokPermissionMode';

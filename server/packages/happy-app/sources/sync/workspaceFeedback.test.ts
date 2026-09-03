@@ -91,6 +91,32 @@ describe('workspace feedback messages', () => {
         );
     });
 
+    it('serializes one live element comment with its URL, DOM, CSS, bounds, and screenshot', () => {
+        const result = buildWorkspaceFeedbackMessage({
+            machineId: 'machine-ec2',
+            machineLabel: 'EC2 dev host',
+            liveUrl: 'http://localhost:5173/dashboard?mode=dev',
+        }, [{
+            id: 'pick-1',
+            elementSelector: 'main > button:nth-of-type(2)',
+            elementHtml: '<button class="save">Save</button>',
+            elementCss: 'display: inline-flex; color: rgb(1, 2, 3);',
+            elementBounds: { x: 20, y: 40, width: 120, height: 36 },
+            screenshot: { ...image, name: 'localhost-element-pick-1.png' },
+            feedback: 'Increase the hit area.',
+        }]);
+
+        expect(result.promptText).toContain('Workspace live page feedback');
+        expect(result.promptText).toContain('Live URL: http://localhost:5173/dashboard?mode=dev');
+        expect(result.promptText).toContain('Element selector: "main > button:nth-of-type(2)"');
+        expect(result.promptText).toContain('Element HTML: "<button class=\\"save\\">Save</button>"');
+        expect(result.promptText).toContain('Element CSS: "display: inline-flex; color: rgb(1, 2, 3);"');
+        expect(result.promptText).toContain('Element bounds: 20, 40, 120, 36');
+        expect(result.promptText).toContain('Element screenshot: "localhost-element-pick-1.png"');
+        expect(result.displayText).toContain('EC2 dev host\nhttp://localhost:5173/dashboard?mode=dev');
+        expect(result.displayText).toContain('element "main > button:nth-of-type(2)": Increase the hit area.');
+    });
+
     it('submits to the immutable origin session with strict attachment semantics', async () => {
         const sendMessage = vi.fn().mockResolvedValue({ localId: 'text-local-id' });
 

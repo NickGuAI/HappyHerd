@@ -1348,9 +1348,15 @@ export type TranslationKey =
     | "workspace.folderNamePlaceholder"
     | "workspace.go"
     | "workspace.home"
+    | "workspace.invalidLocalhostUrl"
     | "workspace.linkMachineMissingDescription"
     | "workspace.linkPathMissingDescription"
     | "workspace.linkReadErrorTitle"
+    | "workspace.liveCommentOnElement"
+    | "workspace.liveElement"
+    | "workspace.liveLoadFailed"
+    | "workspace.liveLoading"
+    | "workspace.localhostUrlPlaceholder"
     | "workspace.missingPathDescription"
     | "workspace.missingPathTitle"
     | "workspace.mobileBackToFiles"
@@ -1360,6 +1366,7 @@ export type TranslationKey =
     | "workspace.offlineDescription"
     | "workspace.offlineTitle"
     | "workspace.openFeatures"
+    | "workspace.openLocalhost"
     | "workspace.openWorkspace"
     | "workspace.parent"
     | "workspace.pathPlaceholder"
@@ -1373,6 +1380,8 @@ export type TranslationKey =
     | "workspace.selectMachine"
     | "workspace.selectedCount"
     | "workspace.selectedItemsCount"
+    | "workspace.startElementComment"
+    | "workspace.stopElementComment"
     | "workspace.title"
     | "workspace.upload"
     | "workspace.uploadCancelled"
@@ -1536,6 +1545,8 @@ export interface TranslationParamsByKey {
     "uiCopy.valueRunning": { value1: string | number };
     "uiCopy.valueUnavailable": { value1: string | number };
     "uiCopy.yourEditsToValueHaveNotBeenSaved": { value1: string | number };
+    "workspace.liveCommentOnElement": { element: string };
+    "workspace.liveElement": { element: string };
     "workspace.selectedCount": { count: number; max: number };
     "workspace.selectedItemsCount": { count: number; max: number };
     "workspace.uploadCancelled": { completed: string; total: string | number };

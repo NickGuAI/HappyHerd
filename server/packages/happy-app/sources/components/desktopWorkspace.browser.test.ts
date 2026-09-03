@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { build, type Plugin } from 'esbuild';
 import { createServer, type Server } from 'node:http';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type Locator, type Page } from 'playwright-core';
@@ -291,6 +291,48 @@ const virtualModules: Record<string, string> = {
             },
         };
     `,
+    '@/sync/apiSocket': `
+        const encode = (value) => btoa(value);
+        const responses = {
+            '/live': {
+                type: 'text/html; charset=utf-8',
+                body: '<!doctype html><html><head><link rel="stylesheet" href="/live.css"></head><body><main><button id="live-target">Waiting for network</button></main><script src="/live.js"></script></body></html>',
+            },
+            '/live.css': {
+                type: 'text/css; charset=utf-8',
+                body: '#live-target{display:inline-flex;padding:12px 18px;background:rgb(25,90,180);color:white;border:0;border-radius:8px}',
+            },
+            '/live.js': {
+                type: 'text/javascript; charset=utf-8',
+                body: 'window.__LIVE_SCRIPT_RAN__=true;fetch("/api/state").then((response)=>response.text()).then((text)=>{document.getElementById("live-target").textContent=text;});',
+            },
+            '/api/state': {
+                type: 'text/plain; charset=utf-8',
+                body: 'Live from machine-2',
+            },
+        };
+        export const apiSocket = {
+            machineRPC: async (machineId, method, request) => {
+                window.__WORKSPACE_LIVE_RPC_CALLS__ = [
+                    ...(window.__WORKSPACE_LIVE_RPC_CALLS__ ?? []),
+                    { machineId, method, url: request.url },
+                ];
+                const url = new URL(request.url);
+                const fixture = responses[url.pathname];
+                if (machineId !== 'machine-2' || method !== 'workspace-live-fetch' || !fixture) {
+                    return { success: false, code: 'request-failed', error: 'Unexpected live request' };
+                }
+                return {
+                    success: true,
+                    status: 200,
+                    statusText: 'OK',
+                    headers: { 'content-type': fixture.type },
+                    body: encode(fixture.body),
+                    finalUrl: request.url,
+                };
+            },
+        };
+    `,
     '@/sync/workspaceContext': `
         export const MAX_WORKSPACE_CONTEXT_ITEMS = 8;
         const entries = new Map();
@@ -426,6 +468,14 @@ const virtualModules: Record<string, string> = {
             'settings.machines': 'Machines',
             'workspace.title': 'Workspace',
             'workspace.pathPlaceholder': 'Path',
+            'workspace.localhostUrlPlaceholder': 'http://localhost:3000',
+            'workspace.openLocalhost': 'Open Localhost',
+            'workspace.invalidLocalhostUrl': 'Invalid localhost URL',
+            'workspace.liveLoadFailed': 'Could not load localhost',
+            'workspace.liveCommentOnElement': 'Comment on ' + (params?.element ?? ''),
+            'workspace.liveElement': 'Element ' + (params?.element ?? ''),
+            'workspace.startElementComment': 'Comment on element',
+            'workspace.stopElementComment': 'Cancel comment',
             'workspace.go': 'Go',
             'workspace.home': 'Home',
             'workspace.root': 'Root',
@@ -454,6 +504,12 @@ const fixturePlugin: Plugin = {
             }
             if (args.path === '@/components/InlineCommentReview') {
                 return { path: resolve(appRoot, 'sources/components/InlineCommentReview.web.tsx') };
+            }
+            if (args.path === '@/components/LocalhostLiveView') {
+                return { path: resolve(appRoot, 'sources/components/LocalhostLiveView.web.tsx') };
+            }
+            if (args.path === './apiSocket' && args.importer.endsWith('/sync/workspaceLive.ts')) {
+                return { path: '@/sync/apiSocket', namespace: 'fixture-stub' };
             }
             if (args.path === '@/components/FileDocumentPreview') {
                 return { path: resolve(appRoot, 'sources/components/FileDocumentPreview.web.tsx') };
@@ -523,7 +579,13 @@ describe('Desktop workspace browser interaction', () => {
         });
         const script = bundle.outputFiles.find((file) => file.path.endsWith('.js'))?.text ?? bundle.outputFiles[0].text;
         const stylesheet = bundle.outputFiles.find((file) => file.path.endsWith('.css'))?.text ?? '';
-        server = createServer((_request, response) => {
+        server = createServer((request, response) => {
+            if (request.url === '/workspace-live-sw.js') {
+                response.setHeader('content-type', 'text/javascript; charset=utf-8');
+                response.setHeader('service-worker-allowed', '/');
+                response.end(readFileSync(resolve(appRoot, 'public/workspace-live-sw.js')));
+                return;
+            }
             response.setHeader('content-type', 'text/html; charset=utf-8');
             response.end('<style>html,body,#root{margin:0;min-height:100%;font-family:sans-serif}*{box-sizing:border-box}' + stylesheet + '</style><main id="root"></main><script>' + script + '</script>');
         });
@@ -1027,6 +1089,62 @@ describe('Desktop workspace browser interaction', () => {
         expect(pageErrors).toEqual([]);
         await page.close();
         await context.close();
+    }, 60_000);
+
+    it.each([
+        { mode: 'desktop', width: 1440, height: 900, sessionId: 'main-agent-desktop' },
+        { mode: 'mobile', width: 390, height: 844, sessionId: 'side-chat-mobile' },
+    ])('opens selected-machine localhost live and sends one Orca-style element comment on $mode', async ({ mode, width, height, sessionId }) => {
+        const page = await browser.newPage({ viewport: { width, height } });
+        const pageErrors = recordPageErrors(page);
+        await page.goto(`${origin}?localhost-live=${mode}`);
+
+        const workspace = page.getByTestId(mode === 'mobile' ? 'localhost-live-mobile' : 'localhost-live-desktop');
+        await workspace.getByRole('textbox', { name: 'Open Localhost' }).fill('http://localhost:3000/live');
+        await workspace.getByRole('button', { name: 'Open Localhost' }).click();
+
+        const frame = workspace.frameLocator('iframe');
+        const liveTarget = frame.getByRole('button', { name: 'Live from machine-2' });
+        await liveTarget.waitFor({ timeout: 15_000 });
+        await expect(liveTarget.evaluate((element) => getComputedStyle(element).display)).resolves.toBe('inline-flex');
+        await expect(liveTarget.evaluate((element) => getComputedStyle(element).backgroundColor)).resolves.toBe('rgb(25, 90, 180)');
+
+        const rpcCalls = await page.evaluate(() => (window as any).__WORKSPACE_LIVE_RPC_CALLS__ ?? []);
+        expect(rpcCalls.length).toBeGreaterThanOrEqual(4);
+        expect(rpcCalls.every((call: any) => call.machineId === 'machine-2'
+            && call.method === 'workspace-live-fetch'
+            && call.url.startsWith('http://localhost:3000/'))).toBe(true);
+
+        await workspace.getByRole('button', { name: 'Comment on element' }).click();
+        await workspace.getByRole('button', { name: 'Cancel comment' }).waitFor();
+        await page.waitForTimeout(150);
+        await liveTarget.hover();
+        await liveTarget.click();
+        const comment = workspace.getByPlaceholder('Write a comment');
+        try {
+            await comment.waitFor({ timeout: 10_000 });
+        } catch (error) {
+            throw new Error(`Element picker did not produce a comment. Workspace: ${await workspace.innerText()}; errors: ${pageErrors.join(' | ')}`, { cause: error });
+        }
+        await comment.fill('Increase the button hit area');
+        await workspace.getByRole('button', { name: 'Pin comment' }).click();
+        await workspace.getByRole('button', { name: 'Send 1 comments' }).click();
+
+        await expect.poll(() => page.evaluate(() => (window as any).__WORKSPACE_FEEDBACK_CALLS__ ?? []))
+            .toHaveLength(1);
+        const feedback = await page.evaluate(() => (window as any).__WORKSPACE_FEEDBACK_CALLS__[0]);
+        expect(feedback.sessionId).toBe(sessionId);
+        expect(feedback.text).toContain('Live URL: http://localhost:3000/live');
+        expect(feedback.text).toContain('Element selector: "#live-target"');
+        expect(feedback.text).toContain('Element HTML:');
+        expect(feedback.text).toContain('Element CSS:');
+        expect(feedback.text).toContain('Element bounds:');
+        expect(feedback.options.attachments).toHaveLength(1);
+        expect(feedback.options.attachments[0]).toMatchObject({ mimeType: 'image/png' });
+        expect(feedback.options.attachments[0].width).toBeLessThan(width);
+        expect(feedback.options.requireAllAttachments).toBe(true);
+        expect(pageErrors).toEqual([]);
+        await page.close();
     }, 60_000);
 
     it('opens task HTML in the single scriptless Preview with no separate Interactive control', async () => {

@@ -1,3 +1,7 @@
+# September 3 — Live localhost Workspace review
+
+- Local development servers on the selected chat machine now render live inside Workspace, and element comments include DOM/CSS context plus a cropped screenshot delivered to the active chat.
+
 # September 3 — Unified file viewer modes, commentable Markdown previews, and human message alignment
 
 - The file viewer now exposes one contextual **Preview** and, only for editable files, one **Edit**, with **Delete** only where already supported; the separate Source and HTML Interactive modes are removed. HTML always opens in one safe scriptless Preview.
