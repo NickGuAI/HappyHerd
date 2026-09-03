@@ -291,13 +291,17 @@ existing file or directory references to that exact chat through
 `SessionView.tsx` retains one UI and transport state keyed by machine ID and
 absolute path. `DesktopFileWorkspace.tsx` owns deduplicated tabs, the wide
 split, compact host, and feedback. `FileContentPanel` and `sync/ops.ts` own
-Preview, Edit, supported Delete, and machine transport.
+Preview, Edit, supported Delete, and machine transport. A rendered Markdown
+`requestedLine` deep link is a mandatory navigation behavior: it stays in the
+commentable Preview and reveals the matching rendered review unit, including
+the matching table row for a line inside a table.
 
 Current-session file and directory reply links remain in this host. Parsed line
-and column values remain attached to the tab reference and feedback message;
-they are not a scroll-or-highlight contract. Only cross-session links or a
-context that cannot host the current session Workspace may fall back to the
-standalone `/workspace` route and `WorkspaceLinkViewer`. Read
+and column values remain attached to the tab reference and feedback message,
+and drive that rendered-line reveal; they are not a raw-source scroll-or-
+highlight hint. Only cross-session links or a context that cannot host the
+current session Workspace may fall back to the standalone `/workspace` route and
+`WorkspaceLinkViewer`. Read
 [`playbooks/file-workspaces.md`](playbooks/file-workspaces.md) before changing
 these owners.
 

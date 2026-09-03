@@ -125,7 +125,7 @@ function UserTextBlock(props: {
       <View style={styles.userMessageContainer}>
         <LongPressCopyable style={styles.userCopyTarget} text={parsed.goal}>
           <View style={[styles.userMessageBubble, styles.userMessageBubbleSolid, bubbleStyle, styles.goalMessageBubble]}>
-            <MarkdownView externalCopyHandler textAlign="center" markdown={parsed.goal} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks />
+            <MarkdownView externalCopyHandler textAlign="left" markdown={parsed.goal} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks />
           </View>
           <View style={styles.goalSentRow}>
             <Ionicons name="locate-outline" size={16} color={styles.goalSentText.color} />
@@ -142,7 +142,7 @@ function UserTextBlock(props: {
         <LongPressCopyable style={styles.userCopyTarget} text={commandText}>
           {parsed.args ? (
             <View style={[styles.userMessageBubble, styles.userMessageBubbleSolid, bubbleStyle, styles.commandMessageBubble]}>
-              <MarkdownView externalCopyHandler textAlign="center" markdown={parsed.args} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks />
+              <MarkdownView externalCopyHandler textAlign="left" markdown={parsed.args} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks />
             </View>
           ) : null}
           <View style={[styles.commandChip, styles.userMessageBubbleSolid, bubbleStyle]}>
@@ -159,7 +159,7 @@ function UserTextBlock(props: {
           OS selection callout. Rewind remains in session actions. */}
       <LongPressCopyable style={styles.userCopyTarget} text={parsed.text}>
         <View style={[styles.userMessageBubble, styles.userMessageBubbleSolid, bubbleStyle]}>
-          <MarkdownView externalCopyHandler textAlign="center" markdown={parsed.text} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks />
+          <MarkdownView externalCopyHandler textAlign="left" markdown={parsed.text} onOptionPress={handleOptionPress} sessionId={props.sessionId} enableWorkspaceLinks />
         </View>
       </LongPressCopyable>
     </View>
@@ -344,9 +344,11 @@ const styles = StyleSheet.create((theme) => ({
   },
   userMessageBubble: {
     backgroundColor: theme.colors.userMessageBackground,
-    alignItems: 'center',
+    // Bubble content is vertically centered but inner text is left-aligned and
+    // wraps naturally. The outer container keeps aligning the bubble to the
+    // right side of the thread (flex-end).
+    alignItems: 'flex-start',
     justifyContent: 'center',
-    textAlign: 'center',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,

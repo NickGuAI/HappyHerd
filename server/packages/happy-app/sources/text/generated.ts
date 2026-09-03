@@ -242,7 +242,6 @@ export type TranslationKey =
     | "files.fileConflictDescription"
     | "files.fileEmpty"
     | "files.inlineComments"
-    | "files.interactivePreview"
     | "files.invalidCanvas"
     | "files.lineNumber"
     | "files.loadingFile"

@@ -232,6 +232,7 @@ DSH_PROVIDER	accepted	fix(dsh): name HomeDock prompt correctly	server/packages/h
 FILE_VIEWER_CONVERGENCE	accepted	feat(files): converge viewer links comments and canvas	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 WEB_STARTUP_LATENCY	accepted	fix(web): restore startup and compress initial assets	server/packages/happy-app/scripts/smoke-production-web.mjs
 FILE_VIEWER_CONVERGENCE	accepted	fix(files): make source lines directly commentable	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
+FILE_VIEWER_CONVERGENCE	accepted	fix(files): converge viewer modes and commentable previews	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 MARKDOWN_PRESENTATION	accepted	fix(markdown): restore suggestion chips and dark theme	server/packages/happy-app/sources/components/markdown/MarkdownView.browser.test.ts
 MARKDOWN_REVIEW_DELIVERY	accepted	docs(app): record restored Markdown review UX	server/packages/happy-app/CHANGELOG.md
 MARKDOWN_PRESENTATION	accepted	fix(markdown): preserve literal suggestion text	server/packages/happy-app/sources/components/markdown/MarkdownView.browser.test.ts

@@ -865,13 +865,24 @@ describe('Desktop workspace browser interaction', () => {
         const workspace = page.getByTestId(surfaceId);
         if (switchTab) await workspace.getByRole('tab', { name: 'Open source.md' }).click();
         const sourcePanel = workspace.getByTestId('desktop-file-panel:/workspace/source.md');
-        await sourcePanel.locator('diffs-container').waitFor();
-
-        for (const line of [2, 3]) {
-            await activateSourceLine(page, sourcePanel, line, touch);
-            await sourcePanel.getByRole('button', { name: 'Cancel' }).click();
-        }
+        // A line-linked Markdown deep link stays rendered as a Preview; it never
+        // falls back to the raw source renderer.
+        await expect(sourcePanel.locator('diffs-container').count()).resolves.toBe(0);
+        const heading = sourcePanel.locator('h1', { hasText: 'Source review' });
+        await heading.waitFor();
+        await expect(sourcePanel.locator('.hh-markdown-root').count()).resolves.toBeGreaterThan(0);
+        // The requested source line is revealed on the matching rendered unit.
+        const revealed = sourcePanel.locator('h1[data-source-line="1"]');
+        await detectedHeadingClass(page, revealed, 'hh-markdown-review-reveal');
+        // The rendered review unit keeps its comment affordance.
+        await expect(revealed.locator('.hh-markdown-comment-gutter').count()).resolves.toBeGreaterThan(0);
         await expect(page.evaluate(() => (window as any).__SESSION_WRITE_CALLS__ ?? [])).resolves.toEqual([]);
+    }
+
+    // Waits for a source-line element to carry a class, be it applied by the
+    // reveal effect or already present after mount.
+    async function detectedHeadingClass(page: Page, locator: Locator, className: string) {
+        await expect.poll(async () => locator.evaluate((element) => element.className)).toContain(className);
     }
 
     async function verifyCodeReviewJourney(page: Page, surfaceId: string, feedbackIndex: number, switchTab = true, touch = false) {
@@ -1018,7 +1029,7 @@ describe('Desktop workspace browser interaction', () => {
         await context.close();
     }, 60_000);
 
-    it('runs task HTML only after the explicit desktop Interactive gesture and retains its state', async () => {
+    it('opens task HTML in the single scriptless Preview with no separate Interactive control', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
         await page.goto(origin + '?interactive-html=desktop');
 
@@ -1028,29 +1039,20 @@ describe('Desktop workspace browser interaction', () => {
         await expect(frame.getByTestId('task-card').count()).resolves.toBe(0);
 
         const pageErrors = recordPageErrors(page);
-        await workspace.getByRole('button', { name: 'Interactive', exact: true }).click();
-        await frame.getByRole('button', { name: 'Show all', exact: true }).click();
-        await expect(frame.getByTestId('task-card').count()).resolves.toBe(2);
-        await frame.getByRole('button', { name: 'Show open', exact: true }).click();
-        await expect(frame.getByText('1 open task', { exact: true }).isVisible()).resolves.toBe(true);
-        await expect(frame.getByTestId('task-card').count()).resolves.toBe(1);
-
+        // HTML exposes one Preview; the separate Interactive toggle is absent.
+        await expect(workspace.getByRole('button', { name: 'Interactive', exact: true }).count()).resolves.toBe(0);
+        await expect(workspace.getByRole('button', { name: 'Preview', exact: true }).count()).resolves.toBeGreaterThan(0);
+        // Switching tabs and back keeps the scriptless Preview surface.
         await workspace.getByRole('tab', { name: 'Open notes.md' }).click();
         await workspace.getByRole('tab', { name: 'Open task.html' }).click();
-        await expect(frame.getByText('1 open task', { exact: true }).isVisible()).resolves.toBe(true);
-        await expect(frame.getByTestId('task-card').count()).resolves.toBe(1);
+        await frame.getByText('Scripts have not run', { exact: true }).waitFor();
+        await expect(frame.getByTestId('task-card').count()).resolves.toBe(0);
 
-        const evidenceDirectory = process.env.HAPPYHERD_INTERACTIVE_HTML_EVIDENCE_DIR;
-        if (evidenceDirectory) {
-            await workspace.screenshot({
-                path: resolve(evidenceDirectory, 'task-6a966246-interactive-html-desktop.png'),
-            });
-        }
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 10_000);
 
-    it('runs and retains the same explicit Interactive journey at the Web Mobile viewport', async () => {
+    it('keeps task HTML in the scriptless Preview at the Web Mobile viewport', async () => {
         const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
         await page.goto(origin + '?interactive-html=mobile');
 
@@ -1060,23 +1062,12 @@ describe('Desktop workspace browser interaction', () => {
         await expect(frame.getByTestId('task-card').count()).resolves.toBe(0);
 
         const pageErrors = recordPageErrors(page);
-        await workspace.getByRole('button', { name: 'Interactive', exact: true }).click();
-        await frame.getByRole('button', { name: 'Show all', exact: true }).click();
-        await expect(frame.getByTestId('task-card').count()).resolves.toBe(2);
-        await frame.getByRole('button', { name: 'Show open', exact: true }).click();
-        await expect(frame.getByText('1 open task', { exact: true }).isVisible()).resolves.toBe(true);
-
+        await expect(workspace.getByRole('button', { name: 'Interactive', exact: true }).count()).resolves.toBe(0);
         await page.setViewportSize({ width: 430, height: 844 });
-        await expect(frame.getByText('1 open task', { exact: true }).isVisible()).resolves.toBe(true);
+        await frame.getByText('Scripts have not run', { exact: true }).waitFor();
         await page.setViewportSize({ width: 390, height: 844 });
-        await expect(frame.getByTestId('task-card').count()).resolves.toBe(1);
+        await expect(frame.getByTestId('task-card').count()).resolves.toBe(0);
 
-        const evidenceDirectory = process.env.HAPPYHERD_INTERACTIVE_HTML_EVIDENCE_DIR;
-        if (evidenceDirectory) {
-            await workspace.screenshot({
-                path: resolve(evidenceDirectory, 'task-6a966246-interactive-html-mobile.png'),
-            });
-        }
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 10_000);

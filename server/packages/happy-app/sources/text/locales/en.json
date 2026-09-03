@@ -891,7 +891,6 @@
     "openExistingFile": "Open existing file",
     "resizeWorkspace": "Resize file workspace",
     "editFile": "Edit",
-    "interactivePreview": "Interactive",
     "deleteFile": "Delete",
     "deleteFileTitle": "Delete file?",
     "deleteFileDescription": "This permanently removes the selected file from your workspace. This action cannot be undone.",

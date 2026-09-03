@@ -821,7 +821,6 @@
     "openExistingFile": "打开现有文件",
     "resizeWorkspace": "调整文件工作区大小",
     "editFile": "编辑",
-    "interactivePreview": "交互",
     "deleteFile": "删除",
     "deleteFileTitle": "删除文件？",
     "deleteFileDescription": "此操作将从工作区永久删除所选文件，且无法撤销。",

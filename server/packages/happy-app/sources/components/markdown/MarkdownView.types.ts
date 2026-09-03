@@ -29,6 +29,12 @@ export type MarkdownViewProps = {
     workspaceImageRoot?: string | null;
     /** Web file viewer only: expose a gutter affordance at source-positioned blocks. */
     onLineComment?: (anchor: MarkdownLineCommentAnchor) => void;
+    /**
+     * Web file viewer only: reveal the rendered unit that corresponds to this
+     * source line. For a line inside a Markdown table this resolves to the
+     * matching table row/nearest exact rendered unit, never to the table start.
+     */
+    requestedLine?: number | null;
 };
 
 const OPTION_LINK_PREFIX = '#happyherd-option:';

@@ -28,7 +28,6 @@ import {
     imageDataUri,
     imageMimeType,
     imagePreviewLayout,
-    interactiveHtmlPreviewDocument,
     isSvgDocument,
     matchesRichPreviewContent,
     pdfDataUri,
@@ -111,7 +110,7 @@ type EditableFileSnapshot = {
     hasUtf8Bom: boolean;
 };
 
-type FileDisplayMode = 'source' | 'preview' | 'interactive' | 'edit';
+type FileDisplayMode = 'preview' | 'edit';
 type FileSaveStatus = 'idle' | 'saved';
 
 function containingDirectory(filePath: string): string {
@@ -230,10 +229,10 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     const [editContent, setEditContent] = React.useState('');
     const [isSaving, setIsSaving] = React.useState(false);
     const [isDeleting, setIsDeleting] = React.useState(false);
-    const [displayMode, setDisplayMode] = React.useState<FileDisplayMode>('source');
+    const [displayMode, setDisplayMode] = React.useState<FileDisplayMode>('preview');
     const [saveStatus, setSaveStatus] = React.useState<FileSaveStatus>('idle');
     const [reloadRevision, setReloadRevision] = React.useState(0);
-    const previousViewModeRef = React.useRef<Exclude<FileDisplayMode, 'edit'>>('source');
+    const previousViewModeRef = React.useRef<Exclude<FileDisplayMode, 'edit'>>('preview');
     const sourceScrollRef = React.useRef<ScrollView | null>(null);
 
     // External change detection
@@ -249,12 +248,13 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     const isHtml = previewKind === 'html';
     const isCanvas = previewKind === 'canvas';
     const markdownRelativeTo = containingDirectory(filePath);
-    const hasInteractiveHtmlPreview = isHtml && Platform.OS === 'web';
     const hasSvgPreview = previewKind === 'image'
         && imageMimeType(filePath) === 'image/svg+xml'
         && fileState.kind === 'loaded'
         && isSvgDocument(fileState.content);
-    const hasSourcePreview = isMarkdown || isHtml || hasSvgPreview || isCanvas;
+    // A raw text/code file with no richer renderer still owns a Preview: it is
+    // rendered by the read-only Pierre renderer on the commentable Web host and
+    // by the read-only editor elsewhere. It is not a separately published mode.
 
     React.useEffect(() => {
         setReviewAnchor(null);
@@ -333,17 +333,24 @@ export const FileContentPanel = React.memo(function FileContentPanel({
         return () => { cancelled = true; };
     }, [resourceKey, filePath, previewKind, readFile, reloadRevision]);
 
+    // Every supported file opens in a truthful Preview. A line-linked Markdown
+    // deep link stays rendered (never raw) and the rendered unit is revealed by
+    // MarkdownView itself. Raw text/code keeps the read-only Pierre renderer as
+    // its Preview implementation and is scrolled to the requested line below.
     React.useEffect(() => {
-        const defaultMode = requestedLine && requestedLine > 0 ? 'source' : hasSourcePreview ? 'preview' : 'source';
-        previousViewModeRef.current = defaultMode;
-        setDisplayMode(defaultMode);
-    }, [filePath, hasSourcePreview, requestedLine]);
+        previousViewModeRef.current = 'preview';
+        setDisplayMode('preview');
+    }, [filePath]);
 
     React.useEffect(() => {
-        if (fileState.kind !== 'loaded' || displayMode !== 'source' || !requestedLine || requestedLine <= 0) return;
+        if (fileState.kind !== 'loaded' || displayMode !== 'preview' || !requestedLine || requestedLine <= 0) return;
+        // Rendered surfaces (Markdown, HTML, SVG, Canvas) reveal the requested
+        // unit inside their own viewer; only the raw text/code preview needs a
+        // manual offset scroll here.
+        if (isMarkdown || isHtml || hasSvgPreview || isCanvas) return;
         const offset = Math.max(0, ((requestedLine - 1) * 20) - 40);
         requestAnimationFrame(() => sourceScrollRef.current?.scrollTo({ y: offset, animated: false }));
-    }, [displayMode, fileState.kind, requestedLine]);
+    }, [displayMode, fileState.kind, requestedLine, isMarkdown, isHtml, hasSvgPreview, isCanvas]);
 
     const handleDisplayModeChange = React.useCallback((mode: FileDisplayMode) => {
         if (mode === 'edit') {
@@ -517,8 +524,6 @@ export const FileContentPanel = React.memo(function FileContentPanel({
         }
         onHeaderRightSlotChange(
             <FileHeaderRight
-                hasSourcePreview={hasSourcePreview}
-                hasInteractiveHtmlPreview={hasInteractiveHtmlPreview}
                 isLoaded={isLoaded}
                 displayMode={displayMode}
                 onDisplayModeChange={handleDisplayModeChange}
@@ -529,7 +534,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
             />
         );
         return () => onHeaderRightSlotChange(null);
-    }, [active, canWrite, deleteFile, displayMode, handleDelete, handleDisplayModeChange, hasInteractiveHtmlPreview, hasSourcePreview, headerVariant, isDeleting, isLoaded, onHeaderRightSlotChange]);
+    }, [active, canWrite, deleteFile, displayMode, handleDelete, handleDisplayModeChange, headerVariant, isDeleting, isLoaded, onHeaderRightSlotChange]);
 
     const saveStatusLabel = isSaving
         ? t('uiCopy.saving')
@@ -723,6 +728,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                             workspaceImageRoot={markdownWorkspaceImageRoot}
                             relativeTo={markdownRelativeTo}
                             onLineComment={reviewContext ? setReviewAnchor : undefined}
+                            requestedLine={requestedLine}
                         />
                     </View>
                 </ScrollView>
@@ -737,18 +743,15 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                     commentedNodeIds={reviewComments.flatMap((comment) => comment.nodeId ? [comment.nodeId] : [])}
                     onNodeComment={setReviewAnchor}
                 />
-            ) : isHtml && (displayMode === 'preview' || displayMode === 'interactive') ? (
+            ) : isHtml && displayMode === 'preview' ? (
                 <View style={styles.documentPreview}>
                     <FileDocumentPreview
                         kind="html"
-                        html={displayMode === 'interactive'
-                            ? interactiveHtmlPreviewDocument(editContent)
-                            : safeHtmlPreviewDocument(editContent)}
-                        interactive={displayMode === 'interactive'}
+                        html={safeHtmlPreviewDocument(editContent)}
                         title={t("uiCopy.previewOfValue", { value1: fileName })}
                     />
                 </View>
-            ) : Platform.OS === 'web' && reviewContext && displayMode !== 'edit' ? (
+            ) : Platform.OS === 'web' && reviewContext && displayMode === 'preview' ? (
                 <ScrollView ref={sourceScrollRef} style={{ flex: 1 }} contentContainerStyle={{ maxWidth: layout.maxWidth, alignSelf: 'center', width: '100%' }}>
                     <PierreDiffView
                         file={{ name: fileName, contents: editContent }}
@@ -918,8 +921,6 @@ export const MachineFileViewPanel = React.memo(function MachineFileViewPanel({
 
 /** Right-side header controls for the file-view overlay. */
 const FileHeaderRight = React.memo(function FileHeaderRight({
-    hasSourcePreview,
-    hasInteractiveHtmlPreview,
     isLoaded,
     displayMode,
     onDisplayModeChange,
@@ -928,8 +929,6 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
     deleting,
     onDelete,
 }: {
-    hasSourcePreview: boolean;
-    hasInteractiveHtmlPreview: boolean;
     isLoaded: boolean;
     displayMode: FileDisplayMode;
     onDisplayModeChange: (mode: FileDisplayMode) => void;
@@ -939,9 +938,8 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
     onDelete: () => void;
 }) {
     const { theme } = useUnistyles();
-    const showControls = (isLoaded && (hasSourcePreview || canWrite)) || canDelete;
-    const previewMode: Exclude<FileDisplayMode, 'edit'> = hasSourcePreview ? 'preview' : 'source';
-    const previewSelected = isLoaded && displayMode === previewMode;
+    const showControls = isLoaded || canDelete;
+    const previewSelected = isLoaded && displayMode === 'preview';
     return (
         <>
             {showControls && (
@@ -949,7 +947,7 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
                     {isLoaded && <Pressable
                         accessibilityRole="button"
                         accessibilityState={{ selected: previewSelected }}
-                        onPress={() => onDisplayModeChange(previewMode)}
+                        onPress={() => onDisplayModeChange('preview')}
                         style={[
                             styles.toggleButton,
                             previewSelected && { backgroundColor: theme.colors.surface },
@@ -964,26 +962,6 @@ const FileHeaderRight = React.memo(function FileHeaderRight({
                             {t('uiCopy.preview')}
                         </Text>
                     </Pressable>}
-                    {hasInteractiveHtmlPreview && isLoaded && (
-                        <Pressable
-                            accessibilityRole="button"
-                            accessibilityState={{ selected: displayMode === 'interactive' }}
-                            onPress={() => onDisplayModeChange('interactive')}
-                            style={[
-                                styles.toggleButton,
-                                displayMode === 'interactive' && { backgroundColor: theme.colors.surface },
-                            ]}
-                        >
-                            <Text style={[
-                                styles.toggleText,
-                                { color: theme.colors.textSecondary },
-                                displayMode === 'interactive' && styles.toggleTextActive,
-                                displayMode === 'interactive' && { color: theme.colors.text },
-                            ]}>
-                                {t('files.interactivePreview')}
-                            </Text>
-                        </Pressable>
-                    )}
                     {canWrite && isLoaded && (
                         <Pressable
                             accessibilityRole="button"
@@ -1041,7 +1019,7 @@ const EditorPreviewStyles = React.memo(function EditorPreviewStyles() {
         el.textContent = `
 .editor-preview-wrap div[dir] {
     font-family: ui-monospace, "SF Mono", "Cascadia Code", "Segoe UI Mono", Menlo, Monaco, Consolas, monospace !important;
-    font-size: 14px !important;
+    font-size: 16px !important;
     line-height: 1.5 !important;
 }
 .editor-preview-wrap div[dir] div[style*="background"] {

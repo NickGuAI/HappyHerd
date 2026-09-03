@@ -1,3 +1,10 @@
+# September 3 — Unified file viewer modes, commentable Markdown previews, and human message alignment
+
+- The file viewer now exposes one contextual **Preview** and, only for editable files, one **Edit**, with **Delete** only where already supported; the separate Source and HTML Interactive modes are removed. HTML always opens in one safe scriptless Preview.
+- A line-linked Markdown link (for example the `corrections.md` line-15 reproduction) now stays in the rendered, commentable **Preview** and reveals the matching rendered review unit — including the exact table row — instead of switching to a raw source surface. Raw text/code keeps its read-only line-commentable Preview.
+- Human message text within a right-aligned, vertically centered bubble is left-aligned again (was centered) and wraps naturally for short, multiline, Latin, and CJK content, keeping long-press copy.
+- On phone Web, touched file-viewer and Human-message surfaces — including the Markdown preview override and small labels — compute to at least 16px while the input anti-zoom guard remains intact.
+
 # September 2 — Project picker, chat presentation, and mobile layout enhancements
 
 - On the New Session screen, tapping a recently visited project or path selects its exact canonical path, visually distinguishes named projects by their path, closes the picker, and launches there immediately.
