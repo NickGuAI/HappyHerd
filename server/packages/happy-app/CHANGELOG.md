@@ -39,6 +39,7 @@
 - Updated the Web version's **Settings > Support us** row to open the Buy Me a Coffee page with its original visual appearance and placement preserved, while native builds retain their existing voluntary-support paywall behavior.
 - Removed the HappyHerd descriptive footer paragraph in English, Chinese, and German from **Settings > About**, keeping every existing row and layout unchanged.
 - Updated the Settings > About screen to display the correct HappyHerd package version (1.2.2) alongside the build runtime.
+- Updated the GitHub row in **Settings > About** to display `NickGuAI/HappyHerd` and link directly to `https://github.com/NickGuAI/HappyHerd` in default builds.
 
 # September 2 — Project picker, chat presentation, and mobile layout enhancements
 

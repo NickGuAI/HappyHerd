@@ -258,6 +258,7 @@ TERMS_OF_SERVICE_LINK	accepted	fix(settings): update terms of service link	serve
 SUPPORT_LINK	accepted	fix(settings): open web support page	server/packages/happy-app/sources/components/SettingsView.browser.test.ts
 SETTINGS_ABOUT_DESCRIPTION_REMOVAL	accepted	fix(settings): remove About description	server/packages/happy-app/sources/components/SettingsView.browser.test.ts
 SETTINGS_VERSION	accepted	fix(settings): show HappyHerd version	server/packages/happy-app/sources/components/SettingsView.browser.test.ts
+SETTINGS_REPOSITORY	accepted	fix(settings): point GitHub row to HappyHerd	server/packages/happy-app/sources/components/SettingsView.browser.test.ts
 PUBLIC_BOUNDARY	accepted	fix(public-boundary): normalize merged skill identity	scripts/test-public-boundary.mjs
 ALL_PROVIDER_SIDE_CHATS	accepted	feat(side-chat): support every daemon provider	server/packages/happy-cli/src/commands/sideChat.ts
 ALL_PROVIDER_SIDE_CHATS	accepted	fix(side-chat): bound recent message cursor	server/packages/happy-cli/src/api/api.test.ts

@@ -202,7 +202,13 @@ HAPPYHERD_SUPPORT_URL=https://buymeacoffee.com/nickguy \
     --image ghcr.io/example/happyherd:contract \
     --push > "$fixture/build.log" 2>&1
 grep -Fq 'buildx build' "$fixture/docker.log"
+grep -Fq -- '--build-arg HAPPYHERD_REPOSITORY_DISPLAY=NickGuAI/HappyHerd' "$fixture/docker.log"
+grep -Fq -- '--build-arg HAPPYHERD_REPOSITORY_URL=https://github.com/NickGuAI/HappyHerd' "$fixture/docker.log"
 grep -Fq -- '--build-arg HAPPYHERD_SUPPORT_URL=https://buymeacoffee.com/nickguy' "$fixture/docker.log"
+grep -Fq "HAPPYHERD_REPOSITORY_DISPLAY: \${{ github.repository }}" \
+    "$ROOT/.github/workflows/server-image.yml"
+grep -Fq "HAPPYHERD_REPOSITORY_URL: \${{ github.server_url }}/\${{ github.repository }}" \
+    "$ROOT/.github/workflows/server-image.yml"
 grep -Fq 'HAPPYHERD_SUPPORT_URL: https://buymeacoffee.com/nickguy' \
     "$ROOT/.github/workflows/server-image.yml"
 grep -Fxq 'push ghcr.io/example/happyherd:contract' "$fixture/docker.log"
