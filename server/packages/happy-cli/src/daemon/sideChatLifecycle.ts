@@ -5,9 +5,11 @@ import type {
   SideChatLifecycleReceipt,
   SideChatLifecycleRequest,
   SideChatPhaseReceipt,
+  SideChatResourceUsage,
   SideChatSingleReceipt,
   SideChatStatusReceipt,
 } from '@/commands/sideChat';
+import { failedHostResourceUsage } from './hostResourceUsage';
 
 export type DaemonSideChatRecord = SideChatStatusReceipt;
 
@@ -27,6 +29,7 @@ export type DaemonSideChatLifecycleDependencies = {
   archiveMetadata: (sessionId: string) => Promise<SideChatOperationResult>;
   deactivate: (sessionId: string) => Promise<SideChatOperationResult>;
   resumeProvider: (sessionId: string) => Promise<SideChatOperationResult>;
+  sampleResources: () => Promise<SideChatResourceUsage>;
 };
 
 function phase(
@@ -83,11 +86,17 @@ export class DaemonSideChatLifecycle {
     parentSessionId: string,
     brief: SideChatDelegationBrief | null,
   ): Promise<SideChatSingleReceipt> {
+    const resourcePromise = this.dependencies.sampleResources()
+      .catch(() => failedHostResourceUsage());
     let created: Awaited<ReturnType<DaemonSideChatLifecycleDependencies['create']>>;
     try {
       created = await this.dependencies.create(parentSessionId, brief);
     } catch (error) {
-      return failedSingle('create', null, 'resolve', error);
+      return {
+        ...failedSingle('create', null, 'resolve', error),
+        schemaVersion: 2,
+        resource: await resourcePromise,
+      };
     }
 
     let child: DaemonSideChatRecord;
@@ -95,7 +104,7 @@ export class DaemonSideChatLifecycle {
       child = await this.dependencies.read(created.sessionId);
     } catch (error) {
       return {
-        schemaVersion: 1,
+        schemaVersion: 2,
         type: 'side-chat',
         action: 'create',
         success: false,
@@ -107,13 +116,14 @@ export class DaemonSideChatLifecycle {
           briefDeliveryPhase(created.briefDelivery),
           phase('readback', 'failed', error instanceof Error ? error.message : String(error)),
         ],
+        resource: await resourcePromise,
       };
     }
 
     const lineageMatches = child.parentSessionId === parentSessionId;
     const childIsRunning = child.status === 'running';
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       type: 'side-chat',
       action: 'create',
       success: lineageMatches && childIsRunning && (created.briefDelivery?.success ?? true),
@@ -133,6 +143,7 @@ export class DaemonSideChatLifecycle {
               : undefined,
         ),
       ],
+      resource: await resourcePromise,
     };
   }
 

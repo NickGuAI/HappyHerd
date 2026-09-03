@@ -54,9 +54,17 @@ happyherd session side-chat close <parent-session-id> --all --json
 ```
 
 These actions reuse the owning daemon's normal local credentials; they do not
-require account-machine linking or a QR flow. Every receipt has
-`schemaVersion: 1`, `success`, and exact per-phase state. Creation includes a
-`deliver-brief` phase. It is `skipped` for Human one-click creation. If CLI
+require account-machine linking or a QR flow. Create receipts have
+`schemaVersion: 2`, preserving every existing lifecycle field while adding a
+`resource` object sampled once by the owning daemon at creation. It captures
+CPU busy percentage over a 250 ms window, 1/5/15-minute load averages, memory
+used/total/available bytes, swap used bytes, and a `sampledAt` ISO timestamp.
+Unavailable metrics are `null`, and the overall resource status is `ok`,
+`partial`, or `failed`; collection never changes an otherwise successful
+create. No background monitor, poller, telemetry service, or extra daemon
+process is introduced. Other lifecycle receipts remain `schemaVersion: 1`.
+Creation includes a `deliver-brief` phase.
+It is `skipped` for Human one-click creation. If CLI
 brief delivery fails after the child is created, the failed receipt retains
 `parentSessionId`, `sessionId`, and the failed `deliver-brief` phase so the
 Orchestrating Agent can inspect or close the exact conversation.

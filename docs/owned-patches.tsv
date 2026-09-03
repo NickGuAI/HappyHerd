@@ -1,4 +1,5 @@
 # gate	state	subject	evidence
+SIDE_CHAT_RESOURCE_USAGE	accepted	feat(side-chat): report host resources on create	server/packages/happy-cli/src/daemon/hostResourceUsage.test.ts
 USER_SAFEGUARD	accepted	feat(safeguard): add opt-in artifact approval gate	server/packages/happy-cli/src/userSafeguard/userSafeguard.test.ts
 USER_SAFEGUARD	accepted	fix(safeguard): show full mobile description	server/packages/happy-app/sources/app/(app)/settings/features.test.ts
 GROK_INLINE_IMAGES	accepted	fix(grok): support inline images and encrypted attachments	server/packages/happy-cli/src/agent/acp/runAcp.test.ts

@@ -144,6 +144,39 @@ describe('side-chat daemon control client', () => {
     });
   });
 
+  it('returns a schema-version-2 create receipt with owning-daemon resources unchanged', async () => {
+    const receipt = {
+      schemaVersion: 2,
+      type: 'side-chat',
+      action: 'create',
+      success: true,
+      parentSessionId: 'parent',
+      sessionId: 'child',
+      child: null,
+      phases: [{ phase: 'deliver-brief', status: 'succeeded' }],
+      resource: {
+        status: 'ok',
+        sampledAt: '2026-09-03T10:00:00.000Z',
+        cpu: { busyPercent: 25, sampleWindowMs: 250 },
+        loadAverage: { oneMinute: 1, fiveMinutes: 2, fifteenMinutes: 3 },
+        memory: {
+          usedBytes: 4,
+          totalBytes: 10,
+          availableBytes: 6,
+          swapUsedBytes: 1,
+        },
+      },
+    };
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => receipt,
+    })));
+    vi.spyOn(process, 'kill').mockImplementation(() => true);
+
+    await expect(manageDaemonSideChat({ action: 'create', parentSessionId: 'parent', brief }))
+      .resolves.toEqual(receipt);
+  });
+
   it('normalizes inspect, pause, and resume before crossing the daemon API boundary', async () => {
     const fetch = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
       const request = JSON.parse(init?.body as string) as { action: 'status' | 'stop' | 'reopen'; sessionId: string };

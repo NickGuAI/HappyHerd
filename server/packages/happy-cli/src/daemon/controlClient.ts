@@ -176,7 +176,7 @@ export async function manageDaemonSideChat(
   if (result?.error) {
     throw new Error(result.error);
   }
-  if (result?.schemaVersion !== 1 || typeof result?.type !== 'string') {
+  if ((result?.schemaVersion !== 1 && result?.schemaVersion !== 2) || typeof result?.type !== 'string') {
     throw new Error('Daemon returned an invalid side-chat lifecycle receipt');
   }
   if (request.action === 'create' && result.type === 'side-chat') {
