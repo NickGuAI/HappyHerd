@@ -31,6 +31,7 @@ skill or skills required by the current evidence.
 |---|---|
 | Operate sessions, the daemon, Commanders, automations, or diagnostics through the supported CLI | [`happyherd`](skills/happyherd/SKILL.md) |
 | Deliver a Human-facing journey across its targeted surfaces | [`happyherd-develop-ux`](skills/happyherd-develop-ux/SKILL.md) |
+| Implement, repair, or verify the one Human-facing Workspace file surface | [`happyherd-develop-workspace`](skills/happyherd-develop-workspace/SKILL.md) |
 | Remove unsupported or over-designed task scope | [`happyherd-eng-descope`](skills/happyherd-eng-descope/SKILL.md) |
 | Establish cause and track one investigation without implementing | [`happyherd-eng-investigate`](skills/happyherd-eng-investigate/SKILL.md) |
 | Implement and deliver exactly one existing TickTick task | [`happyherd-eng-deliver`](skills/happyherd-eng-deliver/SKILL.md) |

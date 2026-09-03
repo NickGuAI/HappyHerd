@@ -1,0 +1,4 @@
+interface:
+  display_name: "HappyHerd Develop Workspace"
+  short_description: "Implement and validate the one HappyHerd Workspace surface."
+  default_prompt: "Use $happyherd-develop-workspace to plan, implement, and prove Workspace file-viewer, comment, and feedback changes on every targeted surface."
