@@ -269,3 +269,4 @@ SIDEBAR_BACK_CONTROL	accepted	fix(app): show one sidebar Back control	server/pac
 SIDEBAR_COLLAPSE_ICON	accepted	fix(app): use standard sidebar toggle icons	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 USAGE_TOTALS	accepted	fix(usage): reconcile provider totals	server/packages/happy-server/sources/app/api/routes/usageAggregation.spec.ts
 USAGE_TOTALS	accepted	fix(usage): expose missing provider coverage	server/packages/happy-server/sources/app/api/routes/usageAggregation.spec.ts
+MARKDOWN_COMMENT_AFFORDANCE	accepted	fix(markdown): align comment affordance with source	server/packages/happy-app/sources/components/markdown/MarkdownView.browser.test.ts

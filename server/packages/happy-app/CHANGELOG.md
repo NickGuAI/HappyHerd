@@ -45,6 +45,7 @@
 - Removed the HappyHerd descriptive footer paragraph in English, Chinese, and German from **Settings > About**, keeping every existing row and layout unchanged.
 - Updated the Settings > About screen to display the correct HappyHerd package version (1.2.2) alongside the build runtime.
 - Updated the GitHub row in **Settings > About** to display `NickGuAI/HappyHerd` and link directly to `https://github.com/NickGuAI/HappyHerd` in default builds.
+- In commentable rendered Markdown previews on Web Desktop and 390×844 Web Mobile, the 20×20 line-comment `+` now stays fully inside the Workspace gutter and matches the existing Pierre source-code comment button, while retaining hover/focus visibility on desktop and persistent visibility on touch.
 
 # September 2 — Project picker, chat presentation, and mobile layout enhancements
 

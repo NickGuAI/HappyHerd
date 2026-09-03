@@ -67,7 +67,6 @@ function MarkdownFixture() {
                     width: '100%',
                     maxWidth: 720,
                     height: '100%',
-                    paddingLeft: 28,
                     overflowY: 'auto',
                     overscrollBehavior: 'contain',
                 }}
