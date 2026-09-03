@@ -8,4 +8,5 @@ export const PRODUCT = Object.freeze({
     repositoryDisplay: process.env.EXPO_PUBLIC_HAPPYHERD_REPOSITORY_DISPLAY?.trim() ?? '',
     repositoryUrl: process.env.EXPO_PUBLIC_HAPPYHERD_REPOSITORY_URL?.trim() ?? '',
     issueUrl: process.env.EXPO_PUBLIC_HAPPYHERD_ISSUE_URL?.trim() ?? '',
+    supportUrl: process.env.EXPO_PUBLIC_HAPPYHERD_SUPPORT_URL?.trim() ?? '',
 });

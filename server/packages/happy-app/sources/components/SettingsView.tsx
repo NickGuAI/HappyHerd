@@ -124,6 +124,10 @@ export const SettingsView = React.memo(function SettingsView({
         await openExternalUrl(PRODUCT.issueUrl);
     };
 
+    const handleSupport = async () => {
+        await openExternalUrl(PRODUCT.supportUrl);
+    };
+
     const handleSubscribe = async () => {
         trackPaywallButtonClicked('voluntary_support');
         const result = await sync.presentPaywall('voluntary_support');
@@ -282,7 +286,9 @@ export const SettingsView = React.memo(function SettingsView({
                     subtitle={isPro ? t('settings.supportUsSubtitlePro') : t('settings.supportUsSubtitle')}
                     icon={<Ionicons name="heart" size={29} color="#FF3B30" />}
                     showChevron={false}
-                    onPress={isPro ? undefined : handleSubscribe}
+                    onPress={Platform.OS === 'web'
+                        ? (PRODUCT.supportUrl ? handleSupport : undefined)
+                        : (isPro ? undefined : handleSubscribe)}
                 />
             </ItemGroup>
 

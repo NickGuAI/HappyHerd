@@ -8,6 +8,7 @@ SOURCE_URL="${HAPPYHERD_SOURCE_URL:-https://example.com/happyherd}"
 REPOSITORY_DISPLAY="${HAPPYHERD_REPOSITORY_DISPLAY:-example/happyherd}"
 REPOSITORY_URL="${HAPPYHERD_REPOSITORY_URL:-https://example.com/happyherd}"
 ISSUE_URL="${HAPPYHERD_ISSUE_URL:-https://example.com/happyherd/issues}"
+SUPPORT_URL="${HAPPYHERD_SUPPORT_URL:-}"
 PUSH=false
 
 usage() {
@@ -71,6 +72,7 @@ docker buildx build \
     --build-arg "HAPPYHERD_REPOSITORY_DISPLAY=$REPOSITORY_DISPLAY" \
     --build-arg "HAPPYHERD_REPOSITORY_URL=$REPOSITORY_URL" \
     --build-arg "HAPPYHERD_ISSUE_URL=$ISSUE_URL" \
+    --build-arg "HAPPYHERD_SUPPORT_URL=$SUPPORT_URL" \
     --build-arg "HAPPYHERD_SOURCE_SHA=$SOURCE_SHA" \
     --build-arg "HAPPYHERD_SOURCE_URL=$SOURCE_URL" \
     --build-arg "HAPPYHERD_CREATED=$CREATED" \

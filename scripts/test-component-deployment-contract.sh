@@ -196,11 +196,15 @@ if [ "$1" = buildx ] && [ "$2" = rm ]; then
 fi
 SH
 chmod 755 "$fixture/bin/docker"
-HAPPYHERD_TEST_DOCKER_LOG="$fixture/docker.log" PATH="$fixture/bin:$PATH" \
+HAPPYHERD_SUPPORT_URL=https://buymeacoffee.com/nickguy \
+    HAPPYHERD_TEST_DOCKER_LOG="$fixture/docker.log" PATH="$fixture/bin:$PATH" \
     "$ROOT/scripts/build-server-image.sh" \
     --image ghcr.io/example/happyherd:contract \
     --push > "$fixture/build.log" 2>&1
 grep -Fq 'buildx build' "$fixture/docker.log"
+grep -Fq -- '--build-arg HAPPYHERD_SUPPORT_URL=https://buymeacoffee.com/nickguy' "$fixture/docker.log"
+grep -Fq 'HAPPYHERD_SUPPORT_URL: https://buymeacoffee.com/nickguy' \
+    "$ROOT/.github/workflows/server-image.yml"
 grep -Fxq 'push ghcr.io/example/happyherd:contract' "$fixture/docker.log"
 grep -Fq 'buildx rm happyherd-server-' "$fixture/docker.log"
 [[ "$(grep -Fc 'buildx rm happyherd-server-' "$fixture/docker.log")" -eq 1 ]]

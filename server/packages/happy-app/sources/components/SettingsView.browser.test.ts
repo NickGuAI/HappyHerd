@@ -13,10 +13,11 @@ const virtualModules: Record<string, string> = {
     'react-native': `
         import * as ReactNativeWeb from 'react-native-web';
         export * from 'react-native-web';
+        const platformOs = globalThis.__SETTINGS_PLATFORM__ ?? 'web';
         export const Platform = {
             ...ReactNativeWeb.Platform,
-            OS: 'web',
-            select: (options) => options.web ?? options.default,
+            OS: platformOs,
+            select: (options) => options[platformOs] ?? options.default,
         };
     `,
     'react-native-unistyles': `
@@ -51,6 +52,7 @@ const virtualModules: Record<string, string> = {
         import React from 'react';
         export const Ionicons = ({ name }) => React.createElement('span', { 'data-icon': name });
     `,
+    'react-native-device-info': `export const getDeviceType = () => 'Handset';`,
     'expo-image': `import { View } from 'react-native'; export const Image = View;`,
     'expo-constants': `
         export default { expoConfig: { version: '1.0.0', runtimeVersion: 'test-runtime', extra: { app: {} } } };
@@ -67,6 +69,7 @@ const virtualModules: Record<string, string> = {
             issueUrl: 'https://example.com/happyherd/issues/new',
             repositoryDisplay: 'example/happyherd',
             repositoryUrl: 'https://example.com/happyherd',
+            supportUrl: 'https://buymeacoffee.com/nickguy',
         };
     `,
     '@/hooks/useConnectTerminal': `
@@ -96,7 +99,13 @@ const virtualModules: Record<string, string> = {
         export const useSetting = () => false;
     `,
     '@/sync/sync': `
-        export const sync = { presentPaywall: async () => ({ success: true }), refreshProfile: async () => {} };
+        export const sync = {
+            presentPaywall: async (flow) => {
+                globalThis.__PAYWALL_CALLS__ = [...(globalThis.__PAYWALL_CALLS__ ?? []), flow];
+                return { success: true };
+            },
+            refreshProfile: async () => {},
+        };
     `,
     '@/text': `
         const labels = {
@@ -173,9 +182,10 @@ describe('Settings policy links browser interaction', () => {
             plugins: [fixturePlugin],
         });
         const script = bundle.outputFiles[0].text;
-        server = createServer((_request, response) => {
+        server = createServer((request, response) => {
+            const platform = request.url?.includes('platform=ios') ? 'ios' : 'web';
             response.setHeader('content-type', 'text/html; charset=utf-8');
-            response.end(`<style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.global=globalThis;${script}</script>`);
+            response.end(`<style>html,body,#root{height:100%;margin:0}</style><main id="root"></main><script>globalThis.__SETTINGS_PLATFORM__=${JSON.stringify(platform)};globalThis.global=globalThis;${script}</script>`);
         });
         await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
         const address = server.address();
@@ -197,7 +207,7 @@ describe('Settings policy links browser interaction', () => {
     it.each([
         ['Web Desktop', { width: 1440, height: 900 }],
         ['Web Mobile', { width: 390, height: 844 }],
-    ] as const)('opens flern.co from the visible policy rows on %s', async (_surface, viewport) => {
+    ] as const)('opens the configured Web destinations from visible Settings rows on %s', async (_surface, viewport) => {
         const page = await browser.newPage({ viewport });
         const pageErrors: string[] = [];
         page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
@@ -206,6 +216,7 @@ describe('Settings policy links browser interaction', () => {
         });
         await page.addInitScript(() => {
             (window as any).__OPEN_CALLS__ = [];
+            (window as any).__PAYWALL_CALLS__ = [];
             window.open = ((url?: string | URL, target?: string, features?: string) => {
                 (window as any).__OPEN_CALLS__.push({ url: String(url), target, features });
                 return null;
@@ -213,6 +224,11 @@ describe('Settings policy links browser interaction', () => {
         });
         await page.goto(origin);
 
+        const support = page.getByText('Support Us', { exact: true });
+        await support.waitFor({ state: 'visible' });
+        await expect(page.locator('[data-icon="heart"]').count()).resolves.toBe(1);
+        await expect(page.getByText('Support HappyHerd', { exact: true }).count()).resolves.toBe(1);
+        await support.click();
         const privacy = page.getByText('Privacy Policy', { exact: true });
         await privacy.waitFor({ state: 'visible', timeout: 3_000 }).catch((error) => {
             throw new Error(`${String(error)}\nBrowser errors:\n${pageErrors.join('\n')}`);
@@ -225,13 +241,41 @@ describe('Settings policy links browser interaction', () => {
         await expect(page.getByText("What's New", { exact: true }).count()).resolves.toBe(1);
         await expect(page.getByText('Version', { exact: true }).count()).resolves.toBe(1);
 
-        await page.waitForFunction(() => (window as any).__OPEN_CALLS__.length === 4);
+        await page.waitForFunction(() => (window as any).__OPEN_CALLS__.length === 5);
         await expect(page.evaluate(() => (window as any).__OPEN_CALLS__)).resolves.toEqual([
+            { url: 'https://buymeacoffee.com/nickguy', target: '_blank', features: 'noopener,noreferrer' },
             { url: 'https://flern.co/privacy', target: '_blank', features: 'noopener,noreferrer' },
             { url: 'https://example.com/happyherd', target: '_blank', features: 'noopener,noreferrer' },
             { url: 'https://example.com/happyherd/issues/new', target: '_blank', features: 'noopener,noreferrer' },
             { url: 'https://flern.co/terms', target: '_blank', features: 'noopener,noreferrer' },
         ]);
+        await expect(page.evaluate(() => (window as any).__PAYWALL_CALLS__)).resolves.toEqual([]);
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 10_000);
+
+    it('retains the voluntary-support paywall on the non-Web platform branch', async () => {
+        const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+        const pageErrors: string[] = [];
+        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+        await page.addInitScript(() => {
+            (window as any).__OPEN_CALLS__ = [];
+            (window as any).__PAYWALL_CALLS__ = [];
+            window.open = ((url?: string | URL, target?: string, features?: string) => {
+                (window as any).__OPEN_CALLS__.push({ url: String(url), target, features });
+                return null;
+            }) as typeof window.open;
+        });
+        await page.goto(`${origin}/?platform=ios`);
+
+        const support = page.getByText('Support Us', { exact: true });
+        await support.waitFor({ state: 'visible', timeout: 3_000 }).catch(async (error) => {
+            throw new Error(`${String(error)}\nBrowser errors:\n${pageErrors.join('\n')}\nBody:\n${await page.locator('body').innerText()}`);
+        });
+        await support.click();
+        await page.waitForFunction(() => (window as any).__PAYWALL_CALLS__.length === 1);
+        await expect(page.evaluate(() => (window as any).__PAYWALL_CALLS__)).resolves.toEqual(['voluntary_support']);
+        await expect(page.evaluate(() => (window as any).__OPEN_CALLS__)).resolves.toEqual([]);
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 10_000);
