@@ -422,7 +422,11 @@ describe('FileContentPanel native editing', () => {
 
         let header!: ReactTestRenderer;
         act(() => { header = create(panel.getHeaderSlot() as React.ReactElement); });
-        expect(header.root.findAllByType('Pressable' as any)).toHaveLength(0);
+        // Read-only text still owns a truthful Preview control; it must not
+        // expose Edit/Save because the file is not writable.
+        expect(renderedText(header)).toEqual(expect.arrayContaining(['uiCopy.preview']));
+        expect(renderedText(header)).not.toContain('files.editFile');
+        expect(header.root.findAllByType('Pressable' as any)).toHaveLength(1);
 
         act(() => {
             header.unmount();

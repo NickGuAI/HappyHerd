@@ -236,6 +236,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
     const contextWorkspaceLinkPress = useWorkspaceLinkPress();
     const workspaceLinkPress = props.onWorkspaceLinkPress ?? contextWorkspaceLinkPress;
     const metadata = props.workspaceProvenance ?? session?.metadata;
+    const rootRef = React.useRef<HTMLDivElement | null>(null);
 
     const openWorkspace = React.useCallback((route: WorkspaceLinkRoute) => {
         if (workspaceLinkPress) workspaceLinkPress(route);
@@ -294,6 +295,24 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
                 );
             },
             li: reviewable('li'),
+            // Give each table row a source-line range so a deep link to a line
+            // inside a table can reveal that exact row instead of the table
+            // start. Cells inherit the row identity and stay commentable at the
+            // row block level.
+            tr: ({ node, children, ...rest }: any) => {
+                const start = sourceLine(node);
+                const end = node?.position?.end?.line;
+                const lineStart = Number.isInteger(start) ? start : undefined;
+                const lineEnd = Number.isInteger(end) ? end : lineStart;
+                return (
+                    <tr
+                        {...rest}
+                        data-source-line-start={lineStart}
+                        data-source-line-end={lineEnd}
+                        className={`${rest.className ?? ''} hh-markdown-table-row`.trim()}
+                    >{children}</tr>
+                );
+            },
             hr: ({ node, ...rest }: any) => {
                 const line = sourceLine(node);
                 return (
@@ -394,8 +413,45 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
         '--hh-markdown-syntax-default': theme.colors.syntaxDefault,
     } as React.CSSProperties;
 
+    // Reveal the rendered unit that corresponds to a requested source line. The
+    // unit may be an exact `data-source-line` block or a `data-source-line-start`
+    // table row whose range contains the line. The match prefers an exact
+    // block, then a containing row, then the nearest exact rendered unit.
+    React.useEffect(() => {
+        const line = props.requestedLine;
+        if (!line || line <= 0 || !rootRef.current) return undefined;
+        const root = rootRef.current;
+        const candidates = Array.from(root.querySelectorAll<HTMLElement>(
+            '[data-source-line], [data-source-line-start]',
+        ));
+        let best: HTMLElement | null = null;
+        let bestScore = Number.POSITIVE_INFINITY;
+        for (const element of candidates) {
+            const exact = Number(element.getAttribute('data-source-line'));
+            const start = Number(element.getAttribute('data-source-line-start')) || exact || 0;
+            const end = Number(element.getAttribute('data-source-line-end')) || start;
+            let score: number;
+            if (exact === line) score = 0;
+            else if (exact > 0) score = 1000 + Math.abs(exact - line);
+            else if (line >= start && line <= end) score = 1;
+            else score = 2000 + Math.min(Math.abs(line - start), Math.abs(line - end));
+            if (score < bestScore) {
+                bestScore = score;
+                best = element;
+            }
+        }
+        if (!best) return undefined;
+        root.querySelectorAll('.hh-markdown-review-reveal').forEach((element) => {
+            element.classList.remove('hh-markdown-review-reveal');
+        });
+        best.classList.add('hh-markdown-review-reveal');
+        best.scrollIntoView({ block: 'center', inline: 'nearest' });
+        return undefined;
+    }, [props.markdown, props.requestedLine]);
+
     return (
         <div
+            ref={rootRef}
             className={`hh-markdown-root${theme.dark ? ' hh-markdown-dark' : ''}`}
             style={{ ...themeVariables, textAlign: props.textAlign }}
         >
@@ -455,6 +511,7 @@ const MARKDOWN_CSS = `
 .hh-markdown-code-copy { position: absolute; top: 8px; right: 8px; opacity: 0; cursor: pointer; }
 .hh-markdown-root pre:hover > .hh-markdown-code-copy,.hh-markdown-code-copy:focus-visible { opacity: 1; }
 .hh-markdown-review-line { position: relative; }
+.hh-markdown-review-reveal { outline: 2px solid rgba(96,140,255,.8); outline-offset: -2px; border-radius: 4px; background: rgba(96,140,255,.12); }
 .hh-markdown-comment-gutter { position: absolute; left: -24px; top: .15em; width: 20px; height: 20px; border: 1px solid rgba(127,127,127,.45); border-radius: 50%; opacity: 0; cursor: pointer; line-height: 16px; padding: 0; }
 .hh-markdown-review-line:hover > .hh-markdown-comment-gutter,.hh-markdown-comment-gutter:focus-visible { opacity: 1; }
 @media (hover: none), (pointer: coarse) { .hh-markdown-comment-gutter { opacity: 1; } }

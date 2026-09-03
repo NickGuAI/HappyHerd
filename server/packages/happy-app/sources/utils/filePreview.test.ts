@@ -7,7 +7,6 @@ import {
     imageDataUri,
     imageMimeType,
     imagePreviewLayout,
-    interactiveHtmlPreviewDocument,
     isSvgDocument,
     matchesRichPreviewContent,
     pdfDataUri,
@@ -92,15 +91,5 @@ describe('file preview classification', () => {
         expect(document).not.toContain('http-equiv="refresh"');
         expect(document).not.toContain('<a href=');
         expect(document).not.toContain('target="_self"');
-    });
-
-    it('allows only inline scripts in the deliberately selected interactive document', () => {
-        const document = interactiveHtmlPreviewDocument('<html><body><script>document.body.dataset.ready = "yes"</script><a href="https://evil.test">leave</a></body></html>');
-
-        expect(document).toContain("script-src 'unsafe-inline'");
-        expect(document).not.toContain("script-src 'none'");
-        expect(document).toContain("default-src 'none'");
-        expect(document).toContain("form-action 'none'");
-        expect(document).not.toContain('<a href=');
     });
 });

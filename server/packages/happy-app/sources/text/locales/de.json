@@ -891,7 +891,6 @@
     "openExistingFile": "Vorhandene Datei öffnen",
     "resizeWorkspace": "Dateiarbeitsbereich anpassen",
     "editFile": "Bearbeiten",
-    "interactivePreview": "Interaktiv",
     "deleteFile": "Löschen",
     "deleteFileTitle": "Datei löschen?",
     "deleteFileDescription": "Dies wird die ausgewählte Datei dauerhaft aus Ihrem Arbeitsbereich entfernen. Diese Aktion kann nicht rückgängig gemacht werden.",

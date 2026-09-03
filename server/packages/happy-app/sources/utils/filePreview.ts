@@ -170,11 +170,6 @@ const HTML_PREVIEW_CSP = [
     "style-src 'unsafe-inline'",
 ].join('; ');
 
-const INTERACTIVE_HTML_PREVIEW_CSP = HTML_PREVIEW_CSP.replace(
-    "script-src 'none'",
-    "script-src 'unsafe-inline'",
-);
-
 function htmlPreviewDocument(source: string, csp: string): string {
     const withoutNavigation = source
         .replace(/<base\b[^>]*>/gi, '')
@@ -194,13 +189,4 @@ function htmlPreviewDocument(source: string, csp: string): string {
  */
 export function safeHtmlPreviewDocument(source: string): string {
     return htmlPreviewDocument(source, HTML_PREVIEW_CSP);
-}
-
-/**
- * Build the explicitly selected interactive view. It keeps the same local
- * document boundary as Preview while allowing the file's inline scripts to
- * drive its own DOM.
- */
-export function interactiveHtmlPreviewDocument(source: string): string {
-    return htmlPreviewDocument(source, INTERACTIVE_HTML_PREVIEW_CSP);
 }

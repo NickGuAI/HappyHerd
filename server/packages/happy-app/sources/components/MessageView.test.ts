@@ -161,7 +161,7 @@ describe('MessageView Human message alignment', () => {
         ['multiline Latin', 'Read the email\nThen summarize it'],
         ['short CJK', '读一下邮件'],
         ['multiline CJK', '读一下邮件\n看看有没有新的活动'],
-    ])('centers %s text while retaining the copy boundary', (_label, text) => {
+    ])('left-aligns %s inner text in a vertically centered right-aligned bubble', (_label, text) => {
         platform.os = 'web';
         let renderer!: ReactTestRenderer;
         act(() => {
@@ -182,17 +182,20 @@ describe('MessageView Human message alignment', () => {
         expect(markdown.props).toMatchObject({
             markdown: text,
             externalCopyHandler: true,
-            textAlign: 'center',
+            textAlign: 'left',
         });
         const copyTarget = renderer.root.findByType('LongPressCopyable' as any);
         expect(copyTarget.props.text).toBe(text);
-        const centeredBubble = renderer.root.findAllByType('View' as any).find((node: { props: { style?: unknown } }) => {
+        const rightAlignedBubble = renderer.root.findAllByType('View' as any).find((node: { props: { style?: unknown } }) => {
             const style = Array.isArray(node.props.style) ? node.props.style : [node.props.style];
-            return style.some((entry: any) => entry?.alignItems === 'center'
-                && entry?.justifyContent === 'center'
-                && entry?.textAlign === 'center');
+            return style.some((entry: any) => entry?.alignItems === 'flex-end');
         });
-        expect(centeredBubble).toBeDefined();
+        expect(rightAlignedBubble).toBeDefined();
+        const verticallyCenteredBubble = renderer.root.findAllByType('View' as any).find((node: { props: { style?: unknown } }) => {
+            const style = Array.isArray(node.props.style) ? node.props.style : [node.props.style];
+            return style.some((entry: any) => entry?.justifyContent === 'center');
+        });
+        expect(verticallyCenteredBubble).toBeDefined();
         act(() => renderer.unmount());
     });
 });
