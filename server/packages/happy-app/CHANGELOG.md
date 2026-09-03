@@ -1,3 +1,7 @@
+# September 3 — Sidebar back control
+
+- On Web Desktop, the persistent sidebar header keeps the existing Zen toggle followed by one localized Back text control, while its forward navigation control is removed. The Back control still closes file diff and file view overlays before returning through route history, with the separate sidebar collapse and expand boundary toggle remaining unchanged.
+
 # September 3 — Unified file viewer modes, commentable Markdown previews, and human message alignment
 
 - The file viewer now exposes one contextual **Preview** and, only for editable files, one **Edit**, with **Delete** only where already supported; the separate Source and HTML Interactive modes are removed. HTML always opens in one safe scriptless Preview.

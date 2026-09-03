@@ -14,8 +14,9 @@ import { t } from '@/text';
 import { isTauri } from '@/utils/isTauri';
 import { useOverlayNav } from '@/-session/sessionOverlayNav';
 import { DEFAULT_APP_ZOOM } from '@/hooks/useTauriZoom';
-import { canRouteForward, canUseRouteBack, getNavigatorCanGoBack } from '@/navigation/browserNavigation';
+import { canUseRouteBack, getNavigatorCanGoBack } from '@/navigation/browserNavigation';
 import { useBrowserNavigationStore } from '@/navigation/browserNavigationStore';
+import { Text } from './StyledText';
 import {
     DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_HIT_SLOP,
     DESKTOP_NAVIGATION_BOUNDARY_TOGGLE_WIDTH,
@@ -168,9 +169,7 @@ const PersistentHeader = React.memo(function PersistentHeader({ drawerWidth }: {
     const isMacTauri = inTauri && typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
 
     const routeHistory = useBrowserNavigationStore((s) => s.routeHistory);
-    const canGoForward = useBrowserNavigationStore((s) => s.routeHistory ? canRouteForward(s.routeHistory) : false);
     const overlayCanBack = useOverlayNav((s) => s.canBack);
-    const overlayCanForward = useOverlayNav((s) => s.canForward);
     const canGoBack = routeHistory
         ? canUseRouteBack(routeHistory, getNavigatorCanGoBack(router))
         : false;
@@ -189,18 +188,7 @@ const PersistentHeader = React.memo(function PersistentHeader({ drawerWidth }: {
         router.back();
     }, [router]);
 
-    const handleForward = React.useCallback(() => {
-        if (useOverlayNav.getState().forward()) return;
-        if (Platform.OS === 'web' && typeof window !== 'undefined') {
-            const nav = useBrowserNavigationStore.getState();
-            if (!nav.routeHistory || !canRouteForward(nav.routeHistory)) return;
-            nav.markRouteForward();
-            window.history.forward();
-        }
-    }, []);
-
     const canGoBackEffective = canGoBack || overlayCanBack;
-    const canGoForwardEffective = canGoForward || overlayCanForward;
 
     return (
         <View
@@ -223,7 +211,7 @@ const PersistentHeader = React.memo(function PersistentHeader({ drawerWidth }: {
             pointerEvents="box-none"
             {...(inTauri ? { dataSet: { tauriDragRegion: 'true' } } : {})}
         >
-            {/* Zen / Back / Forward buttons */}
+            {/* Zen / Back buttons */}
             <View
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
                 pointerEvents="auto"
@@ -242,14 +230,22 @@ const PersistentHeader = React.memo(function PersistentHeader({ drawerWidth }: {
                         tintColor={zenMode ? theme.colors.textLink : theme.colors.header.tint}
                     />
                 </Pressable>
-                <Pressable onPress={handleBack} disabled={!canGoBackEffective} hitSlop={10} style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center', opacity: canGoBackEffective ? 1 : 0.3 }}>
-                    <Ionicons name="chevron-back" size={20} color={theme.colors.header.tint} />
+                <Pressable
+                    onPress={handleBack}
+                    disabled={!canGoBackEffective}
+                    hitSlop={10}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.back')}
+                    style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center', opacity: canGoBackEffective ? 1 : 0.3 }}
+                >
+                    {Platform.OS === 'web' ? (
+                        <Text style={{ color: theme.colors.header.tint, fontSize: 13 }}>
+                            {t('common.back')}
+                        </Text>
+                    ) : (
+                        <Ionicons name="chevron-back" size={20} color={theme.colors.header.tint} />
+                    )}
                 </Pressable>
-                {Platform.OS === 'web' && (
-                    <Pressable onPress={handleForward} disabled={!canGoForwardEffective} hitSlop={10} style={{ width: 28, height: 28, alignItems: 'center', justifyContent: 'center', opacity: canGoForwardEffective ? 1 : 0.3 }}>
-                        <Ionicons name="chevron-forward" size={20} color={theme.colors.header.tint} />
-                    </Pressable>
-                )}
             </View>
         </View>
     );
