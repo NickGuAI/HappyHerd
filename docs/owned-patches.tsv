@@ -252,3 +252,4 @@ MOBILE_WEB_UX	accepted	chore(app): refresh final mobile UX inventory	server/pack
 MOBILE_WEB_UX	accepted	chore(app): register mobile UX patches	docs/owned-patches.tsv
 PUBLIC_BOUNDARY	accepted	fix(public-boundary): normalize merged skill identity	scripts/test-public-boundary.mjs
 SIDEBAR_BACK_CONTROL	accepted	fix(app): show one sidebar Back control	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
+SIDEBAR_COLLAPSE_ICON	accepted	fix(app): use standard sidebar toggle icons	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
