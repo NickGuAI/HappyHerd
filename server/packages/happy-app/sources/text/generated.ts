@@ -129,6 +129,7 @@ export type TranslationKey =
     | "common.rename"
     | "common.reset"
     | "common.retry"
+    | "common.runtime"
     | "common.save"
     | "common.saveAs"
     | "common.scanning"

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "876de59aaae2fa61133055bcdfc9d4bf0fc02480c14155a0ea14b70c17f37622",
+  "sourceFingerprint": "1187397007ad9d9fd638d4dbd28257ad41dd59ddc997ae1b2d7788ddd63e0b7a",
   "routeCount": 36,
   "surfaceCount": 255,
   "hardcodedCopyCount": 0,
@@ -4333,6 +4333,7 @@
       ],
       "translationKeys": [
         "common.authenticate",
+        "common.runtime",
         "common.version",
         "connect.enterUrlManually",
         "modals.authenticateTerminal",

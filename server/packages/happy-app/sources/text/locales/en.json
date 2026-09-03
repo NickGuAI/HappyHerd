@@ -33,6 +33,7 @@
     "no": "No",
     "discard": "Discard",
     "version": "Version",
+    "runtime": "Runtime",
     "copied": "Copied",
     "copy": "Copy",
     "scanning": "Scanning...",

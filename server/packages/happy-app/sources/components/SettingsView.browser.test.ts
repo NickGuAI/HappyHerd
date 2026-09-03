@@ -55,7 +55,7 @@ const virtualModules: Record<string, string> = {
     'react-native-device-info': `export const getDeviceType = () => 'Handset';`,
     'expo-image': `import { View } from 'react-native'; export const Image = View;`,
     'expo-constants': `
-        export default { expoConfig: { version: '1.0.0', runtimeVersion: 'test-runtime', extra: { app: {} } } };
+        export default { expoConfig: { version: '1.2.2', runtimeVersion: '21', extra: { app: {} } } };
     `,
     'expo-router': `export const useRouter = () => ({ push() {} });`,
     'expo-clipboard': `export const setStringAsync = async () => {};`,
@@ -66,6 +66,7 @@ const virtualModules: Record<string, string> = {
     '@/constants/Typography': `export const Typography = { default: () => ({}) };`,
     '@/constants/product': `
         export const PRODUCT = {
+            displayName: 'HappyHerd',
             issueUrl: 'https://example.com/happyherd/issues/new',
             repositoryDisplay: 'example/happyherd',
             repositoryUrl: 'https://example.com/happyherd',
@@ -110,6 +111,7 @@ const virtualModules: Record<string, string> = {
     '@/text': `
         const labels = {
             'common.version': 'Version',
+            'common.runtime': 'Runtime',
             'settings.about': 'About',
             'settings.aboutFooter': 'About HappyHerd',
             'settings.connectedAccounts': 'Connected Accounts',
@@ -243,6 +245,7 @@ describe('Settings policy links browser interaction', () => {
         await page.getByText('Terms of Service', { exact: true }).click();
         await expect(page.getByText("What's New", { exact: true }).count()).resolves.toBe(1);
         await expect(page.getByText('Version', { exact: true }).count()).resolves.toBe(1);
+        await expect(page.getByText('HappyHerd 1.2.2 · Runtime 21', { exact: true }).count()).resolves.toBe(1);
 
         await page.waitForFunction(() => (window as any).__OPEN_CALLS__.length === 5);
         await expect(page.evaluate(() => (window as any).__OPEN_CALLS__)).resolves.toEqual([
@@ -272,6 +275,7 @@ describe('Settings policy links browser interaction', () => {
         await page.goto(`${origin}/?platform=ios`);
 
         await expect(page.getByText('About HappyHerd', { exact: true }).count()).resolves.toBe(0);
+        await expect(page.getByText('HappyHerd 1.2.2 · Runtime 21', { exact: true }).count()).resolves.toBe(1);
         const aboutGroup = page.getByText('About', { exact: true }).locator('xpath=../..');
         await expect(aboutGroup.locator(':scope > *').count()).resolves.toBe(2);
         const support = page.getByText('Support Us', { exact: true });
