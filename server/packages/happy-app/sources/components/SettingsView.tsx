@@ -463,7 +463,7 @@ export const SettingsView = React.memo(function SettingsView({
                 <Item
                     title={t('settings.privacyPolicy')}
                     icon={<Ionicons name="shield-checkmark-outline" size={29} color="#007AFF" />}
-                    onPress={() => openExternalUrl('https://happy.engineering/privacy/')}
+                    onPress={() => openExternalUrl('https://flern.co/privacy')}
                 />
                 <Item
                     title={t('settings.termsOfService')}
