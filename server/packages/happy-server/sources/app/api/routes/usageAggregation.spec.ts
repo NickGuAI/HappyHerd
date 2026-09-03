@@ -51,6 +51,8 @@ describe('aggregateUsageReports', () => {
         expect(result.coverage).toEqual([
             { provider: 'claude', tokens: 'reported', cost: 'reported', limitations: [], costBasis: ['provider-reported'] },
             { provider: 'codex', tokens: 'reported', cost: 'unavailable', limitations: ['cost-not-reported-by-provider'], costBasis: ['unavailable'] },
+            { provider: 'dsh', tokens: 'unavailable', cost: 'unavailable', limitations: [], costBasis: [] },
+            { provider: 'grok', tokens: 'unavailable', cost: 'unavailable', limitations: [], costBasis: [] },
         ]);
     });
 
@@ -64,13 +66,18 @@ describe('aggregateUsageReports', () => {
             cost: { total: 0.03, claude: 0.03 },
             reportCount: 1,
         });
-        expect(result.coverage).toEqual([{
-            provider: 'claude',
-            tokens: 'partial',
-            cost: 'partial',
-            limitations: ['historical-snapshot-incomplete', 'occurrence-time-unavailable'],
-            costBasis: ['provider-reported'],
-        }]);
+        expect(result.coverage).toEqual([
+            {
+                provider: 'claude',
+                tokens: 'partial',
+                cost: 'partial',
+                limitations: ['historical-snapshot-incomplete', 'occurrence-time-unavailable'],
+                costBasis: ['provider-reported'],
+            },
+            { provider: 'codex', tokens: 'unavailable', cost: 'unavailable', limitations: [], costBasis: [] },
+            { provider: 'dsh', tokens: 'unavailable', cost: 'unavailable', limitations: [], costBasis: [] },
+            { provider: 'grok', tokens: 'unavailable', cost: 'unavailable', limitations: [], costBasis: [] },
+        ]);
     });
 
     it('filters and buckets a delayed retry by immutable event time', () => {
@@ -103,7 +110,17 @@ describe('aggregateUsageReports', () => {
 
         expect(result.usage[0].tokens).toEqual({ total: 40, grok: 40 });
         expect(result.usage[0].cost).toEqual({ total: 0.2, grok: 0.2 });
-        expect(result.coverage[0]).toMatchObject({ provider: 'grok', tokens: 'partial', cost: 'partial' });
+        expect(result.coverage.find((entry) => entry.provider === 'grok'))
+            .toMatchObject({ provider: 'grok', tokens: 'partial', cost: 'partial' });
+    });
+
+    it('names every required provider when a period has no reports', () => {
+        expect(aggregateUsageReports([], 'day').coverage).toEqual([
+            { provider: 'claude', tokens: 'unavailable', cost: 'unavailable', limitations: [], costBasis: [] },
+            { provider: 'codex', tokens: 'unavailable', cost: 'unavailable', limitations: [], costBasis: [] },
+            { provider: 'dsh', tokens: 'unavailable', cost: 'unavailable', limitations: [], costBasis: [] },
+            { provider: 'grok', tokens: 'unavailable', cost: 'unavailable', limitations: [], costBasis: [] },
+        ]);
     });
 
     it('reconciles all four provider paths exactly while naming unavailable metrics', () => {
