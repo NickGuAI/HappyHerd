@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type {
   SideChatDelegationBrief,
+  SideChatLaunchOptions,
   SideChatLifecycleStatus,
   SideChatResourceUsage,
 } from '@/commands/sideChat';
@@ -36,6 +37,11 @@ const brief: SideChatDelegationBrief = {
   handoff: 'Return result, evidence, blockers, and remaining work.',
 };
 
+const launch: SideChatLaunchOptions = {
+  model: 'gpt-5.6-sol',
+  effort: 'xhigh',
+};
+
 const resource: SideChatResourceUsage = {
   status: 'ok',
   sampledAt: '2026-09-03T10:00:00.000Z',
@@ -53,7 +59,7 @@ function harness(initial: DaemonSideChatRecord[]) {
   const records = new Map(initial.map((record) => [record.sessionId, { ...record }]));
   const calls: string[] = [];
   const dependencies: DaemonSideChatLifecycleDependencies = {
-    create: vi.fn(async (parentSessionId, deliveredBrief) => {
+    create: vi.fn(async (parentSessionId, deliveredBrief, _launch) => {
       const created = child('created-child', 'running', { parentSessionId });
       records.set(created.sessionId, created);
       calls.push(`create:${parentSessionId}`);
@@ -124,7 +130,7 @@ describe('DaemonSideChatLifecycle', () => {
         ],
         resource,
       });
-    expect(dependencies.create).toHaveBeenCalledWith('parent', null);
+    expect(dependencies.create).toHaveBeenCalledWith('parent', null, undefined);
     expect(calls).toEqual(['create:parent', 'read:created-child']);
   });
 
@@ -147,6 +153,18 @@ describe('DaemonSideChatLifecycle', () => {
         ],
         resource,
       });
+  });
+
+  it('forwards an explicit model and effort through the daemon-owned create boundary', async () => {
+    const { lifecycle, dependencies } = harness([]);
+
+    await expect(lifecycle.execute({
+      action: 'create',
+      parentSessionId: 'parent',
+      brief,
+      launch,
+    })).resolves.toMatchObject({ success: true, sessionId: 'created-child' });
+    expect(dependencies.create).toHaveBeenCalledWith('parent', brief, launch);
   });
 
   it('retains the created child and exact failed phase when brief delivery fails', async () => {

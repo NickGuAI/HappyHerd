@@ -1325,23 +1325,64 @@ describe('daemon session continuity', () => {
     await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
     const control = mocks.controlHandlers as CapturedControlHandlers;
 
+    await expect(control.sideChat({
+      action: 'create',
+      parentSessionId: 'parent-session',
+      brief: null,
+      launch: { model: 'not-advertised', effort: 'xhigh' },
+    })).resolves.toMatchObject({
+      success: false,
+      sessionId: null,
+      phases: [{
+        phase: 'resolve',
+        status: 'failed',
+        message: expect.stringContaining('does not advertise model "not-advertised"'),
+      }],
+    });
+    expect(mocks.forkCodexBackendThread).not.toHaveBeenCalled();
+    expect(mocks.spawnHappyCLI).not.toHaveBeenCalled();
+
     const sideChat = control.sideChat({
       action: 'create',
       parentSessionId: 'parent-session',
       brief: null,
+      launch: { model: 'gpt-custom', effort: 'xhigh' },
     });
     const concurrentSideChat = control.sideChat({
       action: 'create',
       parentSessionId: 'parent-session',
       brief: null,
+      launch: { model: 'gpt-custom', effort: 'xhigh' },
     });
     await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    await expect(control.sideChat({
+      action: 'create',
+      parentSessionId: 'parent-session',
+      brief: null,
+      launch: { model: 'gpt-custom', effort: 'high' },
+    })).resolves.toMatchObject({
+      success: false,
+      phases: [{
+        phase: 'resolve',
+        status: 'failed',
+        message: expect.stringContaining('different delegation brief or launch selection'),
+      }],
+    });
     control.onHappySessionWebhook('child-session', {
       ...parentMetadata,
       hostPid: 5432,
       codexThreadId: 'thread-child',
       parentSessionId: 'parent-session',
       isSideChat: true,
+      spawnSettings: {
+        provider: 'codex',
+        model: 'gpt-custom',
+        effort: 'xhigh',
+        permission: 'safe-yolo',
+      },
+      modelMode: 'gpt-custom',
+      effortLevel: 'xhigh',
+      permissionMode: 'safe-yolo',
     }, {
       encryptionKey: new Uint8Array(32).fill(7),
       encryptionVariant: 'dataKey',
@@ -1372,12 +1413,25 @@ describe('daemon session continuity', () => {
       string[],
       { cwd: string; env: NodeJS.ProcessEnv },
     ];
-    expect(args).toEqual(expect.arrayContaining(['codex', '--resume', 'thread-child', '--started-by', 'daemon']));
+    expect(args).toEqual(expect.arrayContaining([
+      'codex',
+      '--resume', 'thread-child',
+      '--started-by', 'daemon',
+      '--model', 'gpt-custom',
+      '--effort', 'xhigh',
+      '--permission-mode', 'safe-yolo',
+    ]));
     expect(spawnOptions.cwd).toBe(parentMetadata.path);
     expect(spawnOptions.env.CODEX_HOME).toBe(codexHome);
     expect(spawnOptions.env.HAPPYHERD_PROVIDER_ACCOUNT).toBe(providerAccount);
     expect(spawnOptions.env.HAPPYHERD_PROVIDER_ACCOUNT_TYPE).toBe('codex');
     expect(spawnOptions.env.HAPPYHERD_CODEX_ACCOUNT_AUTH_FILE).toBe(accountAuthFile);
+    expect(spawnOptions.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON).toBe(JSON.stringify({
+      provider: 'codex',
+      model: 'gpt-custom',
+      effort: 'xhigh',
+      permission: 'safe-yolo',
+    }));
   });
 
   it('preserves an unmanaged Codex custom home through fork and child launch', async () => {

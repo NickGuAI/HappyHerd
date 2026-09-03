@@ -13,6 +13,8 @@ type SpawnSideChatInput = {
   directory: string;
   approvedNewDirectoryCreation: false;
   agent: 'claude' | 'codex';
+  modelMode?: string;
+  effortLevel?: string;
   resumeClaudeSessionId?: string;
   resumeCodexThreadId?: string;
   parentSessionId: string;
@@ -48,6 +50,11 @@ export type SideChatDelegationBrief = Readonly<{
   writeOwnership: string;
   verification: string;
   handoff: string;
+}>;
+
+export type SideChatLaunchOptions = Readonly<{
+  model?: string;
+  effort?: string;
 }>;
 
 export type CreateChildSideChatResult = {
@@ -94,7 +101,12 @@ export type SideChatResourceUsage = {
 };
 
 export type SideChatLifecycleRequest =
-  | { action: 'create'; parentSessionId: string; brief: SideChatDelegationBrief | null }
+  | {
+    action: 'create';
+    parentSessionId: string;
+    brief: SideChatDelegationBrief | null;
+    launch?: SideChatLaunchOptions;
+  }
   | { action: 'list'; parentSessionId: string }
   | { action: 'status' | 'stop' | 'close' | 'reopen'; sessionId: string }
   | { action: 'close-all'; parentSessionId: string };
@@ -190,6 +202,15 @@ const briefOptionEntries = Object.entries(briefOptions) as Array<
   [keyof typeof briefOptions, keyof SideChatDelegationBrief]
 >;
 
+const launchOptions = Object.freeze({
+  '--model': 'model',
+  '--effort': 'effort',
+} satisfies Record<string, keyof SideChatLaunchOptions>);
+
+const launchOptionEntries = Object.entries(launchOptions) as Array<
+  [keyof typeof launchOptions, keyof SideChatLaunchOptions]
+>;
+
 export function normalizeSideChatDelegationBrief(
   values: Partial<Record<keyof SideChatDelegationBrief, string>>,
 ): SideChatDelegationBrief {
@@ -214,6 +235,13 @@ export function sameSideChatDelegationBrief(
   right: SideChatDelegationBrief,
 ): boolean {
   return briefOptionEntries.every(([, field]) => left[field] === right[field]);
+}
+
+export function sameSideChatLaunchOptions(
+  left: SideChatLaunchOptions | undefined,
+  right: SideChatLaunchOptions | undefined,
+): boolean {
+  return left?.model === right?.model && left?.effort === right?.effort;
 }
 
 export function formatSideChatDelegationPrompt(
@@ -320,6 +348,7 @@ function requireForkedBackendId(
 export async function createChildSideChat(
   parentSessionId: string,
   dependencies: SideChatCommandDependencies,
+  launch?: SideChatLaunchOptions,
 ): Promise<CreateChildSideChatResult> {
   const parent = await dependencies.resolveSession(parentSessionId);
   const source = resolveSideChatSource(parent);
@@ -348,6 +377,8 @@ export async function createChildSideChat(
     directory: source.directory,
     approvedNewDirectoryCreation: false,
     agent: source.kind,
+    ...(launch?.model ? { modelMode: launch.model } : {}),
+    ...(launch?.effort ? { effortLevel: launch.effort } : {}),
     ...(source.kind === 'codex'
       ? { resumeCodexThreadId: forkedBackendId }
       : { resumeClaudeSessionId: forkedBackendId }),
@@ -376,7 +407,8 @@ export function sideChatHelp(): string {
 Usage:
   happyherd session side-chat create <parent-session-id> \\
     --outcome <text> --scope <text> --dependencies <text> \\
-    --write-ownership <text> --verification <text> --handoff <text> [--json]
+    --write-ownership <text> --verification <text> --handoff <text> \\
+    [--model <model>] [--effort <effort>] [--json]
   happyherd session side-chat list <parent-session-id> [--json]
   happyherd session side-chat status <child-session-id> [--json]
   happyherd session side-chat inspect <child-session-id> [--json]
@@ -388,7 +420,11 @@ Usage:
   happyherd session side-chat resume <child-session-id> [--json]
 
 The parent-id shorthand remains supported when all six brief options are supplied:
-  happyherd session side-chat <parent-session-id> <brief-options> [--json]
+  happyherd session side-chat <parent-session-id> <brief-options> \
+    [--model <model>] [--effort <effort>] [--json]
+
+Optional --model and --effort values are validated against the parent machine's
+current provider catalog before the child is forked or started.
 
 All lifecycle actions run through the parent machine's local daemon. Close
 stops the provider, deactivates the server session, archives encrypted
@@ -406,6 +442,7 @@ export function parseSideChatLifecycleRequest(args: string[]): {
   let all = false;
   const positional: string[] = [];
   const briefValues: Partial<Record<keyof SideChatDelegationBrief, string>> = {};
+  const launchValues: Partial<Record<keyof SideChatLaunchOptions, string>> = {};
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
     if (argument === '--json') {
@@ -417,18 +454,27 @@ export function parseSideChatLifecycleRequest(args: string[]): {
       continue;
     }
     const briefField = briefOptions[argument as keyof typeof briefOptions];
-    if (briefField) {
-      if (briefValues[briefField] !== undefined) {
+    const launchField = launchOptions[argument as keyof typeof launchOptions];
+    if (briefField || launchField) {
+      const existingValue = briefField
+        ? briefValues[briefField]
+        : launchValues[launchField!];
+      if (existingValue !== undefined) {
         throw new Error(`Duplicate side-chat option: ${argument}`);
       }
       const value = args[index + 1];
       const valueIsOption = value === '--json'
         || value === '--all'
-        || Object.prototype.hasOwnProperty.call(briefOptions, value);
+        || Object.prototype.hasOwnProperty.call(briefOptions, value)
+        || Object.prototype.hasOwnProperty.call(launchOptions, value);
       if (!nonEmptyString(value) || valueIsOption) {
         throw new Error(`Side-chat option ${argument} requires a non-empty value`);
       }
-      briefValues[briefField] = value;
+      if (briefField) {
+        briefValues[briefField] = value;
+      } else {
+        launchValues[launchField!] = value.trim();
+      }
       index += 1;
       continue;
     }
@@ -440,6 +486,13 @@ export function parseSideChatLifecycleRequest(args: string[]): {
   if (positional.length === 0) {
     throw new Error('Usage: happyherd session side-chat <action> <session-id> [--json]');
   }
+
+  const launch = launchOptionEntries.some(([, field]) => launchValues[field] !== undefined)
+    ? Object.freeze({
+      ...(launchValues.model ? { model: launchValues.model } : {}),
+      ...(launchValues.effort ? { effort: launchValues.effort } : {}),
+    })
+    : undefined;
 
   const [candidateAction, ...ids] = positional;
   const action = candidateAction === 'inspect'
@@ -459,6 +512,7 @@ export function parseSideChatLifecycleRequest(args: string[]): {
         action: 'create',
         parentSessionId: candidateAction,
         brief: normalizeSideChatDelegationBrief(briefValues),
+        ...(launch ? { launch } : {}),
       },
       json,
     };
@@ -470,6 +524,9 @@ export function parseSideChatLifecycleRequest(args: string[]): {
   if (action !== 'create' && Object.keys(briefValues).length > 0) {
     throw new Error('Delegation brief options are supported only with the create action');
   }
+  if (action !== 'create' && launch) {
+    throw new Error('Launch options are supported only with the create action');
+  }
   if (action === 'close' && all) {
     return { request: { action: 'close-all', parentSessionId: id }, json };
   }
@@ -478,7 +535,12 @@ export function parseSideChatLifecycleRequest(args: string[]): {
   }
   if (action === 'create') {
     return {
-      request: { action, parentSessionId: id, brief: normalizeSideChatDelegationBrief(briefValues) },
+      request: {
+        action,
+        parentSessionId: id,
+        brief: normalizeSideChatDelegationBrief(briefValues),
+        ...(launch ? { launch } : {}),
+      },
       json,
     };
   }

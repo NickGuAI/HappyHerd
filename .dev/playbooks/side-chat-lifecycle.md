@@ -26,6 +26,8 @@ happyherd session side-chat create <parent-session-id> \
   --write-ownership '<exact files, paths, or resources the child may change>' \
   --verification '<required automated and manual proof>' \
   --handoff '<result, evidence, blockers, and remaining work to return>' \
+  --model '<provider model>' \
+  --effort '<provider effort>' \
   --json
 ```
 
@@ -38,6 +40,14 @@ queued user message. The Worker Agent executes that brief directly, does not
 manage its own side-chat lifecycle, and does not create another side chat
 unless the Human or Main Agent explicitly requests it. Provider-native
 subagents remain the default bounded fan-out inside the child.
+
+`--model` and `--effort` are optional. When either is present, the owning
+daemon validates the selection against the parent provider's current machine
+catalog before it forks or starts the child. Invalid or unavailable selections
+fail without spawning. A successful create means the normal machine-session
+launch contract read back the exact effective settings. Omitting both options
+keeps the existing side-chat defaults. Human one-click creation still sends
+only the parent session ID.
 
 Use the same command surface for lifecycle operations:
 

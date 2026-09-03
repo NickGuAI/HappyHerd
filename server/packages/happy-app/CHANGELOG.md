@@ -1,3 +1,7 @@
+# September 3 — Explicit side-chat model and effort
+
+- `happyherd session side-chat create` now accepts optional `--model` and `--effort` selections, validates them on the owning daemon before spawning, and fails unsupported combinations instead of silently substituting another setting.
+
 # September 3 — Side-chat resource receipts
 
 - Side-chat creation receipts now include a one-time snapshot of the owning machine's CPU, load averages, RAM, and swap at creation, so orchestrators can gate new work against current host pressure without adding a background monitor.

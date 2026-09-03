@@ -276,11 +276,18 @@ export function startDaemonControlServer({
       verification: z.string().trim().min(1),
       handoff: z.string().trim().min(1),
     }).strict();
+    const sideChatLaunchOptionsSchema = z.object({
+      model: z.string().trim().min(1).optional(),
+      effort: z.string().trim().min(1).optional(),
+    }).strict().refine((value) => value.model !== undefined || value.effort !== undefined, {
+      message: 'At least one side-chat launch option is required',
+    });
     const sideChatRequestSchema = z.discriminatedUnion('action', [
       z.object({
         action: z.literal('create'),
         parentSessionId: z.string().min(1),
         brief: sideChatDelegationBriefSchema,
+        launch: sideChatLaunchOptionsSchema.optional(),
       }),
       z.object({ action: z.literal('list'), parentSessionId: z.string().min(1) }),
       z.object({ action: z.literal('status'), sessionId: z.string().min(1) }),
@@ -292,6 +299,32 @@ export function startDaemonControlServer({
       z.object({ action: z.literal('resume'), sessionId: z.string().min(1) }),
       z.object({ action: z.literal('close-all'), parentSessionId: z.string().min(1) }),
     ]);
+    const sideChatCreateWithSettingsRequestSchema = z.object({
+      action: z.literal('create'),
+      parentSessionId: z.string().min(1),
+      brief: sideChatDelegationBriefSchema,
+      launch: sideChatLaunchOptionsSchema,
+    }).strict();
+
+    // Keep launch-bearing requests off the legacy endpoint. Older daemons do
+    // not own this route and therefore fail closed instead of silently
+    // discarding model/effort before spawning a child with defaults.
+    typed.post('/side-chat-create-with-settings', {
+      schema: {
+        body: sideChatCreateWithSettingsRequestSchema,
+        response: {
+          200: z.any(),
+          500: z.object({ error: z.string() }),
+        },
+      },
+    }, async (request, reply) => {
+      try {
+        return await sideChat(normalizeSideChatLifecycleRequest(request.body));
+      } catch (error) {
+        reply.code(500);
+        return { error: error instanceof Error ? error.message : String(error) };
+      }
+    });
 
     // The daemon owns side-chat process state and encrypted session metadata;
     // all lifecycle actions therefore cross this one local control boundary.
