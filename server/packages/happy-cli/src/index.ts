@@ -413,11 +413,16 @@ Conversation history is preserved on the server, but in-flight tool calls are in
     return;
   } else if (subcommand === 'acp' || subcommand === 'grok' || subcommand === 'dsh') {
     try {
-      const { runAcp, resolveAcpLaunchConfig } = await import('@/agent/acp');
+      const { runAcp, resolveAcpLaunchConfig, usesBuiltInDshAcpProfile } = await import('@/agent/acp');
       const resolved = resolveAcpLaunchConfig(
         args.slice(1),
         subcommand === 'grok' || subcommand === 'dsh' ? subcommand : undefined,
       );
+      let permissionMode = resolved.permissionMode;
+      if (usesBuiltInDshAcpProfile(resolved)) {
+        const { resolveDshLaunchPermissionMode } = await import('@/capabilities/agentCapabilities');
+        permissionMode = await resolveDshLaunchPermissionMode(permissionMode);
+      }
       const { credentials } = await authAndSetupMachineIfNeeded();
       await ensureDaemonRunning()
       if (subcommand === 'grok') await activateCredentialAccount('grok');
@@ -429,7 +434,7 @@ Conversation history is preserved on the server, but in-flight tool calls are in
         agentName: resolved.agentName,
         command: resolved.command,
         args: resolved.args,
-        permissionMode: resolved.permissionMode,
+        permissionMode,
         model: resolved.model,
         effort: resolved.effort,
         resumeSessionId: resolved.resumeSessionId,

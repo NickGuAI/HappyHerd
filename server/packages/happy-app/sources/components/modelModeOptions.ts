@@ -670,7 +670,7 @@ export function getSessionAvailablePermissionModes(
     // GrokBuild permissions are process launch policies advertised by the
     // machine. The ACP session's operatingModes are its independent
     // plan/build modes and must never replace this launch catalog.
-    if (flavor === 'grok' && !isRigMetadataV1(sessionMetadata)) {
+    if ((flavor === 'grok' || flavor === 'dsh') && !isRigMetadataV1(sessionMetadata)) {
         return getMachineAdvertisedPermissionModes(machineMetadata, flavor, translate, selectedKey);
     }
     if (shouldUseMachineCapabilityCatalog(

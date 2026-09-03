@@ -1,8 +1,9 @@
 import spawn from 'cross-spawn';
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { HAPPYHERD_CLAUDE_MODEL_SLUGS } from '@slopus/happy-wire';
+import { parseDocument } from 'yaml';
 
 import type { AgentCapabilityCatalog } from '@/api/types';
 import { CodexAppServerClient } from '@/codex/codexAppServerClient';
@@ -28,7 +29,19 @@ type CapabilityDiscoveryResult = {
 export type DshAcpProbeResult = {
     initialize: InitializeResponse;
     configOptions: SessionConfigOption[];
+    permissionProfile: DshPermissionProfile;
     providerVersion?: string;
+};
+
+export type DshPermissionProfile = {
+    defaultMode: string;
+    presets: Array<{
+        code: string;
+        sandbox: string;
+        approval: string;
+        name?: string;
+        description?: string;
+    }>;
 };
 
 const GROK_PERMISSION_MODE_DESCRIPTIONS: Record<string, string> = {
@@ -353,6 +366,173 @@ type DshSelectValue = {
     description?: string | null;
 };
 
+function dshPluginBlock(config: string, packageName: string): string[] {
+    const lines = config.replace(/\r\n/g, '\n').split('\n');
+    const matchingNameLines = lines.flatMap((line, index) => (
+        line.match(/^  name:\s+['"]?([^'"\s]+)['"]?\s*$/)?.[1] === packageName ? [index] : []
+    ));
+    if (matchingNameLines.length !== 1) {
+        throw new Error(`dsh config must contain exactly one ${packageName} plugin`);
+    }
+
+    const nameIndex = matchingNameLines[0];
+    let start = nameIndex;
+    while (start > 0 && !/^- id:\s+/.test(lines[start])) start--;
+    if (!/^- id:\s+/.test(lines[start])) {
+        throw new Error(`dsh ${packageName} plugin is not a top-level profile entry`);
+    }
+    let end = nameIndex + 1;
+    while (end < lines.length && !/^- id:\s+/.test(lines[end])) end++;
+    const block = lines.slice(start, end);
+    const disabled = block.find((line) => /^  disabled:\s+/.test(line));
+    if (disabled && !/^  disabled:\s+false\s*$/.test(disabled)) {
+        throw new Error(`dsh ${packageName} plugin is disabled or conditionally disabled`);
+    }
+    return block;
+}
+
+function dshLiteralString(raw: string, field: string): string {
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed.startsWith('!!')) {
+        throw new Error(`dsh permission preset ${field} must be a literal string`);
+    }
+    const quoted = trimmed.match(/^(['"])(.*)\1$/);
+    return quoted ? quoted[2] : trimmed;
+}
+
+/**
+ * Read only dsh's permission preset rows and literal environment fallback.
+ * `--dump-config` can contain executable `!!js` tags; this parser recognizes
+ * one fixed expression as text and never asks a YAML runtime to evaluate it.
+ */
+export function parseDshPermissionProfile(config: string): DshPermissionProfile {
+    const presetBlock = dshPluginBlock(config, '@deepseek-ai/dsh-permission-presets');
+    const presetsIndex = presetBlock.findIndex((line) => /^    presets:\s*$/.test(line));
+    if (presetsIndex < 0) {
+        throw new Error('dsh permission preset plugin did not declare config.presets');
+    }
+
+    const presets: DshPermissionProfile['presets'] = [];
+    let current: DshPermissionProfile['presets'][number] | null = null;
+    for (const line of presetBlock.slice(presetsIndex + 1)) {
+        if (line.trim().length === 0) continue;
+        const preset = line.match(/^      ([A-Za-z0-9][A-Za-z0-9._-]*):\s*$/);
+        if (preset) {
+            current = { code: preset[1], sandbox: '', approval: '' };
+            presets.push(current);
+            continue;
+        }
+        const field = line.match(/^        (sandbox|approval|name|description):\s+(.+?)\s*$/);
+        if (!field || !current) {
+            throw new Error('dsh permission preset config has an unsupported or malformed row');
+        }
+        const key = field[1] as 'sandbox' | 'approval' | 'name' | 'description';
+        if (current[key]) {
+            throw new Error(`dsh permission preset "${current.code}" repeats ${field[1]}`);
+        }
+        current[key] = dshLiteralString(field[2], key);
+    }
+    if (presets.length === 0) {
+        throw new Error('dsh permission preset plugin did not advertise any presets');
+    }
+    const codes = new Set<string>();
+    for (const preset of presets) {
+        if (codes.has(preset.code)) {
+            throw new Error(`dsh permission preset "${preset.code}" is duplicated`);
+        }
+        codes.add(preset.code);
+        if (!preset.sandbox || !preset.approval) {
+            throw new Error(`dsh permission preset "${preset.code}" must declare sandbox and approval`);
+        }
+        if (preset.code !== preset.sandbox) {
+            throw new Error(`dsh permission preset "${preset.code}" cannot be selected through DSH_PERMISSION_MODE`);
+        }
+    }
+
+    const sandboxPolicy = dshPluginBlock(config, '@deepseek-ai/dsh-sandbox-policy');
+    const defaultMatches = sandboxPolicy.flatMap((line) => {
+        const match = line.match(
+            /^    mode:\s+!!js\s+process\.env\.DSH_PERMISSION_MODE\s+\?\?\s+(['"])([A-Za-z0-9][A-Za-z0-9._-]*)\1\s*$/,
+        );
+        return match ? [match[2]] : [];
+    });
+    if (defaultMatches.length !== 1) {
+        throw new Error('dsh sandbox policy did not declare one literal DSH_PERMISSION_MODE default');
+    }
+    const defaultMode = defaultMatches[0];
+    if (!codes.has(defaultMode)) {
+        throw new Error(`dsh permission default "${defaultMode}" is not an advertised preset`);
+    }
+
+    const approvalPolicy = dshPluginBlock(config, '@deepseek-ai/dsh-user-approval');
+    const policyIndex = approvalPolicy.findIndex((line) => /^    policy:\s+/.test(line));
+    if (policyIndex < 0) {
+        throw new Error('dsh approval policy did not declare a launch-time policy');
+    }
+    const firstPolicyLine = approvalPolicy[policyIndex].replace(/^    policy:\s+/, '').trim();
+    const policySource = [firstPolicyLine, ...approvalPolicy.slice(policyIndex + 1).map((line) => line.trim())]
+        .filter(Boolean)
+        .join(' ')
+        .replace(/^!!js\s+(?:>-\s+)?/, '')
+        .replace(/^(['"])(.*)\1$/, '$2');
+    const policyMatch = policySource.match(
+        /^\(process\.env\.DSH_PERMISSION_MODE\s+\?\?\s+(['"])([A-Za-z0-9][A-Za-z0-9._-]*)\1\)\s+===\s+(['"])([A-Za-z0-9][A-Za-z0-9._-]*)\3\s+\?\s+(['"])([A-Za-z0-9][A-Za-z0-9._-]*)\5\s+:\s+(['"])([A-Za-z0-9][A-Za-z0-9._-]*)\7$/,
+    );
+    if (!policyMatch || policyMatch[2] !== defaultMode) {
+        throw new Error('dsh approval policy did not declare the same literal DSH_PERMISSION_MODE default');
+    }
+    const exceptionalMode = policyMatch[4];
+    const exceptionalApproval = policyMatch[6];
+    const fallbackApproval = policyMatch[8];
+    for (const preset of presets) {
+        const effectiveApproval = preset.code === exceptionalMode ? exceptionalApproval : fallbackApproval;
+        if (preset.approval !== effectiveApproval) {
+            throw new Error(`dsh permission preset "${preset.code}" disagrees with the launch approval policy`);
+        }
+    }
+
+    return { defaultMode, presets };
+}
+
+/**
+ * dsh user settings can replace the new-session preset after environment
+ * composition. Explicit HappyHerd launch selection is truthful only while
+ * that supported override is absent; other settings namespaces are ignored.
+ */
+export function assertDshPermissionSettingsCompatible(
+    dumpedConfig: string,
+    settingsDocument: string | null,
+): void {
+    const settingsPlugin = dshPluginBlock(dumpedConfig, '@deepseek-ai/dsh-settings-file');
+    if (settingsPlugin.some((line) => /^    (?:path|dshHome):\s+/.test(line))) {
+        throw new Error('dsh permission discovery cannot resolve a custom settings-file path');
+    }
+    if (settingsDocument === null || settingsDocument.trim().length === 0) return;
+
+    const document = parseDocument(settingsDocument, {
+        prettyErrors: false,
+        strict: true,
+        uniqueKeys: true,
+    });
+    if (document.errors.length > 0 || document.warnings.length > 0) {
+        throw new Error('dsh settings YAML is malformed or unsupported');
+    }
+
+    let parsed: unknown;
+    try {
+        parsed = document.toJS({ maxAliasCount: 0 });
+    } catch {
+        throw new Error('dsh settings YAML is malformed or unsupported');
+    }
+    if (parsed === null) return;
+    if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('dsh settings YAML root must be a mapping');
+    }
+    if (Object.prototype.hasOwnProperty.call(parsed, 'permission')) {
+        throw new Error('dsh permission.defaultPreset settings override makes process-launch selection unavailable');
+    }
+}
+
 function flattenDshSelectValues(rawOptions: unknown): DshSelectValue[] {
     if (!Array.isArray(rawOptions)) return [];
     const values: DshSelectValue[] = [];
@@ -451,6 +631,13 @@ export function buildDshAcpCapabilityCatalog(
         effort.code === effortSelect.currentValue,
     ));
 
+    const permissionModes = probe.permissionProfile.presets.map((preset) => option(
+        preset.code,
+        preset.name ?? preset.code,
+        preset.description ?? `sandbox=${preset.sandbox}; approval=${preset.approval}`,
+        preset.code === probe.permissionProfile.defaultMode,
+    ));
+
     const prompt = probe.initialize.agentCapabilities?.promptCapabilities;
     return {
         detectedAt,
@@ -458,7 +645,7 @@ export function buildDshAcpCapabilityCatalog(
         sources: {
             models: 'dsh-acp:session/new:configOptions',
             effortLevels: 'dsh-acp:session/new:configOptions',
-            permissionModes: 'unsupported',
+            permissionModes: 'dsh:--profile-acp:dump-config:permission-presets',
         },
         models: [...modelBySlug.entries()].map(([slug, advertised]) => ({
             code: slug,
@@ -468,7 +655,7 @@ export function buildDshAcpCapabilityCatalog(
             isDefault: slug === currentModel,
         })),
         effortLevels,
-        permissionModes: [],
+        permissionModes,
         acp: {
             loadSession: probe.initialize.agentCapabilities?.loadSession === true,
             prompt: { image: prompt?.image === true },
@@ -478,7 +665,54 @@ export function buildDshAcpCapabilityCatalog(
 
 const DSH_CAPABILITY_PROBE_TIMEOUT_MS = 20_000;
 
-async function readDshAcpSessionConfig(): Promise<DshAcpProbeResult> {
+function readInstalledDshPermissionConfig(): string | null {
+    return readCommand('dsh', ['--profile', 'acp', '--dump-config']);
+}
+
+async function readInstalledDshPermissionSettings(): Promise<string | null> {
+    try {
+        return await readFile(join(process.env.DSH_HOME ?? join(homedir(), '.dsh'), 'settings.yaml'), 'utf8');
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+        throw error;
+    }
+}
+
+async function loadDshPermissionProfile(
+    loadPermissionConfig: () => string | null = readInstalledDshPermissionConfig,
+    loadPermissionSettings: () => Promise<string | null> = readInstalledDshPermissionSettings,
+): Promise<DshPermissionProfile> {
+    const dumpedConfig = loadPermissionConfig();
+    if (!dumpedConfig) {
+        throw new Error('dsh --profile acp --dump-config did not return a config');
+    }
+    assertDshPermissionSettingsCompatible(dumpedConfig, await loadPermissionSettings());
+    return parseDshPermissionProfile(dumpedConfig);
+}
+
+/** Resolve direct and daemon wrapper launches against the same live dsh preset contract. */
+export async function resolveDshLaunchPermissionMode(
+    requested: string | undefined,
+    opts?: {
+        loadPermissionConfig?: () => string | null;
+        loadPermissionSettings?: () => Promise<string | null>;
+    },
+): Promise<string> {
+    const profile = await loadDshPermissionProfile(
+        opts?.loadPermissionConfig,
+        opts?.loadPermissionSettings,
+    );
+    const resolved = requested ?? profile.defaultMode;
+    if (!profile.presets.some((preset) => preset.code === resolved)) {
+        throw new Error(`dsh does not advertise permission mode "${resolved}" in its active ACP profile`);
+    }
+    return resolved;
+}
+
+async function readDshAcpSessionConfig(
+    loadPermissionConfig: () => string | null = readInstalledDshPermissionConfig,
+    loadPermissionSettings: () => Promise<string | null> = readInstalledDshPermissionSettings,
+): Promise<DshAcpProbeResult> {
     const dshHome = await mkdtemp(join(tmpdir(), 'happyherd-dsh-capabilities-'));
     let backend: AcpBackend | null = null;
     let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
@@ -517,7 +751,15 @@ async function readDshAcpSessionConfig(): Promise<DshAcpProbeResult> {
         ]);
         if (!initialize) throw new Error('dsh ACP initialize response was not received');
         if (!configOptions) throw new Error('dsh ACP session/new configOptions were not received');
-        return { initialize, configOptions, providerVersion: readVersion('dsh') };
+        return {
+            initialize,
+            configOptions,
+            permissionProfile: await loadDshPermissionProfile(
+                loadPermissionConfig,
+                loadPermissionSettings,
+            ),
+            providerVersion: readVersion('dsh'),
+        };
     } finally {
         if (timeoutHandle) clearTimeout(timeoutHandle);
         try {
@@ -599,6 +841,8 @@ export async function detectAgentCapabilities(
         loadGrokInitialize?: () => Promise<InitializeResponse>;
         loadGrokHelp?: () => string | null;
         loadDshProbe?: () => Promise<DshAcpProbeResult>;
+        loadDshPermissionProfile?: () => string | null;
+        loadDshPermissionSettings?: () => Promise<string | null>;
     },
 ): Promise<CapabilityDiscoveryResult> {
     const catalogs = buildBaselineAgentCapabilities(availability);
@@ -643,11 +887,16 @@ export async function detectAgentCapabilities(
 
     if (availability.dsh) {
         try {
-            const probe = await (opts?.loadDshProbe ?? readDshAcpSessionConfig)();
+            const probe = opts?.loadDshProbe
+                ? await opts.loadDshProbe()
+                : await readDshAcpSessionConfig(
+                    opts?.loadDshPermissionProfile,
+                    opts?.loadDshPermissionSettings,
+                );
             catalogs.dsh = buildDshAcpCapabilityCatalog(probe);
         } catch (error) {
             const detail = error instanceof Error ? error.message : String(error);
-            dshCapabilityError = `dsh is installed but ACP capability discovery failed: ${detail}. Verify \`dsh --profile acp\` starts with DEEPSEEK_API_KEY available to the daemon.`;
+            dshCapabilityError = `dsh is installed but ACP capability discovery failed: ${detail}. Verify \`dsh --profile acp\` starts with DEEPSEEK_API_KEY available to the daemon and has no permission.defaultPreset settings override.`;
         }
     }
 

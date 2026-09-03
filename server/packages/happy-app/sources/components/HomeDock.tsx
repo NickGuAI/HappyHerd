@@ -1009,7 +1009,7 @@ export const HomeDock = React.memo(({
     }, [agentType, defaultOverrides, setDefaultOverrides, setModelMode]);
     const selectPermission = React.useCallback((key: string) => {
         setPermissionMode(key);
-        if (agentType === 'grok' || agentType === 'rig') {
+        if (agentType === 'grok' || agentType === 'dsh' || agentType === 'rig') {
             setDefaultOverrides(setAgentDefaultOverride(
                 defaultOverrides,
                 agentType,

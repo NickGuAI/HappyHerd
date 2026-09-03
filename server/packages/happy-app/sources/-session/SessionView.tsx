@@ -1430,6 +1430,10 @@ export function SessionViewLoaded({
     const flavor = session.metadata?.flavor;
     const isRig = isRigMetadata(session.metadata);
     const isGrok = flavor === 'grok';
+    const dshLaunchPermission = flavor === 'dsh'
+        && session.metadata?.spawnSettings?.provider === 'dsh'
+        ? session.metadata.spawnSettings.permission
+        : null;
     const availableModels = React.useMemo(() => (
         getSessionAvailableModels(
             flavor,
@@ -1445,16 +1449,24 @@ export function SessionViewLoaded({
             session.metadata,
             sessionMachine?.metadata,
             t,
-            session.permissionMode,
+            flavor === 'dsh' ? dshLaunchPermission : session.permissionMode,
         )
-    ), [flavor, session.metadata, session.permissionMode, sessionMachine?.metadata]);
+    ), [dshLaunchPermission, flavor, session.metadata, session.permissionMode, sessionMachine?.metadata]);
     const [agentDefaultOverrides, setAgentDefaultOverrides] = useSettingMutable('agentDefaultOverrides');
     const effectiveAgentDefaults = React.useMemo(() => (
         resolveAgentDefaultConfig(agentDefaultOverrides, flavor)
     ), [agentDefaultOverrides, flavor]);
 
-    const permissionMode = React.useMemo<PermissionMode | null>(() => (
-        resolveCurrentOption(availableModes, isGrok && !isRig
+    const permissionMode = React.useMemo<PermissionMode | null>(() => {
+        if (flavor === 'dsh') {
+            if (!dshLaunchPermission) return null;
+            return resolveCurrentOption(availableModes, [dshLaunchPermission]) ?? {
+                key: dshLaunchPermission,
+                name: dshLaunchPermission,
+                description: null,
+            };
+        }
+        return resolveCurrentOption(availableModes, isGrok && !isRig
             ? [session.permissionMode, getAdvertisedDefaultOptionKey(availableModes)]
             : [
                 session.permissionMode,
@@ -1471,8 +1483,8 @@ export function SessionViewLoaded({
                     effectiveAgentDefaults.permissionMode,
                     session.metadata?.currentOperatingModeCode,
                 ]),
-            ])
-    ), [availableModes, session.permissionMode, effectiveAgentDefaults.permissionMode, session.metadata?.currentOperatingModeCode, session.metadata?.permissionMode, session.metadata?.session?.permissionMode, session.metadata?.spawnSettings, isGrok, isRig]);
+        ]);
+    }, [availableModes, dshLaunchPermission, session.permissionMode, effectiveAgentDefaults.permissionMode, session.metadata?.currentOperatingModeCode, session.metadata?.permissionMode, session.metadata?.session?.permissionMode, isGrok, isRig, flavor]);
 
     const modelMode = React.useMemo<ModelMode | null>(() => (
         resolveCurrentOption(availableModels, isGrok
@@ -1921,7 +1933,8 @@ export function SessionViewLoaded({
                 placeholder={t('session.inputPlaceholder')}
                 sessionId={sessionId}
                 permissionMode={permissionMode}
-                onPermissionModeChange={isRigPermissionSelectionEnabled(session.metadata)
+                permissionModeReadOnly={flavor === 'dsh' && permissionMode !== null}
+                onPermissionModeChange={flavor !== 'dsh' && isRigPermissionSelectionEnabled(session.metadata)
                     && (!isGrok || Boolean(machineId && sessionMachine))
                     ? updatePermissionMode
                     : undefined}

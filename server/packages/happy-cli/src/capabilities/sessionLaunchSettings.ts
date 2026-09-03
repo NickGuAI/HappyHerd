@@ -71,7 +71,12 @@ export function resolveEffectiveSessionSettings(
     const catalogValue = metadata.agentCapabilities?.[request.provider];
     const catalog = AgentCapabilityCatalogSchema.safeParse(catalogValue);
     if (!catalog.success) {
-        if (request.model === undefined && request.effort === undefined && request.permission === undefined) {
+        if (
+            request.provider !== 'dsh'
+            && request.model === undefined
+            && request.effort === undefined
+            && request.permission === undefined
+        ) {
             return {
                 provider: request.provider,
                 model: null,

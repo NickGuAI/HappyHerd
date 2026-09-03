@@ -50,13 +50,16 @@ vi.mock('@/agent/acp/AcpBackend', () => ({
 }));
 
 import {
+    assertDshPermissionSettingsCompatible,
     buildClaudeCapabilityCatalog,
     buildBaselineAgentCapabilities,
     buildDshAcpCapabilityCatalog,
     buildGrokAcpCapabilityCatalog,
     detectAgentCapabilities,
     parseClaudeHelp,
+    parseDshPermissionProfile,
     parseGrokPermissionModeHelp,
+    resolveDshLaunchPermissionMode,
     type DshAcpProbeResult,
 } from './agentCapabilities';
 
@@ -65,6 +68,34 @@ const GROK_HELP = `
           Permission mode
 
           [possible values: default, acceptEdits, auto, dontAsk, bypassPermissions, plan]
+`;
+
+const DSH_PERMISSION_PROFILE = `
+- id: settings
+  name: '@deepseek-ai/dsh-settings-file'
+- id: sandbox-policy
+  name: '@deepseek-ai/dsh-sandbox-policy'
+  config:
+    mode: !!js process.env.DSH_PERMISSION_MODE ?? 'workspace-write'
+- id: permission
+  name: '@deepseek-ai/dsh-permission-presets'
+  config:
+    presets:
+      read-only:
+        sandbox: read-only
+        approval: ask
+      workspace-write:
+        sandbox: workspace-write
+        approval: ask
+      danger-full-access:
+        sandbox: danger-full-access
+        approval: never
+- id: approval
+  name: '@deepseek-ai/dsh-user-approval'
+  config:
+    policy: !!js >-
+      (process.env.DSH_PERMISSION_MODE ?? 'workspace-write') ===
+      'danger-full-access' ? 'never' : 'ask'
 `;
 
 function dshProbe(overrides?: {
@@ -82,6 +113,7 @@ function dshProbe(overrides?: {
             agentInfo: { name: 'deepseek-harness-acp', version: '0.0.1' },
         } as DshAcpProbeResult['initialize'],
         providerVersion: '0.1.2-alpha.4',
+        permissionProfile: parseDshPermissionProfile(DSH_PERMISSION_PROFILE),
         configOptions: [
             {
                 type: 'select',
@@ -300,6 +332,9 @@ describe('agent capability discovery', () => {
             dsh: true,
             agy: false,
             detectedAt: 1,
+        }, {
+            loadDshPermissionProfile: () => DSH_PERMISSION_PROFILE,
+            loadDshPermissionSettings: async () => null,
         });
 
         expect(discovery.capabilities.dsh.models).toHaveLength(2);
@@ -363,8 +398,28 @@ describe('agent capability discovery', () => {
         expect(first.capabilities.dsh.sources).toEqual({
             models: 'dsh-acp:session/new:configOptions',
             effortLevels: 'dsh-acp:session/new:configOptions',
-            permissionModes: 'unsupported',
+            permissionModes: 'dsh:--profile-acp:dump-config:permission-presets',
         });
+        expect(first.capabilities.dsh.permissionModes).toEqual([
+            {
+                code: 'read-only',
+                value: 'read-only',
+                description: 'sandbox=read-only; approval=ask',
+                isDefault: false,
+            },
+            {
+                code: 'workspace-write',
+                value: 'workspace-write',
+                description: 'sandbox=workspace-write; approval=ask',
+                isDefault: true,
+            },
+            {
+                code: 'danger-full-access',
+                value: 'danger-full-access',
+                description: 'sandbox=danger-full-access; approval=never',
+                isDefault: false,
+            },
+        ]);
         expect(first.capabilities.dsh.providerVersion).toBe('0.1.2-alpha.4');
         expect(second.capabilities.dsh.models.map((model) => model.code)).toEqual(['deepseek-v5']);
     });
@@ -385,13 +440,108 @@ describe('agent capability discovery', () => {
             'deepseek-v4-flash',
             'deepseek-v4-pro',
         ]);
-        expect(catalog.permissionModes).toEqual([]);
+        expect(catalog.permissionModes.map((mode) => mode.code)).toEqual([
+            'read-only',
+            'workspace-write',
+            'danger-full-access',
+        ]);
         expect(catalog.models.filter((model) => model.isDefault)).toEqual([
             expect.objectContaining({ code: 'deepseek-v4-flash' }),
         ]);
         expect(catalog.effortLevels.filter((effort) => effort.isDefault)).toEqual([
             expect.objectContaining({ code: 'high' }),
         ]);
+    });
+
+    it('parses only provider-native dsh permission rows and their explicit default', () => {
+        expect(parseDshPermissionProfile(DSH_PERMISSION_PROFILE)).toEqual({
+            defaultMode: 'workspace-write',
+            presets: [
+                { code: 'read-only', sandbox: 'read-only', approval: 'ask' },
+                { code: 'workspace-write', sandbox: 'workspace-write', approval: 'ask' },
+                { code: 'danger-full-access', sandbox: 'danger-full-access', approval: 'never' },
+            ],
+        });
+
+        const providerNative = DSH_PERMISSION_PROFILE.replace(
+            '      read-only:\n        sandbox: read-only\n        approval: ask',
+            '      read-only:\n        sandbox: read-only\n        approval: ask\n        name: Read only\n        description: Provider-owned details.',
+        );
+        expect(parseDshPermissionProfile(providerNative).presets[0]).toEqual({
+            code: 'read-only',
+            sandbox: 'read-only',
+            approval: 'ask',
+            name: 'Read only',
+            description: 'Provider-owned details.',
+        });
+    });
+
+    it.each([
+        ['missing plugin', DSH_PERMISSION_PROFILE.replace("  name: '@deepseek-ai/dsh-permission-presets'", "  name: '@deepseek-ai/other'")],
+        ['malformed row', DSH_PERMISSION_PROFILE.replace('        approval: ask', '        unexpected: ask')],
+        ['absent default', DSH_PERMISSION_PROFILE.replace("    mode: !!js process.env.DSH_PERMISSION_MODE ?? 'workspace-write'", '    mode: !!js process.env.DSH_PERMISSION_MODE')],
+        ['inconsistent default', DSH_PERMISSION_PROFILE.replace("?? 'workspace-write'", "?? 'missing-mode'")],
+        ['inconsistent approval', DSH_PERMISSION_PROFILE.replace('        approval: ask', '        approval: never')],
+        ['unlaunchable alias', DSH_PERMISSION_PROFILE.replace('      read-only:', '      review-only:')],
+        ['disabled provider', DSH_PERMISSION_PROFILE.replace("  name: '@deepseek-ai/dsh-permission-presets'", "  name: '@deepseek-ai/dsh-permission-presets'\n  disabled: true")],
+        ['executable replacement', DSH_PERMISSION_PROFILE.replace("?? 'workspace-write'", "? runCode() : 'workspace-write'")],
+    ])('fails closed for %s dsh permission config', (_case, config) => {
+        expect(() => parseDshPermissionProfile(config)).toThrow(/dsh/);
+    });
+
+    it('fails closed when dsh user settings can override the launch preset', () => {
+        expect(() => assertDshPermissionSettingsCompatible(
+            DSH_PERMISSION_PROFILE,
+            'llm-deepseek:\n  model: provider-model\n',
+        )).not.toThrow();
+        expect(() => assertDshPermissionSettingsCompatible(
+            DSH_PERMISSION_PROFILE,
+            'permission:\n  defaultPreset: read-only\n',
+        )).toThrow('permission.defaultPreset settings override');
+        expect(() => assertDshPermissionSettingsCompatible(
+            DSH_PERMISSION_PROFILE,
+            '  permission:\n    defaultPreset: danger-full-access\n',
+        )).toThrow('permission.defaultPreset settings override');
+        expect(() => assertDshPermissionSettingsCompatible(
+            DSH_PERMISSION_PROFILE,
+            'permission :\n  defaultPreset: danger-full-access\n',
+        )).toThrow('permission.defaultPreset settings override');
+        expect(() => assertDshPermissionSettingsCompatible(
+            DSH_PERMISSION_PROFILE,
+            JSON.stringify({ permission: { defaultPreset: 'danger-full-access' } }),
+        )).toThrow('permission.defaultPreset settings override');
+        expect(() => assertDshPermissionSettingsCompatible(
+            DSH_PERMISSION_PROFILE,
+            'other: [\n',
+        )).toThrow('settings YAML is malformed');
+        expect(() => assertDshPermissionSettingsCompatible(
+            DSH_PERMISSION_PROFILE,
+            '- not\n- a\n- mapping\n',
+        )).toThrow('settings YAML root must be a mapping');
+        expect(() => assertDshPermissionSettingsCompatible(
+            DSH_PERMISSION_PROFILE.replace(
+                "  name: '@deepseek-ai/dsh-settings-file'",
+                "  name: '@deepseek-ai/dsh-settings-file'\n  config:\n    path: /custom/settings.yaml",
+            ),
+            null,
+        )).toThrow('custom settings-file path');
+    });
+
+    it('resolves direct dsh launches to the live default and rejects unknown presets', async () => {
+        const loaders = {
+            loadPermissionConfig: () => DSH_PERMISSION_PROFILE,
+            loadPermissionSettings: async () => null,
+        };
+        await expect(resolveDshLaunchPermissionMode(undefined, loaders))
+            .resolves.toBe('workspace-write');
+        await expect(resolveDshLaunchPermissionMode('read-only', loaders))
+            .resolves.toBe('read-only');
+        await expect(resolveDshLaunchPermissionMode('provider-native', loaders))
+            .rejects.toThrow('does not advertise permission mode "provider-native"');
+        await expect(resolveDshLaunchPermissionMode('read-only', {
+            ...loaders,
+            loadPermissionSettings: async () => 'permission:\n  defaultPreset: danger-full-access\n',
+        })).rejects.toThrow('permission.defaultPreset settings override');
     });
 
     it('omits dsh and publishes an actionable error for missing, malformed, or failed probes', async () => {

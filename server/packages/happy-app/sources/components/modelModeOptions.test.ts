@@ -176,7 +176,7 @@ describe('modelModeOptions', () => {
         expect(getHardcodedPermissionModes('grok', translate)).toEqual([]);
     });
 
-    it('uses the exact dsh machine catalog without inventing permissions', () => {
+    it('uses the exact dsh machine catalog for launch and active receipt display', () => {
         const machineMetadata = {
             agentCapabilities: {
                 dsh: {
@@ -184,7 +184,7 @@ describe('modelModeOptions', () => {
                     sources: {
                         models: 'dsh-acp:session/new:configOptions',
                         effortLevels: 'dsh-acp:session/new:configOptions',
-                        permissionModes: 'unsupported',
+                        permissionModes: 'dsh:--profile-acp:dump-config:permission-presets',
                     },
                     models: [
                         { code: 'deepseek-v5', value: 'DeepSeek V5', isDefault: true },
@@ -196,7 +196,11 @@ describe('modelModeOptions', () => {
                         { code: 'high', value: 'high', isDefault: true },
                         { code: 'max', value: 'max' },
                     ],
-                    permissionModes: [],
+                    permissionModes: [
+                        { code: 'read-only', value: 'read-only' },
+                        { code: 'workspace-write', value: 'workspace-write', isDefault: true },
+                        { code: 'danger-full-access', value: 'danger-full-access' },
+                    ],
                     acp: { loadSession: false, prompt: { image: false } },
                 },
             },
@@ -208,7 +212,30 @@ describe('modelModeOptions', () => {
         expect(efforts.map((option) => option.key)).toEqual(['off', 'low', 'high', 'max']);
         expect(getAdvertisedDefaultOptionKey(models)).toBe('deepseek-v5');
         expect(getAdvertisedDefaultOptionKey(efforts)).toBe('high');
-        expect(getMachineAdvertisedPermissionModes(machineMetadata, 'dsh', translate)).toEqual([]);
+        expect(getMachineAdvertisedPermissionModes(machineMetadata, 'dsh', translate).map((mode) => mode.key)).toEqual([
+            'read-only',
+            'workspace-write',
+            'danger-full-access',
+        ]);
+        expect(getAdvertisedDefaultOptionKey(
+            getMachineAdvertisedPermissionModes(machineMetadata, 'dsh', translate),
+        )).toBe('workspace-write');
+        expect(getSessionAvailablePermissionModes(
+            'dsh',
+            {
+                flavor: 'dsh',
+                operatingModes: [{ code: 'plan', value: 'Plan' }],
+                spawnSettings: {
+                    provider: 'dsh',
+                    model: 'deepseek-v5',
+                    effort: 'high',
+                    permission: 'read-only',
+                },
+            } as any,
+            machineMetadata,
+            translate,
+            'read-only',
+        ).map((mode) => mode.key)).toEqual(['read-only', 'workspace-write', 'danger-full-access']);
         expect(getHardcodedModelModes('dsh', translate)).toEqual([]);
         expect(getHardcodedPermissionModes('dsh', translate)).toEqual([]);
     });

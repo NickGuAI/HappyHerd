@@ -4,6 +4,7 @@ import {
   resolveAcpAgentConfig,
   resolveAcpLaunchConfig,
   sanitizeGrokChildEnvironment,
+  usesBuiltInDshAcpProfile,
 } from './acpAgentConfig';
 
 describe('KNOWN_ACP_AGENTS', () => {
@@ -25,11 +26,15 @@ describe('KNOWN_ACP_AGENTS', () => {
   });
 
   it('uses the exact dsh ACP profile invocation', () => {
-    expect(resolveAcpAgentConfig(['dsh'])).toEqual({
+    const resolved = resolveAcpAgentConfig(['dsh']);
+    expect(resolved).toEqual({
       agentName: 'dsh',
       command: 'dsh',
       args: ['--profile', 'acp'],
     });
+    expect(usesBuiltInDshAcpProfile(resolved)).toBe(true);
+    expect(usesBuiltInDshAcpProfile(resolveAcpAgentConfig(['dsh', '--other-profile']))).toBe(false);
+    expect(usesBuiltInDshAcpProfile(resolveAcpAgentConfig(['--', 'dsh', '--profile', 'acp']))).toBe(true);
   });
 });
 
@@ -133,6 +138,7 @@ describe('resolveAcpLaunchConfig', () => {
     expect(resolveAcpLaunchConfig([
       '--happy-starting-mode', 'remote',
       '--started-by', 'daemon',
+      '--permission-mode', 'workspace-write',
       '--model', 'deepseek-v4-pro',
       '--effort', 'max',
     ], 'dsh')).toEqual({
@@ -141,13 +147,15 @@ describe('resolveAcpLaunchConfig', () => {
       args: ['--profile', 'acp'],
       startedBy: 'daemon',
       verbose: false,
-      permissionMode: undefined,
+      permissionMode: 'workspace-write',
       model: 'deepseek-v4-pro',
       effort: 'max',
       resumeSessionId: undefined,
     });
-    expect(() => resolveAcpLaunchConfig(['--permission-mode', 'yolo'], 'dsh'))
-      .toThrow('Unexpected argument for happyherd dsh: --permission-mode');
+    expect(resolveAcpLaunchConfig(['--permission-mode', 'read-only'], 'dsh')).toMatchObject({
+      args: ['--profile', 'acp'],
+      permissionMode: 'read-only',
+    });
     expect(() => resolveAcpLaunchConfig(['--resume', 'provider-session'], 'dsh'))
       .toThrow('Unexpected argument for happyherd dsh: --resume');
     expect(() => resolveAcpLaunchConfig(['--provider-flag'], 'dsh'))

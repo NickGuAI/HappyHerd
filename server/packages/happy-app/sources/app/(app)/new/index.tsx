@@ -1831,7 +1831,7 @@ function NewSessionScreen() {
                 if (next >= 0 && !nextPermission?.disabled && !nextPermission?.unavailable) {
                     setPermissionIndex(next);
                     draft.setPermissionMode(nextPermission.key);
-                    if (selectedAgent === 'grok' || selectedAgent === 'rig') {
+                    if (selectedAgent === 'grok' || selectedAgent === 'dsh' || selectedAgent === 'rig') {
                         setAgentDefaultOverrides(setAgentDefaultOverride(
                             agentDefaultOverrides,
                             selectedAgent,
@@ -2078,11 +2078,13 @@ function NewSessionScreen() {
                     // GrokBuild permission is launch-only, so every session
                     // keeps the exact policy its process started with. Other
                     // agents continue storing only per-session overrides.
-                    const permissionOverride = agentType === 'grok'
-                        ? permissionKey
-                        : permissionKey === effectiveAgentDefaults.permissionMode
-                            ? null
-                            : permissionKey;
+                    const permissionOverride = agentType === 'dsh'
+                        ? null
+                        : agentType === 'grok'
+                            ? permissionKey
+                            : permissionKey === effectiveAgentDefaults.permissionMode
+                                ? null
+                                : permissionKey;
                     const modelOverride = selectedModelKey === null
                         || selectedModelKey === effectiveAgentDefaults.modelMode
                         ? null

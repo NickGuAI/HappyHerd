@@ -10,6 +10,11 @@
 
 - Side-chat creation receipts now include a one-time snapshot of the owning machine's CPU, load averages, RAM, and swap at creation, so orchestrators can gate new work against current host pressure without adding a background monitor.
 
+# September 3 — dsh launch permission presets
+
+- Choose the installed dsh provider's read-only, workspace-write, or danger-full-access preset before launch from New Session or HomeDock; Agent Defaults mirrors the exact selected-machine catalog.
+- The active composer shows the daemon-confirmed launch preset as read-only status, so a running dsh session never implies an unsupported live permission switch.
+
 # September 3 — Unified file viewer modes, commentable Markdown previews, and human message alignment
 
 - The file viewer now exposes one contextual **Preview** and, only for editable files, one **Edit**, with **Delete** only where already supported; the separate Source and HTML Interactive modes are removed. HTML always opens in one safe scriptless Preview.

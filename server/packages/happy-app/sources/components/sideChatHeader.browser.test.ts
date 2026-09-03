@@ -120,15 +120,28 @@ const virtualModules: Record<string, string> = {
         import { selectSideChatSessions } from '@/sync/sideChatSessions';
         const fixtureOptions = globalThis.__HAPPYHERD_FIXTURE_OPTIONS__ ?? {};
         const legacyClaudeContinuation = fixtureOptions.legacyClaudeContinuation === true;
+        const dshReceipt = fixtureOptions.dshReceipt === true;
+        const dshSession = fixtureOptions.dshSession === true || dshReceipt;
         const makeSession = (id, createdAt, metadata = {}, active = true) => ({
             id, seq: 0, createdAt, updatedAt: createdAt, active, activeAt: createdAt,
             presence: active ? 'online' : 'offline',
             metadata: { host: 'fixture', path: '/work/project', summary: { text: id }, ...metadata },
         });
         const sessions = {
-            parent: makeSession('parent', 1, legacyClaudeContinuation
-                ? { machineId: 'machine-1', claudeSessionId: 'claude-parent', commanderId: 'commander-1' }
-                : { machineId: 'machine-1', flavor: 'codex', codexThreadId: 'thread-parent', commanderId: 'commander-1' }),
+            parent: dshSession
+                ? {
+                    ...makeSession('parent', 1, {
+                        machineId: 'machine-1', flavor: 'dsh', commanderId: 'commander-1',
+                        permissionMode: 'read-only',
+                        ...(dshReceipt ? { spawnSettings: {
+                            provider: 'dsh', model: 'deepseek-v4-flash', effort: 'high', permission: 'workspace-write',
+                        } } : {}),
+                    }),
+                    permissionMode: 'danger-full-access',
+                }
+                : makeSession('parent', 1, legacyClaudeContinuation
+                    ? { machineId: 'machine-1', claudeSessionId: 'claude-parent', commanderId: 'commander-1' }
+                    : { machineId: 'machine-1', flavor: 'codex', codexThreadId: 'thread-parent', commanderId: 'commander-1' }),
             background: makeSession('background', 2, { machineId: 'machine-1', flavor: 'codex', codexThreadId: 'thread-background' }),
             'target-session': makeSession('target-session', 3, legacyClaudeContinuation
                 ? { machineId: 'machine-1', flavor: 'codex', codexThreadId: 'codex-target', continuedFromSessionId: 'parent' }
@@ -163,7 +176,21 @@ const virtualModules: Record<string, string> = {
             favoriteMachinePaths: [],
         };
         const machines = [
-            { id: 'machine-1', active: true, metadata: { displayName: 'MainEC2', host: 'fixture', homeDir: '/work/project', platform: 'linux', supportsFileDelete: true, cliAvailability: { claude: true, codex: true } } },
+            { id: 'machine-1', active: true, metadata: {
+                displayName: 'MainEC2', host: 'fixture', homeDir: '/work/project', platform: 'linux', supportsFileDelete: true,
+                cliAvailability: dshSession ? { claude: true, codex: true, dsh: true } : { claude: true, codex: true },
+                ...(dshSession ? { agentCapabilities: { dsh: {
+                    detectedAt: 1,
+                    sources: { models: 'dsh-acp', effortLevels: 'dsh-acp', permissionModes: 'dsh-profile' },
+                    models: [{ code: 'deepseek-v4-flash', value: 'DeepSeek V4 Flash', isDefault: true }],
+                    effortLevels: [{ code: 'high', value: 'high', isDefault: true }],
+                    permissionModes: [
+                        { code: 'read-only', value: 'read-only' },
+                        { code: 'workspace-write', value: 'workspace-write', isDefault: true },
+                        { code: 'danger-full-access', value: 'danger-full-access' },
+                    ],
+                } } } : {}),
+            } },
             { id: 'machine-newest', active: true, metadata: { displayName: 'SideEC2', host: 'fixture-side', homeDir: '/work/child-newest', platform: 'linux', supportsFileDelete: true, cliAvailability: { claude: true, codex: true } } },
         ];
         const changedFiles = (sessionId) => ({
@@ -489,7 +516,12 @@ const virtualModules: Record<string, string> = {
         export const getAdvertisedDefaultOptionKey = () => undefined;
         export const getRigCurrentModelOptionKey = () => undefined;
         export const getSessionAvailableModels = () => [];
-        export const getSessionAvailablePermissionModes = () => [];
+        export const getSessionAvailablePermissionModes = (flavor, _sessionMetadata, machineMetadata) =>
+            flavor === 'dsh'
+                ? (machineMetadata?.agentCapabilities?.dsh?.permissionModes ?? []).map((mode) => ({
+                    key: mode.code, name: mode.value, description: mode.description ?? null, isDefault: mode.isDefault,
+                }))
+                : [];
         export const getSessionEffortLevelsForModel = () => [];
         export const resolveCurrentOption = () => null;
     `,
@@ -599,7 +631,9 @@ const virtualModules: Record<string, string> = {
         export const sessionAnswerQuestion = async () => {};
         export const sessionCancelCommunication = async () => {};
         export const sessionGoalAction = async () => {};
-        export const sessionSetAgentModes = async () => {};
+        export const sessionSetAgentModes = async (sessionId, patch) => {
+            window.__SESSION_MODE_MUTATIONS__ = [...(window.__SESSION_MODE_MUTATIONS__ ?? []), { sessionId, patch }];
+        };
         export const sessionKill = async () => {};
         export const sessionArchive = async () => {};
         export const sessionReadFile = async (sessionId, path) => {
@@ -630,7 +664,7 @@ const virtualModules: Record<string, string> = {
         export const getRigGitSummary = () => null; export const getRigReasoningSelection = () => undefined;
         export const getProviderIconKind = () => 'codex'; export const usesControlledSessionUi = () => false;
         export const isRigMetadata = () => false; export const isRigModelSelectionEnabled = () => false;
-        export const isRigPermissionSelectionEnabled = () => false; export const isRigReasoningSelectionEnabled = () => false;
+        export const isRigPermissionSelectionEnabled = () => true; export const isRigReasoningSelectionEnabled = () => false;
         export const rigCanAbort = () => false; export const rigCanBrowseFiles = () => true;
         export const rigCanReadFiles = () => false;
         export const rigCanUseAttachments = () => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.imageAttachments === true;
@@ -963,6 +997,40 @@ describe('Side chats browser interaction', () => {
         await expect(foreground.getByText('Changes').isVisible()).resolves.toBe(true);
         await foreground.locator('textarea[data-active-side-chat-composer="oldest"]')
             .waitFor({ state: 'detached', timeout: 2_000 });
+        await page.close();
+    }, 10_000);
+
+    it.each([
+        ['Web Desktop', { width: 1440, height: 900 }],
+        ['Web Mobile', { width: 390, height: 844 }],
+    ] as const)('shows only the daemon-confirmed dsh launch permission on %s', async (_surface, viewport) => {
+        const page = await browser.newPage({ viewport });
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { dshReceipt: true };
+        });
+        await page.goto(origin);
+
+        const foreground = page.getByTestId('foreground-session');
+        const chip = foreground.getByTestId('composer-permission-mode-readonly');
+        await chip.waitFor({ state: 'visible', timeout: 3_000 });
+        await expect(chip.innerText()).resolves.toBe('workspace-write');
+        await expect(chip.getAttribute('aria-label')).resolves.toBe('agentInput.permissionMode.title: workspace-write');
+        await expect(foreground.getByRole('button', { name: 'agentInput.permissionMode.title', exact: true }).count()).resolves.toBe(0);
+        await expect(page.evaluate(() => (window as any).__SESSION_MODE_MUTATIONS__ ?? [])).resolves.toEqual([]);
+        await page.close();
+    }, 10_000);
+
+    it('does not manufacture an active dsh permission chip without a launch receipt', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { dshSession: true };
+        });
+        await page.goto(origin);
+
+        const foreground = page.getByTestId('foreground-session');
+        await foreground.locator('textarea').first().waitFor({ state: 'visible', timeout: 3_000 });
+        await expect(foreground.getByTestId('composer-permission-mode-readonly').count()).resolves.toBe(0);
+        await expect(page.evaluate(() => (window as any).__SESSION_MODE_MUTATIONS__ ?? [])).resolves.toEqual([]);
         await page.close();
     }, 10_000);
 
