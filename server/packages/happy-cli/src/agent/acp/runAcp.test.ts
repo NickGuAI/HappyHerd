@@ -234,9 +234,15 @@ vi.mock('@/credentialPool/providerLimitNotice', () => ({
   reportProviderHardLimitOnce: mocks.mockReportProviderHardLimitOnce,
 }));
 
-import { resolveAcpPermissionPolicy, resolveDshModelConfigCode, runAcp } from './runAcp';
+import { resolveAcpLoadSessionId, resolveAcpPermissionPolicy, resolveDshModelConfigCode, runAcp } from './runAcp';
 
 describe('runAcp', () => {
+  it('suppresses a persisted ACP session id for a fresh DSH side-chat reconnect', () => {
+    expect(resolveAcpLoadSessionId(undefined, 'old-dsh-session', true)).toBeUndefined();
+    expect(resolveAcpLoadSessionId(undefined, 'grok-session', false)).toBe('grok-session');
+    expect(resolveAcpLoadSessionId('explicit-grok-session', 'persisted-grok-session', false))
+      .toBe('explicit-grok-session');
+  });
   const stripAnsi = (line: string) => line.replace(/\u001b\[[0-9;]*m/g, '');
   const stripLogPrefix = (line: string) => stripAnsi(line).replace(/^\[\d{2}:\d{2}\] /, '');
   const consoleLines = () => mocks.mockConsoleLog.mock.calls
@@ -783,6 +789,91 @@ describe('runAcp', () => {
       sessionId: 'acp-session-1',
       prompt: 'Continue the archived Grok task',
     }]));
+    await mocks.getKillHandler()!();
+    await runPromise;
+  });
+
+  it('executes a seeded DSH side-chat turn without loading the retired provider session', async () => {
+    vi.stubEnv('HAPPY_RECONNECT_SESSION_ID', 'dsh-side-chat');
+    vi.stubEnv('HAPPY_RECONNECT_ENCRYPTION_KEY', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=');
+    vi.stubEnv('HAPPY_RECONNECT_ENCRYPTION_VARIANT', 'legacy');
+    vi.stubEnv('HAPPY_RECONNECT_SEQ', '12');
+    vi.stubEnv('HAPPY_RECONNECT_METADATA_VERSION', '4');
+    vi.stubEnv('HAPPY_RECONNECT_AGENT_STATE_VERSION', '5');
+    vi.stubEnv('HAPPY_RECONNECT_QUEUE_MESSAGE_ID', 'dsh-resume-seed');
+    vi.stubEnv('HAPPYHERD_FRESH_PROVIDER_RECONNECT', '1');
+    mocks.mockRefreshSessionForReconnect.mockResolvedValueOnce({
+      id: 'dsh-side-chat',
+      metadata: { flavor: 'dsh', acpSessionId: 'old-dsh-provider-session' },
+      agentState: {
+        messageQueue: {
+          currentMessageIds: ['interrupted'],
+          pendingMessageIds: ['pending'],
+        },
+      },
+      seq: 12,
+      encryptionKey: new Uint8Array(32),
+      encryptionVariant: 'legacy',
+      metadataVersion: 4,
+      agentStateVersion: 5,
+    });
+
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'dsh',
+      command: 'dsh',
+      args: ['acp'],
+      startedBy: 'daemon',
+    });
+
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+    expect(mocks.backendState.constructorArgs.loadSessionId).toBeUndefined();
+    expect(mocks.mockSession.skipExistingMessages).toHaveBeenCalledWith(
+      ['interrupted', 'pending', 'dsh-resume-seed'],
+      12,
+      'dsh-resume-seed',
+    );
+    mocks.getUserMessageHandler()!({
+      role: 'user',
+      content: { type: 'text', text: 'Interrupted work' },
+      localKey: 'interrupted',
+      meta: { deliveryMode: 'queue', queueMessageId: 'interrupted' },
+    });
+    mocks.getUserMessageHandler()!({
+      role: 'user',
+      content: { type: 'text', text: 'Pending work' },
+      localKey: 'pending',
+      meta: { deliveryMode: 'queue', queueMessageId: 'pending' },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(mocks.backendState.prompts).toEqual([]);
+    mocks.getUserMessageHandler()!({
+      role: 'user',
+      content: { type: 'text', text: 'Continue with the bounded DSH context' },
+      localKey: 'dsh-resume-seed',
+      meta: { deliveryMode: 'queue', queueMessageId: 'dsh-resume-seed' },
+    });
+
+    await vi.waitFor(() => expect(mocks.backendState.prompts).toEqual([
+      {
+        sessionId: 'acp-session-1',
+        prompt: 'Continue with the bounded DSH context',
+      },
+      {
+        sessionId: 'acp-session-1',
+        prompt: 'Interrupted work\nPending work',
+      },
+    ]));
+    await vi.waitFor(() => {
+      const latestStateUpdate = mocks.mockSession.updateAgentState.mock.calls.at(-1)?.[0];
+      expect(latestStateUpdate?.({})).toMatchObject({
+        messageQueue: { pendingMessageIds: [], currentMessageIds: [] },
+      });
+    });
+    const providerSessionUpdate = mocks.mockSession.updateMetadata.mock.calls
+      .map(([update]) => update({ acpSessionId: 'old-dsh-provider-session' }))
+      .find((updated) => updated.acpSessionId === 'provider-session-1');
+    expect(providerSessionUpdate).toMatchObject({ acpSessionId: 'provider-session-1' });
     await mocks.getKillHandler()!();
     await runPromise;
   });

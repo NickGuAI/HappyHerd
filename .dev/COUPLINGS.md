@@ -387,11 +387,14 @@ Main Agent: `happyherd session side-chat create`
 Both → daemon-owned side-chat lifecycle
   → resolve exact parent from machine-local reconnect data
   → require parent machine ID == this daemon machine ID
-  → daemon-owned provider fork
+  → daemon-owned provider continuation strategy
        ├── Claude provider-native session fork
-       └── Codex provider-native thread fork
+       ├── Codex provider-native thread fork
+       └── Gemini / Grok / DSH / Agy fresh same-provider child
+             → latest 4 visible parent messages, at most 6,000 characters
+             → exclude tools, thinking, attachments, malformed records, old handoffs
   → daemon spawn on the same machine and path
-       with fresh provider resume ID + parentSessionId + isSideChat
+       with native fork ID where available + parentSessionId + isSideChat
   → creation path
        ├── Human: skip deliver-brief → empty child → focus/open normal composer
        └── Main Agent: render bounded Worker Agent prompt with exact parent/child IDs
@@ -431,9 +434,10 @@ durable encrypted reconnect records ──snapshot──► list / close --all
                 exact server read-back
 
        reopen ──► authenticated exact-session resume signal
-                         └── clear heartbeat suppression
-                                  └── same Happy session/provider state
-                                           └── bounded wait for live PID + active=true
+                         ├── Claude / Codex / Grok: native provider resume
+                         └── Gemini / DSH / Agy: fresh same-provider process
+                                  └── replay one bounded encrypted context handoff
+                                           └── same Happy session + bounded live/active wait
 ```
 
 Process authority is the current daemon's in-memory tracked-process map;
@@ -455,10 +459,10 @@ The local control client gives sequential `close --all` a longer bounded
 receipt window than single-child actions so the four-child shutdown contract
 cannot continue mutating after the caller has already timed out.
 
-The parent session record owns the machine, working path, provider, provider
-backend ID, and—for Codex—the exact resolved state home, with both the temporary
-fork app-server and spawned child launching from the parent directory and
-provider context rather than daemon defaults. If the parent record has a
+The parent session record owns the machine, working path, provider, and any
+provider-native backend ID; for Codex it also owns the exact resolved state
+home. Native fork helpers and every spawned child use the parent directory and
+provider rather than daemon defaults. If the parent record has a
 preferred named provider account, both processes explicitly activate that
 account. If `providerAccount` is absent, the parent is an unmanaged/native or
 custom Codex home: the daemon preserves its `CODEX_HOME` and existing auth

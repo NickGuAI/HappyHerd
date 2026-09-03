@@ -259,6 +259,7 @@ export class ApiSessionClient extends EventEmitter {
     private skipInitialMessages = false;
     private skipExistingMessagesThroughSeq = Number.MAX_SAFE_INTEGER;
     private replayExistingQueueMessageIds = new Set<string>();
+    private prioritizedReplayQueueMessageId: string | null = null;
     private claudeSessionProtocolState: ClaudeSessionProtocolState = {
         currentTurnId: null,
         uuidToProviderSubagent: new Map<string, string>(),
@@ -664,6 +665,7 @@ export class ApiSessionClient extends EventEmitter {
     private async fetchMessages() {
         // On reconnect, skip processing existing messages — just advance the cursor
         const skipRouting = this.skipInitialMessages;
+        const deferredInitialMessages: Array<{ body: unknown; localId: string | null }> = [];
         if (skipRouting) {
             logger.debug('[API] Reconnect mode: skipping existing messages, advancing lastReceivedSeq');
         }
@@ -701,7 +703,11 @@ export class ApiSessionClient extends EventEmitter {
                     if (isExistingAtReconnect && !this.shouldReplayExistingQueueRecord(body, message.localId)) {
                         continue;
                     }
-                    this.routeIncomingMessage(body, message.localId);
+                    if (skipRouting) {
+                        deferredInitialMessages.push({ body, localId: message.localId });
+                    } else {
+                        this.routeIncomingMessage(body, message.localId);
+                    }
                 } catch (error) {
                     logger.debug('[API] Failed to decrypt fetched message', {
                         sessionId: this.sessionId,
@@ -711,7 +717,9 @@ export class ApiSessionClient extends EventEmitter {
                 }
             }
 
-            this.lastReceivedSeq = Math.max(this.lastReceivedSeq, maxSeq);
+            if (!skipRouting) {
+                this.lastReceivedSeq = Math.max(this.lastReceivedSeq, maxSeq);
+            }
             const hasMore = !!response.data.hasMore;
             if (hasMore && maxSeq === afterSeq) {
                 logger.debug('[API] fetchMessages pagination stalled, stopping to avoid infinite loop', {
@@ -726,10 +734,33 @@ export class ApiSessionClient extends EventEmitter {
             }
         }
         if (skipRouting) {
+            const priorityIndex = deferredInitialMessages.findIndex(({ body, localId }) => (
+                this.isPrioritizedReplayRecord(body, localId)
+            ));
+            if (priorityIndex >= 0) {
+                const [priority] = deferredInitialMessages.splice(priorityIndex, 1);
+                this.routeIncomingMessage(priority.body, priority.localId);
+            }
+            for (const message of deferredInitialMessages) {
+                this.routeIncomingMessage(message.body, message.localId);
+            }
+            this.lastReceivedSeq = Math.max(this.lastReceivedSeq, afterSeq);
             this.skipInitialMessages = false;
             this.skipExistingMessagesThroughSeq = Number.MAX_SAFE_INTEGER;
             this.replayExistingQueueMessageIds.clear();
+            this.prioritizedReplayQueueMessageId = null;
         }
+    }
+
+    private isPrioritizedReplayRecord(body: unknown, persistedLocalId?: string | null): boolean {
+        if (!this.prioritizedReplayQueueMessageId || !body || typeof body !== 'object') return false;
+        const record = body as {
+            role?: unknown;
+            meta?: { queueMessageId?: unknown };
+        };
+        return record.role === 'user'
+            && (persistedLocalId === this.prioritizedReplayQueueMessageId
+                || record.meta?.queueMessageId === this.prioritizedReplayQueueMessageId);
     }
 
     private shouldReplayExistingQueueRecord(body: unknown, persistedLocalId?: string | null): boolean {
@@ -1044,10 +1075,12 @@ export class ApiSessionClient extends EventEmitter {
     skipExistingMessages(
         queueMessageIds: readonly string[] = [],
         throughSeq: number = Number.MAX_SAFE_INTEGER,
+        prioritizedQueueMessageId?: string,
     ) {
         this.skipInitialMessages = true;
         this.skipExistingMessagesThroughSeq = throughSeq;
         this.replayExistingQueueMessageIds = new Set(queueMessageIds);
+        this.prioritizedReplayQueueMessageId = prioritizedQueueMessageId ?? null;
     }
 
     async waitForConnected(timeoutMs = 10_000): Promise<void> {

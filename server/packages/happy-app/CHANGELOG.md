@@ -1,3 +1,7 @@
+# September 3 — Side chats across every supported provider
+
+- Create same-provider side chats from Claude, Codex, Gemini, Grok, DSH, and Agy sessions. Claude and Codex retain native forks; delegated CLI creation gives the other providers a bounded visible-context handoff, while close and reopen preserve the same Happy side chat without claiming provider-native continuation where it is unavailable.
+
 # September 3 — Explicit side-chat model and effort
 
 - `happyherd session side-chat create` now accepts optional `--model` and `--effort` selections, validates them on the owning daemon before spawning, and fails unsupported combinations instead of silently substituting another setting.

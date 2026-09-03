@@ -490,6 +490,89 @@ describe('Api server error handling', () => {
             const payload = mockPost.mock.calls[0][1] as { messages: Array<{ content: { meta: unknown } }> };
             expect(payload.messages[0].content.meta).not.toHaveProperty('heartbeat');
         });
+
+        it('marks a fresh-provider handoff without changing encrypted queue delivery', async () => {
+            mockPost.mockResolvedValue({ data: {} });
+            await api.postSideChatBrief({
+                id: 'side-chat',
+                seq: 1,
+                encryptionKey: new Uint8Array(32),
+                encryptionVariant: 'legacy',
+                metadata: testMetadata,
+                metadataVersion: 1,
+                agentState: {},
+                agentStateVersion: 1,
+            }, {
+                localId: 'handoff-one',
+                text: 'Continue with bounded visible context.',
+                providerContinuationHandoff: true,
+            });
+
+            expect(mockPost.mock.calls[0][1]).toMatchObject({
+                messages: [{
+                    localId: 'handoff-one',
+                    content: { meta: { providerContinuationHandoff: true, deliveryMode: 'queue' } },
+                }],
+            });
+        });
+    });
+
+    describe('readRecentSessionMessages', () => {
+        it('reads one bounded newest-first encrypted page and skips malformed records', async () => {
+            mockGet.mockResolvedValue({
+                data: {
+                    messages: [
+                        { seq: 3, createdAt: 3000, localId: 'three', content: { t: 'encrypted', c: 'cipher-three' } },
+                        { seq: 2, createdAt: 2000, localId: null, content: { t: 'plain', c: 'ignored' } },
+                        { seq: 1, createdAt: 1000, content: { t: 'encrypted', c: 'cipher-one' } },
+                        { seq: 0, createdAt: 500, content: { t: 'encrypted', c: 'malformed' } },
+                    ],
+                },
+            });
+            mockDecrypt
+                .mockReturnValueOnce({ role: 'user', content: { type: 'text', text: 'three' } })
+                .mockReturnValueOnce({ role: 'user', content: { type: 'text', text: 'one' } })
+                .mockImplementationOnce(() => { throw new Error('bad ciphertext'); });
+            const session = {
+                id: 'session/one',
+                seq: 3,
+                encryptionKey: new Uint8Array(32),
+                encryptionVariant: 'legacy' as const,
+                metadata: testMetadata,
+                metadataVersion: 1,
+                agentState: {},
+                agentStateVersion: 1,
+            };
+
+            await expect(api.readRecentSessionMessages(session)).resolves.toEqual([
+                expect.objectContaining({ seq: 3, localId: 'three' }),
+                expect.objectContaining({ seq: 1, localId: null }),
+            ]);
+            expect(mockGet).toHaveBeenCalledWith(
+                'https://api.example.com/v3/sessions/session%2Fone/messages',
+                expect.objectContaining({
+                    params: { before_seq: Number.MAX_SAFE_INTEGER, limit: 500 },
+                    timeout: 60000,
+                }),
+            );
+        });
+
+        it('propagates a context-page read failure so creation can fail before spawn', async () => {
+            mockGet.mockRejectedValueOnce(new Error('messages unavailable'));
+            const session = {
+                id: 'session-one',
+                seq: 1,
+                encryptionKey: new Uint8Array(32),
+                encryptionVariant: 'legacy' as const,
+                metadata: testMetadata,
+                metadataVersion: 1,
+                agentState: {},
+                agentStateVersion: 1,
+            };
+
+            await expect(api.readRecentSessionMessages(session))
+                .rejects.toThrow('messages unavailable');
+        });
     });
 
     describe('getOrCreateMachine', () => {

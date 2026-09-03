@@ -31,6 +31,7 @@ const mocks = vi.hoisted(() => ({
   persistSession: vi.fn(() => true),
   postSessionEvent: vi.fn(async () => undefined),
   postSideChatBrief: vi.fn(async () => undefined),
+  readRecentSessionMessages: vi.fn(async (): Promise<any[]> => []),
   readPersistedSessions: vi.fn(() => ({})),
   resolveLocalReconnectableSession: vi.fn(),
   rotateProviderSessionAfterLimit: vi.fn(),
@@ -46,6 +47,7 @@ vi.mock('@/api/api', () => ({
       inspectSessionAuthoritative: mocks.inspectSessionAuthoritative,
       postSessionEvent: mocks.postSessionEvent,
       postSideChatBrief: mocks.postSideChatBrief,
+      readRecentSessionMessages: mocks.readRecentSessionMessages,
       getOrCreateMachine: vi.fn(async ({ metadata }: { metadata: Metadata }) => ({
         id: 'machine-record',
         metadata,
@@ -125,7 +127,7 @@ vi.mock('@/utils/caffeinate', () => ({
 }));
 
 vi.mock('@/utils/detectCLI', () => ({
-  detectCLIAvailability: vi.fn(() => ({ claude: true, codex: true, gemini: false, grok: true, opencode: false, agy: false, detectedAt: 1 })),
+  detectCLIAvailability: vi.fn(() => ({ claude: true, codex: true, gemini: false, grok: true, dsh: true, opencode: false, agy: true, detectedAt: 1 })),
 }));
 
 vi.mock('@/capabilities/agentCapabilities', () => ({
@@ -179,6 +181,21 @@ vi.mock('@/capabilities/agentCapabilities', () => ({
       ],
       acp: { loadSession: true, prompt: { image: true } },
     },
+    dsh: {
+      detectedAt: 1,
+      sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
+      models: [{ code: 'deepseek-chat', value: 'DeepSeek Chat', isDefault: true }],
+      effortLevels: [],
+      permissionModes: [{ code: 'default', value: 'Default', isDefault: true }],
+      acp: { loadSession: false, prompt: { image: false } },
+    },
+    agy: {
+      detectedAt: 1,
+      sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
+      models: [{ code: 'gemini-2.5-pro', value: 'Gemini 2.5 Pro', isDefault: true }],
+      effortLevels: [],
+      permissionModes: [{ code: 'default', value: 'Default', isDefault: true }],
+    },
   })),
 }));
 
@@ -226,6 +243,7 @@ import {
   initialMachineMetadata,
   resolveDaemonAgentCommand,
   resolveDaemonResumeAgent,
+  resolveSideChatResumeProvider,
   startDaemon,
 } from './run';
 import { prepareCommanderContext } from '@/agentContext/commanderContext';
@@ -304,6 +322,10 @@ describe('daemon session continuity', () => {
     expect(resolveDaemonResumeAgent({ flavor: 'grok' } as Metadata)).toBe('grok');
     expect(resolveDaemonAgentCommand('dsh')).toBe('dsh');
     expect(resolveDaemonResumeAgent({ flavor: 'dsh', acpSessionId: 'provider-session' } as Metadata)).toBeNull();
+    expect(resolveSideChatResumeProvider({ flavor: 'dsh', isSideChat: true } as Metadata)).toBe('dsh');
+    expect(resolveSideChatResumeProvider({ flavor: 'gemini', isSideChat: true } as Metadata)).toBe('gemini');
+    expect(resolveSideChatResumeProvider({ flavor: 'agy', isSideChat: true } as Metadata)).toBe('agy');
+    expect(resolveSideChatResumeProvider({ flavor: 'dsh' } as Metadata)).toBeNull();
     expect(resolveDaemonAgentCommand('future-provider' as any)).toBeNull();
     expect(resolveDaemonResumeAgent({ flavor: 'future-provider' } as Metadata)).toBeNull();
   });
@@ -1256,6 +1278,336 @@ describe('daemon session continuity', () => {
       incidentId: expect.any(String),
     });
     expect(localId).toBe(event.incidentId);
+  });
+
+  it.each([
+    ['gemini', undefined],
+    ['grok', { provider: 'grok', model: 'grok-build', effort: null, permission: 'default' }],
+    ['dsh', { provider: 'dsh', model: 'deepseek-chat', effort: null, permission: 'default' }],
+    ['agy', { provider: 'agy', model: 'gemini-2.5-pro', effort: null, permission: 'default' }],
+  ] as const)(
+    'creates a fresh seeded %s side chat with exact lineage and no native fork',
+    async (provider, expectedSettings) => {
+      const parentMetadata: Metadata = {
+        path: process.cwd(),
+        flavor: provider,
+        host: 'test-host',
+        hostPid: 9876,
+        machineId: 'machine-1',
+        homeDir: '/home/test',
+        happyHomeDir: '/home/test/.happyherd',
+        happyLibDir: '/srv/happy',
+        happyToolsDir: '/srv/happy/tools',
+      };
+      mocks.resolveLocalReconnectableSession.mockResolvedValue({
+        id: `${provider}-parent`,
+        active: false,
+        metadata: parentMetadata,
+        seq: 5,
+        metadataVersion: 2,
+        agentStateVersion: 1,
+        encryptionKey: new Uint8Array(32).fill(4),
+        encryptionVariant: 'dataKey',
+      });
+      mocks.readRecentSessionMessages.mockResolvedValueOnce([{
+        seq: 5,
+        localId: 'parent-message',
+        createdAt: 5,
+        content: { role: 'user', content: { type: 'text', text: 'parent visible context' } },
+      }]);
+      mocks.spawnHappyCLI.mockReturnValue({ pid: 5600, kill: vi.fn(), on: vi.fn() });
+
+      daemonRun = startDaemon();
+      await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+      const control = mocks.controlHandlers as CapturedControlHandlers;
+      const creation = control.sideChat({
+        action: 'create',
+        parentSessionId: `${provider}-parent`,
+        brief: sideChatBrief,
+      });
+      await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+      control.onHappySessionWebhook(`${provider}-child`, {
+        ...parentMetadata,
+        hostPid: 5600,
+        parentSessionId: `${provider}-parent`,
+        isSideChat: true,
+        ...(expectedSettings ? { spawnSettings: expectedSettings } : {}),
+      }, {
+        encryptionKey: new Uint8Array(32).fill(7),
+        encryptionVariant: 'dataKey',
+        seq: 1,
+        metadataVersion: 1,
+        agentStateVersion: 1,
+      });
+
+      await expect(creation).resolves.toMatchObject({
+        success: true,
+        parentSessionId: `${provider}-parent`,
+        sessionId: `${provider}-child`,
+      });
+      expect(mocks.forkCodexBackendThread).not.toHaveBeenCalled();
+      const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
+        string[], { env: NodeJS.ProcessEnv },
+      ];
+      expect(args[0]).toBe(provider);
+      expect(args).not.toContain('--resume');
+      expect(spawnOptions.env.HAPPY_FORKED_FROM_SESSION_ID).toBe(`${provider}-parent`);
+      expect(spawnOptions.env.HAPPY_SIDE_CHAT).toBe('1');
+      expect(spawnOptions.env.HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON)
+        .toBe(expectedSettings ? JSON.stringify(expectedSettings) : undefined);
+      expect(mocks.postSideChatBrief).toHaveBeenCalledWith(
+        expect.objectContaining({ id: `${provider}-child` }),
+        expect.objectContaining({ text: expect.stringContaining('parent visible context') }),
+      );
+    },
+  );
+
+  it('does not spawn a fresh-provider child when bounded parent context cannot be read', async () => {
+    mocks.resolveLocalReconnectableSession.mockResolvedValue({
+      id: 'dsh-parent',
+      active: false,
+      metadata: {
+        path: process.cwd(), flavor: 'dsh', machineId: 'machine-1',
+      },
+      seq: 1,
+      metadataVersion: 1,
+      agentStateVersion: 1,
+      encryptionKey: new Uint8Array(32),
+      encryptionVariant: 'dataKey',
+    });
+    mocks.readRecentSessionMessages.mockRejectedValueOnce(new Error('context unavailable'));
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+
+    await expect(control.sideChat({
+      action: 'create', parentSessionId: 'dsh-parent', brief: sideChatBrief,
+    })).resolves.toMatchObject({
+      success: false,
+      sessionId: null,
+      phases: [{ phase: 'resolve', status: 'failed', message: 'context unavailable' }],
+    });
+    expect(mocks.spawnHappyCLI).not.toHaveBeenCalled();
+  });
+
+  it('keeps Human one-click creation empty for a fresh-provider parent', async () => {
+    const metadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'dsh',
+      host: 'test-host',
+      hostPid: 9876,
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happy',
+      happyToolsDir: '/srv/happy/tools',
+    };
+    mocks.resolveLocalReconnectableSession.mockResolvedValue({
+      id: 'dsh-human-parent',
+      active: false,
+      metadata,
+      seq: 1,
+      metadataVersion: 1,
+      agentStateVersion: 1,
+      encryptionKey: new Uint8Array(32),
+      encryptionVariant: 'dataKey',
+    });
+    mocks.spawnHappyCLI.mockReturnValue({ pid: 5650, kill: vi.fn(), on: vi.fn() });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const creation = control.sideChat({
+      action: 'create', parentSessionId: 'dsh-human-parent', brief: null,
+    });
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    control.onHappySessionWebhook('dsh-human-child', {
+      ...metadata,
+      hostPid: 5650,
+      parentSessionId: 'dsh-human-parent',
+      isSideChat: true,
+      spawnSettings: { provider: 'dsh', model: 'deepseek-chat', effort: null, permission: 'default' },
+    }, {
+      encryptionKey: new Uint8Array(32),
+      encryptionVariant: 'dataKey',
+      seq: 1,
+      metadataVersion: 1,
+      agentStateVersion: 1,
+    });
+
+    await expect(creation).resolves.toMatchObject({ success: true, sessionId: 'dsh-human-child' });
+    expect(mocks.readRecentSessionMessages).not.toHaveBeenCalled();
+    expect(mocks.postSideChatBrief).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['gemini', undefined],
+    ['dsh', { provider: 'dsh', model: 'deepseek-chat', effort: null, permission: 'default' }],
+    ['agy', { provider: 'agy', model: 'gemini-2.5-pro', effort: null, permission: 'default' }],
+  ] as const)(
+    'reopens a %s side chat in the same Happy session with a fresh seeded provider process',
+    async (provider, spawnSettings) => {
+      const sessionId = `${provider}-archived-child`;
+      const parentSessionId = `${provider}-parent`;
+      const metadata: Metadata = {
+        path: process.cwd(),
+        flavor: provider,
+        host: 'test-host',
+        hostPid: 9876,
+        machineId: 'machine-1',
+        homeDir: '/home/test',
+        happyHomeDir: '/home/test/.happyherd',
+        happyLibDir: '/srv/happy',
+        happyToolsDir: '/srv/happy/tools',
+        parentSessionId,
+        isSideChat: true,
+        lifecycleState: 'archived',
+        ...(spawnSettings ? { spawnSettings } : {}),
+      };
+      mocks.readPersistedSessions.mockReturnValue({
+        [sessionId]: {
+          encryptionKey: Buffer.alloc(32, 5).toString('base64'),
+          encryptionVariant: 'dataKey',
+          seq: 8,
+          metadataVersion: 4,
+          agentStateVersion: 3,
+          metadata,
+          savedAt: Date.now(),
+        },
+      });
+      mocks.readRecentSessionMessages.mockResolvedValueOnce([{
+        seq: 7,
+        localId: 'previous-user',
+        createdAt: 7,
+        content: { role: 'user', content: { type: 'text', text: 'continue this work' } },
+      }]);
+      mocks.spawnHappyCLI.mockReturnValue({ pid: 5700, kill: vi.fn(), on: vi.fn() });
+
+      daemonRun = startDaemon();
+      await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+      const control = mocks.controlHandlers as CapturedControlHandlers;
+      const reopening = control.sideChat({ action: 'reopen', sessionId });
+      await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+      mocks.authoritativeActive = true;
+      control.onHappySessionWebhook(sessionId, {
+        ...metadata,
+        hostPid: 5700,
+        lifecycleState: 'running',
+      }, {
+        encryptionKey: new Uint8Array(32).fill(5),
+        encryptionVariant: 'dataKey',
+        seq: 9,
+        metadataVersion: 5,
+        agentStateVersion: 4,
+      });
+
+      await expect(reopening).resolves.toMatchObject({
+        success: true,
+        sessionId,
+        parentSessionId,
+        child: { status: 'running', providerRunning: true, active: true },
+      });
+      const [args, spawnOptions] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [
+        string[], { env: NodeJS.ProcessEnv },
+      ];
+      expect(args[0]).toBe(provider);
+      expect(args).not.toContain('--resume');
+      expect(spawnOptions.env.HAPPY_RECONNECT_SESSION_ID).toBe(sessionId);
+      expect(spawnOptions.env.HAPPYHERD_FRESH_PROVIDER_RECONNECT).toBe('1');
+      expect(spawnOptions.env.HAPPY_RECONNECT_QUEUE_MESSAGE_ID).toEqual(expect.any(String));
+      expect(mocks.postSideChatBrief).toHaveBeenCalledWith(
+        expect.objectContaining({ id: sessionId }),
+        expect.objectContaining({
+          localId: spawnOptions.env.HAPPY_RECONNECT_QUEUE_MESSAGE_ID,
+          text: expect.stringContaining('continue this work'),
+          providerContinuationHandoff: true,
+        }),
+      );
+    },
+  );
+
+  it('reuses an interrupted fresh-provider handoff instead of posting and replaying a duplicate', async () => {
+    const sessionId = 'dsh-interrupted-handoff';
+    const metadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'dsh',
+      host: 'test-host',
+      hostPid: 9876,
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happy',
+      happyToolsDir: '/srv/happy/tools',
+      parentSessionId: 'dsh-parent',
+      isSideChat: true,
+      lifecycleState: 'archived',
+      spawnSettings: {
+        provider: 'dsh', model: 'deepseek-chat', effort: null, permission: 'default',
+      },
+    };
+    mocks.readPersistedSessions.mockReturnValue({
+      [sessionId]: {
+        encryptionKey: Buffer.alloc(32, 5).toString('base64'),
+        encryptionVariant: 'dataKey',
+        seq: 9,
+        metadataVersion: 4,
+        agentStateVersion: 3,
+        metadata,
+        savedAt: Date.now(),
+      },
+    });
+    mocks.inspectSessionAuthoritative.mockImplementation(async (session: any) => ({
+      session: {
+        ...session,
+        agentState: {
+          messageQueue: { currentMessageIds: ['existing-handoff'], pendingMessageIds: [] },
+        },
+      },
+      active: mocks.authoritativeActive,
+    }));
+    mocks.readRecentSessionMessages.mockResolvedValueOnce([
+      {
+        seq: 8,
+        localId: 'existing-handoff',
+        createdAt: 8,
+        content: {
+          role: 'user',
+          content: { type: 'text', text: 'existing bounded handoff' },
+          meta: { providerContinuationHandoff: true },
+        },
+      },
+      {
+        seq: 9,
+        localId: 'newer-turn-event',
+        createdAt: 9,
+        content: { role: 'agent', content: { type: 'acp', data: { type: 'message', message: 'started' } } },
+      },
+    ]);
+    mocks.spawnHappyCLI.mockReturnValue({ pid: 5750, kill: vi.fn(), on: vi.fn() });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const reopening = control.sideChat({ action: 'reopen', sessionId });
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    mocks.authoritativeActive = true;
+    control.onHappySessionWebhook(sessionId, {
+      ...metadata,
+      hostPid: 5750,
+      lifecycleState: 'running',
+    }, {
+      encryptionKey: new Uint8Array(32).fill(5),
+      encryptionVariant: 'dataKey',
+      seq: 9,
+      metadataVersion: 5,
+      agentStateVersion: 4,
+    });
+
+    await expect(reopening).resolves.toMatchObject({ success: true, sessionId });
+    const spawnOptions = mocks.spawnHappyCLI.mock.calls[0]?.[1] as { env: NodeJS.ProcessEnv };
+    expect(spawnOptions.env.HAPPY_RECONNECT_QUEUE_MESSAGE_ID).toBe('existing-handoff');
+    expect(mocks.postSideChatBrief).not.toHaveBeenCalled();
   });
 
   it('activates the parent Codex account before forking from a stale credential home', async () => {

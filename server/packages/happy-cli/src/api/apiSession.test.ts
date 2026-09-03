@@ -1053,6 +1053,60 @@ describe('ApiSessionClient v3 messages API migration', () => {
         expect((client as any).skipInitialMessages).toBe(false);
     });
 
+    it('hydrates a required fresh-provider handoff before older restored work across pages', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        const onUserMessage = vi.fn();
+        client.onUserMessage(onUserMessage);
+        client.skipExistingMessages(['interrupted', 'pending', 'resume-seed'], 3, 'resume-seed');
+
+        const queued = (text: string, queueMessageId: string) => ({
+            role: 'user' as const,
+            content: { type: 'text' as const, text },
+            meta: { deliveryMode: 'queue' as const, queueMessageId },
+        });
+        const records = [
+            queued('interrupted work', 'interrupted'),
+            queued('pending work', 'pending'),
+            queued('bounded continuity seed', 'resume-seed'),
+        ];
+        mockAxiosGet
+            .mockResolvedValueOnce({
+                data: {
+                    messages: records.slice(0, 2).map((record, index) => ({
+                        id: `msg-${index + 1}`,
+                        seq: index + 1,
+                        content: { t: 'encrypted', c: encryptContent(session, record) },
+                        localId: record.meta.queueMessageId,
+                        createdAt: 1000 + index,
+                        updatedAt: 1000 + index,
+                    })),
+                    hasMore: true,
+                },
+            })
+            .mockResolvedValueOnce({
+                data: {
+                    messages: [{
+                        id: 'msg-3',
+                        seq: 3,
+                        content: { t: 'encrypted', c: encryptContent(session, records[2]) },
+                        localId: 'resume-seed',
+                        createdAt: 1002,
+                        updatedAt: 1002,
+                    }],
+                    hasMore: false,
+                },
+            });
+
+        await (client as any).fetchMessages();
+
+        expect(onUserMessage.mock.calls.map(([message]) => message.content.text)).toEqual([
+            'bounded continuity seed',
+            'interrupted work',
+            'pending work',
+        ]);
+        expect((client as any).lastReceivedSeq).toBe(3);
+    });
+
     it('keeps reconnect filtering active when the initial catch-up request fails', async () => {
         const client = new ApiSessionClient('fake-token', session);
         const onUserMessage = vi.fn();

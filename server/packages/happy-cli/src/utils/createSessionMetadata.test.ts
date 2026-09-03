@@ -140,6 +140,57 @@ describe('createSessionMetadata', () => {
         expect(metadata.parentSessionId).toBe('happy-parent');
     });
 
+    it.each(['gemini', 'grok', 'dsh', 'agy'] as const)(
+        'sets exact side-chat lineage from the daemon handoff for %s',
+        (flavor) => {
+            vi.stubEnv('HAPPY_FORKED_FROM_SESSION_ID', 'happy-parent');
+            vi.stubEnv('HAPPY_SIDE_CHAT', '1');
+
+            const { metadata } = createSessionMetadata({
+                flavor,
+                machineId: 'machine-side',
+            });
+
+            expect(metadata.parentSessionId).toBe('happy-parent');
+            expect(metadata.isSideChat).toBe(true);
+        },
+    );
+
+    it('consumes side-chat lineage so a later ordinary provider launch cannot inherit it', () => {
+        vi.stubEnv('HAPPY_FORKED_FROM_SESSION_ID', 'happy-parent');
+        vi.stubEnv('HAPPY_SIDE_CHAT', '1');
+
+        const sideChat = createSessionMetadata({
+            flavor: 'gemini',
+            machineId: 'machine-side',
+        });
+        const ordinarySession = createSessionMetadata({
+            flavor: 'gemini',
+            machineId: 'machine-normal',
+        });
+
+        expect(sideChat.metadata).toMatchObject({
+            parentSessionId: 'happy-parent',
+            isSideChat: true,
+        });
+        expect(ordinarySession.metadata.parentSessionId).toBeUndefined();
+        expect(ordinarySession.metadata.isSideChat).toBeUndefined();
+        expect(process.env.HAPPY_FORKED_FROM_SESSION_ID).toBeUndefined();
+        expect(process.env.HAPPY_SIDE_CHAT).toBeUndefined();
+    });
+
+    it('does not accept a parent handoff without the side-chat marker', () => {
+        vi.stubEnv('HAPPY_FORKED_FROM_SESSION_ID', 'happy-parent');
+
+        const { metadata } = createSessionMetadata({
+            flavor: 'gemini',
+            machineId: 'machine-normal',
+        });
+
+        expect(metadata.parentSessionId).toBeUndefined();
+        expect(metadata.isSideChat).toBeUndefined();
+    });
+
     it('persists target-daemon confirmed launch settings from the scoped handoff', () => {
         vi.stubEnv('HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON', JSON.stringify({
             provider: 'codex',

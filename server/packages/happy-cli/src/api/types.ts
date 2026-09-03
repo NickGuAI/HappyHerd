@@ -261,6 +261,7 @@ export const MessageMetaSchema = z.object({
   disallowedTools: z.array(z.string()).nullable().optional(), // Disallowed tools for this message (null = reset)
   effort: z.string().nullable().optional(), // Provider-advertised effort for this message; the selected daemon/model catalog is authoritative.
   displayText: z.string().optional(), // Compact user-visible text when the encrypted provider prompt is longer.
+  providerContinuationHandoff: z.boolean().optional(), // Prevent bounded fresh-provider context from recursively nesting old handoffs.
   deliveryMode: z.enum(['queue']).optional(), // Explicitly bypass active-turn steering and use the provider queue
   queueMessageId: z.string().trim().min(1).optional(), // Parent local ID for queued attachment records
   heartbeat: HappyHerdHeartbeatMessageMarkerSchema.optional(), // Typed session-heartbeat routing; prompt text is never inspected.

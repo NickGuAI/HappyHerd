@@ -605,4 +605,76 @@ describe('MessageQueue2', () => {
             currentMessageIds: [],
         });
     });
+
+    it('waits for and isolates a required first reconnect message before older restored work', async () => {
+        const queue = new MessageQueue2<string>((mode) => mode);
+        queue.restorePendingQueueMessageIds(
+            ['interrupted', 'pending', 'resume-seed'],
+            'resume-seed',
+        );
+        let settled = false;
+        const firstBatchPromise = queue.waitForMessagesAndGetAsString().then((batch) => {
+            settled = true;
+            return batch;
+        });
+
+        queue.push('interrupted work', 'same-mode', undefined, 'interrupted');
+        queue.push('pending work', 'same-mode', undefined, 'pending');
+        await Promise.resolve();
+        expect(settled).toBe(false);
+
+        queue.push('bounded continuity seed', 'same-mode', undefined, 'resume-seed');
+        const firstBatch = await firstBatchPromise;
+        expect(firstBatch).toMatchObject({
+            message: 'bounded continuity seed',
+            isolate: true,
+            queueMessageIds: ['resume-seed'],
+        });
+        queue.markBatchStarted(firstBatch!.queueMessageIds);
+        queue.completeCurrentBatch(firstBatch!.queueMessageIds);
+
+        const restoredBatch = await queue.waitForMessagesAndGetAsString();
+        expect(restoredBatch).toMatchObject({
+            message: 'interrupted work\npending work',
+            queueMessageIds: ['interrupted', 'pending'],
+        });
+        queue.markBatchStarted(restoredBatch!.queueMessageIds);
+        queue.completeCurrentBatch(restoredBatch!.queueMessageIds);
+        expect(queue.getQueueState()).toEqual({
+            pendingMessageIds: [],
+            currentMessageIds: [],
+        });
+    });
+
+    it('retains unhydrated restored IDs after the required first batch completes', async () => {
+        const queue = new MessageQueue2<string>((mode) => mode);
+        queue.restorePendingQueueMessageIds(
+            ['interrupted', 'pending', 'resume-seed'],
+            'resume-seed',
+        );
+
+        queue.push('bounded continuity seed', 'same-mode', undefined, 'resume-seed');
+        queue.push('duplicate seed delivery', 'same-mode', undefined, 'resume-seed');
+        const seedBatch = await queue.waitForMessagesAndGetAsString();
+        queue.markBatchStarted(seedBatch!.queueMessageIds);
+        expect(queue.getQueueState()).toEqual({
+            pendingMessageIds: ['interrupted', 'pending'],
+            currentMessageIds: ['resume-seed'],
+        });
+        queue.completeCurrentBatch(seedBatch!.queueMessageIds);
+        expect(queue.getQueueState()).toEqual({
+            pendingMessageIds: ['interrupted', 'pending'],
+            currentMessageIds: [],
+        });
+
+        queue.push('interrupted work', 'same-mode', undefined, 'interrupted');
+        queue.push('pending work', 'same-mode', undefined, 'pending');
+        const restoredBatch = await queue.waitForMessagesAndGetAsString();
+        queue.markBatchStarted(restoredBatch!.queueMessageIds);
+        queue.completeCurrentBatch(restoredBatch!.queueMessageIds);
+        expect(queue.getQueueState()).toEqual({
+            pendingMessageIds: [],
+            currentMessageIds: [],
+        });
+    });
 });
