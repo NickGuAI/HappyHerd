@@ -1,7 +1,7 @@
 import { logger } from '@/ui/logger'
 import { EventEmitter } from 'node:events'
 import { io, Socket } from 'socket.io-client'
-import { AgentState, ClientToServerEvents, FileEventMessage, FileEventMessageSchema, Metadata, ServerToClientEvents, Session, Update, UserMessage, UserMessageSchema, Usage } from './types'
+import { AgentState, ClientToServerEvents, FileEventMessage, FileEventMessageSchema, Metadata, ServerToClientEvents, Session, Update, UserMessage, UserMessageSchema } from './types'
 import {
     decodeBase64,
     decryptBlob,
@@ -19,7 +19,6 @@ import { AsyncLock } from '@/utils/lock';
 import { deriveKey } from '@/utils/deriveKey';
 import { RpcHandlerManager } from './rpc/RpcHandlerManager';
 import { registerCommonHandlers } from '../modules/common/registerCommonHandlers';
-import { calculateCost } from '@/utils/pricing';
 import { shouldReconnect } from '@/utils/lidState';
 import { createEnvelope, type CreateEnvelopeOptions, type SessionEnvelope, type SessionTurnEndStatus } from '@slopus/happy-wire';
 import {
@@ -32,6 +31,13 @@ import { InvalidateSync } from '@/utils/sync';
 import axios from 'axios';
 import { extractClaudeAgentOutputImages } from '@/sessionProtocol/providerOutputImages';
 import type { CredentialProvider } from '@/credentialPool/types';
+import {
+    emptyUsageTokens,
+    usageReportKey,
+    type ProviderUsageReport,
+    type UsageCounterSnapshot,
+} from '@/usage/providerUsage';
+import { DurableUsageOutbox, type DurableUsageOutboxRecord } from '@/usage/usageOutbox';
 
 /**
  * ACP (Agent Communication Protocol) message data types.
@@ -285,7 +291,13 @@ export class ApiSessionClient extends EventEmitter {
      */
     private lastReceivedSeq = 0;
     private pendingOutbox: Array<{ content: string; localId: string }> = [];
+    private pendingUsageReports = new Map<string, ProviderUsageReport & { sessionId: string }>();
+    private localUsageOutboxRecords = new Map<string, DurableUsageOutboxRecord>();
+    private outstandingUsageEnqueues = new Set<Promise<void>>();
+    private readonly durableUsageOutbox: DurableUsageOutbox;
+    private readonly usageEnqueueLock = new AsyncLock();
     private readonly sendSync: InvalidateSync;
+    private readonly usageSync: InvalidateSync;
     private readonly receiveSync: InvalidateSync;
 
     constructor(token: string, session: Session) {
@@ -296,9 +308,13 @@ export class ApiSessionClient extends EventEmitter {
         this.metadataVersion = session.metadataVersion;
         this.agentState = session.agentState;
         this.agentStateVersion = session.agentStateVersion;
+        this.durableUsageOutbox = new DurableUsageOutbox(configuration.happyHomeDir, this.sessionId);
+        this.restorePendingUsageReportsFromAgentState();
+        this.restorePendingUsageReportsFromDisk();
         this.encryptionKey = session.encryptionKey;
         this.encryptionVariant = session.encryptionVariant;
         this.sendSync = new InvalidateSync(() => this.flushOutbox());
+        this.usageSync = new InvalidateSync(() => this.flushProviderUsageReports());
         this.receiveSync = new InvalidateSync(() => this.fetchMessages());
 
         // Initialize RPC handler manager
@@ -340,6 +356,7 @@ export class ApiSessionClient extends EventEmitter {
             }
             this.rpcHandlerManager.onSocketConnect(this.socket);
             this.receiveSync.invalidate();
+            this.usageSync.invalidate();
         })
 
         // Set up global RPC request handler
@@ -803,11 +820,44 @@ export class ApiSessionClient extends EventEmitter {
         }
     }
 
-    private applyClaudeSessionMessageSideEffects(body: RawJSONLines) {
+    private applyClaudeSessionMessageSideEffects(body: RawJSONLines, reportUsage: boolean) {
         // Track usage from assistant messages
-        if (body.type === 'assistant' && body.message?.usage) {
+        if (reportUsage && body.type === 'assistant' && body.message?.usage) {
             try {
-                this.sendUsageData(body.message.usage, body.message.model);
+                const providerMessageId = typeof body.message.id === 'string' ? body.message.id : null;
+                const eventId = providerMessageId ?? (typeof body.uuid === 'string' ? body.uuid : null);
+                if (!eventId) {
+                    logger.debug('[SOCKET] Claude usage did not include a stable event id; skipping report');
+                } else {
+                    const usage = body.message.usage;
+                    const totalTokens = usage.input_tokens
+                        + usage.output_tokens
+                        + (usage.cache_creation_input_tokens || 0)
+                        + (usage.cache_read_input_tokens || 0);
+                    this.sendProviderUsageReport({
+                        key: usageReportKey(['claude', 'transcript', eventId]),
+                        provider: 'claude',
+                        model: body.message.model ?? null,
+                        source: 'claude-transcript-assistant',
+                        occurredAt: (() => {
+                            const rawTimestamp = (body as RawJSONLines & { timestamp?: unknown }).timestamp;
+                            const parsed = typeof rawTimestamp === 'string' ? Date.parse(rawTimestamp) : Number.NaN;
+                            return Number.isFinite(parsed) ? parsed : Date.now();
+                        })(),
+                        tokens: {
+                            total: totalTokens,
+                            input: usage.input_tokens,
+                            output: usage.output_tokens,
+                            cache_creation: usage.cache_creation_input_tokens || 0,
+                            cache_read: usage.cache_read_input_tokens || 0,
+                        },
+                        cost: { total: 0 },
+                        costBasis: 'unavailable',
+                        tokensAvailable: true,
+                        costAvailable: false,
+                        limitations: ['cost-not-reported-by-provider'],
+                    });
+                }
             } catch (error) {
                 logger.debug('[SOCKET] Failed to send usage data:', error);
             }
@@ -829,14 +879,17 @@ export class ApiSessionClient extends EventEmitter {
      * Send message to session
      * @param body - Message body (can be MessageContent or raw content for agent messages)
      */
-    sendClaudeSessionMessage(body: RawJSONLines) {
+    sendClaudeSessionMessage(body: RawJSONLines, opts?: { reportUsage?: boolean }) {
         const mapped = mapClaudeLogMessageToSessionEnvelopes(body, this.claudeSessionProtocolState);
         this.claudeSessionProtocolState.currentTurnId = mapped.currentTurnId;
         this.enqueueSessionProtocolEnvelopes(mapped.envelopes);
-        this.applyClaudeSessionMessageSideEffects(body);
+        this.applyClaudeSessionMessageSideEffects(body, opts?.reportUsage !== false);
     }
 
-    async sendClaudeSessionMessageWithAgentImages(body: RawJSONLines): Promise<void> {
+    async sendClaudeSessionMessageWithAgentImages(
+        body: RawJSONLines,
+        opts?: { reportUsage?: boolean },
+    ): Promise<void> {
         const mapped = await mapClaudeLogMessageToSessionEnvelopesWithAgentImages(
             body,
             this.claudeSessionProtocolState,
@@ -855,18 +908,21 @@ export class ApiSessionClient extends EventEmitter {
         );
         this.claudeSessionProtocolState.currentTurnId = mapped.currentTurnId;
         this.enqueueSessionProtocolEnvelopes(mapped.envelopes);
-        this.applyClaudeSessionMessageSideEffects(body);
+        this.applyClaudeSessionMessageSideEffects(body, opts?.reportUsage !== false);
     }
 
-    async sendClaudeSessionMessageFromLocalTranscript(body: RawJSONLines): Promise<void> {
+    async sendClaudeSessionMessageFromLocalTranscript(
+        body: RawJSONLines,
+        opts?: { reportUsage?: boolean },
+    ): Promise<void> {
         if (extractClaudeAgentOutputImages(body).length > 0) {
-            await this.sendClaudeSessionMessageWithAgentImages(body);
+            await this.sendClaudeSessionMessageWithAgentImages(body, opts);
             return;
         }
 
         const attachments = extractLocalTranscriptImageAttachments(body);
         if (attachments.length === 0) {
-            this.sendClaudeSessionMessage(body);
+            this.sendClaudeSessionMessage(body, opts);
             return;
         }
 
@@ -896,7 +952,7 @@ export class ApiSessionClient extends EventEmitter {
         if (mapped.envelopes.length === 0) {
             this.sendSync.invalidate();
         }
-        this.applyClaudeSessionMessageSideEffects(body);
+        this.applyClaudeSessionMessageSideEffects(body, opts?.reportUsage !== false);
     }
 
     closeClaudeSessionTurn(status: SessionTurnEndStatus = 'completed') {
@@ -996,34 +1052,206 @@ export class ApiSessionClient extends EventEmitter {
         this.socket.emit('session-end', { sid: this.sessionId, time: Date.now() });
     }
 
-    /**
-     * Send usage data to the server
-     */
-    sendUsageData(usage: Usage, model?: string) {
-        // Calculate total tokens
-        const totalTokens = usage.input_tokens + usage.output_tokens + (usage.cache_creation_input_tokens || 0) + (usage.cache_read_input_tokens || 0);
+    sendProviderUsageReport(
+        report: ProviderUsageReport,
+        options?: {
+            mutateAgentState?: (state: AgentState) => AgentState;
+            onDurable?: () => void;
+        },
+    ): Promise<void> {
+        const enqueue = this.enqueueProviderUsageReport(report, options);
+        this.outstandingUsageEnqueues.add(enqueue);
+        void enqueue.finally(() => this.outstandingUsageEnqueues.delete(enqueue)).catch(() => {});
+        return enqueue;
+    }
 
-        const costs = calculateCost(usage, model);
+    private async enqueueProviderUsageReport(
+        report: ProviderUsageReport,
+        options?: {
+            mutateAgentState?: (state: AgentState) => AgentState;
+            onDurable?: () => void;
+        },
+    ): Promise<void> {
+        const usageReport = { ...report, sessionId: this.sessionId };
+        logger.debugLargeJson('[SOCKET] Sending provider usage data:', usageReport);
+        const cursorState = options?.mutateAgentState
+            ? options.mutateAgentState(this.agentState ?? {}).usageCursors
+            : undefined;
+        const record: DurableUsageOutboxRecord = {
+            report,
+            ...(cursorState ? { usageCursors: cursorState } : {}),
+        };
+        await this.usageEnqueueLock.inLock(async () => {
+            await this.durableUsageOutbox.write(record);
+            this.localUsageOutboxRecords.set(report.key, record);
+            this.pendingUsageReports.set(report.key, usageReport);
+            options?.onDurable?.();
+        });
+        await this.usageSync.invalidateAndAwait();
+    }
 
-        // Transform Claude usage format to backend expected format
-        const usageReport = {
-            key: 'claude-session',
-            sessionId: this.sessionId,
-            tokens: {
-                total: totalTokens,
-                input: usage.input_tokens,
-                output: usage.output_tokens,
-                cache_creation: usage.cache_creation_input_tokens || 0,
-                cache_read: usage.cache_read_input_tokens || 0
-            },
-            cost: {
-                total: costs.total,
-                input: costs.input,
-                output: costs.output
+    sendProviderUsageLimitation(
+        report: Omit<ProviderUsageReport, 'tokens' | 'cost' | 'costBasis'>,
+    ): Promise<void> {
+        return this.sendProviderUsageReport({
+            ...report,
+            tokens: emptyUsageTokens(),
+            cost: { total: 0 },
+            costBasis: 'unavailable',
+        });
+    }
+
+    private async flushProviderUsageReports(): Promise<void> {
+        if (!this.socket.connected) {
+            throw new Error('Socket is not connected');
+        }
+        for (const [key, report] of Array.from(this.pendingUsageReports.entries())) {
+            const persistedReport = this.withoutUsageSessionId(report);
+            const localRecord = this.localUsageOutboxRecords.get(key);
+            await this.updateDurableUsageState(
+                (currentState) => ({
+                    ...currentState,
+                    ...(localRecord?.usageCursors ? {
+                        usageCursors: this.mergeUsageCursors(currentState.usageCursors, localRecord.usageCursors),
+                    } : {}),
+                    pendingUsageReports: {
+                        ...currentState.pendingUsageReports,
+                        [key]: persistedReport,
+                    },
+                }),
+                (currentState) => this.sameProviderUsageReport(
+                    currentState.pendingUsageReports?.[key],
+                    persistedReport,
+                ) && this.includesUsageCursors(currentState.usageCursors, localRecord?.usageCursors),
+            );
+            const response = await this.socket.timeout(10000).emitWithAck('usage-report', report);
+            if (!response.success) {
+                throw new Error(response.error ?? 'Provider usage report was rejected');
+            }
+            if (this.pendingUsageReports.get(key) === report) {
+                await this.updateDurableUsageState(
+                    (currentState) => {
+                        if (!this.sameProviderUsageReport(
+                            currentState.pendingUsageReports?.[key],
+                            persistedReport,
+                        )) {
+                            return currentState;
+                        }
+                        const pendingUsageReports = { ...currentState.pendingUsageReports };
+                        delete pendingUsageReports[key];
+                        return {
+                            ...currentState,
+                            pendingUsageReports: Object.keys(pendingUsageReports).length > 0
+                                ? pendingUsageReports
+                                : undefined,
+                        };
+                    },
+                    (currentState) => !this.sameProviderUsageReport(
+                        currentState.pendingUsageReports?.[key],
+                        persistedReport,
+                    ),
+                );
+                if (this.pendingUsageReports.get(key) === report) {
+                    await this.durableUsageOutbox.remove(key);
+                    this.localUsageOutboxRecords.delete(key);
+                    this.pendingUsageReports.delete(key);
+                }
             }
         }
-        logger.debugLargeJson('[SOCKET] Sending usage data:', usageReport)
-        this.socket.emit('usage-report', usageReport);
+    }
+
+    private restorePendingUsageReportsFromAgentState(): void {
+        for (const [key, report] of Object.entries(this.agentState?.pendingUsageReports ?? {})) {
+            if (!report || typeof report !== 'object' || report.key !== key) continue;
+            this.pendingUsageReports.set(key, { ...report, sessionId: this.sessionId });
+        }
+    }
+
+    private restorePendingUsageReportsFromDisk(): void {
+        for (const record of this.durableUsageOutbox.load()) {
+            const { report } = record;
+            this.localUsageOutboxRecords.set(report.key, record);
+            this.pendingUsageReports.set(report.key, { ...report, sessionId: this.sessionId });
+            if (record.usageCursors) {
+                this.agentState = {
+                    ...(this.agentState ?? {}),
+                    usageCursors: this.mergeUsageCursors(this.agentState?.usageCursors, record.usageCursors),
+                };
+            }
+        }
+    }
+
+    private mergeUsageCursors(
+        current: AgentState['usageCursors'],
+        desired: AgentState['usageCursors'],
+    ): AgentState['usageCursors'] {
+        return {
+            ...current,
+            ...desired,
+            ...(current?.acpCostUsd || desired?.acpCostUsd ? {
+                acpCostUsd: {
+                    ...current?.acpCostUsd,
+                    ...desired?.acpCostUsd,
+                },
+            } : {}),
+            ...(current?.codexTokens || desired?.codexTokens ? {
+                codexTokens: {
+                    ...current?.codexTokens,
+                    ...desired?.codexTokens,
+                },
+            } : {}),
+        };
+    }
+
+    private includesUsageCursors(
+        current: AgentState['usageCursors'],
+        desired: AgentState['usageCursors'],
+    ): boolean {
+        if (!desired) return true;
+        return Object.entries(desired.acpCostUsd ?? {}).every(
+            ([key, value]) => current?.acpCostUsd?.[key] === value,
+        ) && Object.entries(desired.codexTokens ?? {}).every(
+            ([key, value]) => this.sameUsageCounterSnapshot(current?.codexTokens?.[key], value),
+        );
+    }
+
+    private sameUsageCounterSnapshot(
+        left: UsageCounterSnapshot | undefined,
+        right: UsageCounterSnapshot,
+    ): boolean {
+        return left !== undefined
+            && left.total === right.total
+            && left.input === right.input
+            && left.output === right.output
+            && left.cacheCreation === right.cacheCreation
+            && left.cacheRead === right.cacheRead
+            && left.reasoning === right.reasoning;
+    }
+
+    private withoutUsageSessionId(
+        report: ProviderUsageReport & { sessionId: string },
+    ): ProviderUsageReport {
+        const { sessionId: _sessionId, ...persistedReport } = report;
+        return persistedReport;
+    }
+
+    private sameProviderUsageReport(
+        left: ProviderUsageReport | undefined,
+        right: ProviderUsageReport,
+    ): boolean {
+        return left !== undefined && JSON.stringify(left) === JSON.stringify(right);
+    }
+
+    private async updateDurableUsageState(
+        handler: (state: AgentState) => AgentState,
+        isComplete: (state: AgentState) => boolean,
+    ): Promise<void> {
+        await backoff(async () => {
+            await this.updateAgentState(handler);
+            if (!isComplete(this.agentState ?? {})) {
+                throw new Error('Provider usage outbox state was not persisted');
+            }
+        });
     }
 
     /**
@@ -1031,6 +1259,10 @@ export class ApiSessionClient extends EventEmitter {
      */
     getMetadata(): Metadata | null {
         return this.metadata;
+    }
+
+    getAgentState(): AgentState | null {
+        return this.agentState;
     }
 
     /**
@@ -1142,8 +1374,12 @@ export class ApiSessionClient extends EventEmitter {
      */
     async flush(): Promise<void> {
         await Promise.race([
-            this.sendSync.invalidateAndAwait(),
-            delay(10000)
+            Promise.allSettled(Array.from(this.outstandingUsageEnqueues)),
+            delay(10000),
+        ]);
+        await Promise.all([
+            Promise.race([this.sendSync.invalidateAndAwait(), delay(10000)]),
+            Promise.race([this.usageSync.invalidateAndAwait(), delay(10000)]),
         ]);
         if (!this.socket.connected) {
             return;
@@ -1161,6 +1397,7 @@ export class ApiSessionClient extends EventEmitter {
     async close() {
         logger.debug('[API] socket.close() called');
         this.sendSync.stop();
+        this.usageSync.stop();
         this.receiveSync.stop();
         if (this.reconnectInterval) {
             clearInterval(this.reconnectInterval);

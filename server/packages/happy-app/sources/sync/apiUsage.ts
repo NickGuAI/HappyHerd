@@ -17,8 +17,19 @@ export interface UsageQueryParams {
     groupBy?: 'hour' | 'day';
 }
 
+export type UsageCoverageStatus = 'reported' | 'partial' | 'unavailable';
+
+export interface UsageCoverage {
+    provider: string;
+    tokens: UsageCoverageStatus;
+    cost: UsageCoverageStatus;
+    limitations: string[];
+    costBasis: string[];
+}
+
 export interface UsageResponse {
     usage: UsageDataPoint[];
+    coverage?: UsageCoverage[];
 }
 
 /**
@@ -99,33 +110,45 @@ export async function getUsageForPeriod(
 export function calculateTotals(usage: UsageDataPoint[]): {
     totalTokens: number;
     totalCost: number;
-    tokensByModel: Record<string, number>;
-    costByModel: Record<string, number>;
+    tokensByProvider: Record<string, number>;
+    costByProvider: Record<string, number>;
 } {
     const result = {
         totalTokens: 0,
         totalCost: 0,
-        tokensByModel: {} as Record<string, number>,
-        costByModel: {} as Record<string, number>
+        tokensByProvider: {} as Record<string, number>,
+        costByProvider: {} as Record<string, number>
     };
     
     for (const dataPoint of usage) {
-        // Sum tokens
-        for (const [model, tokens] of Object.entries(dataPoint.tokens)) {
-            if (typeof tokens === 'number') {
-                result.totalTokens += tokens;
-                result.tokensByModel[model] = (result.tokensByModel[model] || 0) + tokens;
+        result.totalTokens += usageMetricTotal(dataPoint, 'tokens');
+        for (const [provider, tokens] of Object.entries(dataPoint.tokens)) {
+            if (provider !== 'total' && typeof tokens === 'number') {
+                result.tokensByProvider[provider] = (result.tokensByProvider[provider] || 0) + tokens;
             }
         }
-        
-        // Sum costs
-        for (const [model, cost] of Object.entries(dataPoint.cost)) {
-            if (typeof cost === 'number') {
-                result.totalCost += cost;
-                result.costByModel[model] = (result.costByModel[model] || 0) + cost;
+
+        result.totalCost += usageMetricTotal(dataPoint, 'cost');
+        for (const [provider, cost] of Object.entries(dataPoint.cost)) {
+            if (provider !== 'total' && typeof cost === 'number') {
+                result.costByProvider[provider] = (result.costByProvider[provider] || 0) + cost;
             }
         }
     }
     
     return result;
+}
+
+export function usageMetricTotal(
+    point: UsageDataPoint,
+    metric: 'tokens' | 'cost',
+): number {
+    const values = point[metric];
+    if (typeof values.total === 'number' && Number.isFinite(values.total)) {
+        return values.total;
+    }
+    return Object.values(values).reduce(
+        (sum, value) => sum + (typeof value === 'number' && Number.isFinite(value) ? value : 0),
+        0,
+    );
 }

@@ -35,6 +35,14 @@ import { classifyGrokHardLimit } from '@/credentialPool/providerLimits';
 import { reportProviderHardLimitOnce } from '@/credentialPool/providerLimitNotice';
 import { persistActiveGrokCredential } from '@/credentialPool/grokAuth';
 import { redactAcpImageDataForLogging } from '@/sessionProtocol/providerOutputImages';
+import {
+  acpPromptUsageSnapshot,
+  acpUsdCost,
+  cumulativeCostDelta,
+  emptyUsageTokens,
+  usageReportKey,
+  usageTokens,
+} from '@/usage/providerUsage';
 
 const ACP_EVENT_PREVIEW_CHARS = 240;
 const ACP_RAW_PREVIEW_CHARS = 2000;
@@ -774,6 +782,10 @@ export async function runAcp(opts: {
   let sawModes = false;
   let sawModels = false;
   let runtimeAcpCapabilities = response?.metadata?.acpCapabilities;
+  let latestAcpCostUsd: number | undefined;
+  const acpCostCursors = new Map<string, number>(
+    Object.entries(session.getAgentState()?.usageCursors?.acpCostUsd ?? {}),
+  );
 
   const happyServer = await startHappyServer(session);
   const mcpServers = {
@@ -1223,6 +1235,13 @@ export async function runAcp(opts: {
       }
     }
 
+    if (msg.type === 'token-count' && msg.usageSource === 'acp-usage-update') {
+      const costUsd = acpUsdCost(msg.cost as Parameters<typeof acpUsdCost>[0]);
+      if (costUsd !== undefined) {
+        latestAcpCostUsd = costUsd;
+      }
+    }
+
     const frontendMessage = formatAcpMessageForFrontend(opts.agentName, msg, verbose);
     if (frontendMessage) {
       logAcp(frontendMessage.kind, frontendMessage.text);
@@ -1289,6 +1308,52 @@ export async function runAcp(opts: {
   try {
     const started = await backend.startSession();
     acpSessionId = started.sessionId;
+    const providerUsageSessionId = started.providerSessionId ?? started.sessionId;
+    const reportAcpTurnUsage = async (
+      usageEventId: string,
+      tokenSnapshot: ReturnType<typeof acpPromptUsageSnapshot>,
+    ): Promise<void> => {
+      if (opts.agentName !== 'grok' && opts.agentName !== 'dsh') return;
+      // Grok documents `_meta.usage` as the complete current-prompt
+      // total. dsh exposes only context-window occupancy, not billed token
+      // usage or cost, so it remains an explicit non-counting path.
+      const tokens = opts.agentName === 'grok' && tokenSnapshot ? usageTokens(tokenSnapshot) : undefined;
+      const currentCost = opts.agentName === 'grok' ? latestAcpCostUsd : undefined;
+      const previousCost = acpCostCursors.get(providerUsageSessionId);
+      const limitations: string[] = [];
+      if (!tokens) limitations.push('tokens-not-reported-by-provider');
+      if (currentCost === undefined) limitations.push('cost-not-reported-by-provider');
+      await session.sendProviderUsageReport({
+        key: usageReportKey([opts.agentName, 'acp-turn', usageEventId]),
+        provider: opts.agentName,
+        model: currentModel
+          ?? (modelSelector as AcpConfigSelector | null)?.currentCode
+          ?? (legacyModels as SessionModelState | null)?.currentModelId
+          ?? null,
+        source: 'acp-prompt-response',
+        occurredAt: Date.now(),
+        tokens: tokens ?? emptyUsageTokens(),
+        cost: { total: currentCost === undefined ? 0 : cumulativeCostDelta(currentCost, previousCost) },
+        costBasis: currentCost === undefined ? 'unavailable' : 'provider-reported',
+        tokensAvailable: tokens !== undefined,
+        costAvailable: currentCost !== undefined,
+        limitations,
+      }, currentCost === undefined ? undefined : {
+        mutateAgentState: (currentState) => ({
+          ...currentState,
+          usageCursors: {
+            ...currentState.usageCursors,
+            acpCostUsd: {
+              ...currentState.usageCursors?.acpCostUsd,
+              [providerUsageSessionId]: currentCost,
+            },
+          },
+        }),
+        onDurable: () => {
+          acpCostCursors.set(providerUsageSessionId, currentCost);
+        },
+      });
+    };
     if (started.providerSessionId) {
       const confirmedLaunchReceipt = (opts.agentName === 'grok' || opts.agentName === 'dsh') && metadata.spawnSettings
         ? {
@@ -1360,7 +1425,13 @@ export async function runAcp(opts: {
       generatedImagePathsByPseudoName.clear();
       correlatedImageNameByCallId.clear();
       imageEditCallIds.clear();
-      sendEnvelopes(sessionManager.startTurn());
+      latestAcpCostUsd = undefined;
+      const turnStartEnvelopes = sessionManager.startTurn();
+      const usageEventId = turnStartEnvelopes[0]?.turn ?? randomUUID();
+      let providerPromptStarted = false;
+      let usageReportAttempted = false;
+      let promptUsage: ReturnType<typeof acpPromptUsageSnapshot>;
+      sendEnvelopes(turnStartEnvelopes);
       try {
         if (supportsRuntimePermissionSelection && typeof batch.mode.permissionMode === 'string' && batch.mode.permissionMode.length > 0) {
           const switched = await switchPermissionModeIfRequested(batch.mode.permissionMode);
@@ -1374,8 +1445,15 @@ export async function runAcp(opts: {
           }
         }
         await switchModelAndEffortIfRequested(batch.mode.model, batch.mode.effort);
+        providerPromptStarted = true;
         const promptResult = await backend.sendPromptAndGetResult(acpSessionId, batch.message);
         await protocolWork;
+        const promptResultRecord = promptResult as typeof promptResult & {
+          _meta?: { usage?: Parameters<typeof acpPromptUsageSnapshot>[0] };
+        };
+        promptUsage = acpPromptUsageSnapshot(promptResult.usage ?? promptResultRecord._meta?.usage);
+        usageReportAttempted = true;
+        await reportAcpTurnUsage(usageEventId, promptUsage);
         sendEnvelopes(sessionManager.endTurn(turnStatusForStopReason(promptResult.stopReason)));
         session.sendSessionEvent({ type: 'ready' });
         if (verbose) {
@@ -1383,6 +1461,10 @@ export async function runAcp(opts: {
         }
       } catch (error) {
         await protocolWork;
+        if (providerPromptStarted && !usageReportAttempted) {
+          usageReportAttempted = true;
+          await reportAcpTurnUsage(usageEventId, promptUsage);
+        }
         sendEnvelopes(sessionManager.endTurn('failed'));
         session.sendSessionEvent({ type: 'ready' });
         logAcp('error', `Prompt error from ${opts.agentName}: ${error instanceof Error ? error.message : String(error)}`);

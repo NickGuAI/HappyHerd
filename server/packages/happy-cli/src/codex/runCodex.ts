@@ -92,6 +92,15 @@ import { classifyCodexHardLimit } from '@/credentialPool/providerLimits';
 import { reportProviderHardLimitOnce } from '@/credentialPool/providerLimitNotice';
 import { persistActiveCodexCredential } from '@/credentialPool/codexAuth';
 import { machineSessionSettingsMetadataFromEnvironment } from '@/daemon/sessionLaunchSettings';
+import {
+    codexUsageIncrement,
+    codexUsageReportKey,
+    codexUsageSnapshot,
+    emptyUsageTokens,
+    usageReportKey,
+    usageTokens,
+    type UsageCounterSnapshot,
+} from '@/usage/providerUsage';
 
 /**
  * Extracts a human-readable error from a codex task_complete/turn_aborted event.
@@ -400,6 +409,11 @@ export async function runCodex(opts: {
     let currentEffort: ReasoningEffort = initialEffort;
     let currentAppAppendSystemPrompt: string | undefined;
     let currentUserSafeguardEnabled: boolean | undefined;
+    const codexTurnsWithUsage = new Set<string>();
+    const previousCodexUsageByThread = new Map<string, UsageCounterSnapshot>(
+        Object.entries(session.getAgentState()?.usageCursors?.codexTokens ?? {}),
+    );
+    let codexPromptInFlight = false;
 
     const resetCurrentModeDefaults = () => {
         // Reset permission mode and prompts to what the session was launched
@@ -1019,6 +1033,99 @@ export async function runCodex(opts: {
             })();
         }
 
+        if (msg.type === 'token_count') {
+            const usageMessage = msg as Record<string, unknown>;
+            const threadId = typeof usageMessage.thread_id === 'string'
+                ? usageMessage.thread_id
+                : (typeof usageMessage.threadId === 'string' ? usageMessage.threadId : null);
+            const turnId = typeof usageMessage.turn_id === 'string'
+                ? usageMessage.turn_id
+                : (typeof usageMessage.turnId === 'string' ? usageMessage.turnId : null);
+            if (threadId && turnId) {
+                const wasPromptInFlight = codexPromptInFlight;
+                const usageOccurredAt = Date.now();
+                const usageModel = currentModel ?? null;
+                enqueueCodexProtocolWork(async () => {
+                    const cumulative = codexUsageSnapshot(usageMessage, 'total');
+                    if (!wasPromptInFlight && !previousCodexUsageByThread.has(threadId)) {
+                        // App-server publishes the retained cumulative snapshot
+                        // while resuming a thread. Seed the baseline but do not
+                        // attribute the parent's final response to this session.
+                        if (cumulative) previousCodexUsageByThread.set(threadId, cumulative);
+                        return;
+                    }
+                    // Codex `last` covers only the latest upstream model response,
+                    // so a tool-loop turn can emit several distinct snapshots.
+                    // Serialize reports and advance the cumulative baseline only
+                    // after the exact delta is durable in the local outbox.
+                    const usage = codexUsageIncrement(
+                        usageMessage,
+                        previousCodexUsageByThread.get(threadId),
+                    );
+                    if (usage) {
+                        await session.sendProviderUsageReport({
+                            key: codexUsageReportKey(threadId, turnId, usage.cumulative),
+                            provider: 'codex',
+                            model: usageModel,
+                            source: 'codex-thread-token-usage',
+                            occurredAt: usageOccurredAt,
+                            tokens: usageTokens(usage.increment),
+                            cost: { total: 0 },
+                            costBasis: 'unavailable',
+                            tokensAvailable: true,
+                            costAvailable: false,
+                            limitations: ['cost-not-reported-by-provider'],
+                        }, {
+                            mutateAgentState: (currentState) => ({
+                                ...currentState,
+                                usageCursors: {
+                                    ...currentState.usageCursors,
+                                    codexTokens: {
+                                        ...currentState.usageCursors?.codexTokens,
+                                        [threadId]: usage.cumulative,
+                                    },
+                                },
+                            }),
+                            onDurable: () => {
+                                previousCodexUsageByThread.set(threadId, usage.cumulative);
+                                if (wasPromptInFlight) codexTurnsWithUsage.add(turnId);
+                            },
+                        });
+                    } else if (cumulative) {
+                        previousCodexUsageByThread.set(threadId, cumulative);
+                    }
+                });
+            }
+        }
+
+        if ((msg.type === 'task_complete' || msg.type === 'turn_aborted') && isAuthoritativeLifecycle) {
+            const turnId = typeof (msg as Record<string, unknown>).turn_id === 'string'
+                ? (msg as Record<string, unknown>).turn_id as string
+                : null;
+            if (turnId) {
+                const usageOccurredAt = Date.now();
+                const usageModel = currentModel ?? null;
+                enqueueCodexProtocolWork(async () => {
+                    if (!codexTurnsWithUsage.has(turnId)) {
+                        await session.sendProviderUsageReport({
+                            key: usageReportKey(['codex', 'limitation', turnId]),
+                            provider: 'codex',
+                            model: usageModel,
+                            source: 'codex-thread-token-usage',
+                            occurredAt: usageOccurredAt,
+                            tokens: emptyUsageTokens(),
+                            cost: { total: 0 },
+                            costBasis: 'unavailable',
+                            tokensAvailable: false,
+                            costAvailable: false,
+                            limitations: ['tokens-not-reported-by-provider', 'cost-not-reported-by-provider'],
+                        });
+                    }
+                    codexTurnsWithUsage.delete(turnId);
+                });
+            }
+        }
+
         // Add messages to the ink UI buffer based on message type
         if (msg.type === 'agent_message') {
             messageBuffer.addMessage((msg as any).message, 'assistant');
@@ -1460,13 +1567,19 @@ export async function runCodex(opts: {
                     };
                 }
                 activeTurnDeveloperInstructions = message.mode.developerInstructions;
-                const result = await client.sendTurnAndWait(turnPrompt, {
-                    model: message.mode.model,
-                    approvalPolicy: executionPolicy.approvalPolicy,
-                    sandbox: executionPolicy.sandbox,
-                    effort: turnEffort,
-                    extraInputItems: imageInputs.inputItems,
-                });
+                let result: Awaited<ReturnType<typeof client.sendTurnAndWait>>;
+                codexPromptInFlight = true;
+                try {
+                    result = await client.sendTurnAndWait(turnPrompt, {
+                        model: message.mode.model,
+                        approvalPolicy: executionPolicy.approvalPolicy,
+                        sandbox: executionPolicy.sandbox,
+                        effort: turnEffort,
+                        extraInputItems: imageInputs.inputItems,
+                    });
+                } finally {
+                    codexPromptInFlight = false;
+                }
                 await codexProtocolQueue;
                 first = false;
 

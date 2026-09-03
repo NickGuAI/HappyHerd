@@ -1258,11 +1258,19 @@
     "last30Days": "Last 30 days",
     "totalTokens": "Total Tokens",
     "totalCost": "Total Cost",
+    "reportedTokens": "Reported Tokens",
+    "providerCost": "Provider Cost (USD)",
     "tokens": "Tokens",
     "cost": "Cost",
     "usageOverTime": "Usage over time",
-    "byModel": "By Model",
-    "noData": "No usage data available"
+    "byProvider": "By Provider",
+    "noData": "No usage data available",
+    "coverage": {
+      "title": "Reporting coverage",
+      "partial": "{provider}: {metric} reporting is partial for this period.",
+      "unavailable": "{provider}: {metric} is not reported by the provider.",
+      "estimated": "{provider}: cost is the provider's per-model estimate, not a billing statement."
+    }
   },
   "feed": {
     "friendRequestFrom": "{name} sent you a friend request",

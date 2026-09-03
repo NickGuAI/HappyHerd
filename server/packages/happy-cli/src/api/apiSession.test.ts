@@ -3,6 +3,11 @@ import { ApiSessionClient } from './apiSession';
 import { decodeBase64, decrypt, decryptBlob, encodeBase64, encrypt } from './encryption';
 import type { Update } from './types';
 import { logger } from '@/ui/logger';
+import { DurableUsageOutbox } from '@/usage/usageOutbox';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { configuration } from '@/configuration';
 
 const {
     mockIo,
@@ -46,7 +51,8 @@ vi.mock('axios', () => ({
 
 vi.mock('@/configuration', () => ({
     configuration: {
-        serverUrl: 'https://server.test'
+        serverUrl: 'https://server.test',
+        happyHomeDir: '/tmp/happyherd-api-session-tests-placeholder'
     }
 }));
 
@@ -147,6 +153,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
     let socketHandlers: SocketHandlers;
     let mockSocket: any;
     let session: ReturnType<typeof makeSession>;
+    let testHappyHomeDir: string;
 
     const emitSocketEvent = (event: string, ...args: any[]) => {
         const handlers = socketHandlers[event] || [];
@@ -156,6 +163,9 @@ describe('ApiSessionClient v3 messages API migration', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockShouldReconnect.mockReturnValue(true);
+        mockAxiosGet.mockResolvedValue({ data: { messages: [], hasMore: false } });
+        testHappyHomeDir = mkdtempSync(join(tmpdir(), 'happyherd-api-session-'));
+        (configuration as { happyHomeDir: string }).happyHomeDir = testHappyHomeDir;
         socketHandlers = {};
         session = makeSession();
         mockSocket = {
@@ -169,7 +179,17 @@ describe('ApiSessionClient v3 messages API migration', () => {
             }),
             off: vi.fn(),
             emit: vi.fn(),
-            emitWithAck: vi.fn(async () => ({ result: 'error' })),
+            emitWithAck: vi.fn(async (event: string, payload: any) => {
+                if (event === 'usage-report') return { success: true };
+                if (event === 'update-state') {
+                    return {
+                        result: 'success',
+                        agentState: payload.agentState,
+                        version: (payload.expectedVersion ?? 0) + 1,
+                    };
+                }
+                return { result: 'error' };
+            }),
             timeout: vi.fn(() => ({
                 emitWithAck: mockSocket.emitWithAck
             })),
@@ -185,6 +205,7 @@ describe('ApiSessionClient v3 messages API migration', () => {
     afterEach(() => {
         vi.useRealTimers();
         vi.restoreAllMocks();
+        rmSync(testHappyHomeDir, { recursive: true, force: true });
     });
 
     it('registers core socket handlers and connects', () => {
@@ -408,6 +429,116 @@ describe('ApiSessionClient v3 messages API migration', () => {
             }
         });
         expect(typeof (sessionUser as any).content.time).toBe('number');
+    });
+
+    it('reports Claude transcript usage with a provider-stable key and can suppress backfill accounting', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        const assistant = {
+            type: 'assistant',
+            uuid: 'jsonl-uuid-1',
+            message: {
+                id: 'provider-message-1',
+                model: 'claude-test',
+                content: [{ type: 'text', text: 'done' }],
+                usage: {
+                    input_tokens: 10,
+                    output_tokens: 5,
+                    cache_creation_input_tokens: 2,
+                    cache_read_input_tokens: 3,
+                },
+            },
+        } as any;
+
+        client.sendClaudeSessionMessage(assistant);
+        client.sendClaudeSessionMessage({ ...assistant, uuid: 'jsonl-uuid-2' });
+        await client.sendClaudeSessionMessageFromLocalTranscript(
+            { ...assistant, uuid: 'historical-backfill' },
+            { reportUsage: false },
+        );
+
+        await waitForCheck(() => {
+            expect(mockSocket.emitWithAck.mock.calls.some(([event]: [string]) => event === 'usage-report')).toBe(true);
+        });
+
+        const reports = mockSocket.emitWithAck.mock.calls
+            .filter(([event]: [string]) => event === 'usage-report')
+            .map(([, report]: [string, Record<string, unknown>]) => report);
+        expect(reports.length).toBeGreaterThanOrEqual(1);
+        expect(reports[0]).toMatchObject({
+            key: 'usage-v2:claude:transcript:provider-message-1',
+            provider: 'claude',
+            tokens: { total: 20, input: 10, output: 5, cache_creation: 2, cache_read: 3 },
+            cost: { total: 0 },
+            costAvailable: false,
+        });
+        expect(new Set(reports.map((report: Record<string, unknown>) => report.key)))
+            .toEqual(new Set([reports[0].key]));
+        await waitForCheck(() => expect(client.getAgentState()?.pendingUsageReports).toBeUndefined());
+        await client.close();
+    });
+
+    it('persists the usage event and cumulative cursor before reporting, then retains only the cursor', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        const report = {
+            key: 'usage-v2:grok:turn-1',
+            provider: 'grok' as const,
+            model: 'grok-code',
+            source: 'acp-prompt-response',
+            occurredAt: 1_788_436_800_000,
+            tokens: { total: 20, input: 15, output: 5, cache_creation: 0, cache_read: 0 },
+            cost: { total: 0.05 },
+            costBasis: 'provider-reported' as const,
+            tokensAvailable: true,
+            costAvailable: true,
+            limitations: [],
+        };
+
+        await client.sendProviderUsageReport(report, {
+            mutateAgentState: (state) => ({
+                ...state,
+                usageCursors: { acpCostUsd: { 'provider-session-1': 0.30 } },
+            }),
+        });
+
+        const eventOrder = mockSocket.emitWithAck.mock.calls.map(([event]: [string]) => event);
+        expect(eventOrder.indexOf('update-state')).toBeLessThan(eventOrder.indexOf('usage-report'));
+        expect(client.getAgentState()).toEqual(expect.objectContaining({
+            usageCursors: { acpCostUsd: { 'provider-session-1': 0.30 } },
+        }));
+        expect(client.getAgentState()?.pendingUsageReports).toBeUndefined();
+    });
+
+    it('restores a crash-pending local usage event and cursor before replaying it', async () => {
+        const report = {
+            key: 'usage-v2:grok:restart-turn',
+            provider: 'grok' as const,
+            model: 'grok-code',
+            source: 'acp-prompt-response',
+            occurredAt: 1_788_436_801_000,
+            tokens: { total: 30, input: 20, output: 10, cache_creation: 0, cache_read: 0 },
+            cost: { total: 0.03 },
+            costBasis: 'provider-reported' as const,
+            tokensAvailable: true,
+            costAvailable: true,
+            limitations: [],
+        };
+        const outbox = new DurableUsageOutbox(testHappyHomeDir, session.id);
+        await outbox.write({
+            report,
+            usageCursors: { acpCostUsd: { 'provider-session-1': 0.33 } },
+        });
+
+        const client = new ApiSessionClient('fake-token', session);
+        expect(client.getAgentState()?.usageCursors?.acpCostUsd?.['provider-session-1']).toBe(0.33);
+        emitSocketEvent('connect');
+
+        await waitForCheck(() => {
+            const usageCalls = mockSocket.emitWithAck.mock.calls
+                .filter(([event]: [string]) => event === 'usage-report');
+            expect(usageCalls).toHaveLength(1);
+            expect(usageCalls[0][1]).toMatchObject(report);
+        });
+        await waitForCheck(() => expect(outbox.load()).toEqual([]));
     });
 
     it('uploads local Claude transcript image blocks and sends file before user text', async () => {

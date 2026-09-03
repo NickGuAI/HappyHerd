@@ -1048,6 +1048,15 @@ export class AcpBackend implements AgentBackend {
       return;
     }
 
+    if (updateType === 'usage_update') {
+      this.emit({
+        type: 'token-count',
+        usageSource: 'acp-usage-update',
+        ...update,
+      });
+      return;
+    }
+
     // Handle legacy and auxiliary update types
     handleLegacyMessageChunk(update as SessionUpdate, ctx);
     handlePlanUpdate(update as SessionUpdate, ctx);
@@ -1064,6 +1073,7 @@ export class AcpBackend implements AgentBackend {
       'config_option_update',
       'config_options_update',
       'current_mode_update',
+      'usage_update',
     ];
     if (updateType &&
         !handledTypes.includes(updateType) &&

@@ -1258,11 +1258,19 @@
     "last30Days": "Letzte 30 Tage",
     "totalTokens": "Gesamtzahl der Token",
     "totalCost": "Gesamtkosten",
+    "reportedTokens": "Gemeldete Token",
+    "providerCost": "Provider-Kosten (USD)",
     "tokens": "Token",
     "cost": "Kosten",
     "usageOverTime": "Nutzung im Laufe der Zeit",
-    "byModel": "Nach Modell",
-    "noData": "Keine Nutzungsdaten verfügbar"
+    "byProvider": "Nach Provider",
+    "noData": "Keine Nutzungsdaten verfügbar",
+    "coverage": {
+      "title": "Abdeckung der Meldungen",
+      "partial": "{provider}: {metric} wurde für diesen Zeitraum nur teilweise gemeldet.",
+      "unavailable": "{provider}: {metric} wird vom Provider nicht gemeldet.",
+      "estimated": "{provider}: Die Kosten sind eine modellbezogene Schätzung des Providers und keine Abrechnung."
+    }
   },
   "feed": {
     "friendRequestFrom": "{name} hat dir eine Freundschaftsanfrage gesendet",

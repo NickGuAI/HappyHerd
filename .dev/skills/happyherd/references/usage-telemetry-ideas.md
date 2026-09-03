@@ -8,11 +8,16 @@ private interfaces; these notes must never become a parallel HappyHerd
 dashboard, telemetry collector, quota poller, or control plane.
 
 Use these ideas only to evolve HappyHerd's existing cost, usage, and quota
-owners. Current authority stays with provider-emitted session data in
-`server/packages/happy-cli/src/api/apiSession.ts`, persisted usage reports and
-aggregation in `server/packages/happy-server/sources/app/api/routes/accountRoutes.ts`,
-the app query/projection in `server/packages/happy-app/sources/sync/apiUsage.ts`,
-and account-scoped quota ownership described in `.dev/COUPLINGS.md`.
+owners. Provider usage normalization is owned by `providerUsage.ts` and the
+Claude, Codex, and ACP launchers, while `ApiSession.ts` manages a local
+disk-backed per-session/per-key usage outbox and encrypted AgentState cursors.
+Downstream, `usageHandler.ts` validates, session-binds, and idempotently upserts
+usage data while preserving the `occurredAt` timestamp. Filtering and bucketing
+by `occurredAt` are handled by `usageAggregation.ts` and `accountRoutes.ts` with
+a legacy receipt-time fallback. Finally, `apiUsage.ts` and `UsagePanel.tsx`
+query and present canonical totals, provider breakdown, and indications of
+partial or unavailable coverage. Account-scoped quota ownership remains
+described in `.dev/COUPLINGS.md`.
 
 ## Canonical aggregation ideas
 

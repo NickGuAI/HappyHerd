@@ -16,6 +16,14 @@ declare global {
                 total: number;
                 [key: string]: number;
             };
+            provider?: string;
+            model?: string | null;
+            source?: string;
+            occurredAt?: number;
+            costBasis?: 'provider-reported' | 'provider-estimate' | 'unavailable';
+            tokensAvailable?: boolean;
+            costAvailable?: boolean;
+            limitations?: string[];
         };
 
         // Update content types

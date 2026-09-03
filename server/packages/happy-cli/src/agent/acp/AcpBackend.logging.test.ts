@@ -38,4 +38,37 @@ describe('ACP backend logging', () => {
     expect(logs).not.toContain(sentinel);
     expect(logs).toContain('base64Length');
   });
+
+  it('preserves usage updates as context and cumulative-cost evidence', () => {
+    const backend = new AcpBackend({
+      agentName: 'dsh',
+      cwd: '/repo',
+      command: 'dsh',
+      permissionHandler: {
+        handleToolCall: vi.fn(async () => ({ decision: 'denied' as const })),
+      },
+    });
+    const messages: unknown[] = [];
+    backend.onMessage((message) => messages.push(message));
+
+    (backend as unknown as {
+      handleSessionUpdate: (params: unknown) => void;
+    }).handleSessionUpdate({
+      sessionId: 'provider-session',
+      update: {
+        sessionUpdate: 'usage_update',
+        used: 42_123,
+        size: 131_072,
+        cost: { amount: 0.3, currency: 'USD' },
+      },
+    });
+
+    expect(messages).toEqual([expect.objectContaining({
+      type: 'token-count',
+      usageSource: 'acp-usage-update',
+      used: 42_123,
+      size: 131_072,
+      cost: { amount: 0.3, currency: 'USD' },
+    })]);
+  });
 });
