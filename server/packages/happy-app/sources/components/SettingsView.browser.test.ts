@@ -207,7 +207,7 @@ describe('Settings policy links browser interaction', () => {
     it.each([
         ['Web Desktop', { width: 1440, height: 900 }],
         ['Web Mobile', { width: 390, height: 844 }],
-    ] as const)('opens the configured Web destinations from visible Settings rows on %s', async (_surface, viewport) => {
+    ] as const)('renders no About footer and opens the configured Web destinations on %s', async (_surface, viewport) => {
         const page = await browser.newPage({ viewport });
         const pageErrors: string[] = [];
         page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
@@ -224,6 +224,9 @@ describe('Settings policy links browser interaction', () => {
         });
         await page.goto(origin);
 
+        await expect(page.getByText('About HappyHerd', { exact: true }).count()).resolves.toBe(0);
+        const aboutGroup = page.getByText('About', { exact: true }).locator('xpath=../..');
+        await expect(aboutGroup.locator(':scope > *').count()).resolves.toBe(2);
         const support = page.getByText('Support Us', { exact: true });
         await support.waitFor({ state: 'visible' });
         await expect(page.locator('[data-icon="heart"]').count()).resolves.toBe(1);
@@ -268,6 +271,9 @@ describe('Settings policy links browser interaction', () => {
         });
         await page.goto(`${origin}/?platform=ios`);
 
+        await expect(page.getByText('About HappyHerd', { exact: true }).count()).resolves.toBe(0);
+        const aboutGroup = page.getByText('About', { exact: true }).locator('xpath=../..');
+        await expect(aboutGroup.locator(':scope > *').count()).resolves.toBe(2);
         const support = page.getByText('Support Us', { exact: true });
         await support.waitFor({ state: 'visible', timeout: 3_000 }).catch(async (error) => {
             throw new Error(`${String(error)}\nBrowser errors:\n${pageErrors.join('\n')}\nBody:\n${await page.locator('body').innerText()}`);

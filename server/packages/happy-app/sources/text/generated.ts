@@ -742,7 +742,6 @@ export type TranslationKey =
     | "sessionsFilter.groupingTitle"
     | "sessionsFilter.title"
     | "settings.about"
-    | "settings.aboutFooter"
     | "settings.account"
     | "settings.accountConnected"
     | "settings.accountSubtitle"

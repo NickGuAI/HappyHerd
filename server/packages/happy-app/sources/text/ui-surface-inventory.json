@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "035933ee3ed964ce80e1e4cb4a5198c3fac4eb93198423a401218c3bff607d01",
+  "sourceFingerprint": "876de59aaae2fa61133055bcdfc9d4bf0fc02480c14155a0ea14b70c17f37622",
   "routeCount": 36,
   "surfaceCount": 255,
   "hardcodedCopyCount": 0,
@@ -4346,7 +4346,6 @@
         "modals.disconnectServiceConfirm",
         "modals.pasteUrlFromTerminal",
         "settings.about",
-        "settings.aboutFooter",
         "settings.account",
         "settings.accountSubtitle",
         "settings.appearance",

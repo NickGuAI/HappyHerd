@@ -441,7 +441,7 @@ export const SettingsView = React.memo(function SettingsView({
             )}
 
             {/* About */}
-            <ItemGroup title={t('settings.about')} footer={t('settings.aboutFooter')}>
+            <ItemGroup title={t('settings.about')}>
                 <Item
                     title={t('settings.whatsNew')}
                     subtitle={t('settings.whatsNewSubtitle')}
