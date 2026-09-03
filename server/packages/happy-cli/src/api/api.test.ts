@@ -551,7 +551,7 @@ describe('Api server error handling', () => {
             expect(mockGet).toHaveBeenCalledWith(
                 'https://api.example.com/v3/sessions/session%2Fone/messages',
                 expect.objectContaining({
-                    params: { before_seq: Number.MAX_SAFE_INTEGER, limit: 500 },
+                    params: { before_seq: 2_147_483_647, limit: 500 },
                     timeout: 60000,
                 }),
             );

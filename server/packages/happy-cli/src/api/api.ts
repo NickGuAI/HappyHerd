@@ -219,7 +219,7 @@ export class ApiClient {
     const response = await axios.get(
       `${configuration.serverUrl}/v3/sessions/${encodeURIComponent(session.id)}/messages`,
       {
-        params: { before_seq: Number.MAX_SAFE_INTEGER, limit: boundedLimit },
+        params: { before_seq: 2_147_483_647, limit: boundedLimit },
         headers: {
           'Authorization': `Bearer ${this.credential.token}`,
           'X-Happy-Client': `cli-coding-session/${configuration.currentCliVersion}`,
