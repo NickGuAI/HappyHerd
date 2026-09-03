@@ -1,6 +1,6 @@
 ---
 name: happyherd-develop-workspace
-description: Implement, repair, or verify the one Human-facing HappyHerd Workspace — file browsing, tabs, Preview/Edit/Delete viewer, rendered Markdown commentable previews, feedback, and chat context references — across Web Desktop, Web Mobile, and the coupled entry points, transports, docs, catalogs, and interaction gates. Use for any change to the workspace file surface, file-viewer modes, comment consistency, workspace links, feedback batching, or their supporting documentation.
+description: Implement, repair, or verify the one Human-facing HappyHerd Workspace — file browsing, selected-machine localhost live views, tabs, Preview/Edit/Delete viewer, comments, feedback, and chat context references — across Web Desktop, Web Mobile, and coupled entry points, transports, docs, catalogs, and interaction gates.
 ---
 
 # HappyHerd Workspace Delivery
@@ -53,6 +53,14 @@ change. When behavior changes, update both this skill and
   source lines and send **once** through the existing `workspaceFeedback`
   batch to the exact current chat. No new comment store, RPC, transport path,
   or second batch is introduced.
+- **Selected-machine localhost.** The embedded Workspace accepts only
+  HTTP/HTTPS URLs with the exact loopback authority `localhost`, `127.0.0.1`,
+  or `[::1]`. Tabs are keyed by machine plus canonical URL. The live iframe's
+  page, scripts, styles, and fetch/XHR requests resolve through the selected
+  daemon's encrypted machine RPC, never the Human browser's or central
+  server's localhost. Element feedback contains bounded HTML, computed CSS,
+  bounds, and a cropped PNG in the existing feedback batch. Local HTML file
+  Preview remains scriptless.
 - **Transport.** Current-session file/directory links open in the same tabs,
   including absolute paths outside the chat cwd; explicit machine paths use
   machine file transport (zero session-file calls) with no workspace switch.
@@ -91,6 +99,8 @@ with `.dev/` or `docs/`.
   typography floor.
 - `sources/components/DesktopFileWorkspace.tsx` — deduplicated tabs, wide
   split, compact host, and one mounted file host.
+- `sources/components/LocalhostLiveView.web.tsx` — live selected-machine page,
+  element picker, bounded context, and crop capture; native remains unchanged.
 - `sources/components/desktopFileWorkspaceModel.ts` — tab admission state.
 - `sources/components/MainView.tsx` — fallback viewer host (cross-session only).
 
@@ -134,6 +144,8 @@ with `.dev/` or `docs/`.
 - `sources/sync/workspaceContext.ts` — existing file/directory reference into
   the exact chat's next-message context.
 - `sources/sync/workspaceFeedback.ts` — feedback batch into the exact chat.
+- `sources/sync/workspaceLive.ts` + `public/workspace-live-sw.js` — registered
+  live-iframe URL virtualization and encrypted selected-machine fetch bridge.
 - `sources/utils/filePreview.ts` — file classification, editable-text
   decode/encode, and the scriptless safe HTML preview document.
 - `sources/utils/markdownWorkspaceLink.ts` — file/directory/position link
@@ -185,9 +197,10 @@ with `.dev/` or `docs/`.
 2. State the violated invariant, the smallest repair boundary, the affected
    surfaces, and the proof required before editing.
 3. Change the owning mechanism at the earliest boundary that can prove it.
-   Reuse the production component, hosts, transports, comment mechanism, and
-   batch sender. Do **not** create a second workspace, route, viewer, state
-   owner, RPC, protocol, editor framework, persistence layer, or daemon work.
+   Reuse the production component, host, comment mechanism, and batch sender.
+   Do **not** create a second workspace, route, viewer, state owner, editor
+   framework, persistence layer, or comment store. Transport additions require
+   an explicit owning task and remain inside the existing machine RPC path.
 4. Add or update the focused regression at the owning boundary (unit or
    real-host interaction), and update the production fixture when the real
    host contract changes.
@@ -234,13 +247,17 @@ Web Mobile `390 × 844` for a Main Agent and an active Side chat:
    both open rendered, reveal the matching rendered unit (including the
    matching table row), and that multiple pins comment the exact source lines
    and send once through `workspaceFeedback`.
-5. Retain the active draft, selected mode, dirty edits, scroll, tab identity,
+5. Open a loopback URL on the exact selected machine, prove live script and
+   fetch/XHR state, pick an element, and send one comment containing bounded
+   HTML/CSS plus an element crop to the exact Main Agent or Side chat. Reject
+   non-loopback input and prove the same URL on two machines is two identities.
+6. Retain the active draft, selected mode, dirty edits, scroll, tab identity,
    and line/column metadata across tab switches; on wide Web Desktop drag to
    the 75/25 boundary with the chat mounted; on compact Web prove the
    full-screen open/back flow without desktop tabs or divider; require one
    viewer/composer and zero unexpected page/console errors (the default HTML
    sandbox-block message is expected enforcement).
-6. On phone Web, prove the touched surfaces compute at least 16px while the
+7. On phone Web, prove the touched surfaces compute at least 16px while the
    input anti-zoom guard remains intact.
 
 ### App and repository gates

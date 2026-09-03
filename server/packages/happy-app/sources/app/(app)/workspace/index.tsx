@@ -56,6 +56,7 @@ import { useMachineFileUpload } from '@/hooks/useMachineFileUpload';
 import { MachineFileUploadStatus } from '@/components/MachineFileUploadStatus';
 import { WorkspaceLinkViewer } from '@/components/WorkspaceLinkViewer';
 import { workspaceLinkViewerKey } from '@/components/WorkspaceLinkViewerModel';
+import { normalizeWorkspaceLocalhostUrl } from '@/components/desktopFileWorkspaceModel';
 import type { WorkspaceLinkRouteParams } from '@/utils/markdownWorkspaceLink';
 import {
     dismissWorkspaceLinkToOrigin,
@@ -179,12 +180,14 @@ export function MachineWorkspaceBrowser({
     initialPath,
     workspaceContextSessionId,
     onFilePress,
+    onLocalhostUrlPress,
 }: {
     embedded?: boolean;
     initialMachineId?: string;
     initialPath?: string;
     workspaceContextSessionId?: string;
     onFilePress?: (file: { machineId: string; path: string }) => void;
+    onLocalhostUrlPress?: (target: { machineId: string; url: string }) => void;
 }) {
     const router = useRouter();
     const params = useLocalSearchParams<{
@@ -217,6 +220,8 @@ export function MachineWorkspaceBrowser({
     );
     const [currentDirectory, setCurrentDirectory] = React.useState('');
     const [pathDraft, setPathDraft] = React.useState('');
+    const [localhostUrlDraft, setLocalhostUrlDraft] = React.useState('');
+    const [localhostUrlError, setLocalhostUrlError] = React.useState(false);
     const [tree, setTree] = React.useState<DirectoryTreeNode | null>(null);
     const [loading, setLoading] = React.useState(false);
     const [directoryError, setDirectoryError] = React.useState<{ kind: WorkspaceDirectoryErrorKind; detail?: string } | null>(null);
@@ -399,6 +404,18 @@ export function MachineWorkspaceBrowser({
         });
     }, [guardUnsavedChanges, onFilePress, selectedMachine]);
 
+    const openLocalhostUrl = React.useCallback(() => {
+        if (!selectedMachine || !onLocalhostUrlPress) return;
+        const url = normalizeWorkspaceLocalhostUrl(localhostUrlDraft);
+        if (!url) {
+            setLocalhostUrlError(true);
+            return;
+        }
+        setLocalhostUrlDraft(url);
+        setLocalhostUrlError(false);
+        onLocalhostUrlPress({ machineId: selectedMachine.id, url });
+    }, [localhostUrlDraft, onLocalhostUrlPress, selectedMachine]);
+
     const toggleStagedEntry = React.useCallback((path: string, kind: 'file' | 'directory') => {
         if (!selectedMachineId) return;
         const entry: WorkspaceContextEntry = {
@@ -547,6 +564,54 @@ export function MachineWorkspaceBrowser({
 
                 {selectedMachine && (
                     <>
+                        {onLocalhostUrlPress ? (
+                            <View style={styles.localhostUrlSection}>
+                                <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>
+                                    {t('workspace.openLocalhost')}
+                                </Text>
+                                <View style={styles.pathRow}>
+                                    <TextInput
+                                        value={localhostUrlDraft}
+                                        onChangeText={(value) => {
+                                            setLocalhostUrlDraft(value);
+                                            setLocalhostUrlError(false);
+                                        }}
+                                        onSubmitEditing={openLocalhostUrl}
+                                        placeholder={t('workspace.localhostUrlPlaceholder')}
+                                        placeholderTextColor={theme.colors.textSecondary}
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                        keyboardType="url"
+                                        returnKeyType="go"
+                                        accessibilityLabel={t('workspace.openLocalhost')}
+                                        style={[
+                                            styles.pathInput,
+                                            {
+                                                color: theme.colors.text,
+                                                backgroundColor: theme.colors.input.background,
+                                                borderColor: localhostUrlError
+                                                    ? theme.colors.textDestructive
+                                                    : theme.colors.divider,
+                                            },
+                                        ]}
+                                    />
+                                    <Pressable
+                                        onPress={openLocalhostUrl}
+                                        accessibilityRole="button"
+                                        accessibilityLabel={t('workspace.openLocalhost')}
+                                        style={({ pressed }) => [styles.goButton, { backgroundColor: theme.colors.button.primary.background, opacity: pressed ? 0.8 : 1 }]}
+                                    >
+                                        <Text style={{ color: theme.colors.button.primary.tint, ...Typography.default('semiBold') }}>{t('workspace.go')}</Text>
+                                    </Pressable>
+                                </View>
+                                {localhostUrlError ? (
+                                    <Text accessibilityRole="alert" style={[styles.fieldError, { color: theme.colors.textDestructive }]}>
+                                        {t('workspace.invalidLocalhostUrl')}
+                                    </Text>
+                                ) : null}
+                            </View>
+                        ) : null}
+
                         <View style={styles.pathRow}>
                             <TextInput
                                 value={pathDraft}
@@ -985,9 +1050,11 @@ const styles = StyleSheet.create((theme) => ({
     chipRow: { gap: 8, paddingRight: 8 },
     machineChip: { maxWidth: 240, minHeight: 38, borderWidth: 1, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 10 },
     statusDot: { width: 7, height: 7, borderRadius: 4 },
+    localhostUrlSection: { gap: 6 },
     pathRow: { flexDirection: 'row', gap: 8 },
     pathInput: { flex: 1, minWidth: 0, borderWidth: 1, borderRadius: 9, paddingHorizontal: 11, paddingVertical: Platform.OS === 'web' ? 9 : 8, ...Typography.mono() },
     goButton: { minWidth: 50, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
+    fieldError: { ...Typography.default(), fontSize: 12 },
     pathActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
     uploadStatusRow: { paddingHorizontal: 2 },
     pathAction: { minWidth: 54, minHeight: 44, alignItems: 'center', justifyContent: 'center', gap: 2, borderRadius: 8 },

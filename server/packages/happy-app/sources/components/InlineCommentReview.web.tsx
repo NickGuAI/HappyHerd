@@ -17,6 +17,7 @@ export function InlineCommentReview(props: InlineCommentReviewProps) {
     const [draft, setDraft] = React.useState('');
     const [sending, setSending] = React.useState(false);
     const [error, setError] = React.useState(false);
+    const sendingRef = React.useRef(false);
     const commentsRef = React.useRef(props.comments);
     commentsRef.current = props.comments;
 
@@ -41,9 +42,10 @@ export function InlineCommentReview(props: InlineCommentReviewProps) {
     };
 
     const send = async () => {
-        if (sending || props.comments.length === 0) return;
+        if (sendingRef.current || props.comments.length === 0) return;
         const sentComments = commentsRef.current;
         const sentCommentIds = new Set(sentComments.map((comment) => comment.id));
+        sendingRef.current = true;
         setSending(true);
         setError(false);
         try {
@@ -51,18 +53,21 @@ export function InlineCommentReview(props: InlineCommentReviewProps) {
                 originSessionId: props.originSessionId,
                 reference: props.reference,
                 feedback: sentComments,
-                attachments: [],
+                attachments: sentComments.flatMap((comment) => comment.screenshot ? [comment.screenshot] : []),
                 sendMessage: (sessionId, text, options) => sync.sendMessage(sessionId, text, options),
             });
             props.onCommentsChange(commentsRef.current.filter((comment) => !sentCommentIds.has(comment.id)));
         } catch {
             setError(true);
         } finally {
+            sendingRef.current = false;
             setSending(false);
         }
     };
 
-    const anchorLabel = props.activeAnchor?.nodeId
+    const anchorLabel = props.activeAnchor?.elementSelector
+        ? t('workspace.liveCommentOnElement', { element: props.activeAnchor.elementSelector })
+        : props.activeAnchor?.nodeId
         ? t('files.commentOnNode', { node: props.activeAnchor.nodeId })
         : t('files.commentOnLine', { line: String(props.activeAnchor?.line ?? 0) });
 
@@ -71,7 +76,11 @@ export function InlineCommentReview(props: InlineCommentReviewProps) {
             {props.comments.map((comment, index) => (
                 <View key={comment.id} style={styles.commentRow}>
                     <Text style={[styles.commentText, { color: theme.colors.text }]} numberOfLines={2}>
-                        {`${index + 1}. ${comment.nodeId ? t('files.canvasNode', { node: comment.nodeId }) : t('files.lineNumber', { line: String(comment.line ?? 0) })}: ${comment.feedback}`}
+                        {`${index + 1}. ${comment.elementSelector
+                            ? t('workspace.liveElement', { element: comment.elementSelector })
+                            : comment.nodeId
+                                ? t('files.canvasNode', { node: comment.nodeId })
+                                : t('files.lineNumber', { line: String(comment.line ?? 0) })}: ${comment.feedback}`}
                     </Text>
                     <Pressable accessibilityRole="button" accessibilityLabel={t('files.removeComment')} onPress={() => props.onCommentsChange(props.comments.filter((item) => item.id !== comment.id))}>
                         <Text style={[styles.remove, { color: theme.colors.textDestructive }]}>{t('common.delete')}</Text>

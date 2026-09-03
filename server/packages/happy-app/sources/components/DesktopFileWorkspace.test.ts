@@ -76,6 +76,11 @@ vi.mock('@/components/WorkspaceFeedbackComposer', async () => {
     return { WorkspaceFeedbackComposer: (props: any) => ReactModule.createElement('WorkspaceFeedbackComposer', props) };
 });
 
+vi.mock('@/components/LocalhostWorkspacePanel', async () => {
+    const ReactModule = await import('react');
+    return { LocalhostWorkspacePanel: (props: any) => ReactModule.createElement('LocalhostWorkspacePanel', props) };
+});
+
 vi.mock('@/components/StyledText', async () => {
     const ReactModule = await import('react');
     return { Text: (props: any) => ReactModule.createElement('Text', props, props.children) };
@@ -216,6 +221,35 @@ describe('DesktopFileWorkspace', () => {
         expect(renderer.root.findByType('MachineFileViewPanel' as any).props).toMatchObject({ requestedLine: 12, requestedColumn: 4 });
         const feedback = renderer.root.findByType('WorkspaceFeedbackComposer' as any);
         expect(feedback.props).toMatchObject({ machineId: 'machine-2', absolutePath: '/work/a.ts', line: 12, column: 4 });
+    });
+
+    it('mounts a selected-machine localhost URL in the same host without a file composer', () => {
+        const identity = JSON.stringify(['machine-ec2', 'localhost', 'http://localhost:5173/dashboard']);
+        let renderer!: ReactTestRenderer;
+        act(() => {
+            renderer = create(workspaceElement({
+                paths: [identity],
+                activePath: identity,
+                references: {
+                    [identity]: {
+                        kind: 'localhost',
+                        machineId: 'machine-ec2',
+                        url: 'http://localhost:5173/dashboard',
+                    },
+                },
+            }));
+        });
+
+        expect(renderer.root.findByType('LocalhostWorkspacePanel' as any).props).toMatchObject({
+            sessionId: 'session-one',
+            machineId: 'machine-ec2',
+            url: 'http://localhost:5173/dashboard',
+            active: true,
+        });
+        expect(renderer.root.findAllByType('WorkspaceFeedbackComposer' as any)).toHaveLength(0);
+        expect(renderer.root.findAllByType('FileViewPanel' as any)).toHaveLength(0);
+        expect(renderer.root.findByProps({ accessibilityLabel: 'files.openFileTab:http://localhost:5173/dashboard' }))
+            .toBeTruthy();
     });
 
     it('switches to a single full-width header without remounting file panels', () => {

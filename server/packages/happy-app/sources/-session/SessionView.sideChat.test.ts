@@ -295,7 +295,9 @@ vi.mock('@/components/DesktopFileWorkspace', async () => {
         if (!identity) return identity;
         try {
             const parsed = JSON.parse(identity);
-            return Array.isArray(parsed) && typeof parsed[1] === 'string' ? parsed[1] : identity;
+            if (!Array.isArray(parsed)) return identity;
+            if (parsed[1] === 'localhost' && typeof parsed[2] === 'string') return parsed[2];
+            return typeof parsed[1] === 'string' ? parsed[1] : identity;
         } catch {
             return identity;
         }
@@ -1097,6 +1099,27 @@ describe('SessionView Web composer workspace access', () => {
             initialMachineId: 'machine-newest',
             initialPath: '/srv/side-chats/newest',
             workspaceContextSessionId: 'newest',
+            onLocalhostUrlPress: expect.any(Function),
+        });
+
+        act(() => renderer.root.findByType('MachineWorkspaceBrowser' as any).props.onLocalhostUrlPress({
+            machineId: 'machine-newest',
+            url: 'http://localhost:3000/side',
+        }));
+        const liveWorkspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(liveWorkspace.props).toMatchObject({
+            sessionId: 'newest',
+            paths: ['http://localhost:3000/side'],
+            activePath: 'http://localhost:3000/side',
+        });
+        expect(liveWorkspace.props.references[JSON.stringify([
+            'machine-newest',
+            'localhost',
+            'http://localhost:3000/side',
+        ])]).toEqual({
+            kind: 'localhost',
+            machineId: 'machine-newest',
+            url: 'http://localhost:3000/side',
         });
 
         act(() => renderer.root.findByType('DesktopFileWorkspace' as any).props.onClosePicker());
@@ -1929,11 +1952,37 @@ describe('SessionView side-chat integration', () => {
             initialMachineId: 'machine-1',
             initialPath: '/srv/project',
             workspaceContextSessionId: 'parent',
+            onLocalhostUrlPress: expect.any(Function),
         });
-        act(() => machineWorkspace.props.onFilePress({ machineId: 'machine-2', path: '/work/remote.md' }));
+        act(() => machineWorkspace.props.onLocalhostUrlPress({
+            machineId: 'machine-2',
+            url: 'http://127.0.0.1:4173/app',
+        }));
 
-        const workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(workspace.props.paths).toEqual(['/work/remote.md']);
+        let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props).toMatchObject({
+            sessionId: 'parent',
+            paths: ['http://127.0.0.1:4173/app'],
+            activePath: 'http://127.0.0.1:4173/app',
+        });
+        expect(workspace.props.references[JSON.stringify([
+            'machine-2',
+            'localhost',
+            'http://127.0.0.1:4173/app',
+        ])]).toEqual({
+            kind: 'localhost',
+            machineId: 'machine-2',
+            url: 'http://127.0.0.1:4173/app',
+        });
+
+        act(() => workspace.props.onOpenMachinePicker());
+        act(() => renderer.root.findByType('MachineWorkspaceBrowser' as any).props.onFilePress({
+            machineId: 'machine-2',
+            path: '/work/remote.md',
+        }));
+
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props.paths).toEqual(['http://127.0.0.1:4173/app', '/work/remote.md']);
         expect(workspace.props.references[JSON.stringify(['machine-2', '/work/remote.md'])])
             .toMatchObject({ machineId: 'machine-2', source: 'machine' });
         expect(mocks.routerPush).not.toHaveBeenCalled();

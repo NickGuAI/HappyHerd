@@ -288,13 +288,15 @@ active Main Agent or active Side chat (session + machine + cwd)
                          │
                          ├─ file/directory reference ──► sync/workspaceContext
                          │                                  └─► exact chat
+                         ├─ loopback URL + selected machine
+                         │        └─► service worker ─► encrypted machine RPC
                          ▼
-                 SessionView state (machine + path)
+                 SessionView state (machine + path / URL)
                          │
                          ▼
              DesktopFileWorkspace ──► FileContentPanel + sync/ops
-                   tabs / split             Preview / Edit / Delete
-                   compact host             machine transport
+                   tabs / split       ├─► Preview / Edit / Delete
+                   compact host       └─► live view + element feedback
 ```
 
 One Human-facing **Workspace** initializes at the exact machine and cwd of the
@@ -303,13 +305,21 @@ active Main Agent or Side chat. `MachineWorkspaceBrowser`, exported from
 existing file or directory references to that exact chat through
 `sync/workspaceContext.ts`.
 
-`SessionView.tsx` retains one UI and transport state keyed by machine ID and
-absolute path. `DesktopFileWorkspace.tsx` owns deduplicated tabs, the wide
+`SessionView.tsx` retains one UI state keyed by machine ID plus absolute path
+or canonical loopback URL. `DesktopFileWorkspace.tsx` owns deduplicated tabs, the wide
 split, compact host, and feedback. `FileContentPanel` and `sync/ops.ts` own
 Preview, Edit, supported Delete, and machine transport. A rendered Markdown
 `requestedLine` deep link is a mandatory navigation behavior: it stays in the
 commentable Preview and reveals the matching rendered review unit, including
 the matching table row for a line inside a table.
+
+For a live loopback tab, `sync/workspaceLive.ts` and the scoped behavior in
+`public/workspace-live-sw.js` translate only that registered iframe's page and
+subresource requests into `workspace-live-fetch` calls on the exact selected
+daemon. Scripts, styles, and fetch/XHR state execute in the live frame. The
+element picker supplies bounded HTML, computed CSS, bounds, and a cropped PNG
+to the existing `workspaceFeedback` batch; local HTML file Preview remains on
+the separate scriptless path.
 
 Current-session file and directory reply links remain in this host. Parsed line
 and column values remain attached to the tab reference and feedback message,

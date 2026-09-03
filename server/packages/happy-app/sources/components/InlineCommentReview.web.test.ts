@@ -112,4 +112,58 @@ describe('InlineCommentReview web', () => {
         ))).toBe(true);
         act(() => renderer.unmount());
     });
+
+    it('attaches an element crop and synchronously rejects a duplicate send press', async () => {
+        let resolveSend: ((value: { id: string }) => void) | undefined;
+        mocks.sendMessage.mockReturnValue(new Promise((resolve) => { resolveSend = resolve; }));
+        const screenshot = {
+            id: 'crop-one',
+            uri: 'data:image/png;base64,AA==',
+            width: 120,
+            height: 36,
+            mimeType: 'image/png',
+            size: 1,
+            name: 'element-crop.png',
+        };
+
+        function LiveHarness() {
+            const [anchor, setAnchor] = React.useState<InlineCommentAnchor | null>({
+                elementSelector: '#save',
+                elementHtml: '<button id="save">Save</button>',
+                elementCss: 'display: block;',
+                elementBounds: { x: 10, y: 20, width: 120, height: 36 },
+                screenshot,
+            });
+            const [comments, setComments] = React.useState<WorkspaceFeedbackComment[]>([]);
+            return React.createElement(InlineCommentReview, {
+                originSessionId: 'side-chat-session',
+                reference: { machineId: 'machine-ec2', liveUrl: 'http://localhost:5173/' },
+                activeAnchor: anchor,
+                comments,
+                onActiveAnchorChange: setAnchor,
+                onCommentsChange: setComments,
+            });
+        }
+
+        let renderer: any;
+        act(() => { renderer = create(React.createElement(LiveHarness)); });
+        act(() => renderer.root.findByType('TextInput' as any).props.onChangeText('Make it larger'));
+        act(() => button(renderer, 'files.pinComment').props.onPress());
+        act(() => {
+            button(renderer, 'files.sendComments').props.onPress();
+            button(renderer, 'files.sendComments').props.onPress();
+        });
+
+        expect(mocks.sendMessage).toHaveBeenCalledOnce();
+        expect(mocks.sendMessage).toHaveBeenCalledWith(
+            'side-chat-session',
+            expect.stringContaining('Element selector: "#save"'),
+            expect.objectContaining({ attachments: [screenshot], requireAllAttachments: true }),
+        );
+        await act(async () => {
+            resolveSend?.({ id: 'message-one' });
+            await Promise.resolve();
+        });
+        act(() => renderer.unmount());
+    });
 });

@@ -7,6 +7,7 @@ import {
     closeDesktopFile,
     EMPTY_DESKTOP_FILE_WORKSPACE,
     openDesktopFile,
+    openDesktopLocalhost,
     selectDesktopFile,
 } from '@/components/desktopFileWorkspaceModel';
 import { SidebarNavigator } from '@/components/SidebarNavigator';
@@ -349,6 +350,54 @@ function InteractiveHtmlWorkspaceDemo({ compact, testId }: { compact: boolean; t
     );
 }
 
+function LocalhostLiveWorkspaceDemo({ compact, testId }: { compact: boolean; testId: string }) {
+    const [workspace, setWorkspace] = React.useState(EMPTY_DESKTOP_FILE_WORKSPACE);
+    const [machinePickerOpen, setMachinePickerOpen] = React.useState(true);
+
+    return (
+        <div
+            data-testid={testId}
+            style={{
+                position: 'relative',
+                display: 'flex',
+                flexDirection: 'column',
+                width: compact ? 390 : 900,
+                height: compact ? 844 : 640,
+                overflow: 'hidden',
+            }}
+        >
+            <DesktopFileWorkspace
+                sessionId={compact ? 'side-chat-mobile' : 'main-agent-desktop'}
+                paths={workspace.paths}
+                activePath={workspace.activePath}
+                references={workspace.references}
+                dirtyPaths={new Set()}
+                machinePickerOpen={machinePickerOpen}
+                compact={compact}
+                machinePicker={(
+                    <MachineWorkspaceBrowser
+                        embedded
+                        initialMachineId="machine-2"
+                        initialPath="/machine-root"
+                        workspaceContextSessionId={compact ? 'side-chat-mobile' : 'main-agent-desktop'}
+                        onFilePress={() => undefined}
+                        onLocalhostUrlPress={({ machineId, url }) => {
+                            setWorkspace((current) => openDesktopLocalhost(current, machineId, url));
+                            setMachinePickerOpen(false);
+                        }}
+                    />
+                )}
+                onSelect={(path) => setWorkspace((current) => selectDesktopFile(current, path))}
+                onRequestClose={(path) => setWorkspace((current) => closeDesktopFile(current, path))}
+                onFileDeleted={() => undefined}
+                onOpenMachinePicker={() => setMachinePickerOpen(true)}
+                onClosePicker={() => setMachinePickerOpen(false)}
+                onDirtyChange={() => undefined}
+            />
+        </div>
+    );
+}
+
 function FileReviewWorkspaceDemo({
     compact,
     testId,
@@ -418,13 +467,20 @@ declare global {
         }>;
         __SESSION_WRITE_CALLS__?: Array<{ path: string; content: string }>;
         __SESSION_TITLE_PRESS_COUNT__?: number;
+        __WORKSPACE_LIVE_RPC_CALLS__?: Array<{ machineId: string; method: string; url: string }>;
     }
 }
 
 const interactiveHtmlSurface = new URLSearchParams(window.location.search).get('interactive-html');
 const fileReviewSurface = new URLSearchParams(window.location.search).get('file-review');
+const localhostLiveSurface = new URLSearchParams(window.location.search).get('localhost-live');
 
-createRoot(document.getElementById('root')!).render(fileReviewSurface ? (
+createRoot(document.getElementById('root')!).render(localhostLiveSurface ? (
+    <LocalhostLiveWorkspaceDemo
+        compact={localhostLiveSurface === 'mobile'}
+        testId={localhostLiveSurface === 'mobile' ? 'localhost-live-mobile' : 'localhost-live-desktop'}
+    />
+) : fileReviewSurface ? (
     <FileReviewWorkspaceDemo
         compact={fileReviewSurface.startsWith('mobile')}
         initialSurface={fileReviewSurface === 'mobile-canvas'

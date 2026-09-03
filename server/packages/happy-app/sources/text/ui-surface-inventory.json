@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "30f6b59c6a9d1d1caa8160dce202b9181e58df4ffc40102565da82f270369297",
+  "sourceFingerprint": "dbf838f6a014d84983f129186ed69518f7866bf78a8f52d5cbc3ac888b8fef5f",
   "routeCount": 36,
-  "surfaceCount": 255,
+  "surfaceCount": 257,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -954,6 +954,8 @@
         "workspace.folderNamePlaceholder",
         "workspace.go",
         "workspace.home",
+        "workspace.invalidLocalhostUrl",
+        "workspace.localhostUrlPlaceholder",
         "workspace.missingPathDescription",
         "workspace.missingPathTitle",
         "workspace.mobileBackToFiles",
@@ -963,6 +965,7 @@
         "workspace.offlineDescription",
         "workspace.offlineTitle",
         "workspace.openFeatures",
+        "workspace.openLocalhost",
         "workspace.parent",
         "workspace.pathPlaceholder",
         "workspace.permissionDeniedDescription",
@@ -2207,6 +2210,8 @@
         "workspace.folderNamePlaceholder",
         "workspace.go",
         "workspace.home",
+        "workspace.invalidLocalhostUrl",
+        "workspace.localhostUrlPlaceholder",
         "workspace.missingPathDescription",
         "workspace.missingPathTitle",
         "workspace.mobileBackToFiles",
@@ -2216,6 +2221,7 @@
         "workspace.offlineDescription",
         "workspace.offlineTitle",
         "workspace.openFeatures",
+        "workspace.openLocalhost",
         "workspace.parent",
         "workspace.pathPlaceholder",
         "workspace.permissionDeniedDescription",
@@ -3454,7 +3460,9 @@
         "files.pinComment",
         "files.removeComment",
         "files.sendComments",
-        "happyHerd.composer.sendFailedBody"
+        "happyHerd.composer.sendFailedBody",
+        "workspace.liveCommentOnElement",
+        "workspace.liveElement"
       ],
       "states": [
         "loading"
@@ -3510,6 +3518,33 @@
         "ItemListStatic"
       ],
       "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/LocalhostLiveView.web.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "LocalhostLiveView",
+        "workspaceLivePickFromMessage"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/LocalhostWorkspacePanel.tsx",
+      "kind": "panel",
+      "route": null,
+      "exports": [
+        "LocalhostWorkspacePanel"
+      ],
+      "translationKeys": [
+        "workspace.liveLoadFailed",
+        "workspace.startElementComment",
+        "workspace.stopElementComment"
+      ],
       "states": [],
       "hardcodedCopy": []
     },

@@ -52,7 +52,9 @@ import {
     desktopFileIdentity,
     desktopFilePath,
     EMPTY_DESKTOP_FILE_WORKSPACE,
+    isDesktopLocalhostReference,
     openDesktopFile,
+    openDesktopLocalhost,
     selectDesktopFile,
 } from '@/components/desktopFileWorkspaceModel';
 import { SideChatAccessButton, SideChatFullscreen } from '@/components/SideChatPanel';
@@ -661,7 +663,9 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                 // state without creating a second viewer header or composer.
                 const identity = desktopFileIdentity(route.params.absolutePath, route.params.machineId);
                 setDesktopFileWorkspace((current) => {
-                    const preserveDirtySessionEditor = current.references[identity]?.source === 'session'
+                    const existingReference = current.references[identity];
+                    const preserveDirtySessionEditor = !isDesktopLocalhostReference(existingReference)
+                        && existingReference?.source === 'session'
                         && desktopDirtyPathsRef.current.has(identity);
                     return openDesktopFile(
                         current,
@@ -746,6 +750,12 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             machineId,
             source: 'machine',
         }));
+        setDesktopMachinePickerOpen(false);
+        setDesktopMachinePickerTarget(null);
+        collapseSidebarPanels();
+    }, [collapseSidebarPanels]);
+    const handleMachineWorkspaceLocalhostUrlPress = React.useCallback(({ machineId, url }: { machineId: string; url: string }) => {
+        setDesktopFileWorkspace((current) => openDesktopLocalhost(current, machineId, url));
         setDesktopMachinePickerOpen(false);
         setDesktopMachinePickerTarget(null);
         collapseSidebarPanels();
@@ -1128,6 +1138,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             initialPath={effectiveMachinePickerTarget.path}
             workspaceContextSessionId={desktopFileWorkspaceSessionId}
             onFilePress={handleMachineWorkspaceFilePress}
+            onLocalhostUrlPress={handleMachineWorkspaceLocalhostUrlPress}
         />
     ) : null;
 

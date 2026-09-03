@@ -270,3 +270,4 @@ SIDEBAR_COLLAPSE_ICON	accepted	fix(app): use standard sidebar toggle icons	serve
 USAGE_TOTALS	accepted	fix(usage): reconcile provider totals	server/packages/happy-server/sources/app/api/routes/usageAggregation.spec.ts
 USAGE_TOTALS	accepted	fix(usage): expose missing provider coverage	server/packages/happy-server/sources/app/api/routes/usageAggregation.spec.ts
 MARKDOWN_COMMENT_AFFORDANCE	accepted	fix(markdown): align comment affordance with source	server/packages/happy-app/sources/components/markdown/MarkdownView.browser.test.ts
+WORKSPACE_LOCALHOST	accepted	feat(workspace): debug selected-machine localhost pages	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts

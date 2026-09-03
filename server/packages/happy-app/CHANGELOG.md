@@ -33,6 +33,10 @@
 - Settings → Usage now tracks provider-native usage as idempotent provider events instead of overwriting Claude session snapshots; totals and charts count canonical usage once, and the provider breakdown reconciles the usage each provider actually reports.
 - Cost uses only provider-reported USD or provider per-model estimates. Missing provider token or cost fields and pre-upgrade legacy snapshots are labeled partial or unavailable instead of silently appearing complete.
 
+# September 3 — Live localhost Workspace review
+
+- Local development servers on the selected chat machine now render live inside Workspace, and element comments include DOM/CSS context plus a cropped screenshot delivered to the active chat.
+
 # September 3 — Unified file viewer modes, commentable Markdown previews, and human message alignment
 
 - The file viewer now exposes one contextual **Preview** and, only for editable files, one **Edit**, with **Delete** only where already supported; the separate Source and HTML Interactive modes are removed. HTML always opens in one safe scriptless Preview.
