@@ -56,6 +56,7 @@ const virtualModules: Record<string, string> = {
         Icon.glyphMap = {};
         export const Ionicons = Icon;
         export const Octicons = Icon;
+        export const MaterialCommunityIcons = Icon;
     `,
     'react-native-svg': `
         import React from 'react';
@@ -65,7 +66,8 @@ const virtualModules: Record<string, string> = {
     `,
     'react-native-safe-area-context': `export const useSafeAreaInsets = () => ({ top: 0, right: 0, bottom: 0, left: 0 });`,
     'expo-router': `
-        export const useRouter = () => ({ push() {}, back() {}, dismissTo() {} });
+        export const useRouter = () => ({ push() {}, back() { window.__NEW_SESSION_BACK__ = true; }, dismissTo() {} });
+        export const useNavigation = () => ({ setOptions() {} });
         export const useLocalSearchParams = () => ({});
         export const Stack = { Screen: () => null };
     `,
@@ -80,6 +82,11 @@ const virtualModules: Record<string, string> = {
         export const Easing = { out: (value) => value, cubic: 'cubic' };
     `,
     'expo-linear-gradient': `import { View } from 'react-native'; export const LinearGradient = View;`,
+    'expo-glass-effect': `import { View } from 'react-native'; export const GlassView = View;`,
+    'react-native-keyboard-controller': `import { View } from 'react-native'; export const KeyboardAvoidingView = View; export const KeyboardStickyView = View;`,
+    'expo-constants': `export default { statusBarHeight: 0 };`,
+    'expo-crypto': `export const randomUUID = () => 'fixture-request-id'; export const getRandomBytes = (count) => new Uint8Array(count);`,
+    'zustand/react/shallow': `export const useShallow = (selector) => selector;`,
     'expo-image': `import { View } from 'react-native'; export const Image = View;`,
     'expo-haptics': `
         export const NotificationFeedbackType = { Error: 'error' };
@@ -156,6 +163,7 @@ const virtualModules: Record<string, string> = {
             }),
             'other-child': makeSession('other-child', 30, { isSideChat: true, parentSessionId: 'other-parent' }),
         };
+        const sessionList = Object.values(sessions);
         const sideChatSnapshots = {
             parent: selectSideChatSessions(sessions, 'parent'),
             background: selectSideChatSessions(sessions, 'background'),
@@ -169,8 +177,11 @@ const virtualModules: Record<string, string> = {
             zenMode: fixtureOptions.zenMode ?? false,
         };
         const settings = {
+            agentDefaultOverrides: {},
+            agentInputEnterToSend: false,
             diffStyle: 'unified',
             expImageUpload: fixtureOptions.imageAttachments === true,
+            fileDiffsSidebar: false,
             machineWorkspace: fixtureOptions.machineWorkspaceEnabled ?? true,
             recentMachinePaths: [],
             favoriteMachinePaths: [],
@@ -228,6 +239,7 @@ const virtualModules: Record<string, string> = {
         export const useLocalSetting = (key) => React.useSyncExternalStore(subscribe, () => localSettings[key], () => localSettings[key]);
         export const useMachine = (id) => machines.find((machine) => machine.id === id) ?? null;
         export const useAllMachines = () => machines;
+        export const useSessions = () => sessionList;
         export const useRealtimeStatus = () => fixtureOptions.realtimeStatus ?? 'disconnected';
         export const useSession = (id) => React.useSyncExternalStore(subscribe, () => sessions[id] ?? null, () => sessions[id] ?? null);
         export const useSessionAgentFormCommunication = () => null;
@@ -327,6 +339,9 @@ const virtualModules: Record<string, string> = {
             'files.searchPlaceholder': 'Search files',
             'files.noFilesInProject': 'No files in project',
             'happyHerd.composer.attachments': 'Attachments',
+            'happyHerd.composer.addAttachment': 'Add attachment',
+            'happyHerd.composer.photos': 'Photos',
+            'happyHerd.composer.deviceFiles': 'Device files',
             'happyHerd.composer.moreActions': 'More actions',
             'happyHerd.composer.send': 'Send',
             'happyHerd.composer.addPhoto': 'Add attachment',
@@ -382,6 +397,9 @@ const virtualModules: Record<string, string> = {
         export const LocalBlurHalo = View;
     `,
     '@/components/MobileGlass': `import { View } from 'react-native'; export const MobileGlassSurface = View; export const MobileGlassBackdrop = () => null;`,
+    '@/components/MobileTypographyFloor': `export const MobileTypographyFloor = ({ children }) => children;`,
+    '@/components/navigation/Header': `import { View } from 'react-native'; export const Header = View;`,
+    '@/components/ProviderIcon': `import React from 'react'; export const ProviderIcon = ({ kind }) => React.createElement('span', { 'data-provider': kind });`,
     '@/components/BubblePressable': `import { Pressable } from 'react-native'; export const BubblePressable = Pressable;`,
     '@/components/navigation/MobileHeaderScrim': `
         export const MobileHeaderScrim = () => null;
@@ -405,7 +423,7 @@ const virtualModules: Record<string, string> = {
                 window.__PROVIDER_CONTINUATION_SOURCE_LOAD__ = sessionId;
                 return __loadProviderContinuationMessages();
             },
-            refreshSessions: () => new Promise(() => {}),
+            refreshSessions: async () => {},
             sendMessage: async (sessionId, text, options) => {
                 window.__PROVIDER_CONTINUATION_SEND__ = { sessionId, text, options };
                 window.__COMPOSER_SENDS__ = [...(window.__COMPOSER_SENDS__ ?? []), { sessionId, text, options }];
@@ -514,6 +532,10 @@ const virtualModules: Record<string, string> = {
     '@/components/agentGoalStatus': `export const resolveVisibleAgentGoalStatus = () => null;`,
     '@/components/modelModeOptions': `
         export const getAdvertisedDefaultOptionKey = () => undefined;
+        export const getHardcodedModelModes = () => [];
+        export const getHardcodedPermissionModes = () => [];
+        export const filterPermissionModesForCli = (modes) => modes;
+        export const getEffortLevelsForModel = () => [];
         export const getRigCurrentModelOptionKey = () => undefined;
         export const getSessionAvailableModels = () => [];
         export const getSessionAvailablePermissionModes = (flavor, _sessionMetadata, machineMetadata) =>
@@ -523,16 +545,67 @@ const virtualModules: Record<string, string> = {
                 }))
                 : [];
         export const getSessionEffortLevelsForModel = () => [];
+        export const getMachineAdvertisedModels = (metadata, flavor) => (metadata?.agentCapabilities?.[flavor]?.models ?? []).map((model) => ({ key: model.code, name: model.value, isDefault: model.isDefault }));
+        export const getMachineAdvertisedEffortLevels = (metadata, flavor) => (metadata?.agentCapabilities?.[flavor]?.effortLevels ?? []).map((effort) => ({ key: effort.code, name: effort.value, isDefault: effort.isDefault }));
+        export const getMachineAdvertisedPermissionModes = (metadata, flavor) => (metadata?.agentCapabilities?.[flavor]?.permissionModes ?? []).map((mode) => ({ key: mode.code, name: mode.value, isDefault: mode.isDefault }));
+        export const getSupportsWorktree = () => false;
+        export const includeConfiguredModel = (_flavor, models) => models;
         export const resolveCurrentOption = () => null;
     `,
     '@/components/autocomplete/suggestions': `export const getSuggestions = () => [];`,
     '@/components/diff/PierreDiffView': `export const prefetchPierreDiff = () => {}; export const PierreDiffView = () => null;`,
     '@/hooks/useDraft': `export const useDraft = () => ({ clearDraft() {} });`,
+    '@/hooks/useNewSessionDraft': `
+        const draft = {
+            input: 'Inspect attachments', attachments: [], selectedMachineId: 'machine-1', selectedPath: '/work/project',
+            selectedCommanderId: null, agentType: 'dsh', permissionMode: null, modelMode: null, effortLevel: null,
+            sessionType: 'simple', worktreeKey: null,
+        };
+        draft.setInput = (value) => { draft.input = value; };
+        draft.setAttachments = (value) => { draft.attachments = value; };
+        draft.setMachineId = (value) => { draft.selectedMachineId = value; };
+        draft.setPath = (value) => { draft.selectedPath = value; };
+        draft.setCommanderId = (value) => { draft.selectedCommanderId = value; };
+        draft.setAgentType = (value) => { draft.agentType = value; };
+        draft.setPermissionMode = (value) => { draft.permissionMode = value; };
+        draft.setModelMode = (value) => { draft.modelMode = value; };
+        draft.setEffortLevel = (value) => { draft.effortLevel = value; };
+        draft.setSessionType = (value) => { draft.sessionType = value; };
+        draft.setWorktreeKey = (value) => { draft.worktreeKey = value; };
+        export const useNewSessionDraft = (selector) => selector(draft);
+        useNewSessionDraft.getState = () => draft;
+    `,
     '@/hooks/useImagePicker': `export const useImagePicker = () => ({
         addImages() {}, clearImages() {}, removeImage() {}, selectedImages: [],
         pickImages() { window.__ATTACHMENT_PICK_COUNT__ = (window.__ATTACHMENT_PICK_COUNT__ ?? 0) + 1; },
+        async pickImagesForUpload() {
+            return [{ id: 'fixture-photo', uri: 'file:///photo.jpg', name: 'photo.jpg', mimeType: 'image/jpeg', size: 123, width: 100, height: 80 }];
+        },
     });`,
-    '@/hooks/useMachineFileUpload': `export const useMachineFileUpload = () => ({ canCancel: false, canRetry: false, cancel() {}, pickAndUpload() {}, reset() {}, retry() {}, state: { phase: 'idle' } });`,
+    '@/hooks/useMachineFileUpload': `export const useMachineFileUpload = (options) => ({
+        canCancel: false, canRetry: false, cancel() {}, reset() {}, retry() {}, state: { phase: 'idle' },
+        async uploadAssets(assets) {
+            const paths = assets.map((asset) => (options.directory || '/work/project') + '/' + asset.name);
+            paths.forEach((path) => options.onUploaded?.(path, {
+                machineId: options.machineId,
+                directory: options.directory,
+                selectionKey: options.selectionKey,
+            }));
+            window.__MACHINE_UPLOADS__ = [...(window.__MACHINE_UPLOADS__ ?? []), ...paths];
+            return paths;
+        },
+        async pickAndUpload() {
+            const names = ['notes.txt', 'report.pdf', 'voice.m4a', 'archive.bin'];
+            const paths = names.map((name) => (options.directory || '/work/project') + '/' + name);
+            paths.forEach((path) => options.onUploaded?.(path, {
+                machineId: options.machineId,
+                directory: options.directory,
+                selectionKey: options.selectionKey,
+            }));
+            window.__MACHINE_UPLOADS__ = [...(window.__MACHINE_UPLOADS__ ?? []), ...paths];
+            return paths;
+        },
+    });`,
     '@/hooks/useVoiceDictation': `export const useVoiceDictation = () => ({
         canRetry: false, cancel() {}, error: null, phase: 'idle', retry() {},
         toggle() { window.__DICTATION_TOGGLE_COUNT__ = (window.__DICTATION_TOGGLE_COUNT__ ?? 0) + 1; },
@@ -543,6 +616,12 @@ const virtualModules: Record<string, string> = {
     };`,
     '@/hooks/useWorktreeCleanup': `export const maybeCleanupWorktree = async () => {};`,
     '@/hooks/useNavigateToSession': `export const useNavigateToSession = () => (sessionId) => { window.__PROVIDER_CONTINUATION_NAVIGATED__ = sessionId; };`,
+    '@/sync/agentSessionPlaces': `export const collectSessionPlaces = () => []; export const collectSessionWorkspaces = () => [];`,
+    '@/utils/worktree': `export const createWorktree = async () => ({ success: false, error: 'not used' }); export const listWorktrees = async () => [];`,
+    '@/utils/pathUtils': `
+        export const resolveAbsolutePath = (path, homeDir) => path === '~' ? (homeDir ?? path) : path.startsWith('~/') && homeDir ? homeDir.replace(/\\/$/, '') + '/' + path.slice(2) : path;
+        export const resolvePath = (path, metadata) => metadata?.path && path.startsWith(metadata.path + '/') ? path.slice(metadata.path.length + 1) : path;
+    `,
     '@/components/DuplicateSheet': `export const DuplicateSheet = () => null;`,
     '@/components/ShortcutHints': `export const SessionShortcutHintBadge = () => null;`,
     '@/components/RigGitLineChanges': `export const RigGitLineChanges = () => null;`,
@@ -567,6 +646,8 @@ const virtualModules: Record<string, string> = {
     '@/sync/gitStatusSync': `export const gitStatusSync = { getSync: () => ({ invalidate() {} }) };`,
     '@/sync/ops': `
         export const machineControlHeartbeat = async () => {};
+        export const machineBash = async () => ({ success: false, error: 'not used' });
+        export const machineListCommanders = async () => ({ commanders: [] });
         export const machineResumeSession = async () => ({ type: 'error', errorMessage: 'not used' });
         export const forkAndSpawn = async () => ({ type: 'error', errorMessage: 'not used' });
         export const machineSpawnNewSession = async (options) => {
@@ -653,7 +734,7 @@ const virtualModules: Record<string, string> = {
         export const sessionBash = async () => ({ success: true, stdout: '' });
     `,
     '@/sync/sideChatLifecycle': `export const closeSideChatSession = async () => {}; export const resolveSideChatCloseReconciliation = () => ({ error: null, restoreTab: false });`,
-    '@/sync/attachmentSupport': `export const supportsImageAttachmentsForFlavor = () => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.imageAttachments === true;`,
+    '@/sync/attachmentSupport': `export const supportsImageAttachmentsForFlavor = (flavor) => flavor !== 'dsh' && globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.imageAttachments === true;`,
     '@/sync/agentDefaults': `
         export const getAgentDefaultOverrideValue = () => undefined;
         export const resolveAgentDefaultConfig = () => ({ modelMode: undefined, permissionMode: undefined });
@@ -673,21 +754,32 @@ const virtualModules: Record<string, string> = {
     `,
     '@/sync/workspaceContext': `
         const entriesBySession = new Map();
+        const listeners = new Set();
+        const emit = () => listeners.forEach((listener) => listener());
         const entriesFor = (sessionId) => {
             if (!entriesBySession.has(sessionId)) entriesBySession.set(sessionId, []);
             return entriesBySession.get(sessionId);
         };
-        export const MAX_WORKSPACE_CONTEXT_ITEMS = 8; export const addWorkspaceContextFile = () => true;
+        export const MAX_WORKSPACE_CONTEXT_ITEMS = 8;
+        export const addWorkspaceContextFile = (sessionId, path, source = { kind: 'session' }) => addWorkspaceContextEntry(sessionId, { path, kind: 'file', source });
         export const addWorkspaceContextEntry = (sessionId, entry) => {
             entriesBySession.set(sessionId, [...entriesFor(sessionId), entry]);
             window.__WORKSPACE_CONTEXT_CALLS__ = [...(window.__WORKSPACE_CONTEXT_CALLS__ ?? []), { sessionId, entry }];
+            emit();
             return true;
         };
-        export const buildWorkspaceContextMessage = async (_id, text) => ({ displayText: text, promptText: text });
+        export const buildWorkspaceContextMessage = async (_id, text, entries = []) => {
+            if (entries.length === 0) return { displayText: text, promptText: text };
+            const paths = entries.map((entry) => entry.path);
+            return {
+                displayText: ('Attached exact paths: ' + paths.join(', ') + '\\n\\n' + text).trim(),
+                promptText: (text + '\\n\\nUse exact host paths:\\n' + paths.join('\\n')).trim(),
+            };
+        };
         export const workspaceContextEntryKey = (entry) => JSON.stringify(entry.source.kind === 'machine'
             ? ['machine', entry.source.machineId, entry.path]
             : ['session', entry.path]);
-        export const clearWorkspaceContextFiles = (sessionId) => entriesBySession.set(sessionId, []);
+        export const clearWorkspaceContextFiles = (sessionId) => { entriesBySession.set(sessionId, []); emit(); };
         export const getWorkspaceContextEntries = (sessionId) => entriesFor(sessionId);
         export const removeWorkspaceContextEntry = (sessionId, entryOrPath) => {
             entriesBySession.set(sessionId, entriesFor(sessionId).filter((entry) => (
@@ -695,7 +787,8 @@ const virtualModules: Record<string, string> = {
                     ? entry.path !== entryOrPath
                     : workspaceContextEntryKey(entry) !== workspaceContextEntryKey(entryOrPath)
             )));
-        }; export const subscribeWorkspaceContext = () => () => {};
+        };
+        export const subscribeWorkspaceContext = (listener) => { listeners.add(listener); return () => listeners.delete(listener); };
     `,
     '@/sync/queueProjection': `
         export const projectSessionQueue = (messages) => ({
@@ -715,7 +808,7 @@ const virtualModules: Record<string, string> = {
         export const visibleRigGitLineChanges = () => null;
     `,
     '@/utils/sessionUtils': `
-        export const formatPathRelativeToHome = (path) => path; export const getResumeCommandBlock = () => null;
+        export const formatPathRelativeToHome = (path) => path; export const formatLastSeen = () => ''; export const getResumeCommandBlock = () => null;
         export const getSessionAvatarId = (session) => session.id; export const getSessionName = (session) => session.metadata?.summary?.text ?? session.id;
         export const useSessionStatus = (session) => ({ isConnected: session.active, isPulsing: false, state: session.active ? 'waiting' : 'disconnected', statusColor: '#111', statusDotColor: '#111', statusText: session.active ? 'online' : 'offline' });
     `,
@@ -1019,6 +1112,155 @@ describe('Side chats browser interaction', () => {
         await expect(page.evaluate(() => (window as any).__SESSION_MODE_MUTATIONS__ ?? [])).resolves.toEqual([]);
         await page.close();
     }, 10_000);
+
+    it.each([
+        ['Web Desktop', { width: 1440, height: 900 }, '/tmp/happyherd-dsh-full-new-web-desktop.png'],
+        ['Web Mobile', { width: 390, height: 844 }, '/tmp/happyherd-dsh-full-new-web-mobile.png'],
+    ] as const)('uploads dsh Photos and Device files with exact paths on Full New Session %s', async (_surface, viewport, screenshotPath) => {
+        const page = await browser.newPage({ viewport });
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
+                dshSession: true,
+                imageAttachments: true,
+                newSession: true,
+            };
+        });
+        const pageErrors: string[] = [];
+        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+        page.on('console', (message) => {
+            if (
+                (message.type() === 'error' || message.type() === 'warning')
+                && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+                && message.text() !== '"shadow*" style props are deprecated. Use "boxShadow".'
+                && message.text() !== 'Unexpected text node: . A text node cannot be a child of a <View>.'
+            ) pageErrors.push(message.text());
+        });
+        await page.goto(origin);
+
+        const newSession = page.getByTestId('full-new-session');
+        await newSession.getByRole('button', { name: 'Add attachment' }).click();
+        await page.getByRole('menuitem', { name: 'Photos' }).click();
+        await newSession.getByText('/work/project/photo.jpg', { exact: true }).waitFor({ state: 'visible' });
+
+        await newSession.getByRole('button', { name: 'Add attachment' }).click();
+        await page.getByRole('menuitem', { name: 'Device files' }).click();
+        for (const path of [
+            '/work/project/notes.txt',
+            '/work/project/report.pdf',
+            '/work/project/voice.m4a',
+            '/work/project/archive.bin',
+        ]) {
+            await newSession.getByText(path, { exact: true }).waitFor({ state: 'visible' });
+        }
+        await page.screenshot({ path: screenshotPath, fullPage: true });
+        await newSession.getByRole('button', { name: 'Send' }).click();
+        await page.waitForFunction(() => ((window as any).__COMPOSER_SENDS__ ?? []).length > 0);
+
+        const result = await page.evaluate(() => ({
+            sends: (window as any).__COMPOSER_SENDS__,
+            uploads: (window as any).__MACHINE_UPLOADS__,
+            spawn: (window as any).__PROVIDER_CONTINUATION_SPAWN__,
+        }));
+        const send = result.sends.at(-1);
+        expect(result.uploads).toEqual([
+            '/work/project/photo.jpg',
+            '/work/project/notes.txt',
+            '/work/project/report.pdf',
+            '/work/project/voice.m4a',
+            '/work/project/archive.bin',
+        ]);
+        expect(result.spawn).toMatchObject({ machineId: 'machine-1', agent: 'dsh', directory: '/work/project' });
+        expect(send.sessionId).toBe('target-session');
+        expect(send.text).toContain('Inspect attachments');
+        expect(send.options.displayText).toContain('/work/project/photo.jpg');
+        expect(send.options.displayText).toContain('/work/project/archive.bin');
+        expect(send.options.attachments).toEqual([]);
+        expect(send.text).toContain('/work/project/report.pdf');
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 15_000);
+
+    it.each([
+        ['Web Desktop', { width: 1440, height: 900 }, '/tmp/happyherd-dsh-active-session-web-desktop.png'],
+        ['Web Mobile', { width: 390, height: 844 }, '/tmp/happyherd-dsh-active-session-web-mobile.png'],
+    ] as const)('uploads dsh Photos and Device files with exact paths on active Session %s', async (_surface, viewport, screenshotPath) => {
+        const page = await browser.newPage({ viewport });
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
+                dshSession: true,
+                imageAttachments: true,
+            };
+        });
+        const pageErrors: string[] = [];
+        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+        page.on('console', (message) => {
+            if (
+                (message.type() === 'error' || message.type() === 'warning')
+                && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+                && message.text() !== '"shadow*" style props are deprecated. Use "boxShadow".'
+            ) pageErrors.push(message.text());
+        });
+        await page.goto(origin);
+
+        const foreground = page.getByTestId('foreground-session');
+        const composer = foreground.locator('textarea').first();
+        await composer.waitFor({ state: 'visible', timeout: 3_000 });
+        const chooseAttachment = async (label: 'Photos' | 'Device files') => {
+            const directTrigger = foreground.getByRole('button', { name: 'Add attachment' }).filter({ visible: true });
+            if (await directTrigger.count()) {
+                await directTrigger.last().click({ timeout: 3_000 });
+            } else {
+                await foreground.getByRole('button', { name: 'More actions' }).filter({ visible: true }).last().click({ timeout: 3_000 });
+            }
+            await page.getByRole('menuitem', { name: label }).filter({ visible: true }).last().click({ timeout: 3_000 });
+        };
+        await chooseAttachment('Photos');
+        await foreground.getByText('/work/project/photo.jpg', { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
+
+        await chooseAttachment('Device files');
+        for (const path of [
+            '/work/project/notes.txt',
+            '/work/project/report.pdf',
+            '/work/project/voice.m4a',
+            '/work/project/archive.bin',
+        ]) {
+            await foreground.getByText(path, { exact: true }).waitFor({ state: 'visible', timeout: 3_000 });
+        }
+        await composer.fill('Inspect active attachments');
+        await page.screenshot({ path: screenshotPath, fullPage: true });
+        await foreground.getByRole('button', { name: 'Send' }).filter({ visible: true }).last().click({ timeout: 3_000 });
+        await page.waitForFunction(() => ((window as any).__COMPOSER_SENDS__ ?? []).length > 0, undefined, { timeout: 3_000 });
+
+        const result = await page.evaluate(() => ({
+            sends: (window as any).__COMPOSER_SENDS__,
+            uploads: (window as any).__MACHINE_UPLOADS__,
+            contextCalls: (window as any).__WORKSPACE_CONTEXT_CALLS__,
+        }));
+        const send = result.sends.at(-1);
+        expect(result.uploads).toEqual([
+            '/work/project/photo.jpg',
+            '/work/project/notes.txt',
+            '/work/project/report.pdf',
+            '/work/project/voice.m4a',
+            '/work/project/archive.bin',
+        ]);
+        expect(result.contextCalls[0]).toEqual({
+            sessionId: 'parent',
+            entry: {
+                path: '/work/project/photo.jpg',
+                kind: 'file',
+                source: { kind: 'machine', machineId: 'machine-1' },
+            },
+        });
+        expect(send.sessionId).toBe('parent');
+        expect(send.text).toContain('Inspect active attachments');
+        expect(send.text).toContain('/work/project/report.pdf');
+        expect(send.options.displayText).toContain('/work/project/photo.jpg');
+        expect(send.options.displayText).toContain('/work/project/archive.bin');
+        expect(send.options.attachments).toBeUndefined();
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 30_000);
 
     it('does not manufacture an active dsh permission chip without a launch receipt', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });

@@ -28,6 +28,7 @@ export type MachineFileUploadTarget = {
     machineId: string;
     directory: string;
     label?: string;
+    selectionKey?: string;
 };
 
 const IDLE_STATE: MachineFileUploadState = {
@@ -43,8 +44,9 @@ export function useMachineFileUpload(options: {
     machineId: string | null | undefined;
     directory: string | null | undefined;
     targetLabel?: string;
+    selectionKey?: string;
     maxFiles?: number;
-    onUploaded?: (path: string) => void;
+    onUploaded?: (path: string, target: MachineFileUploadTarget) => void;
 }) {
     const [state, setState] = React.useState<MachineFileUploadState>(IDLE_STATE);
     const runningRef = React.useRef(false);
@@ -52,8 +54,10 @@ export function useMachineFileUpload(options: {
     const retryAssetsRef = React.useRef<MachineFileUploadAsset[]>([]);
     const retryTargetRef = React.useRef<MachineFileUploadTarget | null>(null);
     const operationRef = React.useRef(0);
+    const latestOptionsRef = React.useRef(options);
+    latestOptionsRef.current = options;
 
-    const uploadAssets = React.useCallback(async (
+    const runUploadAssets = React.useCallback(async (
         assets: MachineFileUploadAsset[],
         requestedTarget?: MachineFileUploadTarget,
     ): Promise<string[]> => {
@@ -61,8 +65,21 @@ export function useMachineFileUpload(options: {
             machineId: options.machineId,
             directory: options.directory,
             label: options.targetLabel,
+            ...(options.selectionKey ? { selectionKey: options.selectionKey } : {}),
         } : null);
         if (runningRef.current || !target || assets.length === 0) return [];
+        const targetMatchesLatest = () => {
+            const latestOptions = latestOptionsRef.current;
+            return latestOptions.machineId === target.machineId
+                && latestOptions.directory === target.directory
+                && latestOptions.selectionKey === target.selectionKey;
+        };
+        if (requestedTarget && !targetMatchesLatest()) {
+            retryAssetsRef.current = [];
+            retryTargetRef.current = null;
+            setState(IDLE_STATE);
+            return [];
+        }
 
         runningRef.current = true;
         cancelRequestedRef.current = false;
@@ -99,11 +116,18 @@ export function useMachineFileUpload(options: {
                     return response.path;
                 },
                 onUploaded: (path) => {
-                    if (operationRef.current === operationId) options.onUploaded?.(path);
+                    if (operationRef.current !== operationId || !targetMatchesLatest()) return;
+                    latestOptionsRef.current.onUploaded?.(path, target);
                 },
             });
 
             if (operationRef.current !== operationId) return result.uploaded;
+            if (!targetMatchesLatest()) {
+                retryAssetsRef.current = [];
+                retryTargetRef.current = null;
+                setState(IDLE_STATE);
+                return result.uploaded;
+            }
             retryAssetsRef.current = result.pending;
             if (result.status === 'complete') {
                 setState({
@@ -137,25 +161,24 @@ export function useMachineFileUpload(options: {
         } finally {
             runningRef.current = false;
         }
-    }, [options.directory, options.machineId, options.onUploaded, options.targetLabel]);
+    }, [options.directory, options.machineId, options.selectionKey, options.targetLabel]);
 
-    const pickAndUpload = React.useCallback(async (): Promise<string[]> => {
+    const selectAndUpload = React.useCallback(async (
+        pick: () => Promise<{
+            cancelled: boolean;
+            assets?: MachineFileUploadAsset[];
+        }>,
+    ): Promise<string[]> => {
         if (runningRef.current || !options.machineId || !options.directory) return [];
         const target: MachineFileUploadTarget = {
             machineId: options.machineId,
             directory: options.directory,
             label: options.targetLabel,
+            ...(options.selectionKey ? { selectionKey: options.selectionKey } : {}),
         };
         const selection = await selectMachineFileUploadAssets({
             maxFiles: options.maxFiles,
-            pick: () => DocumentPicker.getDocumentAsync({
-                type: '*/*',
-                multiple: true,
-                copyToCacheDirectory: true,
-            }).then((result) => ({
-                cancelled: result.canceled,
-                assets: result.canceled ? undefined : result.assets,
-            })),
+            pick,
         });
         if (selection.status === 'error') {
             setState({
@@ -182,8 +205,27 @@ export function useMachineFileUpload(options: {
             });
             return [];
         }
-        return uploadAssets(selection.assets, target);
-    }, [options.directory, options.machineId, options.maxFiles, options.targetLabel, uploadAssets]);
+        return runUploadAssets(selection.assets, target);
+    }, [options.directory, options.machineId, options.maxFiles, options.selectionKey, options.targetLabel, runUploadAssets]);
+
+    const pickAndUpload = React.useCallback((): Promise<string[]> => selectAndUpload(
+        () => DocumentPicker.getDocumentAsync({
+            type: '*/*',
+            multiple: true,
+            copyToCacheDirectory: true,
+        }).then((result) => ({
+            cancelled: result.canceled,
+            assets: result.canceled ? undefined : result.assets,
+        })),
+    ), [selectAndUpload]);
+
+    const uploadAssets = React.useCallback(
+        (assets: MachineFileUploadAsset[]): Promise<string[]> => selectAndUpload(async () => ({
+            cancelled: false,
+            assets,
+        })),
+        [selectAndUpload],
+    );
 
     const cancel = React.useCallback(() => {
         if (!runningRef.current) return;
@@ -193,8 +235,8 @@ export function useMachineFileUpload(options: {
             : current);
     }, []);
     const retry = React.useCallback(
-        () => uploadAssets([...retryAssetsRef.current], retryTargetRef.current ?? undefined),
-        [uploadAssets],
+        () => runUploadAssets([...retryAssetsRef.current], retryTargetRef.current ?? undefined),
+        [runUploadAssets],
     );
     const reset = React.useCallback(() => {
         if (runningRef.current) {
@@ -209,6 +251,7 @@ export function useMachineFileUpload(options: {
     return {
         state,
         pickAndUpload,
+        uploadAssets,
         cancel,
         retry,
         reset,

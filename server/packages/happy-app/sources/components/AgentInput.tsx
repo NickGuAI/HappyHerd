@@ -135,6 +135,8 @@ interface AgentInputProps {
     selectedImages?: AttachmentPreview[];
     onPickImages?: () => void;
     onPickDeviceFiles?: () => void;
+    /** Expose Photos and Device files separately inside the compact Web action menu. */
+    splitWebAttachmentActions?: boolean;
     onRemoveImage?: (id: string) => void;
     onAddImages?: (images: AttachmentPreview[]) => void;
     /** Explicit workspace files/directories embedded in the next user message. */
@@ -1467,14 +1469,24 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         }
         if (props.onPickImages) {
             actions.push({
-                key: 'attachments',
-                label: t('happyHerd.composer.attachments'),
+                key: props.splitWebAttachmentActions ? 'photos' : 'attachments',
+                label: props.splitWebAttachmentActions
+                    ? t('happyHerd.composer.photos')
+                    : t('happyHerd.composer.attachments'),
                 icon: 'images-outline',
                 onPress: props.onPickImages,
             });
         }
+        if (props.splitWebAttachmentActions && props.onPickDeviceFiles) {
+            actions.push({
+                key: 'device-files',
+                label: t('happyHerd.composer.deviceFiles'),
+                icon: 'document-outline',
+                onPress: props.onPickDeviceFiles,
+            });
+        }
         return actions;
-    }, [handleAbortPress, handleSettingsPress, hasComposerContent, isAborting, modelSettingsGroups.length, permissionSettingsGroups.length, props.isSendDisabled, props.webWorkspaceActions, props.onAbort, props.onPickImages, props.onQueueMessage, shouldShowStopButton]);
+    }, [handleAbortPress, handleSettingsPress, hasComposerContent, isAborting, modelSettingsGroups.length, permissionSettingsGroups.length, props.isSendDisabled, props.webWorkspaceActions, props.onAbort, props.onPickDeviceFiles, props.onPickImages, props.onQueueMessage, props.splitWebAttachmentActions, shouldShowStopButton]);
 
     const invokeWebComposerAction = React.useCallback((action: (typeof webComposerActions)[number]) => {
         if (action.disabled) return;

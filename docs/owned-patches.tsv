@@ -257,3 +257,4 @@ PUBLIC_BOUNDARY	accepted	fix(public-boundary): normalize merged skill identity	s
 ALL_PROVIDER_SIDE_CHATS	accepted	feat(side-chat): support every daemon provider	server/packages/happy-cli/src/commands/sideChat.ts
 ALL_PROVIDER_SIDE_CHATS	accepted	fix(side-chat): bound recent message cursor	server/packages/happy-cli/src/api/api.test.ts
 ALL_PROVIDER_SIDE_CHATS	accepted	chore(side-chat): register recent message cursor patch	docs/owned-patches.tsv
+DSH_ATTACHMENTS	accepted	feat(dsh): reuse workspace uploads for attachments	server/packages/happy-app/sources/hooks/useMachineFileUpload.test.ts

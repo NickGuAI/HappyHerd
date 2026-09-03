@@ -40,8 +40,12 @@ on these volatile facts.
 - Model selector values remain opaque JSON `[provider, model]` tuples. The
   adapter resolves the public model slug at the dsh boundary and sends the
   provider's exact opaque value.
-- Prompt images, audio, and embedded context are unsupported. HTTP MCP is
-  supported.
+- Native ACP prompt images, audio, and embedded binary content are unsupported.
+  HappyHerd's dsh attachment actions instead upload Photos and Device files of
+  the existing supported types to the selected machine/workspace, then add the
+  exact host paths to the initial, follow-up, or queued message for dsh file
+  tools. This is workspace context, not an ACP image/audio content block. HTTP
+  MCP is supported.
 
 ## Permission semantics
 
@@ -78,5 +82,9 @@ dsh has no first-class HappyHerd resume or fork.
   disabled, unselectable, overridden, or custom-path provider configuration.
 - Prove target validation, the `spawnSettings.permission` receipt, and the
   read-only active-composer chip without session-mode mutation.
+- Prove Full New Session, native HomeDock, and active Session route dsh Photos
+  and Device files through the existing selected-machine uploader, retain its
+  size/count/progress/cancel/retry/failure behavior, and deliver exact
+  machine-scoped host-path references without inline attachment payloads.
 - Prove the three preset file-mutation boundaries while preserving existing ACP
   model, reasoning, and one-shot callback behavior.
