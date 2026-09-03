@@ -14,6 +14,15 @@ const mocks = vi.hoisted(() => {
     }),
     keepAlive: vi.fn(),
     sendSessionProtocolMessage: vi.fn(),
+    sendProviderUsageReport: vi.fn(async (
+      _report: any,
+      options?: {
+        onDurable?: () => void;
+        mutateAgentState?: (state: Record<string, any>) => Record<string, any>;
+      },
+    ) => {
+      options?.onDurable?.();
+    }),
     uploadImageAttachmentEnvelope: vi.fn(async (attachment: any, role: 'user' | 'agent', opts: any) => ({
       id: `file-${attachment.name}`,
       time: opts.time,
@@ -29,12 +38,13 @@ const mocks = vi.hoisted(() => {
     })),
     sendSessionEvent: vi.fn(),
     updateMetadata: vi.fn(),
+    getAgentState: vi.fn(() => ({})),
     suppressNextArchiveSignal: vi.fn(),
     skipExistingMessages: vi.fn(),
     sendSessionDeath: vi.fn(),
     flush: vi.fn(async () => {}),
     close: vi.fn(async () => {}),
-    updateAgentState: vi.fn((handler: (state: Record<string, unknown>) => Record<string, unknown>) => {
+    updateAgentState: vi.fn(async (handler: (state: Record<string, unknown>) => Record<string, unknown>) => {
       handler({});
     }),
     rpcHandlerManager: {
@@ -60,6 +70,10 @@ const mocks = vi.hoisted(() => {
     stopReason: 'end_turn' as 'end_turn' | 'refusal' | 'cancelled',
     promptError: null as Error | null,
     promptImageMessages: [] as any[],
+    promptUsages: [] as any[],
+    promptUsageInMeta: false,
+    usageCosts: [] as Array<{ amount: number; currency: string } | null>,
+    usageCostTrailingEmpty: false,
   };
 
   return {
@@ -178,6 +192,7 @@ vi.mock('./AcpBackend', () => ({
     async sendPrompt(sessionId: string, prompt: string) {
       mocks.backendState.operations.push('prompt');
       mocks.backendState.prompts.push({ sessionId, prompt });
+      const promptIndex = mocks.backendState.prompts.length - 1;
       if (mocks.backendState.promptError) throw mocks.backendState.promptError;
       for (const listener of mocks.backendState.listeners) {
         listener({ type: 'status', status: 'running' });
@@ -187,13 +202,24 @@ vi.mock('./AcpBackend', () => ({
         for (const imageMessage of mocks.backendState.promptImageMessages) {
           listener(imageMessage);
         }
+        const cost = mocks.backendState.usageCosts[promptIndex];
+        if (cost) {
+          listener({ type: 'token-count', usageSource: 'acp-usage-update', cost });
+          if (mocks.backendState.usageCostTrailingEmpty) {
+            listener({ type: 'token-count', usageSource: 'acp-usage-update' });
+          }
+        }
         listener({ type: 'status', status: 'idle' });
       }
     }
 
     async sendPromptAndGetResult(sessionId: string, prompt: string) {
       await this.sendPrompt(sessionId, prompt);
-      return { stopReason: mocks.backendState.stopReason };
+      const usage = mocks.backendState.promptUsages[mocks.backendState.prompts.length - 1];
+      return {
+        stopReason: mocks.backendState.stopReason,
+        ...(mocks.backendState.promptUsageInMeta ? { _meta: { usage } } : { usage }),
+      };
     }
 
     async setSessionConfigOption(configId: string, value: string) {
@@ -318,6 +344,10 @@ describe('runAcp', () => {
     mocks.backendState.stopReason = 'end_turn';
     mocks.backendState.promptError = null;
     mocks.backendState.promptImageMessages = [];
+    mocks.backendState.promptUsages = [];
+    mocks.backendState.promptUsageInMeta = false;
+    mocks.backendState.usageCosts = [];
+    mocks.backendState.usageCostTrailingEmpty = false;
     mocks.lifecycleEvents.length = 0;
 
     mocks.mockApiCreate.mockResolvedValue({
@@ -1598,6 +1628,94 @@ describe('runAcp', () => {
 
     expect(mocks.backendState.setConfigOptionCalls).toEqual([]);
     expect(mocks.backendState.setModeCalls).toEqual([]);
+  });
+
+  it('reports Grok current-prompt usage from _meta and cumulative cost as per-turn deltas', async () => {
+    mocks.backendState.promptUsages = [
+      { totalTokens: 100, inputTokens: 80, outputTokens: 20 },
+      { totalTokens: 145, inputTokens: 110, outputTokens: 35 },
+    ];
+    mocks.backendState.usageCosts = [
+      { amount: 0.25, currency: 'USD' },
+      { amount: 0.30, currency: 'USD' },
+    ];
+    mocks.backendState.promptUsageInMeta = true;
+    mocks.backendState.usageCostTrailingEmpty = true;
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'grok',
+      command: 'grok',
+      args: ['--no-auto-update', 'agent', 'stdio'],
+    });
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+
+    mocks.getUserMessageHandler()!({ role: 'user', content: { type: 'text', text: 'First' } });
+    await vi.waitFor(() => expect(mocks.mockSession.sendProviderUsageReport).toHaveBeenCalledTimes(1));
+    mocks.getUserMessageHandler()!({ role: 'user', content: { type: 'text', text: 'Second' } });
+    await vi.waitFor(() => expect(mocks.mockSession.sendProviderUsageReport).toHaveBeenCalledTimes(2));
+
+    await mocks.getKillHandler()!();
+    await runPromise;
+
+    expect(mocks.mockSession.sendProviderUsageReport.mock.calls[0][0]).toEqual(expect.objectContaining({
+      provider: 'grok',
+      tokens: expect.objectContaining({ total: 100, input: 80, output: 20 }),
+      cost: { total: 0.25 },
+      costBasis: 'provider-reported',
+    }));
+    expect(mocks.mockSession.sendProviderUsageReport.mock.calls[1][0]).toEqual(expect.objectContaining({
+        provider: 'grok',
+      tokens: expect.objectContaining({ total: 145, input: 110, output: 35 }),
+      cost: { total: expect.any(Number) },
+      costBasis: 'provider-reported',
+    }));
+    expect(mocks.mockSession.sendProviderUsageReport.mock.calls[1][0].cost.total).toBeCloseTo(0.05);
+  });
+
+  it('resumes Grok cumulative cost from the durable provider-session cursor', async () => {
+    mocks.mockSession.getAgentState.mockReturnValueOnce({
+      usageCursors: { acpCostUsd: { 'provider-session-1': 0.30 } },
+    });
+    mocks.backendState.promptUsages = [{ totalTokens: 50, inputTokens: 40, outputTokens: 10 }];
+    mocks.backendState.usageCosts = [{ amount: 0.35, currency: 'USD' }];
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'grok',
+      command: 'grok',
+      args: ['--no-auto-update', 'agent', 'stdio'],
+    });
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+    mocks.getUserMessageHandler()!({ role: 'user', content: { type: 'text', text: 'Resumed turn' } });
+    await vi.waitFor(() => expect(mocks.mockSession.sendProviderUsageReport).toHaveBeenCalledOnce());
+    await mocks.getKillHandler()!();
+    await runPromise;
+
+    expect(mocks.mockSession.sendProviderUsageReport.mock.calls[0][0].cost.total).toBeCloseTo(0.05);
+    const mutateAgentState = mocks.mockSession.sendProviderUsageReport.mock.calls[0][1]?.mutateAgentState;
+    expect(mutateAgentState).toBeTypeOf('function');
+    const stateWithCursor = mutateAgentState!({});
+    expect(stateWithCursor.usageCursors.acpCostUsd['provider-session-1']).toBe(0.35);
+  });
+
+  it('records an explicit provider limitation when an ACP prompt fails', async () => {
+    mocks.backendState.promptError = new Error('provider failed after prompt start');
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'dsh',
+      command: 'dsh',
+      args: ['acp'],
+    });
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+    mocks.getUserMessageHandler()!({ role: 'user', content: { type: 'text', text: 'Fail' } });
+
+    await expect(runPromise).rejects.toThrow('provider failed after prompt start');
+    expect(mocks.mockSession.sendProviderUsageReport).toHaveBeenCalledTimes(1);
+    expect(mocks.mockSession.sendProviderUsageReport.mock.calls[0][0]).toMatchObject({
+      provider: 'dsh',
+      tokensAvailable: false,
+      costAvailable: false,
+      limitations: ['tokens-not-reported-by-provider', 'cost-not-reported-by-provider'],
+    });
   });
 
   it('uses the ACP prompt stop reason as the authoritative turn outcome', async () => {

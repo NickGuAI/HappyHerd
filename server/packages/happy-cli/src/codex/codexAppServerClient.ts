@@ -551,9 +551,13 @@ export class CodexAppServerClient {
         if (method === 'thread/tokenUsage/updated') {
             const tokenUsage = params?.tokenUsage;
             if (tokenUsage && typeof tokenUsage === 'object') {
+                const threadId = typeof params?.threadId === 'string' ? params.threadId : undefined;
+                const turnId = typeof params?.turnId === 'string' ? params.turnId : undefined;
                 this.eventHandler?.({
                     type: 'token_count',
                     ...tokenUsage,
+                    ...(threadId ? { thread_id: threadId, threadId } : {}),
+                    ...(turnId ? { turn_id: turnId, turnId } : {}),
                 });
             }
             return true;

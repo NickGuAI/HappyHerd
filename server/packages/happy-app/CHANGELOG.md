@@ -28,6 +28,11 @@
 
 - On Web Desktop, the persistent sidebar header keeps the existing Zen toggle followed by one localized Back text control, while its forward navigation control is removed. The Back control still closes file diff and file view overlays before returning through route history, with the separate sidebar collapse and expand boundary toggle remaining unchanged.
 
+# September 3 — Truthful multi-provider usage totals
+
+- Settings → Usage now tracks provider-native usage as idempotent provider events instead of overwriting Claude session snapshots; totals and charts count canonical usage once, and the provider breakdown reconciles the usage each provider actually reports.
+- Cost uses only provider-reported USD or provider per-model estimates. Missing provider token or cost fields and pre-upgrade legacy snapshots are labeled partial or unavailable instead of silently appearing complete.
+
 # September 3 — Unified file viewer modes, commentable Markdown previews, and human message alignment
 
 - The file viewer now exposes one contextual **Preview** and, only for editable files, one **Edit**, with **Delete** only where already supported; the separate Source and HTML Interactive modes are removed. HTML always opens in one safe scriptless Preview.

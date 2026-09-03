@@ -10,6 +10,7 @@ import {
 } from '@slopus/happy-wire';
 import { UsageSchema } from '@/claude/types'
 import type { SandboxConfig } from '@/persistence'
+import type { ProviderUsageReport, UsageCounterSnapshot } from '@/usage/providerUsage'
 
 export {
   SessionMessageContentSchema,
@@ -110,18 +111,10 @@ export interface ClientToServerEvents {
     result?: string
     error?: string
   }) => void) => void
-  'usage-report': (data: {
-    key: string
-    sessionId: string
-    tokens: {
-      total: number
-      [key: string]: number
-    }
-    cost: {
-      total: number
-      [key: string]: number
-    }
-  }) => void
+  'usage-report': (
+    data: ProviderUsageReport & { sessionId: string },
+    callback?: (response: { success: boolean; error?: string }) => void,
+  ) => void
 }
 
 /**
@@ -515,6 +508,13 @@ export type AgentState = {
   messageQueue?: AgentMessageQueueState
   /** Latest provider-owned lifecycle receipt for this session's heartbeat turn. */
   heartbeatDelivery?: HappyHerdHeartbeatDeliveryReceipt
+  /** Durable cumulative-provider cursors used to turn snapshots into idempotent usage events. */
+  usageCursors?: {
+    acpCostUsd?: Record<string, number>
+    codexTokens?: Record<string, UsageCounterSnapshot>
+  }
+  /** Pending usage outbox; replayed by the same Happy session after reconnect/resume. */
+  pendingUsageReports?: Record<string, ProviderUsageReport>
   requests?: {
     [id: string]: {
       tool: string,

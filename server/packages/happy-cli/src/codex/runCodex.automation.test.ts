@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => {
     let eventHandler: ((message: Record<string, unknown>) => void) | null = null;
     let approvalHandler: ((params: Record<string, unknown>) => Promise<string>) | null = null;
     let requestInteractiveApproval = false;
+    let emitResumeAndTurnUsage = false;
     const permissionHandleToolCall = vi.fn(async () => ({ decision: 'approved' }));
     const startThreadCalls: Array<Record<string, unknown>> = [];
     const resumeThreadCalls: Array<Record<string, unknown>> = [];
@@ -27,7 +28,11 @@ const mocks = vi.hoisted(() => {
         keepAlive: vi.fn(),
         sendSessionEvent: vi.fn(),
         sendSessionProtocolMessage: vi.fn(),
+        sendProviderUsageReport: vi.fn(async (_report: unknown, options?: { onDurable?: () => void }) => {
+            options?.onDurable?.();
+        }),
         getMetadata: vi.fn(() => metadata),
+        getAgentState: vi.fn(() => agentState),
         updateAgentState: vi.fn((update: (current: Record<string, unknown>) => Record<string, unknown>) => {
             agentState = update(agentState);
         }),
@@ -50,14 +55,27 @@ const mocks = vi.hoisted(() => {
         getMetadata() {
             return metadata;
         },
+        setAgentState(value: Record<string, unknown>) {
+            agentState = value;
+        },
         setEventHandler(handler: (message: Record<string, unknown>) => void) {
             eventHandler = handler;
         },
-        emitCompleted() {
+        emitCompleted(turnId?: string) {
             eventHandler?.({
                 type: 'task_complete',
                 provider_terminal: true,
+                ...(turnId ? { turn_id: turnId } : {}),
             });
+        },
+        emitEvent(message: Record<string, unknown>) {
+            eventHandler?.(message);
+        },
+        setEmitResumeAndTurnUsage(value: boolean) {
+            emitResumeAndTurnUsage = value;
+        },
+        shouldEmitResumeAndTurnUsage() {
+            return emitResumeAndTurnUsage;
         },
         setApprovalHandler(handler: (params: Record<string, unknown>) => Promise<string>) {
             approvalHandler = handler;
@@ -76,12 +94,15 @@ const mocks = vi.hoisted(() => {
         },
         resetRuntime() {
             requestInteractiveApproval = false;
+            emitResumeAndTurnUsage = false;
+            agentState = { controlledByUser: false };
             approvalHandler = null;
             permissionHandleToolCall.mockClear();
             startThreadCalls.length = 0;
             resumeThreadCalls.length = 0;
             injectDeveloperInstructionsCalls.length = 0;
             sendTurnCalls.length = 0;
+            session.sendProviderUsageReport.mockClear();
         },
         permissionHandleToolCall,
         startThreadCalls,
@@ -251,6 +272,15 @@ vi.mock('./codexAppServerClient', () => ({
         resumeThread = vi.fn(async (options: Record<string, unknown>) => {
             mocks.resumeThreadCalls.push(options);
             this.threadId = String(options.threadId);
+            if (mocks.shouldEmitResumeAndTurnUsage()) {
+                mocks.emitEvent({
+                    type: 'token_count',
+                    thread_id: this.threadId,
+                    turn_id: 'parent-turn',
+                    total: { totalTokens: 250, inputTokens: 200, outputTokens: 50 },
+                    last: { totalTokens: 150, inputTokens: 120, outputTokens: 30 },
+                });
+            }
             return { threadId: this.threadId, model: String(options.model) };
         });
         injectDeveloperInstructions = vi.fn(async (options: Record<string, unknown>) => {
@@ -264,7 +294,18 @@ vi.mock('./codexAppServerClient', () => ({
                 mocks.events.push(`approval:${decision}`);
                 return { aborted: true };
             }
-            mocks.emitCompleted();
+            if (mocks.shouldEmitResumeAndTurnUsage()) {
+                mocks.emitEvent({
+                    type: 'token_count',
+                    thread_id: this.threadId,
+                    turn_id: 'child-turn',
+                    total: { totalTokens: 300, inputTokens: 240, outputTokens: 60 },
+                    last: { totalTokens: 50, inputTokens: 40, outputTokens: 10 },
+                });
+                mocks.emitCompleted('child-turn');
+            } else {
+                mocks.emitCompleted();
+            }
             return { aborted: false };
         });
         disconnect = vi.fn(async () => {
@@ -407,6 +448,54 @@ describe('runCodex automation process lifecycle', () => {
             ['heartbeat-occurrence'],
             0,
         );
+    });
+
+    it('seeds a resumed thread without recounting parent usage and reports only the child response', async () => {
+        vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+        mocks.setEmitResumeAndTurnUsage(true);
+
+        await runCodex({
+            credentials: { token: 'test-token' } as never,
+            startedBy: 'daemon',
+            resumeThreadId: 'provider-thread-child',
+        });
+
+        expect(mocks.session.sendProviderUsageReport).toHaveBeenCalledTimes(1);
+        expect(mocks.session.sendProviderUsageReport.mock.calls[0][0]).toMatchObject({
+            provider: 'codex',
+            tokens: { total: 50, input: 40, output: 10 },
+        });
+    });
+
+    it('recovers only the uncommitted Codex delta when the same Happy session resumes', async () => {
+        vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+        mocks.setEmitResumeAndTurnUsage(true);
+        mocks.setAgentState({
+            controlledByUser: false,
+            usageCursors: {
+                codexTokens: {
+                    'provider-thread-child': {
+                        total: 100,
+                        input: 80,
+                        output: 20,
+                        cacheCreation: 0,
+                        cacheRead: 0,
+                        reasoning: 0,
+                    },
+                },
+            },
+        });
+
+        await runCodex({
+            credentials: { token: 'test-token' } as never,
+            startedBy: 'daemon',
+            resumeThreadId: 'provider-thread-child',
+        });
+
+        const reports = mocks.session.sendProviderUsageReport.mock.calls.map(([report]) => report);
+        expect(reports).toHaveLength(2);
+        expect(reports[0]).toMatchObject({ tokens: { total: 150 } });
+        expect(reports[1]).toMatchObject({ tokens: { total: 50 } });
     });
 
     it('aborts an unexpected automation approval without publishing a pending request', async () => {

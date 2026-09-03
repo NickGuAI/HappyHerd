@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "110d0bd34b4e60c564f8f6b78c9e8804ccf37c1f204347d3d88b63b4eb26593e",
+  "sourceFingerprint": "5fda774d53b72088be2e7172c5c58174db73cf1b341ad47ebebf7decb1f05bc7",
   "routeCount": 36,
   "surfaceCount": 255,
   "hardcodedCopyCount": 0,
@@ -5077,14 +5077,16 @@
         "UsagePanel"
       ],
       "translationKeys": [
-        "usage.byModel",
+        "usage.byProvider",
         "usage.cost",
+        "usage.coverage.estimated",
+        "usage.coverage.title",
         "usage.last30Days",
         "usage.last7Days",
+        "usage.providerCost",
+        "usage.reportedTokens",
         "usage.today",
         "usage.tokens",
-        "usage.totalCost",
-        "usage.totalTokens",
         "usage.usageOverTime"
       ],
       "states": [],

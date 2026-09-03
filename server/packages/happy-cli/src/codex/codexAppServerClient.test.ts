@@ -2542,4 +2542,40 @@ describe('CodexAppServerClient sandbox integration', () => {
 
         await client.disconnect();
     });
+    it('preserves thread and turn identity on token usage updates', async () => {
+        const proc = createMockProcess();
+        mockSpawn.mockImplementation(() => proc);
+
+        const { CodexAppServerClient } = await import('./codexAppServerClient');
+        const client = new CodexAppServerClient();
+        const events: Array<Record<string, unknown>> = [];
+        client.setEventHandler((event) => events.push(event as Record<string, unknown>));
+
+        await client.connect();
+        pushJsonLine(proc.stdout, {
+            method: 'thread/tokenUsage/updated',
+            params: {
+                threadId: 'thread-child',
+                turnId: 'turn-child',
+                tokenUsage: {
+                    total: { totalTokens: 1_100, inputTokens: 1_000, outputTokens: 100 },
+                    last: { totalTokens: 100, inputTokens: 80, outputTokens: 20 },
+                    modelContextWindow: 200_000,
+                },
+            },
+        });
+        await waitFor(() => events.length === 1);
+
+        expect(events[0]).toEqual(expect.objectContaining({
+            type: 'token_count',
+            thread_id: 'thread-child',
+            threadId: 'thread-child',
+            turn_id: 'turn-child',
+            turnId: 'turn-child',
+            total: expect.objectContaining({ totalTokens: 1_100 }),
+            last: expect.objectContaining({ totalTokens: 100 }),
+        }));
+
+        await client.disconnect();
+    });
 });

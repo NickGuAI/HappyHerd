@@ -72,6 +72,12 @@ describe('claudeRemoteLauncher heartbeat receipt', () => {
     it('persists a failed terminal receipt for a Claude error result', async () => {
         let agentState: AgentState = {};
         const receiptStates: AgentState[] = [];
+        const sendProviderUsageReport = vi.fn(async (
+            _report: unknown,
+            options?: { onDurable?: () => void },
+        ) => {
+            options?.onDurable?.();
+        });
         const client = {
             sessionId: 'session-one',
             rpcHandlerManager: { registerHandler: vi.fn() },
@@ -83,6 +89,7 @@ describe('claudeRemoteLauncher heartbeat receipt', () => {
             closeClaudeSessionTurn: vi.fn(),
             sendSessionEvent: vi.fn(),
             sendClaudeSessionMessage: vi.fn(),
+            sendProviderUsageReport,
             getMetadata: vi.fn(() => ({})),
         };
         const queue = new MessageQueue2<EnhancedMode>((mode) => JSON.stringify({
@@ -111,9 +118,19 @@ describe('claudeRemoteLauncher heartbeat receipt', () => {
             });
             options.onMessage({
                 type: 'result',
+                uuid: 'failed-result-zero-usage',
                 subtype: 'error_max_turns',
                 is_error: true,
                 errors: ['maximum turns reached'],
+                modelUsage: {
+                    'claude-test': {
+                        inputTokens: 0,
+                        outputTokens: 0,
+                        cacheCreationInputTokens: 0,
+                        cacheReadInputTokens: 0,
+                        costUSD: 0,
+                    },
+                },
             });
             await options.onReady();
             queue.close();
@@ -149,10 +166,22 @@ describe('claudeRemoteLauncher heartbeat receipt', () => {
             status: 'failed',
             message: 'maximum turns reached',
         });
+        expect(sendProviderUsageReport.mock.calls[0][0]).toMatchObject({
+            provider: 'claude',
+            tokensAvailable: false,
+            costAvailable: false,
+            limitations: ['tokens-not-reported-by-provider', 'cost-not-reported-by-provider'],
+        });
     });
 
     it('re-enters the Human mode after an isolated heartbeat query', async () => {
         let agentState: AgentState = {};
+        const sendProviderUsageReport = vi.fn(async (
+            _report: unknown,
+            options?: { onDurable?: () => void },
+        ) => {
+            options?.onDurable?.();
+        });
         const client = {
             sessionId: 'session-one',
             rpcHandlerManager: { registerHandler: vi.fn() },
@@ -163,6 +192,8 @@ describe('claudeRemoteLauncher heartbeat receipt', () => {
             closeClaudeSessionTurn: vi.fn(),
             sendSessionEvent: vi.fn(),
             sendClaudeSessionMessage: vi.fn(),
+            sendProviderUsageReport,
+            sendProviderUsageLimitation: vi.fn(),
             getMetadata: vi.fn(() => ({})),
         };
         const queue = new MessageQueue2<EnhancedMode>((mode) => JSON.stringify({
@@ -193,6 +224,21 @@ describe('claudeRemoteLauncher heartbeat receipt', () => {
             launch += 1;
             const initial = await options.nextMessage();
             queryPrompts.push(initial?.mode.appendSystemPrompt);
+            if (launch <= 2) {
+                const result = {
+                    type: 'result',
+                    uuid: `result-${launch}`,
+                    subtype: 'success',
+                    is_error: false,
+                    modelUsage: {
+                        'claude-test': launch === 1
+                            ? { inputTokens: 130, outputTokens: 55, costUSD: 0.014 }
+                            : { inputTokens: 140, outputTokens: 60, costUSD: 0.02 },
+                    },
+                };
+                options.onMessage(result);
+                if (launch === 1) options.onMessage(result);
+            }
             await options.onReady();
 
             if (launch < 3) {
@@ -227,6 +273,16 @@ describe('claudeRemoteLauncher heartbeat receipt', () => {
             'Automation safeguard suppressed',
             'Human safeguard enabled',
         ]);
+        expect(sendProviderUsageReport.mock.calls[0][0]).toEqual(expect.objectContaining({
+            key: 'usage-v2:claude:sdk-result:result-1:claude-test',
+            tokens: expect.objectContaining({ total: 185 }),
+            cost: { total: 0.014 },
+        }));
+        expect(sendProviderUsageReport.mock.calls[1][0]).toEqual(expect.objectContaining({
+            key: 'usage-v2:claude:sdk-result:result-2:claude-test',
+            tokens: expect.objectContaining({ total: 200 }),
+            cost: { total: 0.02 },
+        }));
     });
 
     it('turns an unexpected unattended permission callback into a terminal provider failure', async () => {

@@ -1188,11 +1188,19 @@
     "last30Days": "过去 30 天",
     "totalTokens": "总令牌数",
     "totalCost": "总费用",
+    "reportedTokens": "已上报令牌数",
+    "providerCost": "Provider 费用（美元）",
     "tokens": "令牌",
     "cost": "费用",
     "usageOverTime": "使用趋势",
-    "byModel": "按模型",
-    "noData": "暂无使用数据"
+    "byProvider": "按 Provider",
+    "noData": "暂无使用数据",
+    "coverage": {
+      "title": "上报覆盖情况",
+      "partial": "{provider}：此时间段的{metric}仅部分上报。",
+      "unavailable": "{provider}：Provider 未上报{metric}。",
+      "estimated": "{provider}：费用为 Provider 按模型给出的估算值，并非账单。"
+    }
   },
   "workspace": {
     "title": "工作区",

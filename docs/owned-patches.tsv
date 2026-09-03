@@ -267,3 +267,4 @@ DSH_ATTACHMENTS	accepted	feat(dsh): reuse workspace uploads for attachments	serv
 DSH_ATTACHMENTS	accepted	fix(dsh): expose workspace photo uploads by default	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 SIDEBAR_BACK_CONTROL	accepted	fix(app): show one sidebar Back control	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 SIDEBAR_COLLAPSE_ICON	accepted	fix(app): use standard sidebar toggle icons	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
+USAGE_TOTALS	accepted	fix(usage): reconcile provider totals	server/packages/happy-server/sources/app/api/routes/usageAggregation.spec.ts

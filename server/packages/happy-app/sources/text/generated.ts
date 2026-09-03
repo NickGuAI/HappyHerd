@@ -1315,11 +1315,17 @@ export type TranslationKey =
     | "updateBanner.tapToUpdatePlayStore"
     | "updateBanner.updateAvailable"
     | "updateBanner.whatsNew"
-    | "usage.byModel"
+    | "usage.byProvider"
     | "usage.cost"
+    | "usage.coverage.estimated"
+    | "usage.coverage.partial"
+    | "usage.coverage.title"
+    | "usage.coverage.unavailable"
     | "usage.last30Days"
     | "usage.last7Days"
     | "usage.noData"
+    | "usage.providerCost"
+    | "usage.reportedTokens"
     | "usage.today"
     | "usage.tokens"
     | "usage.totalCost"
@@ -1536,6 +1542,9 @@ export interface TranslationParamsByKey {
     "uiCopy.valueRunning": { value1: string | number };
     "uiCopy.valueUnavailable": { value1: string | number };
     "uiCopy.yourEditsToValueHaveNotBeenSaved": { value1: string | number };
+    "usage.coverage.estimated": { provider: string };
+    "usage.coverage.partial": { metric: string; provider: string };
+    "usage.coverage.unavailable": { metric: string; provider: string };
     "workspace.selectedCount": { count: number; max: number };
     "workspace.selectedItemsCount": { count: number; max: number };
     "workspace.uploadCancelled": { completed: string; total: string | number };
