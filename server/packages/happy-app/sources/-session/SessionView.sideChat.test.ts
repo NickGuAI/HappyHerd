@@ -1238,7 +1238,6 @@ describe('SessionView Web composer workspace access', () => {
 
 describe('SessionView side-chat integration', () => {
     it('routes dsh Photos through the machine uploader instead of inline attachments', async () => {
-        mocks.expImageUpload = true;
         mocks.sessions.parent.metadata!.flavor = 'dsh';
         mocks.pickImagesForUpload.mockResolvedValue([{
             id: 'photo-1',
@@ -1281,7 +1280,6 @@ describe('SessionView side-chat integration', () => {
     });
 
     it('does not offer another dsh attachment picker while an upload is active', () => {
-        mocks.expImageUpload = true;
         mocks.sessions.parent.metadata!.flavor = 'dsh';
         mocks.uploadPhase = 'uploading';
         const renderer = renderParent();
@@ -1301,7 +1299,6 @@ describe('SessionView side-chat integration', () => {
         { label: 'follow-up', action: 'onSend', deliveryMode: undefined },
         { label: 'queued', action: 'onQueueMessage', deliveryMode: 'queue' },
     ] as const)('binds exact dsh workspace paths to a $label message without inline payloads', async ({ action, deliveryMode }) => {
-        mocks.expImageUpload = true;
         mocks.sessions.parent.metadata!.flavor = 'dsh';
         mocks.sessions.parent.draft = 'Inspect these files';
         mocks.workspaceEntries = [

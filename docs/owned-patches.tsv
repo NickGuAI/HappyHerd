@@ -253,3 +253,4 @@ MOBILE_WEB_UX	accepted	chore(app): refresh final mobile UX inventory	server/pack
 MOBILE_WEB_UX	accepted	chore(app): register mobile UX patches	docs/owned-patches.tsv
 PUBLIC_BOUNDARY	accepted	fix(public-boundary): normalize merged skill identity	scripts/test-public-boundary.mjs
 DSH_ATTACHMENTS	accepted	feat(dsh): reuse workspace uploads for attachments	server/packages/happy-app/sources/hooks/useMachineFileUpload.test.ts
+DSH_ATTACHMENTS	accepted	fix(dsh): expose workspace photo uploads by default	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts

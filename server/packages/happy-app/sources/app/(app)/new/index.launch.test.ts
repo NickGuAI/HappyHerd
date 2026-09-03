@@ -665,7 +665,6 @@ describe('Full New Session provider launch', () => {
         mocks.renderMachines = [machine];
         mocks.liveMachines = { [machine.id]: machine };
         mocks.draft = createDraft({ agentType: 'dsh' });
-        mocks.expImageUpload = true;
         mocks.pickImagesForUpload.mockResolvedValue([{
             id: 'photo-1',
             uri: 'file:///photo.jpg',
@@ -737,7 +736,6 @@ describe('Full New Session provider launch', () => {
         mocks.renderMachines = [machine];
         mocks.liveMachines = { [machine.id]: machine };
         mocks.draft = createDraft({ agentType: 'dsh' });
-        mocks.expImageUpload = true;
         mocks.uploadPhase = 'uploading';
         const renderer = await renderScreen();
 

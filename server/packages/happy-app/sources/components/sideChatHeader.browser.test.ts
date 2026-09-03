@@ -73,17 +73,28 @@ const virtualModules: Record<string, string> = {
     `,
     'react-native-reanimated': `
         import React from 'react';
-        import { ScrollView, View } from 'react-native';
-        export default { ScrollView, View };
+        import { ScrollView, Text, View } from 'react-native';
+        export default { ScrollView, Text, View };
         export const useSharedValue = (value) => ({ value });
         export const useAnimatedStyle = (factory) => factory();
+        export const Extrapolation = { CLAMP: 'clamp' };
+        export const interpolate = (_value, _input, output) => output[output.length - 1];
+        export const interpolateColor = (_value, _input, output) => output[output.length - 1];
+        export const runOnJS = (callback) => callback;
         export const withRepeat = (value) => value;
+        export const withSequence = (...values) => values[values.length - 1];
         export const withTiming = (value) => value;
-        export const Easing = { out: (value) => value, cubic: 'cubic' };
+        export const Easing = { in: (value) => value, out: (value) => value, cubic: 'cubic' };
     `,
     'expo-linear-gradient': `import { View } from 'react-native'; export const LinearGradient = View;`,
+    'expo-blur': `import { View } from 'react-native'; export const BlurView = View;`,
     'expo-glass-effect': `import { View } from 'react-native'; export const GlassView = View;`,
-    'react-native-keyboard-controller': `import { View } from 'react-native'; export const KeyboardAvoidingView = View; export const KeyboardStickyView = View;`,
+    'react-native-keyboard-controller': `
+        import { View } from 'react-native';
+        export const KeyboardAvoidingView = View;
+        export const KeyboardStickyView = View;
+        export const useReanimatedKeyboardAnimation = () => ({ height: { value: 0 }, progress: { value: 0 } });
+    `,
     'expo-constants': `export default { statusBarHeight: 0 };`,
     'expo-crypto': `export const randomUUID = () => 'fixture-request-id'; export const getRandomBytes = (count) => new Uint8Array(count);`,
     'zustand/react/shallow': `export const useShallow = (selector) => selector;`,
@@ -401,8 +412,10 @@ const virtualModules: Record<string, string> = {
     '@/components/navigation/Header': `import { View } from 'react-native'; export const Header = View;`,
     '@/components/ProviderIcon': `import React from 'react'; export const ProviderIcon = ({ kind }) => React.createElement('span', { 'data-provider': kind });`,
     '@/components/BubblePressable': `import { Pressable } from 'react-native'; export const BubblePressable = Pressable;`,
+    '@/components/NativeOptionsPicker': `export const NativeOptionsPicker = ({ children }) => children;`,
     '@/components/navigation/MobileHeaderScrim': `
         export const MobileHeaderScrim = () => null;
+        export const MOBILE_HOME_SCRIM_OVERLAY_OPACITY = 0;
         export const MOBILE_STRONG_HEADER_SCRIM_RESTING_OPACITY = 0;
         export const MOBILE_STRONG_HEADER_SCRIM_UNDERLAP_OPACITY = 1;
     `,
@@ -736,6 +749,7 @@ const virtualModules: Record<string, string> = {
     '@/sync/sideChatLifecycle': `export const closeSideChatSession = async () => {}; export const resolveSideChatCloseReconciliation = () => ({ error: null, restoreTab: false });`,
     '@/sync/attachmentSupport': `export const supportsImageAttachmentsForFlavor = (flavor) => flavor !== 'dsh' && globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.imageAttachments === true;`,
     '@/sync/agentDefaults': `
+        export const getCodeAgentDefaults = () => ({ permissionMode: 'default', modelMode: 'default', effortLevel: null });
         export const getAgentDefaultOverrideValue = () => undefined;
         export const resolveAgentDefaultConfig = () => ({ modelMode: undefined, permissionMode: undefined });
         export const resolveAgentDefaultEffortLevel = () => undefined;
@@ -839,6 +853,8 @@ const fixturePlugin: Plugin = {
             if (args.path in virtualModules) return { path: args.path, namespace: 'fixture-stub' };
             if (args.path === './MobileGlass') return { path: '@/components/MobileGlass', namespace: 'fixture-stub' };
             if (args.path === './BubblePressable') return { path: '@/components/BubblePressable', namespace: 'fixture-stub' };
+            if (args.path === './modelModeOptions') return { path: '@/components/modelModeOptions', namespace: 'fixture-stub' };
+            if (args.path === './NativeOptionsPicker') return { path: '@/components/NativeOptionsPicker', namespace: 'fixture-stub' };
             if (args.path === './navigation/MobileHeaderScrim') return { path: '@/components/navigation/MobileHeaderScrim', namespace: 'fixture-stub' };
             if (args.path === './AnimatedOverlay') return { path: '@/components/AnimatedOverlay', namespace: 'fixture-stub' };
             if (args.path === './ShortcutHints') return { path: '@/components/ShortcutHints', namespace: 'fixture-stub' };
@@ -1121,7 +1137,7 @@ describe('Side chats browser interaction', () => {
         await page.addInitScript(() => {
             (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
                 dshSession: true,
-                imageAttachments: true,
+                imageAttachments: false,
                 newSession: true,
             };
         });
@@ -1181,6 +1197,72 @@ describe('Side chats browser interaction', () => {
     }, 15_000);
 
     it.each([
+        ['Web Desktop', { width: 1440, height: 900 }, '/tmp/happyherd-dsh-home-dock-web-desktop.png'],
+        ['Web Mobile', { width: 390, height: 844 }, '/tmp/happyherd-dsh-home-dock-web-mobile.png'],
+    ] as const)('uploads dsh Photos and Device files with exact paths from HomeDock on %s', async (_surface, viewport, screenshotPath) => {
+        const page = await browser.newPage({ viewport });
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
+                dshSession: true,
+                homeDock: true,
+                imageAttachments: false,
+            };
+        });
+        const pageErrors: string[] = [];
+        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+        page.on('console', (message) => {
+            if (
+                (message.type() === 'error' || message.type() === 'warning')
+                && message.text() !== 'props.pointerEvents is deprecated. Use style.pointerEvents'
+                && message.text() !== '"shadow*" style props are deprecated. Use "boxShadow".'
+                && message.text() !== 'Unexpected text node: . A text node cannot be a child of a <View>.'
+            ) pageErrors.push(message.text());
+        });
+        await page.goto(origin);
+
+        const homeDock = page.getByTestId('home-dock');
+        await homeDock.getByText('Inspect attachments', { exact: true }).filter({ visible: true }).click();
+        const homeInput = page.locator('textarea').filter({ visible: true }).last();
+        await homeInput.waitFor({ state: 'visible', timeout: 3_000 });
+        const addAttachment = page.getByRole('button', { name: 'Add attachment' }).filter({ visible: true });
+        await addAttachment.last().waitFor({ state: 'visible', timeout: 3_000 });
+        await addAttachment.last().click();
+        await page.getByRole('menuitem', { name: 'Photos' }).filter({ visible: true }).last().click();
+        await page.getByText('/work/project/photo.jpg', { exact: true }).filter({ visible: true }).waitFor({ state: 'visible' });
+
+        await addAttachment.last().click();
+        await page.getByRole('menuitem', { name: 'Device files' }).filter({ visible: true }).last().click();
+        for (const path of [
+            '/work/project/notes.txt',
+            '/work/project/report.pdf',
+            '/work/project/voice.m4a',
+            '/work/project/archive.bin',
+        ]) {
+            await page.getByText(path, { exact: true }).filter({ visible: true }).waitFor({ state: 'visible' });
+        }
+        await page.screenshot({ path: screenshotPath, fullPage: true });
+        await page.getByRole('button', { name: 'Send' }).filter({ visible: true }).last().click();
+        await page.waitForFunction(() => ((window as any).__HOME_DOCK_SUBMITS__ ?? []).length > 0);
+
+        const result = await page.evaluate(() => ({
+            inlinePicks: (window as any).__ATTACHMENT_PICK_COUNT__ ?? 0,
+            submissions: (window as any).__HOME_DOCK_SUBMITS__,
+            uploads: (window as any).__MACHINE_UPLOADS__,
+        }));
+        expect(result.inlinePicks).toBe(0);
+        expect(result.uploads).toEqual([
+            '/work/project/photo.jpg',
+            '/work/project/notes.txt',
+            '/work/project/report.pdf',
+            '/work/project/voice.m4a',
+            '/work/project/archive.bin',
+        ]);
+        expect(result.submissions.at(-1).map((entry: { path: string }) => entry.path)).toEqual(result.uploads);
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 15_000);
+
+    it.each([
         ['Web Desktop', { width: 1440, height: 900 }, '/tmp/happyherd-dsh-active-session-web-desktop.png'],
         ['Web Mobile', { width: 390, height: 844 }, '/tmp/happyherd-dsh-active-session-web-mobile.png'],
     ] as const)('uploads dsh Photos and Device files with exact paths on active Session %s', async (_surface, viewport, screenshotPath) => {
@@ -1188,7 +1270,7 @@ describe('Side chats browser interaction', () => {
         await page.addInitScript(() => {
             (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
                 dshSession: true,
-                imageAttachments: true,
+                imageAttachments: false,
             };
         });
         const pageErrors: string[] = [];
