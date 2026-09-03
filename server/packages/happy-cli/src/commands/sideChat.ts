@@ -71,6 +71,28 @@ export type SideChatPhaseReceipt = {
   message?: string;
 };
 
+export const SIDE_CHAT_RESOURCE_CPU_SAMPLE_WINDOW_MS = 250;
+
+export type SideChatResourceUsage = {
+  status: 'ok' | 'partial' | 'failed';
+  sampledAt: string;
+  cpu: {
+    busyPercent: number | null;
+    sampleWindowMs: number;
+  };
+  loadAverage: {
+    oneMinute: number | null;
+    fiveMinutes: number | null;
+    fifteenMinutes: number | null;
+  };
+  memory: {
+    usedBytes: number | null;
+    totalBytes: number | null;
+    availableBytes: number | null;
+    swapUsedBytes: number | null;
+  };
+};
+
 export type SideChatLifecycleRequest =
   | { action: 'create'; parentSessionId: string; brief: SideChatDelegationBrief | null }
   | { action: 'list'; parentSessionId: string }
@@ -102,7 +124,7 @@ export function normalizeSideChatLifecycleRequest(
 type SideChatSingleAction = 'create' | 'status' | 'stop' | 'close' | 'reopen';
 
 export type SideChatSingleReceipt = {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   type: 'side-chat';
   action: SideChatSingleAction;
   success: boolean;
@@ -110,6 +132,7 @@ export type SideChatSingleReceipt = {
   sessionId: string | null;
   child: SideChatStatusReceipt | null;
   phases: SideChatPhaseReceipt[];
+  resource?: SideChatResourceUsage;
 };
 
 export type SideChatListReceipt = {
@@ -499,7 +522,25 @@ export function formatSideChatLifecycleReceipt(receipt: SideChatLifecycleReceipt
   const failures = receipt.phases
     .filter((phase) => phase.status === 'failed')
     .map((phase) => `${phase.phase}: ${phase.message ?? 'failed'}`);
-  return [summary, ...failures].join('\n');
+  const resource = receipt.action === 'create' && receipt.resource
+    ? formatSideChatResourceUsage(receipt.resource)
+    : [];
+  return [summary, ...resource, ...failures].join('\n');
+}
+
+function formatSideChatResourceUsage(resource: SideChatResourceUsage): string[] {
+  const metric = (value: number | null, suffix = '') => (
+    value === null ? 'unavailable' : `${value}${suffix}`
+  );
+  const bytes = (value: number | null) => (
+    value === null ? 'unavailable' : `${(value / (1024 ** 3)).toFixed(2)} GiB`
+  );
+  return [
+    `Resources (${resource.status}, sampled ${resource.sampledAt})`,
+    `  CPU: ${metric(resource.cpu.busyPercent, '%')} busy over ${resource.cpu.sampleWindowMs} ms; load ${metric(resource.loadAverage.oneMinute)} / ${metric(resource.loadAverage.fiveMinutes)} / ${metric(resource.loadAverage.fifteenMinutes)}`,
+    `  RAM: ${bytes(resource.memory.usedBytes)} used / ${bytes(resource.memory.totalBytes)} total; ${bytes(resource.memory.availableBytes)} available`,
+    `  Swap: ${bytes(resource.memory.swapUsedBytes)} used`,
+  ];
 }
 
 export async function handleSideChatCommand(

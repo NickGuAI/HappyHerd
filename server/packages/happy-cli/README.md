@@ -135,9 +135,18 @@ happyherd session side-chat resume <child-session-id>
 The six-field delegation brief is required. The parent-ID shorthand remains
 supported when it carries the same six options. The daemon persists the
 rendered brief as the child's first encrypted queued user message. Add
-`--json` to any action for a stable receipt. A failed receipt sets a nonzero
-exit code and names the exact failed phase; a post-spawn `deliver-brief`
-failure retains the created child ID. `stop` waits for the daemon-owned
+`--json` to any action for a stable receipt. Create receipts use
+`schemaVersion: 2`, preserving every existing lifecycle field while adding a
+`resource` object sampled once by the owning daemon at creation. The snapshot
+captures CPU busy percentage over a 250 ms window, 1/5/15-minute load averages,
+memory used/total/available bytes, swap used bytes, and a `sampledAt` ISO
+timestamp. An unavailable metric is `null`, and the overall resource status is
+`ok`, `partial`, or `failed`; resource collection never changes an otherwise
+successful create. No background monitor, poller, telemetry service, or extra
+daemon process is added. Other lifecycle receipts remain `schemaVersion: 1`.
+A failed receipt sets a nonzero exit code and names the exact failed phase; a
+post-spawn `deliver-brief` failure retains the created child ID. `stop` waits
+for the daemon-owned
 provider process to exit and for server deactivation; `close` then writes
 encrypted archived lifecycle metadata and reads the authoritative server state
 back. `inspect`, `pause`, and `resume` map to `status`, `stop`, and `reopen`,

@@ -78,6 +78,7 @@ import {
   DaemonSideChatLifecycle,
   type SideChatOperationResult,
 } from './sideChatLifecycle';
+import { sampleHostResourceUsage } from './hostResourceUsage';
 import { resolveCredentialAccountEnvironment } from '@/credentialPool/store';
 import { activateCodexCredential, codexRuntimeHome } from '@/credentialPool/codexAuth';
 import type { CredentialProvider } from '@/credentialPool/types';
@@ -1915,6 +1916,7 @@ export async function startDaemon(): Promise<void> {
           return { success: false, message: error instanceof Error ? error.message : String(error) };
         }
       },
+      sampleResources: sampleHostResourceUsage,
     });
     manageLocalSideChat = (request) => sideChatLifecycle.execute(request);
 

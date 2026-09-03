@@ -248,7 +248,7 @@ export type SpawnSessionResult =
     | { type: 'error'; errorMessage: string };
 
 export type SideChatCreateReceipt = {
-    schemaVersion: 1;
+    schemaVersion: 2;
     type: 'side-chat';
     action: 'create';
     success: boolean;
@@ -259,6 +259,25 @@ export type SideChatCreateReceipt = {
         status: 'succeeded' | 'skipped' | 'failed';
         message?: string;
     }>;
+    resource: {
+        status: 'ok' | 'partial' | 'failed';
+        sampledAt: string;
+        cpu: {
+            busyPercent: number | null;
+            sampleWindowMs: number;
+        };
+        loadAverage: {
+            oneMinute: number | null;
+            fiveMinutes: number | null;
+            fifteenMinutes: number | null;
+        };
+        memory: {
+            usedBytes: number | null;
+            totalBytes: number | null;
+            availableBytes: number | null;
+            swapUsedBytes: number | null;
+        };
+    };
 };
 
 // Options for spawning a session

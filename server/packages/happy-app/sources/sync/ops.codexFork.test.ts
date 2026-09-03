@@ -5,6 +5,14 @@ const { machineRPC, refreshSessions } = vi.hoisted(() => ({
     refreshSessions: vi.fn(),
 }));
 
+const resource = {
+    status: 'ok',
+    sampledAt: '2026-09-03T10:00:00.000Z',
+    cpu: { busyPercent: 25, sampleWindowMs: 250 },
+    loadAverage: { oneMinute: 1, fiveMinutes: 2, fifteenMinutes: 3 },
+    memory: { usedBytes: 4, totalBytes: 10, availableBytes: 6, swapUsedBytes: 1 },
+};
+
 vi.mock('./apiSocket', () => ({
     apiSocket: { machineRPC },
 }));
@@ -94,13 +102,14 @@ describe('codex fork ops', () => {
 
     it('creates a Human side chat through the dedicated RPC without a brief and hydrates sessions', async () => {
         machineRPC.mockResolvedValue({
-            schemaVersion: 1,
+            schemaVersion: 2,
             type: 'side-chat',
             action: 'create',
             success: true,
             parentSessionId: 'happy-source',
             sessionId: 'happy-child',
             phases: [],
+            resource,
         });
         const { machineCreateSideChat } = await import('./ops');
 
@@ -115,13 +124,14 @@ describe('codex fork ops', () => {
 
     it('keeps a successful Human creation receipt when immediate session hydration fails', async () => {
         machineRPC.mockResolvedValue({
-            schemaVersion: 1,
+            schemaVersion: 2,
             type: 'side-chat',
             action: 'create',
             success: true,
             parentSessionId: 'happy-source',
             sessionId: 'happy-child',
             phases: [],
+            resource,
         });
         refreshSessions.mockRejectedValueOnce(new Error('refresh unavailable'));
         const { machineCreateSideChat } = await import('./ops');
@@ -134,13 +144,14 @@ describe('codex fork ops', () => {
 
     it('does not hydrate sessions after a failed side-chat lifecycle receipt', async () => {
         machineRPC.mockResolvedValue({
-            schemaVersion: 1,
+            schemaVersion: 2,
             type: 'side-chat',
             action: 'create',
             success: false,
             parentSessionId: 'happy-source',
             sessionId: null,
             phases: [{ phase: 'resolve', status: 'failed', message: 'Parent unavailable' }],
+            resource,
         });
         const { machineCreateSideChat } = await import('./ops');
 

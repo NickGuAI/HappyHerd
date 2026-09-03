@@ -62,7 +62,7 @@ function dependencies(
 
 function lifecycleReceipt(): SideChatSingleReceipt {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     type: 'side-chat',
     action: 'create',
     success: true,
@@ -80,6 +80,18 @@ function lifecycleReceipt(): SideChatSingleReceipt {
       { phase: 'resolve', status: 'succeeded' },
       { phase: 'readback', status: 'succeeded' },
     ],
+    resource: {
+      status: 'ok',
+      sampledAt: '2026-09-03T10:00:00.000Z',
+      cpu: { busyPercent: 12.5, sampleWindowMs: 250 },
+      loadAverage: { oneMinute: 0.1, fiveMinutes: 0.2, fifteenMinutes: 0.3 },
+      memory: {
+        usedBytes: 8 * 1024 ** 3,
+        totalBytes: 16 * 1024 ** 3,
+        availableBytes: 8 * 1024 ** 3,
+        swapUsedBytes: 1024 ** 3,
+      },
+    },
   };
 }
 
@@ -273,7 +285,13 @@ describe('handleSideChatCommand', () => {
     });
 
     expect(console.log).toHaveBeenCalledWith(
-      'Created side chat happy-child: running (active)',
+      [
+        'Created side chat happy-child: running (active)',
+        'Resources (ok, sampled 2026-09-03T10:00:00.000Z)',
+        '  CPU: 12.5% busy over 250 ms; load 0.1 / 0.2 / 0.3',
+        '  RAM: 8.00 GiB used / 16.00 GiB total; 8.00 GiB available',
+        '  Swap: 1.00 GiB used',
+      ].join('\n'),
     );
   });
 
@@ -394,18 +412,23 @@ describe('parseSideChatLifecycleRequest', () => {
       .toMatchObject({ request: { brief: { outcome: '- deliver only the owned files' } } });
   });
 
-  it('keeps a failed JSON receipt on stdout and marks the command unsuccessful', async () => {
+  it('keeps a failed create JSON receipt with resources on stdout and marks the command unsuccessful', async () => {
     const receipt = { ...lifecycleReceipt(), success: false };
     const output = vi.fn();
     const setExitCode = vi.fn();
 
-    await handleSideChatCommand(['status', 'happy-child', '--json'], {
+    await handleSideChatCommand(['create', parentId, ...briefArgs, '--json'], {
       execute: vi.fn(async () => receipt),
       output,
       setExitCode,
     });
 
     expect(output).toHaveBeenCalledWith(JSON.stringify(receipt));
+    expect(JSON.parse(output.mock.calls[0][0])).toMatchObject({
+      schemaVersion: 2,
+      success: false,
+      resource: { status: 'ok', cpu: { sampleWindowMs: 250 } },
+    });
     expect(setExitCode).toHaveBeenCalledWith(1);
   });
 });
@@ -440,5 +463,34 @@ describe('formatSideChatLifecycleReceipt', () => {
       success: false,
       phases: [{ phase: 'archive-metadata', status: 'failed', message: 'version conflict' }],
     })).toContain('archive-metadata: version conflict');
+  });
+
+  it('renders unavailable values from a failed create sample without hiding lifecycle errors', () => {
+    const receipt = lifecycleReceipt();
+    expect(formatSideChatLifecycleReceipt({
+      ...receipt,
+      success: false,
+      child: null,
+      phases: [{ phase: 'resolve', status: 'failed', message: 'parent unavailable' }],
+      resource: {
+        status: 'failed',
+        sampledAt: '2026-09-03T10:05:00.000Z',
+        cpu: { busyPercent: null, sampleWindowMs: 250 },
+        loadAverage: { oneMinute: null, fiveMinutes: null, fifteenMinutes: null },
+        memory: {
+          usedBytes: null,
+          totalBytes: null,
+          availableBytes: null,
+          swapUsedBytes: null,
+        },
+      },
+    })).toBe([
+      'Created side chat happy-child: failed',
+      'Resources (failed, sampled 2026-09-03T10:05:00.000Z)',
+      '  CPU: unavailable busy over 250 ms; load unavailable / unavailable / unavailable',
+      '  RAM: unavailable used / unavailable total; unavailable available',
+      '  Swap: unavailable used',
+      'resolve: parent unavailable',
+    ].join('\n'));
   });
 });
