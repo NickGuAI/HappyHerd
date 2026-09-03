@@ -1,3 +1,8 @@
+# September 3 — dsh workspace attachments
+
+- Attach Photos and Device files to dsh from Full New Session, native HomeDock, or an active Session; the next initial, follow-up, or queued message now includes their exact host paths for dsh file tools.
+- Files use the existing selected-machine workspace uploader, including its 20 MiB size limit, item limit, progress, cancel, retry, and failure behavior. They are not sent as inline binary prompts, and attachment behavior for Claude, Codex, Grok, and Rig is unchanged.
+
 # September 3 — dsh launch permission presets
 
 - Choose the installed dsh provider's read-only, workspace-write, or danger-full-access preset before launch from New Session or HomeDock; Agent Defaults mirrors the exact selected-machine catalog.

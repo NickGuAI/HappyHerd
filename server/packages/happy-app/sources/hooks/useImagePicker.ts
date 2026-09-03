@@ -13,6 +13,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { Platform } from 'react-native';
+import { MAX_WORKSPACE_UPLOAD_BYTES } from '@slopus/happy-wire';
 import { Modal } from '@/modal';
 import { generateThumbhash } from '@/utils/thumbhash';
 import { t } from '@/text';
@@ -26,7 +27,8 @@ export type { AttachmentPreview };
 
 type UseImagePickerResult = {
     selectedImages: AttachmentPreview[];
-    pickImages: () => Promise<void>;
+    pickImages: () => Promise<AttachmentPreview[]>;
+    pickImagesForUpload: (maxImages?: number) => Promise<AttachmentPreview[]>;
     removeImage: (id: string) => void;
     clearImages: () => void;
     addImages: (images: AttachmentPreview[]) => void;
@@ -116,18 +118,18 @@ export function useImagePicker(options: UseImagePickerOptions = {}): UseImagePic
         return true;
     }, []);
 
-    const pickImages = useCallback(async () => {
+    const selectImages = useCallback(async (maximumImages: number, maximumBytes: number) => {
         const hasPermission = await requestPermission();
-        if (!hasPermission) return;
+        if (!hasPermission) return [];
 
-        const remaining = MAX_IMAGES_PER_MESSAGE - imagesRef.current.length;
+        const remaining = Math.min(MAX_IMAGES_PER_MESSAGE, Math.max(0, maximumImages));
         if (remaining <= 0) {
             Modal.alert(
                 t('imageUpload.limitTitle'),
                 t('imageUpload.limitMessage', { max: MAX_IMAGES_PER_MESSAGE }),
                 [{ text: t('common.ok') }],
             );
-            return;
+            return [];
         }
 
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -138,7 +140,7 @@ export function useImagePicker(options: UseImagePickerOptions = {}): UseImagePic
             exif: false,
         });
 
-        if (result.canceled || !result.assets.length) return;
+        if (result.canceled || !result.assets.length) return [];
 
         // On web, selectionLimit is not enforced by the browser — clamp here.
         const assets = result.assets.slice(0, remaining);
@@ -147,10 +149,13 @@ export function useImagePicker(options: UseImagePickerOptions = {}): UseImagePic
         for (const asset of assets) {
             const size = asset.fileSize ?? 0;
 
-            if (size > MAX_FILE_SIZE) {
+            if (size > maximumBytes) {
                 Modal.alert(
                     t('imageUpload.fileTooLargeTitle'),
-                    t('imageUpload.fileTooLargeMessage', { name: asset.fileName ?? 'image', maxMb: 10 }),
+                    t('imageUpload.fileTooLargeMessage', {
+                        name: asset.fileName ?? 'image',
+                        maxMb: Math.floor(maximumBytes / (1024 * 1024)),
+                    }),
                     [{ text: t('common.ok') }],
                 );
                 continue;
@@ -175,10 +180,24 @@ export function useImagePicker(options: UseImagePickerOptions = {}): UseImagePic
             });
         }
 
+        return previews;
+    }, [requestPermission]);
+
+    const pickImages = useCallback(async () => {
+        const previews = await selectImages(
+            MAX_IMAGES_PER_MESSAGE - imagesRef.current.length,
+            MAX_FILE_SIZE,
+        );
         if (previews.length > 0) {
             updateImages(prev => [...prev, ...previews].slice(0, MAX_IMAGES_PER_MESSAGE));
         }
-    }, [requestPermission, updateImages]);
+        return previews;
+    }, [selectImages, updateImages]);
+
+    const pickImagesForUpload = useCallback(
+        (maxImages = MAX_IMAGES_PER_MESSAGE) => selectImages(maxImages, MAX_WORKSPACE_UPLOAD_BYTES),
+        [selectImages],
+    );
 
     const removeImage = useCallback((id: string) => {
         updateImages(prev => prev.filter(img => img.id !== id));
@@ -196,5 +215,5 @@ export function useImagePicker(options: UseImagePickerOptions = {}): UseImagePic
         });
     }, [updateImages]);
 
-    return { selectedImages, pickImages, removeImage, clearImages, addImages };
+    return { selectedImages, pickImages, pickImagesForUpload, removeImage, clearImages, addImages };
 }
