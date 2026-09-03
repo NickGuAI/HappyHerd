@@ -26,6 +26,11 @@
       "markdown": "- Choose the installed dsh provider's read-only, workspace-write, or danger-full-access preset before launch from New Session or HomeDock; Agent Defaults mirrors the exact selected-machine catalog.\n- The active composer shows the daemon-confirmed launch preset as read-only status, so a running dsh session never implies an unsupported live permission switch."
     },
     {
+      "title": "September 3 — Sidebar back control",
+      "summary": "",
+      "markdown": "- On Web Desktop, the persistent sidebar header keeps the existing Zen toggle followed by one localized Back text control, while its forward navigation control is removed. The Back control still closes file diff and file view overlays before returning through route history, with the separate sidebar collapse and expand boundary toggle remaining unchanged."
+    },
+    {
       "title": "September 3 — Unified file viewer modes, commentable Markdown previews, and human message alignment",
       "summary": "",
       "markdown": "- The file viewer now exposes one contextual **Preview** and, only for editable files, one **Edit**, with **Delete** only where already supported; the separate Source and HTML Interactive modes are removed. HTML always opens in one safe scriptless Preview.\n- A line-linked Markdown link (for example the `corrections.md` line-15 reproduction) now stays in the rendered, commentable **Preview** and reveals the matching rendered review unit — including the exact table row — instead of switching to a raw source surface. Raw text/code keeps its read-only line-commentable Preview.\n- Human message text within a right-aligned, vertically centered bubble is left-aligned again (was centered) and wraps naturally for short, multiline, Latin, and CJK content, keeping long-press copy.\n- On phone Web, touched file-viewer and Human-message surfaces — including the Markdown preview override and small labels — compute to at least 16px while the input anti-zoom guard remains intact."

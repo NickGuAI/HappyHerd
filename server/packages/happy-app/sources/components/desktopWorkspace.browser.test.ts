@@ -39,8 +39,13 @@ const virtualModules: Record<string, string> = {
     `,
     'expo-image': `
         import React from 'react';
-        import { View } from 'react-native';
-        export const Image = ({ style, testID }) => React.createElement(View, { style, testID, 'data-image': 'true' });
+        export const Image = ({ source, style, testID }) => React.createElement('img', {
+            src: typeof source === 'string' ? source : source?.uri,
+            style,
+            'data-testid': testID,
+            'data-image': 'true',
+            alt: '',
+        });
     `,
     'expo-linear-gradient': `
         import React from 'react';
@@ -60,7 +65,10 @@ const virtualModules: Record<string, string> = {
     'react-native-safe-area-context': `export const useSafeAreaInsets = () => ({ top: 0, right: 0, bottom: 0, left: 0 });`,
     'expo-router': `
         import React from 'react';
-        export const useRouter = () => ({ back() {}, push() {} });
+        export const useRouter = () => ({
+            back() { window.__ROUTER_BACK_COUNT__ = (window.__ROUTER_BACK_COUNT__ ?? 0) + 1; },
+            push() {},
+        });
         export const useLocalSearchParams = () => ({});
         export const Stack = { Screen: () => null };
     `,
@@ -105,7 +113,7 @@ const virtualModules: Record<string, string> = {
             'div',
             {
                 'data-testid': 'sidebar-content',
-                style: { height: '100%', padding: 20, background: '#f5f5f5', color: '#555' },
+                style: { height: '100%', padding: 20, paddingTop: 72, background: '#f5f5f5', color: '#555' },
             },
             'HappyHerd navigation',
         );
@@ -164,16 +172,29 @@ const virtualModules: Record<string, string> = {
     '@/hooks/useTauriZoom': `export const DEFAULT_APP_ZOOM = 1;`,
     '@/navigation/browserNavigation': `
         export const canRouteForward = () => false;
-        export const canUseRouteBack = () => false;
-        export const getNavigatorCanGoBack = () => false;
+        export const canUseRouteBack = () => !new URLSearchParams(window.location.search).has('back-disabled');
+        export const getNavigatorCanGoBack = () => true;
     `,
     '@/navigation/browserNavigationStore': `
-        const state = { routeHistory: null, markRouteBack() {}, markRouteForward() {} };
+        const state = {
+            routeHistory: {},
+            markRouteBack() { window.__ROUTE_BACK_MARK_COUNT__ = (window.__ROUTE_BACK_MARK_COUNT__ ?? 0) + 1; },
+            markRouteForward() {},
+        };
         export const useBrowserNavigationStore = (selector) => selector(state);
         useBrowserNavigationStore.getState = () => state;
     `,
     '@/-session/sessionOverlayNav': `
-        const state = { canBack: false, canForward: false, back: () => false, forward: () => false };
+        const state = {
+            canBack: !new URLSearchParams(window.location.search).has('back-disabled'),
+            canForward: false,
+            back: () => {
+                if (window.__OVERLAY_BACK_ENABLED__ === false) return false;
+                window.__OVERLAY_BACK_COUNT__ = (window.__OVERLAY_BACK_COUNT__ ?? 0) + 1;
+                return true;
+            },
+            forward: () => false,
+        };
         export const useOverlayNav = (selector) => selector(state);
         useOverlayNav.getState = () => state;
     `,
@@ -629,6 +650,59 @@ describe('Desktop workspace browser interaction', () => {
         await expect(boundaryToggle.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
         expect(pageErrors).toEqual([]);
         await page.close();
+    }, 10_000);
+
+    it('shows one localized Back control and consumes overlays before route history', async () => {
+        const page = await browser.newPage({ viewport: { width: 900, height: 300 } });
+        const pageErrors = recordPageErrors(page);
+        await page.goto(origin);
+        await page.waitForTimeout(100);
+        if (pageErrors.length > 0) throw new Error(`Browser fixture failed to render: ${pageErrors.join('\n')}`);
+
+        const headerDemo = page.getByTestId('collapsed-navigation-header-demo');
+        const zenToggle = headerDemo.getByLabel('Toggle Zen mode');
+        const controls = zenToggle.locator('..');
+        const back = controls.getByLabel('Back', { exact: true });
+
+        await expect(controls.locator('[aria-label]').count()).resolves.toBe(2);
+        await expect(back.textContent()).resolves.toBe('Back');
+        await expect(controls.locator('[data-icon="chevron-back"], [data-icon="chevron-forward"]').count()).resolves.toBe(0);
+        await expect(back.isEnabled()).resolves.toBe(true);
+        await expect(back.getAttribute('aria-label')).resolves.toBe('Back');
+
+        const zenBox = await zenToggle.boundingBox();
+        const backBox = await back.boundingBox();
+        if (!zenBox || !backBox) throw new Error('persistent header controls have no layout');
+        expect(zenBox.width).toBe(28);
+        expect(zenBox.height).toBe(28);
+        expect(backBox.width).toBe(28);
+        expect(backBox.height).toBe(28);
+        expect(backBox.x - zenBox.x - zenBox.width).toBe(4);
+
+        await back.click();
+        await expect(page.evaluate(() => (window as any).__OVERLAY_BACK_COUNT__ ?? 0)).resolves.toBe(1);
+        await expect(page.evaluate(() => (window as any).__ROUTE_BACK_MARK_COUNT__ ?? 0)).resolves.toBe(0);
+        await expect(page.evaluate(() => (window as any).__ROUTER_BACK_COUNT__ ?? 0)).resolves.toBe(0);
+
+        await page.evaluate(() => { (window as any).__OVERLAY_BACK_ENABLED__ = false; });
+        await back.click();
+        await expect(page.evaluate(() => (window as any).__OVERLAY_BACK_COUNT__ ?? 0)).resolves.toBe(1);
+        await expect(page.evaluate(() => (window as any).__ROUTE_BACK_MARK_COUNT__ ?? 0)).resolves.toBe(1);
+        await expect(page.evaluate(() => (window as any).__ROUTER_BACK_COUNT__ ?? 0)).resolves.toBe(1);
+
+        const evidencePath = process.env.HAPPYHERD_SIDEBAR_BACK_EVIDENCE_PATH?.trim();
+        if (evidencePath) await headerDemo.screenshot({ path: resolve(evidencePath) });
+        expect(pageErrors).toEqual([]);
+        await page.close();
+
+        const disabledPage = await browser.newPage({ viewport: { width: 900, height: 300 } });
+        await disabledPage.goto(origin + '?back-disabled=1');
+        const disabledBack = disabledPage
+            .getByTestId('collapsed-navigation-header-demo')
+            .getByLabel('Back', { exact: true });
+        await expect(disabledBack.isDisabled()).resolves.toBe(true);
+        await expect(disabledBack.evaluate((element) => getComputedStyle(element).opacity)).resolves.toBe('0.3');
+        await disabledPage.close();
     }, 10_000);
 
     it('uses the real boundary toggle and pointer divider without overlapping or remounting', async () => {

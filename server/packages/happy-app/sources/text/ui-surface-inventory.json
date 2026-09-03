@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "e58efb392a2518a9f9fcd958ee6ae5f5fa673added810107d90052b1e31cf238",
+  "sourceFingerprint": "79944018de9ad89d19e7847b759a8bf0d2c0799384d393ba6c8a3eff90c321b4",
   "routeCount": 36,
   "surfaceCount": 255,
   "hardcodedCopyCount": 0,
@@ -4496,6 +4496,7 @@
         "SidebarNavigator"
       ],
       "translationKeys": [
+        "common.back",
         "navigation.collapseSidebar",
         "navigation.expandSidebar",
         "zen.toggle"
