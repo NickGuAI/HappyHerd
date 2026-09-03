@@ -24,6 +24,19 @@ type CoverageAccumulator = {
     costBasis: Set<string>;
 };
 
+const REQUIRED_USAGE_PROVIDERS = ['claude', 'codex', 'grok', 'dsh'] as const;
+
+function emptyCoverageAccumulator(): CoverageAccumulator {
+    return {
+        tokenReports: 0,
+        tokenGaps: 0,
+        costReports: 0,
+        costGaps: 0,
+        limitations: new Set<string>(),
+        costBasis: new Set<string>(),
+    };
+}
+
 function validTotal(value: unknown): number {
     return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0;
 }
@@ -77,7 +90,13 @@ export function aggregateUsageReports(
         count: number;
         timestamp: number;
     }>();
-    const coverageByProvider = new Map<string, CoverageAccumulator>();
+    // Coverage must name every provider in the task contract even when a
+    // selected period contains no report for it. Otherwise an absent emitter
+    // disappears from the response and the UI can present an under-count as a
+    // complete total.
+    const coverageByProvider = new Map<string, CoverageAccumulator>(
+        REQUIRED_USAGE_PROVIDERS.map((provider) => [provider, emptyCoverageAccumulator()]),
+    );
     const seenReportIds = new Set<string>();
 
     for (const report of reports) {
@@ -115,14 +134,7 @@ export function aggregateUsageReports(
         }
         aggregated.set(bucketKey, bucket);
 
-        const providerCoverage = coverageByProvider.get(provider) ?? {
-            tokenReports: 0,
-            tokenGaps: 0,
-            costReports: 0,
-            costGaps: 0,
-            limitations: new Set<string>(),
-            costBasis: new Set<string>(),
-        };
+        const providerCoverage = coverageByProvider.get(provider) ?? emptyCoverageAccumulator();
         if (tokensAvailable) providerCoverage.tokenReports++;
         else providerCoverage.tokenGaps++;
         if (costAvailable) providerCoverage.costReports++;
