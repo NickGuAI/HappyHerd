@@ -6,6 +6,7 @@
 - On phone Web, touched file-viewer and Human-message surfaces — including the Markdown preview override and small labels — compute to at least 16px while the input anti-zoom guard remains intact.
 - Updated the Privacy Policy link in **Settings > About** to point to https://flern.co/privacy.
 - Updated the Terms of Service row in **Settings > About** to open https://flern.co/terms instead of the upstream GitHub TERMS.md URL.
+- Updated the Web version's **Settings > Support us** row to open the Buy Me a Coffee page with its original visual appearance and placement preserved, while native builds retain their existing voluntary-support paywall behavior.
 
 # September 2 — Project picker, chat presentation, and mobile layout enhancements
 

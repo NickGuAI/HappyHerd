@@ -59,6 +59,7 @@ jobs:
       HAPPYHERD_REPOSITORY_DISPLAY: ${{ github.repository }}
       HAPPYHERD_REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
       HAPPYHERD_ISSUE_URL: ${{ github.server_url }}/${{ github.repository }}/issues
+      HAPPYHERD_SUPPORT_URL: https://buymeacoffee.com/nickguy
     steps:
       - uses: actions/checkout@v4
 
