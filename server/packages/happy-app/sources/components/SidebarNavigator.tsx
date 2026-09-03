@@ -8,7 +8,7 @@ import { useLocalSetting, useLocalSettingMutable } from '@/sync/storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Octicons } from '@expo/vector-icons';
 import { useUnistyles } from 'react-native-unistyles';
 import { t } from '@/text';
 import { isTauri } from '@/utils/isTauri';
@@ -149,8 +149,8 @@ const DesktopNavigationBoundaryToggle = React.memo(function DesktopNavigationBou
                     : 'transparent',
             })}
         >
-            <Ionicons
-                name={navigationSidebarCollapsed ? 'chevron-forward' : 'chevron-back'}
+            <Octicons
+                name={navigationSidebarCollapsed ? 'sidebar-expand' : 'sidebar-collapse'}
                 size={18}
                 color={theme.colors.header.tint}
             />

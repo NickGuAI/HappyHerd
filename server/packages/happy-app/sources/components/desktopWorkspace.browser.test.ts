@@ -8,6 +8,14 @@ import { chromium, type Browser, type Locator, type Page } from 'playwright-core
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../..');
+const octiconsFontPath = resolve(
+    appRoot,
+    '../../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Octicons.ttf',
+);
+const octiconsGlyphMapPath = resolve(
+    appRoot,
+    '../../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/Octicons.json',
+);
 
 const virtualModules: Record<string, string> = {
     'react-native-unistyles': `
@@ -31,11 +39,37 @@ const virtualModules: Record<string, string> = {
     `,
     '@expo/vector-icons': `
         import React from 'react';
-        const glyph = { 'chevron-back': '‹', 'chevron-forward': '›', 'chevron-left': '‹', plus: '+', x: '×' };
+        import octiconsFontUrl from ${JSON.stringify(octiconsFontPath)};
+        import octiconsGlyphMap from ${JSON.stringify(octiconsGlyphMapPath)};
+        const glyph = {
+            'chevron-back': '‹',
+            'chevron-forward': '›',
+            'chevron-left': '‹',
+            plus: '+',
+            x: '×',
+        };
         const Icon = ({ name }) => React.createElement('span', { 'data-icon': name }, glyph[name] ?? '•');
         Icon.glyphMap = {};
+        const Octicon = ({ name, size, color }) => React.createElement(
+            React.Fragment,
+            null,
+            React.createElement(
+                'style',
+                null,
+                '@font-face{font-family:HappyHerdTestOcticons;src:url("' + octiconsFontUrl + '") format("truetype")}',
+            ),
+            React.createElement(
+                'span',
+                {
+                    'data-icon': name,
+                    style: { color, fontFamily: 'HappyHerdTestOcticons', fontSize: size, lineHeight: 1 },
+                },
+                String.fromCodePoint(octiconsGlyphMap[name]),
+            ),
+        );
+        Octicon.glyphMap = octiconsGlyphMap;
         export const Ionicons = Icon;
-        export const Octicons = Icon;
+        export const Octicons = Octicon;
     `,
     'expo-image': `
         import React from 'react';
@@ -539,7 +573,7 @@ describe('Desktop workspace browser interaction', () => {
             platform: 'browser',
             jsx: 'automatic',
             alias: { 'react-native': 'react-native-web' },
-            loader: { '.png': 'dataurl' },
+            loader: { '.png': 'dataurl', '.ttf': 'dataurl' },
             plugins: [fixturePlugin],
         });
         const script = bundle.outputFiles.find((file) => file.path.endsWith('.js'))?.text ?? bundle.outputFiles[0].text;
@@ -595,6 +629,20 @@ describe('Desktop workspace browser interaction', () => {
         };
 
         await expect(boundaryToggle.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
+        await expect(boundaryToggle.locator('[data-icon="sidebar-collapse"]').count()).resolves.toBe(1);
+        await expect(boundaryToggle.locator('[data-icon="sidebar-expand"]').count()).resolves.toBe(0);
+        await expect(boundaryToggle.locator('[data-icon^="chevron-"]').count()).resolves.toBe(0);
+        const expandedToggleBox = await boundaryToggle.boundingBox();
+        if (!expandedToggleBox) throw new Error('expanded navigation toggle has no layout');
+        expect(expandedToggleBox.width).toBe(28);
+        expect(expandedToggleBox.height).toBe(34);
+        await expect(boundaryToggle.evaluate((element) => getComputedStyle(element).borderRadius)).resolves.toBe('9px');
+        const toggleEvidenceDirectory = process.env.HAPPYHERD_SIDEBAR_TOGGLE_EVIDENCE_DIR?.trim();
+        if (toggleEvidenceDirectory) {
+            await boundaryToggle.screenshot({
+                path: resolve(toggleEvidenceDirectory, 'ticktick-6a9931b5-sidebar-expanded.png'),
+            });
+        }
         const zenToggle = headerDemo.getByLabel('Toggle Zen mode');
         await zenToggle.click();
         const zenDrawerBox = await drawer.boundingBox();
@@ -613,6 +661,8 @@ describe('Desktop workspace browser interaction', () => {
 
         await boundaryToggle.click();
         await expect(boundaryToggle.getAttribute('aria-label')).resolves.toBe('Expand navigation');
+        await expect(boundaryToggle.locator('[data-icon="sidebar-expand"]').count()).resolves.toBe(1);
+        await expect(boundaryToggle.locator('[data-icon="sidebar-collapse"]').count()).resolves.toBe(0);
         const collapsedGeometry = await hiddenToggleClearance();
 
         const idleBackground = await boundaryToggle.evaluate((element) => getComputedStyle(element).backgroundColor);
@@ -643,11 +693,17 @@ describe('Desktop workspace browser interaction', () => {
         await expect(page.evaluate(() => (window as any).__SESSION_TITLE_PRESS_COUNT__ ?? 0)).resolves.toBe(2);
 
         await page.mouse.move(700, 200);
+        if (toggleEvidenceDirectory) {
+            await boundaryToggle.screenshot({
+                path: resolve(toggleEvidenceDirectory, 'ticktick-6a9931b5-sidebar-collapsed.png'),
+            });
+        }
         const evidencePath = process.env.HAPPYHERD_COLLAPSED_NAV_EVIDENCE_PATH?.trim();
         if (evidencePath) await headerDemo.screenshot({ path: resolve(evidencePath) });
 
         await boundaryToggle.click();
         await expect(boundaryToggle.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
+        await expect(boundaryToggle.locator('[data-icon="sidebar-collapse"]').count()).resolves.toBe(1);
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 10_000);
@@ -717,6 +773,7 @@ describe('Desktop workspace browser interaction', () => {
         const collapse = sidebarDemo.getByTestId('navigation-sidebar-toggle');
         await collapse.waitFor();
         await expect(collapse.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
+        await expect(collapse.locator('[data-icon="sidebar-collapse"]').count()).resolves.toBe(1);
         const sidebarBox = await sidebarDemo.boundingBox();
         const drawerBox = await drawer.boundingBox();
         const collapseBox = await collapse.boundingBox();
@@ -785,6 +842,7 @@ describe('Desktop workspace browser interaction', () => {
         const expand = sidebarDemo.getByTestId('navigation-sidebar-toggle');
         await expand.waitFor();
         await expect(expand.getAttribute('aria-label')).resolves.toBe('Expand navigation');
+        await expect(expand.locator('[data-icon="sidebar-expand"]').count()).resolves.toBe(1);
         const expandBox = await expand.boundingBox();
         const zenBox = await sidebarDemo.getByLabel('Toggle Zen mode').boundingBox();
         if (!expandBox || !zenBox) throw new Error('collapsed controls have no layout');
@@ -801,6 +859,7 @@ describe('Desktop workspace browser interaction', () => {
 
         await expand.click();
         await expect(collapse.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
+        await expect(collapse.locator('[data-icon="sidebar-collapse"]').count()).resolves.toBe(1);
         const reopenedSplitBox = await splitDemo.boundingBox();
         if (!reopenedSplitBox) throw new Error('reopened split has no layout');
         expect(Math.abs(reopenedSplitBox.width - initialSplitBox.width)).toBeLessThan(2);

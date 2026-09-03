@@ -260,3 +260,4 @@ ALL_PROVIDER_SIDE_CHATS	accepted	chore(side-chat): register recent message curso
 DSH_ATTACHMENTS	accepted	feat(dsh): reuse workspace uploads for attachments	server/packages/happy-app/sources/hooks/useMachineFileUpload.test.ts
 DSH_ATTACHMENTS	accepted	fix(dsh): expose workspace photo uploads by default	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 SIDEBAR_BACK_CONTROL	accepted	fix(app): show one sidebar Back control	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
+SIDEBAR_COLLAPSE_ICON	accepted	fix(app): use standard sidebar toggle icons	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts

@@ -26,6 +26,11 @@
       "markdown": "- Choose the installed dsh provider's read-only, workspace-write, or danger-full-access preset before launch from New Session or HomeDock; Agent Defaults mirrors the exact selected-machine catalog.\n- The active composer shows the daemon-confirmed launch preset as read-only status, so a running dsh session never implies an unsupported live permission switch."
     },
     {
+      "title": "September 3 — Sidebar collapse icon",
+      "summary": "",
+      "markdown": "- On Web Desktop, the sidebar boundary toggle now shows a standard sidebar-collapse icon when open and its mirrored expand icon when collapsed, while its clicking behavior, accessibility labels, position, rounded bordered control geometry, hover/pressed styling, and all other header/sidebar controls remain unchanged."
+    },
+    {
       "title": "September 3 — Sidebar back control",
       "summary": "",
       "markdown": "- On Web Desktop, the persistent sidebar header keeps the existing Zen toggle followed by one localized Back text control, while its forward navigation control is removed. The Back control still closes file diff and file view overlays before returning through route history, with the separate sidebar collapse and expand boundary toggle remaining unchanged."
