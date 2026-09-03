@@ -251,4 +251,5 @@ MOBILE_WEB_UX	accepted	fix(app): floor auto-focused Web inputs	server/packages/h
 MOBILE_WEB_UX	accepted	chore(app): refresh final mobile UX inventory	server/packages/happy-app/sources/text/ui-surface-inventory.json
 MOBILE_WEB_UX	accepted	chore(app): register mobile UX patches	docs/owned-patches.tsv
 PRIVACY_POLICY_LINK	accepted	fix(settings): update privacy policy link	server/packages/happy-app/sources/components/SettingsView.browser.test.ts
+TERMS_OF_SERVICE_LINK	accepted	fix(settings): update terms of service link	server/packages/happy-app/sources/components/SettingsView.browser.test.ts
 PUBLIC_BOUNDARY	accepted	fix(public-boundary): normalize merged skill identity	scripts/test-public-boundary.mjs
