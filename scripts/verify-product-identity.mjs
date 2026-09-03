@@ -8,6 +8,7 @@ const appRoot = resolve(repoRoot, 'server/packages/happy-app');
 const metadata = JSON.parse(readFileSync(resolve(appRoot, 'product-metadata.json'), 'utf8'));
 const cliPackage = JSON.parse(readFileSync(resolve(appRoot, '../happy-cli/package.json'), 'utf8'));
 const appConfig = readFileSync(resolve(appRoot, 'app.config.js'), 'utf8');
+const productSource = readFileSync(resolve(appRoot, 'sources/constants/product.ts'), 'utf8');
 const settingsView = readFileSync(resolve(appRoot, 'sources/components/SettingsView.tsx'), 'utf8');
 
 const expected = {
@@ -38,8 +39,16 @@ for (const key of ['repositoryDisplay', 'repositoryUrl', 'issueUrl']) {
     throw new Error(`product metadata must not hard-code repository ownership: ${key}`);
   }
 }
+for (const source of [
+  "repositoryDisplay: process.env.EXPO_PUBLIC_HAPPYHERD_REPOSITORY_DISPLAY?.trim() || 'NickGuAI/HappyHerd'",
+  "repositoryUrl: process.env.EXPO_PUBLIC_HAPPYHERD_REPOSITORY_URL?.trim() || 'https://github.com/NickGuAI/HappyHerd'",
+]) {
+  if (!productSource.includes(source)) {
+    throw new Error(`HappyHerd repository default or deployment override is missing: ${source}`);
+  }
+}
 if (!settingsView.includes('{PRODUCT.repositoryUrl ? (') || !settingsView.includes('{PRODUCT.issueUrl ? (')) {
-  throw new Error('About/support UI must hide repository actions when deployment metadata is absent');
+  throw new Error('About/support UI must keep actions gated by their resolved destinations');
 }
 for (const stale of ["detail=\"slopus/happy\"", "openExternalUrl('https://github.com/slopus/happy')", "openExternalUrl('https://github.com/slopus/happy/issues')"]) {
   if (settingsView.includes(stale)) {

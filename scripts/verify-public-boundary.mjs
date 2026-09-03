@@ -23,9 +23,14 @@ const approvedPublicSupportPattern = new RegExp(
   'g',
 );
 const approvedRepositoryOwner = ['Nick', 'GuAI'].join('');
-const approvedRepositoryPattern = new RegExp(
+const approvedRepositoryUrlPattern = new RegExp(
   `https://(?:github\\.com|raw\\.githubusercontent\\.com)/${approvedRepositoryOwner}/HappyHerd`
-    + `(?=$|/|[\\s)"'\\]}>]|[.,](?:$|[\\s)"'\\]}>]))`,
+    + `(?=$|/|[\\s)"'\\x60\\]}>]|[.,](?:$|[\\s)"'\\x60\\]}>]))`,
+  'g',
+);
+const approvedRepositoryDisplayPattern = new RegExp(
+  `(?<![A-Za-z0-9._/@#])${approvedRepositoryOwner}/HappyHerd`
+    + `(?=$|[\\s)"'\\x60\\]}>]|[.,](?:$|[\\s)"'\\x60\\]}>]))`,
   'g',
 );
 const maxTextBytes = 2 * 1024 * 1024;
@@ -110,9 +115,18 @@ function inspectText(path, text) {
   if (/\.happyherd\/commanders\/[0-9a-f]{8}-[0-9a-f-]{27,}/i.test(text)) {
     findings.push('concrete private Commander identifier');
   }
+  for (const url of text.match(/https?:\/\/[^\s)"'`\]}>]+/g) ?? []) {
+    const withoutApprovedUrlIdentity = url
+      .replace(approvedPublicSupportPattern, '')
+      .replace(approvedRepositoryUrlPattern, '');
+    if (personalIdentityMarkers.some((pattern) => pattern.test(withoutApprovedUrlIdentity))) {
+      findings.push('operator-specific personal identity');
+    }
+  }
   const withoutApprovedPublicIdentity = text
     .replace(approvedPublicSupportPattern, '')
-    .replace(approvedRepositoryPattern, '');
+    .replace(approvedRepositoryUrlPattern, '')
+    .replace(approvedRepositoryDisplayPattern, '');
   if (personalIdentityMarkers.some((pattern) => pattern.test(withoutApprovedPublicIdentity))) {
     findings.push('operator-specific personal identity');
   }

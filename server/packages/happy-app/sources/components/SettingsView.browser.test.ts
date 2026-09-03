@@ -68,8 +68,8 @@ const virtualModules: Record<string, string> = {
         export const PRODUCT = {
             displayName: 'HappyHerd',
             issueUrl: 'https://example.com/happyherd/issues/new',
-            repositoryDisplay: 'example/happyherd',
-            repositoryUrl: 'https://example.com/happyherd',
+            repositoryDisplay: 'NickGuAI/HappyHerd',
+            repositoryUrl: 'https://github.com/NickGuAI/HappyHerd',
             supportUrl: 'https://buymeacoffee.com/nickguy',
         };
     `,
@@ -240,6 +240,9 @@ describe('Settings policy links browser interaction', () => {
         });
         await expect(page.locator('[data-icon="shield-checkmark-outline"]').count()).resolves.toBe(1);
         await privacy.click();
+        const repositoryDetail = page.getByText('NickGuAI/HappyHerd', { exact: true });
+        await expect(repositoryDetail.count()).resolves.toBe(1);
+        await expect(repositoryDetail.locator('xpath=../..').locator('[data-icon="logo-github"]').count()).resolves.toBe(1);
         await page.getByText('GitHub', { exact: true }).last().click();
         await page.getByText('Report Issue', { exact: true }).click();
         await page.getByText('Terms of Service', { exact: true }).click();
@@ -251,7 +254,7 @@ describe('Settings policy links browser interaction', () => {
         await expect(page.evaluate(() => (window as any).__OPEN_CALLS__)).resolves.toEqual([
             { url: 'https://buymeacoffee.com/nickguy', target: '_blank', features: 'noopener,noreferrer' },
             { url: 'https://flern.co/privacy', target: '_blank', features: 'noopener,noreferrer' },
-            { url: 'https://example.com/happyherd', target: '_blank', features: 'noopener,noreferrer' },
+            { url: 'https://github.com/NickGuAI/HappyHerd', target: '_blank', features: 'noopener,noreferrer' },
             { url: 'https://example.com/happyherd/issues/new', target: '_blank', features: 'noopener,noreferrer' },
             { url: 'https://flern.co/terms', target: '_blank', features: 'noopener,noreferrer' },
         ]);
