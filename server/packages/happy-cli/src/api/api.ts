@@ -14,6 +14,7 @@ import chalk from 'chalk';
 import { Credentials } from '@/persistence';
 import { connectionState, isNetworkError } from '@/utils/serverConnectionErrors';
 import { loadSessionRecords } from './sessionLookup';
+import type { DecryptedSideChatMessage } from '@/commands/sideChatContext';
 
 export class ApiClient {
 
@@ -210,6 +211,50 @@ export class ApiClient {
     };
   }
 
+  /** Read one bounded newest-first page and decrypt it without routing records to a live provider. */
+  async readRecentSessionMessages(session: Session, limit = 500): Promise<DecryptedSideChatMessage[]> {
+    const boundedLimit = Number.isFinite(limit)
+      ? Math.min(500, Math.max(1, Math.floor(limit)))
+      : 500;
+    const response = await axios.get(
+      `${configuration.serverUrl}/v3/sessions/${encodeURIComponent(session.id)}/messages`,
+      {
+        params: { before_seq: Number.MAX_SAFE_INTEGER, limit: boundedLimit },
+        headers: {
+          'Authorization': `Bearer ${this.credential.token}`,
+          'X-Happy-Client': `cli-coding-session/${configuration.currentCliVersion}`,
+        },
+        timeout: 60000,
+      },
+    );
+    const rows = Array.isArray(response.data?.messages) ? response.data.messages : [];
+    return rows.flatMap((row: unknown) => {
+      if (!row || typeof row !== 'object' || Array.isArray(row)) return [];
+      const value = row as Record<string, unknown>;
+      const encrypted = value.content as { t?: unknown; c?: unknown } | undefined;
+      if (typeof value.seq !== 'number'
+        || typeof value.createdAt !== 'number'
+        || encrypted?.t !== 'encrypted'
+        || typeof encrypted.c !== 'string') return [];
+      try {
+        const content = decrypt(
+          session.encryptionKey,
+          session.encryptionVariant,
+          decodeBase64(encrypted.c),
+        );
+        if (content === null) return [];
+        return [{
+          seq: value.seq,
+          localId: typeof value.localId === 'string' ? value.localId : null,
+          createdAt: value.createdAt,
+          content,
+        }];
+      } catch {
+        return [];
+      }
+    });
+  }
+
   private async postEncryptedSessionMessage(
     session: Session,
     content: unknown,
@@ -285,6 +330,7 @@ export class ApiClient {
   async postSideChatBrief(session: Session, input: {
     localId: string;
     text: string;
+    providerContinuationHandoff?: boolean;
   }): Promise<void> {
     await this.postQueuedUserMessage(session, {
       localId: input.localId,
@@ -293,6 +339,7 @@ export class ApiClient {
         sentFrom: 'happyherd-side-chat',
         deliveryMode: 'queue',
         queueMessageId: input.localId,
+        ...(input.providerContinuationHandoff ? { providerContinuationHandoff: true } : {}),
       },
     });
   }

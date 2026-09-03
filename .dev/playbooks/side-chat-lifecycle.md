@@ -31,8 +31,13 @@ happyherd session side-chat create <parent-session-id> \
   --json
 ```
 
-The daemon forks the parent provider state and creates a child session on the
-same machine and path. Human creation omits the brief, records
+The daemon creates a same-provider child on the same machine and path. Claude
+and Codex retain their provider-native forks. Gemini, Grok, DSH, and Agy start
+a fresh provider process and receive only the latest four visible parent
+messages, capped at 6,000 characters, in the existing encrypted queued brief.
+Tools, thinking, attachments, malformed records, and previous continuation
+handoffs are excluded. Context-read and settings failures happen before spawn.
+Human creation omits the brief, records
 `deliver-brief` as skipped, and leaves the child empty for the Human's first
 message through the normal composer. Main Agent creation validates all six
 non-empty fields and persists the rendered brief as the child's first encrypted
@@ -80,7 +85,11 @@ brief delivery fails after the child is created, the failed receipt retains
 Orchestrating Agent can inspect or close the exact conversation.
 
 `inspect`, `pause`, and `resume` are aliases for `status`, `stop`, and
-`reopen`; lifecycle receipts keep the canonical action names.
+`reopen`; lifecycle receipts keep the canonical action names. Claude, Codex,
+and Grok retain provider-native resume. Gemini, DSH, and Agy reopen the same
+Happy session with a fresh same-provider process seeded from bounded visible
+child context; do not describe that behavior as native provider resume. The
+dedicated Gemini side-chat path does not re-enable ordinary Gemini launch UI.
 
 Treat `success: false` and its nonzero process exit as an incomplete operation;
 do not infer success from a provider process disappearing or from archived UI

@@ -207,14 +207,35 @@ describe('createChildSideChat', () => {
     }));
   });
 
-  it.each(['grok', 'acp', 'gemini', 'agy', 'opencode']) (
+  it.each(['gemini', 'grok', 'dsh', 'agy'] as const) (
+    'starts a fresh same-provider child for %s without invoking a native fork',
+    async (flavor) => {
+      const deps = dependencies({
+        flavor,
+        machineId: machine.id,
+        path: '/srv/project',
+      });
+
+      await expect(createChildSideChat(parentId, deps)).resolves.toEqual({ sessionId: 'happy-child' });
+      expect(deps.machineRpc).not.toHaveBeenCalled();
+      expect(deps.createMachineSession).toHaveBeenCalledWith({
+        machine,
+        directory: '/srv/project',
+        approvedNewDirectoryCreation: false,
+        agent: flavor,
+        parentSessionId: parentId,
+        isSideChat: true,
+      });
+    },
+  );
+
+  it.each(['acp', 'opencode']) (
     'rejects unsupported %s parents without trying another provider',
     async (flavor) => {
       const deps = dependencies({
         flavor,
         machineId: machine.id,
         path: '/srv/project',
-        claudeSessionId: 'must-not-fallback',
       });
 
       await expect(createChildSideChat(parentId, deps))

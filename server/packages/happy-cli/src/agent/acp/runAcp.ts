@@ -617,6 +617,14 @@ function turnStatusForStopReason(stopReason: StopReason): 'completed' | 'cancell
   return 'completed';
 }
 
+export function resolveAcpLoadSessionId(
+  explicitResumeSessionId: string | undefined,
+  persistedAcpSessionId: string | undefined,
+  freshProviderReconnect = process.env.HAPPYHERD_FRESH_PROVIDER_RECONNECT === '1',
+): string | undefined {
+  return freshProviderReconnect ? undefined : explicitResumeSessionId ?? persistedAcpSessionId;
+}
+
 export async function runAcp(opts: {
   credentials: Credentials;
   agentName: string;
@@ -715,9 +723,21 @@ export async function runAcp(opts: {
         : []),
     ]))
     : [];
+  const priorityReconnectQueueMessageId = opts.agentName === 'dsh'
+    && process.env.HAPPYHERD_FRESH_PROVIDER_RECONNECT === '1'
+    ? process.env.HAPPY_RECONNECT_QUEUE_MESSAGE_ID
+    : undefined;
   if (reconnectSessionId) {
     session.suppressNextArchiveSignal();
-    session.skipExistingMessages(reconnectQueueMessageIds, response?.seq ?? Number.MAX_SAFE_INTEGER);
+    if (priorityReconnectQueueMessageId) {
+      session.skipExistingMessages(
+        reconnectQueueMessageIds,
+        response?.seq ?? Number.MAX_SAFE_INTEGER,
+        priorityReconnectQueueMessageId,
+      );
+    } else {
+      session.skipExistingMessages(reconnectQueueMessageIds, response?.seq ?? Number.MAX_SAFE_INTEGER);
+    }
     session.updateMetadata((currentMetadata) => ({
       ...currentMetadata,
       lifecycleState: 'running',
@@ -748,7 +768,10 @@ export async function runAcp(opts: {
   permissionHandler.reset('Previous CLI process exited before responding');
   const sessionManager = new AcpSessionManager();
   const messageQueue = new MessageQueue2<AcpSwitchMode>((mode) => hashObject(mode));
-  messageQueue.restorePendingQueueMessageIds(reconnectQueueMessageIds);
+  messageQueue.restorePendingQueueMessageIds(
+    reconnectQueueMessageIds,
+    priorityReconnectQueueMessageId,
+  );
   messageQueue.setOnQueueStateChange((messageQueueState) => {
     session.updateAgentState((currentState) => ({ ...currentState, messageQueue: messageQueueState }));
   });
@@ -792,7 +815,7 @@ export async function runAcp(opts: {
     permissionHandler,
     transportHandler: new DefaultTransport(opts.agentName),
     verbose,
-    loadSessionId: opts.resumeSessionId ?? response?.metadata?.acpSessionId,
+    loadSessionId: resolveAcpLoadSessionId(opts.resumeSessionId, response?.metadata?.acpSessionId),
     processEnv: opts.agentName === 'grok' ? sanitizeGrokChildEnvironment(process.env) : undefined,
   });
 
@@ -1257,7 +1280,7 @@ export async function runAcp(opts: {
       permissionMode: currentPermissionMode,
       model: currentModel,
       effort: currentEffort,
-    });
+    }, undefined, message.localKey ?? message.meta?.queueMessageId);
   });
   session.keepAlive(thinking, 'remote');
 
@@ -1355,6 +1378,7 @@ export async function runAcp(opts: {
 
       logAcp('incoming', `Incoming prompt: ${formatUnknownForConsole(batch.message, ACP_EVENT_PREVIEW_CHARS)}`);
       await protocolWork;
+      messageQueue.markBatchStarted(batch.queueMessageIds);
       observedTurnImages.length = 0;
       generatedImageNamesByProviderPath.clear();
       generatedImagePathsByPseudoName.clear();
@@ -1370,6 +1394,7 @@ export async function runAcp(opts: {
             await protocolWork;
             sendEnvelopes(sessionManager.endTurn('failed'));
             session.sendSessionEvent({ type: 'ready' });
+            messageQueue.completeCurrentBatch(batch.queueMessageIds);
             continue;
           }
         }
@@ -1378,6 +1403,7 @@ export async function runAcp(opts: {
         await protocolWork;
         sendEnvelopes(sessionManager.endTurn(turnStatusForStopReason(promptResult.stopReason)));
         session.sendSessionEvent({ type: 'ready' });
+        messageQueue.completeCurrentBatch(batch.queueMessageIds);
         if (verbose) {
           logAcp('muted', `Outgoing prompt completion from ${opts.agentName}: stopReason=${promptResult.stopReason}`);
         }
@@ -1385,6 +1411,7 @@ export async function runAcp(opts: {
         await protocolWork;
         sendEnvelopes(sessionManager.endTurn('failed'));
         session.sendSessionEvent({ type: 'ready' });
+        messageQueue.completeCurrentBatch(batch.queueMessageIds);
         logAcp('error', `Prompt error from ${opts.agentName}: ${error instanceof Error ? error.message : String(error)}`);
         if (opts.agentName === 'grok') {
           const hardLimit = classifyGrokHardLimit(error);

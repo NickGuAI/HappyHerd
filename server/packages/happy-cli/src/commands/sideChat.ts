@@ -3,6 +3,8 @@ type ParentSession = {
   metadata: unknown;
 };
 
+export type SideChatProvider = 'claude' | 'codex' | 'gemini' | 'grok' | 'dsh' | 'agy';
+
 export type ResolvedSideChatMachine = {
   id: string;
   active: boolean;
@@ -12,7 +14,7 @@ type SpawnSideChatInput = {
   machine: ResolvedSideChatMachine;
   directory: string;
   approvedNewDirectoryCreation: false;
-  agent: 'claude' | 'codex';
+  agent: SideChatProvider;
   modelMode?: string;
   effortLevel?: string;
   resumeClaudeSessionId?: string;
@@ -178,11 +180,11 @@ export type SideChatLifecycleReceipt =
   | SideChatCloseAllReceipt;
 
 type SideChatSource = Readonly<{
-  kind: 'claude' | 'codex';
+  kind: SideChatProvider;
   sessionId: string;
   machineId: string;
   directory: string;
-  backendSessionId: string;
+  backendSessionId?: string;
 }>;
 
 function nonEmptyString(value: unknown): value is string {
@@ -248,7 +250,11 @@ export function formatSideChatDelegationPrompt(
   parentSessionId: string,
   childSessionId: string,
   brief: SideChatDelegationBrief,
+  freshProviderContext?: string,
 ): string {
+  const continuity = freshProviderContext
+    ? `\n\n## Provider continuity\n\nThis child starts a fresh same-provider process without sharing the parent's provider-native conversation state. The current workspace files are authoritative.\n\n${freshProviderContext}`
+    : '';
   return `# Delegated delivery brief
 
 You are the Worker Agent in HappyHerd side chat \`${childSessionId}\`, delegated by Orchestrating Agent session \`${parentSessionId}\`. The Human interacts directly with the Main Agent. A provider-native subagent is the default inline fan-out for bounded parallel work; this HappyHerd side chat is a durable, visible, resumable child conversation with stable parent lineage.
@@ -263,7 +269,7 @@ ${brief.scope}
 
 ## Dependencies
 
-${brief.dependencies}
+${brief.dependencies}${continuity}
 
 ## Write ownership
 
@@ -288,22 +294,29 @@ function record(value: unknown): Record<string, unknown> {
     : {};
 }
 
+export function resolveSideChatProvider(metadataValue: unknown): SideChatProvider | null {
+  const metadata = record(metadataValue);
+  const flavor = nonEmptyString(metadata.flavor)
+    ? metadata.flavor
+    : nonEmptyString(metadata.claudeSessionId) ? 'claude' : null;
+  return flavor && ['claude', 'codex', 'gemini', 'grok', 'dsh', 'agy'].includes(flavor)
+    ? flavor as SideChatProvider
+    : null;
+}
+
 function resolveSideChatSource(parent: ParentSession): SideChatSource {
   const metadata = record(parent.metadata);
   // Historical Claude sessions predate explicit flavor metadata. Keep the
   // same compatibility contract as the existing UI and resume paths: a
   // Claude backend ID identifies those records without guessing across
   // providers that do advertise a flavor.
-  const flavor = nonEmptyString(metadata.flavor)
-    ? metadata.flavor
-    : nonEmptyString(metadata.claudeSessionId) ? 'claude' : null;
+  const advertisedFlavor = nonEmptyString(metadata.flavor) ? metadata.flavor : null;
+  const flavor = resolveSideChatProvider(metadata);
   if (!flavor) {
+    if (advertisedFlavor) {
+      throw new Error(`Happy session ${parent.id} uses unsupported provider "${advertisedFlavor}".`);
+    }
     throw new Error(`Happy session ${parent.id} is missing provider metadata.`);
-  }
-  if (flavor !== 'claude' && flavor !== 'codex') {
-    throw new Error(
-      `Happy session ${parent.id} uses unsupported provider "${flavor}"; side chats require Claude or Codex.`,
-    );
   }
   if (!nonEmptyString(metadata.machineId)) {
     throw new Error(`Happy session ${parent.id} is missing owning machine metadata.`);
@@ -314,23 +327,24 @@ function resolveSideChatSource(parent: ParentSession): SideChatSource {
 
   const backendSessionId = flavor === 'codex'
     ? metadata.codexThreadId
-    : metadata.claudeSessionId;
-  const backendLabel = flavor === 'codex' ? 'Codex thread' : 'Claude session';
-  if (!nonEmptyString(backendSessionId)) {
+    : flavor === 'claude' ? metadata.claudeSessionId : undefined;
+  if ((flavor === 'claude' || flavor === 'codex') && !nonEmptyString(backendSessionId)) {
+    const backendLabel = flavor === 'codex' ? 'Codex thread' : 'Claude session';
     throw new Error(`Happy session ${parent.id} is missing its ${backendLabel} ID.`);
   }
+  const normalizedBackendSessionId = nonEmptyString(backendSessionId) ? backendSessionId : undefined;
 
   return Object.freeze({
-    kind: flavor,
+    kind: flavor as SideChatProvider,
     sessionId: parent.id,
     machineId: metadata.machineId,
     directory: metadata.path,
-    backendSessionId,
+    ...(normalizedBackendSessionId ? { backendSessionId: normalizedBackendSessionId } : {}),
   });
 }
 
 function requireForkedBackendId(
-  provider: SideChatSource['kind'],
+  provider: 'claude' | 'codex',
   result: unknown,
 ): string {
   if (!result || typeof result !== 'object' || Array.isArray(result)) {
@@ -361,16 +375,20 @@ export async function createChildSideChat(
     throw new Error(`Owning machine ${source.machineId} for Happy session ${source.sessionId} is offline.`);
   }
 
-  const forkResult = source.kind === 'codex'
-    ? await dependencies.machineRpc(machine, 'codex-fork-thread', {
+  let forkedBackendId: string | undefined;
+  if (source.kind === 'codex') {
+    const forkResult = await dependencies.machineRpc(machine, 'codex-fork-thread', {
       directory: source.directory,
-      codexThreadId: source.backendSessionId,
-    })
-    : await dependencies.machineRpc(machine, 'claude-fork-session', {
-      directory: source.directory,
-      claudeSessionId: source.backendSessionId,
+      codexThreadId: source.backendSessionId!,
     });
-  const forkedBackendId = requireForkedBackendId(source.kind, forkResult);
+    forkedBackendId = requireForkedBackendId(source.kind, forkResult);
+  } else if (source.kind === 'claude') {
+    const forkResult = await dependencies.machineRpc(machine, 'claude-fork-session', {
+      directory: source.directory,
+      claudeSessionId: source.backendSessionId!,
+    });
+    forkedBackendId = requireForkedBackendId(source.kind, forkResult);
+  }
 
   const spawnResult = await dependencies.createMachineSession({
     machine,
@@ -381,7 +399,7 @@ export async function createChildSideChat(
     ...(launch?.effort ? { effortLevel: launch.effort } : {}),
     ...(source.kind === 'codex'
       ? { resumeCodexThreadId: forkedBackendId }
-      : { resumeClaudeSessionId: forkedBackendId }),
+      : source.kind === 'claude' ? { resumeClaudeSessionId: forkedBackendId } : {}),
     parentSessionId: source.sessionId,
     isSideChat: true,
   });

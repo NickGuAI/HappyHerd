@@ -20,4 +20,10 @@ describe('CLI message metadata contract', () => {
       .toEqual({ userSafeguardEnabled: true });
     expect(MessageMetaSchema.safeParse({ userSafeguardEnabled: 1 }).success).toBe(false);
   });
+
+  it('preserves only a boolean fresh-provider handoff marker', () => {
+    expect(MessageMetaSchema.parse({ providerContinuationHandoff: true }))
+      .toEqual({ providerContinuationHandoff: true });
+    expect(MessageMetaSchema.safeParse({ providerContinuationHandoff: 'yes' }).success).toBe(false);
+  });
 });

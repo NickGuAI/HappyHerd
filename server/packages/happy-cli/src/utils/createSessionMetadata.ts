@@ -68,6 +68,16 @@ export function providerContinuationMetadataFromEnvironment(): Pick<Metadata, 'c
     return continuedFromSessionId ? { continuedFromSessionId } : {};
 }
 
+export function sideChatMetadataFromEnvironment(): Pick<Metadata, 'parentSessionId' | 'isSideChat'> {
+    const parentSessionId = process.env.HAPPY_FORKED_FROM_SESSION_ID?.trim();
+    const isSideChat = process.env.HAPPY_SIDE_CHAT === '1';
+    delete process.env.HAPPY_FORKED_FROM_SESSION_ID;
+    delete process.env.HAPPY_SIDE_CHAT;
+    return parentSessionId && isSideChat
+        ? { parentSessionId, isSideChat: true }
+        : {};
+}
+
 function getGitBranch(cwd: string): string | undefined {
     try {
         const branch = execSync('git rev-parse --abbrev-ref HEAD', {
@@ -140,6 +150,7 @@ export function createSessionMetadata(opts: CreateSessionMetadataOptions): Sessi
         ...(opts.parentSessionId ? { parentSessionId: opts.parentSessionId } : {}),
         ...(opts.forkedFromMessageId ? { forkedFromMessageId: opts.forkedFromMessageId } : {}),
         ...(opts.isSideChat ? { isSideChat: true } : {}),
+        ...sideChatMetadataFromEnvironment(),
         ...providerContinuationMetadataFromEnvironment(),
         ...contextMetadataFromEnvironment(),
         ...automationMetadataFromEnvironment(),

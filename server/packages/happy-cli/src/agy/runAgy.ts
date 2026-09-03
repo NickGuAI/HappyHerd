@@ -18,6 +18,7 @@ import { AcpSessionManager } from '@/agent/acp/AcpSessionManager';
 import type { SessionEnvelope } from '@slopus/happy-wire';
 import { logger } from '@/ui/logger';
 import { MessageQueue2 } from '@/utils/MessageQueue2';
+import { configureHappySessionReconnect, loadOrCreateHappySession } from '@/utils/sessionReconnect';
 import { Credentials, readSettings } from '@/persistence';
 import { initialMachineMetadata } from '@/daemon/run';
 import { createSessionMetadata } from '@/utils/createSessionMetadata';
@@ -93,7 +94,8 @@ export async function runAgy(opts: RunAgyOptions): Promise<void> {
   displayedModel = effectiveLaunchSettings.model;
   metadata.permissionMode = selectedPermissionMode;
   metadata.modelMode = displayedModel;
-  const response = await api.getOrCreateSession({ tag: sessionTag, metadata, state });
+  const reconnect = await loadOrCreateHappySession({ api, sessionTag, metadata, state });
+  const response = reconnect.response;
   if (response) {
     log(`Happy Session ID: ${response.id}`);
   }
@@ -110,6 +112,7 @@ export async function runAgy(opts: RunAgyOptions): Promise<void> {
     },
   });
   session = initialSession;
+  configureHappySessionReconnect(session, reconnect);
 
   if (response) {
     try {
@@ -127,6 +130,17 @@ export async function runAgy(opts: RunAgyOptions): Promise<void> {
 
   const sessionManager = new AcpSessionManager();
   const messageQueue = new MessageQueue2<AgyTurnMode>(hashAgyTurnMode);
+  messageQueue.restorePendingQueueMessageIds(
+    reconnect.queueMessageIds,
+    reconnect.priorityQueueMessageId ?? undefined,
+  );
+  messageQueue.setOnQueueStateChange((messageQueueState) => {
+    session.updateAgentState((currentState) => ({ ...currentState, messageQueue: messageQueueState }));
+  });
+  session.updateAgentState((currentState) => ({
+    ...currentState,
+    messageQueue: messageQueue.getQueueState(),
+  }));
   let shouldExit = false;
   let abortController = new AbortController();
   let thinking = false;
@@ -223,7 +237,7 @@ export async function runAgy(opts: RunAgyOptions): Promise<void> {
     messageQueue.push(message.content.text, {
       permissionMode: selectedPermissionMode,
       model: displayedModel,
-    });
+    }, undefined, message.localKey);
   });
   session.keepAlive(thinking, 'remote');
 
@@ -265,6 +279,7 @@ export async function runAgy(opts: RunAgyOptions): Promise<void> {
       }
 
       log(`Incoming prompt: ${batch.message.slice(0, 200)}`);
+      messageQueue.markBatchStarted(batch.queueMessageIds);
       sendEnvelopes(sessionManager.startTurn());
       try {
         // Apply the immutable settings captured with this batch. Later remote
@@ -277,6 +292,8 @@ export async function runAgy(opts: RunAgyOptions): Promise<void> {
         const msg = error instanceof Error ? error.message : String(error);
         log(`Turn ended: ${msg}`);
         sendEnvelopes(sessionManager.endTurn('failed'));
+      } finally {
+        messageQueue.completeCurrentBatch(batch.queueMessageIds);
       }
       thinking = false;
       session.keepAlive(false, 'remote');

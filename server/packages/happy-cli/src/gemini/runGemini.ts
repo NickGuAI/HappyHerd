@@ -19,7 +19,8 @@ import { createSessionMetadata } from '@/utils/createSessionMetadata';
 import { initialMachineMetadata } from '@/daemon/run';
 import { configuration } from '@/configuration';
 import packageJson from '../../package.json';
-import { MessageQueue2 } from '@/utils/MessageQueue2';
+import { MessageQueue2, type MessageQueueBatch } from '@/utils/MessageQueue2';
+import { configureHappySessionReconnect, loadOrCreateHappySession } from '@/utils/sessionReconnect';
 import { hashObject } from '@/utils/deterministicJson';
 import { projectPath } from '@/projectPath';
 import { startHappyServer } from '@/claude/utils/startHappyServer';
@@ -136,7 +137,8 @@ export async function runGemini(opts: {
     startedBy: opts.startedBy,
     sandbox: sandboxConfig,
   });
-  const response = await api.getOrCreateSession({ tag: sessionTag, metadata, state });
+  const reconnect = await loadOrCreateHappySession({ api, sessionTag, metadata, state });
+  const response = reconnect.response;
 
   // Handle server unreachable case - create offline stub with hot reconnection
   let session: ApiSessionClient;
@@ -186,6 +188,7 @@ export async function runGemini(opts: {
     }
   });
   session = initialSession;
+  configureHappySessionReconnect(session, reconnect);
 
   // Report to daemon (only if we have a real session)
   if (response) {
@@ -211,6 +214,17 @@ export async function runGemini(opts: {
   const messageQueue = new MessageQueue2<GeminiMode>((mode) => hashObject({
     permissionMode: mode.permissionMode,
     model: mode.model,
+  }));
+  messageQueue.restorePendingQueueMessageIds(
+    reconnect.queueMessageIds,
+    reconnect.priorityQueueMessageId ?? undefined,
+  );
+  messageQueue.setOnQueueStateChange((messageQueueState) => {
+    session.updateAgentState((currentState) => ({ ...currentState, messageQueue: messageQueueState }));
+  });
+  session.updateAgentState((currentState) => ({
+    ...currentState,
+    messageQueue: messageQueue.getQueueState(),
   }));
   const permissionTurnState = new GeminiPermissionTurnState();
 
@@ -278,10 +292,12 @@ export async function runGemini(opts: {
       model: messageModel,
       originalUserMessage, // Store original message separately
     };
-    messageQueue.push(fullPrompt, mode);
+    messageQueue.push(fullPrompt, mode, undefined, message.localKey);
     
     // Record user message in conversation history for context preservation
-    conversationHistory.addUserMessage(originalUserMessage);
+    if (!reconnect.priorityQueueMessageId) {
+      conversationHistory.addUserMessage(originalUserMessage);
+    }
   });
 
   let thinking = false;
@@ -888,10 +904,10 @@ export async function runGemini(opts: {
 
   try {
     let currentModeHash: string | null = null;
-    let pending: { message: string; mode: GeminiMode; isolate: boolean; hash: string } | null = null;
+    let pending: MessageQueueBatch<GeminiMode> | null = null;
 
     while (!shouldExit) {
-      let message: { message: string; mode: GeminiMode; isolate: boolean; hash: string } | null = pending;
+      let message: MessageQueueBatch<GeminiMode> | null = pending;
       pending = null;
 
       if (!message) {
@@ -913,6 +929,7 @@ export async function runGemini(opts: {
       if (!message) {
         break;
       }
+      messageQueue.markBatchStarted(message.queueMessageIds);
 
       // Track if we need to inject conversation history (after model change)
       let injectHistoryContext = false;
@@ -1077,6 +1094,12 @@ export async function runGemini(opts: {
           logger.debug(`[gemini] Injected conversation history context (${historyContext.length} chars)`);
           // Don't clear history - keep accumulating for future model changes
         }
+        if (reconnect.priorityQueueMessageId) {
+          // Fresh-provider replay hydrates old records before the required
+          // context seed. Record them when executed so future model changes
+          // preserve provider-boundary order instead of hydration order.
+          conversationHistory.addUserMessage(message.message);
+        }
         
         logger.debug(`[gemini] Sending prompt to Gemini (length: ${promptToSend.length}): ${promptToSend.substring(0, 100)}...`);
         logger.debug(`[gemini] Full prompt: ${promptToSend}`);
@@ -1230,6 +1253,7 @@ export async function runGemini(opts: {
           });
         }
       } finally {
+        messageQueue.completeCurrentBatch(message.queueMessageIds);
         // Reset permission handler, reasoning processor, and diff processor after turn (like Codex)
         permissionHandler.reset();
         reasoningProcessor.abort(); // Use abort to properly finish any in-progress tool calls
