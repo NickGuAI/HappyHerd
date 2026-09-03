@@ -43,6 +43,14 @@ export type AcpLaunchConfig = ResolvedAcpAgentConfig & {
   resumeSessionId?: string;
 };
 
+/** Identify the exact maintained dsh ACP invocation, with no passthrough arguments. */
+export function usesBuiltInDshAcpProfile(config: ResolvedAcpAgentConfig): boolean {
+  return config.agentName === 'dsh'
+    && config.command === KNOWN_ACP_AGENTS.dsh.command
+    && config.args.length === KNOWN_ACP_AGENTS.dsh.args.length
+    && config.args.every((arg, index) => arg === KNOWN_ACP_AGENTS.dsh.args[index]);
+}
+
 /** Parse Happy-owned wrapper flags without leaking them into the ACP provider command. */
 export function resolveAcpLaunchConfig(
   cliArgs: string[],
@@ -79,7 +87,7 @@ export function resolveAcpLaunchConfig(
       i++;
       continue;
     }
-    if (namedAgent === 'grok' && !customCommandMode && arg === '--permission-mode') {
+    if ((namedAgent === 'grok' || namedAgent === 'dsh') && !customCommandMode && arg === '--permission-mode') {
       permissionMode = takeValue(i, arg);
       i++;
       continue;

@@ -238,6 +238,52 @@ describe('Agent Defaults provider coverage', () => {
             .toBe('agentDefaults.providerUnavailable');
     });
 
+    it('mirrors the exact-machine dsh permission catalog and saves a provider-native code', () => {
+        mocks.machines = [{
+            id: 'selected-machine',
+            active: true,
+            metadata: {
+                host: 'selected-host',
+                cliAvailability: { dsh: true },
+                agentCapabilities: {
+                    dsh: {
+                        detectedAt: 1,
+                        sources: { models: 'dsh-acp', effortLevels: 'dsh-acp', permissionModes: 'dsh-profile' },
+                        models: [{ code: 'deepseek-v5', value: 'DeepSeek V5', isDefault: true }],
+                        effortLevels: [{ code: 'high', value: 'high', isDefault: true }],
+                        permissionModes: [
+                            { code: 'read-only', value: 'read-only' },
+                            { code: 'workspace-write', value: 'workspace-write', isDefault: true },
+                            { code: 'danger-full-access', value: 'danger-full-access' },
+                        ],
+                    },
+                },
+            },
+        }];
+
+        const renderer = renderScreen();
+        const permissionField = groupItems(renderer, 'dsh')
+            .find((item: any) => item.props.title === 'uiCopy.permission');
+        expect(permissionField?.props.detail).toBe('Default (workspace-write)');
+
+        act(() => permissionField!.props.onPress());
+        expect(groupItems(renderer, 'dsh').map((item: any) => item.props.title)).toEqual([
+            'uiCopy.permission',
+            'common.reset',
+            'read-only',
+            'workspace-write',
+            'danger-full-access',
+            'uiCopy.model',
+            'uiCopy.effort',
+        ]);
+        const danger = groupItems(renderer, 'dsh')
+            .find((item: any) => item.props.title === 'danger-full-access');
+        act(() => danger!.props.onPress());
+        expect(mocks.setOverrides).toHaveBeenCalledWith({
+            dsh: { permissionMode: 'danger-full-access' },
+        });
+    });
+
     it('shows an actionable exact-machine unavailable state instead of a blank provider card', () => {
         mocks.machines = [{
             id: 'selected-machine',

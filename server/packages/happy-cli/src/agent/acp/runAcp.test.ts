@@ -234,7 +234,7 @@ vi.mock('@/credentialPool/providerLimitNotice', () => ({
   reportProviderHardLimitOnce: mocks.mockReportProviderHardLimitOnce,
 }));
 
-import { resolveAcpPermissionPolicy, resolveDshModelConfigCode, runAcp } from './runAcp';
+import { dshChildEnvironment, resolveAcpPermissionPolicy, resolveDshModelConfigCode, runAcp } from './runAcp';
 
 describe('runAcp', () => {
   const stripAnsi = (line: string) => line.replace(/\u001b\[[0-9;]*m/g, '');
@@ -274,6 +274,16 @@ describe('runAcp', () => {
         },
       ],
     },
+  });
+
+  it('replaces an ambient dsh permission mode and removes it when no launch selection exists', () => {
+    expect(dshChildEnvironment({ DSH_PERMISSION_MODE: 'danger-full-access', PATH: '/bin' }, 'read-only')).toEqual({
+      DSH_PERMISSION_MODE: 'read-only',
+      PATH: '/bin',
+    });
+    expect(dshChildEnvironment({ DSH_PERMISSION_MODE: 'danger-full-access', PATH: '/bin' }, undefined)).toEqual({
+      PATH: '/bin',
+    });
   });
 
   beforeEach(() => {
@@ -1284,6 +1294,7 @@ describe('runAcp', () => {
   });
 
   it('validates the default dsh model and effort without mutating provider config', async () => {
+    vi.stubEnv('DSH_PERMISSION_MODE', 'danger-full-access');
     mocks.backendState.startSessionMessages = [dshConfigUpdate()];
     const runPromise = runAcp({
       credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
@@ -1291,6 +1302,7 @@ describe('runAcp', () => {
       command: 'dsh',
       args: ['--profile', 'acp'],
       startedBy: 'terminal',
+      permissionMode: 'workspace-write',
       model: 'deepseek-v4-flash',
       effort: 'high',
     });
@@ -1309,10 +1321,15 @@ describe('runAcp', () => {
           provider: 'dsh',
           model: 'deepseek-v4-flash',
           effort: 'high',
-          permission: null,
+          permission: 'workspace-write',
         },
       }),
     }));
+    expect(mocks.backendState.constructorArgs).toMatchObject({
+      command: 'dsh',
+      args: ['--profile', 'acp'],
+      processEnv: expect.objectContaining({ DSH_PERMISSION_MODE: 'workspace-write' }),
+    });
     await mocks.getKillHandler()!();
     await runPromise;
   });
@@ -1351,13 +1368,14 @@ describe('runAcp', () => {
     await runPromise;
   });
 
-  it('treats explicit dsh config categories as authoritative and never mutates model as permission mode', async () => {
+  it('ignores message-time dsh permission metadata while preserving launch-time policy', async () => {
     mocks.backendState.startSessionMessages = [dshConfigUpdate()];
     const runPromise = runAcp({
       credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
       agentName: 'dsh',
       command: 'dsh',
       args: ['--profile', 'acp'],
+      permissionMode: 'read-only',
       model: 'deepseek-v4-flash',
       effort: 'high',
     });
@@ -1365,14 +1383,11 @@ describe('runAcp', () => {
     mocks.getUserMessageHandler()!({
       role: 'user',
       content: { type: 'text', text: 'Do not reinterpret model as mode' },
-      meta: { permissionMode: 'DeepSeek V4 Pro' },
+      meta: { permissionMode: 'danger-full-access' },
     });
-    await vi.waitFor(() => expect(mocks.mockSession.sendSessionEvent).toHaveBeenCalledWith({
-      type: 'message',
-      message: 'Unsupported dsh permission mode: DeepSeek V4 Pro',
-    }));
+    await vi.waitFor(() => expect(mocks.backendState.prompts).toHaveLength(1));
     expect(mocks.backendState.setConfigOptionCalls).toEqual([]);
-    expect(mocks.backendState.prompts).toEqual([]);
+    expect(mocks.backendState.constructorArgs.processEnv.DSH_PERMISSION_MODE).toBe('read-only');
     await mocks.getKillHandler()!();
     await runPromise;
   });

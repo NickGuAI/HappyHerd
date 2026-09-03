@@ -40,6 +40,7 @@ export {
   KNOWN_ACP_AGENTS,
   resolveAcpAgentConfig,
   resolveAcpLaunchConfig,
+  usesBuiltInDshAcpProfile,
   type AcpAgentConfig,
   type AcpLaunchConfig,
   type ResolvedAcpAgentConfig,

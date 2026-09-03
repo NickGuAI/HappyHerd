@@ -550,7 +550,7 @@ export function useStartSessionFromDraft() {
                 // GrokBuild permission is launch-only, so every session keeps
                 // the exact policy its process started with even if the saved
                 // New Session default changes later.
-                if (permission?.key && (agentType === 'grok' || permission.key !== defaults.permissionMode)) {
+                if (agentType !== 'dsh' && permission?.key && (agentType === 'grok' || permission.key !== defaults.permissionMode)) {
                     modesPatch.permissionMode = permission.key;
                 }
                 if (model?.key && model.key !== defaults.modelMode) modesPatch.modelMode = model.key;

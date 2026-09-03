@@ -128,7 +128,7 @@ describe('daemon spawn mode arguments', () => {
         ]);
     });
 
-    it('forwards the target-validated dsh model and effort without a permission mode', () => {
+    it('forwards the target-validated dsh tuple to the Happy wrapper', () => {
         const args = ['dsh'];
 
         appendDaemonSpawnModeArgs(args, {
@@ -138,12 +138,13 @@ describe('daemon spawn mode arguments', () => {
                 provider: 'dsh',
                 model: 'deepseek-v4-pro',
                 effort: 'max',
-                permission: null,
+                permission: 'danger-full-access',
             },
         }, 'dsh');
 
         expect(args).toEqual([
             'dsh',
+            '--permission-mode', 'danger-full-access',
             '--model', 'deepseek-v4-pro',
             '--effort', 'max',
         ]);

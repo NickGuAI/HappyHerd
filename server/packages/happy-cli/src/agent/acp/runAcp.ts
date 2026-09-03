@@ -516,6 +516,17 @@ function readModelEffortState(
 
 export type AcpPermissionPolicy = 'prompt' | 'approve' | 'deny' | 'cancel';
 
+/** Replace, rather than inherit, dsh's process-launch permission selection. */
+export function dshChildEnvironment(
+  env: NodeJS.ProcessEnv,
+  permissionMode: string | undefined,
+): NodeJS.ProcessEnv {
+  const childEnv = { ...env };
+  delete childEnv.DSH_PERMISSION_MODE;
+  if (permissionMode) childEnv.DSH_PERMISSION_MODE = permissionMode;
+  return childEnv;
+}
+
 /** Resolve only launch-time permission policy; ACP plan/build mode remains separate. */
 export function resolveAcpPermissionPolicy(
   agentName: string,
@@ -759,7 +770,7 @@ export async function runAcp(opts: {
   // GrokBuild permission modes are process launch flags. Its ACP operating
   // mode is a separate capability and must not emulate a live permission
   // switch from Happy message metadata.
-  const supportsRuntimePermissionSelection = opts.agentName !== 'grok';
+  const supportsRuntimePermissionSelection = opts.agentName !== 'grok' && opts.agentName !== 'dsh';
   let currentPermissionMode: string | undefined = supportsRuntimePermissionSelection
     ? opts.permissionMode
     : undefined;
@@ -793,7 +804,11 @@ export async function runAcp(opts: {
     transportHandler: new DefaultTransport(opts.agentName),
     verbose,
     loadSessionId: opts.resumeSessionId ?? response?.metadata?.acpSessionId,
-    processEnv: opts.agentName === 'grok' ? sanitizeGrokChildEnvironment(process.env) : undefined,
+    processEnv: opts.agentName === 'grok'
+      ? sanitizeGrokChildEnvironment(process.env)
+      : opts.agentName === 'dsh'
+        ? dshChildEnvironment(process.env, opts.permissionMode)
+        : undefined,
   });
 
   let thinking = false;

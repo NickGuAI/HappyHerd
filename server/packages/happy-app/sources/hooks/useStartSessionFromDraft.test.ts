@@ -251,10 +251,14 @@ function createDshMachine() {
             agentCapabilities: {
                 dsh: {
                     detectedAt: 1,
-                    sources: { models: 'static', effortLevels: 'provider', permissionModes: 'unsupported' },
+                    sources: { models: 'static', effortLevels: 'provider', permissionModes: 'dsh-profile' },
                     models: [],
                     effortLevels: [],
-                    permissionModes: [],
+                    permissionModes: [
+                        { code: 'read-only', value: 'read-only' },
+                        { code: 'workspace-write', value: 'workspace-write', isDefault: true },
+                        { code: 'danger-full-access', value: 'danger-full-access' },
+                    ],
                     acp: { loadSession: false, prompt: { image: false } },
                 },
             },
@@ -509,7 +513,7 @@ describe('useStartSessionFromDraft', () => {
         );
     });
 
-    it('starts dsh with its exact catalog defaults and no permission mode', async () => {
+    it('starts dsh with its exact catalog defaults and keeps permission receipt-owned', async () => {
         mocks.machines = [createDshMachine()];
         mocks.draft = createDraft({ agentType: 'dsh' });
         mocks.getMachineAdvertisedModels.mockReturnValue([
@@ -522,6 +526,11 @@ describe('useStartSessionFromDraft', () => {
             { key: 'high', name: 'high', isDefault: true },
             { key: 'max', name: 'max' },
         ]);
+        mocks.getMachineAdvertisedPermissionModes.mockReturnValue([
+            { key: 'read-only', name: 'read-only' },
+            { key: 'workspace-write', name: 'workspace-write', isDefault: true },
+            { key: 'danger-full-access', name: 'danger-full-access' },
+        ]);
 
         const { startSession } = useStartSessionFromDraft();
 
@@ -531,7 +540,7 @@ describe('useStartSessionFromDraft', () => {
             directory: '/absolute/project',
             approvedNewDirectoryCreation: false,
             agent: 'dsh',
-            permissionMode: undefined,
+            permissionMode: 'workspace-write',
             modelMode: 'deepseek-v4-flash',
             effortLevel: 'high',
         });

@@ -403,7 +403,7 @@ function createDshMachine() {
                     sources: {
                         models: 'dsh-acp:session/new:configOptions',
                         effortLevels: 'dsh-acp:session/new:configOptions',
-                        permissionModes: 'unsupported',
+                        permissionModes: 'dsh:--profile-acp:dump-config:permission-presets',
                     },
                     models: [
                         { code: 'deepseek-v5', value: 'DeepSeek V5', isDefault: true },
@@ -415,7 +415,11 @@ function createDshMachine() {
                         { code: 'high', value: 'high', isDefault: true },
                         { code: 'max', value: 'max' },
                     ],
-                    permissionModes: [],
+                    permissionModes: [
+                        { code: 'read-only', value: 'read-only' },
+                        { code: 'workspace-write', value: 'workspace-write', isDefault: true },
+                        { code: 'danger-full-access', value: 'danger-full-access' },
+                    ],
                     acp: { loadSession: false, prompt: { image: false } },
                 },
             },
@@ -608,11 +612,12 @@ describe('Full New Session provider launch', () => {
         act(() => renderer.unmount());
     });
 
-    it('launches dsh from a real Web send gesture with exact model and effort defaults', async () => {
+    it('launches dsh from a real Web send gesture with exact catalog defaults', async () => {
         const machine = createDshMachine();
         mocks.renderMachines = [machine];
         mocks.liveMachines = { [machine.id]: machine };
         mocks.draft = createDraft({ agentType: 'dsh' });
+        mocks.machineSpawnNewSession.mockResolvedValue({ type: 'success', sessionId: 'dsh-session' });
         const renderer = await renderScreen();
 
         await pressSend(renderer);
@@ -620,12 +625,51 @@ describe('Full New Session provider launch', () => {
         expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
             machineId: 'machine-1',
             agent: 'dsh',
+            permissionMode: 'workspace-write',
             modelMode: 'deepseek-v5',
             effortLevel: 'high',
         }));
-        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.not.objectContaining({
-            permissionMode: expect.anything(),
+        expect(mocks.sessionSetAgentModes).not.toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ permissionMode: expect.anything() }),
+        );
+        act(() => renderer.unmount());
+    });
+
+    it('launches the provider-native dsh mode selected through the rendered permission picker', async () => {
+        const machine = createDshMachine();
+        mocks.renderMachines = [machine];
+        mocks.liveMachines = { [machine.id]: machine };
+        mocks.draft = createDraft({ agentType: 'dsh' });
+        mocks.machineSpawnNewSession.mockResolvedValue({ type: 'success', sessionId: 'dsh-session' });
+        const renderer = await renderScreen();
+
+        const permissionTrigger = renderer.root.findAllByType('BubblePressable' as any)
+            .find((candidate: any) => candidate.findAllByType('Text' as any).some((text: any) => (
+                text.props.children === 'workspace-write'
+            )));
+        expect(permissionTrigger).toBeDefined();
+        await act(async () => permissionTrigger!.props.onPress());
+
+        const dangerMode = renderer.root.findAllByType('BubblePressable' as any)
+            .find((candidate: any) => candidate.props.accessibilityRole === 'radio'
+                && candidate.findAllByType('Text' as any).some((text: any) => (
+                    text.props.children === 'danger-full-access'
+                )));
+        expect(dangerMode).toBeDefined();
+        await act(async () => dangerMode!.props.onPress());
+        await pressSend(renderer);
+
+        expect(mocks.draft.setPermissionMode).toHaveBeenCalledWith('danger-full-access');
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            machineId: 'machine-1',
+            agent: 'dsh',
+            permissionMode: 'danger-full-access',
         }));
+        expect(mocks.sessionSetAgentModes).not.toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ permissionMode: expect.anything() }),
+        );
         act(() => renderer.unmount());
     });
 
