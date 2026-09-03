@@ -253,6 +253,7 @@ MOBILE_WEB_UX	accepted	chore(app): refresh mobile UX signoff inventory	server/pa
 MOBILE_WEB_UX	accepted	fix(app): floor auto-focused Web inputs	server/packages/happy-app/sources/components/mobileTypographyEntry.source.test.ts
 MOBILE_WEB_UX	accepted	chore(app): refresh final mobile UX inventory	server/packages/happy-app/sources/text/ui-surface-inventory.json
 MOBILE_WEB_UX	accepted	chore(app): register mobile UX patches	docs/owned-patches.tsv
+PRIVACY_POLICY_LINK	accepted	fix(settings): update privacy policy link	server/packages/happy-app/sources/components/SettingsView.browser.test.ts
 PUBLIC_BOUNDARY	accepted	fix(public-boundary): normalize merged skill identity	scripts/test-public-boundary.mjs
 ALL_PROVIDER_SIDE_CHATS	accepted	feat(side-chat): support every daemon provider	server/packages/happy-cli/src/commands/sideChat.ts
 ALL_PROVIDER_SIDE_CHATS	accepted	fix(side-chat): bound recent message cursor	server/packages/happy-cli/src/api/api.test.ts
