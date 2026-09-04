@@ -28,6 +28,7 @@ export const LocalhostWorkspacePanel = React.memo(function LocalhostWorkspacePan
     const [activeAnchor, setActiveAnchor] = React.useState<InlineCommentAnchor | null>(null);
     const [comments, setComments] = React.useState<WorkspaceFeedbackComment[]>([]);
     const [loadFailed, setLoadFailed] = React.useState(false);
+    const [captureFailed, setCaptureFailed] = React.useState(false);
 
     React.useEffect(() => {
         if (!active) {
@@ -35,10 +36,12 @@ export const LocalhostWorkspacePanel = React.memo(function LocalhostWorkspacePan
             return;
         }
         setLoadFailed(false);
+        setCaptureFailed(false);
     }, [active]);
 
     const handlePick = React.useCallback((pick: WorkspaceLiveElementPick) => {
         setPickerEnabled(false);
+        setCaptureFailed(false);
         setActiveAnchor({
             elementSelector: pick.selector,
             elementHtml: pick.outerHTML,
@@ -47,7 +50,15 @@ export const LocalhostWorkspacePanel = React.memo(function LocalhostWorkspacePan
             screenshot: pick.screenshot,
         });
     }, []);
-    const handleError = React.useCallback(() => setLoadFailed(true), []);
+    const handleError = React.useCallback(() => {
+        setPickerEnabled(false);
+        setCaptureFailed(false);
+        setLoadFailed(true);
+    }, []);
+    const handleCaptureError = React.useCallback(() => {
+        setPickerEnabled(false);
+        setCaptureFailed(true);
+    }, []);
 
     const pickerButton = React.useMemo(() => (
         <Pressable
@@ -55,6 +66,7 @@ export const LocalhostWorkspacePanel = React.memo(function LocalhostWorkspacePan
             accessibilityLabel={t(pickerEnabled ? 'workspace.stopElementComment' : 'workspace.startElementComment')}
             onPress={() => {
                 setLoadFailed(false);
+                setCaptureFailed(false);
                 setPickerEnabled((current) => !current);
             }}
             style={({ pressed, hovered }: any) => [
@@ -85,12 +97,20 @@ export const LocalhostWorkspacePanel = React.memo(function LocalhostWorkspacePan
                         pickerEnabled={pickerEnabled}
                         onPick={handlePick}
                         onError={handleError}
+                        onCaptureError={handleCaptureError}
                     />
                 ) : null}
                 {active && loadFailed ? (
                     <View style={[styles.error, { backgroundColor: theme.colors.surface }]}>
                         <Text accessibilityRole="alert" style={{ color: theme.colors.textDestructive }}>
                             {t('workspace.liveLoadFailed')}
+                        </Text>
+                    </View>
+                ) : null}
+                {active && captureFailed ? (
+                    <View style={[styles.error, { backgroundColor: theme.colors.surface }]}>
+                        <Text accessibilityRole="alert" style={{ color: theme.colors.textDestructive }}>
+                            {t('workspace.liveCaptureFailed')}
                         </Text>
                     </View>
                 ) : null}

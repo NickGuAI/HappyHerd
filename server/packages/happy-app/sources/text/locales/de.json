@@ -287,6 +287,7 @@
     "invalidLocalhostUrl": "Geben Sie eine HTTP/HTTPS-URL für localhost, 127.0.0.1 oder [::1] auf dem ausgewählten Rechner ein.",
     "liveLoading": "Verbindung mit Localhost wird hergestellt…",
     "liveLoadFailed": "Die Live-Seite des ausgewählten Rechners konnte nicht geladen werden; prüfen Sie, ob der lokale Server dort läuft.",
+    "liveCaptureFailed": "Der Element-Screenshot konnte nicht erfasst werden. Die Kommentierung wurde beendet, die Live-Seite bleibt jedoch verfügbar. Starten Sie die Kommentierung erneut, um es noch einmal zu versuchen.",
     "liveCommentOnElement": "Element {element} kommentieren",
     "liveElement": "Element: {element}",
     "startElementComment": "Kommentierung starten",

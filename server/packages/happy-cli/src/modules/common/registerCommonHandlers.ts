@@ -365,7 +365,7 @@ async function fetchWorkspaceLive(rawData: unknown): Promise<WorkspaceLiveHttpRe
                         return workspaceLiveFailure('invalid-url', 'Workspace live redirect left the loopback boundary');
                     }
                     currentUrl = nextUrl;
-                    if (response.status === 303
+                    if ((response.status === 303 && currentMethod !== 'GET' && currentMethod !== 'HEAD')
                         || ((response.status === 301 || response.status === 302) && currentMethod === 'POST')) {
                         currentMethod = 'GET';
                         currentBody = undefined;

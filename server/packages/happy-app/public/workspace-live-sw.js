@@ -92,14 +92,20 @@ async function getClientView(clientId) {
     const cached = clientViews.get(clientId);
     if (cached) return cached;
     const stored = await readRecord('clients', clientId);
-    if (stored) clientViews.set(clientId, stored.viewId);
-    return stored?.viewId;
+    if (!stored?.viewId) return undefined;
+    const binding = {
+        viewId: stored.viewId,
+        ...(typeof stored.targetOrigin === 'string' ? { targetOrigin: stored.targetOrigin } : {}),
+    };
+    clientViews.set(clientId, binding);
+    return binding;
 }
 
-async function bindClient(clientId, viewId) {
+async function bindClient(clientId, viewId, targetOrigin) {
     if (!clientId) return;
-    clientViews.set(clientId, viewId);
-    await storeRecord('clients', { clientId, viewId });
+    const binding = { viewId, ...(targetOrigin ? { targetOrigin } : {}) };
+    clientViews.set(clientId, binding);
+    await storeRecord('clients', { clientId, ...binding });
 }
 
 self.addEventListener('message', (event) => {
@@ -150,16 +156,18 @@ self.addEventListener('fetch', (event) => {
 async function routeRequest(event) {
     const virtualUrl = new URL(event.request.url);
     const requestedViewId = virtualUrl.searchParams.get(VIEW_QUERY);
-    let viewId = requestedViewId ?? await getClientView(event.clientId);
+    const clientBinding = await getClientView(event.clientId);
+    const viewId = requestedViewId ?? clientBinding?.viewId;
     if (!viewId) return fetch(event.request);
 
     const registration = await getRegistration(viewId);
     if (!registration) return fetch(event.request);
 
+    const registeredOrigin = new URL(registration.targetUrl).origin;
     if (requestedViewId) {
-        await bindClient(event.resultingClientId || event.clientId, viewId);
+        await bindClient(event.resultingClientId || event.clientId, viewId, registeredOrigin);
     } else if (event.resultingClientId) {
-        await bindClient(event.resultingClientId, viewId);
+        await bindClient(event.resultingClientId, viewId, clientBinding?.targetOrigin ?? registeredOrigin);
     }
 
     const explicitTarget = virtualUrl.searchParams.get(TARGET_QUERY);
@@ -172,13 +180,20 @@ async function routeRequest(event) {
         ? new URL(explicitTarget)
         : requestedViewId
             ? new URL(registration.targetUrl)
-            : new URL(`${virtualUrl.pathname}${virtualUrl.search}`, new URL(registration.targetUrl).origin);
+            : new URL(`${virtualUrl.pathname}${virtualUrl.search}`, clientBinding?.targetOrigin ?? registeredOrigin);
     if (!isLoopbackUrl(targetUrl.toString())) return errorResponse('Blocked a non-loopback live request', 400);
 
     try {
         const rpcRequest = await serializeRequest(event.request, targetUrl.toString());
         const rpcResponse = await requestFromApp(registration, rpcRequest);
         if (!rpcResponse?.success) return errorResponse(rpcResponse?.error ?? 'Selected machine request failed', 502);
+        if (event.request.mode === 'navigate') {
+            await bindClient(
+                event.resultingClientId || event.clientId,
+                viewId,
+                new URL(rpcResponse.finalUrl).origin,
+            );
+        }
         return deserializeResponse(event.request.method, rpcResponse, viewId, virtualUrl.origin);
     } catch (error) {
         return errorResponse(error instanceof Error ? error.message : 'Selected machine request failed', 502);
@@ -251,23 +266,96 @@ function deserializeResponse(method, response, viewId, virtualOrigin) {
     const contentType = headers.get('content-type')?.toLowerCase() ?? '';
     if (contentType.includes('text/html')) {
         let html = new TextDecoder().decode(bytes);
-        html = rewriteAbsoluteAttributes(html, virtualOrigin);
+        html = rewriteHtmlLoopbackUrls(html, response.finalUrl, virtualOrigin);
         html = injectPageBridge(html, viewId, response.finalUrl, virtualOrigin);
         bytes = new TextEncoder().encode(html);
         headers.set('content-type', 'text/html; charset=utf-8');
+    } else if (contentType.includes('text/css')) {
+        const css = rewriteCssUrls(new TextDecoder().decode(bytes), response.finalUrl, virtualOrigin);
+        bytes = new TextEncoder().encode(css);
+        headers.set('content-type', 'text/css; charset=utf-8');
     }
     return new Response(bytes, { status: response.status, statusText: response.statusText, headers });
 }
 
-function rewriteAbsoluteAttributes(html, virtualOrigin) {
-    return html.replace(/\b(src|href|action|poster)\s*=\s*(["'])(https?:\/\/[^"']+)\2/gi, (match, attribute, quote, value) => {
-        if (!isLoopbackUrl(value)) return match;
-        const target = new URL(value);
-        const virtual = new URL(`${target.pathname}${target.search}`, virtualOrigin);
-        virtual.searchParams.set(TARGET_QUERY, target.toString());
-        virtual.hash = target.hash;
-        return `${attribute}=${quote}${virtual.toString()}${quote}`;
-    });
+function virtualizeLoopbackUrl(value, virtualOrigin) {
+    if (!isLoopbackUrl(value)) return value;
+    const target = new URL(value);
+    const virtual = new URL(`${target.pathname}${target.search}`, virtualOrigin);
+    virtual.searchParams.set(TARGET_QUERY, target.toString());
+    virtual.hash = target.hash;
+    return virtual.toString();
+}
+
+function rewriteCssUrls(css, baseTargetUrl, virtualOrigin) {
+    const rewriteValue = (value) => {
+        const trimmed = value.trim();
+        if (!trimmed || /^(?:data:|blob:|about:|#)/i.test(trimmed)) return value;
+        try {
+            const target = new URL(trimmed, baseTargetUrl).toString();
+            return isLoopbackUrl(target) ? virtualizeLoopbackUrl(target, virtualOrigin) : value;
+        } catch {
+            return value;
+        }
+    };
+    let rewritten = css.replace(
+        /url\(\s*(?:(["'])(.*?)\1|([^\s"')][^)]*))\s*\)/gi,
+        (match, quote, quotedValue, unquotedValue) => {
+            const value = quotedValue ?? unquotedValue;
+            const next = rewriteValue(value);
+            if (next === value) return match;
+            return `url(${quote ?? ''}${next}${quote ?? ''})`;
+        },
+    );
+    rewritten = rewritten.replace(
+        /@import(\s+)(["'])([^"']+)\2/gi,
+        (match, whitespace, quote, value) => {
+            const next = rewriteValue(value);
+            return next === value ? match : `@import${whitespace}${quote}${next}${quote}`;
+        },
+    );
+    return rewritten;
+}
+
+function rewriteSrcset(value, virtualOrigin) {
+    return value.replace(
+        /https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d{1,5})?[^\s,"')<>]*/gi,
+        (candidate) => virtualizeLoopbackUrl(candidate, virtualOrigin),
+    );
+}
+
+function rewriteHtmlLoopbackUrls(html, finalUrl, virtualOrigin) {
+    let rewritten = html.replace(
+        /\b(src|href|action|poster|formaction|data)\s*=\s*(?:(["'])([^"']*)\2|([^\s"'`=<>]+))/gi,
+        (match, attribute, quote, quotedValue, unquotedValue) => {
+            const value = quotedValue ?? unquotedValue;
+            const next = virtualizeLoopbackUrl(value, virtualOrigin);
+            if (next === value) return match;
+            return `${attribute}=${quote ? `${quote}${next}${quote}` : next}`;
+        },
+    );
+    rewritten = rewritten.replace(
+        /\bsrcset\s*=\s*(?:(["'])([^"']*)\1|([^\s"'`=<>]+))/gi,
+        (match, quote, quotedValue, unquotedValue) => {
+            const value = quotedValue ?? unquotedValue;
+            const next = rewriteSrcset(value, virtualOrigin);
+            if (next === value) return match;
+            return `srcset=${quote ? `${quote}${next}${quote}` : next}`;
+        },
+    );
+    rewritten = rewritten.replace(
+        /\bstyle\s*=\s*(?:(["'])([\s\S]*?)\1|([^\s"'`=<>]+))/gi,
+        (match, quote, quotedValue, unquotedValue) => {
+            const value = quotedValue ?? unquotedValue;
+            const next = rewriteCssUrls(value, finalUrl, virtualOrigin);
+            if (next === value) return match;
+            return `style=${quote ? `${quote}${next}${quote}` : next}`;
+        },
+    );
+    return rewritten.replace(
+        /(<style\b[^>]*>)([\s\S]*?)(<\/style\s*>)/gi,
+        (match, opening, css, closing) => `${opening}${rewriteCssUrls(css, finalUrl, virtualOrigin)}${closing}`,
+    );
 }
 
 function injectPageBridge(html, viewId, finalUrl, virtualOrigin) {
@@ -313,6 +401,14 @@ function workspaceLivePageBridge(viewId, messageType, targetQuery) {
         virtual.hash = target.hash;
         return virtual.toString();
     };
+    const virtualizeSrcset = (value) => String(value).replace(
+        /https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d{1,5})?[^\s,"')<>]*/gi,
+        (candidate) => virtualize(candidate),
+    );
+    const virtualizeCss = (value) => String(value).replace(
+        /https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d{1,5})?[^\s,"')<>]*/gi,
+        (candidate) => virtualize(candidate),
+    );
 
     const nativeFetch = window.fetch.bind(window);
     window.fetch = (input, init) => {
@@ -327,9 +423,98 @@ function workspaceLivePageBridge(viewId, messageType, targetQuery) {
     const nativeSetAttribute = Element.prototype.setAttribute;
     Element.prototype.setAttribute = function(name, value) {
         const lower = String(name).toLowerCase();
-        return nativeSetAttribute.call(this, name,
-            ['src', 'href', 'action', 'poster'].includes(lower) ? virtualize(value) : value);
+        const nextValue = ['src', 'href', 'action', 'poster', 'formaction', 'data'].includes(lower)
+            ? virtualize(value)
+            : lower === 'srcset'
+                ? virtualizeSrcset(value)
+                : lower === 'style' ? virtualizeCss(value) : value;
+        return nativeSetAttribute.call(this, name, nextValue);
     };
+    const patchUrlProperty = (prototype, property, transform = virtualize) => {
+        if (!prototype) return;
+        let owner = prototype;
+        let descriptor;
+        while (owner && !descriptor) {
+            descriptor = Object.getOwnPropertyDescriptor(owner, property);
+            if (!descriptor) owner = Object.getPrototypeOf(owner);
+        }
+        if (!descriptor?.get || !descriptor.set) return;
+        try {
+            Object.defineProperty(prototype, property, {
+                configurable: true,
+                enumerable: descriptor.enumerable,
+                get() { return descriptor.get.call(this); },
+                set(value) { descriptor.set.call(this, transform(value)); },
+            });
+        } catch {
+            // A browser may expose a non-configurable native property. Initial
+            // markup and explicit setAttribute calls remain virtualized.
+        }
+    };
+    [
+        [window.HTMLImageElement?.prototype, 'src'],
+        [window.HTMLImageElement?.prototype, 'srcset', virtualizeSrcset],
+        [window.HTMLScriptElement?.prototype, 'src'],
+        [window.HTMLLinkElement?.prototype, 'href'],
+        [window.HTMLAnchorElement?.prototype, 'href'],
+        [window.HTMLAreaElement?.prototype, 'href'],
+        [window.HTMLFormElement?.prototype, 'action'],
+        [window.HTMLInputElement?.prototype, 'src'],
+        [window.HTMLInputElement?.prototype, 'formAction'],
+        [window.HTMLButtonElement?.prototype, 'formAction'],
+        [window.HTMLSourceElement?.prototype, 'src'],
+        [window.HTMLSourceElement?.prototype, 'srcset', virtualizeSrcset],
+        [window.HTMLMediaElement?.prototype, 'src'],
+        [window.HTMLVideoElement?.prototype, 'poster'],
+        [window.HTMLIFrameElement?.prototype, 'src'],
+        [window.HTMLObjectElement?.prototype, 'data'],
+        [window.HTMLEmbedElement?.prototype, 'src'],
+        [window.HTMLTrackElement?.prototype, 'src'],
+    ].forEach(([prototype, property, transform]) => patchUrlProperty(prototype, property, transform));
+
+    const nativeCssSetProperty = window.CSSStyleDeclaration?.prototype?.setProperty;
+    if (nativeCssSetProperty) {
+        const nativeCssGetPropertyValue = window.CSSStyleDeclaration.prototype.getPropertyValue;
+        window.CSSStyleDeclaration.prototype.setProperty = function(property, value, priority) {
+            return nativeCssSetProperty.call(this, property, virtualizeCss(value), priority);
+        };
+        patchUrlProperty(window.CSSStyleDeclaration.prototype, 'cssText', virtualizeCss);
+        [
+            ['background', 'background'], ['backgroundImage', 'background-image'],
+            ['borderImage', 'border-image'], ['borderImageSource', 'border-image-source'],
+            ['content', 'content'], ['cursor', 'cursor'], ['listStyle', 'list-style'],
+            ['listStyleImage', 'list-style-image'], ['mask', 'mask'], ['maskImage', 'mask-image'],
+        ].forEach(([property, cssProperty]) => {
+            try {
+                Object.defineProperty(window.CSSStyleDeclaration.prototype, property, {
+                    configurable: true,
+                    enumerable: true,
+                    get() { return nativeCssGetPropertyValue.call(this, cssProperty); },
+                    set(value) { nativeCssSetProperty.call(this, cssProperty, virtualizeCss(value)); },
+                });
+            } catch {
+                // setProperty, cssText, initial CSS, and stylesheet rules remain covered.
+            }
+        });
+    }
+    const nativeInsertRule = window.CSSStyleSheet?.prototype?.insertRule;
+    if (nativeInsertRule) {
+        window.CSSStyleSheet.prototype.insertRule = function(rule, index) {
+            return nativeInsertRule.call(this, virtualizeCss(rule), index);
+        };
+    }
+    const nativeReplace = window.CSSStyleSheet?.prototype?.replace;
+    if (nativeReplace) {
+        window.CSSStyleSheet.prototype.replace = function(text) {
+            return nativeReplace.call(this, virtualizeCss(text));
+        };
+    }
+    const nativeReplaceSync = window.CSSStyleSheet?.prototype?.replaceSync;
+    if (nativeReplaceSync) {
+        window.CSSStyleSheet.prototype.replaceSync = function(text) {
+            return nativeReplaceSync.call(this, virtualizeCss(text));
+        };
+    }
 
     const overlay = document.createElement('div');
     nativeSetAttribute.call(overlay, 'data-happyherd-picker-overlay', '');
@@ -416,9 +601,20 @@ function workspaceLivePageBridge(viewId, messageType, targetQuery) {
         const outputHeight = Math.max(1, Math.round(height * scale));
         const clone = cloneForCapture(element, { nodes: 0, characters: 0 });
         if (!clone) throw new Error('Element screenshot is empty');
+        if (clone.style) {
+            [
+                ['position', 'static'], ['inset', 'auto'], ['top', 'auto'], ['right', 'auto'],
+                ['bottom', 'auto'], ['left', 'auto'], ['margin', '0'], ['transform', 'none'],
+                ['translate', 'none'], ['rotate', 'none'], ['scale', 'none'], ['float', 'none'],
+                ['width', `${width}px`], ['height', `${height}px`], ['max-width', 'none'],
+                ['max-height', 'none'], ['box-sizing', 'border-box'],
+            ].forEach(([property, value]) => clone.style.setProperty(property, value, 'important'));
+        }
         const wrapper = document.createElement('div');
         nativeSetAttribute.call(wrapper, 'xmlns', 'http://www.w3.org/1999/xhtml');
-        Object.assign(wrapper.style, { width: `${width}px`, height: `${height}px`, overflow: 'hidden' });
+        Object.assign(wrapper.style, {
+            position: 'relative', width: `${width}px`, height: `${height}px`, overflow: 'hidden',
+        });
         wrapper.appendChild(clone);
         const markup = new XMLSerializer().serializeToString(wrapper);
         if (markup.length > MAX_CAPTURE_MARKUP) throw new Error('Element screenshot is too complex');

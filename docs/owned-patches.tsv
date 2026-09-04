@@ -272,3 +272,4 @@ USAGE_TOTALS	accepted	fix(usage): expose missing provider coverage	server/packag
 MARKDOWN_COMMENT_AFFORDANCE	accepted	fix(markdown): align comment affordance with source	server/packages/happy-app/sources/components/markdown/MarkdownView.browser.test.ts
 WORKSPACE_LOCALHOST	accepted	feat(workspace): debug selected-machine localhost pages	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 WORKSPACE_LOCALHOST	accepted	fix(workspace): bound live localhost execution	server/packages/happy-app/sources/components/LocalhostWorkspacePanel.tsx
+WORKSPACE_LOCALHOST	accepted	fix(workspace): preserve selected-machine live review	server/packages/happy-app/public/workspace-live-sw.js

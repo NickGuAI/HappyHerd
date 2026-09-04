@@ -138,7 +138,7 @@ describe('workspace live selected-machine fetch boundary', () => {
         ]);
     });
 
-    it('applies browser redirect method semantics before issuing the next loopback request', async () => {
+    it('converts POST to GET when following a 303 redirect', async () => {
         const seen: Array<{ path: string; method?: string; body: string; contentType?: string }> = [];
         const serverUrl = await startServer(async (request, response) => {
             seen.push({
@@ -165,6 +165,31 @@ describe('workspace live selected-machine fetch boundary', () => {
         expect(seen).toEqual([
             { path: '/start', method: 'POST', body: '{}', contentType: 'application/json' },
             { path: '/finish', method: 'GET', body: '', contentType: undefined },
+        ]);
+    });
+
+    it('preserves HEAD when following a 303 redirect', async () => {
+        const seen: Array<{ path: string; method?: string }> = [];
+        const serverUrl = await startServer((request, response) => {
+            seen.push({ path: request.url ?? '', method: request.method });
+            if (request.url === '/start') {
+                response.writeHead(303, { location: '/finish' });
+                response.end();
+                return;
+            }
+            response.end();
+        });
+
+        const response = await registeredHandlers(null).get('workspace-live-fetch')?.({
+            url: `${serverUrl}/start`,
+            method: 'HEAD',
+            headers: {},
+        });
+
+        expect(response).toMatchObject({ success: true, finalUrl: `${serverUrl}/finish` });
+        expect(seen).toEqual([
+            { path: '/start', method: 'HEAD' },
+            { path: '/finish', method: 'HEAD' },
         ]);
     });
 

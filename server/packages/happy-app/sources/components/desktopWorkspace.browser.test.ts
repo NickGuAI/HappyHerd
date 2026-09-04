@@ -348,24 +348,31 @@ const virtualModules: Record<string, string> = {
     `,
     '@/sync/apiSocket': `
         const encode = (value) => btoa(value);
+        const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><rect width="2" height="2" fill="blue"/></svg>';
         const responses = {
-            '/live': {
+            'http://localhost:3000/live': {
                 type: 'text/html; charset=utf-8',
-                finalUrl: 'http://localhost:3000/redirected/index.html',
-                body: '<!doctype html><html><head><link rel="stylesheet" href="./live.css"></head><body><main><button id="live-target">Waiting for network</button></main><script src="./live.js"></script></body></html>',
+                finalUrl: 'http://127.0.0.1:4000/redirected/index.html',
+                body: '<!doctype html><html><head><style>#inline-target{width:2px;height:2px;background-image:url(http://127.0.0.1:4000/redirected/inline.svg)}</style><link rel="stylesheet" href=http://127.0.0.1:4000/redirected/live.css></head><body><main><div id="inline-target"></div><img id="unquoted-target" alt="" src=http://127.0.0.1:4000/redirected/unquoted.svg><img id="srcset-target" alt="" srcset="http://127.0.0.1:4000/redirected/srcset.svg 1x"><button id="live-target">Waiting for network</button></main><script src="./live.js"></script></body></html>',
             },
-            '/redirected/live.css': {
+            'http://127.0.0.1:4000/redirected/live.css': {
                 type: 'text/css; charset=utf-8',
-                body: '#live-target{display:inline-flex;padding:12px 18px;background:rgb(25,90,180);color:white;border:0;border-radius:8px}',
+                body: 'main{position:relative;min-width:800px;min-height:420px}#live-target{display:inline-flex;position:absolute;left:520px;top:120px;padding:12px 18px;background-color:rgb(25,90,180);background-image:url("./css-bg.svg");color:white;border:0;border-radius:8px}',
             },
-            '/redirected/live.js': {
+            'http://127.0.0.1:4000/redirected/live.js': {
                 type: 'text/javascript; charset=utf-8',
-                body: 'window.__LIVE_SCRIPT_RAN__=true;fetch("./api/state").then((response)=>response.text()).then((text)=>{document.getElementById("live-target").textContent=text;});',
+                body: 'window.__LIVE_SCRIPT_RAN__=true;const dynamicImage=document.createElement("img");dynamicImage.src="http://127.0.0.1:4000/redirected/dynamic.svg";document.body.appendChild(dynamicImage);const dynamicStyle=document.createElement("div");dynamicStyle.style.backgroundImage="url(http://127.0.0.1:4000/redirected/dynamic-style.svg)";dynamicStyle.style.width="2px";dynamicStyle.style.height="2px";document.body.appendChild(dynamicStyle);fetch("./api/state").then((response)=>response.text()).then((text)=>{document.getElementById("live-target").textContent=text;});',
             },
-            '/redirected/api/state': {
+            'http://127.0.0.1:4000/redirected/api/state': {
                 type: 'text/plain; charset=utf-8',
                 body: 'Live from machine-2',
             },
+            'http://127.0.0.1:4000/redirected/css-bg.svg': { type: 'image/svg+xml', body: svg },
+            'http://127.0.0.1:4000/redirected/inline.svg': { type: 'image/svg+xml', body: svg },
+            'http://127.0.0.1:4000/redirected/unquoted.svg': { type: 'image/svg+xml', body: svg },
+            'http://127.0.0.1:4000/redirected/srcset.svg': { type: 'image/svg+xml', body: svg },
+            'http://127.0.0.1:4000/redirected/dynamic.svg': { type: 'image/svg+xml', body: svg },
+            'http://127.0.0.1:4000/redirected/dynamic-style.svg': { type: 'image/svg+xml', body: svg },
         };
         export const apiSocket = {
             machineRPC: async (machineId, method, request) => {
@@ -373,8 +380,7 @@ const virtualModules: Record<string, string> = {
                     ...(window.__WORKSPACE_LIVE_RPC_CALLS__ ?? []),
                     { machineId, method, url: request.url },
                 ];
-                const url = new URL(request.url);
-                const fixture = responses[url.pathname];
+                const fixture = responses[request.url];
                 if (machineId !== 'machine-2' || method !== 'workspace-live-fetch' || !fixture) {
                     return { success: false, code: 'request-failed', error: 'Unexpected live request' };
                 }
@@ -1326,6 +1332,12 @@ describe('Desktop workspace browser interaction', () => {
     ])('opens selected-machine localhost live and sends one Orca-style element comment on $mode', async ({ mode, width, height, sessionId }) => {
         const page = await browser.newPage({ viewport: { width, height } });
         const pageErrors = recordPageErrors(page);
+        const browserLocalRequests: string[] = [];
+        page.on('request', (request) => {
+            if (/^http:\/\/localhost:3000(?:\/|$)|^http:\/\/127\.0\.0\.1:4000(?:\/|$)/.test(request.url())) {
+                browserLocalRequests.push(request.url());
+            }
+        });
         await page.goto(`${origin}?localhost-live=${mode}`);
 
         const workspace = page.getByTestId(mode === 'mobile' ? 'localhost-live-mobile' : 'localhost-live-desktop');
@@ -1335,24 +1347,34 @@ describe('Desktop workspace browser interaction', () => {
         const frame = workspace.frameLocator('iframe');
         const liveTarget = frame.getByRole('button', { name: 'Live from machine-2' });
         await liveTarget.waitFor({ timeout: 15_000 });
-        await expect(liveTarget.evaluate((element) => getComputedStyle(element).display)).resolves.toBe('inline-flex');
+        await expect(liveTarget.evaluate((element) => getComputedStyle(element).display)).resolves.toBe('flex');
         await expect(liveTarget.evaluate((element) => getComputedStyle(element).backgroundColor)).resolves.toBe('rgb(25, 90, 180)');
 
+        const expectedRpcUrls = [
+            'http://localhost:3000/live',
+            'http://127.0.0.1:4000/redirected/live.css',
+            'http://127.0.0.1:4000/redirected/live.js',
+            'http://127.0.0.1:4000/redirected/api/state',
+            'http://127.0.0.1:4000/redirected/css-bg.svg',
+            'http://127.0.0.1:4000/redirected/inline.svg',
+            'http://127.0.0.1:4000/redirected/unquoted.svg',
+            'http://127.0.0.1:4000/redirected/srcset.svg',
+            'http://127.0.0.1:4000/redirected/dynamic.svg',
+            'http://127.0.0.1:4000/redirected/dynamic-style.svg',
+        ];
+        await expect.poll(async () => (
+            await page.evaluate(() => (window as any).__WORKSPACE_LIVE_RPC_CALLS__ ?? [])
+        ).map((call: any) => call.url)).toEqual(expect.arrayContaining(expectedRpcUrls));
         const rpcCalls = await page.evaluate(() => (window as any).__WORKSPACE_LIVE_RPC_CALLS__ ?? []);
         expect(rpcCalls.length).toBeGreaterThanOrEqual(4);
         expect(rpcCalls.every((call: any) => call.machineId === 'machine-2'
-            && call.method === 'workspace-live-fetch'
-            && call.url.startsWith('http://localhost:3000/'))).toBe(true);
-        expect(rpcCalls.map((call: any) => call.url)).toEqual(expect.arrayContaining([
-            'http://localhost:3000/live',
-            'http://localhost:3000/redirected/live.css',
-            'http://localhost:3000/redirected/live.js',
-            'http://localhost:3000/redirected/api/state',
-        ]));
+            && call.method === 'workspace-live-fetch')).toBe(true);
+        expect(browserLocalRequests).toEqual([]);
 
         await workspace.getByRole('button', { name: 'Start commenting' }).click();
         await workspace.getByRole('button', { name: 'Stop commenting' }).waitFor();
         await page.waitForTimeout(150);
+        await liveTarget.scrollIntoViewIfNeeded();
         await liveTarget.hover();
         await liveTarget.click();
         const comment = workspace.getByPlaceholder('Write a comment');
@@ -1378,6 +1400,28 @@ describe('Desktop workspace browser interaction', () => {
         expect(feedback.options.attachments[0]).toMatchObject({ mimeType: 'image/png' });
         expect(feedback.options.attachments[0].width).toBeLessThan(width);
         expect(feedback.options.requireAllAttachments).toBe(true);
+        const opaquePixels = await page.evaluate(async () => {
+            const attachment = (window as any).__WORKSPACE_FEEDBACK_CALLS__[0].options.attachments[0];
+            const image = new Image();
+            await new Promise<void>((resolve, reject) => {
+                image.onload = () => resolve();
+                image.onerror = () => reject(new Error('Could not decode captured element PNG'));
+                image.src = attachment.uri;
+            });
+            const canvas = document.createElement('canvas');
+            canvas.width = image.width;
+            canvas.height = image.height;
+            const context = canvas.getContext('2d');
+            if (!context) throw new Error('Could not inspect captured element PNG');
+            context.drawImage(image, 0, 0);
+            const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+            let count = 0;
+            for (let index = 3; index < pixels.length; index += 4) {
+                if (pixels[index] > 0) count += 1;
+            }
+            return count;
+        });
+        expect(opaquePixels).toBeGreaterThan(0);
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 60_000);
