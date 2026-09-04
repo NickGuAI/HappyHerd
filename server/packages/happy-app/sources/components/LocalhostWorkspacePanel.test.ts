@@ -147,7 +147,7 @@ describe('LocalhostWorkspacePanel', () => {
         act(() => renderer.unmount());
     });
 
-    it('unmounts an inactive live page so background tabs stop consuming host resources', () => {
+    it('keeps an inactive live page mounted so tab switches preserve its runtime state', () => {
         const onHeaderRightSlotChange = vi.fn();
         let renderer: any;
         const props = {
@@ -164,7 +164,8 @@ describe('LocalhostWorkspacePanel', () => {
         act(() => {
             renderer.update(React.createElement(LocalhostWorkspacePanel, { ...props, active: false }));
         });
-        expect(renderer.root.findAllByType('LocalhostLiveView' as any)).toHaveLength(0);
+        expect(renderer.root.findAllByType('LocalhostLiveView' as any)).toHaveLength(1);
+        expect(renderer.root.findByType('LocalhostLiveView' as any).props.pickerEnabled).toBe(false);
 
         act(() => {
             renderer.update(React.createElement(LocalhostWorkspacePanel, { ...props, active: true }));

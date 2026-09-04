@@ -9,8 +9,8 @@ const DATABASE_NAME = 'happyherd-workspace-live-v1';
 const DATABASE_VERSION = 1;
 const REQUEST_TIMEOUT_MS = 55_000;
 // Keep this aligned with MAX_WORKSPACE_LIVE_BODY_BYTES in happy-wire. The
-// encrypted/base64 envelope must remain below Socket.IO's 20 MiB frame limit.
-const MAX_REQUEST_BODY_BYTES = 8 * 1024 * 1024;
+// encrypted/base64 envelope must remain below Socket.IO's 40 MiB frame limit.
+const MAX_REQUEST_BODY_BYTES = 16 * 1024 * 1024;
 const RAW_LOOPBACK_URL = /^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d{1,5})?(?:[/?#]|$)/i;
 const registrations = new Map();
 const clientViews = new Map();
@@ -374,7 +374,7 @@ function workspaceLivePageBridge(viewId, messageType, targetQuery) {
     const MAX_CLONE_NODES = 500;
     const MAX_CLONE_CHARACTERS = 768_000;
     const MAX_CAPTURE_MARKUP = 1024 * 1024;
-    const MAX_SCREENSHOT_EDGE = 1_200;
+    const MAX_SCREENSHOT_EDGE = 2_400;
     let pickerEnabled = false;
     let highlighted = null;
 

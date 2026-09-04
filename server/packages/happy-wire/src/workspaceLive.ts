@@ -1,9 +1,9 @@
 import * as z from 'zod';
 
 // Workspace-live values are encrypted and then base64 encoded before they are
-// carried by Socket.IO. Eight MiB leaves ample room below its 20 MiB frame
+// carried by Socket.IO. Sixteen MiB leaves room below its 40 MiB frame
 // limit for both base64 expansions, JSON, headers, and encryption data.
-export const MAX_WORKSPACE_LIVE_BODY_BYTES = 8 * 1024 * 1024;
+export const MAX_WORKSPACE_LIVE_BODY_BYTES = 16 * 1024 * 1024;
 export const MAX_WORKSPACE_LIVE_BODY_BASE64_LENGTH = Math.ceil(MAX_WORKSPACE_LIVE_BODY_BYTES / 3) * 4;
 export const MAX_WORKSPACE_LIVE_HEADER_COUNT = 128;
 export const MAX_WORKSPACE_LIVE_HEADER_CHARACTERS = 256 * 1024;
