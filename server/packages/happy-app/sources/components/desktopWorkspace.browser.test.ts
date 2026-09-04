@@ -351,17 +351,18 @@ const virtualModules: Record<string, string> = {
         const responses = {
             '/live': {
                 type: 'text/html; charset=utf-8',
-                body: '<!doctype html><html><head><link rel="stylesheet" href="/live.css"></head><body><main><button id="live-target">Waiting for network</button></main><script src="/live.js"></script></body></html>',
+                finalUrl: 'http://localhost:3000/redirected/index.html',
+                body: '<!doctype html><html><head><link rel="stylesheet" href="./live.css"></head><body><main><button id="live-target">Waiting for network</button></main><script src="./live.js"></script></body></html>',
             },
-            '/live.css': {
+            '/redirected/live.css': {
                 type: 'text/css; charset=utf-8',
                 body: '#live-target{display:inline-flex;padding:12px 18px;background:rgb(25,90,180);color:white;border:0;border-radius:8px}',
             },
-            '/live.js': {
+            '/redirected/live.js': {
                 type: 'text/javascript; charset=utf-8',
-                body: 'window.__LIVE_SCRIPT_RAN__=true;fetch("/api/state").then((response)=>response.text()).then((text)=>{document.getElementById("live-target").textContent=text;});',
+                body: 'window.__LIVE_SCRIPT_RAN__=true;fetch("./api/state").then((response)=>response.text()).then((text)=>{document.getElementById("live-target").textContent=text;});',
             },
-            '/api/state': {
+            '/redirected/api/state': {
                 type: 'text/plain; charset=utf-8',
                 body: 'Live from machine-2',
             },
@@ -383,7 +384,7 @@ const virtualModules: Record<string, string> = {
                     statusText: 'OK',
                     headers: { 'content-type': fixture.type },
                     body: encode(fixture.body),
-                    finalUrl: request.url,
+                    finalUrl: fixture.finalUrl ?? request.url,
                 };
             },
         };
@@ -524,13 +525,13 @@ const virtualModules: Record<string, string> = {
             'workspace.title': 'Workspace',
             'workspace.pathPlaceholder': 'Path',
             'workspace.localhostUrlPlaceholder': 'http://localhost:3000',
-            'workspace.openLocalhost': 'Open Localhost',
+            'workspace.openLocalhost': 'Open localhost URL',
             'workspace.invalidLocalhostUrl': 'Invalid localhost URL',
-            'workspace.liveLoadFailed': 'Could not load localhost',
+            'workspace.liveLoadFailed': 'Could not load the live page',
             'workspace.liveCommentOnElement': 'Comment on ' + (params?.element ?? ''),
             'workspace.liveElement': 'Element ' + (params?.element ?? ''),
-            'workspace.startElementComment': 'Comment on element',
-            'workspace.stopElementComment': 'Cancel comment',
+            'workspace.startElementComment': 'Start commenting',
+            'workspace.stopElementComment': 'Stop commenting',
             'workspace.go': 'Go',
             'workspace.home': 'Home',
             'workspace.root': 'Root',
@@ -1328,8 +1329,8 @@ describe('Desktop workspace browser interaction', () => {
         await page.goto(`${origin}?localhost-live=${mode}`);
 
         const workspace = page.getByTestId(mode === 'mobile' ? 'localhost-live-mobile' : 'localhost-live-desktop');
-        await workspace.getByRole('textbox', { name: 'Open Localhost' }).fill('http://localhost:3000/live');
-        await workspace.getByRole('button', { name: 'Open Localhost' }).click();
+        await workspace.getByRole('textbox', { name: 'Open localhost URL' }).fill('http://localhost:3000/live');
+        await workspace.getByRole('button', { name: 'Open localhost URL' }).click();
 
         const frame = workspace.frameLocator('iframe');
         const liveTarget = frame.getByRole('button', { name: 'Live from machine-2' });
@@ -1342,9 +1343,15 @@ describe('Desktop workspace browser interaction', () => {
         expect(rpcCalls.every((call: any) => call.machineId === 'machine-2'
             && call.method === 'workspace-live-fetch'
             && call.url.startsWith('http://localhost:3000/'))).toBe(true);
+        expect(rpcCalls.map((call: any) => call.url)).toEqual(expect.arrayContaining([
+            'http://localhost:3000/live',
+            'http://localhost:3000/redirected/live.css',
+            'http://localhost:3000/redirected/live.js',
+            'http://localhost:3000/redirected/api/state',
+        ]));
 
-        await workspace.getByRole('button', { name: 'Comment on element' }).click();
-        await workspace.getByRole('button', { name: 'Cancel comment' }).waitFor();
+        await workspace.getByRole('button', { name: 'Start commenting' }).click();
+        await workspace.getByRole('button', { name: 'Stop commenting' }).waitFor();
         await page.waitForTimeout(150);
         await liveTarget.hover();
         await liveTarget.click();

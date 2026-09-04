@@ -1138,7 +1138,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             initialPath={effectiveMachinePickerTarget.path}
             workspaceContextSessionId={desktopFileWorkspaceSessionId}
             onFilePress={handleMachineWorkspaceFilePress}
-            onLocalhostUrlPress={handleMachineWorkspaceLocalhostUrlPress}
+            onLocalhostUrlPress={Platform.OS === 'web' ? handleMachineWorkspaceLocalhostUrlPress : undefined}
         />
     ) : null;
 
