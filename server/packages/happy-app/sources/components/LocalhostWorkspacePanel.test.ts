@@ -87,4 +87,30 @@ describe('LocalhostWorkspacePanel', () => {
         expect(renderer.root.findByType('LocalhostLiveView' as any).props.pickerEnabled).toBe(false);
         act(() => renderer.unmount());
     });
+
+    it('unmounts an inactive live page so background tabs stop consuming host resources', () => {
+        const onHeaderRightSlotChange = vi.fn();
+        let renderer: any;
+        const props = {
+            sessionId: 'main-agent-one',
+            machineId: 'machine-ec2',
+            url: 'http://localhost:5173/dashboard',
+            onHeaderRightSlotChange,
+        };
+        act(() => {
+            renderer = create(React.createElement(LocalhostWorkspacePanel, { ...props, active: true }));
+        });
+        expect(renderer.root.findAllByType('LocalhostLiveView' as any)).toHaveLength(1);
+
+        act(() => {
+            renderer.update(React.createElement(LocalhostWorkspacePanel, { ...props, active: false }));
+        });
+        expect(renderer.root.findAllByType('LocalhostLiveView' as any)).toHaveLength(0);
+
+        act(() => {
+            renderer.update(React.createElement(LocalhostWorkspacePanel, { ...props, active: true }));
+        });
+        expect(renderer.root.findAllByType('LocalhostLiveView' as any)).toHaveLength(1);
+        act(() => renderer.unmount());
+    });
 });

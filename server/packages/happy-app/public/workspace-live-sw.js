@@ -284,6 +284,8 @@ function workspaceLivePageBridge(viewId, messageType, targetQuery) {
     const MAX_HTML = 20_000;
     const MAX_CSS = 12_000;
     const MAX_CLONE_NODES = 500;
+    const MAX_CLONE_CHARACTERS = 768_000;
+    const MAX_CAPTURE_MARKUP = 1024 * 1024;
     const MAX_SCREENSHOT_EDGE = 1_200;
     let pickerEnabled = false;
     let highlighted = null;
@@ -376,21 +378,35 @@ function workspaceLivePageBridge(viewId, messageType, targetQuery) {
         }
         return output.slice(0, MAX_CSS);
     };
-    const copyStyles = (source, clone, budget) => {
-        if (!(source instanceof Element) || !(clone instanceof Element) || budget.count >= MAX_CLONE_NODES) return;
-        budget.count += 1;
+    const cloneForCapture = (source, budget) => {
+        if (!(source instanceof Element) || budget.nodes >= MAX_CLONE_NODES) return null;
+        const clone = source.cloneNode(false);
+        budget.nodes += 1;
         const computed = getComputedStyle(source);
         let cssText = '';
-        for (let index = 0; index < computed.length && cssText.length < 40_000; index += 1) {
+        for (let index = 0; index < computed.length; index += 1) {
             const property = computed[index];
-            cssText += `${property}:${computed.getPropertyValue(property)}${computed.getPropertyPriority(property) ? ' !important' : ''};`;
+            const declaration = `${property}:${computed.getPropertyValue(property)}${computed.getPropertyPriority(property) ? ' !important' : ''};`;
+            if (budget.characters + declaration.length > MAX_CLONE_CHARACTERS) break;
+            cssText += declaration;
+            budget.characters += declaration.length;
         }
         nativeSetAttribute.call(clone, 'style', cssText);
-        const sourceChildren = source.children;
-        const cloneChildren = clone.children;
-        for (let index = 0; index < sourceChildren.length && budget.count < MAX_CLONE_NODES; index += 1) {
-            copyStyles(sourceChildren[index], cloneChildren[index], budget);
+        for (const child of source.childNodes) {
+            if (budget.nodes >= MAX_CLONE_NODES || budget.characters >= MAX_CLONE_CHARACTERS) break;
+            if (child instanceof Element) {
+                const childClone = cloneForCapture(child, budget);
+                if (childClone) clone.appendChild(childClone);
+            } else {
+                budget.nodes += 1;
+                if (child.nodeType !== Node.TEXT_NODE) continue;
+                const remaining = MAX_CLONE_CHARACTERS - budget.characters;
+                const text = (child.nodeValue ?? '').slice(0, remaining);
+                budget.characters += text.length;
+                clone.appendChild(document.createTextNode(text));
+            }
         }
+        return clone;
     };
     const capture = async (element, bounds) => {
         const width = Math.max(1, Math.ceil(bounds.width));
@@ -398,13 +414,14 @@ function workspaceLivePageBridge(viewId, messageType, targetQuery) {
         const scale = Math.min(2, MAX_SCREENSHOT_EDGE / width, MAX_SCREENSHOT_EDGE / height);
         const outputWidth = Math.max(1, Math.round(width * scale));
         const outputHeight = Math.max(1, Math.round(height * scale));
-        const clone = element.cloneNode(true);
-        copyStyles(element, clone, { count: 0 });
+        const clone = cloneForCapture(element, { nodes: 0, characters: 0 });
+        if (!clone) throw new Error('Element screenshot is empty');
         const wrapper = document.createElement('div');
         nativeSetAttribute.call(wrapper, 'xmlns', 'http://www.w3.org/1999/xhtml');
         Object.assign(wrapper.style, { width: `${width}px`, height: `${height}px`, overflow: 'hidden' });
         wrapper.appendChild(clone);
         const markup = new XMLSerializer().serializeToString(wrapper);
+        if (markup.length > MAX_CAPTURE_MARKUP) throw new Error('Element screenshot is too complex');
         const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><foreignObject width="100%" height="100%">${markup}</foreignObject></svg>`;
         const image = await new Promise((resolve, reject) => {
             const candidate = new Image();

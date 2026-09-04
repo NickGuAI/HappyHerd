@@ -30,7 +30,11 @@ export const LocalhostWorkspacePanel = React.memo(function LocalhostWorkspacePan
     const [loadFailed, setLoadFailed] = React.useState(false);
 
     React.useEffect(() => {
-        if (!active) setPickerEnabled(false);
+        if (!active) {
+            setPickerEnabled(false);
+            return;
+        }
+        setLoadFailed(false);
     }, [active]);
 
     const handlePick = React.useCallback((pick: WorkspaceLiveElementPick) => {
@@ -74,14 +78,16 @@ export const LocalhostWorkspacePanel = React.memo(function LocalhostWorkspacePan
     return (
         <View style={styles.container}>
             <View style={styles.liveView}>
-                <LocalhostLiveView
-                    machineId={machineId}
-                    url={url}
-                    pickerEnabled={pickerEnabled}
-                    onPick={handlePick}
-                    onError={handleError}
-                />
-                {loadFailed ? (
+                {active ? (
+                    <LocalhostLiveView
+                        machineId={machineId}
+                        url={url}
+                        pickerEnabled={pickerEnabled}
+                        onPick={handlePick}
+                        onError={handleError}
+                    />
+                ) : null}
+                {active && loadFailed ? (
                     <View style={[styles.error, { backgroundColor: theme.colors.surface }]}>
                         <Text accessibilityRole="alert" style={{ color: theme.colors.textDestructive }}>
                             {t('workspace.liveLoadFailed')}

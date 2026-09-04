@@ -1,6 +1,6 @@
-# September 3 — Live localhost Workspace review
+# September 3 — Localhost page review in Workspace
 
-- Local development servers on the selected chat machine now render live inside Workspace, and element comments include DOM/CSS context plus a cropped screenshot delivered to the active chat.
+- Preview and comment directly on web pages running on the selected chat machine's localhost, 127.0.0.1, or [::1]; each element comment includes its HTML/CSS and a cropped screenshot sent to the active chat.
 
 # September 3 — Unified file viewer modes, commentable Markdown previews, and human message alignment
 

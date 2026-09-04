@@ -1,9 +1,9 @@
 {
   "entries": [
     {
-      "title": "September 3 — Live localhost Workspace review",
+      "title": "September 3 — Localhost page review in Workspace",
       "summary": "",
-      "markdown": "- Local development servers on the selected chat machine now render live inside Workspace, and element comments include DOM/CSS context plus a cropped screenshot delivered to the active chat."
+      "markdown": "- Preview and comment directly on web pages running on the selected chat machine's localhost, 127.0.0.1, or [::1]; each element comment includes its HTML/CSS and a cropped screenshot sent to the active chat."
     },
     {
       "title": "September 3 — Unified file viewer modes, commentable Markdown previews, and human message alignment",
@@ -521,5 +521,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 3 — Live localhost Workspace review"
+  "latestTitle": "September 3 — Localhost page review in Workspace"
 }
