@@ -72,6 +72,8 @@ interface AgentInputProps {
     sendIcon?: React.ReactNode;
     onMicPress?: () => void;
     permissionMode?: PermissionMode | null;
+    /** Show a daemon-confirmed launch mode without offering a runtime mutation. */
+    permissionModeReadOnly?: boolean;
     availableModes?: PermissionMode[];
     onPermissionModeChange?: (mode: PermissionMode) => void;
     modelMode?: ModelMode | null;
@@ -133,6 +135,8 @@ interface AgentInputProps {
     selectedImages?: AttachmentPreview[];
     onPickImages?: () => void;
     onPickDeviceFiles?: () => void;
+    /** Expose Photos and Device files separately inside the compact Web action menu. */
+    splitWebAttachmentActions?: boolean;
     onRemoveImage?: (id: string) => void;
     onAddImages?: (images: AttachmentPreview[]) => void;
     /** Explicit workspace files/directories embedded in the next user message. */
@@ -933,6 +937,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     // The chip is one word; the sandbox qualifier stays on the menu options and
     // the status badge, which both have room to spell it out.
     const permissionShortLabel = getPermissionModeShortLabel(displayPermissionMode);
+    const showReadOnlyPermissionMode = props.permissionModeReadOnly === true && permissionShortLabel !== null;
     const availableModes = React.useMemo(() => (
         hackModes(props.availableModes ?? [])
     ), [props.availableModes]);
@@ -1464,14 +1469,24 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         }
         if (props.onPickImages) {
             actions.push({
-                key: 'attachments',
-                label: t('happyHerd.composer.attachments'),
+                key: props.splitWebAttachmentActions ? 'photos' : 'attachments',
+                label: props.splitWebAttachmentActions
+                    ? t('happyHerd.composer.photos')
+                    : t('happyHerd.composer.attachments'),
                 icon: 'images-outline',
                 onPress: props.onPickImages,
             });
         }
+        if (props.splitWebAttachmentActions && props.onPickDeviceFiles) {
+            actions.push({
+                key: 'device-files',
+                label: t('happyHerd.composer.deviceFiles'),
+                icon: 'document-outline',
+                onPress: props.onPickDeviceFiles,
+            });
+        }
         return actions;
-    }, [handleAbortPress, handleSettingsPress, hasComposerContent, isAborting, modelSettingsGroups.length, permissionSettingsGroups.length, props.isSendDisabled, props.webWorkspaceActions, props.onAbort, props.onPickImages, props.onQueueMessage, shouldShowStopButton]);
+    }, [handleAbortPress, handleSettingsPress, hasComposerContent, isAborting, modelSettingsGroups.length, permissionSettingsGroups.length, props.isSendDisabled, props.webWorkspaceActions, props.onAbort, props.onPickDeviceFiles, props.onPickImages, props.onQueueMessage, props.splitWebAttachmentActions, shouldShowStopButton]);
 
     const invokeWebComposerAction = React.useCallback((action: (typeof webComposerActions)[number]) => {
         if (action.disabled) return;
@@ -1502,6 +1517,17 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     ) : (
         <Ionicons name="shield-outline" size={18} color={theme.colors.text} />
     ));
+
+    const renderReadOnlyPermissionMode = () => (
+        <View
+            accessibilityLabel={`${t('agentInput.permissionMode.title')}: ${permissionShortLabel}`}
+            accessibilityRole="text"
+            style={styles.mobilePermissionButton}
+            testID="composer-permission-mode-readonly"
+        >
+            {renderPermissionValue()}
+        </View>
+    );
 
     // Handle keyboard navigation
     const handleKeyPress = React.useCallback((event: KeyPressEvent): boolean => {
@@ -1578,26 +1604,29 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                     {props.zenMode && !webActionMenu && <View style={{ flex: 1 }} />}
                     {(!props.zenMode || webActionMenu) && <View style={styles.actionButtonsLeft}>
                         {webActionMenu ? (
-                            <BubblePressable
-                                accessibilityLabel={t('happyHerd.composer.moreActions')}
-                                accessibilityRole="button"
-                                accessibilityState={{ expanded: webActionMenuOpen }}
-                                hitSlop={{ top: 5, bottom: 10, left: 0, right: 0 }}
-                                onPress={handleWebActionMenuPress}
-                                style={(pressedState) => [
-                                    styles.mobileActionsTrigger,
-                                    pressedState.pressed && { opacity: 0.7 },
-                                ]}
-                                testID="mobile-composer-actions-trigger"
-                            >
-                                <Octicons
-                                    name="plus"
-                                    size={20}
-                                    color={(props.selectedImages?.length ?? 0) > 0 || hasContextEntries
-                                        ? theme.colors.radio.active
-                                        : theme.colors.button.secondary.tint}
-                                />
-                            </BubblePressable>
+                            <>
+                                <BubblePressable
+                                    accessibilityLabel={t('happyHerd.composer.moreActions')}
+                                    accessibilityRole="button"
+                                    accessibilityState={{ expanded: webActionMenuOpen }}
+                                    hitSlop={{ top: 5, bottom: 10, left: 0, right: 0 }}
+                                    onPress={handleWebActionMenuPress}
+                                    style={(pressedState) => [
+                                        styles.mobileActionsTrigger,
+                                        pressedState.pressed && { opacity: 0.7 },
+                                    ]}
+                                    testID="mobile-composer-actions-trigger"
+                                >
+                                    <Octicons
+                                        name="plus"
+                                        size={20}
+                                        color={(props.selectedImages?.length ?? 0) > 0 || hasContextEntries
+                                            ? theme.colors.radio.active
+                                            : theme.colors.button.secondary.tint}
+                                    />
+                                </BubblePressable>
+                                {showReadOnlyPermissionMode && renderReadOnlyPermissionMode()}
+                            </>
                         ) : (
                             <>
                         {props.onPermissionModeChange && (
@@ -1630,6 +1659,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                 </Pressable>
                             )
                         )}
+
+                        {showReadOnlyPermissionMode && renderReadOnlyPermissionMode()}
 
                         {props.agentType && props.onAgentClick && (
                             <Pressable
@@ -2431,8 +2462,8 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             permission mode is the one control here that changes
                             what the agent may do to the machine. Matches the
                             same chip in the Home composer. */}
-                        {!props.zenMode && permissionSettingsGroups.length > 0 && (
-                            useNativeSettingsMenus ? (
+                        {!props.zenMode && (permissionSettingsGroups.length > 0 || showReadOnlyPermissionMode) && (
+                            showReadOnlyPermissionMode ? renderReadOnlyPermissionMode() : useNativeSettingsMenus ? (
                                 <NativeSettingsMenu
                                     accessibilityLabel={permissionSettingsGroups[0]?.label}
                                     groups={permissionSettingsGroups}

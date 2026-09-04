@@ -411,6 +411,8 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
         '--hh-markdown-syntax-number': theme.colors.syntaxNumber,
         '--hh-markdown-syntax-function': theme.colors.syntaxFunction,
         '--hh-markdown-syntax-default': theme.colors.syntaxDefault,
+        '--hh-markdown-comment-background': theme.dark ? '#d29922' : '#9a6700',
+        '--hh-markdown-comment-foreground': theme.dark ? '#0d1117' : '#ffffff',
     } as React.CSSProperties;
 
     // Reveal the rendered unit that corresponds to a requested source line. The
@@ -452,7 +454,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
     return (
         <div
             ref={rootRef}
-            className={`hh-markdown-root${theme.dark ? ' hh-markdown-dark' : ''}`}
+            className={`hh-markdown-root${theme.dark ? ' hh-markdown-dark' : ''}${props.onLineComment ? ' hh-markdown-review-root' : ''}`}
             style={{ ...themeVariables, textAlign: props.textAlign }}
         >
             <style>{MARKDOWN_CSS}</style>
@@ -510,9 +512,10 @@ const MARKDOWN_CSS = `
 .hh-markdown-root pre { position: relative; }
 .hh-markdown-code-copy { position: absolute; top: 8px; right: 8px; opacity: 0; cursor: pointer; }
 .hh-markdown-root pre:hover > .hh-markdown-code-copy,.hh-markdown-code-copy:focus-visible { opacity: 1; }
+.hh-markdown-review-root { box-sizing: border-box; padding-inline-start: 24px; }
 .hh-markdown-review-line { position: relative; }
 .hh-markdown-review-reveal { outline: 2px solid rgba(96,140,255,.8); outline-offset: -2px; border-radius: 4px; background: rgba(96,140,255,.12); }
-.hh-markdown-comment-gutter { position: absolute; left: -24px; top: .15em; width: 20px; height: 20px; border: 1px solid rgba(127,127,127,.45); border-radius: 50%; opacity: 0; cursor: pointer; line-height: 16px; padding: 0; }
+.hh-markdown-comment-gutter { appearance: none; position: absolute; inset-inline-start: -24px; top: .15em; z-index: 4; display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: 0; border-radius: 4px; padding: 0; background: var(--hh-markdown-comment-background); color: var(--hh-markdown-comment-foreground); font-size: 13px; line-height: 20px; opacity: 0; cursor: pointer; touch-action: none; }
 .hh-markdown-review-line:hover > .hh-markdown-comment-gutter,.hh-markdown-comment-gutter:focus-visible { opacity: 1; }
 @media (hover: none), (pointer: coarse) { .hh-markdown-comment-gutter { opacity: 1; } }
 .hljs-comment,.hljs-quote { color: #6a737d; }

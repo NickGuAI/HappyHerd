@@ -66,10 +66,18 @@ import type { HappyHerdMachineSessionSettings } from '@slopus/happy-wire';
 import {
   createChildSideChat,
   formatSideChatDelegationPrompt,
+  resolveSideChatProvider,
   sameSideChatDelegationBrief,
+  sameSideChatLaunchOptions,
 } from '@/commands/sideChat';
+import {
+  buildBoundedVisibleSideChatContext,
+  findRetryableFreshSideChatHandoff,
+  formatFreshSideChatResumePrompt,
+} from '@/commands/sideChatContext';
 import type {
   SideChatDelegationBrief,
+  SideChatLaunchOptions,
   SideChatLifecycleReceipt,
   SideChatLifecycleRequest,
   SideChatStatusReceipt,
@@ -78,11 +86,13 @@ import {
   DaemonSideChatLifecycle,
   type SideChatOperationResult,
 } from './sideChatLifecycle';
+import { sampleHostResourceUsage } from './hostResourceUsage';
 import { resolveCredentialAccountEnvironment } from '@/credentialPool/store';
 import { activateCodexCredential, codexRuntimeHome } from '@/credentialPool/codexAuth';
 import type { CredentialProvider } from '@/credentialPool/types';
 import type { ProviderLimitNotice } from '@/credentialPool/providerLimitNotice';
 import { rotateProviderSessionAfterLimit } from '@/credentialPool/rotation';
+import { queueMessageIdsForResume } from '@/utils/MessageQueue2';
 
 type AutomationTrackedSession = TrackedSession & {
   automationId?: string;
@@ -179,6 +189,17 @@ export function resolveDaemonResumeAgent(metadata: Metadata): 'claude' | 'codex'
   if (metadata.flavor === 'codex' || metadata.codexThreadId) return 'codex';
   if (metadata.flavor === 'claude' || metadata.claudeSessionId) return 'claude';
   return null;
+}
+
+export type FreshSideChatResumeProvider = 'gemini' | 'dsh' | 'agy';
+
+export function resolveSideChatResumeProvider(metadata: Metadata): DaemonAgentCommand | null {
+  const native = resolveDaemonResumeAgent(metadata);
+  if (native) return native;
+  return metadata.isSideChat === true
+    && (metadata.flavor === 'gemini' || metadata.flavor === 'dsh' || metadata.flavor === 'agy')
+    ? metadata.flavor
+    : null;
 }
 
 function credentialProviderForAgent(agent: SpawnSessionOptions['agent']): CredentialProvider | null {
@@ -1130,6 +1151,8 @@ export async function startDaemon(): Promise<void> {
       permissionMode?: string;
       agentRuntimeContext?: unknown;
       replayQueueMessageId?: string;
+      /** Side-chat-only fresh provider restart attached to the same encrypted Happy session. */
+      freshSideChatProvider?: FreshSideChatResumeProvider;
       /** Daemon-only receipt selected by the Grok permission transition RPC. */
       grokPermissionTransitionSettings?: HappyHerdMachineSessionSettings;
     };
@@ -1194,21 +1217,34 @@ export async function startDaemon(): Promise<void> {
         tracked.encryption = refreshedEncryption;
         const metadata = authoritative.metadata;
 
-        const launch = buildResumeLaunch(
-          { id: resolvedSessionId, active: true, metadata },
-          { startedBy: 'daemon', claudeStartingMode: 'remote' },
-        );
+        const freshSideChatProvider = options?.freshSideChatProvider;
+        if (freshSideChatProvider
+          && (metadata.isSideChat !== true || metadata.flavor !== freshSideChatProvider)) {
+          throw new Error(`Session ${resolvedSessionId} is not a ${freshSideChatProvider} side chat.`);
+        }
+        const launch = freshSideChatProvider
+          ? {
+            args: [freshSideChatProvider, '--happy-starting-mode', 'remote', '--started-by', 'daemon'],
+            cwd: metadata.path,
+          }
+          : buildResumeLaunch(
+            { id: resolvedSessionId, active: true, metadata },
+            { startedBy: 'daemon', claudeStartingMode: 'remote' },
+          );
 
-        const resumeAgent = resolveDaemonResumeAgent(metadata);
+        const resumeAgent = freshSideChatProvider ?? resolveDaemonResumeAgent(metadata);
         if (!resumeAgent) {
           throw new Error(`Session ${resolvedSessionId} uses unsupported flavor "${metadata.flavor ?? 'unknown'}".`);
         }
-        const credentialResolution = await resolveCredentialAccountEnvironment(resumeAgent, {
-          preferred: metadata.providerAccount,
-        });
+        const credentialProvider = credentialProviderForAgent(resumeAgent);
+        const credentialResolution = credentialProvider
+          ? await resolveCredentialAccountEnvironment(credentialProvider, {
+            preferred: metadata.providerAccount,
+          })
+          : { selection: { type: 'unconfigured' as const }, env: {} };
         if (credentialResolution.selection.type === 'all-limited') {
           throw new Error(
-            `All ${resumeAgent} accounts are limited until ${new Date(credentialResolution.selection.limitedUntil).toISOString()}.`,
+            `All ${credentialProvider} accounts are limited until ${new Date(credentialResolution.selection.limitedUntil).toISOString()}.`,
           );
         }
         const codexHome = resumeAgent === 'codex'
@@ -1218,12 +1254,15 @@ export async function startDaemon(): Promise<void> {
           ? persistedProviderPermissionMode(metadata, 'grok')
           : undefined;
         const parsedProviderReceipt = HappyHerdMachineSessionSettingsSchema.safeParse(metadata.spawnSettings);
-        const persistedProviderSettings = (resumeAgent === 'claude' || resumeAgent === 'codex')
-          && parsedProviderReceipt.success
+        const persistedProviderSettings = parsedProviderReceipt.success
           && parsedProviderReceipt.data.provider === resumeAgent
           ? parsedProviderReceipt.data
           : undefined;
-        const providerResumeSettings = resumeAgent === 'claude' || resumeAgent === 'codex'
+        const usesCatalogResumeSettings = resumeAgent === 'claude'
+          || resumeAgent === 'codex'
+          || freshSideChatProvider === 'dsh'
+          || freshSideChatProvider === 'agy';
+        const providerResumeSettings = usesCatalogResumeSettings
           ? resolveEffectiveSessionSettings(machine.metadata, machine.id, {
             provider: resumeAgent,
             // An app resume sends its latest complete picker tuple. Terminal
@@ -1287,6 +1326,9 @@ export async function startDaemon(): Promise<void> {
             HAPPY_RECONNECT_AGENT_STATE_VERSION: String(tracked.encryption.agentStateVersion),
             ...(options?.replayQueueMessageId
               ? { HAPPY_RECONNECT_QUEUE_MESSAGE_ID: options.replayQueueMessageId }
+              : {}),
+            ...(freshSideChatProvider
+              ? { HAPPYHERD_FRESH_PROVIDER_RECONNECT: '1' }
               : {}),
           }),
           settings: providerResumeSettings ?? grokResumeSettings,
@@ -1514,6 +1556,7 @@ export async function startDaemon(): Promise<void> {
     let createLocalSideChat = async (
       _parentSessionId: string,
       _brief: SideChatDelegationBrief | null,
+      _launch: SideChatLaunchOptions | undefined,
     ): Promise<LocalSideChatCreation> => {
       throw new Error('HappyHerd daemon is still starting; retry side-chat creation.');
     };
@@ -1674,13 +1717,14 @@ export async function startDaemon(): Promise<void> {
 
     const inFlightLocalSideChats = new Map<string, {
       brief: SideChatDelegationBrief | null;
+      launch: SideChatLaunchOptions | undefined;
       creation: Promise<LocalSideChatCreation>;
     }>();
-    createLocalSideChat = async (parentSessionId, brief) => {
-      let parent: { id: string; metadata: Metadata };
+    createLocalSideChat = async (parentSessionId, brief, launch) => {
+      let parent: Session;
       try {
         const session = await resolveLocalReconnectableSession(parentSessionId);
-        parent = { id: session.id, metadata: session.metadata };
+        parent = { ...session, agentState: null };
       } catch (error) {
         const detail = error instanceof Error ? error.message : String(error);
         throw new Error(`Side chats must be created on the parent session's owning machine: ${detail}`);
@@ -1691,14 +1735,33 @@ export async function startDaemon(): Promise<void> {
         const briefMatches = existing.brief === null || brief === null
           ? existing.brief === brief
           : sameSideChatDelegationBrief(existing.brief, brief);
-        if (!briefMatches) {
-          throw new Error(`Side-chat creation for parent ${parent.id} is already carrying a different delegation brief.`);
+        if (!briefMatches || !sameSideChatLaunchOptions(existing.launch, launch)) {
+          throw new Error(`Side-chat creation for parent ${parent.id} is already carrying a different delegation brief or launch selection.`);
         }
         return existing.creation;
       }
 
       const creation = (async (): Promise<LocalSideChatCreation> => {
-        const isCodexParent = parent.metadata.flavor === 'codex';
+        const provider = resolveSideChatProvider(parent.metadata);
+        if (!provider) {
+          throw new Error(`Happy session ${parent.id} uses unsupported provider "${parent.metadata.flavor ?? 'unknown'}".`);
+        }
+        const isCodexParent = provider === 'codex';
+        const nativeFork = provider === 'claude' || provider === 'codex';
+        const shouldResolveLaunchSettings = launch !== undefined || (!nativeFork && provider !== 'gemini');
+        const effectiveLaunchSettings = shouldResolveLaunchSettings
+          ? resolveEffectiveSessionSettings(machine.metadata, machine.id, {
+            provider,
+            ...(launch?.model ? { model: launch.model } : {}),
+            ...(launch?.effort ? { effort: launch.effort } : {}),
+          })
+          : undefined;
+        const effectiveLaunch = effectiveLaunchSettings
+          ? {
+            ...(effectiveLaunchSettings.model ? { model: effectiveLaunchSettings.model } : {}),
+            ...(effectiveLaunchSettings.effort ? { effort: effectiveLaunchSettings.effort } : {}),
+          }
+          : undefined;
         const inheritedProviderAccount = isCodexParent
           ? parent.metadata.providerAccount?.trim() || null
           : null;
@@ -1735,6 +1798,10 @@ export async function startDaemon(): Promise<void> {
           );
         }
 
+        const freshProviderContext = brief !== null && !nativeFork
+          ? buildBoundedVisibleSideChatContext(await api.readRecentSessionMessages(parent))
+          : undefined;
+
         const created = await createChildSideChat(parent.id, {
           resolveSession: async () => parent,
           resolveMachine: async (requestedMachineId) => {
@@ -1760,17 +1827,26 @@ export async function startDaemon(): Promise<void> {
           },
           createMachineSession: async ({ machine: _target, ...options }) => spawnSession({
             ...options,
+            ...(effectiveLaunchSettings ? {
+              permissionMode: effectiveLaunchSettings.permission ?? undefined,
+              effectiveSettings: effectiveLaunchSettings,
+            } : {}),
             ...(codexHome ? { codexHome } : {}),
             ...(isCodexParent ? { providerAccount: providerAccount ?? null } : {}),
           }),
-        });
+        }, effectiveLaunch);
         if (brief === null) {
           return { ...created, briefDelivery: null };
         }
         try {
           await api.postSideChatBrief(localSessionFromPersistence(created.sessionId), {
             localId: randomUUID(),
-            text: formatSideChatDelegationPrompt(parent.id, created.sessionId, brief),
+            text: formatSideChatDelegationPrompt(
+              parent.id,
+              created.sessionId,
+              brief,
+              freshProviderContext,
+            ),
           });
           return { ...created, briefDelivery: { success: true } };
         } catch (error) {
@@ -1783,7 +1859,7 @@ export async function startDaemon(): Promise<void> {
           };
         }
       })();
-      inFlightLocalSideChats.set(parent.id, { brief, creation });
+      inFlightLocalSideChats.set(parent.id, { brief, launch, creation });
       try {
         return await creation;
       } finally {
@@ -1843,7 +1919,7 @@ export async function startDaemon(): Promise<void> {
         status,
         providerRunning: Boolean(live),
         active: inspected.active,
-        resumable: !live && resolveDaemonResumeAgent(metadata) !== null,
+        resumable: !live && resolveSideChatResumeProvider(metadata) !== null,
       };
     };
 
@@ -1899,7 +1975,32 @@ export async function startDaemon(): Promise<void> {
         return success ? { success } : { success, message: 'Server did not confirm active=false' };
       },
       resumeProvider: async (sessionId) => {
-        const result = await resumeSession(sessionId);
+        const current = localSessionFromPersistence(sessionId);
+        const provider = resolveSideChatResumeProvider(current.metadata);
+        let replayQueueMessageId: string | undefined;
+        let freshSideChatProvider: FreshSideChatResumeProvider | undefined;
+        if (provider === 'gemini' || provider === 'dsh' || provider === 'agy') {
+          freshSideChatProvider = provider;
+          const authoritative = (await api.inspectSessionAuthoritative(current)).session;
+          const recentMessages = await api.readRecentSessionMessages(authoritative);
+          const retryableHandoff = findRetryableFreshSideChatHandoff(
+            recentMessages,
+            queueMessageIdsForResume(authoritative.agentState?.messageQueue),
+          );
+          replayQueueMessageId = retryableHandoff ?? randomUUID();
+          if (!retryableHandoff) {
+            const context = buildBoundedVisibleSideChatContext(recentMessages);
+            await api.postSideChatBrief(authoritative, {
+              localId: replayQueueMessageId,
+              text: formatFreshSideChatResumePrompt(provider, context),
+              providerContinuationHandoff: true,
+            });
+          }
+        }
+        const result = await resumeSession(sessionId, {
+          ...(replayQueueMessageId ? { replayQueueMessageId } : {}),
+          ...(freshSideChatProvider ? { freshSideChatProvider } : {}),
+        });
         if (result.type !== 'success') {
           return { success: false, message: result.type === 'error' ? result.errorMessage : 'Resume unexpectedly requires directory approval' };
         }
@@ -1915,6 +2016,7 @@ export async function startDaemon(): Promise<void> {
           return { success: false, message: error instanceof Error ? error.message : String(error) };
         }
       },
+      sampleResources: sampleHostResourceUsage,
     });
     manageLocalSideChat = (request) => sideChatLifecycle.execute(request);
 

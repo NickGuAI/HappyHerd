@@ -1,6 +1,8 @@
 {
   "schemaVersion": 1,
   "exemptions": [
+    { "key": "workspace.localhostUrlPlaceholder", "locales": ["cn", "de"], "reason": "Literal loopback URL example; altering it would make the example invalid." },
+    { "key": "workspace.liveElement", "locales": ["de"], "reason": "Element is the conventional German UI noun with identical spelling." },
     { "key": "common.urlPlaceholder", "locales": ["cn", "de"], "reason": "Literal example URL; altering it would make the example less useful." },
     { "key": "settings.github", "locales": ["cn", "de"], "reason": "GitHub is a proper product name and must remain byte-faithful." },
     { "key": "settings.eula", "locales": ["de"], "reason": "EULA is the standard German-language legal acronym as well." },

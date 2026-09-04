@@ -83,14 +83,14 @@ export const SettingsView = React.memo(function SettingsView({
 }) {
     const { theme } = useUnistyles();
     const router = useRouter();
-    const appVersion = Constants.expoConfig?.version || '1.0.0';
+    const appVersion = Constants.expoConfig?.version;
     const runtimeVersion = typeof Constants.expoConfig?.runtimeVersion === 'string'
         ? Constants.expoConfig.runtimeVersion
         : undefined;
     const versionDetail = [
-        appVersion,
-        runtimeVersion ? `runtime ${runtimeVersion}` : undefined,
-    ].filter(Boolean).join(' / ');
+        appVersion ? `${PRODUCT.displayName} ${appVersion}` : PRODUCT.displayName,
+        runtimeVersion ? `${t('common.runtime')} ${runtimeVersion}` : undefined,
+    ].filter(Boolean).join(' · ');
     const versionSubtitle = formatBuildSubtitle(getBuildConfig());
     const auth = useAuth();
     const [devModeEnabled, setDevModeEnabled] = useLocalSettingMutable('devModeEnabled');
@@ -122,6 +122,10 @@ export const SettingsView = React.memo(function SettingsView({
 
     const handleReportIssue = async () => {
         await openExternalUrl(PRODUCT.issueUrl);
+    };
+
+    const handleSupport = async () => {
+        await openExternalUrl(PRODUCT.supportUrl);
     };
 
     const handleSubscribe = async () => {
@@ -282,7 +286,9 @@ export const SettingsView = React.memo(function SettingsView({
                     subtitle={isPro ? t('settings.supportUsSubtitlePro') : t('settings.supportUsSubtitle')}
                     icon={<Ionicons name="heart" size={29} color="#FF3B30" />}
                     showChevron={false}
-                    onPress={isPro ? undefined : handleSubscribe}
+                    onPress={Platform.OS === 'web'
+                        ? (PRODUCT.supportUrl ? handleSupport : undefined)
+                        : (isPro ? undefined : handleSubscribe)}
                 />
             </ItemGroup>
 
@@ -435,7 +441,7 @@ export const SettingsView = React.memo(function SettingsView({
             )}
 
             {/* About */}
-            <ItemGroup title={t('settings.about')} footer={t('settings.aboutFooter')}>
+            <ItemGroup title={t('settings.about')}>
                 <Item
                     title={t('settings.whatsNew')}
                     subtitle={t('settings.whatsNewSubtitle')}
@@ -463,12 +469,12 @@ export const SettingsView = React.memo(function SettingsView({
                 <Item
                     title={t('settings.privacyPolicy')}
                     icon={<Ionicons name="shield-checkmark-outline" size={29} color="#007AFF" />}
-                    onPress={() => openExternalUrl('https://happy.engineering/privacy/')}
+                    onPress={() => openExternalUrl('https://flern.co/privacy')}
                 />
                 <Item
                     title={t('settings.termsOfService')}
                     icon={<Ionicons name="document-text-outline" size={29} color="#007AFF" />}
-                    onPress={() => openExternalUrl('https://github.com/slopus/happy/blob/main/TERMS.md')}
+                    onPress={() => openExternalUrl('https://flern.co/terms')}
                 />
                 {Platform.OS === 'ios' && (
                     <Item

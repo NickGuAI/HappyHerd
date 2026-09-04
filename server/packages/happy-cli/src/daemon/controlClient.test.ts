@@ -142,6 +142,72 @@ describe('side-chat daemon control client', () => {
       parentSessionId: 'parent',
       brief,
     });
+    expect(fetch.mock.calls[0][0]).toBe('http://127.0.0.1:39001/side-chat');
+  });
+
+  it('returns a schema-version-2 create receipt with owning-daemon resources unchanged', async () => {
+    const receipt = {
+      schemaVersion: 2,
+      type: 'side-chat',
+      action: 'create',
+      success: true,
+      parentSessionId: 'parent',
+      sessionId: 'child',
+      child: null,
+      phases: [{ phase: 'deliver-brief', status: 'succeeded' }],
+      resource: {
+        status: 'ok',
+        sampledAt: '2026-09-03T10:00:00.000Z',
+        cpu: { busyPercent: 25, sampleWindowMs: 250 },
+        loadAverage: { oneMinute: 1, fiveMinutes: 2, fifteenMinutes: 3 },
+        memory: {
+          usedBytes: 4,
+          totalBytes: 10,
+          availableBytes: 6,
+          swapUsedBytes: 1,
+        },
+      },
+    };
+    const fetch = vi.fn(async (_input: string | URL | Request, _init?: RequestInit) => ({
+      ok: true,
+      json: async () => receipt,
+    }));
+    vi.stubGlobal('fetch', fetch);
+    vi.spyOn(process, 'kill').mockImplementation(() => true);
+
+    await expect(manageDaemonSideChat({
+      action: 'create',
+      parentSessionId: 'parent',
+      brief,
+      launch: { model: 'gpt-5.6-sol', effort: 'xhigh' },
+    }))
+      .resolves.toEqual(receipt);
+    expect(JSON.parse(fetch.mock.calls[0][1]!.body as string)).toEqual({
+      action: 'create',
+      parentSessionId: 'parent',
+      brief,
+      launch: { model: 'gpt-5.6-sol', effort: 'xhigh' },
+    });
+    expect(fetch.mock.calls[0][0]).toBe('http://127.0.0.1:39001/side-chat-create-with-settings');
+  });
+
+  it('fails against an older daemon instead of dropping explicit launch settings', async () => {
+    const fetch = vi.fn(async (_input: string | URL | Request) => ({
+      ok: false,
+      status: 404,
+      json: async () => ({ message: 'Route POST:/side-chat-create-with-settings not found' }),
+    }));
+    vi.stubGlobal('fetch', fetch);
+    vi.spyOn(process, 'kill').mockImplementation(() => true);
+
+    await expect(manageDaemonSideChat({
+      action: 'create',
+      parentSessionId: 'parent',
+      brief,
+      launch: { model: 'not-advertised', effort: 'xhigh' },
+    })).rejects.toThrow('HTTP 404');
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(fetch.mock.calls[0][0]).toBe('http://127.0.0.1:39001/side-chat-create-with-settings');
   });
 
   it('normalizes inspect, pause, and resume before crossing the daemon API boundary', async () => {

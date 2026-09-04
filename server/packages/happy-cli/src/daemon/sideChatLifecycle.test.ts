@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { SideChatDelegationBrief, SideChatLifecycleStatus } from '@/commands/sideChat';
+import type {
+  SideChatDelegationBrief,
+  SideChatLaunchOptions,
+  SideChatLifecycleStatus,
+  SideChatResourceUsage,
+} from '@/commands/sideChat';
 import {
   DaemonSideChatLifecycle,
   type DaemonSideChatLifecycleDependencies,
@@ -32,11 +37,29 @@ const brief: SideChatDelegationBrief = {
   handoff: 'Return result, evidence, blockers, and remaining work.',
 };
 
+const launch: SideChatLaunchOptions = {
+  model: 'gpt-5.6-sol',
+  effort: 'xhigh',
+};
+
+const resource: SideChatResourceUsage = {
+  status: 'ok',
+  sampledAt: '2026-09-03T10:00:00.000Z',
+  cpu: { busyPercent: 12.5, sampleWindowMs: 250 },
+  loadAverage: { oneMinute: 0.1, fiveMinutes: 0.2, fifteenMinutes: 0.3 },
+  memory: {
+    usedBytes: 8 * 1024 ** 3,
+    totalBytes: 16 * 1024 ** 3,
+    availableBytes: 8 * 1024 ** 3,
+    swapUsedBytes: 1024 ** 3,
+  },
+};
+
 function harness(initial: DaemonSideChatRecord[]) {
   const records = new Map(initial.map((record) => [record.sessionId, { ...record }]));
   const calls: string[] = [];
   const dependencies: DaemonSideChatLifecycleDependencies = {
-    create: vi.fn(async (parentSessionId, deliveredBrief) => {
+    create: vi.fn(async (parentSessionId, deliveredBrief, _launch) => {
       const created = child('created-child', 'running', { parentSessionId });
       records.set(created.sessionId, created);
       calls.push(`create:${parentSessionId}`);
@@ -82,6 +105,7 @@ function harness(initial: DaemonSideChatRecord[]) {
       record.resumable = false;
       return { success: true };
     }),
+    sampleResources: vi.fn(async () => resource),
   };
   return { lifecycle: new DaemonSideChatLifecycle(dependencies), dependencies, records, calls };
 }
@@ -92,7 +116,7 @@ describe('DaemonSideChatLifecycle', () => {
 
     await expect(lifecycle.execute({ action: 'create', parentSessionId: 'parent', brief: null }))
       .resolves.toMatchObject({
-        schemaVersion: 1,
+        schemaVersion: 2,
         type: 'side-chat',
         action: 'create',
         success: true,
@@ -104,8 +128,9 @@ describe('DaemonSideChatLifecycle', () => {
           { phase: 'deliver-brief', status: 'skipped' },
           { phase: 'readback', status: 'succeeded' },
         ],
+        resource,
       });
-    expect(dependencies.create).toHaveBeenCalledWith('parent', null);
+    expect(dependencies.create).toHaveBeenCalledWith('parent', null, undefined);
     expect(calls).toEqual(['create:parent', 'read:created-child']);
   });
 
@@ -114,7 +139,7 @@ describe('DaemonSideChatLifecycle', () => {
 
     await expect(lifecycle.execute({ action: 'create', parentSessionId: 'parent', brief }))
       .resolves.toMatchObject({
-        schemaVersion: 1,
+        schemaVersion: 2,
         type: 'side-chat',
         action: 'create',
         success: true,
@@ -126,7 +151,20 @@ describe('DaemonSideChatLifecycle', () => {
           { phase: 'deliver-brief', status: 'succeeded' },
           { phase: 'readback', status: 'succeeded' },
         ],
+        resource,
       });
+  });
+
+  it('forwards an explicit model and effort through the daemon-owned create boundary', async () => {
+    const { lifecycle, dependencies } = harness([]);
+
+    await expect(lifecycle.execute({
+      action: 'create',
+      parentSessionId: 'parent',
+      brief,
+      launch,
+    })).resolves.toMatchObject({ success: true, sessionId: 'created-child' });
+    expect(dependencies.create).toHaveBeenCalledWith('parent', brief, launch);
   });
 
   it('retains the created child and exact failed phase when brief delivery fails', async () => {
@@ -141,6 +179,7 @@ describe('DaemonSideChatLifecycle', () => {
 
     await expect(lifecycle.execute({ action: 'create', parentSessionId: 'parent', brief }))
       .resolves.toMatchObject({
+        schemaVersion: 2,
         success: false,
         parentSessionId: 'parent',
         sessionId: 'created-child',
@@ -148,6 +187,7 @@ describe('DaemonSideChatLifecycle', () => {
         phases: expect.arrayContaining([
           { phase: 'deliver-brief', status: 'failed', message: 'message persistence failed' },
         ]),
+        resource,
       });
   });
 
@@ -157,6 +197,7 @@ describe('DaemonSideChatLifecycle', () => {
 
     await expect(lifecycle.execute({ action: 'create', parentSessionId: 'parent', brief }))
       .resolves.toMatchObject({
+        schemaVersion: 2,
         success: false,
         parentSessionId: 'parent',
         sessionId: 'created-child',
@@ -166,6 +207,7 @@ describe('DaemonSideChatLifecycle', () => {
           { phase: 'deliver-brief', status: 'succeeded' },
           { phase: 'readback', status: 'failed', message: 'read-back unavailable' },
         ],
+        resource,
       });
   });
 
@@ -175,6 +217,7 @@ describe('DaemonSideChatLifecycle', () => {
 
     await expect(lifecycle.execute({ action: 'create', parentSessionId: 'parent', brief: null }))
       .resolves.toMatchObject({
+        schemaVersion: 2,
         success: false,
         parentSessionId: 'parent',
         sessionId: 'created-child',
@@ -184,6 +227,44 @@ describe('DaemonSideChatLifecycle', () => {
           { phase: 'deliver-brief', status: 'skipped' },
           { phase: 'readback', status: 'failed', message: 'read-back unavailable' },
         ],
+        resource,
+      });
+  });
+
+  it('keeps create successful when resource sampling fails unexpectedly', async () => {
+    const { lifecycle, dependencies } = harness([]);
+    vi.mocked(dependencies.sampleResources).mockRejectedValue(new Error('metrics unavailable'));
+
+    await expect(lifecycle.execute({ action: 'create', parentSessionId: 'parent', brief }))
+      .resolves.toMatchObject({
+        schemaVersion: 2,
+        success: true,
+        sessionId: 'created-child',
+        resource: {
+          status: 'failed',
+          cpu: { busyPercent: null, sampleWindowMs: 250 },
+          memory: {
+            usedBytes: null,
+            totalBytes: null,
+            availableBytes: null,
+            swapUsedBytes: null,
+          },
+        },
+      });
+  });
+
+  it('includes the sampled resources when side-chat creation itself fails', async () => {
+    const { lifecycle, dependencies } = harness([]);
+    vi.mocked(dependencies.create).mockRejectedValue(new Error('parent unavailable'));
+
+    await expect(lifecycle.execute({ action: 'create', parentSessionId: 'parent', brief }))
+      .resolves.toMatchObject({
+        schemaVersion: 2,
+        success: false,
+        parentSessionId: null,
+        sessionId: null,
+        phases: [{ phase: 'resolve', status: 'failed', message: 'parent unavailable' }],
+        resource,
       });
   });
 

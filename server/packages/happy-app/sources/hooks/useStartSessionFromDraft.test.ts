@@ -25,6 +25,9 @@ const mocks = vi.hoisted(() => ({
     getMachineAdvertisedPermissionModes: vi.fn(),
     getMachineAdvertisedModels: vi.fn(),
     getMachineAdvertisedEffortLevels: vi.fn(),
+    addWorkspaceContextEntry: vi.fn(),
+    buildWorkspaceContextMessage: vi.fn(),
+    clearWorkspaceContextFiles: vi.fn(),
     uuidCount: 0,
 }));
 
@@ -87,6 +90,12 @@ vi.mock('@/sync/sync', () => ({
         refreshSessions: mocks.refreshSessions,
         sendMessage: mocks.sendMessage,
     },
+}));
+
+vi.mock('@/sync/workspaceContext', () => ({
+    addWorkspaceContextEntry: mocks.addWorkspaceContextEntry,
+    buildWorkspaceContextMessage: mocks.buildWorkspaceContextMessage,
+    clearWorkspaceContextFiles: mocks.clearWorkspaceContextFiles,
 }));
 
 vi.mock('@/hooks/useNewSessionDraft', () => ({
@@ -251,10 +260,14 @@ function createDshMachine() {
             agentCapabilities: {
                 dsh: {
                     detectedAt: 1,
-                    sources: { models: 'static', effortLevels: 'provider', permissionModes: 'unsupported' },
+                    sources: { models: 'static', effortLevels: 'provider', permissionModes: 'dsh-profile' },
                     models: [],
                     effortLevels: [],
-                    permissionModes: [],
+                    permissionModes: [
+                        { code: 'read-only', value: 'read-only' },
+                        { code: 'workspace-write', value: 'workspace-write', isDefault: true },
+                        { code: 'danger-full-access', value: 'danger-full-access' },
+                    ],
                     acp: { loadSession: false, prompt: { image: false } },
                 },
             },
@@ -282,6 +295,10 @@ describe('useStartSessionFromDraft', () => {
         mocks.getMachineAdvertisedPermissionModes.mockReturnValue([]);
         mocks.getMachineAdvertisedModels.mockReturnValue([]);
         mocks.getMachineAdvertisedEffortLevels.mockReturnValue([]);
+        mocks.buildWorkspaceContextMessage.mockResolvedValue({
+            promptText: 'Start the implementation',
+            displayText: 'Start the implementation',
+        });
     });
 
     it('creates and opens the session directly from the home draft', async () => {
@@ -509,7 +526,7 @@ describe('useStartSessionFromDraft', () => {
         );
     });
 
-    it('starts dsh with its exact catalog defaults and no permission mode', async () => {
+    it('starts dsh with its exact catalog defaults and keeps permission receipt-owned', async () => {
         mocks.machines = [createDshMachine()];
         mocks.draft = createDraft({ agentType: 'dsh' });
         mocks.getMachineAdvertisedModels.mockReturnValue([
@@ -522,6 +539,11 @@ describe('useStartSessionFromDraft', () => {
             { key: 'high', name: 'high', isDefault: true },
             { key: 'max', name: 'max' },
         ]);
+        mocks.getMachineAdvertisedPermissionModes.mockReturnValue([
+            { key: 'read-only', name: 'read-only' },
+            { key: 'workspace-write', name: 'workspace-write', isDefault: true },
+            { key: 'danger-full-access', name: 'danger-full-access' },
+        ]);
 
         const { startSession } = useStartSessionFromDraft();
 
@@ -531,7 +553,7 @@ describe('useStartSessionFromDraft', () => {
             directory: '/absolute/project',
             approvedNewDirectoryCreation: false,
             agent: 'dsh',
-            permissionMode: undefined,
+            permissionMode: 'workspace-write',
             modelMode: 'deepseek-v4-flash',
             effortLevel: 'high',
         });
@@ -544,6 +566,83 @@ describe('useStartSessionFromDraft', () => {
             'Start the implementation',
             { source: 'new_session', attachments: [] },
         );
+    });
+
+    it('binds HomeDock dsh workspace uploads to the exact initial message paths', async () => {
+        mocks.machines = [createDshMachine()];
+        mocks.draft = createDraft({ agentType: 'dsh' });
+        mocks.getMachineAdvertisedPermissionModes.mockReturnValue([
+            { key: 'workspace-write', name: 'workspace-write', isDefault: true },
+        ]);
+        const workspaceEntries = [
+            {
+                path: '/absolute/project/photo.jpg',
+                kind: 'file' as const,
+                source: { kind: 'machine' as const, machineId: 'machine-1' },
+            },
+            {
+                path: '/absolute/project/report.pdf',
+                kind: 'file' as const,
+                source: { kind: 'machine' as const, machineId: 'machine-1' },
+            },
+        ];
+        mocks.buildWorkspaceContextMessage.mockResolvedValue({
+            promptText: 'Start the implementation\n\nUse exact files:\n/absolute/project/photo.jpg\n/absolute/project/report.pdf',
+            displayText: 'Start the implementation\n\n/absolute/project/photo.jpg\n/absolute/project/report.pdf',
+        });
+
+        const { startSession } = useStartSessionFromDraft();
+
+        await expect(startSession(workspaceEntries)).resolves.toBe(true);
+        expect(mocks.addWorkspaceContextEntry.mock.calls).toEqual([
+            ['session-1', workspaceEntries[0]],
+            ['session-1', workspaceEntries[1]],
+        ]);
+        expect(mocks.buildWorkspaceContextMessage).toHaveBeenCalledWith(
+            'session-1',
+            'Start the implementation',
+            workspaceEntries,
+            { machineFilesAsReferences: true },
+        );
+        expect(mocks.sendMessage).toHaveBeenCalledWith(
+            'session-1',
+            'Start the implementation\n\nUse exact files:\n/absolute/project/photo.jpg\n/absolute/project/report.pdf',
+            {
+                source: 'new_session',
+                attachments: [],
+                displayText: 'Start the implementation\n\n/absolute/project/photo.jpg\n/absolute/project/report.pdf',
+            },
+        );
+        expect(mocks.clearWorkspaceContextFiles).toHaveBeenCalledWith('session-1');
+    });
+
+    it('stops an opened session when HomeDock Stop wins a pending workspace-context read', async () => {
+        mocks.machines = [createDshMachine()];
+        mocks.draft = createDraft({ agentType: 'dsh' });
+        mocks.getMachineAdvertisedPermissionModes.mockReturnValue([
+            { key: 'workspace-write', name: 'workspace-write', isDefault: true },
+        ]);
+        const workspaceEntries = [{
+            path: '/absolute/project/photo.jpg',
+            kind: 'file' as const,
+            source: { kind: 'machine' as const, machineId: 'machine-1' },
+        }];
+        mocks.buildWorkspaceContextMessage.mockReturnValue(new Promise(() => { }));
+        const { startSession, cancelStart } = useStartSessionFromDraft();
+
+        const starting = startSession(workspaceEntries);
+        await vi.waitFor(() => expect(mocks.buildWorkspaceContextMessage).toHaveBeenCalledOnce());
+        cancelStart();
+
+        await expect(starting).resolves.toBe(false);
+        await vi.waitFor(() => {
+            expect(mocks.machineStopSession).toHaveBeenCalledWith('machine-1', 'session-1');
+        });
+        expect(mocks.clearWorkspaceContextFiles).toHaveBeenCalledWith('session-1');
+        expect(mocks.navigateToSession).not.toHaveBeenCalled();
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+        expect(mocks.draft.setInput).not.toHaveBeenCalled();
+        expect(mocks.draft.setAttachments).not.toHaveBeenCalled();
     });
 
     it('omits GrokBuild launch dimensions that the exact machine does not expose', async () => {

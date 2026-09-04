@@ -60,6 +60,7 @@ describe('sessionEnvironment', () => {
             HAPPY_RECONNECT_METADATA_VERSION: '13',
             HAPPY_RECONNECT_AGENT_STATE_VERSION: '14',
             HAPPY_RECONNECT_QUEUE_MESSAGE_ID: 'heartbeat-occurrence',
+            HAPPYHERD_FRESH_PROVIDER_RECONNECT: '1',
         });
 
         expect(childEnv).toMatchObject({
@@ -70,6 +71,7 @@ describe('sessionEnvironment', () => {
             HAPPY_RECONNECT_METADATA_VERSION: '13',
             HAPPY_RECONNECT_AGENT_STATE_VERSION: '14',
             HAPPY_RECONNECT_QUEUE_MESSAGE_ID: 'heartbeat-occurrence',
+            HAPPYHERD_FRESH_PROVIDER_RECONNECT: '1',
         });
         expect(childEnv).not.toHaveProperty('HAPPY_FORK_CODEX_THREAD_ID');
         expect(childEnv).not.toHaveProperty('CODEX_THREAD_ID');

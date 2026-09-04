@@ -39,13 +39,30 @@ for (const url of [
   `https://raw.githubusercontent.com/${approvedRepositoryOwner}/HappyHerd/main/install.sh`,
 ]) {
   assert.deepEqual(inspect('README.md', `Install from ${url}.`), []);
+  assert.deepEqual(inspect('README.md', `Install from \`${url}\`.`), []);
 }
+assert.deepEqual(inspect('README.md', `Repository: ${approvedRepositoryOwner}/HappyHerd.`), []);
+assert.deepEqual(inspect('README.md', `Repository: \`${approvedRepositoryOwner}/HappyHerd\`.`), []);
 assert(inspect('README.md', `https://github.com/${approvedRepositoryOwner}/OtherProject`).includes(
   'operator-specific personal identity',
 ));
 assert(inspect('README.md', `https://github.com/${approvedRepositoryOwner}/HappyHerd.evil`).includes(
   'operator-specific personal identity',
 ));
+assert(inspect('README.md', `https://example.com/${approvedRepositoryOwner}/HappyHerd`).includes(
+  'operator-specific personal identity',
+));
+for (const unapprovedDisplayContext of [
+  `https://example.com/@${approvedRepositoryOwner}/HappyHerd`,
+  `https://example.com/#${approvedRepositoryOwner}/HappyHerd`,
+  `https://example.com/?repo=${approvedRepositoryOwner}/HappyHerd`,
+  `https://example.com/path;repo=${approvedRepositoryOwner}/HappyHerd`,
+  `Owned by @${approvedRepositoryOwner}/HappyHerd`,
+]) {
+  assert(inspect('README.md', unapprovedDisplayContext).includes(
+    'operator-specific personal identity',
+  ));
+}
 for (const suffix of ['.evil', ',evil']) {
   assert(inspect('README.md', `${approvedSupportUrl}${suffix}`).includes(
     'operator-specific personal identity',

@@ -14,6 +14,15 @@ const mocks = vi.hoisted(() => {
     }),
     keepAlive: vi.fn(),
     sendSessionProtocolMessage: vi.fn(),
+    sendProviderUsageReport: vi.fn(async (
+      _report: any,
+      options?: {
+        onDurable?: () => void;
+        mutateAgentState?: (state: Record<string, any>) => Record<string, any>;
+      },
+    ) => {
+      options?.onDurable?.();
+    }),
     uploadImageAttachmentEnvelope: vi.fn(async (attachment: any, role: 'user' | 'agent', opts: any) => ({
       id: `file-${attachment.name}`,
       time: opts.time,
@@ -29,12 +38,13 @@ const mocks = vi.hoisted(() => {
     })),
     sendSessionEvent: vi.fn(),
     updateMetadata: vi.fn(),
+    getAgentState: vi.fn(() => ({})),
     suppressNextArchiveSignal: vi.fn(),
     skipExistingMessages: vi.fn(),
     sendSessionDeath: vi.fn(),
     flush: vi.fn(async () => {}),
     close: vi.fn(async () => {}),
-    updateAgentState: vi.fn((handler: (state: Record<string, unknown>) => Record<string, unknown>) => {
+    updateAgentState: vi.fn(async (handler: (state: Record<string, unknown>) => Record<string, unknown>) => {
       handler({});
     }),
     rpcHandlerManager: {
@@ -60,6 +70,10 @@ const mocks = vi.hoisted(() => {
     stopReason: 'end_turn' as 'end_turn' | 'refusal' | 'cancelled',
     promptError: null as Error | null,
     promptImageMessages: [] as any[],
+    promptUsages: [] as any[],
+    promptUsageInMeta: false,
+    usageCosts: [] as Array<{ amount: number; currency: string } | null>,
+    usageCostTrailingEmpty: false,
   };
 
   return {
@@ -178,6 +192,7 @@ vi.mock('./AcpBackend', () => ({
     async sendPrompt(sessionId: string, prompt: string) {
       mocks.backendState.operations.push('prompt');
       mocks.backendState.prompts.push({ sessionId, prompt });
+      const promptIndex = mocks.backendState.prompts.length - 1;
       if (mocks.backendState.promptError) throw mocks.backendState.promptError;
       for (const listener of mocks.backendState.listeners) {
         listener({ type: 'status', status: 'running' });
@@ -187,13 +202,24 @@ vi.mock('./AcpBackend', () => ({
         for (const imageMessage of mocks.backendState.promptImageMessages) {
           listener(imageMessage);
         }
+        const cost = mocks.backendState.usageCosts[promptIndex];
+        if (cost) {
+          listener({ type: 'token-count', usageSource: 'acp-usage-update', cost });
+          if (mocks.backendState.usageCostTrailingEmpty) {
+            listener({ type: 'token-count', usageSource: 'acp-usage-update' });
+          }
+        }
         listener({ type: 'status', status: 'idle' });
       }
     }
 
     async sendPromptAndGetResult(sessionId: string, prompt: string) {
       await this.sendPrompt(sessionId, prompt);
-      return { stopReason: mocks.backendState.stopReason };
+      const usage = mocks.backendState.promptUsages[mocks.backendState.prompts.length - 1];
+      return {
+        stopReason: mocks.backendState.stopReason,
+        ...(mocks.backendState.promptUsageInMeta ? { _meta: { usage } } : { usage }),
+      };
     }
 
     async setSessionConfigOption(configId: string, value: string) {
@@ -234,9 +260,21 @@ vi.mock('@/credentialPool/providerLimitNotice', () => ({
   reportProviderHardLimitOnce: mocks.mockReportProviderHardLimitOnce,
 }));
 
-import { resolveAcpPermissionPolicy, resolveDshModelConfigCode, runAcp } from './runAcp';
+import {
+  dshChildEnvironment,
+  resolveAcpLoadSessionId,
+  resolveAcpPermissionPolicy,
+  resolveDshModelConfigCode,
+  runAcp,
+} from './runAcp';
 
 describe('runAcp', () => {
+  it('suppresses a persisted ACP session id for a fresh DSH side-chat reconnect', () => {
+    expect(resolveAcpLoadSessionId(undefined, 'old-dsh-session', true)).toBeUndefined();
+    expect(resolveAcpLoadSessionId(undefined, 'grok-session', false)).toBe('grok-session');
+    expect(resolveAcpLoadSessionId('explicit-grok-session', 'persisted-grok-session', false))
+      .toBe('explicit-grok-session');
+  });
   const stripAnsi = (line: string) => line.replace(/\u001b\[[0-9;]*m/g, '');
   const stripLogPrefix = (line: string) => stripAnsi(line).replace(/^\[\d{2}:\d{2}\] /, '');
   const consoleLines = () => mocks.mockConsoleLog.mock.calls
@@ -276,6 +314,16 @@ describe('runAcp', () => {
     },
   });
 
+  it('replaces an ambient dsh permission mode and removes it when no launch selection exists', () => {
+    expect(dshChildEnvironment({ DSH_PERMISSION_MODE: 'danger-full-access', PATH: '/bin' }, 'read-only')).toEqual({
+      DSH_PERMISSION_MODE: 'read-only',
+      PATH: '/bin',
+    });
+    expect(dshChildEnvironment({ DSH_PERMISSION_MODE: 'danger-full-access', PATH: '/bin' }, undefined)).toEqual({
+      PATH: '/bin',
+    });
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.sessionHandlers.clear();
@@ -296,6 +344,10 @@ describe('runAcp', () => {
     mocks.backendState.stopReason = 'end_turn';
     mocks.backendState.promptError = null;
     mocks.backendState.promptImageMessages = [];
+    mocks.backendState.promptUsages = [];
+    mocks.backendState.promptUsageInMeta = false;
+    mocks.backendState.usageCosts = [];
+    mocks.backendState.usageCostTrailingEmpty = false;
     mocks.lifecycleEvents.length = 0;
 
     mocks.mockApiCreate.mockResolvedValue({
@@ -783,6 +835,91 @@ describe('runAcp', () => {
       sessionId: 'acp-session-1',
       prompt: 'Continue the archived Grok task',
     }]));
+    await mocks.getKillHandler()!();
+    await runPromise;
+  });
+
+  it('executes a seeded DSH side-chat turn without loading the retired provider session', async () => {
+    vi.stubEnv('HAPPY_RECONNECT_SESSION_ID', 'dsh-side-chat');
+    vi.stubEnv('HAPPY_RECONNECT_ENCRYPTION_KEY', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=');
+    vi.stubEnv('HAPPY_RECONNECT_ENCRYPTION_VARIANT', 'legacy');
+    vi.stubEnv('HAPPY_RECONNECT_SEQ', '12');
+    vi.stubEnv('HAPPY_RECONNECT_METADATA_VERSION', '4');
+    vi.stubEnv('HAPPY_RECONNECT_AGENT_STATE_VERSION', '5');
+    vi.stubEnv('HAPPY_RECONNECT_QUEUE_MESSAGE_ID', 'dsh-resume-seed');
+    vi.stubEnv('HAPPYHERD_FRESH_PROVIDER_RECONNECT', '1');
+    mocks.mockRefreshSessionForReconnect.mockResolvedValueOnce({
+      id: 'dsh-side-chat',
+      metadata: { flavor: 'dsh', acpSessionId: 'old-dsh-provider-session' },
+      agentState: {
+        messageQueue: {
+          currentMessageIds: ['interrupted'],
+          pendingMessageIds: ['pending'],
+        },
+      },
+      seq: 12,
+      encryptionKey: new Uint8Array(32),
+      encryptionVariant: 'legacy',
+      metadataVersion: 4,
+      agentStateVersion: 5,
+    });
+
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'dsh',
+      command: 'dsh',
+      args: ['acp'],
+      startedBy: 'daemon',
+    });
+
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+    expect(mocks.backendState.constructorArgs.loadSessionId).toBeUndefined();
+    expect(mocks.mockSession.skipExistingMessages).toHaveBeenCalledWith(
+      ['interrupted', 'pending', 'dsh-resume-seed'],
+      12,
+      'dsh-resume-seed',
+    );
+    mocks.getUserMessageHandler()!({
+      role: 'user',
+      content: { type: 'text', text: 'Interrupted work' },
+      localKey: 'interrupted',
+      meta: { deliveryMode: 'queue', queueMessageId: 'interrupted' },
+    });
+    mocks.getUserMessageHandler()!({
+      role: 'user',
+      content: { type: 'text', text: 'Pending work' },
+      localKey: 'pending',
+      meta: { deliveryMode: 'queue', queueMessageId: 'pending' },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(mocks.backendState.prompts).toEqual([]);
+    mocks.getUserMessageHandler()!({
+      role: 'user',
+      content: { type: 'text', text: 'Continue with the bounded DSH context' },
+      localKey: 'dsh-resume-seed',
+      meta: { deliveryMode: 'queue', queueMessageId: 'dsh-resume-seed' },
+    });
+
+    await vi.waitFor(() => expect(mocks.backendState.prompts).toEqual([
+      {
+        sessionId: 'acp-session-1',
+        prompt: 'Continue with the bounded DSH context',
+      },
+      {
+        sessionId: 'acp-session-1',
+        prompt: 'Interrupted work\nPending work',
+      },
+    ]));
+    await vi.waitFor(() => {
+      const latestStateUpdate = mocks.mockSession.updateAgentState.mock.calls.at(-1)?.[0];
+      expect(latestStateUpdate?.({})).toMatchObject({
+        messageQueue: { pendingMessageIds: [], currentMessageIds: [] },
+      });
+    });
+    const providerSessionUpdate = mocks.mockSession.updateMetadata.mock.calls
+      .map(([update]) => update({ acpSessionId: 'old-dsh-provider-session' }))
+      .find((updated) => updated.acpSessionId === 'provider-session-1');
+    expect(providerSessionUpdate).toMatchObject({ acpSessionId: 'provider-session-1' });
     await mocks.getKillHandler()!();
     await runPromise;
   });
@@ -1284,6 +1421,7 @@ describe('runAcp', () => {
   });
 
   it('validates the default dsh model and effort without mutating provider config', async () => {
+    vi.stubEnv('DSH_PERMISSION_MODE', 'danger-full-access');
     mocks.backendState.startSessionMessages = [dshConfigUpdate()];
     const runPromise = runAcp({
       credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
@@ -1291,6 +1429,7 @@ describe('runAcp', () => {
       command: 'dsh',
       args: ['--profile', 'acp'],
       startedBy: 'terminal',
+      permissionMode: 'workspace-write',
       model: 'deepseek-v4-flash',
       effort: 'high',
     });
@@ -1309,10 +1448,15 @@ describe('runAcp', () => {
           provider: 'dsh',
           model: 'deepseek-v4-flash',
           effort: 'high',
-          permission: null,
+          permission: 'workspace-write',
         },
       }),
     }));
+    expect(mocks.backendState.constructorArgs).toMatchObject({
+      command: 'dsh',
+      args: ['--profile', 'acp'],
+      processEnv: expect.objectContaining({ DSH_PERMISSION_MODE: 'workspace-write' }),
+    });
     await mocks.getKillHandler()!();
     await runPromise;
   });
@@ -1351,13 +1495,14 @@ describe('runAcp', () => {
     await runPromise;
   });
 
-  it('treats explicit dsh config categories as authoritative and never mutates model as permission mode', async () => {
+  it('ignores message-time dsh permission metadata while preserving launch-time policy', async () => {
     mocks.backendState.startSessionMessages = [dshConfigUpdate()];
     const runPromise = runAcp({
       credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
       agentName: 'dsh',
       command: 'dsh',
       args: ['--profile', 'acp'],
+      permissionMode: 'read-only',
       model: 'deepseek-v4-flash',
       effort: 'high',
     });
@@ -1365,14 +1510,11 @@ describe('runAcp', () => {
     mocks.getUserMessageHandler()!({
       role: 'user',
       content: { type: 'text', text: 'Do not reinterpret model as mode' },
-      meta: { permissionMode: 'DeepSeek V4 Pro' },
+      meta: { permissionMode: 'danger-full-access' },
     });
-    await vi.waitFor(() => expect(mocks.mockSession.sendSessionEvent).toHaveBeenCalledWith({
-      type: 'message',
-      message: 'Unsupported dsh permission mode: DeepSeek V4 Pro',
-    }));
+    await vi.waitFor(() => expect(mocks.backendState.prompts).toHaveLength(1));
     expect(mocks.backendState.setConfigOptionCalls).toEqual([]);
-    expect(mocks.backendState.prompts).toEqual([]);
+    expect(mocks.backendState.constructorArgs.processEnv.DSH_PERMISSION_MODE).toBe('read-only');
     await mocks.getKillHandler()!();
     await runPromise;
   });
@@ -1486,6 +1628,94 @@ describe('runAcp', () => {
 
     expect(mocks.backendState.setConfigOptionCalls).toEqual([]);
     expect(mocks.backendState.setModeCalls).toEqual([]);
+  });
+
+  it('reports Grok current-prompt usage from _meta and cumulative cost as per-turn deltas', async () => {
+    mocks.backendState.promptUsages = [
+      { totalTokens: 100, inputTokens: 80, outputTokens: 20 },
+      { totalTokens: 145, inputTokens: 110, outputTokens: 35 },
+    ];
+    mocks.backendState.usageCosts = [
+      { amount: 0.25, currency: 'USD' },
+      { amount: 0.30, currency: 'USD' },
+    ];
+    mocks.backendState.promptUsageInMeta = true;
+    mocks.backendState.usageCostTrailingEmpty = true;
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'grok',
+      command: 'grok',
+      args: ['--no-auto-update', 'agent', 'stdio'],
+    });
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+
+    mocks.getUserMessageHandler()!({ role: 'user', content: { type: 'text', text: 'First' } });
+    await vi.waitFor(() => expect(mocks.mockSession.sendProviderUsageReport).toHaveBeenCalledTimes(1));
+    mocks.getUserMessageHandler()!({ role: 'user', content: { type: 'text', text: 'Second' } });
+    await vi.waitFor(() => expect(mocks.mockSession.sendProviderUsageReport).toHaveBeenCalledTimes(2));
+
+    await mocks.getKillHandler()!();
+    await runPromise;
+
+    expect(mocks.mockSession.sendProviderUsageReport.mock.calls[0][0]).toEqual(expect.objectContaining({
+      provider: 'grok',
+      tokens: expect.objectContaining({ total: 100, input: 80, output: 20 }),
+      cost: { total: 0.25 },
+      costBasis: 'provider-reported',
+    }));
+    expect(mocks.mockSession.sendProviderUsageReport.mock.calls[1][0]).toEqual(expect.objectContaining({
+        provider: 'grok',
+      tokens: expect.objectContaining({ total: 145, input: 110, output: 35 }),
+      cost: { total: expect.any(Number) },
+      costBasis: 'provider-reported',
+    }));
+    expect(mocks.mockSession.sendProviderUsageReport.mock.calls[1][0].cost.total).toBeCloseTo(0.05);
+  });
+
+  it('resumes Grok cumulative cost from the durable provider-session cursor', async () => {
+    mocks.mockSession.getAgentState.mockReturnValueOnce({
+      usageCursors: { acpCostUsd: { 'provider-session-1': 0.30 } },
+    });
+    mocks.backendState.promptUsages = [{ totalTokens: 50, inputTokens: 40, outputTokens: 10 }];
+    mocks.backendState.usageCosts = [{ amount: 0.35, currency: 'USD' }];
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'grok',
+      command: 'grok',
+      args: ['--no-auto-update', 'agent', 'stdio'],
+    });
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+    mocks.getUserMessageHandler()!({ role: 'user', content: { type: 'text', text: 'Resumed turn' } });
+    await vi.waitFor(() => expect(mocks.mockSession.sendProviderUsageReport).toHaveBeenCalledOnce());
+    await mocks.getKillHandler()!();
+    await runPromise;
+
+    expect(mocks.mockSession.sendProviderUsageReport.mock.calls[0][0].cost.total).toBeCloseTo(0.05);
+    const mutateAgentState = mocks.mockSession.sendProviderUsageReport.mock.calls[0][1]?.mutateAgentState;
+    expect(mutateAgentState).toBeTypeOf('function');
+    const stateWithCursor = mutateAgentState!({});
+    expect(stateWithCursor.usageCursors.acpCostUsd['provider-session-1']).toBe(0.35);
+  });
+
+  it('records an explicit provider limitation when an ACP prompt fails', async () => {
+    mocks.backendState.promptError = new Error('provider failed after prompt start');
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'dsh',
+      command: 'dsh',
+      args: ['acp'],
+    });
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+    mocks.getUserMessageHandler()!({ role: 'user', content: { type: 'text', text: 'Fail' } });
+
+    await expect(runPromise).rejects.toThrow('provider failed after prompt start');
+    expect(mocks.mockSession.sendProviderUsageReport).toHaveBeenCalledTimes(1);
+    expect(mocks.mockSession.sendProviderUsageReport.mock.calls[0][0]).toMatchObject({
+      provider: 'dsh',
+      tokensAvailable: false,
+      costAvailable: false,
+      limitations: ['tokens-not-reported-by-provider', 'cost-not-reported-by-provider'],
+    });
   });
 
   it('uses the ACP prompt stop reason as the authoritative turn outcome', async () => {

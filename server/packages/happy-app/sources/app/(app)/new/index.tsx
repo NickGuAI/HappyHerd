@@ -44,7 +44,7 @@ import { formatPathRelativeToHome, formatLastSeen } from '@/utils/sessionUtils';
 import { useNavigateToSession } from '@/hooks/useNavigateToSession';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
 import { useImagePicker } from '@/hooks/useImagePicker';
-import { useMachineFileUpload } from '@/hooks/useMachineFileUpload';
+import { useMachineFileUpload, type MachineFileUploadTarget } from '@/hooks/useMachineFileUpload';
 import { useVoiceDictation, type VoiceDictationPhase } from '@/hooks/useVoiceDictation';
 import { useVoiceInputAvailability } from '@/hooks/useVoiceInputAvailability';
 import { AgentInputAttachmentStrip } from '@/components/AgentInputAttachmentStrip';
@@ -1057,21 +1057,20 @@ function NewSessionScreen() {
     const uploadDirectory = selectedMachine
         ? resolveAbsolutePath(trimPathInput(selectedPath) || '~', selectedHomeDir)
         : null;
-    const handleWorkspaceUploaded = React.useCallback((filePath: string) => {
-        if (!selectedMachineId) return;
+    const handleWorkspaceUploaded = React.useCallback((filePath: string, target: MachineFileUploadTarget) => {
         setWorkspaceEntries((current) => (
             current.some((entry) => workspaceContextEntryKey(entry) === workspaceContextEntryKey({
                 path: filePath,
-                source: { kind: 'machine', machineId: selectedMachineId },
+                source: { kind: 'machine', machineId: target.machineId },
             })) || current.length >= MAX_WORKSPACE_CONTEXT_ITEMS
                 ? current
                 : [...current, {
                     path: filePath,
                     kind: 'file',
-                    source: { kind: 'machine', machineId: selectedMachineId },
+                    source: { kind: 'machine', machineId: target.machineId },
                 }]
         ));
-    }, [selectedMachineId]);
+    }, []);
     const toggleWorkspaceEntry = React.useCallback((entry: WorkspaceContextEntry) => {
         setWorkspaceEntries((current) => {
             const entryKey = workspaceContextEntryKey(entry);
@@ -1085,6 +1084,7 @@ function NewSessionScreen() {
         machineId: selectedMachineId,
         directory: uploadDirectory,
         targetLabel: selectedMachine ? getMachineName(selectedMachine) : undefined,
+        selectionKey: selectedAgent,
         maxFiles: MAX_WORKSPACE_CONTEXT_ITEMS - workspaceEntries.length,
         onUploaded: handleWorkspaceUploaded,
     });
@@ -1093,6 +1093,9 @@ function NewSessionScreen() {
         setWorkspaceContextOpen(false);
         workspaceUploader.reset();
     }, [selectedMachineId, selectedPath]);
+    React.useEffect(() => {
+        workspaceUploader.reset();
+    }, [selectedAgent]);
     const selectedMachineFavorites = React.useMemo(
         () => favoriteMachinePaths.filter((favorite) => favorite.machineId === selectedMachineId),
         [favoriteMachinePaths, selectedMachineId],
@@ -1354,6 +1357,30 @@ function NewSessionScreen() {
         : selectedMachine?.metadata?.agentCapabilities?.[selectedAgent];
     const canUseImageAttachments = expImageUpload
         && supportsImageAttachmentsForFlavor(selectedAgent, machineCatalog?.acp);
+    const dshUploadBusy = selectedAgent === 'dsh'
+        && (workspaceUploader.state.phase === 'uploading' || workspaceUploader.state.phase === 'cancelling');
+    const canUploadDshPhotos = selectedAgent === 'dsh'
+        && Boolean(selectedMachineId && uploadDirectory)
+        && workspaceEntries.length < MAX_WORKSPACE_CONTEXT_ITEMS
+        && !dshUploadBusy;
+    const handlePickPhotos = React.useCallback(async () => {
+        if (canUseImageAttachments) {
+            await imagePicker.pickImages();
+            return;
+        }
+        if (!canUploadDshPhotos) return;
+        const images = await imagePicker.pickImagesForUpload(
+            MAX_WORKSPACE_CONTEXT_ITEMS - workspaceEntries.length,
+        );
+        await workspaceUploader.uploadAssets(images);
+    }, [
+        canUploadDshPhotos,
+        canUseImageAttachments,
+        imagePicker.pickImages,
+        imagePicker.pickImagesForUpload,
+        workspaceEntries.length,
+        workspaceUploader.uploadAssets,
+    ]);
     React.useEffect(() => {
         if (!canUseImageAttachments && imagePicker.selectedImages.length > 0) {
             imagePicker.clearImages();
@@ -1831,7 +1858,7 @@ function NewSessionScreen() {
                 if (next >= 0 && !nextPermission?.disabled && !nextPermission?.unavailable) {
                     setPermissionIndex(next);
                     draft.setPermissionMode(nextPermission.key);
-                    if (selectedAgent === 'grok' || selectedAgent === 'rig') {
+                    if (selectedAgent === 'grok' || selectedAgent === 'dsh' || selectedAgent === 'rig') {
                         setAgentDefaultOverrides(setAgentDefaultOverride(
                             agentDefaultOverrides,
                             selectedAgent,
@@ -1851,6 +1878,7 @@ function NewSessionScreen() {
     const handleSend = React.useCallback(async (
         approvedNewDirectoryCreation: boolean = false,
     ) => {
+        if (dshUploadBusy) return;
         if (!selectedMachineId || !selectedMachine) {
             Modal.alert(t('common.error'), t("uiCopy.pleaseSelectAMachine"));
             return;
@@ -2078,11 +2106,13 @@ function NewSessionScreen() {
                     // GrokBuild permission is launch-only, so every session
                     // keeps the exact policy its process started with. Other
                     // agents continue storing only per-session overrides.
-                    const permissionOverride = agentType === 'grok'
-                        ? permissionKey
-                        : permissionKey === effectiveAgentDefaults.permissionMode
-                            ? null
-                            : permissionKey;
+                    const permissionOverride = agentType === 'dsh'
+                        ? null
+                        : agentType === 'grok'
+                            ? permissionKey
+                            : permissionKey === effectiveAgentDefaults.permissionMode
+                                ? null
+                                : permissionKey;
                     const modelOverride = selectedModelKey === null
                         || selectedModelKey === effectiveAgentDefaults.modelMode
                         ? null
@@ -2126,6 +2156,7 @@ function NewSessionScreen() {
                                     result.sessionId,
                                     trimmedPrompt,
                                     workspaceEntries,
+                                    agentType === 'dsh' ? { machineFilesAsReferences: true } : undefined,
                                 );
                             } finally {
                                 clearWorkspaceContextFiles(result.sessionId);
@@ -2182,14 +2213,15 @@ function NewSessionScreen() {
         } finally {
             if (isMountedRef.current) setIsSpawning(false);
         }
-    }, [agentWorkspaces, selectedProjectId, selectedMachineId, selectedMachine, selectedPath, selectedCommanderId, selectedAgent, router, navigateToSession, currentPermission?.key, currentModel?.key, currentModelKey, currentEffort?.key, effectiveAgentDefaults.permissionMode, effectiveAgentDefaults.modelMode, effectiveEffortDefault, canPickWorktree, worktreeKey, workspaceEntries]);
+    }, [agentWorkspaces, selectedProjectId, selectedMachineId, selectedMachine, selectedPath, selectedCommanderId, selectedAgent, router, navigateToSession, currentPermission?.key, currentModel?.key, currentModelKey, currentEffort?.key, effectiveAgentDefaults.permissionMode, effectiveAgentDefaults.modelMode, effectiveEffortDefault, canPickWorktree, dshUploadBusy, worktreeKey, workspaceEntries]);
 
     const canSend = selectedMachineId
         && selectedMachine
         && isMachineOnline(selectedMachine)
         && currentLaunchSelectionError === null
         && !currentRigSelectionIncomplete
-        && !isSpawning;
+        && !isSpawning
+        && !dshUploadBusy;
     React.useEffect(() => {
         if (
             autoSubmit !== '1'
@@ -2803,7 +2835,9 @@ function NewSessionScreen() {
                     </View>
                 )}
                 <AttachmentInputButton
-                    onPickPhotos={canUseImageAttachments ? () => void imagePicker.pickImages() : undefined}
+                    onPickPhotos={canUseImageAttachments || canUploadDshPhotos
+                        ? () => void handlePickPhotos()
+                        : undefined}
                     onPickDeviceFiles={selectedMachineId
                         && uploadDirectory
                         && workspaceEntries.length < MAX_WORKSPACE_CONTEXT_ITEMS

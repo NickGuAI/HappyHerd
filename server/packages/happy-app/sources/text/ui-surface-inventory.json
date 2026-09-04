@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "659903e422e8a62edf76dd1c0f145d9fb37fbb722917be7d5fea9b225de67f23",
+  "sourceFingerprint": "2738dae1a76be0b027263ebce3e9815e5c198c0f7eb61b9751a6fb1b06216258",
   "routeCount": 36,
-  "surfaceCount": 255,
+  "surfaceCount": 257,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -954,6 +954,8 @@
         "workspace.folderNamePlaceholder",
         "workspace.go",
         "workspace.home",
+        "workspace.invalidLocalhostUrl",
+        "workspace.localhostUrlPlaceholder",
         "workspace.missingPathDescription",
         "workspace.missingPathTitle",
         "workspace.mobileBackToFiles",
@@ -963,6 +965,7 @@
         "workspace.offlineDescription",
         "workspace.offlineTitle",
         "workspace.openFeatures",
+        "workspace.openLocalhost",
         "workspace.parent",
         "workspace.pathPlaceholder",
         "workspace.permissionDeniedDescription",
@@ -2207,6 +2210,8 @@
         "workspace.folderNamePlaceholder",
         "workspace.go",
         "workspace.home",
+        "workspace.invalidLocalhostUrl",
+        "workspace.localhostUrlPlaceholder",
         "workspace.missingPathDescription",
         "workspace.missingPathTitle",
         "workspace.mobileBackToFiles",
@@ -2216,6 +2221,7 @@
         "workspace.offlineDescription",
         "workspace.offlineTitle",
         "workspace.openFeatures",
+        "workspace.openLocalhost",
         "workspace.parent",
         "workspace.pathPlaceholder",
         "workspace.permissionDeniedDescription",
@@ -2378,8 +2384,10 @@
         "files.changes",
         "happyHerd.composer.attachments",
         "happyHerd.composer.cancelVoice",
+        "happyHerd.composer.deviceFiles",
         "happyHerd.composer.finishVoice",
         "happyHerd.composer.moreActions",
+        "happyHerd.composer.photos",
         "happyHerd.composer.queueMessage",
         "happyHerd.composer.retryVoice",
         "happyHerd.composer.send",
@@ -3452,7 +3460,9 @@
         "files.pinComment",
         "files.removeComment",
         "files.sendComments",
-        "happyHerd.composer.sendFailedBody"
+        "happyHerd.composer.sendFailedBody",
+        "workspace.liveCommentOnElement",
+        "workspace.liveElement"
       ],
       "states": [
         "loading"
@@ -3508,6 +3518,34 @@
         "ItemListStatic"
       ],
       "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/LocalhostLiveView.web.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "LocalhostLiveView",
+        "workspaceLivePickFromMessage"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/LocalhostWorkspacePanel.tsx",
+      "kind": "panel",
+      "route": null,
+      "exports": [
+        "LocalhostWorkspacePanel"
+      ],
+      "translationKeys": [
+        "workspace.liveCaptureFailed",
+        "workspace.liveLoadFailed",
+        "workspace.startElementComment",
+        "workspace.stopElementComment"
+      ],
       "states": [],
       "hardcodedCopy": []
     },
@@ -4333,6 +4371,7 @@
       ],
       "translationKeys": [
         "common.authenticate",
+        "common.runtime",
         "common.version",
         "connect.enterUrlManually",
         "modals.authenticateTerminal",
@@ -4346,7 +4385,6 @@
         "modals.disconnectServiceConfirm",
         "modals.pasteUrlFromTerminal",
         "settings.about",
-        "settings.aboutFooter",
         "settings.account",
         "settings.accountSubtitle",
         "settings.appearance",
@@ -4494,6 +4532,7 @@
         "SidebarNavigator"
       ],
       "translationKeys": [
+        "common.back",
         "navigation.collapseSidebar",
         "navigation.expandSidebar",
         "zen.toggle"
@@ -5074,14 +5113,16 @@
         "UsagePanel"
       ],
       "translationKeys": [
-        "usage.byModel",
+        "usage.byProvider",
         "usage.cost",
+        "usage.coverage.estimated",
+        "usage.coverage.title",
         "usage.last30Days",
         "usage.last7Days",
+        "usage.providerCost",
+        "usage.reportedTokens",
         "usage.today",
         "usage.tokens",
-        "usage.totalCost",
-        "usage.totalTokens",
         "usage.usageOverTime"
       ],
       "states": [],

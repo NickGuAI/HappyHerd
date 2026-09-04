@@ -52,7 +52,9 @@ import {
     desktopFileIdentity,
     desktopFilePath,
     EMPTY_DESKTOP_FILE_WORKSPACE,
+    isDesktopLocalhostReference,
     openDesktopFile,
+    openDesktopLocalhost,
     selectDesktopFile,
 } from '@/components/desktopFileWorkspaceModel';
 import { SideChatAccessButton, SideChatFullscreen } from '@/components/SideChatPanel';
@@ -661,7 +663,9 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                 // state without creating a second viewer header or composer.
                 const identity = desktopFileIdentity(route.params.absolutePath, route.params.machineId);
                 setDesktopFileWorkspace((current) => {
-                    const preserveDirtySessionEditor = current.references[identity]?.source === 'session'
+                    const existingReference = current.references[identity];
+                    const preserveDirtySessionEditor = !isDesktopLocalhostReference(existingReference)
+                        && existingReference?.source === 'session'
                         && desktopDirtyPathsRef.current.has(identity);
                     return openDesktopFile(
                         current,
@@ -746,6 +750,12 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             machineId,
             source: 'machine',
         }));
+        setDesktopMachinePickerOpen(false);
+        setDesktopMachinePickerTarget(null);
+        collapseSidebarPanels();
+    }, [collapseSidebarPanels]);
+    const handleMachineWorkspaceLocalhostUrlPress = React.useCallback(({ machineId, url }: { machineId: string; url: string }) => {
+        setDesktopFileWorkspace((current) => openDesktopLocalhost(current, machineId, url));
         setDesktopMachinePickerOpen(false);
         setDesktopMachinePickerTarget(null);
         collapseSidebarPanels();
@@ -1128,6 +1138,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             initialPath={effectiveMachinePickerTarget.path}
             workspaceContextSessionId={desktopFileWorkspaceSessionId}
             onFilePress={handleMachineWorkspaceFilePress}
+            onLocalhostUrlPress={Platform.OS === 'web' ? handleMachineWorkspaceLocalhostUrlPress : undefined}
         />
     ) : null;
 
@@ -1430,6 +1441,10 @@ export function SessionViewLoaded({
     const flavor = session.metadata?.flavor;
     const isRig = isRigMetadata(session.metadata);
     const isGrok = flavor === 'grok';
+    const dshLaunchPermission = flavor === 'dsh'
+        && session.metadata?.spawnSettings?.provider === 'dsh'
+        ? session.metadata.spawnSettings.permission
+        : null;
     const availableModels = React.useMemo(() => (
         getSessionAvailableModels(
             flavor,
@@ -1445,16 +1460,24 @@ export function SessionViewLoaded({
             session.metadata,
             sessionMachine?.metadata,
             t,
-            session.permissionMode,
+            flavor === 'dsh' ? dshLaunchPermission : session.permissionMode,
         )
-    ), [flavor, session.metadata, session.permissionMode, sessionMachine?.metadata]);
+    ), [dshLaunchPermission, flavor, session.metadata, session.permissionMode, sessionMachine?.metadata]);
     const [agentDefaultOverrides, setAgentDefaultOverrides] = useSettingMutable('agentDefaultOverrides');
     const effectiveAgentDefaults = React.useMemo(() => (
         resolveAgentDefaultConfig(agentDefaultOverrides, flavor)
     ), [agentDefaultOverrides, flavor]);
 
-    const permissionMode = React.useMemo<PermissionMode | null>(() => (
-        resolveCurrentOption(availableModes, isGrok && !isRig
+    const permissionMode = React.useMemo<PermissionMode | null>(() => {
+        if (flavor === 'dsh') {
+            if (!dshLaunchPermission) return null;
+            return resolveCurrentOption(availableModes, [dshLaunchPermission]) ?? {
+                key: dshLaunchPermission,
+                name: dshLaunchPermission,
+                description: null,
+            };
+        }
+        return resolveCurrentOption(availableModes, isGrok && !isRig
             ? [session.permissionMode, getAdvertisedDefaultOptionKey(availableModes)]
             : [
                 session.permissionMode,
@@ -1471,8 +1494,8 @@ export function SessionViewLoaded({
                     effectiveAgentDefaults.permissionMode,
                     session.metadata?.currentOperatingModeCode,
                 ]),
-            ])
-    ), [availableModes, session.permissionMode, effectiveAgentDefaults.permissionMode, session.metadata?.currentOperatingModeCode, session.metadata?.permissionMode, session.metadata?.session?.permissionMode, session.metadata?.spawnSettings, isGrok, isRig]);
+        ]);
+    }, [availableModes, dshLaunchPermission, session.permissionMode, effectiveAgentDefaults.permissionMode, session.metadata?.currentOperatingModeCode, session.metadata?.permissionMode, session.metadata?.session?.permissionMode, isGrok, isRig, flavor]);
 
     const modelMode = React.useMemo<ModelMode | null>(() => (
         resolveCurrentOption(availableModels, isGrok
@@ -1555,7 +1578,7 @@ export function SessionViewLoaded({
     const resumeCommandBlock = getResumeCommandBlock(session);
 
     // Attachment availability is capability-driven by the active session.
-    const { selectedImages, pickImages, removeImage, clearImages, addImages } = useImagePicker();
+    const { selectedImages, pickImages, pickImagesForUpload, removeImage, clearImages, addImages } = useImagePicker();
     const canUseAttachments = rigCanUseAttachments(session.metadata)
         && supportsImageAttachmentsForFlavor(flavor, session.metadata?.acpCapabilities);
     React.useEffect(() => {
@@ -1583,12 +1606,34 @@ export function SessionViewLoaded({
         machineId,
         directory: session.metadata?.path,
         maxFiles: Math.max(0, MAX_WORKSPACE_CONTEXT_ITEMS - selectedContextEntries.length),
-        onUploaded: (filePath) => {
-            if (!addWorkspaceContextFile(sessionId, filePath)) {
+        selectionKey: flavor ?? undefined,
+        onUploaded: (filePath, target) => {
+            if (!addWorkspaceContextFile(sessionId, filePath, {
+                kind: 'machine',
+                machineId: target.machineId,
+            })) {
                 Modal.alert(t("uiCopy.workspaceContext"), t("uiCopy.youCanAttachUpTo8FilesToOneMessage"));
             }
         },
     });
+    const dshUploadBusy = flavor === 'dsh'
+        && (workspaceUploader.state.phase === 'uploading' || workspaceUploader.state.phase === 'cancelling');
+    const canUploadDshPhotos = flavor === 'dsh'
+        && Boolean(machineId && session.metadata?.path)
+        && selectedContextEntries.length < MAX_WORKSPACE_CONTEXT_ITEMS
+        && !dshUploadBusy;
+    const handlePickDshPhotos = React.useCallback(async () => {
+        if (!canUploadDshPhotos) return;
+        const images = await pickImagesForUpload(
+            MAX_WORKSPACE_CONTEXT_ITEMS - selectedContextEntries.length,
+        );
+        await workspaceUploader.uploadAssets(images);
+    }, [
+        canUploadDshPhotos,
+        pickImagesForUpload,
+        selectedContextEntries.length,
+        workspaceUploader.uploadAssets,
+    ]);
 
     // Handle dismissing CLI version warning
     const handleDismissCliWarning = React.useCallback(() => {
@@ -1679,6 +1724,7 @@ export function SessionViewLoaded({
     // outbox; the optional metadata only tells an active Codex turn to retain
     // this input in its existing provider queue rather than steer it now.
     const sendComposerMessage = React.useCallback(async (deliveryMode?: 'queue') => {
+        if (dshUploadBusy) return;
         const liveMessage = composerHandleRef.current?.getMessage() ?? '';
         if (!liveMessage.trim() && !(expImageUpload && canUseAttachments && selectedImages.length > 0) && selectedContextEntries.length === 0) {
             return;
@@ -1704,7 +1750,12 @@ export function SessionViewLoaded({
                 }
                 return;
             }
-            const contextMessage = await buildWorkspaceContextMessage(sessionId, liveMessage, selectedContextEntries);
+            const contextMessage = await buildWorkspaceContextMessage(
+                sessionId,
+                liveMessage,
+                selectedContextEntries,
+                flavor === 'dsh' ? { machineFilesAsReferences: true } : undefined,
+            );
             const attachments = expImageUpload && canUseAttachments ? selectedImages : undefined;
             const communicationsToDismiss = deliveryMode ? [] : [...pendingCommunications];
             await deliverSessionTurn({
@@ -1746,6 +1797,8 @@ export function SessionViewLoaded({
         canUseAttachments,
         selectedImages,
         selectedContextEntries,
+        dshUploadBusy,
+        flavor,
         clearImages,
         pendingCommunications,
         isDisconnected,
@@ -1921,7 +1974,8 @@ export function SessionViewLoaded({
                 placeholder={t('session.inputPlaceholder')}
                 sessionId={sessionId}
                 permissionMode={permissionMode}
-                onPermissionModeChange={isRigPermissionSelectionEnabled(session.metadata)
+                permissionModeReadOnly={flavor === 'dsh' && permissionMode !== null}
+                onPermissionModeChange={flavor !== 'dsh' && isRigPermissionSelectionEnabled(session.metadata)
                     && (!isGrok || Boolean(machineId && sessionMachine))
                     ? updatePermissionMode
                     : undefined}
@@ -1935,6 +1989,7 @@ export function SessionViewLoaded({
                 metadata={session.metadata}
                 connectionStatus={connectionStatus}
                 blockSend={isRig && session.thinking && session.metadata?.capabilities?.steering !== true}
+                isSendDisabled={dshUploadBusy}
                 onSend={handleSend}
                 onQueueMessage={handleQueueMessage}
                 showWebActionMenu={isWebSessionViewport}
@@ -1958,7 +2013,11 @@ export function SessionViewLoaded({
                     || (Platform.OS === 'web' && sessionStatus.state === 'waiting')
                 )}
                 selectedImages={expImageUpload && canUseAttachments ? selectedImages : undefined}
-                onPickImages={expImageUpload && canUseAttachments ? pickImages : undefined}
+                onPickImages={expImageUpload && canUseAttachments
+                    ? pickImages
+                    : canUploadDshPhotos
+                        ? handlePickDshPhotos
+                        : undefined}
                 onPickDeviceFiles={machineId
                     && session.metadata?.path
                     && selectedContextEntries.length < MAX_WORKSPACE_CONTEXT_ITEMS
@@ -1966,6 +2025,7 @@ export function SessionViewLoaded({
                     && workspaceUploader.state.phase !== 'cancelling'
                     ? () => void workspaceUploader.pickAndUpload()
                     : undefined}
+                splitWebAttachmentActions={flavor === 'dsh'}
                 onRemoveImage={expImageUpload && canUseAttachments ? removeImage : undefined}
                 onAddImages={expImageUpload && canUseAttachments ? addImages : undefined}
                 selectedContextEntries={selectedContextEntries}

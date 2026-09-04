@@ -6,6 +6,7 @@ import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { FileIcon } from '@/components/FileIcon';
 import { FileViewPanel, MachineFileViewPanel } from '@/components/FileViewPanel';
 import { WorkspaceFeedbackComposer } from '@/components/WorkspaceFeedbackComposer';
+import { LocalhostWorkspacePanel } from '@/components/LocalhostWorkspacePanel';
 import { Text } from '@/components/StyledText';
 import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
@@ -13,8 +14,9 @@ import {
     desktopFilePath,
     defaultDesktopFileWorkspaceWidth,
     DESKTOP_FILE_WORKSPACE_DIVIDER_WIDTH,
+    isDesktopLocalhostReference,
     resolveDesktopFileWorkspaceWidth,
-    type DesktopFileReference,
+    type DesktopWorkspaceReference,
 } from './desktopFileWorkspaceModel';
 
 export const DesktopFileWorkspaceSplit = React.memo(function DesktopFileWorkspaceSplit({
@@ -80,7 +82,7 @@ type DesktopFileWorkspaceProps = {
     sessionId: string;
     paths: string[];
     activePath: string | null;
-    references?: Record<string, DesktopFileReference>;
+    references?: Record<string, DesktopWorkspaceReference>;
     dirtyPaths: ReadonlySet<string>;
     machinePickerOpen?: boolean;
     compact?: boolean;
@@ -154,9 +156,19 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
                     >
                         <Octicons name="chevron-left" size={18} color={theme.colors.text} />
                     </Pressable>
-                    {!machinePickerOpen && activePath ? <FileIcon fileName={fileName(desktopFilePath(activePath))} size={16} /> : null}
+                    {!machinePickerOpen && activePath ? (
+                        isDesktopLocalhostReference(references[activePath])
+                            ? <Octicons name="globe" size={16} color={theme.colors.text} />
+                            : <FileIcon fileName={fileName(desktopFilePath(activePath))} size={16} />
+                    ) : null}
                     <Text numberOfLines={1} style={styles.compactTitle}>
-                        {machinePickerOpen ? t('workspace.title') : activePath ? fileName(desktopFilePath(activePath)) : ''}
+                        {machinePickerOpen
+                            ? t('workspace.title')
+                            : activePath
+                                ? isDesktopLocalhostReference(references[activePath])
+                                    ? references[activePath].url
+                                    : fileName(desktopFilePath(activePath))
+                                : ''}
                     </Text>
                     <View style={styles.activeHeaderSlot} pointerEvents="box-none">
                         {!machinePickerOpen && activePath ? headerSlots[activePath] : null}
@@ -170,7 +182,9 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
                     style={styles.tabScroller}
                 >
                     {paths.map((path) => {
-                        const name = fileName(desktopFilePath(path));
+                        const reference = references[path];
+                        const live = isDesktopLocalhostReference(reference);
+                        const name = live ? reference.url : fileName(desktopFilePath(path));
                         const active = !machinePickerOpen && path === activePath;
                         return (
                             <Pressable
@@ -185,11 +199,13 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
                                     (pressed || hovered) && !active && styles.tabHovered,
                                 ]}
                             >
-                                <FileIcon fileName={name} size={15} />
+                                {live
+                                    ? <Octicons name="globe" size={15} color={theme.colors.textSecondary} />
+                                    : <FileIcon fileName={name} size={15} />}
                                 <Text numberOfLines={1} style={[styles.tabText, active && styles.tabTextActive]}>
                                     {name}
                                 </Text>
-                                {dirtyPaths.has(path) ? <View style={styles.dirtyDot} /> : null}
+                                {!live && dirtyPaths.has(path) ? <View style={styles.dirtyDot} /> : null}
                                 <Pressable
                                     onPress={(event) => {
                                         event.stopPropagation?.();
@@ -261,7 +277,8 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
                     );
                 })}
             </View>
-            {!machinePickerOpen && activePath && references[activePath] ? (
+            {!machinePickerOpen && activePath && references[activePath]
+                && !isDesktopLocalhostReference(references[activePath]) ? (
                 <WorkspaceFeedbackComposer
                     key={activePath}
                     originSessionId={sessionId}
@@ -288,7 +305,7 @@ const MountedFilePanel = React.memo(function MountedFilePanel({
 }: {
     sessionId: string;
     path: string;
-    reference: DesktopFileReference | undefined;
+    reference: DesktopWorkspaceReference | undefined;
     active: boolean;
     onHeaderSlotChange: (path: string, slot: React.ReactNode) => void;
     onDirtyChange: (path: string, dirty: boolean) => void;
@@ -308,9 +325,17 @@ const MountedFilePanel = React.memo(function MountedFilePanel({
         <View
             pointerEvents={active ? 'auto' : 'none'}
             style={[styles.layer, !active && styles.hiddenLayer]}
-            testID={`desktop-file-panel:${desktopFilePath(path)}`}
+            testID={`desktop-file-panel:${isDesktopLocalhostReference(reference) ? reference.url : desktopFilePath(path)}`}
         >
-            {reference?.source === 'machine' ? (
+            {isDesktopLocalhostReference(reference) ? (
+                <LocalhostWorkspacePanel
+                    sessionId={sessionId}
+                    machineId={reference.machineId}
+                    url={reference.url}
+                    active={active}
+                    onHeaderRightSlotChange={publishHeaderSlot}
+                />
+            ) : reference?.source === 'machine' ? (
                 <MachineFileViewPanel
                     machineId={reference.machineId}
                     originSessionId={sessionId}

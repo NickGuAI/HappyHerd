@@ -1,9 +1,55 @@
+# September 3 — Side chats across every supported provider
+
+- Create same-provider side chats from Claude, Codex, Gemini, Grok, DSH, and Agy sessions. Claude and Codex retain native forks; delegated CLI creation gives the other providers a bounded visible-context handoff, while close and reopen preserve the same Happy side chat without claiming provider-native continuation where it is unavailable.
+
+# September 3 — Explicit side-chat model and effort
+
+- `happyherd session side-chat create` now accepts optional `--model` and `--effort` selections, validates them on the owning daemon before spawning, and fails unsupported combinations instead of silently substituting another setting.
+
+# September 3 — Side-chat resource receipts
+
+- Side-chat creation receipts now include a one-time snapshot of the owning machine's CPU, load averages, RAM, and swap at creation, so orchestrators can gate new work against current host pressure without adding a background monitor.
+
+# September 3 — dsh workspace attachments
+
+- Attach Photos and Device files to dsh from Full New Session, native HomeDock, or an active Session; the next initial, follow-up, or queued message now includes their exact host paths for dsh file tools.
+- Files use the existing selected-machine workspace uploader, including its 20 MiB size limit, item limit, progress, cancel, retry, and failure behavior. They are not sent as inline binary prompts, and attachment behavior for Claude, Codex, Grok, and Rig is unchanged.
+
+# September 3 — dsh launch permission presets
+
+- Choose the installed dsh provider's read-only, workspace-write, or danger-full-access preset before launch from New Session or HomeDock; Agent Defaults mirrors the exact selected-machine catalog.
+- The active composer shows the daemon-confirmed launch preset as read-only status, so a running dsh session never implies an unsupported live permission switch.
+
+# September 3 — Sidebar collapse icon
+
+- On Web Desktop, the sidebar boundary toggle now shows a standard sidebar-collapse icon when open and its mirrored expand icon when collapsed, while its clicking behavior, accessibility labels, position, rounded bordered control geometry, hover/pressed styling, and all other header/sidebar controls remain unchanged.
+
+# September 3 — Sidebar back control
+
+- On Web Desktop, the persistent sidebar header keeps the existing Zen toggle followed by one localized Back text control, while its forward navigation control is removed. The Back control still closes file diff and file view overlays before returning through route history, with the separate sidebar collapse and expand boundary toggle remaining unchanged.
+
+# September 3 — Truthful multi-provider usage totals
+
+- Settings → Usage now tracks provider-native usage as idempotent provider events instead of overwriting Claude session snapshots; totals and charts count canonical usage once, and the provider breakdown reconciles the usage each provider actually reports.
+- Cost uses only provider-reported USD or provider per-model estimates. Missing provider token or cost fields and pre-upgrade legacy snapshots are labeled partial or unavailable instead of silently appearing complete.
+
+# September 3 — Localhost page review in Workspace
+
+- Preview and comment directly on web pages running on the selected chat machine's localhost, 127.0.0.1, or [::1]; each element comment includes its HTML/CSS and a cropped screenshot sent to the active chat.
+
 # September 3 — Unified file viewer modes, commentable Markdown previews, and human message alignment
 
 - The file viewer now exposes one contextual **Preview** and, only for editable files, one **Edit**, with **Delete** only where already supported; the separate Source and HTML Interactive modes are removed. HTML always opens in one safe scriptless Preview.
 - A line-linked Markdown link (for example the `corrections.md` line-15 reproduction) now stays in the rendered, commentable **Preview** and reveals the matching rendered review unit — including the exact table row — instead of switching to a raw source surface. Raw text/code keeps its read-only line-commentable Preview.
 - Human message text within a right-aligned, vertically centered bubble is left-aligned again (was centered) and wraps naturally for short, multiline, Latin, and CJK content, keeping long-press copy.
 - On phone Web, touched file-viewer and Human-message surfaces — including the Markdown preview override and small labels — compute to at least 16px while the input anti-zoom guard remains intact.
+- Updated the Privacy Policy link in **Settings > About** to point to https://flern.co/privacy.
+- Updated the Terms of Service row in **Settings > About** to open https://flern.co/terms instead of the upstream GitHub TERMS.md URL.
+- Updated the Web version's **Settings > Support us** row to open the Buy Me a Coffee page with its original visual appearance and placement preserved, while native builds retain their existing voluntary-support paywall behavior.
+- Removed the HappyHerd descriptive footer paragraph in English, Chinese, and German from **Settings > About**, keeping every existing row and layout unchanged.
+- Updated the Settings > About screen to display the correct HappyHerd package version (1.2.2) alongside the build runtime.
+- Updated the GitHub row in **Settings > About** to display `NickGuAI/HappyHerd` and link directly to `https://github.com/NickGuAI/HappyHerd` in default builds.
+- In commentable rendered Markdown previews on Web Desktop and 390×844 Web Mobile, the 20×20 line-comment `+` now stays fully inside the Workspace gutter and matches the existing Pierre source-code comment button, while retaining hover/focus visibility on desktop and persistent visibility on touch.
 
 # September 2 — Project picker, chat presentation, and mobile layout enhancements
 

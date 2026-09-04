@@ -80,26 +80,41 @@ ACP capabilities rather than another provider fallback.
 ### dsh ACP sessions
 
 ```text
-happy-cli capability refresh
-  → temporary isolated DSH_HOME + cwd, zero MCP servers
-  → bounded `dsh --profile acp` session/new probe without a prompt
-  → exact model + thought_level configOptions
-  → live machine catalog or actionable fail-closed error
-  → happy-app detected-only dsh selection
-  → daemon spawn → `happyherd dsh` → existing `agent/acp` runner
+╔══════════════════════════╗    ╔═════════════════════════════════════╗
+║ happy-cli refresh        ║───→║ dsh --profile acp                  ║
+╚══════════════════════════╝    ╚═════════════════════════════════════╝
+          │                                  │ session/new
+          │                                  ▼
+          │                        model + thought_level options
+          │
+          └───────────────────────→ dsh --profile acp --dump-config
+                                             │ inert text; never run !!js
+                                             ▼
+                                   permission preset catalog
+                                             │
+                                             ▼
+                              exact-machine selection + validation
+                                             │
+                                             ▼
+                           spawnSettings.permission launch receipt
+                                             │
+                                             ▼
+                              read-only active-composer status chip
 ```
 
-dsh discovery parses only explicit `model` and `thought_level` select categories
-from `session/new`. It promotes only valid `["deepseek-official", nonempty slug]`
-tuples, takes both defaults from `currentValue`, reports the installed CLI
-version, and cleans up the temporary process and home. Malformed or failed
-discovery omits the catalog and surfaces an actionable Web error. Before the
-first prompt, the runtime adapter revalidates the selected model and effort
-against that session's config options, resolves the public model slug to dsh's
-exact opaque provider tuple, and fails closed if either selection is missing,
-unknown, malformed, or rejected. The generic ACP prompt, tool, and permission
-normalization remains unchanged. dsh has no permission-mode picker or
-first-class resume/fork surface.
+dsh discovery uses one bounded, non-prompting `session/new` probe in an isolated
+temporary `DSH_HOME` and working directory with zero MCP servers, plus inert
+text parsing of `dsh --profile acp --dump-config`. Missing, malformed,
+inconsistent, disabled, unselectable, or settings-overridden provider
+configuration omits dsh and reports an actionable error. Full New Session on
+Web Desktop and Web Mobile, and HomeDock on applicable native phone surfaces,
+select from the target-machine catalog. The wrapper strips
+`--permission-mode`, replaces ambient `DSH_PERMISSION_MODE` with the selected
+value, and keeps provider argv exactly `dsh --profile acp`. The daemon receipt
+in `spawnSettings.permission` is the active composer's read-only authority;
+there is no runtime permission switch. Presets affect file mutation boundaries,
+not reads, network, or process visibility, and existing ACP model, reasoning,
+and one-shot callback behavior remains unchanged.
 
 ### Provider defaults and session launch
 
@@ -121,7 +136,7 @@ The active harness registry owns Defaults coverage; retired Gemini remains
 parseable only for old synchronized settings. Agent Defaults visibly names and
 lets the user change its exact capability-source daemon without mutating the
 New Session draft. GrokBuild, dsh, and Rig own their model and per-model effort
-values through that daemon; GrokBuild and Rig also own permission values.
+values through that daemon; GrokBuild, dsh, and Rig also own permission values.
 Unsupported dimensions stay explicitly
 absent; an absent provider catalog renders a localized, actionable unavailable
 state instead of a blank group or borrowed choice. The separate exact
@@ -273,13 +288,15 @@ active Main Agent or active Side chat (session + machine + cwd)
                          │
                          ├─ file/directory reference ──► sync/workspaceContext
                          │                                  └─► exact chat
+                         ├─ loopback URL + selected machine
+                         │        └─► service worker ─► encrypted machine RPC
                          ▼
-                 SessionView state (machine + path)
+                 SessionView state (machine + path / URL)
                          │
                          ▼
              DesktopFileWorkspace ──► FileContentPanel + sync/ops
-                   tabs / split             Preview / Edit / Delete
-                   compact host             machine transport
+                   tabs / split       ├─► Preview / Edit / Delete
+                   compact host       └─► live view + element feedback
 ```
 
 One Human-facing **Workspace** initializes at the exact machine and cwd of the
@@ -288,13 +305,21 @@ active Main Agent or Side chat. `MachineWorkspaceBrowser`, exported from
 existing file or directory references to that exact chat through
 `sync/workspaceContext.ts`.
 
-`SessionView.tsx` retains one UI and transport state keyed by machine ID and
-absolute path. `DesktopFileWorkspace.tsx` owns deduplicated tabs, the wide
+`SessionView.tsx` retains one UI state keyed by machine ID plus absolute path
+or canonical loopback URL. `DesktopFileWorkspace.tsx` owns deduplicated tabs, the wide
 split, compact host, and feedback. `FileContentPanel` and `sync/ops.ts` own
 Preview, Edit, supported Delete, and machine transport. A rendered Markdown
 `requestedLine` deep link is a mandatory navigation behavior: it stays in the
 commentable Preview and reveals the matching rendered review unit, including
 the matching table row for a line inside a table.
+
+For a live loopback tab, `sync/workspaceLive.ts` and the scoped behavior in
+`public/workspace-live-sw.js` translate only that registered iframe's page and
+subresource requests into `workspace-live-fetch` calls on the exact selected
+daemon. Scripts, styles, and fetch/XHR state execute in the live frame. The
+element picker supplies bounded HTML, computed CSS, bounds, and a cropped PNG
+to the existing `workspaceFeedback` batch; local HTML file Preview remains on
+the separate scriptless path.
 
 Current-session file and directory reply links remain in this host. Parsed line
 and column values remain attached to the tab reference and feedback message,
@@ -387,11 +412,14 @@ Main Agent: `happyherd session side-chat create`
 Both → daemon-owned side-chat lifecycle
   → resolve exact parent from machine-local reconnect data
   → require parent machine ID == this daemon machine ID
-  → daemon-owned provider fork
+  → daemon-owned provider continuation strategy
        ├── Claude provider-native session fork
-       └── Codex provider-native thread fork
+       ├── Codex provider-native thread fork
+       └── Gemini / Grok / DSH / Agy fresh same-provider child
+             → latest 4 visible parent messages, at most 6,000 characters
+             → exclude tools, thinking, attachments, malformed records, old handoffs
   → daemon spawn on the same machine and path
-       with fresh provider resume ID + parentSessionId + isSideChat
+       with native fork ID where available + parentSessionId + isSideChat
   → creation path
        ├── Human: skip deliver-brief → empty child → focus/open normal composer
        └── Main Agent: render bounded Worker Agent prompt with exact parent/child IDs
@@ -431,9 +459,10 @@ durable encrypted reconnect records ──snapshot──► list / close --all
                 exact server read-back
 
        reopen ──► authenticated exact-session resume signal
-                         └── clear heartbeat suppression
-                                  └── same Happy session/provider state
-                                           └── bounded wait for live PID + active=true
+                         ├── Claude / Codex / Grok: native provider resume
+                         └── Gemini / DSH / Agy: fresh same-provider process
+                                  └── replay one bounded encrypted context handoff
+                                           └── same Happy session + bounded live/active wait
 ```
 
 Process authority is the current daemon's in-memory tracked-process map;
@@ -455,10 +484,10 @@ The local control client gives sequential `close --all` a longer bounded
 receipt window than single-child actions so the four-child shutdown contract
 cannot continue mutating after the caller has already timed out.
 
-The parent session record owns the machine, working path, provider, provider
-backend ID, and—for Codex—the exact resolved state home, with both the temporary
-fork app-server and spawned child launching from the parent directory and
-provider context rather than daemon defaults. If the parent record has a
+The parent session record owns the machine, working path, provider, and any
+provider-native backend ID; for Codex it also owns the exact resolved state
+home. Native fork helpers and every spawned child use the parent directory and
+provider rather than daemon defaults. If the parent record has a
 preferred named provider account, both processes explicitly activate that
 account. If `providerAccount` is absent, the parent is an unmanaged/native or
 custom Codex home: the daemon preserves its `CODEX_HOME` and existing auth

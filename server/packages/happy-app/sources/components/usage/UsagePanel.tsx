@@ -3,11 +3,10 @@ import { Platform, View, ActivityIndicator, ScrollView, Pressable } from 'react-
 import { Text } from '@/components/StyledText';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useAuth } from '@/auth/AuthContext';
-import { Item } from '@/components/Item';
 import { ItemGroup } from '@/components/ItemGroup';
 import { UsageChart } from './UsageChart';
 import { UsageBar } from './UsageBar';
-import { getUsageForPeriod, calculateTotals, UsageDataPoint } from '@/sync/apiUsage';
+import { getUsageForPeriod, calculateTotals, UsageCoverage, UsageDataPoint } from '@/sync/apiUsage';
 import { Ionicons } from '@expo/vector-icons';
 import { HappyError } from '@/utils/errors';
 import { t } from '@/text';
@@ -126,6 +125,14 @@ const styles = StyleSheet.create((theme) => ({
     },
     metricTextActive: {
         color: '#FFFFFF',
+    },
+    coverageList: {
+        padding: 16,
+        gap: 8,
+    },
+    coverageText: {
+        color: theme.colors.textSecondary,
+        fontSize: 14,
     }
 }));
 
@@ -137,11 +144,12 @@ export const UsagePanel: React.FC<{ sessionId?: string }> = ({ sessionId }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [usageData, setUsageData] = useState<UsageDataPoint[]>([]);
+    const [coverage, setCoverage] = useState<UsageCoverage[]>([]);
     const [totals, setTotals] = useState({
         totalTokens: 0,
         totalCost: 0,
-        tokensByModel: {} as Record<string, number>,
-        costByModel: {} as Record<string, number>
+        tokensByProvider: {} as Record<string, number>,
+        costByProvider: {} as Record<string, number>
     });
     
     useEffect(() => {
@@ -160,6 +168,7 @@ export const UsagePanel: React.FC<{ sessionId?: string }> = ({ sessionId }) => {
         try {
             const response = await getUsageForPeriod(auth.credentials, period, sessionId);
             setUsageData(response.usage || []);
+            setCoverage(response.coverage || []);
             setTotals(calculateTotals(response.usage || []));
         } catch (err) {
             console.error('Failed to load usage data:', err);
@@ -209,12 +218,30 @@ export const UsagePanel: React.FC<{ sessionId?: string }> = ({ sessionId }) => {
         );
     }
     
-    // Get top models by usage
-    const topModels = Object.entries(totals.tokensByModel)
+    const providerTotals = Object.entries(totals.tokensByProvider)
         .sort(([, a], [, b]) => b - a)
         .slice(0, 5);
     
-    const maxModelTokens = Math.max(...Object.values(totals.tokensByModel), 1);
+    const maxProviderTokens = Math.max(...Object.values(totals.tokensByProvider), 1);
+    const coverageGaps = coverage.flatMap((entry) => {
+        const gaps: string[] = [];
+        if (entry.tokens !== 'reported') {
+            gaps.push(t(`usage.coverage.${entry.tokens}`, {
+                provider: entry.provider,
+                metric: t('usage.tokens'),
+            }));
+        }
+        if (entry.cost !== 'reported') {
+            gaps.push(t(`usage.coverage.${entry.cost}`, {
+                provider: entry.provider,
+                metric: t('usage.cost'),
+            }));
+        }
+        if (entry.costBasis?.includes('provider-estimate')) {
+            gaps.push(t('usage.coverage.estimated', { provider: entry.provider }));
+        }
+        return gaps;
+    });
     
     return (
         <ScrollView style={styles.container}>
@@ -236,14 +263,24 @@ export const UsagePanel: React.FC<{ sessionId?: string }> = ({ sessionId }) => {
             {/* Summary Stats */}
             <View style={styles.statsContainer}>
                 <View style={styles.statRow}>
-                    <Text style={styles.statLabel}>{t('usage.totalTokens')}</Text>
+                    <Text style={styles.statLabel}>{t('usage.reportedTokens')}</Text>
                     <Text style={styles.statValue}>{formatTokens(totals.totalTokens)}</Text>
                 </View>
                 <View style={styles.statRow}>
-                    <Text style={styles.statLabel}>{t('usage.totalCost')}</Text>
+                    <Text style={styles.statLabel}>{t('usage.providerCost')}</Text>
                     <Text style={styles.statValue}>{formatCost(totals.totalCost)}</Text>
                 </View>
             </View>
+
+            {coverageGaps.length > 0 && (
+                <ItemGroup title={t('usage.coverage.title')}>
+                    <View style={styles.coverageList}>
+                        {coverageGaps.map((gap) => (
+                            <Text key={gap} style={styles.coverageText}>{gap}</Text>
+                        ))}
+                    </View>
+                </ItemGroup>
+            )}
             
             {/* Usage Chart */}
             {usageData.length > 0 && (
@@ -278,16 +315,16 @@ export const UsagePanel: React.FC<{ sessionId?: string }> = ({ sessionId }) => {
                 </View>
             )}
             
-            {/* Usage by Model */}
-            {topModels.length > 0 && (
-                <ItemGroup title={t('usage.byModel')}>
+            {/* Usage by provider */}
+            {providerTotals.length > 0 && (
+                <ItemGroup title={t('usage.byProvider')}>
                     <View style={{ padding: 16 }}>
-                        {topModels.map(([model, tokens]) => (
+                        {providerTotals.map(([provider, tokens]) => (
                             <UsageBar
-                                key={model}
-                                label={model}
+                                key={provider}
+                                label={provider}
                                 value={tokens}
-                                maxValue={maxModelTokens}
+                                maxValue={maxProviderTokens}
                                 color="#007AFF"
                             />
                         ))}

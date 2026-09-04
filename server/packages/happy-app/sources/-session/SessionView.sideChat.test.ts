@@ -30,6 +30,8 @@ const mocks = vi.hoisted(() => ({
     emptyObject: {} as Record<string, unknown>,
     closeSideChatSession: vi.fn(),
     buildWorkspaceContextMessage: vi.fn(),
+    clearWorkspaceContextFiles: vi.fn(),
+    addWorkspaceContextFile: vi.fn(),
     heartbeatDispatch: vi.fn(),
     modalConfirm: vi.fn(),
     modalShow: vi.fn(),
@@ -56,6 +58,14 @@ const mocks = vi.hoisted(() => ({
     voiceRetry: vi.fn(),
     voiceToggle: vi.fn(),
     composerText: {} as Record<string, string>,
+    expImageUpload: false,
+    workspaceEntries: [] as any[],
+    pickImages: vi.fn(),
+    pickImagesForUpload: vi.fn(),
+    uploadAssets: vi.fn(),
+    pickAndUpload: vi.fn(),
+    machineUploaderOptions: null as any,
+    uploadPhase: 'idle',
 }));
 
 vi.mock('react-native', async () => {
@@ -285,7 +295,9 @@ vi.mock('@/components/DesktopFileWorkspace', async () => {
         if (!identity) return identity;
         try {
             const parsed = JSON.parse(identity);
-            return Array.isArray(parsed) && typeof parsed[1] === 'string' ? parsed[1] : identity;
+            if (!Array.isArray(parsed)) return identity;
+            if (parsed[1] === 'localhost' && typeof parsed[2] === 'string') return parsed[2];
+            return typeof parsed[1] === 'string' ? parsed[1] : identity;
         } catch {
             return identity;
         }
@@ -354,20 +366,25 @@ vi.mock('@/hooks/useImagePicker', () => ({
     useImagePicker: () => ({
         addImages: vi.fn(),
         clearImages: vi.fn(),
-        pickImages: vi.fn(),
+        pickImages: mocks.pickImages,
+        pickImagesForUpload: mocks.pickImagesForUpload,
         removeImage: vi.fn(),
         selectedImages: mocks.emptyArray,
     }),
 }));
 vi.mock('@/hooks/useMachineFileUpload', () => ({
-    useMachineFileUpload: () => ({
-        canCancel: false,
-        canRetry: false,
-        cancel: vi.fn(),
-        pickAndUpload: vi.fn(),
-        retry: vi.fn(),
-        state: { phase: 'idle' },
-    }),
+    useMachineFileUpload: (options: unknown) => {
+        mocks.machineUploaderOptions = options;
+        return {
+            canCancel: false,
+            canRetry: false,
+            cancel: vi.fn(),
+            pickAndUpload: mocks.pickAndUpload,
+            uploadAssets: mocks.uploadAssets,
+            retry: vi.fn(),
+            state: { phase: mocks.uploadPhase },
+        };
+    },
 }));
 vi.mock('@/hooks/useHappyAction', () => ({ useHappyAction: () => [false, vi.fn()] }));
 vi.mock('@/hooks/useSessionQuickActions', () => ({
@@ -490,9 +507,10 @@ vi.mock('@/sync/storage', async () => {
         useSessionPendingCommunications: () => mocks.emptyArray,
         useSessionProjectFiles: () => null,
         useSessionUsage: () => null,
-        useSetting: (key: string) => key === 'sessionStatusBarDisplay'
-            ? 'hidden'
-            : undefined,
+        useSetting: (key: string) => ({
+            sessionStatusBarDisplay: 'hidden',
+            expImageUpload: mocks.expImageUpload,
+        } as Record<string, unknown>)[key],
         useSettingMutable: () => [mocks.emptyObject, vi.fn()],
         useSideChatSessions: (parentSessionId: string | null) => {
             const revision = ReactModule.useSyncExternalStore(
@@ -542,10 +560,10 @@ vi.mock('@/sync/rig', () => ({
 }));
 vi.mock('@/sync/workspaceContext', () => ({
     MAX_WORKSPACE_CONTEXT_ITEMS: 8,
-    addWorkspaceContextFile: () => true,
+    addWorkspaceContextFile: mocks.addWorkspaceContextFile,
     buildWorkspaceContextMessage: mocks.buildWorkspaceContextMessage,
-    clearWorkspaceContextFiles: vi.fn(),
-    getWorkspaceContextEntries: () => mocks.emptyArray,
+    clearWorkspaceContextFiles: mocks.clearWorkspaceContextFiles,
+    getWorkspaceContextEntries: () => mocks.workspaceEntries,
     removeWorkspaceContextEntry: vi.fn(),
     subscribeWorkspaceContext: () => () => undefined,
 }));
@@ -755,6 +773,9 @@ beforeEach(() => {
         displayText: text,
         promptText: text,
     }));
+    mocks.clearWorkspaceContextFiles.mockReset();
+    mocks.addWorkspaceContextFile.mockReset();
+    mocks.addWorkspaceContextFile.mockReturnValue(true);
     mocks.heartbeatDispatch.mockReset();
     mocks.heartbeatDispatch.mockResolvedValue({ handled: false });
     mocks.modalConfirm.mockReset();
@@ -788,6 +809,16 @@ beforeEach(() => {
     mocks.voiceRetry.mockReset();
     mocks.voiceToggle.mockReset();
     mocks.composerText = {};
+    mocks.expImageUpload = false;
+    mocks.workspaceEntries = [];
+    mocks.pickImages.mockReset();
+    mocks.pickImagesForUpload.mockReset();
+    mocks.pickImagesForUpload.mockResolvedValue([]);
+    mocks.uploadAssets.mockReset();
+    mocks.uploadAssets.mockResolvedValue([]);
+    mocks.pickAndUpload.mockReset();
+    mocks.machineUploaderOptions = null;
+    mocks.uploadPhase = 'idle';
     seedSessions();
 });
 
@@ -1068,6 +1099,27 @@ describe('SessionView Web composer workspace access', () => {
             initialMachineId: 'machine-newest',
             initialPath: '/srv/side-chats/newest',
             workspaceContextSessionId: 'newest',
+            onLocalhostUrlPress: expect.any(Function),
+        });
+
+        act(() => renderer.root.findByType('MachineWorkspaceBrowser' as any).props.onLocalhostUrlPress({
+            machineId: 'machine-newest',
+            url: 'http://localhost:3000/side',
+        }));
+        const liveWorkspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(liveWorkspace.props).toMatchObject({
+            sessionId: 'newest',
+            paths: ['http://localhost:3000/side'],
+            activePath: 'http://localhost:3000/side',
+        });
+        expect(liveWorkspace.props.references[JSON.stringify([
+            'machine-newest',
+            'localhost',
+            'http://localhost:3000/side',
+        ])]).toEqual({
+            kind: 'localhost',
+            machineId: 'machine-newest',
+            url: 'http://localhost:3000/side',
         });
 
         act(() => renderer.root.findByType('DesktopFileWorkspace' as any).props.onClosePicker());
@@ -1208,6 +1260,113 @@ describe('SessionView Web composer workspace access', () => {
 });
 
 describe('SessionView side-chat integration', () => {
+    it('routes dsh Photos through the machine uploader instead of inline attachments', async () => {
+        mocks.sessions.parent.metadata!.flavor = 'dsh';
+        mocks.pickImagesForUpload.mockResolvedValue([{
+            id: 'photo-1',
+            uri: 'file:///photo.jpg',
+            name: 'photo.jpg',
+            mimeType: 'image/jpeg',
+            size: 123,
+            width: 100,
+            height: 80,
+        }]);
+        mocks.uploadAssets.mockImplementation(async (assets: Array<{ name: string }>) => {
+            const paths = assets.map((asset) => `/srv/project/${asset.name}`);
+            paths.forEach((path) => mocks.machineUploaderOptions.onUploaded(path, {
+                machineId: 'machine-1',
+                directory: '/srv/project',
+                selectionKey: 'dsh',
+            }));
+            return paths;
+        });
+        const renderer = renderParent();
+        const composer = composerForSession(renderer, 'parent');
+
+        expect(composer.props.selectedImages).toBeUndefined();
+        expect(composer.props.onPickImages).toEqual(expect.any(Function));
+        expect(composer.props.splitWebAttachmentActions).toBe(true);
+        await act(async () => {
+            await composer.props.onPickImages();
+        });
+
+        expect(mocks.pickImagesForUpload).toHaveBeenCalledWith(8);
+        expect(mocks.uploadAssets).toHaveBeenCalledWith([
+            expect.objectContaining({ uri: 'file:///photo.jpg', name: 'photo.jpg' }),
+        ]);
+        expect(mocks.addWorkspaceContextFile).toHaveBeenCalledWith(
+            'parent',
+            '/srv/project/photo.jpg',
+            { kind: 'machine', machineId: 'machine-1' },
+        );
+        expect(mocks.pickImages).not.toHaveBeenCalled();
+    });
+
+    it('does not offer another dsh attachment picker while an upload is active', () => {
+        mocks.sessions.parent.metadata!.flavor = 'dsh';
+        mocks.uploadPhase = 'uploading';
+        const renderer = renderParent();
+        const composer = composerForSession(renderer, 'parent');
+
+        expect(composer.props.onPickImages).toBeUndefined();
+        expect(composer.props.onPickDeviceFiles).toBeUndefined();
+        expect(composer.props.isSendDisabled).toBe(true);
+        act(() => {
+            composer.props.onSend();
+            composer.props.onQueueMessage();
+        });
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        { label: 'follow-up', action: 'onSend', deliveryMode: undefined },
+        { label: 'queued', action: 'onQueueMessage', deliveryMode: 'queue' },
+    ] as const)('binds exact dsh workspace paths to a $label message without inline payloads', async ({ action, deliveryMode }) => {
+        mocks.sessions.parent.metadata!.flavor = 'dsh';
+        mocks.sessions.parent.draft = 'Inspect these files';
+        mocks.workspaceEntries = [
+            {
+                path: '/srv/project/photo.jpg',
+                kind: 'file',
+                source: { kind: 'machine', machineId: 'machine-1' },
+            },
+            {
+                path: '/srv/project/report.pdf',
+                kind: 'file',
+                source: { kind: 'machine', machineId: 'machine-1' },
+            },
+        ];
+        mocks.buildWorkspaceContextMessage.mockResolvedValue({
+            promptText: 'Inspect these files\n\nUse exact files:\n/srv/project/photo.jpg\n/srv/project/report.pdf',
+            displayText: 'Inspect these files\n\n/srv/project/photo.jpg\n/srv/project/report.pdf',
+        });
+        const renderer = renderParent();
+        const composer = composerForSession(renderer, 'parent');
+
+        await act(async () => {
+            await composer.props[action]();
+        });
+
+        expect(mocks.buildWorkspaceContextMessage).toHaveBeenCalledWith(
+            'parent',
+            'Inspect these files',
+            mocks.workspaceEntries,
+            { machineFilesAsReferences: true },
+        );
+        expect(mocks.sendMessage).toHaveBeenCalledWith(
+            'parent',
+            'Inspect these files\n\nUse exact files:\n/srv/project/photo.jpg\n/srv/project/report.pdf',
+            {
+                source: 'chat',
+                attachments: undefined,
+                displayText: 'Inspect these files\n\n/srv/project/photo.jpg\n/srv/project/report.pdf',
+                ...(deliveryMode ? { deliveryMode } : {}),
+                awaitDelivery: false,
+            },
+        );
+        expect(mocks.clearWorkspaceContextFiles).toHaveBeenCalledWith('parent');
+    });
+
     it.each([
         { label: 'Grok', flavor: 'grok', permissionMode: 'bypassPermissions', clearsPermission: false },
         { label: 'Antigravity', flavor: 'agy', permissionMode: 'bypassPermissions', clearsPermission: false },
@@ -1793,11 +1952,37 @@ describe('SessionView side-chat integration', () => {
             initialMachineId: 'machine-1',
             initialPath: '/srv/project',
             workspaceContextSessionId: 'parent',
+            onLocalhostUrlPress: expect.any(Function),
         });
-        act(() => machineWorkspace.props.onFilePress({ machineId: 'machine-2', path: '/work/remote.md' }));
+        act(() => machineWorkspace.props.onLocalhostUrlPress({
+            machineId: 'machine-2',
+            url: 'http://127.0.0.1:4173/app',
+        }));
 
-        const workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
-        expect(workspace.props.paths).toEqual(['/work/remote.md']);
+        let workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props).toMatchObject({
+            sessionId: 'parent',
+            paths: ['http://127.0.0.1:4173/app'],
+            activePath: 'http://127.0.0.1:4173/app',
+        });
+        expect(workspace.props.references[JSON.stringify([
+            'machine-2',
+            'localhost',
+            'http://127.0.0.1:4173/app',
+        ])]).toEqual({
+            kind: 'localhost',
+            machineId: 'machine-2',
+            url: 'http://127.0.0.1:4173/app',
+        });
+
+        act(() => workspace.props.onOpenMachinePicker());
+        act(() => renderer.root.findByType('MachineWorkspaceBrowser' as any).props.onFilePress({
+            machineId: 'machine-2',
+            path: '/work/remote.md',
+        }));
+
+        workspace = renderer.root.findByType('DesktopFileWorkspace' as any);
+        expect(workspace.props.paths).toEqual(['http://127.0.0.1:4173/app', '/work/remote.md']);
         expect(workspace.props.references[JSON.stringify(['machine-2', '/work/remote.md'])])
             .toMatchObject({ machineId: 'machine-2', source: 'machine' });
         expect(mocks.routerPush).not.toHaveBeenCalled();

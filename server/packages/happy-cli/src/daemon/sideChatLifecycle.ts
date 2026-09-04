@@ -4,10 +4,13 @@ import type {
   SideChatListReceipt,
   SideChatLifecycleReceipt,
   SideChatLifecycleRequest,
+  SideChatLaunchOptions,
   SideChatPhaseReceipt,
+  SideChatResourceUsage,
   SideChatSingleReceipt,
   SideChatStatusReceipt,
 } from '@/commands/sideChat';
+import { failedHostResourceUsage } from './hostResourceUsage';
 
 export type DaemonSideChatRecord = SideChatStatusReceipt;
 
@@ -20,6 +23,7 @@ export type DaemonSideChatLifecycleDependencies = {
   create: (
     parentSessionId: string,
     brief: SideChatDelegationBrief | null,
+    launch: SideChatLaunchOptions | undefined,
   ) => Promise<{ sessionId: string; briefDelivery: SideChatOperationResult | null }>;
   listSessionIds: (parentSessionId: string) => Promise<string[]>;
   read: (sessionId: string) => Promise<DaemonSideChatRecord>;
@@ -27,6 +31,7 @@ export type DaemonSideChatLifecycleDependencies = {
   archiveMetadata: (sessionId: string) => Promise<SideChatOperationResult>;
   deactivate: (sessionId: string) => Promise<SideChatOperationResult>;
   resumeProvider: (sessionId: string) => Promise<SideChatOperationResult>;
+  sampleResources: () => Promise<SideChatResourceUsage>;
 };
 
 function phase(
@@ -69,7 +74,7 @@ export class DaemonSideChatLifecycle {
 
   async execute(request: SideChatLifecycleRequest): Promise<SideChatLifecycleReceipt> {
     switch (request.action) {
-      case 'create': return this.create(request.parentSessionId, request.brief);
+      case 'create': return this.create(request.parentSessionId, request.brief, request.launch);
       case 'list': return this.list(request.parentSessionId);
       case 'status': return this.status(request.sessionId);
       case 'stop': return this.stop(request.sessionId);
@@ -82,12 +87,19 @@ export class DaemonSideChatLifecycle {
   private async create(
     parentSessionId: string,
     brief: SideChatDelegationBrief | null,
+    launch: SideChatLaunchOptions | undefined,
   ): Promise<SideChatSingleReceipt> {
+    const resourcePromise = this.dependencies.sampleResources()
+      .catch(() => failedHostResourceUsage());
     let created: Awaited<ReturnType<DaemonSideChatLifecycleDependencies['create']>>;
     try {
-      created = await this.dependencies.create(parentSessionId, brief);
+      created = await this.dependencies.create(parentSessionId, brief, launch);
     } catch (error) {
-      return failedSingle('create', null, 'resolve', error);
+      return {
+        ...failedSingle('create', null, 'resolve', error),
+        schemaVersion: 2,
+        resource: await resourcePromise,
+      };
     }
 
     let child: DaemonSideChatRecord;
@@ -95,7 +107,7 @@ export class DaemonSideChatLifecycle {
       child = await this.dependencies.read(created.sessionId);
     } catch (error) {
       return {
-        schemaVersion: 1,
+        schemaVersion: 2,
         type: 'side-chat',
         action: 'create',
         success: false,
@@ -107,13 +119,14 @@ export class DaemonSideChatLifecycle {
           briefDeliveryPhase(created.briefDelivery),
           phase('readback', 'failed', error instanceof Error ? error.message : String(error)),
         ],
+        resource: await resourcePromise,
       };
     }
 
     const lineageMatches = child.parentSessionId === parentSessionId;
     const childIsRunning = child.status === 'running';
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       type: 'side-chat',
       action: 'create',
       success: lineageMatches && childIsRunning && (created.briefDelivery?.success ?? true),
@@ -133,6 +146,7 @@ export class DaemonSideChatLifecycle {
               : undefined,
         ),
       ],
+      resource: await resourcePromise,
     };
   }
 

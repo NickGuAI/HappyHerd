@@ -120,7 +120,9 @@ happyherd session side-chat create <parent-session-id> \
   --dependencies '<inputs or none>' \
   --write-ownership '<owned files or resources>' \
   --verification '<required proof>' \
-  --handoff '<result and evidence to return>'
+  --handoff '<result and evidence to return>' \
+  --model '<provider model>' \
+  --effort '<provider effort>'
 happyherd session side-chat list <parent-session-id>
 happyherd session side-chat status <child-session-id>
 happyherd session side-chat inspect <child-session-id>
@@ -134,15 +136,40 @@ happyherd session side-chat resume <child-session-id>
 
 The six-field delegation brief is required. The parent-ID shorthand remains
 supported when it carries the same six options. The daemon persists the
-rendered brief as the child's first encrypted queued user message. Add
-`--json` to any action for a stable receipt. A failed receipt sets a nonzero
-exit code and names the exact failed phase; a post-spawn `deliver-brief`
-failure retains the created child ID. `stop` waits for the daemon-owned
+rendered brief as the child's first encrypted queued user message. Parents may
+run Claude, Codex, Gemini, Grok, DSH, or Agy. Claude and Codex retain their
+provider-native forks. Gemini, Grok, DSH, and Agy launch a fresh same-provider
+child on the exact machine and path, seeded through that encrypted brief with
+the latest four visible parent messages capped at 6,000 characters. Tools,
+thinking, attachments, malformed records, and previous continuation handoffs
+are excluded. Add
+`--json` to any action for a stable receipt. Create receipts use
+`schemaVersion: 2`, preserving every existing lifecycle field while adding a
+`resource` object sampled once by the owning daemon at creation. The snapshot
+captures CPU busy percentage over a 250 ms window, 1/5/15-minute load averages,
+memory used/total/available bytes, swap used bytes, and a `sampledAt` ISO
+timestamp. An unavailable metric is `null`, and the overall resource status is
+`ok`, `partial`, or `failed`; resource collection never changes an otherwise
+successful create. No background monitor, poller, telemetry service, or extra
+daemon process is added. Other lifecycle receipts remain `schemaVersion: 1`.
+The optional `--model` and `--effort` values are validated by the owning daemon
+against the parent provider's current capability catalog before the child is
+forked. Invalid or unavailable combinations fail without spawning. Valid
+selections use the existing machine-session settings contract, which verifies
+that the child persisted the exact effective settings before create reports
+success. Omitting both options preserves the existing defaults. Human one-click
+creation continues to send only the parent session ID.
+A failed receipt sets a nonzero exit code and names the exact failed phase; a
+post-spawn `deliver-brief` failure retains the created child ID. `stop` waits
+for the daemon-owned
 provider process to exit and for server deactivation; `close` then writes
 encrypted archived lifecycle metadata and reads the authoritative server state
 back. `inspect`, `pause`, and `resume` map to `status`, `stop`, and `reopen`,
-while receipts retain canonical action names. `reopen` resumes the same Happy
-session and parent lineage. Stopped and archived children remain discoverable
+while receipts retain canonical action names. `reopen` preserves the same Happy
+session and parent lineage. Claude, Codex, and Grok use provider-native resume;
+Gemini, DSH, and Agy start a fresh same-provider process seeded from bounded
+visible child context. This dedicated path does not re-enable ordinary Gemini
+new-session UI. Stopped and archived children remain discoverable
 after daemon restarts through the daemon's durable encrypted reconnect store.
 
 The Human starts a side chat in the app with one click and no fields. The app
@@ -280,7 +307,7 @@ account becomes eligible again.
 | `happyherd grok` | Start GrokBuild through its official ACP interface |
 | `happyherd acp` | Start any ACP-compatible agent |
 | `happyherd resume <id>` | Resume a previous session |
-| `happyherd session side-chat <action> <id> [brief options] [--all] [--json]` | Create a briefed Worker Agent conversation or list, status/inspect, stop/pause, close, and reopen/resume exact Claude/Codex child side chats on their local owning daemon |
+| `happyherd session side-chat <action> <id> [brief options] [--all] [--json]` | Create and manage exact-parent side chats for Claude, Codex, Gemini, Grok, DSH, and Agy on their local owning daemon |
 | `happyherd notify` | Send push notification to your devices |
 | `happyherd doctor` | Diagnostics & troubleshooting |
 | `happyherd commander list` | List Commanders available on this machine |

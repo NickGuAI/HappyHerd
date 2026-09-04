@@ -6,8 +6,11 @@ import {
     DESKTOP_FILE_WORKSPACE_DIVIDER_WIDTH,
     DESKTOP_FILE_WORKSPACE_MAX_SHARE,
     desktopFileIdentity,
+    desktopLocalhostIdentity,
     EMPTY_DESKTOP_FILE_WORKSPACE,
     openDesktopFile,
+    openDesktopLocalhost,
+    normalizeWorkspaceLocalhostUrl,
     resolveDesktopFileWorkspaceWidth,
     selectDesktopFile,
 } from './desktopFileWorkspaceModel';
@@ -80,6 +83,60 @@ describe('desktop file workspace state', () => {
             desktopFileIdentity('/work/a.ts', 'machine-1'),
             desktopFileIdentity('/work/a.ts', 'machine-2'),
         ]);
+    });
+
+    it('deduplicates a canonical localhost resource on one machine', () => {
+        const normalizedUrl = normalizeWorkspaceLocalhostUrl(' HTTP://LOCALHOST:80/app?mode=dev#main ');
+        expect(normalizedUrl).toBe('http://localhost/app?mode=dev#main');
+
+        const first = openDesktopLocalhost(
+            EMPTY_DESKTOP_FILE_WORKSPACE,
+            'machine-1',
+            normalizedUrl!,
+        );
+        const reopened = openDesktopLocalhost(first, 'machine-1', normalizedUrl!);
+        const identity = desktopLocalhostIdentity(normalizedUrl!, 'machine-1');
+
+        expect(first.paths).toEqual([identity]);
+        expect(first.references[identity]).toEqual({
+            kind: 'localhost',
+            machineId: 'machine-1',
+            url: normalizedUrl,
+        });
+        expect(reopened).toBe(first);
+    });
+
+    it('keeps the same localhost URL on separate machines in distinct tabs', () => {
+        const normalizedUrl = 'http://localhost:3000/';
+        const first = openDesktopLocalhost(
+            EMPTY_DESKTOP_FILE_WORKSPACE,
+            'machine-1',
+            normalizedUrl,
+        );
+        const second = openDesktopLocalhost(first, 'machine-2', normalizedUrl);
+
+        expect(second.paths).toEqual([
+            desktopLocalhostIdentity(normalizedUrl, 'machine-1'),
+            desktopLocalhostIdentity(normalizedUrl, 'machine-2'),
+        ]);
+    });
+
+    it.each([
+        'https://example.com',
+        'http://localhost.example:3000',
+        'http://127.0.0.2:3000',
+        'file:///tmp/index.html',
+        'not-a-url',
+    ])('rejects non-loopback live URL %s', (value) => {
+        expect(normalizeWorkspaceLocalhostUrl(value)).toBeNull();
+    });
+
+    it.each([
+        ['http://localhost:3000', 'http://localhost:3000/'],
+        ['https://127.0.0.1:8443/path?q=1#result', 'https://127.0.0.1:8443/path?q=1#result'],
+        ['http://[::1]:5173/app', 'http://[::1]:5173/app'],
+    ])('normalizes supported live URL %s', (value, expected) => {
+        expect(normalizeWorkspaceLocalhostUrl(value)).toBe(expected);
     });
 
     it('selects only paths already in the workspace', () => {

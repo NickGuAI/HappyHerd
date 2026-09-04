@@ -1,9 +1,33 @@
 import * as React from 'react';
 import { createRoot } from 'react-dom/client';
 import { SessionView } from '@/-session/SessionView';
+import NewSessionScreen from '@/app/(app)/new/index';
 import { FlatSessionRow } from '@/components/FlatSessionRow';
+import { HomeDock } from '@/components/HomeDock';
 import { ProviderContinuationLinks } from '@/components/ProviderContinuationLinks';
 import { useSession } from '@/sync/storage';
+
+function HomeDockFixture() {
+    const [prompt, setPrompt] = React.useState('Inspect attachments');
+
+    return (
+        <div data-testid="home-dock" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <HomeDock
+                prompt={prompt}
+                onPromptChange={setPrompt}
+                onSubmit={async (entries = []) => {
+                    (globalThis as any).__HOME_DOCK_SUBMITS__ = [
+                        ...((globalThis as any).__HOME_DOCK_SUBMITS__ ?? []),
+                        entries,
+                    ];
+                    return true;
+                }}
+                isSubmitting={false}
+                showBottomBackdrop={false}
+            />
+        </div>
+    );
+}
 
 function ProviderContinuationFixture() {
     const [modalConfig, setModalConfig] = React.useState<any>(null);
@@ -67,12 +91,22 @@ const fixtureOptions = (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ ?? {};
 
 createRoot(document.getElementById('root')!).render(
     <>
-        <div data-testid="foreground-session" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <SessionView id="parent" />
-        </div>
-        <div style={{ display: 'none' }} aria-hidden="true">
-            <SessionView id="background" />
-        </div>
+        {fixtureOptions.homeDock ? (
+            <HomeDockFixture />
+        ) : fixtureOptions.newSession ? (
+            <div data-testid="full-new-session" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <NewSessionScreen />
+            </div>
+        ) : (
+            <>
+                <div data-testid="foreground-session" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                    <SessionView id="parent" />
+                </div>
+                <div style={{ display: 'none' }} aria-hidden="true">
+                    <SessionView id="background" />
+                </div>
+            </>
+        )}
         {fixtureOptions.providerContinuation ? <ProviderContinuationFixture /> : null}
     </>,
 );

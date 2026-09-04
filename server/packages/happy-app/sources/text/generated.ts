@@ -129,6 +129,7 @@ export type TranslationKey =
     | "common.rename"
     | "common.reset"
     | "common.retry"
+    | "common.runtime"
     | "common.save"
     | "common.saveAs"
     | "common.scanning"
@@ -742,7 +743,6 @@ export type TranslationKey =
     | "sessionsFilter.groupingTitle"
     | "sessionsFilter.title"
     | "settings.about"
-    | "settings.aboutFooter"
     | "settings.account"
     | "settings.accountConnected"
     | "settings.accountSubtitle"
@@ -1315,11 +1315,17 @@ export type TranslationKey =
     | "updateBanner.tapToUpdatePlayStore"
     | "updateBanner.updateAvailable"
     | "updateBanner.whatsNew"
-    | "usage.byModel"
+    | "usage.byProvider"
     | "usage.cost"
+    | "usage.coverage.estimated"
+    | "usage.coverage.partial"
+    | "usage.coverage.title"
+    | "usage.coverage.unavailable"
     | "usage.last30Days"
     | "usage.last7Days"
     | "usage.noData"
+    | "usage.providerCost"
+    | "usage.reportedTokens"
     | "usage.today"
     | "usage.tokens"
     | "usage.totalCost"
@@ -1348,9 +1354,16 @@ export type TranslationKey =
     | "workspace.folderNamePlaceholder"
     | "workspace.go"
     | "workspace.home"
+    | "workspace.invalidLocalhostUrl"
     | "workspace.linkMachineMissingDescription"
     | "workspace.linkPathMissingDescription"
     | "workspace.linkReadErrorTitle"
+    | "workspace.liveCaptureFailed"
+    | "workspace.liveCommentOnElement"
+    | "workspace.liveElement"
+    | "workspace.liveLoadFailed"
+    | "workspace.liveLoading"
+    | "workspace.localhostUrlPlaceholder"
     | "workspace.missingPathDescription"
     | "workspace.missingPathTitle"
     | "workspace.mobileBackToFiles"
@@ -1360,6 +1373,7 @@ export type TranslationKey =
     | "workspace.offlineDescription"
     | "workspace.offlineTitle"
     | "workspace.openFeatures"
+    | "workspace.openLocalhost"
     | "workspace.openWorkspace"
     | "workspace.parent"
     | "workspace.pathPlaceholder"
@@ -1373,6 +1387,8 @@ export type TranslationKey =
     | "workspace.selectMachine"
     | "workspace.selectedCount"
     | "workspace.selectedItemsCount"
+    | "workspace.startElementComment"
+    | "workspace.stopElementComment"
     | "workspace.title"
     | "workspace.upload"
     | "workspace.uploadCancelled"
@@ -1536,6 +1552,11 @@ export interface TranslationParamsByKey {
     "uiCopy.valueRunning": { value1: string | number };
     "uiCopy.valueUnavailable": { value1: string | number };
     "uiCopy.yourEditsToValueHaveNotBeenSaved": { value1: string | number };
+    "usage.coverage.estimated": { provider: string };
+    "usage.coverage.partial": { metric: string; provider: string };
+    "usage.coverage.unavailable": { metric: string; provider: string };
+    "workspace.liveCommentOnElement": { element: string };
+    "workspace.liveElement": { element: string };
     "workspace.selectedCount": { count: number; max: number };
     "workspace.selectedItemsCount": { count: number; max: number };
     "workspace.uploadCancelled": { completed: string; total: string | number };

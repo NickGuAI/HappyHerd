@@ -26,11 +26,18 @@ happyherd session side-chat create <parent-session-id> \
   --write-ownership '<exact files, paths, or resources the child may change>' \
   --verification '<required automated and manual proof>' \
   --handoff '<result, evidence, blockers, and remaining work to return>' \
+  --model '<provider model>' \
+  --effort '<provider effort>' \
   --json
 ```
 
-The daemon forks the parent provider state and creates a child session on the
-same machine and path. Human creation omits the brief, records
+The daemon creates a same-provider child on the same machine and path. Claude
+and Codex retain their provider-native forks. Gemini, Grok, DSH, and Agy start
+a fresh provider process and receive only the latest four visible parent
+messages, capped at 6,000 characters, in the existing encrypted queued brief.
+Tools, thinking, attachments, malformed records, and previous continuation
+handoffs are excluded. Context-read and settings failures happen before spawn.
+Human creation omits the brief, records
 `deliver-brief` as skipped, and leaves the child empty for the Human's first
 message through the normal composer. Main Agent creation validates all six
 non-empty fields and persists the rendered brief as the child's first encrypted
@@ -38,6 +45,14 @@ queued user message. The Worker Agent executes that brief directly, does not
 manage its own side-chat lifecycle, and does not create another side chat
 unless the Human or Main Agent explicitly requests it. Provider-native
 subagents remain the default bounded fan-out inside the child.
+
+`--model` and `--effort` are optional. When either is present, the owning
+daemon validates the selection against the parent provider's current machine
+catalog before it forks or starts the child. Invalid or unavailable selections
+fail without spawning. A successful create means the normal machine-session
+launch contract read back the exact effective settings. Omitting both options
+keeps the existing side-chat defaults. Human one-click creation still sends
+only the parent session ID.
 
 Use the same command surface for lifecycle operations:
 
@@ -54,15 +69,27 @@ happyherd session side-chat close <parent-session-id> --all --json
 ```
 
 These actions reuse the owning daemon's normal local credentials; they do not
-require account-machine linking or a QR flow. Every receipt has
-`schemaVersion: 1`, `success`, and exact per-phase state. Creation includes a
-`deliver-brief` phase. It is `skipped` for Human one-click creation. If CLI
+require account-machine linking or a QR flow. Create receipts have
+`schemaVersion: 2`, preserving every existing lifecycle field while adding a
+`resource` object sampled once by the owning daemon at creation. It captures
+CPU busy percentage over a 250 ms window, 1/5/15-minute load averages, memory
+used/total/available bytes, swap used bytes, and a `sampledAt` ISO timestamp.
+Unavailable metrics are `null`, and the overall resource status is `ok`,
+`partial`, or `failed`; collection never changes an otherwise successful
+create. No background monitor, poller, telemetry service, or extra daemon
+process is introduced. Other lifecycle receipts remain `schemaVersion: 1`.
+Creation includes a `deliver-brief` phase.
+It is `skipped` for Human one-click creation. If CLI
 brief delivery fails after the child is created, the failed receipt retains
 `parentSessionId`, `sessionId`, and the failed `deliver-brief` phase so the
 Orchestrating Agent can inspect or close the exact conversation.
 
 `inspect`, `pause`, and `resume` are aliases for `status`, `stop`, and
-`reopen`; lifecycle receipts keep the canonical action names.
+`reopen`; lifecycle receipts keep the canonical action names. Claude, Codex,
+and Grok retain provider-native resume. Gemini, DSH, and Agy reopen the same
+Happy session with a fresh same-provider process seeded from bounded visible
+child context; do not describe that behavior as native provider resume. The
+dedicated Gemini side-chat path does not re-enable ordinary Gemini launch UI.
 
 Treat `success: false` and its nonzero process exit as an incomplete operation;
 do not infer success from a provider process disappearing or from archived UI

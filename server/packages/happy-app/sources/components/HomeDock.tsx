@@ -22,6 +22,9 @@ import { BubblePressable } from './BubblePressable';
 import { NativeOptionsPicker } from './NativeOptionsPicker';
 import { NativeSettingsMenu, type NativeSettingsMenuGroup, type NativeSettingsMenuProps } from './NativeSettingsMenu';
 import { AgentInputAttachmentStrip } from './AgentInputAttachmentStrip';
+import { AttachmentInputButton } from './AttachmentInputButton';
+import { MachineFileUploadStatus } from './MachineFileUploadStatus';
+import { WorkspaceContextStrip } from './WorkspaceContextStrip';
 import { Typography } from '@/constants/Typography';
 import { layout } from './layout';
 import { t } from '@/text';
@@ -62,6 +65,7 @@ import {
 } from './modelModeOptions';
 import type { NewSessionAgentType } from '@/sync/persistence';
 import { useImagePicker } from '@/hooks/useImagePicker';
+import { useMachineFileUpload, type MachineFileUploadTarget } from '@/hooks/useMachineFileUpload';
 import { Modal } from '@/modal';
 import { resolveMultiTextInputLayout } from './multiTextInputLayout';
 import {
@@ -87,6 +91,11 @@ import { HARNESS_ORDER, getHarnessName } from '@/utils/harnessCatalog';
 import { getPermissionModeMenuLabel, getPermissionModeShortLabel } from '@/utils/permissionModeLabels';
 import { getRigMachineSessionCreation } from '@/sync/rigSessionCreation';
 import { supportsImageAttachmentsForFlavor } from '@/sync/attachmentSupport';
+import {
+    MAX_WORKSPACE_CONTEXT_ITEMS,
+    workspaceContextEntryKey,
+    type WorkspaceContextEntry,
+} from '@/sync/workspaceContext';
 import {
     MobileHeaderScrim,
     MOBILE_HOME_SCRIM_OVERLAY_OPACITY,
@@ -653,7 +662,7 @@ export const HomeDock = React.memo(({
 }: {
     prompt: string;
     onPromptChange: (prompt: string) => void;
-    onSubmit: () => Promise<boolean>;
+    onSubmit: (workspaceEntries?: readonly WorkspaceContextEntry[]) => Promise<boolean>;
     isSubmitting: boolean;
     /** Which step of session creation is running, shown above the composer. */
     submitPhase?: NewSessionStartPhase | null;
@@ -680,7 +689,8 @@ export const HomeDock = React.memo(({
     const [sheetPage, setSheetPage] = React.useState<PickerPage | null>(null);
     const expImageUpload = useSetting('expImageUpload');
     const experiments = useSetting('experiments');
-    const { selectedImages, pickImages, removeImage, clearImages } = useImagePicker();
+    const { selectedImages, pickImages, pickImagesForUpload, removeImage, clearImages } = useImagePicker();
+    const [workspaceEntries, setWorkspaceEntries] = React.useState<WorkspaceContextEntry[]>([]);
     const agentType = useNewSessionDraft((state) => state.agentType);
     const selectedMachineId = useNewSessionDraft((state) => state.selectedMachineId);
     const selectedPath = useNewSessionDraft((state) => state.selectedPath);
@@ -732,6 +742,52 @@ export const HomeDock = React.memo(({
         ?? selectedChoice?.rigMachine
         ?? null;
     const selectedHomeDir = selectedMachine?.metadata?.homeDir;
+    const uploadDirectory = selectedMachine
+        ? resolveAbsolutePath(selectedPath?.trim() || '~', selectedHomeDir)
+        : null;
+    const handleWorkspaceUploaded = React.useCallback((filePath: string, target: MachineFileUploadTarget) => {
+        const entry: WorkspaceContextEntry = {
+            path: filePath,
+            kind: 'file',
+            source: { kind: 'machine', machineId: target.machineId },
+        };
+        setWorkspaceEntries((current) => (
+            current.some((candidate) => workspaceContextEntryKey(candidate) === workspaceContextEntryKey(entry))
+                || current.length >= MAX_WORKSPACE_CONTEXT_ITEMS
+                ? current
+                : [...current, entry]
+        ));
+    }, []);
+    const workspaceUploader = useMachineFileUpload({
+        machineId: selectedMachine?.id,
+        directory: uploadDirectory,
+        selectionKey: agentType,
+        maxFiles: MAX_WORKSPACE_CONTEXT_ITEMS - workspaceEntries.length,
+        onUploaded: handleWorkspaceUploaded,
+    });
+    React.useEffect(() => {
+        setWorkspaceEntries([]);
+        workspaceUploader.reset();
+    }, [agentType, selectedMachine?.id, uploadDirectory]);
+    const dshUploadBusy = agentType === 'dsh'
+        && (workspaceUploader.state.phase === 'uploading' || workspaceUploader.state.phase === 'cancelling');
+    const canPickDshWorkspaceFiles = agentType === 'dsh'
+        && Boolean(selectedMachine?.id && uploadDirectory)
+        && workspaceEntries.length < MAX_WORKSPACE_CONTEXT_ITEMS
+        && !dshUploadBusy;
+    const canPickDshPhotos = canPickDshWorkspaceFiles;
+    const handlePickDshPhotos = React.useCallback(async () => {
+        if (!canPickDshPhotos) return;
+        const images = await pickImagesForUpload(
+            MAX_WORKSPACE_CONTEXT_ITEMS - workspaceEntries.length,
+        );
+        await workspaceUploader.uploadAssets(images);
+    }, [
+        canPickDshPhotos,
+        pickImagesForUpload,
+        workspaceEntries.length,
+        workspaceUploader.uploadAssets,
+    ]);
 
     const machineReconciliation = resolveHomeDockMachineReconciliation({
         selectedMachineId,
@@ -1009,7 +1065,7 @@ export const HomeDock = React.memo(({
     }, [agentType, defaultOverrides, setDefaultOverrides, setModelMode]);
     const selectPermission = React.useCallback((key: string) => {
         setPermissionMode(key);
-        if (agentType === 'grok' || agentType === 'rig') {
+        if (agentType === 'grok' || agentType === 'dsh' || agentType === 'rig') {
             setDefaultOverrides(setAgentDefaultOverride(
                 defaultOverrides,
                 agentType,
@@ -1025,8 +1081,10 @@ export const HomeDock = React.memo(({
     const focusedPromptPlaceholder = agentType === 'codex'
         ? t('uiCopy.askCodex')
         : t('uiCopy.askValue', { value1: currentAgent.name });
-    const canSubmit = !isSubmitting && (
-        prompt.trim().length > 0 || (canUseImageAttachments && selectedImages.length > 0)
+    const canSubmit = !isSubmitting && !dshUploadBusy && (
+        prompt.trim().length > 0
+        || (canUseImageAttachments && selectedImages.length > 0)
+        || workspaceEntries.length > 0
     );
     const startPhase = isSubmitting ? submitPhase ?? 'spawning' : null;
     const startProgressLabel = resolveNewSessionProgressLabel({
@@ -1093,7 +1151,9 @@ export const HomeDock = React.memo(({
     );
     const focusedComposerHeight = resolveMobileComposerHeight(
         focusedInputLayout.height,
-        canUseImageAttachments && selectedImages.length > 0,
+        (canUseImageAttachments && selectedImages.length > 0)
+            || workspaceEntries.length > 0
+            || (agentType === 'dsh' && workspaceUploader.state.phase !== 'idle'),
     );
     const handleFocusedInputMeasurement = React.useCallback((event: LayoutChangeEvent) => {
         const nextHeight = Math.ceil(event.nativeEvent.layout.height);
@@ -1756,8 +1816,12 @@ export const HomeDock = React.memo(({
     const submit = async () => {
         if (!canSubmit) return false;
         useNewSessionDraft.getState().setAttachments(canUseImageAttachments ? selectedImages : []);
-        const started = await onSubmit();
-        if (started) clearImages();
+        const started = await onSubmit(workspaceEntries);
+        if (started) {
+            clearImages();
+            setWorkspaceEntries([]);
+            workspaceUploader.reset();
+        }
         return started;
     };
 
@@ -1787,9 +1851,28 @@ export const HomeDock = React.memo(({
                     ]}
                 >
                 <View style={styles.focusedComposerContent}>
-                    {canUseImageAttachments && selectedImages.length > 0 && (
+                    {((canUseImageAttachments && selectedImages.length > 0)
+                        || workspaceEntries.length > 0
+                        || (agentType === 'dsh' && workspaceUploader.state.phase !== 'idle')) && (
                         <Animated.View style={focusedInputRevealStyle}>
-                            <AgentInputAttachmentStrip images={selectedImages} onRemove={removeImage} />
+                            {canUseImageAttachments && selectedImages.length > 0 && (
+                                <AgentInputAttachmentStrip images={selectedImages} onRemove={removeImage} />
+                            )}
+                            <WorkspaceContextStrip
+                                entries={workspaceEntries}
+                                onRemove={(entry) => setWorkspaceEntries((current) => current.filter(
+                                    (candidate) => workspaceContextEntryKey(candidate) !== workspaceContextEntryKey(entry),
+                                ))}
+                            />
+                            {agentType === 'dsh' && (
+                                <MachineFileUploadStatus
+                                    state={workspaceUploader.state}
+                                    canCancel={workspaceUploader.canCancel}
+                                    canRetry={workspaceUploader.canRetry}
+                                    onCancel={workspaceUploader.cancel}
+                                    onRetry={() => void workspaceUploader.retry()}
+                                />
+                            )}
                         </Animated.View>
                     )}
                     <Animated.View style={[
@@ -1840,7 +1923,20 @@ export const HomeDock = React.memo(({
                         />
                     )}
                     <Animated.View style={[styles.focusedComposerActions, focusedActionsRevealStyle]}>
-                        {canUseImageAttachments && (
+                        {agentType === 'dsh' && (canPickDshPhotos || canPickDshWorkspaceFiles) ? (
+                            <RefusableControl refusing={isSubmitting} onRefuse={refuse}>
+                                <AttachmentInputButton
+                                    onPickPhotos={canPickDshPhotos ? () => void handlePickDshPhotos() : undefined}
+                                    onPickDeviceFiles={canPickDshWorkspaceFiles
+                                        ? () => void workspaceUploader.pickAndUpload()
+                                        : undefined}
+                                    active={workspaceEntries.length > 0}
+                                    color={theme.colors.text}
+                                    size={MOBILE_COMPOSER_METRICS.addIconSize}
+                                    style={styles.sideButton}
+                                />
+                            </RefusableControl>
+                        ) : canUseImageAttachments ? (
                             <RefusableControl refusing={isSubmitting} onRefuse={refuse}>
                                 <BubblePressable
                                     onPress={() => void pickImages()}
@@ -1855,7 +1951,7 @@ export const HomeDock = React.memo(({
                                     />
                                 </BubblePressable>
                             </RefusableControl>
-                        )}
+                        ) : null}
                         {/* The permission mode reads out in words instead of
                             hiding behind a gear: it is the one setting here that
                             changes what the agent is allowed to do to your

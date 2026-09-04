@@ -22,6 +22,15 @@ import type { MessageParam, ContentBlockParam } from '@anthropic-ai/sdk/resource
 import type { HappyHerdHeartbeatMessageMarker } from '@slopus/happy-wire';
 import { persistHeartbeatDeliveryReceipt } from '@/automations/providerOutcome';
 import { reportProviderHardLimitOnce } from '@/credentialPool/providerLimitNotice';
+import {
+    claudeModelUsageSnapshot,
+    cumulativeCostDelta,
+    emptyUsageTokens,
+    usageCounterDelta,
+    usageReportKey,
+    usageTokens,
+    type UsageCounterSnapshot,
+} from '@/usage/providerUsage';
 
 interface PermissionsField {
     date: number;
@@ -125,7 +134,7 @@ export async function claudeRemoteLauncher(
 
     // Create outgoing message queue
     const messageQueue = new OutgoingMessageQueue(
-        (logMessage) => session.client.sendClaudeSessionMessageWithAgentImages(logMessage)
+        (logMessage) => session.client.sendClaudeSessionMessageWithAgentImages(logMessage, { reportUsage: false })
     );
 
     // Set up callback to release delayed messages when permission is requested
@@ -145,11 +154,74 @@ export async function claudeRemoteLauncher(
     let ongoingToolCalls = new Map<string, { parentToolCallId: string | null }>();
     let notifiedQuestionToolCalls = new Set<string>();
     let heartbeatProviderResult: { status: 'completed' | 'failed'; message: string | null } | null = null;
+    const previousUsageByModel = new Map<string, { tokens: UsageCounterSnapshot; costUsd?: number }>();
+    const reportedUsageEventIds = new Set<string>();
 
     function onMessage(message: SDKMessage) {
 
         if (message.type === 'result') {
+            const usageOccurredAt = Date.now();
+            const modelUsage = message.modelUsage ?? {};
+            const entries = Object.entries(modelUsage);
+            const usageEventId = typeof message.uuid === 'string' ? message.uuid : null;
             const succeeded = message.subtype === 'success' && message.is_error !== true;
+            if (entries.length === 0 && usageEventId) {
+                void session.client.sendProviderUsageLimitation({
+                    key: usageReportKey(['claude', 'sdk-result', usageEventId, 'unavailable']),
+                    provider: 'claude',
+                    model: null,
+                    source: 'claude-sdk-result-model-usage',
+                    occurredAt: usageOccurredAt,
+                    tokensAvailable: false,
+                    costAvailable: false,
+                    limitations: ['tokens-not-reported-by-provider', 'cost-not-reported-by-provider'],
+                });
+            }
+            for (const [model, rawUsage] of entries) {
+                if (!usageEventId) {
+                    logger.debug('[remote]: Claude result usage had no stable event id; skipping report');
+                    continue;
+                }
+                const reportKey = usageReportKey(['claude', 'sdk-result', usageEventId, model]);
+                if (reportedUsageEventIds.has(reportKey)) {
+                    continue;
+                }
+                const current = claudeModelUsageSnapshot(rawUsage);
+                const previous = previousUsageByModel.get(model);
+                const tokenDelta = usageCounterDelta(current.tokens, previous?.tokens);
+                // Claude documents zeroed modelUsage placeholders on startup
+                // and crash failures. Those zeros are not measured usage.
+                const zeroFailurePlaceholder = !succeeded
+                    && current.tokens.total === 0
+                    && (current.costUsd ?? 0) === 0;
+                const costAvailable = !zeroFailurePlaceholder && current.costUsd !== undefined;
+                const costTotal = costAvailable
+                    ? cumulativeCostDelta(current.costUsd!, previous?.costUsd)
+                    : 0;
+                void session.client.sendProviderUsageReport({
+                    key: reportKey,
+                    provider: 'claude',
+                    model,
+                    source: 'claude-sdk-result-model-usage',
+                    occurredAt: usageOccurredAt,
+                    tokens: zeroFailurePlaceholder ? emptyUsageTokens() : usageTokens(tokenDelta),
+                    cost: { total: costTotal },
+                    costBasis: costAvailable ? 'provider-estimate' : 'unavailable',
+                    tokensAvailable: !zeroFailurePlaceholder,
+                    costAvailable,
+                    limitations: zeroFailurePlaceholder
+                        ? ['tokens-not-reported-by-provider', 'cost-not-reported-by-provider']
+                        : (costAvailable ? [] : ['cost-not-reported-by-provider']),
+                }, {
+                    onDurable: () => {
+                        reportedUsageEventIds.add(reportKey);
+                        previousUsageByModel.set(model, {
+                            tokens: current.tokens,
+                            ...(current.costUsd !== undefined ? { costUsd: current.costUsd } : {}),
+                        });
+                    },
+                });
+            }
             const detail = succeeded
                 ? null
                 : ('errors' in message && Array.isArray(message.errors) && message.errors.length > 0
@@ -357,6 +429,10 @@ export async function claudeRemoteLauncher(
                 // A previous query has ended. Its setter must never receive an
                 // initial mode for the next resumptive query.
                 permissionHandler.clearPermissionModeUpdater();
+                // Claude SDK modelUsage is cumulative only within one query()
+                // process. A resumed query starts a new accounting epoch even
+                // when its first counters are larger than the prior process.
+                previousUsageByModel.clear();
                 const remoteResult = await claudeRemote({
                     sessionId: session.sessionId,
                     path: session.path,

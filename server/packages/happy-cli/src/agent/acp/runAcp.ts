@@ -35,6 +35,14 @@ import { classifyGrokHardLimit } from '@/credentialPool/providerLimits';
 import { reportProviderHardLimitOnce } from '@/credentialPool/providerLimitNotice';
 import { persistActiveGrokCredential } from '@/credentialPool/grokAuth';
 import { redactAcpImageDataForLogging } from '@/sessionProtocol/providerOutputImages';
+import {
+  acpPromptUsageSnapshot,
+  acpUsdCost,
+  cumulativeCostDelta,
+  emptyUsageTokens,
+  usageReportKey,
+  usageTokens,
+} from '@/usage/providerUsage';
 
 const ACP_EVENT_PREVIEW_CHARS = 240;
 const ACP_RAW_PREVIEW_CHARS = 2000;
@@ -516,6 +524,17 @@ function readModelEffortState(
 
 export type AcpPermissionPolicy = 'prompt' | 'approve' | 'deny' | 'cancel';
 
+/** Replace, rather than inherit, dsh's process-launch permission selection. */
+export function dshChildEnvironment(
+  env: NodeJS.ProcessEnv,
+  permissionMode: string | undefined,
+): NodeJS.ProcessEnv {
+  const childEnv = { ...env };
+  delete childEnv.DSH_PERMISSION_MODE;
+  if (permissionMode) childEnv.DSH_PERMISSION_MODE = permissionMode;
+  return childEnv;
+}
+
 /** Resolve only launch-time permission policy; ACP plan/build mode remains separate. */
 export function resolveAcpPermissionPolicy(
   agentName: string,
@@ -617,6 +636,14 @@ function turnStatusForStopReason(stopReason: StopReason): 'completed' | 'cancell
   return 'completed';
 }
 
+export function resolveAcpLoadSessionId(
+  explicitResumeSessionId: string | undefined,
+  persistedAcpSessionId: string | undefined,
+  freshProviderReconnect = process.env.HAPPYHERD_FRESH_PROVIDER_RECONNECT === '1',
+): string | undefined {
+  return freshProviderReconnect ? undefined : explicitResumeSessionId ?? persistedAcpSessionId;
+}
+
 export async function runAcp(opts: {
   credentials: Credentials;
   agentName: string;
@@ -715,9 +742,21 @@ export async function runAcp(opts: {
         : []),
     ]))
     : [];
+  const priorityReconnectQueueMessageId = opts.agentName === 'dsh'
+    && process.env.HAPPYHERD_FRESH_PROVIDER_RECONNECT === '1'
+    ? process.env.HAPPY_RECONNECT_QUEUE_MESSAGE_ID
+    : undefined;
   if (reconnectSessionId) {
     session.suppressNextArchiveSignal();
-    session.skipExistingMessages(reconnectQueueMessageIds, response?.seq ?? Number.MAX_SAFE_INTEGER);
+    if (priorityReconnectQueueMessageId) {
+      session.skipExistingMessages(
+        reconnectQueueMessageIds,
+        response?.seq ?? Number.MAX_SAFE_INTEGER,
+        priorityReconnectQueueMessageId,
+      );
+    } else {
+      session.skipExistingMessages(reconnectQueueMessageIds, response?.seq ?? Number.MAX_SAFE_INTEGER);
+    }
     session.updateMetadata((currentMetadata) => ({
       ...currentMetadata,
       lifecycleState: 'running',
@@ -748,7 +787,10 @@ export async function runAcp(opts: {
   permissionHandler.reset('Previous CLI process exited before responding');
   const sessionManager = new AcpSessionManager();
   const messageQueue = new MessageQueue2<AcpSwitchMode>((mode) => hashObject(mode));
-  messageQueue.restorePendingQueueMessageIds(reconnectQueueMessageIds);
+  messageQueue.restorePendingQueueMessageIds(
+    reconnectQueueMessageIds,
+    priorityReconnectQueueMessageId,
+  );
   messageQueue.setOnQueueStateChange((messageQueueState) => {
     session.updateAgentState((currentState) => ({ ...currentState, messageQueue: messageQueueState }));
   });
@@ -759,7 +801,7 @@ export async function runAcp(opts: {
   // GrokBuild permission modes are process launch flags. Its ACP operating
   // mode is a separate capability and must not emulate a live permission
   // switch from Happy message metadata.
-  const supportsRuntimePermissionSelection = opts.agentName !== 'grok';
+  const supportsRuntimePermissionSelection = opts.agentName !== 'grok' && opts.agentName !== 'dsh';
   let currentPermissionMode: string | undefined = supportsRuntimePermissionSelection
     ? opts.permissionMode
     : undefined;
@@ -774,6 +816,10 @@ export async function runAcp(opts: {
   let sawModes = false;
   let sawModels = false;
   let runtimeAcpCapabilities = response?.metadata?.acpCapabilities;
+  let latestAcpCostUsd: number | undefined;
+  const acpCostCursors = new Map<string, number>(
+    Object.entries(session.getAgentState()?.usageCursors?.acpCostUsd ?? {}),
+  );
 
   const happyServer = await startHappyServer(session);
   const mcpServers = {
@@ -792,8 +838,12 @@ export async function runAcp(opts: {
     permissionHandler,
     transportHandler: new DefaultTransport(opts.agentName),
     verbose,
-    loadSessionId: opts.resumeSessionId ?? response?.metadata?.acpSessionId,
-    processEnv: opts.agentName === 'grok' ? sanitizeGrokChildEnvironment(process.env) : undefined,
+    loadSessionId: resolveAcpLoadSessionId(opts.resumeSessionId, response?.metadata?.acpSessionId),
+    processEnv: opts.agentName === 'grok'
+      ? sanitizeGrokChildEnvironment(process.env)
+      : opts.agentName === 'dsh'
+        ? dshChildEnvironment(process.env, opts.permissionMode)
+        : undefined,
   });
 
   let thinking = false;
@@ -1223,6 +1273,13 @@ export async function runAcp(opts: {
       }
     }
 
+    if (msg.type === 'token-count' && msg.usageSource === 'acp-usage-update') {
+      const costUsd = acpUsdCost(msg.cost as Parameters<typeof acpUsdCost>[0]);
+      if (costUsd !== undefined) {
+        latestAcpCostUsd = costUsd;
+      }
+    }
+
     const frontendMessage = formatAcpMessageForFrontend(opts.agentName, msg, verbose);
     if (frontendMessage) {
       logAcp(frontendMessage.kind, frontendMessage.text);
@@ -1257,7 +1314,7 @@ export async function runAcp(opts: {
       permissionMode: currentPermissionMode,
       model: currentModel,
       effort: currentEffort,
-    });
+    }, undefined, message.localKey ?? message.meta?.queueMessageId);
   });
   session.keepAlive(thinking, 'remote');
 
@@ -1289,6 +1346,52 @@ export async function runAcp(opts: {
   try {
     const started = await backend.startSession();
     acpSessionId = started.sessionId;
+    const providerUsageSessionId = started.providerSessionId ?? started.sessionId;
+    const reportAcpTurnUsage = async (
+      usageEventId: string,
+      tokenSnapshot: ReturnType<typeof acpPromptUsageSnapshot>,
+    ): Promise<void> => {
+      if (opts.agentName !== 'grok' && opts.agentName !== 'dsh') return;
+      // Grok documents `_meta.usage` as the complete current-prompt
+      // total. dsh exposes only context-window occupancy, not billed token
+      // usage or cost, so it remains an explicit non-counting path.
+      const tokens = opts.agentName === 'grok' && tokenSnapshot ? usageTokens(tokenSnapshot) : undefined;
+      const currentCost = opts.agentName === 'grok' ? latestAcpCostUsd : undefined;
+      const previousCost = acpCostCursors.get(providerUsageSessionId);
+      const limitations: string[] = [];
+      if (!tokens) limitations.push('tokens-not-reported-by-provider');
+      if (currentCost === undefined) limitations.push('cost-not-reported-by-provider');
+      await session.sendProviderUsageReport({
+        key: usageReportKey([opts.agentName, 'acp-turn', usageEventId]),
+        provider: opts.agentName,
+        model: currentModel
+          ?? (modelSelector as AcpConfigSelector | null)?.currentCode
+          ?? (legacyModels as SessionModelState | null)?.currentModelId
+          ?? null,
+        source: 'acp-prompt-response',
+        occurredAt: Date.now(),
+        tokens: tokens ?? emptyUsageTokens(),
+        cost: { total: currentCost === undefined ? 0 : cumulativeCostDelta(currentCost, previousCost) },
+        costBasis: currentCost === undefined ? 'unavailable' : 'provider-reported',
+        tokensAvailable: tokens !== undefined,
+        costAvailable: currentCost !== undefined,
+        limitations,
+      }, currentCost === undefined ? undefined : {
+        mutateAgentState: (currentState) => ({
+          ...currentState,
+          usageCursors: {
+            ...currentState.usageCursors,
+            acpCostUsd: {
+              ...currentState.usageCursors?.acpCostUsd,
+              [providerUsageSessionId]: currentCost,
+            },
+          },
+        }),
+        onDurable: () => {
+          acpCostCursors.set(providerUsageSessionId, currentCost);
+        },
+      });
+    };
     if (started.providerSessionId) {
       const confirmedLaunchReceipt = (opts.agentName === 'grok' || opts.agentName === 'dsh') && metadata.spawnSettings
         ? {
@@ -1355,12 +1458,19 @@ export async function runAcp(opts: {
 
       logAcp('incoming', `Incoming prompt: ${formatUnknownForConsole(batch.message, ACP_EVENT_PREVIEW_CHARS)}`);
       await protocolWork;
+      messageQueue.markBatchStarted(batch.queueMessageIds);
       observedTurnImages.length = 0;
       generatedImageNamesByProviderPath.clear();
       generatedImagePathsByPseudoName.clear();
       correlatedImageNameByCallId.clear();
       imageEditCallIds.clear();
-      sendEnvelopes(sessionManager.startTurn());
+      latestAcpCostUsd = undefined;
+      const turnStartEnvelopes = sessionManager.startTurn();
+      const usageEventId = turnStartEnvelopes[0]?.turn ?? randomUUID();
+      let providerPromptStarted = false;
+      let usageReportAttempted = false;
+      let promptUsage: ReturnType<typeof acpPromptUsageSnapshot>;
+      sendEnvelopes(turnStartEnvelopes);
       try {
         if (supportsRuntimePermissionSelection && typeof batch.mode.permissionMode === 'string' && batch.mode.permissionMode.length > 0) {
           const switched = await switchPermissionModeIfRequested(batch.mode.permissionMode);
@@ -1370,21 +1480,35 @@ export async function runAcp(opts: {
             await protocolWork;
             sendEnvelopes(sessionManager.endTurn('failed'));
             session.sendSessionEvent({ type: 'ready' });
+            messageQueue.completeCurrentBatch(batch.queueMessageIds);
             continue;
           }
         }
         await switchModelAndEffortIfRequested(batch.mode.model, batch.mode.effort);
+        providerPromptStarted = true;
         const promptResult = await backend.sendPromptAndGetResult(acpSessionId, batch.message);
         await protocolWork;
+        const promptResultRecord = promptResult as typeof promptResult & {
+          _meta?: { usage?: Parameters<typeof acpPromptUsageSnapshot>[0] };
+        };
+        promptUsage = acpPromptUsageSnapshot(promptResult.usage ?? promptResultRecord._meta?.usage);
+        usageReportAttempted = true;
+        await reportAcpTurnUsage(usageEventId, promptUsage);
         sendEnvelopes(sessionManager.endTurn(turnStatusForStopReason(promptResult.stopReason)));
         session.sendSessionEvent({ type: 'ready' });
+        messageQueue.completeCurrentBatch(batch.queueMessageIds);
         if (verbose) {
           logAcp('muted', `Outgoing prompt completion from ${opts.agentName}: stopReason=${promptResult.stopReason}`);
         }
       } catch (error) {
         await protocolWork;
+        if (providerPromptStarted && !usageReportAttempted) {
+          usageReportAttempted = true;
+          await reportAcpTurnUsage(usageEventId, promptUsage);
+        }
         sendEnvelopes(sessionManager.endTurn('failed'));
         session.sendSessionEvent({ type: 'ready' });
+        messageQueue.completeCurrentBatch(batch.queueMessageIds);
         logAcp('error', `Prompt error from ${opts.agentName}: ${error instanceof Error ? error.message : String(error)}`);
         if (opts.agentName === 'grok') {
           const hardLimit = classifyGrokHardLimit(error);

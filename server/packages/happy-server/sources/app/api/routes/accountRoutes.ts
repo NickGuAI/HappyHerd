@@ -7,6 +7,7 @@ import { randomKeyNaked } from "@/utils/randomKeyNaked";
 import { allocateUserSeq } from "@/storage/seq";
 import { log } from "@/utils/log";
 import { AccountProfile } from "@/types";
+import { aggregateUsageReports, filterUsageReportsByPeriod } from "./usageAggregation";
 
 export function accountRoutes(app: Fastify) {
     app.get('/v1/account/profile', {
@@ -192,14 +193,13 @@ export function accountRoutes(app: Fastify) {
         const actualGroupBy = groupBy || 'day';
 
         try {
-            // Build query conditions
+            // Receipt time can differ from provider event time after an
+            // offline retry. Query the scoped account/session rows, then use
+            // the immutable event timestamp for exact period filtering.
             const where: {
                 accountId: string;
                 sessionId?: string | null;
-                createdAt?: {
-                    gte?: Date;
-                    lte?: Date;
-                };
+                createdAt?: { gte: Date };
             } = {
                 accountId: userId
             };
@@ -218,14 +218,11 @@ export function accountRoutes(app: Fastify) {
                 where.sessionId = sessionId;
             }
 
-            if (startTime || endTime) {
-                where.createdAt = {};
-                if (startTime) {
-                    where.createdAt.gte = new Date(startTime * 1000);
-                }
-                if (endTime) {
-                    where.createdAt.lte = new Date(endTime * 1000);
-                }
+            // Provider events cannot be received before they occur, so this
+            // lower bound is safe. There is intentionally no receipt-time
+            // upper bound: an offline event can arrive after the queried end.
+            if (startTime) {
+                where.createdAt = { gte: new Date(startTime * 1000) };
             }
 
             // Fetch usage reports
@@ -236,73 +233,19 @@ export function accountRoutes(app: Fastify) {
                 }
             });
 
-            // Aggregate data by time period
-            const aggregated = new Map<string, {
-                tokens: Record<string, number>;
-                cost: Record<string, number>;
-                count: number;
-                timestamp: number;
-            }>();
-
-            for (const report of reports) {
-                const data = report.data as PrismaJson.UsageReportData;
-                const date = new Date(report.createdAt);
-
-                // Calculate timestamp based on groupBy
-                let timestamp: number;
-                if (actualGroupBy === 'hour') {
-                    // Round down to hour
-                    const hourDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), 0, 0, 0);
-                    timestamp = Math.floor(hourDate.getTime() / 1000);
-                } else {
-                    // Round down to day
-                    const dayDate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
-                    timestamp = Math.floor(dayDate.getTime() / 1000);
-                }
-
-                const key = timestamp.toString();
-
-                if (!aggregated.has(key)) {
-                    aggregated.set(key, {
-                        tokens: {},
-                        cost: {},
-                        count: 0,
-                        timestamp
-                    });
-                }
-
-                const agg = aggregated.get(key)!;
-                agg.count++;
-
-                // Aggregate tokens
-                for (const [tokenKey, tokenValue] of Object.entries(data.tokens)) {
-                    if (typeof tokenValue === 'number') {
-                        agg.tokens[tokenKey] = (agg.tokens[tokenKey] || 0) + tokenValue;
-                    }
-                }
-
-                // Aggregate costs
-                for (const [costKey, costValue] of Object.entries(data.cost)) {
-                    if (typeof costValue === 'number') {
-                        agg.cost[costKey] = (agg.cost[costKey] || 0) + costValue;
-                    }
-                }
-            }
-
-            // Convert to array and sort by timestamp
-            const result = Array.from(aggregated.values())
-                .map(data => ({
-                    timestamp: data.timestamp,
-                    tokens: data.tokens,
-                    cost: data.cost,
-                    reportCount: data.count
-                }))
-                .sort((a, b) => a.timestamp - b.timestamp);
+            const scopedReports = filterUsageReportsByPeriod(reports.map((report) => ({
+                id: report.id,
+                key: report.key,
+                createdAt: report.createdAt,
+                data: report.data as PrismaJson.UsageReportData,
+            })), startTime, endTime);
+            const result = aggregateUsageReports(scopedReports, actualGroupBy);
 
             return reply.send({
-                usage: result,
+                usage: result.usage,
+                coverage: result.coverage,
                 groupBy: actualGroupBy,
-                totalReports: reports.length
+                totalReports: scopedReports.length
             });
         } catch (error) {
             log({ module: 'api', level: 'error' }, `Failed to query usage reports: ${error}`);

@@ -8,6 +8,7 @@ import {
   normalizeSideChatLifecycleRequest,
   parseSideChatLifecycleRequest,
   sameSideChatDelegationBrief,
+  sameSideChatLaunchOptions,
   sideChatHelp,
   type ResolvedSideChatMachine,
   type SideChatCommandDependencies,
@@ -36,6 +37,7 @@ const briefArgs = [
   '--verification', brief.verification,
   '--handoff', brief.handoff,
 ];
+const launchArgs = ['--model', 'gpt-5.6-sol', '--effort', 'xhigh'];
 
 function dependencies(
   metadata: Record<string, unknown> = {
@@ -62,7 +64,7 @@ function dependencies(
 
 function lifecycleReceipt(): SideChatSingleReceipt {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     type: 'side-chat',
     action: 'create',
     success: true,
@@ -80,6 +82,18 @@ function lifecycleReceipt(): SideChatSingleReceipt {
       { phase: 'resolve', status: 'succeeded' },
       { phase: 'readback', status: 'succeeded' },
     ],
+    resource: {
+      status: 'ok',
+      sampledAt: '2026-09-03T10:00:00.000Z',
+      cpu: { busyPercent: 12.5, sampleWindowMs: 250 },
+      loadAverage: { oneMinute: 0.1, fiveMinutes: 0.2, fifteenMinutes: 0.3 },
+      memory: {
+        usedBytes: 8 * 1024 ** 3,
+        totalBytes: 16 * 1024 ** 3,
+        availableBytes: 8 * 1024 ** 3,
+        swapUsedBytes: 1024 ** 3,
+      },
+    },
   };
 }
 
@@ -167,14 +181,61 @@ describe('createChildSideChat', () => {
     });
   });
 
-  it.each(['grok', 'acp', 'gemini', 'agy', 'opencode']) (
+  it('passes explicit model and effort to the side-chat spawn boundary', async () => {
+    const deps = dependencies({
+      flavor: 'codex',
+      machineId: machine.id,
+      path: '/srv/project',
+      codexThreadId: 'codex-parent',
+    });
+    vi.mocked(deps.machineRpc).mockResolvedValue({
+      type: 'success',
+      newCodexThreadId: 'codex-child',
+    });
+
+    await expect(createChildSideChat(parentId, deps, {
+      model: 'gpt-5.6-sol',
+      effort: 'xhigh',
+    })).resolves.toEqual({ sessionId: 'happy-child' });
+    expect(deps.createMachineSession).toHaveBeenCalledWith(expect.objectContaining({
+      agent: 'codex',
+      modelMode: 'gpt-5.6-sol',
+      effortLevel: 'xhigh',
+      resumeCodexThreadId: 'codex-child',
+      parentSessionId: parentId,
+      isSideChat: true,
+    }));
+  });
+
+  it.each(['gemini', 'grok', 'dsh', 'agy'] as const) (
+    'starts a fresh same-provider child for %s without invoking a native fork',
+    async (flavor) => {
+      const deps = dependencies({
+        flavor,
+        machineId: machine.id,
+        path: '/srv/project',
+      });
+
+      await expect(createChildSideChat(parentId, deps)).resolves.toEqual({ sessionId: 'happy-child' });
+      expect(deps.machineRpc).not.toHaveBeenCalled();
+      expect(deps.createMachineSession).toHaveBeenCalledWith({
+        machine,
+        directory: '/srv/project',
+        approvedNewDirectoryCreation: false,
+        agent: flavor,
+        parentSessionId: parentId,
+        isSideChat: true,
+      });
+    },
+  );
+
+  it.each(['acp', 'opencode']) (
     'rejects unsupported %s parents without trying another provider',
     async (flavor) => {
       const deps = dependencies({
         flavor,
         machineId: machine.id,
         path: '/srv/project',
-        claudeSessionId: 'must-not-fallback',
       });
 
       await expect(createChildSideChat(parentId, deps))
@@ -273,7 +334,13 @@ describe('handleSideChatCommand', () => {
     });
 
     expect(console.log).toHaveBeenCalledWith(
-      'Created side chat happy-child: running (active)',
+      [
+        'Created side chat happy-child: running (active)',
+        'Resources (ok, sampled 2026-09-03T10:00:00.000Z)',
+        '  CPU: 12.5% busy over 250 ms; load 0.1 / 0.2 / 0.3',
+        '  RAM: 8.00 GiB used / 16.00 GiB total; 8.00 GiB available',
+        '  Swap: 1.00 GiB used',
+      ].join('\n'),
     );
   });
 
@@ -297,6 +364,17 @@ describe('parseSideChatLifecycleRequest', () => {
     });
     expect(parseSideChatLifecycleRequest(['create', parentId, ...briefArgs, '--json'])).toEqual({
       request: { action: 'create', parentSessionId: parentId, brief },
+      json: true,
+    });
+    expect(parseSideChatLifecycleRequest([
+      'create', parentId, ...briefArgs, ...launchArgs, '--json',
+    ])).toEqual({
+      request: {
+        action: 'create',
+        parentSessionId: parentId,
+        brief,
+        launch: { model: 'gpt-5.6-sol', effort: 'xhigh' },
+      },
       json: true,
     });
     expect(parseSideChatLifecycleRequest(['list', parentId])).toEqual({
@@ -357,6 +435,8 @@ describe('parseSideChatLifecycleRequest', () => {
     expect(help).toContain('side-chat inspect <child-session-id>');
     expect(help).toContain('side-chat pause <child-session-id>');
     expect(help).toContain('side-chat resume <child-session-id>');
+    expect(help).toContain('[--model <model>] [--effort <effort>]');
+    expect(help).toContain("validated against the parent machine's");
     expect(help).toContain('receipts use the canonical action names');
   });
 
@@ -378,6 +458,8 @@ describe('parseSideChatLifecycleRequest', () => {
     ])).toThrow('Side-chat creation requires: --handoff');
     expect(() => parseSideChatLifecycleRequest(['status', 'child', '--outcome', 'wrong action']))
       .toThrow('supported only with the create action');
+    expect(() => parseSideChatLifecycleRequest(['status', 'child', '--effort', 'xhigh']))
+      .toThrow('Launch options are supported only with the create action');
     expect(() => parseSideChatLifecycleRequest([
       'create', parentId,
       ...briefArgs,
@@ -387,6 +469,17 @@ describe('parseSideChatLifecycleRequest', () => {
       'create', parentId,
       '--outcome', '--scope', 'wrongly consumed',
     ])).toThrow('Side-chat option --outcome requires a non-empty value');
+    expect(() => parseSideChatLifecycleRequest([
+      'create', parentId,
+      ...briefArgs,
+      '--model', 'gpt-5.6-sol',
+      '--model', 'gpt-5.5',
+    ])).toThrow('Duplicate side-chat option: --model');
+    expect(() => parseSideChatLifecycleRequest([
+      'create', parentId,
+      ...briefArgs,
+      '--effort', '--json',
+    ])).toThrow('Side-chat option --effort requires a non-empty value');
 
     const markdownBriefArgs = [...briefArgs];
     markdownBriefArgs[1] = '- deliver only the owned files';
@@ -394,18 +487,23 @@ describe('parseSideChatLifecycleRequest', () => {
       .toMatchObject({ request: { brief: { outcome: '- deliver only the owned files' } } });
   });
 
-  it('keeps a failed JSON receipt on stdout and marks the command unsuccessful', async () => {
+  it('keeps a failed create JSON receipt with resources on stdout and marks the command unsuccessful', async () => {
     const receipt = { ...lifecycleReceipt(), success: false };
     const output = vi.fn();
     const setExitCode = vi.fn();
 
-    await handleSideChatCommand(['status', 'happy-child', '--json'], {
+    await handleSideChatCommand(['create', parentId, ...briefArgs, '--json'], {
       execute: vi.fn(async () => receipt),
       output,
       setExitCode,
     });
 
     expect(output).toHaveBeenCalledWith(JSON.stringify(receipt));
+    expect(JSON.parse(output.mock.calls[0][0])).toMatchObject({
+      schemaVersion: 2,
+      success: false,
+      resource: { status: 'ok', cpu: { sampleWindowMs: 250 } },
+    });
     expect(setExitCode).toHaveBeenCalledWith(1);
   });
 });
@@ -428,6 +526,14 @@ describe('formatSideChatDelegationPrompt', () => {
   it('compares the complete structured brief for concurrent creation accountability', () => {
     expect(sameSideChatDelegationBrief(brief, { ...brief })).toBe(true);
     expect(sameSideChatDelegationBrief(brief, { ...brief, handoff: 'Different handoff' })).toBe(false);
+    expect(sameSideChatLaunchOptions(
+      { model: 'gpt-5.6-sol', effort: 'xhigh' },
+      { model: 'gpt-5.6-sol', effort: 'xhigh' },
+    )).toBe(true);
+    expect(sameSideChatLaunchOptions(
+      { model: 'gpt-5.6-sol', effort: 'xhigh' },
+      { model: 'gpt-5.6-sol', effort: 'max' },
+    )).toBe(false);
   });
 });
 
@@ -440,5 +546,34 @@ describe('formatSideChatLifecycleReceipt', () => {
       success: false,
       phases: [{ phase: 'archive-metadata', status: 'failed', message: 'version conflict' }],
     })).toContain('archive-metadata: version conflict');
+  });
+
+  it('renders unavailable values from a failed create sample without hiding lifecycle errors', () => {
+    const receipt = lifecycleReceipt();
+    expect(formatSideChatLifecycleReceipt({
+      ...receipt,
+      success: false,
+      child: null,
+      phases: [{ phase: 'resolve', status: 'failed', message: 'parent unavailable' }],
+      resource: {
+        status: 'failed',
+        sampledAt: '2026-09-03T10:05:00.000Z',
+        cpu: { busyPercent: null, sampleWindowMs: 250 },
+        loadAverage: { oneMinute: null, fiveMinutes: null, fifteenMinutes: null },
+        memory: {
+          usedBytes: null,
+          totalBytes: null,
+          availableBytes: null,
+          swapUsedBytes: null,
+        },
+      },
+    })).toBe([
+      'Created side chat happy-child: failed',
+      'Resources (failed, sampled 2026-09-03T10:05:00.000Z)',
+      '  CPU: unavailable busy over 250 ms; load unavailable / unavailable / unavailable',
+      '  RAM: unavailable used / unavailable total; unavailable available',
+      '  Swap: unavailable used',
+      'resolve: parent unavailable',
+    ].join('\n'));
   });
 });

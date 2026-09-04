@@ -45,6 +45,7 @@ export class MessageQueue2<T> {
     private onQueueStateChangeHandler: ((state: AgentMessageQueueState) => void) | null = null;
     private reservedQueueMessageIds: string[] = [];
     private restoredQueueMessageOrder: string[] = [];
+    private requiredFirstQueueMessageId: string | null = null;
     private currentQueueMessageIds: string[] = [];
     private acceptedQueueMessageIds = new Set<string>();
     modeHasher: (mode: T) => string;
@@ -71,12 +72,19 @@ export class MessageQueue2<T> {
     }
 
     /** Hold restored IDs pending until their immutable records are rehydrated. */
-    restorePendingQueueMessageIds(queueMessageIds: readonly string[]): void {
+    restorePendingQueueMessageIds(
+        queueMessageIds: readonly string[],
+        requiredFirstQueueMessageId?: string,
+    ): void {
         if (this.queue.length > 0 || this.currentQueueMessageIds.length > 0) {
             throw new Error('Cannot restore queue IDs after queue processing has started');
         }
-        this.reservedQueueMessageIds = [...new Set(queueMessageIds)];
+        this.reservedQueueMessageIds = [...new Set([
+            ...queueMessageIds,
+            ...(requiredFirstQueueMessageId ? [requiredFirstQueueMessageId] : []),
+        ])];
         this.restoredQueueMessageOrder = [...this.reservedQueueMessageIds];
+        this.requiredFirstQueueMessageId = requiredFirstQueueMessageId ?? null;
         this.notifyQueueStateChange();
     }
 
@@ -124,14 +132,21 @@ export class MessageQueue2<T> {
         const modeHash = this.modeHasher(mode);
         logger.debug(`[MessageQueue2] push() called with mode hash: ${modeHash}`);
 
-        this.queue.push({
+        const item: QueueItem<T> = {
             message,
             mode,
             modeHash,
             isolate: false,
             attachments,
             ...(queueMessageId ? { queueMessageId } : {}),
-        });
+        };
+        if (queueMessageId === this.requiredFirstQueueMessageId) {
+            item.isolate = true;
+            this.queue.unshift(item);
+            this.requiredFirstQueueMessageId = null;
+        } else {
+            this.queue.push(item);
+        }
 
         if (queueMessageId) this.notifyQueueStateChange();
 
@@ -323,6 +338,7 @@ export class MessageQueue2<T> {
         this.queue = [];
         this.reservedQueueMessageIds = [];
         this.restoredQueueMessageOrder = [];
+        this.requiredFirstQueueMessageId = null;
         this.currentQueueMessageIds = [];
         this.closed = false;
 
@@ -365,24 +381,18 @@ export class MessageQueue2<T> {
      * Returns { message: string, mode: T } or null if aborted/closed
      */
     async waitForMessagesAndGetAsString(abortSignal?: AbortSignal): Promise<MessageQueueBatch<T> | null> {
-        // If we have messages, return them immediately
-        if (this.queue.length > 0) {
-            return this.collectBatch();
+        while (true) {
+            if (this.queue.length > 0 && !this.requiredFirstQueueMessageId) {
+                return this.collectBatch();
+            }
+            if (this.closed || abortSignal?.aborted) {
+                return null;
+            }
+            const hasMessages = await this.waitForMessages(abortSignal);
+            if (!hasMessages) {
+                return null;
+            }
         }
-
-        // If closed or already aborted, return null
-        if (this.closed || abortSignal?.aborted) {
-            return null;
-        }
-
-        // Wait for messages to arrive
-        const hasMessages = await this.waitForMessages(abortSignal);
-
-        if (!hasMessages) {
-            return null;
-        }
-
-        return this.collectBatch();
     }
 
     /**
@@ -426,7 +436,10 @@ export class MessageQueue2<T> {
 
         // The provider may hold a mode-changing batch before it actually starts
         // work. Keep those IDs pending until markBatchStarted is called.
-        this.reservedQueueMessageIds = queueMessageIds;
+        this.reservedQueueMessageIds = [...new Set([
+            ...this.reservedQueueMessageIds,
+            ...queueMessageIds,
+        ])];
 
         return {
             message: combinedMessage,
@@ -486,7 +499,7 @@ export class MessageQueue2<T> {
             };
 
             // Check again in case messages arrived or queue closed while setting up
-            if (this.queue.length > 0) {
+            if (this.queue.length > 0 && !this.requiredFirstQueueMessageId) {
                 if (abortHandler && abortSignal) {
                     abortSignal.removeEventListener('abort', abortHandler);
                 }

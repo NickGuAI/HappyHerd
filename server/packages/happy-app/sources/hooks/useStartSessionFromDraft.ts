@@ -46,6 +46,12 @@ import {
 } from '@/sync/spawnRequestId';
 import type { NewSessionStartPhase } from '@/components/newSessionProgress';
 import { supportsImageAttachmentsForFlavor } from '@/sync/attachmentSupport';
+import {
+    addWorkspaceContextEntry,
+    buildWorkspaceContextMessage,
+    clearWorkspaceContextFiles,
+    type WorkspaceContextEntry,
+} from '@/sync/workspaceContext';
 import { validateNewSessionLaunchSelection } from '@/utils/newSessionModeSelection';
 import type { Session } from '@/sync/storageTypes';
 import { collectSessionPlaces, collectSessionWorkspaces } from '@/sync/agentSessionPlaces';
@@ -151,7 +157,9 @@ export function useStartSessionFromDraft() {
         if (isMountedRef.current) setPhase(null);
     }, []);
 
-    const startSession = React.useCallback(async (): Promise<boolean> => {
+    const startSession = React.useCallback(async (
+        workspaceEntries: readonly WorkspaceContextEntry[] = [],
+    ): Promise<boolean> => {
         if (activeRunRef.current) return false;
 
         const draft = useNewSessionDraft.getState();
@@ -550,7 +558,7 @@ export function useStartSessionFromDraft() {
                 // GrokBuild permission is launch-only, so every session keeps
                 // the exact policy its process started with even if the saved
                 // New Session default changes later.
-                if (permission?.key && (agentType === 'grok' || permission.key !== defaults.permissionMode)) {
+                if (agentType !== 'dsh' && permission?.key && (agentType === 'grok' || permission.key !== defaults.permissionMode)) {
                     modesPatch.permissionMode = permission.key;
                 }
                 if (model?.key && model.key !== defaults.modelMode) modesPatch.modelMode = model.key;
@@ -568,14 +576,48 @@ export function useStartSessionFromDraft() {
                 return false;
             }
 
+            let initialPrompt = prompt;
+            let initialDisplayText = prompt;
+            if (workspaceEntries.length > 0) {
+                workspaceEntries.forEach((entry) => addWorkspaceContextEntry(sessionId, entry));
+                const buildingWorkspaceMessage = buildWorkspaceContextMessage(
+                    sessionId,
+                    prompt,
+                    workspaceEntries,
+                    agentType === 'dsh' ? { machineFilesAsReferences: true } : undefined,
+                );
+                let workspaceMessage: Awaited<typeof buildingWorkspaceMessage>;
+                try {
+                    const completedWorkspaceMessage = await untilCanceled(buildingWorkspaceMessage);
+                    if (completedWorkspaceMessage === CANCELED) {
+                        // The context reader can be waiting on the same quiet
+                        // machine as spawn/refresh. Release Home immediately,
+                        // clear its transient selection, and put down the
+                        // already-created session when Stop wins the race.
+                        void buildingWorkspaceMessage.catch(() => { /* cancellation owns this failure */ });
+                        void stopAbandonedSession(sessionId);
+                        return false;
+                    }
+                    workspaceMessage = completedWorkspaceMessage;
+                } finally {
+                    clearWorkspaceContextFiles(sessionId);
+                }
+                initialPrompt = workspaceMessage.promptText;
+                initialDisplayText = workspaceMessage.displayText;
+            }
+
             draft.setInput('');
             draft.setAttachments([]);
             navigateToSession(sessionId);
-            if (prompt || attachments.length > 0) {
+            if (initialPrompt || attachments.length > 0) {
                 // The session is ready at this point. Open it immediately and
                 // let the first message enqueue without keeping the user on Home
                 // during image upload or a slower network round-trip.
-                void sync.sendMessage(sessionId, prompt, { source: 'new_session', attachments }).catch((error) => {
+                void sync.sendMessage(sessionId, initialPrompt, {
+                    source: 'new_session',
+                    attachments,
+                    ...(workspaceEntries.length > 0 ? { displayText: initialDisplayText } : {}),
+                }).catch((error) => {
                     Modal.alert(
                         t('common.error'),
                         error instanceof Error ? error.message : t("uiCopy.failedToSendTheFirstMessage"),

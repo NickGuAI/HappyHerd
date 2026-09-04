@@ -119,6 +119,21 @@ describe('workspace context selection', () => {
         clearWorkspaceContextFiles('two-machines');
     });
 
+    it('preserves exact leading and trailing spaces in a machine path', () => {
+        clearWorkspaceContextFiles('spaced-path');
+        const path = '/srv/project/ report.txt ';
+        expect(addWorkspaceContextFile('spaced-path', path, {
+            kind: 'machine',
+            machineId: 'machine-spaces',
+        })).toBe(true);
+        expect(getWorkspaceContextEntries('spaced-path')).toEqual([{
+            path,
+            kind: 'file',
+            source: { kind: 'machine', machineId: 'machine-spaces' },
+        }]);
+        clearWorkspaceContextFiles('spaced-path');
+    });
+
     it('rejects binary and oversized context before sending', () => {
         expect(() => decodeWorkspaceContextText(btoa('\0binary'), 'asset.bin')).toThrow('not a readable text file');
         const oversized = btoa('a'.repeat(MAX_WORKSPACE_CONTEXT_FILE_BYTES + 1));
@@ -129,12 +144,29 @@ describe('workspace context selection', () => {
         expect(decodeWorkspaceContextText(toBase64('你好, HappyHerd'), 'note.md').text).toBe('你好, HappyHerd');
     });
 
-    it('keeps machine binary attachments as host-path references for the agent', async () => {
+    it('keeps uploaded photos, PDFs, audio, and binary files as exact machine-path references', async () => {
         clearWorkspaceContextFiles('s4');
-        addWorkspaceContextFile('s4', '/home/example-user/report.pdf', { kind: 'machine', machineId: 'm1' });
-        const message = await buildWorkspaceContextMessage('s4', 'Review this', ['/home/example-user/report.pdf']);
-        expect(message.promptText).toContain('ATTACHED WORKSPACE FILE REFERENCE: "/home/example-user/report.pdf"');
+        const paths = [
+            '/home/example-user/photo.jpg',
+            '/home/example-user/report.pdf',
+            '/home/example-user/voice.m4a',
+            '/home/example-user/archive.bin',
+        ];
+        for (const path of paths) {
+            addWorkspaceContextFile('s4', path, { kind: 'machine', machineId: 'm1' });
+        }
+        const message = await buildWorkspaceContextMessage(
+            's4',
+            'Review this',
+            paths,
+            { machineFilesAsReferences: true },
+        );
+        for (const path of paths) {
+            expect(message.promptText).toContain(`ATTACHED WORKSPACE FILE REFERENCE: "${path}"`);
+            expect(message.displayText).toContain(path);
+        }
         expect(message.promptText).toContain('Use the provider file tools');
+        expect(opsMocks.machineReadFile).not.toHaveBeenCalled();
         clearWorkspaceContextFiles('s4');
     });
 

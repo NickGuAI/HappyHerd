@@ -123,8 +123,8 @@ vi.mock('./GitStatusBadge', async () => {
 vi.mock('@/sync/storage', () => ({ useSetting: () => undefined }));
 vi.mock('@/sync/modeHacks', () => ({ hackMode: (mode: unknown) => mode, hackModes: (modes: unknown) => modes }));
 vi.mock('@/utils/permissionModeLabels', () => ({
-    getPermissionModeMenuLabel: () => '',
-    getPermissionModeShortLabel: () => '',
+    getPermissionModeMenuLabel: (mode: { name: string }) => mode.name,
+    getPermissionModeShortLabel: (mode: { name: string } | null) => mode?.name?.split(/\s+/)[0] ?? null,
 }));
 vi.mock('@/utils/sessionStatusBar', () => ({
     formatUsageLimitResetTime: () => '',
@@ -355,6 +355,30 @@ describe.each([
 });
 
 describe('AgentInput Web action menu', () => {
+    it.each([
+        ['Web Desktop', 1200],
+        ['Web Mobile', 390],
+    ] as const)('shows an immutable launch receipt chip on %s', (_surface, width) => {
+        const { callbacks, renderer } = renderMobileActionInput({
+            permissionMode: { key: 'danger-full-access', name: 'danger-full-access' },
+            permissionModeReadOnly: true,
+            onPermissionModeChange: undefined,
+        }, width);
+
+        const chip = renderer.root.findByProps({ testID: 'composer-permission-mode-readonly' });
+        expect(chip.props).toMatchObject({
+            accessibilityLabel: 'agentInput.permissionMode.title: danger-full-access',
+            accessibilityRole: 'text',
+        });
+        expect(renderedText(renderer)).toContain('danger-full-access');
+        expect(renderer.root.findAllByType('Pressable' as any).some((node: any) => (
+            node.props.accessibilityLabel === 'agentInput.permissionMode.title'
+        ))).toBe(false);
+        expect(callbacks.onPermissionModeChange).not.toHaveBeenCalled();
+
+        act(() => renderer.unmount());
+    });
+
     it('follows the session mobile-action contract across the full narrow Web layout', () => {
         const { renderer } = renderMobileActionInput({}, 720);
 

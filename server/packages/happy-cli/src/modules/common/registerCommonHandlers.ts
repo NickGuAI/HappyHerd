@@ -8,6 +8,13 @@ import { basename, isAbsolute, join, relative, resolve, sep } from 'path';
 import {
     isSafeWorkspaceUploadFileName,
     isSafeWorkspacePathSegment,
+    isWorkspaceLiveLoopbackUrl,
+    MAX_WORKSPACE_LIVE_BODY_BASE64_LENGTH,
+    MAX_WORKSPACE_LIVE_BODY_BYTES,
+    MAX_WORKSPACE_LIVE_HEADER_CHARACTERS,
+    MAX_WORKSPACE_LIVE_HEADER_COUNT,
+    MAX_WORKSPACE_LIVE_REDIRECTS,
+    resolveWorkspaceLiveRedirectUrl,
     MAX_WORKSPACE_UPLOAD_BYTES,
     WorkspaceCreateDirectoryRequestSchema,
     WorkspaceFileHashRequestSchema,
@@ -15,6 +22,8 @@ import {
     WorkspaceUploadChunkRequestSchema,
     WorkspaceUploadFinishRequestSchema,
     WorkspaceUploadStartRequestSchema,
+    WorkspaceLiveHttpRequestSchema,
+    WorkspaceLiveHttpResponseSchema,
     type WorkspaceCreateDirectoryRequest,
     type WorkspaceCreateDirectoryResponse,
     type WorkspaceFileHashRequest,
@@ -27,6 +36,8 @@ import {
     type WorkspaceUploadStartRequest,
     type WorkspaceUploadStartResponse,
     type WorkspaceUploadResponse,
+    type WorkspaceLiveHttpRequest,
+    type WorkspaceLiveHttpResponse,
     type HappyHerdMachineSessionSettings,
 } from '@slopus/happy-wire';
 import { run as runRipgrep } from '@/modules/ripgrep/index';
@@ -239,6 +250,7 @@ export type SpawnSessionResult =
 
 const MAX_PENDING_WORKSPACE_UPLOADS = 8;
 const WORKSPACE_UPLOAD_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
+const WORKSPACE_LIVE_REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
 type PendingWorkspaceUpload = {
     uploadId: string;
@@ -253,6 +265,148 @@ type PendingWorkspaceUpload = {
     busy: boolean;
     timer?: ReturnType<typeof setTimeout>;
 };
+
+function workspaceLiveFailure(
+    code: Extract<WorkspaceLiveHttpResponse, { success: false }>['code'],
+    error: string,
+): WorkspaceLiveHttpResponse {
+    return { success: false, code, error: error.slice(0, 4 * 1024) };
+}
+
+function workspaceLiveRequestExceedsLimit(rawData: unknown): boolean {
+    if (!rawData || typeof rawData !== 'object') return false;
+    const request = rawData as { body?: unknown; headers?: unknown };
+    if (typeof request.body === 'string') {
+        const padding = request.body.endsWith('==') ? 2 : request.body.endsWith('=') ? 1 : 0;
+        const decodedLength = (request.body.length / 4) * 3 - padding;
+        if (
+            request.body.length > MAX_WORKSPACE_LIVE_BODY_BASE64_LENGTH
+            || decodedLength > MAX_WORKSPACE_LIVE_BODY_BYTES
+        ) {
+            return true;
+        }
+    }
+    if (!request.headers || typeof request.headers !== 'object' || Array.isArray(request.headers)) return false;
+    const entries = Object.entries(request.headers);
+    return entries.length > MAX_WORKSPACE_LIVE_HEADER_COUNT
+        || entries.reduce(
+            (total, [name, value]) => total + name.length + (typeof value === 'string' ? value.length : 0),
+            0,
+        ) > MAX_WORKSPACE_LIVE_HEADER_CHARACTERS;
+}
+
+async function readWorkspaceLiveBody(response: Response): Promise<Buffer | null> {
+    const contentLength = response.headers.get('content-length');
+    if (contentLength && /^\d+$/.test(contentLength) && Number(contentLength) > MAX_WORKSPACE_LIVE_BODY_BYTES) {
+        await response.body?.cancel().catch(() => undefined);
+        return null;
+    }
+    if (!response.body) return Buffer.alloc(0);
+
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        if (total > MAX_WORKSPACE_LIVE_BODY_BYTES) {
+            await reader.cancel().catch(() => undefined);
+            return null;
+        }
+        chunks.push(value);
+    }
+    return Buffer.concat(chunks, total);
+}
+
+async function fetchWorkspaceLive(rawData: unknown): Promise<WorkspaceLiveHttpResponse> {
+    if (workspaceLiveRequestExceedsLimit(rawData)) {
+        return workspaceLiveFailure('too-large', 'Workspace live request exceeds the 16 MiB body limit');
+    }
+    if (
+        rawData
+        && typeof rawData === 'object'
+        && typeof (rawData as { url?: unknown }).url === 'string'
+        && !isWorkspaceLiveLoopbackUrl((rawData as { url: string }).url)
+    ) {
+        return workspaceLiveFailure('invalid-url', 'Workspace live URL must use an exact loopback authority');
+    }
+
+    const parsed = WorkspaceLiveHttpRequestSchema.safeParse(rawData);
+    if (!parsed.success) {
+        return workspaceLiveFailure('invalid-request', 'Invalid workspace live HTTP request');
+    }
+
+    const request: WorkspaceLiveHttpRequest = parsed.data;
+    let currentUrl = request.url;
+    let currentMethod = request.method;
+    let currentHeaders = { ...request.headers };
+    let redirects = 0;
+    let currentBody = request.body === undefined ? undefined : Buffer.from(request.body, 'base64');
+
+    try {
+        while (true) {
+            const response = await fetch(currentUrl, {
+                method: currentMethod,
+                headers: currentHeaders,
+                body: currentBody,
+                redirect: 'manual',
+            });
+
+            if (WORKSPACE_LIVE_REDIRECT_STATUSES.has(response.status)) {
+                const location = response.headers.get('location');
+                if (location) {
+                    await response.body?.cancel().catch(() => undefined);
+                    if (redirects >= MAX_WORKSPACE_LIVE_REDIRECTS) {
+                        return workspaceLiveFailure('redirect-limit', 'Workspace live redirect limit exceeded');
+                    }
+                    const nextUrl = resolveWorkspaceLiveRedirectUrl(currentUrl, location);
+                    if (!nextUrl) {
+                        return workspaceLiveFailure('invalid-url', 'Workspace live redirect left the loopback boundary');
+                    }
+                    currentUrl = nextUrl;
+                    if ((response.status === 303 && currentMethod !== 'GET' && currentMethod !== 'HEAD')
+                        || ((response.status === 301 || response.status === 302) && currentMethod === 'POST')) {
+                        currentMethod = 'GET';
+                        currentBody = undefined;
+                        currentHeaders = Object.fromEntries(Object.entries(currentHeaders).filter(([name]) => (
+                            name.toLowerCase() !== 'content-length' && name.toLowerCase() !== 'content-type'
+                        )));
+                    }
+                    redirects += 1;
+                    continue;
+                }
+            }
+
+            const responseBody = await readWorkspaceLiveBody(response);
+            if (!responseBody) {
+                return workspaceLiveFailure('too-large', 'Workspace live response exceeds the 16 MiB body limit');
+            }
+            const headers: Record<string, string> = {};
+            response.headers.forEach((value, name) => {
+                headers[name] = value;
+            });
+            const result: WorkspaceLiveHttpResponse = {
+                success: true,
+                status: response.status,
+                statusText: response.statusText,
+                headers,
+                body: responseBody.toString('base64'),
+                finalUrl: currentUrl,
+            };
+            if (!WorkspaceLiveHttpResponseSchema.safeParse(result).success) {
+                return workspaceLiveFailure('too-large', 'Workspace live response metadata exceeds its transport limit');
+            }
+            return result;
+        }
+    } catch (error) {
+        logger.debug('Workspace live request failed:', error);
+        return workspaceLiveFailure(
+            'request-failed',
+            error instanceof Error ? error.message : 'Workspace live request failed',
+        );
+    }
+}
 
 /**
  * Register all RPC handlers with the session
@@ -395,6 +549,11 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
     // Machine-only, fail-closed read boundary for automatic workspace previews.
     // The general readFile handler below intentionally keeps its existing behavior.
     if (workingDirectory === null) {
+        rpcHandlerManager.registerHandler<WorkspaceLiveHttpRequest, WorkspaceLiveHttpResponse>(
+            'workspace-live-fetch',
+            fetchWorkspaceLive,
+        );
+
         rpcHandlerManager.registerHandler<ReadFileWithinRootRequest, ReadFileResponse>('readFileWithinRoot', async (data) => {
             if (
                 !data

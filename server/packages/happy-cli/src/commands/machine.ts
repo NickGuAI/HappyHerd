@@ -124,7 +124,8 @@ Usage:
     [--model MODEL] [--effort EFFORT] [--permission MODE] [--commander ID] \\
     [--create-dir] [--json]
   happyherd session set-commander <session-id> <commander-id|none> [--json]
-  happyherd session side-chat create <parent-session-id> <brief-options> [--json]
+  happyherd session side-chat create <parent-session-id> <brief-options> \
+    [--model MODEL] [--effort EFFORT] [--json]
 
 Happy CLI daemon providers: ${DAEMON_PROVIDERS.join(', ')}
 

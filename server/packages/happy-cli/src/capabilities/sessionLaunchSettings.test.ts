@@ -87,7 +87,7 @@ describe('resolveEffectiveSessionSettings', () => {
         target.agentCapabilities = {
             dsh: {
                 detectedAt: 1,
-                sources: { models: 'test', effortLevels: 'test', permissionModes: 'unsupported' },
+                sources: { models: 'test', effortLevels: 'test', permissionModes: 'dsh-profile' },
                 models: [
                     { code: 'deepseek-v4-flash', value: 'deepseek-v4-flash', isDefault: true },
                     { code: 'deepseek-v4-pro', value: 'deepseek-v4-pro' },
@@ -98,7 +98,11 @@ describe('resolveEffectiveSessionSettings', () => {
                     { code: 'high', value: 'high', isDefault: true },
                     { code: 'max', value: 'max' },
                 ],
-                permissionModes: [],
+                permissionModes: [
+                    { code: 'read-only', value: 'read-only' },
+                    { code: 'workspace-write', value: 'workspace-write', isDefault: true },
+                    { code: 'danger-full-access', value: 'danger-full-access' },
+                ],
                 acp: { loadSession: false, prompt: { image: false } },
             },
         };
@@ -107,23 +111,33 @@ describe('resolveEffectiveSessionSettings', () => {
             provider: 'dsh',
             model: 'deepseek-v4-flash',
             effort: 'high',
-            permission: null,
+            permission: 'workspace-write',
         });
         expect(resolveEffectiveSessionSettings(target, 'machine-1', {
             provider: 'dsh',
             model: 'deepseek-v4-pro',
             effort: 'max',
+            permission: 'danger-full-access',
         })).toEqual({
             provider: 'dsh',
             model: 'deepseek-v4-pro',
             effort: 'max',
-            permission: null,
+            permission: 'danger-full-access',
         });
         expect(() => resolveEffectiveSessionSettings(target, 'machine-1', {
             provider: 'dsh',
             model: 'deepseek-v4-flash-vision-exp',
             effort: 'max',
         })).toThrow('Provider dsh does not advertise model "deepseek-v4-flash-vision-exp" on this machine');
+        expect(() => resolveEffectiveSessionSettings(target, 'machine-1', {
+            provider: 'dsh',
+            permission: 'other-provider-mode',
+        })).toThrow('Provider dsh does not advertise permission mode "other-provider-mode" on this machine');
+
+        target.agentCapabilities = {};
+        expect(() => resolveEffectiveSessionSettings(target, 'machine-1', {
+            provider: 'dsh',
+        })).toThrow('Provider dsh has no valid advertised capability catalog on machine machine-1');
     });
 
     it('resolves the concrete Antigravity model default without inventing effort', () => {

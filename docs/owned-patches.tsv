@@ -1,4 +1,6 @@
 # gate	state	subject	evidence
+SIDE_CHAT_LAUNCH_SETTINGS	accepted	feat(side-chat): accept explicit model and effort	server/packages/happy-cli/src/daemon/run.resume.test.ts
+SIDE_CHAT_RESOURCE_USAGE	accepted	feat(side-chat): report host resources on create	server/packages/happy-cli/src/daemon/hostResourceUsage.test.ts
 USER_SAFEGUARD	accepted	feat(safeguard): add opt-in artifact approval gate	server/packages/happy-cli/src/userSafeguard/userSafeguard.test.ts
 USER_SAFEGUARD	accepted	fix(safeguard): show full mobile description	server/packages/happy-app/sources/app/(app)/settings/features.test.ts
 GROK_INLINE_IMAGES	accepted	fix(grok): support inline images and encrypted attachments	server/packages/happy-cli/src/agent/acp/runAcp.test.ts
@@ -229,6 +231,7 @@ CODEX_SIDE_CHAT_UNMANAGED_HOME	accepted	fix(side-chats): preserve unmanaged Code
 HISTORICAL_EMPTY_CI_TRIGGER	accepted	fix(ci): recognize historical empty CI trigger	scripts/test-owned-merge-provenance.sh
 DSH_PROVIDER	accepted	feat(dsh): add first-class ACP sessions	server/packages/happy-cli/src/agent/acp/runAcp.test.ts
 DSH_PROVIDER	accepted	fix(dsh): name HomeDock prompt correctly	server/packages/happy-app/sources/components/HomeDock.source.test.ts
+DSH_PROVIDER	accepted	feat(dsh): expose launch permission presets	server/packages/happy-cli/src/capabilities/agentCapabilities.test.ts
 FILE_VIEWER_CONVERGENCE	accepted	feat(files): converge viewer links comments and canvas	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 WEB_STARTUP_LATENCY	accepted	fix(web): restore startup and compress initial assets	server/packages/happy-app/scripts/smoke-production-web.mjs
 FILE_VIEWER_CONVERGENCE	accepted	fix(files): make source lines directly commentable	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
@@ -250,4 +253,25 @@ MOBILE_WEB_UX	accepted	chore(app): refresh mobile UX signoff inventory	server/pa
 MOBILE_WEB_UX	accepted	fix(app): floor auto-focused Web inputs	server/packages/happy-app/sources/components/mobileTypographyEntry.source.test.ts
 MOBILE_WEB_UX	accepted	chore(app): refresh final mobile UX inventory	server/packages/happy-app/sources/text/ui-surface-inventory.json
 MOBILE_WEB_UX	accepted	chore(app): register mobile UX patches	docs/owned-patches.tsv
+PRIVACY_POLICY_LINK	accepted	fix(settings): update privacy policy link	server/packages/happy-app/sources/components/SettingsView.browser.test.ts
+TERMS_OF_SERVICE_LINK	accepted	fix(settings): update terms of service link	server/packages/happy-app/sources/components/SettingsView.browser.test.ts
+SUPPORT_LINK	accepted	fix(settings): open web support page	server/packages/happy-app/sources/components/SettingsView.browser.test.ts
+SETTINGS_ABOUT_DESCRIPTION_REMOVAL	accepted	fix(settings): remove About description	server/packages/happy-app/sources/components/SettingsView.browser.test.ts
+SETTINGS_VERSION	accepted	fix(settings): show HappyHerd version	server/packages/happy-app/sources/components/SettingsView.browser.test.ts
+SETTINGS_REPOSITORY	accepted	fix(settings): point GitHub row to HappyHerd	server/packages/happy-app/sources/components/SettingsView.browser.test.ts
 PUBLIC_BOUNDARY	accepted	fix(public-boundary): normalize merged skill identity	scripts/test-public-boundary.mjs
+ALL_PROVIDER_SIDE_CHATS	accepted	feat(side-chat): support every daemon provider	server/packages/happy-cli/src/commands/sideChat.ts
+ALL_PROVIDER_SIDE_CHATS	accepted	fix(side-chat): bound recent message cursor	server/packages/happy-cli/src/api/api.test.ts
+ALL_PROVIDER_SIDE_CHATS	accepted	chore(side-chat): register recent message cursor patch	docs/owned-patches.tsv
+DSH_ATTACHMENTS	accepted	feat(dsh): reuse workspace uploads for attachments	server/packages/happy-app/sources/hooks/useMachineFileUpload.test.ts
+DSH_ATTACHMENTS	accepted	fix(dsh): expose workspace photo uploads by default	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
+SIDEBAR_BACK_CONTROL	accepted	fix(app): show one sidebar Back control	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
+SIDEBAR_COLLAPSE_ICON	accepted	fix(app): use standard sidebar toggle icons	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
+USAGE_TOTALS	accepted	fix(usage): reconcile provider totals	server/packages/happy-server/sources/app/api/routes/usageAggregation.spec.ts
+USAGE_TOTALS	accepted	fix(usage): expose missing provider coverage	server/packages/happy-server/sources/app/api/routes/usageAggregation.spec.ts
+MARKDOWN_COMMENT_AFFORDANCE	accepted	fix(markdown): align comment affordance with source	server/packages/happy-app/sources/components/markdown/MarkdownView.browser.test.ts
+WORKSPACE_LOCALHOST	accepted	feat(workspace): debug selected-machine localhost pages	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
+WORKSPACE_LOCALHOST	accepted	fix(workspace): bound live localhost execution	server/packages/happy-app/sources/components/LocalhostWorkspacePanel.tsx
+WORKSPACE_LOCALHOST	accepted	fix(workspace): preserve selected-machine live review	server/packages/happy-app/public/workspace-live-sw.js
+WORKSPACE_LOCALHOST	accepted	chore(app): refresh workspace live inventory	server/packages/happy-app/sources/text/ui-surface-inventory.json
+WORKSPACE_LOCALHOST	accepted	fix(workspace): retain live tabs and double limits	server/packages/happy-app/sources/components/LocalhostWorkspacePanel.tsx

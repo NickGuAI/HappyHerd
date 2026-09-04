@@ -34,6 +34,7 @@ import { trackFriendsSearch } from '@/track';
 import { MOBILE_GLASS_HEADER_HEIGHT } from './navigation/headerMetrics';
 import { useNewSessionDraft } from '@/hooks/useNewSessionDraft';
 import { useStartSessionFromDraft } from '@/hooks/useStartSessionFromDraft';
+import type { WorkspaceContextEntry } from '@/sync/workspaceContext';
 import { shouldShowHomeConnectionStatus } from './homeConnectionStatus';
 
 interface MainViewProps {
@@ -462,16 +463,18 @@ export const MainView = React.memo(({ variant }: MainViewProps) => {
         ? 0
         : searchActive ? 16 : MOBILE_HOME_DOCK_CONTENT_INSET;
 
-    const handleHomePromptSubmit = React.useCallback(async (): Promise<boolean> => {
+    const handleHomePromptSubmit = React.useCallback(async (
+        workspaceEntries: readonly WorkspaceContextEntry[] = [],
+    ): Promise<boolean> => {
         const prompt = homePrompt.trim();
         const attachments = useNewSessionDraft.getState().attachments;
-        if (!prompt && attachments.length === 0) {
+        if (!prompt && attachments.length === 0 && workspaceEntries.length === 0) {
             return false;
         }
         useNewSessionDraft.getState().setInput(prompt);
         // The keyboard stays up: the dock reports what is happening above the
         // composer and closes itself once the session is open.
-        const started = await startHomeSession();
+        const started = await startHomeSession(workspaceEntries);
         if (started) setHomePrompt('');
         return started;
     }, [homePrompt, startHomeSession]);

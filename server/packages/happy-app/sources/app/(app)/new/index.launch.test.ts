@@ -24,6 +24,16 @@ const mocks = vi.hoisted(() => {
         emptyList: [] as any[],
         places: [] as any[],
         setFavorites: vi.fn(),
+        expImageUpload: false,
+        pickImages: vi.fn(),
+        pickImagesForUpload: vi.fn(),
+        uploadAssets: vi.fn(),
+        pickAndUpload: vi.fn(),
+        machineUploaderOptions: null as any,
+        addWorkspaceContextEntry: vi.fn(),
+        buildWorkspaceContextMessage: vi.fn(),
+        clearWorkspaceContextFiles: vi.fn(),
+        uploadPhase: 'idle',
     };
 });
 
@@ -210,9 +220,9 @@ vi.mock('@/components/navigation/headerMetrics', () => ({ MOBILE_GLASS_HEADER_HE
 vi.mock('@/components/glassInteractionPolicy', () => ({ getNativeGlassInteractivity: () => false }));
 vi.mock('@/sync/workspaceContext', () => ({
     MAX_WORKSPACE_CONTEXT_ITEMS: 5,
-    addWorkspaceContextEntry: vi.fn(),
-    buildWorkspaceContextMessage: vi.fn(),
-    clearWorkspaceContextFiles: vi.fn(),
+    addWorkspaceContextEntry: mocks.addWorkspaceContextEntry,
+    buildWorkspaceContextMessage: mocks.buildWorkspaceContextMessage,
+    clearWorkspaceContextFiles: mocks.clearWorkspaceContextFiles,
     workspaceContextEntryKey: (entry: { path: string; source: { kind: string; machineId?: string } }) => JSON.stringify(
         entry.source.kind === 'machine'
             ? ['machine', entry.source.machineId, entry.path]
@@ -226,7 +236,7 @@ vi.mock('@/sync/storage', () => ({
     useSetting: (key: string) => ({
         agentInputEnterToSend: false,
         fileDiffsSidebar: false,
-        expImageUpload: false,
+        expImageUpload: mocks.expImageUpload,
     })[key] ?? false,
     useSettingMutable: (key: string) => key === 'agentDefaultOverrides'
         ? [mocks.overrides, vi.fn()]
@@ -247,19 +257,24 @@ vi.mock('@/hooks/useImagePicker', () => ({
         selectedImages: [],
         clearImages: vi.fn(),
         removeImage: vi.fn(),
-        pickImages: vi.fn(),
+        pickImages: mocks.pickImages,
+        pickImagesForUpload: mocks.pickImagesForUpload,
     }),
 }));
 vi.mock('@/hooks/useMachineFileUpload', () => ({
-    useMachineFileUpload: () => ({
-        state: { phase: 'idle' },
-        canCancel: false,
-        canRetry: false,
-        reset: vi.fn(),
-        cancel: vi.fn(),
-        retry: vi.fn(),
-        pickAndUpload: vi.fn(),
-    }),
+    useMachineFileUpload: (options: unknown) => {
+        mocks.machineUploaderOptions = options;
+        return {
+            state: { phase: mocks.uploadPhase },
+            canCancel: false,
+            canRetry: false,
+            reset: vi.fn(),
+            cancel: vi.fn(),
+            retry: vi.fn(),
+            pickAndUpload: mocks.pickAndUpload,
+            uploadAssets: mocks.uploadAssets,
+        };
+    },
 }));
 vi.mock('@/hooks/useVoiceDictation', () => ({
     useVoiceDictation: () => ({
@@ -403,7 +418,7 @@ function createDshMachine() {
                     sources: {
                         models: 'dsh-acp:session/new:configOptions',
                         effortLevels: 'dsh-acp:session/new:configOptions',
-                        permissionModes: 'unsupported',
+                        permissionModes: 'dsh:--profile-acp:dump-config:permission-presets',
                     },
                     models: [
                         { code: 'deepseek-v5', value: 'DeepSeek V5', isDefault: true },
@@ -415,7 +430,11 @@ function createDshMachine() {
                         { code: 'high', value: 'high', isDefault: true },
                         { code: 'max', value: 'max' },
                     ],
-                    permissionModes: [],
+                    permissionModes: [
+                        { code: 'read-only', value: 'read-only' },
+                        { code: 'workspace-write', value: 'workspace-write', isDefault: true },
+                        { code: 'danger-full-access', value: 'danger-full-access' },
+                    ],
                     acp: { loadSession: false, prompt: { image: false } },
                 },
             },
@@ -484,6 +503,9 @@ beforeEach(() => {
     vi.clearAllMocks();
     mocks.overrides = {};
     mocks.places = [];
+    mocks.expImageUpload = false;
+    mocks.machineUploaderOptions = null;
+    mocks.uploadPhase = 'idle';
     mocks.draft = createDraft();
     const machine = createRigMachine();
     mocks.renderMachines = [machine];
@@ -495,6 +517,12 @@ beforeEach(() => {
     mocks.refreshSessions.mockResolvedValue(undefined);
     mocks.sendMessage.mockResolvedValue(undefined);
     mocks.confirm.mockResolvedValue(false);
+    mocks.pickImagesForUpload.mockResolvedValue([]);
+    mocks.uploadAssets.mockResolvedValue([]);
+    mocks.buildWorkspaceContextMessage.mockImplementation(async (_sessionId: string, prompt: string, entries: any[]) => ({
+        promptText: `${prompt}\n\n${entries.map((entry) => `Use exact file: ${entry.path}`).join('\n')}`.trim(),
+        displayText: `${prompt}\n\n${entries.map((entry) => entry.path).join('\n')}`.trim(),
+    }));
 });
 
 describe('Full New Session path selection', () => {
@@ -608,11 +636,12 @@ describe('Full New Session provider launch', () => {
         act(() => renderer.unmount());
     });
 
-    it('launches dsh from a real Web send gesture with exact model and effort defaults', async () => {
+    it('launches dsh from a real Web send gesture with exact catalog defaults', async () => {
         const machine = createDshMachine();
         mocks.renderMachines = [machine];
         mocks.liveMachines = { [machine.id]: machine };
         mocks.draft = createDraft({ agentType: 'dsh' });
+        mocks.machineSpawnNewSession.mockResolvedValue({ type: 'success', sessionId: 'dsh-session' });
         const renderer = await renderScreen();
 
         await pressSend(renderer);
@@ -620,12 +649,179 @@ describe('Full New Session provider launch', () => {
         expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
             machineId: 'machine-1',
             agent: 'dsh',
+            permissionMode: 'workspace-write',
             modelMode: 'deepseek-v5',
             effortLevel: 'high',
         }));
-        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.not.objectContaining({
-            permissionMode: expect.anything(),
+        expect(mocks.sessionSetAgentModes).not.toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ permissionMode: expect.anything() }),
+        );
+        act(() => renderer.unmount());
+    });
+
+    it('uploads dsh Photos through the workspace uploader and binds the exact path to the initial message', async () => {
+        const machine = createDshMachine();
+        mocks.renderMachines = [machine];
+        mocks.liveMachines = { [machine.id]: machine };
+        mocks.draft = createDraft({ agentType: 'dsh' });
+        mocks.pickImagesForUpload.mockResolvedValue([{
+            id: 'photo-1',
+            uri: 'file:///photo.jpg',
+            name: 'photo.jpg',
+            mimeType: 'image/jpeg',
+            size: 123,
+            width: 100,
+            height: 80,
+        }]);
+        mocks.uploadAssets.mockImplementation(async (assets: Array<{ name: string }>) => {
+            const paths = assets.map((asset) => `/Users/dev/project/${asset.name}`);
+            paths.forEach((path) => mocks.machineUploaderOptions.onUploaded(path, {
+                machineId: 'machine-1',
+                directory: '/Users/dev/project',
+                selectionKey: 'dsh',
+            }));
+            return paths;
+        });
+        mocks.machineSpawnNewSession.mockResolvedValue({ type: 'success', sessionId: 'dsh-session' });
+        const renderer = await renderScreen();
+
+        const attachmentButton = renderer.root.findAllByType('BubblePressable' as any).find((candidate: any) => (
+            candidate.props.accessibilityLabel === 'happyHerd.composer.addAttachment'
+        ));
+        expect(attachmentButton).toBeDefined();
+        await act(async () => attachmentButton!.props.onPress());
+        const photos = renderer.root.findByProps({ testID: 'attachment-menu-photos' });
+        await act(async () => {
+            photos.props.onPress();
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        expect(mocks.pickImagesForUpload).toHaveBeenCalledWith(5);
+        expect(mocks.uploadAssets).toHaveBeenCalledWith([
+            expect.objectContaining({ uri: 'file:///photo.jpg', name: 'photo.jpg' }),
+        ]);
+        expect(renderer.root.findByType('WorkspaceContextStrip' as any).props.entries).toEqual([
+            {
+                path: '/Users/dev/project/photo.jpg',
+                kind: 'file',
+                source: { kind: 'machine', machineId: 'machine-1' },
+            },
+        ]);
+
+        await pressSend(renderer);
+
+        expect(mocks.addWorkspaceContextEntry).toHaveBeenCalledWith('dsh-session', {
+            path: '/Users/dev/project/photo.jpg',
+            kind: 'file',
+            source: { kind: 'machine', machineId: 'machine-1' },
+        });
+        expect(mocks.sendMessage).toHaveBeenCalledWith(
+            'dsh-session',
+            'Start the task\n\nUse exact file: /Users/dev/project/photo.jpg',
+            {
+                source: 'new_session',
+                attachments: [],
+                displayText: 'Start the task\n\n/Users/dev/project/photo.jpg',
+            },
+        );
+        expect(mocks.clearWorkspaceContextFiles).toHaveBeenCalledWith('dsh-session');
+        expect(mocks.pickImages).not.toHaveBeenCalled();
+        act(() => renderer.unmount());
+    });
+
+    it('does not offer another dsh attachment picker while an upload is active', async () => {
+        const machine = createDshMachine();
+        mocks.renderMachines = [machine];
+        mocks.liveMachines = { [machine.id]: machine };
+        mocks.draft = createDraft({ agentType: 'dsh' });
+        mocks.uploadPhase = 'uploading';
+        const renderer = await renderScreen();
+
+        expect(renderer.root.findAllByType('BubblePressable' as any).some((candidate: any) => (
+            candidate.props.accessibilityLabel === 'happyHerd.composer.addAttachment'
+        ))).toBe(false);
+        const send = renderer.root.findAllByType('Pressable' as any)
+            .find((item: any) => item.props.accessibilityLabel === 'happyHerd.composer.send');
+        expect(send?.props.disabled).toBe(true);
+        await act(async () => send?.props.onPress());
+        expect(mocks.machineSpawnNewSession).not.toHaveBeenCalled();
+        act(() => renderer.unmount());
+    });
+
+    it('preserves existing workspace context when switching between non-dsh providers', async () => {
+        const machine = {
+            id: 'machine-1',
+            active: true,
+            activeAt: Date.now(),
+            metadata: {
+                homeDir: '/Users/dev',
+                cliAvailability: { claude: true, codex: true },
+            },
+        };
+        mocks.renderMachines = [machine];
+        mocks.liveMachines = { [machine.id]: machine };
+        mocks.draft = createDraft({ agentType: 'codex' });
+        const renderer = await renderScreen();
+
+        act(() => {
+            mocks.machineUploaderOptions.onUploaded('/Users/dev/project/notes.txt', {
+                machineId: 'machine-1',
+                directory: '/Users/dev/project',
+                selectionKey: 'codex',
+            });
+        });
+        expect(renderer.root.findByType('WorkspaceContextStrip' as any).props.entries).toHaveLength(1);
+
+        mocks.draft = { ...mocks.draft, agentType: 'claude' };
+        await act(async () => {
+            renderer.update(React.createElement(NewSessionScreen));
+            await Promise.resolve();
+        });
+
+        expect(renderer.root.findByType('WorkspaceContextStrip' as any).props.entries).toEqual([{
+            path: '/Users/dev/project/notes.txt',
+            kind: 'file',
+            source: { kind: 'machine', machineId: 'machine-1' },
+        }]);
+        act(() => renderer.unmount());
+    });
+
+    it('launches the provider-native dsh mode selected through the rendered permission picker', async () => {
+        const machine = createDshMachine();
+        mocks.renderMachines = [machine];
+        mocks.liveMachines = { [machine.id]: machine };
+        mocks.draft = createDraft({ agentType: 'dsh' });
+        mocks.machineSpawnNewSession.mockResolvedValue({ type: 'success', sessionId: 'dsh-session' });
+        const renderer = await renderScreen();
+
+        const permissionTrigger = renderer.root.findAllByType('BubblePressable' as any)
+            .find((candidate: any) => candidate.findAllByType('Text' as any).some((text: any) => (
+                text.props.children === 'workspace-write'
+            )));
+        expect(permissionTrigger).toBeDefined();
+        await act(async () => permissionTrigger!.props.onPress());
+
+        const dangerMode = renderer.root.findAllByType('BubblePressable' as any)
+            .find((candidate: any) => candidate.props.accessibilityRole === 'radio'
+                && candidate.findAllByType('Text' as any).some((text: any) => (
+                    text.props.children === 'danger-full-access'
+                )));
+        expect(dangerMode).toBeDefined();
+        await act(async () => dangerMode!.props.onPress());
+        await pressSend(renderer);
+
+        expect(mocks.draft.setPermissionMode).toHaveBeenCalledWith('danger-full-access');
+        expect(mocks.machineSpawnNewSession).toHaveBeenCalledWith(expect.objectContaining({
+            machineId: 'machine-1',
+            agent: 'dsh',
+            permissionMode: 'danger-full-access',
         }));
+        expect(mocks.sessionSetAgentModes).not.toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ permissionMode: expect.anything() }),
+        );
         act(() => renderer.unmount());
     });
 

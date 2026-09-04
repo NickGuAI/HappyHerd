@@ -1,13 +1,21 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { build, type Plugin } from 'esbuild';
 import { createServer, type Server } from 'node:http';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type Locator, type Page } from 'playwright-core';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../..');
+const octiconsFontPath = resolve(
+    appRoot,
+    '../../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Octicons.ttf',
+);
+const octiconsGlyphMapPath = resolve(
+    appRoot,
+    '../../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/glyphmaps/Octicons.json',
+);
 
 const virtualModules: Record<string, string> = {
     'react-native-unistyles': `
@@ -31,16 +39,47 @@ const virtualModules: Record<string, string> = {
     `,
     '@expo/vector-icons': `
         import React from 'react';
-        const glyph = { 'chevron-back': '‹', 'chevron-forward': '›', 'chevron-left': '‹', plus: '+', x: '×' };
+        import octiconsFontUrl from ${JSON.stringify(octiconsFontPath)};
+        import octiconsGlyphMap from ${JSON.stringify(octiconsGlyphMapPath)};
+        const glyph = {
+            'chevron-back': '‹',
+            'chevron-forward': '›',
+            'chevron-left': '‹',
+            plus: '+',
+            x: '×',
+        };
         const Icon = ({ name }) => React.createElement('span', { 'data-icon': name }, glyph[name] ?? '•');
         Icon.glyphMap = {};
+        const Octicon = ({ name, size, color }) => React.createElement(
+            React.Fragment,
+            null,
+            React.createElement(
+                'style',
+                null,
+                '@font-face{font-family:HappyHerdTestOcticons;src:url("' + octiconsFontUrl + '") format("truetype")}',
+            ),
+            React.createElement(
+                'span',
+                {
+                    'data-icon': name,
+                    style: { color, fontFamily: 'HappyHerdTestOcticons', fontSize: size, lineHeight: 1 },
+                },
+                String.fromCodePoint(octiconsGlyphMap[name]),
+            ),
+        );
+        Octicon.glyphMap = octiconsGlyphMap;
         export const Ionicons = Icon;
-        export const Octicons = Icon;
+        export const Octicons = Octicon;
     `,
     'expo-image': `
         import React from 'react';
-        import { View } from 'react-native';
-        export const Image = ({ style, testID }) => React.createElement(View, { style, testID, 'data-image': 'true' });
+        export const Image = ({ source, style, testID }) => React.createElement('img', {
+            src: typeof source === 'string' ? source : source?.uri,
+            style,
+            'data-testid': testID,
+            'data-image': 'true',
+            alt: '',
+        });
     `,
     'expo-linear-gradient': `
         import React from 'react';
@@ -60,7 +99,10 @@ const virtualModules: Record<string, string> = {
     'react-native-safe-area-context': `export const useSafeAreaInsets = () => ({ top: 0, right: 0, bottom: 0, left: 0 });`,
     'expo-router': `
         import React from 'react';
-        export const useRouter = () => ({ back() {}, push() {} });
+        export const useRouter = () => ({
+            back() { window.__ROUTER_BACK_COUNT__ = (window.__ROUTER_BACK_COUNT__ ?? 0) + 1; },
+            push() {},
+        });
         export const useLocalSearchParams = () => ({});
         export const Stack = { Screen: () => null };
     `,
@@ -105,7 +147,7 @@ const virtualModules: Record<string, string> = {
             'div',
             {
                 'data-testid': 'sidebar-content',
-                style: { height: '100%', padding: 20, background: '#f5f5f5', color: '#555' },
+                style: { height: '100%', padding: 20, paddingTop: 72, background: '#f5f5f5', color: '#555' },
             },
             'HappyHerd navigation',
         );
@@ -164,16 +206,29 @@ const virtualModules: Record<string, string> = {
     '@/hooks/useTauriZoom': `export const DEFAULT_APP_ZOOM = 1;`,
     '@/navigation/browserNavigation': `
         export const canRouteForward = () => false;
-        export const canUseRouteBack = () => false;
-        export const getNavigatorCanGoBack = () => false;
+        export const canUseRouteBack = () => !new URLSearchParams(window.location.search).has('back-disabled');
+        export const getNavigatorCanGoBack = () => true;
     `,
     '@/navigation/browserNavigationStore': `
-        const state = { routeHistory: null, markRouteBack() {}, markRouteForward() {} };
+        const state = {
+            routeHistory: {},
+            markRouteBack() { window.__ROUTE_BACK_MARK_COUNT__ = (window.__ROUTE_BACK_MARK_COUNT__ ?? 0) + 1; },
+            markRouteForward() {},
+        };
         export const useBrowserNavigationStore = (selector) => selector(state);
         useBrowserNavigationStore.getState = () => state;
     `,
     '@/-session/sessionOverlayNav': `
-        const state = { canBack: false, canForward: false, back: () => false, forward: () => false };
+        const state = {
+            canBack: !new URLSearchParams(window.location.search).has('back-disabled'),
+            canForward: false,
+            back: () => {
+                if (window.__OVERLAY_BACK_ENABLED__ === false) return false;
+                window.__OVERLAY_BACK_COUNT__ = (window.__OVERLAY_BACK_COUNT__ ?? 0) + 1;
+                return true;
+            },
+            forward: () => false,
+        };
         export const useOverlayNav = (selector) => selector(state);
         useOverlayNav.getState = () => state;
     `,
@@ -288,6 +343,55 @@ const virtualModules: Record<string, string> = {
                     { sessionId, text, options },
                 ];
                 return { localId: 'feedback-local-id' };
+            },
+        };
+    `,
+    '@/sync/apiSocket': `
+        const encode = (value) => btoa(value);
+        const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><rect width="2" height="2" fill="blue"/></svg>';
+        const responses = {
+            'http://localhost:3000/live': {
+                type: 'text/html; charset=utf-8',
+                finalUrl: 'http://127.0.0.1:4000/redirected/index.html',
+                body: '<!doctype html><html><head><style>#inline-target{width:2px;height:2px;background-image:url(http://127.0.0.1:4000/redirected/inline.svg)}</style><link rel="stylesheet" href=http://127.0.0.1:4000/redirected/live.css></head><body><main><div id="inline-target"></div><img id="unquoted-target" alt="" src=http://127.0.0.1:4000/redirected/unquoted.svg><img id="srcset-target" alt="" srcset="http://127.0.0.1:4000/redirected/srcset.svg 1x"><button id="live-target">Waiting for network</button></main><script src="./live.js"></script></body></html>',
+            },
+            'http://127.0.0.1:4000/redirected/live.css': {
+                type: 'text/css; charset=utf-8',
+                body: 'main{position:relative;min-width:800px;min-height:420px}#live-target{display:inline-flex;position:absolute;left:520px;top:120px;padding:12px 18px;background-color:rgb(25,90,180);background-image:url("./css-bg.svg");color:white;border:0;border-radius:8px}',
+            },
+            'http://127.0.0.1:4000/redirected/live.js': {
+                type: 'text/javascript; charset=utf-8',
+                body: 'window.__LIVE_SCRIPT_RAN__=true;const dynamicImage=document.createElement("img");dynamicImage.src="http://127.0.0.1:4000/redirected/dynamic.svg";document.body.appendChild(dynamicImage);const dynamicStyle=document.createElement("div");dynamicStyle.style.backgroundImage="url(http://127.0.0.1:4000/redirected/dynamic-style.svg)";dynamicStyle.style.width="2px";dynamicStyle.style.height="2px";document.body.appendChild(dynamicStyle);fetch("./api/state").then((response)=>response.text()).then((text)=>{document.getElementById("live-target").textContent=text;});',
+            },
+            'http://127.0.0.1:4000/redirected/api/state': {
+                type: 'text/plain; charset=utf-8',
+                body: 'Live from machine-2',
+            },
+            'http://127.0.0.1:4000/redirected/css-bg.svg': { type: 'image/svg+xml', body: svg },
+            'http://127.0.0.1:4000/redirected/inline.svg': { type: 'image/svg+xml', body: svg },
+            'http://127.0.0.1:4000/redirected/unquoted.svg': { type: 'image/svg+xml', body: svg },
+            'http://127.0.0.1:4000/redirected/srcset.svg': { type: 'image/svg+xml', body: svg },
+            'http://127.0.0.1:4000/redirected/dynamic.svg': { type: 'image/svg+xml', body: svg },
+            'http://127.0.0.1:4000/redirected/dynamic-style.svg': { type: 'image/svg+xml', body: svg },
+        };
+        export const apiSocket = {
+            machineRPC: async (machineId, method, request) => {
+                window.__WORKSPACE_LIVE_RPC_CALLS__ = [
+                    ...(window.__WORKSPACE_LIVE_RPC_CALLS__ ?? []),
+                    { machineId, method, url: request.url },
+                ];
+                const fixture = responses[request.url];
+                if (machineId !== 'machine-2' || method !== 'workspace-live-fetch' || !fixture) {
+                    return { success: false, code: 'request-failed', error: 'Unexpected live request' };
+                }
+                return {
+                    success: true,
+                    status: 200,
+                    statusText: 'OK',
+                    headers: { 'content-type': fixture.type },
+                    body: encode(fixture.body),
+                    finalUrl: fixture.finalUrl ?? request.url,
+                };
             },
         };
     `,
@@ -426,6 +530,14 @@ const virtualModules: Record<string, string> = {
             'settings.machines': 'Machines',
             'workspace.title': 'Workspace',
             'workspace.pathPlaceholder': 'Path',
+            'workspace.localhostUrlPlaceholder': 'http://localhost:3000',
+            'workspace.openLocalhost': 'Open localhost URL',
+            'workspace.invalidLocalhostUrl': 'Invalid localhost URL',
+            'workspace.liveLoadFailed': 'Could not load the live page',
+            'workspace.liveCommentOnElement': 'Comment on ' + (params?.element ?? ''),
+            'workspace.liveElement': 'Element ' + (params?.element ?? ''),
+            'workspace.startElementComment': 'Start commenting',
+            'workspace.stopElementComment': 'Stop commenting',
             'workspace.go': 'Go',
             'workspace.home': 'Home',
             'workspace.root': 'Root',
@@ -454,6 +566,12 @@ const fixturePlugin: Plugin = {
             }
             if (args.path === '@/components/InlineCommentReview') {
                 return { path: resolve(appRoot, 'sources/components/InlineCommentReview.web.tsx') };
+            }
+            if (args.path === '@/components/LocalhostLiveView') {
+                return { path: resolve(appRoot, 'sources/components/LocalhostLiveView.web.tsx') };
+            }
+            if (args.path === './apiSocket' && args.importer.endsWith('/sync/workspaceLive.ts')) {
+                return { path: '@/sync/apiSocket', namespace: 'fixture-stub' };
             }
             if (args.path === '@/components/FileDocumentPreview') {
                 return { path: resolve(appRoot, 'sources/components/FileDocumentPreview.web.tsx') };
@@ -518,12 +636,18 @@ describe('Desktop workspace browser interaction', () => {
             platform: 'browser',
             jsx: 'automatic',
             alias: { 'react-native': 'react-native-web' },
-            loader: { '.png': 'dataurl' },
+            loader: { '.png': 'dataurl', '.ttf': 'dataurl' },
             plugins: [fixturePlugin],
         });
         const script = bundle.outputFiles.find((file) => file.path.endsWith('.js'))?.text ?? bundle.outputFiles[0].text;
         const stylesheet = bundle.outputFiles.find((file) => file.path.endsWith('.css'))?.text ?? '';
-        server = createServer((_request, response) => {
+        server = createServer((request, response) => {
+            if (request.url === '/workspace-live-sw.js') {
+                response.setHeader('content-type', 'text/javascript; charset=utf-8');
+                response.setHeader('service-worker-allowed', '/');
+                response.end(readFileSync(resolve(appRoot, 'public/workspace-live-sw.js')));
+                return;
+            }
             response.setHeader('content-type', 'text/html; charset=utf-8');
             response.end('<style>html,body,#root{margin:0;min-height:100%;font-family:sans-serif}*{box-sizing:border-box}' + stylesheet + '</style><main id="root"></main><script>' + script + '</script>');
         });
@@ -574,6 +698,20 @@ describe('Desktop workspace browser interaction', () => {
         };
 
         await expect(boundaryToggle.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
+        await expect(boundaryToggle.locator('[data-icon="sidebar-collapse"]').count()).resolves.toBe(1);
+        await expect(boundaryToggle.locator('[data-icon="sidebar-expand"]').count()).resolves.toBe(0);
+        await expect(boundaryToggle.locator('[data-icon^="chevron-"]').count()).resolves.toBe(0);
+        const expandedToggleBox = await boundaryToggle.boundingBox();
+        if (!expandedToggleBox) throw new Error('expanded navigation toggle has no layout');
+        expect(expandedToggleBox.width).toBe(28);
+        expect(expandedToggleBox.height).toBe(34);
+        await expect(boundaryToggle.evaluate((element) => getComputedStyle(element).borderRadius)).resolves.toBe('9px');
+        const toggleEvidenceDirectory = process.env.HAPPYHERD_SIDEBAR_TOGGLE_EVIDENCE_DIR?.trim();
+        if (toggleEvidenceDirectory) {
+            await boundaryToggle.screenshot({
+                path: resolve(toggleEvidenceDirectory, 'ticktick-6a9931b5-sidebar-expanded.png'),
+            });
+        }
         const zenToggle = headerDemo.getByLabel('Toggle Zen mode');
         await zenToggle.click();
         const zenDrawerBox = await drawer.boundingBox();
@@ -592,6 +730,8 @@ describe('Desktop workspace browser interaction', () => {
 
         await boundaryToggle.click();
         await expect(boundaryToggle.getAttribute('aria-label')).resolves.toBe('Expand navigation');
+        await expect(boundaryToggle.locator('[data-icon="sidebar-expand"]').count()).resolves.toBe(1);
+        await expect(boundaryToggle.locator('[data-icon="sidebar-collapse"]').count()).resolves.toBe(0);
         const collapsedGeometry = await hiddenToggleClearance();
 
         const idleBackground = await boundaryToggle.evaluate((element) => getComputedStyle(element).backgroundColor);
@@ -622,13 +762,72 @@ describe('Desktop workspace browser interaction', () => {
         await expect(page.evaluate(() => (window as any).__SESSION_TITLE_PRESS_COUNT__ ?? 0)).resolves.toBe(2);
 
         await page.mouse.move(700, 200);
+        if (toggleEvidenceDirectory) {
+            await boundaryToggle.screenshot({
+                path: resolve(toggleEvidenceDirectory, 'ticktick-6a9931b5-sidebar-collapsed.png'),
+            });
+        }
         const evidencePath = process.env.HAPPYHERD_COLLAPSED_NAV_EVIDENCE_PATH?.trim();
         if (evidencePath) await headerDemo.screenshot({ path: resolve(evidencePath) });
 
         await boundaryToggle.click();
         await expect(boundaryToggle.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
+        await expect(boundaryToggle.locator('[data-icon="sidebar-collapse"]').count()).resolves.toBe(1);
         expect(pageErrors).toEqual([]);
         await page.close();
+    }, 10_000);
+
+    it('shows one localized Back control and consumes overlays before route history', async () => {
+        const page = await browser.newPage({ viewport: { width: 900, height: 300 } });
+        const pageErrors = recordPageErrors(page);
+        await page.goto(origin);
+        await page.waitForTimeout(100);
+        if (pageErrors.length > 0) throw new Error(`Browser fixture failed to render: ${pageErrors.join('\n')}`);
+
+        const headerDemo = page.getByTestId('collapsed-navigation-header-demo');
+        const zenToggle = headerDemo.getByLabel('Toggle Zen mode');
+        const controls = zenToggle.locator('..');
+        const back = controls.getByLabel('Back', { exact: true });
+
+        await expect(controls.locator('[aria-label]').count()).resolves.toBe(2);
+        await expect(back.textContent()).resolves.toBe('Back');
+        await expect(controls.locator('[data-icon="chevron-back"], [data-icon="chevron-forward"]').count()).resolves.toBe(0);
+        await expect(back.isEnabled()).resolves.toBe(true);
+        await expect(back.getAttribute('aria-label')).resolves.toBe('Back');
+
+        const zenBox = await zenToggle.boundingBox();
+        const backBox = await back.boundingBox();
+        if (!zenBox || !backBox) throw new Error('persistent header controls have no layout');
+        expect(zenBox.width).toBe(28);
+        expect(zenBox.height).toBe(28);
+        expect(backBox.width).toBe(28);
+        expect(backBox.height).toBe(28);
+        expect(backBox.x - zenBox.x - zenBox.width).toBe(4);
+
+        await back.click();
+        await expect(page.evaluate(() => (window as any).__OVERLAY_BACK_COUNT__ ?? 0)).resolves.toBe(1);
+        await expect(page.evaluate(() => (window as any).__ROUTE_BACK_MARK_COUNT__ ?? 0)).resolves.toBe(0);
+        await expect(page.evaluate(() => (window as any).__ROUTER_BACK_COUNT__ ?? 0)).resolves.toBe(0);
+
+        await page.evaluate(() => { (window as any).__OVERLAY_BACK_ENABLED__ = false; });
+        await back.click();
+        await expect(page.evaluate(() => (window as any).__OVERLAY_BACK_COUNT__ ?? 0)).resolves.toBe(1);
+        await expect(page.evaluate(() => (window as any).__ROUTE_BACK_MARK_COUNT__ ?? 0)).resolves.toBe(1);
+        await expect(page.evaluate(() => (window as any).__ROUTER_BACK_COUNT__ ?? 0)).resolves.toBe(1);
+
+        const evidencePath = process.env.HAPPYHERD_SIDEBAR_BACK_EVIDENCE_PATH?.trim();
+        if (evidencePath) await headerDemo.screenshot({ path: resolve(evidencePath) });
+        expect(pageErrors).toEqual([]);
+        await page.close();
+
+        const disabledPage = await browser.newPage({ viewport: { width: 900, height: 300 } });
+        await disabledPage.goto(origin + '?back-disabled=1');
+        const disabledBack = disabledPage
+            .getByTestId('collapsed-navigation-header-demo')
+            .getByLabel('Back', { exact: true });
+        await expect(disabledBack.isDisabled()).resolves.toBe(true);
+        await expect(disabledBack.evaluate((element) => getComputedStyle(element).opacity)).resolves.toBe('0.3');
+        await disabledPage.close();
     }, 10_000);
 
     it('uses the real boundary toggle and pointer divider without overlapping or remounting', async () => {
@@ -643,6 +842,7 @@ describe('Desktop workspace browser interaction', () => {
         const collapse = sidebarDemo.getByTestId('navigation-sidebar-toggle');
         await collapse.waitFor();
         await expect(collapse.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
+        await expect(collapse.locator('[data-icon="sidebar-collapse"]').count()).resolves.toBe(1);
         const sidebarBox = await sidebarDemo.boundingBox();
         const drawerBox = await drawer.boundingBox();
         const collapseBox = await collapse.boundingBox();
@@ -711,6 +911,7 @@ describe('Desktop workspace browser interaction', () => {
         const expand = sidebarDemo.getByTestId('navigation-sidebar-toggle');
         await expand.waitFor();
         await expect(expand.getAttribute('aria-label')).resolves.toBe('Expand navigation');
+        await expect(expand.locator('[data-icon="sidebar-expand"]').count()).resolves.toBe(1);
         const expandBox = await expand.boundingBox();
         const zenBox = await sidebarDemo.getByLabel('Toggle Zen mode').boundingBox();
         if (!expandBox || !zenBox) throw new Error('collapsed controls have no layout');
@@ -727,6 +928,7 @@ describe('Desktop workspace browser interaction', () => {
 
         await expand.click();
         await expect(collapse.getAttribute('aria-label')).resolves.toBe('Collapse navigation');
+        await expect(collapse.locator('[data-icon="sidebar-collapse"]').count()).resolves.toBe(1);
         const reopenedSplitBox = await splitDemo.boundingBox();
         if (!reopenedSplitBox) throw new Error('reopened split has no layout');
         expect(Math.abs(reopenedSplitBox.width - initialSplitBox.width)).toBeLessThan(2);
@@ -783,10 +985,75 @@ describe('Desktop workspace browser interaction', () => {
         await page.close();
     }, 10_000);
 
-    async function verifyMarkdownReviewJourney(page: Page, surfaceId: string, feedbackIndex = 0, touch = false) {
+    type ReviewAffordanceVisual = {
+        width: number;
+        height: number;
+        backgroundColor: string;
+        color: string;
+        borderTopWidth: string;
+        borderRadius: string;
+        display: string;
+        alignItems: string;
+        justifyContent: string;
+        padding: string;
+    };
+
+    async function verifyMarkdownReviewJourney(page: Page, surfaceId: string, feedbackIndex = 0, touch = false): Promise<ReviewAffordanceVisual> {
         const workspace = page.getByTestId(surfaceId);
         const markdownPanel = workspace.getByTestId('desktop-file-panel:/workspace/demo.md');
-        await markdownPanel.locator('.hh-markdown-root').waitFor();
+        const markdownRoot = markdownPanel.locator('.hh-markdown-root');
+        await markdownRoot.waitFor();
+
+        const heading = markdownRoot.locator('h1[data-source-line="1"]');
+        const headingGutter = heading.locator('.hh-markdown-comment-gutter');
+        if (touch) {
+            await expect.poll(() => headingGutter.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
+        } else {
+            await expect(headingGutter.evaluate((element) => getComputedStyle(element).opacity)).resolves.toBe('0');
+            await heading.hover();
+            await expect.poll(() => headingGutter.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
+        }
+        const affordance = await headingGutter.evaluate((element) => {
+            const rect = element.getBoundingClientRect();
+            const style = getComputedStyle(element);
+            const clippingAncestors: Array<{ left: number; right: number }> = [];
+            for (let ancestor = element.parentElement; ancestor; ancestor = ancestor.parentElement) {
+                const ancestorStyle = getComputedStyle(ancestor);
+                if (['auto', 'clip', 'hidden', 'scroll'].includes(ancestorStyle.overflowX)) {
+                    const ancestorRect = ancestor.getBoundingClientRect();
+                    clippingAncestors.push({ left: ancestorRect.left, right: ancestorRect.right });
+                }
+            }
+            return {
+                width: rect.width,
+                height: rect.height,
+                backgroundColor: style.backgroundColor,
+                color: style.color,
+                borderTopWidth: style.borderTopWidth,
+                borderRadius: style.borderRadius,
+                display: style.display,
+                alignItems: style.alignItems,
+                justifyContent: style.justifyContent,
+                padding: style.padding,
+                fullyVisible: clippingAncestors.every((ancestor) => (
+                    rect.left >= ancestor.left - 0.5 && rect.right <= ancestor.right + 0.5
+                )),
+            };
+        });
+        expect(affordance.fullyVisible).toBe(true);
+        expect(affordance.width).toBe(20);
+        expect(affordance.height).toBe(20);
+        expect(affordance.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
+        expect(affordance.borderTopWidth).toBe('0px');
+
+        const evidenceDirectory = process.env.HAPPYHERD_MARKDOWN_COMMENT_EVIDENCE_DIR?.trim();
+        if (evidenceDirectory) {
+            await markdownPanel.screenshot({
+                path: resolve(evidenceDirectory, touch
+                    ? 'task-6a9931b8-markdown-comment-mobile.png'
+                    : 'task-6a9931b8-markdown-comment-desktop.png'),
+            });
+        }
 
         const sessionRelativeLink = markdownPanel.getByRole('link', { name: 'Open session relative' });
         if (touch) await sessionRelativeLink.tap();
@@ -821,6 +1088,7 @@ describe('Desktop workspace browser interaction', () => {
         expect(markdownFeedback).toContain('First line note');
         expect(markdownFeedback).toContain('Line: 4');
         expect(markdownFeedback).toContain('Second line note');
+        return affordance;
     }
 
     async function verifyMachineMarkdownLinkJourney(page: Page, surfaceId: string) {
@@ -885,7 +1153,14 @@ describe('Desktop workspace browser interaction', () => {
         await expect.poll(async () => locator.evaluate((element) => element.className)).toContain(className);
     }
 
-    async function verifyCodeReviewJourney(page: Page, surfaceId: string, feedbackIndex: number, switchTab = true, touch = false) {
+    async function verifyCodeReviewJourney(
+        page: Page,
+        surfaceId: string,
+        feedbackIndex: number,
+        switchTab = true,
+        touch = false,
+        markdownAffordance?: ReviewAffordanceVisual,
+    ) {
         const workspace = page.getByTestId(surfaceId);
         if (switchTab) await workspace.getByRole('tab', { name: 'Open review.ts' }).click();
         const sourcePanel = workspace.getByTestId('desktop-file-panel:/workspace/review.ts');
@@ -894,6 +1169,28 @@ describe('Desktop workspace browser interaction', () => {
         const codeScroller = sourcePanel.locator('[data-code]');
         await expect.poll(() => codeScroller.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
         if (!touch) {
+            await sourcePanel.locator('[data-line="1"]').hover();
+            const sourceAffordance = sourcePanel.getByRole('button', { name: 'Comment on hovered line' });
+            await expect(sourceAffordance.isVisible()).resolves.toBe(true);
+            if (markdownAffordance) {
+                const sourceVisual = await sourceAffordance.evaluate((element) => {
+                    const rect = element.getBoundingClientRect();
+                    const style = getComputedStyle(element);
+                    return {
+                        width: rect.width,
+                        height: rect.height,
+                        backgroundColor: style.backgroundColor,
+                        color: style.color,
+                        borderTopWidth: style.borderTopWidth,
+                        borderRadius: style.borderRadius,
+                        display: style.display,
+                        alignItems: style.alignItems,
+                        justifyContent: style.justifyContent,
+                        padding: style.padding,
+                    };
+                });
+                expect(markdownAffordance).toMatchObject(sourceVisual);
+            }
             await codeScroller.hover();
             await page.mouse.wheel(600, 0);
             await expect.poll(() => codeScroller.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
@@ -1003,9 +1300,9 @@ describe('Desktop workspace browser interaction', () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
         const pageErrors = recordPageErrors(page);
         await page.goto(origin + '?file-review=desktop');
-        await verifyMarkdownReviewJourney(page, 'file-review-desktop');
+        const markdownAffordance = await verifyMarkdownReviewJourney(page, 'file-review-desktop');
         await verifyMachineMarkdownLinkJourney(page, 'file-review-desktop');
-        await verifyCodeReviewJourney(page, 'file-review-desktop', 1);
+        await verifyCodeReviewJourney(page, 'file-review-desktop', 1, true, false, markdownAffordance);
         await verifyMarkdownSourceReviewJourney(page, 'file-review-desktop');
         await verifyCanvasReviewJourney(page, 'file-review-desktop', true, 2);
         expect(pageErrors).toEqual([]);
@@ -1027,6 +1324,106 @@ describe('Desktop workspace browser interaction', () => {
         expect(pageErrors).toEqual([]);
         await page.close();
         await context.close();
+    }, 60_000);
+
+    it.each([
+        { mode: 'desktop', width: 1440, height: 900, sessionId: 'main-agent-desktop' },
+        { mode: 'mobile', width: 390, height: 844, sessionId: 'side-chat-mobile' },
+    ])('opens selected-machine localhost live and sends one Orca-style element comment on $mode', async ({ mode, width, height, sessionId }) => {
+        const page = await browser.newPage({ viewport: { width, height } });
+        const pageErrors = recordPageErrors(page);
+        const browserLocalRequests: string[] = [];
+        page.on('request', (request) => {
+            if (/^http:\/\/localhost:3000(?:\/|$)|^http:\/\/127\.0\.0\.1:4000(?:\/|$)/.test(request.url())) {
+                browserLocalRequests.push(request.url());
+            }
+        });
+        await page.goto(`${origin}?localhost-live=${mode}`);
+
+        const workspace = page.getByTestId(mode === 'mobile' ? 'localhost-live-mobile' : 'localhost-live-desktop');
+        await workspace.getByRole('textbox', { name: 'Open localhost URL' }).fill('http://localhost:3000/live');
+        await workspace.getByRole('button', { name: 'Open localhost URL' }).click();
+
+        const frame = workspace.frameLocator('iframe');
+        const liveTarget = frame.getByRole('button', { name: 'Live from machine-2' });
+        await liveTarget.waitFor({ timeout: 15_000 });
+        await expect(liveTarget.evaluate((element) => getComputedStyle(element).display)).resolves.toBe('flex');
+        await expect(liveTarget.evaluate((element) => getComputedStyle(element).backgroundColor)).resolves.toBe('rgb(25, 90, 180)');
+
+        const expectedRpcUrls = [
+            'http://localhost:3000/live',
+            'http://127.0.0.1:4000/redirected/live.css',
+            'http://127.0.0.1:4000/redirected/live.js',
+            'http://127.0.0.1:4000/redirected/api/state',
+            'http://127.0.0.1:4000/redirected/css-bg.svg',
+            'http://127.0.0.1:4000/redirected/inline.svg',
+            'http://127.0.0.1:4000/redirected/unquoted.svg',
+            'http://127.0.0.1:4000/redirected/srcset.svg',
+            'http://127.0.0.1:4000/redirected/dynamic.svg',
+            'http://127.0.0.1:4000/redirected/dynamic-style.svg',
+        ];
+        await expect.poll(async () => (
+            await page.evaluate(() => (window as any).__WORKSPACE_LIVE_RPC_CALLS__ ?? [])
+        ).map((call: any) => call.url)).toEqual(expect.arrayContaining(expectedRpcUrls));
+        const rpcCalls = await page.evaluate(() => (window as any).__WORKSPACE_LIVE_RPC_CALLS__ ?? []);
+        expect(rpcCalls.length).toBeGreaterThanOrEqual(4);
+        expect(rpcCalls.every((call: any) => call.machineId === 'machine-2'
+            && call.method === 'workspace-live-fetch')).toBe(true);
+        expect(browserLocalRequests).toEqual([]);
+
+        await workspace.getByRole('button', { name: 'Start commenting' }).click();
+        await workspace.getByRole('button', { name: 'Stop commenting' }).waitFor();
+        await page.waitForTimeout(150);
+        await liveTarget.scrollIntoViewIfNeeded();
+        await liveTarget.hover();
+        await liveTarget.click();
+        const comment = workspace.getByPlaceholder('Write a comment');
+        try {
+            await comment.waitFor({ timeout: 10_000 });
+        } catch (error) {
+            throw new Error(`Element picker did not produce a comment. Workspace: ${await workspace.innerText()}; errors: ${pageErrors.join(' | ')}`, { cause: error });
+        }
+        await comment.fill('Increase the button hit area');
+        await workspace.getByRole('button', { name: 'Pin comment' }).click();
+        await workspace.getByRole('button', { name: 'Send 1 comments' }).click();
+
+        await expect.poll(() => page.evaluate(() => (window as any).__WORKSPACE_FEEDBACK_CALLS__ ?? []))
+            .toHaveLength(1);
+        const feedback = await page.evaluate(() => (window as any).__WORKSPACE_FEEDBACK_CALLS__[0]);
+        expect(feedback.sessionId).toBe(sessionId);
+        expect(feedback.text).toContain('Live URL: http://localhost:3000/live');
+        expect(feedback.text).toContain('Element selector: "#live-target"');
+        expect(feedback.text).toContain('Element HTML:');
+        expect(feedback.text).toContain('Element CSS:');
+        expect(feedback.text).toContain('Element bounds:');
+        expect(feedback.options.attachments).toHaveLength(1);
+        expect(feedback.options.attachments[0]).toMatchObject({ mimeType: 'image/png' });
+        expect(feedback.options.attachments[0].width).toBeLessThan(width);
+        expect(feedback.options.requireAllAttachments).toBe(true);
+        const opaquePixels = await page.evaluate(async () => {
+            const attachment = (window as any).__WORKSPACE_FEEDBACK_CALLS__[0].options.attachments[0];
+            const image = new Image();
+            await new Promise<void>((resolve, reject) => {
+                image.onload = () => resolve();
+                image.onerror = () => reject(new Error('Could not decode captured element PNG'));
+                image.src = attachment.uri;
+            });
+            const canvas = document.createElement('canvas');
+            canvas.width = image.width;
+            canvas.height = image.height;
+            const context = canvas.getContext('2d');
+            if (!context) throw new Error('Could not inspect captured element PNG');
+            context.drawImage(image, 0, 0);
+            const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+            let count = 0;
+            for (let index = 3; index < pixels.length; index += 4) {
+                if (pixels[index] > 0) count += 1;
+            }
+            return count;
+        });
+        expect(opaquePixels).toBeGreaterThan(0);
+        expect(pageErrors).toEqual([]);
+        await page.close();
     }, 60_000);
 
     it('opens task HTML in the single scriptless Preview with no separate Interactive control', async () => {

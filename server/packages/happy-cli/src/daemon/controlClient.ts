@@ -10,6 +10,7 @@ import { configuration } from '@/configuration';
 import { daemonInstanceKey, maintainDaemonSessionRegistration } from './sessionRegistration';
 import type {
   SideChatDelegationBrief,
+  SideChatLaunchOptions,
   SideChatLifecycleInput,
   SideChatLifecycleReceipt,
   SideChatLifecycleRequest,
@@ -168,15 +169,21 @@ export async function manageDaemonSideChat(
   input: SideChatLifecycleInput,
 ): Promise<SideChatLifecycleReceipt> {
   const request = normalizeSideChatLifecycleRequest(input);
+  // A launch-bearing create must use a capability-specific route. A daemon
+  // from before launch selection support does not own this route, so it fails
+  // instead of stripping the unknown launch field and spawning with defaults.
+  const path = request.action === 'create' && request.launch
+    ? '/side-chat-create-with-settings'
+    : '/side-chat';
   const result = await daemonPost(
-    '/side-chat',
+    path,
     request,
     sideChatRequestTimeoutMs(request.action),
   );
   if (result?.error) {
     throw new Error(result.error);
   }
-  if (result?.schemaVersion !== 1 || typeof result?.type !== 'string') {
+  if ((result?.schemaVersion !== 1 && result?.schemaVersion !== 2) || typeof result?.type !== 'string') {
     throw new Error('Daemon returned an invalid side-chat lifecycle receipt');
   }
   if (request.action === 'create' && result.type === 'side-chat') {
@@ -212,8 +219,14 @@ export async function manageDaemonSideChat(
 export async function createDaemonSideChat(
   parentSessionId: string,
   brief: SideChatDelegationBrief,
+  launch?: SideChatLaunchOptions,
 ): Promise<{ sessionId: string }> {
-  const receipt = await manageDaemonSideChat({ action: 'create', parentSessionId, brief });
+  const receipt = await manageDaemonSideChat({
+    action: 'create',
+    parentSessionId,
+    brief,
+    ...(launch ? { launch } : {}),
+  });
   if (receipt.type !== 'side-chat' || !receipt.success || !receipt.sessionId) {
     throw new Error('Daemon failed to create a side chat');
   }
