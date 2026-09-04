@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 4 — DSH session resume",
+      "summary": "",
+      "markdown": "- HappyHerd now resumes retained DSH sessions on the same machine and working directory through ACP `session/resume`, while legacy ACP load-only providers still use `session/load`."
+    },
+    {
       "title": "September 4 — Quota exhaustion rotation and service fallback",
       "summary": "",
       "markdown": "- Automatic switching still occurs when a usable alternate exists; otherwise a provider-named service row persists in the active conversation."
@@ -566,5 +571,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 4 — Quota exhaustion rotation and service fallback"
+  "latestTitle": "September 4 — DSH session resume"
 }

@@ -16,6 +16,7 @@ import { isMachineOnline } from '@/utils/machineUtils';
 import {
     getClaudeResumeModes,
     getCodexResumeModes,
+    getDshResumeModes,
     getGrokResumePermissionMode,
     getResumeAvailability,
 } from '@/utils/sessionResume';
@@ -162,7 +163,9 @@ export function useSessionQuickActions(
             ? getCodexResumeModes(session, latestMachine)
             : session.metadata?.flavor === 'claude'
                 ? getClaudeResumeModes(session, latestMachine)
-                : undefined;
+                : session.metadata?.flavor === 'dsh'
+                    ? getDshResumeModes(session, latestMachine)
+                    : undefined;
         const persistedResumePermissionMode = providerResumeModes?.permissionMode
             ?? (session.metadata?.flavor === 'grok'
                 ? getGrokResumePermissionMode(session, latestMachine)
@@ -184,7 +187,9 @@ export function useSessionQuickActions(
 
                 if (
                     result.settings
-                    && (result.settings.provider === 'claude' || result.settings.provider === 'codex')
+                    && (result.settings.provider === 'claude'
+                        || result.settings.provider === 'codex'
+                        || result.settings.provider === 'dsh')
                 ) {
                     // The daemon validates against the target machine and is
                     // the launch authority. Mirror its exact confirmed tuple.

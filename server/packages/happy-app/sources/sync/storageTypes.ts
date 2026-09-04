@@ -145,6 +145,7 @@ export const MetadataSchema = z.object({
     acpSessionId: z.string().optional(), // Generic ACP provider session ID
     acpCapabilities: z.object({
         loadSession: z.boolean(),
+        resumeSession: z.boolean().optional(),
         prompt: z.object({
             image: z.boolean(),
         }),
@@ -492,6 +493,7 @@ export const AgentCapabilityCatalogSchema = z.object({
     permissionModes: z.array(AgentCapabilityOptionSchema),
     acp: z.object({
         loadSession: z.boolean(),
+        resumeSession: z.boolean().optional(),
         prompt: z.object({
             image: z.boolean(),
         }),

@@ -21,6 +21,7 @@ import {
   type NewSessionRequest,
   type NewSessionResponse,
   type LoadSessionResponse,
+  type ResumeSessionResponse,
   type PromptRequest,
   type PromptResponse,
   type ContentBlock,
@@ -267,8 +268,37 @@ export interface AcpBackendOptions {
   /** Stop after ACP initialize; used for machine capability discovery. */
   initializeOnly?: boolean;
 
-  /** Existing provider session to restore with the standard session/load method. */
-  loadSessionId?: string;
+  /** Existing provider session to restore with session/resume or legacy session/load. */
+  resumeSessionId?: string;
+}
+
+type AcpSessionStartResponse = NewSessionResponse | LoadSessionResponse | ResumeSessionResponse;
+
+type AcpSessionStartConnection = Pick<
+  ClientSideConnection,
+  'newSession' | 'loadSession' | 'unstable_resumeSession'
+>;
+
+/** Dispatch one ACP session start through exactly the capability advertised by the provider. */
+export async function dispatchAcpSessionStart(
+  connection: AcpSessionStartConnection,
+  initializeResponse: InitializeResponse,
+  request: NewSessionRequest,
+  resumeSessionId?: string,
+): Promise<AcpSessionStartResponse> {
+  if (!resumeSessionId) {
+    return connection.newSession(request);
+  }
+
+  if (initializeResponse.agentCapabilities?.sessionCapabilities?.resume != null) {
+    return connection.unstable_resumeSession({ ...request, sessionId: resumeSessionId });
+  }
+
+  if (initializeResponse.agentCapabilities?.loadSession === true) {
+    return connection.loadSession({ ...request, sessionId: resumeSessionId });
+  }
+
+  throw new Error('Provider does not advertise ACP session/resume or session/load support');
 }
 
 /**
@@ -823,22 +853,38 @@ export class AcpBackend implements AgentBackend {
         mcpServers: mcpServers as unknown as NewSessionRequest['mcpServers'],
       };
 
-      const loadSessionId = this.options.loadSessionId;
-      if (loadSessionId && initializeResponse.agentCapabilities?.loadSession !== true) {
-        throw new Error(`${this.options.agentName} does not advertise ACP session/load support`);
+      const resumeSessionId = this.options.resumeSessionId;
+      const resumesNatively = Boolean(
+        resumeSessionId
+        && initializeResponse.agentCapabilities?.sessionCapabilities?.resume != null,
+      );
+      if (
+        resumeSessionId
+        && !resumesNatively
+        && initializeResponse.agentCapabilities?.loadSession !== true
+      ) {
+        throw new Error(`${this.options.agentName} does not advertise ACP session/resume or session/load support`);
       }
-      const operationName = loadSessionId ? 'LoadSession' : 'NewSession';
-      logger.debug(`[AcpBackend] ${loadSessionId ? 'Loading existing' : 'Creating new'} session...`);
+      const operationName = resumeSessionId
+        ? resumesNatively ? 'ResumeSession' : 'LoadSession'
+        : 'NewSession';
+      const sessionAction = resumeSessionId
+        ? resumesNatively ? 'Resuming' : 'Loading existing'
+        : 'Creating new';
+      logger.debug(`[AcpBackend] ${sessionAction} session...`);
 
-      const sessionResponse = await withRetry<NewSessionResponse | LoadSessionResponse>(
+      const sessionResponse = await withRetry<AcpSessionStartResponse>(
         async () => {
           let timeoutHandle: NodeJS.Timeout | null = null;
           try {
             const result = await Promise.race([
               startupFailurePromise,
-              (loadSessionId
-                ? this.connection!.loadSession({ ...newSessionRequest, sessionId: loadSessionId })
-                : this.connection!.newSession(newSessionRequest)).then((res) => {
+              dispatchAcpSessionStart(
+                this.connection!,
+                initializeResponse,
+                newSessionRequest,
+                resumeSessionId,
+              ).then((res) => {
                 if (timeoutHandle) {
                   clearTimeout(timeoutHandle);
                   timeoutHandle = null;
@@ -866,11 +912,14 @@ export class AcpBackend implements AgentBackend {
           shouldRetry: (error) => !isNonRetryableStartupError(error),
         }
       );
-      this.acpSessionId = loadSessionId ?? (sessionResponse as NewSessionResponse).sessionId;
-      logger.debug(`[AcpBackend] Session ${loadSessionId ? 'loaded' : 'created'}: ${this.acpSessionId}`);
+      this.acpSessionId = resumeSessionId ?? (sessionResponse as NewSessionResponse).sessionId;
+      const completedAction = resumeSessionId
+        ? resumesNatively ? 'resumed' : 'loaded'
+        : 'created';
+      logger.debug(`[AcpBackend] Session ${completedAction}: ${this.acpSessionId}`);
       if (this.options.verbose) {
         logAcpBackendMuted(
-          `Incoming newSession response from ${this.options.agentName}: ${summarizeSessionMetadataPayload(sessionResponse)}`,
+          `Incoming ${operationName} response from ${this.options.agentName}: ${summarizeSessionMetadataPayload(sessionResponse)}`,
         );
       }
       this.emitInitialSessionMetadata(sessionResponse);
@@ -932,7 +981,7 @@ export class AcpBackend implements AgentBackend {
     };
   }
 
-  private emitInitialSessionMetadata(sessionResponse: NewSessionResponse | LoadSessionResponse): void {
+  private emitInitialSessionMetadata(sessionResponse: AcpSessionStartResponse): void {
     if (Array.isArray(sessionResponse.configOptions)) {
       this.emit({
         type: 'event',

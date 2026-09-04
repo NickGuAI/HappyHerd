@@ -69,7 +69,25 @@ on these volatile facts.
 
 ## Continuity
 
-dsh has no first-class HappyHerd resume or fork.
+dsh CLI `0.1.2-alpha.4` wraps `@deepseek-ai/dsh-acp`
+`0.1.2-alpha.5`. It advertises
+`agentCapabilities.sessionCapabilities.resume` as an object and supports
+persisted cross-process ACP `session/resume`, but it does not advertise the
+legacy top-level `loadSession` capability. Native resume requires retained
+provider state and the same working directory.
+
+HappyHerd preserves `session/resume` independently from `session/load` and
+invokes the existing SDK `unstable_resumeSession` method. Load-only providers
+remain on `session/load`; providers lacking both capabilities remain
+non-resumable. HappyHerd does not add dsh fork support.
+
+### Common resume-diagnosis trap
+
+`loadSession: false` does not mean that a provider cannot resume. Inspect the
+nested `sessionCapabilities.resume` object before classifying support. When
+troubleshooting, distinguish a provider rejection from a HappyHerd preflight
+failure. Treat quota exhaustion as a separate failure mode rather than a
+capability mismatch or state invalidation.
 
 ## Verification focus
 
@@ -82,6 +100,10 @@ dsh has no first-class HappyHerd resume or fork.
   disabled, unselectable, overridden, or custom-path provider configuration.
 - Prove target validation, the `spawnSettings.permission` receipt, and the
   read-only active-composer chip without session-mode mutation.
+- Prove dsh publishes the nested resume capability, resumes a retained provider
+  session through `unstable_resumeSession` with the same working directory,
+  keeps load-only providers on `session/load`, and rejects providers that
+  advertise neither restore capability.
 - Prove Full New Session, native HomeDock, and active Session route dsh Photos
   and Device files through the existing selected-machine uploader, retain its
   size/count/progress/cancel/retry/failure behavior, and deliver exact

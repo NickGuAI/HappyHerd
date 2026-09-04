@@ -624,6 +624,7 @@ function normalizeAcpCapabilities(initialize: InitializeResponse): NonNullable<M
   const prompt = capabilities?.promptCapabilities;
   return {
     loadSession: capabilities?.loadSession === true,
+    resumeSession: capabilities?.sessionCapabilities?.resume != null,
     prompt: {
       image: prompt?.image === true,
     },
@@ -636,7 +637,7 @@ function turnStatusForStopReason(stopReason: StopReason): 'completed' | 'cancell
   return 'completed';
 }
 
-export function resolveAcpLoadSessionId(
+export function resolveAcpResumeSessionId(
   explicitResumeSessionId: string | undefined,
   persistedAcpSessionId: string | undefined,
   freshProviderReconnect = process.env.HAPPYHERD_FRESH_PROVIDER_RECONNECT === '1',
@@ -838,7 +839,7 @@ export async function runAcp(opts: {
     permissionHandler,
     transportHandler: new DefaultTransport(opts.agentName),
     verbose,
-    loadSessionId: resolveAcpLoadSessionId(opts.resumeSessionId, response?.metadata?.acpSessionId),
+    resumeSessionId: resolveAcpResumeSessionId(opts.resumeSessionId, response?.metadata?.acpSessionId),
     processEnv: opts.agentName === 'grok'
       ? sanitizeGrokChildEnvironment(process.env)
       : opts.agentName === 'dsh'

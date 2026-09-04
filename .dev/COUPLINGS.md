@@ -100,6 +100,12 @@ ACP capabilities rather than another provider fallback.
                                              │
                                              ▼
                               read-only active-composer status chip
+
+retained ACP session ID + same machine/cwd + retained provider state
+  ─────────────────────────→ existing SDK unstable_resumeSession
+                                             │ session/resume
+                                             ▼
+                                  same Happy session continues
 ```
 
 dsh discovery uses one bounded, non-prompting `session/new` probe in an isolated
@@ -114,7 +120,11 @@ value, and keeps provider argv exactly `dsh --profile acp`. The daemon receipt
 in `spawnSettings.permission` is the active composer's read-only authority;
 there is no runtime permission switch. Presets affect file mutation boundaries,
 not reads, network, or process visibility, and existing ACP model, reasoning,
-and one-shot callback behavior remains unchanged.
+and one-shot callback behavior remains unchanged. DSH capability discovery
+still uses ACP `session/new`. Retained DSH sessions resume on the same machine
+and working directory with retained provider state through ACP
+`session/resume` using the existing SDK `unstable_resumeSession`; DSH has
+neither legacy `session/load` nor HappyHerd fork support.
 
 ### Provider defaults and session launch
 

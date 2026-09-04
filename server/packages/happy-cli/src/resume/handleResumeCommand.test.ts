@@ -128,6 +128,7 @@ beforeEach(() => {
         codex: true,
         gemini: false,
         grok: true,
+        dsh: true,
         agy: false,
         detectedAt: 1,
     });
@@ -178,6 +179,14 @@ beforeEach(() => {
                     { code: 'default', value: 'Default', isDefault: true },
                     { code: 'dontAsk', value: 'Deny without prompting' },
                 ],
+            },
+            dsh: {
+                detectedAt: 1,
+                sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
+                models: [{ code: 'deepseek-v4-flash', value: 'DeepSeek V4 Flash', isDefault: true }],
+                effortLevels: [{ code: 'high', value: 'High', isDefault: true }],
+                permissionModes: [{ code: 'workspace-write', value: 'Workspace write', isDefault: true }],
+                acp: { loadSession: false, resumeSession: true, prompt: { image: false } },
             },
         },
     });
@@ -270,6 +279,26 @@ describe('buildResumeLaunch', () => {
         });
     });
 
+    it('builds a DSH resume command from the provider ACP session ID', () => {
+        expect(buildResumeLaunch({
+            id: 'session-dsh',
+            active: false,
+            metadata: {
+                path: '/tmp/repo',
+                flavor: 'dsh',
+                acpSessionId: 'dsh-provider-session',
+                host: 'localhost',
+                homeDir: '/tmp',
+                happyHomeDir: '/tmp/.happy',
+                happyLibDir: '/tmp/happy',
+                happyToolsDir: '/tmp/happy/tools',
+            },
+        }, { startedBy: 'daemon' })).toEqual({
+            cwd: '/tmp/repo',
+            args: ['dsh', '--started-by', 'daemon', '--resume', 'dsh-provider-session'],
+        });
+    });
+
     it('rejects unsupported flavors', () => {
         expect(() => buildResumeLaunch({
             id: 'session-3',
@@ -352,6 +381,47 @@ describe('handleResumeCommand', () => {
         expect(spawnHappyCLI).toHaveBeenCalledWith(
             ['grok', '--resume', 'legacy-grok-provider-session', '--permission-mode', 'default'],
             expect.objectContaining({ cwd: '/tmp/repo', stdio: 'inherit' }),
+        );
+    });
+
+    it('revalidates and restores DSH launch settings on terminal resume', async () => {
+        const session = createReconnectableSession();
+        session.metadata = {
+            ...session.metadata,
+            flavor: 'dsh',
+            codexThreadId: undefined,
+            acpSessionId: 'dsh-provider-session',
+            spawnSettings: {
+                provider: 'dsh',
+                model: 'deepseek-v4-flash',
+                effort: 'high',
+                permission: 'workspace-write',
+            },
+        };
+        mocks.mockResolveLocalReconnectableSession.mockResolvedValue(session);
+
+        await handleResumeCommand(['session-1']);
+
+        expect(mocks.mockDetectAgentCapabilities).toHaveBeenCalledOnce();
+        expect(spawnHappyCLI).toHaveBeenCalledWith(
+            [
+                'dsh',
+                '--resume', 'dsh-provider-session',
+                '--permission-mode', 'workspace-write',
+                '--model', 'deepseek-v4-flash',
+                '--effort', 'high',
+            ],
+            expect.objectContaining({
+                cwd: '/tmp/repo',
+                env: expect.objectContaining({
+                    HAPPYHERD_MACHINE_SESSION_SETTINGS_JSON: JSON.stringify({
+                        provider: 'dsh',
+                        model: 'deepseek-v4-flash',
+                        effort: 'high',
+                        permission: 'workspace-write',
+                    }),
+                }),
+            }),
         );
     });
 

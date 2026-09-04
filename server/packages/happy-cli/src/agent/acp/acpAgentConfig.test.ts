@@ -141,6 +141,7 @@ describe('resolveAcpLaunchConfig', () => {
       '--permission-mode', 'workspace-write',
       '--model', 'deepseek-v4-pro',
       '--effort', 'max',
+      '--resume', 'dsh-provider-session',
     ], 'dsh')).toEqual({
       agentName: 'dsh',
       command: 'dsh',
@@ -150,14 +151,16 @@ describe('resolveAcpLaunchConfig', () => {
       permissionMode: 'workspace-write',
       model: 'deepseek-v4-pro',
       effort: 'max',
-      resumeSessionId: undefined,
+      resumeSessionId: 'dsh-provider-session',
     });
     expect(resolveAcpLaunchConfig(['--permission-mode', 'read-only'], 'dsh')).toMatchObject({
       args: ['--profile', 'acp'],
       permissionMode: 'read-only',
     });
-    expect(() => resolveAcpLaunchConfig(['--resume', 'provider-session'], 'dsh'))
-      .toThrow('Unexpected argument for happyherd dsh: --resume');
+    expect(resolveAcpLaunchConfig(['--resume', 'provider-session'], 'dsh')).toMatchObject({
+      args: ['--profile', 'acp'],
+      resumeSessionId: 'provider-session',
+    });
     expect(() => resolveAcpLaunchConfig(['--provider-flag'], 'dsh'))
       .toThrow('Unexpected argument for happyherd dsh: --provider-flag');
   });

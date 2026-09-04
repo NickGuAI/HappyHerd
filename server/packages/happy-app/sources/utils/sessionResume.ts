@@ -35,7 +35,7 @@ export type ProviderResumeModes = {
 function getCatalogResumeModes(
     session: Session,
     machine: Machine | null | undefined,
-    provider: 'claude' | 'codex',
+    provider: 'claude' | 'codex' | 'dsh',
 ): ProviderResumeModes | undefined {
     if (session.metadata?.flavor !== provider) return undefined;
 
@@ -48,10 +48,15 @@ function getCatalogResumeModes(
     // A local null is the immediate post-abort state. Prefer the immutable
     // launch receipt before asynchronously synced metadata so a fast next turn
     // cannot revive the stale pre-abort selection.
-    const requestedPermission = session.permissionMode
-        ?? persistedSettings?.permission
-        ?? session.metadata?.permissionMode
-        ?? undefined;
+    const requestedPermission = provider === 'dsh'
+        ? persistedSettings?.permission
+            ?? session.metadata?.permissionMode
+            ?? session.permissionMode
+            ?? undefined
+        : session.permissionMode
+            ?? persistedSettings?.permission
+            ?? session.metadata?.permissionMode
+            ?? undefined;
     const permission = requestedPermission
         ? catalog.permissionModes.find((option) => option.code === requestedPermission)
         : defaultCatalogOption(catalog.permissionModes);
@@ -102,6 +107,14 @@ export function getClaudeResumeModes(
     return getCatalogResumeModes(session, machine, 'claude');
 }
 
+/** Resolve DSH's session-owned tuple without applying current global defaults. */
+export function getDshResumeModes(
+    session: Session,
+    machine: Machine | null | undefined,
+): ProviderResumeModes | undefined {
+    return getCatalogResumeModes(session, machine, 'dsh');
+}
+
 /** Resolve Codex's resumable permission from its complete validated receipt. */
 export function getCodexResumePermissionMode(
     session: Session,
@@ -137,9 +150,6 @@ export function getResumeAvailability(
     if (session.metadata?.flavor === 'grok' && session.metadata?.acpCapabilities?.loadSession !== true) {
         return { canResume: false, canShowResume: false, messageKey: null };
     }
-    if (session.metadata?.flavor === 'dsh') {
-        return { canResume: false, canShowResume: false, messageKey: null };
-    }
     if (isConnected) {
         return { canResume: false, canShowResume: false, messageKey: null };
     }
@@ -152,7 +162,8 @@ export function getResumeAvailability(
     const hasBackendResumeId = Boolean(
         session.metadata?.claudeSessionId
         || session.metadata?.codexThreadId
-        || (session.metadata?.flavor === 'grok' && session.metadata?.acpSessionId),
+        || ((session.metadata?.flavor === 'grok' || session.metadata?.flavor === 'dsh')
+            && session.metadata?.acpSessionId),
     );
     if (!hasBackendResumeId) {
         return { canResume: false, canShowResume: true, messageKey: 'sessionInfo.resumeSessionMissingBackendId' };
@@ -174,6 +185,16 @@ export function getResumeAvailability(
             || catalog?.acp?.loadSession !== true
             || (selectedPermission !== undefined
                 && !catalog.permissionModes.some((option) => option.code === selectedPermission))
+        ) {
+            return { canResume: false, canShowResume: false, messageKey: null };
+        }
+    }
+    if (session.metadata?.flavor === 'dsh') {
+        const catalog = machine.metadata?.agentCapabilities?.dsh;
+        if (
+            machine.metadata?.cliAvailability?.dsh !== true
+            || catalog?.acp?.resumeSession !== true
+            || !getDshResumeModes(session, machine)
         ) {
             return { canResume: false, canShowResume: false, messageKey: null };
         }

@@ -102,7 +102,7 @@ export function resolveAcpLaunchConfig(
       i++;
       continue;
     }
-    if (namedAgent === 'grok' && !customCommandMode && arg === '--resume') {
+    if ((namedAgent === 'grok' || namedAgent === 'dsh') && !customCommandMode && arg === '--resume') {
       resumeSessionId = takeValue(i, arg);
       i++;
       continue;
