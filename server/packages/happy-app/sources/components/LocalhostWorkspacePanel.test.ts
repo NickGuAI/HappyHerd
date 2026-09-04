@@ -88,6 +88,65 @@ describe('LocalhostWorkspacePanel', () => {
         act(() => renderer.unmount());
     });
 
+    it('stops picker mode and keeps the live page mounted when element capture fails', () => {
+        const onHeaderRightSlotChange = vi.fn();
+        let renderer: any;
+        act(() => {
+            renderer = create(React.createElement(LocalhostWorkspacePanel, {
+                sessionId: 'side-chat-one',
+                machineId: 'machine-ec2',
+                url: 'http://localhost:5173/dashboard',
+                active: true,
+                onHeaderRightSlotChange,
+            }));
+        });
+
+        act(() => onHeaderRightSlotChange.mock.calls.at(-1)?.[0].props.onPress());
+        expect(renderer.root.findByType('LocalhostLiveView' as any).props.pickerEnabled).toBe(true);
+
+        act(() => renderer.root.findByType('LocalhostLiveView' as any).props.onCaptureError(
+            new Error('Element screenshot failed'),
+        ));
+
+        const liveView = renderer.root.findByType('LocalhostLiveView' as any);
+        const alerts = renderer.root.findAllByType('Text' as any)
+            .filter((node: any) => node.props.accessibilityRole === 'alert');
+        expect(liveView.props.pickerEnabled).toBe(false);
+        expect(alerts.map((alert: any) => alert.props.children)).toEqual(['workspace.liveCaptureFailed']);
+        expect(renderer.root.findAllByType('LocalhostLiveView' as any)).toHaveLength(1);
+
+        act(() => onHeaderRightSlotChange.mock.calls.at(-1)?.[0].props.onPress());
+        expect(renderer.root.findByType('LocalhostLiveView' as any).props.pickerEnabled).toBe(true);
+        expect(renderer.root.findAllByType('Text' as any)
+            .filter((node: any) => node.props.accessibilityRole === 'alert')).toHaveLength(0);
+        act(() => renderer.unmount());
+    });
+
+    it('stops picker mode when the live page fails to load', () => {
+        const onHeaderRightSlotChange = vi.fn();
+        let renderer: any;
+        act(() => {
+            renderer = create(React.createElement(LocalhostWorkspacePanel, {
+                sessionId: 'main-agent-one',
+                machineId: 'machine-ec2',
+                url: 'http://localhost:5173/dashboard',
+                active: true,
+                onHeaderRightSlotChange,
+            }));
+        });
+
+        act(() => onHeaderRightSlotChange.mock.calls.at(-1)?.[0].props.onPress());
+        act(() => renderer.root.findByType('LocalhostLiveView' as any).props.onError(
+            new Error('Selected machine unavailable'),
+        ));
+
+        expect(renderer.root.findByType('LocalhostLiveView' as any).props.pickerEnabled).toBe(false);
+        expect(renderer.root.findAllByType('Text' as any)
+            .filter((node: any) => node.props.accessibilityRole === 'alert')
+            .map((alert: any) => alert.props.children)).toEqual(['workspace.liveLoadFailed']);
+        act(() => renderer.unmount());
+    });
+
     it('unmounts an inactive live page so background tabs stop consuming host resources', () => {
         const onHeaderRightSlotChange = vi.fn();
         let renderer: any;

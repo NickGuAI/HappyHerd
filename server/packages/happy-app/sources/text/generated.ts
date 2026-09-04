@@ -1352,6 +1352,7 @@ export type TranslationKey =
     | "workspace.linkMachineMissingDescription"
     | "workspace.linkPathMissingDescription"
     | "workspace.linkReadErrorTitle"
+    | "workspace.liveCaptureFailed"
     | "workspace.liveCommentOnElement"
     | "workspace.liveElement"
     | "workspace.liveLoadFailed"

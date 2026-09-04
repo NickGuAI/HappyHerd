@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "e35d0e1f4d90e076448730a5f35c30f47106fcd6abc42fdb63bda60f69e9dbb1",
+  "sourceFingerprint": "f4a05a320b3b22cf76e64cbdc64f29771b4f5c962bb88acb38831903dddea974",
   "routeCount": 36,
   "surfaceCount": 257,
   "hardcodedCopyCount": 0,
@@ -3539,6 +3539,7 @@
         "LocalhostWorkspacePanel"
       ],
       "translationKeys": [
+        "workspace.liveCaptureFailed",
         "workspace.liveLoadFailed",
         "workspace.startElementComment",
         "workspace.stopElementComment"

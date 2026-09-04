@@ -28,6 +28,7 @@ export type LocalhostLiveViewProps = {
     pickerEnabled: boolean;
     onPick: (pick: WorkspaceLiveElementPick) => void;
     onError?: (error: Error) => void;
+    onCaptureError?: (error: Error) => void;
 };
 
 function finiteNumber(value: unknown): value is number {
@@ -91,6 +92,7 @@ export const LocalhostLiveView = React.memo(function LocalhostLiveView({
     pickerEnabled,
     onPick,
     onError,
+    onCaptureError,
 }: LocalhostLiveViewProps) {
     const iframeRef = React.useRef<HTMLIFrameElement>(null);
     const viewIdRef = React.useRef(`view-${globalThis.crypto?.randomUUID?.()
@@ -142,7 +144,7 @@ export const LocalhostLiveView = React.memo(function LocalhostLiveView({
                 return;
             }
             if (event.data?.type === workspaceLiveProtocol.messageType && event.data.action === 'error') {
-                onError?.(new Error(typeof event.data.error === 'string' ? event.data.error : 'Element picker failed'));
+                onCaptureError?.(new Error(typeof event.data.error === 'string' ? event.data.error : 'Element picker failed'));
                 return;
             }
             const pick = workspaceLivePickFromMessage(event.data);
@@ -152,7 +154,7 @@ export const LocalhostLiveView = React.memo(function LocalhostLiveView({
         };
         window.addEventListener('message', receiveMessage);
         return () => window.removeEventListener('message', receiveMessage);
-    }, [onError, onPick]);
+    }, [onCaptureError, onPick]);
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', minHeight: 0 }}>

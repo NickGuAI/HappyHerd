@@ -1210,6 +1210,7 @@
     "invalidLocalhostUrl": "请输入所选机器上 localhost、127.0.0.1 或 [::1] 的 HTTP/HTTPS URL。",
     "liveLoading": "正在连接 localhost…",
     "liveLoadFailed": "无法从所选机器加载实时页面，请确认该机器上的本地服务正在运行。",
+    "liveCaptureFailed": "无法截取元素截图。评论已停止，但实时页面仍可正常使用。请重新开始评论后再试。",
     "liveCommentOnElement": "评论元素 {element}",
     "liveElement": "元素：{element}",
     "startElementComment": "开始评论",

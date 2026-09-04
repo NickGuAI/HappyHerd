@@ -7,6 +7,7 @@ export type LocalhostLiveViewProps = {
     pickerEnabled: boolean;
     onPick: (pick: WorkspaceLiveElementPick) => void;
     onError?: (error: Error) => void;
+    onCaptureError?: (error: Error) => void;
 };
 
 /** The live localhost surface is intentionally limited to Web Desktop and Web Mobile. */

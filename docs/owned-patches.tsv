@@ -253,3 +253,4 @@ MOBILE_WEB_UX	accepted	chore(app): register mobile UX patches	docs/owned-patches
 PUBLIC_BOUNDARY	accepted	fix(public-boundary): normalize merged skill identity	scripts/test-public-boundary.mjs
 WORKSPACE_LOCALHOST	accepted	feat(workspace): debug selected-machine localhost pages	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 WORKSPACE_LOCALHOST	accepted	fix(workspace): bound live localhost execution	server/packages/happy-app/sources/components/LocalhostWorkspacePanel.tsx
+WORKSPACE_LOCALHOST	accepted	fix(workspace): preserve selected-machine live review	server/packages/happy-app/public/workspace-live-sw.js
