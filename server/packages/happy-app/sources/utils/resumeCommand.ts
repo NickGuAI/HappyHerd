@@ -9,6 +9,7 @@ export type ResumeCommandMetadata = {
     capabilities?: { resume?: boolean | null } | null;
     acpCapabilities?: {
         loadSession: boolean;
+        resumeSession?: boolean;
     } | null;
 };
 
@@ -36,11 +37,17 @@ function buildResumeInvocation(metadata: ResumeCommandMetadata): string | null {
     if (metadata.flavor === 'grok' && metadata.acpCapabilities?.loadSession !== true) {
         return null;
     }
+    if (metadata.flavor === 'dsh' && metadata.acpCapabilities?.resumeSession !== true) {
+        return null;
+    }
     if ((metadata.flavor === 'codex' || metadata.flavor === 'openai' || metadata.flavor === 'gpt') && metadata.codexThreadId) {
         return `happyherd codex --resume ${metadata.codexThreadId}`;
     }
     if (metadata.flavor === 'grok' && metadata.acpSessionId) {
         return `happyherd grok --resume ${metadata.acpSessionId}`;
+    }
+    if (metadata.flavor === 'dsh' && metadata.acpSessionId) {
+        return `happyherd dsh --resume ${metadata.acpSessionId}`;
     }
     if (metadata.claudeSessionId) {
         return `happyherd claude --resume ${metadata.claudeSessionId}`;

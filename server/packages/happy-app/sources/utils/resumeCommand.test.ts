@@ -70,6 +70,27 @@ describe('buildResumeCommand', () => {
             acpSessionId: 'grok-session-1',
         })).toBeNull();
     });
+
+    it('builds the DSH session/resume command only from the nested capability', () => {
+        expect(buildResumeCommand({
+            path: '/tmp/dsh project',
+            flavor: 'dsh',
+            acpSessionId: 'dsh-session-1',
+            acpCapabilities: {
+                loadSession: false,
+                resumeSession: true,
+            },
+        })).toBe("cd '/tmp/dsh project' && happyherd dsh --resume dsh-session-1");
+
+        expect(buildResumeCommand({
+            flavor: 'dsh',
+            acpSessionId: 'dsh-session-1',
+            acpCapabilities: {
+                loadSession: false,
+                resumeSession: false,
+            },
+        })).toBeNull();
+    });
 });
 
 describe('buildResumeCommandBlock', () => {

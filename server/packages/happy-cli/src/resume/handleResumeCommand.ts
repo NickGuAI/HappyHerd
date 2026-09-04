@@ -54,9 +54,9 @@ export function parseResumeCommandArgs(args: string[]): { showHelp: boolean; ses
     };
 }
 
-function resolveFlavor(metadata: Metadata): 'codex' | 'claude' | 'grok' | null {
-    if (metadata.flavor === 'grok') {
-        return 'grok';
+function resolveFlavor(metadata: Metadata): 'codex' | 'claude' | 'grok' | 'dsh' | null {
+    if (metadata.flavor === 'grok' || metadata.flavor === 'dsh') {
+        return metadata.flavor;
     }
     if (metadata.flavor === 'codex' || metadata.codexThreadId) {
         return 'codex';
@@ -103,11 +103,11 @@ export function buildResumeLaunch(session: ResumableHappySession, options: Resum
         };
     }
 
-    if (flavor === 'grok') {
+    if (flavor === 'grok' || flavor === 'dsh') {
         if (!metadata.acpSessionId) {
             throw new Error(`Happy session ${session.id} is missing its ACP session ID.`);
         }
-        const args = ['grok'];
+        const args: string[] = [flavor];
         if (options.startedBy) {
             args.push('--started-by', options.startedBy);
         }
@@ -178,13 +178,13 @@ export async function buildValidatedTerminalResumeLaunch(
 ): Promise<ResumeLaunch> {
     const launch = buildResumeLaunch(session);
     const flavor = resolveFlavor(session.metadata);
-    if (flavor !== 'claude' && flavor !== 'codex' && flavor !== 'grok') return launch;
+    if (flavor !== 'claude' && flavor !== 'codex' && flavor !== 'grok' && flavor !== 'dsh') return launch;
 
     const parsedReceipt = HappyHerdMachineSessionSettingsSchema.safeParse(session.metadata.spawnSettings);
     const receipt = parsedReceipt.success && parsedReceipt.data.provider === flavor
         ? parsedReceipt.data
         : undefined;
-    const permissionMode = flavor === 'grok'
+    const permissionMode = flavor === 'grok' || flavor === 'dsh'
         ? persistedProviderPermissionMode(session.metadata, flavor)
         : session.metadata.permissionMode
             ?? receipt?.permission
@@ -212,10 +212,10 @@ export async function buildValidatedTerminalResumeLaunch(
     if (settings.permission) {
         launch.args.push('--permission-mode', settings.permission);
     }
-    if ((flavor === 'claude' || flavor === 'codex') && settings.model && settings.model !== 'default') {
+    if ((flavor === 'claude' || flavor === 'codex' || flavor === 'dsh') && settings.model && settings.model !== 'default') {
         launch.args.push('--model', settings.model);
     }
-    if ((flavor === 'claude' || flavor === 'codex') && settings.effort) {
+    if ((flavor === 'claude' || flavor === 'codex' || flavor === 'dsh') && settings.effort) {
         launch.args.push('--effort', settings.effort);
     }
     launch.settings = settings;

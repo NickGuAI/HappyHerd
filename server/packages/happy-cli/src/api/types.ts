@@ -156,6 +156,7 @@ export const AgentCapabilityCatalogSchema = z.object({
   permissionModes: z.array(AgentCapabilityOptionSchema),
   acp: z.object({
     loadSession: z.boolean(),
+    resumeSession: z.boolean().optional(),
     prompt: z.object({
       image: z.boolean(),
     }),
@@ -373,9 +374,10 @@ export type Metadata = {
   gitBranch?: string,
   claudeSessionId?: string, // Claude Code session ID
   codexThreadId?: string, // Codex app-server thread ID
-  acpSessionId?: string, // Generic ACP provider session ID (for session/load resume)
+  acpSessionId?: string, // Generic ACP provider session ID (for session/load or session/resume)
   acpCapabilities?: {
     loadSession: boolean,
+    resumeSession?: boolean,
     prompt: { image: boolean },
   },
   codexHome?: string, // CODEX_HOME used to create codexThreadId

@@ -31,7 +31,11 @@ vi.mock('@/agent/acp/AcpBackend', () => ({
                 name: 'initialize_response',
                 payload: {
                     protocolVersion: 1,
-                    agentCapabilities: { promptCapabilities: { image: false } },
+                    agentCapabilities: {
+                        loadSession: false,
+                        sessionCapabilities: { resume: {} },
+                        promptCapabilities: { image: false },
+                    },
                     agentInfo: { name: 'deepseek-harness-acp', version: '0.0.1' },
                 },
             });
@@ -109,7 +113,11 @@ function dshProbe(overrides?: {
     return {
         initialize: {
             protocolVersion: 1,
-            agentCapabilities: { promptCapabilities: { image: false } },
+            agentCapabilities: {
+                loadSession: false,
+                sessionCapabilities: { resume: {} },
+                promptCapabilities: { image: false },
+            },
             agentInfo: { name: 'deepseek-harness-acp', version: '0.0.1' },
         } as DshAcpProbeResult['initialize'],
         providerVersion: '0.1.2-alpha.4',
@@ -421,6 +429,11 @@ describe('agent capability discovery', () => {
             },
         ]);
         expect(first.capabilities.dsh.providerVersion).toBe('0.1.2-alpha.4');
+        expect(first.capabilities.dsh.acp).toEqual({
+            loadSession: false,
+            resumeSession: true,
+            prompt: { image: false },
+        });
         expect(second.capabilities.dsh.models.map((model) => model.code)).toEqual(['deepseek-v5']);
     });
 
@@ -652,6 +665,7 @@ describe('agent capability discovery', () => {
         expect(catalog.sources.permissionModes).toBe('grok-cli-help:--permission-mode');
         expect(catalog.acp).toEqual({
             loadSession: true,
+            resumeSession: false,
             prompt: { image: false },
         });
         expect(capabilities.grok.sources.models).toBe('acp:initialize:_meta.modelState');

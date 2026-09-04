@@ -187,7 +187,7 @@ vi.mock('@/capabilities/agentCapabilities', () => ({
       models: [{ code: 'deepseek-chat', value: 'DeepSeek Chat', isDefault: true }],
       effortLevels: [],
       permissionModes: [{ code: 'default', value: 'Default', isDefault: true }],
-      acp: { loadSession: false, prompt: { image: false } },
+      acp: { loadSession: false, resumeSession: true, prompt: { image: false } },
     },
     agy: {
       detectedAt: 1,
@@ -317,15 +317,15 @@ const commanderResumeCases = [
 ] as const;
 
 describe('daemon session continuity', () => {
-  it('resolves first-class ACP commands while keeping dsh non-resumable', () => {
+  it('resolves first-class ACP resume commands for GrokBuild and DSH', () => {
     expect(resolveDaemonAgentCommand('grok')).toBe('grok');
     expect(resolveDaemonResumeAgent({ flavor: 'grok' } as Metadata)).toBe('grok');
     expect(resolveDaemonAgentCommand('dsh')).toBe('dsh');
-    expect(resolveDaemonResumeAgent({ flavor: 'dsh', acpSessionId: 'provider-session' } as Metadata)).toBeNull();
+    expect(resolveDaemonResumeAgent({ flavor: 'dsh', acpSessionId: 'provider-session' } as Metadata)).toBe('dsh');
     expect(resolveSideChatResumeProvider({ flavor: 'dsh', isSideChat: true } as Metadata)).toBe('dsh');
     expect(resolveSideChatResumeProvider({ flavor: 'gemini', isSideChat: true } as Metadata)).toBe('gemini');
     expect(resolveSideChatResumeProvider({ flavor: 'agy', isSideChat: true } as Metadata)).toBe('agy');
-    expect(resolveSideChatResumeProvider({ flavor: 'dsh' } as Metadata)).toBeNull();
+    expect(resolveSideChatResumeProvider({ flavor: 'dsh' } as Metadata)).toBe('dsh');
     expect(resolveDaemonAgentCommand('future-provider' as any)).toBeNull();
     expect(resolveDaemonResumeAgent({ flavor: 'future-provider' } as Metadata)).toBeNull();
   });
@@ -1023,6 +1023,68 @@ describe('daemon session continuity', () => {
       '--started-by', 'daemon',
       '--resume', 'grok-provider-session',
       '--permission-mode', 'dontAsk',
+    ]);
+  });
+
+  it('resumes DSH through the same daemon session with its retained ACP id and launch settings', async () => {
+    const sessionId = 'dsh-session';
+    const encryptionKey = new Uint8Array([1, 2, 3, 4]);
+    const settings = {
+      provider: 'dsh' as const,
+      model: 'deepseek-chat',
+      effort: null,
+      permission: 'default',
+    };
+    const metadata: Metadata = {
+      path: process.cwd(),
+      flavor: 'dsh',
+      acpSessionId: 'dsh-provider-session',
+      acpCapabilities: { loadSession: false, resumeSession: true, prompt: { image: false } },
+      spawnSettings: settings,
+      host: 'test-host',
+      machineId: 'machine-1',
+      homeDir: '/home/test',
+      happyHomeDir: '/home/test/.happyherd',
+      happyLibDir: '/srv/happy',
+      happyToolsDir: '/srv/happy/tools',
+    };
+    const encryption: SessionEncryptionData = {
+      encryptionKey,
+      encryptionVariant: 'dataKey',
+      seq: 2,
+      metadataVersion: 3,
+      agentStateVersion: 4,
+    };
+    mocks.backfillReconnectableSessionForMachine.mockResolvedValue({
+      session: { id: sessionId, active: false, metadata, ...encryption },
+      persisted: {
+        encryptionKey: Buffer.from(encryptionKey).toString('base64'),
+        encryptionVariant: encryption.encryptionVariant,
+        seq: encryption.seq,
+        metadataVersion: encryption.metadataVersion,
+        agentStateVersion: encryption.agentStateVersion,
+        metadata,
+        savedAt: Date.now(),
+      },
+    });
+    mocks.spawnHappyCLI.mockReturnValue({ pid: 4327, kill: vi.fn(), on: vi.fn() });
+
+    daemonRun = startDaemon();
+    await vi.waitFor(() => expect(mocks.rpcHandlers).toBeDefined());
+    const rpc = mocks.rpcHandlers as CapturedRpcHandlers;
+    const control = mocks.controlHandlers as CapturedControlHandlers;
+    const resume = rpc.resumeSession(sessionId);
+    await vi.waitFor(() => expect(mocks.spawnHappyCLI).toHaveBeenCalledOnce());
+    control.onHappySessionWebhook(sessionId, { ...metadata, hostPid: 4327 }, encryption);
+
+    await expect(resume).resolves.toEqual({ type: 'success', sessionId, settings });
+    const [args] = mocks.spawnHappyCLI.mock.calls[0] as unknown as [string[]];
+    expect(args).toEqual([
+      'dsh',
+      '--started-by', 'daemon',
+      '--resume', 'dsh-provider-session',
+      '--permission-mode', 'default',
+      '--model', 'deepseek-chat',
     ]);
   });
 

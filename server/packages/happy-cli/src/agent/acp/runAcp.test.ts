@@ -262,7 +262,7 @@ vi.mock('@/credentialPool/providerLimitNotice', () => ({
 
 import {
   dshChildEnvironment,
-  resolveAcpLoadSessionId,
+  resolveAcpResumeSessionId,
   resolveAcpPermissionPolicy,
   resolveDshModelConfigCode,
   runAcp,
@@ -270,9 +270,9 @@ import {
 
 describe('runAcp', () => {
   it('suppresses a persisted ACP session id for a fresh DSH side-chat reconnect', () => {
-    expect(resolveAcpLoadSessionId(undefined, 'old-dsh-session', true)).toBeUndefined();
-    expect(resolveAcpLoadSessionId(undefined, 'grok-session', false)).toBe('grok-session');
-    expect(resolveAcpLoadSessionId('explicit-grok-session', 'persisted-grok-session', false))
+    expect(resolveAcpResumeSessionId(undefined, 'old-dsh-session', true)).toBeUndefined();
+    expect(resolveAcpResumeSessionId(undefined, 'grok-session', false)).toBe('grok-session');
+    expect(resolveAcpResumeSessionId('explicit-grok-session', 'persisted-grok-session', false))
       .toBe('explicit-grok-session');
   });
   const stripAnsi = (line: string) => line.replace(/\u001b\[[0-9;]*m/g, '');
@@ -632,11 +632,52 @@ describe('runAcp', () => {
     expect(mocks.backendState.constructorArgs.processEnv).toMatchObject({
       GROK_HOME: '/runtime/grok',
     });
-    expect(mocks.backendState.constructorArgs.loadSessionId).toBe('grok-provider-session');
+    expect(mocks.backendState.constructorArgs.resumeSessionId).toBe('grok-provider-session');
 
     await mocks.getKillHandler()!();
     await runPromise;
     expect(mocks.lifecycleEvents).toEqual(['persist', 'dispose']);
+  });
+
+  it('persists ACP session/resume separately from legacy session/load', async () => {
+    mocks.backendState.startSessionMessages = [
+      {
+        type: 'event',
+        name: 'initialize_response',
+        payload: {
+          protocolVersion: 1,
+          agentCapabilities: {
+            loadSession: false,
+            sessionCapabilities: { resume: {} },
+            promptCapabilities: { image: false },
+          },
+        },
+      },
+      dshConfigUpdate(),
+    ];
+
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'dsh',
+      command: 'dsh',
+      args: ['--profile', 'acp'],
+    });
+
+    await vi.waitFor(() => expect(mocks.mockSession.updateMetadata).toHaveBeenCalled());
+    const updatedMetadata = mocks.mockSession.updateMetadata.mock.calls
+      .map(([update]) => update({}))
+      .find((value) => value.acpCapabilities !== undefined);
+    expect(updatedMetadata).toMatchObject({
+      acpCapabilities: {
+        loadSession: false,
+        resumeSession: true,
+        prompt: { image: false },
+      },
+    });
+
+    await vi.waitFor(() => expect(mocks.getKillHandler()).toBeTypeOf('function'));
+    await mocks.getKillHandler()!();
+    await runPromise;
   });
 
   it('persists refreshed Grok auth before reporting a hard limit and again during cleanup', async () => {
@@ -901,7 +942,7 @@ describe('runAcp', () => {
     });
 
     await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
-    expect(mocks.backendState.constructorArgs.loadSessionId).toBeUndefined();
+    expect(mocks.backendState.constructorArgs.resumeSessionId).toBeUndefined();
     expect(mocks.mockSession.skipExistingMessages).toHaveBeenCalledWith(
       ['interrupted', 'pending', 'dsh-resume-seed'],
       12,

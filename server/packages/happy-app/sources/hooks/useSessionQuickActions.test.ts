@@ -227,6 +227,114 @@ describe('useSessionQuickActions resume permission continuity', () => {
         },
     );
 
+    it('resumes DSH with the session-owned tuple instead of conflicting global defaults', async () => {
+        const session = {
+            ...sessionFor('codex'),
+            modelMode: 'deepseek-v4-pro',
+            effortLevel: 'max',
+            permissionMode: 'danger-full-access',
+            metadata: {
+                ...sessionFor('codex').metadata,
+                flavor: 'dsh',
+                codexThreadId: undefined,
+                acpSessionId: 'dsh-provider-session',
+                acpCapabilities: {
+                    loadSession: false,
+                    resumeSession: true,
+                    prompt: { image: false },
+                },
+                spawnSettings: {
+                    provider: 'dsh',
+                    model: 'deepseek-v4-flash',
+                    effort: 'high',
+                    permission: 'workspace-write',
+                },
+            },
+        } as Session;
+        mocks.machine = machineFor('codex');
+        mocks.machine.metadata!.cliAvailability = {
+            claude: false,
+            codex: false,
+            gemini: false,
+            grok: false,
+            dsh: true,
+            agy: false,
+            detectedAt: 1,
+        };
+        mocks.machine.metadata!.agentCapabilities = {
+            dsh: {
+                detectedAt: 1,
+                sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
+                models: [
+                    {
+                        code: 'deepseek-v4-flash',
+                        value: 'DeepSeek V4 Flash',
+                        isDefault: true,
+                        effortLevels: [{ code: 'high', value: 'High', isDefault: true }],
+                    },
+                    {
+                        code: 'deepseek-v4-pro',
+                        value: 'DeepSeek V4 Pro',
+                        effortLevels: [{ code: 'max', value: 'Max', isDefault: true }],
+                    },
+                ],
+                effortLevels: [],
+                permissionModes: [
+                    { code: 'workspace-write', value: 'Workspace write', isDefault: true },
+                    { code: 'danger-full-access', value: 'Danger full access' },
+                ],
+                acp: { loadSession: false, resumeSession: true, prompt: { image: false } },
+            },
+        };
+        mocks.settings = {
+            agentDefaultOverrides: {
+                dsh: {
+                    modelMode: 'deepseek-v4-flash',
+                    effortLevel: 'high',
+                    permissionMode: 'danger-full-access',
+                },
+            },
+        };
+        mocks.machineResumeSession.mockResolvedValue({
+            type: 'success',
+            sessionId: session.id,
+            settings: {
+                provider: 'dsh',
+                model: 'deepseek-v4-pro',
+                effort: 'max',
+                permission: 'workspace-write',
+            },
+        });
+
+        function Harness() {
+            current = useSessionQuickActions(session);
+            return null;
+        }
+        act(() => {
+            renderer = create(React.createElement(Harness));
+        });
+
+        await act(async () => {
+            await current.resumeSessionWithQueuedTurn();
+        });
+
+        expect(mocks.machineResumeSession).toHaveBeenCalledWith({
+            machineId: 'machine-1',
+            sessionId: session.id,
+            model: 'deepseek-v4-pro',
+            effortLevel: 'max',
+            permissionMode: 'workspace-write',
+            replayQueueMessageId: undefined,
+        });
+        expect(mocks.sessionSetAgentModes).toHaveBeenCalledWith(session.id, {
+            permissionMode: 'workspace-write',
+            modelMode: 'deepseek-v4-pro',
+            effortLevel: 'max',
+        });
+
+        act(() => renderer.unmount());
+    });
+
     it('opens cross-provider continuation only when the opposite CLI is available', () => {
         const session = sessionFor('claude');
         mocks.machine = machineFor('claude');

@@ -187,8 +187,8 @@ export function resolveDaemonAgentCommand(agent: SpawnSessionOptions['agent']): 
     : null;
 }
 
-export function resolveDaemonResumeAgent(metadata: Metadata): 'claude' | 'codex' | 'grok' | null {
-  if (metadata.flavor === 'grok') return 'grok';
+export function resolveDaemonResumeAgent(metadata: Metadata): 'claude' | 'codex' | 'grok' | 'dsh' | null {
+  if (metadata.flavor === 'grok' || metadata.flavor === 'dsh') return metadata.flavor;
   if (metadata.flavor === 'codex' || metadata.codexThreadId) return 'codex';
   if (metadata.flavor === 'claude' || metadata.claudeSessionId) return 'claude';
   return null;
@@ -1253,8 +1253,8 @@ export async function startDaemon(): Promise<void> {
         const codexHome = resumeAgent === 'codex'
           ? await resolveCodexHomeForResume(metadata, ambientEnvironment)
           : undefined;
-        const persistedGrokPermission = resumeAgent === 'grok'
-          ? persistedProviderPermissionMode(metadata, 'grok')
+        const persistedLaunchPermission = resumeAgent === 'grok' || resumeAgent === 'dsh'
+          ? persistedProviderPermissionMode(metadata, resumeAgent)
           : undefined;
         const parsedProviderReceipt = HappyHerdMachineSessionSettingsSchema.safeParse(metadata.spawnSettings);
         const persistedProviderSettings = parsedProviderReceipt.success
@@ -1263,6 +1263,7 @@ export async function startDaemon(): Promise<void> {
           : undefined;
         const usesCatalogResumeSettings = resumeAgent === 'claude'
           || resumeAgent === 'codex'
+          || resumeAgent === 'dsh'
           || freshSideChatProvider === 'dsh'
           || freshSideChatProvider === 'agy';
         const providerResumeSettings = usesCatalogResumeSettings
@@ -1279,10 +1280,12 @@ export async function startDaemon(): Promise<void> {
               ?? metadata.effortLevel
               ?? persistedProviderSettings?.effort
               ?? undefined,
-            permission: options?.permissionMode
-              ?? metadata.permissionMode
-              ?? persistedProviderSettings?.permission
-              ?? undefined,
+            permission: resumeAgent === 'dsh'
+              ? persistedLaunchPermission
+              : options?.permissionMode
+                ?? metadata.permissionMode
+                ?? persistedProviderSettings?.permission
+                ?? undefined,
           })
           : undefined;
         const grokResumeSettings = resumeAgent === 'grok'
@@ -1291,7 +1294,7 @@ export async function startDaemon(): Promise<void> {
               provider: 'grok',
               // The original session receipt is authoritative. A resume RPC
               // may repeat this value, but it cannot replace or weaken it.
-              permission: persistedGrokPermission,
+              permission: persistedLaunchPermission,
             })
           : undefined;
         const grokResumePermission = grokResumeSettings?.permission ?? undefined;
@@ -2031,9 +2034,14 @@ export async function startDaemon(): Promise<void> {
       resumeProvider: async (sessionId) => {
         const current = localSessionFromPersistence(sessionId);
         const provider = resolveSideChatResumeProvider(current.metadata);
+        const nativeProvider = resolveDaemonResumeAgent(current.metadata);
         let replayQueueMessageId: string | undefined;
         let freshSideChatProvider: FreshSideChatResumeProvider | undefined;
-        if (provider === 'gemini' || provider === 'dsh' || provider === 'agy') {
+        if (
+          provider === 'gemini'
+          || provider === 'agy'
+          || (provider === 'dsh' && (!nativeProvider || !current.metadata.acpSessionId))
+        ) {
           freshSideChatProvider = provider;
           const authoritative = (await api.inspectSessionAuthoritative(current)).session;
           const recentMessages = await api.readRecentSessionMessages(authoritative);

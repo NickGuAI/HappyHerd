@@ -647,6 +647,7 @@ const virtualModules: Record<string, string> = {
     '@/utils/sessionResume': `
         export const getClaudeResumeModes = () => ({});
         export const getCodexResumeModes = () => ({});
+        export const getDshResumeModes = () => ({});
         export const getGrokResumePermissionMode = () => undefined;
         export const getResumeAvailability = () => ({
             canResume: false, canShowResume: false, messageKey: null, subtitle: '', message: '',

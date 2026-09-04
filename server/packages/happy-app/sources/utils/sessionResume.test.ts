@@ -4,6 +4,7 @@ import type { Machine, Session } from '@/sync/storageTypes';
 import {
     getClaudeResumeModes,
     getCodexResumeModes,
+    getDshResumeModes,
     getCodexResumePermissionMode,
     getGrokResumePermissionMode,
     getResumeAvailability,
@@ -372,7 +373,7 @@ describe('getResumeAvailability', () => {
         });
     });
 
-    it('never offers first-class dsh resume even with a stored ACP session id', () => {
+    it('offers DSH resume from a retained ACP id when the exact machine currently advertises session/resume', () => {
         const session = resumableSession();
         session.metadata = {
             ...session.metadata,
@@ -386,6 +387,48 @@ describe('getResumeAvailability', () => {
                 effort: 'high',
                 permission: null,
             },
+        } as Session['metadata'];
+        const machine = onlineMachine();
+        machine.metadata!.cliAvailability = {
+            claude: false,
+            codex: false,
+            gemini: false,
+            grok: false,
+            dsh: true,
+            agy: false,
+            detectedAt: 1,
+        };
+        machine.metadata!.agentCapabilities = {
+            dsh: {
+                detectedAt: 1,
+                sources: { models: 'test', effortLevels: 'test', permissionModes: 'test' },
+                models: [{ code: 'deepseek-v4-flash', value: 'DeepSeek V4 Flash', isDefault: true }],
+                effortLevels: [{ code: 'high', value: 'High', isDefault: true }],
+                permissionModes: [{ code: 'workspace-write', value: 'Workspace write', isDefault: true }],
+                acp: { loadSession: false, resumeSession: true, prompt: { image: false } },
+            },
+        };
+
+        expect(getResumeAvailability(session, machine, false)).toEqual({
+            canResume: true,
+            canShowResume: true,
+            messageKey: 'sessionInfo.resumeSessionSubtitle',
+        });
+        expect(getDshResumeModes(session, machine)).toEqual({
+            permissionMode: 'workspace-write',
+            modelMode: 'deepseek-v4-flash',
+            effortLevel: 'high',
+        });
+    });
+
+    it('hides DSH resume when the exact machine does not advertise session/resume', () => {
+        const session = resumableSession();
+        session.metadata = {
+            ...session.metadata,
+            flavor: 'dsh',
+            codexThreadId: undefined,
+            acpSessionId: 'dsh-provider-session',
+            acpCapabilities: { loadSession: false, resumeSession: true, prompt: { image: false } },
         } as Session['metadata'];
 
         expect(getResumeAvailability(session, onlineMachine(), false)).toEqual({

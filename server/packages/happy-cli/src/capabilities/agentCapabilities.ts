@@ -353,6 +353,7 @@ export function buildGrokAcpCapabilityCatalog(
             )],
         acp: {
             loadSession: capabilities?.loadSession === true,
+            resumeSession: capabilities?.sessionCapabilities?.resume != null,
             prompt: {
                 image: prompt?.image === true,
             },
@@ -658,6 +659,7 @@ export function buildDshAcpCapabilityCatalog(
         permissionModes,
         acp: {
             loadSession: probe.initialize.agentCapabilities?.loadSession === true,
+            resumeSession: probe.initialize.agentCapabilities?.sessionCapabilities?.resume != null,
             prompt: { image: prompt?.image === true },
         },
     };

@@ -31,12 +31,14 @@ describe('MetadataSchema', () => {
             acpSessionId: 'grok-session-1',
             acpCapabilities: {
                 loadSession: true,
+                resumeSession: true,
                 prompt: { image: true },
             },
         });
 
         expect(metadata.acpSessionId).toBe('grok-session-1');
         expect(metadata.acpCapabilities?.loadSession).toBe(true);
+        expect(metadata.acpCapabilities?.resumeSession).toBe(true);
         expect(metadata.acpCapabilities?.prompt.image).toBe(true);
     });
 
@@ -100,7 +102,7 @@ describe('MachineMetadataSchema', () => {
         expect(metadata.supportsFileDelete).toBe(true);
     });
 
-    it('preserves the dsh capability catalog and non-resume boundary', () => {
+    it('preserves the dsh capability catalog and session/resume boundary', () => {
         const metadata = MachineMetadataSchema.parse({
             host: 'workstation',
             platform: 'linux',
@@ -124,7 +126,7 @@ describe('MachineMetadataSchema', () => {
                     ],
                     effortLevels: [{ code: 'high', value: 'high', isDefault: true }],
                     permissionModes: [],
-                    acp: { loadSession: false, prompt: { image: false } },
+                    acp: { loadSession: false, resumeSession: true, prompt: { image: false } },
                 },
             },
         });
@@ -136,6 +138,7 @@ describe('MachineMetadataSchema', () => {
         ]);
         expect(metadata.agentCapabilities?.dsh.permissionModes).toEqual([]);
         expect(metadata.agentCapabilities?.dsh.acp?.loadSession).toBe(false);
+        expect(metadata.agentCapabilities?.dsh.acp?.resumeSession).toBe(true);
     });
 
     it('preserves the Rig creation catalog and future machine fields', () => {
