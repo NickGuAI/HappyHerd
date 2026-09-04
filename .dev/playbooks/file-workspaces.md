@@ -67,7 +67,10 @@ line-linked Markdown deep link always opens as the rendered, commentable
 Preview and reveals the requested rendered unit; it never switches to a raw
 source surface. Raw text/code keeps the read-only Pierre renderer as its
 Preview implementation, with arbitrary-line comment affordance; **Edit** is the
-explicit writable raw editor. Native surfaces are unchanged. No approval
+explicit writable raw editor. Code and rendered Markdown draft and pinned
+comment threads stay at their exact source lines. A single docked review bar is
+used to send the feedback batch. Canvas-node and selected-machine localhost
+live-element comments remain docked, while native features are unchanged. No approval
 prompt, trust store, allowlist, new route, or second viewer exists.
 
 On Web Desktop and Web Mobile, both Main Agent and active Side chat composers
@@ -93,7 +96,7 @@ same delivery.
 | Workspace host | `components/DesktopFileWorkspace.tsx`, `components/LocalhostLiveView.web.tsx` | Own deduplicated file/live tabs, the wide split, compact layout, and one mounted content host; do not add a second viewer or header `+`. |
 | File content and transport | `components/FileViewPanel.tsx`, `components/FileDocumentPreview.tsx`, `sync/ops.ts` | Reuse `FileContentPanel` for Preview/Edit/supported Delete and machine transport, including absolute paths outside cwd without a HappyHerd access block. |
 | Live selected-machine transport | `sync/workspaceLive.ts`, `public/workspace-live-sw.js`, `happy-wire/src/workspaceLive.ts`, `happy-cli/src/modules/common/registerCommonHandlers.ts` | Map only a registered live iframe's loopback HTTP requests onto the selected daemon's encrypted `workspace-live-fetch` RPC; all unrelated browser traffic passes through unchanged. |
-| Feedback | `components/WorkspaceFeedbackComposer.tsx`, `components/InlineCommentReview.web.tsx`, `sync/workspaceFeedback.ts` | Send file locations or live element HTML/CSS/bounds/crop plus Human text once to the active Main Agent or Side chat. |
+| Feedback | `components/FileViewPanel.tsx`, `components/InlineCommentReview.web.tsx`, `components/diff/PierreDiffView.tsx`, `components/markdown/MarkdownView.web.tsx`, `sync/workspaceFeedback.ts` | `FileViewPanel` manages shared state and placement, while `PierreDiffView` and `MarkdownView.web` handle line anchoring for code and Markdown threads; `InlineCommentReview.web` renders these threads alongside docked Canvas-node/localhost live-element comments and a single batch review bar, with `workspaceFeedback` preserving unchanged structured delivery to the Main Agent or Side chat. |
 | Current-session links | `utils/markdownWorkspaceLink.ts`, `sources/-session/SessionView.tsx` | Keep file, directory, position, and failed-read flows in the integrated Workspace. |
 | Fallback viewer | `components/WorkspaceLinkViewer.tsx`, `components/MainView.tsx` | Use only for cross-session links or a context that cannot host the current session Workspace. |
 

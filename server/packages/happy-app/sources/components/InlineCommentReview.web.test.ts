@@ -27,7 +27,7 @@ vi.mock('react-native-unistyles', () => {
     };
 });
 
-import { InlineCommentReview } from './InlineCommentReview.web';
+import { InlineCommentReview, InlineCommentThread } from './InlineCommentReview.web';
 
 let selectAnchor: ((anchor: InlineCommentAnchor | null) => void) | null = null;
 
@@ -164,6 +164,64 @@ describe('InlineCommentReview web', () => {
             resolveSend?.({ id: 'message-one' });
             await Promise.resolve();
         });
+        act(() => renderer.unmount());
+    });
+
+    it('edits and removes a pinned comment inside its own line thread', () => {
+        function ThreadHarness() {
+            const [comments, setComments] = React.useState<WorkspaceFeedbackComment[]>([
+                { id: 'line-two', line: 2, feedback: 'Original issue' },
+                { id: 'line-five', line: 5, feedback: 'Other line' },
+            ]);
+            return React.createElement(InlineCommentThread, {
+                anchor: { line: 2 },
+                activeAnchor: null,
+                comments,
+                onActiveAnchorChange: vi.fn(),
+                onCommentsChange: setComments,
+            });
+        }
+
+        let renderer: any;
+        act(() => { renderer = create(React.createElement(ThreadHarness)); });
+        expect(renderer.root.findByProps({ testID: 'inline-comment-thread:line:2' })).toBeDefined();
+        expect(renderer.root.findAllByType('Text' as any).some((text: any) => text.props.children === 'Other line')).toBe(false);
+
+        act(() => button(renderer, 'files.editFile').props.onPress());
+        const editor = renderer.root.findByType('TextInput' as any);
+        expect(editor.props.value).toBe('Original issue');
+        act(() => editor.props.onChangeText('Updated issue'));
+        act(() => button(renderer, 'common.save').props.onPress());
+        expect(renderer.root.findAllByType('Text' as any).some((text: any) => text.props.children === 'Updated issue')).toBe(true);
+
+        act(() => button(renderer, 'common.delete').props.onPress());
+        expect(renderer.root.findAllByProps({ testID: 'inline-comment-thread:line:2' })).toHaveLength(0);
+        act(() => renderer.unmount());
+    });
+
+    it('keeps every pinned comment after a failed batch send and retries once', async () => {
+        mocks.sendMessage.mockRejectedValueOnce(new Error('provider unavailable'));
+        let renderer: any;
+        act(() => { renderer = create(React.createElement(Harness)); });
+        act(() => renderer.root.findByType('TextInput' as any).props.onChangeText('Keep this issue'));
+        act(() => button(renderer, 'files.pinComment').props.onPress());
+
+        await act(async () => {
+            button(renderer, 'files.sendComments').props.onPress();
+            await Promise.resolve();
+        });
+
+        expect(mocks.sendMessage).toHaveBeenCalledOnce();
+        expect(renderer.root.findByProps({ accessibilityRole: 'alert' })).toBeDefined();
+        expect(button(renderer, 'files.sendComments')).toBeDefined();
+        expect(renderer.root.findAllByType('Text' as any).some((text: any) => text.props.children === 'Keep this issue')).toBe(true);
+
+        await act(async () => {
+            button(renderer, 'files.sendComments').props.onPress();
+            await Promise.resolve();
+        });
+        expect(mocks.sendMessage).toHaveBeenCalledTimes(2);
+        expect(renderer.root.findAllByProps({ testID: 'inline-comment-review-bar' })).toHaveLength(0);
         act(() => renderer.unmount());
     });
 });

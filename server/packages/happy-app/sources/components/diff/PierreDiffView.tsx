@@ -29,6 +29,8 @@ export interface PierreDiffViewProps {
     onLineClick?: (line: number) => void;
     /** Web-only source lines that already have pinned comments. */
     annotatedLines?: readonly number[];
+    /** Web-only in-place content for each annotated source line. */
+    renderLineAnnotation?: (line: number) => React.ReactNode;
     /** Highlight an explicitly linked source line. */
     selectedLine?: number | null;
 }
@@ -110,6 +112,8 @@ const PierreDiffViewWeb = React.memo(function PierreDiffViewWeb(props: PierreDif
     const themeName: 'dark' | 'light' = props.theme ?? (theme.dark ? 'dark' : 'light');
     const diffsTheme = themeName === 'dark' ? 'github-dark-default' : 'github-light-default';
     const bundle = usePierreBundle();
+    const seamColor = themeName === 'dark' ? '#b4b85c' : '#6f7424';
+    const glowColor = themeName === 'dark' ? '#f3c969' : '#b7791f';
 
     if (!bundle) return <DiffSkeleton />;
 
@@ -131,6 +135,10 @@ const PierreDiffViewWeb = React.memo(function PierreDiffViewWeb(props: PierreDif
         onPostRender: props.onGutterUtilityClick
             ? (node: HTMLElement, _instance: unknown, phase: string) => labelPierreGutterUtility(node, phase)
             : undefined,
+        unsafeCSS: props.renderLineAnnotation
+            ? `[data-gutter] [data-gutter-buffer="annotation"] { position: relative; background: color-mix(in srgb, ${seamColor} 18%, transparent); box-shadow: inset -3px 0 ${seamColor}; }
+[data-gutter] [data-gutter-buffer="annotation"]::after { content: ""; position: absolute; top: 16px; right: 2px; width: 8px; height: 8px; border-radius: 999px; background: ${glowColor}; box-shadow: 0 0 12px ${glowColor}; }`
+            : undefined,
     };
 
     if (props.file) {
@@ -140,6 +148,7 @@ const PierreDiffViewWeb = React.memo(function PierreDiffViewWeb(props: PierreDif
                 file={props.file}
                 options={options}
                 annotatedLines={props.annotatedLines}
+                renderLineAnnotation={props.renderLineAnnotation}
                 selectedLine={props.selectedLine}
             />
         );
@@ -161,12 +170,14 @@ function FileViewFromFile({
     file,
     options,
     annotatedLines,
+    renderLineAnnotation,
     selectedLine,
 }: {
     bundle: PierreBundle;
     file: { name: string; contents: string };
     options: any;
     annotatedLines?: readonly number[];
+    renderLineAnnotation?: (line: number) => React.ReactNode;
     selectedLine?: number | null;
 }) {
     const { File } = bundle.react;
@@ -181,7 +192,9 @@ function FileViewFromFile({
             lineAnnotations={annotations}
             selectedLines={selectedLine && selectedLine > 0 ? { start: selectedLine, end: selectedLine } : null}
             renderAnnotation={(annotation: any) => (
-                <span aria-label={t('files.pinnedComment')} style={{ display: 'inline-block', padding: '2px 8px', opacity: 0.75 }}>●</span>
+                renderLineAnnotation
+                    ? renderLineAnnotation(annotation.lineNumber)
+                    : <span aria-label={t('files.pinnedComment')} style={{ display: 'inline-block', padding: '2px 8px', opacity: 0.75 }}>●</span>
             )}
         />
     );

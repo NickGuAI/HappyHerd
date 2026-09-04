@@ -1,6 +1,7 @@
 import type { Metadata } from '@/sync/storageTypes';
 import type { AcpInlineImageOverrides } from '@/utils/acpInlineImages';
 import type { WorkspaceLinkRoute } from '@/utils/markdownWorkspaceLink';
+import type { ReactNode } from 'react';
 
 export type Option = { title: string };
 
@@ -29,6 +30,8 @@ export type MarkdownViewProps = {
     workspaceImageRoot?: string | null;
     /** Web file viewer only: expose a gutter affordance at source-positioned blocks. */
     onLineComment?: (anchor: MarkdownLineCommentAnchor) => void;
+    /** Web file viewer only: render a pinned/drafting thread after its source-positioned block. */
+    renderLineComment?: (anchor: MarkdownLineCommentAnchor) => ReactNode;
     /**
      * Web file viewer only: reveal the rendered unit that corresponds to this
      * source line. For a line inside a Markdown table this resolves to the
