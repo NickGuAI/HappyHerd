@@ -285,6 +285,17 @@ function AgentEventBlock(props: {
       </View>
     );
   }
+  if (props.event.type === 'provider-quota-exhausted') {
+    return (
+      <View style={styles.agentEventContainer}>
+        <Text style={styles.agentEventText}>
+          {t('message.providerQuotaExhausted', {
+            provider: getHarnessName(props.event.provider),
+          })}
+        </Text>
+      </View>
+    );
+  }
   if (props.event.type === 'turn-end') {
     const label = props.event.status === 'failed' ? 'Turn failed' : 'Turn cancelled';
     return (

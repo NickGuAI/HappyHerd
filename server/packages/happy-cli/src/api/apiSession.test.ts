@@ -1026,6 +1026,45 @@ describe('ApiSessionClient v3 messages API migration', () => {
         });
     });
 
+    it('keeps provider quota incident identity stable through encrypted persistence', async () => {
+        const client = new ApiSessionClient('fake-token', session);
+        mockAxiosPost.mockResolvedValueOnce({
+            data: {
+                messages: [{ id: 'msg-quota', seq: 1, localId: 'quota-incident-1', createdAt: 1, updatedAt: 1 }]
+            }
+        });
+
+        client.sendSessionEvent({
+            type: 'provider-quota-exhausted',
+            provider: 'dsh',
+            incidentId: 'quota-incident-1',
+        }, 'quota-incident-1');
+
+        await waitForCheck(() => {
+            expect(mockAxiosPost).toHaveBeenCalledTimes(1);
+        });
+
+        const payload = mockAxiosPost.mock.calls[0][1];
+        expect(payload.messages[0].localId).toBe('quota-incident-1');
+        const decrypted = decrypt(
+            session.encryptionKey,
+            session.encryptionVariant,
+            decodeBase64(payload.messages[0].content)
+        );
+        expect(decrypted).toEqual({
+            role: 'agent',
+            content: {
+                id: 'quota-incident-1',
+                type: 'event',
+                data: {
+                    type: 'provider-quota-exhausted',
+                    provider: 'dsh',
+                    incidentId: 'quota-incident-1',
+                }
+            }
+        });
+    });
+
     it('fetchMessages uses after_seq=0 initially and routes user messages to callback', async () => {
         const client = new ApiSessionClient('fake-token', session);
         const onUserMessage = vi.fn();

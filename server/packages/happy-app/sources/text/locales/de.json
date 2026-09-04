@@ -1144,6 +1144,7 @@
   "message": {
     "switchedToMode": "In den {mode}-Modus gewechselt",
     "providerAccountSwitched": "Die Quotenüberschreitung bei {provider} hat einen Kontowechsel von {fromAccount} zu {toAccount} ausgelöst.",
+    "providerQuotaExhausted": "Quotenüberschreitung bei {provider}.",
     "unknownEvent": "Unbekanntes Ereignis",
     "usageLimitUntil": "Nutzungslimit bis {time} erreicht",
     "sentAsGoal": "Als Ziel gesendet",

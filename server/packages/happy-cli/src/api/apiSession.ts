@@ -82,6 +82,10 @@ export type AgentSessionEvent = {
     toAccount: string;
     incidentId: string;
 } | {
+    type: 'provider-quota-exhausted';
+    provider: CredentialProvider | 'dsh';
+    incidentId: string;
+} | {
     type: 'ready';
 };
 

@@ -91,7 +91,10 @@ import { resolveCredentialAccountEnvironment } from '@/credentialPool/store';
 import { activateCodexCredential, codexRuntimeHome } from '@/credentialPool/codexAuth';
 import type { CredentialProvider } from '@/credentialPool/types';
 import type { ProviderLimitNotice } from '@/credentialPool/providerLimitNotice';
-import { rotateProviderSessionAfterLimit } from '@/credentialPool/rotation';
+import {
+  rotateProviderSessionAfterLimit,
+  type ManagedProviderLimitNotice,
+} from '@/credentialPool/rotation';
 import { queueMessageIdsForResume } from '@/utils/MessageQueue2';
 
 type AutomationTrackedSession = TrackedSession & {
@@ -1562,71 +1565,122 @@ export async function startDaemon(): Promise<void> {
     };
 
     const providerLimitRotations = new Map<string, Promise<void>>();
+    const postProviderQuotaExhausted = async (
+      notice: ProviderLimitNotice,
+      incidentId: string,
+    ): Promise<void> => {
+      const tracked = findTrackedSessionById(notice.sessionId);
+      if (!tracked?.happySessionMetadataFromLocalWebhook || !tracked.encryption) {
+        throw new Error(`Session ${notice.sessionId} is missing encrypted quota-event persistence state`);
+      }
+      await api.postSessionEvent({
+        id: notice.sessionId,
+        seq: tracked.encryption.seq,
+        encryptionKey: tracked.encryption.encryptionKey,
+        encryptionVariant: tracked.encryption.encryptionVariant,
+        metadata: tracked.happySessionMetadataFromLocalWebhook,
+        metadataVersion: tracked.encryption.metadataVersion,
+        agentState: null,
+        agentStateVersion: tracked.encryption.agentStateVersion,
+      }, {
+        type: 'provider-quota-exhausted',
+        provider: notice.provider,
+        incidentId,
+      }, incidentId);
+    };
     const onProviderLimited = (notice: ProviderLimitNotice): void => {
-      const key = `${notice.sessionId}:${notice.provider}:${notice.account}`;
+      const key = `${notice.sessionId}:${notice.provider}:${notice.account ?? 'unmanaged'}`;
       if (providerLimitRotations.has(key)) return;
-      const incidentId = randomUUID();
-      const rotation = rotateProviderSessionAfterLimit(notice, {
-        stopProvider: async (sessionId) => {
-          const live = [...pidToTrackedSession.values()].find((candidate) => (
-            candidate.happySessionId === sessionId && !hasProviderProcessExited(candidate.pid)
-          ));
-          if (!live) return;
-          if (!stopSession(sessionId)) throw new Error(`Could not stop limited provider for ${sessionId}`);
-          const deadline = Date.now() + 15_000;
-          while (!hasProviderProcessExited(live.pid)) {
-            if (Date.now() >= deadline) throw new Error(`Timed out stopping limited provider for ${sessionId}`);
-            await new Promise((resolve) => setTimeout(resolve, 100));
-          }
-          await onChildExited(live.pid);
-        },
-        resumeProvider: async (sessionId) => {
-          const result = await resumeSession(sessionId);
-          if (result.type !== 'success') {
-            throw new Error(result.type === 'error'
-              ? result.errorMessage
-              : `Provider resume unexpectedly requires directory approval for ${result.directory}`);
-          }
-          if (result.sessionId !== sessionId) {
-            throw new Error(`Provider rotation resumed unexpected session ${result.sessionId}`);
-          }
-          const resumed = findTrackedSessionById(sessionId);
-          const providerAccount = resumed?.happySessionMetadataFromLocalWebhook?.providerAccount;
-          if (!providerAccount) {
-            throw new Error(`Resumed session ${sessionId} did not report its selected provider account`);
-          }
-          return providerAccount;
-        },
-        onAccountSwitched: async ({ sessionId, provider, fromAccount, toAccount }) => {
-          const resumed = findTrackedSessionById(sessionId);
-          if (!resumed?.happySessionMetadataFromLocalWebhook || !resumed.encryption) {
-            throw new Error(`Resumed session ${sessionId} is missing encrypted event persistence state`);
-          }
-          await api.postSessionEvent({
-            id: sessionId,
-            seq: resumed.encryption.seq,
-            encryptionKey: resumed.encryption.encryptionKey,
-            encryptionVariant: resumed.encryption.encryptionVariant,
-            metadata: resumed.happySessionMetadataFromLocalWebhook,
-            metadataVersion: resumed.encryption.metadataVersion,
-            agentState: null,
-            agentStateVersion: resumed.encryption.agentStateVersion,
-          }, {
-            type: 'provider-account-switched',
-            provider,
-            fromAccount,
-            toAccount,
-            incidentId,
-          }, incidentId);
-        },
-      }).then((result) => {
+      const rotationIncidentId = randomUUID();
+      const quotaIncidentId = randomUUID();
+      let quotaMessagePosted = false;
+      const postQuotaOnce = async (): Promise<void> => {
+        if (quotaMessagePosted) return;
+        await postProviderQuotaExhausted(notice, quotaIncidentId);
+        quotaMessagePosted = true;
+      };
+      const handling = (async () => {
+        if (notice.provider === 'dsh' || !notice.account) {
+          await postQuotaOnce();
+          return;
+        }
+        const managedNotice: ManagedProviderLimitNotice = {
+          ...notice,
+          provider: notice.provider,
+          account: notice.account,
+        };
+        let result: Awaited<ReturnType<typeof rotateProviderSessionAfterLimit>>;
+        try {
+          result = await rotateProviderSessionAfterLimit(managedNotice, {
+            stopProvider: async (sessionId) => {
+              const live = [...pidToTrackedSession.values()].find((candidate) => (
+                candidate.happySessionId === sessionId && !hasProviderProcessExited(candidate.pid)
+              ));
+              if (!live) return;
+              if (!stopSession(sessionId)) throw new Error(`Could not stop limited provider for ${sessionId}`);
+              const deadline = Date.now() + 15_000;
+              while (!hasProviderProcessExited(live.pid)) {
+                if (Date.now() >= deadline) throw new Error(`Timed out stopping limited provider for ${sessionId}`);
+                await new Promise((resolve) => setTimeout(resolve, 100));
+              }
+              await onChildExited(live.pid);
+            },
+            resumeProvider: async (sessionId) => {
+              const result = await resumeSession(sessionId);
+              if (result.type !== 'success') {
+                throw new Error(result.type === 'error'
+                  ? result.errorMessage
+                  : `Provider resume unexpectedly requires directory approval for ${result.directory}`);
+              }
+              if (result.sessionId !== sessionId) {
+                throw new Error(`Provider rotation resumed unexpected session ${result.sessionId}`);
+              }
+              const resumed = findTrackedSessionById(sessionId);
+              const providerAccount = resumed?.happySessionMetadataFromLocalWebhook?.providerAccount;
+              if (!providerAccount) {
+                throw new Error(`Resumed session ${sessionId} did not report its selected provider account`);
+              }
+              return providerAccount;
+            },
+            onAccountSwitched: async ({ sessionId, provider, fromAccount, toAccount }) => {
+              const resumed = findTrackedSessionById(sessionId);
+              if (!resumed?.happySessionMetadataFromLocalWebhook || !resumed.encryption) {
+                throw new Error(`Resumed session ${sessionId} is missing encrypted event persistence state`);
+              }
+              await api.postSessionEvent({
+                id: sessionId,
+                seq: resumed.encryption.seq,
+                encryptionKey: resumed.encryption.encryptionKey,
+                encryptionVariant: resumed.encryption.encryptionVariant,
+                metadata: resumed.happySessionMetadataFromLocalWebhook,
+                metadataVersion: resumed.encryption.metadataVersion,
+                agentState: null,
+                agentStateVersion: resumed.encryption.agentStateVersion,
+              }, {
+                type: 'provider-account-switched',
+                provider,
+                fromAccount,
+                toAccount,
+                incidentId: rotationIncidentId,
+              }, rotationIncidentId);
+            },
+            onNoUsableAccount: postQuotaOnce,
+          });
+        } catch (error) {
+          logger.warn(`[CREDENTIAL POOL] Failed to rotate ${notice.provider} account for ${notice.sessionId}`, error);
+          await postQuotaOnce();
+          return;
+        }
         logger.debug(`[CREDENTIAL POOL] ${notice.provider} rotation for ${notice.sessionId}: ${result.type}`);
-      }).catch((error) => {
-        logger.warn(`[CREDENTIAL POOL] Failed to rotate ${notice.provider} account for ${notice.sessionId}`, error);
+        if (result.type === 'ignored' || result.type === 'unchanged') {
+          await postQuotaOnce();
+        }
+      })().catch((error) => {
+        logger.warn(`[CREDENTIAL POOL] Failed to persist ${notice.provider} quota exhaustion for ${notice.sessionId}`, error);
       }).finally(() => {
         providerLimitRotations.delete(key);
       });
-      providerLimitRotations.set(key, rotation);
+      providerLimitRotations.set(key, handling);
     };
 
     // Start control server

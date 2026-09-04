@@ -1,3 +1,7 @@
+# September 4 — Quota exhaustion rotation and service fallback
+
+- Automatic switching still occurs when a usable alternate exists; otherwise a provider-named service row persists in the active conversation.
+
 # September 3 — Side chats across every supported provider
 
 - Create same-provider side chats from Claude, Codex, Gemini, Grok, DSH, and Agy sessions. Claude and Codex retain native forks; delegated CLI creation gives the other providers a bounded visible-context handoff, while close and reopen preserve the same Happy side chat without claiming provider-native continuation where it is unavailable.

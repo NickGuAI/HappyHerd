@@ -666,6 +666,34 @@ describe('runAcp', () => {
     expect(mocks.lifecycleEvents).toEqual(['persist', 'report', 'persist', 'dispose']);
   });
 
+  it('reports a dsh quota failure without invoking Grok credential persistence', async () => {
+    mocks.backendState.promptError = new Error('quota exhausted');
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'dsh',
+      command: 'dsh',
+      args: ['--profile', 'acp'],
+    });
+    const outcome = runPromise.then(
+      () => null,
+      (error: unknown) => error,
+    );
+
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+    mocks.getUserMessageHandler()!({
+      role: 'user',
+      content: { type: 'text', text: 'Trigger the provider limit' },
+    });
+
+    await expect(outcome).resolves.toMatchObject({ message: 'quota exhausted' });
+    expect(mocks.mockReportProviderHardLimitOnce).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: 'session-1',
+      provider: 'dsh',
+    }));
+    expect(mocks.mockPersistActiveGrokCredential).not.toHaveBeenCalled();
+    expect(mocks.lifecycleEvents).toEqual(['report', 'dispose']);
+  });
+
   it('does not create pending agent state for Grok bypass callbacks', async () => {
     const runPromise = runAcp({
       credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },

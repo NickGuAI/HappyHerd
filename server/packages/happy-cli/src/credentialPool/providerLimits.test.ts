@@ -5,6 +5,7 @@ import {
   classifyClaudeApiHardLimit,
   classifyClaudeHardLimit,
   classifyCodexHardLimit,
+  classifyDshHardLimit,
   classifyGrokHardLimit,
 } from './providerLimits';
 
@@ -99,5 +100,17 @@ describe('provider hard-limit classifiers', () => {
       limitedUntil: now + UNKNOWN_LIMIT_COOLDOWN_MS,
     });
     expect(classifyGrokHardLimit({ code: 'other_error' }, now)).toBeNull();
+  });
+
+  it('classifies dsh ACP quota failures without treating ordinary errors as quota exhaustion', () => {
+    expect(classifyDshHardLimit(new Error('DeepSeek API error: quota exhausted for this account'), now)).toEqual({
+      provider: 'dsh',
+      limitedUntil: now + UNKNOWN_LIMIT_COOLDOWN_MS,
+    });
+    expect(classifyDshHardLimit({ statusCode: 429, retryAfterSeconds: 30 }, now)).toEqual({
+      provider: 'dsh',
+      limitedUntil: now + 30_000,
+    });
+    expect(classifyDshHardLimit(new Error('provider session ended'), now)).toBeNull();
   });
 });

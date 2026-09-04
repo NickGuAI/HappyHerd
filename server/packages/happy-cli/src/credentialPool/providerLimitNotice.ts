@@ -1,26 +1,26 @@
 import { notifyDaemonProviderLimited } from '@/daemon/controlClient';
-import type { CredentialProvider } from './types';
+import type { ProviderLimitProvider } from './providerLimits';
 
 export type ProviderLimitNotice = {
   sessionId: string;
-  provider: CredentialProvider;
-  account: string;
+  provider: ProviderLimitProvider;
+  account?: string;
   limitedUntil: number;
 };
 
 const reported = new Set<string>();
 
 export async function reportProviderHardLimitOnce(
-  input: Omit<ProviderLimitNotice, 'account'> & { account?: string },
+  input: ProviderLimitNotice,
 ): Promise<boolean> {
-  const account = input.account ?? process.env.HAPPYHERD_PROVIDER_ACCOUNT;
   const accountProvider = process.env.HAPPYHERD_PROVIDER_ACCOUNT_TYPE;
-  if (!account || accountProvider !== input.provider) return false;
-  const key = `${input.sessionId}:${input.provider}:${account}`;
-  if (reported.has(key)) return false;
+  const account = input.account
+    ?? (accountProvider === input.provider ? process.env.HAPPYHERD_PROVIDER_ACCOUNT : undefined);
+  const key = `${input.sessionId}:${input.provider}:${account ?? 'unmanaged'}`;
+  if (reported.has(key)) return true;
   reported.add(key);
   try {
-    const result = await notifyDaemonProviderLimited({ ...input, account });
+    const result = await notifyDaemonProviderLimited({ ...input, ...(account ? { account } : {}) });
     if (!result?.error) return true;
     reported.delete(key);
     return false;

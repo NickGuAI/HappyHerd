@@ -3079,6 +3079,32 @@ describe('reducer', () => {
             expect(replay.messages).toHaveLength(0);
         });
 
+        it('renders one persisted quota row and deduplicates replay by message id', () => {
+            const state = createReducer();
+            const quota: NormalizedMessage = {
+                id: 'provider-quota-message-1',
+                localId: null,
+                createdAt: 1000,
+                role: 'event',
+                content: {
+                    type: 'provider-quota-exhausted',
+                    provider: 'dsh',
+                    incidentId: 'provider-quota-incident-1',
+                },
+                isSidechain: false,
+            };
+
+            const first = reducer(state, [quota]);
+            expect(first.messages).toHaveLength(1);
+            expect(first.messages[0]).toMatchObject({
+                kind: 'agent-event',
+                event: quota.content,
+            });
+
+            const replay = reducer(state, [quota]);
+            expect(replay.messages).toHaveLength(0);
+        });
+
         it('hides turn-start lifecycle messages', () => {
             const state = createReducer();
             const result = reducer(state, [{

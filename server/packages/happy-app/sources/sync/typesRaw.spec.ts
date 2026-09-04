@@ -1016,6 +1016,35 @@ describe('Zod Transform - WOLOG Content Normalization', () => {
             });
         });
 
+        it('preserves structured provider quota events during normalization', () => {
+            const eventMessage = {
+                role: 'agent',
+                content: {
+                    type: 'event',
+                    id: 'quota-incident-123',
+                    data: {
+                        type: 'provider-quota-exhausted',
+                        provider: 'dsh',
+                        incidentId: 'quota-incident-123',
+                    }
+                }
+            };
+
+            const parsed = RawRecordSchema.parse(eventMessage);
+            expect(normalizeRawMessage('persisted-quota-message-1', null, 1234, parsed)).toEqual({
+                id: 'persisted-quota-message-1',
+                localId: null,
+                createdAt: 1234,
+                role: 'event',
+                content: {
+                    type: 'provider-quota-exhausted',
+                    provider: 'dsh',
+                    incidentId: 'quota-incident-123',
+                },
+                isSidechain: false,
+            });
+        });
+
         it('handles user role messages with text content', () => {
             const userMessage = {
                 role: 'user',

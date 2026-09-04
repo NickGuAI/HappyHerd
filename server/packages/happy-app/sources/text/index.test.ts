@@ -68,4 +68,20 @@ describe('JSON i18n runtime', () => {
             'Die Quotenüberschreitung bei Claude Code hat einen Kontowechsel von personal-账号 zu work-primary ausgelöst.',
         );
     });
+
+    it('localizes provider quota receipts while preserving the provider name', () => {
+        expect(t('message.providerQuotaExhausted', { provider: 'dsh' })).toBe(
+            'Quota exhaustion on dsh.',
+        );
+
+        setCurrentLanguage('cn');
+        expect(t('message.providerQuotaExhausted', { provider: 'GrokBuild' })).toBe(
+            'GrokBuild 额度已耗尽。',
+        );
+
+        setCurrentLanguage('de');
+        expect(t('message.providerQuotaExhausted', { provider: 'Claude Code' })).toBe(
+            'Quotenüberschreitung bei Claude Code.',
+        );
+    });
 });

@@ -567,6 +567,7 @@ export type TranslationKey =
     | "markdown.mermaidRenderFailed"
     | "markdown.openImageFullSize"
     | "message.providerAccountSwitched"
+    | "message.providerQuotaExhausted"
     | "message.sentAsGoal"
     | "message.switchedToMode"
     | "message.unknownEvent"
@@ -1477,6 +1478,7 @@ export interface TranslationParamsByKey {
     "machine.activeSessions": { count: number };
     "machineLauncher.showAll": { count: number };
     "message.providerAccountSwitched": { fromAccount: string; provider: string; toAccount: string };
+    "message.providerQuotaExhausted": { provider: string };
     "message.switchedToMode": { mode: string };
     "message.usageLimitUntil": { time: string };
     "modals.disconnectService": { service: string };
