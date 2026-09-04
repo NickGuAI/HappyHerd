@@ -4,8 +4,10 @@ import type { CredentialProvider } from './types';
 
 export const UNKNOWN_LIMIT_COOLDOWN_MS = 5 * 60 * 1000;
 
+export type ProviderLimitProvider = CredentialProvider | 'dsh';
+
 export type ProviderHardLimit = {
-  provider: CredentialProvider;
+  provider: ProviderLimitProvider;
   limitedUntil: number;
 };
 
@@ -162,4 +164,27 @@ export function classifyGrokHardLimit(
   });
   if (!hardFailure && !status429) return null;
   return { provider: 'grok', limitedUntil: resetFrom(error, now) };
+}
+
+export function classifyDshHardLimit(
+  error: unknown,
+  now: number = Date.now(),
+): ProviderHardLimit | null {
+  const strings = normalizedStrings(error);
+  const hardFailure = strings.some((value) => (
+    value.includes('ratelimit')
+    || value.includes('usagelimitexceeded')
+    || value.includes('quotaexceeded')
+    || value.includes('quotaexhausted')
+    || value.includes('insufficientquota')
+    || value.includes('exceededyourcurrentquota')
+  ));
+  const status429 = nestedValues(error).some((candidate) => {
+    const candidateRecord = record(candidate);
+    return candidateRecord?.status === 429
+      || candidateRecord?.statusCode === 429
+      || candidateRecord?.code === 429;
+  });
+  if (!hardFailure && !status429) return null;
+  return { provider: 'dsh', limitedUntil: resetFrom(error, now) };
 }

@@ -66,6 +66,8 @@ vi.mock('./LongPressCopyable', async () => {
 vi.mock('@/text', () => ({
     t: (key: string, params?: Record<string, string>) => key === 'message.providerAccountSwitched'
         ? `Quota exhaustion on ${params?.provider} triggered an account switch from ${params?.fromAccount} to ${params?.toAccount}.`
+        : key === 'message.providerQuotaExhausted'
+            ? `Quota exhaustion on ${params?.provider}.`
         : key,
 }));
 
@@ -107,6 +109,27 @@ function renderSwitch(provider: 'claude' | 'codex' | 'grok'): ReactTestRenderer 
     return renderer;
 }
 
+function renderQuota(provider: 'claude' | 'codex' | 'grok' | 'dsh'): ReactTestRenderer {
+    let renderer!: ReactTestRenderer;
+    act(() => {
+        renderer = create(React.createElement(MessageView, {
+            message: {
+                id: 'quota-row',
+                createdAt: 1,
+                kind: 'agent-event',
+                event: {
+                    type: 'provider-quota-exhausted',
+                    provider,
+                    incidentId: 'quota-incident-1',
+                },
+            },
+            metadata: null,
+            sessionId: 'session-1',
+        }));
+    });
+    return renderer;
+}
+
 describe('MessageView provider account switch receipt', () => {
     it('uses the same localized system row on desktop and native while naming non-Claude providers correctly', () => {
         platform.os = 'web';
@@ -119,6 +142,20 @@ describe('MessageView provider account switch receipt', () => {
         const native = renderSwitch('codex');
         expect(native.root.findByType('Text' as any).children.join('')).toBe(
             'Quota exhaustion on Codex triggered an account switch from personal-账号 to work-primary.',
+        );
+    });
+});
+
+describe('MessageView provider quota receipt', () => {
+    it.each([
+        ['claude', 'Claude Code'],
+        ['codex', 'Codex'],
+        ['grok', 'GrokBuild'],
+        ['dsh', 'dsh'],
+    ] as const)('renders a localized provider-named row for %s', (provider, providerName) => {
+        const renderer = renderQuota(provider);
+        expect(renderer.root.findByType('Text' as any).children.join('')).toBe(
+            `Quota exhaustion on ${providerName}.`,
         );
     });
 });

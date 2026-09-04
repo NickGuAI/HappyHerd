@@ -35,6 +35,10 @@ const agentEventSchema = z.discriminatedUnion('type', [z.object({
     toAccount: z.string().min(1),
     incidentId: z.string().min(1),
 }), z.object({
+    type: z.literal('provider-quota-exhausted'),
+    provider: z.enum(['claude', 'codex', 'grok', 'dsh']),
+    incidentId: z.string().min(1),
+}), z.object({
     type: z.literal('ready'),
 }), z.object({
     type: z.literal('turn-end'),

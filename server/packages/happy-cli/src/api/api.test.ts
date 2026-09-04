@@ -442,6 +442,50 @@ describe('Api server error handling', () => {
                 }),
             );
         });
+
+        it('posts one encrypted provider quota event with the incident id as its stable message id', async () => {
+            mockPost.mockResolvedValue({ data: {} });
+
+            await api.postSessionEvent({
+                id: 'session/dsh',
+                seq: 5,
+                encryptionKey: new Uint8Array(32),
+                encryptionVariant: 'legacy',
+                metadata: testMetadata,
+                metadataVersion: 2,
+                agentState: {},
+                agentStateVersion: 3,
+            }, {
+                type: 'provider-quota-exhausted',
+                provider: 'dsh',
+                incidentId: 'quota-incident-one',
+            }, 'quota-incident-one');
+
+            expect(mockPost).toHaveBeenCalledWith(
+                'https://api.example.com/v3/sessions/session%2Fdsh/messages',
+                {
+                    messages: [{
+                        localId: 'quota-incident-one',
+                        content: {
+                            role: 'agent',
+                            content: {
+                                id: 'quota-incident-one',
+                                type: 'event',
+                                data: {
+                                    type: 'provider-quota-exhausted',
+                                    provider: 'dsh',
+                                    incidentId: 'quota-incident-one',
+                                },
+                            },
+                        },
+                    }],
+                },
+                expect.objectContaining({
+                    headers: expect.objectContaining({ Authorization: 'Bearer fake-token' }),
+                    timeout: 60000,
+                }),
+            );
+        });
     });
 
     describe('postSideChatBrief', () => {

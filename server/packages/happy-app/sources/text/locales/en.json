@@ -1144,6 +1144,7 @@
   "message": {
     "switchedToMode": "Switched to {mode} mode",
     "providerAccountSwitched": "Quota exhaustion on {provider} triggered an account switch from {fromAccount} to {toAccount}.",
+    "providerQuotaExhausted": "Quota exhaustion on {provider}.",
     "unknownEvent": "Unknown event",
     "usageLimitUntil": "Usage limit reached until {time}",
     "sentAsGoal": "Sent as goal",

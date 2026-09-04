@@ -90,8 +90,8 @@ export function startDaemonControlServer({
       schema: {
         body: z.object({
           sessionId: z.string().min(1),
-          provider: z.enum(['claude', 'codex', 'grok']),
-          account: z.string().min(1),
+          provider: z.enum(['claude', 'codex', 'grok', 'dsh']),
+          account: z.string().min(1).optional(),
           limitedUntil: z.number().int().positive(),
         }),
         response: {

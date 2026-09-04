@@ -1280,6 +1280,131 @@ describe('daemon session continuity', () => {
     expect(localId).toBe(event.incidentId);
   });
 
+  it.each(['claude', 'codex', 'grok', 'dsh'] as const)(
+    'persists one provider-named %s quota event when no managed account can switch',
+    async (provider) => {
+      const sessionId = `${provider}-unmanaged-quota`;
+      const encryption: SessionEncryptionData = {
+        encryptionKey: new Uint8Array([41, 42, 43, 44]),
+        encryptionVariant: 'dataKey',
+        seq: 31,
+        metadataVersion: 10,
+        agentStateVersion: 11,
+      };
+      const metadata: Metadata = {
+        path: process.cwd(),
+        flavor: provider,
+        host: 'test-host',
+        hostPid: 7441,
+        machineId: 'machine-1',
+        homeDir: '/home/test',
+        happyHomeDir: '/home/test/.happyherd',
+        happyLibDir: '/srv/happy',
+        happyToolsDir: '/srv/happy/tools',
+      };
+
+      daemonRun = startDaemon();
+      await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+      const control = mocks.controlHandlers as CapturedControlHandlers;
+      control.onHappySessionWebhook(sessionId, metadata, encryption);
+      control.onProviderLimited({ sessionId, provider, limitedUntil: 45_000 });
+
+      await vi.waitFor(() => expect(mocks.postSessionEvent).toHaveBeenCalledOnce());
+      expect(mocks.rotateProviderSessionAfterLimit).not.toHaveBeenCalled();
+      const [session, event, localId] = mocks.postSessionEvent.mock.calls[0] as unknown as [
+        { id: string; encryptionKey: Uint8Array },
+        { type: string; provider: string; incidentId: string },
+        string,
+      ];
+      expect(session).toMatchObject({ id: sessionId, encryptionKey: encryption.encryptionKey });
+      expect(event).toEqual({
+        type: 'provider-quota-exhausted',
+        provider,
+        incidentId: expect.any(String),
+      });
+      expect(localId).toBe(event.incidentId);
+    },
+  );
+
+  it.each(['out of usable accounts', 'failed', 'ignored', 'unchanged'] as const)(
+    'persists a quota event when managed rotation is %s',
+    async (_label) => {
+      if (_label === 'failed') {
+        mocks.rotateProviderSessionAfterLimit.mockRejectedValueOnce(new Error('resume failed'));
+      } else if (_label === 'out of usable accounts') {
+        mocks.rotateProviderSessionAfterLimit.mockImplementationOnce(async (
+          _notice: ProviderLimitNotice,
+        dependencies: ProviderLimitRotationDependencies,
+      ) => {
+        await dependencies.onNoUsableAccount?.();
+        await dependencies.onAccountSwitched?.({
+          sessionId: _notice.sessionId,
+          provider: 'codex',
+          fromAccount: 'work-primary',
+          toAccount: 'work-backup',
+        });
+        return { type: 'waited-and-rotated', account: 'work-backup' };
+      });
+      } else if (_label === 'ignored') {
+        mocks.rotateProviderSessionAfterLimit.mockResolvedValueOnce({ type: 'ignored' });
+      } else {
+        mocks.rotateProviderSessionAfterLimit.mockResolvedValueOnce({
+          type: 'unchanged',
+          account: 'work-primary',
+        });
+      }
+      const sessionId = `codex-rotation-${_label}`;
+      const encryption: SessionEncryptionData = {
+        encryptionKey: new Uint8Array([51, 52, 53, 54]),
+        encryptionVariant: 'dataKey',
+        seq: 32,
+        metadataVersion: 12,
+        agentStateVersion: 13,
+      };
+      const metadata: Metadata = {
+        path: process.cwd(),
+        flavor: 'codex',
+        providerAccount: 'work-primary',
+        host: 'test-host',
+        hostPid: 7551,
+        machineId: 'machine-1',
+        homeDir: '/home/test',
+        happyHomeDir: '/home/test/.happyherd',
+        happyLibDir: '/srv/happy',
+        happyToolsDir: '/srv/happy/tools',
+      };
+
+      daemonRun = startDaemon();
+      await vi.waitFor(() => expect(mocks.controlHandlers).toBeDefined());
+      const control = mocks.controlHandlers as CapturedControlHandlers;
+      control.onHappySessionWebhook(sessionId, metadata, encryption);
+      control.onProviderLimited({
+        sessionId,
+        provider: 'codex',
+        account: 'work-primary',
+        limitedUntil: 45_000,
+      });
+
+      const expectedEventCount = _label === 'out of usable accounts' ? 2 : 1;
+      await vi.waitFor(() => expect(mocks.postSessionEvent).toHaveBeenCalledTimes(expectedEventCount));
+      const calls = mocks.postSessionEvent.mock.calls as unknown as Array<[unknown, { type: string }, string]>;
+      const quotaCall = calls.find(([, event]) => event.type === 'provider-quota-exhausted');
+      expect(quotaCall?.[1]).toMatchObject({
+        type: 'provider-quota-exhausted',
+        provider: 'codex',
+      });
+      if (_label === 'out of usable accounts') {
+        const switchCall = calls.find(([, event]) => event.type === 'provider-account-switched');
+        expect(switchCall?.[1]).toMatchObject({
+          provider: 'codex',
+          fromAccount: 'work-primary',
+          toAccount: 'work-backup',
+        });
+        expect(switchCall?.[2]).not.toBe(quotaCall?.[2]);
+      }
+    },
+  );
+
   it.each([
     ['gemini', undefined],
     ['grok', { provider: 'grok', model: 'grok-build', effort: null, permission: 'default' }],

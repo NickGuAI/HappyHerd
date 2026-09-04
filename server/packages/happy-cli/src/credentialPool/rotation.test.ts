@@ -52,12 +52,13 @@ describe('quota-triggered same-session rotation', () => {
     expect(calls).toEqual(['resume', 'announce']);
   });
 
-  it('stops, waits for the first reset, then resumes the same session when all accounts are limited', async () => {
+  it('surfaces the limit, waits for the first reset, then resumes when all accounts are limited', async () => {
     const stopProvider = vi.fn(async () => {});
     const resumeProvider = vi.fn()
       .mockResolvedValueOnce('two')
       .mockResolvedValueOnce('one');
     const onAccountSwitched = vi.fn(async () => {});
+    const onNoUsableAccount = vi.fn(async () => {});
     await rotateProviderSessionAfterLimit({
       sessionId: 'happy-session-2', provider: 'codex', account: 'one', limitedUntil: 500,
     }, { paths, now: () => now, stopProvider, resumeProvider });
@@ -65,13 +66,21 @@ describe('quota-triggered same-session rotation', () => {
 
     const result = await rotateProviderSessionAfterLimit({
       sessionId: 'happy-session-2', provider: 'codex', account: 'two', limitedUntil: 700,
-    }, { paths, now: () => now, stopProvider, resumeProvider, onAccountSwitched, waitUntil });
+    }, {
+      paths,
+      now: () => now,
+      stopProvider,
+      resumeProvider,
+      onAccountSwitched,
+      onNoUsableAccount,
+      waitUntil,
+    });
 
+    expect(onNoUsableAccount).toHaveBeenCalledOnce();
     expect(waitUntil).toHaveBeenCalledWith(500);
     expect(result).toEqual({ type: 'waited-and-rotated', account: 'one' });
     expect(stopProvider).toHaveBeenLastCalledWith('happy-session-2');
     expect(resumeProvider).toHaveBeenLastCalledWith('happy-session-2');
-    expect(onAccountSwitched).toHaveBeenCalledTimes(1);
     expect(onAccountSwitched).toHaveBeenCalledWith({
       sessionId: 'happy-session-2',
       provider: 'codex',
@@ -125,21 +134,44 @@ describe('quota-triggered same-session rotation', () => {
     expect(onAccountSwitched).not.toHaveBeenCalled();
   });
 
-  it('does not announce when waiting resumes the same account', async () => {
+  it('surfaces the limit but does not announce when waiting resumes the same account', async () => {
     await markCredentialAccountLimited('codex', 'two', 700, { paths, now });
     const waitUntil = vi.fn(async (timestamp: number) => { now = timestamp; });
     const onAccountSwitched = vi.fn(async () => {});
+    const onNoUsableAccount = vi.fn(async () => {});
+    const stopProvider = vi.fn(async () => {});
+    const resumeProvider = vi.fn(async () => 'one');
     const sameAccount = await rotateProviderSessionAfterLimit({
       sessionId: 'happy-session-same', provider: 'codex', account: 'one', limitedUntil: 500,
+    }, {
+      paths,
+      now: () => now,
+      stopProvider,
+      resumeProvider,
+      onAccountSwitched,
+      onNoUsableAccount,
+      waitUntil,
+    });
+    expect(sameAccount).toEqual({ type: 'unchanged', account: 'one' });
+    expect(onNoUsableAccount).toHaveBeenCalledOnce();
+    expect(stopProvider).toHaveBeenCalledOnce();
+    expect(resumeProvider).toHaveBeenCalledOnce();
+    expect(onAccountSwitched).not.toHaveBeenCalled();
+  });
+
+  it('reports an unchanged account when an immediate replacement does not switch', async () => {
+    const onAccountSwitched = vi.fn(async () => {});
+    const result = await rotateProviderSessionAfterLimit({
+      sessionId: 'happy-session-unchanged', provider: 'codex', account: 'one', limitedUntil: 500,
     }, {
       paths,
       now: () => now,
       stopProvider: vi.fn(async () => {}),
       resumeProvider: vi.fn(async () => 'one'),
       onAccountSwitched,
-      waitUntil,
     });
-    expect(sameAccount).toEqual({ type: 'waited-and-rotated', account: 'one' });
+
+    expect(result).toEqual({ type: 'unchanged', account: 'one' });
     expect(onAccountSwitched).not.toHaveBeenCalled();
   });
 
