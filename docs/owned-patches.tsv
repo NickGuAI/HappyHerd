@@ -255,3 +255,4 @@ WORKSPACE_LOCALHOST	accepted	feat(workspace): debug selected-machine localhost p
 WORKSPACE_LOCALHOST	accepted	fix(workspace): bound live localhost execution	server/packages/happy-app/sources/components/LocalhostWorkspacePanel.tsx
 WORKSPACE_LOCALHOST	accepted	fix(workspace): preserve selected-machine live review	server/packages/happy-app/public/workspace-live-sw.js
 WORKSPACE_LOCALHOST	accepted	chore(app): refresh workspace live inventory	server/packages/happy-app/sources/text/ui-surface-inventory.json
+WORKSPACE_LOCALHOST	accepted	fix(workspace): retain live tabs and double limits	server/packages/happy-app/sources/components/LocalhostWorkspacePanel.tsx

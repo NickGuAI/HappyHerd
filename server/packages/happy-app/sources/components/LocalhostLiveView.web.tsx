@@ -7,7 +7,7 @@ import {
 } from '@/sync/workspaceLive';
 
 const MAX_PICK_TEXT_LENGTH = 20_000;
-const MAX_SCREENSHOT_EDGE = 1_200;
+const MAX_SCREENSHOT_EDGE = 2_400;
 const MAX_SCREENSHOT_DATA_URL_LENGTH = 8 * 1024 * 1024;
 
 type PickerMessage = {

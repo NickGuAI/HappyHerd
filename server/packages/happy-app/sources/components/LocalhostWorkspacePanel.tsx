@@ -90,16 +90,14 @@ export const LocalhostWorkspacePanel = React.memo(function LocalhostWorkspacePan
     return (
         <View style={styles.container}>
             <View style={styles.liveView}>
-                {active ? (
-                    <LocalhostLiveView
-                        machineId={machineId}
-                        url={url}
-                        pickerEnabled={pickerEnabled}
-                        onPick={handlePick}
-                        onError={handleError}
-                        onCaptureError={handleCaptureError}
-                    />
-                ) : null}
+                <LocalhostLiveView
+                    machineId={machineId}
+                    url={url}
+                    pickerEnabled={active && pickerEnabled}
+                    onPick={handlePick}
+                    onError={handleError}
+                    onCaptureError={handleCaptureError}
+                />
                 {active && loadFailed ? (
                     <View style={[styles.error, { backgroundColor: theme.colors.surface }]}>
                         <Text accessibilityRole="alert" style={{ color: theme.colors.textDestructive }}>

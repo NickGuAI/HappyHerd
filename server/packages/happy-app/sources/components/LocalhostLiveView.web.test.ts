@@ -76,7 +76,7 @@ describe('LocalhostLiveView picker messages', () => {
             outerHTML: '<button />',
             computedCss: '',
             bounds: { x: 0, y: 0, width: 1, height: 1 },
-            screenshot: { dataUrl: 'data:image/png;base64,AQID', width: 1201, height: 1 },
+            screenshot: { dataUrl: 'data:image/png;base64,AQID', width: 2401, height: 1 },
         })).toBeNull();
     });
 

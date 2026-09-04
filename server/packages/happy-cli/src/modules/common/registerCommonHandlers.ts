@@ -321,7 +321,7 @@ async function readWorkspaceLiveBody(response: Response): Promise<Buffer | null>
 
 async function fetchWorkspaceLive(rawData: unknown): Promise<WorkspaceLiveHttpResponse> {
     if (workspaceLiveRequestExceedsLimit(rawData)) {
-        return workspaceLiveFailure('too-large', 'Workspace live request exceeds the 8 MiB body limit');
+        return workspaceLiveFailure('too-large', 'Workspace live request exceeds the 16 MiB body limit');
     }
     if (
         rawData
@@ -380,7 +380,7 @@ async function fetchWorkspaceLive(rawData: unknown): Promise<WorkspaceLiveHttpRe
 
             const responseBody = await readWorkspaceLiveBody(response);
             if (!responseBody) {
-                return workspaceLiveFailure('too-large', 'Workspace live response exceeds the 8 MiB body limit');
+                return workspaceLiveFailure('too-large', 'Workspace live response exceeds the 16 MiB body limit');
             }
             const headers: Record<string, string> = {};
             response.headers.forEach((value, name) => {
