@@ -77,6 +77,7 @@ describe('LocalhostWorkspacePanel', () => {
             machineId: 'machine-ec2',
             liveUrl: 'http://localhost:5173/dashboard',
         });
+        expect(review.props.mode).toBeUndefined();
         expect(review.props.activeAnchor).toEqual({
             elementSelector: '#save',
             elementHtml: '<button id="save">Save</button>',

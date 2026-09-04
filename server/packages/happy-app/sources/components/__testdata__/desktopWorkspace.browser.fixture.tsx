@@ -465,6 +465,7 @@ declare global {
             text: string;
             options: { displayText: string };
         }>;
+        __WORKSPACE_FEEDBACK_FAILURE_COUNT__?: number;
         __SESSION_WRITE_CALLS__?: Array<{ path: string; content: string }>;
         __SESSION_TITLE_PRESS_COUNT__?: number;
         __WORKSPACE_LIVE_RPC_CALLS__?: Array<{ machineId: string; method: string; url: string }>;
@@ -487,7 +488,7 @@ createRoot(document.getElementById('root')!).render(localhostLiveSurface ? (
             ? 'canvas'
             : fileReviewSurface === 'mobile-source'
                 ? 'source'
-                : fileReviewSurface === 'mobile-markdown-source' ? 'markdown-source' : 'markdown'}
+                : fileReviewSurface.endsWith('markdown-source') ? 'markdown-source' : 'markdown'}
         testId={fileReviewSurface.startsWith('mobile') ? 'file-review-mobile' : 'file-review-desktop'}
     />
 ) : interactiveHtmlSurface ? (

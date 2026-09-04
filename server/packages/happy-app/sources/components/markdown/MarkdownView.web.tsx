@@ -120,6 +120,22 @@ function ReviewButton(props: { line?: number; onLineComment?: (anchor: MarkdownL
     );
 }
 
+function LineCommentThread(props: {
+    line?: number;
+    renderLineComment?: (anchor: MarkdownLineCommentAnchor) => React.ReactNode;
+}) {
+    if (!props.line || !props.renderLineComment) return null;
+    const thread = props.renderLineComment({ line: props.line });
+    if (thread == null) return null;
+    return (
+        <div className="hh-markdown-inline-comment" data-comment-source-line={props.line}>
+            {thread}
+        </div>
+    );
+}
+
+const ParentReviewLineContext = React.createContext<number | null>(null);
+
 const IMAGE_RETRY_DELAYS_MS = [500, 1500] as const;
 
 function MarkdownImage(props: {
@@ -205,6 +221,7 @@ function WebCodeBlock(props: {
     children: React.ReactNode;
     content: string;
     className?: string;
+    renderLineComment?: (anchor: MarkdownLineCommentAnchor) => React.ReactNode;
 }) {
     const copy = React.useCallback(async () => {
         try {
@@ -215,11 +232,14 @@ function WebCodeBlock(props: {
         }
     }, [props.content]);
     return (
-        <pre className={`hh-markdown-review-line ${props.className ?? ''}`.trim()} data-source-line={props.line}>
-            <ReviewButton line={props.line} onLineComment={props.onLineComment} />
-            <button type="button" className="hh-markdown-code-copy" aria-label={t('common.copy')} onClick={() => { void copy(); }}>{t('common.copy')}</button>
-            {props.children}
-        </pre>
+        <>
+            <pre className={`hh-markdown-review-line ${props.className ?? ''}`.trim()} data-source-line={props.line}>
+                <ReviewButton line={props.line} onLineComment={props.onLineComment} />
+                <button type="button" className="hh-markdown-code-copy" aria-label={t('common.copy')} onClick={() => { void copy(); }}>{t('common.copy')}</button>
+                {props.children}
+            </pre>
+            <LineCommentThread line={props.line} renderLineComment={props.renderLineComment} />
+        </>
     );
 }
 
@@ -261,11 +281,23 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
         const reviewable = (tag: keyof React.JSX.IntrinsicElements) => function Reviewable({ node, children, ...rest }: any) {
             const Tag = tag as any;
             const line = sourceLine(node);
-            return (
-                <Tag {...rest} className={`${rest.className ?? ''} ${props.onLineComment ? 'hh-markdown-review-line' : ''}`.trim()} data-source-line={line}>
-                    <ReviewButton line={line} onLineComment={props.onLineComment} />
-                    {children}
+            const parentReviewLine = React.useContext(ParentReviewLineContext);
+            const ownsReviewLine = line !== undefined && line !== parentReviewLine;
+            const reviewUnit = (
+                <Tag {...rest} className={`${rest.className ?? ''} ${ownsReviewLine && props.onLineComment ? 'hh-markdown-review-line' : ''}`.trim()} data-source-line={line}>
+                    {ownsReviewLine ? <ReviewButton line={line} onLineComment={props.onLineComment} /> : null}
+                    <ParentReviewLineContext.Provider value={ownsReviewLine ? line : parentReviewLine}>
+                        {children}
+                    </ParentReviewLineContext.Provider>
+                    {tag === 'li' && ownsReviewLine ? <LineCommentThread line={line} renderLineComment={props.renderLineComment} /> : null}
                 </Tag>
+            );
+            if (tag === 'li' || !ownsReviewLine) return reviewUnit;
+            return (
+                <>
+                    {reviewUnit}
+                    <LineCommentThread line={line} renderLineComment={props.renderLineComment} />
+                </>
             );
         };
 
@@ -291,6 +323,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
                         <div className="hh-markdown-table-wrap">
                             <table {...rest}>{children}</table>
                         </div>
+                        <LineCommentThread line={line} renderLineComment={props.renderLineComment} />
                     </div>
                 );
             },
@@ -319,6 +352,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
                     <div className="hh-markdown-review-line" data-source-line={line}>
                         <ReviewButton line={line} onLineComment={props.onLineComment} />
                         <hr {...rest} />
+                        <LineCommentThread line={line} renderLineComment={props.renderLineComment} />
                     </div>
                 );
             },
@@ -329,7 +363,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
                     return <MermaidRenderer content={extractText(first)} />;
                 }
                 const line = sourceLine(node);
-                return <WebCodeBlock line={line} onLineComment={props.onLineComment} content={extractText(first)} className={rest.className}>{children}</WebCodeBlock>;
+                return <WebCodeBlock line={line} onLineComment={props.onLineComment} renderLineComment={props.renderLineComment} content={extractText(first)} className={rest.className}>{children}</WebCodeBlock>;
             },
             a: ({ href, children, node: _node, ...rest }: any) => {
                 const option = decodeMarkdownOption(href);
@@ -396,7 +430,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
                 );
             },
         };
-    }, [metadata, openWorkspace, props.enableWorkspaceLinks, props.inlineImages, props.onLineComment, props.onOptionPress, props.relativeTo, props.sessionId, props.workspaceImageRoot, resolveTarget]);
+    }, [metadata, openWorkspace, props.enableWorkspaceLinks, props.inlineImages, props.onLineComment, props.onOptionPress, props.relativeTo, props.renderLineComment, props.sessionId, props.workspaceImageRoot, resolveTarget]);
 
     const themeVariables = {
         '--hh-markdown-text': theme.colors.text,
@@ -514,6 +548,7 @@ const MARKDOWN_CSS = `
 .hh-markdown-root pre:hover > .hh-markdown-code-copy,.hh-markdown-code-copy:focus-visible { opacity: 1; }
 .hh-markdown-review-root { box-sizing: border-box; padding-inline-start: 24px; }
 .hh-markdown-review-line { position: relative; }
+.hh-markdown-inline-comment { box-sizing: border-box; width: 100%; margin: .3em 0 .8em; }
 .hh-markdown-review-reveal { outline: 2px solid rgba(96,140,255,.8); outline-offset: -2px; border-radius: 4px; background: rgba(96,140,255,.12); }
 .hh-markdown-comment-gutter { appearance: none; position: absolute; inset-inline-start: -24px; top: .15em; z-index: 4; display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: 0; border-radius: 4px; padding: 0; background: var(--hh-markdown-comment-background); color: var(--hh-markdown-comment-foreground); font-size: 13px; line-height: 20px; opacity: 0; cursor: pointer; touch-action: none; }
 .hh-markdown-review-line:hover > .hh-markdown-comment-gutter,.hh-markdown-comment-gutter:focus-visible { opacity: 1; }

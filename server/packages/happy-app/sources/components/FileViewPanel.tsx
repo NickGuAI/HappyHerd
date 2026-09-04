@@ -13,7 +13,11 @@ import { MarkdownView } from '@/components/markdown/MarkdownView';
 import type { MarkdownWorkspaceProvenance } from '@/components/markdown/MarkdownView.types';
 import { PierreDiffView } from '@/components/diff/PierreDiffView';
 import { CanvasFileViewer } from '@/components/CanvasFileViewer';
-import { InlineCommentReview, type InlineCommentAnchor } from '@/components/InlineCommentReview';
+import {
+    InlineCommentReview,
+    InlineCommentThread,
+    type InlineCommentAnchor,
+} from '@/components/InlineCommentReview';
 import { machineDeleteFile, machineReadFile, machineWriteFile, sessionDeleteFile, sessionReadFile, sessionWriteFile } from '@/sync/ops';
 import { Modal } from '@/modal';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
@@ -247,6 +251,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     const previewKind = classifyFilePreview(filePath);
     const isHtml = previewKind === 'html';
     const isCanvas = previewKind === 'canvas';
+    const usesInlineLineReview = isMarkdown || previewKind === 'text';
     const markdownRelativeTo = containingDirectory(filePath);
     const hasSvgPreview = previewKind === 'image'
         && imageMimeType(filePath) === 'image/svg+xml'
@@ -262,6 +267,25 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     }, [resourceKey, filePath]);
 
     const hasChanges = fileState.kind === 'loaded' && editContent !== fileState.content;
+
+    const reviewLineNumbers = React.useMemo(() => Array.from(new Set([
+        ...reviewComments.flatMap((comment) => comment.line === undefined ? [] : [comment.line]),
+        ...(reviewAnchor?.line === undefined ? [] : [reviewAnchor.line]),
+    ])), [reviewAnchor?.line, reviewComments]);
+    const renderLineReview = React.useCallback((line: number) => {
+        const hasComment = reviewComments.some((comment) => comment.line === line);
+        const isActive = reviewAnchor?.line === line;
+        if (!hasComment && !isActive) return null;
+        return (
+            <InlineCommentThread
+                anchor={{ line }}
+                activeAnchor={reviewAnchor}
+                comments={reviewComments}
+                onActiveAnchorChange={setReviewAnchor}
+                onCommentsChange={setReviewComments}
+            />
+        );
+    }, [reviewAnchor, reviewComments]);
 
     React.useEffect(() => {
         onDirtyChange?.(hasChanges);
@@ -728,21 +752,24 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                             workspaceImageRoot={markdownWorkspaceImageRoot}
                             relativeTo={markdownRelativeTo}
                             onLineComment={reviewContext ? setReviewAnchor : undefined}
+                            renderLineComment={reviewContext ? ({ line }) => renderLineReview(line) : undefined}
                             requestedLine={requestedLine}
                         />
                     </View>
                 </ScrollView>
             ) : isCanvas && displayMode === 'preview' && Platform.OS === 'web' && markdownSessionId ? (
-                <CanvasFileViewer
-                    content={editContent}
-                    sessionId={markdownSessionId}
-                    active={active}
-                    workspaceProvenance={markdownWorkspaceProvenance}
-                    workspaceImageRoot={markdownWorkspaceImageRoot}
-                    relativeTo={markdownRelativeTo}
-                    commentedNodeIds={reviewComments.flatMap((comment) => comment.nodeId ? [comment.nodeId] : [])}
-                    onNodeComment={setReviewAnchor}
-                />
+                <View style={styles.canvasPreview}>
+                    <CanvasFileViewer
+                        content={editContent}
+                        sessionId={markdownSessionId}
+                        active={active}
+                        workspaceProvenance={markdownWorkspaceProvenance}
+                        workspaceImageRoot={markdownWorkspaceImageRoot}
+                        relativeTo={markdownRelativeTo}
+                        commentedNodeIds={reviewComments.flatMap((comment) => comment.nodeId ? [comment.nodeId] : [])}
+                        onNodeComment={setReviewAnchor}
+                    />
+                </View>
             ) : isHtml && displayMode === 'preview' ? (
                 <View style={styles.documentPreview}>
                     <FileDocumentPreview
@@ -759,7 +786,8 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                         disableFileHeader
                         onGutterUtilityClick={(line) => setReviewAnchor({ line })}
                         onLineClick={(line) => setReviewAnchor({ line })}
-                        annotatedLines={reviewComments.flatMap((comment) => comment.line === undefined ? [] : [comment.line])}
+                        annotatedLines={reviewLineNumbers}
+                        renderLineAnnotation={renderLineReview}
                         selectedLine={reviewAnchor?.line ?? requestedLine}
                     />
                 </ScrollView>
@@ -785,6 +813,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                     comments={reviewComments}
                     onActiveAnchorChange={setReviewAnchor}
                     onCommentsChange={setReviewComments}
+                    mode={usesInlineLineReview ? 'bar' : 'docked'}
                 />
             ) : null}
         </View>
@@ -1095,6 +1124,13 @@ const styles = StyleSheet.create((theme) => ({
         maxWidth: layout.maxWidth,
         alignSelf: 'center',
         backgroundColor: 'white',
+    },
+    canvasPreview: {
+        flex: 1,
+        minHeight: 0,
+        width: '100%',
+        maxWidth: layout.maxWidth,
+        alignSelf: 'center',
     },
     actionButton: {
         flexDirection: 'row',

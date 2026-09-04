@@ -1,3 +1,8 @@
+# September 4 — HappyHerd Web Workspace Comments Update
+
+- Code and rendered Markdown comments now open at selected lines as visually anchored Seam threads, while Canvas-node and selected-machine localhost comments remain docked.
+- Pinned comments can be edited or removed, and a bottom review bar sends them as a single structured batch that is preserved on send failure, with light and dark theme support for Web Desktop and 390px Web Mobile (native surfaces unchanged).
+
 # September 4 — DSH session resume
 
 - HappyHerd now resumes retained DSH sessions on the same machine and working directory through ACP `session/resume`, while legacy ACP load-only providers still use `session/load`.

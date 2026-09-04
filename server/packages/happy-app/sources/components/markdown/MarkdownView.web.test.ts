@@ -217,6 +217,43 @@ describe('MarkdownView web parity', () => {
         act(() => renderer.unmount());
     });
 
+    it('renders each line thread directly after its matching Markdown block content', () => {
+        let renderer: any;
+        act(() => {
+            renderer = create(React.createElement(MarkdownView, {
+                markdown: '- first\n- second',
+                onLineComment: vi.fn(),
+                renderLineComment: ({ line }: { line: number }) => line === 2
+                    ? React.createElement('span', null, 'Second line thread')
+                    : null,
+            }));
+        });
+
+        const items = renderer.root.findAllByType('li');
+        expect(items[0].findAllByProps({ className: 'hh-markdown-inline-comment' })).toHaveLength(0);
+        const annotation = items[1].findByProps({ className: 'hh-markdown-inline-comment' });
+        expect(annotation.props['data-comment-source-line']).toBe(2);
+        expect(annotation.findByType('span').props.children).toBe('Second line thread');
+        act(() => renderer.unmount());
+    });
+
+    it('renders one thread when nested Markdown blocks share a source line', () => {
+        let renderer: any;
+        act(() => {
+            renderer = create(React.createElement(MarkdownView, {
+                markdown: '- loose paragraph\n\n  continuation\n\n> quoted paragraph',
+                onLineComment: vi.fn(),
+                renderLineComment: ({ line }: { line: number }) => (
+                    line === 1 || line === 5 ? React.createElement('span', { 'data-thread-line': line }, `Thread ${line}`) : null
+                ),
+            }));
+        });
+
+        expect(renderer.root.findAllByProps({ 'data-thread-line': 1 })).toHaveLength(1);
+        expect(renderer.root.findAllByProps({ 'data-thread-line': 5 })).toHaveLength(1);
+        act(() => renderer.unmount());
+    });
+
     it('keeps table and thematic-break review controls in valid wrapper elements', () => {
         const onLineComment = vi.fn();
         let renderer: any;

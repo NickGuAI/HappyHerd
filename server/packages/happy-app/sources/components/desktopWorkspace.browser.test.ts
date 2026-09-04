@@ -19,17 +19,18 @@ const octiconsGlyphMapPath = resolve(
 
 const virtualModules: Record<string, string> = {
     'react-native-unistyles': `
+        const dark = new URLSearchParams(window.location.search).get('theme') === 'dark';
         const colors = new Proxy({
-            text: '#111', textSecondary: '#666', textDestructive: '#c00', textLink: '#06c',
-            divider: '#ddd', surface: '#fff', surfaceHigh: '#f3f3f3', warning: '#a60',
-            groupped: { background: '#f5f5f5' }, input: { background: '#eee' },
-            header: { background: '#fff', tint: '#111' },
-            button: { primary: { background: '#111', tint: '#fff' } },
-            success: '#0a0', surfaceSelected: '#eee',
-            glass: { overlay: '#fff', overlayTint: '#fff', backgroundStrong: '#fff', border: '#ddd' },
+            text: dark ? '#f5f2e8' : '#111', textSecondary: dark ? '#b8b2a4' : '#666', textDestructive: dark ? '#ff8178' : '#c00', textLink: dark ? '#f3c969' : '#06c',
+            divider: dark ? '#4b463d' : '#ddd', surface: dark ? '#161512' : '#fff', surfaceHigh: dark ? '#27241e' : '#f3f3f3', warning: '#a60',
+            groupped: { background: dark ? '#0f0f0d' : '#f5f5f5' }, input: { background: dark ? '#27241e' : '#eee' },
+            header: { background: dark ? '#161512' : '#fff', tint: dark ? '#f5f2e8' : '#111' },
+            button: { primary: { background: dark ? '#f3c969' : '#111', tint: dark ? '#17140c' : '#fff' } },
+            success: '#0a0', surfaceSelected: dark ? '#302d26' : '#eee',
+            glass: { overlay: dark ? '#161512' : '#fff', overlayTint: dark ? '#f5f2e8' : '#fff', backgroundStrong: dark ? '#161512' : '#fff', border: dark ? '#4b463d' : '#ddd' },
             shadow: { color: '#000', opacity: 0.2 },
-        }, { get: (target, key) => target[key] ?? '#111' });
-        const theme = { dark: false, colors };
+        }, { get: (target, key) => target[key] ?? (dark ? '#f5f2e8' : '#111') });
+        const theme = { dark, colors };
         export const StyleSheet = {
             hairlineWidth: 1,
             absoluteFillObject: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
@@ -335,13 +336,19 @@ const virtualModules: Record<string, string> = {
         };
     `,
     '@/sync/sync': `
+        let feedbackAttempt = 0;
         export const sync = {
             applySettings() {},
             sendMessage: async (sessionId, text, options) => {
+                feedbackAttempt += 1;
                 window.__WORKSPACE_FEEDBACK_CALLS__ = [
                     ...(window.__WORKSPACE_FEEDBACK_CALLS__ ?? []),
                     { sessionId, text, options },
                 ];
+                if (new URLSearchParams(window.location.search).has('feedback-fail-once') && feedbackAttempt === 1) {
+                    window.__WORKSPACE_FEEDBACK_FAILURE_COUNT__ = (window.__WORKSPACE_FEEDBACK_FAILURE_COUNT__ ?? 0) + 1;
+                    throw new Error('Fixture feedback send failed once');
+                }
                 return { localId: 'feedback-local-id' };
             },
         };
@@ -483,7 +490,10 @@ const virtualModules: Record<string, string> = {
         export const t = (key, params) => ({
             'common.back': 'Back',
             'common.cancel': 'Cancel',
+            'common.delete': 'Delete',
             'common.error': 'Error',
+            'common.loading': 'Sending',
+            'common.save': 'Save',
             'files.changes': 'Changes',
             'files.noChangesTitle': 'No changes',
             'files.noChangesSubtitle': 'No changed files in this session.',
@@ -649,7 +659,7 @@ describe('Desktop workspace browser interaction', () => {
                 return;
             }
             response.setHeader('content-type', 'text/html; charset=utf-8');
-            response.end('<style>html,body,#root{margin:0;min-height:100%;font-family:sans-serif}*{box-sizing:border-box}' + stylesheet + '</style><main id="root"></main><script>' + script + '</script>');
+            response.end('<meta name="viewport" content="width=device-width, initial-scale=1"><style>html,body,#root{margin:0;min-height:100%;font-family:sans-serif}*{box-sizing:border-box}' + stylesheet + '</style><main id="root"></main><script>' + script + '</script>');
         });
         await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
         const address = server.address();
@@ -998,11 +1008,36 @@ describe('Desktop workspace browser interaction', () => {
         padding: string;
     };
 
-    async function verifyMarkdownReviewJourney(page: Page, surfaceId: string, feedbackIndex = 0, touch = false): Promise<ReviewAffordanceVisual> {
+    async function expectMobileCommentTypography(scope: Locator) {
+        const sizes = await scope.locator('textarea, [dir="auto"]').evaluateAll((elements) => (
+            elements.map((element) => Number.parseFloat(getComputedStyle(element).fontSize))
+        ));
+        expect(sizes.length).toBeGreaterThan(0);
+        expect(sizes.every((size) => size >= 16)).toBe(true);
+    }
+
+    async function expectReviewBarDocked(panel: Locator) {
+        const bar = panel.getByTestId('inline-comment-review-bar');
+        await bar.waitFor();
+        const [panelBox, barBox] = await Promise.all([panel.boundingBox(), bar.boundingBox()]);
+        if (!panelBox || !barBox) throw new Error('Review bar has no browser layout box');
+        expect(Math.abs((barBox.y + barBox.height) - (panelBox.y + panelBox.height))).toBeLessThan(2);
+    }
+
+    async function verifyMarkdownReviewJourney(
+        page: Page,
+        surfaceId: string,
+        feedbackIndex = 0,
+        touch = false,
+        expectedTheme: 'light' | 'dark' = 'light',
+    ): Promise<ReviewAffordanceVisual> {
         const workspace = page.getByTestId(surfaceId);
         const markdownPanel = workspace.getByTestId('desktop-file-panel:/workspace/demo.md');
         const markdownRoot = markdownPanel.locator('.hh-markdown-root');
         await markdownRoot.waitFor();
+        const markdownClass = await markdownRoot.getAttribute('class');
+        if (expectedTheme === 'dark') expect(markdownClass).toContain('hh-markdown-dark');
+        else expect(markdownClass).not.toContain('hh-markdown-dark');
 
         const heading = markdownRoot.locator('h1[data-source-line="1"]');
         const headingGutter = heading.locator('.hh-markdown-comment-gutter');
@@ -1046,15 +1081,6 @@ describe('Desktop workspace browser interaction', () => {
         expect(affordance.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
         expect(affordance.borderTopWidth).toBe('0px');
 
-        const evidenceDirectory = process.env.HAPPYHERD_MARKDOWN_COMMENT_EVIDENCE_DIR?.trim();
-        if (evidenceDirectory) {
-            await markdownPanel.screenshot({
-                path: resolve(evidenceDirectory, touch
-                    ? 'task-6a9931b8-markdown-comment-mobile.png'
-                    : 'task-6a9931b8-markdown-comment-desktop.png'),
-            });
-        }
-
         const sessionRelativeLink = markdownPanel.getByRole('link', { name: 'Open session relative' });
         if (touch) await sessionRelativeLink.tap();
         else await sessionRelativeLink.click();
@@ -1078,16 +1104,56 @@ describe('Desktop workspace browser interaction', () => {
                 await item.hover();
                 await gutter.click();
             }
-            await markdownPanel.getByPlaceholder('Write a comment').fill(feedback);
-            await markdownPanel.getByRole('button', { name: 'Pin comment' }).click();
+            const composer = item.getByTestId(`inline-comment-composer:line:${line}`);
+            await composer.waitFor();
+            await composer.getByPlaceholder('Write a comment').fill(feedback);
+            if (touch) await expectMobileCommentTypography(composer);
+            await composer.getByRole('button', { name: 'Pin comment' }).click();
+            const thread = item.getByTestId(`inline-comment-thread:line:${line}`);
+            await expect(thread.getByText(feedback, { exact: true }).count()).resolves.toBe(1);
+            await expect(thread.getByTestId(`inline-comment-seam:line:${line}`).count()).resolves.toBe(1);
+            const cardBackground = await thread.locator(':scope > div').nth(1).evaluate((element) => getComputedStyle(element).backgroundColor);
+            expect(cardBackground).toBe(expectedTheme === 'dark' ? 'rgb(33, 30, 24)' : 'rgb(255, 250, 240)');
+        }
+
+        const firstThread = markdownPanel.getByTestId('inline-comment-thread:line:3');
+        const secondThread = markdownPanel.getByTestId('inline-comment-thread:line:4');
+        await expect(firstThread.getByText('Second line note', { exact: true }).count()).resolves.toBe(0);
+        await expect(secondThread.getByText('First line note', { exact: true }).count()).resolves.toBe(0);
+        await firstThread.getByRole('button', { name: 'Edit' }).click();
+        await firstThread.getByRole('textbox', { name: 'Write a comment' }).fill('First line note edited');
+        await firstThread.getByRole('button', { name: 'Save' }).click();
+        await expect(firstThread.getByText('First line note edited', { exact: true }).count()).resolves.toBe(1);
+        await secondThread.getByRole('button', { name: 'Remove comment' }).click();
+        await expect(markdownPanel.getByRole('button', { name: 'Send 1 comments' }).count()).resolves.toBe(1);
+
+        const secondItem = markdownPanel.locator('li[data-source-line="4"]');
+        if (touch) await secondItem.locator('.hh-markdown-comment-gutter').tap();
+        else {
+            await secondItem.hover();
+            await secondItem.locator('.hh-markdown-comment-gutter').click();
+        }
+        const replacementComposer = secondItem.getByTestId('inline-comment-composer:line:4');
+        await replacementComposer.getByPlaceholder('Write a comment').fill('Second line note replacement');
+        await replacementComposer.getByRole('button', { name: 'Pin comment' }).click();
+        await expectReviewBarDocked(markdownPanel);
+        if (touch) await expectMobileCommentTypography(markdownPanel.getByTestId('inline-comment-review-bar'));
+        const evidenceDirectory = process.env.HAPPYHERD_MARKDOWN_COMMENT_EVIDENCE_DIR?.trim();
+        if (evidenceDirectory) {
+            await markdownPanel.screenshot({
+                path: resolve(
+                    evidenceDirectory,
+                    `task-6a9aa121-seam-markdown-${touch ? 'mobile' : 'desktop'}-${expectedTheme}.png`,
+                ),
+            });
         }
         await markdownPanel.getByRole('button', { name: 'Send 2 comments' }).click();
         await expect(page.evaluate(() => (window as any).__WORKSPACE_FEEDBACK_CALLS__ ?? [])).resolves.toHaveLength(feedbackIndex + 1);
         const markdownFeedback = await page.evaluate((index) => (window as any).__WORKSPACE_FEEDBACK_CALLS__[index].text, feedbackIndex);
         expect(markdownFeedback).toContain('Line: 3');
-        expect(markdownFeedback).toContain('First line note');
+        expect(markdownFeedback).toContain('First line note edited');
         expect(markdownFeedback).toContain('Line: 4');
-        expect(markdownFeedback).toContain('Second line note');
+        expect(markdownFeedback).toContain('Second line note replacement');
         return affordance;
     }
 
@@ -1113,23 +1179,25 @@ describe('Desktop workspace browser interaction', () => {
         await sourceLine.evaluate((element) => element.scrollIntoView({ block: 'center' }));
         const [lineBox, scrollerBox] = await Promise.all([sourceLine.boundingBox(), codeScroller.boundingBox()]);
         if (!lineBox || !scrollerBox) throw new Error(`Source line ${line} has no browser layout box`);
-        const point = {
-            x: Math.min(scrollerBox.x + Math.max(100, scrollerBox.width / 2), scrollerBox.x + scrollerBox.width - 12),
-            y: lineBox.y + (lineBox.height / 2),
-        };
         if (touch) {
-            await page.touchscreen.tap(point.x, point.y);
+            await page.touchscreen.tap(lineBox.x + Math.min(10, lineBox.width / 2), lineBox.y + (lineBox.height / 2));
         } else {
-            await page.mouse.move(point.x, point.y);
+            await sourceLine.hover();
             await expect(sourcePanel.getByRole('button', { name: 'Comment on hovered line' }).isVisible()).resolves.toBe(true);
-            await page.mouse.click(point.x, point.y);
+            await sourcePanel.getByRole('button', { name: 'Comment on hovered line' }).click();
         }
-        await sourcePanel.getByPlaceholder('Write a comment').waitFor();
+        await sourcePanel.getByTestId(`inline-comment-composer:line:${line}`).waitFor();
         await expect(sourcePanel.getByText(`Comment on line ${line}`, { exact: true }).count()).resolves.toBe(1);
-        await expect.poll(() => sourceLine.getAttribute('data-selected-line')).toBe('single');
+        await expect.poll(() => sourceLine.getAttribute('data-selected-line')).toMatch(/^(?:first|middle|last|single)$/);
     }
 
-    async function verifyMarkdownSourceReviewJourney(page: Page, surfaceId: string, touch = false, switchTab = true) {
+    async function verifyMarkdownSourceReviewJourney(
+        page: Page,
+        surfaceId: string,
+        touch = false,
+        switchTab = true,
+        expectedTheme: 'light' | 'dark' = 'light',
+    ) {
         const workspace = page.getByTestId(surfaceId);
         if (switchTab) await workspace.getByRole('tab', { name: 'Open source.md' }).click();
         const sourcePanel = workspace.getByTestId('desktop-file-panel:/workspace/source.md');
@@ -1138,7 +1206,11 @@ describe('Desktop workspace browser interaction', () => {
         await expect(sourcePanel.locator('diffs-container').count()).resolves.toBe(0);
         const heading = sourcePanel.locator('h1', { hasText: 'Source review' });
         await heading.waitFor();
-        await expect(sourcePanel.locator('.hh-markdown-root').count()).resolves.toBeGreaterThan(0);
+        const markdownRoot = sourcePanel.locator('.hh-markdown-root');
+        await expect(markdownRoot.count()).resolves.toBeGreaterThan(0);
+        const markdownClass = await markdownRoot.getAttribute('class');
+        if (expectedTheme === 'dark') expect(markdownClass).toContain('hh-markdown-dark');
+        else expect(markdownClass).not.toContain('hh-markdown-dark');
         // The requested source line is revealed on the matching rendered unit.
         const revealed = sourcePanel.locator('h1[data-source-line="1"]');
         await detectedHeadingClass(page, revealed, 'hh-markdown-review-reveal');
@@ -1160,6 +1232,7 @@ describe('Desktop workspace browser interaction', () => {
         switchTab = true,
         touch = false,
         markdownAffordance?: ReviewAffordanceVisual,
+        expectedTheme: 'light' | 'dark' = 'light',
     ) {
         const workspace = page.getByTestId(surfaceId);
         if (switchTab) await workspace.getByRole('tab', { name: 'Open review.ts' }).click();
@@ -1203,22 +1276,65 @@ describe('Desktop workspace browser interaction', () => {
 
             const feedback = line === 2
                 ? 'Blank line note'
-                : line === 3 ? 'Long line note' : null;
+                : line === 3 ? 'Long line note\nsecond line\nthird line\nfourth line\nfifth line' : null;
             if (feedback) {
-                await sourcePanel.getByPlaceholder('Write a comment').fill(feedback);
-                await sourcePanel.getByRole('button', { name: 'Pin comment' }).click();
+                const thread = sourcePanel.getByTestId(`inline-comment-thread:line:${line}`);
+                const composer = thread.getByTestId(`inline-comment-composer:line:${line}`);
+                const textarea = composer.getByPlaceholder('Write a comment');
+                const beforeThreadHeight = await thread.evaluate((element) => element.getBoundingClientRect().height);
+                const followingLine = line === 3 ? sourcePanel.locator('[data-line="4"]') : null;
+                const beforeFollowingY = followingLine
+                    ? await followingLine.evaluate((element) => element.getBoundingClientRect().y)
+                    : null;
+                await textarea.fill(feedback);
+                if (touch) await expectMobileCommentTypography(composer);
+                if (line === 3 && followingLine && beforeFollowingY !== null) {
+                    await expect.poll(() => thread.evaluate((element) => element.getBoundingClientRect().height))
+                        .toBeGreaterThan(beforeThreadHeight + 50);
+                    await expect.poll(() => followingLine.evaluate((element) => element.getBoundingClientRect().y))
+                        .toBeGreaterThan(beforeFollowingY + 50);
+                    await expect(thread.evaluate((element) => element.scrollHeight <= element.clientHeight + 1)).resolves.toBe(true);
+                }
+                await composer.getByRole('button', { name: 'Pin comment' }).click();
+                await expect(thread.getByText(feedback, { exact: true }).count()).resolves.toBe(1);
+                await expect(thread.getByTestId(`inline-comment-seam:line:${line}`).count()).resolves.toBe(1);
+                const cardBackground = await thread.locator(':scope > div').nth(1).evaluate((element) => getComputedStyle(element).backgroundColor);
+                expect(cardBackground).toBe(expectedTheme === 'dark' ? 'rgb(33, 30, 24)' : 'rgb(255, 250, 240)');
             } else {
-                await sourcePanel.getByRole('button', { name: 'Cancel' }).click();
+                await sourcePanel.getByTestId(`inline-comment-composer:line:${line}`).getByRole('button', { name: 'Cancel' }).click();
             }
         }
 
+        await expect(sourcePanel.getByTestId('inline-comment-thread:line:2').getByText('Blank line note', { exact: true }).count()).resolves.toBe(1);
+        await expect(sourcePanel.getByTestId('inline-comment-thread:line:2').getByText('Long line note', { exact: false }).count()).resolves.toBe(0);
+        await expect(sourcePanel.getByTestId('inline-comment-thread:line:3').getByText('Blank line note', { exact: true }).count()).resolves.toBe(0);
+        const annotationGutters = sourcePanel.locator('[data-gutter] [data-gutter-buffer="annotation"]');
+        await expect(annotationGutters.count()).resolves.toBeGreaterThanOrEqual(2);
+        await expect(annotationGutters.first().evaluate((element) => getComputedStyle(element).boxShadow)).resolves.not.toBe('none');
+        await expect(annotationGutters.first().evaluate((element) => getComputedStyle(element, '::after').content)).resolves.toBe('\"\"');
+        await expect(annotationGutters.first().evaluate((element) => getComputedStyle(element, '::after').boxShadow)).resolves.not.toBe('none');
+        await expectReviewBarDocked(sourcePanel);
+        if (touch) {
+            await expectMobileCommentTypography(sourcePanel.getByTestId('inline-comment-thread:line:2'));
+            await expectMobileCommentTypography(sourcePanel.getByTestId('inline-comment-thread:line:3'));
+            await expectMobileCommentTypography(sourcePanel.getByTestId('inline-comment-review-bar'));
+        }
+        const evidenceDirectory = process.env.HAPPYHERD_MARKDOWN_COMMENT_EVIDENCE_DIR?.trim();
+        if (evidenceDirectory) {
+            await sourcePanel.screenshot({
+                path: resolve(
+                    evidenceDirectory,
+                    `task-6a9aa121-seam-code-${touch ? 'mobile' : 'desktop'}-${expectedTheme}.png`,
+                ),
+            });
+        }
         await sourcePanel.getByRole('button', { name: 'Send 2 comments' }).click();
         await expect(page.evaluate(() => (window as any).__WORKSPACE_FEEDBACK_CALLS__ ?? [])).resolves.toHaveLength(feedbackIndex + 1);
         const sourceFeedback = await page.evaluate((index) => (window as any).__WORKSPACE_FEEDBACK_CALLS__[index].text, feedbackIndex);
         expect(sourceFeedback).toContain('Line: 2');
         expect(sourceFeedback).toContain('Blank line note');
         expect(sourceFeedback).toContain('Line: 3');
-        expect(sourceFeedback).toContain('Long line note');
+        expect(sourceFeedback).toContain('Long line note\nsecond line\nthird line\nfourth line\nfifth line');
 
         if (touch) {
             const scrollerBox = await codeScroller.boundingBox();
@@ -1264,9 +1380,13 @@ describe('Desktop workspace browser interaction', () => {
                 await card.hover();
                 await commentButton.click();
             }
-            await canvasPanel.getByPlaceholder('Write a comment').fill(feedback);
-            await canvasPanel.getByRole('button', { name: 'Pin comment' }).click();
+            const dockedThread = canvasPanel.getByTestId('inline-comment-thread:docked');
+            await dockedThread.waitFor();
+            await expect(canvasPanel.locator('[data-testid^="inline-comment-thread:line:"]').count()).resolves.toBe(0);
+            await dockedThread.getByPlaceholder('Write a comment').fill(feedback);
+            await dockedThread.getByRole('button', { name: 'Pin comment' }).click();
         }
+        await expectReviewBarDocked(canvasPanel);
         await canvasPanel.getByRole('button', { name: 'Send 2 comments' }).click();
         await expect(page.evaluate(() => (window as any).__WORKSPACE_FEEDBACK_CALLS__ ?? [])).resolves.toHaveLength(feedbackIndex + 1);
         const canvasFeedback = await page.evaluate((index) => (window as any).__WORKSPACE_FEEDBACK_CALLS__[index].text, feedbackIndex);
@@ -1296,35 +1416,68 @@ describe('Desktop workspace browser interaction', () => {
         await expect.poll(() => viewport.getAttribute('style')).not.toBe(zoomedTransform);
     }
 
-    it('pins and sends Markdown and JSON Canvas review feedback in the production Web Desktop host', async () => {
+    it.each(['light', 'dark'] as const)('pins and sends line-local file feedback in the production Web Desktop host (%s)', async (themeName) => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
         const pageErrors = recordPageErrors(page);
-        await page.goto(origin + '?file-review=desktop');
-        const markdownAffordance = await verifyMarkdownReviewJourney(page, 'file-review-desktop');
+        await page.goto(`${origin}?file-review=desktop&theme=${themeName}`);
+        const markdownAffordance = await verifyMarkdownReviewJourney(page, 'file-review-desktop', 0, false, themeName);
         await verifyMachineMarkdownLinkJourney(page, 'file-review-desktop');
-        await verifyCodeReviewJourney(page, 'file-review-desktop', 1, true, false, markdownAffordance);
-        await verifyMarkdownSourceReviewJourney(page, 'file-review-desktop');
+        await verifyCodeReviewJourney(page, 'file-review-desktop', 1, true, false, markdownAffordance, themeName);
         await verifyCanvasReviewJourney(page, 'file-review-desktop', true, 2);
+        await page.goto(`${origin}?file-review=desktop-markdown-source&theme=${themeName}`);
+        await verifyMarkdownSourceReviewJourney(page, 'file-review-desktop', false, false, themeName);
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 60_000);
 
-    it('pins and sends the same review feedback in the production 390x844 Web Mobile host', async () => {
+    it.each(['light', 'dark'] as const)('pins and sends line-local file feedback in the production 390x844 Web Mobile host (%s)', async (themeName) => {
         const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
         const page = await context.newPage();
         const pageErrors = recordPageErrors(page);
-        await page.goto(origin + '?file-review=mobile');
-        await verifyMarkdownReviewJourney(page, 'file-review-mobile', 0, true);
-        await page.goto(origin + '?file-review=mobile-canvas');
+        await page.goto(`${origin}?file-review=mobile&theme=${themeName}`);
+        await verifyMarkdownReviewJourney(page, 'file-review-mobile', 0, true, themeName);
+        await page.goto(`${origin}?file-review=mobile-canvas&theme=${themeName}`);
         await verifyCanvasReviewJourney(page, 'file-review-mobile', false, 0, true);
-        await page.goto(origin + '?file-review=mobile-source');
-        await verifyCodeReviewJourney(page, 'file-review-mobile', 0, false, true);
-        await page.goto(origin + '?file-review=mobile-markdown-source');
-        await verifyMarkdownSourceReviewJourney(page, 'file-review-mobile', true, false);
+        await page.goto(`${origin}?file-review=mobile-source&theme=${themeName}`);
+        await verifyCodeReviewJourney(page, 'file-review-mobile', 0, false, true, undefined, themeName);
+        await page.goto(`${origin}?file-review=mobile-markdown-source&theme=${themeName}`);
+        await verifyMarkdownSourceReviewJourney(page, 'file-review-mobile', true, false, themeName);
         expect(pageErrors).toEqual([]);
         await page.close();
         await context.close();
     }, 60_000);
+
+    it('retains every pinned Markdown thread after a failed batch send and clears them only after retry', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        const pageErrors = recordPageErrors(page);
+        await page.goto(`${origin}?file-review=desktop&theme=dark&feedback-fail-once=1`);
+        const panel = page.getByTestId('file-review-desktop').getByTestId('desktop-file-panel:/workspace/demo.md');
+        await panel.locator('.hh-markdown-root').waitFor();
+
+        for (const [line, feedback] of [[3, 'Retain first pin'], [4, 'Retain second pin']] as const) {
+            const item = panel.locator(`li[data-source-line="${line}"]`);
+            await item.hover();
+            await item.locator('.hh-markdown-comment-gutter').click();
+            const composer = item.getByTestId(`inline-comment-composer:line:${line}`);
+            await composer.getByPlaceholder('Write a comment').fill(feedback);
+            await composer.getByRole('button', { name: 'Pin comment' }).click();
+        }
+
+        await panel.getByRole('button', { name: 'Send 2 comments' }).click();
+        await panel.getByRole('alert').waitFor();
+        await expect(page.evaluate(() => (window as any).__WORKSPACE_FEEDBACK_FAILURE_COUNT__ ?? 0)).resolves.toBe(1);
+        await expect(page.evaluate(() => (window as any).__WORKSPACE_FEEDBACK_CALLS__ ?? [])).resolves.toHaveLength(1);
+        await expect(panel.getByTestId('inline-comment-thread:line:3').getByText('Retain first pin', { exact: true }).count()).resolves.toBe(1);
+        await expect(panel.getByTestId('inline-comment-thread:line:4').getByText('Retain second pin', { exact: true }).count()).resolves.toBe(1);
+        await expect(panel.getByRole('button', { name: 'Send 2 comments' }).count()).resolves.toBe(1);
+
+        await panel.getByRole('button', { name: 'Send 2 comments' }).click();
+        await expect(page.evaluate(() => (window as any).__WORKSPACE_FEEDBACK_CALLS__ ?? [])).resolves.toHaveLength(2);
+        await expect(panel.getByTestId('inline-comment-review-bar').count()).resolves.toBe(0);
+        await expect(panel.locator('[data-testid^="inline-comment-thread:line:"]').count()).resolves.toBe(0);
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 30_000);
 
     it.each([
         { mode: 'desktop', width: 1440, height: 900, sessionId: 'main-agent-desktop' },
@@ -1383,8 +1536,12 @@ describe('Desktop workspace browser interaction', () => {
         } catch (error) {
             throw new Error(`Element picker did not produce a comment. Workspace: ${await workspace.innerText()}; errors: ${pageErrors.join(' | ')}`, { cause: error });
         }
+        const dockedThread = workspace.getByTestId('inline-comment-thread:docked');
+        await dockedThread.waitFor();
+        await expect(workspace.locator('[data-testid^="inline-comment-thread:line:"]').count()).resolves.toBe(0);
         await comment.fill('Increase the button hit area');
-        await workspace.getByRole('button', { name: 'Pin comment' }).click();
+        await dockedThread.getByRole('button', { name: 'Pin comment' }).click();
+        await expectReviewBarDocked(workspace);
         await workspace.getByRole('button', { name: 'Send 1 comments' }).click();
 
         await expect.poll(() => page.evaluate(() => (window as any).__WORKSPACE_FEEDBACK_CALLS__ ?? []))
