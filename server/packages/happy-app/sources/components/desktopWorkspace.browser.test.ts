@@ -259,7 +259,7 @@ const virtualModules: Record<string, string> = {
         const machineMarkdown = btoa('# Machine workspace\\n\\n[Open machine relative](notes/machine-child.md)\\n');
         const sourceMarkdown = btoa('# Source review\\n\\n' + 'long-markdown-'.repeat(120));
         const source = btoa('const first = 1;\\n\\nconst longValue = "' + 'long-value-'.repeat(120) + '";\\nconst last = 2;');
-        const navigationSource = btoa(Array.from({ length: 260 }, (_, index) => 'const line' + (index + 1) + ' = ' + (index + 1) + ';').join('\\n'));
+        const navigationSource = btoa(Array.from({ length: 1200 }, (_, index) => 'const line' + (index + 1) + ' = ' + (index + 1) + ';').join('\\n'));
         const canvas = btoa(JSON.stringify({
             nodes: [
                 { id: 'text-node', type: 'text', text: '# Start', x: 0, y: 0, width: 220, height: 120 },
@@ -1111,8 +1111,8 @@ describe('Desktop workspace browser interaction', () => {
         expect(affordance.backgroundColor).toBe(expectedTheme === 'dark' ? 'rgb(210, 153, 34)' : 'rgb(154, 103, 0)');
         expect(affordance.borderTopWidth).toBe('0px');
         const geometry = await reviewGutterGeometry(headingLineNumber, headingGutter, heading);
-        expect(geometry.numberGap).toBe(4);
-        expect(geometry.contentGap).toBe(8);
+        expect(geometry.numberGap).toBe(2);
+        expect(geometry.contentGap).toBe(4);
 
         const sessionRelativeLink = markdownPanel.getByRole('link', { name: 'Open session relative' });
         if (touch) await sessionRelativeLink.tap();
@@ -1323,6 +1323,17 @@ describe('Desktop workspace browser interaction', () => {
         await expect(secondDraft.inputValue()).resolves.toBe('Second independent line');
         await expect(panel.getByTestId('inline-comment-thread:line:161').getByText('Keep this draft on line 161', { exact: true }).count()).resolves.toBe(1);
         await expect(panel.locator('[data-selected-line]').count()).resolves.toBe(0);
+        const fourDigitNumber = panel.locator('[data-column-number="1000"] [data-line-number-content]');
+        await fourDigitNumber.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'nearest' }));
+        await expect(fourDigitNumber.textContent()).resolves.toBe('1000');
+        const numberVisibility = await fourDigitNumber.evaluate((element) => {
+            const range = document.createRange();
+            range.selectNodeContents(element);
+            const text = range.getBoundingClientRect();
+            const box = element.getBoundingClientRect();
+            return { fits: text.left >= box.left - 0.5 && text.right <= box.right + 0.5 };
+        });
+        expect(numberVisibility.fits).toBe(true);
         expect(errors).toEqual([]);
         await context.close();
     }, 30_000);
@@ -1595,6 +1606,70 @@ describe('Desktop workspace browser interaction', () => {
         expect(sent[0].text).not.toContain('new unsaved edit');
         await context.close();
     }, 15_000);
+
+    it.each([
+        { surface: 'desktop', width: 1440, height: 900, touch: false, theme: 'light' },
+        { surface: 'desktop', width: 1440, height: 900, touch: false, theme: 'dark' },
+        { surface: 'mobile', width: 390, height: 844, touch: true, theme: 'light' },
+        { surface: 'mobile', width: 390, height: 844, touch: true, theme: 'dark' },
+    ])('keeps compact Markdown/Source alignment and 16px Source text ($surface, $theme)', async ({ surface, width, height, touch, theme }) => {
+        const context = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch });
+        const page = await context.newPage();
+        page.setDefaultTimeout(3_000);
+        const errors = recordPageErrors(page);
+        await page.goto(`${origin}?file-review=${surface}&theme=${theme}`, { timeout: 15_000 });
+        const markdownPanel = page.getByTestId('desktop-file-panel:/workspace/demo.md');
+        const heading = markdownPanel.locator('h1[data-source-line="1"]');
+        await heading.waitFor();
+        const markdownBox = (await markdownPanel.boundingBox())!;
+        const headingBox = (await heading.boundingBox())!;
+        const markdownInset = headingBox.x - markdownBox.x;
+        const number = heading.locator('.hh-markdown-source-line');
+        const numberWidth = (await number.boundingBox())!.width;
+        const numberFontSize = await number.evaluate((element) => getComputedStyle(element).fontSize);
+        const gutterLeft = (await number.boundingBox())!.x - markdownBox.x;
+        const evidenceDirectory = process.env.HAPPYHERD_MARKDOWN_COMMENT_EVIDENCE_DIR?.trim();
+        if (evidenceDirectory) await markdownPanel.screenshot({ path: resolve(evidenceDirectory, `compact-markdown-${surface}-${theme}.png`) });
+
+        if (touch) {
+            await page.goto(`${origin}?file-review=mobile-source&theme=${theme}`, { timeout: 15_000 });
+        } else {
+            await page.getByRole('tab', { name: 'Open review.ts' }).click();
+        }
+        const sourcePanel = page.getByTestId('desktop-file-panel:/workspace/review.ts');
+        const firstLine = sourcePanel.locator('[data-line="1"]');
+        await firstLine.waitFor();
+        const sourceBox = (await sourcePanel.boundingBox())!;
+        const sourceInset = (await firstLine.boundingBox())!.x - sourceBox.x;
+        if (evidenceDirectory) await sourcePanel.screenshot({ path: resolve(evidenceDirectory, `compact-source-${surface}-${theme}.png`) });
+        const typography = await firstLine.evaluate((element) => {
+            const token = element.querySelector('span') ?? element;
+            return { line: getComputedStyle(element).fontSize, token: getComputedStyle(token).fontSize };
+        });
+        expect({ markdownInset, sourceInset, gutterLeft, typography }).toEqual({
+            markdownInset: 66, sourceInset: 66, gutterLeft: 0, typography: { line: '16px', token: '16px' },
+        });
+        expect((await sourcePanel.locator('[data-line-number-content]').first().boundingBox())!.width).toBe(numberWidth);
+        await expect(sourcePanel.locator('[data-line-number-content]').first().evaluate((element) => getComputedStyle(element).fontSize)).resolves.toBe(numberFontSize);
+        await expect(firstLine.textContent()).resolves.toBe('const first = 1;');
+        const firstCharacter = () => firstLine.evaluate((element) => {
+            const text = document.createTreeWalker(element, NodeFilter.SHOW_TEXT).nextNode()!;
+            const range = document.createRange();
+            range.setStart(text, 0);
+            range.setEnd(text, 1);
+            return { left: range.getBoundingClientRect().left, width: range.getBoundingClientRect().width };
+        });
+        expect(Math.abs((await firstCharacter()).left - (sourceBox.x + sourceInset))).toBeLessThan(1);
+        expect((await firstCharacter()).width).toBeGreaterThan(0);
+        const scroller = sourcePanel.locator('[data-code]');
+        await scroller.evaluate((element) => { element.scrollLeft = 120; });
+        await expect(scroller.evaluate((element) => element.scrollLeft)).resolves.toBe(120);
+        expect((await sourcePanel.locator('[data-column-number="1"]').boundingBox())!.x).toBe(sourceBox.x);
+        await scroller.evaluate((element) => { element.scrollLeft = 0; });
+        expect(Math.abs((await firstCharacter()).left - (sourceBox.x + sourceInset))).toBeLessThan(1);
+        expect(errors).toEqual([]);
+        await context.close();
+    }, 30_000);
 
     it.each(['light', 'dark'] as const)('pins and sends line-local file feedback in the production Web Desktop host (%s)', async (themeName) => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });

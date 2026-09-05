@@ -1,3 +1,7 @@
+# September 5 — Optimize font sizes and layout alignment on mobile web views
+
+- Updated web editor and source preview fonts to exactly 16px and optimized gutter alignment for tighter mobile layouts.
+
 # September 5 — Workspace comment reliability
 
 - Comment drafts and input focus now survive ordinary Workspace updates.
