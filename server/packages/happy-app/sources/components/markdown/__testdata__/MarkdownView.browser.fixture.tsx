@@ -18,6 +18,7 @@ const markdown = [
     '## Heading',
     '',
     '- ordinary one',
+    '  - nested ordinary',
     '- ordinary two',
     '',
     '> Quoted copy',

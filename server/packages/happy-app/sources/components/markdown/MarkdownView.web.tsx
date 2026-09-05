@@ -138,6 +138,17 @@ function LineCommentThread(props: {
 }
 
 const ParentReviewLineContext = React.createContext<number | null>(null);
+const ListDepthContext = React.createContext(0);
+
+function MarkdownList({ ordered, children, ...rest }: any) {
+    const listDepth = React.useContext(ListDepthContext) + 1;
+    const Tag = ordered ? 'ol' : 'ul';
+    return (
+        <ListDepthContext.Provider value={listDepth}>
+            <Tag {...rest}>{children}</Tag>
+        </ListDepthContext.Provider>
+    );
+}
 
 const IMAGE_RETRY_DELAYS_MS = [500, 1500] as const;
 
@@ -285,9 +296,13 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
             const Tag = tag as any;
             const line = sourceLine(node);
             const parentReviewLine = React.useContext(ParentReviewLineContext);
+            const listDepth = React.useContext(ListDepthContext);
             const ownsReviewLine = line !== undefined && line !== parentReviewLine;
+            const reviewStyle = tag === 'li'
+                ? { ...rest.style, '--hh-markdown-list-indent': `${listDepth * 40}px` }
+                : rest.style;
             const reviewUnit = (
-                <Tag {...rest} className={`${rest.className ?? ''} ${ownsReviewLine && props.onLineComment ? 'hh-markdown-review-line' : ''}`.trim()} data-source-line={line}>
+                <Tag {...rest} style={reviewStyle} className={`${rest.className ?? ''} ${ownsReviewLine && props.onLineComment ? 'hh-markdown-review-line' : ''}`.trim()} data-source-line={line}>
                     {ownsReviewLine ? <ReviewGutter line={line} onLineComment={props.onLineComment} /> : null}
                     <ParentReviewLineContext.Provider value={ownsReviewLine ? line : parentReviewLine}>
                         {children}
@@ -308,8 +323,9 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
             ul: ({ node, children, ...rest }: any) => {
                 const optionItems = optionItemsFromList(node);
                 if (optionItems) return <WebOptionsBlock items={optionItems} onOptionPress={props.onOptionPress} />;
-                return <ul {...rest}>{children}</ul>;
+                return <MarkdownList {...rest}>{children}</MarkdownList>;
             },
+            ol: ({ children, ...rest }: any) => <MarkdownList {...rest} ordered>{children}</MarkdownList>,
             p: reviewable('p'),
             h1: reviewable('h1'),
             h2: reviewable('h2'),
@@ -508,6 +524,7 @@ const MARKDOWN_CSS = `
 .hh-markdown-root > :last-child { margin-bottom: 0; }
 .hh-markdown-root h1,.hh-markdown-root h2,.hh-markdown-root h3,.hh-markdown-root h4,.hh-markdown-root h5,.hh-markdown-root h6 { line-height: 1.25; margin: 1em 0 .45em; }
 .hh-markdown-root p,.hh-markdown-root ul,.hh-markdown-root ol,.hh-markdown-root blockquote,.hh-markdown-root pre { margin: .65em 0; }
+.hh-markdown-root ul,.hh-markdown-root ol { padding-inline-start: 40px; }
 .hh-markdown-root a { color: inherit; text-decoration: underline; cursor: pointer; }
 .hh-markdown-root blockquote { border-left: 3px solid currentColor; opacity: .85; padding: .5em .9em; }
 .hh-markdown-table-review { margin: .65em 0; }
@@ -551,7 +568,7 @@ const MARKDOWN_CSS = `
 .hh-markdown-review-line { position: relative; }
 .hh-markdown-inline-comment { box-sizing: border-box; width: 100%; margin: .3em 0 .8em; }
 .hh-markdown-review-reveal { outline: 2px solid rgba(96,140,255,.8); outline-offset: -2px; border-radius: 4px; background: rgba(96,140,255,.12); }
-.hh-markdown-review-gutter { position: absolute; inset-inline-start: -72px; top: .15em; z-index: 4; display: grid; grid-template-columns: 44px 20px; gap: 4px; align-items: center; width: 68px; height: 20px; font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; font-size: 12px; font-variant-numeric: tabular-nums; line-height: 20px; }
+.hh-markdown-review-gutter { position: absolute; inset-inline-start: calc(-72px - var(--hh-markdown-list-indent, 0px)); top: .15em; z-index: 4; display: grid; grid-template-columns: 44px 20px; gap: 4px; align-items: center; width: 68px; height: 20px; font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; font-size: 12px; font-variant-numeric: tabular-nums; line-height: 20px; }
 .hh-markdown-source-line { overflow: hidden; color: var(--hh-markdown-text-secondary); text-align: end; text-overflow: clip; user-select: none; white-space: nowrap; }
 .hh-markdown-comment-gutter { appearance: none; display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: 0; border-radius: 4px; padding: 0; background: transparent; color: var(--hh-markdown-text-secondary); font: inherit; line-height: 20px; opacity: 0; cursor: pointer; touch-action: none; }
 .hh-markdown-review-line:hover > .hh-markdown-review-gutter .hh-markdown-comment-gutter,.hh-markdown-comment-gutter:focus-visible { background: var(--hh-markdown-surface-high); color: var(--hh-markdown-text); opacity: 1; }
