@@ -56,6 +56,7 @@ import {
     openDesktopFile,
     openDesktopLocalhost,
     selectDesktopFile,
+    type DesktopFileWorkspaceState,
 } from '@/components/desktopFileWorkspaceModel';
 import { SideChatAccessButton, SideChatFullscreen } from '@/components/SideChatPanel';
 import {
@@ -129,6 +130,19 @@ import { MobileTypographyFloor } from '@/components/MobileTypographyFloor';
 
 const SESSION_FILE_WORKSPACE_SPLIT_MIN_WINDOW_WIDTH = 900;
 
+type ChatFileWorkspace = {
+    files: DesktopFileWorkspaceState;
+    pickerOpen: boolean;
+    pickerTarget: { machineId: string; path: string } | null;
+    dirtyPaths: ReadonlySet<string>;
+};
+const EMPTY_CHAT_FILE_WORKSPACE: ChatFileWorkspace = {
+    files: EMPTY_DESKTOP_FILE_WORKSPACE,
+    pickerOpen: false,
+    pickerTarget: null,
+    dirtyPaths: new Set(),
+};
+
 export type SessionWorkspaceController = {
     openChanges: (sessionId: string) => void;
     openWorkspace: (session: Session) => void;
@@ -200,12 +214,22 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
 
     // Match left sidebar width: 30% of window, clamped to 250–360px
     const sidebarWidth = Math.min(Math.max(Math.floor(windowWidth * 0.3), 250), 360);
-    const [desktopFileWorkspace, setDesktopFileWorkspace] = React.useState(EMPTY_DESKTOP_FILE_WORKSPACE);
-    const [desktopMachinePickerOpen, setDesktopMachinePickerOpen] = React.useState(false);
-    const [desktopMachinePickerTarget, setDesktopMachinePickerTarget] = React.useState<{ machineId: string; path: string } | null>(null);
-    const [desktopDirtyPaths, setDesktopDirtyPaths] = React.useState<Set<string>>(() => new Set());
-    const desktopDirtyPathsRef = React.useRef(desktopDirtyPaths);
+    const [desktopWorkspaces, setDesktopWorkspaces] = React.useState<Record<string, ChatFileWorkspace>>({});
+    const desktopWorkspacesRef = React.useRef(desktopWorkspaces);
     const [desktopFileWorkspaceSessionId, setDesktopFileWorkspaceSessionId] = React.useState(sessionId);
+    const updateDesktopWorkspace = React.useCallback((owner: string, update: (current: ChatFileWorkspace) => ChatFileWorkspace) => {
+        const current = desktopWorkspacesRef.current;
+        const workspace = current[owner] ?? EMPTY_CHAT_FILE_WORKSPACE;
+        const next = update(workspace);
+        if (next === workspace) return;
+        desktopWorkspacesRef.current = { ...current, [owner]: next };
+        setDesktopWorkspaces(desktopWorkspacesRef.current);
+    }, []);
+    const currentDesktopWorkspace = desktopWorkspaces[desktopFileWorkspaceSessionId] ?? EMPTY_CHAT_FILE_WORKSPACE;
+    const desktopFileWorkspace = currentDesktopWorkspace.files;
+    const desktopMachinePickerOpen = currentDesktopWorkspace.pickerOpen;
+    const desktopDirtyPaths = currentDesktopWorkspace.dirtyPaths;
+    const hasMountedDesktopWorkspaces = Object.keys(desktopWorkspaces).length > 0;
     const desktopFileWorkspaceSession = useSession(desktopFileWorkspaceSessionId);
     const canUseDesktopFileWorkspaceSession = isDataReady
         && !!desktopFileWorkspaceSession
@@ -216,12 +240,8 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
 
     React.useEffect(() => {
         workspaceLinkRequestGeneration.current += 1;
-        setDesktopFileWorkspace(EMPTY_DESKTOP_FILE_WORKSPACE);
-        setDesktopMachinePickerOpen(false);
-        setDesktopMachinePickerTarget(null);
-        const cleanDirtyPaths = new Set<string>();
-        desktopDirtyPathsRef.current = cleanDirtyPaths;
-        setDesktopDirtyPaths(cleanDirtyPaths);
+        desktopWorkspacesRef.current = {};
+        setDesktopWorkspaces({});
         setDesktopFileWorkspaceSessionId(sessionId);
         return () => {
             workspaceLinkRequestGeneration.current += 1;
@@ -276,16 +296,16 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         }
     }, [sessionId]);
     const openMainSidebarPanel = React.useCallback((panel: SidebarMode) => {
+        workspaceLinkRequestGeneration.current += 1;
         if (panel !== 'sideChat') {
             setDesktopFileWorkspaceSessionId(sessionId);
-            setDesktopMachinePickerTarget(null);
         }
         openSidebarPanel(panel);
     }, [openSidebarPanel, sessionId]);
     const selectMainSidebarPanel = React.useCallback((panel: SidebarMode) => {
+        workspaceLinkRequestGeneration.current += 1;
         if (panel !== 'sideChat') {
             setDesktopFileWorkspaceSessionId(sessionId);
-            setDesktopMachinePickerTarget(null);
         }
         selectSidebarPanel(panel);
     }, [selectSidebarPanel, sessionId]);
@@ -452,6 +472,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
 
     const createSideChat = React.useCallback(async (): Promise<boolean> => {
         if (!canCreateSideChat || !sideChatMachineId || creatingSideChat || pendingSideChatId) return false;
+        workspaceLinkRequestGeneration.current += 1;
         setCreatingSideChat(true);
         try {
             const receipt = await machineCreateSideChat(sideChatMachineId, sessionId);
@@ -488,7 +509,13 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         }
     }, [canCreateSideChat, creatingSideChat, openSidebarPanel, pendingSideChatId, removeSidebarPanel, sessionId, sideChatMachineId, sidebarPresentation.sideChatSurface]);
 
+    const selectSideChat = React.useCallback((id: string) => {
+        workspaceLinkRequestGeneration.current += 1;
+        setActiveSideChatId(id);
+    }, []);
+
     const toggleSideChats = React.useCallback(() => {
+        workspaceLinkRequestGeneration.current += 1;
         const focusId = resolveActiveSideChatId(sideChatIds, activeSideChatId);
         if (!focusId) {
             void createSideChat();
@@ -549,6 +576,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
     }, []);
 
     const closeSideChat = React.useCallback((id: string) => {
+        workspaceLinkRequestGeneration.current += 1;
         const idx = sideChats.findIndex((s) => s.id === id);
         const target = idx === -1 ? null : sideChats[idx];
         if (!target) return;
@@ -650,11 +678,11 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             ).then((response) => {
                 if (workspaceLinkRequestGeneration.current !== requestGeneration) return;
                 if (response.success && response.tree?.type === 'directory') {
-                    setDesktopMachinePickerTarget({
-                        machineId: route.params.machineId,
-                        path: route.params.absolutePath,
-                    });
-                    setDesktopMachinePickerOpen(true);
+                    updateDesktopWorkspace(route.params.originSessionId, (current) => ({
+                        ...current,
+                        pickerTarget: { machineId: route.params.machineId, path: route.params.absolutePath },
+                        pickerOpen: true,
+                    }));
                     collapseSidebarPanels();
                     return;
                 }
@@ -662,12 +690,13 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                 // canonical host. FileViewPanel renders its established error
                 // state without creating a second viewer header or composer.
                 const identity = desktopFileIdentity(route.params.absolutePath, route.params.machineId);
-                setDesktopFileWorkspace((current) => {
+                updateDesktopWorkspace(route.params.originSessionId, (workspace) => {
+                    const current = workspace.files;
                     const existingReference = current.references[identity];
                     const preserveDirtySessionEditor = !isDesktopLocalhostReference(existingReference)
                         && existingReference?.source === 'session'
-                        && desktopDirtyPathsRef.current.has(identity);
-                    return openDesktopFile(
+                        && workspace.dirtyPaths.has(identity);
+                    const files = openDesktopFile(
                         current,
                         route.params.absolutePath,
                         {
@@ -681,9 +710,8 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                             ...(route.params.column === undefined ? {} : { column: Number(route.params.column) }),
                         },
                     );
+                    return { ...workspace, files, pickerOpen: false };
                 });
-                setDesktopMachinePickerOpen(false);
-                setDesktopMachinePickerTarget(null);
                 collapseSidebarPanels();
             });
         });
@@ -694,87 +722,98 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         sessionId,
         sideChatIds,
         withFileDiscardConfirmation,
+        updateDesktopWorkspace,
     ]);
 
     const handleSidebarFilePress = React.useCallback((file: GitFileStatus) => {
+        workspaceLinkRequestGeneration.current += 1;
         if (file.status === 'deleted') return;
         withFileDiscardConfirmation(() => pushOverlayNow({ kind: 'diff', file: file.fullPath }));
     }, [pushOverlayNow, withFileDiscardConfirmation]);
 
     const handleDesktopFileSelect = React.useCallback((path: string) => {
-        setDesktopFileWorkspace((current) => selectDesktopFile(current, path));
-        setDesktopMachinePickerOpen(false);
-        setDesktopMachinePickerTarget(null);
-    }, []);
-    const handleDesktopDirtyChange = React.useCallback((path: string, dirty: boolean) => {
-        const current = desktopDirtyPathsRef.current;
-        if (current.has(path) === dirty) return;
-        const next = new Set(current);
-        if (dirty) next.add(path);
-        else next.delete(path);
-        desktopDirtyPathsRef.current = next;
-        setDesktopDirtyPaths(next);
-    }, []);
+        workspaceLinkRequestGeneration.current += 1;
+        updateDesktopWorkspace(desktopFileWorkspaceSessionId, (current) => ({
+            ...current, files: selectDesktopFile(current.files, path), pickerOpen: false,
+        }));
+    }, [desktopFileWorkspaceSessionId, updateDesktopWorkspace]);
+    const handleDesktopDirtyChange = React.useCallback((path: string, dirty: boolean, owner: string) => {
+        updateDesktopWorkspace(owner, (current) => {
+            if (current.dirtyPaths.has(path) === dirty) return current;
+            const dirtyPaths = new Set(current.dirtyPaths);
+            if (dirty) dirtyPaths.add(path);
+            else dirtyPaths.delete(path);
+            return { ...current, dirtyPaths };
+        });
+    }, [updateDesktopWorkspace]);
     const handleDesktopFileClose = React.useCallback((path: string) => {
-        const close = () => {
-            setDesktopFileWorkspace((current) => closeDesktopFile(current, path));
-            if (desktopFileWorkspace.paths.length === 1 && desktopFileWorkspace.paths[0] === path) {
-                setDesktopMachinePickerOpen(false);
-                setDesktopMachinePickerTarget(null);
-            }
-            handleDesktopDirtyChange(path, false);
-        };
-        if (!desktopDirtyPathsRef.current.has(path)) {
+        workspaceLinkRequestGeneration.current += 1;
+        const owner = desktopFileWorkspaceSessionId;
+        const close = () => updateDesktopWorkspace(owner, (current) => {
+            const dirtyPaths = new Set(current.dirtyPaths);
+            dirtyPaths.delete(path);
+            const files = closeDesktopFile(current.files, path);
+            return { ...current, files, dirtyPaths, pickerOpen: files.paths.length > 0 && current.pickerOpen };
+        });
+        if (!desktopWorkspacesRef.current[owner]?.dirtyPaths.has(path)) {
             close();
             return;
         }
         void Modal.confirm(
             t('uiCopy.discardUnsavedChanges'),
-            t('uiCopy.yourEditsToValueHaveNotBeenSaved', { value1: path.split(/[/\\]/).pop() || t('uiCopy.thisFile') }),
+            t('uiCopy.yourEditsToValueHaveNotBeenSaved', { value1: desktopFilePath(path).split(/[/\\]/).pop() || t('uiCopy.thisFile') }),
             { confirmText: t('common.discard'), destructive: true },
         ).then((confirmed) => {
             if (confirmed) close();
         });
-    }, [desktopFileWorkspace.paths, handleDesktopDirtyChange]);
-    const handleDesktopFileDeleted = React.useCallback((path: string) => {
-        setDesktopFileWorkspace((current) => closeDesktopFile(current, path));
-        handleDesktopDirtyChange(path, false);
-    }, [desktopFileWorkspace.paths, handleDesktopDirtyChange]);
+    }, [desktopFileWorkspaceSessionId, updateDesktopWorkspace]);
+    const handleDesktopFileDeleted = React.useCallback((path: string, owner: string) => {
+        updateDesktopWorkspace(owner, (current) => {
+            const dirtyPaths = new Set(current.dirtyPaths);
+            dirtyPaths.delete(path);
+            return { ...current, files: closeDesktopFile(current.files, path), dirtyPaths };
+        });
+    }, [updateDesktopWorkspace]);
     const handleOverlayFileDeleted = React.useCallback(() => {
         setFileViewDirty(false);
         setHeaderRightSlot(null);
         setOverlayHistory({ stack: [{ kind: 'none' }], cursor: 0 });
     }, []);
     const handleMachineWorkspaceFilePress = React.useCallback(({ machineId, path }: { machineId: string; path: string }) => {
-        setDesktopFileWorkspace((current) => openDesktopFile(current, path, {
-            machineId,
-            source: 'machine',
+        workspaceLinkRequestGeneration.current += 1;
+        updateDesktopWorkspace(desktopFileWorkspaceSessionId, (current) => ({
+            ...current,
+            files: openDesktopFile(current.files, path, { machineId, source: 'machine' }),
+            pickerOpen: false,
         }));
-        setDesktopMachinePickerOpen(false);
-        setDesktopMachinePickerTarget(null);
         collapseSidebarPanels();
-    }, [collapseSidebarPanels]);
+    }, [collapseSidebarPanels, desktopFileWorkspaceSessionId, updateDesktopWorkspace]);
     const handleMachineWorkspaceLocalhostUrlPress = React.useCallback(({ machineId, url }: { machineId: string; url: string }) => {
-        setDesktopFileWorkspace((current) => openDesktopLocalhost(current, machineId, url));
-        setDesktopMachinePickerOpen(false);
-        setDesktopMachinePickerTarget(null);
+        workspaceLinkRequestGeneration.current += 1;
+        updateDesktopWorkspace(desktopFileWorkspaceSessionId, (current) => ({
+            ...current, files: openDesktopLocalhost(current.files, machineId, url), pickerOpen: false,
+        }));
         collapseSidebarPanels();
-    }, [collapseSidebarPanels]);
+    }, [collapseSidebarPanels, desktopFileWorkspaceSessionId, updateDesktopWorkspace]);
     const openChangesForSession = React.useCallback((targetSessionId: string) => {
+        workspaceLinkRequestGeneration.current += 1;
         setDesktopFileWorkspaceSessionId(targetSessionId);
-        setDesktopMachinePickerOpen(false);
-        setDesktopMachinePickerTarget(null);
+        updateDesktopWorkspace(targetSessionId, (current) => ({ ...current, pickerOpen: false }));
         collapseSidebarPanels();
         pushOverlayNow({ kind: 'diff' });
-    }, [collapseSidebarPanels, pushOverlayNow]);
+    }, [collapseSidebarPanels, pushOverlayNow, updateDesktopWorkspace]);
     const openWorkspaceForSession = React.useCallback((targetSession: Session) => {
+        workspaceLinkRequestGeneration.current += 1;
         setDesktopFileWorkspaceSessionId(targetSession.id);
         collapseSidebarPanels();
         const machineId = targetSession.metadata?.machineId;
         const path = targetSession.metadata?.path || targetSession.metadata?.homeDir || '/';
-        setDesktopMachinePickerTarget(machineId ? { machineId, path } : null);
-        setDesktopMachinePickerOpen(true);
-    }, [collapseSidebarPanels]);
+        updateDesktopWorkspace(targetSession.id, (current) => ({
+            ...current,
+            pickerTarget: current.pickerTarget ?? (machineId ? { machineId, path } : null),
+            pickerOpen: true,
+        }));
+    }, [collapseSidebarPanels, updateDesktopWorkspace]);
     const sessionWorkspaceController = React.useMemo<SessionWorkspaceController>(() => ({
         openChanges: openChangesForSession,
         openWorkspace: openWorkspaceForSession,
@@ -810,6 +849,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             canForward: canOverlayForward,
             back: () => {
                 if (!canOverlayBack) return false;
+                workspaceLinkRequestGeneration.current += 1;
                 withFileDiscardConfirmation(() => setOverlayHistory((prev) => (
                     prev.cursor <= 0 ? prev : { ...prev, cursor: prev.cursor - 1 }
                 )));
@@ -817,6 +857,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
             },
             forward: () => {
                 if (!canOverlayForward) return false;
+                workspaceLinkRequestGeneration.current += 1;
                 withFileDiscardConfirmation(() => setOverlayHistory((prev) => (
                     prev.cursor >= prev.stack.length - 1 ? prev : { ...prev, cursor: prev.cursor + 1 }
                 )));
@@ -1030,12 +1071,13 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                     <SideChatFullscreen
                         sideChats={sideChats}
                         activeSideChatId={activeSideChatId}
-                        onSelectSideChat={setActiveSideChatId}
+                        onSelectSideChat={selectSideChat}
                         onCloseSideChat={closeSideChat}
                         creatingSideChat={creatingSideChat || Boolean(pendingSideChatId)}
                         canCreateSideChat={canCreateSideChat}
                         onCreateSideChat={createSideChat}
                         onCollapse={() => {
+                            workspaceLinkRequestGeneration.current += 1;
                             setSideChatFullscreenOpen(false);
                             setDesktopFileWorkspaceSessionId(sessionId);
                         }}
@@ -1059,7 +1101,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
 
     const keepWorkspaceSplitMounted = canUseSessionFileWorkspace
         || canRenderSidebar
-        || desktopFileWorkspaceActive;
+        || hasMountedDesktopWorkspaces;
 
     if (!keepWorkspaceSplitMounted) {
         return sessionContent;
@@ -1121,26 +1163,24 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         </View>
     );
 
-    const sessionMachinePickerTarget = desktopFileWorkspaceSession?.metadata?.machineId
-        ? {
-            machineId: desktopFileWorkspaceSession.metadata.machineId,
-            path: desktopFileWorkspaceSession.metadata.path
-                || desktopFileWorkspaceSession.metadata.homeDir
-                || '/',
-        }
-        : null;
-    const effectiveMachinePickerTarget = desktopMachinePickerTarget ?? sessionMachinePickerTarget;
-    const machineWorkspacePicker = effectiveMachinePickerTarget ? (
-        <MachineWorkspaceBrowser
-            key={`${desktopFileWorkspaceSessionId}:${effectiveMachinePickerTarget.machineId}:${effectiveMachinePickerTarget.path}`}
-            embedded
-            initialMachineId={effectiveMachinePickerTarget.machineId}
-            initialPath={effectiveMachinePickerTarget.path}
-            workspaceContextSessionId={desktopFileWorkspaceSessionId}
-            onFilePress={handleMachineWorkspaceFilePress}
-            onLocalhostUrlPress={Platform.OS === 'web' ? handleMachineWorkspaceLocalhostUrlPress : undefined}
-        />
-    ) : null;
+    const machineWorkspacePicker = (owner: string, workspace: ChatFileWorkspace) => {
+        const ownerSession = owner === sessionId ? session : sideChats.find((chat) => chat.id === owner);
+        const target = workspace.pickerTarget ?? (ownerSession?.metadata?.machineId ? {
+            machineId: ownerSession.metadata.machineId,
+            path: ownerSession.metadata.path || ownerSession.metadata.homeDir || '/',
+        } : null);
+        return target ? (
+            <MachineWorkspaceBrowser
+                key={`${owner}:${target.machineId}:${target.path}`}
+                embedded
+                initialMachineId={target.machineId}
+                initialPath={target.path}
+                workspaceContextSessionId={owner}
+                onFilePress={handleMachineWorkspaceFilePress}
+                onLocalhostUrlPress={Platform.OS === 'web' ? handleMachineWorkspaceLocalhostUrlPress : undefined}
+            />
+        ) : null;
+    };
 
     const fallbackRightSurface = (
         <Animated.View style={[{ minWidth: 0, alignSelf: 'stretch' }, animatedSidebarStyle]}>
@@ -1158,7 +1198,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                     canOpenFilePanels={canShowFileSidebar}
                     sideChats={sideChats}
                     activeSideChatId={activeSideChatId}
-                    onSelectSideChat={setActiveSideChatId}
+                    onSelectSideChat={selectSideChat}
                     onCloseSideChat={closeSideChat}
                     creatingSideChat={creatingSideChat || Boolean(pendingSideChatId)}
                     canCreateSideChat={canCreateSideChat}
@@ -1170,7 +1210,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
 
     const workspaceSurface = (
         <View style={{ flex: 1, minWidth: 0, position: 'relative' }}>
-            {desktopFileWorkspaceActive ? (
+            {hasMountedDesktopWorkspaces ? (
                 <View style={StyleSheet.absoluteFillObject}>
                     <DesktopFileWorkspace
                         sessionId={desktopFileWorkspaceSessionId}
@@ -1180,17 +1220,25 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                         dirtyPaths={desktopDirtyPaths}
                         machinePickerOpen={desktopMachinePickerOpen}
                         compact={desktopFileWorkspaceFullscreen}
-                        machinePicker={machineWorkspacePicker}
+                        machinePicker={machineWorkspacePicker(desktopFileWorkspaceSessionId, currentDesktopWorkspace)}
+                        retainedWorkspaces={Object.entries(desktopWorkspaces)
+                            .filter(([owner]) => owner !== desktopFileWorkspaceSessionId)
+                            .map(([owner, workspace]) => ({
+                                sessionId: owner,
+                                paths: workspace.files.paths,
+                                references: workspace.files.references,
+                                machinePicker: machineWorkspacePicker(owner, workspace),
+                            }))}
                         onSelect={handleDesktopFileSelect}
                         onRequestClose={handleDesktopFileClose}
                         onFileDeleted={handleDesktopFileDeleted}
                         onOpenMachinePicker={() => {
-                            setDesktopMachinePickerTarget(null);
-                            setDesktopMachinePickerOpen(true);
+                            workspaceLinkRequestGeneration.current += 1;
+                            updateDesktopWorkspace(desktopFileWorkspaceSessionId, (current) => ({ ...current, pickerOpen: true }));
                         }}
                         onClosePicker={() => {
-                            setDesktopMachinePickerOpen(false);
-                            setDesktopMachinePickerTarget(null);
+                            workspaceLinkRequestGeneration.current += 1;
+                            updateDesktopWorkspace(desktopFileWorkspaceSessionId, (current) => ({ ...current, pickerOpen: false }));
                         }}
                         onDirtyChange={handleDesktopDirtyChange}
                     />

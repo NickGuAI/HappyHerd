@@ -160,6 +160,42 @@ describe('DesktopFileWorkspace', () => {
         expect(renderer.root.findAllByType('MachinePicker' as any)).toHaveLength(1);
     });
 
+    it('retains same-path panels and callbacks under their original chat after switching owners', () => {
+        const onDirtyChange = vi.fn();
+        const onFileDeleted = vi.fn();
+        const renderOwner = (sessionId: string) => workspaceElement({
+            sessionId,
+            paths: ['/work/shared.md'],
+            activePath: '/work/shared.md',
+            retainedWorkspaces: [{
+                sessionId: sessionId === 'main' ? 'side' : 'main',
+                paths: ['/work/shared.md'],
+                references: {},
+            }],
+            onDirtyChange,
+            onFileDeleted,
+        });
+        let renderer!: ReactTestRenderer;
+        act(() => { renderer = create(renderOwner('main')); });
+        const originalMain = filePanels(renderer).find((panel: any) => panel.props.sessionId === 'main')!;
+        const originalMount = originalMain.props.mountId;
+        act(() => { renderer.update(renderOwner('side')); });
+        const main = filePanels(renderer).find((panel: any) => panel.props.sessionId === 'main')!;
+        const side = filePanels(renderer).find((panel: any) => panel.props.sessionId === 'side')!;
+        expect(main.props.mountId).toBe(originalMount);
+        expect(main.props.active).toBe(false);
+        expect(side.props.active).toBe(true);
+        act(() => {
+            main.props.onDirtyChange(true);
+            main.props.onDeleted();
+            side.props.onHeaderRightSlotChange(React.createElement('SideHeader'));
+            main.props.onHeaderRightSlotChange(null);
+        });
+        expect(onDirtyChange).toHaveBeenCalledWith('/work/shared.md', true, 'main');
+        expect(onFileDeleted).toHaveBeenCalledWith('/work/shared.md', 'main');
+        expect(renderer.root.findAllByType('SideHeader' as any)).toHaveLength(1);
+    });
+
     it('keeps dirty and header callbacks scoped to their exact path', () => {
         const onDirtyChange = vi.fn();
         const onFileDeleted = vi.fn();
@@ -168,9 +204,9 @@ describe('DesktopFileWorkspace', () => {
 
         const second = filePanels(renderer).find((node: any) => node.props.filePath === '/work/b.md');
         act(() => second?.props.onDirtyChange(true));
-        expect(onDirtyChange).toHaveBeenCalledWith('/work/b.md', true);
+        expect(onDirtyChange).toHaveBeenCalledWith('/work/b.md', true, 'session-one');
         act(() => second?.props.onDeleted('/work/b.md'));
-        expect(onFileDeleted).toHaveBeenCalledWith('/work/b.md');
+        expect(onFileDeleted).toHaveBeenCalledWith('/work/b.md', 'session-one');
 
         act(() => second?.props.onHeaderRightSlotChange(React.createElement('HeaderControl')));
         act(() => { renderer.update(workspaceElement({ activePath: '/work/b.md', onDirtyChange })); });

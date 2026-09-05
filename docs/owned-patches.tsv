@@ -288,3 +288,4 @@ WORKSPACE_COMMENT_RETENTION	accepted	fix(workspace): retain Markdown comment edi
 WORKSPACE_COMMENT_RETENTION	accepted	fix(workspace): preserve feedback edits through send acknowledgements	server/packages/happy-app/sources/components/InlineCommentReview.web.test.ts
 WORKSPACE_COMMENT_RETENTION	accepted	fix(workspace): retain fallback reviews through reconnects	server/packages/happy-app/sources/components/WorkspaceLinkViewer.browser.test.ts
 WORKSPACE_COMMENT_RETENTION	accepted	fix(workspace): reconcile open edits with accepted feedback	server/packages/happy-app/sources/components/InlineCommentReview.web.test.ts
+WORKSPACE_COMMENT_RETENTION	accepted	fix(workspace): retain chat ownership and navigation state	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts

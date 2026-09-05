@@ -314,8 +314,8 @@ vi.mock('@/components/DesktopFileWorkspace', async () => {
                     dirtyPaths: new Set([...props.dirtyPaths].map(displayPath)),
                     onSelect: (path: string) => props.onSelect(identityFor(path)),
                     onRequestClose: (path: string) => props.onRequestClose(identityFor(path)),
-                    onFileDeleted: (path: string) => props.onFileDeleted(identityFor(path)),
-                    onDirtyChange: (path: string, dirty: boolean) => props.onDirtyChange(identityFor(path), dirty),
+                    onFileDeleted: (path: string) => props.onFileDeleted(identityFor(path), props.sessionId),
+                    onDirtyChange: (path: string, dirty: boolean) => props.onDirtyChange(identityFor(path), dirty, props.sessionId),
                 },
                 props.machinePicker,
             );
@@ -941,7 +941,7 @@ async function openAndCloseSideChatFileWorkspace(renderer: ReactTestRenderer) {
         paths: [sideChatFilePath],
     });
     act(() => workspace.props.onRequestClose(sideChatFilePath));
-    expect(renderer.root.findAllByType('DesktopFileWorkspace' as any)).toHaveLength(0);
+    expect(renderer.root.findByType('DesktopFileWorkspaceSplit' as any).props).toMatchObject({ workspaceVisible: false, workspaceFullscreen: false });
 
     return desktopSideChatHosts(renderer)[0];
 }
@@ -1733,7 +1733,7 @@ describe('SessionView side-chat integration', () => {
         });
 
         act(() => directoryWorkspace.props.onClosePicker());
-        expect(renderer.root.findAllByType('DesktopFileWorkspace' as any)).toHaveLength(0);
+        expect(renderer.root.findByType('DesktopFileWorkspaceSplit' as any).props).toMatchObject({ workspaceVisible: false, workspaceFullscreen: false });
 
         const sideChatRoute = {
             ...directoryRoute,
@@ -1860,7 +1860,7 @@ describe('SessionView side-chat integration', () => {
         expect(workspace.props).toMatchObject({ paths: [], compact: true, machinePickerOpen: true });
 
         act(() => workspace.props.onClosePicker());
-        expect(renderer.root.findAllByType('DesktopFileWorkspace' as any)).toHaveLength(0);
+        expect(renderer.root.findByType('DesktopFileWorkspaceSplit' as any).props).toMatchObject({ workspaceVisible: false, workspaceFullscreen: false });
         expect(renderedComposerSessions(renderer)).toEqual(['parent']);
     });
 
@@ -1909,7 +1909,7 @@ describe('SessionView side-chat integration', () => {
         expect(renderedComposerSessions(renderer)).toEqual(['parent']);
 
         act(() => workspace.props.onRequestClose('/work/b.md'));
-        expect(renderer.root.findAllByType('DesktopFileWorkspace' as any)).toHaveLength(0);
+        expect(renderer.root.findByType('DesktopFileWorkspaceSplit' as any).props).toMatchObject({ workspaceVisible: false, workspaceFullscreen: false });
         expect(renderedComposerSessions(renderer)).toEqual(['parent']);
         expect(desktopSideChatHosts(renderer)).toHaveLength(1);
     });

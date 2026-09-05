@@ -78,8 +78,16 @@ export const DesktopFileWorkspaceSplit = React.memo(function DesktopFileWorkspac
     );
 });
 
+export type RetainedDesktopFileWorkspace = {
+    sessionId: string;
+    paths: string[];
+    references: Record<string, DesktopWorkspaceReference>;
+    machinePicker?: React.ReactNode;
+};
+
 type DesktopFileWorkspaceProps = {
     sessionId: string;
+    retainedWorkspaces?: RetainedDesktopFileWorkspace[];
     paths: string[];
     activePath: string | null;
     references?: Record<string, DesktopWorkspaceReference>;
@@ -89,14 +97,15 @@ type DesktopFileWorkspaceProps = {
     machinePicker?: React.ReactNode;
     onSelect: (path: string) => void;
     onRequestClose: (path: string) => void;
-    onFileDeleted: (path: string) => void;
+    onFileDeleted: (path: string, sessionId: string) => void;
     onOpenMachinePicker?: () => void;
     onClosePicker: () => void;
-    onDirtyChange: (path: string, dirty: boolean) => void;
+    onDirtyChange: (path: string, dirty: boolean, sessionId: string) => void;
 };
 
 export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
     sessionId,
+    retainedWorkspaces = [],
     paths,
     activePath,
     references = {},
@@ -114,23 +123,31 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
     const { theme } = useUnistyles();
     const [headerSlots, setHeaderSlots] = React.useState<Record<string, React.ReactNode>>({});
 
+    const mountedWorkspaces = [{ sessionId, paths, references, machinePicker }, ...retainedWorkspaces];
+    const headerKey = (owner: string, path: string) => JSON.stringify([owner, path]);
+    const mountedHeaderKeys = mountedWorkspaces.flatMap((workspace) => (
+        workspace.paths.map((path) => headerKey(workspace.sessionId, path))
+    ));
+    const headerKeys = JSON.stringify(mountedHeaderKeys);
     React.useEffect(() => {
+        const keys: string[] = JSON.parse(headerKeys);
         setHeaderSlots((current) => {
-            const retained = Object.entries(current).filter(([path]) => paths.includes(path));
+            const retained = Object.entries(current).filter(([key]) => keys.includes(key));
             return retained.length === Object.keys(current).length
                 ? current
                 : Object.fromEntries(retained);
         });
-    }, [paths]);
+    }, [headerKeys]);
 
-    const handleHeaderSlotChange = React.useCallback((path: string, slot: React.ReactNode) => {
+    const handleHeaderSlotChange = React.useCallback((path: string, slot: React.ReactNode, owner: string) => {
+        const key = JSON.stringify([owner, path]);
         setHeaderSlots((current) => {
-            if (current[path] === slot) return current;
+            if (current[key] === slot) return current;
             if (slot === null) {
-                const { [path]: _removed, ...rest } = current;
+                const { [key]: _removed, ...rest } = current;
                 return rest;
             }
-            return { ...current, [path]: slot };
+            return { ...current, [key]: slot };
         });
     }, []);
 
@@ -171,7 +188,7 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
                                 : ''}
                     </Text>
                     <View style={styles.activeHeaderSlot} pointerEvents="box-none">
-                        {!machinePickerOpen && activePath ? headerSlots[activePath] : null}
+                        {!machinePickerOpen && activePath ? headerSlots[headerKey(sessionId, activePath)] : null}
                     </View>
                 </View>
             ) : <View style={styles.tabBar}>
@@ -249,46 +266,39 @@ export const DesktopFileWorkspace = React.memo(function DesktopFileWorkspace({
                     <Octicons name="device-desktop" size={15} color={theme.colors.textSecondary} />
                 </Pressable>
                 <View style={styles.activeHeaderSlot} pointerEvents="box-none">
-                    {!machinePickerOpen && activePath ? headerSlots[activePath] : null}
+                    {!machinePickerOpen && activePath ? headerSlots[headerKey(sessionId, activePath)] : null}
                 </View>
             </View>}
 
             <View style={styles.body}>
-                <View
-                    pointerEvents={machinePickerOpen ? 'auto' : 'none'}
-                    style={[styles.layer, !machinePickerOpen && styles.hiddenLayer]}
-                >
-                    {machinePicker}
-                </View>
-                {paths.map((path) => {
-                    const active = !machinePickerOpen && path === activePath;
-                    return (
-                        <MountedFilePanel
-                            key={path}
-                            sessionId={sessionId}
-                            path={path}
-                            reference={references[path]}
-                            active={active}
-                            onHeaderSlotChange={handleHeaderSlotChange}
-                            onDirtyChange={onDirtyChange}
-                            onDeleted={onFileDeleted}
-                            headerVariant={compact ? 'standard' : 'desktop-workspace'}
-                        />
-                    );
-                })}
+                {mountedWorkspaces.map((workspace) => (
+                    <View
+                        key={workspace.sessionId}
+                        pointerEvents={workspace.sessionId === sessionId ? 'auto' : 'none'}
+                        style={[styles.layer, workspace.sessionId !== sessionId && styles.hiddenLayer]}
+                    >
+                        <View
+                            pointerEvents={machinePickerOpen ? 'auto' : 'none'}
+                            style={[styles.layer, !machinePickerOpen && styles.hiddenLayer]}
+                        >
+                            {workspace.machinePicker}
+                        </View>
+                        {workspace.paths.map((path) => (
+                            <MountedFilePanel
+                                key={path}
+                                sessionId={workspace.sessionId}
+                                path={path}
+                                reference={workspace.references[path]}
+                                active={workspace.sessionId === sessionId && !machinePickerOpen && path === activePath}
+                                onHeaderSlotChange={handleHeaderSlotChange}
+                                onDirtyChange={onDirtyChange}
+                                onDeleted={onFileDeleted}
+                                headerVariant={compact ? 'standard' : 'desktop-workspace'}
+                            />
+                        ))}
+                    </View>
+                ))}
             </View>
-            {!machinePickerOpen && activePath && references[activePath]
-                && !isDesktopLocalhostReference(references[activePath]) ? (
-                <WorkspaceFeedbackComposer
-                    key={activePath}
-                    originSessionId={sessionId}
-                    machineId={references[activePath].machineId}
-                    absolutePath={desktopFilePath(activePath)}
-                    line={references[activePath].line}
-                    column={references[activePath].column}
-                    onSent={() => undefined}
-                />
-            ) : null}
         </View>
     );
 });
@@ -307,18 +317,18 @@ const MountedFilePanel = React.memo(function MountedFilePanel({
     path: string;
     reference: DesktopWorkspaceReference | undefined;
     active: boolean;
-    onHeaderSlotChange: (path: string, slot: React.ReactNode) => void;
-    onDirtyChange: (path: string, dirty: boolean) => void;
-    onDeleted: (path: string) => void;
+    onHeaderSlotChange: (path: string, slot: React.ReactNode, sessionId: string) => void;
+    onDirtyChange: (path: string, dirty: boolean, sessionId: string) => void;
+    onDeleted: (path: string, sessionId: string) => void;
     headerVariant: 'standard' | 'desktop-workspace';
 }) {
     const publishHeaderSlot = React.useCallback(
-        (slot: React.ReactNode) => onHeaderSlotChange(path, slot),
-        [onHeaderSlotChange, path],
+        (slot: React.ReactNode) => onHeaderSlotChange(path, slot, sessionId),
+        [onHeaderSlotChange, path, sessionId],
     );
     const publishDirty = React.useCallback(
-        (dirty: boolean) => onDirtyChange(path, dirty),
-        [onDirtyChange, path],
+        (dirty: boolean) => onDirtyChange(path, dirty, sessionId),
+        [onDirtyChange, path, sessionId],
     );
 
     return (
@@ -344,7 +354,7 @@ const MountedFilePanel = React.memo(function MountedFilePanel({
                     headerVariant={headerVariant}
                     onHeaderRightSlotChange={publishHeaderSlot}
                     onDirtyChange={publishDirty}
-                    onDeleted={() => onDeleted(path)}
+                    onDeleted={() => onDeleted(path, sessionId)}
                     requestedLine={reference.line}
                     requestedColumn={reference.column}
                 />
@@ -356,11 +366,21 @@ const MountedFilePanel = React.memo(function MountedFilePanel({
                     headerVariant={headerVariant}
                     onHeaderRightSlotChange={publishHeaderSlot}
                     onDirtyChange={publishDirty}
-                    onDeleted={() => onDeleted(path)}
+                    onDeleted={() => onDeleted(path, sessionId)}
                     requestedLine={reference?.line}
                     requestedColumn={reference?.column}
                 />
             )}
+            {reference && !isDesktopLocalhostReference(reference) ? (
+                <WorkspaceFeedbackComposer
+                    originSessionId={sessionId}
+                    machineId={reference.machineId}
+                    absolutePath={desktopFilePath(path)}
+                    line={reference.line}
+                    column={reference.column}
+                    onSent={() => undefined}
+                />
+            ) : null}
         </View>
     );
 });

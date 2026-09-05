@@ -76,7 +76,7 @@ const virtualModules: Record<string, string> = {
         import React from 'react';
         export const Image = ({ source, style, testID }) => React.createElement('img', {
             src: typeof source === 'string' ? source : source?.uri,
-            style,
+            style: Array.isArray(style) ? Object.assign({}, ...style.flat(Infinity)) : style,
             'data-testid': testID,
             'data-image': 'true',
             alt: '',
@@ -330,7 +330,6 @@ const virtualModules: Record<string, string> = {
             return { success: true };
         };
     `,
-    '@/components/AgentInputAttachmentStrip': `export const AgentInputAttachmentStrip = () => null;`,
     '@/modal': `
         export const Modal = {
             alert() {},
@@ -347,6 +346,9 @@ const virtualModules: Record<string, string> = {
                     ...(window.__WORKSPACE_FEEDBACK_CALLS__ ?? []),
                     { sessionId, text, options },
                 ];
+                if (new URLSearchParams(window.location.search).has('feedback-deferred') && feedbackAttempt === 1) {
+                    await new Promise((resolve) => { window.__RESOLVE_FEEDBACK__ = resolve; });
+                }
                 if (new URLSearchParams(window.location.search).has('feedback-fail-once') && feedbackAttempt === 1) {
                     window.__WORKSPACE_FEEDBACK_FAILURE_COUNT__ = (window.__WORKSPACE_FEEDBACK_FAILURE_COUNT__ ?? 0) + 1;
                     throw new Error('Fixture feedback send failed once');
@@ -440,13 +442,17 @@ const virtualModules: Record<string, string> = {
         });
     `,
     '@/hooks/useImagePicker': `
-        export const useImagePicker = () => ({
-            selectedImages: [],
-            pickImages: async () => undefined,
-            removeImage() {},
-            clearImages() {},
-            addImages() {},
-        });
+        import React from 'react';
+        export const useImagePicker = () => {
+            const [selectedImages, setImages] = React.useState([]);
+            return {
+                selectedImages,
+                pickImages: async () => setImages([{ id: 'retained-photo', uri: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6uoAAAAASUVORK5CYII=', mimeType: 'image/png', width: 1, height: 1 }]),
+                removeImage: (id) => setImages((images) => images.filter((image) => image.id !== id)),
+                clearImages: () => setImages([]),
+                addImages: setImages,
+            };
+        };
     `,
     '@/hooks/useVoiceInputAvailability': `
         export const useVoiceInputAvailability = () => ({ configured: false, loading: false, available: false });
@@ -1020,7 +1026,11 @@ describe('Desktop workspace browser interaction', () => {
         await bar.waitFor();
         const [panelBox, barBox] = await Promise.all([panel.boundingBox(), bar.boundingBox()]);
         if (!panelBox || !barBox) throw new Error('Review bar has no browser layout box');
-        expect(Math.abs((barBox.y + barBox.height) - (panelBox.y + panelBox.height))).toBeLessThan(2);
+        const feedback = panel.getByPlaceholder('Share file feedback').filter({ visible: true });
+        const dockBottom = await feedback.count()
+            ? (await panel.locator(':scope > div').last().boundingBox())!.y
+            : panelBox.y + panelBox.height;
+        expect(Math.abs((barBox.y + barBox.height) - dockBottom)).toBeLessThan(2);
     }
 
     async function reviewGutterGeometry(number: Locator, button: Locator, content: Locator) {
@@ -1538,6 +1548,54 @@ describe('Desktop workspace browser interaction', () => {
         await expect.poll(() => viewport.getAttribute('style')).not.toBe(zoomedTransform);
     }
 
+    it.each([
+        ['Markdown', 'desktop', 'Save'], ['source', 'desktop', 'Save'],
+        ['Markdown', 'mobile', 'Save'], ['source', 'mobile', 'Save'],
+        ['Markdown', 'desktop', 'Cancel'],
+    ] as const)('retains the active %s edit across send on %s until %s', async (renderer, surface, action) => {
+        const touch = surface === 'mobile';
+        const context = await browser.newContext({ viewport: { width: touch ? 390 : 1440, height: touch ? 844 : 900 }, hasTouch: touch });
+        const page = await context.newPage();
+        page.setDefaultTimeout(3_000);
+        await page.goto(`${origin}?file-review=${surface}${touch && renderer === 'source' ? '-source' : ''}&feedback-deferred`);
+        const workspace = page.getByTestId(`file-review-${surface}`);
+        if (!touch && renderer === 'source') await workspace.getByRole('tab', { name: 'Open review.ts' }).click();
+        const panel = workspace.getByTestId(`desktop-file-panel:/workspace/${renderer === 'source' ? 'review.ts' : 'demo.md'}`);
+        const line = renderer === 'source' ? 2 : 1;
+        if (renderer === 'source') {
+            await activateSourceLine(page, panel, line, touch);
+        } else {
+            const heading = panel.locator('h1[data-source-line="1"]');
+            if (!touch) await heading.hover();
+            await heading.getByRole('button', { name: 'Comment on line 1', exact: true }).click();
+        }
+        const thread = panel.getByTestId(`inline-comment-thread:line:${line}`);
+        await thread.getByPlaceholder('Write a comment').fill('original submitted version');
+        await thread.getByRole('button', { name: 'Pin comment', exact: true }).click();
+        await thread.getByRole('button', { name: 'Edit', exact: true }).click();
+        const input = thread.getByRole('textbox', { name: 'Write a comment' });
+        await input.fill('new unsaved edit');
+        await input.evaluate((element) => { (window as any).__EDITING_COMMENT_INPUT__ = element; });
+        await panel.getByRole('button', { name: 'Send 1 comments', exact: true }).click();
+        await page.waitForFunction(() => !!(window as any).__RESOLVE_FEEDBACK__);
+        await input.click();
+        await page.evaluate(() => (window as any).__RESOLVE_FEEDBACK__());
+        await expect(input.inputValue()).resolves.toBe('new unsaved edit');
+        await expect(input.evaluate((element) => element === (window as any).__EDITING_COMMENT_INPUT__ && element.matches(':focus'))).resolves.toBe(true);
+        await thread.getByRole('button', { name: action, exact: true }).click();
+        if (action === 'Save') {
+            await expect(thread.getByText('new unsaved edit', { exact: true }).count()).resolves.toBe(1);
+        } else {
+            await expect(panel.getByTestId('inline-comment-review-bar').count()).resolves.toBe(0);
+            await expect(panel.getByText('original submitted version', { exact: true }).count()).resolves.toBe(0);
+        }
+        const sent = await page.evaluate(() => (window as any).__WORKSPACE_FEEDBACK_CALLS__);
+        expect(sent).toHaveLength(1);
+        expect(sent[0].text).toContain('original submitted version');
+        expect(sent[0].text).not.toContain('new unsaved edit');
+        await context.close();
+    }, 15_000);
+
     it.each(['light', 'dark'] as const)('pins and sends line-local file feedback in the production Web Desktop host (%s)', async (themeName) => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
         const pageErrors = recordPageErrors(page);
@@ -1814,6 +1872,34 @@ describe('Desktop workspace browser interaction', () => {
         });
         await expect(feedback.inputValue()).resolves.toBe('');
         expect(pageErrors).toEqual([]);
+        await page.close();
+    }, 10_000);
+
+    it('retains each file feedback draft and photo across tabs and the browser', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        page.setDefaultTimeout(3_000);
+        await page.goto(origin);
+        const workspace = page.getByTestId('wide-file-workspace');
+        const feedback = () => workspace.getByPlaceholder('Share file feedback').filter({ visible: true });
+        await feedback().fill('first file feedback');
+        await workspace.getByRole('button', { name: 'Add photo', exact: true }).filter({ visible: true }).click();
+        await workspace.getByLabel('Workspace').click();
+        await workspace.getByText('second.md', { exact: true }).click();
+        await feedback().fill('second file feedback');
+        await workspace.getByRole('tab', { name: 'Open demo.md' }).click();
+        await expect(feedback().inputValue()).resolves.toBe('first file feedback');
+        await expect(workspace.locator('img[src^="data:image/png"]').filter({ visible: true }).count()).resolves.toBe(1);
+        await workspace.getByLabel('Workspace').click();
+        await workspace.getByTestId('desktop-file-workspace-picker-close').click();
+        await expect(feedback().inputValue()).resolves.toBe('first file feedback');
+        await workspace.getByRole('button', { name: 'Send', exact: true }).filter({ visible: true }).click();
+        await workspace.getByRole('tab', { name: 'Open second.md' }).click();
+        await expect(feedback().inputValue()).resolves.toBe('second file feedback');
+        const calls = await page.evaluate(() => (window as any).__WORKSPACE_FEEDBACK_CALLS__ ?? []);
+        expect(calls).toHaveLength(1);
+        expect(calls[0].text).toContain('first file feedback');
+        expect(calls[0].options.attachments).toHaveLength(1);
+        expect(calls[0].options.attachments[0].id).toBe('retained-photo');
         await page.close();
     }, 10_000);
 
