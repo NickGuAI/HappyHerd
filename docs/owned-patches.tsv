@@ -291,3 +291,4 @@ WORKSPACE_COMMENT_RETENTION	accepted	fix(workspace): reconcile open edits with a
 WORKSPACE_COMMENT_RETENTION	accepted	fix(workspace): retain chat ownership and navigation state	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 WORKSPACE_COMMENT_RETENTION	accepted	chore(workspace): record comment reliability verification	server/packages/happy-app/sources/components/InlineCommentReview.web.test.ts
 WORKSPACE_COMMENT_RETENTION	accepted	fix(workspace): cancel stale links on picker navigation	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
+WORKSPACE_COMMENT_RETENTION	accepted	fix(workspace): preserve newer links after folder creation	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts

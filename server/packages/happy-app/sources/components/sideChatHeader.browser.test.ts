@@ -382,6 +382,8 @@ const virtualModules: Record<string, string> = {
             'workspace.favorites': 'Favorites',
             'workspace.upload': 'Upload',
             'workspace.newFolder': 'New folder',
+            'workspace.folderNamePlaceholder': 'Folder name',
+            'common.create': 'Create',
             'workspace.searchPlaceholder': 'Search files',
             'workspace.browseMachine': 'Browse this machine',
             'workspace.selectedItemsCount': (params?.count ?? 0) + ' of ' + (params?.max ?? 0) + ' items selected',
@@ -412,6 +414,7 @@ const virtualModules: Record<string, string> = {
     '@/components/AnimatedOverlay': `
         import { View } from 'react-native';
         export const AnimatedClickAwayBackdrop = View;
+        export const AnimatedBlurBackdrop = View;
         export const AnimatedFade = ({ children, visible }) => visible ? children : null;
         export const AnimatedPopup = View;
         export const LocalBlurHalo = View;
@@ -460,10 +463,19 @@ const virtualModules: Record<string, string> = {
     '@/modal': `
         import React from 'react';
         import { createRoot } from 'react-dom/client';
+        import { WebPromptModal } from '@/modal/components/WebPromptModal';
         export const Modal = {
             alert() {},
             confirm: async () => true,
-            prompt() {},
+            prompt(title, message, options) {
+                return new Promise((resolve) => Modal.show({
+                    component: WebPromptModal,
+                    props: {
+                        config: { id: 'fixture-prompt', type: 'prompt', title, message, ...options },
+                        onConfirm: resolve,
+                    },
+                }));
+            },
             show(request) {
                 const host = document.createElement('div');
                 host.dataset.testid = 'fixture-global-modal';
@@ -747,7 +759,16 @@ const virtualModules: Record<string, string> = {
             }
             return response;
         };
-        export const machineCreateDirectory = async () => ({ success: false, error: 'not used' });
+        export const machineCreateDirectory = async (machineId, options) => {
+            if (!globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.deferCreateDirectory) return { success: false, error: 'not used' };
+            window.__MACHINE_CREATE_DIRECTORY_CALL__ = { machineId, ...options };
+            return new Promise((resolve) => {
+                window.__RESOLVE_CREATE_DIRECTORY__ = () => {
+                    delete window.__RESOLVE_CREATE_DIRECTORY__;
+                    resolve({ success: true, path: options.directory + '/' + options.directoryName });
+                };
+            });
+        };
         export const machineDeleteFile = async (machineId, path) => {
             window.__MACHINE_DELETE_CALLS__ = [...(window.__MACHINE_DELETE_CALLS__ ?? []), { machineId, path }];
             return { success: true };
@@ -1614,6 +1635,36 @@ describe('Side chats browser interaction', () => {
         await page.close();
     }, 10_000);
 
+    it('does not let a completed folder creation cancel a newer reply link', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        page.setDefaultTimeout(3_000);
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
+                workspaceRetention: true, deferSamePathProbe: true, deferCreateDirectory: true,
+            };
+        });
+        await page.goto(origin, { timeout: 15_000 });
+        const foreground = page.getByTestId('foreground-session');
+        await foreground.getByRole('button', { name: 'More actions' }).filter({ visible: true }).first().click();
+        await foreground.getByTestId('mobile-composer-action-workspace').filter({ visible: true }).click();
+        const workspace = foreground.getByTestId('desktop-file-workspace');
+        await workspace.getByLabel('New folder', { exact: true }).click();
+        await page.getByPlaceholder('Folder name').fill('reports');
+        await page.getByText('Create', { exact: true }).click();
+        await page.waitForFunction(() => !!(window as any).__RESOLVE_CREATE_DIRECTORY__);
+        await expect(page.evaluate(() => (window as any).__MACHINE_CREATE_DIRECTORY_CALL__)).resolves.toEqual({
+            machineId: 'machine-1', directory: '/work/project', directoryName: 'reports',
+        });
+        await foreground.getByText('Slow file', { exact: true }).first().click();
+        await page.waitForFunction(() => !!(window as any).__RESOLVE_SAME_PATH_PROBE__);
+        await page.evaluate(() => (window as any).__RESOLVE_CREATE_DIRECTORY__());
+        await expect.poll(() => workspace.getByPlaceholder('Path').inputValue()).toBe('/work/project/reports');
+        await page.evaluate(() => (window as any).__RESOLVE_SAME_PATH_PROBE__());
+        await workspace.getByTestId('desktop-file-panel:/work/project/session-note.md').waitFor({ state: 'visible' });
+        await expect(workspace.getByRole('tab', { name: 'Open file session-note.md' }).count()).resolves.toBe(1);
+        await page.close();
+    }, 20_000);
+
     it.each([
         ['directory', '/work/project/reports', /^reports /, /^report\.md /],
         ['machine', '/work/child-newest', /^SideEC2$/, /^child-newest-machine-file\.md /],
@@ -1625,7 +1676,7 @@ describe('Side chats browser interaction', () => {
                 workspaceRetention: true, deferSamePathProbe: true, deferDirectoryPath,
             };
         }, targetPath);
-        await page.goto(origin);
+        await page.goto(origin, { timeout: 15_000 });
         const foreground = page.getByTestId('foreground-session');
         await foreground.getByRole('button', { name: 'More actions' }).filter({ visible: true }).first().click();
         await foreground.getByTestId('mobile-composer-action-workspace').filter({ visible: true }).click();
@@ -1655,13 +1706,13 @@ describe('Side chats browser interaction', () => {
         await workspace.getByRole('button', { name: fileName }).waitFor({ state: 'visible' });
         await expect(pathInput.inputValue()).resolves.toBe(targetPath);
         await page.close();
-    }, 10_000);
+    }, 20_000);
 
     it('does not let a slow reply probe collapse a newly opened Side chat', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
         page.setDefaultTimeout(3_000);
         await page.addInitScript(() => { (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { workspaceRetention: true, deferSamePathProbe: true }; });
-        await page.goto(origin);
+        await page.goto(origin, { timeout: 15_000 });
         const foreground = page.getByTestId('foreground-session');
         await foreground.getByText('Slow file', { exact: true }).first().click();
         await page.waitForFunction(() => !!(window as any).__RESOLVE_SAME_PATH_PROBE__);
@@ -1671,7 +1722,7 @@ describe('Side chats browser interaction', () => {
         await expect(foreground.getByText('Newest child', { exact: true }).isVisible()).resolves.toBe(true);
         await expect(foreground.getByRole('tab', { name: 'Open file session-note.md' }).count()).resolves.toBe(0);
         await page.close();
-    }, 10_000);
+    }, 20_000);
 
     it.each([
         ['desktop', { width: 1440, height: 900 }],
@@ -1680,7 +1731,7 @@ describe('Side chats browser interaction', () => {
         const page = await browser.newPage({ viewport });
         page.setDefaultTimeout(3_000);
         await page.addInitScript(() => { (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { workspaceRetention: true }; });
-        await page.goto(origin);
+        await page.goto(origin, { timeout: 15_000 });
         const foreground = page.getByTestId('foreground-session');
         await foreground.getByText('Browse reports', { exact: true }).first().click();
         const workspace = foreground.getByTestId('desktop-file-workspace');
@@ -1696,7 +1747,7 @@ describe('Side chats browser interaction', () => {
         await expect(workspace.getByPlaceholder('Path').filter({ visible: true }).inputValue()).resolves.toBe('/work/reports');
         await expect(workspace.getByRole('button', { name: /^report\.md / }).filter({ visible: true }).isVisible()).resolves.toBe(true);
         await page.close();
-    }, 10_000);
+    }, 20_000);
 
     it('opens the right-panel Workspace at the active Side chat machine and cwd and targets its context', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });

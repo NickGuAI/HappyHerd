@@ -5,6 +5,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 const mocks = vi.hoisted(() => ({
     getTree: vi.fn(),
+    createDirectory: vi.fn(),
+    prompt: vi.fn(async (): Promise<string | null> => null),
     machines: [] as Array<{
         id: string;
         active: boolean;
@@ -105,11 +107,11 @@ vi.mock('@/modal', () => ({
     Modal: {
         alert: vi.fn(),
         confirm: vi.fn(async () => true),
-        prompt: vi.fn(async () => null),
+        prompt: mocks.prompt,
     },
 }));
 vi.mock('@/sync/ops', () => ({
-    machineCreateDirectory: vi.fn(),
+    machineCreateDirectory: mocks.createDirectory,
     machineGetDirectoryTree: mocks.getTree,
     machineReadFile: vi.fn(),
     machineWriteFile: vi.fn(),
@@ -254,6 +256,9 @@ beforeEach(() => {
         mocks.workspaceListeners.forEach((listener) => listener());
     });
     mocks.getTree.mockReset();
+    mocks.createDirectory.mockReset();
+    mocks.prompt.mockReset();
+    mocks.prompt.mockResolvedValue(null);
     mocks.getTree.mockResolvedValue({
         success: true,
         tree: {
@@ -304,6 +309,40 @@ function contextToggleInRow(row: any) {
 }
 
 describe('MachineWorkspaceBrowser embedded layout', () => {
+    it('notifies once at confirmed folder creation before the RPC and not again on completion', async () => {
+        const onNavigate = vi.fn();
+        const renderer = await renderBrowser({
+            embedded: true,
+            initialMachineId: 'main-machine',
+            initialPath: '/workspace/user',
+            onNavigate,
+        });
+        const newFolderButton = () => renderer.root.findAllByType('Pressable' as any)
+            .find((node: any) => node.props.accessibilityLabel === 'workspace.newFolder')!;
+        await act(async () => { newFolderButton().props.onPress(); });
+        expect(onNavigate).not.toHaveBeenCalled();
+        expect(mocks.createDirectory).not.toHaveBeenCalled();
+
+        let resolveCreation!: (response: any) => void;
+        let navigationCountAtRequest: number | undefined;
+        mocks.prompt.mockResolvedValueOnce('reports');
+        mocks.createDirectory.mockImplementation(() => {
+            navigationCountAtRequest = onNavigate.mock.calls.length;
+            return new Promise((resolve) => { resolveCreation = resolve; });
+        });
+        await act(async () => { newFolderButton().props.onPress(); });
+        expect(navigationCountAtRequest).toBe(1);
+        expect(mocks.createDirectory).toHaveBeenCalledWith('main-machine', {
+            directory: '/workspace/user', directoryName: 'reports',
+        });
+        await act(async () => {
+            resolveCreation({ success: true, path: '/workspace/user/reports' });
+        });
+        expect(onNavigate).toHaveBeenCalledTimes(1);
+        expect(mocks.getTree).toHaveBeenLastCalledWith('main-machine', '/workspace/user/reports', 1);
+        act(() => renderer.unmount());
+    });
+
     it('notifies the owner at each navigation gesture without notifying for initial or resulting loads', async () => {
         mocks.machines.push({
             id: 'other-machine',

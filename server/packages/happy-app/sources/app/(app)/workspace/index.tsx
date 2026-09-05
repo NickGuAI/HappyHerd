@@ -373,8 +373,7 @@ export function MachineWorkspaceBrowser({
         });
     }, [fileDirty]);
 
-    const openDirectory = React.useCallback((path: string) => {
-        onNavigate?.();
+    const applyDirectory = React.useCallback((path: string) => {
         guardUnsavedChanges(() => {
             const resolvedPath = resolveAbsolutePath(path, selectedMachine?.metadata?.homeDir);
             setCurrentDirectory(resolvedPath);
@@ -382,7 +381,12 @@ export function MachineWorkspaceBrowser({
             setSelectedFile(null);
             setSearchQuery('');
         });
-    }, [guardUnsavedChanges, onNavigate, selectedMachine?.metadata?.homeDir]);
+    }, [guardUnsavedChanges, selectedMachine?.metadata?.homeDir]);
+
+    const openDirectory = React.useCallback((path: string) => {
+        onNavigate?.();
+        applyDirectory(path);
+    }, [applyDirectory, onNavigate]);
 
     const switchMachine = React.useCallback((machine: Machine) => {
         if (attachmentMode) return;
@@ -477,6 +481,7 @@ export function MachineWorkspaceBrowser({
             },
         );
         if (directoryName === null || !directoryName.trim()) return;
+        onNavigate?.();
         setCreatingFolder(true);
         try {
             const response = await machineCreateDirectory(selectedMachine.id, {
@@ -487,12 +492,12 @@ export function MachineWorkspaceBrowser({
                 Modal.alert(t('common.error'), response.error ?? t('workspace.createFolderFailed'));
                 return;
             }
-            openDirectory(response.path);
+            applyDirectory(response.path);
             setReloadToken((value) => value + 1);
         } finally {
             setCreatingFolder(false);
         }
-    }, [creatingFolder, currentDirectory, openDirectory, selectedMachine]);
+    }, [applyDirectory, creatingFolder, currentDirectory, onNavigate, selectedMachine]);
 
     const commitAttachments = React.useCallback(() => {
         if (!attachmentMode || !sessionId || !selectedMachine) return;
