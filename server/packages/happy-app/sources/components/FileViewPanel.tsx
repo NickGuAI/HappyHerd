@@ -237,13 +237,15 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     const [saveStatus, setSaveStatus] = React.useState<FileSaveStatus>('idle');
     const [reloadRevision, setReloadRevision] = React.useState(0);
     const previousViewModeRef = React.useRef<Exclude<FileDisplayMode, 'edit'>>('preview');
-    const sourceScrollRef = React.useRef<ScrollView | null>(null);
 
     // External change detection
     const [externalChange, setExternalChange] = React.useState<EditableFileSnapshot | null>(null);
     const [showConflictDiff, setShowConflictDiff] = React.useState(false);
     const [reviewAnchor, setReviewAnchor] = React.useState<InlineCommentAnchor | null>(null);
     const [reviewComments, setReviewComments] = React.useState<WorkspaceFeedbackComment[]>([]);
+    const activateReviewLine = React.useCallback((anchor: InlineCommentAnchor) => {
+        setReviewAnchor((current) => current?.line === anchor.line ? current : anchor);
+    }, []);
 
     const fileName = filePath.split('/').pop() || filePath;
     const language = getFileLanguage(filePath);
@@ -360,21 +362,11 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     // Every supported file opens in a truthful Preview. A line-linked Markdown
     // deep link stays rendered (never raw) and the rendered unit is revealed by
     // MarkdownView itself. Raw text/code keeps the read-only Pierre renderer as
-    // its Preview implementation and is scrolled to the requested line below.
+    // its Preview implementation and reveals the requested row after rendering.
     React.useEffect(() => {
         previousViewModeRef.current = 'preview';
         setDisplayMode('preview');
     }, [filePath]);
-
-    React.useEffect(() => {
-        if (fileState.kind !== 'loaded' || displayMode !== 'preview' || !requestedLine || requestedLine <= 0) return;
-        // Rendered surfaces (Markdown, HTML, SVG, Canvas) reveal the requested
-        // unit inside their own viewer; only the raw text/code preview needs a
-        // manual offset scroll here.
-        if (isMarkdown || isHtml || hasSvgPreview || isCanvas) return;
-        const offset = Math.max(0, ((requestedLine - 1) * 20) - 40);
-        requestAnimationFrame(() => sourceScrollRef.current?.scrollTo({ y: offset, animated: false }));
-    }, [displayMode, fileState.kind, requestedLine, isMarkdown, isHtml, hasSvgPreview, isCanvas]);
 
     const handleDisplayModeChange = React.useCallback((mode: FileDisplayMode) => {
         if (mode === 'edit') {
@@ -751,7 +743,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                             workspaceProvenance={markdownWorkspaceProvenance}
                             workspaceImageRoot={markdownWorkspaceImageRoot}
                             relativeTo={markdownRelativeTo}
-                            onLineComment={reviewContext ? setReviewAnchor : undefined}
+                            onLineComment={reviewContext ? activateReviewLine : undefined}
                             renderLineComment={reviewContext ? ({ line }) => renderLineReview(line) : undefined}
                             requestedLine={requestedLine}
                         />
@@ -779,16 +771,16 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                     />
                 </View>
             ) : Platform.OS === 'web' && reviewContext && displayMode === 'preview' ? (
-                <ScrollView ref={sourceScrollRef} style={{ flex: 1 }} contentContainerStyle={{ maxWidth: layout.maxWidth, alignSelf: 'center', width: '100%' }}>
+                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, maxWidth: layout.maxWidth, alignSelf: 'center', width: '100%' }}>
                     <PierreDiffView
                         file={{ name: fileName, contents: editContent }}
                         overflow="scroll"
                         disableFileHeader
-                        onGutterUtilityClick={(line) => setReviewAnchor({ line })}
-                        onLineClick={(line) => setReviewAnchor({ line })}
+                        onGutterUtilityClick={(line) => activateReviewLine({ line })}
+                        onLineClick={(line) => activateReviewLine({ line })}
                         annotatedLines={reviewLineNumbers}
                         renderLineAnnotation={renderLineReview}
-                        selectedLine={reviewAnchor?.line ?? requestedLine}
+                        requestedLine={requestedLine}
                     />
                 </ScrollView>
             ) : (

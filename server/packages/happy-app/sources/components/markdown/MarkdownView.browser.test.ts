@@ -194,7 +194,7 @@ describe('MarkdownView browser theme and option parity', () => {
             alignItems: 'center',
             justifyContent: 'center',
         });
-        expect(gutterLayout.backgroundColor).not.toBe('rgb(210, 153, 34)');
+        expect(gutterLayout.backgroundColor).toBe('rgb(210, 153, 34)');
 
         const alignedReviewLines = [
             root.locator('h2[data-source-line="3"]'),

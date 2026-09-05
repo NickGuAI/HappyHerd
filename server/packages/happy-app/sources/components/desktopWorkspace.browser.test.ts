@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { build, type Plugin } from 'esbuild';
 import { createServer, type Server } from 'node:http';
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { basename, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, type Browser, type Locator, type Page } from 'playwright-core';
 
@@ -259,6 +259,7 @@ const virtualModules: Record<string, string> = {
         const machineMarkdown = btoa('# Machine workspace\\n\\n[Open machine relative](notes/machine-child.md)\\n');
         const sourceMarkdown = btoa('# Source review\\n\\n' + 'long-markdown-'.repeat(120));
         const source = btoa('const first = 1;\\n\\nconst longValue = "' + 'long-value-'.repeat(120) + '";\\nconst last = 2;');
+        const navigationSource = btoa(Array.from({ length: 260 }, (_, index) => 'const line' + (index + 1) + ' = ' + (index + 1) + ';').join('\\n'));
         const canvas = btoa(JSON.stringify({
             nodes: [
                 { id: 'text-node', type: 'text', text: '# Start', x: 0, y: 0, width: 220, height: 120 },
@@ -317,7 +318,8 @@ const virtualModules: Record<string, string> = {
                     ? canvas
                     : path === '/workspace/review.ts'
                         ? source
-                        : path === '/workspace/source.md' ? sourceMarkdown : content,
+                        : path === '/workspace/navigation.ts' ? navigationSource
+                            : path === '/workspace/source.md' ? sourceMarkdown : content,
         });
         export const sessionWriteFile = async (_sessionId, path, content) => {
             window.__SESSION_WRITE_CALLS__ = [...(window.__SESSION_WRITE_CALLS__ ?? []), { path, content }];
@@ -479,11 +481,14 @@ const virtualModules: Record<string, string> = {
     '@/components/WorkspaceLinkViewer': `export const WorkspaceLinkViewer = () => null;`,
     '@/components/WorkspaceLinkViewerModel': `export const workspaceLinkViewerKey = () => 'fixture';`,
     '@/-session/workspaceLinkNavigation': `
+        import React from 'react';
         export const dismissWorkspaceLinkToOrigin = () => undefined;
         export const useWorkspaceLinkDismissGuard = () => ({ onSendingChange() {}, onDirtyChange() {}, guardDismiss: (action) => action() });
-        export const useWorkspaceLinkPress = () => (route) => {
+        const recordLink = (route) => {
             window.__WORKSPACE_LINK_CALLS__ = [...(window.__WORKSPACE_LINK_CALLS__ ?? []), route];
         };
+        export const WorkspaceLinkPressContext = React.createContext(recordLink);
+        export const useWorkspaceLinkPress = () => React.useContext(WorkspaceLinkPressContext);
     `,
     '@/components/layout': `export const layout = { maxWidth: 1200, headerMaxWidth: 800 };`,
     '@/text': `
@@ -642,16 +647,23 @@ describe('Desktop workspace browser interaction', () => {
             bundle: true,
             write: false,
             outdir: 'out',
-            format: 'iife',
+            format: 'esm',
+            splitting: true,
             platform: 'browser',
             jsx: 'automatic',
             alias: { 'react-native': 'react-native-web' },
             loader: { '.png': 'dataurl', '.ttf': 'dataurl' },
             plugins: [fixturePlugin],
         });
-        const script = bundle.outputFiles.find((file) => file.path.endsWith('.js'))?.text ?? bundle.outputFiles[0].text;
+        const files = new Map(bundle.outputFiles.map((file) => [`/${basename(file.path)}`, file]));
         const stylesheet = bundle.outputFiles.find((file) => file.path.endsWith('.css'))?.text ?? '';
         server = createServer((request, response) => {
+            const outputFile = files.get(new URL(request.url ?? '/', 'http://fixture').pathname);
+            if (outputFile) {
+                response.setHeader('content-type', outputFile.path.endsWith('.css') ? 'text/css' : 'text/javascript');
+                response.end(outputFile.contents);
+                return;
+            }
             if (request.url === '/workspace-live-sw.js') {
                 response.setHeader('content-type', 'text/javascript; charset=utf-8');
                 response.setHeader('service-worker-allowed', '/');
@@ -659,7 +671,7 @@ describe('Desktop workspace browser interaction', () => {
                 return;
             }
             response.setHeader('content-type', 'text/html; charset=utf-8');
-            response.end('<meta name="viewport" content="width=device-width, initial-scale=1"><style>html,body,#root{margin:0;min-height:100%;font-family:sans-serif}*{box-sizing:border-box}' + stylesheet + '</style><main id="root"></main><script>' + script + '</script>');
+            response.end('<meta name="viewport" content="width=device-width, initial-scale=1"><style>html,body,#root{margin:0;min-height:100%;font-family:sans-serif}*{box-sizing:border-box}' + stylesheet + '</style><main id="root"></main><script type="module" src="/desktopWorkspace.browser.fixture.js"></script>');
         });
         await new Promise<void>((resolveReady) => server.listen(0, '127.0.0.1', resolveReady));
         const address = server.address();
@@ -1011,13 +1023,32 @@ describe('Desktop workspace browser interaction', () => {
         expect(Math.abs((barBox.y + barBox.height) - (panelBox.y + panelBox.height))).toBeLessThan(2);
     }
 
+    async function reviewGutterGeometry(number: Locator, button: Locator, content: Locator) {
+        const [numberBox, buttonBox, contentBox, colors] = await Promise.all([
+            number.boundingBox(), button.boundingBox(), content.boundingBox(),
+            button.evaluate((element) => {
+                const style = getComputedStyle(element);
+                return { background: style.backgroundColor, color: style.color, radius: style.borderRadius };
+            }),
+        ]);
+        if (!numberBox || !buttonBox || !contentBox) throw new Error('Review gutter has no browser layout');
+        return {
+            ...colors,
+            numberWidth: numberBox.width,
+            buttonWidth: buttonBox.width,
+            buttonHeight: buttonBox.height,
+            numberGap: buttonBox.x - (numberBox.x + numberBox.width),
+            contentGap: contentBox.x - (buttonBox.x + buttonBox.width),
+        };
+    }
+
     async function verifyMarkdownReviewJourney(
         page: Page,
         surfaceId: string,
         feedbackIndex = 0,
         touch = false,
         expectedTheme: 'light' | 'dark' = 'light',
-    ): Promise<void> {
+    ) {
         const workspace = page.getByTestId(surfaceId);
         const markdownPanel = workspace.getByTestId('desktop-file-panel:/workspace/demo.md');
         const markdownRoot = markdownPanel.locator('.hh-markdown-root');
@@ -1067,8 +1098,11 @@ describe('Desktop workspace browser interaction', () => {
         expect(affordance.width).toBe(20);
         expect(affordance.height).toBe(20);
         expect(affordance.sourceOrder).toBe(true);
-        expect(affordance.backgroundColor).not.toBe('rgb(210, 153, 34)');
+        expect(affordance.backgroundColor).toBe(expectedTheme === 'dark' ? 'rgb(210, 153, 34)' : 'rgb(154, 103, 0)');
         expect(affordance.borderTopWidth).toBe('0px');
+        const geometry = await reviewGutterGeometry(headingLineNumber, headingGutter, heading);
+        expect(geometry.numberGap).toBe(4);
+        expect(geometry.contentGap).toBe(8);
 
         const sessionRelativeLink = markdownPanel.getByRole('link', { name: 'Open session relative' });
         if (touch) await sessionRelativeLink.tap();
@@ -1081,6 +1115,21 @@ describe('Desktop workspace browser interaction', () => {
                 absolutePath: '/workspace/notes/session-child.md',
             },
         });
+
+        const fence = markdownPanel.locator('.hh-markdown-review-line[data-source-line="6"]');
+        await fence.scrollIntoViewIfNeeded();
+        if (!touch) await fence.hover();
+        const fenceGutter = fence.locator(':scope > .hh-markdown-review-gutter .hh-markdown-comment-gutter');
+        await expect(fenceGutter.evaluate((button) => {
+            const box = button.getBoundingClientRect();
+            const target = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+            return target === button || button.contains(target);
+        })).resolves.toBe(true);
+        if (touch) await fenceGutter.tap();
+        else await fenceGutter.click();
+        const fenceComposer = markdownPanel.getByTestId('inline-comment-composer:line:6');
+        await fenceComposer.waitFor();
+        await fenceComposer.getByRole('button', { name: 'Cancel' }).click();
 
         for (const [line, feedback] of [[3, 'First line note'], [4, 'Second line note']] as const) {
             const item = markdownPanel.locator(`li[data-source-line="${line}"]`);
@@ -1143,6 +1192,7 @@ describe('Desktop workspace browser interaction', () => {
         expect(markdownFeedback).toContain('First line note edited');
         expect(markdownFeedback).toContain('Line: 4');
         expect(markdownFeedback).toContain('Second line note replacement');
+        return geometry;
     }
 
     async function verifyMachineMarkdownLinkJourney(page: Page, surfaceId: string) {
@@ -1165,19 +1215,107 @@ describe('Desktop workspace browser interaction', () => {
         const codeScroller = sourcePanel.locator('[data-code]');
         const sourceLine = sourcePanel.locator(`[data-line="${line}"]`);
         await sourceLine.evaluate((element) => element.scrollIntoView({ block: 'center' }));
+        await codeScroller.evaluate((element) => { element.scrollLeft = 0; });
         const [lineBox, scrollerBox] = await Promise.all([sourceLine.boundingBox(), codeScroller.boundingBox()]);
         if (!lineBox || !scrollerBox) throw new Error(`Source line ${line} has no browser layout box`);
         if (touch) {
             await page.touchscreen.tap(lineBox.x + Math.min(10, lineBox.width / 2), lineBox.y + (lineBox.height / 2));
         } else {
-            await sourceLine.hover();
+            await sourceLine.hover({ position: { x: 10, y: lineBox.height / 2 } });
             await expect(sourcePanel.getByRole('button', { name: 'Comment on hovered line' }).isVisible()).resolves.toBe(true);
             await sourcePanel.getByRole('button', { name: 'Comment on hovered line' }).click();
         }
         await sourcePanel.getByTestId(`inline-comment-composer:line:${line}`).waitFor();
         await expect(sourcePanel.getByText(`Comment on line ${line}`, { exact: true }).count()).resolves.toBe(1);
-        await expect.poll(() => sourceLine.getAttribute('data-selected-line')).toMatch(/^(?:first|middle|last|single)$/);
+        await expect(sourcePanel.locator('[data-selected-line]').count()).resolves.toBe(0);
     }
+
+    it.each([
+        { surface: 'desktop', themeName: 'light', width: 1440, height: 900, touch: false },
+        { surface: 'desktop', themeName: 'dark', width: 1440, height: 900, touch: false },
+        { surface: 'mobile', themeName: 'light', width: 390, height: 844, touch: true },
+        { surface: 'mobile', themeName: 'dark', width: 390, height: 844, touch: true },
+    ])('reveals cold source links without pinning hover or resetting the open draft ($surface, $themeName)', async ({ surface, themeName, width, height, touch }) => {
+        const context = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch });
+        const page = await context.newPage();
+        const errors = recordPageErrors(page);
+        let openingSource = false;
+        let pendingChunks = 0;
+        let releaseChunks!: () => void;
+        const chunksReady = new Promise<void>((resolveReady) => { releaseChunks = resolveReady; });
+        await page.route('**/*.js', async (route) => {
+            if (openingSource) {
+                pendingChunks += 1;
+                await chunksReady;
+            }
+            await route.continue();
+        });
+        await page.goto(`${origin}?review-navigation=${surface}&theme=${themeName}`);
+        await page.getByRole('link', { name: 'Open line 160' }).waitFor();
+        openingSource = true;
+        await page.getByRole('link', { name: 'Open line 160' }).click();
+        const panel = page.getByTestId('desktop-file-panel:/workspace/navigation.ts');
+        await panel.waitFor();
+        await expect.poll(() => pendingChunks).toBeGreaterThan(0);
+        // The actual lazy Pierre module is held back until the parent load
+        // effect has run; a pre-render estimated scroll cannot pass this case.
+        await expect(panel.locator('diffs-container').count()).resolves.toBe(0);
+        releaseChunks();
+        await panel.locator('[data-line="160"]').waitFor();
+
+        const viewportState = () => panel.locator('diffs-container').evaluate((host) => {
+            const row = host.shadowRoot!.querySelector('[data-line][data-review-highlight], [data-line][data-selected-line]')!;
+            let scroller = host.parentElement!;
+            while (scroller.parentElement && !['auto', 'scroll'].includes(getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement;
+            const rowBox = row.getBoundingClientRect();
+            const scrollBox = scroller.getBoundingClientRect();
+            return {
+                line: Number(row.getAttribute('data-line')),
+                centerOffset: Math.abs((rowBox.top + rowBox.height / 2) - (scrollBox.top + scrollBox.height / 2)),
+                scrollTop: scroller.scrollTop,
+            };
+        });
+        await expect.poll(async () => (await viewportState()).line).toBe(160);
+        await expect.poll(async () => (await viewportState()).centerOffset).toBeLessThan(3);
+        await expect(panel.locator('[data-selected-line]').count()).resolves.toBe(0);
+
+        await activateSourceLine(page, panel, 161, touch);
+        const draft = panel.getByTestId('inline-comment-composer:line:161').getByPlaceholder('Write a comment');
+        await draft.fill('Keep this draft on line 161');
+        await activateSourceLine(page, panel, 161, touch);
+        await expect(draft.inputValue()).resolves.toBe('Keep this draft on line 161');
+        if (!touch) {
+            await panel.locator('[data-line="163"]').hover();
+            await expect.poll(() => panel.locator('[data-column-number="163"] [data-utility-button]').count()).toBe(1);
+            await expect(draft.inputValue()).resolves.toBe('Keep this draft on line 161');
+            await expect(panel.getByTestId('inline-comment-composer:line:163').count()).resolves.toBe(0);
+        }
+
+        await page.getByRole('link', { name: 'Open line 200' }).click();
+        await expect.poll(async () => (await viewportState()).line).toBe(200);
+        await expect.poll(async () => (await viewportState()).centerOffset).toBeLessThan(3);
+        await expect(draft.inputValue()).resolves.toBe('Keep this draft on line 161');
+        await expect(panel.locator('[data-selected-line]').count()).resolves.toBe(0);
+
+        // Pinning a thread above the target changes its measured row position.
+        // Navigating back must use the real DOM height and later hover must not
+        // replay the navigation scroll.
+        await panel.getByTestId('inline-comment-composer:line:161').getByRole('button', { name: 'Pin comment' }).click();
+        await page.getByRole('link', { name: 'Open line 160' }).click();
+        await page.getByRole('link', { name: 'Open line 200' }).click();
+        await expect.poll(async () => (await viewportState()).centerOffset).toBeLessThan(3);
+        await activateSourceLine(page, panel, 201, touch);
+        const secondDraft = panel.getByTestId('inline-comment-composer:line:201').getByPlaceholder('Write a comment');
+        const beforeTyping = await viewportState();
+        await secondDraft.fill('Second independent line');
+        if (!touch) await panel.locator('[data-line="202"]').hover();
+        expect(Math.abs((await viewportState()).scrollTop - beforeTyping.scrollTop)).toBeLessThan(2);
+        await expect(secondDraft.inputValue()).resolves.toBe('Second independent line');
+        await expect(panel.getByTestId('inline-comment-thread:line:161').getByText('Keep this draft on line 161', { exact: true }).count()).resolves.toBe(1);
+        await expect(panel.locator('[data-selected-line]').count()).resolves.toBe(0);
+        expect(errors).toEqual([]);
+        await context.close();
+    }, 30_000);
 
     async function verifyMarkdownSourceReviewJourney(
         page: Page,
@@ -1220,6 +1358,7 @@ describe('Desktop workspace browser interaction', () => {
         switchTab = true,
         touch = false,
         expectedTheme: 'light' | 'dark' = 'light',
+        expectedGutter?: Awaited<ReturnType<typeof reviewGutterGeometry>>,
     ) {
         const workspace = page.getByTestId(surfaceId);
         if (switchTab) await workspace.getByRole('tab', { name: 'Open review.ts' }).click();
@@ -1228,6 +1367,21 @@ describe('Desktop workspace browser interaction', () => {
 
         const codeScroller = sourcePanel.locator('[data-code]');
         await expect.poll(() => codeScroller.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+        if (touch) await sourcePanel.locator('[data-column-number="1"]').tap();
+        else await sourcePanel.locator('[data-line="1"]').hover();
+        if (expectedGutter) {
+            // Hovering a row as wide as the longest source line may scroll its
+            // content horizontally. Compare the gutters at the content origin.
+            await codeScroller.evaluate((element) => { element.scrollLeft = 0; });
+            await expect.poll(async () => {
+                if (touch) await sourcePanel.locator('[data-column-number="1"]').tap({ position: { x: 20, y: 10 } });
+                return reviewGutterGeometry(
+                    sourcePanel.locator('[data-column-number="1"] [data-line-number-content]'),
+                    sourcePanel.locator('[data-utility-button]'),
+                    sourcePanel.locator('[data-line="1"]'),
+                );
+            }).toEqual(expectedGutter);
+        }
         if (!touch) {
             await sourcePanel.locator('[data-line="1"]').hover();
             const sourceAffordance = sourcePanel.getByRole('button', { name: 'Comment on hovered line' });
@@ -1388,9 +1542,9 @@ describe('Desktop workspace browser interaction', () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
         const pageErrors = recordPageErrors(page);
         await page.goto(`${origin}?file-review=desktop&theme=${themeName}`);
-        await verifyMarkdownReviewJourney(page, 'file-review-desktop', 0, false, themeName);
+        const gutter = await verifyMarkdownReviewJourney(page, 'file-review-desktop', 0, false, themeName);
         await verifyMachineMarkdownLinkJourney(page, 'file-review-desktop');
-        await verifyCodeReviewJourney(page, 'file-review-desktop', 1, true, false, themeName);
+        await verifyCodeReviewJourney(page, 'file-review-desktop', 1, true, false, themeName, gutter);
         await verifyCanvasReviewJourney(page, 'file-review-desktop', true, 2);
         await page.goto(`${origin}?file-review=desktop-markdown-source&theme=${themeName}`);
         await verifyMarkdownSourceReviewJourney(page, 'file-review-desktop', false, false, themeName);
@@ -1403,11 +1557,11 @@ describe('Desktop workspace browser interaction', () => {
         const page = await context.newPage();
         const pageErrors = recordPageErrors(page);
         await page.goto(`${origin}?file-review=mobile&theme=${themeName}`);
-        await verifyMarkdownReviewJourney(page, 'file-review-mobile', 0, true, themeName);
+        const gutter = await verifyMarkdownReviewJourney(page, 'file-review-mobile', 0, true, themeName);
         await page.goto(`${origin}?file-review=mobile-canvas&theme=${themeName}`);
         await verifyCanvasReviewJourney(page, 'file-review-mobile', false, 0, true);
         await page.goto(`${origin}?file-review=mobile-source&theme=${themeName}`);
-        await verifyCodeReviewJourney(page, 'file-review-mobile', 0, false, true, themeName);
+        await verifyCodeReviewJourney(page, 'file-review-mobile', 0, false, true, themeName, gutter);
         await page.goto(`${origin}?file-review=mobile-markdown-source&theme=${themeName}`);
         await verifyMarkdownSourceReviewJourney(page, 'file-review-mobile', true, false, themeName);
         expect(pageErrors).toEqual([]);

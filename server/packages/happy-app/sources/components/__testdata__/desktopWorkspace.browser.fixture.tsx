@@ -13,6 +13,8 @@ import {
 import { SidebarNavigator } from '@/components/SidebarNavigator';
 import { useLocalSetting } from '@/sync/storage';
 import { MachineWorkspaceBrowser } from '../../app/(app)/workspace';
+import { MarkdownView } from '@/components/markdown/MarkdownView';
+import { WorkspaceLinkPressContext } from '@/-session/workspaceLinkNavigation';
 
 function MainAgentChatProbe() {
     const [mountId] = React.useState(() => `mount-${Math.random()}`);
@@ -454,6 +456,42 @@ function FileReviewWorkspaceDemo({
     );
 }
 
+/** Reply links enter the same production Workspace and tab state as a session. */
+function ReviewNavigationWorkspaceDemo({ compact }: { compact: boolean }) {
+    const [workspace, setWorkspace] = React.useState(EMPTY_DESKTOP_FILE_WORKSPACE);
+    return (
+        <WorkspaceLinkPressContext.Provider value={(route) => {
+            const params = route.params;
+            setWorkspace((current) => openDesktopFile(current, params.absolutePath, {
+                machineId: params.machineId,
+                source: 'session',
+                line: Number(params.line),
+            }));
+        }}>
+            <div style={{ display: 'flex', flexDirection: 'column', height: compact ? 844 : 900, width: compact ? 390 : 1100 }}>
+                <MarkdownView
+                    markdown="[Open line 160](/workspace/navigation.ts:160) · [Open line 200](/workspace/navigation.ts:200)"
+                    sessionId="ordinary-session"
+                    enableWorkspaceLinks
+                />
+                <DesktopFileWorkspace
+                    sessionId="ordinary-session"
+                    paths={workspace.paths}
+                    activePath={workspace.activePath}
+                    references={workspace.references}
+                    dirtyPaths={new Set()}
+                    compact={compact}
+                    onSelect={(path) => setWorkspace((current) => selectDesktopFile(current, path))}
+                    onRequestClose={(path) => setWorkspace((current) => closeDesktopFile(current, path))}
+                    onFileDeleted={() => undefined}
+                    onClosePicker={() => undefined}
+                    onDirtyChange={() => undefined}
+                />
+            </div>
+        </WorkspaceLinkPressContext.Provider>
+    );
+}
+
 declare global {
     interface Window {
         __DELETE_RPC_COUNT__?: number;
@@ -475,8 +513,11 @@ declare global {
 const interactiveHtmlSurface = new URLSearchParams(window.location.search).get('interactive-html');
 const fileReviewSurface = new URLSearchParams(window.location.search).get('file-review');
 const localhostLiveSurface = new URLSearchParams(window.location.search).get('localhost-live');
+const reviewNavigationSurface = new URLSearchParams(window.location.search).get('review-navigation');
 
-createRoot(document.getElementById('root')!).render(localhostLiveSurface ? (
+createRoot(document.getElementById('root')!).render(reviewNavigationSurface ? (
+    <ReviewNavigationWorkspaceDemo compact={reviewNavigationSurface === 'mobile'} />
+) : localhostLiveSurface ? (
     <LocalhostLiveWorkspaceDemo
         compact={localhostLiveSurface === 'mobile'}
         testId={localhostLiveSurface === 'mobile' ? 'localhost-live-mobile' : 'localhost-live-desktop'}

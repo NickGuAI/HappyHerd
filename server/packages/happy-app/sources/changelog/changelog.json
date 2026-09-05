@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 5 — Preview and commenting enhancements",
+      "summary": "",
+      "markdown": "- Markdown and source previews on Web Desktop and Web Mobile now use consistent comment styling and spacing, with preserved inline threads and improved draft retention.\n- Deep links now scroll directly to highlighted source lines, and comment buttons follow hovered lines even while another comment is open.\n- Code-block comment buttons now remain clickable when code blocks scroll horizontally."
+    },
+    {
       "title": "September 5 — Markdown review gutters and DSH mobile attachments",
       "summary": "",
       "markdown": "- Commentable rendered Markdown on Web Desktop and Web Mobile now displays a source-code-style gutter with the source line number followed by the comment `+` and rendered block, replacing the old yellow inline badge while preserving anchored Seam threads and batch sending.\n- Active DSH sessions on Web Mobile now expose one top-level **Attachments** row that opens the existing **Photos** and **Device files** choices; DSH Web Desktop, other providers, native surfaces, New Session, and HomeDock retain their existing attachment controls, while DSH uploads keep their exact selected-machine host paths."
@@ -581,5 +586,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 5 — Markdown review gutters and DSH mobile attachments"
+  "latestTitle": "September 5 — Preview and commenting enhancements"
 }
