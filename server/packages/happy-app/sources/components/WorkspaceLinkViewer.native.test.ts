@@ -236,6 +236,91 @@ describe('WorkspaceLinkViewer', () => {
             requestedLine: 42,
             requestedColumn: 7,
         });
+        expect(renderer.root.findByType('WorkspaceFeedbackComposer' as any).props).toMatchObject({
+            line: 42,
+            column: 7,
+        });
+        act(() => renderer.unmount());
+    });
+
+    it('retains the loaded file host after a background read failure and recovery', async () => {
+        mockExactFileAndParent();
+        mocks.readFile.mockResolvedValue({ success: true, content: 'cmVwb3J0' });
+        const renderer = await renderViewer();
+        const panel = renderer.root.findByType('FileContentPanel' as any);
+
+        await act(async () => { await panel.props.readFile('/work/report.md'); });
+        mocks.readFile.mockResolvedValue({ success: false, error: 'EIO: temporary failure' });
+        await act(async () => { await panel.props.readFile('/work/report.md'); });
+        expect(renderer.root.findByType('FileContentPanel' as any)).toBe(panel);
+
+        mocks.readFile.mockResolvedValue({ success: true, content: 'cmVwb3J0' });
+        await act(async () => { await panel.props.readFile('/work/report.md'); });
+        expect(renderer.root.findByType('FileContentPanel' as any)).toBe(panel);
+
+        act(() => renderer.root.findByProps({ accessibilityLabel: 'workspace.mobileBackToFiles' }).props.onPress());
+        act(() => renderer.root.findByProps({ accessibilityLabel: 'common.fileViewer: report.md' }).props.onPress());
+        mocks.readFile.mockResolvedValue({ success: false, error: 'ENOENT: no such file' });
+        await act(async () => {
+            await renderer.root.findByType('FileContentPanel' as any).props.readFile('/work/report.md');
+        });
+        expect(renderer.root.findAllByType('FileContentPanel' as any)).toHaveLength(0);
+        act(() => renderer.unmount());
+    });
+
+    it.each([
+        { originSessionId: 'other-session' },
+        { machineId: 'other-machine' },
+        { absolutePath: '/work/other.md' },
+    ])('reinitializes a loaded viewer when its reference changes: %j', async (change) => {
+        mocks.machines.push({ id: 'other-machine', active: true, metadata: { platform: 'linux' } });
+        mocks.getTree.mockImplementation(async (_machineId: string, path: string) => ({
+            success: true,
+            tree: path.endsWith('.md')
+                ? { type: 'file', name: path.split('/').at(-1), path }
+                : { type: 'directory', name: 'work', path, children: [] },
+        }));
+        mocks.readFile.mockResolvedValue({ success: true, content: 'cmVwb3J0' });
+        const renderer = await renderViewer();
+        const panel = renderer.root.findByType('FileContentPanel' as any);
+        await act(async () => { await panel.props.readFile(reference.absolutePath); });
+        const nextReference = { ...reference, ...change };
+        await act(async () => {
+            renderer.update(React.createElement(WorkspaceLinkViewer, {
+                reference: nextReference,
+                onFeedbackSent: vi.fn(),
+            }));
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+        const nextPanel = renderer.root.findByType('FileContentPanel' as any);
+        expect(nextPanel).not.toBe(panel);
+        expect(nextPanel.props).toMatchObject({
+            resourceKey: `machine:${nextReference.machineId}`,
+            filePath: nextReference.absolutePath,
+            markdownSessionId: nextReference.originSessionId,
+        });
+        act(() => renderer.unmount());
+    });
+
+    it('shows an offline error when a new target replaces a loaded reference while disconnected', async () => {
+        mockExactFileAndParent();
+        mocks.readFile.mockResolvedValue({ success: true, content: 'cmVwb3J0' });
+        const renderer = await renderViewer();
+        const panel = renderer.root.findByType('FileContentPanel' as any);
+        await act(async () => { await panel.props.readFile(reference.absolutePath); });
+        mocks.machines = mocks.machines.map((machine) => ({ ...machine, active: false }));
+        await act(async () => {
+            renderer.update(React.createElement(WorkspaceLinkViewer, {
+                reference: { ...reference, absolutePath: '/work/other.md' },
+                onFeedbackSent: vi.fn(),
+            }));
+            await Promise.resolve();
+        });
+        expect(renderer.root.findAllByType('FileContentPanel' as any)).toHaveLength(0);
+        expect(renderer.root.findAllByType('Text' as any).map((node: any) => node.props.children))
+            .toContain('workspace.offlineTitle');
+        expect(mocks.getTree).toHaveBeenCalledTimes(2);
         act(() => renderer.unmount());
     });
 

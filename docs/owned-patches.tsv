@@ -286,3 +286,4 @@ MARKDOWN_DSH_MOBILE_UX	accepted	chore(app): register markdown gutter review patc
 WORKSPACE_REVIEW_PARITY	accepted	fix(workspace): unify line review previews	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
 WORKSPACE_COMMENT_RETENTION	accepted	fix(workspace): retain Markdown comment editors across updates	server/packages/happy-app/sources/components/markdown/MarkdownView.browser.test.ts
 WORKSPACE_COMMENT_RETENTION	accepted	fix(workspace): preserve feedback edits through send acknowledgements	server/packages/happy-app/sources/components/InlineCommentReview.web.test.ts
+WORKSPACE_COMMENT_RETENTION	accepted	fix(workspace): retain fallback reviews through reconnects	server/packages/happy-app/sources/components/WorkspaceLinkViewer.browser.test.ts
