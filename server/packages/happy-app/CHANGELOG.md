@@ -1,3 +1,9 @@
+# September 5 — Preview and commenting enhancements
+
+- Markdown and source previews on Web Desktop and Web Mobile now use consistent comment styling and spacing, with preserved inline threads and improved draft retention.
+- Deep links now scroll directly to highlighted source lines, and comment buttons follow hovered lines even while another comment is open.
+- Code-block comment buttons now remain clickable when code blocks scroll horizontally.
+
 # September 5 — Markdown review gutters and DSH mobile attachments
 
 - Commentable rendered Markdown on Web Desktop and Web Mobile now displays a source-code-style gutter with the source line number followed by the comment `+` and rendered block, replacing the old yellow inline badge while preserving anchored Seam threads and batch sending.

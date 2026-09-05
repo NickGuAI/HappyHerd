@@ -4,6 +4,7 @@ import { useUnistyles } from 'react-native-unistyles';
 import { DiffView } from '@/components/diff/DiffView';
 import { Typography } from '@/constants/Typography';
 import { t } from '@/text';
+import { lineReviewVariables } from '@/components/lineReviewStyles';
 
 export interface PierreDiffViewProps {
     oldFile?: { name: string; contents: string };
@@ -31,8 +32,8 @@ export interface PierreDiffViewProps {
     annotatedLines?: readonly number[];
     /** Web-only in-place content for each annotated source line. */
     renderLineAnnotation?: (line: number) => React.ReactNode;
-    /** Highlight an explicitly linked source line. */
-    selectedLine?: number | null;
+    /** Reveal an explicitly linked source row once it has actually rendered. */
+    requestedLine?: number | null;
 }
 
 export const PierreDiffView = React.memo(function PierreDiffView(props: PierreDiffViewProps) {
@@ -149,7 +150,8 @@ const PierreDiffViewWeb = React.memo(function PierreDiffViewWeb(props: PierreDif
                 options={options}
                 annotatedLines={props.annotatedLines}
                 renderLineAnnotation={props.renderLineAnnotation}
-                selectedLine={props.selectedLine}
+                requestedLine={props.requestedLine}
+                reviewVariables={lineReviewVariables(themeName === 'dark', theme.colors.textSecondary)}
             />
         );
     }
@@ -171,26 +173,57 @@ function FileViewFromFile({
     options,
     annotatedLines,
     renderLineAnnotation,
-    selectedLine,
+    requestedLine,
+    reviewVariables,
 }: {
     bundle: PierreBundle;
     file: { name: string; contents: string };
     options: any;
     annotatedLines?: readonly number[];
     renderLineAnnotation?: (line: number) => React.ReactNode;
-    selectedLine?: number | null;
+    requestedLine?: number | null;
+    reviewVariables: ReturnType<typeof lineReviewVariables>;
 }) {
     const { File } = bundle.react;
     const annotations = React.useMemo(
         () => Array.from(new Set(annotatedLines ?? [])).map((lineNumber) => ({ lineNumber, metadata: { lineNumber } })),
         [annotatedLines],
     );
+    const revealed = React.useRef<{ node: HTMLElement; name: string; line: number } | null>(null);
+    const onPostRender = (node: HTMLElement, instance: unknown, phase: string) => {
+        options.onPostRender?.(node, instance, phase);
+        if (phase === 'unmount') {
+            revealed.current = null;
+            return;
+        }
+        const root = node.shadowRoot;
+        root?.querySelectorAll('[data-review-highlight]').forEach((row) => row.removeAttribute('data-review-highlight'));
+        if (requestedLine && requestedLine > 0) {
+            root?.querySelector(`[data-line="${requestedLine}"]`)?.setAttribute('data-review-highlight', '');
+        }
+        if (!requestedLine || requestedLine <= 0) {
+            revealed.current = null;
+            return;
+        }
+        if (revealed.current?.node === node && revealed.current.name === file.name && revealed.current.line === requestedLine) return;
+        const row = root?.querySelector<HTMLElement>(`[data-line="${requestedLine}"]`);
+        if (!row) return;
+        row.scrollIntoView({ block: 'center', inline: 'nearest' });
+        revealed.current = { node, name: file.name, line: requestedLine };
+    };
     return (
         <File
             file={file}
-            options={options}
+            options={{
+                ...options,
+                onPostRender,
+                unsafeCSS: `${options.unsafeCSS ?? ''}\n${options.enableGutterUtility ? FILE_REVIEW_CSS : ''}`,
+            }}
+            style={reviewVariables as React.CSSProperties}
             lineAnnotations={annotations}
-            selectedLines={selectedLine && selectedLine > 0 ? { start: selectedLine, end: selectedLine } : null}
+            // Explicit null keeps gutter gestures controlled without allowing
+            // a navigation or comment anchor to pin Pierre's hover utility.
+            selectedLines={null}
             renderAnnotation={(annotation: any) => (
                 renderLineAnnotation
                     ? renderLineAnnotation(annotation.lineNumber)
@@ -199,6 +232,18 @@ function FileViewFromFile({
         />
     );
 }
+
+const FILE_REVIEW_CSS = `
+[data-file] { --diffs-grid-number-column-width: var(--hh-review-gutter-width); }
+[data-gutter] [data-column-number] { box-sizing: border-box; border: 0; padding: 0; padding-inline-end: calc(var(--hh-review-gutter-gap) + var(--hh-review-button-size) + var(--hh-review-content-gap)); color: var(--hh-review-number-color); }
+[data-line-number-content] { min-width: var(--hh-review-number-width); }
+[data-line] { padding-inline-start: 0; }
+[data-gutter-utility-slot] { right: var(--hh-review-content-gap); }
+[data-utility-button] { width: var(--hh-review-button-size); height: var(--hh-review-button-size); margin: 0; background: var(--hh-review-accent); color: var(--hh-review-accent-text); }
+[data-utility-button]:focus-visible { outline: 2px solid var(--hh-review-accent); outline-offset: 2px; }
+[data-line][data-hovered], [data-line][data-review-highlight] { background: var(--hh-review-highlight); }
+@media (max-width: 700px) { [data-column-number] { font-size: 16px; } }
+`;
 
 function PatchFilesWeb({
     bundle,

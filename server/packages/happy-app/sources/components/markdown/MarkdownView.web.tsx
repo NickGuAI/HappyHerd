@@ -32,6 +32,7 @@ import { loadMarkdownWorkspaceImage } from '@/utils/markdownWorkspaceImage';
 import { openExternalUrl } from '@/utils/openExternalUrl';
 import { t } from '@/text';
 import { Modal } from '@/modal';
+import { lineReviewVariables } from '@/components/lineReviewStyles';
 
 export type { MarkdownViewProps, Option } from './MarkdownView.types';
 
@@ -247,11 +248,13 @@ function WebCodeBlock(props: {
     }, [props.content]);
     return (
         <>
-            <pre className={`hh-markdown-review-line ${props.className ?? ''}`.trim()} data-source-line={props.line}>
+            <div className="hh-markdown-review-line" data-source-line={props.line}>
                 <ReviewGutter line={props.line} onLineComment={props.onLineComment} />
-                <button type="button" className="hh-markdown-code-copy" aria-label={t('common.copy')} onClick={() => { void copy(); }}>{t('common.copy')}</button>
-                {props.children}
-            </pre>
+                <pre className={props.className}>
+                    <button type="button" className="hh-markdown-code-copy" aria-label={t('common.copy')} onClick={() => { void copy(); }}>{t('common.copy')}</button>
+                    {props.children}
+                </pre>
+            </div>
             <LineCommentThread line={props.line} renderLineComment={props.renderLineComment} />
         </>
     );
@@ -452,6 +455,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
     }, [metadata, openWorkspace, props.enableWorkspaceLinks, props.inlineImages, props.onLineComment, props.onOptionPress, props.relativeTo, props.renderLineComment, props.sessionId, props.workspaceImageRoot, resolveTarget]);
 
     const themeVariables = {
+        ...lineReviewVariables(theme.dark, theme.colors.textSecondary),
         '--hh-markdown-text': theme.colors.text,
         '--hh-markdown-text-secondary': theme.colors.textSecondary,
         '--hh-markdown-divider': theme.colors.divider,
@@ -564,14 +568,15 @@ const MARKDOWN_CSS = `
 .hh-markdown-root pre { position: relative; }
 .hh-markdown-code-copy { position: absolute; top: 8px; right: 8px; opacity: 0; cursor: pointer; }
 .hh-markdown-root pre:hover > .hh-markdown-code-copy,.hh-markdown-code-copy:focus-visible { opacity: 1; }
-.hh-markdown-review-root { box-sizing: border-box; padding-inline-start: 76px; }
+.hh-markdown-review-root { box-sizing: border-box; padding-inline-start: var(--hh-review-gutter-width); }
 .hh-markdown-review-line { position: relative; }
 .hh-markdown-inline-comment { box-sizing: border-box; width: 100%; margin: .3em 0 .8em; }
-.hh-markdown-review-reveal { outline: 2px solid rgba(96,140,255,.8); outline-offset: -2px; border-radius: 4px; background: rgba(96,140,255,.12); }
-.hh-markdown-review-gutter { position: absolute; inset-inline-start: calc(-72px - var(--hh-markdown-list-indent, 0px)); top: .15em; z-index: 4; display: grid; grid-template-columns: 44px 20px; gap: 4px; align-items: center; width: 68px; height: 20px; font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; font-size: 12px; font-variant-numeric: tabular-nums; line-height: 20px; }
-.hh-markdown-source-line { overflow: hidden; color: var(--hh-markdown-text-secondary); text-align: end; text-overflow: clip; user-select: none; white-space: nowrap; }
-.hh-markdown-comment-gutter { appearance: none; display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: 0; border-radius: 4px; padding: 0; background: transparent; color: var(--hh-markdown-text-secondary); font: inherit; line-height: 20px; opacity: 0; cursor: pointer; touch-action: none; }
-.hh-markdown-review-line:hover > .hh-markdown-review-gutter .hh-markdown-comment-gutter,.hh-markdown-comment-gutter:focus-visible { background: var(--hh-markdown-surface-high); color: var(--hh-markdown-text); opacity: 1; }
+.hh-markdown-review-reveal,.hh-markdown-review-root .hh-markdown-review-line:hover { background: var(--hh-review-highlight); }
+.hh-markdown-review-gutter { position: absolute; inset-inline-start: calc(-1 * var(--hh-review-gutter-width) - var(--hh-markdown-list-indent, 0px)); top: .15em; z-index: 4; display: grid; grid-template-columns: var(--hh-review-number-width) var(--hh-review-button-size); gap: var(--hh-review-gutter-gap); align-items: center; height: var(--hh-review-button-size); font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; font-size: 13px; font-variant-numeric: tabular-nums; line-height: 20px; }
+.hh-markdown-source-line { overflow: hidden; color: var(--hh-review-number-color); text-align: end; text-overflow: clip; user-select: none; white-space: nowrap; }
+.hh-markdown-comment-gutter { appearance: none; display: flex; align-items: center; justify-content: center; width: var(--hh-review-button-size); height: var(--hh-review-button-size); border: 0; border-radius: 4px; padding: 0; background: var(--hh-review-accent); color: var(--hh-review-accent-text); font: inherit; line-height: 20px; opacity: 0; cursor: pointer; touch-action: none; }
+.hh-markdown-review-line:hover > .hh-markdown-review-gutter .hh-markdown-comment-gutter,.hh-markdown-comment-gutter:focus-visible { opacity: 1; }
+.hh-markdown-comment-gutter:focus-visible { outline: 2px solid var(--hh-review-accent); outline-offset: 2px; }
 @media (max-width: 700px) { .hh-markdown-review-gutter { font-size: 16px; } }
 @media (hover: none), (pointer: coarse) { .hh-markdown-comment-gutter { opacity: 1; } }
 .hljs-comment,.hljs-quote { color: #6a737d; }
