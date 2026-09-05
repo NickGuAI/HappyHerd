@@ -52,7 +52,9 @@ change. When behavior changes, update both this skill and
   applicable line-comment affordances; multiple pinned comments retain correct
   source lines and send **once** through the existing `workspaceFeedback`
   batch to the exact current chat. No new comment store, RPC, transport path,
-  or second batch is introduced.
+  or second batch is introduced. Rendered Markdown review gutters are ordered
+  source line number, comment `+`, then rendered block; desktop reveals the `+`
+  on hover or focus, while touch keeps it visible.
 - **Selected-machine localhost.** The embedded Workspace accepts only
   HTTP/HTTPS URLs with the exact loopback authority `localhost`, `127.0.0.1`,
   or `[::1]`. Tabs are keyed by machine plus canonical URL. The live iframe's
@@ -71,10 +73,14 @@ change. When behavior changes, update both this skill and
   Compact Web uses the full-screen Workspace without desktop tabs or a
   divider. Unsaved edits survive ordinary tab and layout transitions.
 - **Human entry points.** Both Main Agent and active Side chat composers expose
-  **Changes**, **Workspace**, and **Attachments** through the shared `+` menu;
-  Microphone and Send stay direct and Send remains send-only. Workspace has no
-  second header `+`. A hidden route, mounted component, source string, or reply
-  link is not a substitute for a visible, clickable Human entry.
+  their file and workspace actions through the shared `+` menu; Microphone and
+  Send stay direct and Send remains send-only. Workspace has no second header
+  `+`. Only an active DSH session on Web Mobile nests **Photos** and **Device
+  files** beneath one **Attachments** row; DSH Web Desktop keeps its split
+  actions, other providers retain their existing attachment behavior, and DSH
+  uploads preserve exact selected-machine host paths. A hidden route, mounted
+  component, source string, or reply link is not a substitute for a visible,
+  clickable Human entry.
 - **Mobile text floor.** On phone Web, every visible text-bearing element on
   the touched Workspace surfaces computes to at least 16px through the
   document-wide `MobileTypographyFloor` mechanism (including the Markdown

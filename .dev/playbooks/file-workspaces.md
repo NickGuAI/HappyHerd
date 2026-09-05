@@ -68,14 +68,21 @@ Preview and reveals the requested rendered unit; it never switches to a raw
 source surface. Raw text/code keeps the read-only Pierre renderer as its
 Preview implementation, with arbitrary-line comment affordance; **Edit** is the
 explicit writable raw editor. Code and rendered Markdown draft and pinned
-comment threads stay at their exact source lines. A single docked review bar is
-used to send the feedback batch. Canvas-node and selected-machine localhost
-live-element comments remain docked, while native features are unchanged. No approval
-prompt, trust store, allowlist, new route, or second viewer exists.
+comment threads stay at their exact source lines. Commentable rendered Markdown
+orders each review gutter as source line number, comment `+`, then rendered
+block; desktop reveals the `+` on hover or focus, while touch keeps it visible.
+A single docked review bar is used to send the feedback batch. Canvas-node and
+selected-machine localhost live-element comments remain docked, while native
+features are unchanged. No approval prompt, trust store, allowlist, new route,
+or second viewer exists.
 
 On Web Desktop and Web Mobile, both Main Agent and active Side chat composers
-expose **Changes**, **Workspace**, and **Attachments** through the shared `+`
-menu. Microphone and Send remain direct controls, and Send remains send-only.
+expose their file and workspace actions through the shared `+` menu.
+Microphone and Send remain direct controls, and Send remains send-only. Only an
+active DSH session on Web Mobile opens **Photos** and **Device files** beneath
+one **Attachments** row; DSH Web Desktop keeps its split actions, other
+providers retain their existing behavior, and DSH uploads preserve exact
+selected-machine host paths.
 Workspace has no second header `+` for reopening an obsolete picker. A hidden
 route, mounted component, source string, or reply link is not a substitute for
 a visible, clickable Human entry.

@@ -6,6 +6,7 @@ import { AgentInputAttachmentStrip } from './AgentInputAttachmentStrip';
 import { WorkspaceContextStrip } from './WorkspaceContextStrip';
 import type { AttachmentPreview } from '@/sync/attachmentTypes';
 import { AttachmentInputButton } from '@/components/AttachmentInputButton';
+import { AttachmentInputMenu, type AttachmentInputMenuAnchor } from '@/components/AttachmentInputMenu';
 import type { WorkspaceContextEntry } from '@/sync/workspaceContext';
 import { generateThumbhash } from '@/utils/thumbhash';
 import { layout } from './layout';
@@ -135,7 +136,7 @@ interface AgentInputProps {
     selectedImages?: AttachmentPreview[];
     onPickImages?: () => void;
     onPickDeviceFiles?: () => void;
-    /** Expose Photos and Device files separately inside the compact Web action menu. */
+    /** Keep DSH Photos/Device files split on desktop and group them beneath Attachments on Web Mobile. */
     splitWebAttachmentActions?: boolean;
     onRemoveImage?: (id: string) => void;
     onAddImages?: (images: AttachmentPreview[]) => void;
@@ -1199,6 +1200,14 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     type ComposerPicker = 'permission' | 'model' | 'effort';
     const [openPicker, setOpenPicker] = React.useState<ComposerPicker | null>(null);
     const [webActionMenuOpen, setWebActionMenuOpen] = React.useState(false);
+    const [webAttachmentMenuOpen, setWebAttachmentMenuOpen] = React.useState(false);
+    const [webAttachmentMenuAnchor, setWebAttachmentMenuAnchor] = React.useState<AttachmentInputMenuAnchor>({
+        x: 12,
+        y: Math.max(12, screenHeight - 52),
+        width: 32,
+        height: 32,
+    });
+    const webAttachmentActionRef = React.useRef<View>(null);
     const pickerOpeningRef = React.useRef<ComposerPicker | null>(null);
     const pickerKeyboardSubscriptionRef = React.useRef<ReturnType<typeof Keyboard.addListener> | null>(null);
     const pickerOpenTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1220,6 +1229,17 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
 
     const closeWebActionMenu = React.useCallback(() => {
         setWebActionMenuOpen(false);
+    }, []);
+
+    const closeWebAttachmentMenu = React.useCallback(() => {
+        setWebAttachmentMenuOpen(false);
+    }, []);
+
+    const openWebAttachmentMenu = React.useCallback(() => {
+        setWebAttachmentMenuOpen(true);
+        webAttachmentActionRef.current?.measureInWindow((x, y, width, height) => {
+            setWebAttachmentMenuAnchor({ x, y, width, height });
+        });
     }, []);
 
     React.useEffect(() => cancelPendingPickerOpen, [cancelPendingPickerOpen]);
@@ -1258,12 +1278,24 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     const handleWebActionMenuPress = React.useCallback(() => {
         hapticsLight();
         closePicker();
+        closeWebAttachmentMenu();
         setWebActionMenuOpen((visible) => !visible);
-    }, [closePicker]);
+    }, [closePicker, closeWebAttachmentMenu]);
 
     React.useEffect(() => {
         closeWebActionMenu();
-    }, [closeWebActionMenu, props.sessionId]);
+        closeWebAttachmentMenu();
+    }, [closeWebActionMenu, closeWebAttachmentMenu, props.sessionId]);
+
+    React.useEffect(() => {
+        if (
+            !webActionMenu
+            || !props.splitWebAttachmentActions
+            || screenWidth > 700
+            || !props.onPickImages
+            || !props.onPickDeviceFiles
+        ) closeWebAttachmentMenu();
+    }, [closeWebAttachmentMenu, props.onPickDeviceFiles, props.onPickImages, props.splitWebAttachmentActions, screenWidth, webActionMenu]);
 
     const handleModelPress = React.useCallback(() => {
         if (!canOpenModelPicker) return;
@@ -1467,17 +1499,21 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                 disabled: !hasComposerContent || props.isSendDisabled,
             });
         }
+        const groupedAttachments = props.splitWebAttachmentActions
+            && screenWidth <= 700
+            && props.onPickImages
+            && props.onPickDeviceFiles;
         if (props.onPickImages) {
             actions.push({
-                key: props.splitWebAttachmentActions ? 'photos' : 'attachments',
-                label: props.splitWebAttachmentActions
-                    ? t('happyHerd.composer.photos')
-                    : t('happyHerd.composer.attachments'),
+                key: groupedAttachments || !props.splitWebAttachmentActions ? 'attachments' : 'photos',
+                label: groupedAttachments || !props.splitWebAttachmentActions
+                    ? t('happyHerd.composer.attachments')
+                    : t('happyHerd.composer.photos'),
                 icon: 'images-outline',
-                onPress: props.onPickImages,
+                onPress: groupedAttachments ? openWebAttachmentMenu : props.onPickImages,
             });
         }
-        if (props.splitWebAttachmentActions && props.onPickDeviceFiles) {
+        if (props.splitWebAttachmentActions && !groupedAttachments && props.onPickDeviceFiles) {
             actions.push({
                 key: 'device-files',
                 label: t('happyHerd.composer.deviceFiles'),
@@ -1486,7 +1522,7 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
             });
         }
         return actions;
-    }, [handleAbortPress, handleSettingsPress, hasComposerContent, isAborting, modelSettingsGroups.length, permissionSettingsGroups.length, props.isSendDisabled, props.webWorkspaceActions, props.onAbort, props.onPickDeviceFiles, props.onPickImages, props.onQueueMessage, props.splitWebAttachmentActions, shouldShowStopButton]);
+    }, [handleAbortPress, handleSettingsPress, hasComposerContent, isAborting, modelSettingsGroups.length, openWebAttachmentMenu, permissionSettingsGroups.length, props.isSendDisabled, props.webWorkspaceActions, props.onAbort, props.onPickDeviceFiles, props.onPickImages, props.onQueueMessage, props.splitWebAttachmentActions, screenWidth, shouldShowStopButton]);
 
     const invokeWebComposerAction = React.useCallback((action: (typeof webComposerActions)[number]) => {
         if (action.disabled) return;
@@ -2044,9 +2080,19 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     {webComposerActions.map((action) => (
                                         <Pressable
                                             key={action.key}
+                                            ref={action.key === 'attachments' && props.splitWebAttachmentActions && screenWidth <= 700
+                                                ? webAttachmentActionRef
+                                                : undefined}
                                             accessibilityLabel={action.label}
                                             accessibilityRole="menuitem"
-                                            accessibilityState={{ disabled: action.disabled }}
+                                            accessibilityState={{
+                                                disabled: action.disabled,
+                                                expanded: action.key === 'attachments'
+                                                    && props.splitWebAttachmentActions
+                                                    && screenWidth <= 700
+                                                    ? webAttachmentMenuOpen
+                                                    : undefined,
+                                            }}
                                             disabled={action.disabled}
                                             onPress={() => invokeWebComposerAction(action)}
                                             style={({ pressed }) => [
@@ -2075,6 +2121,20 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                             </FloatingOverlay>
                         </View>
                     </>
+                )}
+
+                {webActionMenu
+                    && props.splitWebAttachmentActions
+                    && screenWidth <= 700
+                    && props.onPickImages
+                    && props.onPickDeviceFiles && (
+                    <AttachmentInputMenu
+                        anchor={webAttachmentMenuAnchor}
+                        onClose={closeWebAttachmentMenu}
+                        onPickDeviceFiles={props.onPickDeviceFiles}
+                        onPickPhotos={props.onPickImages}
+                        visible={webAttachmentMenuOpen}
+                    />
                 )}
 
                 {desktopSettingsOverlay}

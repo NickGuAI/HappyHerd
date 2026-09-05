@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 5 — Markdown review gutters and DSH mobile attachments",
+      "summary": "",
+      "markdown": "- Commentable rendered Markdown on Web Desktop and Web Mobile now displays a source-code-style gutter with the source line number followed by the comment `+` and rendered block, replacing the old yellow inline badge while preserving anchored Seam threads and batch sending.\n- Active DSH sessions on Web Mobile now expose one top-level **Attachments** row that opens the existing **Photos** and **Device files** choices; DSH Web Desktop, other providers, native surfaces, New Session, and HomeDock retain their existing attachment controls, while DSH uploads keep their exact selected-machine host paths."
+    },
+    {
       "title": "September 4 — HappyHerd Web Workspace Comments Update",
       "summary": "",
       "markdown": "- Code and rendered Markdown comments now open at selected lines as visually anchored Seam threads, while Canvas-node and selected-machine localhost comments remain docked.\n- Pinned comments can be edited or removed, and a bottom review bar sends them as a single structured batch that is preserved on send failure, with light and dark theme support for Web Desktop and 390px Web Mobile (native surfaces unchanged)."
@@ -576,5 +581,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 4 — HappyHerd Web Workspace Comments Update"
+  "latestTitle": "September 5 — Markdown review gutters and DSH mobile attachments"
 }

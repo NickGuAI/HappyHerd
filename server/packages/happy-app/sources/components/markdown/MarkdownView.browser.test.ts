@@ -138,6 +138,7 @@ describe('MarkdownView browser theme and option parity', () => {
         await chips.first().waitFor();
 
         const firstLine = root.locator('p[data-source-line="1"]').first();
+        const firstLineNumber = firstLine.locator('.hh-markdown-source-line');
         const firstLineGutter = firstLine.locator('.hh-markdown-comment-gutter');
         if (viewport.hasTouch) {
             await expect.poll(() => firstLineGutter.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
@@ -151,16 +152,27 @@ describe('MarkdownView browser theme and option parity', () => {
             await expect(firstLineGutter.evaluate((element) => element === document.activeElement)).resolves.toBe(true);
             await expect.poll(() => firstLineGutter.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
         }
-        const gutterLayout = await firstLineGutter.evaluate((element) => {
-            const rect = element.getBoundingClientRect();
+        await expect(firstLineNumber.textContent()).resolves.toBe('1');
+        const gutterLayout = await firstLine.evaluate((element) => {
+            const lineNumber = element.querySelector('.hh-markdown-source-line')!;
+            const button = element.querySelector('.hh-markdown-comment-gutter')!;
+            const content = Array.from(element.childNodes).find((node) => (
+                node.nodeType === Node.TEXT_NODE && node.textContent?.trim()
+            ));
+            const lineRect = lineNumber.getBoundingClientRect();
+            const buttonRect = button.getBoundingClientRect();
+            const contentRange = document.createRange();
+            contentRange.selectNode(content!);
+            const contentRect = contentRange.getBoundingClientRect();
             const rootRect = element.closest('.hh-markdown-root')!.getBoundingClientRect();
             const hostRect = element.closest('[data-testid="markdown-host"]')!.getBoundingClientRect();
-            const style = getComputedStyle(element);
+            const style = getComputedStyle(button);
             return {
-                width: rect.width,
-                height: rect.height,
-                insideRoot: rect.left >= rootRect.left - 0.5 && rect.right <= rootRect.right + 0.5,
-                insideHost: rect.left >= hostRect.left - 0.5 && rect.right <= hostRect.right + 0.5,
+                width: buttonRect.width,
+                height: buttonRect.height,
+                insideRoot: buttonRect.left >= rootRect.left - 0.5 && buttonRect.right <= rootRect.right + 0.5,
+                insideHost: buttonRect.left >= hostRect.left - 0.5 && buttonRect.right <= hostRect.right + 0.5,
+                sourceOrder: lineRect.right <= buttonRect.left && buttonRect.right <= contentRect.left,
                 backgroundColor: style.backgroundColor,
                 color: style.color,
                 borderRadius: style.borderRadius,
@@ -170,19 +182,19 @@ describe('MarkdownView browser theme and option parity', () => {
                 justifyContent: style.justifyContent,
             };
         });
-        expect(gutterLayout).toEqual({
+        expect(gutterLayout).toMatchObject({
             width: 20,
             height: 20,
             insideRoot: true,
             insideHost: true,
-            backgroundColor: 'rgb(210, 153, 34)',
-            color: 'rgb(13, 17, 23)',
+            sourceOrder: true,
             borderRadius: '4px',
             borderTopWidth: '0px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
         });
+        expect(gutterLayout.backgroundColor).not.toBe('rgb(210, 153, 34)');
         if (viewport.hasTouch) await firstLineGutter.tap();
         else await firstLineGutter.click();
         await expect(page.evaluate(() => window.__MARKDOWN_LINE_COMMENTS__)).resolves.toEqual([1]);
@@ -362,7 +374,11 @@ describe('MarkdownView browser theme and option parity', () => {
             const firstCell = tableElement.querySelector('td')!;
             const cellStyle = getComputedStyle(firstCell);
             const textElements = [...element.closest('.hh-markdown-root')!.querySelectorAll('*')]
-                .filter((candidate) => candidate.tagName !== 'STYLE' && [...candidate.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()));
+                .filter((candidate) => (
+                    candidate.tagName !== 'STYLE'
+                    && !candidate.closest('.hh-markdown-review-gutter')
+                    && [...candidate.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim())
+                ));
             return {
                 overflowX: getComputedStyle(element).overflowX,
                 tableDisplay: getComputedStyle(tableElement).display,
@@ -433,7 +449,7 @@ describe('MarkdownView browser theme and option parity', () => {
         }
         await expect.poll(() => tableWrap.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
 
-        const tableReviewButton = root.locator('.hh-markdown-table-review > .hh-markdown-comment-gutter');
+        const tableReviewButton = root.locator('.hh-markdown-table-review > .hh-markdown-review-gutter > .hh-markdown-comment-gutter');
         await tableReviewButton.scrollIntoViewIfNeeded();
         if (viewport.hasTouch) {
             await tableReviewButton.tap();
