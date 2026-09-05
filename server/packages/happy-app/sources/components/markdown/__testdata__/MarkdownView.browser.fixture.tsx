@@ -3,6 +3,9 @@ import { createRoot } from 'react-dom/client';
 import { useUnistyles } from 'react-native-unistyles';
 
 import { MarkdownView } from '../MarkdownView.web';
+import { InlineCommentThread } from '../../InlineCommentReview.web';
+import type { InlineCommentAnchor } from '../../InlineCommentReview';
+import type { WorkspaceFeedbackComment } from '@/sync/workspaceFeedback';
 
 const FIRST_OPTION = '把 Speaker 2 改成 Maria';
 const SECOND_OPTION = '保持 Speaker 2 不变，同时保留当前转录中的全部说话人标记以及这一条足够长、会在窄屏和宽屏容器中按可用宽度自然换行的建议文字';
@@ -47,7 +50,36 @@ declare global {
     interface Window {
         __MARKDOWN_LINE_COMMENTS__?: number[];
         __MARKDOWN_OPTION_PRESSES__?: string[];
+        __REFRESH_MARKDOWN_REVIEW__?: () => void;
     }
+}
+
+function MarkdownReviewFixture() {
+    const [revision, setRevision] = React.useState(0);
+    const [anchor, setAnchor] = React.useState<InlineCommentAnchor | null>(null);
+    const [comments, setComments] = React.useState<WorkspaceFeedbackComment[]>([]);
+    React.useEffect(() => {
+        window.__REFRESH_MARKDOWN_REVIEW__ = () => setRevision((current) => current + 1);
+        return () => { delete window.__REFRESH_MARKDOWN_REVIEW__; };
+    }, []);
+    return (
+        <main data-revision={revision} style={{ padding: 48 }}>
+            <MarkdownView
+                markdown={'# Review fixture\n\nA paragraph to review.\n\n- A list item\n\n```ts\nconst answer = 42;\n```\n\n| Field | Value |\n| --- | --- |\n| Example | 42 |\n\n---'}
+                workspaceProvenance={{ machineId: 'fixture-machine', path: '/workspace' }}
+                onLineComment={setAnchor}
+                renderLineComment={({ line }) => (
+                    <InlineCommentThread
+                        anchor={{ line }}
+                        activeAnchor={anchor}
+                        comments={comments}
+                        onActiveAnchorChange={setAnchor}
+                        onCommentsChange={setComments}
+                    />
+                )}
+            />
+        </main>
+    );
 }
 
 function MarkdownFixture() {
@@ -97,4 +129,6 @@ function MarkdownFixture() {
     );
 }
 
-createRoot(document.getElementById('root')!).render(<MarkdownFixture />);
+createRoot(document.getElementById('root')!).render(
+    new URLSearchParams(window.location.search).has('review') ? <MarkdownReviewFixture /> : <MarkdownFixture />,
+);

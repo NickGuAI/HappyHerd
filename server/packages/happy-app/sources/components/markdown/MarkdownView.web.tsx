@@ -266,6 +266,184 @@ function extractText(node: any): string {
     return Array.isArray(node.children) ? node.children.map(extractText).join('') : '';
 }
 
+type MarkdownRendererContextValue = {
+    props: MarkdownViewProps;
+    metadata: MarkdownViewProps['workspaceProvenance'] | null;
+    openWorkspace: (route: WorkspaceLinkRoute) => void;
+    resolveTarget: (url: string, label: string) => LinkTarget | null;
+};
+
+const MarkdownRendererContext = React.createContext<MarkdownRendererContextValue>(null!);
+
+// ReactMarkdown treats these adapters as component types. Keep their identities
+// stable so routine host updates do not remount stateful inline review editors.
+const markdownComponents: Components = (() => {
+    const reviewable = (tag: keyof React.JSX.IntrinsicElements) => function Reviewable({ node, children, ...rest }: any) {
+        const { props } = React.useContext(MarkdownRendererContext);
+        const Tag = tag as any;
+        const line = sourceLine(node);
+        const parentReviewLine = React.useContext(ParentReviewLineContext);
+        const listDepth = React.useContext(ListDepthContext);
+        const ownsReviewLine = line !== undefined && line !== parentReviewLine;
+        const reviewStyle = tag === 'li'
+            ? { ...rest.style, '--hh-markdown-list-indent': `${listDepth * 40}px` }
+            : rest.style;
+        const reviewUnit = (
+            <Tag {...rest} style={reviewStyle} className={`${rest.className ?? ''} ${ownsReviewLine && props.onLineComment ? 'hh-markdown-review-line' : ''}`.trim()} data-source-line={line}>
+                {ownsReviewLine ? <ReviewGutter line={line} onLineComment={props.onLineComment} /> : null}
+                <ParentReviewLineContext.Provider value={ownsReviewLine ? line : parentReviewLine}>
+                    {children}
+                </ParentReviewLineContext.Provider>
+                {tag === 'li' && ownsReviewLine ? <LineCommentThread line={line} renderLineComment={props.renderLineComment} /> : null}
+            </Tag>
+        );
+        if (tag === 'li' || !ownsReviewLine) return reviewUnit;
+        return (
+            <>
+                {reviewUnit}
+                <LineCommentThread line={line} renderLineComment={props.renderLineComment} />
+            </>
+        );
+    };
+
+    return {
+        ul: ({ node, children, ...rest }: any) => {
+            const { props } = React.useContext(MarkdownRendererContext);
+            const optionItems = optionItemsFromList(node);
+            if (optionItems) return <WebOptionsBlock items={optionItems} onOptionPress={props.onOptionPress} />;
+            return <MarkdownList {...rest}>{children}</MarkdownList>;
+        },
+        ol: ({ node: _node, children, ...rest }: any) => <MarkdownList {...rest} ordered>{children}</MarkdownList>,
+        p: reviewable('p'),
+        h1: reviewable('h1'),
+        h2: reviewable('h2'),
+        h3: reviewable('h3'),
+        h4: reviewable('h4'),
+        h5: reviewable('h5'),
+        h6: reviewable('h6'),
+        blockquote: reviewable('blockquote'),
+        table: ({ node, children, ...rest }: any) => {
+            const { props } = React.useContext(MarkdownRendererContext);
+            const line = sourceLine(node);
+            return (
+                <div className="hh-markdown-review-line hh-markdown-table-review" data-source-line={line}>
+                    <ReviewGutter line={line} onLineComment={props.onLineComment} />
+                    <div className="hh-markdown-table-wrap">
+                        <table {...rest}>{children}</table>
+                    </div>
+                    <LineCommentThread line={line} renderLineComment={props.renderLineComment} />
+                </div>
+            );
+        },
+        li: reviewable('li'),
+        // Give each table row a source-line range so a deep link to a line
+        // inside a table can reveal that exact row instead of the table
+        // start. Cells inherit the row identity and stay commentable at the
+        // row block level.
+        tr: ({ node, children, ...rest }: any) => {
+            const start = sourceLine(node);
+            const end = node?.position?.end?.line;
+            const lineStart = Number.isInteger(start) ? start : undefined;
+            const lineEnd = Number.isInteger(end) ? end : lineStart;
+            return (
+                <tr
+                    {...rest}
+                    data-source-line-start={lineStart}
+                    data-source-line-end={lineEnd}
+                    className={`${rest.className ?? ''} hh-markdown-table-row`.trim()}
+                >{children}</tr>
+            );
+        },
+        hr: ({ node, ...rest }: any) => {
+            const { props } = React.useContext(MarkdownRendererContext);
+            const line = sourceLine(node);
+            return (
+                <div className="hh-markdown-review-line" data-source-line={line}>
+                    <ReviewGutter line={line} onLineComment={props.onLineComment} />
+                    <hr {...rest} />
+                    <LineCommentThread line={line} renderLineComment={props.renderLineComment} />
+                </div>
+            );
+        },
+        pre: ({ node, children, ...rest }: any) => {
+            const { props } = React.useContext(MarkdownRendererContext);
+            const first = node?.children?.[0];
+            const classes = first?.properties?.className ?? [];
+            if (classes.includes('language-mermaid')) {
+                return <MermaidRenderer content={extractText(first)} />;
+            }
+            const line = sourceLine(node);
+            return <WebCodeBlock line={line} onLineComment={props.onLineComment} renderLineComment={props.renderLineComment} content={extractText(first)} className={rest.className}>{children}</WebCodeBlock>;
+        },
+        a: ({ href, children, node: _node, ...rest }: any) => {
+            const { props, resolveTarget, openWorkspace } = React.useContext(MarkdownRendererContext);
+            const option = decodeMarkdownOption(href);
+            if (option !== null) {
+                return (
+                    <button type="button" className="hh-markdown-option" onClick={() => props.onOptionPress?.({ title: option })}>
+                        {children}
+                    </button>
+                );
+            }
+            const label = typeof children === 'string' ? children : extractText(_node);
+            const target = href ? resolveTarget(href, label) : null;
+            if (!target) return <span>{children}</span>;
+            return (
+                <a
+                    {...rest}
+                    href={target.kind === 'external' ? target.url : '#'}
+                    onClick={(event) => {
+                        event.preventDefault();
+                        if (target.kind === 'external') void openExternalUrl(target.url);
+                        else openWorkspace(target.route);
+                    }}
+                >{children}</a>
+            );
+        },
+        img: ({ src, alt }: any) => {
+            const { props, metadata, openWorkspace } = React.useContext(MarkdownRendererContext);
+            const url = src ?? '';
+            const inlineSource = props.inlineImages?.sources.get(url);
+            const suppressed = props.inlineImages?.suppressed.has(url) ?? false;
+            const external = normalizeExternalMarkdownLink(url);
+            if (external) return (
+                <MarkdownImage
+                    url={url}
+                    alt={alt ?? ''}
+                    reference={null}
+                    inlineSource={external}
+                    suppressed={suppressed}
+                    onOpenWorkspace={openWorkspace}
+                />
+            );
+            const reference = props.enableWorkspaceLinks
+                && !inlineSource
+                && props.workspaceImageRoot !== null
+                ? resolveMarkdownWorkspaceImageReference({
+                    url,
+                    label: alt,
+                    originSessionId: props.sessionId,
+                    metadata: metadata ? {
+                        ...metadata,
+                        path: props.workspaceImageRoot ?? metadata.path,
+                    } : metadata,
+                    ...(props.relativeTo ? { relativeTo: props.relativeTo } : {}),
+                })
+                : null;
+            return (
+                <MarkdownImage
+                    url={url}
+                    alt={alt ?? ''}
+                    reference={reference}
+                    inlineSource={inlineSource}
+                    suppressed={suppressed}
+                    onOpenWorkspace={openWorkspace}
+                />
+            );
+        },
+    };
+})();
+
 export const MarkdownView = React.memo(function MarkdownView(props: MarkdownViewProps) {
     const { theme } = useUnistyles();
     const router = useRouter();
@@ -294,165 +472,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
         return route ? { kind: 'workspace', route } : null;
     }, [metadata, props.enableWorkspaceLinks, props.relativeTo, props.sessionId]);
 
-    const components = React.useMemo<Components>(() => {
-        const reviewable = (tag: keyof React.JSX.IntrinsicElements) => function Reviewable({ node, children, ...rest }: any) {
-            const Tag = tag as any;
-            const line = sourceLine(node);
-            const parentReviewLine = React.useContext(ParentReviewLineContext);
-            const listDepth = React.useContext(ListDepthContext);
-            const ownsReviewLine = line !== undefined && line !== parentReviewLine;
-            const reviewStyle = tag === 'li'
-                ? { ...rest.style, '--hh-markdown-list-indent': `${listDepth * 40}px` }
-                : rest.style;
-            const reviewUnit = (
-                <Tag {...rest} style={reviewStyle} className={`${rest.className ?? ''} ${ownsReviewLine && props.onLineComment ? 'hh-markdown-review-line' : ''}`.trim()} data-source-line={line}>
-                    {ownsReviewLine ? <ReviewGutter line={line} onLineComment={props.onLineComment} /> : null}
-                    <ParentReviewLineContext.Provider value={ownsReviewLine ? line : parentReviewLine}>
-                        {children}
-                    </ParentReviewLineContext.Provider>
-                    {tag === 'li' && ownsReviewLine ? <LineCommentThread line={line} renderLineComment={props.renderLineComment} /> : null}
-                </Tag>
-            );
-            if (tag === 'li' || !ownsReviewLine) return reviewUnit;
-            return (
-                <>
-                    {reviewUnit}
-                    <LineCommentThread line={line} renderLineComment={props.renderLineComment} />
-                </>
-            );
-        };
 
-        return {
-            ul: ({ node, children, ...rest }: any) => {
-                const optionItems = optionItemsFromList(node);
-                if (optionItems) return <WebOptionsBlock items={optionItems} onOptionPress={props.onOptionPress} />;
-                return <MarkdownList {...rest}>{children}</MarkdownList>;
-            },
-            ol: ({ node: _node, children, ...rest }: any) => <MarkdownList {...rest} ordered>{children}</MarkdownList>,
-            p: reviewable('p'),
-            h1: reviewable('h1'),
-            h2: reviewable('h2'),
-            h3: reviewable('h3'),
-            h4: reviewable('h4'),
-            h5: reviewable('h5'),
-            h6: reviewable('h6'),
-            blockquote: reviewable('blockquote'),
-            table: ({ node, children, ...rest }: any) => {
-                const line = sourceLine(node);
-                return (
-                    <div className="hh-markdown-review-line hh-markdown-table-review" data-source-line={line}>
-                        <ReviewGutter line={line} onLineComment={props.onLineComment} />
-                        <div className="hh-markdown-table-wrap">
-                            <table {...rest}>{children}</table>
-                        </div>
-                        <LineCommentThread line={line} renderLineComment={props.renderLineComment} />
-                    </div>
-                );
-            },
-            li: reviewable('li'),
-            // Give each table row a source-line range so a deep link to a line
-            // inside a table can reveal that exact row instead of the table
-            // start. Cells inherit the row identity and stay commentable at the
-            // row block level.
-            tr: ({ node, children, ...rest }: any) => {
-                const start = sourceLine(node);
-                const end = node?.position?.end?.line;
-                const lineStart = Number.isInteger(start) ? start : undefined;
-                const lineEnd = Number.isInteger(end) ? end : lineStart;
-                return (
-                    <tr
-                        {...rest}
-                        data-source-line-start={lineStart}
-                        data-source-line-end={lineEnd}
-                        className={`${rest.className ?? ''} hh-markdown-table-row`.trim()}
-                    >{children}</tr>
-                );
-            },
-            hr: ({ node, ...rest }: any) => {
-                const line = sourceLine(node);
-                return (
-                    <div className="hh-markdown-review-line" data-source-line={line}>
-                        <ReviewGutter line={line} onLineComment={props.onLineComment} />
-                        <hr {...rest} />
-                        <LineCommentThread line={line} renderLineComment={props.renderLineComment} />
-                    </div>
-                );
-            },
-            pre: ({ node, children, ...rest }: any) => {
-                const first = node?.children?.[0];
-                const classes = first?.properties?.className ?? [];
-                if (classes.includes('language-mermaid')) {
-                    return <MermaidRenderer content={extractText(first)} />;
-                }
-                const line = sourceLine(node);
-                return <WebCodeBlock line={line} onLineComment={props.onLineComment} renderLineComment={props.renderLineComment} content={extractText(first)} className={rest.className}>{children}</WebCodeBlock>;
-            },
-            a: ({ href, children, node: _node, ...rest }: any) => {
-                const option = decodeMarkdownOption(href);
-                if (option !== null) {
-                    return (
-                        <button type="button" className="hh-markdown-option" onClick={() => props.onOptionPress?.({ title: option })}>
-                            {children}
-                        </button>
-                    );
-                }
-                const label = typeof children === 'string' ? children : extractText(_node);
-                const target = href ? resolveTarget(href, label) : null;
-                if (!target) return <span>{children}</span>;
-                return (
-                    <a
-                        {...rest}
-                        href={target.kind === 'external' ? target.url : '#'}
-                        onClick={(event) => {
-                            event.preventDefault();
-                            if (target.kind === 'external') void openExternalUrl(target.url);
-                            else openWorkspace(target.route);
-                        }}
-                    >{children}</a>
-                );
-            },
-            img: ({ src, alt }: any) => {
-                const url = src ?? '';
-                const inlineSource = props.inlineImages?.sources.get(url);
-                const suppressed = props.inlineImages?.suppressed.has(url) ?? false;
-                const external = normalizeExternalMarkdownLink(url);
-                if (external) return (
-                    <MarkdownImage
-                        url={url}
-                        alt={alt ?? ''}
-                        reference={null}
-                        inlineSource={external}
-                        suppressed={suppressed}
-                        onOpenWorkspace={openWorkspace}
-                    />
-                );
-                const reference = props.enableWorkspaceLinks
-                    && !inlineSource
-                    && props.workspaceImageRoot !== null
-                    ? resolveMarkdownWorkspaceImageReference({
-                        url,
-                        label: alt,
-                        originSessionId: props.sessionId,
-                        metadata: metadata ? {
-                            ...metadata,
-                            path: props.workspaceImageRoot ?? metadata.path,
-                        } : metadata,
-                        ...(props.relativeTo ? { relativeTo: props.relativeTo } : {}),
-                    })
-                    : null;
-                return (
-                    <MarkdownImage
-                        url={url}
-                        alt={alt ?? ''}
-                        reference={reference}
-                        inlineSource={inlineSource}
-                        suppressed={suppressed}
-                        onOpenWorkspace={openWorkspace}
-                    />
-                );
-            },
-        };
-    }, [metadata, openWorkspace, props.enableWorkspaceLinks, props.inlineImages, props.onLineComment, props.onOptionPress, props.relativeTo, props.renderLineComment, props.sessionId, props.workspaceImageRoot, resolveTarget]);
 
     const themeVariables = {
         ...lineReviewVariables(theme.dark, theme.colors.textSecondary),
@@ -513,11 +533,13 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
             style={{ ...themeVariables, textAlign: props.textAlign }}
         >
             <style>{MARKDOWN_CSS}</style>
-            <ReactMarkdown
-                remarkPlugins={[remarkGfm, remarkBreaks, remarkFrontmatter, remarkMath]}
-                rehypePlugins={[rehypeRaw, rehypeHighlight, [rehypeSanitize, sanitizeSchema]]}
-                components={components}
-            >{encodeMarkdownOptions(props.markdown)}</ReactMarkdown>
+            <MarkdownRendererContext.Provider value={{ props, metadata, openWorkspace, resolveTarget }}>
+                <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkBreaks, remarkFrontmatter, remarkMath]}
+                    rehypePlugins={[rehypeRaw, rehypeHighlight, [rehypeSanitize, sanitizeSchema]]}
+                    components={markdownComponents}
+                >{encodeMarkdownOptions(props.markdown)}</ReactMarkdown>
+            </MarkdownRendererContext.Provider>
         </div>
     );
 });

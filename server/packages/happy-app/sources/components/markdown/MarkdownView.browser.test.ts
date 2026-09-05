@@ -32,11 +32,15 @@ const virtualModules: Record<string, string> = {
         export const useUnistyles = () => ({
             theme: new URLSearchParams(window.location.search).get('theme') === 'dark' ? dark : light,
         });
+        export const StyleSheet = { create: (styles) => styles, hairlineWidth: 1 };
     `,
     'expo-router': `export const useRouter = () => ({ push() {} });`,
     'expo-clipboard': `export const setStringAsync = async () => {};`,
     '@/-session/workspaceLinkNavigation': `export const useWorkspaceLinkPress = () => null;`,
     '@/sync/storage': `export const useSession = () => null;`,
+    '@/sync/sync': `export const sync = { sendMessage: async () => ({ id: 'fixture-receipt' }) };`,
+    '@/components/StyledText': `export { Text } from 'react-native';`,
+    '@/constants/Typography': `export const Typography = { default: () => ({}) };`,
     '@/utils/markdownWorkspaceLink': `
         export const resolveMarkdownWorkspaceImageReference = () => null;
         export const resolveMarkdownWorkspaceLinkRoute = () => null;
@@ -95,6 +99,7 @@ describe('MarkdownView browser theme and option parity', () => {
             format: 'iife',
             platform: 'browser',
             jsx: 'automatic',
+            alias: { 'react-native': 'react-native-web' },
             plugins: [fixturePlugin],
         });
         const script = bundle.outputFiles.find((file) => file.path.endsWith('.js'))?.text ?? bundle.outputFiles[0].text;
@@ -113,6 +118,38 @@ describe('MarkdownView browser theme and option parity', () => {
             args: process.platform === 'linux' ? ['--no-sandbox'] : [],
         });
     }, 30_000);
+
+    it.each([1, 3, 5, 7, 11, 15].flatMap((line) => (
+        [1440, 390].map((width) => [line, width] as const)
+    )))('retains typing and edit focus across host rerenders at Markdown line %s with width %s', async (line, width) => {
+        const page = await browser.newPage({ viewport: { width, height: 844 } });
+        const pageErrors = recordPageErrors(page);
+        await page.goto(`${origin}/?review&theme=dark`);
+        await page.locator(`.hh-markdown-review-line[data-source-line="${line}"] > .hh-markdown-review-gutter button`).click();
+        const thread = page.getByTestId(`inline-comment-thread:line:${line}`);
+        const input = thread.getByRole('textbox');
+        await input.pressSequentially('Keep ');
+        const original = await input.elementHandle();
+        await page.evaluate(() => window.__REFRESH_MARKDOWN_REVIEW__?.());
+        await page.waitForFunction(() => document.querySelector('main[data-revision]')?.getAttribute('data-revision') === '1');
+        expect(await original?.evaluate((element) => element.isConnected && element === document.activeElement)).toBe(true);
+        await page.keyboard.type('this draft');
+        expect(await input.inputValue()).toBe('Keep this draft');
+        await thread.getByRole('button', { name: 'files.pinComment', exact: true }).click();
+        await thread.getByRole('button', { name: 'files.editFile', exact: true }).click();
+        await input.press('End');
+        await page.keyboard.type(' edited');
+        const editing = await input.elementHandle();
+        await page.evaluate(() => window.__REFRESH_MARKDOWN_REVIEW__?.());
+        await page.waitForFunction(() => document.querySelector('main[data-revision]')?.getAttribute('data-revision') === '2');
+        expect(await editing?.evaluate((element) => element.isConnected && element === document.activeElement)).toBe(true);
+        await page.keyboard.type(' after refresh');
+        expect(await input.inputValue()).toBe('Keep this draft edited after refresh');
+        await thread.getByRole('button', { name: 'common.save', exact: true }).click();
+        expect(await thread.getByText('Keep this draft edited after refresh', { exact: true }).count()).toBe(1);
+        expect(pageErrors).toEqual([]);
+        await page.close();
+    });
 
     afterAll(async () => {
         await browser?.close();
