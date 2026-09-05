@@ -100,11 +100,11 @@ with `.dev/` or `docs/`.
   route and `MachineWorkspaceBrowser` (full-machine browse).
 - `sources/app/(app)/session/[id]/file.tsx` — compatibility route resolving
   path/line/column and delegating to `FileViewPanel`; never duplicate it.
-- `sources/-session/SessionView.tsx` — one UI and transport state keyed by
-  machine ID and absolute path; hosts the embedded Workspace and the mobile
-  typography floor.
+- `sources/-session/SessionView.tsx` — retains each chat's Workspace state,
+  with file tabs keyed by machine ID and absolute path; hosts the embedded
+  Workspace and the mobile typography floor.
 - `sources/components/DesktopFileWorkspace.tsx` — deduplicated tabs, wide
-  split, compact host, and one mounted file host.
+  split, compact host, and retained file hosts with per-file feedback drafts.
 - `sources/components/LocalhostLiveView.web.tsx` — live selected-machine page,
   element picker, bounded context, and crop capture; native remains unchanged.
 - `sources/components/desktopFileWorkspaceModel.ts` — tab admission state.
@@ -114,9 +114,10 @@ with `.dev/` or `docs/`.
 
 - `sources/components/FileViewPanel.tsx` — `FileContentPanel`,
   `MachineFileViewPanel`, `FileViewPanel`; owns `FileDisplayMode`
-  (`'preview' | 'edit'`), mode/review state, `requestedLine` default and raw
-  scroll, rendered branches (Markdown/HTML/SVG/Canvas/raw Pierre), the header
-  controls (`FileHeaderRight`), and the web Markdown preview styles.
+  (`'preview' | 'edit'`), mode/review state, rendered branches
+  (Markdown/HTML/SVG/Canvas/raw Pierre), and the header
+  controls (`FileHeaderRight`). MarkdownView and Pierre own line reveal;
+  Pierre waits for `onPostRender`.
 - `sources/components/FileDocumentPreview.tsx` + `FileDocumentPreview.web.tsx`
   — HTML/PDF iframe preview and sandbox plumbing.
 - `sources/components/CanvasFileViewer.tsx` + `CanvasFileViewer.web.tsx` —
@@ -314,10 +315,8 @@ and resolve every relative Markdown link from its containing file.
   allowlist, or other new security mechanism to this path (security-feature
   gate applies if you ever do).
 - Native surfaces stay unchanged unless explicitly scoped.
-- Do not reopen already-delivered concerns (recent-path selection, Markdown
-  table horizontal scrolling, suggestion chips, dark mode, Canvas,
-  provenance, save/conflict, dirty-state retention, feedback batching) —
-  keep them as focused regression checks only.
+- Retain working behavior. Revisit a delivered concern when current source and
+  a reproducible supported path establish a bug relevant to the owner's request.
 - Preserve the `MobileTypographyFloor` phone floor and the input anti-zoom
   guard; never add a viewport zoom lock.
 

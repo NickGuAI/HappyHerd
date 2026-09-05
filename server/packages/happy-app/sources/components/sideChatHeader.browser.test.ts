@@ -174,6 +174,10 @@ const virtualModules: Record<string, string> = {
             }),
             'other-child': makeSession('other-child', 30, { isSideChat: true, parentSessionId: 'other-parent' }),
         };
+        if (fixtureOptions.workspaceRetention) {
+            sessions['child-newest'].metadata.machineId = 'machine-1';
+            sessions['child-newest'].metadata.path = '/work/project';
+        }
         const sessionList = Object.values(sessions);
         const sideChatSnapshots = {
             parent: selectSideChatSessions(sessions, 'parent'),
@@ -339,6 +343,11 @@ const virtualModules: Record<string, string> = {
             'files.openFileTab': 'Open file ' + (params?.name ?? ''),
             'files.closeFileTab': 'Close file ' + (params?.name ?? ''),
             'files.openExistingFile': 'Open existing file',
+            'files.commentOnLine': 'Comment on line ' + (params?.line ?? ''),
+            'files.commentPlaceholder': 'Write a comment',
+            'files.pinComment': 'Pin comment',
+            'files.sendComments': 'Send ' + (params?.count ?? '') + ' comments',
+            'files.pinnedComment': 'Pinned comment',
             'files.editFile': 'Edit',
             'files.saveFile': 'Save',
             'files.deleteFile': 'Delete',
@@ -373,6 +382,8 @@ const virtualModules: Record<string, string> = {
             'workspace.favorites': 'Favorites',
             'workspace.upload': 'Upload',
             'workspace.newFolder': 'New folder',
+            'workspace.folderNamePlaceholder': 'Folder name',
+            'common.create': 'Create',
             'workspace.searchPlaceholder': 'Search files',
             'workspace.browseMachine': 'Browse this machine',
             'workspace.selectedItemsCount': (params?.count ?? 0) + ' of ' + (params?.max ?? 0) + ' items selected',
@@ -403,6 +414,7 @@ const virtualModules: Record<string, string> = {
     '@/components/AnimatedOverlay': `
         import { View } from 'react-native';
         export const AnimatedClickAwayBackdrop = View;
+        export const AnimatedBlurBackdrop = View;
         export const AnimatedFade = ({ children, visible }) => visible ? children : null;
         export const AnimatedPopup = View;
         export const LocalBlurHalo = View;
@@ -440,6 +452,9 @@ const virtualModules: Record<string, string> = {
             sendMessage: async (sessionId, text, options) => {
                 window.__PROVIDER_CONTINUATION_SEND__ = { sessionId, text, options };
                 window.__COMPOSER_SENDS__ = [...(window.__COMPOSER_SENDS__ ?? []), { sessionId, text, options }];
+                if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.deferWorkspaceFeedback && window.__COMPOSER_SENDS__.length === 1) {
+                    await new Promise((resolve) => { window.__RESOLVE_WORKSPACE_FEEDBACK__ = resolve; });
+                }
                 return { localId: 'handoff-message' };
             },
             applySettings() {},
@@ -448,10 +463,19 @@ const virtualModules: Record<string, string> = {
     '@/modal': `
         import React from 'react';
         import { createRoot } from 'react-dom/client';
+        import { WebPromptModal } from '@/modal/components/WebPromptModal';
         export const Modal = {
             alert() {},
             confirm: async () => true,
-            prompt() {},
+            prompt(title, message, options) {
+                return new Promise((resolve) => Modal.show({
+                    component: WebPromptModal,
+                    props: {
+                        config: { id: 'fixture-prompt', type: 'prompt', title, message, ...options },
+                        onConfirm: resolve,
+                    },
+                }));
+            },
             show(request) {
                 const host = document.createElement('div');
                 host.dataset.testid = 'fixture-global-modal';
@@ -471,8 +495,16 @@ const virtualModules: Record<string, string> = {
     '@/components/AgentContentView': `
         import React from 'react';
         import { WorkspaceLinkPressContext } from '@/-session/workspaceLinkNavigation';
+        import { MarkdownView } from '@/components/markdown/MarkdownView';
         export const AgentContentView = (props) => {
             const openWorkspaceLink = React.useContext(WorkspaceLinkPressContext);
+            if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.workspaceRetention) {
+                return React.createElement(React.Fragment, null, props.content, props.placeholder, props.input,
+                    React.createElement(MarkdownView, {
+                        markdown: '[Browse reports](/work/reports) [Slow file](/work/project/session-note.md)',
+                        sessionId: 'parent', enableWorkspaceLinks: true,
+                    }));
+            }
             return React.createElement(
                 React.Fragment,
                 null,
@@ -673,6 +705,23 @@ const virtualModules: Record<string, string> = {
             return { success: false, phases: [] };
         };
         export const machineGetDirectoryTree = async (_machineId, path) => {
+            if (
+                path === globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.deferDirectoryPath
+                && !window.__BROWSER_DIRECTORY_DEFERRED__
+            ) {
+                window.__BROWSER_DIRECTORY_DEFERRED__ = true;
+                await new Promise((resolve) => {
+                    window.__RESOLVE_BROWSER_DIRECTORY__ = () => {
+                        delete window.__RESOLVE_BROWSER_DIRECTORY__;
+                        resolve();
+                    };
+                });
+            }
+            if (path === '/work/reports' || path === '/work/project/reports') return {
+                success: true,
+                tree: { type: 'directory', name: 'reports', path,
+                    children: [{ type: 'file', name: 'report.md', path: path + '/report.md', size: 20 }] },
+            };
             if (path === '/work/project' || path === '/work/child-oldest' || path === '/work/child-newest') {
                 const fileName = path === '/work/project'
                     ? 'machine-file.md'
@@ -681,7 +730,12 @@ const virtualModules: Record<string, string> = {
                     success: true,
                     tree: {
                         type: 'directory', name: path.split('/').pop(), path,
-                        children: [{ type: 'file', name: fileName, path: path + '/' + fileName, size: 12 }],
+                        children: [
+                            { type: 'file', name: fileName, path: path + '/' + fileName, size: 12 },
+                            ...(path === '/work/project' && globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.deferDirectoryPath
+                                ? [{ type: 'directory', name: 'reports', path: '/work/project/reports' }]
+                                : []),
+                        ],
                     },
                 };
             }
@@ -705,7 +759,16 @@ const virtualModules: Record<string, string> = {
             }
             return response;
         };
-        export const machineCreateDirectory = async () => ({ success: false, error: 'not used' });
+        export const machineCreateDirectory = async (machineId, options) => {
+            if (!globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.deferCreateDirectory) return { success: false, error: 'not used' };
+            window.__MACHINE_CREATE_DIRECTORY_CALL__ = { machineId, ...options };
+            return new Promise((resolve) => {
+                window.__RESOLVE_CREATE_DIRECTORY__ = () => {
+                    delete window.__RESOLVE_CREATE_DIRECTORY__;
+                    resolve({ success: true, path: options.directory + '/' + options.directoryName });
+                };
+            });
+        };
         export const machineDeleteFile = async (machineId, path) => {
             window.__MACHINE_DELETE_CALLS__ = [...(window.__MACHINE_DELETE_CALLS__ ?? []), { machineId, path }];
             return { success: true };
@@ -874,6 +937,9 @@ const fixturePlugin: Plugin = {
             }
             if (args.path === '@/components/CodeEditor') {
                 return { path: resolve(appRoot, 'sources/components/CodeEditor.web.tsx') };
+            }
+            if (args.path === '@/components/markdown/MarkdownView' || args.path === '@/components/InlineCommentReview') {
+                return { path: resolve(appRoot, 'sources', args.path.slice(2) + '.web.tsx') };
             }
             if (args.path.startsWith('@/')) {
                 const sourcePath = resolve(appRoot, 'sources', args.path.slice(2));
@@ -1499,6 +1565,189 @@ describe('Side chats browser interaction', () => {
         expect(pageErrors).toEqual([]);
         await page.close();
     }, 30_000);
+
+    it('keeps Main and Side chat reviews separate for the same machine and file', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        page.setDefaultTimeout(3_000);
+        await page.addInitScript(() => { (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { workspaceRetention: true, deferWorkspaceFeedback: true }; });
+        await page.goto(origin, { timeout: 15_000 });
+        const foreground = page.getByTestId('foreground-session');
+        const workspace = foreground.getByTestId('desktop-file-workspace');
+        const openWorkspace = async (child: boolean) => {
+            if (child) await foreground.getByRole('button', { name: 'Open side chats (2)' }).click();
+            const actions = foreground.getByRole('button', { name: 'More actions' }).filter({ visible: true });
+            await (child ? actions.last() : actions.first()).click();
+            await foreground.getByTestId('mobile-composer-action-workspace').filter({ visible: true }).click();
+            await workspace.getByRole('button', { name: /^machine-file\.md / }).filter({ visible: true }).click();
+        };
+        const pin = async (text: string) => {
+            await workspace.getByRole('button', { name: 'Comment on line 1', exact: true }).filter({ visible: true }).click();
+            await workspace.getByRole('textbox', { name: 'Write a comment' }).filter({ visible: true }).fill(text);
+            await workspace.getByRole('button', { name: 'Pin comment', exact: true }).filter({ visible: true }).click();
+        };
+        await openWorkspace(false);
+        await pin('Main comment');
+        await workspace.getByPlaceholder('Share file feedback').filter({ visible: true }).fill('Main footer draft');
+        await openWorkspace(true);
+        await expect(workspace.getByText('Main comment', { exact: true }).filter({ visible: true }).count()).resolves.toBe(0);
+        await expect(workspace.getByPlaceholder('Share file feedback').filter({ visible: true }).inputValue()).resolves.toBe('');
+        await pin('Side comment');
+        await workspace.getByPlaceholder('Share file feedback').filter({ visible: true }).fill('Side footer draft');
+        await openWorkspace(false);
+        await expect(workspace.getByText('Main comment', { exact: true }).filter({ visible: true }).count()).resolves.toBe(1);
+        await expect(workspace.getByPlaceholder('Share file feedback').filter({ visible: true }).inputValue()).resolves.toBe('Main footer draft');
+        await page.setViewportSize({ width: 390, height: 844 });
+        await expect(workspace.getByText('Main comment', { exact: true }).filter({ visible: true }).count()).resolves.toBe(1);
+        await expect(workspace.getByText('Side comment', { exact: true }).filter({ visible: true }).count()).resolves.toBe(0);
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await workspace.getByRole('button', { name: 'Send 1 comments', exact: true }).filter({ visible: true }).click();
+        await openWorkspace(true);
+        await page.evaluate(() => (window as any).__RESOLVE_WORKSPACE_FEEDBACK__());
+        await expect(workspace.getByText('Side comment', { exact: true }).filter({ visible: true }).count()).resolves.toBe(1);
+        await expect(workspace.getByPlaceholder('Share file feedback').filter({ visible: true }).inputValue()).resolves.toBe('Side footer draft');
+        await workspace.getByRole('button', { name: 'Send 1 comments', exact: true }).filter({ visible: true }).click();
+        const sends = await page.evaluate(() => (window as any).__COMPOSER_SENDS__ ?? []);
+        expect(sends).toHaveLength(2);
+        expect(sends[0].sessionId).toBe('parent');
+        expect(sends[0].text).toContain('Main comment');
+        expect(sends[1].sessionId).toBe('child-newest');
+        expect(sends[1].text).toContain('Side comment');
+        await page.close();
+    }, 20_000);
+
+    it('does not let a slow reply probe replace a newer file chosen from Workspace', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        page.setDefaultTimeout(3_000);
+        await page.addInitScript(() => { (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { workspaceRetention: true, deferSamePathProbe: true }; });
+        await page.goto(origin, { timeout: 15_000 });
+        const foreground = page.getByTestId('foreground-session');
+        await foreground.getByText('Slow file', { exact: true }).first().click();
+        await page.waitForFunction(() => !!(window as any).__RESOLVE_SAME_PATH_PROBE__);
+        await foreground.getByRole('button', { name: 'More actions' }).filter({ visible: true }).first().click();
+        await foreground.getByTestId('mobile-composer-action-workspace').filter({ visible: true }).click();
+        const workspace = foreground.getByTestId('desktop-file-workspace');
+        await workspace.getByRole('button', { name: /^machine-file\.md / }).filter({ visible: true }).click();
+        const newerPanel = workspace.getByTestId('desktop-file-panel:/work/project/machine-file.md');
+        await newerPanel.waitFor({ state: 'visible' });
+        await page.evaluate(() => (window as any).__RESOLVE_SAME_PATH_PROBE__());
+        await expect(newerPanel.isVisible()).resolves.toBe(true);
+        await expect(workspace.getByRole('tab', { name: 'Open file session-note.md' }).count()).resolves.toBe(0);
+        await page.close();
+    }, 20_000);
+
+    it('does not let a completed folder creation cancel a newer reply link', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        page.setDefaultTimeout(3_000);
+        await page.addInitScript(() => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
+                workspaceRetention: true, deferSamePathProbe: true, deferCreateDirectory: true,
+            };
+        });
+        await page.goto(origin, { timeout: 15_000 });
+        const foreground = page.getByTestId('foreground-session');
+        await foreground.getByRole('button', { name: 'More actions' }).filter({ visible: true }).first().click();
+        await foreground.getByTestId('mobile-composer-action-workspace').filter({ visible: true }).click();
+        const workspace = foreground.getByTestId('desktop-file-workspace');
+        await workspace.getByLabel('New folder', { exact: true }).click();
+        await page.getByPlaceholder('Folder name').fill('reports');
+        await page.getByText('Create', { exact: true }).click();
+        await page.waitForFunction(() => !!(window as any).__RESOLVE_CREATE_DIRECTORY__);
+        await expect(page.evaluate(() => (window as any).__MACHINE_CREATE_DIRECTORY_CALL__)).resolves.toEqual({
+            machineId: 'machine-1', directory: '/work/project', directoryName: 'reports',
+        });
+        await foreground.getByText('Slow file', { exact: true }).first().click();
+        await page.waitForFunction(() => !!(window as any).__RESOLVE_SAME_PATH_PROBE__);
+        await page.evaluate(() => (window as any).__RESOLVE_CREATE_DIRECTORY__());
+        await expect.poll(() => workspace.getByPlaceholder('Path').inputValue()).toBe('/work/project/reports');
+        await page.evaluate(() => (window as any).__RESOLVE_SAME_PATH_PROBE__());
+        await workspace.getByTestId('desktop-file-panel:/work/project/session-note.md').waitFor({ state: 'visible' });
+        await expect(workspace.getByRole('tab', { name: 'Open file session-note.md' }).count()).resolves.toBe(1);
+        await page.close();
+    }, 20_000);
+
+    it.each([
+        ['directory', '/work/project/reports', /^reports /, /^report\.md /],
+        ['machine', '/work/child-newest', /^SideEC2$/, /^child-newest-machine-file\.md /],
+    ] as const)('keeps newer picker %s navigation while its directory request and an older reply probe are pending', async (_gesture, targetPath, buttonName, fileName) => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        page.setDefaultTimeout(3_000);
+        await page.addInitScript((deferDirectoryPath) => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
+                workspaceRetention: true, deferSamePathProbe: true, deferDirectoryPath,
+            };
+        }, targetPath);
+        await page.goto(origin, { timeout: 15_000 });
+        const foreground = page.getByTestId('foreground-session');
+        await foreground.getByRole('button', { name: 'More actions' }).filter({ visible: true }).first().click();
+        await foreground.getByTestId('mobile-composer-action-workspace').filter({ visible: true }).click();
+        const workspace = foreground.getByTestId('desktop-file-workspace');
+        const pathInput = workspace.getByPlaceholder('Path');
+        await expect.poll(() => pathInput.inputValue()).toBe('/work/project');
+        await pathInput.evaluate((element) => { element.dataset.retainedPickerPath = 'mounted'; });
+        await foreground.getByText('Slow file', { exact: true }).first().click();
+        await page.waitForFunction(() => !!(window as any).__RESOLVE_SAME_PATH_PROBE__);
+        await workspace.getByRole('button', { name: buttonName }).click();
+        await page.waitForFunction(() => !!(window as any).__RESOLVE_BROWSER_DIRECTORY__);
+        if (_gesture === 'directory') {
+            await expect(pathInput.inputValue()).resolves.toBe(targetPath);
+        }
+        await page.evaluate(async () => {
+            (window as any).__RESOLVE_SAME_PATH_PROBE__();
+            await new Promise(requestAnimationFrame);
+            await new Promise(requestAnimationFrame);
+        });
+        await expect(pathInput.isVisible()).resolves.toBe(true);
+        await expect(pathInput.getAttribute('data-retained-picker-path')).resolves.toBe('mounted');
+        if (_gesture === 'directory') {
+            await expect(pathInput.inputValue()).resolves.toBe(targetPath);
+        }
+        await expect(workspace.getByRole('tab', { name: 'Open file session-note.md' }).count()).resolves.toBe(0);
+        await page.evaluate(() => (window as any).__RESOLVE_BROWSER_DIRECTORY__());
+        await workspace.getByRole('button', { name: fileName }).waitFor({ state: 'visible' });
+        await expect(pathInput.inputValue()).resolves.toBe(targetPath);
+        await page.close();
+    }, 20_000);
+
+    it('does not let a slow reply probe collapse a newly opened Side chat', async () => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        page.setDefaultTimeout(3_000);
+        await page.addInitScript(() => { (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { workspaceRetention: true, deferSamePathProbe: true }; });
+        await page.goto(origin, { timeout: 15_000 });
+        const foreground = page.getByTestId('foreground-session');
+        await foreground.getByText('Slow file', { exact: true }).first().click();
+        await page.waitForFunction(() => !!(window as any).__RESOLVE_SAME_PATH_PROBE__);
+        await foreground.getByRole('button', { name: 'Open side chats (2)' }).click();
+        await foreground.getByText('Newest child', { exact: true }).waitFor({ state: 'visible' });
+        await page.evaluate(() => (window as any).__RESOLVE_SAME_PATH_PROBE__());
+        await expect(foreground.getByText('Newest child', { exact: true }).isVisible()).resolves.toBe(true);
+        await expect(foreground.getByRole('tab', { name: 'Open file session-note.md' }).count()).resolves.toBe(0);
+        await page.close();
+    }, 20_000);
+
+    it.each([
+        ['desktop', { width: 1440, height: 900 }],
+        ['mobile', { width: 390, height: 844 }],
+    ] as const)('returns to the reply-linked directory after viewing a file on %s', async (_surface, viewport) => {
+        const page = await browser.newPage({ viewport });
+        page.setDefaultTimeout(3_000);
+        await page.addInitScript(() => { (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { workspaceRetention: true }; });
+        await page.goto(origin, { timeout: 15_000 });
+        const foreground = page.getByTestId('foreground-session');
+        await foreground.getByText('Browse reports', { exact: true }).first().click();
+        const workspace = foreground.getByTestId('desktop-file-workspace');
+        await expect.poll(() => workspace.getByPlaceholder('Path').filter({ visible: true }).inputValue()).toBe('/work/reports');
+        await workspace.getByRole('button', { name: /^report\.md / }).filter({ visible: true }).click();
+        if (viewport.width < 900) {
+            await workspace.getByTestId('desktop-file-workspace-picker-close').click();
+            await foreground.getByRole('button', { name: 'More actions' }).filter({ visible: true }).first().click();
+            await foreground.getByTestId('mobile-composer-action-workspace').filter({ visible: true }).click();
+        } else {
+            await workspace.getByLabel('Workspace', { exact: true }).click();
+        }
+        await expect(workspace.getByPlaceholder('Path').filter({ visible: true }).inputValue()).resolves.toBe('/work/reports');
+        await expect(workspace.getByRole('button', { name: /^report\.md / }).filter({ visible: true }).isVisible()).resolves.toBe(true);
+        await page.close();
+    }, 20_000);
 
     it('opens the right-panel Workspace at the active Side chat machine and cwd and targets its context', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });

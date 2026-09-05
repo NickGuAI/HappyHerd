@@ -17,6 +17,7 @@ import {
     InlineCommentReview,
     InlineCommentThread,
     type InlineCommentAnchor,
+    type InlineReviewComment,
 } from '@/components/InlineCommentReview';
 import { machineDeleteFile, machineReadFile, machineWriteFile, sessionDeleteFile, sessionReadFile, sessionWriteFile } from '@/sync/ops';
 import { Modal } from '@/modal';
@@ -38,7 +39,6 @@ import {
     safeHtmlPreviewDocument,
 } from '@/utils/filePreview';
 import { FileDocumentPreview } from '@/components/FileDocumentPreview';
-import type { WorkspaceFeedbackComment } from '@/sync/workspaceFeedback';
 
 interface FileViewPanelProps {
     sessionId: string;
@@ -242,7 +242,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
     const [externalChange, setExternalChange] = React.useState<EditableFileSnapshot | null>(null);
     const [showConflictDiff, setShowConflictDiff] = React.useState(false);
     const [reviewAnchor, setReviewAnchor] = React.useState<InlineCommentAnchor | null>(null);
-    const [reviewComments, setReviewComments] = React.useState<WorkspaceFeedbackComment[]>([]);
+    const [reviewComments, setReviewComments] = React.useState<InlineReviewComment[]>([]);
     const activateReviewLine = React.useCallback((anchor: InlineCommentAnchor) => {
         setReviewAnchor((current) => current?.line === anchor.line ? current : anchor);
     }, []);

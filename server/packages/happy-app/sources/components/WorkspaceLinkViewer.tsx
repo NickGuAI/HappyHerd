@@ -117,13 +117,20 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
         : null;
     const machinePlatform = machine?.metadata?.platform;
     const [revision, setRevision] = React.useState(0);
+    const referenceLoadKey = `${workspaceLinkViewerKey(reference)}:${revision}`;
     const [state, setState] = React.useState<WorkspaceLinkViewerState>({ status: 'loading' });
     const [headerRightSlot, setHeaderRightSlot] = React.useState<React.ReactNode>(null);
     const [feedbackSending, setFeedbackSending] = React.useState(false);
     const fileDirtyRef = React.useRef(false);
     const activeFilePathRef = React.useRef<string | null>(null);
+    const activeFileLoadedRef = React.useRef<string | null>(null);
+    const machineOnlineRef = React.useRef(machineOnline);
     const activeFileReadGenerationRef = React.useRef(0);
     const activeDirectoryReadGenerationRef = React.useRef(0);
+
+    React.useEffect(() => {
+        machineOnlineRef.current = machineOnline;
+    }, [machineOnline]);
 
     const handleFeedbackSendingChange = React.useCallback((sending: boolean) => {
         setFeedbackSending(sending);
@@ -154,6 +161,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
     const loadDirectory = React.useCallback(async (directoryPath: string, selectedFile: string | null = null) => {
         const directoryReadGeneration = ++activeDirectoryReadGenerationRef.current;
         activeFilePathRef.current = selectedFile;
+        activeFileLoadedRef.current = null;
         activeFileReadGenerationRef.current += 1;
         setHeaderRightSlot(null);
         setState({ status: 'loading' });
@@ -203,6 +211,9 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
     }, [machine, reference.machineId]);
 
     React.useEffect(() => {
+        // Liveness changes do not replace a file that has already loaded.
+        // A new reference or explicit retry still follows the initial load path.
+        if (activeFileLoadedRef.current === referenceLoadKey) return;
         let cancelled = false;
         const directoryReadGeneration = ++activeDirectoryReadGenerationRef.current;
         const isCurrentDirectoryRead = () => !cancelled
@@ -212,6 +223,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
             activeDirectoryReadGenerationRef.current += 1;
         };
         activeFilePathRef.current = null;
+        activeFileLoadedRef.current = null;
         activeFileReadGenerationRef.current += 1;
         setHeaderRightSlot(null);
 
@@ -299,7 +311,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
         });
 
         return cancelDirectoryRead;
-    }, [isDataReady, machine?.active, machine?.id, reference.absolutePath, reference.machineId, revision]);
+    }, [isDataReady, machine?.active, machine?.id, referenceLoadKey]);
 
     const retry = React.useCallback(() => {
         if (state.status === 'error' && state.retryTarget.kind === 'directory') {
@@ -316,16 +328,18 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
     const readFile = React.useCallback(async (path: string) => {
         const readGeneration = ++activeFileReadGenerationRef.current;
         const response = await machineReadFile(reference.machineId, path);
-        if (
-            !response.success
-            && !fileDirtyRef.current
-            && activeFilePathRef.current === path
-            && activeFileReadGenerationRef.current === readGeneration
-        ) {
+        const isCurrentRead = activeFilePathRef.current === path
+            && activeFileReadGenerationRef.current === readGeneration;
+        if (isCurrentRead && response.success) {
+            activeFileLoadedRef.current = referenceLoadKey;
+        }
+        // A failed background poll must retain the loaded host and its drafts.
+        // Initial failures still render the linked-target error and retry action.
+        if (isCurrentRead && !response.success && !activeFileLoadedRef.current && !fileDirtyRef.current) {
             setHeaderRightSlot(null);
             setState({
                 status: 'error',
-                kind: classifyWorkspaceDirectoryError(response.error, machineOnline),
+                kind: classifyWorkspaceDirectoryError(response.error, machineOnlineRef.current),
                 detail: response.error,
                 retryTarget: {
                     kind: 'file',
@@ -335,7 +349,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
             });
         }
         return response;
-    }, [machineOnline, machinePlatform, reference.machineId]);
+    }, [machinePlatform, reference.machineId, referenceLoadKey]);
 
     const writeFile = React.useCallback((
         path: string,
@@ -349,6 +363,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
 
     const selectFile = React.useCallback((path: string) => {
         activeFilePathRef.current = path;
+        activeFileLoadedRef.current = null;
         activeFileReadGenerationRef.current += 1;
         setHeaderRightSlot(null);
         setState((current) => current.status === 'ready'
@@ -358,6 +373,7 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
 
     const showDirectory = React.useCallback(() => {
         activeFilePathRef.current = null;
+        activeFileLoadedRef.current = null;
         activeFileReadGenerationRef.current += 1;
         setHeaderRightSlot(null);
         setState((current) => current.status === 'ready'
@@ -407,6 +423,8 @@ export const WorkspaceLinkViewer = React.memo(function WorkspaceLinkViewer({
                 machineId={reference.machineId}
                 machineLabel={machineName(machine, reference.machineId)}
                 absolutePath={reference.absolutePath}
+                line={linkedPosition(reference.line)}
+                column={linkedPosition(reference.column)}
                 onSent={onFeedbackSent}
                 onSendingChange={handleFeedbackSendingChange}
             />

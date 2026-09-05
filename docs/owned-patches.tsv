@@ -284,3 +284,12 @@ MARKDOWN_DSH_MOBILE_UX	accepted	fix(markdown): strip ordered-list renderer metad
 MARKDOWN_DSH_MOBILE_UX	accepted	chore(app): refresh UI inventory after gutter fix	server/packages/happy-app/sources/text/ui-surface-inventory.json
 MARKDOWN_DSH_MOBILE_UX	accepted	chore(app): register markdown gutter review patches	docs/owned-patches.tsv
 WORKSPACE_REVIEW_PARITY	accepted	fix(workspace): unify line review previews	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
+WORKSPACE_COMMENT_RETENTION	accepted	fix(workspace): retain Markdown comment editors across updates	server/packages/happy-app/sources/components/markdown/MarkdownView.browser.test.ts
+WORKSPACE_COMMENT_RETENTION	accepted	fix(workspace): preserve feedback edits through send acknowledgements	server/packages/happy-app/sources/components/InlineCommentReview.web.test.ts
+WORKSPACE_COMMENT_RETENTION	accepted	fix(workspace): retain fallback reviews through reconnects	server/packages/happy-app/sources/components/WorkspaceLinkViewer.browser.test.ts
+WORKSPACE_COMMENT_RETENTION	accepted	fix(workspace): reconcile open edits with accepted feedback	server/packages/happy-app/sources/components/InlineCommentReview.web.test.ts
+WORKSPACE_COMMENT_RETENTION	accepted	fix(workspace): retain chat ownership and navigation state	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
+WORKSPACE_COMMENT_RETENTION	accepted	chore(workspace): record comment reliability verification	server/packages/happy-app/sources/components/InlineCommentReview.web.test.ts
+WORKSPACE_COMMENT_RETENTION	accepted	fix(workspace): cancel stale links on picker navigation	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
+WORKSPACE_COMMENT_RETENTION	accepted	fix(workspace): preserve newer links after folder creation	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
+WORKSPACE_COMMENT_RETENTION	accepted	test(workspace): allow browser fixture startup on CI	server/packages/happy-app/sources/components/markdown/MarkdownView.browser.test.ts

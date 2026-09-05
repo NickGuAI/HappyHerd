@@ -799,6 +799,9 @@ class Sync {
                 hasEncryption: !!encryption,
                 hasSession: !!session,
             });
+            if (options?.requireAllAttachments) {
+                throw new Error(t('errors.sessionNotFinishedSyncing'));
+            }
             Modal.alert(
                 t('common.error'),
                 t('errors.sessionNotFinishedSyncing'),
@@ -829,6 +832,7 @@ class Sync {
             modeMeta = resolveMessageModeMeta(session, settings, { availableEfforts, availablePermissions });
         } catch (error) {
             if (error instanceof UnsupportedPermissionModeError) {
+                if (options?.requireAllAttachments) throw error;
                 Modal.alert(t('common.error'), t('errors.unsupportedPermissionMode', {
                     mode: error.mode,
                     cliVersion: error.cliVersion,

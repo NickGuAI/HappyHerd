@@ -115,7 +115,13 @@ Code deep-link reveal and highlight are independent of the active comment anchor
 and Pierre selection: wait for `onPostRender`, use the actual row position, and
 reveal once per navigation. Cold lazy loading and annotations above the row
 therefore do not invalidate positioning. Same-line comment activation preserves
-the draft; existing edit/delete/pin, batch sending, and failure retention remain.
+the draft. Stable Markdown renderer identities carry the current rendering
+context without remounting comment editors. Send acknowledgements reconcile
+accepted text separately from open edit drafts; Cancel removes an acknowledged
+comment without sending it again. Strict send failures reject so the caller
+retains unsent feedback. SessionView retains each chat's Workspace host
+and tab state, with a footer composer mounted per open file. A loaded fallback
+file host survives background polling failures.
 
 When changing this feature, update the app changelog and localized catalogs.
 Regenerate the UI inventory whenever a route or UI-owning module changes.
@@ -129,6 +135,13 @@ Exercise the production hosts through `desktopWorkspace.browser.test.ts` and
 `SidebarNavigationButton.test.ts`. Mock only machine RPC and environment
 boundaries; direct prop invocation or source/bundle inspection does not prove
 Human interaction.
+
+Include sustained typing during host updates, editing a comment while its batch
+is pending, and retrying known send failures. Exercise two chats reviewing the
+same file, tab/picker transitions with feedback and images, delayed link
+resolution after newer navigation, and return to the previous directory. Use
+`MarkdownView.browser.test.ts` and `WorkspaceLinkViewer.browser.test.ts` for
+editor identity and fallback polling failure/recovery with linked positions.
 
 At Web Desktop and 390 × 844 Web Mobile, repeat the rendered gestures for a
 Main Agent and an active Side chat:

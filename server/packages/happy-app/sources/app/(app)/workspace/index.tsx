@@ -179,6 +179,7 @@ export function MachineWorkspaceBrowser({
     initialMachineId,
     initialPath,
     workspaceContextSessionId,
+    onNavigate,
     onFilePress,
     onLocalhostUrlPress,
 }: {
@@ -186,6 +187,7 @@ export function MachineWorkspaceBrowser({
     initialMachineId?: string;
     initialPath?: string;
     workspaceContextSessionId?: string;
+    onNavigate?: () => void;
     onFilePress?: (file: { machineId: string; path: string }) => void;
     onLocalhostUrlPress?: (target: { machineId: string; url: string }) => void;
 }) {
@@ -371,7 +373,7 @@ export function MachineWorkspaceBrowser({
         });
     }, [fileDirty]);
 
-    const openDirectory = React.useCallback((path: string) => {
+    const applyDirectory = React.useCallback((path: string) => {
         guardUnsavedChanges(() => {
             const resolvedPath = resolveAbsolutePath(path, selectedMachine?.metadata?.homeDir);
             setCurrentDirectory(resolvedPath);
@@ -381,10 +383,16 @@ export function MachineWorkspaceBrowser({
         });
     }, [guardUnsavedChanges, selectedMachine?.metadata?.homeDir]);
 
+    const openDirectory = React.useCallback((path: string) => {
+        onNavigate?.();
+        applyDirectory(path);
+    }, [applyDirectory, onNavigate]);
+
     const switchMachine = React.useCallback((machine: Machine) => {
         if (attachmentMode) return;
+        onNavigate?.();
         guardUnsavedChanges(() => setSelectedMachineId(machine.id));
-    }, [attachmentMode, guardUnsavedChanges]);
+    }, [attachmentMode, guardUnsavedChanges, onNavigate]);
 
     const toggleFavorite = React.useCallback((path: string) => {
         if (!selectedMachine) return;
@@ -473,6 +481,7 @@ export function MachineWorkspaceBrowser({
             },
         );
         if (directoryName === null || !directoryName.trim()) return;
+        onNavigate?.();
         setCreatingFolder(true);
         try {
             const response = await machineCreateDirectory(selectedMachine.id, {
@@ -483,12 +492,12 @@ export function MachineWorkspaceBrowser({
                 Modal.alert(t('common.error'), response.error ?? t('workspace.createFolderFailed'));
                 return;
             }
-            openDirectory(response.path);
+            applyDirectory(response.path);
             setReloadToken((value) => value + 1);
         } finally {
             setCreatingFolder(false);
         }
-    }, [creatingFolder, currentDirectory, openDirectory, selectedMachine]);
+    }, [applyDirectory, creatingFolder, currentDirectory, onNavigate, selectedMachine]);
 
     const commitAttachments = React.useCallback(() => {
         if (!attachmentMode || !sessionId || !selectedMachine) return;
@@ -729,7 +738,14 @@ export function MachineWorkspaceBrowser({
         <View style={styles.viewerPane}>
             <View style={[styles.viewerHeader, { borderBottomColor: theme.colors.divider }]}>
                 {!desktopSplit && (
-                    <Pressable onPress={() => guardUnsavedChanges(() => setSelectedFile(null))} style={styles.viewerBackButton} accessibilityRole="button">
+                    <Pressable
+                        onPress={() => {
+                            onNavigate?.();
+                            guardUnsavedChanges(() => setSelectedFile(null));
+                        }}
+                        style={styles.viewerBackButton}
+                        accessibilityRole="button"
+                    >
                         <Ionicons name="chevron-back" size={20} color={theme.colors.text} />
                         <Text style={{ color: theme.colors.text, ...Typography.default() }}>{t('workspace.mobileBackToFiles')}</Text>
                     </Pressable>

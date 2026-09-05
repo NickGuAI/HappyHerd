@@ -14,6 +14,7 @@ import type {
     InlineCommentAnchor,
     InlineCommentReviewProps,
     InlineCommentThreadProps,
+    InlineReviewComment,
 } from './InlineCommentReview';
 
 function matchesAnchor(
@@ -49,8 +50,6 @@ function inputHeight(value: string): number {
 export function InlineCommentThread(props: InlineCommentThreadProps) {
     const { theme } = useUnistyles();
     const [draft, setDraft] = React.useState('');
-    const [editingId, setEditingId] = React.useState<string | null>(null);
-    const [editingDraft, setEditingDraft] = React.useState('');
     const visibleComments = props.anchor
         ? props.comments.filter((comment) => matchesAnchor(comment, props.anchor!))
         : props.comments;
@@ -76,14 +75,21 @@ export function InlineCommentThread(props: InlineCommentThreadProps) {
         setDraft('');
     };
 
-    const updateComment = (comment: WorkspaceFeedbackComment) => {
-        const feedback = editingDraft.trim();
+    const updateComment = (comment: InlineReviewComment) => {
+        const feedback = comment.editingDraft?.trim();
         if (!feedback) return;
-        props.onCommentsChange(props.comments.map((item) => (
-            item.id === comment.id ? { ...item, feedback } : item
-        )));
-        setEditingId(null);
-        setEditingDraft('');
+        props.onCommentsChange(props.comments.flatMap((item) => {
+            if (item.id !== comment.id) return [item];
+            if (item.acknowledged && item.feedback === feedback) return [];
+            return [{ ...item, feedback, editingDraft: undefined, acknowledged: undefined }];
+        }));
+    };
+
+    const cancelEdit = (comment: InlineReviewComment) => {
+        props.onCommentsChange(props.comments.flatMap((item) => {
+            if (item.id !== comment.id) return [item];
+            return item.acknowledged ? [] : [{ ...item, editingDraft: undefined }];
+        }));
     };
 
     const isInline = props.anchor?.line !== undefined;
@@ -115,24 +121,28 @@ export function InlineCommentThread(props: InlineCommentThreadProps) {
                 {isInline ? <View style={[styles.threadFace, styles.threadFaceTop, { backgroundColor: glowColor }]} /> : null}
                 {visibleComments.map((comment) => (
                     <View key={comment.id} style={styles.commentRow} testID={`inline-comment:${comment.id}`}>
-                        {editingId === comment.id ? (
+                        {comment.editingDraft !== undefined ? (
                             <View style={styles.editColumn}>
                                 <TextInput
-                                    value={editingDraft}
-                                    onChangeText={setEditingDraft}
+                                    value={comment.editingDraft}
+                                    onChangeText={(value) => {
+                                        props.onCommentsChange(props.comments.map((item) => (
+                                            item.id === comment.id ? { ...item, editingDraft: value } : item
+                                        )));
+                                    }}
                                     multiline
                                     autoFocus
                                     style={[
                                         styles.input,
-                                        { height: inputHeight(editingDraft), color: theme.colors.text, borderColor: theme.colors.divider },
+                                        { height: inputHeight(comment.editingDraft), color: theme.colors.text, borderColor: theme.colors.divider },
                                     ]}
                                     accessibilityLabel={t('files.commentPlaceholder')}
                                 />
                                 <View style={styles.actions}>
-                                    <Pressable accessibilityRole="button" disabled={!editingDraft.trim()} onPress={() => updateComment(comment)} style={styles.action}>
+                                    <Pressable accessibilityRole="button" disabled={!comment.editingDraft.trim()} onPress={() => updateComment(comment)} style={styles.action}>
                                         <Text style={[styles.actionText, { color: theme.colors.textLink }]}>{t('common.save')}</Text>
                                     </Pressable>
-                                    <Pressable accessibilityRole="button" onPress={() => setEditingId(null)} style={styles.action}>
+                                    <Pressable accessibilityRole="button" onPress={() => cancelEdit(comment)} style={styles.action}>
                                         <Text style={[styles.actionText, { color: theme.colors.textSecondary }]}>{t('common.cancel')}</Text>
                                     </Pressable>
                                 </View>
@@ -150,8 +160,11 @@ export function InlineCommentThread(props: InlineCommentThreadProps) {
                                         accessibilityRole="button"
                                         accessibilityLabel={t('files.editFile')}
                                         onPress={() => {
-                                            setEditingId(comment.id);
-                                            setEditingDraft(comment.feedback);
+                                            props.onCommentsChange(props.comments.flatMap((item) => {
+                                                if (item.id === comment.id) return [{ ...item, editingDraft: item.feedback }];
+                                                if (!visibleComments.includes(item) || item.editingDraft === undefined) return [item];
+                                                return item.acknowledged ? [] : [{ ...item, editingDraft: undefined }];
+                                            }));
                                         }}
                                         style={styles.action}
                                     >
@@ -161,7 +174,6 @@ export function InlineCommentThread(props: InlineCommentThreadProps) {
                                         accessibilityRole="button"
                                         accessibilityLabel={t('files.removeComment')}
                                         onPress={() => {
-                                            if (editingId === comment.id) setEditingId(null);
                                             props.onCommentsChange(props.comments.filter((item) => item.id !== comment.id));
                                         }}
                                         style={styles.action}
@@ -211,13 +223,15 @@ export function InlineCommentReview(props: InlineCommentReviewProps) {
     const sendingRef = React.useRef(false);
     const commentsRef = React.useRef(props.comments);
     commentsRef.current = props.comments;
+    const pendingCount = props.comments.filter((comment) => !comment.acknowledged).length;
 
     if (!props.activeAnchor && props.comments.length === 0) return null;
 
     const send = async () => {
-        if (sendingRef.current || props.comments.length === 0) return;
-        const sentComments = commentsRef.current;
-        const sentCommentIds = new Set(sentComments.map((comment) => comment.id));
+        if (sendingRef.current) return;
+        const sentComments = commentsRef.current.filter((comment) => !comment.acknowledged);
+        if (sentComments.length === 0) return;
+        const sentFeedback = new Map(sentComments.map((comment) => [comment.id, comment.feedback]));
         sendingRef.current = true;
         setSending(true);
         setError(false);
@@ -229,7 +243,12 @@ export function InlineCommentReview(props: InlineCommentReviewProps) {
                 attachments: sentComments.flatMap((comment) => comment.screenshot ? [comment.screenshot] : []),
                 sendMessage: (sessionId, text, options) => sync.sendMessage(sessionId, text, options),
             });
-            props.onCommentsChange(commentsRef.current.filter((comment) => !sentCommentIds.has(comment.id)));
+            // UI draft changes do not replace the saved payload being delivered.
+            // Retain its editor, but exclude the acknowledged payload from later sends.
+            props.onCommentsChange(commentsRef.current.flatMap((comment) => {
+                if (sentFeedback.get(comment.id) !== comment.feedback) return [comment];
+                return comment.editingDraft === undefined ? [] : [{ ...comment, acknowledged: true }];
+            }));
         } catch {
             setError(true);
         } finally {
@@ -251,7 +270,7 @@ export function InlineCommentReview(props: InlineCommentReviewProps) {
                     onCommentsChange={props.onCommentsChange}
                 />
             ) : null}
-            {props.comments.length > 0 ? (
+            {pendingCount > 0 ? (
                 <View
                     testID="inline-comment-review-bar"
                     style={[
@@ -263,7 +282,7 @@ export function InlineCommentReview(props: InlineCommentReviewProps) {
                     <Text style={[styles.reviewCount, { color: theme.colors.textSecondary }]}>{t('files.inlineComments')}</Text>
                     {error ? <Text accessibilityRole="alert" style={[styles.reviewError, { color: theme.colors.textDestructive }]}>{t('happyHerd.composer.sendFailedBody')}</Text> : null}
                     <Pressable accessibilityRole="button" disabled={sending} onPress={() => { void send(); }} style={[styles.send, { backgroundColor: theme.colors.button.primary.background }]}>
-                        <Text style={[styles.sendText, { color: theme.colors.button.primary.tint }]}>{sending ? t('common.loading') : t('files.sendComments', { count: props.comments.length })}</Text>
+                        <Text style={[styles.sendText, { color: theme.colors.button.primary.tint }]}>{sending ? t('common.loading') : t('files.sendComments', { count: pendingCount })}</Text>
                     </Pressable>
                 </View>
             ) : null}
