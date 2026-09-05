@@ -1,7 +1,25 @@
 # Codex
 
-Verified 2026-08-30 against Codex CLI 0.146.0 and the current HappyHerd
-source.
+Verified on 2026-09-05 against Codex CLI 0.153.4 and current HappyHerd source.
+The active Codex app-server `model/list` remains the authoritative capability
+source per target machine and account.
+
+## Model discovery and reasoning effort
+
+The Codex app-server `model/list` acts as the authoritative registry of
+capabilities for each target machine and account. Its `gpt-6-astra` entry
+declares a minimum client version of 0.153.0 and supports `low`, `medium`,
+`high`, `xhigh`, `max`, and `ultra`. The `ultra` setting is described as
+"Maximum reasoning with automatic task delegation." While generic OpenAI API
+documentation lists effort levels only through `max`, `ultra` is exposed by
+the Codex harness and catalog.
+
+HappyHerd processes these `model/list` entries and effort strings dynamically
+through machine capability metadata, UI selection, exact tuple validation,
+and launch and resume. Do not hardcode Astra into offline fallbacks, because
+individual machines or accounts might not advertise it. Operator acceptance
+requires upgrading the active Codex CLI, restarting the daemon, reading back
+the exact catalog, and completing one harmless Astra + Ultra turn.
 
 ## Execution boundary
 
