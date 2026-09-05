@@ -278,3 +278,8 @@ WORKSPACE_LOCALHOST	accepted	chore(app): refresh workspace live inventory	server
 WORKSPACE_LOCALHOST	accepted	fix(workspace): retain live tabs and double limits	server/packages/happy-app/sources/components/LocalhostWorkspacePanel.tsx
 DSH_ACP_RESUME	accepted	fix(dsh): resume persisted ACP sessions	server/packages/happy-cli/src/agent/acp/AcpBackend.ts
 WORKSPACE_INLINE_REVIEW	accepted	feat(workspace): anchor inline review threads	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
+MARKDOWN_DSH_MOBILE_UX	accepted	fix(app): align markdown gutters and DSH mobile attachments	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
+MARKDOWN_DSH_MOBILE_UX	accepted	fix(markdown): share one review gutter across lists	server/packages/happy-app/sources/components/markdown/MarkdownView.browser.test.ts
+MARKDOWN_DSH_MOBILE_UX	accepted	fix(markdown): strip ordered-list renderer metadata	server/packages/happy-app/sources/components/markdown/MarkdownView.browser.test.ts
+MARKDOWN_DSH_MOBILE_UX	accepted	chore(app): refresh UI inventory after gutter fix	server/packages/happy-app/sources/text/ui-surface-inventory.json
+MARKDOWN_DSH_MOBILE_UX	accepted	chore(app): register markdown gutter review patches	docs/owned-patches.tsv

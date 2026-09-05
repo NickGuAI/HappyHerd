@@ -71,6 +71,10 @@ vi.mock('@/components/AttachmentInputButton', async () => {
     const ReactModule = await import('react');
     return { AttachmentInputButton: (props: any) => ReactModule.createElement('AttachmentInputButton', props) };
 });
+vi.mock('@/components/AttachmentInputMenu', async () => {
+    const ReactModule = await import('react');
+    return { AttachmentInputMenu: (props: any) => ReactModule.createElement('AttachmentInputMenu', props) };
+});
 vi.mock('./MultiTextInput', async () => {
     const ReactModule = await import('react');
     const MultiTextInput = ReactModule.forwardRef((props: any, ref: any) => {
@@ -377,6 +381,48 @@ describe('AgentInput Web action menu', () => {
         expect(callbacks.onPermissionModeChange).not.toHaveBeenCalled();
 
         act(() => renderer.unmount());
+    });
+
+    it('groups only DSH Web Mobile attachments beneath one top-level entry', () => {
+        const mobile = renderMobileActionInput({ splitWebAttachmentActions: true }, 390);
+        openMobileActionMenu(mobile.renderer);
+        expect(mobileMenuLabels(mobile.renderer)).toEqual([
+            'files.changes',
+            'workspace.title',
+            'settings.title',
+            'happyHerd.composer.queueMessage',
+            'happyHerd.composer.attachments',
+        ]);
+        expect(mobile.renderer.root.findByProps({ testID: 'mobile-composer-action-attachments' }).props.accessibilityState)
+            .toMatchObject({ expanded: false });
+        expect(mobile.renderer.root.findAllByProps({ testID: 'mobile-composer-action-photos' })).toHaveLength(0);
+        expect(mobile.renderer.root.findAllByProps({ testID: 'mobile-composer-action-device-files' })).toHaveLength(0);
+        pressMobileMenuAction(mobile.renderer, 'attachments');
+        const chooser = mobile.renderer.root.findByType('AttachmentInputMenu' as any);
+        expect(chooser.props).toMatchObject({
+            visible: true,
+            onPickPhotos: mobile.callbacks.onPickImages,
+            onPickDeviceFiles: mobile.callbacks.onPickDeviceFiles,
+        });
+        expect(mobile.renderer.root.findAllByProps({ testID: 'mobile-composer-actions-menu' })).toHaveLength(0);
+        act(() => chooser.props.onPickPhotos());
+        act(() => chooser.props.onPickDeviceFiles());
+        expect(mobile.callbacks.onPickImages).toHaveBeenCalledOnce();
+        expect(mobile.callbacks.onPickDeviceFiles).toHaveBeenCalledOnce();
+        act(() => mobile.renderer.unmount());
+
+        const desktop = renderMobileActionInput({ splitWebAttachmentActions: true }, 1200);
+        openMobileActionMenu(desktop.renderer);
+        expect(mobileMenuLabels(desktop.renderer)).toEqual([
+            'files.changes',
+            'workspace.title',
+            'settings.title',
+            'happyHerd.composer.queueMessage',
+            'happyHerd.composer.photos',
+            'happyHerd.composer.deviceFiles',
+        ]);
+        expect(desktop.renderer.root.findAllByType('AttachmentInputMenu' as any)).toHaveLength(0);
+        act(() => desktop.renderer.unmount());
     });
 
     it('follows the session mobile-action contract across the full narrow Web layout', () => {

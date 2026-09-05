@@ -1288,12 +1288,24 @@ describe('Side chats browser interaction', () => {
         const foreground = page.getByTestId('foreground-session');
         const composer = foreground.locator('textarea').first();
         await composer.waitFor({ state: 'visible', timeout: 3_000 });
+        const mobile = viewport.width <= 700;
         const chooseAttachment = async (label: 'Photos' | 'Device files') => {
             const directTrigger = foreground.getByRole('button', { name: 'Add attachment' }).filter({ visible: true });
             if (await directTrigger.count()) {
                 await directTrigger.last().click({ timeout: 3_000 });
             } else {
                 await foreground.getByRole('button', { name: 'More actions' }).filter({ visible: true }).last().click({ timeout: 3_000 });
+                const composerMenu = foreground.getByTestId('mobile-composer-actions-menu').filter({ visible: true });
+                if (mobile) {
+                    await expect(composerMenu.getByRole('menuitem', { name: 'Attachments', exact: true }).count()).resolves.toBe(1);
+                    await expect(composerMenu.getByRole('menuitem', { name: 'Photos', exact: true }).count()).resolves.toBe(0);
+                    await expect(composerMenu.getByRole('menuitem', { name: 'Device files', exact: true }).count()).resolves.toBe(0);
+                    await composerMenu.getByRole('menuitem', { name: 'Attachments', exact: true }).click({ timeout: 3_000 });
+                } else {
+                    await expect(composerMenu.getByRole('menuitem', { name: 'Attachments', exact: true }).count()).resolves.toBe(0);
+                    await expect(composerMenu.getByRole('menuitem', { name: 'Photos', exact: true }).count()).resolves.toBe(1);
+                    await expect(composerMenu.getByRole('menuitem', { name: 'Device files', exact: true }).count()).resolves.toBe(1);
+                }
             }
             await page.getByRole('menuitem', { name: label }).filter({ visible: true }).last().click({ timeout: 3_000 });
         };

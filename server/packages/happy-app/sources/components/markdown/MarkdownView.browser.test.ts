@@ -76,7 +76,7 @@ function recordPageErrors(page: Page): string[] {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.stack ?? error.message));
     page.on('console', (message) => {
-        if (message.type() === 'error') errors.push(message.text());
+        if (message.type() === 'error' || message.type() === 'warning') errors.push(message.text());
     });
     return errors;
 }
@@ -138,6 +138,7 @@ describe('MarkdownView browser theme and option parity', () => {
         await chips.first().waitFor();
 
         const firstLine = root.locator('p[data-source-line="1"]').first();
+        const firstLineNumber = firstLine.locator('.hh-markdown-source-line');
         const firstLineGutter = firstLine.locator('.hh-markdown-comment-gutter');
         if (viewport.hasTouch) {
             await expect.poll(() => firstLineGutter.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
@@ -151,16 +152,27 @@ describe('MarkdownView browser theme and option parity', () => {
             await expect(firstLineGutter.evaluate((element) => element === document.activeElement)).resolves.toBe(true);
             await expect.poll(() => firstLineGutter.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
         }
-        const gutterLayout = await firstLineGutter.evaluate((element) => {
-            const rect = element.getBoundingClientRect();
+        await expect(firstLineNumber.textContent()).resolves.toBe('1');
+        const gutterLayout = await firstLine.evaluate((element) => {
+            const lineNumber = element.querySelector('.hh-markdown-source-line')!;
+            const button = element.querySelector('.hh-markdown-comment-gutter')!;
+            const content = Array.from(element.childNodes).find((node) => (
+                node.nodeType === Node.TEXT_NODE && node.textContent?.trim()
+            ));
+            const lineRect = lineNumber.getBoundingClientRect();
+            const buttonRect = button.getBoundingClientRect();
+            const contentRange = document.createRange();
+            contentRange.selectNode(content!);
+            const contentRect = contentRange.getBoundingClientRect();
             const rootRect = element.closest('.hh-markdown-root')!.getBoundingClientRect();
             const hostRect = element.closest('[data-testid="markdown-host"]')!.getBoundingClientRect();
-            const style = getComputedStyle(element);
+            const style = getComputedStyle(button);
             return {
-                width: rect.width,
-                height: rect.height,
-                insideRoot: rect.left >= rootRect.left - 0.5 && rect.right <= rootRect.right + 0.5,
-                insideHost: rect.left >= hostRect.left - 0.5 && rect.right <= hostRect.right + 0.5,
+                width: buttonRect.width,
+                height: buttonRect.height,
+                insideRoot: buttonRect.left >= rootRect.left - 0.5 && buttonRect.right <= rootRect.right + 0.5,
+                insideHost: buttonRect.left >= hostRect.left - 0.5 && buttonRect.right <= hostRect.right + 0.5,
+                sourceOrder: lineRect.right <= buttonRect.left && buttonRect.right <= contentRect.left,
                 backgroundColor: style.backgroundColor,
                 color: style.color,
                 borderRadius: style.borderRadius,
@@ -170,27 +182,42 @@ describe('MarkdownView browser theme and option parity', () => {
                 justifyContent: style.justifyContent,
             };
         });
-        expect(gutterLayout).toEqual({
+        expect(gutterLayout).toMatchObject({
             width: 20,
             height: 20,
             insideRoot: true,
             insideHost: true,
-            backgroundColor: 'rgb(210, 153, 34)',
-            color: 'rgb(13, 17, 23)',
+            sourceOrder: true,
             borderRadius: '4px',
             borderTopWidth: '0px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
         });
+        expect(gutterLayout.backgroundColor).not.toBe('rgb(210, 153, 34)');
+
+        const alignedReviewLines = [
+            root.locator('h2[data-source-line="3"]'),
+            root.locator('li[data-source-line="5"]'),
+            root.locator('li[data-source-line="6"]'),
+            root.locator('li[data-source-line="9"]'),
+        ];
+        const alignedGutters = await Promise.all(alignedReviewLines.map((line) => line.locator(':scope > .hh-markdown-review-gutter').boundingBox()));
+        expect(alignedGutters.every(Boolean)).toBe(true);
+        const expectedGutterLeft = alignedGutters[0]!.x;
+        for (const gutter of alignedGutters.slice(1)) {
+            expect(Math.abs(gutter!.x - expectedGutterLeft)).toBeLessThanOrEqual(0.5);
+        }
+
         if (viewport.hasTouch) await firstLineGutter.tap();
         else await firstLineGutter.click();
         await expect(page.evaluate(() => window.__MARKDOWN_LINE_COMMENTS__)).resolves.toEqual([1]);
 
         await expect(options.locator('ul').count()).resolves.toBe(0);
         await expect(options.locator('li').count()).resolves.toBe(0);
-        await expect(root.locator('ul').count()).resolves.toBe(1);
-        await expect(root.locator('li').count()).resolves.toBe(2);
+        await expect(root.locator('ul').count()).resolves.toBe(2);
+        await expect(root.locator('ol').count()).resolves.toBe(1);
+        await expect(root.locator('li').count()).resolves.toBe(4);
         await expect(chips.allTextContents()).resolves.toEqual([
             '把 Speaker 2 改成 Maria',
             '保持 Speaker 2 不变，同时保留当前转录中的全部说话人标记以及这一条足够长、会在窄屏和宽屏容器中按可用宽度自然换行的建议文字',
@@ -362,7 +389,11 @@ describe('MarkdownView browser theme and option parity', () => {
             const firstCell = tableElement.querySelector('td')!;
             const cellStyle = getComputedStyle(firstCell);
             const textElements = [...element.closest('.hh-markdown-root')!.querySelectorAll('*')]
-                .filter((candidate) => candidate.tagName !== 'STYLE' && [...candidate.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()));
+                .filter((candidate) => (
+                    candidate.tagName !== 'STYLE'
+                    && !candidate.closest('.hh-markdown-review-gutter')
+                    && [...candidate.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim())
+                ));
             return {
                 overflowX: getComputedStyle(element).overflowX,
                 tableDisplay: getComputedStyle(tableElement).display,
@@ -433,14 +464,14 @@ describe('MarkdownView browser theme and option parity', () => {
         }
         await expect.poll(() => tableWrap.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
 
-        const tableReviewButton = root.locator('.hh-markdown-table-review > .hh-markdown-comment-gutter');
+        const tableReviewButton = root.locator('.hh-markdown-table-review > .hh-markdown-review-gutter > .hh-markdown-comment-gutter');
         await tableReviewButton.scrollIntoViewIfNeeded();
         if (viewport.hasTouch) {
             await tableReviewButton.tap();
         } else {
             await tableReviewButton.click();
         }
-        await expect(page.evaluate(() => window.__MARKDOWN_LINE_COMMENTS__)).resolves.toEqual([14]);
+        await expect(page.evaluate(() => window.__MARKDOWN_LINE_COMMENTS__)).resolves.toEqual([17]);
 
         await tableWrap.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
         const farRight = await tableWrap.evaluate((element) => {

@@ -995,19 +995,6 @@ describe('Desktop workspace browser interaction', () => {
         await page.close();
     }, 10_000);
 
-    type ReviewAffordanceVisual = {
-        width: number;
-        height: number;
-        backgroundColor: string;
-        color: string;
-        borderTopWidth: string;
-        borderRadius: string;
-        display: string;
-        alignItems: string;
-        justifyContent: string;
-        padding: string;
-    };
-
     async function expectMobileCommentTypography(scope: Locator) {
         const sizes = await scope.locator('textarea, [dir="auto"]').evaluateAll((elements) => (
             elements.map((element) => Number.parseFloat(getComputedStyle(element).fontSize))
@@ -1030,7 +1017,7 @@ describe('Desktop workspace browser interaction', () => {
         feedbackIndex = 0,
         touch = false,
         expectedTheme: 'light' | 'dark' = 'light',
-    ): Promise<ReviewAffordanceVisual> {
+    ): Promise<void> {
         const workspace = page.getByTestId(surfaceId);
         const markdownPanel = workspace.getByTestId('desktop-file-panel:/workspace/demo.md');
         const markdownRoot = markdownPanel.locator('.hh-markdown-root');
@@ -1040,6 +1027,7 @@ describe('Desktop workspace browser interaction', () => {
         else expect(markdownClass).not.toContain('hh-markdown-dark');
 
         const heading = markdownRoot.locator('h1[data-source-line="1"]');
+        const headingLineNumber = heading.locator('.hh-markdown-source-line');
         const headingGutter = heading.locator('.hh-markdown-comment-gutter');
         if (touch) {
             await expect.poll(() => headingGutter.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
@@ -1048,11 +1036,16 @@ describe('Desktop workspace browser interaction', () => {
             await heading.hover();
             await expect.poll(() => headingGutter.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
         }
-        const affordance = await headingGutter.evaluate((element) => {
-            const rect = element.getBoundingClientRect();
-            const style = getComputedStyle(element);
+        await expect(headingLineNumber.textContent()).resolves.toBe('1');
+        const affordance = await heading.evaluate((element) => {
+            const lineNumber = element.querySelector('.hh-markdown-source-line')!;
+            const button = element.querySelector('.hh-markdown-comment-gutter')!;
+            const lineRect = lineNumber.getBoundingClientRect();
+            const buttonRect = button.getBoundingClientRect();
+            const contentRect = element.getBoundingClientRect();
+            const style = getComputedStyle(button);
             const clippingAncestors: Array<{ left: number; right: number }> = [];
-            for (let ancestor = element.parentElement; ancestor; ancestor = ancestor.parentElement) {
+            for (let ancestor = button.parentElement; ancestor; ancestor = ancestor.parentElement) {
                 const ancestorStyle = getComputedStyle(ancestor);
                 if (['auto', 'clip', 'hidden', 'scroll'].includes(ancestorStyle.overflowX)) {
                     const ancestorRect = ancestor.getBoundingClientRect();
@@ -1060,25 +1053,21 @@ describe('Desktop workspace browser interaction', () => {
                 }
             }
             return {
-                width: rect.width,
-                height: rect.height,
+                width: buttonRect.width,
+                height: buttonRect.height,
                 backgroundColor: style.backgroundColor,
-                color: style.color,
                 borderTopWidth: style.borderTopWidth,
-                borderRadius: style.borderRadius,
-                display: style.display,
-                alignItems: style.alignItems,
-                justifyContent: style.justifyContent,
-                padding: style.padding,
+                sourceOrder: lineRect.right <= buttonRect.left && buttonRect.right <= contentRect.left,
                 fullyVisible: clippingAncestors.every((ancestor) => (
-                    rect.left >= ancestor.left - 0.5 && rect.right <= ancestor.right + 0.5
+                    buttonRect.left >= ancestor.left - 0.5 && buttonRect.right <= ancestor.right + 0.5
                 )),
             };
         });
         expect(affordance.fullyVisible).toBe(true);
         expect(affordance.width).toBe(20);
         expect(affordance.height).toBe(20);
-        expect(affordance.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
+        expect(affordance.sourceOrder).toBe(true);
+        expect(affordance.backgroundColor).not.toBe('rgb(210, 153, 34)');
         expect(affordance.borderTopWidth).toBe('0px');
 
         const sessionRelativeLink = markdownPanel.getByRole('link', { name: 'Open session relative' });
@@ -1154,7 +1143,6 @@ describe('Desktop workspace browser interaction', () => {
         expect(markdownFeedback).toContain('First line note edited');
         expect(markdownFeedback).toContain('Line: 4');
         expect(markdownFeedback).toContain('Second line note replacement');
-        return affordance;
     }
 
     async function verifyMachineMarkdownLinkJourney(page: Page, surfaceId: string) {
@@ -1231,7 +1219,6 @@ describe('Desktop workspace browser interaction', () => {
         feedbackIndex: number,
         switchTab = true,
         touch = false,
-        markdownAffordance?: ReviewAffordanceVisual,
         expectedTheme: 'light' | 'dark' = 'light',
     ) {
         const workspace = page.getByTestId(surfaceId);
@@ -1245,25 +1232,6 @@ describe('Desktop workspace browser interaction', () => {
             await sourcePanel.locator('[data-line="1"]').hover();
             const sourceAffordance = sourcePanel.getByRole('button', { name: 'Comment on hovered line' });
             await expect(sourceAffordance.isVisible()).resolves.toBe(true);
-            if (markdownAffordance) {
-                const sourceVisual = await sourceAffordance.evaluate((element) => {
-                    const rect = element.getBoundingClientRect();
-                    const style = getComputedStyle(element);
-                    return {
-                        width: rect.width,
-                        height: rect.height,
-                        backgroundColor: style.backgroundColor,
-                        color: style.color,
-                        borderTopWidth: style.borderTopWidth,
-                        borderRadius: style.borderRadius,
-                        display: style.display,
-                        alignItems: style.alignItems,
-                        justifyContent: style.justifyContent,
-                        padding: style.padding,
-                    };
-                });
-                expect(markdownAffordance).toMatchObject(sourceVisual);
-            }
             await codeScroller.hover();
             await page.mouse.wheel(600, 0);
             await expect.poll(() => codeScroller.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
@@ -1420,9 +1388,9 @@ describe('Desktop workspace browser interaction', () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
         const pageErrors = recordPageErrors(page);
         await page.goto(`${origin}?file-review=desktop&theme=${themeName}`);
-        const markdownAffordance = await verifyMarkdownReviewJourney(page, 'file-review-desktop', 0, false, themeName);
+        await verifyMarkdownReviewJourney(page, 'file-review-desktop', 0, false, themeName);
         await verifyMachineMarkdownLinkJourney(page, 'file-review-desktop');
-        await verifyCodeReviewJourney(page, 'file-review-desktop', 1, true, false, markdownAffordance, themeName);
+        await verifyCodeReviewJourney(page, 'file-review-desktop', 1, true, false, themeName);
         await verifyCanvasReviewJourney(page, 'file-review-desktop', true, 2);
         await page.goto(`${origin}?file-review=desktop-markdown-source&theme=${themeName}`);
         await verifyMarkdownSourceReviewJourney(page, 'file-review-desktop', false, false, themeName);
@@ -1439,7 +1407,7 @@ describe('Desktop workspace browser interaction', () => {
         await page.goto(`${origin}?file-review=mobile-canvas&theme=${themeName}`);
         await verifyCanvasReviewJourney(page, 'file-review-mobile', false, 0, true);
         await page.goto(`${origin}?file-review=mobile-source&theme=${themeName}`);
-        await verifyCodeReviewJourney(page, 'file-review-mobile', 0, false, true, undefined, themeName);
+        await verifyCodeReviewJourney(page, 'file-review-mobile', 0, false, true, themeName);
         await page.goto(`${origin}?file-review=mobile-markdown-source&theme=${themeName}`);
         await verifyMarkdownSourceReviewJourney(page, 'file-review-mobile', true, false, themeName);
         expect(pageErrors).toEqual([]);

@@ -102,21 +102,24 @@ function WebOptionsBlock(props: {
     );
 }
 
-function ReviewButton(props: { line?: number; onLineComment?: (anchor: MarkdownLineCommentAnchor) => void }) {
+function ReviewGutter(props: { line?: number; onLineComment?: (anchor: MarkdownLineCommentAnchor) => void }) {
     if (!props.line || !props.onLineComment) return null;
     const line = props.line;
     return (
-        <button
-            type="button"
-            className="hh-markdown-comment-gutter"
-            aria-label={t('files.commentOnLine', { line: String(line) })}
-            title={t('files.commentOnLine', { line: String(line) })}
-            onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                props.onLineComment?.({ line });
-            }}
-        >+</button>
+        <span className="hh-markdown-review-gutter">
+            <span className="hh-markdown-source-line" aria-hidden="true">{line}</span>
+            <button
+                type="button"
+                className="hh-markdown-comment-gutter"
+                aria-label={t('files.commentOnLine', { line: String(line) })}
+                title={t('files.commentOnLine', { line: String(line) })}
+                onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    props.onLineComment?.({ line });
+                }}
+            >+</button>
+        </span>
     );
 }
 
@@ -135,6 +138,17 @@ function LineCommentThread(props: {
 }
 
 const ParentReviewLineContext = React.createContext<number | null>(null);
+const ListDepthContext = React.createContext(0);
+
+function MarkdownList({ ordered, children, ...rest }: any) {
+    const listDepth = React.useContext(ListDepthContext) + 1;
+    const Tag = ordered ? 'ol' : 'ul';
+    return (
+        <ListDepthContext.Provider value={listDepth}>
+            <Tag {...rest}>{children}</Tag>
+        </ListDepthContext.Provider>
+    );
+}
 
 const IMAGE_RETRY_DELAYS_MS = [500, 1500] as const;
 
@@ -234,7 +248,7 @@ function WebCodeBlock(props: {
     return (
         <>
             <pre className={`hh-markdown-review-line ${props.className ?? ''}`.trim()} data-source-line={props.line}>
-                <ReviewButton line={props.line} onLineComment={props.onLineComment} />
+                <ReviewGutter line={props.line} onLineComment={props.onLineComment} />
                 <button type="button" className="hh-markdown-code-copy" aria-label={t('common.copy')} onClick={() => { void copy(); }}>{t('common.copy')}</button>
                 {props.children}
             </pre>
@@ -282,10 +296,14 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
             const Tag = tag as any;
             const line = sourceLine(node);
             const parentReviewLine = React.useContext(ParentReviewLineContext);
+            const listDepth = React.useContext(ListDepthContext);
             const ownsReviewLine = line !== undefined && line !== parentReviewLine;
+            const reviewStyle = tag === 'li'
+                ? { ...rest.style, '--hh-markdown-list-indent': `${listDepth * 40}px` }
+                : rest.style;
             const reviewUnit = (
-                <Tag {...rest} className={`${rest.className ?? ''} ${ownsReviewLine && props.onLineComment ? 'hh-markdown-review-line' : ''}`.trim()} data-source-line={line}>
-                    {ownsReviewLine ? <ReviewButton line={line} onLineComment={props.onLineComment} /> : null}
+                <Tag {...rest} style={reviewStyle} className={`${rest.className ?? ''} ${ownsReviewLine && props.onLineComment ? 'hh-markdown-review-line' : ''}`.trim()} data-source-line={line}>
+                    {ownsReviewLine ? <ReviewGutter line={line} onLineComment={props.onLineComment} /> : null}
                     <ParentReviewLineContext.Provider value={ownsReviewLine ? line : parentReviewLine}>
                         {children}
                     </ParentReviewLineContext.Provider>
@@ -305,8 +323,9 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
             ul: ({ node, children, ...rest }: any) => {
                 const optionItems = optionItemsFromList(node);
                 if (optionItems) return <WebOptionsBlock items={optionItems} onOptionPress={props.onOptionPress} />;
-                return <ul {...rest}>{children}</ul>;
+                return <MarkdownList {...rest}>{children}</MarkdownList>;
             },
+            ol: ({ node: _node, children, ...rest }: any) => <MarkdownList {...rest} ordered>{children}</MarkdownList>,
             p: reviewable('p'),
             h1: reviewable('h1'),
             h2: reviewable('h2'),
@@ -319,7 +338,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
                 const line = sourceLine(node);
                 return (
                     <div className="hh-markdown-review-line hh-markdown-table-review" data-source-line={line}>
-                        <ReviewButton line={line} onLineComment={props.onLineComment} />
+                        <ReviewGutter line={line} onLineComment={props.onLineComment} />
                         <div className="hh-markdown-table-wrap">
                             <table {...rest}>{children}</table>
                         </div>
@@ -350,7 +369,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
                 const line = sourceLine(node);
                 return (
                     <div className="hh-markdown-review-line" data-source-line={line}>
-                        <ReviewButton line={line} onLineComment={props.onLineComment} />
+                        <ReviewGutter line={line} onLineComment={props.onLineComment} />
                         <hr {...rest} />
                         <LineCommentThread line={line} renderLineComment={props.renderLineComment} />
                     </div>
@@ -445,8 +464,6 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
         '--hh-markdown-syntax-number': theme.colors.syntaxNumber,
         '--hh-markdown-syntax-function': theme.colors.syntaxFunction,
         '--hh-markdown-syntax-default': theme.colors.syntaxDefault,
-        '--hh-markdown-comment-background': theme.dark ? '#d29922' : '#9a6700',
-        '--hh-markdown-comment-foreground': theme.dark ? '#0d1117' : '#ffffff',
     } as React.CSSProperties;
 
     // Reveal the rendered unit that corresponds to a requested source line. The
@@ -507,6 +524,7 @@ const MARKDOWN_CSS = `
 .hh-markdown-root > :last-child { margin-bottom: 0; }
 .hh-markdown-root h1,.hh-markdown-root h2,.hh-markdown-root h3,.hh-markdown-root h4,.hh-markdown-root h5,.hh-markdown-root h6 { line-height: 1.25; margin: 1em 0 .45em; }
 .hh-markdown-root p,.hh-markdown-root ul,.hh-markdown-root ol,.hh-markdown-root blockquote,.hh-markdown-root pre { margin: .65em 0; }
+.hh-markdown-root ul,.hh-markdown-root ol { padding-inline-start: 40px; }
 .hh-markdown-root a { color: inherit; text-decoration: underline; cursor: pointer; }
 .hh-markdown-root blockquote { border-left: 3px solid currentColor; opacity: .85; padding: .5em .9em; }
 .hh-markdown-table-review { margin: .65em 0; }
@@ -546,12 +564,15 @@ const MARKDOWN_CSS = `
 .hh-markdown-root pre { position: relative; }
 .hh-markdown-code-copy { position: absolute; top: 8px; right: 8px; opacity: 0; cursor: pointer; }
 .hh-markdown-root pre:hover > .hh-markdown-code-copy,.hh-markdown-code-copy:focus-visible { opacity: 1; }
-.hh-markdown-review-root { box-sizing: border-box; padding-inline-start: 24px; }
+.hh-markdown-review-root { box-sizing: border-box; padding-inline-start: 76px; }
 .hh-markdown-review-line { position: relative; }
 .hh-markdown-inline-comment { box-sizing: border-box; width: 100%; margin: .3em 0 .8em; }
 .hh-markdown-review-reveal { outline: 2px solid rgba(96,140,255,.8); outline-offset: -2px; border-radius: 4px; background: rgba(96,140,255,.12); }
-.hh-markdown-comment-gutter { appearance: none; position: absolute; inset-inline-start: -24px; top: .15em; z-index: 4; display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: 0; border-radius: 4px; padding: 0; background: var(--hh-markdown-comment-background); color: var(--hh-markdown-comment-foreground); font-size: 13px; line-height: 20px; opacity: 0; cursor: pointer; touch-action: none; }
-.hh-markdown-review-line:hover > .hh-markdown-comment-gutter,.hh-markdown-comment-gutter:focus-visible { opacity: 1; }
+.hh-markdown-review-gutter { position: absolute; inset-inline-start: calc(-72px - var(--hh-markdown-list-indent, 0px)); top: .15em; z-index: 4; display: grid; grid-template-columns: 44px 20px; gap: 4px; align-items: center; width: 68px; height: 20px; font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; font-size: 12px; font-variant-numeric: tabular-nums; line-height: 20px; }
+.hh-markdown-source-line { overflow: hidden; color: var(--hh-markdown-text-secondary); text-align: end; text-overflow: clip; user-select: none; white-space: nowrap; }
+.hh-markdown-comment-gutter { appearance: none; display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: 0; border-radius: 4px; padding: 0; background: transparent; color: var(--hh-markdown-text-secondary); font: inherit; line-height: 20px; opacity: 0; cursor: pointer; touch-action: none; }
+.hh-markdown-review-line:hover > .hh-markdown-review-gutter .hh-markdown-comment-gutter,.hh-markdown-comment-gutter:focus-visible { background: var(--hh-markdown-surface-high); color: var(--hh-markdown-text); opacity: 1; }
+@media (max-width: 700px) { .hh-markdown-review-gutter { font-size: 16px; } }
 @media (hover: none), (pointer: coarse) { .hh-markdown-comment-gutter { opacity: 1; } }
 .hljs-comment,.hljs-quote { color: #6a737d; }
 .hljs-keyword,.hljs-selector-tag,.hljs-literal { color: #d73a49; }
