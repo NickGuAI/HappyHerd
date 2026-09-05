@@ -1176,6 +1176,7 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
                 initialMachineId={target.machineId}
                 initialPath={target.path}
                 workspaceContextSessionId={owner}
+                onNavigate={() => { workspaceLinkRequestGeneration.current += 1; }}
                 onFilePress={handleMachineWorkspaceFilePress}
                 onLocalhostUrlPress={Platform.OS === 'web' ? handleMachineWorkspaceLocalhostUrlPress : undefined}
             />

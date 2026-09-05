@@ -304,6 +304,44 @@ function contextToggleInRow(row: any) {
 }
 
 describe('MachineWorkspaceBrowser embedded layout', () => {
+    it('notifies the owner at each navigation gesture without notifying for initial or resulting loads', async () => {
+        mocks.machines.push({
+            id: 'other-machine',
+            active: true,
+            metadata: { displayName: 'Other machine', homeDir: '/other', platform: 'linux' },
+        });
+        const onNavigate = vi.fn();
+        const renderer = await renderBrowser({
+            embedded: true,
+            initialMachineId: 'main-machine',
+            initialPath: '/workspace/user',
+            onNavigate,
+        });
+        expect(onNavigate).not.toHaveBeenCalled();
+
+        let resolveDirectory!: (response: any) => void;
+        mocks.getTree.mockImplementationOnce(() => new Promise((resolve) => { resolveDirectory = resolve; }));
+        act(() => {
+            rowByName(renderer, 'project')!.props.onPress();
+            expect(onNavigate).toHaveBeenCalledTimes(1);
+        });
+        expect(mocks.getTree).toHaveBeenLastCalledWith('main-machine', '/workspace/user/project', 1);
+        await act(async () => {
+            resolveDirectory({ success: true, tree: { type: 'directory', path: '/workspace/user/project', children: [] } });
+        });
+        expect(onNavigate).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            renderer.root.findAllByType('Pressable' as any)
+                .find((node: any) => node.props.accessibilityLabel === 'workspace.parent')!.props.onPress();
+        });
+        expect(onNavigate).toHaveBeenCalledTimes(2);
+        await act(async () => { rowByName(renderer, 'Other machine')!.props.onPress(); });
+        expect(onNavigate).toHaveBeenCalledTimes(3);
+        expect(mocks.getTree).toHaveBeenLastCalledWith('other-machine', '/other', 1);
+        act(() => renderer.unmount());
+    });
+
     it('starts from the owning chat machine and cwd instead of conflicting global recents', async () => {
         mocks.machines = [
             {

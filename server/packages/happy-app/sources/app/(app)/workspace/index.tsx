@@ -179,6 +179,7 @@ export function MachineWorkspaceBrowser({
     initialMachineId,
     initialPath,
     workspaceContextSessionId,
+    onNavigate,
     onFilePress,
     onLocalhostUrlPress,
 }: {
@@ -186,6 +187,7 @@ export function MachineWorkspaceBrowser({
     initialMachineId?: string;
     initialPath?: string;
     workspaceContextSessionId?: string;
+    onNavigate?: () => void;
     onFilePress?: (file: { machineId: string; path: string }) => void;
     onLocalhostUrlPress?: (target: { machineId: string; url: string }) => void;
 }) {
@@ -372,6 +374,7 @@ export function MachineWorkspaceBrowser({
     }, [fileDirty]);
 
     const openDirectory = React.useCallback((path: string) => {
+        onNavigate?.();
         guardUnsavedChanges(() => {
             const resolvedPath = resolveAbsolutePath(path, selectedMachine?.metadata?.homeDir);
             setCurrentDirectory(resolvedPath);
@@ -379,12 +382,13 @@ export function MachineWorkspaceBrowser({
             setSelectedFile(null);
             setSearchQuery('');
         });
-    }, [guardUnsavedChanges, selectedMachine?.metadata?.homeDir]);
+    }, [guardUnsavedChanges, onNavigate, selectedMachine?.metadata?.homeDir]);
 
     const switchMachine = React.useCallback((machine: Machine) => {
         if (attachmentMode) return;
+        onNavigate?.();
         guardUnsavedChanges(() => setSelectedMachineId(machine.id));
-    }, [attachmentMode, guardUnsavedChanges]);
+    }, [attachmentMode, guardUnsavedChanges, onNavigate]);
 
     const toggleFavorite = React.useCallback((path: string) => {
         if (!selectedMachine) return;
@@ -729,7 +733,14 @@ export function MachineWorkspaceBrowser({
         <View style={styles.viewerPane}>
             <View style={[styles.viewerHeader, { borderBottomColor: theme.colors.divider }]}>
                 {!desktopSplit && (
-                    <Pressable onPress={() => guardUnsavedChanges(() => setSelectedFile(null))} style={styles.viewerBackButton} accessibilityRole="button">
+                    <Pressable
+                        onPress={() => {
+                            onNavigate?.();
+                            guardUnsavedChanges(() => setSelectedFile(null));
+                        }}
+                        style={styles.viewerBackButton}
+                        accessibilityRole="button"
+                    >
                         <Ionicons name="chevron-back" size={20} color={theme.colors.text} />
                         <Text style={{ color: theme.colors.text, ...Typography.default() }}>{t('workspace.mobileBackToFiles')}</Text>
                     </Pressable>

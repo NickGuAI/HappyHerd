@@ -693,10 +693,22 @@ const virtualModules: Record<string, string> = {
             return { success: false, phases: [] };
         };
         export const machineGetDirectoryTree = async (_machineId, path) => {
-            if (path === '/work/reports') return {
+            if (
+                path === globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.deferDirectoryPath
+                && !window.__BROWSER_DIRECTORY_DEFERRED__
+            ) {
+                window.__BROWSER_DIRECTORY_DEFERRED__ = true;
+                await new Promise((resolve) => {
+                    window.__RESOLVE_BROWSER_DIRECTORY__ = () => {
+                        delete window.__RESOLVE_BROWSER_DIRECTORY__;
+                        resolve();
+                    };
+                });
+            }
+            if (path === '/work/reports' || path === '/work/project/reports') return {
                 success: true,
                 tree: { type: 'directory', name: 'reports', path,
-                    children: [{ type: 'file', name: 'report.md', path: '/work/reports/report.md', size: 20 }] },
+                    children: [{ type: 'file', name: 'report.md', path: path + '/report.md', size: 20 }] },
             };
             if (path === '/work/project' || path === '/work/child-oldest' || path === '/work/child-newest') {
                 const fileName = path === '/work/project'
@@ -706,7 +718,12 @@ const virtualModules: Record<string, string> = {
                     success: true,
                     tree: {
                         type: 'directory', name: path.split('/').pop(), path,
-                        children: [{ type: 'file', name: fileName, path: path + '/' + fileName, size: 12 }],
+                        children: [
+                            { type: 'file', name: fileName, path: path + '/' + fileName, size: 12 },
+                            ...(path === '/work/project' && globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.deferDirectoryPath
+                                ? [{ type: 'directory', name: 'reports', path: '/work/project/reports' }]
+                                : []),
+                        ],
                     },
                 };
             }
@@ -1594,6 +1611,49 @@ describe('Side chats browser interaction', () => {
         await page.evaluate(() => (window as any).__RESOLVE_SAME_PATH_PROBE__());
         await expect(newerPanel.isVisible()).resolves.toBe(true);
         await expect(workspace.getByRole('tab', { name: 'Open file session-note.md' }).count()).resolves.toBe(0);
+        await page.close();
+    }, 10_000);
+
+    it.each([
+        ['directory', '/work/project/reports', /^reports /, /^report\.md /],
+        ['machine', '/work/child-newest', /^SideEC2$/, /^child-newest-machine-file\.md /],
+    ] as const)('keeps newer picker %s navigation while its directory request and an older reply probe are pending', async (_gesture, targetPath, buttonName, fileName) => {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+        page.setDefaultTimeout(3_000);
+        await page.addInitScript((deferDirectoryPath) => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
+                workspaceRetention: true, deferSamePathProbe: true, deferDirectoryPath,
+            };
+        }, targetPath);
+        await page.goto(origin);
+        const foreground = page.getByTestId('foreground-session');
+        await foreground.getByRole('button', { name: 'More actions' }).filter({ visible: true }).first().click();
+        await foreground.getByTestId('mobile-composer-action-workspace').filter({ visible: true }).click();
+        const workspace = foreground.getByTestId('desktop-file-workspace');
+        const pathInput = workspace.getByPlaceholder('Path');
+        await expect.poll(() => pathInput.inputValue()).toBe('/work/project');
+        await pathInput.evaluate((element) => { element.dataset.retainedPickerPath = 'mounted'; });
+        await foreground.getByText('Slow file', { exact: true }).first().click();
+        await page.waitForFunction(() => !!(window as any).__RESOLVE_SAME_PATH_PROBE__);
+        await workspace.getByRole('button', { name: buttonName }).click();
+        await page.waitForFunction(() => !!(window as any).__RESOLVE_BROWSER_DIRECTORY__);
+        if (_gesture === 'directory') {
+            await expect(pathInput.inputValue()).resolves.toBe(targetPath);
+        }
+        await page.evaluate(async () => {
+            (window as any).__RESOLVE_SAME_PATH_PROBE__();
+            await new Promise(requestAnimationFrame);
+            await new Promise(requestAnimationFrame);
+        });
+        await expect(pathInput.isVisible()).resolves.toBe(true);
+        await expect(pathInput.getAttribute('data-retained-picker-path')).resolves.toBe('mounted');
+        if (_gesture === 'directory') {
+            await expect(pathInput.inputValue()).resolves.toBe(targetPath);
+        }
+        await expect(workspace.getByRole('tab', { name: 'Open file session-note.md' }).count()).resolves.toBe(0);
+        await page.evaluate(() => (window as any).__RESOLVE_BROWSER_DIRECTORY__());
+        await workspace.getByRole('button', { name: fileName }).waitFor({ state: 'visible' });
+        await expect(pathInput.inputValue()).resolves.toBe(targetPath);
         await page.close();
     }, 10_000);
 
