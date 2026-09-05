@@ -21,6 +21,8 @@ const markdown = [
     '  - nested ordinary',
     '- ordinary two',
     '',
+    '1. ordered ordinary',
+    '',
     '> Quoted copy',
     '',
     '```ts',

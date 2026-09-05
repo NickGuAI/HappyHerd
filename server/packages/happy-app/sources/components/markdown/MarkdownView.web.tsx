@@ -325,7 +325,7 @@ export const MarkdownView = React.memo(function MarkdownView(props: MarkdownView
                 if (optionItems) return <WebOptionsBlock items={optionItems} onOptionPress={props.onOptionPress} />;
                 return <MarkdownList {...rest}>{children}</MarkdownList>;
             },
-            ol: ({ children, ...rest }: any) => <MarkdownList {...rest} ordered>{children}</MarkdownList>,
+            ol: ({ node: _node, children, ...rest }: any) => <MarkdownList {...rest} ordered>{children}</MarkdownList>,
             p: reviewable('p'),
             h1: reviewable('h1'),
             h2: reviewable('h2'),

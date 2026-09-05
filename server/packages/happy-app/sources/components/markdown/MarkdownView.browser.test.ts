@@ -76,7 +76,7 @@ function recordPageErrors(page: Page): string[] {
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.stack ?? error.message));
     page.on('console', (message) => {
-        if (message.type() === 'error') errors.push(message.text());
+        if (message.type() === 'error' || message.type() === 'warning') errors.push(message.text());
     });
     return errors;
 }
@@ -200,6 +200,7 @@ describe('MarkdownView browser theme and option parity', () => {
             root.locator('h2[data-source-line="3"]'),
             root.locator('li[data-source-line="5"]'),
             root.locator('li[data-source-line="6"]'),
+            root.locator('li[data-source-line="9"]'),
         ];
         const alignedGutters = await Promise.all(alignedReviewLines.map((line) => line.locator(':scope > .hh-markdown-review-gutter').boundingBox()));
         expect(alignedGutters.every(Boolean)).toBe(true);
@@ -215,7 +216,8 @@ describe('MarkdownView browser theme and option parity', () => {
         await expect(options.locator('ul').count()).resolves.toBe(0);
         await expect(options.locator('li').count()).resolves.toBe(0);
         await expect(root.locator('ul').count()).resolves.toBe(2);
-        await expect(root.locator('li').count()).resolves.toBe(3);
+        await expect(root.locator('ol').count()).resolves.toBe(1);
+        await expect(root.locator('li').count()).resolves.toBe(4);
         await expect(chips.allTextContents()).resolves.toEqual([
             '把 Speaker 2 改成 Maria',
             '保持 Speaker 2 不变，同时保留当前转录中的全部说话人标记以及这一条足够长、会在窄屏和宽屏容器中按可用宽度自然换行的建议文字',
@@ -469,7 +471,7 @@ describe('MarkdownView browser theme and option parity', () => {
         } else {
             await tableReviewButton.click();
         }
-        await expect(page.evaluate(() => window.__MARKDOWN_LINE_COMMENTS__)).resolves.toEqual([15]);
+        await expect(page.evaluate(() => window.__MARKDOWN_LINE_COMMENTS__)).resolves.toEqual([17]);
 
         await tableWrap.evaluate((element) => { element.scrollLeft = element.scrollWidth; });
         const farRight = await tableWrap.evaluate((element) => {
