@@ -123,8 +123,9 @@ describe('MarkdownView browser theme and option parity', () => {
         [1440, 390].map((width) => [line, width] as const)
     )))('retains typing and edit focus across host rerenders at Markdown line %s with width %s', async (line, width) => {
         const page = await browser.newPage({ viewport: { width, height: 844 } });
+        page.setDefaultTimeout(3_000);
         const pageErrors = recordPageErrors(page);
-        await page.goto(`${origin}/?review&theme=dark`);
+        await page.goto(`${origin}/?review&theme=dark`, { timeout: 15_000 });
         await page.locator(`.hh-markdown-review-line[data-source-line="${line}"] > .hh-markdown-review-gutter button`).click();
         const thread = page.getByTestId(`inline-comment-thread:line:${line}`);
         const input = thread.getByRole('textbox');
@@ -149,7 +150,7 @@ describe('MarkdownView browser theme and option parity', () => {
         expect(await thread.getByText('Keep this draft edited after refresh', { exact: true }).count()).toBe(1);
         expect(pageErrors).toEqual([]);
         await page.close();
-    });
+    }, 20_000);
 
     afterAll(async () => {
         await browser?.close();

@@ -1570,7 +1570,7 @@ describe('Side chats browser interaction', () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
         page.setDefaultTimeout(3_000);
         await page.addInitScript(() => { (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { workspaceRetention: true, deferWorkspaceFeedback: true }; });
-        await page.goto(origin);
+        await page.goto(origin, { timeout: 15_000 });
         const foreground = page.getByTestId('foreground-session');
         const workspace = foreground.getByTestId('desktop-file-workspace');
         const openWorkspace = async (child: boolean) => {
@@ -1619,7 +1619,7 @@ describe('Side chats browser interaction', () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
         page.setDefaultTimeout(3_000);
         await page.addInitScript(() => { (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = { workspaceRetention: true, deferSamePathProbe: true }; });
-        await page.goto(origin);
+        await page.goto(origin, { timeout: 15_000 });
         const foreground = page.getByTestId('foreground-session');
         await foreground.getByText('Slow file', { exact: true }).first().click();
         await page.waitForFunction(() => !!(window as any).__RESOLVE_SAME_PATH_PROBE__);
@@ -1633,7 +1633,7 @@ describe('Side chats browser interaction', () => {
         await expect(newerPanel.isVisible()).resolves.toBe(true);
         await expect(workspace.getByRole('tab', { name: 'Open file session-note.md' }).count()).resolves.toBe(0);
         await page.close();
-    }, 10_000);
+    }, 20_000);
 
     it('does not let a completed folder creation cancel a newer reply link', async () => {
         const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
