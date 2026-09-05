@@ -2,8 +2,7 @@ import * as React from 'react';
 // @ts-expect-error react-test-renderer has no declarations in this workspace.
 import { act, create } from 'react-test-renderer';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { WorkspaceFeedbackComment } from '@/sync/workspaceFeedback';
-import type { InlineCommentAnchor } from './InlineCommentReview';
+import type { InlineCommentAnchor, InlineReviewComment } from './InlineCommentReview';
 
 const mocks = vi.hoisted(() => ({ sendMessage: vi.fn() }));
 
@@ -33,7 +32,7 @@ let selectAnchor: ((anchor: InlineCommentAnchor | null) => void) | null = null;
 
 function Harness() {
     const [anchor, setAnchor] = React.useState<InlineCommentAnchor | null>({ line: 2 });
-    const [comments, setComments] = React.useState<WorkspaceFeedbackComment[]>([]);
+    const [comments, setComments] = React.useState<InlineReviewComment[]>([]);
     selectAnchor = setAnchor;
     return React.createElement(InlineCommentReview, {
         originSessionId: 'session-one',
@@ -148,7 +147,12 @@ describe('InlineCommentReview web', () => {
         act(() => renderer.unmount());
     });
 
-    it.each(['save', 'cancel'] as const)('keeps an in-progress edit through send acceptance until explicit %s', async (finish) => {
+    it.each([
+        ['before', 'save'],
+        ['after', 'save'],
+        ['before', 'cancel'],
+        ['after', 'cancel'],
+    ] as const)('keeps an edit begun %s Send until %s after acknowledgement', async (editTiming, finish) => {
         let resolveSend!: (value: { localId: string }) => void;
         mocks.sendMessage.mockReturnValueOnce(new Promise((resolve) => { resolveSend = resolve; }));
         let renderer: any;
@@ -156,9 +160,11 @@ describe('InlineCommentReview web', () => {
 
         act(() => renderer.root.findByType('TextInput' as any).props.onChangeText('Original issue'));
         act(() => button(renderer, 'files.pinComment').props.onPress());
-        act(() => { button(renderer, 'files.sendComments').props.onPress(); });
+        if (editTiming === 'after') act(() => { button(renderer, 'files.sendComments').props.onPress(); });
         act(() => button(renderer, 'files.editFile').props.onPress());
         act(() => renderer.root.findByType('TextInput' as any).props.onChangeText('Uncommitted revision'));
+        const editor = renderer.root.findByType('TextInput' as any);
+        if (editTiming === 'before') act(() => { button(renderer, 'files.sendComments').props.onPress(); });
 
         await act(async () => {
             resolveSend({ localId: 'original-send' });
@@ -167,19 +173,82 @@ describe('InlineCommentReview web', () => {
 
         expect(mocks.sendMessage.mock.calls[0][1]).toContain('Original issue');
         expect(mocks.sendMessage.mock.calls[0][1]).not.toContain('Uncommitted revision');
-        expect(renderer.root.findByType('TextInput' as any).props.value).toBe('Uncommitted revision');
+        expect(renderer.root.findByType('TextInput' as any)).toBe(editor);
+        expect(editor.props.value).toBe('Uncommitted revision');
+        expect(Boolean(button(renderer, 'files.sendComments'))).toBe(false);
         act(() => button(renderer, `common.${finish}`).props.onPress());
         expect(renderer.root.findAllByType('TextInput' as any)).toHaveLength(0);
+
+        if (finish === 'save') {
+            expect(renderer.root.findAllByType('Text' as any).some((text: any) => (
+                text.props.children === 'Uncommitted revision'
+            ))).toBe(true);
+            await act(async () => {
+                button(renderer, 'files.sendComments').props.onPress();
+                await Promise.resolve();
+            });
+            expect(mocks.sendMessage).toHaveBeenCalledTimes(2);
+            expect(mocks.sendMessage.mock.calls[1][1]).toContain('Uncommitted revision');
+            expect(mocks.sendMessage.mock.calls[1][1]).not.toContain('Original issue');
+        } else {
+            expect(mocks.sendMessage).toHaveBeenCalledOnce();
+            expect(renderer.root.findAllByType('Text' as any).some((text: any) => (
+                text.props.children === 'Original issue'
+            ))).toBe(false);
+        }
+        expect(renderer.root.findAllByProps({ testID: 'inline-comment-review-bar' })).toHaveLength(0);
+        act(() => renderer.unmount());
+    });
+
+    it('cancels an in-progress edit before acknowledgement without requeuing the delivered original', async () => {
+        let resolveSend!: (value: { localId: string }) => void;
+        mocks.sendMessage.mockReturnValueOnce(new Promise((resolve) => { resolveSend = resolve; }));
+        let renderer: any;
+        act(() => { renderer = create(React.createElement(Harness)); });
+        act(() => renderer.root.findByType('TextInput' as any).props.onChangeText('Original issue'));
+        act(() => button(renderer, 'files.pinComment').props.onPress());
+        act(() => { button(renderer, 'files.sendComments').props.onPress(); });
+        act(() => button(renderer, 'files.editFile').props.onPress());
+        act(() => renderer.root.findByType('TextInput' as any).props.onChangeText('Discard this edit'));
+        act(() => button(renderer, 'common.cancel').props.onPress());
         expect(renderer.root.findAllByType('Text' as any).some((text: any) => (
-            text.props.children === (finish === 'save' ? 'Uncommitted revision' : 'Original issue')
+            text.props.children === 'Original issue'
         ))).toBe(true);
 
         await act(async () => {
-            button(renderer, 'files.sendComments').props.onPress();
+            resolveSend({ localId: 'original-send' });
             await Promise.resolve();
         });
-        expect(mocks.sendMessage.mock.calls[1][1]).toContain(finish === 'save' ? 'Uncommitted revision' : 'Original issue');
-        if (finish === 'cancel') expect(mocks.sendMessage.mock.calls[1][1]).not.toContain('Uncommitted revision');
+
+        expect(mocks.sendMessage).toHaveBeenCalledOnce();
+        expect(renderer.root.findAllByProps({ testID: 'inline-comment-review-bar' })).toHaveLength(0);
+        expect(renderer.root.findAllByType('TextInput' as any)).toHaveLength(0);
+        expect(renderer.root.findAllByType('Text' as any).some((text: any) => (
+            text.props.children === 'Original issue'
+        ))).toBe(false);
+        act(() => renderer.unmount());
+    });
+
+    it('saving unchanged acknowledged feedback closes its editor without another send', async () => {
+        let resolveSend!: (value: { localId: string }) => void;
+        mocks.sendMessage.mockReturnValueOnce(new Promise((resolve) => { resolveSend = resolve; }));
+        let renderer: any;
+        act(() => { renderer = create(React.createElement(Harness)); });
+        act(() => renderer.root.findByType('TextInput' as any).props.onChangeText('Original issue'));
+        act(() => button(renderer, 'files.pinComment').props.onPress());
+        act(() => button(renderer, 'files.editFile').props.onPress());
+        act(() => { button(renderer, 'files.sendComments').props.onPress(); });
+
+        await act(async () => {
+            resolveSend({ localId: 'original-send' });
+            await Promise.resolve();
+        });
+
+        expect(renderer.root.findByType('TextInput' as any).props.value).toBe('Original issue');
+        act(() => button(renderer, 'common.save').props.onPress());
+        expect(mocks.sendMessage).toHaveBeenCalledOnce();
+        expect(renderer.root.findAllByProps({ testID: 'inline-comment-review-bar' })).toHaveLength(0);
+        expect(renderer.root.findAllByType('TextInput' as any)).toHaveLength(0);
         act(() => renderer.unmount());
     });
 
@@ -204,7 +273,7 @@ describe('InlineCommentReview web', () => {
                 elementBounds: { x: 10, y: 20, width: 120, height: 36 },
                 screenshot,
             });
-            const [comments, setComments] = React.useState<WorkspaceFeedbackComment[]>([]);
+            const [comments, setComments] = React.useState<InlineReviewComment[]>([]);
             return React.createElement(InlineCommentReview, {
                 originSessionId: 'side-chat-session',
                 reference: { machineId: 'machine-ec2', liveUrl: 'http://localhost:5173/' },
@@ -239,7 +308,7 @@ describe('InlineCommentReview web', () => {
 
     it('edits and removes a pinned comment inside its own line thread', () => {
         function ThreadHarness() {
-            const [comments, setComments] = React.useState<WorkspaceFeedbackComment[]>([
+            const [comments, setComments] = React.useState<InlineReviewComment[]>([
                 { id: 'line-two', line: 2, feedback: 'Original issue' },
                 { id: 'line-five', line: 5, feedback: 'Other line' },
             ]);

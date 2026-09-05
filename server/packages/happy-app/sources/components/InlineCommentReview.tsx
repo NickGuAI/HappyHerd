@@ -2,13 +2,20 @@ import type { WorkspaceFeedbackComment, WorkspaceFeedbackReference } from '@/syn
 
 export type InlineCommentAnchor = Omit<WorkspaceFeedbackComment, 'id' | 'feedback'>;
 
+export type InlineReviewComment = WorkspaceFeedbackComment & Readonly<{
+    /** The saved feedback remains unchanged until this editor is explicitly saved. */
+    editingDraft?: string;
+    /** Keep an open editor after its saved feedback is delivered, without resending it. */
+    acknowledged?: boolean;
+}>;
+
 export type InlineCommentReviewProps = {
     originSessionId: string;
     reference: WorkspaceFeedbackReference;
     activeAnchor: InlineCommentAnchor | null;
-    comments: readonly WorkspaceFeedbackComment[];
+    comments: readonly InlineReviewComment[];
     onActiveAnchorChange: (anchor: InlineCommentAnchor | null) => void;
-    onCommentsChange: (comments: WorkspaceFeedbackComment[]) => void;
+    onCommentsChange: (comments: InlineReviewComment[]) => void;
     /** Web file viewers render line threads in-place and keep only the batch bar docked. */
     mode?: 'docked' | 'bar';
 };

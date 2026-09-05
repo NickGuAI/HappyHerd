@@ -3,10 +3,9 @@ import { Pressable, View } from 'react-native';
 import { Octicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
-import { InlineCommentReview, type InlineCommentAnchor } from '@/components/InlineCommentReview';
+import { InlineCommentReview, type InlineCommentAnchor, type InlineReviewComment } from '@/components/InlineCommentReview';
 import { LocalhostLiveView } from '@/components/LocalhostLiveView';
 import { Text } from '@/components/StyledText';
-import type { WorkspaceFeedbackComment } from '@/sync/workspaceFeedback';
 import type { WorkspaceLiveElementPick } from '@/sync/workspaceLive';
 import { t } from '@/text';
 
@@ -26,7 +25,7 @@ export const LocalhostWorkspacePanel = React.memo(function LocalhostWorkspacePan
     const { theme } = useUnistyles();
     const [pickerEnabled, setPickerEnabled] = React.useState(false);
     const [activeAnchor, setActiveAnchor] = React.useState<InlineCommentAnchor | null>(null);
-    const [comments, setComments] = React.useState<WorkspaceFeedbackComment[]>([]);
+    const [comments, setComments] = React.useState<InlineReviewComment[]>([]);
     const [loadFailed, setLoadFailed] = React.useState(false);
     const [captureFailed, setCaptureFailed] = React.useState(false);
 
