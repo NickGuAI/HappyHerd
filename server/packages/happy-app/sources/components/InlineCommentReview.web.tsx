@@ -119,7 +119,14 @@ export function InlineCommentThread(props: InlineCommentThreadProps) {
                             <View style={styles.editColumn}>
                                 <TextInput
                                     value={editingDraft}
-                                    onChangeText={setEditingDraft}
+                                    onChangeText={(value) => {
+                                        setEditingDraft(value);
+                                        // Keep this editor mounted if an earlier send is
+                                        // accepted. The saved payload changes only on Save.
+                                        props.onCommentsChange(props.comments.map((item) => (
+                                            item.id === comment.id ? { ...item } : item
+                                        )));
+                                    }}
                                     multiline
                                     autoFocus
                                     style={[
@@ -217,7 +224,7 @@ export function InlineCommentReview(props: InlineCommentReviewProps) {
     const send = async () => {
         if (sendingRef.current || props.comments.length === 0) return;
         const sentComments = commentsRef.current;
-        const sentCommentIds = new Set(sentComments.map((comment) => comment.id));
+        const sentCommentVersions = new Set(sentComments);
         sendingRef.current = true;
         setSending(true);
         setError(false);
@@ -229,7 +236,9 @@ export function InlineCommentReview(props: InlineCommentReviewProps) {
                 attachments: sentComments.flatMap((comment) => comment.screenshot ? [comment.screenshot] : []),
                 sendMessage: (sessionId, text, options) => sync.sendMessage(sessionId, text, options),
             });
-            props.onCommentsChange(commentsRef.current.filter((comment) => !sentCommentIds.has(comment.id)));
+            // Edits replace immutable comments while keeping their IDs. Only
+            // remove the exact versions that this submission delivered.
+            props.onCommentsChange(commentsRef.current.filter((comment) => !sentCommentVersions.has(comment)));
         } catch {
             setError(true);
         } finally {

@@ -113,6 +113,76 @@ describe('InlineCommentReview web', () => {
         act(() => renderer.unmount());
     });
 
+    it('keeps an edited pinned comment when its earlier submitted version is accepted', async () => {
+        let resolveSend!: (value: { localId: string }) => void;
+        mocks.sendMessage.mockReturnValueOnce(new Promise((resolve) => { resolveSend = resolve; }));
+        let renderer: any;
+        act(() => { renderer = create(React.createElement(Harness)); });
+
+        act(() => renderer.root.findByType('TextInput' as any).props.onChangeText('Original issue'));
+        act(() => button(renderer, 'files.pinComment').props.onPress());
+        act(() => { button(renderer, 'files.sendComments').props.onPress(); });
+        act(() => button(renderer, 'files.editFile').props.onPress());
+        act(() => renderer.root.findByType('TextInput' as any).props.onChangeText('Revised while sending'));
+        act(() => button(renderer, 'common.save').props.onPress());
+
+        await act(async () => {
+            resolveSend({ localId: 'original-send' });
+            await Promise.resolve();
+        });
+
+        expect(mocks.sendMessage).toHaveBeenCalledOnce();
+        expect(mocks.sendMessage.mock.calls[0][1]).toContain('Original issue');
+        expect(mocks.sendMessage.mock.calls[0][1]).not.toContain('Revised while sending');
+        expect(renderer.root.findAllByType('Text' as any).some((text: any) => (
+            text.props.children === 'Revised while sending'
+        ))).toBe(true);
+
+        await act(async () => {
+            button(renderer, 'files.sendComments').props.onPress();
+            await Promise.resolve();
+        });
+        expect(mocks.sendMessage).toHaveBeenCalledTimes(2);
+        expect(mocks.sendMessage.mock.calls[1][1]).toContain('Revised while sending');
+        expect(renderer.root.findAllByProps({ testID: 'inline-comment-review-bar' })).toHaveLength(0);
+        act(() => renderer.unmount());
+    });
+
+    it.each(['save', 'cancel'] as const)('keeps an in-progress edit through send acceptance until explicit %s', async (finish) => {
+        let resolveSend!: (value: { localId: string }) => void;
+        mocks.sendMessage.mockReturnValueOnce(new Promise((resolve) => { resolveSend = resolve; }));
+        let renderer: any;
+        act(() => { renderer = create(React.createElement(Harness)); });
+
+        act(() => renderer.root.findByType('TextInput' as any).props.onChangeText('Original issue'));
+        act(() => button(renderer, 'files.pinComment').props.onPress());
+        act(() => { button(renderer, 'files.sendComments').props.onPress(); });
+        act(() => button(renderer, 'files.editFile').props.onPress());
+        act(() => renderer.root.findByType('TextInput' as any).props.onChangeText('Uncommitted revision'));
+
+        await act(async () => {
+            resolveSend({ localId: 'original-send' });
+            await Promise.resolve();
+        });
+
+        expect(mocks.sendMessage.mock.calls[0][1]).toContain('Original issue');
+        expect(mocks.sendMessage.mock.calls[0][1]).not.toContain('Uncommitted revision');
+        expect(renderer.root.findByType('TextInput' as any).props.value).toBe('Uncommitted revision');
+        act(() => button(renderer, `common.${finish}`).props.onPress());
+        expect(renderer.root.findAllByType('TextInput' as any)).toHaveLength(0);
+        expect(renderer.root.findAllByType('Text' as any).some((text: any) => (
+            text.props.children === (finish === 'save' ? 'Uncommitted revision' : 'Original issue')
+        ))).toBe(true);
+
+        await act(async () => {
+            button(renderer, 'files.sendComments').props.onPress();
+            await Promise.resolve();
+        });
+        expect(mocks.sendMessage.mock.calls[1][1]).toContain(finish === 'save' ? 'Uncommitted revision' : 'Original issue');
+        if (finish === 'cancel') expect(mocks.sendMessage.mock.calls[1][1]).not.toContain('Uncommitted revision');
+        act(() => renderer.unmount());
+    });
+
     it('attaches an element crop and synchronously rejects a duplicate send press', async () => {
         let resolveSend: ((value: { id: string }) => void) | undefined;
         mocks.sendMessage.mockReturnValue(new Promise((resolve) => { resolveSend = resolve; }));
