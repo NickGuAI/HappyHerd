@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 5 — Workspace comment reliability",
+      "summary": "",
+      "markdown": "- Comment drafts and input focus now survive ordinary Workspace updates.\n- Editing a comment while sending preserves the unsent revision. Failed feedback sends retain text and images for retry.\n- Each chat retains its own Workspace comments, and open files keep feedback drafts and images when you switch tabs or browse folders. Delayed links respect newer navigation.\n- Files opened from cross-chat links retain reviews through temporary refresh failures, and feedback preserves the linked line and column."
+    },
+    {
       "title": "September 5 — Preview and commenting enhancements",
       "summary": "",
       "markdown": "- Markdown and source previews on Web Desktop and Web Mobile now use consistent comment styling and spacing, with preserved inline threads and improved draft retention.\n- Deep links now scroll directly to highlighted source lines, and comment buttons follow hovered lines even while another comment is open.\n- Code-block comment buttons now remain clickable when code blocks scroll horizontally."
@@ -586,5 +591,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 5 — Preview and commenting enhancements"
+  "latestTitle": "September 5 — Workspace comment reliability"
 }

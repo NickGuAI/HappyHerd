@@ -252,6 +252,41 @@ describe('InlineCommentReview web', () => {
         act(() => renderer.unmount());
     });
 
+    it('sends a later batch without resending an acknowledged comment whose editor remains open', async () => {
+        let resolveSend!: (value: { localId: string }) => void;
+        mocks.sendMessage.mockReturnValueOnce(new Promise((resolve) => { resolveSend = resolve; }));
+        let renderer: any;
+        act(() => { renderer = create(React.createElement(Harness)); });
+        act(() => renderer.root.findByType('TextInput' as any).props.onChangeText('Original issue'));
+        act(() => button(renderer, 'files.pinComment').props.onPress());
+        act(() => button(renderer, 'files.editFile').props.onPress());
+        act(() => renderer.root.findByType('TextInput' as any).props.onChangeText('Uncommitted revision'));
+        act(() => { button(renderer, 'files.sendComments').props.onPress(); });
+        await act(async () => {
+            resolveSend({ localId: 'original-send' });
+            await Promise.resolve();
+        });
+
+        act(() => selectAnchor?.({ line: 9 }));
+        const composer = renderer.root.findByProps({ testID: 'inline-comment-composer:docked' });
+        act(() => composer.findByType('TextInput' as any).props.onChangeText('Another issue'));
+        act(() => button(renderer, 'files.pinComment').props.onPress());
+        await act(async () => {
+            button(renderer, 'files.sendComments').props.onPress();
+            await Promise.resolve();
+        });
+
+        expect(mocks.sendMessage).toHaveBeenCalledTimes(2);
+        expect(mocks.sendMessage.mock.calls[1][1]).toContain('Another issue');
+        expect(mocks.sendMessage.mock.calls[1][1]).not.toContain('Original issue');
+        expect(mocks.sendMessage.mock.calls[1][1]).not.toContain('Uncommitted revision');
+        expect(renderer.root.findByType('TextInput' as any).props.value).toBe('Uncommitted revision');
+        act(() => button(renderer, 'common.cancel').props.onPress());
+        expect(renderer.root.findAllByType('TextInput' as any)).toHaveLength(0);
+        expect(renderer.root.findAllByProps({ testID: 'inline-comment-review-bar' })).toHaveLength(0);
+        act(() => renderer.unmount());
+    });
+
     it('attaches an element crop and synchronously rejects a duplicate send press', async () => {
         let resolveSend: ((value: { id: string }) => void) | undefined;
         mocks.sendMessage.mockReturnValue(new Promise((resolve) => { resolveSend = resolve; }));

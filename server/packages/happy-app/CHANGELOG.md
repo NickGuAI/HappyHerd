@@ -1,3 +1,10 @@
+# September 5 — Workspace comment reliability
+
+- Comment drafts and input focus now survive ordinary Workspace updates.
+- Editing a comment while sending preserves the unsent revision. Failed feedback sends retain text and images for retry.
+- Each chat retains its own Workspace comments, and open files keep feedback drafts and images when you switch tabs or browse folders. Delayed links respect newer navigation.
+- Files opened from cross-chat links retain reviews through temporary refresh failures, and feedback preserves the linked line and column.
+
 # September 5 — Preview and commenting enhancements
 
 - Markdown and source previews on Web Desktop and Web Mobile now use consistent comment styling and spacing, with preserved inline threads and improved draft retention.

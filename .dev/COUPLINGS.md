@@ -340,6 +340,11 @@ current session Workspace may fall back to the standalone `/workspace` route and
 [`playbooks/file-workspaces.md`](playbooks/file-workspaces.md) before changing
 these owners.
 
+SessionView owns chat-scoped retained Workspace state; each open file panel
+retains its footer composer. File and link requests respect newer navigation.
+Stable Markdown renderer identities carry current context while preserving
+editors, and the fallback footer passes linked line and column positions.
+
 Agent-facing file-link syntax is owned as one paired instruction surface: the
 live HappyHerd global `AGENTS.md` pointer and the baked-in
 `deploy/happyherd-agent-runtime/happy-home/AGENTS.md` pointer must change
