@@ -118,7 +118,7 @@ export const CodeEditor = React.memo(function CodeEditor({
                 readOnly={readOnly}
                 style={{
                     fontFamily: 'ui-monospace, "SF Mono", "Cascadia Code", "Segoe UI Mono", Menlo, Monaco, Consolas, monospace',
-                    fontSize: 14,
+                    fontSize: 16,
                     lineHeight: 1.5,
                     minHeight: '100%',
                     color: darkMode ? '#D4D4D4' : '#374151',

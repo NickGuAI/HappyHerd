@@ -111,6 +111,7 @@ For Web Desktop and Web Mobile commentable Markdown and source previews,
 `lineReviewStyles.ts` owns source-number and comment-button geometry, content
 spacing, amber/gold color, and focus/highlight values. Keep `react-markdown`,
 Pierre's native File gutter, and the existing inline comments/`workspaceFeedback`.
+The Web previews use the same compact 66px review gutter with no horizontal outer padding. Pierre File content uses 16px/24px host typography; the Web editor uses 16px with its matching syntax overlay.
 Code deep-link reveal and highlight are independent of the active comment anchor
 and Pierre selection: wait for `onPostRender`, use the actual row position, and
 reveal once per navigation. Cold lazy loading and annotations above the row

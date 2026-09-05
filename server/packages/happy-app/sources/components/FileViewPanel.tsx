@@ -732,7 +732,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
             ) : isMarkdown && displayMode === 'preview' ? (
                 <ScrollView
                     style={{ flex: 1 }}
-                    contentContainerStyle={{ padding: 16, maxWidth: layout.maxWidth, alignSelf: 'center', width: '100%' }}
+                    contentContainerStyle={{ paddingVertical: 16, paddingHorizontal: Platform.OS === 'web' ? 0 : 16, maxWidth: layout.maxWidth, alignSelf: 'center', width: '100%' }}
                 >
                     {Platform.OS === 'web' && <EditorPreviewStyles />}
                     <View {...(Platform.OS === 'web' ? { className: 'editor-preview-wrap' } as any : {})}>
@@ -771,7 +771,7 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                     />
                 </View>
             ) : Platform.OS === 'web' && reviewContext && displayMode === 'preview' ? (
-                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, maxWidth: layout.maxWidth, alignSelf: 'center', width: '100%' }}>
+                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: 16, maxWidth: layout.maxWidth, alignSelf: 'center', width: '100%' }}>
                     <PierreDiffView
                         file={{ name: fileName, contents: editContent }}
                         overflow="scroll"

@@ -219,7 +219,7 @@ function FileViewFromFile({
                 onPostRender,
                 unsafeCSS: `${options.unsafeCSS ?? ''}\n${options.enableGutterUtility ? FILE_REVIEW_CSS : ''}`,
             }}
-            style={reviewVariables as React.CSSProperties}
+            style={{ ...reviewVariables, '--diffs-font-size': '16px', '--diffs-line-height': '24px' } as React.CSSProperties}
             lineAnnotations={annotations}
             // Explicit null keeps gutter gestures controlled without allowing
             // a navigation or comment anchor to pin Pierre's hover utility.
@@ -235,6 +235,7 @@ function FileViewFromFile({
 
 const FILE_REVIEW_CSS = `
 [data-file] { --diffs-grid-number-column-width: var(--hh-review-gutter-width); }
+[data-column-number] { font-size: 13px; }
 [data-gutter] [data-column-number] { box-sizing: border-box; border: 0; padding: 0; padding-inline-end: calc(var(--hh-review-gutter-gap) + var(--hh-review-button-size) + var(--hh-review-content-gap)); color: var(--hh-review-number-color); }
 [data-line-number-content] { min-width: var(--hh-review-number-width); }
 [data-line] { padding-inline-start: 0; }

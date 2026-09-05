@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "title": "September 5 — Optimize font sizes and layout alignment on mobile web views",
+      "summary": "",
+      "markdown": "- Updated web editor and source preview fonts to exactly 16px and optimized gutter alignment for tighter mobile layouts."
+    },
+    {
       "title": "September 5 — Workspace comment reliability",
       "summary": "",
       "markdown": "- Comment drafts and input focus now survive ordinary Workspace updates.\n- Editing a comment while sending preserves the unsent revision. Failed feedback sends retain text and images for retry.\n- Each chat retains its own Workspace comments, and open files keep feedback drafts and images when you switch tabs or browse folders. Delayed links respect newer navigation.\n- Files opened from cross-chat links retain reviews through temporary refresh failures, and feedback preserves the linked line and column."
@@ -591,5 +596,5 @@
       "markdown": "- E2E encrypted sessions.\n- Voice assistant.\n- File manager with syntax highlighting.\n- Real-time sync across devices."
     }
   ],
-  "latestTitle": "September 5 — Workspace comment reliability"
+  "latestTitle": "September 5 — Optimize font sizes and layout alignment on mobile web views"
 }
