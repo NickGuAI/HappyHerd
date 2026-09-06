@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
     HAPPYHERD_AGY_MODEL_NAMES,
+    HAPPYHERD_AGY_EFFORTS,
+    HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS,
+    HAPPYHERD_DEFAULT_AGY_MODEL,
+    HAPPYHERD_DEFAULT_AGY_EFFORT,
     HAPPYHERD_CLAUDE_MODEL_SLUGS,
     HAPPYHERD_DEFAULT_CLAUDE_MODEL_SLUG,
     normalizeHappyHerdClaudeModelSlug,
@@ -10,6 +14,7 @@ import {
 describe('HappyHerd provider model catalog', () => {
     it('contains only canonical Claude model slugs', () => {
         expect(HAPPYHERD_CLAUDE_MODEL_SLUGS).toEqual([
+            'claude-fable-5-1',
             'claude-fable-5',
             'claude-opus-5',
             'claude-opus-5[1m]',
@@ -19,7 +24,8 @@ describe('HappyHerd provider model catalog', () => {
             'claude-haiku-4-5',
         ]);
         expect(HAPPYHERD_CLAUDE_MODEL_SLUGS.every((slug) => /^claude-[a-z]+-\d(?:-\d+)?(?:\[1m\])?$/.test(slug))).toBe(true);
-        expect(HAPPYHERD_CLAUDE_MODEL_SLUGS).toContain(HAPPYHERD_DEFAULT_CLAUDE_MODEL_SLUG);
+        expect(HAPPYHERD_DEFAULT_CLAUDE_MODEL_SLUG).toBe('claude-opus-5');
+        expect(HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS['claude-fable-5-1']).toBe(1_000_000);
     });
 
     it('normalizes persisted aliases without advertising them', () => {
@@ -27,16 +33,12 @@ describe('HappyHerd provider model catalog', () => {
         expect(normalizeHappyHerdClaudeModelSlug('claude-opus-4-6')).toBe('claude-opus-4-6');
     });
 
-    it('keeps every exact Antigravity model name in one launch-and-UI catalog', () => {
+    it('keeps the four Antigravity logical model choices in one launch-and-UI catalog', () => {
+        expect(HAPPYHERD_AGY_EFFORTS).toEqual(['low', 'medium', 'high']);
+        expect(HAPPYHERD_DEFAULT_AGY_EFFORT).toBe('medium');
+        expect(HAPPYHERD_DEFAULT_AGY_MODEL).toBe('Gemini 3.8 Flash');
         expect(HAPPYHERD_AGY_MODEL_NAMES).toEqual([
-            'Gemini 3.6 Flash (Medium)',
-            'Gemini 3.6 Flash (High)',
-            'Gemini 3.6 Flash (Low)',
-            'Gemini 3.5 Flash (Medium)',
-            'Gemini 3.5 Flash (High)',
-            'Gemini 3.5 Flash (Low)',
-            'Gemini 3.1 Pro (Low)',
-            'Gemini 3.1 Pro (High)',
+            'Gemini 3.8 Flash',
             'Claude Sonnet 4.6 (Thinking)',
             'Claude Opus 4.6 (Thinking)',
             'GPT-OSS 120B (Medium)',

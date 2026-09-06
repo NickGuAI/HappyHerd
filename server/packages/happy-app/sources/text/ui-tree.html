@@ -11,7 +11,7 @@
 <body><main>
   <p>HappyHerd · generated artifact</p>
   <h1>UI Surface Inventory</h1>
-  <p class="meta">Schema 1 · source 938a2d011ec57e59 · 36 routes · 257 UI owners · 0 hardcoded findings</p>
+  <p class="meta">Schema 1 · source 40027dc91969e54a · 36 routes · 262 UI owners · 0 hardcoded findings</p>
   <h2>Production routes</h2><div class="table-wrap"><table><thead><tr><th>Route</th><th>Source owner</th><th>Keys</th><th>States</th></tr></thead><tbody>
     <tr>
       <td><code>/artifacts/[id]</code></td>
@@ -610,6 +610,13 @@
     </tr>
     <tr>
       <td>component</td>
+      <td><code>sources/components/AgentWorkGroupHeader.tsx</code></td>
+      <td>AgentWorkGroupHeader</td>
+      <td>2</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
       <td><code>sources/components/AllFilesDiffView.tsx</code></td>
       <td>AllFilesDiffView</td>
       <td>6</td>
@@ -702,7 +709,7 @@
     <tr>
       <td>component</td>
       <td><code>sources/components/ChatList.tsx</code></td>
-      <td>ChatList</td>
+      <td>ChatList, windowEndForTurn</td>
       <td>2</td>
       <td>—</td>
     </tr>
@@ -823,6 +830,48 @@
       <td><code>sources/components/DesktopFileWorkspace.tsx</code></td>
       <td>DesktopFileWorkspace, DesktopFileWorkspaceDivider, DesktopFileWorkspaceSplit</td>
       <td>5</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/diff/DiffChunk.tsx</code></td>
+      <td>DiffChunk</td>
+      <td>0</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/diff/DiffFileHeader.tsx</code></td>
+      <td>DiffFileHeader</td>
+      <td>3</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/diff/DiffFilesList.tsx</code></td>
+      <td>DiffFilesList</td>
+      <td>2</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/diff/DiffFileView.tsx</code></td>
+      <td>DiffFileView</td>
+      <td>4</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/diff/DiffImageView.tsx</code></td>
+      <td>DiffImageView</td>
+      <td>3</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td>component</td>
+      <td><code>sources/components/diff/DiffMetrics.tsx</code></td>
+      <td>DEFAULT_DIFF_FONT_SIZE, MonoProbe, useDiffMetrics</td>
+      <td>0</td>
       <td>—</td>
     </tr>
     <tr>
@@ -1025,7 +1074,7 @@
       <td>component</td>
       <td><code>sources/components/InlineFileDiff.tsx</code></td>
       <td>InlineFileDiff</td>
-      <td>3</td>
+      <td>4</td>
       <td>—</td>
     </tr>
     <tr>
@@ -1150,7 +1199,7 @@
     <tr>
       <td>component</td>
       <td><code>sources/components/modelModeOptions.ts</code></td>
-      <td>CLI_VERSION_WITH_AUTO, filterPermissionModesForCli, findOptionByKey, getAdvertisedDefaultOptionKey, getAgyModelModes, getAgyPermissionModes, getAvailableModels, getAvailablePermissionModes, getClaudeEffortLevels, getClaudeModelModes, getClaudePermissionModes, getCodexEffortLevels, getCodexModelModes, getCodexPermissionModes, getDefaultEffortKey, getDefaultEffortKeyForModel, getDefaultModelKey, getDefaultPermissionModeKey, getEffortLevelsForModel, getGeminiModelModes, getGeminiPermissionModes, getHardcodedEffortLevels, getHardcodedModelModes, getHardcodedPermissionModes, getMachineAdvertisedEffortLevels, getMachineAdvertisedModels, getMachineAdvertisedPermissionModes, getRigCurrentModelOptionKey, getSessionAvailableModels, getSessionAvailablePermissionModes, getSessionEffortLevelsForModel, getSupportsWorktree, hasMachineCapabilityCatalog, includeConfiguredModel, mapMetadataOptions, modeSupportedByCli, permissionModeSupportedByCli, resolveCurrentOption</td>
+      <td>CLI_VERSION_WITH_AUTO, filterPermissionModesForCli, findOptionByKey, getAdvertisedDefaultOptionKey, getAgyEffortLevels, getAgyModelModes, getAgyPermissionModes, getAvailableModels, getAvailablePermissionModes, getClaudeEffortLevels, getClaudeModelModes, getClaudePermissionModes, getCodexEffortLevels, getCodexModelModes, getCodexPermissionModes, getDefaultEffortKey, getDefaultEffortKeyForModel, getDefaultModelKey, getDefaultPermissionModeKey, getEffortLevelsForModel, getGeminiModelModes, getGeminiPermissionModes, getHardcodedEffortLevels, getHardcodedModelModes, getHardcodedPermissionModes, getMachineAdvertisedEffortLevels, getMachineAdvertisedModels, getMachineAdvertisedPermissionModes, getRigCurrentModelOptionKey, getSessionAvailableModels, getSessionAvailablePermissionModes, getSessionEffortLevelsForModel, getSupportsWorktree, groupModelModesByProvider, hasMachineCapabilityCatalog, includeConfiguredModel, mapMetadataOptions, modeSupportedByCli, permissionModeSupportedByCli, resolveCurrentOption</td>
       <td>22</td>
       <td>—</td>
     </tr>
@@ -1541,15 +1590,8 @@
     </tr>
     <tr>
       <td>component</td>
-      <td><code>sources/components/ToolGroupView.tsx</code></td>
-      <td>AgentWorkGroupView, ToolGroupView</td>
-      <td>1</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td>component</td>
       <td><code>sources/components/tools/knownTools.tsx</code></td>
-      <td>isMutableTool, knownTools</td>
+      <td>getToolCategoryIcon, isMutableTool, knownTools</td>
       <td>34</td>
       <td>—</td>
     </tr>
@@ -1640,15 +1682,15 @@
     <tr>
       <td>component</td>
       <td><code>sources/components/tools/views/CodexDiffView.tsx</code></td>
-      <td>CodexDiffView</td>
+      <td>CodexDiffView, CodexDiffViewFull</td>
       <td>0</td>
       <td>—</td>
     </tr>
     <tr>
       <td>component</td>
       <td><code>sources/components/tools/views/CodexPatchView.tsx</code></td>
-      <td>CodexPatchView</td>
-      <td>1</td>
+      <td>CodexPatchView, CodexPatchViewFull</td>
+      <td>4</td>
       <td>—</td>
     </tr>
     <tr>
@@ -1839,13 +1881,6 @@
       <td>useConnectTerminal</td>
       <td>7</td>
       <td>error</td>
-    </tr>
-    <tr>
-      <td>ui-module</td>
-      <td><code>sources/hooks/useGroupedMessages.ts</code></td>
-      <td>formatWorkDuration, generateGroupSummary, groupMessagesForDisplay, groupToolCallsForDisplay, useGroupedMessages</td>
-      <td>7</td>
-      <td>—</td>
     </tr>
     <tr>
       <td>ui-module</td>

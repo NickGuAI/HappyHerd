@@ -61,6 +61,7 @@ import {
     getMachineAdvertisedModels,
     getMachineAdvertisedPermissionModes,
     getSupportsWorktree,
+    groupModelModesByProvider,
     type ModeOption,
 } from './modelModeOptions';
 import type { NewSessionAgentType } from '@/sync/persistence';
@@ -508,6 +509,14 @@ const styles = StyleSheet.create((theme) => ({
     optionList: {
         flexGrow: 0,
     },
+    optionSectionTitle: {
+        color: theme.colors.textSecondary,
+        fontSize: 12,
+        paddingHorizontal: 8,
+        paddingTop: 8,
+        paddingBottom: 4,
+        ...Typography.default('semiBold'),
+    },
     option: {
         minHeight: 48,
         flexDirection: 'row',
@@ -682,9 +691,8 @@ export const HomeDock = React.memo(({
     const [isFocused, setIsFocused] = React.useState(false);
     const [focusModeVisible, setFocusModeVisible] = React.useState(false);
     const [focusedInputContentHeight, setFocusedInputContentHeight] = React.useState(0);
-    // Expo's Compose bridge can freeze a DropdownMenu trigger at 0x0 when it
-    // composes before React Native measures its child. Keep iOS/web unchanged,
-    // and use an in-modal React Native picker only on Android.
+    // iOS supplies a native settings menu. Web uses the in-modal picker, as
+    // does Android where the Compose trigger can measure at 0x0.
     const useNativeMenus = shouldUseNativeHomeDockMenus(Platform.OS);
     const [sheetPage, setSheetPage] = React.useState<PickerPage | null>(null);
     const expImageUpload = useSetting('expImageUpload');
@@ -988,9 +996,9 @@ export const HomeDock = React.memo(({
     const modelOptions = React.useMemo(
         () => rigCreation?.models
             ?? (machineCatalog
-                ? getMachineAdvertisedModels(selectedMachine?.metadata, agentType, t)
+                ? getMachineAdvertisedModels(selectedMachine?.metadata, agentType, t, modelMode ?? defaults.modelMode)
                 : getHardcodedModelModes(agentType, t)),
-        [agentType, machineCatalog, rigCreation, selectedMachine?.metadata],
+        [agentType, machineCatalog, rigCreation, selectedMachine?.metadata, modelMode, defaults.modelMode],
     );
     const currentPermission = agentType === 'grok' || agentType === 'dsh' || agentType === 'rig'
         ? resolveOption(permissionOptions, [
@@ -1484,19 +1492,26 @@ export const HomeDock = React.memo(({
         return { title: t('agentInput.effort.title'), options: effortOptions, selectedKey: currentEffort?.key, onSelect: selectEffort };
     };
 
-    const agentSettingsGroups: NativeSettingsMenuGroup[] = agentRows.map((row) => {
+    const agentSettingsGroups: NativeSettingsMenuGroup[] = agentRows.flatMap((row) => {
         const config = getAgentPickerConfig(row.page as AgentSetting);
-        return {
-            key: row.page,
+        const sections = row.page === 'model'
+            ? groupModelModesByProvider(modelOptions).map((providerGroup) => ({
+                key: `model:${providerGroup.key}`,
+                title: providerGroup.title ?? config.title,
+                options: providerGroup.models,
+            }))
+            : [{ key: row.page, title: config.title, options: config.options }];
+        return sections.map((section) => ({
+            key: section.key,
             label: row.value || config.title,
-            title: config.title,
+            title: section.title,
             systemImage: {
                 agent: 'cpu',
                 model: 'cube',
                 permission: 'shield',
                 effort: 'bolt',
             }[row.page],
-            options: config.options.map((option) => ({
+            options: section.options.map((option) => ({
                 key: option.key,
                 // The permission menu spells the mode out; only its chip is
                 // short on space. Model and effort read fine on their own.
@@ -1505,9 +1520,9 @@ export const HomeDock = React.memo(({
             })),
             selectedKey: config.selectedKey,
             onSelect: config.onSelect,
-        };
+        }));
     });
-    const modelSettingsGroup = agentSettingsGroups.find((group) => group.key === 'model');
+    const modelSettingsGroups = agentSettingsGroups.filter((group) => group.key.startsWith('model:'));
     const effortSettingsGroup = agentSettingsGroups.find((group) => group.key === 'effort');
     const permissionSettingsGroup = agentSettingsGroups.find((group) => group.key === 'permission');
 
@@ -1679,6 +1694,13 @@ export const HomeDock = React.memo(({
     // Only reached with a page selected: `sheetVisible` gates the whole sheet.
     const renderSettingsSheet = (page: PickerPage) => {
         const config = getPickerConfig(page);
+        const optionSections = page === 'model'
+            ? groupModelModesByProvider(modelOptions).map((providerGroup) => ({
+                key: providerGroup.key,
+                title: providerGroup.title,
+                options: providerGroup.models,
+            }))
+            : [{ key: page, title: null, options: config.options }];
         return (
             <View style={styles.settingsStack}>
                 <MobileGlassSurface
@@ -1701,10 +1723,15 @@ export const HomeDock = React.memo(({
                         </Text>
                     </View>
                     <ScrollView style={styles.optionList} keyboardShouldPersistTaps="always">
-                        {config.options.map((option) => {
-                            const selectable = isHomeDockOptionSelectable(option.disabled);
-                            const selected = option.key === config.selectedKey;
-                            return (
+                        {optionSections.map((section) => (
+                            <React.Fragment key={section.key}>
+                                {section.title ? (
+                                    <Text style={styles.optionSectionTitle}>{section.title}</Text>
+                                ) : null}
+                                {section.options.map((option) => {
+                                    const selectable = isHomeDockOptionSelectable(option.disabled);
+                                    const selected = option.key === config.selectedKey;
+                                    return (
                                 <Pressable
                                     key={option.key}
                                     disabled={!selectable}
@@ -1735,8 +1762,10 @@ export const HomeDock = React.memo(({
                                         )}
                                     </View>
                                 </Pressable>
-                            );
-                        })}
+                                    );
+                                })}
+                            </React.Fragment>
+                        ))}
                     </ScrollView>
                 </MobileGlassSurface>
             </View>
@@ -1979,11 +2008,10 @@ export const HomeDock = React.memo(({
                         {/* Pushes model/effort right so the pair sits against the
                             send button instead of drifting when a label changes. */}
                         <View style={{ flex: 1 }} />
-                        {modelSettingsGroup ? (
+                        {modelSettingsGroups.length > 0 ? (
                             renderMenuControl({
                                 page: 'model',
-                                groups: [modelSettingsGroup],
-                                flat: true,
+                                groups: modelSettingsGroups,
                                 style: styles.nativeModeMenu,
                                 accessibilityLabel: t('agentInput.model.title'),
                                 triggerLabel: currentModel?.name ?? currentAgent.name,

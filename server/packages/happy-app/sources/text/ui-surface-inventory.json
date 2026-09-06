@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/generate-ui-surface-inventory.mjs",
-  "sourceFingerprint": "938a2d011ec57e59564caaf6e03c5bfa7fc948be690e54748cb3e6a9433b8c41",
+  "sourceFingerprint": "40027dc91969e54acc4a87bdf95393ad637a413cd0f665d38c1f51e2ef0cc666",
   "routeCount": 36,
-  "surfaceCount": 257,
+  "surfaceCount": 262,
   "hardcodedCopyCount": 0,
   "routes": [
     {
@@ -2478,6 +2478,20 @@
       "hardcodedCopy": []
     },
     {
+      "owner": "sources/components/AgentWorkGroupHeader.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "AgentWorkGroupHeader"
+      ],
+      "translationKeys": [
+        "toolGroup.hide",
+        "toolGroup.workedFor"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
       "owner": "sources/components/AllFilesDiffView.tsx",
       "kind": "component",
       "route": null,
@@ -2485,12 +2499,12 @@
         "AllFilesDiffView"
       ],
       "translationKeys": [
+        "diff.ignoreWhitespace",
         "files.changedFiles",
+        "files.failedToRead",
         "files.noChanges",
         "settingsAppearance.diffStyleOptions.split",
-        "settingsAppearance.diffStyleOptions.unified",
-        "uiCopy.deleted",
-        "uiCopy.new"
+        "settingsAppearance.diffStyleOptions.unified"
       ],
       "states": [],
       "hardcodedCopy": []
@@ -2650,7 +2664,8 @@
       "kind": "component",
       "route": null,
       "exports": [
-        "ChatList"
+        "ChatList",
+        "windowEndForTurn"
       ],
       "translationKeys": [
         "uiCopy.jumpToLatest",
@@ -2909,6 +2924,90 @@
         "files.resizeWorkspace",
         "workspace.title"
       ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/diff/DiffChunk.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "DiffChunk"
+      ],
+      "translationKeys": [],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/diff/DiffFileHeader.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "DiffFileHeader"
+      ],
+      "translationKeys": [
+        "diff.renamed",
+        "uiCopy.deleted",
+        "uiCopy.new"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/diff/DiffFilesList.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "DiffFilesList"
+      ],
+      "translationKeys": [
+        "diff.noChanges",
+        "diff.tapToExpand"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/diff/DiffFileView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "DiffFileView"
+      ],
+      "translationKeys": [
+        "diff.binaryFile",
+        "diff.noChanges",
+        "diff.showMoreLines",
+        "diff.unchangedLines"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/diff/DiffImageView.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "DiffImageView"
+      ],
+      "translationKeys": [
+        "diff.binaryFile",
+        "diff.imageAfter",
+        "diff.imageBefore"
+      ],
+      "states": [],
+      "hardcodedCopy": []
+    },
+    {
+      "owner": "sources/components/diff/DiffMetrics.tsx",
+      "kind": "component",
+      "route": null,
+      "exports": [
+        "DEFAULT_DIFF_FONT_SIZE",
+        "MonoProbe",
+        "useDiffMetrics"
+      ],
+      "translationKeys": [],
       "states": [],
       "hardcodedCopy": []
     },
@@ -3477,6 +3576,7 @@
         "InlineFileDiff"
       ],
       "translationKeys": [
+        "files.failedToRead",
         "files.noChanges",
         "settingsAppearance.diffStyleOptions.split",
         "settingsAppearance.diffStyleOptions.unified"
@@ -3798,6 +3898,7 @@
         "filterPermissionModesForCli",
         "findOptionByKey",
         "getAdvertisedDefaultOptionKey",
+        "getAgyEffortLevels",
         "getAgyModelModes",
         "getAgyPermissionModes",
         "getAvailableModels",
@@ -3826,6 +3927,7 @@
         "getSessionAvailablePermissionModes",
         "getSessionEffortLevelsForModel",
         "getSupportsWorktree",
+        "groupModelModesByProvider",
         "hasMachineCapabilityCatalog",
         "includeConfiguredModel",
         "mapMetadataOptions",
@@ -4648,24 +4750,11 @@
       "hardcodedCopy": []
     },
     {
-      "owner": "sources/components/ToolGroupView.tsx",
-      "kind": "component",
-      "route": null,
-      "exports": [
-        "AgentWorkGroupView",
-        "ToolGroupView"
-      ],
-      "translationKeys": [
-        "toolGroup.workedFor"
-      ],
-      "states": [],
-      "hardcodedCopy": []
-    },
-    {
       "owner": "sources/components/tools/knownTools.tsx",
       "kind": "component",
       "route": null,
       "exports": [
+        "getToolCategoryIcon",
         "isMutableTool",
         "knownTools"
       ],
@@ -4872,7 +4961,8 @@
       "kind": "component",
       "route": null,
       "exports": [
-        "CodexDiffView"
+        "CodexDiffView",
+        "CodexDiffViewFull"
       ],
       "translationKeys": [],
       "states": [],
@@ -4883,10 +4973,14 @@
       "kind": "component",
       "route": null,
       "exports": [
-        "CodexPatchView"
+        "CodexPatchView",
+        "CodexPatchViewFull"
       ],
       "translationKeys": [
-        "toolGroup.editedFile"
+        "diff.renamed",
+        "toolGroup.edited",
+        "uiCopy.deleted",
+        "uiCopy.new"
       ],
       "states": [],
       "hardcodedCopy": []
@@ -5292,29 +5386,6 @@
       "states": [
         "error"
       ],
-      "hardcodedCopy": []
-    },
-    {
-      "owner": "sources/hooks/useGroupedMessages.ts",
-      "kind": "ui-module",
-      "route": null,
-      "exports": [
-        "formatWorkDuration",
-        "generateGroupSummary",
-        "groupMessagesForDisplay",
-        "groupToolCallsForDisplay",
-        "useGroupedMessages"
-      ],
-      "translationKeys": [
-        "toolGroup.editedFiles",
-        "toolGroup.fetchedUrls",
-        "toolGroup.ranCommands",
-        "toolGroup.ranTasks",
-        "toolGroup.readFiles",
-        "toolGroup.searched",
-        "toolGroup.usedTools"
-      ],
-      "states": [],
       "hardcodedCopy": []
     },
     {
@@ -5852,12 +5923,12 @@
         "shouldUseCompactToolRow"
       ],
       "translationKeys": [
-        "toolGroup.editedFiles",
-        "toolGroup.fetchedUrls",
-        "toolGroup.ranCommands",
-        "toolGroup.ranTasks",
-        "toolGroup.readFiles",
-        "toolGroup.searched"
+        "toolGroup.edited",
+        "toolGroup.fetched",
+        "toolGroup.ran",
+        "toolGroup.ranTask",
+        "toolGroup.read",
+        "toolGroup.searchedAction"
       ],
       "states": [],
       "hardcodedCopy": []

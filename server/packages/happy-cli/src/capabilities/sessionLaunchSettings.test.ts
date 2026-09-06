@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { buildBaselineAgentCapabilities } from './agentCapabilities';
 import type { MachineMetadata } from '@/api/types';
 import { persistedProviderPermissionMode, resolveEffectiveSessionSettings } from './sessionLaunchSettings';
 
@@ -46,6 +47,27 @@ function metadata(): MachineMetadata {
 }
 
 describe('resolveEffectiveSessionSettings', () => {
+    it('validates Antigravity effort against the exact selected logical model', () => {
+        const target = metadata();
+        const availability = { claude: false, codex: false, gemini: false, grok: false, dsh: false, agy: true, detectedAt: 1 };
+        target.cliAvailability = availability;
+        target.agentCapabilities = buildBaselineAgentCapabilities(availability);
+        expect(resolveEffectiveSessionSettings(target, 'machine-1', { provider: 'agy' })).toEqual({
+            provider: 'agy', model: 'Gemini 3.8 Flash', effort: 'medium', permission: 'default',
+        });
+        for (const effort of ['low', 'medium', 'high']) {
+            expect(resolveEffectiveSessionSettings(target, 'machine-1', {
+                provider: 'agy', model: 'Gemini 3.8 Flash', effort,
+            }).effort).toBe(effort);
+        }
+        expect(() => resolveEffectiveSessionSettings(target, 'machine-1', {
+            provider: 'agy', model: 'Claude Opus 4.6 (Thinking)', effort: 'high',
+        })).toThrow('does not support an explicit effort');
+        expect(() => resolveEffectiveSessionSettings(target, 'machine-1', {
+            provider: 'agy', model: 'Gemini 3.6 Flash (High)',
+        })).toThrow('does not advertise model');
+    });
+
     it('reads permission policy only from a provider-matching persisted launch receipt', () => {
         expect(persistedProviderPermissionMode({
             spawnSettings: {

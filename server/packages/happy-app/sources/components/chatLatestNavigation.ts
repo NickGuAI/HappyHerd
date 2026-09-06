@@ -1,5 +1,7 @@
 import type { Message } from '@/sync/typesMessage';
-import type { DisplayItem } from '@/hooks/useGroupedMessages';
+import type { TextItem } from '@/hooks/useGroupedMessages';
+
+type FocusListItem = TextItem | { type: string; id: string };
 
 export type MessageFocusTarget = {
     index: number | null;
@@ -15,14 +17,14 @@ export function shouldFollowLatestForMessageFocus(target: MessageFocusTarget): b
 
 export function getChatListMaintainVisibleContentPosition(
     exactMessageFocusAnchored: boolean,
-): { minIndexForVisible: number; autoscrollToTopThreshold?: number } {
+): { autoscrollToTopThreshold?: number } {
     // In an inverted list this threshold means “follow the visual bottom.”
     // Omit it while an explicit receipt is anchored, including when that row
     // is currently index 0, so a concurrent row cannot replace the receipt as
-    // the effective focus. Keep the stable post-token row as native anchor.
+    // the effective focus. FlashList retains its normal visible-content anchor.
     return exactMessageFocusAnchored
-        ? { minIndexForVisible: 1 }
-        : { minIndexForVisible: 1, autoscrollToTopThreshold: 50 };
+        ? {}
+        : { autoscrollToTopThreshold: 200 };
 }
 
 export type MessageFocusScrollRetryState = {
@@ -66,15 +68,15 @@ export function planMessageFocusScrollRetry(input: {
     };
 }
 
-function displayItemMatchesMessage(item: DisplayItem, messageId: string): boolean {
-    return item.type === 'message' && (
+function displayItemMatchesMessage(item: FocusListItem, messageId: string): boolean {
+    return item.type === 'message' && 'message' in item && (
         item.message.id === messageId
         || ('localId' in item.message && item.message.localId === messageId)
     );
 }
 
-function isVisibleConversationItem(item: DisplayItem): boolean {
-    if (item.type !== 'message') return false;
+function isVisibleConversationItem(item: FocusListItem): boolean {
+    if (item.type !== 'message' || !('message' in item)) return false;
     if (item.message.kind === 'user-text') return true;
     return item.message.kind === 'agent-text'
         && !item.message.isThinking
@@ -82,7 +84,7 @@ function isVisibleConversationItem(item: DisplayItem): boolean {
 }
 
 export function resolveMessageFocusTarget(
-    displayItems: readonly DisplayItem[],
+    displayItems: readonly FocusListItem[],
     messageId: string,
 ): MessageFocusTarget {
     const index = displayItems.findIndex((item) => displayItemMatchesMessage(item, messageId));

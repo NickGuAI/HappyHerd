@@ -2,6 +2,7 @@ import spawn from 'cross-spawn';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { Options as ClaudeSdkOptions } from '@anthropic-ai/claude-agent-sdk';
 import { HAPPYHERD_CLAUDE_MODEL_SLUGS } from '@slopus/happy-wire';
 import { parseDocument } from 'yaml';
 
@@ -15,7 +16,7 @@ import { logger } from '@/ui/logger';
 import { AcpBackend } from '@/agent/acp/AcpBackend';
 import { DefaultTransport } from '@/agent/transport';
 import { KNOWN_ACP_AGENTS, sanitizeGrokChildEnvironment } from '@/agent/acp/acpAgentConfig';
-import { AGY_MODELS, DEFAULT_AGY_MODEL } from '@/agy/constants';
+import { AGY_MODELS, AGY_EFFORTS, DEFAULT_AGY_MODEL, DEFAULT_AGY_EFFORT } from '@/agy/constants';
 import type { InitializeResponse, SessionConfigOption } from '@agentclientprotocol/sdk';
 
 type CapabilityOption = AgentCapabilityCatalog['models'][number];
@@ -149,6 +150,8 @@ export function parseClaudeHelp(help: string): {
     };
 }
 
+const CLAUDE_SDK_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const satisfies readonly NonNullable<ClaudeSdkOptions['effort']>[];
+
 export function buildClaudeCapabilityCatalog(
     help: string,
     detectedAt: number,
@@ -157,7 +160,8 @@ export function buildClaudeCapabilityCatalog(
     const parsed = parseClaudeHelp(help);
     const efforts = (parsed.effortLevels.length > 0
         ? parsed.effortLevels
-        : uniqueOptions(['low', 'medium', 'high', 'xhigh', 'max']))
+        : uniqueOptions([...CLAUDE_SDK_EFFORTS]))
+        .filter((entry) => CLAUDE_SDK_EFFORTS.some((effort) => effort === entry.code))
         .map((entry) => ({ ...entry, isDefault: entry.code === 'max' }));
     const permissions = parsed.permissionModes.length > 0
         ? parsed.permissionModes
@@ -812,13 +816,13 @@ export function buildBaselineAgentCapabilities(availability: CLIAvailability): C
         result.agy = {
             detectedAt,
             providerVersion: readVersion('agy'),
-            sources: { models: 'daemon-defaults', effortLevels: 'model-name', permissionModes: 'happyherd-launch-profile' },
-            models: AGY_MODELS.map((model) => option(
-                model,
-                model,
-                undefined,
-                model === DEFAULT_AGY_MODEL,
-            )),
+            sources: { models: 'happyherd-release-catalog', effortLevels: 'model-name', permissionModes: 'happyherd-launch-profile' },
+            models: AGY_MODELS.map((model) => ({
+                ...option(model, model, undefined, model === DEFAULT_AGY_MODEL),
+                effortLevels: model === DEFAULT_AGY_MODEL
+                    ? AGY_EFFORTS.map((effort) => option(effort, effort, undefined, effort === DEFAULT_AGY_EFFORT))
+                    : [],
+            })),
             effortLevels: [],
             permissionModes: [option('default'), option('bypassPermissions', 'bypass permissions')],
         };

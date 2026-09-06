@@ -180,6 +180,7 @@ describe('agent capability discovery', () => {
         expect(catalog.sources.models).toBe('happyherd-release-catalog');
         expect(catalog.models.map((model) => model.code)).toEqual([
             'default',
+            'claude-fable-5-1',
             'claude-fable-5',
             'claude-opus-5',
             'claude-opus-5[1m]',
@@ -200,6 +201,12 @@ describe('agent capability discovery', () => {
         expect(catalog.effortLevels.filter((effort) => effort.isDefault)).toEqual([
             expect.objectContaining({ code: 'max' }),
         ]);
+    });
+
+    it('advertises only Claude effort values representable by the SDK', () => {
+        const catalog = buildClaudeCapabilityCatalog('--effort <level> (low, medium, high, xhigh, max, ultra)', 1);
+        expect(catalog.effortLevels.map((effort) => effort.code)).toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
+        expect(catalog.models.some((model) => model.code === 'claude-fable-5-1')).toBe(true);
     });
 
     it('accepts a new Codex model without a Web release', async () => {
@@ -298,7 +305,14 @@ describe('agent capability discovery', () => {
         });
 
         expect(capabilities.agy.models.filter((model) => model.isDefault)).toEqual([
-            expect.objectContaining({ code: 'Gemini 3.1 Pro (High)' }),
+            expect.objectContaining({
+                code: 'Gemini 3.8 Flash',
+                effortLevels: [
+                    expect.objectContaining({ code: 'low', isDefault: false }),
+                    expect.objectContaining({ code: 'medium', isDefault: true }),
+                    expect.objectContaining({ code: 'high', isDefault: false }),
+                ],
+            }),
         ]);
     });
 

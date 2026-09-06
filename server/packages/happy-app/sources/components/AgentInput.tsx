@@ -13,7 +13,7 @@ import { layout } from './layout';
 import { MultiTextInput, KeyPressEvent } from './MultiTextInput';
 import { Typography } from '@/constants/Typography';
 import { PermissionMode, ModelMode } from './PermissionModeSelector';
-import { EffortLevel } from './modelModeOptions';
+import { EffortLevel, groupModelModesByProvider } from './modelModeOptions';
 import { hapticsLight, hapticsError } from './haptics';
 import { Shaker, ShakeInstance } from './Shaker';
 import { StatusDot } from './StatusDot';
@@ -943,6 +943,10 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         hackModes(props.availableModes ?? [])
     ), [props.availableModes]);
     const availableModels = props.availableModels ?? [];
+    const availableModelProviderGroups = React.useMemo(
+        () => groupModelModesByProvider(availableModels),
+        [availableModels],
+    );
     const availableEffortLevels = props.availableEffortLevels ?? [];
     const modelLabel = props.modelMode?.name ?? t('agentInput.model.title');
     const effortLabel = props.effortLevel?.name;
@@ -1407,20 +1411,20 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
     const modelSettingsGroups = React.useMemo<NativeSettingsMenuGroup[]>(() => {
         const groups: NativeSettingsMenuGroup[] = [];
         if (availableModels.length > 0 && props.onModelModeChange) {
-            groups.push({
-                key: 'model',
+            groups.push(...groupModelModesByProvider(availableModels).map((providerGroup) => ({
+                key: `model:${providerGroup.key}`,
                 label: props.modelMode?.name ?? t('agentInput.model.title'),
-                title: t('agentInput.model.title'),
+                title: providerGroup.title ?? t('agentInput.model.title'),
                 systemImage: 'cube',
-                options: availableModels.map((model) => ({ key: model.key, label: model.name, disabled: model.disabled })),
+                options: providerGroup.models.map((model) => ({ key: model.key, label: model.name, disabled: model.disabled })),
                 selectedKey: props.modelMode?.key,
-                onSelect: (key) => {
-                    const model = availableModels.find((candidate) => candidate.key === key);
+                onSelect: (key: string) => {
+                    const model = providerGroup.models.find((candidate) => candidate.key === key);
                     if (!model) return;
                     hapticsLight();
                     props.onModelModeChange?.(model);
                 },
-            });
+            })));
         }
         if (availableEffortLevels.length > 0 && props.onEffortLevelChange) {
             groups.push({
@@ -1441,10 +1445,10 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         return groups;
     }, [availableEffortLevels, availableModels, props.effortLevel?.key, props.modelMode?.key, props.onEffortLevelChange, props.onModelModeChange]);
 
-    const modelSettingsGroup = modelSettingsGroups.find((group) => group.key === 'model');
+    const modelProviderSettingsGroups = modelSettingsGroups.filter((group) => group.key.startsWith('model:'));
     const effortSettingsGroup = modelSettingsGroups.find((group) => group.key === 'effort');
     const showPermissionSettingsSection = !webActionMenu || permissionSettingsGroups.length > 0;
-    const showModelSettingsSection = !webActionMenu || Boolean(modelSettingsGroup);
+    const showModelSettingsSection = !webActionMenu || modelProviderSettingsGroups.length > 0;
     const showEffortSettingsSection = Boolean(effortSettingsGroup);
 
     const webComposerActions = React.useMemo(() => {
@@ -1871,16 +1875,22 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
         label: string,
         description: string | null | undefined,
         onPress: () => void,
+        disabled = false,
     ) => (
         <Pressable
             key={key}
-            onPress={onPress}
+            accessibilityRole="button"
+            accessibilityLabel={label}
+            accessibilityState={{ disabled, selected }}
+            disabled={disabled}
+            onPress={disabled ? undefined : onPress}
             style={({ pressed }) => ({
                 flexDirection: 'row',
                 alignItems: 'flex-start',
                 paddingHorizontal: 16,
                 paddingVertical: 8,
                 backgroundColor: pressed ? theme.colors.surfacePressed : 'transparent',
+                opacity: disabled ? 0.5 : 1,
             })}
         >
             <View style={{
@@ -1969,16 +1979,22 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     }}>
                                         {t('agentInput.model.title')}
                                     </Text>
-                                    {availableModels.length > 0 ? availableModels.map((model) => renderDesktopPickerOption(
-                                        model.key,
-                                        props.modelMode?.key === model.key,
-                                        model.name,
-                                        model.description,
-                                        () => {
-                                            hapticsLight();
-                                            props.onModelModeChange?.(model);
-                                            closePicker();
-                                        },
+                                    {availableModels.length > 0 ? availableModelProviderGroups.map((group) => (
+                                        <View key={group.key}>
+                                            {group.title && <Text style={styles.overlaySectionTitle}>{group.title}</Text>}
+                                            {group.models.map((model) => renderDesktopPickerOption(
+                                                model.key,
+                                                props.modelMode?.key === model.key,
+                                                model.name,
+                                                model.description,
+                                                () => {
+                                                    hapticsLight();
+                                                    props.onModelModeChange?.(model);
+                                                    closePicker();
+                                                },
+                                                model.disabled || model.unavailable,
+                                            ))}
+                                        </View>
                                     )) : (
                                         <Text style={{
                                             fontSize: 13,
@@ -2232,12 +2248,15 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     <>
                                         {openPicker === 'model' && (
                                         <View style={styles.overlaySection}>
-                                            <Text style={styles.overlaySectionTitle}>
-                                                {props.modelMode?.name ?? t('agentInput.model.title')}
-                                            </Text>
-                                            {availableModels.length > 0 ? availableModels.map((model) => {
-                                                const isSelected = props.modelMode?.key === model.key;
-                                                return (
+                                            <Text style={styles.overlaySectionTitle}>{t('agentInput.model.title')}</Text>
+                                            {availableModels.length > 0 ? availableModelProviderGroups.map((providerGroup) => (
+                                                <View key={providerGroup.key}>
+                                                    {providerGroup.title ? (
+                                                        <Text style={styles.overlaySectionTitle}>{providerGroup.title}</Text>
+                                                    ) : null}
+                                                    {providerGroup.models.map((model) => {
+                                                        const isSelected = props.modelMode?.key === model.key;
+                                                        return (
                                                     <BubblePressable
                                                         key={model.key}
                                                         disabled={!props.onModelModeChange || model.disabled}
@@ -2311,8 +2330,10 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                                             )}
                                                         </View>
                                                     </BubblePressable>
-                                                );
-                                            }) : (
+                                                        );
+                                                    })}
+                                                </View>
+                                            )) : (
                                                 <Text style={{
                                                     fontSize: 13,
                                                     color: theme.colors.textSecondary,
@@ -2560,11 +2581,10 @@ export const AgentInput = React.memo(React.forwardRef<MultiTextInputHandle, Agen
                                     sits against the send button and the pair does
                                     not drift when either label changes width. */}
                                 <View style={{ flex: 1 }} />
-                                {useNativeSettingsMenus && modelSettingsGroup ? (
+                                {useNativeSettingsMenus && modelProviderSettingsGroups.length > 0 ? (
                                     <NativeSettingsMenu
                                         accessibilityLabel={t('agentInput.model.title')}
-                                        groups={[modelSettingsGroup]}
-                                        flat
+                                        groups={modelProviderSettingsGroups}
                                         triggerLabel={modelLabel}
                                         triggerAlignment="trailing"
                                         style={styles.mobileModelMenuFrame}

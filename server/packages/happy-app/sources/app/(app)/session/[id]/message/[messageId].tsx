@@ -30,7 +30,7 @@ const stylesheet = StyleSheet.create((theme) => ({
 }));
 
 export default React.memo(() => {
-    const { id: sessionId, messageId } = useLocalSearchParams<{ id: string; messageId: string }>();
+    const { id: sessionId, messageId, file } = useLocalSearchParams<{ id: string; messageId: string; file?: string }>();
     const router = useRouter();
     const session = useSession(sessionId!);
     const { isLoaded: messagesLoaded } = useSessionMessages(sessionId!);
@@ -91,18 +91,18 @@ export default React.memo(() => {
                 />
             )}
             <Deferred>
-                <FullView message={message} sessionId={sessionId!} metadata={session.metadata} />
+                <FullView message={message} sessionId={sessionId!} metadata={session.metadata} focusFile={file} />
             </Deferred>
         </>
     );
 });
 
-function FullView(props: { message: Message; sessionId: string; metadata: NonNullable<ReturnType<typeof useSession>>['metadata'] }) {
+function FullView(props: { message: Message; sessionId: string; metadata: NonNullable<ReturnType<typeof useSession>>['metadata']; focusFile?: string }) {
     const { theme } = useUnistyles();
     const styles = stylesheet;
     
     if (props.message.kind === 'tool-call') {
-        return <ToolFullView tool={props.message.tool} messages={props.message.children} sessionId={props.sessionId} metadata={props.metadata} />
+        return <ToolFullView tool={props.message.tool} messages={props.message.children} sessionId={props.sessionId} metadata={props.metadata} focusFile={props.focusFile} />
     }
     if (props.message.kind === 'agent-text') {
         return (

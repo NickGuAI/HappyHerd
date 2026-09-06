@@ -94,13 +94,13 @@ export function resolveMessageModeMeta(
         return mode;
     };
 
-    // Codex app-server turns need all three effective values on every message.
+    // Codex and Agy turns need their effective selection on every message.
     // An abort temporarily resets the CLI to its launch policy, so omitting the
     // values after the app clears local overrides could make the visible
     // defaults execute as a different permission, model, or effort.
-    if (flavor === 'codex') {
+    if (flavor === 'codex' || flavor === 'agy') {
         const defaults = resolveAgentDefaultConfig(settings?.agentDefaultOverrides, flavor);
-        const launchSettings = session.metadata?.spawnSettings?.provider === 'codex'
+        const launchSettings = session.metadata?.spawnSettings?.provider === flavor
             ? session.metadata.spawnSettings
             : undefined;
         const permissionMode = assertSupportedPermissionMode(

@@ -55,11 +55,8 @@ describe('resolveMessageFocusTarget', () => {
     it('falls back to latest when the target is absent or collapsed', () => {
         expect(resolveMessageFocusTarget([
             {
-                type: 'tool-group',
+                type: 'work-header',
                 id: 'group',
-                messages: [],
-                hasRunning: false,
-                hasPendingPermission: false,
             },
         ], 'hidden-message')).toEqual({ index: null, newerConversationCount: 0 });
     });
@@ -99,14 +96,13 @@ describe('shouldFollowLatestForMessageFocus', () => {
 describe('getChatListMaintainVisibleContentPosition', () => {
     it('disables native follow-latest without removing the stable visible-row anchor during exact focus', () => {
         const config = getChatListMaintainVisibleContentPosition(true);
-        expect(config).toEqual({ minIndexForVisible: 1 });
+        expect(config).toEqual({});
         expect('autoscrollToTopThreshold' in config).toBe(false);
     });
 
     it('restores native follow-latest after the exact focus is released', () => {
         expect(getChatListMaintainVisibleContentPosition(false)).toEqual({
-            minIndexForVisible: 1,
-            autoscrollToTopThreshold: 50,
+            autoscrollToTopThreshold: 200,
         });
     });
 });

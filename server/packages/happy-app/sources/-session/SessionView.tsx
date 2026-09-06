@@ -867,7 +867,6 @@ export const SessionView = React.memo((props: { id: string; focusMessageId?: str
         return () => useOverlayNav.getState().reset();
     }, [canOverlayBack, canOverlayForward, withFileDiscardConfirmation]);
 
-    // Warm Pierre's lazy web chunks while the user is still reading chat.
     React.useEffect(() => {
         prefetchPierreDiff();
     }, []);

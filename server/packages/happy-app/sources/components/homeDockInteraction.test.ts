@@ -28,10 +28,10 @@ describe('HomeDock interaction lifecycle', () => {
         expect(resolveCustomProjectPathSelection('   ', true)).toBeNull();
     });
 
-    it('routes only Android through the React Native picker', () => {
+    it('routes Android and Web through the React Native picker', () => {
         expect(shouldUseNativeHomeDockMenus('android')).toBe(false);
         expect(shouldUseNativeHomeDockMenus('ios')).toBe(true);
-        expect(shouldUseNativeHomeDockMenus('web')).toBe(true);
+        expect(shouldUseNativeHomeDockMenus('web')).toBe(false);
     });
 
     it('reconciles a missing machine ID with the machine HomeDock displays', () => {

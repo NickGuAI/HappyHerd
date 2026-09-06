@@ -785,7 +785,14 @@
         }
       }
     },
-    "workedFor": "Funktioniert {duration}"
+    "workedFor": "Funktioniert {duration}",
+    "hide": "Ausblenden",
+    "ran": "Ausgeführt",
+    "edited": "Bearbeitet",
+    "read": "Gelesen",
+    "searchedAction": "Gesucht",
+    "fetched": "Abgerufen",
+    "ranTask": "Task ausgeführt"
   },
   "tools": {
     "fullView": {
@@ -1757,5 +1764,16 @@
     "valueRunning": "{value1} aktiv",
     "inProgressAndPending": "{value1} in Bearbeitung · {value2} ausstehend",
     "thisDevice": "Dieses Gerät"
+  },
+  "diff": {
+    "showMoreLines": "{count} weitere Zeilen anzeigen",
+    "tapToExpand": "{count} geänderte Zeilen — zum Erweitern tippen",
+    "ignoreWhitespace": "Whitespace ignorieren",
+    "imageBefore": "Vorher",
+    "imageAfter": "Nachher",
+    "unchangedLines": "{count} unverändert",
+    "noChanges": "Keine Änderungen",
+    "binaryFile": "Binärdatei nicht angezeigt",
+    "renamed": "Umbenannt"
   }
 }

@@ -18,9 +18,11 @@ const virtualModules: Record<string, string> = {
         export const useAnimatedValue = (initialValue) => React.useRef(new Animated.Value(initialValue)).current;
     `,
     'react-native-unistyles': `
+        import { lightTheme } from '${resolve(appRoot, 'sources/theme.ts')}';
         const theme = {
             dark: false,
             colors: {
+                diff: lightTheme.colors.diff,
                 text: '#111', textSecondary: '#666', divider: '#ddd', surface: '#f5f5f5',
                 textLink: '#06c', textDestructive: '#c22', warningCritical: '#c22',
                 surfaceHigh: '#eee', surfaceHighest: '#e8e8e8', surfacePressed: '#ddd', surfacePressedOverlay: 'transparent',
@@ -138,6 +140,7 @@ const virtualModules: Record<string, string> = {
         import { selectSideChatSessions } from '@/sync/sideChatSessions';
         const fixtureOptions = globalThis.__HAPPYHERD_FIXTURE_OPTIONS__ ?? {};
         const legacyClaudeContinuation = fixtureOptions.legacyClaudeContinuation === true;
+        const modelPicker = fixtureOptions.modelPicker === true;
         const dshReceipt = fixtureOptions.dshReceipt === true;
         const dshSession = fixtureOptions.dshSession === true || dshReceipt;
         const makeSession = (id, createdAt, metadata = {}, active = true) => ({
@@ -174,6 +177,14 @@ const virtualModules: Record<string, string> = {
             }),
             'other-child': makeSession('other-child', 30, { isSideChat: true, parentSessionId: 'other-parent' }),
         };
+        if (modelPicker) {
+            sessions.parent = {
+                ...sessions.parent,
+                modelMode: 'Gemini 3.6 Flash (High)',
+                permissionMode: 'default',
+                metadata: { ...sessions.parent.metadata, flavor: 'agy' },
+            };
+        }
         if (fixtureOptions.workspaceRetention) {
             sessions['child-newest'].metadata.machineId = 'machine-1';
             sessions['child-newest'].metadata.path = '/work/project';
@@ -192,7 +203,9 @@ const virtualModules: Record<string, string> = {
             zenMode: fixtureOptions.zenMode ?? false,
         };
         const settings = {
-            agentDefaultOverrides: {},
+            agentDefaultOverrides: fixtureOptions.agentSettings
+                ? { agy: { modelMode: 'Gemini 3.6 Flash (High)' } }
+                : {},
             agentInputEnterToSend: false,
             diffStyle: 'unified',
             expImageUpload: fixtureOptions.imageAttachments === true,
@@ -219,6 +232,21 @@ const virtualModules: Record<string, string> = {
             } },
             { id: 'machine-newest', active: true, metadata: { displayName: 'SideEC2', host: 'fixture-side', homeDir: '/work/child-newest', platform: 'linux', supportsFileDelete: true, cliAvailability: { claude: true, codex: true } } },
         ];
+        if (modelPicker) {
+            machines[0].metadata.cliAvailability = { claude: true, codex: true, agy: true };
+            machines[0].metadata.agentCapabilities = { agy: {
+                detectedAt: 1,
+                sources: { models: 'release-catalog', effortLevels: 'model-name', permissionModes: 'launch-profile' },
+                models: [
+                    { code: 'Gemini 3.8 Flash', value: 'Gemini 3.8 Flash', isDefault: true, effortLevels: [] },
+                    { code: 'Claude Sonnet 4.6 (Thinking)', value: 'Claude Sonnet 4.6 (Thinking)', effortLevels: [] },
+                    { code: 'Claude Opus 4.6 (Thinking)', value: 'Claude Opus 4.6 (Thinking)', effortLevels: [] },
+                    { code: 'GPT-OSS 120B (Medium)', value: 'GPT-OSS 120B (Medium)', effortLevels: [] },
+                ],
+                effortLevels: [],
+                permissionModes: [{ code: 'default', value: 'default', isDefault: true }],
+            } };
+        }
         const changedFiles = (sessionId) => ({
             stagedFiles: [],
             unstagedFiles: [{
@@ -249,6 +277,10 @@ const virtualModules: Record<string, string> = {
             getSessionPathKey: (sessionId) => sessionId,
             setCurrentViewingSession() {},
         });
+        export const __applySessionModes = (sessionId, patch) => {
+            sessions[sessionId] = { ...sessions[sessionId], ...patch };
+            emit();
+        };
         export const storage = Object.assign(() => undefined, { getState });
         export const useIsDataReady = () => true;
         export const useLocalSetting = (key) => React.useSyncExternalStore(subscribe, () => localSettings[key], () => localSettings[key]);
@@ -302,6 +334,9 @@ const virtualModules: Record<string, string> = {
         export const useSettingMutable = (key) => {
             const value = React.useSyncExternalStore(subscribe, () => settings[key], () => settings[key]);
             const setValue = React.useCallback((next) => {
+                if (fixtureOptions.agentSettings && key === 'agentDefaultOverrides') {
+                    globalThis.__MODEL_PICKER_SETTINGS_MUTATIONS__ = [...(globalThis.__MODEL_PICKER_SETTINGS_MUTATIONS__ ?? []), next];
+                }
                 settings[key] = next;
                 emit();
             }, [key]);
@@ -576,13 +611,16 @@ const virtualModules: Record<string, string> = {
     '@/components/RigActivityBar': `export const RigActivityBar = () => null;`,
     '@/components/agentGoalStatus': `export const resolveVisibleAgentGoalStatus = () => null;`,
     '@/components/modelModeOptions': `
-        export const getAdvertisedDefaultOptionKey = () => undefined;
+        import * as actual from '${resolve(here, 'modelModeOptions.ts')}';
+        const realModels = globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.modelPicker === true;
+        export const groupModelModesByProvider = actual.groupModelModesByProvider;
+        export const getAdvertisedDefaultOptionKey = (...args) => realModels ? actual.getAdvertisedDefaultOptionKey(...args) : undefined;
         export const getHardcodedModelModes = () => [];
         export const getHardcodedPermissionModes = () => [];
         export const filterPermissionModesForCli = (modes) => modes;
         export const getEffortLevelsForModel = () => [];
         export const getRigCurrentModelOptionKey = () => undefined;
-        export const getSessionAvailableModels = () => [];
+        export const getSessionAvailableModels = (...args) => realModels ? actual.getSessionAvailableModels(...args) : [];
         export const getSessionAvailablePermissionModes = (flavor, _sessionMetadata, machineMetadata) =>
             flavor === 'dsh'
                 ? (machineMetadata?.agentCapabilities?.dsh?.permissionModes ?? []).map((mode) => ({
@@ -590,34 +628,49 @@ const virtualModules: Record<string, string> = {
                 }))
                 : [];
         export const getSessionEffortLevelsForModel = () => [];
-        export const getMachineAdvertisedModels = (metadata, flavor) => (metadata?.agentCapabilities?.[flavor]?.models ?? []).map((model) => ({ key: model.code, name: model.value, isDefault: model.isDefault }));
+        export const getMachineAdvertisedModels = (...args) => realModels ? actual.getMachineAdvertisedModels(...args) : (args[0]?.agentCapabilities?.[args[1]]?.models ?? []).map((model) => ({ key: model.code, name: model.value, isDefault: model.isDefault }));
         export const getMachineAdvertisedEffortLevels = (metadata, flavor) => (metadata?.agentCapabilities?.[flavor]?.effortLevels ?? []).map((effort) => ({ key: effort.code, name: effort.value, isDefault: effort.isDefault }));
         export const getMachineAdvertisedPermissionModes = (metadata, flavor) => (metadata?.agentCapabilities?.[flavor]?.permissionModes ?? []).map((mode) => ({ key: mode.code, name: mode.value, isDefault: mode.isDefault }));
         export const getSupportsWorktree = () => false;
         export const includeConfiguredModel = (_flavor, models) => models;
-        export const resolveCurrentOption = () => null;
+        export const resolveCurrentOption = (...args) => realModels ? actual.resolveCurrentOption(...args) : null;
     `,
     '@/components/autocomplete/suggestions': `export const getSuggestions = () => [];`,
     '@/components/diff/PierreDiffView': `export const prefetchPierreDiff = () => {}; export const PierreDiffView = () => null;`,
     '@/hooks/useDraft': `export const useDraft = () => ({ clearDraft() {} });`,
     '@/hooks/useNewSessionDraft': `
+        import React from 'react';
+        const modelPicker = globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.modelPicker === true;
+        const listeners = new Set();
         const draft = {
             input: 'Inspect attachments', attachments: [], selectedMachineId: 'machine-1', selectedPath: '/work/project',
-            selectedCommanderId: null, agentType: 'dsh', permissionMode: null, modelMode: null, effortLevel: null,
+            selectedCommanderId: null, agentType: modelPicker ? 'agy' : 'dsh', permissionMode: null,
+            modelMode: modelPicker ? 'Gemini 3.6 Flash (High)' : null, effortLevel: null,
             sessionType: 'simple', worktreeKey: null,
         };
-        draft.setInput = (value) => { draft.input = value; };
-        draft.setAttachments = (value) => { draft.attachments = value; };
-        draft.setMachineId = (value) => { draft.selectedMachineId = value; };
-        draft.setPath = (value) => { draft.selectedPath = value; };
-        draft.setCommanderId = (value) => { draft.selectedCommanderId = value; };
-        draft.setAgentType = (value) => { draft.agentType = value; };
-        draft.setPermissionMode = (value) => { draft.permissionMode = value; };
-        draft.setModelMode = (value) => { draft.modelMode = value; };
-        draft.setEffortLevel = (value) => { draft.effortLevel = value; };
-        draft.setSessionType = (value) => { draft.sessionType = value; };
-        draft.setWorktreeKey = (value) => { draft.worktreeKey = value; };
-        export const useNewSessionDraft = (selector) => selector(draft);
+        for (const [setter, field] of Object.entries({
+            setInput: 'input', setAttachments: 'attachments', setMachineId: 'selectedMachineId', setPath: 'selectedPath',
+            setCommanderId: 'selectedCommanderId', setAgentType: 'agentType', setPermissionMode: 'permissionMode',
+            setModelMode: 'modelMode', setEffortLevel: 'effortLevel', setSessionType: 'sessionType', setWorktreeKey: 'worktreeKey',
+        })) {
+            draft[setter] = (value) => {
+                if (modelPicker && field === 'modelMode') {
+                    globalThis.__MODEL_PICKER_DRAFT_MUTATIONS__ = [...(globalThis.__MODEL_PICKER_DRAFT_MUTATIONS__ ?? []), value];
+                }
+                if (draft[field] === value) return;
+                draft[field] = value;
+                listeners.forEach((listener) => listener());
+            };
+        }
+        globalThis.__MODEL_PICKER_DRAFT__ = draft;
+        export const useNewSessionDraft = (selector) => {
+            const [, render] = React.useReducer((value) => value + 1, 0);
+            React.useEffect(() => {
+                listeners.add(render);
+                return () => listeners.delete(render);
+            }, []);
+            return selector(draft);
+        };
         useNewSessionDraft.getState = () => draft;
     `,
     '@/hooks/useImagePicker': `export const useImagePicker = () => ({
@@ -691,6 +744,7 @@ const virtualModules: Record<string, string> = {
     `,
     '@/sync/gitStatusSync': `export const gitStatusSync = { getSync: () => ({ invalidate() {} }) };`,
     '@/sync/ops': `
+        import { __applySessionModes } from '@/sync/storage';
         export const machineControlHeartbeat = async () => {};
         export const machineBash = async () => ({ success: false, error: 'not used' });
         export const machineListCommanders = async () => ({ commanders: [] });
@@ -791,6 +845,7 @@ const virtualModules: Record<string, string> = {
         export const sessionGoalAction = async () => {};
         export const sessionSetAgentModes = async (sessionId, patch) => {
             window.__SESSION_MODE_MUTATIONS__ = [...(window.__SESSION_MODE_MUTATIONS__ ?? []), { sessionId, patch }];
+            if (globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.modelPicker) __applySessionModes(sessionId, patch);
         };
         export const sessionKill = async () => {};
         export const sessionArchive = async () => {};
@@ -813,16 +868,22 @@ const virtualModules: Record<string, string> = {
     '@/sync/sideChatLifecycle': `export const closeSideChatSession = async () => {}; export const resolveSideChatCloseReconciliation = () => ({ error: null, restoreTab: false });`,
     '@/sync/attachmentSupport': `export const supportsImageAttachmentsForFlavor = (flavor) => flavor !== 'dsh' && globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.imageAttachments === true;`,
     '@/sync/agentDefaults': `
-        export const getCodeAgentDefaults = () => ({ permissionMode: 'default', modelMode: 'default', effortLevel: null });
-        export const getAgentDefaultOverrideValue = () => undefined;
-        export const resolveAgentDefaultConfig = () => ({ modelMode: undefined, permissionMode: undefined });
-        export const resolveAgentDefaultEffortLevel = () => undefined;
-        export const setAgentDefaultOverride = (value) => value;
+        import * as actual from '${resolve(appRoot, 'sources/sync/agentDefaults.ts')}';
+        const realDefaults = globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.agentSettings === true;
+        export const agentKeys = actual.agentKeys;
+        export const hasAgentDefaultOverride = actual.hasAgentDefaultOverride;
+        export const getCodeAgentDefaults = (...args) => realDefaults ? actual.getCodeAgentDefaults(...args) : ({ permissionMode: 'default', modelMode: 'default', effortLevel: null });
+        export const getAgentDefaultOverrideValue = (...args) => realDefaults ? actual.getAgentDefaultOverrideValue(...args) : undefined;
+        export const resolveAgentDefaultConfig = (...args) => realDefaults ? actual.resolveAgentDefaultConfig(...args) : ({ modelMode: undefined, permissionMode: undefined });
+        export const resolveAgentDefaultEffortLevel = (...args) => realDefaults ? actual.resolveAgentDefaultEffortLevel(...args) : undefined;
+        export const setAgentDefaultOverride = (...args) => realDefaults ? actual.setAgentDefaultOverride(...args) : args[0];
     `,
     '@/sync/rig': `
         export const getRigGitSummary = () => null; export const getRigReasoningSelection = () => undefined;
         export const getProviderIconKind = () => 'codex'; export const usesControlledSessionUi = () => false;
-        export const isRigMetadata = () => false; export const isRigModelSelectionEnabled = () => false;
+        export const isRigMetadata = () => false; export const isRigModelSelectionEnabled = () => globalThis.__HAPPYHERD_FIXTURE_OPTIONS__?.modelPicker === true;
+        export const isRigMetadataV1 = () => false; export const getRigCurrentModel = () => null;
+        export const getRigModels = () => []; export const getRigReasoningLevels = () => []; export const getRigSelectedModelKey = () => null;
         export const isRigPermissionSelectionEnabled = () => true; export const isRigReasoningSelectionEnabled = () => false;
         export const rigCanAbort = () => false; export const rigCanBrowseFiles = () => true;
         export const rigCanReadFiles = () => false;
@@ -890,7 +951,7 @@ const virtualModules: Record<string, string> = {
         export const getSessionAvatarId = (session) => session.id; export const getSessionName = (session) => session.metadata?.summary?.text ?? session.id;
         export const useSessionStatus = (session) => ({ isConnected: session.active, isPulsing: false, state: session.active ? 'waiting' : 'disconnected', statusColor: '#111', statusDotColor: '#111', statusText: session.active ? 'online' : 'offline' });
     `,
-    '@/utils/versionUtils': `export const MINIMUM_CLI_VERSION = '0.0.0'; export const isVersionSupported = () => true;`,
+    '@/utils/versionUtils': `export { compareVersionsWithPrerelease, isWellFormedVersion } from '${resolve(appRoot, 'sources/utils/versionUtils.ts')}'; export const MINIMUM_CLI_VERSION = '0.0.0'; export const isVersionSupported = () => true;`,
     '@/utils/heartbeatCommand': `export const HEARTBEAT_COMMAND = { dispatch: async () => ({ handled: false }) };`,
     '@/utils/sessionContinuation': `export const deliverSessionTurn = async (options) => options.deliver({
         deliveryMode: options.requestedDeliveryMode,
@@ -914,6 +975,11 @@ const fixturePlugin: Plugin = {
     name: 'side-chat-browser-fixture',
     setup(build) {
         build.onResolve({ filter: /.*/ }, (args) => {
+            // Match Metro's web platform resolution for FlashList's DOM measurement code.
+            if (args.resolveDir.includes('/@shopify/flash-list/') && args.path.startsWith('.')) {
+                const webPath = resolve(args.resolveDir, args.path + '.web.js');
+                if (existsSync(webPath)) return { path: webPath };
+            }
             if (args.path in virtualModules) return { path: args.path, namespace: 'fixture-stub' };
             if (args.path === './MobileGlass') return { path: '@/components/MobileGlass', namespace: 'fixture-stub' };
             if (args.path === './BubblePressable') return { path: '@/components/BubblePressable', namespace: 'fixture-stub' };
@@ -1009,6 +1075,106 @@ describe('Side chats browser interaction', () => {
         await browser?.close();
         if (server) await new Promise<void>((resolveClosed) => server.close(() => resolveClosed()));
     }, 30_000);
+
+    it.each([
+        ['active session', { width: 1440, height: 900 }],
+        ['active session', { width: 390, height: 844 }],
+        ['Full New Session', { width: 1440, height: 900 }],
+        ['Full New Session', { width: 390, height: 844 }],
+        ['HomeDock', { width: 1440, height: 900 }],
+        ['HomeDock', { width: 390, height: 844 }],
+        ['Agent Settings', { width: 1440, height: 900 }],
+        ['Agent Settings', { width: 390, height: 844 }],
+    ] as const)('groups the production model picker on %s at %j', async (surface, viewport) => {
+        const page = await browser.newPage({ viewport });
+        page.setDefaultTimeout(5_000);
+        page.setDefaultNavigationTimeout(12_000);
+        await page.addInitScript((surface) => {
+            (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ = {
+                modelPicker: true,
+                ...(surface === 'Full New Session' ? { newSession: true } : {}),
+                ...(surface === 'HomeDock' ? { homeDock: true } : {}),
+                ...(surface === 'Agent Settings' ? { agentSettings: true } : {}),
+            };
+        }, surface);
+        const pageErrors: string[] = [];
+        page.on('pageerror', (error) => pageErrors.push(error.stack ?? error.message));
+        try {
+            await page.goto(origin);
+            if (surface === 'HomeDock') {
+                await page.getByTestId('home-dock').getByText('Inspect attachments', { exact: true })
+                    .filter({ visible: true }).click();
+            }
+            if (surface === 'Agent Settings') {
+                await page.getByText('uiCopy.model', { exact: true }).click();
+            } else if (surface === 'Full New Session') {
+                await page.getByText('Gemini 3.6 Flash (High)', { exact: true }).filter({ visible: true }).click();
+            } else if (surface === 'active session') {
+                await page.getByTestId('foreground-session').getByTestId('mobile-composer-actions-trigger').click();
+                await page.getByTestId('foreground-session').getByTestId('mobile-composer-action-settings').click();
+            } else {
+                await page.getByRole('button', { name: 'agentInput.model.title', exact: true })
+                    .filter({ visible: true }).last().click();
+            }
+
+            const names = [
+                'Google', 'Gemini 3.8 Flash',
+                'Anthropic', 'Claude Sonnet 4.6 (Thinking)', 'Claude Opus 4.6 (Thinking)',
+                'OpenAI', 'GPT-OSS 120B (Medium)', 'Gemini 3.6 Flash (High)',
+            ];
+            for (const name of names) {
+                await page.getByText(name, { exact: true }).filter({ visible: true }).last()
+                    .waitFor({ state: 'visible', timeout: 3_000 });
+            }
+            const disabledRow = surface === 'Agent Settings'
+                ? page.getByText(names.at(-1)!, { exact: true })
+                    .locator('xpath=ancestor::div[contains(@style, "opacity: 0.5")][1]')
+                : page.locator('[aria-disabled="true"]')
+                    .filter({ has: page.getByText(names.at(-1)!, { exact: true }) });
+            await expect(disabledRow.count()).resolves.toBe(1);
+            const order = await page.evaluate(({ names, surface }) => {
+                const elements = names.map((name, index) => [...document.querySelectorAll('*')]
+                    .filter((element) => element.children.length === 0 && element.textContent === name
+                        && element.getBoundingClientRect().width > 0
+                        && (index !== names.length - 1 || surface === 'Agent Settings' || element.closest('[aria-disabled="true"]')))
+                    .at(-1)!);
+                return elements.map((element, index) => index === 0
+                    || Boolean(elements[index - 1].compareDocumentPosition(element) & Node.DOCUMENT_POSITION_FOLLOWING));
+            }, { names, surface });
+            expect(order).toEqual(names.map(() => true));
+            const beforeDisabledClick = await page.evaluate(() => ({
+                session: (window as any).__SESSION_MODE_MUTATIONS__ ?? [],
+                draft: (window as any).__MODEL_PICKER_DRAFT_MUTATIONS__ ?? [],
+                settings: (window as any).__MODEL_PICKER_SETTINGS_MUTATIONS__ ?? [],
+            }));
+            await page.screenshot({ path: '/tmp/happyherd-model-picker-' + surface.replaceAll(' ', '-') + '-' + viewport.width + '-top.png', fullPage: true });
+            await disabledRow.scrollIntoViewIfNeeded();
+            const disabledBounds = await disabledRow.boundingBox();
+            expect(disabledBounds).not.toBeNull();
+            await page.mouse.click(disabledBounds!.x + disabledBounds!.width / 2, disabledBounds!.y + disabledBounds!.height / 2);
+            expect(await page.evaluate(() => ({
+                session: (window as any).__SESSION_MODE_MUTATIONS__ ?? [],
+                draft: (window as any).__MODEL_PICKER_DRAFT_MUTATIONS__ ?? [],
+                settings: (window as any).__MODEL_PICKER_SETTINGS_MUTATIONS__ ?? [],
+            }))).toEqual(beforeDisabledClick);
+            await page.screenshot({ path: '/tmp/happyherd-model-picker-' + surface.replaceAll(' ', '-') + '-' + viewport.width + '.png', fullPage: true });
+
+            await page.getByText('Claude Opus 4.6 (Thinking)', { exact: true }).filter({ visible: true }).last().click();
+            if (surface === 'Agent Settings') {
+                await page.waitForFunction(() => ((window as any).__MODEL_PICKER_SETTINGS_MUTATIONS__ ?? []).at(-1)?.agy?.modelMode === 'Claude Opus 4.6 (Thinking)');
+            } else if (surface === 'active session') {
+                await page.waitForFunction(() => ((window as any).__SESSION_MODE_MUTATIONS__ ?? [])
+                    .some((entry: any) => entry.sessionId === 'parent' && entry.patch.modelMode === 'Claude Opus 4.6 (Thinking)'));
+            } else {
+                await page.waitForFunction(() => (window as any).__MODEL_PICKER_DRAFT__?.modelMode === 'Claude Opus 4.6 (Thinking)');
+            }
+            expect(pageErrors).toEqual([]);
+        } catch (error) {
+            throw new Error(String(error) + '\nPage errors: ' + pageErrors.join('\n'));
+        } finally {
+            await page.close();
+        }
+    }, 25_000);
 
     it.each([
         ['Web Desktop', { width: 1440, height: 900 }],
@@ -2125,7 +2291,8 @@ describe('Side chats browser interaction', () => {
         };
 
         await openMainAction('changes');
-        await foreground.getByText('mobile-change.ts').waitFor({ state: 'visible', timeout: 3_000 });
+        await foreground.getByRole('button', { name: '/work/project/mobile-change.ts', exact: true })
+            .waitFor({ state: 'visible', timeout: 3_000 });
         const voiceBox = await voiceStatus.boundingBox();
         const changesBox = await foreground.getByTestId('mobile-changes-workspace-overlay').boundingBox();
         if (!voiceBox || !changesBox) throw new Error('voice status or Changes workspace has no rendered layout');
@@ -2203,9 +2370,9 @@ describe('Side chats browser interaction', () => {
         };
 
         await openNewestAction('changes');
-        await foreground.getByText('/work/child-newest-change.ts', { exact: true })
+        await foreground.getByRole('button', { name: '/work/child-newest-change.ts', exact: true })
             .waitFor({ state: 'visible', timeout: 3_000 });
-        await expect(foreground.getByText('/work/project/mobile-change.ts', { exact: true }).count()).resolves.toBe(0);
+        await expect(foreground.getByRole('button', { name: '/work/project/mobile-change.ts', exact: true }).count()).resolves.toBe(0);
         await page.mouse.click(20, 32);
         await foreground.getByTestId('mobile-changes-workspace-overlay').waitFor({ state: 'detached', timeout: 3_000 });
         await assertNewestComposerRetained();
@@ -2228,9 +2395,9 @@ describe('Side chats browser interaction', () => {
         await foreground.getByTestId('mobile-composer-actions-trigger').last().click({ timeout: 3_000 });
         await foreground.getByTestId('mobile-composer-actions-menu')
             .getByTestId('mobile-composer-action-changes').click({ timeout: 3_000 });
-        await foreground.getByText('/work/child-oldest-change.ts', { exact: true })
+        await foreground.getByRole('button', { name: '/work/child-oldest-change.ts', exact: true })
             .waitFor({ state: 'visible', timeout: 3_000 });
-        await expect(foreground.getByText('/work/child-newest-change.ts', { exact: true }).count()).resolves.toBe(0);
+        await expect(foreground.getByRole('button', { name: '/work/child-newest-change.ts', exact: true }).count()).resolves.toBe(0);
         await page.mouse.click(20, 32);
         await foreground.getByTestId('mobile-changes-workspace-overlay').waitFor({ state: 'detached', timeout: 3_000 });
         const retainedOldestDraft = foreground.locator('textarea[data-retention-composer="child-oldest"]');

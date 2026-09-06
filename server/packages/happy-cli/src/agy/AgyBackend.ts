@@ -23,12 +23,21 @@ import type {
   SessionId,
   StartSessionResult,
 } from '@/agent/core/AgentBackend';
-import { resolveAgyBin, AGY_PRINT_TIMEOUT } from './constants';
+import { resolveAgyBin, AGY_PRINT_TIMEOUT, resolveAgyModelName } from './constants';
 import { buildAgyArgs, type AgyPermissionMode } from './cliArgs';
 import { readAgyConversationId } from './conversationStore';
 
 /** Signature of node's `spawn`, injectable so tests can supply a fake process. */
 export type SpawnFn = typeof spawn;
+
+const MAX_AGY_ERROR_DETAIL_CHARS = 2_000;
+
+function cleanAgyErrorOutput(value: string): string {
+  return value
+    .replace(/\u001B\[[0-?]*[ -/]*[@-~]/g, '')
+    .trim()
+    .slice(-MAX_AGY_ERROR_DETAIL_CHARS);
+}
 
 export interface AgyBackendOptions {
   /** Working directory the agy process runs in (and the conversation cache key). */
@@ -37,6 +46,8 @@ export interface AgyBackendOptions {
   permissionMode: AgyPermissionMode;
   /** Initial model display name; updated per turn from message meta. */
   model?: string;
+  /** Initial Happy effort key; used to resolve models with agy-specific variants. */
+  effort?: string;
   /** Value for `--print-timeout`. Defaults to AGY_PRINT_TIMEOUT. */
   printTimeout?: string;
   /** Optional logger. */
@@ -65,6 +76,7 @@ export class AgyBackend implements AgentBackend {
 
   private permissionMode: AgyPermissionMode;
   private model?: string;
+  private effort?: string;
   private conversationId: string | null = null;
   private child: ChildProcess | null = null;
 
@@ -72,6 +84,7 @@ export class AgyBackend implements AgentBackend {
     this.cwd = opts.cwd;
     this.permissionMode = opts.permissionMode;
     this.model = opts.model;
+    this.effort = opts.effort;
     this.printTimeout = opts.printTimeout ?? AGY_PRINT_TIMEOUT;
     this.log = opts.log ?? (() => {});
     this.spawnFn = opts.spawnFn ?? spawn;
@@ -88,6 +101,11 @@ export class AgyBackend implements AgentBackend {
     this.model = model;
   }
 
+  /** Update the effort applied to subsequent turns. */
+  setEffort(effort: string | undefined): void {
+    this.effort = effort;
+  }
+
   async startSession(): Promise<StartSessionResult> {
     // agy spawns lazily per prompt; there is nothing long-lived to start.
     // Deliberately do NOT seed from the cwd conversation cache: it holds whatever
@@ -100,7 +118,7 @@ export class AgyBackend implements AgentBackend {
   async sendPrompt(_sessionId: SessionId, prompt: string): Promise<void> {
     const args = buildAgyArgs({
       prompt,
-      model: this.model,
+      model: this.model ? resolveAgyModelName(this.model, this.effort) : undefined,
       conversationId: this.conversationId,
       permissionMode: this.permissionMode,
       addDirs: [this.cwd],
@@ -129,6 +147,7 @@ export class AgyBackend implements AgentBackend {
 
       // Node can fire both 'error' and 'close' on spawn failure; act on the first only.
       let settled = false;
+      let stderrTail = '';
       const watchdog = setTimeout(() => {
         this.log(`agy turn exceeded ${this.printTimeout}; killing process`);
         child.kill('SIGKILL');
@@ -153,6 +172,7 @@ export class AgyBackend implements AgentBackend {
         if (text) {
           this.log(`stderr: ${text}`);
         }
+        stderrTail = `${stderrTail}${chunk}`.slice(-MAX_AGY_ERROR_DETAIL_CHARS * 2);
       });
 
       child.on('error', (err: Error) => {
@@ -193,7 +213,10 @@ export class AgyBackend implements AgentBackend {
           this.emit({ type: 'status', status: 'idle' });
           resolve();
         } else {
-          const detail = `agy exited with code ${code ?? 'null'}`;
+          const stderrDetail = cleanAgyErrorOutput(stderrTail);
+          const detail = stderrDetail
+            ? `agy exited with code ${code ?? 'null'}: ${stderrDetail}`
+            : `agy exited with code ${code ?? 'null'}`;
           this.emit({ type: 'status', status: 'error', detail });
           reject(new Error(detail));
         }

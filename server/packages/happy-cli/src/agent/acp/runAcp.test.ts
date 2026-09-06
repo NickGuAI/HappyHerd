@@ -63,6 +63,7 @@ const mocks = vi.hoisted(() => {
     setModeCalls: [] as string[],
     setModelCalls: [] as Array<{ modelId: string; reasoningEffort?: string }>,
     startSessionMessages: [] as any[],
+    emitPromptErrorStatus: false,
     startSessionCalls: 0,
     cancelCalls: [] as string[],
     disposeCalls: 0,
@@ -193,7 +194,14 @@ vi.mock('./AcpBackend', () => ({
       mocks.backendState.operations.push('prompt');
       mocks.backendState.prompts.push({ sessionId, prompt });
       const promptIndex = mocks.backendState.prompts.length - 1;
-      if (mocks.backendState.promptError) throw mocks.backendState.promptError;
+      if (mocks.backendState.promptError) {
+        if (mocks.backendState.emitPromptErrorStatus) {
+          for (const listener of mocks.backendState.listeners) {
+            listener({ type: 'status', status: 'error', detail: mocks.backendState.promptError.message });
+          }
+        }
+        throw mocks.backendState.promptError;
+      }
       for (const listener of mocks.backendState.listeners) {
         listener({ type: 'status', status: 'running' });
         listener({ type: 'model-output', textDelta: 'hello' });
@@ -337,6 +345,7 @@ describe('runAcp', () => {
     mocks.backendState.setModeCalls = [];
     mocks.backendState.setModelCalls = [];
     mocks.backendState.startSessionMessages = [];
+    mocks.backendState.emitPromptErrorStatus = false;
     mocks.backendState.startSessionCalls = 0;
     mocks.backendState.cancelCalls = [];
     mocks.backendState.disposeCalls = 0;
@@ -1291,8 +1300,57 @@ describe('runAcp', () => {
     });
 
     expect(consoleLines()).toContain('Status: error: spawn opencode ENOENT');
+    expect(mocks.mockSession.sendSessionEvent).toHaveBeenCalledWith({
+      type: 'message',
+      message: 'opencode error: spawn opencode ENOENT',
+    });
     expect(mocks.mockSession.close).toHaveBeenCalled();
     expect(mocks.backendState.disposeCalls).toBe(1);
+  });
+
+  it('surfaces a prompt exception when no backend error status was emitted', async () => {
+    mocks.backendState.promptError = new Error('model switch failed');
+    const runPromise = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'opencode',
+      command: 'opencode',
+      args: ['acp'],
+    });
+    const runOutcome = runPromise.then(
+      () => null,
+      (error: unknown) => error,
+    );
+
+    await vi.waitFor(() => {
+      expect(mocks.getUserMessageHandler()).toBeTypeOf('function');
+    });
+    mocks.getUserMessageHandler()!({
+      role: 'user',
+      content: { type: 'text', text: 'Use that model' },
+    });
+
+    expect(await runOutcome).toMatchObject({ message: 'model switch failed' });
+    expect(mocks.mockSession.sendSessionEvent).toHaveBeenCalledWith({
+      type: 'message',
+      message: 'opencode error: model switch failed',
+    });
+  });
+
+  it('persists one bounded error through the async protocol queue when status and rejection both report it', async () => {
+    mocks.backendState.promptError = new Error('x'.repeat(3_000));
+    mocks.backendState.emitPromptErrorStatus = true;
+    const outcome = runAcp({
+      credentials: { token: 'token', encryption: { type: 'legacy', secret: new Uint8Array(32) } },
+      agentName: 'opencode', command: 'opencode', args: ['acp'],
+    }).catch((error: unknown) => error);
+    await vi.waitFor(() => expect(mocks.getUserMessageHandler()).toBeTypeOf('function'));
+    mocks.getUserMessageHandler()!({ content: { text: 'Run the prompt' } });
+    await expect(outcome).resolves.toBeInstanceOf(Error);
+    const errors = mocks.mockSession.sendSessionProtocolMessage.mock.calls
+      .map(([envelope]) => envelope.ev)
+      .filter((event) => event.t === 'service');
+    expect(errors).toEqual([{ t: 'service', text: `Error: ${'x'.repeat(2_000)}` }]);
+    expect(mocks.mockSession.sendSessionEvent.mock.calls.filter(([event]) => event.type === 'message')).toHaveLength(0);
   });
 
   it('updates session metadata with ACP config options (models and operating modes)', async () => {

@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => {
   const stateSnapshots: Array<Record<string, any>> = [];
   const inboundMessages: any[] = [];
   const prompts: string[] = [];
+  const childSettings: Array<{ model?: string; effort?: string; permissionMode?: string }> = [];
 
   const reconnectResponse = {
     id: 'agy-side-chat',
@@ -66,6 +67,7 @@ const mocks = vi.hoisted(() => {
     api,
     inboundMessages,
     prompts,
+    childSettings,
     reconnectResponse,
     stateSnapshots,
     mockSession,
@@ -81,6 +83,7 @@ const mocks = vi.hoisted(() => {
       metadata = structuredClone(reconnectResponse.metadata);
       inboundMessages.length = 0;
       prompts.length = 0;
+      childSettings.length = 0;
       stateSnapshots.length = 0;
     },
   };
@@ -108,16 +111,14 @@ vi.mock('@/daemon/run', () => ({
 }));
 
 vi.mock('@/utils/createSessionMetadata', () => ({
-  createSessionMetadata: vi.fn(() => ({
+  createSessionMetadata: vi.fn((options: any) => ({
     state: { controlledByUser: false },
     metadata: {
       flavor: 'agy',
       path: '/workspace',
       spawnSettings: {
         provider: 'agy',
-        model: 'Gemini 3.1 Pro (High)',
-        effort: null,
-        permission: 'default',
+        ...options.spawnSettings,
       },
     },
   })),
@@ -153,6 +154,7 @@ vi.mock('@/ui/logger', () => ({
 
 vi.mock('./AgyBackend', () => ({
   AgyBackend: class MockAgyBackend {
+    private mode: { model?: string; effort?: string; permissionMode?: string } = {};
     onMessage() {}
     offMessage() {}
 
@@ -162,11 +164,13 @@ vi.mock('./AgyBackend', () => ({
       for (const message of mocks.inboundMessages) handler(message);
     }
 
-    setPermissionMode() {}
-    setModel() {}
+    setPermissionMode(permissionMode: string) { this.mode.permissionMode = permissionMode; }
+    setModel(model: string | undefined) { this.mode.model = model; }
+    setEffort(effort: string | undefined) { this.mode.effort = effort; }
 
     async sendPrompt(_cwd: string, prompt: string) {
       mocks.prompts.push(prompt);
+      mocks.childSettings.push({ ...this.mode });
       if (mocks.prompts.length === 2) {
         const handler = mocks.getKillHandler();
         if (!handler) throw new Error('runAgy did not register its kill handler');
@@ -181,6 +185,7 @@ vi.mock('./AgyBackend', () => ({
 
 import { formatFreshSideChatResumePrompt } from '@/commands/sideChatContext';
 import { runAgy } from './runAgy';
+import { notifyDaemonSessionStarted } from '@/daemon/controlClient';
 
 describe('runAgy fresh reconnect', () => {
   beforeEach(() => {
@@ -198,6 +203,22 @@ describe('runAgy fresh reconnect', () => {
 
   afterEach(() => {
     vi.unstubAllEnvs();
+  });
+
+  it('applies queued model and effort together and preserves the launch receipt', async () => {
+    mocks.inboundMessages.push(
+      { content: { text: 'first' }, meta: { model: 'Gemini 3.8 Flash', effort: 'low' }, localKey: 'resume-seed' },
+      { content: { text: 'second' }, meta: { model: 'Gemini 3.8 Flash', effort: 'high' }, localKey: 'interrupted' },
+    );
+    await runAgy({ credentials: {} as any, startedBy: 'daemon', model: 'Gemini 3.8 Flash', effort: 'medium' });
+    expect(mocks.childSettings).toEqual([
+      { model: 'Gemini 3.8 Flash', effort: 'low', permissionMode: 'default' },
+      { model: 'Gemini 3.8 Flash', effort: 'high', permissionMode: 'default' },
+    ]);
+    expect(notifyDaemonSessionStarted).toHaveBeenCalledWith('agy-side-chat', expect.objectContaining({
+      spawnSettings: { provider: 'agy', model: 'Gemini 3.8 Flash', effort: 'medium', permission: 'default' },
+      modelMode: 'Gemini 3.8 Flash', effortLevel: 'medium',
+    }), expect.anything());
   });
 
   it('runs the generated handoff before restored work and clears every queue id', async () => {

@@ -2,12 +2,16 @@ import * as React from 'react';
 // @ts-expect-error react-test-renderer has no declarations in this workspace.
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { AgentTextMessage, UserTextMessage } from '@/sync/typesMessage';
 
 const mocks = vi.hoisted(() => ({
     messages: [] as any[],
     session: null as any,
     platformOS: 'ios',
     controlMode: 'agent',
+    hasMoreOlder: false,
+    isLoadingOlder: false,
+    loadOlderMessages: vi.fn(),
     scrollToIndex: vi.fn(),
     scrollToOffset: vi.fn(),
     listInstances: [] as Array<{
@@ -19,7 +23,18 @@ const mocks = vi.hoisted(() => ({
 vi.mock('react-native', async () => {
     const ReactModule = await import('react');
     const host = (name: string) => (props: any) => ReactModule.createElement(name, props, props.children);
-    const FlatList = ReactModule.forwardRef((props: any, ref: any) => {
+    return {
+        ActivityIndicator: host('ActivityIndicator'),
+        AppState: { addEventListener: () => ({ remove: vi.fn() }) },
+        Platform: { get OS() { return mocks.platformOS; } },
+        Pressable: host('Pressable'),
+        Text: host('Text'),
+        View: host('View'),
+    };
+});
+vi.mock('@shopify/flash-list', async () => {
+    const ReactModule = await import('react');
+    const FlashList = ReactModule.forwardRef((props: any, ref: any) => {
         const instanceRef = ReactModule.useRef<{
             scrollToIndex: ReturnType<typeof vi.fn>;
             scrollToOffset: ReturnType<typeof vi.fn>;
@@ -32,17 +47,10 @@ vi.mock('react-native', async () => {
             mocks.listInstances.push(instanceRef.current);
         }
         ReactModule.useImperativeHandle(ref, () => instanceRef.current);
-        return ReactModule.createElement('FlatList', props);
+        ReactModule.useEffect(() => { void Promise.resolve().then(() => props.onLoad?.()); }, []);
+        return ReactModule.createElement('FlashList', props);
     });
-    return {
-        ActivityIndicator: host('ActivityIndicator'),
-        AppState: { addEventListener: () => ({ remove: vi.fn() }) },
-        FlatList,
-        Platform: { get OS() { return mocks.platformOS; } },
-        Pressable: host('Pressable'),
-        Text: host('Text'),
-        View: host('View'),
-    };
+    return { FlashList };
 });
 vi.mock('@expo/vector-icons', async () => {
     const ReactModule = await import('react');
@@ -68,12 +76,12 @@ vi.mock('@/sync/storage', () => ({
     useSession: () => mocks.session,
     useSessionMessages: () => ({
         messages: mocks.messages,
-        hasMoreOlder: false,
-        isLoadingOlder: false,
+        hasMoreOlder: mocks.hasMoreOlder,
+        isLoadingOlder: mocks.isLoadingOlder,
     }),
     useSetting: () => false,
 }));
-vi.mock('@/sync/sync', () => ({ sync: { loadOlderMessages: vi.fn() } }));
+vi.mock('@/sync/sync', () => ({ sync: { loadOlderMessages: mocks.loadOlderMessages } }));
 vi.mock('@/sync/controlHandoff', () => ({ resolveControlMode: () => mocks.controlMode }));
 vi.mock('@/sync/rig', () => ({ usesControlledSessionUi: () => false }));
 vi.mock('@/sync/queueProjection', () => ({
@@ -84,20 +92,20 @@ vi.mock('@/hooks/useGroupedMessages', () => ({
         type: 'message',
         id: message.id,
         message,
-    })),
+    })).reverse(),
 }));
 vi.mock('./MessageView', async () => {
     const ReactModule = await import('react');
     return { MessageView: (props: any) => ReactModule.createElement('MessageView', props) };
 });
-vi.mock('./ToolGroupView', () => ({
-    AgentWorkGroupView: () => null,
-    ToolGroupView: () => null,
+vi.mock('./AgentWorkGroupHeader', () => ({
+    AgentWorkGroupHeader: () => null,
 }));
 vi.mock('./ChatFooter', () => ({ ChatFooter: () => null }));
+vi.mock('@/utils/perfLog', () => ({ perfSince: () => {}, useCommitPerf: () => {} }));
 vi.mock('@/text', () => ({ t: (key: string) => key }));
 
-import { ChatList } from './ChatList';
+import { ChatList, windowEndForTurn } from './ChatList';
 
 const originalConsoleError = console.error;
 
@@ -116,6 +124,10 @@ beforeEach(() => {
     mocks.messages = [];
     mocks.platformOS = 'ios';
     mocks.controlMode = 'agent';
+    mocks.hasMoreOlder = false;
+    mocks.isLoadingOlder = false;
+    mocks.loadOlderMessages.mockReset();
+    mocks.loadOlderMessages.mockResolvedValue(undefined);
     mocks.session = {
         id: 'origin-session',
         active: true,
@@ -128,12 +140,12 @@ beforeEach(() => {
     mocks.listInstances = [];
 });
 
-function userMessage(id: string, localId: string | null = null) {
+function userMessage(id: string, localId: string | null = null): UserTextMessage {
     return { kind: 'user-text', id, localId, createdAt: 1, text: id };
 }
 
-function agentMessage(id: string) {
-    return { kind: 'agent-text', id, createdAt: 2, text: id, isThinking: false };
+function agentMessage(id: string): AgentTextMessage {
+    return { kind: 'agent-text', id, localId: null, createdAt: 2, text: id, isThinking: false };
 }
 
 function chat(session = mocks.session, focusMessageId = 'feedback-local-id') {
@@ -153,6 +165,16 @@ async function renderChat(): Promise<ReactTestRenderer> {
     return renderer;
 }
 
+describe('ChatList turn-aligned history window', () => {
+    it('includes the opening prompt, holds incomplete older tails, and handles an empty store', () => {
+        const messages = [agentMessage('new-final'), userMessage('new-prompt'), agentMessage('old-final'), agentMessage('old-progress')];
+        expect(windowEndForTurn(messages, 1, true)).toBe(2);
+        expect(windowEndForTurn(messages, 3, true)).toBe(2);
+        expect(windowEndForTurn(messages, 3, false)).toBe(4);
+        expect(windowEndForTurn([], 60, true)).toBe(0);
+    });
+});
+
 describe('ChatList exact feedback focus', () => {
     it('keeps native follow-latest enabled for ordinary Chat without an exact focus request', async () => {
         mocks.messages = [userMessage('ordinary')];
@@ -161,9 +183,8 @@ describe('ChatList exact feedback focus', () => {
             renderer = create(React.createElement(ChatList, { session: mocks.session }));
             await Promise.resolve();
         });
-        expect(renderer.root.findByType('FlatList' as any).props.maintainVisibleContentPosition).toEqual({
-            minIndexForVisible: 1,
-            autoscrollToTopThreshold: 50,
+        expect(renderer.root.findByType('FlashList' as any).props.maintainVisibleContentPosition).toEqual({
+            autoscrollToTopThreshold: 200,
         });
         act(() => renderer.unmount());
     });
@@ -172,15 +193,15 @@ describe('ChatList exact feedback focus', () => {
         mocks.messages = [userMessage('feedback-persisted-id', 'feedback-local-id')];
         const renderer = await renderChat();
 
-        let list = renderer.root.findByType('FlatList' as any);
-        expect(list.props.maintainVisibleContentPosition).toEqual({ minIndexForVisible: 1 });
+        let list = renderer.root.findByType('FlashList' as any);
+        expect(list.props.maintainVisibleContentPosition).toEqual({});
         expect(mocks.scrollToIndex).toHaveBeenCalledWith({
             index: 0,
             animated: true,
             viewPosition: 0.5,
         });
 
-        act(() => list.props.onScroll({ nativeEvent: { contentOffset: { y: 0 } } }));
+        act(() => list.props.onScroll({ nativeEvent: { contentOffset: { y: 0 }, contentSize: { height: 500 }, layoutMeasurement: { height: 500 } } }));
         expect(renderer.root.findByProps({ accessibilityLabel: 'uiCopy.jumpToLatest' })).toBeTruthy();
 
         mocks.messages = [
@@ -192,16 +213,15 @@ describe('ChatList exact feedback focus', () => {
             await Promise.resolve();
         });
 
-        list = renderer.root.findByType('FlatList' as any);
-        expect(list.props.maintainVisibleContentPosition).toEqual({ minIndexForVisible: 1 });
+        list = renderer.root.findByType('FlashList' as any);
+        expect(list.props.maintainVisibleContentPosition).toEqual({});
         expect(renderer.root.findAllByType('Text' as any).map((node: any) => node.props.children))
             .toContain('uiCopy.newMessagesJumpToLatest');
 
         mocks.scrollToOffset.mockClear();
         act(() => renderer.root.findByProps({ accessibilityLabel: 'uiCopy.jumpToLatest' }).props.onPress());
-        expect(renderer.root.findByType('FlatList' as any).props.maintainVisibleContentPosition).toEqual({
-            minIndexForVisible: 1,
-            autoscrollToTopThreshold: 50,
+        expect(renderer.root.findByType('FlashList' as any).props.maintainVisibleContentPosition).toEqual({
+            autoscrollToTopThreshold: 200,
         });
         expect(mocks.scrollToOffset).toHaveBeenCalledWith({ offset: 0, animated: true });
 
@@ -213,8 +233,8 @@ describe('ChatList exact feedback focus', () => {
             renderer.update(chat({ ...mocks.session }, 'second-local-id'));
             await Promise.resolve();
         });
-        expect(renderer.root.findByType('FlatList' as any).props.maintainVisibleContentPosition)
-            .toEqual({ minIndexForVisible: 1 });
+        expect(renderer.root.findByType('FlashList' as any).props.maintainVisibleContentPosition)
+            .toEqual({});
         expect(mocks.scrollToIndex).toHaveBeenLastCalledWith({
             index: 0,
             animated: true,
@@ -226,9 +246,8 @@ describe('ChatList exact feedback focus', () => {
     it('activates the native anchor when an initially absent receipt arrives at index zero', async () => {
         mocks.messages = [userMessage('older')];
         const renderer = await renderChat();
-        expect(renderer.root.findByType('FlatList' as any).props.maintainVisibleContentPosition).toEqual({
-            minIndexForVisible: 1,
-            autoscrollToTopThreshold: 50,
+        expect(renderer.root.findByType('FlashList' as any).props.maintainVisibleContentPosition).toEqual({
+            autoscrollToTopThreshold: 200,
         });
 
         mocks.messages = [
@@ -240,8 +259,8 @@ describe('ChatList exact feedback focus', () => {
             await Promise.resolve();
         });
 
-        expect(renderer.root.findByType('FlatList' as any).props.maintainVisibleContentPosition)
-            .toEqual({ minIndexForVisible: 1 });
+        expect(renderer.root.findByType('FlashList' as any).props.maintainVisibleContentPosition)
+            .toEqual({});
         expect(mocks.scrollToIndex).toHaveBeenCalledWith({
             index: 0,
             animated: true,
@@ -276,10 +295,10 @@ describe('ChatList exact feedback focus', () => {
             animated: true,
             viewPosition: 0.5,
         });
-        expect(renderer.root.findByType('FlatList' as any).props.maintainVisibleContentPosition)
-            .toEqual({ minIndexForVisible: 1 });
+        expect(renderer.root.findByType('FlashList' as any).props.maintainVisibleContentPosition)
+            .toEqual({});
 
-        act(() => renderer.root.findByType('FlatList' as any).props.onScrollBeginDrag());
+        act(() => renderer.root.findByType('FlashList' as any).props.onScrollBeginDrag());
         mocks.controlMode = 'agent';
         mocks.session = { ...mocks.session, metadata: { handoffRevision: 2 } };
         mocks.messages = [agentMessage('agent-even-newer'), ...mocks.messages];
@@ -292,6 +311,102 @@ describe('ChatList exact feedback focus', () => {
         act(() => renderer.unmount());
     });
 
+    it('includes an exact receipt beyond the initial 60-message window before focusing it', async () => {
+        mocks.messages = Array.from({ length: 150 }, (_, index) => userMessage(`message-${index}`));
+        mocks.messages[125] = userMessage('feedback-persisted-id', 'feedback-local-id');
+        const renderer = await renderChat();
+        const list = renderer.root.findByType('FlashList' as any);
+        expect(list.props.data).toHaveLength(126);
+        expect(mocks.scrollToIndex).toHaveBeenLastCalledWith({ index: 125, animated: true, viewPosition: 0.5 });
+        expect(list.props.maintainVisibleContentPosition).toEqual({});
+        act(() => renderer.unmount());
+    });
+
+    it('grows history by 60 only after a reader drag, then requests the server at the oldest edge', async () => {
+        mocks.messages = Array.from({ length: 150 }, (_, index) => userMessage(`message-${index}`));
+        mocks.hasMoreOlder = true;
+        let renderer!: ReactTestRenderer;
+        await act(async () => {
+            renderer = create(React.createElement(ChatList, { session: mocks.session }));
+            await Promise.resolve();
+        });
+        const oldestEdge = { nativeEvent: {
+            contentOffset: { y: 2000 }, contentSize: { height: 2500 }, layoutMeasurement: { height: 600 },
+        } };
+        let list = renderer.root.findByType('FlashList' as any);
+        expect(list.props.data).toHaveLength(60);
+        act(() => list.props.onScroll(oldestEdge));
+        expect(renderer.root.findByType('FlashList' as any).props.data).toHaveLength(60);
+        expect(mocks.loadOlderMessages).not.toHaveBeenCalled();
+        act(() => list.props.onScrollBeginDrag());
+        act(() => list.props.onScroll(oldestEdge));
+        list = renderer.root.findByType('FlashList' as any);
+        expect(list.props.data).toHaveLength(120);
+        act(() => list.props.onScroll(oldestEdge));
+        list = renderer.root.findByType('FlashList' as any);
+        expect(list.props.data).toHaveLength(150);
+        act(() => list.props.onScroll(oldestEdge));
+        expect(mocks.loadOlderMessages).toHaveBeenCalledExactlyOnceWith('origin-session');
+        act(() => list.props.onScroll(oldestEdge));
+        expect(mocks.loadOlderMessages).toHaveBeenCalledTimes(1);
+        act(() => renderer.unmount());
+    });
+
+    it('retries a failed older-page request only on the next deliberate scroll', async () => {
+        mocks.messages = [userMessage('latest')];
+        mocks.hasMoreOlder = true;
+        mocks.loadOlderMessages.mockRejectedValueOnce(new Error('offline'));
+        let renderer!: ReactTestRenderer;
+        await act(async () => {
+            renderer = create(React.createElement(ChatList, { session: mocks.session }));
+            await Promise.resolve();
+        });
+        const list = renderer.root.findByType('FlashList' as any);
+        const edge = { nativeEvent: { contentOffset: { y: 0 }, contentSize: { height: 500 }, layoutMeasurement: { height: 600 } } };
+        act(() => list.props.onScrollBeginDrag());
+        await act(async () => { list.props.onScroll(edge); await Promise.resolve(); });
+        expect(mocks.loadOlderMessages).toHaveBeenCalledTimes(1);
+        await act(async () => { await Promise.resolve(); });
+        expect(mocks.loadOlderMessages).toHaveBeenCalledTimes(1);
+        await act(async () => { list.props.onScroll(edge); await Promise.resolve(); });
+        expect(mocks.loadOlderMessages).toHaveBeenCalledTimes(2);
+        act(() => renderer.unmount());
+    });
+
+    it('waits through partial older turns but re-arms a background fetch that makes no progress', async () => {
+        mocks.messages = [userMessage('latest'), agentMessage('older-final')];
+        mocks.hasMoreOlder = true;
+        mocks.isLoadingOlder = true;
+        let renderer!: ReactTestRenderer;
+        await act(async () => {
+            renderer = create(React.createElement(ChatList, { session: mocks.session }));
+            await Promise.resolve();
+        });
+        const edge = { nativeEvent: { contentOffset: { y: 0 }, contentSize: { height: 500 }, layoutMeasurement: { height: 600 } } };
+        let list = renderer.root.findByType('FlashList' as any);
+        act(() => list.props.onScrollBeginDrag());
+        act(() => list.props.onScroll(edge));
+        expect(mocks.loadOlderMessages).not.toHaveBeenCalled();
+        mocks.messages = [...mocks.messages, agentMessage('older-progress')];
+        mocks.isLoadingOlder = false;
+        await act(async () => renderer.update(React.createElement(ChatList, { session: { ...mocks.session } })));
+        list = renderer.root.findByType('FlashList' as any);
+        expect(list.props.data).toHaveLength(1);
+        act(() => list.props.onScroll(edge));
+        expect(mocks.loadOlderMessages).not.toHaveBeenCalled();
+        mocks.isLoadingOlder = true;
+        await act(async () => renderer.update(React.createElement(ChatList, { session: { ...mocks.session } })));
+        mocks.isLoadingOlder = false;
+        await act(async () => renderer.update(React.createElement(ChatList, { session: { ...mocks.session } })));
+        list = renderer.root.findByType('FlashList' as any);
+        await act(async () => { list.props.onScroll(edge); await Promise.resolve(); });
+        expect(mocks.loadOlderMessages).toHaveBeenCalledTimes(1);
+        mocks.messages = [...mocks.messages, userMessage('older-prompt')];
+        await act(async () => renderer.update(React.createElement(ChatList, { session: { ...mocks.session } })));
+        expect(renderer.root.findByType('FlashList' as any).props.data).toHaveLength(4);
+        act(() => renderer.unmount());
+    });
+
     it('cancels a pending focus retry when a user drag releases the exact anchor', async () => {
         vi.useFakeTimers();
         mocks.messages = [userMessage('feedback-persisted-id', 'feedback-local-id')];
@@ -301,11 +416,10 @@ describe('ChatList exact feedback focus', () => {
         const renderer = await renderChat();
         expect(mocks.scrollToIndex).toHaveBeenCalledTimes(1);
 
-        const list = renderer.root.findByType('FlatList' as any);
+        const list = renderer.root.findByType('FlashList' as any);
         act(() => list.props.onScrollBeginDrag());
-        expect(renderer.root.findByType('FlatList' as any).props.maintainVisibleContentPosition).toEqual({
-            minIndexForVisible: 1,
-            autoscrollToTopThreshold: 50,
+        expect(renderer.root.findByType('FlashList' as any).props.maintainVisibleContentPosition).toEqual({
+            autoscrollToTopThreshold: 200,
         });
 
         act(() => vi.advanceTimersByTime(60));

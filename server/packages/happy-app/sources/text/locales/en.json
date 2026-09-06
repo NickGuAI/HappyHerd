@@ -785,7 +785,14 @@
         }
       }
     },
-    "workedFor": "Worked {duration}"
+    "workedFor": "Worked {duration}",
+    "hide": "Hide",
+    "ran": "Ran",
+    "edited": "Edited",
+    "read": "Read",
+    "searchedAction": "Searched",
+    "fetched": "Fetched",
+    "ranTask": "Ran task"
   },
   "tools": {
     "fullView": {
@@ -1757,5 +1764,16 @@
     "valueRunning": "{value1} running",
     "inProgressAndPending": "{value1} in progress · {value2} pending",
     "thisDevice": "This device"
+  },
+  "diff": {
+    "showMoreLines": "Show {count} more lines",
+    "tapToExpand": "{count} changed lines — tap to expand",
+    "ignoreWhitespace": "Ignore whitespace",
+    "imageBefore": "Before",
+    "imageAfter": "After",
+    "unchangedLines": "{count} unchanged",
+    "noChanges": "No changes",
+    "binaryFile": "Binary file not shown",
+    "renamed": "Renamed"
   }
 }

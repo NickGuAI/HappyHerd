@@ -111,8 +111,14 @@ export function isTerminalToolName(name: string): boolean {
     return TERMINAL_TOOL_NAMES.has(name);
 }
 
-export function shouldRenderToolCardHeader(toolName: string, platformOS: string): boolean {
-    return !(platformOS === 'web' && toolName === 'CodexPatch');
+/**
+ * Patch tools draw a header per changed file, naming the file and its stats.
+ * A card header above that would only repeat the same name, so it is dropped.
+ */
+const SELF_HEADING_TOOL_NAMES = new Set(['CodexPatch', 'GeminiPatch']);
+
+export function shouldRenderToolCardHeader(toolName: string, _platformOS: string): boolean {
+    return !SELF_HEADING_TOOL_NAMES.has(toolName);
 }
 
 export function getToolDisplayTitle(tool: Pick<ToolCall, 'name' | 'title'>): string {
@@ -321,18 +327,18 @@ function getProviderActivityDescription(
 function getToolActivityAction(category: ToolSummaryCategory, toolName: string): string {
     switch (category) {
         case 'terminal':
-            return t('toolGroup.ranCommands', { count: 1 });
+            return t('toolGroup.ran');
         case 'edit':
-            return t('toolGroup.editedFiles', { count: 1 });
+            return t('toolGroup.edited');
         case 'read':
-            return t('toolGroup.readFiles', { count: 1 });
+            return t('toolGroup.read');
         case 'search':
-            return t('toolGroup.searched', { count: 1 });
+            return t('toolGroup.searchedAction');
         case 'web':
-            return t('toolGroup.fetchedUrls', { count: 1 });
+            return t('toolGroup.fetched');
         case 'task':
             return toolName === 'Task' || toolName === 'Agent'
-                ? t('toolGroup.ranTasks', { count: 1 })
+                ? t('toolGroup.ranTask')
                 : formatToolName(toolName);
         default:
             return toolName.startsWith('mcp__')

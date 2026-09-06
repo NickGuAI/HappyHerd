@@ -1571,7 +1571,15 @@ class Sync {
         })));
         this.projectsSync.invalidate();
         log.log(`📥 fetchSessions completed - processed ${decryptedSessions.length} sessions`);
-
+        // Machine-readable for scripts/perf-e2e.mjs, which deep-links through
+        // the most recent real sessions and reads [perf] timings off Metro.
+        if (__DEV__) {
+        const recent = [...decryptedSessions]
+            .sort((a, b) => b.updatedAt - a.updatedAt)
+            .slice(0, 12)
+            .map((s) => s.id);
+        console.log(`[perf] recent-sessions ${recent.join(',')}`);
+        }
     }
 
     public refreshMachines = async () => {
@@ -2370,8 +2378,9 @@ class Sync {
             storage.getState().applyPurchases(customerInfo);
 
         } catch (error) {
-            console.error('Failed to sync purchases:', error);
-            // Don't throw - purchases are optional
+            // console.log, not console.error: purchases are optional and a
+            // failure here must not raise the dev error overlay.
+            console.log('Failed to sync purchases:', error);
         }
     }
 
@@ -3365,7 +3374,13 @@ class Sync {
     //
 
     private applyMessages = (sessionId: string, messages: NormalizedMessage[]) => {
+        const applyStarted = __DEV__ ? Date.now() : 0;
         const result = storage.getState().applyMessages(sessionId, messages);
+        const applyElapsed = __DEV__ ? Date.now() - applyStarted : 0;
+        if (__DEV__ && applyElapsed > 8) {
+            const total = storage.getState().sessionMessages[sessionId]?.messages.length ?? 0;
+            console.log(`[perf] applyMessages ${sessionId} ${applyElapsed}ms batch=${messages.length} total=${total}`);
+        }
         let m: Message[] = [];
         for (let messageId of result.changed) {
             const message = storage.getState().sessionMessages[sessionId].messagesMap[messageId];
