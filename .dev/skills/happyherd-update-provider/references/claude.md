@@ -65,3 +65,7 @@ CLI help value that the audited SDK does not support.
 
 The 2026-08-30 audit did not complete a live authenticated smoke for every
 permission mode.
+
+### Claude Integration Note (2026-09-06)
+
+The shared catalog contains the optional `claude-fable-5-1` with 1M context. Opus 5 remains unchanged. SDK 0.3.260 supports low, medium, high, xhigh, and max efforts. Includes a deterministic SDK adapter proof. Native live smoke testing remains unperformed.

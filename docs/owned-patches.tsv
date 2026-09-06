@@ -294,3 +294,4 @@ WORKSPACE_COMMENT_RETENTION	accepted	fix(workspace): cancel stale links on picke
 WORKSPACE_COMMENT_RETENTION	accepted	fix(workspace): preserve newer links after folder creation	server/packages/happy-app/sources/components/sideChatHeader.browser.test.ts
 WORKSPACE_COMMENT_RETENTION	accepted	test(workspace): allow browser fixture startup on CI	server/packages/happy-app/sources/components/markdown/MarkdownView.browser.test.ts
 WORKSPACE_MOBILE_LAYOUT	accepted	fix(workspace): align compact previews and use 16px source text	server/packages/happy-app/sources/components/desktopWorkspace.browser.test.ts
+UPSTREAM_SYNC_EVIDENCE	accepted	docs(upstream): record reviewed September sync	docs/upstream-sync-2026-09-06.md
