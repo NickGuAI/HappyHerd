@@ -5,7 +5,7 @@
 - **Comment & Activity Improvements**: Inline preview comments are fully preserved, and the flattened activity list expands upward with support for hiding, attachments, and subagents.
 - **Organized Model Selection**: Models are grouped by provider, unavailable saved selections are disabled dynamically, and legacy configuration choices remain supported.
 - Agy now defaults to Gemini 3.8 Flash with medium effort and offers four logical models. Optional Claude Fable 5.1 supports a 1M context and low-to-max effort; Opus 5 remains the Claude default.
-- **Robust Connection Updates**: Enjoy clearer model provider error messages and automatic CLI version updates whenever you reconnect to your machine.
+- **Robust Connection Updates**: See clearer model provider errors and the current reported CLI version after reconnecting to your machine.
 
 # September 5 — Optimize font sizes and layout alignment on mobile web views
 
