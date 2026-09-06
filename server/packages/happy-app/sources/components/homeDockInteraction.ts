@@ -36,7 +36,7 @@ export function isHomeDockOptionSelectable(disabled?: boolean) {
 }
 
 export function shouldUseNativeHomeDockMenus(platform: string) {
-    return platform !== 'android';
+    return platform === 'ios';
 }
 
 export function resolveHomeDockMachineSelection(

@@ -20,6 +20,16 @@ describe('Claude SDK query adapter', () => {
         sdkQuery.mockClear();
     });
 
+    it.each(['low', 'medium', 'high', 'xhigh', 'max'] as const)(
+        'passes optional Fable 5.1 and %s effort unchanged to the supported SDK',
+        (effort) => {
+            query({ prompt: 'Describe this code', options: { model: 'claude-fable-5-1', effort } });
+            expect(sdkQuery).toHaveBeenCalledWith(expect.objectContaining({
+                options: expect.objectContaining({ model: 'claude-fable-5-1', effort }),
+            }));
+        },
+    );
+
     it('adds the SDK-required opt-in whenever the adapter starts in bypass mode', () => {
         query({
             prompt: 'run the task',

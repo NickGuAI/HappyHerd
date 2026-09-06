@@ -848,6 +848,7 @@ export async function runAcp(opts: {
   });
 
   let thinking = false;
+  let errorReportedForCurrentTurn = false;
   let acpSessionId: string | null = null;
   let shouldExit = false;
   let abortController = new AbortController();
@@ -929,7 +930,17 @@ export async function runAcp(opts: {
         }
       }
 
-      sendEnvelopes(sessionManager.mapMessage(persistedMessage));
+      const envelopes = sessionManager.mapMessage(persistedMessage);
+      sendEnvelopes(envelopes);
+      if (persistedMessage.type === 'status' && persistedMessage.status === 'error') {
+        if (envelopes.length === 0) {
+          session.sendSessionEvent({
+            type: 'message',
+            message: `${opts.agentName} error: ${(persistedMessage.detail?.trim() || 'The agent stopped because of an unknown error.').slice(-2_000)}`,
+          });
+        }
+        errorReportedForCurrentTurn = true;
+      }
       if (persistedMessage.type !== 'model-output-image') return;
 
       const digest = createHash('sha256').update(persistedMessage.data).digest('hex');
@@ -1459,6 +1470,7 @@ export async function runAcp(opts: {
 
       logAcp('incoming', `Incoming prompt: ${formatUnknownForConsole(batch.message, ACP_EVENT_PREVIEW_CHARS)}`);
       await protocolWork;
+      errorReportedForCurrentTurn = false;
       messageQueue.markBatchStarted(batch.queueMessageIds);
       observedTurnImages.length = 0;
       generatedImageNamesByProviderPath.clear();
@@ -1503,6 +1515,11 @@ export async function runAcp(opts: {
         }
       } catch (error) {
         await protocolWork;
+        const detail = error instanceof Error ? error.message : String(error);
+        if (!errorReportedForCurrentTurn) {
+          session.sendSessionEvent({ type: 'message', message: `${opts.agentName} error: ${detail.slice(-2_000)}` });
+          errorReportedForCurrentTurn = true;
+        }
         if (providerPromptStarted && !usageReportAttempted) {
           usageReportAttempted = true;
           await reportAcpTurnUsage(usageEventId, promptUsage);

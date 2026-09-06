@@ -8,7 +8,7 @@ import { CodeView } from '../CodeView';
 import { ToolSectionView } from './ToolSectionView';
 import { useElapsedTime } from '@/hooks/useElapsedTime';
 import { ToolError } from './ToolError';
-import { knownTools } from '@/components/tools/knownTools';
+import { getToolCategoryIcon, knownTools } from '@/components/tools/knownTools';
 import { Metadata } from '@/sync/storageTypes';
 import { useRouter } from 'expo-router';
 import { PermissionFooter } from './PermissionFooter';
@@ -19,6 +19,7 @@ import {
     formatToolDisplayValue,
     getToolActivityLabel,
     getToolDisplayTitle,
+    getToolSummaryCategory,
     getTerminalToolCommand,
     isToolIdentityCompatibleWithFlavor,
     resolveToolDisplayRuntimeState,
@@ -76,7 +77,8 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     let description: string | null = null;
     let status: string | null = null;
     let minimal = false;
-    let icon = <Ionicons name="construct-outline" size={18} color={theme.colors.textSecondary} />;
+    let icon = getToolCategoryIcon(getToolSummaryCategory(tool.name), 18, theme.colors.text)
+        ?? <Ionicons name="construct-outline" size={18} color={theme.colors.textSecondary} />;
     let noStatus = false;
     let hideDefaultError = false;
     
@@ -193,7 +195,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
         || minimal
         || isCompactTerminalTool;
     const activityLabel = getToolActivityLabel(tool);
-    const isInlineCodexPatch = Platform.OS === 'web' && tool.name === 'CodexPatch';
+    const isInlinePatch = tool.name === 'CodexPatch' || tool.name === 'GeminiPatch';
     const renderCardHeader = isCompactActivityTool || shouldRenderToolCardHeader(tool.name, Platform.OS);
     const renderPermissionFooter = () => (
         tool.permission && sessionId && tool.name !== 'AskUserQuestion'
@@ -245,7 +247,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
     };
 
     return (
-        <View style={isCompactActivityTool ? styles.compactContainer : isInlineCodexPatch ? styles.inlineContainer : styles.container}>
+        <View style={isCompactActivityTool ? styles.compactContainer : isInlinePatch ? styles.inlineContainer : styles.container}>
             {renderCardHeader ? (
                 isPressable ? (
                     <TouchableOpacity style={isCompactActivityTool ? styles.compactHeader : styles.header} onPress={handlePress} activeOpacity={0.8}>
@@ -277,7 +279,8 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
                                 metadata={props.metadata}
                                 messages={props.messages ?? []}
                                 sessionId={sessionId}
-                                permissionFooter={isInlineCodexPatch ? renderPermissionFooter() : undefined}
+                                messageId={messageId}
+                                permissionFooter={isInlinePatch ? renderPermissionFooter() : undefined}
                             />
                             {tool.state === 'error' && renderedError !== undefined &&
                                 !(tool.permission && (tool.permission.status === 'denied' || tool.permission.status === 'canceled')) &&
@@ -329,7 +332,7 @@ export const ToolView = React.memo<ToolViewProps>((props) => {
 
             {/* Permission footer - always renders when permission exists to maintain consistent height */}
             {/* AskUserQuestion has its own Submit button UI - no permission footer needed */}
-            {!isInlineCodexPatch ? renderPermissionFooter() : null}
+            {!isInlinePatch ? renderPermissionFooter() : null}
         </View>
     );
 });

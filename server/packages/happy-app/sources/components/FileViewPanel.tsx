@@ -12,6 +12,7 @@ import { Typography } from '@/constants/Typography';
 import { MarkdownView } from '@/components/markdown/MarkdownView';
 import type { MarkdownWorkspaceProvenance } from '@/components/markdown/MarkdownView.types';
 import { PierreDiffView } from '@/components/diff/PierreDiffView';
+import { DiffChunk } from '@/components/diff/DiffChunk';
 import { CanvasFileViewer } from '@/components/CanvasFileViewer';
 import {
     InlineCommentReview,
@@ -666,11 +667,11 @@ export const FileContentPanel = React.memo(function FileContentPanel({
                         style={{ flex: 1 }}
                         contentContainerStyle={{ maxWidth: layout.maxWidth, alignSelf: 'center', width: '100%' }}
                     >
-                        <PierreDiffView
-                            oldFile={{ name: fileName + ' (your changes)', contents: editContent }}
-                            newFile={{ name: fileName + ' (on device)', contents: externalChange.content }}
-                            diffStyle="unified"
-                            disableFileHeader={false}
+                        <DiffChunk
+                            fileName={filePath}
+                            oldText={editContent}
+                            newText={externalChange.content}
+                            collapseAfter={600}
                         />
                     </ScrollView>
                 </View>

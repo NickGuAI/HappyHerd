@@ -41,3 +41,14 @@ turn before child launch; it must not run under the preceding selection.
 
 The audit lacked a full app-to-daemon-to-child fixture and a live provider
 smoke. Cross-process resume is currently unsupported.
+
+### Agy Integration Note (2026-09-06)
+
+Derived from source-based metadata in shared `providerModels` and CLI `agy` constants. The active selection consists of four exact choices:
+
+1. Gemini 3.8 Flash
+2. Claude Sonnet 4.6 (Thinking)
+3. Claude Opus 4.6 (Thinking)
+4. GPT-OSS 120B (Medium)
+
+Default configuration: `Gemini 3.8 Flash` + `medium`. Gemini independent effort levels supported: low, medium, high. Other logical models do not support effort configurations. Legacy saved full names are preserved for provider-boundary compatibility but are not active picker rows. Agy is unavailable locally so live smoke testing is unproved.

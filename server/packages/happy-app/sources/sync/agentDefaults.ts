@@ -1,6 +1,8 @@
 import * as z from 'zod';
 import {
     HAPPYHERD_DEFAULT_CLAUDE_MODEL_SLUG,
+    HAPPYHERD_DEFAULT_AGY_MODEL,
+    HAPPYHERD_DEFAULT_AGY_EFFORT,
     normalizeHappyHerdClaudeModelSlug,
 } from '@slopus/happy-wire';
 import { HARNESS_ORDER } from '@/utils/harnessCatalog';
@@ -62,7 +64,7 @@ const codeAgentDefaults: Record<StoredAgentKey, AgentDefaultConfig> = {
     grok: emptyAgentDefaults,
     dsh: emptyAgentDefaults,
     gemini: { permissionMode: 'default', modelMode: 'gemini-2.5-pro', effortLevel: null },
-    agy: { permissionMode: 'default', modelMode: 'Gemini 3.1 Pro (High)', effortLevel: null },
+    agy: { permissionMode: 'default', modelMode: HAPPYHERD_DEFAULT_AGY_MODEL, effortLevel: HAPPYHERD_DEFAULT_AGY_EFFORT },
     // Rig publishes all three dimensions through the exact selected machine.
     // Empty values keep an offline settings read honest and cannot masquerade
     // as Claude defaults.

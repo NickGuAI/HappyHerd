@@ -1,5 +1,5 @@
 import type { AgentCapabilityCatalog, MachineMetadata, Metadata } from '@/sync/storageTypes';
-import { HAPPYHERD_AGY_MODEL_NAMES, HAPPYHERD_CLAUDE_MODEL_SLUGS } from '@slopus/happy-wire';
+import { HAPPYHERD_AGY_MODEL_NAMES, HAPPYHERD_AGY_EFFORTS, HAPPYHERD_DEFAULT_AGY_MODEL, HAPPYHERD_CLAUDE_MODEL_SLUGS, HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS } from '@slopus/happy-wire';
 import { hackModes } from '@/sync/modeHacks';
 import { sortPermissionModes } from '@/utils/permissionModeLabels';
 import { getCodeAgentDefaults } from '@/sync/agentDefaults';
@@ -37,6 +37,43 @@ export type ModelMode = ModeOption & {
     isDefault?: boolean;
     effortLevels?: EffortLevel[];
 };
+
+export type ModelModeProviderGroup = {
+    key: string;
+    title: string | null;
+    models: ModelMode[];
+};
+
+/**
+ * Group models without sorting them. Provider groups keep the order in which
+ * the backend first publishes each provider, and rows keep their wire order.
+ */
+export function groupModelModesByProvider(models: readonly ModelMode[]): ModelModeProviderGroup[] {
+    const groups = new Map<string, ModelModeProviderGroup>();
+    const unavailable: ModelMode[] = [];
+    for (const model of models) {
+        if (model.unavailable || model.disabled) {
+            unavailable.push(model);
+            continue;
+        }
+        const providerId = model.providerId?.trim() || null;
+        const key = providerId ?? '__models__';
+        let group = groups.get(key);
+        if (!group) {
+            group = {
+                key,
+                title: model.providerName?.trim() || providerId,
+                models: [],
+            };
+            groups.set(key, group);
+        }
+        group.models.push(model);
+    }
+    return [
+        ...groups.values(),
+        ...(unavailable.length > 0 ? [{ key: '__unavailable__', title: null, models: unavailable }] : []),
+    ];
+}
 
 export type EffortLevel = ModeOption;
 export type PermissionModeKey = string;
@@ -108,6 +145,27 @@ function includeUnavailableSelection<T extends ModeOption>(
     ];
 }
 
+function releaseModelDetails(flavor: AgentFlavor, modelKey: string): Partial<ModelMode> {
+    if (flavor === 'claude') {
+        return {
+            providerId: 'anthropic',
+            providerName: 'Anthropic',
+            ...(HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS[modelKey]
+                ? { contextWindow: HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS[modelKey] }
+                : {}),
+        };
+    }
+    if (flavor === 'codex') return { providerId: 'openai', providerName: 'OpenAI' };
+    if (flavor === 'agy') {
+        if (modelKey === HAPPYHERD_DEFAULT_AGY_MODEL) return { providerId: 'google', providerName: 'Google' };
+        if (modelKey === 'Claude Sonnet 4.6 (Thinking)' || modelKey === 'Claude Opus 4.6 (Thinking)') {
+            return { providerId: 'anthropic', providerName: 'Anthropic' };
+        }
+        if (modelKey === 'GPT-OSS 120B (Medium)') return { providerId: 'openai', providerName: 'OpenAI' };
+    }
+    return {};
+}
+
 export function getMachineAdvertisedModels(
     metadata: MachineMetadata | null | undefined,
     flavor: AgentFlavor,
@@ -124,6 +182,7 @@ export function getMachineAdvertisedModels(
             isDefault: effort.isDefault,
         }));
         return {
+            ...releaseModelDetails(flavor, model.code),
             key: model.code,
             name: model.value,
             description: model.description ?? null,
@@ -245,8 +304,9 @@ export function getGeminiPermissionModes(translate: Translate): PermissionMode[]
 // API, so they say exactly which model is meant.
 export function getClaudeModelModes(): ModelMode[] {
     return [
-        { key: 'default', name: 'provider default', description: null },
+        { key: 'default', name: 'provider default', description: null, ...releaseModelDetails('claude', 'default') },
         ...HAPPYHERD_CLAUDE_MODEL_SLUGS.map((slug) => ({
+            ...releaseModelDetails('claude', slug),
             key: slug,
             name: slug,
             description: null,
@@ -256,9 +316,9 @@ export function getClaudeModelModes(): ModelMode[] {
 
 export function getCodexModelModes(): ModelMode[] {
     return [
-        { key: 'gpt-5.6-sol', name: 'gpt-5.6 sol', description: null },
-        { key: 'gpt-5.6-terra', name: 'gpt-5.6 terra', description: null },
-        { key: 'gpt-5.6-luna', name: 'gpt-5.6 luna', description: null },
+        { key: 'gpt-5.6-sol', name: 'gpt-5.6 sol', description: null, ...releaseModelDetails('codex', 'gpt-5.6-sol') },
+        { key: 'gpt-5.6-terra', name: 'gpt-5.6 terra', description: null, ...releaseModelDetails('codex', 'gpt-5.6-terra') },
+        { key: 'gpt-5.6-luna', name: 'gpt-5.6 luna', description: null, ...releaseModelDetails('codex', 'gpt-5.6-luna') },
     ];
 }
 
@@ -269,7 +329,7 @@ export function includeConfiguredModel(
     translate: Translate,
 ): ModelMode[] {
     if (
-        flavor !== 'codex'
+        (flavor !== 'codex' && flavor !== 'agy')
         || !configuredModelKey
         || configuredModelKey === 'default'
         || models.some((model) => model.key === configuredModelKey)
@@ -364,11 +424,14 @@ export function getHardcodedPermissionModes(flavor: AgentFlavor, translate: Tran
     return [];
 }
 
-// Keys are the exact display names `agy --model` accepts (as printed by `agy models`).
+// Gemini effort is deliberately not encoded into separate model rows. Happy's
+// existing effort picker carries `low`/`medium`/`high` independently, and happy-cli
+// resolves the pair to the exact display name `agy --model` accepts.
 export function getAgyModelModes(): ModelMode[] {
     return HAPPYHERD_AGY_MODEL_NAMES.map((key) => ({
+        ...releaseModelDetails('agy', key),
         key,
-        name: key.toLowerCase(),
+        name: key,
         description: null,
     }));
 }
@@ -412,7 +475,7 @@ export function getAvailableModels(
         }));
         const current = getRigCurrentModel(metadata);
         if (current?.unavailable && !models.some((model) => model.key === current.key)) {
-            models.unshift({
+            models.push({
                 key: current.key,
                 name: current.name,
                 description: translateWithParams('uiCopy.valueUnavailable', { value1: current.providerName }),
@@ -431,7 +494,7 @@ export function getAvailableModels(
             const separator = locallySelectedKey.indexOf(':');
             const providerId = locallySelectedKey.slice(0, separator);
             const modelId = locallySelectedKey.slice(separator + 1);
-            models.unshift({
+            models.push({
                 key: locallySelectedKey,
                 name: modelId,
                 description: translateWithParams('uiCopy.valueUnavailable', { value1: providerId }),
@@ -558,12 +621,15 @@ function effortLevels(keys: readonly string[]): EffortLevel[] {
 // `off`: Claude's floor is `low`.
 const CLAUDE_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
 
-// Exactly what each model publishes in Codex's own registry, in its order
-// (codex-rs/models-manager/models.json, min client 0.144). This really is
-// per-model: sol and terra reach `ultra`, luna stops at `max`. `ultra` is
-// documented as maximum reasoning with automatic task delegation, so it is a
-// different kind of run rather than one more notch — but it is a level these
-// two models accept, so the picker offers it rather than deciding for you.
+// Antigravity exposes Gemini 3.8 Flash's three selectable thinking variants as
+// separate model display names. Happy presents them through its effort picker;
+// happy-cli performs the final model-name mapping at the provider boundary.
+const AGY_EFFORTS_BY_MODEL: Record<string, readonly string[]> = {
+    [HAPPYHERD_DEFAULT_AGY_MODEL]: HAPPYHERD_AGY_EFFORTS,
+};
+
+// Older/offline sessions retain the previously shipped Codex effort catalog.
+// Connected sessions use the exact machine's live model catalog below.
 const CODEX_EFFORTS_BY_MODEL: Record<string, readonly string[]> = {
     'gpt-5.6-sol': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
     'gpt-5.6-terra': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
@@ -573,6 +639,10 @@ const CODEX_EFFORTS_FALLBACK = ['low', 'medium', 'high', 'xhigh'] as const;
 
 export function getClaudeEffortLevels(): EffortLevel[] {
     return effortLevels(CLAUDE_EFFORTS);
+}
+
+export function getAgyEffortLevels(modelKey?: string | null): EffortLevel[] {
+    return effortLevels((modelKey ? AGY_EFFORTS_BY_MODEL[modelKey] : undefined) ?? []);
 }
 
 /**
@@ -589,6 +659,7 @@ export function getCodexEffortLevels(modelKey?: string | null): EffortLevel[] {
 export function getHardcodedEffortLevels(flavor: AgentFlavor): EffortLevel[] {
     if (flavor === 'claude') return getClaudeEffortLevels();
     if (flavor === 'codex') return getCodexEffortLevels();
+    if (flavor === 'agy') return getAgyEffortLevels(getDefaultModelKey('agy'));
     return [];
 }
 
@@ -622,6 +693,9 @@ export function getEffortLevelsForModel(
     }
     if (flavor === 'codex') {
         return getCodexEffortLevels(modelKey);
+    }
+    if (flavor === 'agy') {
+        return getAgyEffortLevels(modelKey);
     }
     return [];
 }

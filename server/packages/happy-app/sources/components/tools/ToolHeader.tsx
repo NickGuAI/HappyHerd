@@ -2,7 +2,8 @@ import * as React from 'react';
 import { Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ToolCall } from '@/sync/typesMessage';
-import { knownTools } from '@/components/tools/knownTools';
+import { getToolCategoryIcon, knownTools } from '@/components/tools/knownTools';
+import { getToolSummaryCategory } from '@/utils/toolDisplay';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { getToolDisplayTitle, isToolIdentityCompatibleWithFlavor } from '@/utils/toolDisplay';
 import { Metadata } from '@/sync/storageTypes';
@@ -38,7 +39,10 @@ export function ToolHeader({ tool, metadata = null }: ToolHeaderProps) {
         }
     }
 
-    const icon = knownTool?.icon ? knownTool.icon(18, theme.colors.header.tint) : <Ionicons name="construct-outline" size={18} color={theme.colors.header.tint} />;
+    const icon = knownTool?.icon
+        ? knownTool.icon(18, theme.colors.header.tint)
+        : (getToolCategoryIcon(getToolSummaryCategory(tool.name), 18, theme.colors.header.tint)
+            ?? <Ionicons name="construct-outline" size={18} color={theme.colors.header.tint} />);
 
     // Extract subtitle using the same logic as ToolView
     let subtitle = null;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     getAgyModelModes,
+    groupModelModesByProvider,
     getAgyPermissionModes,
     getAvailableModels,
     getAvailablePermissionModes,
@@ -34,6 +35,25 @@ import { rigMetadataFixture } from '@/sync/__testdata__/rigMetadata';
 const translate = (key: string) => `tr:${key}`;
 
 describe('modelModeOptions', () => {
+    it('groups providers in wire order and leaves unavailable rows after every active group', () => {
+        const a = { key: 'a', name: 'A', providerId: 'anthropic', providerName: 'Anthropic' };
+        const b = { key: 'b', name: 'B', providerId: 'openai', providerName: 'OpenAI' };
+        const saved = { ...a, key: 'old', disabled: true, unavailable: true };
+        const c = { ...a, key: 'c' };
+        expect(groupModelModesByProvider([saved, a, b, c])).toEqual([
+            { key: 'anthropic', title: 'Anthropic', models: [a, c] },
+            { key: 'openai', title: 'OpenAI', models: [b] },
+            { key: '__unavailable__', title: null, models: [saved] },
+        ]);
+    });
+
+    it('carries optional Fable 5.1 context without changing the Claude default', () => {
+        expect(getClaudeModelModes().find((model) => model.key === 'claude-fable-5-1'))
+            .toMatchObject({ contextWindow: 1_000_000, providerId: 'anthropic' });
+        expect(getDefaultModelKey('claude')).toBe('claude-opus-5');
+        expect(getCodexModelModes().some((model) => model.key === 'gpt-6-astra')).toBe(false);
+    });
+
     it('does not give Rig or unknown providers Claude static options', () => {
         expect(getHardcodedPermissionModes('rig', translate)).toEqual([]);
         expect(getHardcodedModelModes('rig', translate)).toEqual([]);
@@ -548,7 +568,7 @@ describe('modelModeOptions', () => {
         expect(keys).not.toContain('plan');
     });
 
-    it('only offers the curated codex harness models', () => {
+    it('only offers the curated codex harness models, most capable first', () => {
         const models = getCodexModelModes();
         expect(models.map((model) => model.key)).toEqual([
             'gpt-5.6-sol',
@@ -562,6 +582,7 @@ describe('modelModeOptions', () => {
         const models = getClaudeModelModes();
         expect(models.map((model) => model.key)).toEqual([
             'default',
+            'claude-fable-5-1',
             'claude-fable-5',
             'claude-opus-5',
             'claude-opus-5[1m]',
@@ -570,7 +591,7 @@ describe('modelModeOptions', () => {
             'claude-sonnet-5',
             'claude-haiku-4-5',
         ]);
-        expect(models.find((model) => model.key === 'claude-opus-4-6')).toEqual({
+        expect(models.find((model) => model.key === 'claude-opus-4-6')).toMatchObject({
             key: 'claude-opus-4-6',
             name: 'claude-opus-4-6',
             description: null,
@@ -597,9 +618,11 @@ describe('modelModeOptions', () => {
     });
 
     it('offers every codex model the levels its own registry publishes', () => {
-        // Straight from codex-rs/models-manager/models.json: sol and terra
-        // publish ultra, luna does not. The difference is the whole point of
-        // asking per model rather than per flavor.
+        // The retained offline catalog advertises sol and terra with
+        // ultra, luna does not. The difference is the whole point of asking
+        // per model rather than per flavor.
+        expect(getEffortLevelsForModel('codex', 'gpt-6-astra').map((level) => level.key))
+            .toEqual(['low', 'medium', 'high', 'xhigh']);
         expect(getEffortLevelsForModel('codex', 'gpt-5.6-sol').map((level) => level.key))
             .toEqual(['low', 'medium', 'high', 'xhigh', 'max', 'ultra']);
         expect(getEffortLevelsForModel('codex', 'gpt-5.6-terra').map((level) => level.key))
@@ -616,7 +639,7 @@ describe('modelModeOptions', () => {
     it('offers claude the SDK effort union for every model', () => {
         // Claude's scale belongs to the SDK, not the model: an unreachable level
         // is silently downgraded, so all three models get the same list.
-        for (const model of ['claude-fable-5', 'claude-opus-5', 'claude-opus-5[1m]', 'claude-sonnet-5']) {
+        for (const model of ['claude-fable-5-1', 'claude-fable-5', 'claude-opus-5', 'claude-opus-5[1m]', 'claude-sonnet-5']) {
             const keys = getEffortLevelsForModel('claude', model).map((level) => level.key);
             expect(keys).toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
             // Claude's floor is `low`; there is no off.
@@ -699,13 +722,26 @@ describe('modelModeOptions', () => {
         expect(models).toEqual(getAgyModelModes());
         const keys = models.map((m) => m.key);
         // the agentDefaults agy default must be selectable
-        expect(keys).toContain('Gemini 3.1 Pro (High)');
-        expect(getDefaultModelKey('agy')).toBe('Gemini 3.1 Pro (High)');
+        expect(keys).toContain('Gemini 3.8 Flash');
+        expect(getDefaultModelKey('agy')).toBe('Gemini 3.8 Flash');
+        expect(keys.filter((key) => key.startsWith('Gemini '))).toEqual(['Gemini 3.8 Flash']);
+        expect(getEffortLevelsForModel('agy', 'Gemini 3.8 Flash').map((level) => level.key))
+            .toEqual(['low', 'medium', 'high']);
         // no 'default' entry — agy would receive the literal string "default" as --model
         expect(keys).not.toContain('default');
         // not the claude list
         expect(keys).not.toContain('opus');
         expect(keys).not.toContain('sonnet');
+    });
+
+    it('shows a saved legacy agy model as an unavailable recovery value', () => {
+        const models = getAvailableModels('agy', null, translate, 'Gemini 3.6 Flash (High)');
+
+        expect(models.map((model) => model.key)).toEqual([
+            ...getAgyModelModes().map((model) => model.key),
+            'Gemini 3.6 Flash (High)',
+        ]);
+        expect(models.at(-1)).toMatchObject({ description: 'tr:modelMode.savedModelUnavailableDaemon', unavailable: true, disabled: true });
     });
 
     it('resolves the first matching preferred key', () => {
@@ -744,7 +780,7 @@ describe('modelModeOptions', () => {
             currentModelCode: 'temporarily-missing',
         };
         const models = getAvailableModels('codex', metadata, translate);
-        expect(models[0]).toMatchObject({
+        expect(models.at(-1)).toMatchObject({
             key: 'custom-provider:temporarily-missing',
             unavailable: true,
             disabled: true,

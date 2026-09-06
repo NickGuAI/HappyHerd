@@ -31,7 +31,7 @@ import { MessageBuffer } from '@/ui/ink/messageBuffer';
 import { AgyDisplay } from '@/ui/ink/AgyDisplay';
 import type { AgentMessage } from '@/agent/core';
 import { AgyBackend } from './AgyBackend';
-import { DEFAULT_AGY_MODEL } from './constants';
+import { DEFAULT_AGY_MODEL, normalizeAgyEffort, resolveAgyModelName } from './constants';
 import {
   buildAgyLaunchMetadata,
   hashAgyTurnMode,
@@ -45,6 +45,7 @@ export interface RunAgyOptions {
   startedBy?: 'daemon' | 'terminal';
   verbose?: boolean;
   model?: string;
+  effort?: string;
   permissionMode?: AgyPermissionMode;
 }
 
@@ -72,8 +73,11 @@ export async function runAgy(opts: RunAgyOptions): Promise<void> {
   });
 
   let selectedPermissionMode = opts.permissionMode ?? 'default';
-  let displayedModel = opts.model ?? DEFAULT_AGY_MODEL;
-  const launchMetadata = buildAgyLaunchMetadata(selectedPermissionMode, displayedModel);
+  let selectedModel = opts.model ?? DEFAULT_AGY_MODEL;
+  let selectedEffort: string | undefined = selectedModel === DEFAULT_AGY_MODEL
+    ? normalizeAgyEffort(opts.effort)
+    : undefined;
+  const launchMetadata = buildAgyLaunchMetadata(selectedPermissionMode, selectedModel, selectedEffort ?? null);
 
   const { state, metadata } = createSessionMetadata({
     flavor: 'agy',
@@ -91,9 +95,14 @@ export async function runAgy(opts: RunAgyOptions): Promise<void> {
     throw new Error('Antigravity requires a concrete model');
   }
   selectedPermissionMode = effectiveLaunchSettings.permission;
-  displayedModel = effectiveLaunchSettings.model;
+  selectedModel = effectiveLaunchSettings.model;
+  selectedEffort = selectedModel === DEFAULT_AGY_MODEL
+    ? normalizeAgyEffort(effectiveLaunchSettings.effort)
+    : undefined;
+  let displayedModel = resolveAgyModelName(selectedModel, selectedEffort);
   metadata.permissionMode = selectedPermissionMode;
-  metadata.modelMode = displayedModel;
+  metadata.modelMode = selectedModel;
+  metadata.effortLevel = selectedEffort ?? null;
   const reconnect = await loadOrCreateHappySession({ api, sessionTag, metadata, state });
   const response = reconnect.response;
   if (response) {
@@ -144,11 +153,13 @@ export async function runAgy(opts: RunAgyOptions): Promise<void> {
   let shouldExit = false;
   let abortController = new AbortController();
   let thinking = false;
+  let errorReportedForCurrentTurn = false;
 
   const backend = new AgyBackend({
     cwd: process.cwd(),
     permissionMode: selectedPermissionMode,
-    model: displayedModel,
+    model: selectedModel,
+    effort: selectedEffort,
     log,
   });
 
@@ -181,7 +192,17 @@ export async function runAgy(opts: RunAgyOptions): Promise<void> {
       }
     }
 
-    sendEnvelopes(sessionManager.mapMessage(msg));
+    const envelopes = sessionManager.mapMessage(msg);
+    sendEnvelopes(envelopes);
+    if (msg.type === 'status' && msg.status === 'error' && envelopes.length === 0) {
+      session.sendSessionEvent({
+        type: 'message',
+        message: `Antigravity error: ${(msg.detail?.trim() || 'The agent stopped because of an unknown error.').slice(-2_000)}`,
+      });
+    }
+    if (msg.type === 'status' && msg.status === 'error') {
+      errorReportedForCurrentTurn = true;
+    }
   };
 
   backend.onMessage(onBackendMessage);
@@ -225,9 +246,20 @@ export async function runAgy(opts: RunAgyOptions): Promise<void> {
       return;
     }
     selectedPermissionMode = permission.permissionMode;
+    let selectionChanged = false;
     if (message.meta?.hasOwnProperty('model') && message.meta.model) {
-      backend.setModel(message.meta.model);
-      displayedModel = message.meta.model;
+      selectedModel = message.meta.model;
+      selectionChanged = true;
+    }
+    if (message.meta?.hasOwnProperty('effort')) {
+      selectedEffort = normalizeAgyEffort(message.meta.effort);
+      selectionChanged = true;
+    }
+    if (selectionChanged) {
+      selectedEffort = selectedModel === DEFAULT_AGY_MODEL
+        ? normalizeAgyEffort(selectedEffort)
+        : undefined;
+      displayedModel = resolveAgyModelName(selectedModel, selectedEffort);
       if (hasTTY) {
         messageBuffer.addMessage(`[MODEL:${displayedModel}]`, 'system');
       }
@@ -236,7 +268,8 @@ export async function runAgy(opts: RunAgyOptions): Promise<void> {
     messageBuffer.addMessage(message.content.text, 'user');
     messageQueue.push(message.content.text, {
       permissionMode: selectedPermissionMode,
-      model: displayedModel,
+      model: selectedModel,
+      effort: selectedEffort,
     }, undefined, message.localKey);
   });
   session.keepAlive(thinking, 'remote');
@@ -280,16 +313,22 @@ export async function runAgy(opts: RunAgyOptions): Promise<void> {
 
       log(`Incoming prompt: ${batch.message.slice(0, 200)}`);
       messageQueue.markBatchStarted(batch.queueMessageIds);
+      errorReportedForCurrentTurn = false;
       sendEnvelopes(sessionManager.startTurn());
       try {
         // Apply the immutable settings captured with this batch. Later remote
         // picks may already be queued but cannot change this child process.
         backend.setPermissionMode(batch.mode.permissionMode);
         backend.setModel(batch.mode.model);
+        backend.setEffort(batch.mode.effort);
         await backend.sendPrompt(process.cwd(), batch.message);
         sendEnvelopes(sessionManager.endTurn('completed'));
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
+        if (!errorReportedForCurrentTurn) {
+          session.sendSessionEvent({ type: 'message', message: `Antigravity error: ${msg.slice(-2_000)}` });
+          errorReportedForCurrentTurn = true;
+        }
         log(`Turn ended: ${msg}`);
         sendEnvelopes(sessionManager.endTurn('failed'));
       } finally {

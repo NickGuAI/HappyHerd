@@ -705,7 +705,14 @@
         }
       }
     },
-    "workedFor": "工作了 {duration}"
+    "workedFor": "工作了 {duration}",
+    "hide": "隐藏",
+    "ran": "执行了",
+    "edited": "编辑了",
+    "read": "读取了",
+    "searchedAction": "搜索了",
+    "fetched": "获取了",
+    "ranTask": "执行了任务"
   },
   "tools": {
     "fullView": {
@@ -1757,5 +1764,16 @@
     "valueRunning": "{value1} 个运行中",
     "inProgressAndPending": "{value1} 个进行中 · {value2} 个待处理",
     "thisDevice": "此设备"
+  },
+  "diff": {
+    "showMoreLines": "显示另外 {count} 行",
+    "tapToExpand": "{count} 处变更 — 轻触展开",
+    "ignoreWhitespace": "忽略空白",
+    "imageBefore": "之前",
+    "imageAfter": "之后",
+    "unchangedLines": "{count} 行未变更",
+    "noChanges": "无变更",
+    "binaryFile": "二进制文件未显示",
+    "renamed": "已重命名"
   }
 }

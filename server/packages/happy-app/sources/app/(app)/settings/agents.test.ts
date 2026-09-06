@@ -374,7 +374,7 @@ describe('Agent Defaults provider coverage', () => {
         ]);
     });
 
-    it('revalidates a stale custom Codex override and offers only exact-machine models', () => {
+    it('keeps a stale Codex override disabled after exact-machine model choices', () => {
         mocks.machines = [{
             id: 'selected-machine',
             metadata: {
@@ -414,7 +414,11 @@ describe('Agent Defaults provider coverage', () => {
         expect(modelField?.props.detail).toBe('Default (Machine Codex)');
         act(() => modelField!.props.onPress());
         expect(groupItems(renderer, 'Codex').map((item: any) => item.props.title)).toContain('Machine Codex');
-        expect(groupItems(renderer, 'Codex').map((item: any) => item.props.title)).not.toContain('my-workspace-model');
+        const codexItems = groupItems(renderer, 'Codex');
+        const unavailable = codexItems.find((item: any) => item.props.title === 'my-workspace-model');
+        expect(unavailable?.props.disabled).toBe(true);
+        expect(unavailable?.props.onPress).toBeUndefined();
+        expect(codexItems.indexOf(unavailable)).toBeGreaterThan(codexItems.findIndex((item: any) => item.props.title === 'Machine Codex'));
         expect(groupItems(renderer, 'Codex').map((item: any) => item.props.title)).not.toContain('agentDefaults.customModel');
         expect(mocks.setOverrides).not.toHaveBeenCalled();
     });

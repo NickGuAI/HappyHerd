@@ -2,6 +2,7 @@ import * as React from 'react';
 import { createRoot } from 'react-dom/client';
 import { SessionView } from '@/-session/SessionView';
 import NewSessionScreen from '@/app/(app)/new/index';
+import AgentDefaultsSettingsScreen from '@/app/(app)/settings/agents';
 import { FlatSessionRow } from '@/components/FlatSessionRow';
 import { HomeDock } from '@/components/HomeDock';
 import { ProviderContinuationLinks } from '@/components/ProviderContinuationLinks';
@@ -91,7 +92,11 @@ const fixtureOptions = (globalThis as any).__HAPPYHERD_FIXTURE_OPTIONS__ ?? {};
 
 createRoot(document.getElementById('root')!).render(
     <>
-        {fixtureOptions.homeDock ? (
+        {fixtureOptions.agentSettings ? (
+            <div data-testid="agent-settings" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <AgentDefaultsSettingsScreen />
+            </div>
+        ) : fixtureOptions.homeDock ? (
             <HomeDockFixture />
         ) : fixtureOptions.newSession ? (
             <div data-testid="full-new-session" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>

@@ -4,6 +4,22 @@ import { rigMetadataFixture } from './__testdata__/rigMetadata';
 import { resolveAgentDefaultEffortLevel } from './agentDefaults';
 
 describe('resolveMessageModeMeta', () => {
+    it('sends Antigravity logical model and independent default effort', () => {
+        expect(resolveMessageModeMeta({
+            permissionMode: null, modelMode: null, effortLevel: null,
+            metadata: { flavor: 'agy' },
+        } as any)).toEqual({ permissionMode: 'default', model: 'Gemini 3.8 Flash', effort: 'medium' });
+    });
+
+    it('preserves saved Antigravity model receipt and omits unsupported effort', () => {
+        expect(resolveMessageModeMeta({
+            permissionMode: null, modelMode: null, effortLevel: null,
+            metadata: { flavor: 'agy', spawnSettings: {
+                provider: 'agy', model: 'Gemini 3.6 Flash (High)', permission: 'default', effort: null,
+            } },
+        } as any, undefined, { availableEfforts: [] })).toEqual({ permissionMode: 'default', model: 'Gemini 3.6 Flash (High)' });
+    });
+
     it('reasserts the displayed codex defaults after abort clears session overrides', () => {
         const meta = resolveMessageModeMeta({
             permissionMode: null,

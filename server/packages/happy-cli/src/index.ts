@@ -454,6 +454,7 @@ Conversation history is preserved on the server, but in-flight tool calls are in
       let startedBy: 'daemon' | 'terminal' | undefined = undefined;
       let verbose = false;
       let model: string | undefined;
+      let effort: string | undefined;
       let permissionMode: AgyPermissionMode | undefined;
       for (let i = 1; i < args.length; i++) {
         if (args[i] === '--started-by') {
@@ -462,6 +463,8 @@ Conversation history is preserved on the server, but in-flight tool calls are in
           verbose = true;
         } else if (args[i] === '--model') {
           model = args[++i];
+        } else if (args[i] === '--effort') {
+          effort = z.enum(['low', 'medium', 'high']).parse(args[++i]);
         } else if (args[i] === '--permission-mode') {
           permissionMode = parseAgyPermissionMode(args[++i]);
         }
@@ -475,6 +478,7 @@ Conversation history is preserved on the server, but in-flight tool calls are in
         startedBy,
         verbose,
         model,
+        effort,
         permissionMode,
       });
     } catch (error) {

@@ -19,6 +19,7 @@ describe('Antigravity turn modes', () => {
       },
       permissionMode: 'bypassPermissions',
       modelMode: 'Gemini 3.1 Pro (High)',
+      effortLevel: null,
     });
   });
 
@@ -35,6 +36,14 @@ describe('Antigravity turn modes', () => {
       message: 'bypass second',
       mode: { permissionMode: 'bypassPermissions', model: 'model-b' },
     });
+  });
+
+  it('keeps independent efforts in separate immutable FIFO batches', async () => {
+    const queue = new MessageQueue2<AgyTurnMode>(hashAgyTurnMode);
+    queue.push('low', { permissionMode: 'default', model: 'Gemini 3.8 Flash', effort: 'low' });
+    queue.push('high', { permissionMode: 'default', model: 'Gemini 3.8 Flash', effort: 'high' });
+    await expect(queue.waitForMessagesAndGetAsString()).resolves.toMatchObject({ message: 'low', mode: { effort: 'low' } });
+    await expect(queue.waitForMessagesAndGetAsString()).resolves.toMatchObject({ message: 'high', mode: { effort: 'high' } });
   });
 
   it('still batches consecutive prompts with identical child settings', async () => {

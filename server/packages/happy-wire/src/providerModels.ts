@@ -6,6 +6,7 @@
  * UI labels and launch values cannot drift or be inferred from CLI help prose.
  */
 export const HAPPYHERD_CLAUDE_MODEL_SLUGS = [
+    'claude-fable-5-1',
     'claude-fable-5',
     'claude-opus-5',
     'claude-opus-5[1m]',
@@ -17,20 +18,23 @@ export const HAPPYHERD_CLAUDE_MODEL_SLUGS = [
 
 export const HAPPYHERD_DEFAULT_CLAUDE_MODEL_SLUG = 'claude-opus-5';
 
-/** Exact display names accepted by `agy --model`, as printed by `agy models`. */
+/** Release-owned provider metadata; selectable membership still comes from the exact machine. */
+export const HAPPYHERD_CLAUDE_MODEL_CONTEXT_WINDOWS: Readonly<Record<string, number>> = {
+    'claude-fable-5-1': 1_000_000,
+    'claude-opus-5[1m]': 1_000_000,
+};
+
+/** Logical Antigravity choices; the adapter resolves Gemini's independent effort. */
 export const HAPPYHERD_AGY_MODEL_NAMES = [
-    'Gemini 3.6 Flash (Medium)',
-    'Gemini 3.6 Flash (High)',
-    'Gemini 3.6 Flash (Low)',
-    'Gemini 3.5 Flash (Medium)',
-    'Gemini 3.5 Flash (High)',
-    'Gemini 3.5 Flash (Low)',
-    'Gemini 3.1 Pro (Low)',
-    'Gemini 3.1 Pro (High)',
+    'Gemini 3.8 Flash',
     'Claude Sonnet 4.6 (Thinking)',
     'Claude Opus 4.6 (Thinking)',
     'GPT-OSS 120B (Medium)',
 ] as const;
+
+export const HAPPYHERD_DEFAULT_AGY_MODEL = 'Gemini 3.8 Flash';
+export const HAPPYHERD_AGY_EFFORTS = ['low', 'medium', 'high'] as const;
+export const HAPPYHERD_DEFAULT_AGY_EFFORT = 'medium';
 
 const LEGACY_CLAUDE_MODEL_ALIASES: Readonly<Record<string, string>> = {
     fable: 'claude-fable-5',

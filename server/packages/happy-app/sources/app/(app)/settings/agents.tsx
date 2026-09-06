@@ -6,6 +6,7 @@ import { ItemGroup } from '@/components/ItemGroup';
 import { ItemList } from '@/components/ItemList';
 import {
     getAdvertisedDefaultOptionKey,
+    groupModelModesByProvider,
     getEffortLevelsForModel,
     getHardcodedModelModes,
     getHardcodedPermissionModes,
@@ -105,12 +106,14 @@ export default function AgentDefaultsSettingsScreen() {
         subtitle: string | undefined,
         selected: boolean,
         value: string | null,
+        disabled = false,
     ) => (
         <Item
             key={`${agent}-${field}-${value ?? 'default'}`}
             title={title}
             subtitle={subtitle}
-            onPress={() => updateOverride(agent, field, value)}
+            disabled={disabled}
+            onPress={disabled ? undefined : () => updateOverride(agent, field, value)}
             showChevron={false}
             rightElement={selected ? (
                 <Ionicons name="checkmark" size={20} color={theme.colors.header.tint} />
@@ -123,7 +126,7 @@ export default function AgentDefaultsSettingsScreen() {
         const hasOverride = hasAgentDefaultOverride(agentDefaultOverrides, agent, config.field);
         const isExpanded = expanded?.agent === agent && expanded.field === config.field;
         const hasSupportedOverride = hasOverride
-            && config.options.some((option) => option.key === overrideValue);
+            && config.options.some((option) => option.key === overrideValue && !option.disabled && !option.unavailable);
         const detail = hasSupportedOverride
             ? optionName(config.options, overrideValue)
             : `Default (${optionName(config.options, config.effectiveValue)})`;
@@ -147,13 +150,22 @@ export default function AgentDefaultsSettingsScreen() {
                             !hasSupportedOverride,
                             null,
                         )}
-                        {config.options.map((option) => renderOption(
-                            agent,
-                            config.field,
-                            option.name,
-                            option.description ?? undefined,
-                            hasSupportedOverride && overrideValue === option.key,
-                            option.key,
+                        {(config.field === 'modelMode'
+                            ? groupModelModesByProvider(config.options)
+                            : [{ key: config.field, title: null, models: config.options }]
+                        ).map((group) => (
+                            <React.Fragment key={group.key}>
+                                {group.title && <Item title={group.title} showChevron={false} />}
+                                {group.models.map((option) => renderOption(
+                                    agent,
+                                    config.field,
+                                    option.name,
+                                    option.description ?? undefined,
+                                    hasSupportedOverride && overrideValue === option.key,
+                                    option.key,
+                                    option.disabled || option.unavailable,
+                                ))}
+                            </React.Fragment>
                         ))}
                     </>
                 )}
@@ -251,7 +263,7 @@ export default function AgentDefaultsSettingsScreen() {
                 ]?.key ?? null;
                 const machineModels: ModeOption[] = rigCreation?.models
                     ?? (machineCatalog
-                        ? getMachineAdvertisedModels(selectedMachine?.metadata, agent, t)
+                        ? getMachineAdvertisedModels(selectedMachine?.metadata, agent, t, configuredDefaults.modelMode)
                         : getHardcodedModelModes(agent, t));
                 const modelOptions = catalogOwned
                     ? machineModels

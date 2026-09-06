@@ -170,6 +170,15 @@ export type TranslationKey =
     | "connectButton.authenticate"
     | "connectButton.authenticateWithUrlPaste"
     | "connectButton.pasteAuthUrl"
+    | "diff.binaryFile"
+    | "diff.ignoreWhitespace"
+    | "diff.imageAfter"
+    | "diff.imageBefore"
+    | "diff.noChanges"
+    | "diff.renamed"
+    | "diff.showMoreLines"
+    | "diff.tapToExpand"
+    | "diff.unchangedLines"
     | "errors.authenticationFailed"
     | "errors.connectServiceFailed"
     | "errors.connectionTimeout"
@@ -997,13 +1006,20 @@ export type TranslationKey =
     | "time.hoursAgo"
     | "time.justNow"
     | "time.minutesAgo"
+    | "toolGroup.edited"
     | "toolGroup.editedFile"
     | "toolGroup.editedFiles"
+    | "toolGroup.fetched"
     | "toolGroup.fetchedUrls"
+    | "toolGroup.hide"
+    | "toolGroup.ran"
     | "toolGroup.ranCommands"
+    | "toolGroup.ranTask"
     | "toolGroup.ranTasks"
+    | "toolGroup.read"
     | "toolGroup.readFiles"
     | "toolGroup.searched"
+    | "toolGroup.searchedAction"
     | "toolGroup.usedTools"
     | "toolGroup.workedFor"
     | "toolView.input"
@@ -1420,6 +1436,9 @@ export interface TranslationParamsByKey {
     "components.sessionStatusBar.limitAsOf": { age: string };
     "components.sessionStatusBar.limitRemaining": { percent: number };
     "components.sessionStatusBar.limitResets": { time: string };
+    "diff.showMoreLines": { count: number };
+    "diff.tapToExpand": { count: number };
+    "diff.unchangedLines": { count: number };
     "errors.connectServiceFailed": { service: string };
     "errors.disconnectServiceFailed": { service: string };
     "errors.errorWithCode": { code: string | number; message: string };

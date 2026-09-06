@@ -190,6 +190,28 @@ describe('ApiMachineClient socket reconnection', () => {
         client.shutdown();
     });
 
+    it('republishes the running CLI version without dropping stored machine fields', () => {
+        vi.useFakeTimers();
+        mockSocket.emitWithAck.mockImplementation(() => new Promise(() => {}));
+        const machine = makeMachine();
+        const storedMetadata = { ...machine.metadata!, happyCliVersion: '1.0.0', displayName: 'My Mac' };
+        machine.metadata = storedMetadata;
+        const client = new ApiMachineClient('fake-token', machine);
+        const publications: Machine['metadata'][] = [];
+        vi.spyOn(client, 'updateMachineMetadata').mockImplementation(async (handler) => {
+            publications.push(handler(storedMetadata));
+        });
+        client.connect();
+        emitSocketEvent('connect');
+
+        expect(publications).toContainEqual(expect.objectContaining({
+            displayName: 'My Mac',
+            happyCliVersion: 'test',
+            cliAvailability: expect.objectContaining({ claude: false, codex: false }),
+        }));
+        client.shutdown();
+    });
+
     it('adds machine-scoped file deletion when a new daemon connects to old metadata', async () => {
         const machine = makeMachine();
         machine.metadata = {

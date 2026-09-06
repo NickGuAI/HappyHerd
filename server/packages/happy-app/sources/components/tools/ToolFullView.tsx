@@ -3,7 +3,9 @@ import { Text, View, ScrollView, Platform, useWindowDimensions } from 'react-nat
 import { Ionicons } from '@expo/vector-icons';
 import { ToolCall, Message } from '@/sync/typesMessage';
 import { CodeView } from '../CodeView';
+import { CommandView } from '../CommandView';
 import { Metadata } from '@/sync/storageTypes';
+import { getTerminalToolCommand } from '@/utils/toolDisplay';
 import { getToolFullViewComponent } from './views/_all';
 import { layout } from '../layout';
 import { useLocalSetting } from '@/sync/storage';
@@ -16,22 +18,35 @@ interface ToolFullViewProps {
     metadata?: Metadata | null;
     messages?: Message[];
     sessionId?: string;
+    /** Show only this file, for when the user tapped one diff out of many. */
+    focusFile?: string;
 }
 
-export function ToolFullView({ tool, metadata, messages = [], sessionId }: ToolFullViewProps) {
+export function ToolFullView({ tool, metadata, messages = [], sessionId, focusFile }: ToolFullViewProps) {
     // Check if there's a specialized content view for this tool
     const SpecializedFullView = getToolFullViewComponent(tool.name);
     const screenWidth = useWindowDimensions().width;
     const devModeEnabled = (useLocalSetting('devModeEnabled') || __DEV__);
     const renderedError = tool.error ?? tool.result;
-    console.log('ToolFullView', devModeEnabled);
+
+    // Provider shell tools retain their terminal rendering in the full view.
+    const terminalCommand = SpecializedFullView ? null : getTerminalToolCommand(tool);
 
     return (
         <ScrollView style={[styles.container, { paddingHorizontal: screenWidth > 700 ? 16 : 0 }]}>
             <View style={styles.contentWrapper}>
                 {/* Tool-specific content or generic fallback */}
                 {SpecializedFullView ? (
-                    <SpecializedFullView tool={tool} metadata={metadata || null} messages={messages} sessionId={sessionId} />
+                    <SpecializedFullView tool={tool} metadata={metadata || null} messages={messages} sessionId={sessionId} focusFile={focusFile} />
+                ) : terminalCommand !== null ? (
+                    <View style={styles.sectionFullWidth}>
+                        <CommandView
+                            command={terminalCommand}
+                            stdout={tool.result !== undefined ? formatToolDisplayValue(tool.result) : null}
+                            error={tool.state === 'error' && renderedError !== undefined ? formatToolDisplayValue(renderedError) : null}
+                            fullWidth
+                        />
+                    </View>
                 ) : (
                     <>
                     {/* Generic fallback for tools without specialized views */}
