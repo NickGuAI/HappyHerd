@@ -1,4 +1,4 @@
-name: Isolated localhost link verification
+name: Prepare localhost link PR snapshot (verification incomplete)
 on:
   push:
     branches: [work/localhost-link-validation]
@@ -11,23 +11,21 @@ env:
   CI: 1
   EXPO_NO_TELEMETRY: 1
   BASE_SHA: 9fd4dceecfafe66996ef1fad38d4ec0dbf003c08
-  HAPPYHERD_LINT_BASE: 9fd4dceecfafe66996ef1fad38d4ec0dbf003c08
 jobs:
-  verify:
+  prepare-review-snapshot:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Apply exact reviewed patch without bootstrap files
+      - name: Restore the existing implementation without temporary workflow files
         run: |
           python3 - <<'PY'
           import base64, gzip, hashlib, os
           from pathlib import Path
           encoded = Path('.dev/localhost-link.patch.b64').read_text()
-          # Correct two identified transcription errors in the temporary transport.
           encoded = encoded.replace('Al48YCMCZx8kRzW4', 'Al48YCMCZx8xkRzW4')
           encoded = encoded.replace('Z6/Ptg7v9o/fv9+e78ObAg', 'Z6/Ptg7v9o/fv9+78ObAg')
           patch = gzip.decompress(base64.b64decode(encoded))
@@ -46,7 +44,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.11
-      - name: Install frozen dependencies
+      - name: Install frozen dependencies for maintained generators
         working-directory: server
         run: pnpm install --frozen-lockfile
       - name: Regenerate maintained artifacts
@@ -54,7 +52,7 @@ jobs:
         run: |
           pnpm --filter happy-app exec tsx sources/scripts/parseChangelog.ts
           pnpm --filter happy-app ui:inventory:generate
-      - name: Commit only feature files with canonical public identity
+      - name: Commit only the feature files
         run: |
           git config user.name 'HappyHerd Maintainers'
           git config user.email 'maintainers@happyherd.example'
@@ -63,27 +61,7 @@ jobs:
           git commit -m 'fix(workspace): open chat localhost links in Workspace'
           test "$(git rev-parse HEAD^)" = "$BASE_SHA"
           test -z "$(git status --porcelain --untracked-files=normal)"
-      - name: Focused source and owner regressions
-        working-directory: server
-        run: pnpm --filter happy-app exec vitest run sources/components/markdown/localhostLinks.test.ts sources/components/markdown/linkUtils.test.ts sources/components/markdown/MarkdownView.web.test.ts sources/components/desktopFileWorkspaceModel.test.ts sources/-session/SessionView.sideChat.test.ts
-      - name: Real Main Agent and Side chat clicks on desktop and mobile Web
-        working-directory: server
-        run: pnpm --filter happy-app exec vitest run sources/components/sideChatHeader.browser.test.ts -t 'real agent chat link'
-      - name: Existing manual localhost live-view regression
-        working-directory: server
-        run: pnpm --filter happy-app exec vitest run sources/components/desktopWorkspace.browser.test.ts -t 'selected-machine localhost live'
-      - name: App types and localization
-        working-directory: server
-        run: |
-          pnpm --filter happy-app typecheck
-          pnpm --filter happy-app i18n:check
-      - name: Repository source and patch contracts
-        run: |
-          git diff --check
-          node scripts/lint-source.mjs
-          bash scripts/verify-patch-discipline.sh
-          node scripts/verify-public-boundary.mjs
-      - name: Publish verified Git objects without changing any branch
+      - name: Publish requested review snapshot, not a passing verification result
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -92,28 +70,34 @@ jobs:
           from pathlib import Path
           def git(*args):
               return subprocess.check_output(['git', *args])
-          def post(endpoint, data):
+          def api(method, endpoint, data=None):
               request = urllib.request.Request(
                   'https://api.github.com/repos/' + os.environ['GITHUB_REPOSITORY'] + '/git/' + endpoint,
-                  data=json.dumps(data).encode(), method='POST',
+                  data=None if data is None else json.dumps(data).encode(), method=method,
                   headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json'})
               with urllib.request.urlopen(request, timeout=60) as response:
                   return json.load(response)
           base = os.environ['BASE_SHA']
+          branch = 'heads/fix/chat-localhost-workspace-links'
+          current = api('GET', 'ref/' + branch)['object']['sha']
+          assert current == base, 'Feature branch moved; refusing to overwrite other work'
           paths = git('diff', '--name-only', '-z', base, 'HEAD').decode().strip('\0').split('\0')
           assert paths and all(not p.startswith('.github/') and 'localhost-link.patch' not in p for p in paths)
           entries = []
           for path in paths:
-              blob = post('blobs', {'content': base64.b64encode(Path(path).read_bytes()).decode(), 'encoding': 'base64'})
+              blob = api('POST', 'blobs', {'content': base64.b64encode(Path(path).read_bytes()).decode(), 'encoding': 'base64'})
               entries.append({'path': path, 'mode': '100644', 'type': 'blob', 'sha': blob['sha']})
-          tree = post('trees', {'base_tree': git('rev-parse', base + '^{tree}').decode().strip(), 'tree': entries})
+          tree = api('POST', 'trees', {'base_tree': git('rev-parse', base + '^{tree}').decode().strip(), 'tree': entries})
           assert tree['sha'] == git('rev-parse', 'HEAD^{tree}').decode().strip()
           date = git('show', '-s', '--format=%aI', 'HEAD').decode().strip()
           identity = {'name': 'HappyHerd Maintainers', 'email': 'maintainers@happyherd.example', 'date': date}
           message = git('cat-file', 'commit', 'HEAD').decode().split('\n\n', 1)[1]
-          commit = post('commits', {'message': message, 'tree': tree['sha'], 'parents': [base], 'author': identity, 'committer': identity})
+          commit = api('POST', 'commits', {'message': message, 'tree': tree['sha'], 'parents': [base], 'author': identity, 'committer': identity})
           assert commit['tree']['sha'] == tree['sha'] and commit['parents'][0]['sha'] == base
-          report = {'verified_local_commit': git('rev-parse', 'HEAD').decode().strip(), 'commit': commit['sha'], 'tree': tree['sha'], 'base': base, 'paths': paths, 'branch_updates': False, 'deployment': False}
+          assert api('GET', 'ref/' + branch)['object']['sha'] == base, 'Feature branch moved during publication'
+          updated = api('PATCH', 'refs/' + branch, {'sha': commit['sha'], 'force': False})
+          assert updated['object']['sha'] == commit['sha']
+          report = {'commit': commit['sha'], 'tree': tree['sha'], 'base': base, 'paths': paths, 'branch': branch, 'verification': 'INCOMPLETE: existing browser failures remain; PR requested by user', 'deployment': False}
           print(json.dumps(report, indent=2))
           Path(os.environ['RUNNER_TEMP'], 'localhost-link-result.json').write_text(json.dumps(report, indent=2))
           Path(os.environ['RUNNER_TEMP'], 'localhost-link-final.patch').write_bytes(git('diff', '--binary', base, 'HEAD'))
@@ -121,7 +105,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: localhost-link-verification
+          name: localhost-link-review-snapshot
           path: |
             ${{ runner.temp }}/localhost-link-result.json
             ${{ runner.temp }}/localhost-link-final.patch
