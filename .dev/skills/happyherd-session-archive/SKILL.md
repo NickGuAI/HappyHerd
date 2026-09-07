@@ -16,22 +16,20 @@ stated preferences without depending on one vendor's history surface.
 
 Adapted from grapeot's ai_session_export and AI Session Search & Archive
 workflow. Upstream repos (already cloned, upstream-synced):
-`~/App/external-projects/grapeot-repos/ai_session_export` and
-`~/App/external-projects/grapeot-repos/semantic-search-skill`.
+the exporter and semantic-search clones named in the private overlay.
 
-## Machine parameters (MainEC2)
+## Machine parameters
 
-| Item | Value |
-|---|---|
-| Archive root | `/mnt/ebs-data/data/happyherd/ai-sessions/` (0700; regenerable machine data — deliberately outside `~/.happyherd` so AI-state never mirrors it into Git) |
-| State file | `<archive root>/.export_state.json` |
-| Semantic cache | `<archive root>/.semantic-cache/` |
-| Python | `"$(uv python find 3.12)"` (exporter is stdlib-only) |
-| Sources on this host | `claude_code/`, `codex/`, `dsh/`, `opencode/` |
-| Not exported | Gemini CLI and Grok (no upstream adapter yet), Cursor (data lives on the laptop), `~/.happyherd/credential-pools/**` (owner decision pending) |
+Host-specific values — the archive root, state file, semantic cache directory,
+exporter clone locations, per-source coverage, and provider retention notes —
+live in a PRIVATE overlay outside this public repository:
 
-Claude Code prunes local transcripts after ~7 weeks; the archive is the
-retention layer. Codex history is deep (2025-11 onward).
+`$HAPPY_HOME_DIR/agentcontext/rules/skills/session-archive.local.md`
+
+Read the overlay first; every `<archive root>`, `<exporter dir>`, and
+`<semantic-search dir>` placeholder below resolves from it. Do not add
+host paths, hostnames, or coverage details to this public file.
+
 
 ## Export (incremental)
 
@@ -42,12 +40,12 @@ session rewrites one stable file as it grows; a resumed session may add a
 when counting).
 
 ```bash
-cd ~/App/external-projects/grapeot-repos/ai_session_export
+cd "<exporter dir>"
 PY="$(uv python find 3.12)"
 for src in opencode dsh claude-code codex; do
   nice -n 10 ionice -c3 "$PY" export_sessions.py --source "$src" \
-    --base-dir /mnt/ebs-data/data/happyherd/ai-sessions \
-    --state-file /mnt/ebs-data/data/happyherd/ai-sessions/.export_state.json
+    --base-dir "<archive root>" \
+    --state-file "<archive root>/.export_state.json"
 done
 ```
 
@@ -70,7 +68,7 @@ wording into variants; a truncated result is not proof of absence.
 
 ```bash
 rg -i -n --glob '*.md' 'phrase|variant one|variant two' \
-  /mnt/ebs-data/data/happyherd/ai-sessions/{claude_code,codex,dsh,opencode}/
+  "<archive root>"/{claude_code,codex,dsh,opencode}/
 ```
 
 When the user names a source, search only that directory; otherwise all four.
@@ -83,16 +81,16 @@ index refresh is the automation's job.
 
 ```bash
 FILELIST="$(mktemp)"; trap 'rm -f "$FILELIST"' EXIT
-rg --files /mnt/ebs-data/data/happyherd/ai-sessions/{claude_code,codex,dsh,opencode}/ -g '*.md' > "$FILELIST"
-~/App/external-projects/grapeot-repos/semantic-search-skill/.venv/bin/semantic-search query \
+rg --files "<archive root>"/{claude_code,codex,dsh,opencode}/ -g '*.md' > "$FILELIST"
+"<semantic-search dir>"/.venv/bin/semantic-search query \
   --file-list "$FILELIST" \
-  --cache-dir /mnt/ebs-data/data/happyherd/ai-sessions/.semantic-cache \
+  --cache-dir "<archive root>/.semantic-cache" \
   --query 'the remembered concept' --top-k 10 --no-refresh
 ```
 
-Setup (once) and full contract: `semantic-search-skill/skills/skill_semantic_search.md`.
-`OPENAI_API_KEY` comes from `~/App/.ai-env` at runtime; never write it to disk
-or output.
+Setup (once) and full contract: the semantic-search clone's `skills/skill_semantic_search.md`.
+`OPENAI_API_KEY` comes from the credentials file named in the private overlay;
+never write it to disk or output.
 
 ### Result contract
 
