@@ -672,6 +672,33 @@ class InventoryTests(unittest.TestCase):
 
 
 class DiscoveryAndCommandTests(unittest.TestCase):
+    def test_default_command_prefers_installed_public_happyherd(self) -> None:
+        with mock.patch.dict(os.environ, {}, clear=True), mock.patch.object(
+            memory_reflector.shutil, "which", return_value="/usr/local/bin/happyherd"
+        ) as which:
+            self.assertEqual(
+                memory_reflector.default_happy_command(), ["/usr/local/bin/happyherd"]
+            )
+            which.assert_called_once_with("happyherd")
+
+    def test_explicit_command_override_keeps_precedence(self) -> None:
+        with mock.patch.dict(
+            os.environ, {"HAPPY_CLI_BIN": "/test/bin/owner-selected-cli"}, clear=True
+        ), mock.patch.object(memory_reflector.shutil, "which") as which:
+            self.assertEqual(
+                memory_reflector.default_happy_command(), ["/test/bin/owner-selected-cli"]
+            )
+            which.assert_not_called()
+
+    def test_missing_installed_command_keeps_internal_source_entrypoint(self) -> None:
+        with mock.patch.dict(os.environ, {}, clear=True), mock.patch.object(
+            memory_reflector.shutil, "which", return_value=None
+        ), mock.patch.object(memory_reflector.Path, "home", return_value=Path("/test/home")):
+            self.assertEqual(
+                memory_reflector.default_happy_command(),
+                ["node", "/test/home/App/apps/happyherd/server/packages/happy-cli/bin/happy.mjs"],
+            )
+
     def test_roster_comes_from_supported_happy_cli_and_is_sorted(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             home = Path(temporary) / ".happyherd"
